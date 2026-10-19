@@ -394,6 +394,10 @@ async fn get_tasks_by_election_event_id_returns_the_event_tasks_of_the_tenant() 
     task_row(&tx, &w.tenant, Some(&w.event), &w.id(11)).await;
     task_row(&tx, &w.tenant, Some(&w.other_event), &w.id(12)).await;
     task_row(&tx, &w.tenant, None, &w.id(13)).await;
+    // Historical receipt tasks contain the voter and generated receipt link;
+    // they must never be included in the administrative task export.
+    task_row(&tx, &w.tenant, Some(&w.event), &w.id(15)).await;
+    tx.execute("UPDATE sequent_backend.tasks_execution SET type = 'CREATE_BALLOT_RECEIPT' WHERE id = $1::text::uuid", &[&w.id(15)]).await.unwrap();
     // No foreign key ties a task's event to its tenant.
     task_row(&tx, &w.other_tenant, Some(&w.event), &w.id(14)).await;
 
@@ -2762,5 +2766,49 @@ async fn render_report_task_fails_on_an_invalid_template_before_writing_a_docume
         .to_string()
         .starts_with("Failed to parse template Template error: invalid handlebars syntax"));
     assert_eq!(documents_named(&tx, &name).await, 0);
+    tx.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn receipt_document_classification_cannot_be_changed_to_expose_it() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let w = World::new(&tx, ids!()).await;
+    for (id, name, annotations) in [
+        (
+            w.id(10),
+            "receipt.pdf",
+            serde_json::json!({"purpose":"ballot-receipt"}),
+        ),
+        (w.id(11), "ballot_receipt_legacy.pdf", serde_json::json!({})),
+    ] {
+        tx.execute("INSERT INTO sequent_backend.document (id,tenant_id,election_event_id,name,annotations,is_public) VALUES ($1::text::uuid,$2::text::uuid,$3::text::uuid,$4,$5,false)", &[&id,&w.tenant,&w.event,&name,&annotations]).await.unwrap();
+        for assignment in [
+            "name='ordinary.pdf'",
+            "annotations='{\"purpose\":\"ordinary\"}'::jsonb",
+            "is_public=true",
+        ] {
+            tx.batch_execute("SAVEPOINT receipt_update").await.unwrap();
+            let error = tx
+                .execute(
+                    &format!(
+                        "UPDATE sequent_backend.document SET {assignment} WHERE id=$1::text::uuid"
+                    ),
+                    &[&id],
+                )
+                .await
+                .unwrap_err();
+            assert_eq!(
+                error.as_db_error().unwrap().message(),
+                "Receipt document classification is immutable"
+            );
+            tx.batch_execute("ROLLBACK TO SAVEPOINT receipt_update")
+                .await
+                .unwrap();
+        }
+    }
+    let ordinary = w.id(12);
+    tx.execute("INSERT INTO sequent_backend.document (id,tenant_id,election_event_id) VALUES ($1::text::uuid,$2::text::uuid,$3::text::uuid)", &[&ordinary,&w.tenant,&w.event]).await.unwrap();
+    assert_eq!(tx.execute("UPDATE sequent_backend.document SET name='ordinary.pdf',is_public=true WHERE id=$1::text::uuid", &[&ordinary]).await.unwrap(),1);
     tx.rollback().await.unwrap();
 }

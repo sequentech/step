@@ -78,6 +78,7 @@ use crate::tasks::publish_electoral_log_checkpoint::{
 };
 use crate::tasks::publish_results_website::publish_results_website_task;
 use crate::tasks::purge_queue_archives::purge_queue_archives;
+use crate::tasks::purge_vote_privacy::purge_vote_privacy;
 use crate::tasks::recompute_schedule_instants::recompute_schedule_instants;
 use crate::tasks::reconcile_messages::reconcile_messages;
 use crate::tasks::recount_messaging_voters::{
@@ -370,6 +371,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             apply_reconciliation_patch,
             generate_voter_information_letter,
             migrate_realm_permissions,
+            purge_vote_privacy,
             post_signing_log_outbox,
             post_audit_log_outbox,
             migrate_tenant_logs,
@@ -469,6 +471,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             apply_reconciliation_patch::NAME => Queue::ImportExport.queue_name(),
             generate_voter_information_letter::NAME => Queue::Reports.queue_name(),
             migrate_realm_permissions::NAME => Queue::Short.queue_name(),
+            purge_vote_privacy::NAME => Queue::Short.queue_name(),
             migrate_registration_flows::NAME => Queue::Short.queue_name(),
             migrate_messaging_attributes::NAME => Queue::Short.queue_name(),
             post_signing_log_outbox::NAME => Queue::ElectoralLogBeat.queue_name(),

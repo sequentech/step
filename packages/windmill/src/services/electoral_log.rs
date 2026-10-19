@@ -1285,7 +1285,7 @@ impl ElectoralLog {
         self.post(&message).await
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip_all)]
     pub async fn post_keycloak_event(
         &self,
         event_id: String,
@@ -1295,7 +1295,9 @@ impl ElectoralLog {
         username: Option<String>,
     ) -> Result<()> {
         let event = EventIdString(event_id);
-        let error_message = ErrorMessageString(error_message);
+        let error_message = ErrorMessageString(crate::services::privacy_signin::safe_error_text(
+            &error_message,
+        ));
         let event_type = KeycloakEventTypeString(event_type);
         let message = Message::keycloak_user_event(
             event,
@@ -1677,7 +1679,9 @@ impl ElectoralLog {
         area_id: Option<String>,
     ) -> Result<ElectoralLogMessage> {
         let event = EventIdString(event_id);
-        let error_message = ErrorMessageString(error_message);
+        let error_message = ErrorMessageString(crate::services::privacy_signin::safe_error_text(
+            &error_message,
+        ));
         let event_type = KeycloakEventTypeString(event_type);
         let message = &Message::keycloak_user_event(
             event,

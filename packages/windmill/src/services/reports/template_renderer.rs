@@ -50,7 +50,7 @@ use sequent_core::services::keycloak::{self, get_event_realm, KeycloakAdminClien
 use sequent_core::services::reports::template_time_variables;
 use sequent_core::services::{pdf, reports};
 use sequent_core::signing::SigningAction;
-use sequent_core::types::hasura::core::{DocumentAnnotations, TasksExecution};
+use sequent_core::types::hasura::core::{DocumentAnnotations, DocumentPurpose, TasksExecution};
 use sequent_core::types::hasura::extra::TasksExecutionStatus;
 use sequent_core::types::templates::{
     CommunicationTemplatesExtraConfig, EmailConfig, PrintToPdfOptionsLocal, ReportExtraConfig,
@@ -1086,6 +1086,10 @@ pub trait TemplateRenderer: Debug {
         } else {
             DocumentAnnotations::default()
         };
+
+        if self.get_report_type() == ReportType::BALLOT_RECEIPT {
+            annotations.purpose = Some(DocumentPurpose::BallotReceipt);
+        }
 
         // A report whose action needs signatures gets its signature page,
         // and is kept as a signing document only.

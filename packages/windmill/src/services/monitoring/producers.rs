@@ -56,6 +56,8 @@ pub struct VoterRow {
     pub dims: BTreeMap<String, String>,
     pub pre_enrolled_at: Option<DateTime<Utc>>,
     pub first_voted_at: Option<DateTime<Utc>>,
+    /// Timestamp-free private participation state.
+    pub has_voted: bool,
     pub enrollment: Option<Enrollment>,
     pub enrollment_reason: Option<String>,
     pub enrollment_decided_at: Option<DateTime<Utc>>,
@@ -266,6 +268,7 @@ fn row_scopes(row: &VoterRow) -> Vec<String> {
 
 /// What one voter counts as over some of their rows.
 struct Facts<'r> {
+    has_voted: bool,
     pre_enrolled_at: Option<DateTime<Utc>>,
     first_voted_at: Option<DateTime<Utc>>,
     dims: &'r BTreeMap<String, String>,
@@ -278,6 +281,9 @@ struct Facts<'r> {
 fn facts_of<'r>(rows: &[&'r VoterRow]) -> Facts<'r> {
     let first = rows[0];
     Facts {
+        has_voted: rows
+            .iter()
+            .any(|row| row.has_voted || row.first_voted_at.is_some()),
         pre_enrolled_at: rows.iter().filter_map(|row| row.pre_enrolled_at).min(),
         first_voted_at: rows.iter().filter_map(|row| row.first_voted_at).min(),
         dims: &first.dims,
@@ -310,10 +316,10 @@ fn voter_counts(
             [
                 (Measure::Registered, 1),
                 (Measure::PreEnrolled, one(facts.pre_enrolled_at.is_some())),
-                (Measure::Voted, one(facts.first_voted_at.is_some())),
+                (Measure::Voted, one(facts.has_voted)),
                 (
                     Measure::VotedPreEnrolled,
-                    one(facts.pre_enrolled_at.is_some() && facts.first_voted_at.is_some()),
+                    one(facts.pre_enrolled_at.is_some() && facts.has_voted),
                 ),
             ]
             .into()
@@ -355,7 +361,7 @@ fn voter_counts(
             events.extend(facts.first_voted_at.map(|at| (Measure::Voted, at)));
             [
                 (Measure::Approved, one(accepted)),
-                (Measure::Voted, one(facts.first_voted_at.is_some())),
+                (Measure::Voted, one(facts.has_voted)),
             ]
             .into()
         }

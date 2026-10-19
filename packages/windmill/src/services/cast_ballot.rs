@@ -85,7 +85,7 @@ fn receipt_statement(
 }
 
 /// The receipt the ballot box signed when it stored the cast, if it did.
-fn stored_receipt(received: &ReceivedBallot) -> Option<CastReceipt> {
+pub(crate) fn stored_receipt(received: &ReceivedBallot) -> Option<CastReceipt> {
     match (
         &received.cast_at,
         &received.cast_signature,
@@ -181,7 +181,7 @@ async fn cast_output(
 
 /// Finds the ballot the voter asks to cast and checks the request against it.
 /// Another voter's Ballot ID is not found, as an unknown one.
-#[instrument(skip_all, err)]
+#[instrument(skip_all)]
 pub async fn find_received_cast(
     store: &PostgresStore,
     election_event_id: &str,
@@ -267,10 +267,18 @@ pub fn sign_receipt(
 /// ballot cast with the receipt the ballot box signs for it, in one write. A
 /// received ballot that no longer waits to be cast is refused as audited,
 /// already cast or not received.
-#[instrument(skip_all, err)]
+#[instrument(skip_all)]
 pub(crate) async fn accept_received_cast(
     accept: &AcceptBallot<'_>,
     received_cast: &ReceivedCast,
+) -> Result<(AcceptOutcome, DateTime<Utc>, CastReceipt), CastVoteError> {
+    accept_received_cast_with_network(accept, received_cast, None).await
+}
+
+pub(crate) async fn accept_received_cast_with_network(
+    accept: &AcceptBallot<'_>,
+    received_cast: &ReceivedCast,
+    network: Option<(&str, Option<&str>, Option<&str>)>,
 ) -> Result<(AcceptOutcome, DateTime<Utc>, CastReceipt), CastVoteError> {
     let (cast_at, receipt) = sign_receipt(received_cast)?;
     let received = &received_cast.received_ballot;
@@ -283,18 +291,38 @@ pub(crate) async fn accept_received_cast(
         .store(accept.election_event_id)
         .await
         .map_err(store_error)?;
-    let outcome = store
-        .accept_received_ballot(
-            accept,
-            &AcceptReceived {
-                ballot_id: &received.ballot_id,
-                cast_at,
-                cast_signature: &received_cast.cast_signature,
-                cast_receipt_signature: &receipt.cast_receipt_signature,
-            },
-        )
-        .await
-        .map_err(store_error)?;
+    let accepted = AcceptReceived {
+        ballot_id: &received.ballot_id,
+        cast_at,
+        cast_signature: &received_cast.cast_signature,
+        cast_receipt_signature: &receipt.cast_receipt_signature,
+    };
+    let delivery_id = format!("cast:{}:{}", received.election_event_id, received.ballot_id);
+    let outcome = match network {
+        Some((ip, country, user_agent)) => {
+            store
+                .accept_received_ballot_with_forensics(
+                    accept,
+                    &accepted,
+                    &electoral_log::adapters::privacy::ForensicNetworkRecord {
+                        election_event_id: accept.election_event_id,
+                        election_id: Some(accept.election_id),
+                        area_id: Some(accept.area_id),
+                        event_kind: "cast",
+                        delivery_id: &delivery_id,
+                        pseudonym: accept.voter_id,
+                        ballot_id: Some(&received.ballot_id),
+                        ip,
+                        country,
+                        user_agent,
+                        recorded_at: cast_at,
+                    },
+                )
+                .await
+        }
+        None => store.accept_received_ballot(accept, &accepted).await,
+    }
+    .map_err(store_error)?;
     if outcome != AcceptOutcome::NotReceivable {
         return Ok((outcome, cast_at, receipt));
     }
@@ -316,7 +344,7 @@ pub(crate) async fn accept_received_cast(
 
 /// The receipt of a received ballot another request already cast with the
 /// same Cast signature; `None` when it was cast with another one.
-#[instrument(skip_all, err)]
+#[instrument(skip_all)]
 pub(crate) async fn stored_cast(
     received_cast: &ReceivedCast,
 ) -> Result<Option<CastBallotOutput>, CastVoteError> {
@@ -342,7 +370,7 @@ pub(crate) async fn stored_cast(
     }
 }
 
-#[instrument(skip_all, err)]
+#[instrument(skip_all)]
 pub(crate) async fn prepare_received_cast(
     hasura_transaction: &Transaction<'_>,
     election_event: &ElectionEvent,
@@ -368,7 +396,7 @@ pub(crate) async fn prepare_received_cast(
     Ok(PreparedCast::ToCast(input, received_cast))
 }
 
-#[instrument(skip(input), err)]
+#[instrument(skip_all)]
 pub async fn try_cast_ballot(
     input: CastBallotInput,
     tenant_id: &str,
@@ -380,6 +408,34 @@ pub async fn try_cast_ballot(
     voter_country: &Option<String>,
     username: &Option<String>,
 ) -> Result<CastBallotResult, CastVoteError> {
+    try_cast_ballot_with_network(
+        input,
+        tenant_id,
+        voter_id,
+        area_id,
+        voting_channel,
+        auth_time,
+        voter_ip,
+        voter_country,
+        username,
+        &None,
+    )
+    .await
+}
+
+#[instrument(skip_all)]
+pub async fn try_cast_ballot_with_network(
+    input: CastBallotInput,
+    tenant_id: &str,
+    voter_id: &str,
+    area_id: &str,
+    voting_channel: VotingStatusChannel,
+    auth_time: &Option<i64>,
+    voter_ip: &Option<String>,
+    voter_country: &Option<String>,
+    username: &Option<String>,
+    user_agent: &Option<String>,
+) -> Result<CastBallotResult, CastVoteError> {
     let outcome = try_cast(
         CastRequest::Received(input),
         tenant_id,
@@ -390,6 +446,7 @@ pub async fn try_cast_ballot(
         voter_ip,
         voter_country,
         username,
+        user_agent,
     )
     .await?;
     let no_receipt =

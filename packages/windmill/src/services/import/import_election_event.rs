@@ -882,7 +882,7 @@ pub async fn insert_election_event_db(
         return Ok(());
     }
 
-    let new_election_input = ElectionEvent {
+    let mut new_election_input = ElectionEvent {
         id: election_event_id.clone(),
         tenant_id: object.tenant_id.clone(),
         description: object.description.clone(),
@@ -910,6 +910,7 @@ pub async fn insert_election_event_db(
         external_id: None,
     };
 
+    crate::services::vote_privacy::configure_new_event(&mut new_election_input)?;
     insert_election_event(&hasura_transaction, &new_election_input).await?;
     Ok(())
 }

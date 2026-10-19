@@ -23,7 +23,8 @@ use crate::services::join::merge_join_csv;
 use crate::services::join::read_ballot_voter_ids;
 use crate::services::join::{MergeJoinResult, MultiplicitySource};
 use crate::services::users::{
-    list_keycloak_enabled_users_by_area_id_and_authorized_elections, VoterMultiplicityColumn,
+    census_voters_from_ballot_identities, list_keycloak_enabled_users_with_identity,
+    CensusIdentity, VoterMultiplicityColumn,
 };
 use crate::services::weight_batches::weight_batch_offsets;
 use anyhow::{anyhow, Context, Result};
@@ -217,6 +218,9 @@ pub async fn extract_tally_boards(
     }
 
     let realm = get_event_realm(tenant_id, election_event_id);
+    let event_row =
+        get_election_event_by_id(hasura_transaction, tenant_id, election_event_id).await?;
+    let identity_mode = crate::services::vote_privacy::identity_mode(&event_row)?;
 
     let event_elections =
         get_election_event_elections(hasura_transaction, tenant_id, election_event_id).await?;
@@ -381,6 +385,27 @@ pub async fn extract_tally_boards(
                                 multiplicity_column,
                                 &ballots_temp_file.reopen()?,
                             )?;
+                            let store = crate::services::electoral_log_board::get_event_store(
+                                &election_event_id_clone,
+                            )
+                            .await?;
+                            let voters_with_valid_ballot = census_voters_from_ballot_identities(
+                                &store,
+                                &election_event_id_clone,
+                                &voters_with_valid_ballot,
+                            )
+                            .await?;
+                            let census_identity = match identity_mode {
+                                sequent_core::types::vote_privacy::BallotIdentity::Pseudonym => {
+                                    CensusIdentity::Pseudonym {
+                                        store: &store,
+                                        event: &election_event_id_clone,
+                                    }
+                                }
+                                sequent_core::types::vote_privacy::BallotIdentity::VoterId => {
+                                    CensusIdentity::VoterId
+                                }
+                            };
 
                             let ballots_temp_file = ballots_temp_file.reopen()?;
 
@@ -402,7 +427,7 @@ pub async fn extract_tally_boards(
                             }
                             .to_string();
 
-                            list_keycloak_enabled_users_by_area_id_and_authorized_elections(
+                            list_keycloak_enabled_users_with_identity(
                                 &keycloak_transaction_clone,
                                 &realm_clone,
                                 &tally_session_contest.area_id,
@@ -410,6 +435,7 @@ pub async fn extract_tally_boards(
                                 &users_temp_file.path().to_path_buf(),
                                 multiplicity_column,
                                 &voters_with_valid_ballot,
+                                census_identity,
                             )
                             .await?;
 

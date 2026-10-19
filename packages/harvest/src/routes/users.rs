@@ -1244,6 +1244,51 @@ pub async fn create_user(
             keycloak_user_error(error, "Error creating user in Keycloak")
         })?;
 
+    if let (Some(event_id), Some(voter_id)) =
+        (input.election_event_id.as_deref(), user.id.as_deref())
+    {
+        let mut privacy_client =
+            windmill::services::database::get_hasura_pool()
+                .await
+                .get()
+                .await
+                .map_err(|_| {
+                    ErrorResponse::new(
+                        Status::InternalServerError,
+                        "Privacy registration unavailable",
+                        ErrorCode::InternalServerError,
+                    )
+                })?;
+        let privacy_tx = privacy_client.transaction().await.map_err(|_| {
+            ErrorResponse::new(
+                Status::InternalServerError,
+                "Privacy registration unavailable",
+                ErrorCode::InternalServerError,
+            )
+        })?;
+        windmill::services::vote_privacy::allocate_added_voter(
+            &privacy_tx,
+            &input.tenant_id,
+            event_id,
+            voter_id,
+        )
+        .await
+        .map_err(|_| {
+            ErrorResponse::new(
+                Status::InternalServerError,
+                "Privacy registration unavailable",
+                ErrorCode::InternalServerError,
+            )
+        })?;
+        privacy_tx.commit().await.map_err(|_| {
+            ErrorResponse::new(
+                Status::InternalServerError,
+                "Privacy registration unavailable",
+                ErrorCode::InternalServerError,
+            )
+        })?;
+    }
+
     match (user.id.clone(), &input.user_roles_ids) {
         (Some(id), Some(user_roles_ids)) => {
             let res: Vec<_> = user_roles_ids

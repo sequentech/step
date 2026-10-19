@@ -10,6 +10,7 @@ use crate::services::database::PgConfig;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use electoral_log::adapters::ballot_box_status::VoterBallotState;
+use electoral_log::adapters::postgres::PostgresStore;
 use futures::TryStreamExt;
 use keycloak::types::GroupRepresentation;
 use keycloak::KeycloakError;
@@ -491,10 +492,13 @@ pub async fn census_edit_refusal(
         .id
         .as_deref()
         .ok_or_else(|| anyhow!("The voter has no id"))?;
-    let store = get_event_ballot_box(hasura_transaction, tenant_id, election_event_id)
-        .await?
-        .store;
-    let state = store.voter_ballot_state(election_event_id, user_id).await?;
+    let state = crate::services::ballot_box::get_voter_ballot_state(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        user_id,
+    )
+    .await?;
     if let Some(reason) = census_change_refusal(&state, &changed) {
         return Ok(Some(reason));
     }
@@ -502,9 +506,13 @@ pub async fn census_edit_refusal(
     let realm = get_event_realm(tenant_id, election_event_id);
     for delegate in reweighted_delegates(current, attributes) {
         for delegate_id in get_users_by_username(keycloak_transaction, &realm, &delegate).await? {
-            let state = store
-                .voter_ballot_state(election_event_id, &delegate_id)
-                .await?;
+            let state = crate::services::ballot_box::get_voter_ballot_state(
+                hasura_transaction,
+                tenant_id,
+                election_event_id,
+                &delegate_id,
+            )
+            .await?;
             if state.has_active_vote() {
                 return Ok(Some(format!(
                     "Cannot change {} while the delegate {delegate} has cast a ballot",
@@ -516,6 +524,19 @@ pub async fn census_edit_refusal(
     Ok(None)
 }
 
+fn census_group_membership(alias: &str, group: Option<&str>) -> String {
+    group
+        .map(|group| {
+            format!(
+                "AND EXISTS (SELECT 1 FROM user_group_membership gm JOIN keycloak_group g \
+         ON g.id = gm.group_id AND g.realm_id = {alias}.realm_id \
+         WHERE gm.user_id = {alias}.id AND g.name = '{}')",
+                escape_sql_literal(group),
+            )
+        })
+        .unwrap_or_default()
+}
+
 /// The extra column of the voters CSV, if any.
 ///
 /// At most one extra column is emitted, always at index 1. Both variants are
@@ -525,12 +546,14 @@ fn multiplicity_select(
     multiplicity_column: VoterMultiplicityColumn,
     area_id_escaped: &str,
     election_alias_escaped: &str,
+    voter_group: Option<&str>,
 ) -> String {
     match multiplicity_column {
         VoterMultiplicityColumn::DelegateCount => {
             // A delegator must be a voter of this realm, area and election who
             // names only this delegate and has no valid ballot of their own.
             let no_service_account_delegators = service_account_exclusion("delegator");
+            let delegator_group = census_group_membership("delegator", voter_group);
             format!(
                 r#"
             ,(
@@ -546,7 +569,7 @@ fn multiplicity_select(
                     user_attribute AS ua_delegator_elections ON delegator.id = ua_delegator_elections.user_id AND ua_delegator_elections.name = '{AUTHORIZED_ELECTION_IDS_NAME}'
                 WHERE
                     delegator.realm_id = u.realm_id AND
-                    {no_service_account_delegators} AND
+                    {no_service_account_delegators} {delegator_group} AND
                     delegator.enabled IS TRUE AND
                     ua_delegate.name = '{DELEGATE_TO_ATTR_NAME}' AND
                     ua_delegate.value = u.username AND
@@ -605,6 +628,95 @@ pub async fn list_keycloak_enabled_users_by_area_id_and_authorized_elections(
     multiplicity_column: VoterMultiplicityColumn,
     voters_with_valid_ballot: &[String],
 ) -> Result<()> {
+    list_keycloak_enabled_users_with_identity(
+        keycloak_transaction,
+        realm,
+        area_id,
+        election_alias,
+        output_file,
+        multiplicity_column,
+        voters_with_valid_ballot,
+        CensusIdentity::VoterId,
+    )
+    .await
+}
+
+/// Keycloak's delegation lookup needs real IDs in its transaction-local table.
+/// This conversion is internal only; ballot files keep their public pseudonyms.
+pub async fn census_voters_from_ballot_identities(
+    store: &PostgresStore,
+    event: &str,
+    identities: &[String],
+) -> Result<Vec<String>> {
+    if store.ballot_identity(event).await?
+        != electoral_log::adapters::privacy::BallotIdentity::Pseudonym
+    {
+        return Ok(identities.to_vec());
+    }
+    let mut voters = Vec::with_capacity(identities.len());
+    for batch in identities.chunks(5_000) {
+        let mapping = store.voters_for_pseudonyms(event, batch).await?;
+        for identity in batch {
+            voters.push(
+                mapping
+                    .get(identity)
+                    .cloned()
+                    .context("The tally identity mapping is unavailable")?,
+            );
+        }
+    }
+    Ok(voters)
+}
+
+/// Identity column of a census artifact. Privacy mode writes only pseudonyms;
+/// the real census identities are transformed in memory before a file is made.
+pub enum CensusIdentity<'a> {
+    VoterId,
+    Pseudonym {
+        store: &'a PostgresStore,
+        event: &'a str,
+    },
+}
+
+#[derive(Debug, PartialEq, Eq)]
+struct CensusRow {
+    identity: String,
+    multiplicity: Option<i64>,
+}
+
+fn pseudonymous_census_rows(
+    rows: Vec<CensusRow>,
+    mapping: &HashMap<String, String>,
+) -> Result<Vec<CensusRow>> {
+    let mut mapped = rows
+        .into_iter()
+        .map(|row| {
+            Ok(CensusRow {
+                identity: mapping
+                    .get(&row.identity)
+                    .cloned()
+                    .context("The eligible census is missing privacy registrations")?,
+                multiplicity: row.multiplicity,
+            })
+        })
+        .collect::<Result<Vec<_>>>()?;
+    // The merge join requires lexical order of the actual identity column.
+    mapped.sort_unstable_by(|left, right| left.identity.cmp(&right.identity));
+    Ok(mapped)
+}
+
+#[allow(clippy::too_many_arguments)]
+#[instrument(skip_all, err)]
+pub async fn list_keycloak_enabled_users_with_identity(
+    keycloak_transaction: &Transaction<'_>,
+    realm: &str,
+    area_id: &str,
+    election_alias: &str,
+    output_file: &PathBuf,
+    multiplicity_column: VoterMultiplicityColumn,
+    voters_with_valid_ballot: &[String],
+    identity: CensusIdentity<'_>,
+) -> Result<()> {
     // COPY does not support parameters so we have to add them using format.
     // Validate area_id as v4 UUID before interpolating into SQL.
     parse_uuid_v4(area_id)?;
@@ -612,10 +724,19 @@ pub async fn list_keycloak_enabled_users_by_area_id_and_authorized_elections(
     let area_id_escaped = escape_sql_literal(area_id);
     let election_alias_escaped = escape_sql_literal(election_alias);
 
+    let group_name = if matches!(&identity, CensusIdentity::Pseudonym { .. }) {
+        Some(
+            env::var("KEYCLOAK_VOTER_GROUP_NAME")
+                .context("KEYCLOAK_VOTER_GROUP_NAME is required for the private census")?,
+        )
+    } else {
+        None
+    };
     let multiplicity_statement = multiplicity_select(
         multiplicity_column,
         &area_id_escaped,
         &election_alias_escaped,
+        group_name.as_deref(),
     );
 
     if multiplicity_column == VoterMultiplicityColumn::DelegateCount {
@@ -640,6 +761,7 @@ pub async fn list_keycloak_enabled_users_by_area_id_and_authorized_elections(
     }
 
     let no_service_accounts = service_account_exclusion("u");
+    let voter_group = census_group_membership("u", group_name.as_deref());
 
     let statement = format!(
         r#"
@@ -656,7 +778,7 @@ pub async fn list_keycloak_enabled_users_by_area_id_and_authorized_elections(
             user_attribute ua_elections ON u.id = ua_elections.user_id AND ua_elections.name = '{AUTHORIZED_ELECTION_IDS_NAME}'
         WHERE
             ra.name = '{realm_escaped}' AND
-            {no_service_accounts} AND
+            {no_service_accounts} {voter_group} AND
             u.enabled IS TRUE AND
             ua_area.value = '{area_id_escaped}' AND
             (ua_elections.value = '{election_alias_escaped}' OR ua_elections.value IS NULL)
@@ -667,9 +789,46 @@ pub async fn list_keycloak_enabled_users_by_area_id_and_authorized_elections(
     "#
     );
 
+    if let CensusIdentity::Pseudonym { store, event } = identity {
+        let rows = keycloak_transaction.query(&statement, &[]).await?;
+        let rows = rows
+            .into_iter()
+            .map(|row| {
+                Ok(CensusRow {
+                    identity: row.try_get(0)?,
+                    multiplicity: if multiplicity_column == VoterMultiplicityColumn::None {
+                        None
+                    } else {
+                        Some(row.try_get::<_, i64>(1)?)
+                    },
+                })
+            })
+            .collect::<Result<Vec<_>>>()?;
+        let mut mapping = HashMap::new();
+        for batch in rows.chunks(5_000) {
+            let ids = batch
+                .iter()
+                .map(|row| row.identity.clone())
+                .collect::<Vec<_>>();
+            mapping.extend(store.pseudonyms_for_voters(event, &ids).await?);
+        }
+        let rows = pseudonymous_census_rows(rows, &mapping)?;
+        let mut writer = csv::WriterBuilder::new()
+            .has_headers(false)
+            .from_writer(Vec::new());
+        for row in rows {
+            match row.multiplicity {
+                Some(value) => writer.write_record([row.identity, value.to_string()])?,
+                None => writer.write_record([row.identity])?,
+            }
+        }
+        tokio::fs::write(output_file, writer.into_inner()?).await?;
+        return Ok(());
+    }
+
     let tokio_temp_file = File::create(output_file)
         .await
-        .expect("Could not create/open temporary file for tokio");
+        .context("Could not create the census file")?;
 
     let copy_out_query = format!("COPY ({}) TO STDOUT WITH (FORMAT CSV)", statement);
     let mut writer = BufWriter::new(tokio_temp_file);
@@ -2005,12 +2164,22 @@ pub async fn count_have_voted(
         .map(parse_uuid_v4)
         .transpose()?
         .map(|id| id.to_string());
-    let participation = get_event_ballot_box(hasura_transaction, tenant_id, election_event_id)
-        .await?
-        .store
-        .participation(election_event_id, election_id.as_deref())
-        .await?;
-    Ok(participation.voters.try_into()?)
+    let ballot_box = get_event_ballot_box(hasura_transaction, tenant_id, election_event_id).await?;
+    let voters = if ballot_box.store.ballot_identity(election_event_id).await?
+        == electoral_log::adapters::privacy::BallotIdentity::Pseudonym
+    {
+        ballot_box
+            .store
+            .privacy_participation_count(election_event_id, election_id.as_deref())
+            .await?
+    } else {
+        ballot_box
+            .store
+            .participation(election_event_id, election_id.as_deref())
+            .await?
+            .voters
+    };
+    Ok(voters.try_into()?)
 }
 
 #[instrument(skip(hasura_transaction, keycloak_transaction), err)]
@@ -2129,9 +2298,65 @@ mod tests {
     const AREA: &str = "10000000-0000-4000-8000-00000000000a";
 
     #[test]
+    fn privacy_census_sorts_the_new_identity_and_preserves_multiplicity() {
+        let mapping = HashMap::from([
+            ("real-a".to_owned(), "ZZZZ-ZZZZ".to_owned()),
+            ("real-b".to_owned(), "AAAA-AAAA".to_owned()),
+        ]);
+        // Both weight and delegate-count multiplicities survive the identity swap.
+        for values in [[Some(7), Some(2)], [Some(0), Some(4)], [None, None]] {
+            let rows = pseudonymous_census_rows(
+                vec![
+                    CensusRow {
+                        identity: "real-a".to_owned(),
+                        multiplicity: values[0],
+                    },
+                    CensusRow {
+                        identity: "real-b".to_owned(),
+                        multiplicity: values[1],
+                    },
+                ],
+                &mapping,
+            )
+            .unwrap();
+            assert_eq!(
+                rows,
+                vec![
+                    CensusRow {
+                        identity: "AAAA-AAAA".to_owned(),
+                        multiplicity: values[1]
+                    },
+                    CensusRow {
+                        identity: "ZZZZ-ZZZZ".to_owned(),
+                        multiplicity: values[0]
+                    },
+                ]
+            );
+        }
+    }
+
+    #[test]
+    fn privacy_census_refuses_missing_mapping_without_disclosing_identity() {
+        let result = pseudonymous_census_rows(
+            vec![CensusRow {
+                identity: "unregistered-real-voter".to_owned(),
+                multiplicity: None,
+            }],
+            &HashMap::new(),
+        );
+        let error = result.unwrap_err().to_string();
+        assert!(!error.contains("unregistered-real-voter"));
+        assert!(error.contains("missing privacy registrations"));
+    }
+
+    #[test]
     fn the_delegate_count_only_counts_eligible_delegators_without_a_ballot() {
-        let select =
-            multiplicity_select(VoterMultiplicityColumn::DelegateCount, AREA, "election-a");
+        let select = multiplicity_select(
+            VoterMultiplicityColumn::DelegateCount,
+            AREA,
+            "election-a",
+            None,
+        );
 
         assert!(select.contains("COUNT(DISTINCT delegator.id)"));
         assert!(select.contains("delegator.realm_id = u.realm_id"));
@@ -2143,7 +2368,12 @@ mod tests {
 
     #[test]
     fn the_vote_weight_column_defaults_a_missing_attribute() {
-        let select = multiplicity_select(VoterMultiplicityColumn::VoteWeight, AREA, "election-a");
+        let select = multiplicity_select(
+            VoterMultiplicityColumn::VoteWeight,
+            AREA,
+            "election-a",
+            None,
+        );
 
         assert!(select.contains(&format!("{DEFAULT_VOTE_WEIGHT})")));
         assert!(select.contains("AS vote_weight"));
@@ -2153,7 +2383,7 @@ mod tests {
     #[test]
     fn no_multiplicity_adds_no_column() {
         assert_eq!(
-            multiplicity_select(VoterMultiplicityColumn::None, AREA, "election-a"),
+            multiplicity_select(VoterMultiplicityColumn::None, AREA, "election-a", None),
             ""
         );
     }

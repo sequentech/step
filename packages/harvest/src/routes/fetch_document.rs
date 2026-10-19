@@ -119,6 +119,11 @@ async fn fetch_document_url(
         )
     })?
     .ok_or_else(|| (Status::NotFound, DOCUMENT_NOT_FOUND.to_string()))?;
+    // Receipt UUIDs are delivered to the requesting voter. Administrative
+    // document/task access must not turn them into an enumeration shortcut.
+    if document.is_ballot_receipt() {
+        return Err((Status::NotFound, DOCUMENT_NOT_FOUND.to_string()));
+    }
     let annotations = document
         .annotations
         .map(serde_json::from_value::<DocumentAnnotations>)

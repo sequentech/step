@@ -2362,6 +2362,20 @@
         "clientRole": false,
         "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
         "attributes": {}
+      },
+      {
+        "name": "forensic-read",
+        "description": "Read isolated forensic network data; every access is audited",
+        "composite": false,
+        "clientRole": false,
+        "attributes": {}
+      },
+      {
+        "name": "voter-pseudonym-resolve",
+        "description": "Resolve one voter pseudonym with an audited reason",
+        "composite": false,
+        "clientRole": false,
+        "attributes": {}
       }
     ],
     "client": {

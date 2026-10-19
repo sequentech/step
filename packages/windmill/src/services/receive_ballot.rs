@@ -112,7 +112,7 @@ fn hash_published_ballot_eml(ballot_eml: &str) -> Result<String, CastVoteError> 
 
 /// The ballot must name the ballot style published for the voter's area and
 /// election, and carry that style's hash.
-#[instrument(skip_all, err)]
+#[instrument(skip_all)]
 async fn check_ballot_style(
     hasura_transaction: &Transaction<'_>,
     scope: &ReceivedBallotScope<'_>,
@@ -159,7 +159,7 @@ async fn check_ballot_style(
 }
 
 /// Shared by receive and cast, including casting without signed receipts.
-#[instrument(skip_all, err)]
+#[instrument(skip_all)]
 pub(crate) async fn check_published_ballot(
     transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -242,7 +242,7 @@ fn sign_received(
 }
 
 /// The receipt the ballot box signed for a stored received ballot.
-fn stored_receipt(tenant_id: &Uuid, stored: StoredReceivedBallot) -> ReceivedBallot {
+pub(crate) fn stored_receipt(tenant_id: &Uuid, stored: StoredReceivedBallot) -> ReceivedBallot {
     ReceivedBallot {
         statement: ReceivedStatement {
             tenant_id: tenant_id.to_string(),
@@ -259,7 +259,30 @@ fn stored_receipt(tenant_id: &Uuid, stored: StoredReceivedBallot) -> ReceivedBal
     }
 }
 
-#[instrument(skip(input), err)]
+/// Unknown envelope fields are outside the voter's verified ballot signature.
+/// Private evidence therefore stores only the typed signed envelope, preventing
+/// client-added identity/network fields from being copied into public log bytes.
+fn storage_ballot_content(
+    content: &str,
+    mode: sequent_core::types::vote_privacy::BallotIdentity,
+    multi: bool,
+) -> Result<String, CastVoteError> {
+    if mode == sequent_core::types::vote_privacy::BallotIdentity::VoterId {
+        return Ok(content.to_owned());
+    }
+    let sanitized = if multi {
+        serde_json::from_str::<sequent_core::multi_ballot::SignedHashableMultiBallot>(content)
+            .and_then(|ballot| serde_json::to_string(&ballot))
+    } else {
+        serde_json::from_str::<sequent_core::ballot::SignedHashableBallot>(content)
+            .and_then(|ballot| serde_json::to_string(&ballot))
+    };
+    sanitized.map_err(|_| {
+        CastVoteError::DeserializeBallotFailed("Invalid signed ballot envelope".into())
+    })
+}
+
+#[instrument(skip_all)]
 pub async fn try_receive_ballot(
     input: ReceiveBallotInput,
     tenant_id: &str,
@@ -267,6 +290,28 @@ pub async fn try_receive_ballot(
     area_id: &str,
     voting_channel: VotingStatusChannel,
     auth_time: &Option<i64>,
+) -> Result<ReceiveBallotOutput, CastVoteError> {
+    try_receive_ballot_with_network(
+        input,
+        tenant_id,
+        voter_id,
+        area_id,
+        voting_channel,
+        auth_time,
+        None,
+    )
+    .await
+}
+
+#[instrument(skip_all)]
+pub async fn try_receive_ballot_with_network(
+    input: ReceiveBallotInput,
+    tenant_id: &str,
+    voter_id: &str,
+    area_id: &str,
+    voting_channel: VotingStatusChannel,
+    auth_time: &Option<i64>,
+    network: Option<(&str, Option<&str>, Option<&str>)>,
 ) -> Result<ReceiveBallotOutput, CastVoteError> {
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
@@ -385,6 +430,30 @@ pub async fn try_receive_ballot(
     let store = get_event_store(&election_event.id)
         .await
         .map_err(|e| CastVoteError::InsertFailed(format!("{e:#}")))?;
+    crate::services::vote_privacy::require_signed_receipts(&election_event, Some(voting_channel))
+        .map_err(|_| CastVoteError::CheckStatusFailed("Incompatible ballot privacy policy".into()))?;
+    let storage_identity =
+        crate::services::vote_privacy::ballot_identity(&election_event, voter_id)
+            .await
+            .map_err(|_| {
+                CastVoteError::CheckStatusFailed("Voter privacy registration is not ready".into())
+            })?;
+    crate::services::electoral_log_board::get_event_databases()
+        .await
+        .map_err(|_| CastVoteError::InsertFailed("Ballot registration unavailable".into()))?
+        .mark_ballot_activity(
+            &election_event.id,
+            electoral_log::adapters::events::ActivityMark::Throttled,
+        )
+        .await
+        .map_err(|_| CastVoteError::InsertFailed("Ballot registration unavailable".into()))?;
+    let stored_content = storage_ballot_content(
+        &input.content,
+        crate::services::vote_privacy::identity_mode(&election_event).map_err(|_| {
+            CastVoteError::CheckStatusFailed("Invalid ballot privacy policy".into())
+        })?,
+        is_multi_contest,
+    )?;
     let first_received_at = truncate_to_milliseconds(Utc::now())?;
     let outcome = store
         .receive_ballot(
@@ -392,9 +461,9 @@ pub async fn try_receive_ballot(
                 election_event_id: &election_event.id,
                 election_id: &election_id,
                 area_id,
-                voter_id,
+                voter_id: &storage_identity,
                 ballot_hash: &input.ballot_id,
-                content: &input.content,
+                content: &stored_content,
                 voter_signing_pk: &voter_signing_pk,
                 voter_ballot_signature: &voter_ballot_signature,
             },
@@ -423,6 +492,41 @@ pub async fn try_receive_ballot(
 
     match outcome {
         ReceiveOutcome::Received(stored) | ReceiveOutcome::AlreadyReceived(stored) => {
+            let policy = election_event
+                .get_presentation()
+                .map_err(|_| CastVoteError::CheckStatusFailed("Invalid privacy policy".into()))?
+                .unwrap_or_default();
+            if policy.ballot_identity
+                == Some(sequent_core::types::vote_privacy::BallotIdentity::Pseudonym)
+                && policy.network_data_policy
+                    == Some(sequent_core::types::vote_privacy::NetworkDataPolicy::ForensicStore)
+            {
+                if let Some((ip, country, user_agent)) = network {
+                    store
+                        .record_forensic_network(
+                            &electoral_log::adapters::privacy::ForensicNetworkRecord {
+                                election_event_id: &stored.election_event_id,
+                                election_id: Some(&stored.election_id),
+                                area_id: Some(&stored.area_id),
+                                event_kind: "receive",
+                                delivery_id: &format!(
+                                    "receive:{}:{}",
+                                    stored.election_event_id, stored.ballot_id
+                                ),
+                                pseudonym: &stored.voter_id,
+                                ballot_id: Some(&stored.ballot_id),
+                                ip,
+                                country,
+                                user_agent,
+                                recorded_at: stored.received_at,
+                            },
+                        )
+                        .await
+                        .map_err(|_| {
+                            CastVoteError::InsertFailed("Unable to record forensic receive".into())
+                        })?;
+                }
+            }
             Ok(stored_receipt(&tenant_uuid, stored))
         }
         ReceiveOutcome::NoFreeBallotId => Err(CastVoteError::InsertFailed(

@@ -98,6 +98,9 @@ pub mod trustee_boards;
 pub mod trustee_updates;
 pub mod users;
 pub mod vault;
+pub mod vote_privacy;
 pub mod voter_secret_attributes;
 pub mod voting_status;
 pub mod weight_batches;
+
+pub mod privacy_signin;

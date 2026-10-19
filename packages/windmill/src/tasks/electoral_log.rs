@@ -157,8 +157,8 @@ pub struct LogEventInput {
     /// Absent from messages sent before the listener said.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub event_time_ms: Option<i64>,
-    /// What Keycloak knows of a user event beyond its type: the client, the
-    /// IP address, the error and the authentication used.
+    /// Authentication metadata without network attribution: client, error
+    /// outcome and authentication method.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub details: Option<serde_json::Value>,
     /// A Keycloak admin event, sent with [`KEYCLOAK_ADMIN_EVENT`] as the
@@ -253,6 +253,9 @@ async fn store_batch(events: &[LogEventInput]) -> anyhow::Result<()> {
         .await
         .context("Error starting keycloak transaction")?;
 
+    crate::services::privacy_signin::allocate_registered_voters(&hasura_tx, &keycloak_tx, events)
+        .await?;
+    crate::services::privacy_signin::retain_queued_signin_network(&hasura_tx, events).await?;
     let built = build_batch(
         &mut DbLookups {
             hasura: &hasura_tx,
@@ -491,8 +494,9 @@ async fn build_batch<L: BatchLookups + Send>(
 ) -> anyhow::Result<BuiltBatch> {
     let mut cache = BatchCache::default();
     let mut built = BuiltBatch::default();
-    for input in events {
-        match build_event(lookups, &mut cache, input).await {
+    for original in events {
+        let input = crate::services::privacy_signin::sanitized_event(original);
+        match build_event(lookups, &mut cache, &input).await {
             Ok(event) => {
                 for (board, entry) in event.entries {
                     built.by_board.entry(board).or_default().push(entry);
@@ -1119,18 +1123,18 @@ async fn dispatch_electoral_log_batches(
                 .unwrap_or(serde_json::Value::Null);
             // A message that cannot be parsed is dead-lettered, so it cannot block the queue.
             match parse_queued_event(message.clone()) {
-                Ok(event) => events.push(event),
-                Err(error) => {
+                Ok(event) => events.push(crate::services::privacy_signin::sanitized_event(&event)),
+                Err(_error) => {
                     tracing::error!(
                         message_id = id,
-                        "Dead-lettering an electoral-log message that cannot be parsed: {error:#}"
+                        "Dead-lettering an electoral-log message that cannot be parsed"
                     );
                     dead_letter_message(
                         &*tx,
                         dead_letters,
-                        &message,
+                        &json!({"unparseable_event": true, "original_message_id": id}),
                         DeadLetterStage::Dispatcher,
-                        &format!("{error:#}"),
+                        "Invalid Celery envelope; payload omitted for privacy",
                     )
                     .await?;
                 }
@@ -1770,7 +1774,7 @@ mod batch_build_tests {
         assert_eq!(signed_in.head.event.0, TENANT);
         assert_eq!(signed_in.head.log_type, StatementLogType::INFO);
         assert_eq!(signed_in.head.description, "LOGIN");
-        assert_eq!(text["ip_address"], "10.0.0.7");
+        assert!(text.get("ip_address").is_none());
         assert_eq!(entries[0].message.user_id.as_deref(), Some("admin-id"));
         assert_eq!(entries[0].message.username.as_deref(), Some("admin"));
         // The name typed for an unknown account is not recorded.
@@ -2249,7 +2253,9 @@ mod pgmq_tests {
             )
             .await
             .unwrap();
-        assert_eq!(dead_letter.get::<_, serde_json::Value>(0), invalid);
+        let redacted = dead_letter.get::<_, serde_json::Value>(0);
+        assert_eq!(redacted["unparseable_event"], true);
+        assert!(redacted.get("original_message_id").is_some());
         let headers: serde_json::Value = dead_letter.get(1);
         assert_eq!(headers[STAGE_HEADER], "dispatcher");
         assert!(headers[ERROR_HEADER]

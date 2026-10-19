@@ -132,7 +132,6 @@ class CustomEventListenerProviderEventsTest {
              "event_time_ms": 1778511600123,
              "details": {
                "client_id": "admin-portal",
-               "ip_address": "10.0.0.7",
                "error": null,
                "auth_method": "openid-connect",
                "auth_type": "code",
@@ -174,7 +173,6 @@ class CustomEventListenerProviderEventsTest {
              "event_time_ms": 1778511600123,
              "details": {
                "client_id": "admin-portal",
-               "ip_address": "10.0.0.7",
                "error": "user_not_found",
                "auth_method": "openid-connect",
                "auth_type": "code",
@@ -219,7 +217,6 @@ class CustomEventListenerProviderEventsTest {
         om.readTree(
             """
             {"client_id": null,
-             "ip_address": "10.0.0.7",
              "error": null,
              "auth_method": null,
              "auth_type": null,
@@ -251,7 +248,6 @@ class CustomEventListenerProviderEventsTest {
         om.readTree(
             """
             {"client_id": "admin-portal",
-             "ip_address": "10.0.0.7",
              "error": null,
              "auth_method": null,
              "auth_type": null,
@@ -305,7 +301,6 @@ class CustomEventListenerProviderEventsTest {
         om.readTree(
             """
             {"client_id": "admin-portal",
-             "ip_address": "10.0.0.7",
              "error": null,
              "auth_method": "openid-connect",
              "auth_type": null,
@@ -380,7 +375,6 @@ class CustomEventListenerProviderEventsTest {
         om.readTree(
             """
             {"client_id": "admin-portal",
-             "ip_address": "10.0.0.7",
              "error": null,
              "auth_method": null,
              "auth_type": null,
@@ -462,8 +456,7 @@ class CustomEventListenerProviderEventsTest {
                  "user_id": "0b9f6c5e-7d3a-4a1e-8c2f-5e4d3c2b1a09",
                  "username": "admin",
                  "client_id": "admin-portal",
-                 "realm": "tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
-                 "ip_address": "10.0.0.7"}}}
+                 "realm": "tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5"}}}
             """),
         publishedInput());
   }
@@ -503,8 +496,7 @@ class CustomEventListenerProviderEventsTest {
             {"user_id": "0b9f6c5e-7d3a-4a1e-8c2f-5e4d3c2b1a09",
              "username": null,
              "client_id": "id-of-admin-portal",
-             "realm": "id-of-master",
-             "ip_address": "10.0.0.7"}
+             "realm": "id-of-master"}
             """),
         input.at("/admin_event/actor"));
   }

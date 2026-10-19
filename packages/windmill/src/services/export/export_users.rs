@@ -167,7 +167,8 @@ fn get_user_record(
                 .iter()
                 .map(|election: &ElectionHead| match votes_info_map_opt {
                     Some(ref votes_info_map) => match votes_info_map.get(&election.id) {
-                        Some(ref votes_info) => votes_info.last_voted_at.clone(),
+                        Some(ref votes_info) if votes_info.num_votes > 0 => "true".to_string(),
+                        Some(_) => String::new(),
                         None => Default::default(),
                     },
                     None => Default::default(),

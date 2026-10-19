@@ -157,3 +157,34 @@ async fn an_unreachable_database_is_an_error_without_its_details() {
     assert_eq!(body["extensions"]["code"], "InternalServerError");
     assert_eq!(body["message"], "Could not fetch the document.");
 }
+
+/// Metadata and a legacy receipt name independently prevent administrative downloads.
+#[rocket::async_test]
+async fn ballot_receipts_are_unavailable_through_the_admin_document_route() {
+    let services = Services::on_test_database().await;
+    let event = rows::event(&services.hasura).await;
+    let marked = document(
+        &services,
+        &event,
+        Some(json!({"purpose": "ballot-receipt"})),
+    )
+    .await;
+    let legacy = event
+        .document(
+            &services.hasura,
+            "ballot_receipt_event.pdf",
+            "application/pdf",
+            None,
+        )
+        .await;
+    for id in [marked, legacy] {
+        let (status, body) = fetch(
+            &services,
+            &reader(&event, &[Permissions::DOCUMENT_DOWNLOAD]),
+            &request(&event, &id),
+        )
+        .await;
+        assert_eq!(status, Status::NotFound, "{body}");
+        assert_eq!(body["message"], "Document not found");
+    }
+}

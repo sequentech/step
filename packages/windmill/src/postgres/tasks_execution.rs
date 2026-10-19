@@ -433,6 +433,7 @@ pub async fn get_tasks_by_election_event_id(
             WHERE
                 tenant_id = $1
                 AND election_event_id = $2
+                AND type IS DISTINCT FROM 'CREATE_BALLOT_RECEIPT'
         "#,
         )
         .await?;

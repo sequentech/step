@@ -363,27 +363,52 @@ pub async fn get_users_with_vote_info(
     if user_ids.is_empty() {
         return Ok(vec![]);
     }
-    let votes = get_event_ballot_box(hasura_transaction, tenant_id, election_event_id)
+    let store = get_event_ballot_box(hasura_transaction, tenant_id, election_event_id)
         .await?
-        .store
-        .votes_of_voters(
-            election_event_id,
-            &user_ids,
-            election_uuid.map(|id| id.to_string()).as_deref(),
-        )
-        .await?
-        .into_iter()
-        .map(|votes| {
-            Ok((
-                votes.voter_id,
-                VotesInfo {
-                    election_id: votes.election_id,
-                    num_votes: usize::try_from(votes.votes)?,
-                    last_voted_at: ballot_box_time(votes.last_voted_at)?.to_string(),
-                },
-            ))
-        })
-        .collect::<Result<Vec<_>>>()?;
+        .store;
+    let votes: Vec<(String, VotesInfo)> = if store.ballot_identity(election_event_id).await?
+        == electoral_log::adapters::privacy::BallotIdentity::Pseudonym
+    {
+        store
+            .participation_for_voters(
+                election_event_id,
+                &user_ids,
+                election_uuid.map(|id| id.to_string()).as_deref(),
+            )
+            .await?
+            .into_iter()
+            .map(|participation| {
+                (
+                    participation.voter_id,
+                    VotesInfo {
+                        election_id: participation.election_id,
+                        num_votes: 1,
+                        last_voted_at: String::new(),
+                    },
+                )
+            })
+            .collect()
+    } else {
+        store
+            .votes_of_voters(
+                election_event_id,
+                &user_ids,
+                election_uuid.map(|id| id.to_string()).as_deref(),
+            )
+            .await?
+            .into_iter()
+            .map(|votes| {
+                Ok((
+                    votes.voter_id,
+                    VotesInfo {
+                        election_id: votes.election_id,
+                        num_votes: usize::try_from(votes.votes)?,
+                        last_voted_at: String::new(),
+                    },
+                ))
+            })
+            .collect::<Result<Vec<_>>>()?
+    };
     let mut user_votes_map = HashMap::<String, Vec<VotesInfo>>::new();
     for (voter_id, votes_info) in votes {
         user_votes_map.entry(voter_id).or_default().push(votes_info);

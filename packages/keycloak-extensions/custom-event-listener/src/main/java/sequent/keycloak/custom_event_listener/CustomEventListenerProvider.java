@@ -143,13 +143,16 @@ public class CustomEventListenerProvider implements EventListenerProvider {
               + CA_CERT_ISSUER_CN
               + "="
               + details.getOrDefault(CA_CERT_ISSUER_CN, "unknown");
-      body = event.getError() + " " + certInfo;
+      body = UserEventDetails.safeError(event.getError()) + " " + certInfo;
     } else {
       // Use the event error (or another appropriate field) as body for
       // non-communications events.
-      body = event.getError();
+      body = UserEventDetails.safeError(event.getError());
     }
 
+    if (!Utils.isCommunication(details)) {
+      body = UserEventDetails.safeDetailValue(body);
+    }
     // Publish the event to PGMQ with the complete JSON structure.
     logEvent(
         taskMessage(
@@ -180,7 +183,6 @@ public class CustomEventListenerProvider implements EventListenerProvider {
     actor.put("username", username);
     actor.put("client_id", clientIdOf(authRealm, auth.getClientId()));
     actor.put("realm", authRealm == null ? auth.getRealmId() : authRealm.getName());
-    actor.put("ip_address", auth.getIpAddress());
 
     Map<String, Object> adminEvent = new LinkedHashMap<>();
     adminEvent.put(
@@ -190,7 +192,7 @@ public class CustomEventListenerProvider implements EventListenerProvider {
     adminEvent.put(
         "representation",
         includeRepresentation ? AdminRepresentation.forLog(event.getRepresentation()) : null);
-    adminEvent.put("error", event.getError());
+    adminEvent.put("error", UserEventDetails.safeError(event.getError()));
     adminEvent.put("actor", actor);
 
     logEvent(

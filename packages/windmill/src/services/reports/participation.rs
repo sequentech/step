@@ -100,20 +100,32 @@ impl ParticipationReportTemplate {
             .map(parse_uuid_v4)
             .transpose()
             .with_context(|| "Error parsing election_id as UUID")?;
-        let participation = get_event_ballot_box(
+        let ballot_box = get_event_ballot_box(
             hasura_transaction,
             &self.ids.tenant_id,
             &self.ids.election_event_id,
         )
-        .await?
-        .store
-        .participation(
-            &self.ids.election_event_id,
-            election_uuid.map(|id| id.to_string()).as_deref(),
-        )
         .await?;
+        let election_id = election_uuid.map(|id| id.to_string());
+        let participation = ballot_box
+            .store
+            .participation(&self.ids.election_event_id, election_id.as_deref())
+            .await?;
+        let voted_voters = if ballot_box
+            .store
+            .ballot_identity(&self.ids.election_event_id)
+            .await?
+            == electoral_log::adapters::privacy::BallotIdentity::Pseudonym
+        {
+            ballot_box
+                .store
+                .privacy_participation_count(&self.ids.election_event_id, election_id.as_deref())
+                .await?
+        } else {
+            participation.voters
+        };
         Ok(CastVoteParticipationStats {
-            voted_voters: participation.voters,
+            voted_voters,
             votes_count: participation.ballots,
         })
     }

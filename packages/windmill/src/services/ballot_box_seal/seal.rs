@@ -1253,6 +1253,61 @@ mod tests {
     }
 
     #[test]
+    fn privacy_seal_and_tally_preserve_weights_revotes_and_eligibility() {
+        let census_csv = "AAAA-AAAA,7\nZZZZ-ZZZZ,2\n";
+        let census =
+            census_from_csv(census_csv.as_bytes(), VoterMultiplicityColumn::VoteWeight).unwrap();
+        let superseded = row("AAAA-AAAA", BallotStatus::Valid, "old", 1);
+        let current = row("AAAA-AAAA", BallotStatus::Valid, "new", 2);
+        let other = row("ZZZZ-ZZZZ", BallotStatus::Valid, "other", 3);
+        let disabled = row("MMMM-MMMM", BallotStatus::Valid, "disabled", 4);
+        let sealed = entries(
+            &[
+                superseded.clone(),
+                current.clone(),
+                other.clone(),
+                disabled.clone(),
+            ],
+            &census,
+        )
+        .unwrap();
+        assert_eq!(
+            disposition_of(&sealed, &superseded),
+            (SealDisposition::Replaced, 0)
+        );
+        assert_eq!(
+            disposition_of(&sealed, &disabled),
+            (SealDisposition::NotEligible, 0)
+        );
+        let ballot_csv = [&current, &disabled, &other]
+            .iter()
+            .map(|ballot| format!("{},{}\n", ballot.voter_id, ballot.ballot_id))
+            .collect::<String>();
+        let joined = merge_join_csv(
+            &file_with(&ballot_csv),
+            &file_with(census_csv),
+            0,
+            0,
+            1,
+            None,
+            Some(MultiplicitySource::VoteWeight(1)),
+        )
+        .unwrap();
+        let weights: HashMap<String, u64> = joined.ballot_contents.into_iter().collect();
+        assert_eq!(weights.get(&current.ballot_id), Some(&7));
+        assert_eq!(weights.get(&other.ballot_id), Some(&2));
+        assert_eq!(
+            disposition_of(&sealed, &current),
+            (SealDisposition::Counted, 7)
+        );
+        assert_eq!(
+            disposition_of(&sealed, &other),
+            (SealDisposition::Counted, 2)
+        );
+        assert_eq!(joined.ballots_without_voter, 1);
+    }
+
+    #[test]
     fn a_vote_weight_out_of_range_is_refused_like_the_tally() {
         assert!(
             census_from_csv("alice,0\n".as_bytes(), VoterMultiplicityColumn::VoteWeight).is_err()

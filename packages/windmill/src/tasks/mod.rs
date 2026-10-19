@@ -62,6 +62,7 @@ pub mod process_cast_vote;
 pub mod publish_electoral_log_checkpoint;
 pub mod publish_results_website;
 pub mod purge_queue_archives;
+pub mod purge_vote_privacy;
 pub mod recompute_schedule_instants;
 pub mod reconcile_messages;
 pub mod recount_messaging_voters;

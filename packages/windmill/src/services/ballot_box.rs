@@ -193,7 +193,7 @@ pub async fn sequence_event(tenant_id: &str, election_event_id: &str) -> Result<
     {
         return Ok(None);
     }
-    let appended = append_pending(&store, &board, election_event_id, &signing_key).await;
+    let appended = append_pending(&store, &board, tenant_id, election_event_id, &signing_key).await;
     store
         .release_sequencer_lease(election_event_id, &holder)
         .await?;
@@ -204,22 +204,136 @@ pub async fn sequence_event(tenant_id: &str, election_event_id: &str) -> Result<
 async fn append_pending(
     store: &PostgresStore,
     board: &str,
+    tenant_id: &str,
     election_event_id: &str,
     signing_key: &SigningKey,
 ) -> Result<usize> {
     let started = Instant::now();
     let mut appended = 0;
+    let private = store.ballot_identity(election_event_id).await?
+        == electoral_log::adapters::privacy::BallotIdentity::Pseudonym;
+
     loop {
+        // Received evidence is queued in the receive transaction. Drain it before
+        // casts so a fast confirmation can never overtake its authority binding.
+        let received = store
+            .pending_received_ballots(election_event_id, SEQUENCER_BATCH)
+            .await?;
+        if !received.is_empty() {
+            let entries = received
+                .iter()
+                .map(|item| {
+                    crate::services::vote_privacy::received_log_entry(tenant_id, item, signing_key)
+                })
+                .collect::<Result<Vec<_>>>()?;
+            store
+                .append(board, &mut entries.into_iter().map(Ok))
+                .await?;
+            let ids: Vec<i64> = received.iter().map(|item| item.id).collect();
+            store
+                .remove_pending_received(election_event_id, &ids)
+                .await?;
+            appended += ids.len();
+            if started.elapsed() > SEQUENCER_BUDGET {
+                break;
+            }
+            continue;
+        }
+        let audit = store
+            .pending_privacy_messages(election_event_id, SEQUENCER_BATCH)
+            .await?;
+        if !audit.is_empty() {
+            use voting_crypto::RecordDeserialize;
+            let entries = audit
+                .iter()
+                .map(|item| {
+                    let message = Message::record_deserialize(&item.message)?;
+                    Ok(LogEntry {
+                        delivery_id: item.delivery_id.clone(),
+                        message: (&message).try_into()?,
+                    })
+                })
+                .collect::<Result<Vec<_>>>()?;
+            store
+                .append(board, &mut entries.into_iter().map(Ok))
+                .await?;
+            store
+                .remove_pending_privacy_messages(
+                    election_event_id,
+                    &audit.iter().map(|item| item.id).collect::<Vec<_>>(),
+                )
+                .await?;
+            appended += audit.len();
+        }
         let pending = store
             .pending_ballots(election_event_id, SEQUENCER_BATCH)
             .await?;
         if pending.is_empty() {
             break;
         }
-        let entries = pending
-            .iter()
-            .map(|ballot| ballot_record(board, election_event_id, ballot, signing_key))
-            .collect::<Result<Vec<_>>>()?;
+        let mut entries = Vec::with_capacity(pending.len() * 2);
+        let received: HashMap<(String, String, String), _> = if private {
+            store
+                .received_ballots_for_hashes(
+                    election_event_id,
+                    &pending
+                        .iter()
+                        .map(|b| b.ballot_id.clone())
+                        .collect::<Vec<_>>(),
+                )
+                .await?
+                .into_iter()
+                .map(|r| {
+                    (
+                        (
+                            r.election_id.clone(),
+                            r.voter_id.clone(),
+                            r.ballot_hash.clone(),
+                        ),
+                        r,
+                    )
+                })
+                .collect()
+        } else {
+            HashMap::new()
+        };
+        for ballot in &pending {
+            if private {
+                let received = received
+                    .get(&(
+                        ballot.election_id.clone(),
+                        ballot.voter_id.clone(),
+                        ballot.ballot_id.clone(),
+                    ))
+                    .context("A pseudonymous cast requires its received ballot")?;
+                // Even when receive/cast commit after our queue-empty check,
+                // append the binding first. Stable delivery IDs deduplicate it
+                // if it was already appended or its outbox is retried later.
+                entries.push(crate::services::vote_privacy::received_log_entry(
+                    tenant_id,
+                    &electoral_log::adapters::privacy::PendingReceivedBallot {
+                        id: 0,
+                        kind: electoral_log::adapters::privacy::ReceivedEvidenceKind::Received,
+                        ballot: received.clone(),
+                    },
+                    signing_key,
+                )?);
+                entries.push(crate::services::vote_privacy::cast_log_entry(
+                    received,
+                    tenant_id,
+                    election_event_id,
+                    ballot,
+                    signing_key,
+                )?);
+            } else {
+                entries.push(ballot_record(
+                    board,
+                    election_event_id,
+                    ballot,
+                    signing_key,
+                )?);
+            }
+        }
         store
             .append(board, &mut entries.into_iter().map(anyhow::Ok))
             .await?;
@@ -240,10 +354,28 @@ pub async fn get_voter_ballot_state(
     election_event_id: &str,
     voter_id: &str,
 ) -> Result<VoterBallotState> {
+    let event = get_election_event_by_id(hasura_transaction, tenant_id, election_event_id).await?;
+    let identity = if crate::services::vote_privacy::identity_mode(&event)?
+        == sequent_core::types::vote_privacy::BallotIdentity::Pseudonym
+    {
+        let Some(code) = get_event_store(election_event_id)
+            .await?
+            .voter_pseudonym(election_event_id, voter_id)
+            .await?
+        else {
+            return Ok(VoterBallotState {
+                has_pending: false,
+                has_valid: false,
+            });
+        };
+        code
+    } else {
+        voter_id.to_owned()
+    };
     get_event_ballot_box(hasura_transaction, tenant_id, election_event_id)
         .await?
         .store
-        .voter_ballot_state(election_event_id, voter_id)
+        .voter_ballot_state(election_event_id, &identity)
         .await
 }
 
@@ -254,15 +386,44 @@ pub async fn get_voter_ballot_states(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<HashMap<String, VoterBallotState>> {
-    Ok(
-        get_event_ballot_box(hasura_transaction, tenant_id, election_event_id)
-            .await?
-            .store
-            .voter_ballot_states(election_event_id)
-            .await?
-            .into_iter()
-            .collect(),
-    )
+    let store = get_event_ballot_box(hasura_transaction, tenant_id, election_event_id)
+        .await?
+        .store;
+    let states = store.voter_ballot_states(election_event_id).await?;
+    if store.ballot_identity(election_event_id).await?
+        != electoral_log::adapters::privacy::BallotIdentity::Pseudonym
+    {
+        return Ok(states.into_iter().collect());
+    }
+    let codes = states
+        .iter()
+        .map(|(code, _)| code.clone())
+        .collect::<Vec<_>>();
+    let voters = store
+        .voters_for_pseudonyms(election_event_id, &codes)
+        .await?;
+    Ok(states
+        .into_iter()
+        .filter_map(|(code, state)| voters.get(&code).map(|voter| (voter.clone(), state)))
+        .collect())
+}
+
+/// Internal messaging audience: private participation has no per-ballot time.
+pub async fn get_voters_who_participated(
+    tx: &Transaction<'_>,
+    tenant: &str,
+    event: &str,
+) -> Result<Vec<String>> {
+    let store = get_event_ballot_box(tx, tenant, event).await?.store;
+    if store.ballot_identity(event).await?
+        == electoral_log::adapters::privacy::BallotIdentity::Pseudonym
+    {
+        return store.participating_voters(event, None).await;
+    }
+    Ok(get_voter_ballot_states(tx, tenant, event)
+        .await?
+        .into_keys()
+        .collect())
 }
 
 /// Reject a voter's pending and valid votes in an election event. Returns how
@@ -273,10 +434,25 @@ pub async fn reject_voter_ballots(
     election_event_id: &str,
     voter_id: &str,
 ) -> Result<i64> {
+    let event = get_election_event_by_id(hasura_transaction, tenant_id, election_event_id).await?;
+    let identity = if crate::services::vote_privacy::identity_mode(&event)?
+        == sequent_core::types::vote_privacy::BallotIdentity::Pseudonym
+    {
+        let Some(code) = get_event_store(election_event_id)
+            .await?
+            .voter_pseudonym(election_event_id, voter_id)
+            .await?
+        else {
+            return Ok(0);
+        };
+        code
+    } else {
+        voter_id.to_owned()
+    };
     get_event_ballot_box(hasura_transaction, tenant_id, election_event_id)
         .await?
         .store
-        .reject_voter_ballots(election_event_id, voter_id)
+        .reject_voter_ballots(election_event_id, &identity)
         .await
 }
 
@@ -294,6 +470,15 @@ pub enum BallotBoxWork {
 /// What an event's ballot box holds for the background tasks.
 async fn ballot_box_work(election_event_id: &str) -> Result<BallotBoxWork> {
     let store = get_event_store(election_event_id).await?;
+    // This discovery task already runs outside the voting request. Keep each
+    // summary refresh bounded, and retain activity until its backlog is empty.
+    if store
+        .refresh_forensic_summary(election_event_id, SEQUENCER_BATCH)
+        .await?
+        > 0
+    {
+        return Ok(BallotBoxWork::Sequencing);
+    }
     if store.pending_count(election_event_id).await? > 0 {
         return Ok(BallotBoxWork::Sequencing);
     }
@@ -416,10 +601,16 @@ mod tests {
             assert!(matches!(outcome, AcceptOutcome::Accepted { .. }));
         }
 
-        assert_eq!(append_pending(&store, &board, &event, &key).await?, 3);
+        assert_eq!(
+            append_pending(&store, &board, &uuid::Uuid::nil().to_string(), &event, &key).await?,
+            3
+        );
         assert_eq!(store.pending_count(&event).await?, 0);
         // Nothing waits, so a second run appends nothing.
-        assert_eq!(append_pending(&store, &board, &event, &key).await?, 0);
+        assert_eq!(
+            append_pending(&store, &board, &uuid::Uuid::nil().to_string(), &event, &key).await?,
+            0
+        );
 
         let records = store
             .query(&board, &electoral_log::LogQuery::default())
@@ -445,3 +636,7 @@ mod tests {
         Ok(())
     }
 }
+
+#[cfg(test)]
+#[path = "ballot_box_privacy_tests.rs"]
+mod privacy_tests;

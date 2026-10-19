@@ -12,16 +12,13 @@ pub(super) enum DocumentVisibility {
 }
 
 impl DocumentVisibility {
-    /// Public storage is reserved for actual voter receipts without declared secrets.
+    /// Receipts are downloaded through the authenticated ownership action.
     pub(super) fn for_report(
-        report_type: &ReportType,
-        contains_voter_secrets: bool,
-        is_real: bool,
+        _report_type: &ReportType,
+        _contains_voter_secrets: bool,
+        _is_real: bool,
     ) -> Self {
-        match (report_type, contains_voter_secrets, is_real) {
-            (ReportType::BALLOT_RECEIPT, false, true) => Self::Public,
-            _ => Self::default(),
-        }
+        Self::default()
     }
 
     /// Convert the visibility policy into the existing document-storage flag.
@@ -70,15 +67,15 @@ mod tests {
         }
     }
 
-    /// Actual voter receipts preserve public downloads only when they contain no declared secrets.
+    /// Real receipts remain private even without declared secret attributes.
     #[test]
-    fn ballot_receipts_are_public_only_without_voter_secret_attributes() {
+    fn ballot_receipts_use_authenticated_private_downloads() {
         assert_eq!(
             DocumentVisibility::for_report(&ReportType::BALLOT_RECEIPT, false, true),
-            DocumentVisibility::Public
+            DocumentVisibility::Private
         );
         assert!(
-            DocumentVisibility::for_report(&ReportType::BALLOT_RECEIPT, false, true).is_public()
+            !DocumentVisibility::for_report(&ReportType::BALLOT_RECEIPT, false, true).is_public()
         );
         assert_eq!(
             DocumentVisibility::for_report(&ReportType::BALLOT_RECEIPT, true, true),
