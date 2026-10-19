@@ -138,6 +138,10 @@ async fn a_server_that_is_down_names_its_databases_and_fails_everything_else() {
         .read_only_store_of(&retired.database_name, 1)
         .unwrap();
     assert!(store.client().await.is_err());
+    assert!(store
+        .participation(EVENT, Some(EVENT), Some(EVENT))
+        .await
+        .is_err());
     // An invalid ID is refused before the server is asked.
     assert!(databases.create_tenant("tenant").await.is_err());
     assert!(databases.retire_event("tenant", EVENT, 1).await.is_err());

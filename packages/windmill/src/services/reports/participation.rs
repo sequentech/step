@@ -110,6 +110,7 @@ impl ParticipationReportTemplate {
         .participation(
             &self.ids.election_event_id,
             election_uuid.map(|id| id.to_string()).as_deref(),
+            None,
         )
         .await?;
         Ok(CastVoteParticipationStats {

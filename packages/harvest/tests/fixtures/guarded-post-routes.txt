@@ -68,6 +68,7 @@
 /generate-preview-url
 /generate-report
 /generate-template
+/generate-transmission-report
 /generate-voter-information-letter
 /get-approval-matrix
 /get-ballot-files-urls

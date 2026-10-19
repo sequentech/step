@@ -530,13 +530,13 @@ const withoutSchema: Pick<Story, "beforeEach"> = {
 export const Data: Story = {
     // The Voting lifecycle section's snapshot query isn't in the generated schema yet.
     ...withoutSchema,
-    parameters: {widgets: ["ElectionEventDataTab"]},
+    parameters: {widgets: []},
     play: tabPlay("Data", {reads: ["getList sequent_backend_election"]}),
 }
 
 export const DataWhileTheEventLoads: Story = {
     args: {uncached: true},
-    parameters: {widgets: ["ElectionEventDataTab"]},
+    parameters: {widgets: []},
     play: async ({canvasElement}) => {
         await openTab(canvasElement, "Data")
         await expect(
@@ -800,7 +800,7 @@ export const LockedDownData: Story = {
             IPermissions.ELECTION_EVENT_READ,
         ],
     },
-    parameters: {widgets: ["ElectionEventDataTab", "LockedDownDataTab"]},
+    parameters: {widgets: []},
     play: async ({canvasElement}) => {
         expect(await tabNames(canvasElement)).toEqual(["Data"])
         const canvas = within(canvasElement)
@@ -839,7 +839,7 @@ export const LockedDownDataNeedsReadinessPermission: Story = {
 export const LockedDownDataLink: Story = {
     ...LockedDownData,
     parameters: {
-        widgets: ["ElectionEventDataTab", "LockedDownDataTab"],
+        widgets: [],
         router: {
             path: "/sequent_backend_election_event/:id/*",
             initialEntries: [`/sequent_backend_election_event/${EVENT_ID}?tabId=data&tabIndex=-1`],

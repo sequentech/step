@@ -41,7 +41,9 @@ RUN case "${TARGETARCH}" in \
     echo "JAVA_FILENAME=${JAVA_FILENAME}" >> /etc/profile.d/java.sh; \
     apt-get update && \
     apt-get install -y --no-install-recommends \
-    m4 make chromium libssl-dev protobuf-compiler libprotobuf-dev curl pkg-config wget software-properties-common unzip && \
+    m4 make chromium libssl-dev protobuf-compiler libprotobuf-dev curl pkg-config wget software-properties-common unzip \
+    # pdftotext, with which the backend journeys read the reports they download.
+    poppler-utils && \
     wget https://download.java.net/java/GA/jdk${JAVA_VERSION}/${JAVA_BUILD}/GPL/${JAVA_FILENAME} \
     && tar xvf ${JAVA_FILENAME} \
     && mv jdk-${JAVA_VERSION} /usr/local/ \
