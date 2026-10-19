@@ -72,6 +72,7 @@ import {
     IVotingScreenBackPolicy,
     getDefaultVotingScreenBackPolicy,
     getVotingScreenBackPolicyValues,
+    EMobileCandidateLists,
 } from "@sequentech/ui-core"
 import {DropFile} from "@sequentech/ui-essentials"
 import FileJsonInput from "../../components/FileJsonInput"
@@ -91,6 +92,13 @@ import {CustomFilter} from "@/types/filters"
 import {useGetDocumentUrl} from "@/hooks/useGetDocumentUrl"
 import {SettingsLanguageSelector} from "@/components/SettingsLanguageSelector"
 import {IVR_ENTITY_I18N_ANNOTATION, parseIvrEntityAnnotations} from "@/utils/ivr"
+import {
+    SLATES_ENABLED_FIELD,
+    SLATES_MOBILE_CANDIDATE_LISTS_FIELD,
+    hasSlatesAnnotation,
+    readSlatesConfig,
+} from "@/utils/slates"
+import {SlatesBallotDesignInput} from "./SlatesBallotDesignInput"
 
 const LangsWrapper = styled(Box)`
     margin-top: 46px;
@@ -108,6 +116,8 @@ const ContestRows = styled("div")`
 export type Sequent_Backend_Election_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
     contestsOrder?: Array<Sequent_Backend_Contest>
+    [SLATES_ENABLED_FIELD]?: boolean
+    [SLATES_MOBILE_CANDIDATE_LISTS_FIELD]?: EMobileCandidateLists
 } & Sequent_Backend_Election
 
 export const ElectionDataForm: React.FC = () => {
@@ -304,6 +314,10 @@ export const ElectionDataForm: React.FC = () => {
 
             temp.presentation.i18n.en.description = temp.description
             temp.annotations = parseIvrEntityAnnotations(temp.annotations)
+            temp[SLATES_ENABLED_FIELD] = hasSlatesAnnotation(temp.annotations)
+            temp[SLATES_MOBILE_CANDIDATE_LISTS_FIELD] =
+                readSlatesConfig(temp.annotations)?.mobile_candidate_lists ??
+                EMobileCandidateLists.COLLAPSED
 
             // receipts
             const template: {[key: string]: string | null} = {}
@@ -762,6 +776,11 @@ export const ElectionDataForm: React.FC = () => {
                                         ) : null
                                     }}
                                 </FormDataConsumer>
+                                <SlatesBallotDesignInput
+                                    slatesCount={
+                                        readSlatesConfig(record?.annotations)?.slates.length ?? 0
+                                    }
+                                />
                             </AccordionDetails>
                         </Accordion>
 

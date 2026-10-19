@@ -21,8 +21,10 @@ const tagalogTranslation: TranslationType = {
             votingProgress: "Progreso ng pagboto",
             stepOf: "Hakbang {{current}} ng {{total}}",
             selectUpTo_one: "Pumili ng hanggang {{count}} opsyon",
+            selectUpTo_many: "Pumili ng hanggang {{count}} na opsyon",
             selectUpTo_other: "Pumili ng hanggang {{count}} na opsyon",
             selectExactly_one: "Pumili ng {{count}} opsyon",
+            selectExactly_many: "Pumili ng {{count}} na opsyon",
             selectExactly_other: "Pumili ng {{count}} na opsyon",
             selectBetween: "Pumili sa pagitan ng {{min}} at {{max}} na opsyon",
         },
@@ -30,8 +32,9 @@ const tagalogTranslation: TranslationType = {
             collapseToggle: "I-toggle ang listahan {{listTitle}}",
             showCandidates: "Ipakita ang mga kandidato",
             hideCandidates: "Itago ang mga kandidato",
-            selectedCandidate: "{{count}} kandidatong napili",
-            selectedCandidates: "{{count}} kandidatong napili",
+            selectedCandidates_one: "{{count}} kandidatong napili",
+            selectedCandidates_many: "{{count}} kandidatong napili",
+            selectedCandidates_other: "{{count}} kandidatong napili",
             expandAll: "Palawakin lahat",
             collapseAll: "Bawasan lahat",
         },
@@ -58,13 +61,13 @@ const tagalogTranslation: TranslationType = {
             ballotHelpDialog: {
                 title: "Impormasyon: Screen ng Balota",
                 content:
-                    "Ipinapakita sa screen na ito ang mga paligsahan na maaari mong botohan. Maaari kang pumili sa pamamagitan ng pag-activate ng checkbox sa kanang bahagi ng Kandidato/Sagot. Upang i-reset ang iyong mga pagpili, i-click ang “<b>Burahin ang pagpili</b>” na button, upang pumunta sa susunod na hakbang, i-click ang “<b>Susunod</b>” na button sa ibaba.",
+                    "Ipinapakita sa screen na ito ang mga paligsahan na maaari mong botohan. Maaari kang pumili sa pamamagitan ng pag-activate ng checkbox sa kanang bahagi ng Kandidato/Sagot. Upang i-reset ang iyong mga pagpili, i-click ang “<b>Burahin ang mga napili</b>” na button, upang pumunta sa susunod na hakbang, i-click ang “<b>Susunod</b>” na button sa ibaba.",
                 ok: "OK",
             },
             nonVotedDialog: {
                 title: "Di-wasto o blangkong boto",
                 content:
-                    "Ang ilan sa iyong mga sagot ay magreresulta sa pagkaka-invalidate o pagkakaroon ng blangko sa balota sa isa o higit pang mga tanong.",
+                    "Ang ilan sa iyong mga sagot ay magreresulta sa pagkaka-invalidate o pagkakaroon ng blangko sa balota sa isa o higit pang mga paligsahan.",
                 ok: "Bumalik at suriin",
                 continue: "Ipagpatuloy",
                 cancel: "Kanselahin",
@@ -99,7 +102,7 @@ const tagalogTranslation: TranslationType = {
             instructionsDescription: "Sundin ang mga hakbang na ito upang ikaw ay makaboto:",
             step1Title: "1. Piliin ang iyong mga sagot",
             step1Description:
-                "Sagutin ang mga tanong ng halalan isa-isa habang ipinapakita ang mga ito. Maaari mong i-edit ang iyong balota hanggang handa ka nang magpatuloy.",
+                "Pumili sa bawat paligsahan isa-isa habang ipinapakita ang mga ito. Maaari mong i-edit ang iyong balota hanggang handa ka nang magpatuloy.",
             step2Title: "2. Suriin ang iyong balota",
             step2Description:
                 "Kapag ikaw ay kontento na sa iyong mga napili, aming i-eencript ang iyong balota at ipapakita sa iyo ang huling pagsusuri ng iyong mga napili. Makakatanggap ka rin ng natatanging tracker ID para sa iyong balota.",
@@ -164,13 +167,22 @@ const tagalogTranslation: TranslationType = {
                 ok: "Oo, nais kong isumite ang aking blangkong balota",
                 cancel: "Kanselahin",
             },
+            unfilledContestsDialog: {
+                title: "May mga pagpiling hindi napunan",
+                content:
+                    "Maaari mong iwanang blangko ang isang posisyon o pumili ng mas kaunting kandidato. Suriin ang sumusunod bago magpatuloy.",
+                selected: "{{selected}} sa {{max}} ang napili",
+                nothingSelected: "Walang boto para sa posisyong ito",
+                ok: "Magpatuloy sa mga pagpiling ito",
+                cancel: "Suriin ang mga pinili",
+            },
             error: {
                 NETWORK_ERROR:
                     "Nagkaroon ng problema sa network. Pakisubukan ulit mamaya o makipag-ugnayan sa helpdesk para sa tulong.",
                 UNABLE_TO_FETCH_DATA:
                     "Nagkaroon ng problema sa pagkuha ng data. Pakisubukan ulit mamaya o makipag-ugnayan sa helpdesk para sa tulong.",
                 LOAD_ELECTION_EVENT:
-                    "Hindi ma-load ang kaganapan ng eleksyon. Pakisubukan ulit mamaya.",
+                    "Hindi ma-load ang kaganapan ng halalan. Pakisubukan ulit mamaya.",
                 CAST_VOTE:
                     "Nagkaroon ng hindi inaasahang error habang bumoboto. Pakisubukang muli mamaya o makipag-ugnayan sa suporta para sa tulong.",
                 CAST_VOTE_CheckStatusFailed:
@@ -216,13 +228,13 @@ const tagalogTranslation: TranslationType = {
                 CAST_VOTE_UnknownError:
                     "Nagkaroon ng hindi kilalang error habang bumoboto. Pakisubukang muli mamaya o makipag-ugnayan sa suporta para sa tulong.",
                 NO_BALLOT_SELECTION:
-                    "Walang estado ng pagpili para sa eleksyon na ito. Pakitiyak na tama ang iyong pagpili o makipag-ugnayan sa helpdesk.",
+                    "Walang estado ng pagpili para sa halalan na ito. Pakitiyak na tama ang iyong pagpili o makipag-ugnayan sa helpdesk.",
                 NO_BALLOT_STYLE: "Walang estilo ng balota. Pakikontak ang helpdesk.",
                 NO_AUDITABLE_BALLOT: "Walang balota na maaring suriin. Pakikontak ang helpdesk.",
                 INCONSISTENT_HASH:
                     "Nagkaroon ng error kaugnay sa proseso ng pag-hash ng balota. BallotId: {{ballotId}} ay hindi tugma sa sinusuring Hash ng Balota: {{auditableBallotHash}}. Pakireport itong isyu sa helpdesk.",
                 ELECTION_EVENT_NOT_OPEN:
-                    "Ang kaganapan ng eleksyon ay sarado na. Pakikontak ang helpdesk.",
+                    "Ang kaganapan ng halalan ay sarado na. Pakikontak ang helpdesk.",
                 PARSE_ERROR:
                     "Nagkaroon ng error sa pag-parse ng balota. Pakisubukan ulit mamaya o makipag-ugnayan sa helpdesk para sa tulong.",
                 DESERIALIZE_AUDITABLE_ERROR:
@@ -414,6 +426,124 @@ const tagalogTranslation: TranslationType = {
                 checkboxLabel: "Nabasa ko na ang Mga Pangsuportang Materyales",
                 continueButton: "Magpatuloy",
                 error: "Nagkaroon ng problema sa pagre-record ng iyong kumpirmasyon. Pakisubukan muli.",
+            },
+        },
+        slates: {
+            title: "Mga slate",
+            independent: "Independiyente",
+            contestMembers: "Mga kandidato ng {{slate}} para sa {{contest}}",
+            noCandidate: "Walang kandidato",
+            note: "Pinipili ng slate ang mga kandidato nito at iniiwang blangko ang mga posisyong walang kandidato ng slate. Maaari mong baguhin ang anumang pinili anumang oras.",
+            coverage: {
+                full: "Buong slate",
+                singleContest: "{{contest}} lamang",
+                partial: "Bahagyang slate",
+                everyOffice: "May kandidato para sa bawat posisyon.",
+                someOffices: "May kandidato para sa {{offices}}. Blangko ang ibang posisyon.",
+                candidates_one: "{{count}} kandidato",
+                candidates_other: "{{count}} kandidato",
+                offices_one: "{{count}} posisyon",
+                offices_other: "{{count}} posisyon",
+            },
+            candidateList: {
+                show: "Ipakita ang mga kandidato",
+                hide: "Itago ang mga kandidato",
+            },
+            tabs: {
+                label: "Paraan ng pagpili",
+                slates: "Pumili ng slate",
+                candidates: "Mga indibidwal na kandidato",
+            },
+            count: {
+                short: "{{selected}} / {{seats}} kandidatong napili",
+                long: "· {{selected}} sa {{seats}} kandidatong napili",
+                individual: "Mga indibidwal na pinili",
+                none: "Walang napiling kandidato",
+            },
+            allSelections: {
+                label: "Ang iyong mga kasalukuyang pinili",
+                none: "Walang pinili",
+            },
+            review: {
+                title: "Ang iyong mga pinili",
+                of: "sa {{seats}}",
+                selected: "Mga kandidatong napili",
+                note: "Itinatala ang iyong boto para sa bawat napiling kandidato.",
+                contestCount: "{{selected}} sa {{max}} ang napili",
+                unfilled: "Walang napiling kandidato",
+                editLabel: "Baguhin ang {{contest}}",
+            },
+            selection: {
+                all: "Napili ang lahat ng {{total}}",
+                mixed: "Halo · {{selected}} sa {{total}} ang napili",
+                partly: "Bahagyang napili · {{selected}} sa {{total}}",
+                selected: "Napili",
+                edit: "Baguhin ang mga pinili",
+            },
+            apply: {
+                button: "Piliin ang slate",
+                buttonLabel: "Piliin ang slate na {{slate}}",
+                applied: "Napili ang {{slate}}. Maaari mo pang baguhin ang sinumang kandidato.",
+                appliedPartial_one:
+                    "Napili ang {{slate}}. Wala itong kandidato para sa {{offices}}, kaya blangko ang posisyong iyon. Maaari mo pang baguhin ang sinumang kandidato.",
+                appliedPartial_other:
+                    "Napili ang {{slate}}. Wala itong kandidato para sa {{offices}}, kaya blangko ang mga posisyong iyon. Maaari mo pang baguhin ang sinumang kandidato.",
+                overMaximum:
+                    "Hindi mapipili ang {{slate}}: mayroon itong {{candidates}} kandidato para sa {{contest}}, na nagpapahintulot ng {{max}}. Maaari ka pa ring pumili ng mga kandidato nang isa-isa.",
+                unavailable:
+                    "Hindi mapipili ang {{slate}} sa balotang ito. Maaari ka pa ring pumili ng mga kandidato nang isa-isa.",
+                replaceDialog: {
+                    title: "Palitan ang mga piniling ito?",
+                    content_one:
+                        "Babaguhin ng pagpili sa <strong>{{slate}}</strong> ang sumusunod na posisyon.",
+                    content_other:
+                        "Babaguhin ng pagpili sa <strong>{{slate}}</strong> ang mga sumusunod na posisyon.",
+                    current: "Mga kasalukuyang pinili",
+                    blankNote:
+                        "Walang kandidato ang {{slate}} para sa ilang posisyon. Magiging blangko ang mga posisyong iyon.",
+                    ok: "Palitan ang mga pinili",
+                    okOffice: "Palitan ang {{office}}",
+                    cancel: "Panatilihin ang aking mga pinili",
+                },
+            },
+            clear: {
+                cleared: "Na-clear na ang lahat ng iyong pinili.",
+                dialog: {
+                    title: "I-clear ang lahat ng iyong pinili?",
+                    content:
+                        "Aalisin ng pag-clear ang lahat ng pinili sa iyong balota. Magbabago ang mga posisyong ito:",
+                    after: "Pagkatapos i-clear",
+                    ok: "I-clear ang mga pinili",
+                    cancel: "Panatilihin ang aking mga pinili",
+                },
+            },
+            offices: {
+                label: "Mga posisyon",
+                picker: "Posisyon",
+                index: "Posisyon {{index}} sa {{total}}",
+                count: "{{selected}}/{{max}}",
+                previous: "Nakaraang posisyon",
+                next: "Susunod na posisyon",
+                last: "Huling posisyon",
+                instruction_one: "Pumili ng hanggang {{count}} kandidato. {{selected}} ang napili.",
+                instruction_other:
+                    "Pumili ng hanggang {{count}} kandidato. {{selected}} ang napili.",
+            },
+            limit: "Maaari kang pumili ng hanggang {{count}}. Alisin muna ang isang kandidato bago pumili ng iba.",
+            view: {
+                button: "Tingnan ang slate",
+                buttonLabel: "Tingnan ang slate na {{slate}}",
+                summary: "{{coverage}} · {{candidates}}",
+                select: "Piliin ang slate na ito",
+                back: "Bumalik",
+            },
+            dialog: {
+                close: "Isara ang dialog",
+            },
+            clearContest: {
+                button: "I-clear",
+                label: "I-clear ang {{contest}}",
+                cleared: "Na-clear ang mga pinili para sa {{contest}}.",
             },
         },
         ballotLocator: {

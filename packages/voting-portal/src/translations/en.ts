@@ -22,8 +22,10 @@ const englishTranslation = {
             votingProgress: "Voting progress",
             stepOf: "Step {{current}} of {{total}}",
             selectUpTo_one: "Select up to {{count}} option",
+            selectUpTo_many: "Select up to {{count}} options",
             selectUpTo_other: "Select up to {{count}} options",
             selectExactly_one: "Select {{count}} option",
+            selectExactly_many: "Select {{count}} options",
             selectExactly_other: "Select {{count}} options",
             selectBetween: "Select between {{min}} and {{max}} options",
         },
@@ -31,8 +33,12 @@ const englishTranslation = {
             collapseToggle: "Toggle list {{listTitle}}",
             showCandidates: "Show candidates",
             hideCandidates: "Hide candidates",
-            selectedCandidate: "{{count}} candidate selected",
-            selectedCandidates: "{{count}} candidates selected",
+            selectedCandidates_one: "{{count}} candidate selected",
+            // `_many` is selected only in es/cat/fr, for exact multiples of a million. English never
+            // selects it, but the other bundles are typed `TranslationType = typeof englishTranslation`,
+            // so the key has to be declared here before they can carry it.
+            selectedCandidates_many: "{{count}} candidates selected",
+            selectedCandidates_other: "{{count}} candidates selected",
             expandAll: "Expand all",
             collapseAll: "Collapse all",
         },
@@ -55,17 +61,17 @@ const englishTranslation = {
         votingScreen: {
             backButton: "Back",
             reviewButton: "Next",
-            clearButton: "Clear selection",
+            clearButton: "Clear selections",
             ballotHelpDialog: {
                 title: "Information: Ballot screen",
                 content:
-                    "This screen shows the contests you are eligible to vote in. You can make your selection by activating the checkbox to the right of the Candidate/Answer. To reset your selections, click the “<b>Clear selection</b>” button; to move to the next step, click the “<b>Next</b>” button below.",
+                    "This screen shows the contests you are eligible to vote in. You can make your selection by activating the checkbox to the right of the Candidate/Answer. To reset your selections, click the “<b>Clear selections</b>” button; to move to the next step, click the “<b>Next</b>” button below.",
                 ok: "OK",
             },
             nonVotedDialog: {
                 title: "Invalid or blank vote",
                 content:
-                    "Some of your answers will render the ballot in one or more questions invalid or blank.",
+                    "Some of your answers will render the ballot in one or more contests invalid or blank.",
                 ok: "Back and review",
                 continue: "Continue",
                 cancel: "Cancel",
@@ -98,9 +104,9 @@ const englishTranslation = {
             },
             instructionsTitle: "Instructions",
             instructionsDescription: "Please follow these steps to cast your ballot:",
-            step1Title: "1. Select your options",
+            step1Title: "1. Make your selections",
             step1Description:
-                "Choose your preferred candidates and answer the Ballot questions one by one as they appear. You can edit your ballot until you are ready to proceed.",
+                "Choose your preferred candidates and make your selections in each contest as it appears. You can edit your ballot until you are ready to proceed.",
             step2Title: "2. Review your ballot",
             step2Description:
                 "Once you are satisfied with your selections, we will encrypt your ballot and show you a final review of your choices. You will also receive a unique tracker ID for your ballot.",
@@ -165,6 +171,15 @@ const englishTranslation = {
                 ok: "Yes, cast my blank ballot",
                 cancel: "Cancel",
             },
+            unfilledContestsDialog: {
+                title: "Some selections are unfilled",
+                content:
+                    "You may leave an office blank or select fewer candidates. Check the following before continuing.",
+                selected: "{{selected}} of {{max}} selected",
+                nothingSelected: "No vote for this office",
+                ok: "Continue with these selections",
+                cancel: "Review selections",
+            },
             error: {
                 NETWORK_ERROR:
                     "There was a network problem. Please try again later or contact support for assistance.",
@@ -216,7 +231,7 @@ const englishTranslation = {
                 CAST_VOTE_UnknownError:
                     "An unknown error occurred while casting the vote. Please try again later or contact support for assistance.",
                 NO_BALLOT_SELECTION:
-                    "The selection state for this election is not present. Please ensure you have selected your choices correctly or contact support.",
+                    "The selection state for this election is not present. Please ensure you have made your selections correctly or contact support.",
                 NO_BALLOT_STYLE: "The ballot style is not available. Please contact support.",
                 NO_AUDITABLE_BALLOT: "No auditable ballot is available. Please contact support.",
                 INCONSISTENT_HASH:
@@ -410,6 +425,122 @@ const englishTranslation = {
                 checkboxLabel: "I have read the Support Materials",
                 continueButton: "Continue",
                 error: "There was a problem recording your acknowledgment. Please try again.",
+            },
+        },
+        slates: {
+            title: "Slates",
+            independent: "Independent",
+            contestMembers: "{{slate}} candidates for {{contest}}",
+            noCandidate: "No candidate",
+            note: "A slate selects its candidates and leaves offices without a slate candidate blank. You can change individual choices at any time.",
+            coverage: {
+                full: "Full slate",
+                singleContest: "{{contest}} only",
+                partial: "Partial slate",
+                everyOffice: "Candidates for every office.",
+                someOffices: "Candidates for {{offices}}. Other offices are left blank.",
+                candidates_one: "{{count}} candidate",
+                candidates_other: "{{count}} candidates",
+                offices_one: "{{count}} office",
+                offices_other: "{{count}} offices",
+            },
+            candidateList: {
+                show: "Show candidates",
+                hide: "Hide candidates",
+            },
+            tabs: {
+                label: "Selection method",
+                slates: "Choose a slate",
+                candidates: "Individual candidates",
+            },
+            count: {
+                short: "{{selected}} / {{seats}} candidates selected",
+                long: "· {{selected}} of {{seats}} candidates selected",
+                individual: "Individual selections",
+                none: "No candidates selected",
+            },
+            allSelections: {
+                label: "Your current selections",
+                none: "No selection",
+            },
+            review: {
+                title: "Your selections",
+                of: "of {{seats}}",
+                selected: "Candidates selected",
+                note: "Your vote is recorded for each selected candidate.",
+                contestCount: "{{selected}} of {{max}} selected",
+                unfilled: "No candidate selected",
+                editLabel: "Edit {{contest}}",
+            },
+            selection: {
+                all: "All {{total}} selected",
+                mixed: "Mixed · {{selected}} of {{total}} selected",
+                partly: "Partly selected · {{selected}} of {{total}}",
+                selected: "Selected",
+                edit: "Edit selections",
+            },
+            apply: {
+                button: "Select slate",
+                buttonLabel: "Select slate {{slate}}",
+                applied: "{{slate}} selected. You can still change any candidate.",
+                appliedPartial_one:
+                    "{{slate}} selected. It has no candidate for {{offices}}, so that office is blank. You can still change any candidate.",
+                appliedPartial_other:
+                    "{{slate}} selected. It has no candidate for {{offices}}, so those offices are blank. You can still change any candidate.",
+                overMaximum:
+                    "{{slate}} cannot be selected: it has {{candidates}} candidates for {{contest}}, which allows {{max}}. You can still choose candidates individually.",
+                unavailable:
+                    "{{slate}} cannot be selected on this ballot. You can still choose candidates individually.",
+                replaceDialog: {
+                    title: "Replace these selections?",
+                    content_one:
+                        "Selecting <strong>{{slate}}</strong> will change the following office.",
+                    content_other:
+                        "Selecting <strong>{{slate}}</strong> will change the following offices.",
+                    current: "Current selections",
+                    blankNote:
+                        "{{slate}} has no candidate for some offices. Those offices will be blank.",
+                    ok: "Replace selections",
+                    okOffice: "Replace {{office}}",
+                    cancel: "Keep my selections",
+                },
+            },
+            clear: {
+                cleared: "All your choices have been cleared.",
+                dialog: {
+                    title: "Clear all your choices?",
+                    content: "Clearing removes every choice on your ballot. These offices change:",
+                    after: "After clearing",
+                    ok: "Clear choices",
+                    cancel: "Keep my choices",
+                },
+            },
+            offices: {
+                label: "Offices",
+                picker: "Office",
+                index: "Office {{index}} of {{total}}",
+                count: "{{selected}}/{{max}}",
+                previous: "Previous office",
+                next: "Next office",
+                last: "Last office",
+                instruction_one: "Select up to {{count}} candidate. {{selected}} selected.",
+                instruction_other: "Select up to {{count}} candidates. {{selected}} selected.",
+            },
+            limit: "You can select up to {{count}}. Deselect a candidate before choosing another.",
+            view: {
+                button: "View slate",
+                buttonLabel: "View slate {{slate}}",
+                summary: "{{coverage}} · {{candidates}}",
+                select: "Select this slate",
+                back: "Back",
+            },
+            dialog: {
+                close: "Close dialog",
+            },
+            clearContest: {
+                button: "Clear",
+                label: "Clear {{contest}}",
+                cleared: "Selections cleared for {{contest}}.",
             },
         },
         ballotLocator: {

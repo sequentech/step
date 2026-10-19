@@ -5,34 +5,33 @@ import {TranslationType} from "./en"
 
 const spanishTranslation: TranslationType = {
     translations: {
-        welcome: "Comencemos: Importa la papeleta auditable...",
         404: {
             title: "Página no encontrada",
             subtitle: "La página que busca no existe",
         },
         homeScreen: {
-            step1: "Paso 1: Importa tu papeleta electoral.",
+            step1: "Paso 1: Importe su papeleta electoral.",
             description1:
                 "Para continuar, por favor importe los datos de las papeletas encriptadas proporcionados en el Portal de Votación:",
             importBallotHelpDialog: {
-                title: "Información: Importa tu papeleta electoral",
+                title: "Información: Importe su papeleta electoral",
                 ok: "OK",
                 content:
                     "Para continuar, por favor importe los datos de las papeletas encriptadas proporcionados en el Portal de Votación.",
             },
-            step2: "Paso 2: Inserta tu ID de papeleta.",
+            step2: "Paso 2: Inserte su ID de papeleta.",
             description2:
                 "Por favor ingrese el ID de la papeleta proporcionado en el Portal de Votación:",
             ballotIdHelpDialog: {
-                title: "Information: Tu ID de papeleta",
+                title: "Información: Su ID de papeleta",
                 ok: "OK",
                 content:
                     "Por favor ingrese el ID de la papeleta proporcionado en el Portal de Votación.",
             },
-            startButton: "Selecciona fichero",
+            startButton: "Seleccione fichero",
             dragDropOption: "O arrastre el fichero aquí",
             importErrorDescription:
-                "Hubo un problema al importar el voto auditable. ¿Elegiste el archivo correcto?",
+                "Hubo un problema al importar el voto auditable. ¿Eligió el archivo correcto?",
             importErrorMoreInfo: "Más información",
             importErrorTitle: "Error",
             ciphertextErrorTitle: "La verificación del voto ha fallado",
@@ -41,7 +40,7 @@ const spanishTranslation: TranslationType = {
             useSampleLink: "Use voto de ejemplo",
             nextButton: "Continuar",
             ballotIdLabel: "ID de papeleta",
-            ballotIdPlaceholder: "Escribe aquí tu ID de papeleta",
+            ballotIdPlaceholder: "Escriba aquí su ID de papeleta",
             fileUploaded: "Cargado",
         },
         confirmationScreen: {
@@ -66,17 +65,19 @@ const spanishTranslation: TranslationType = {
             backButton: "Atrás",
             printButton: "Imprimir",
             finishButton: "Verificado",
-            verifySelectionsTitle: "Verifica tus selecciones en la papeleta",
+            verifySelectionsTitle: "Verifique sus selecciones en la papeleta",
             verifySelectionsDescription:
-                "Las siguientes selecciones de la papeleta han sido descodificadas de la papeleta que importaste. Por favor, revísalas y asegúrate de que coincidan con las selecciones que hiciste en el Portal de Votación. Si tus selecciones no coinciden, por favor, contacta a las autoridades electorales...",
+                "Las siguientes selecciones de la papeleta han sido descodificadas de la papeleta que importó. Por favor, revíselas y asegúrese de que coincidan con las selecciones que hizo en el Portal de Votación. Si sus selecciones no coinciden, por favor, contacte con las autoridades electorales...",
             verifySelectionsHelpDialog: {
-                title: "Información: Verifica tus selecciones en la papeleta",
+                title: "Información: Verifique sus selecciones en la papeleta",
                 ok: "OK",
                 content:
-                    "Las siguientes selecciones de la papeleta han sido descodificadas de la papeleta que importaste. Por favor, revísalas y asegúrate de que coincidan con las selecciones que hiciste en el Portal de Votación. Si tus selecciones no coinciden, por favor, contacta a las autoridades electorales...",
+                    "Las siguientes selecciones de la papeleta han sido descodificadas de la papeleta que importó. Por favor, revíselas y asegúrese de que coincidan con las selecciones que hizo en el Portal de Votación. Si sus selecciones no coinciden, por favor, contacte con las autoridades electorales...",
             },
             markedInvalid: "Voto explícitamente marcado inválido",
-            points: "({{points}} Puntos)",
+            points_one: "({{count}} Punto)",
+            points_many: "({{count}} Puntos)",
+            points_other: "({{count}} Puntos)",
             contestNotFound: "Pregunta no encontrada: {{contestId}}",
             declineToVote: "Se abstuvo de votar",
             blankBallot: "Papeleta en blanco",
@@ -94,12 +95,6 @@ const spanishTranslation: TranslationType = {
                 bytesToUtf8Conversion:
                     "Error convirtiendo bytes de opción de voto escrita a cadena UTF-8: {{errorMessage}}",
                 ballotTooLarge: "Voto más grande de lo esperado",
-            },
-            implicit: {
-                selectedMax:
-                    "El número de opciones seleccionadas {{numSelected}} es mayor que el máximo {{max}}",
-                selectedMin:
-                    "El número de opciones seleccionadas {{numSelected}} es menor que el máximo {{min}}",
             },
             explicit: {
                 notAllowed:

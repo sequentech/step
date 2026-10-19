@@ -66,6 +66,9 @@ Manage presentation of ballot elements for this Election.
   - **Random**: Contests appear in a random order for each voter session.  
   - **Alphabetical**: Contests are listed alphabetically by name.  
   - **Custom**: Manually reorder contests. When “Custom” is selected, a drag-and-drop or similar interface appears to arrange contests in the desired sequence.
+- **Enable slates** (Optional): Lets voters select a named slate and still change any contest, including Independent candidates. When it is on, the Election's slates appear in the tree under the Election, with **Create a Slate**. Turning it off on an Election that has slates asks first and deletes the slates when you save.
+- **Mobile candidate lists**: Shown when slates are enabled. **Collapsed** (default) or **Expanded**: how each slate's candidate list first appears on phones. Voters can still open or close any list, and wider screens always show every candidate.
+- See [Slate Configuration](../14-slates-configuration.md) for the slate pages and the rules slates must follow.
 - **Additional Design Settings** (if applicable):  
   - Logo, CSS overrides, or other display options (depending on system capabilities).  
   - Receipt format settings may be covered under “Receipts” if separate.
@@ -128,7 +131,7 @@ Import advanced settings for this Election and define vote limits, confirmations
 - **Upload Advanced Configuration** (Optional):  
   - Drag and drop a configuration file (e.g., JSON or system-specific format) to apply pre-defined advanced settings.  
   - This may include settings like contest encryption policies, custom validations, or integrations.
-  
+
 - **Start Screen Title Policy**
 
   - Set the title of the Start Screen (Voting Portal) to either the election title or the Election Event Title. The default value is the Election title.
