@@ -457,7 +457,9 @@ update_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-          check: null
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
       role: election-event-archive
     - comment: ""
       permission:
@@ -508,7 +510,9 @@ update_permissions:
               - audit_election_event_id
               - id
               - tenant_id
-          filter: {}
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
           check:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
