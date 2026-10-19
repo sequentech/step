@@ -71,7 +71,7 @@ class CustomEventListenerProviderEventsTest {
 
   @Test
   void successfulSignInCaptureRunsAfterCommitAndNeverChangesTheAuditPayload() throws Exception {
-    SigninNetworkSender capture = mock(SigninNetworkSender.class);
+    SigninNetworkDispatcher capture = mock(SigninNetworkDispatcher.class);
     provider =
         new CustomEventListenerProvider(
             session, new PgmqEventPublisher(sender, PublishFailurePolicy.FAIL_REQUEST), capture);
@@ -94,15 +94,16 @@ class CustomEventListenerProviderEventsTest {
     verify(transaction).enlistAfterCompletion(after.capture());
     after.getValue().begin();
     after.getValue().commit();
-    ArgumentCaptor<Event> snapshot = ArgumentCaptor.forClass(Event.class);
-    verify(capture).capture(eq(session), eq(LogRealm.fromName(EVENT_REALM)), snapshot.capture());
-    assertEquals(USER_ID, snapshot.getValue().getUserId());
-    assertEquals("10.0.0.7", snapshot.getValue().getIpAddress());
+    ArgumentCaptor<SigninNetworkSender.Evidence> snapshot =
+        ArgumentCaptor.forClass(SigninNetworkSender.Evidence.class);
+    verify(capture).submit(snapshot.capture());
+    assertEquals(USER_ID, snapshot.getValue().voterId());
+    assertEquals("10.0.0.7", snapshot.getValue().ip());
   }
 
   @Test
   void rolledBackSignInDoesNotSendForensicAttribution() {
-    SigninNetworkSender capture = mock(SigninNetworkSender.class);
+    SigninNetworkDispatcher capture = mock(SigninNetworkDispatcher.class);
     provider =
         new CustomEventListenerProvider(
             session, new PgmqEventPublisher(sender, PublishFailurePolicy.FAIL_REQUEST), capture);

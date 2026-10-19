@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Flow;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.keycloak.events.Event;
@@ -85,7 +86,7 @@ class SigninNetworkSenderTest {
 
   @Test
   void sendsOnlyAfterExplicitPolicyApprovalWithTenantAuthentication() throws Exception {
-    sender.capture(session, realm, event);
+    sender.deliver(SigninNetworkSender.snapshot(session, realm, event));
     assertEquals(2, requests.size());
     HttpRequest preflight = requests.get(0);
     assertEquals("GET", preflight.method());
@@ -115,7 +116,7 @@ class SigninNetworkSenderTest {
   }
 
   @Test
-  void disabledMissingUnknownAndMalformedPolicyNeverReadOrSendNetworkHeaders() {
+  void disabledMissingUnknownAndMalformedPolicyNeverTransmitNetworkMetadata() {
     for (String response :
         List.of(
             "{\"network_data_policy\":\"do-not-store\"}",
@@ -124,38 +125,37 @@ class SigninNetworkSenderTest {
             "broken")) {
       requests.clear();
       policy = response;
-      sender.capture(session, realm, event);
+      sender.deliver(SigninNetworkSender.snapshot(session, realm, event));
       assertEquals(1, requests.size());
       assertEquals("GET", requests.get(0).method());
     }
-    verifyNoInteractions(headers);
   }
 
   @Test
   void failedPolicyReadAndTokenFailureNeverSendMetadata() throws Exception {
     policyStatus = 403;
-    sender.capture(session, realm, event);
+    sender.deliver(SigninNetworkSender.snapshot(session, realm, event));
     assertEquals(1, requests.size());
     requests.clear();
     when(tokens.fetchAccessToken(any())).thenThrow(new IOException("synthetic private failure"));
-    assertDoesNotThrow(() -> sender.capture(session, realm, event));
+    assertDoesNotThrow(() -> sender.deliver(SigninNetworkSender.snapshot(session, realm, event)));
     assertTrue(requests.isEmpty());
-    verifyNoInteractions(headers);
   }
 
   @Test
   void signoutFailedLoginTenantRealmAndMissingIdentityDoNotContactHarvest() {
     event.setType(EventType.LOGOUT);
-    sender.capture(session, realm, event);
+    sender.deliver(SigninNetworkSender.snapshot(session, realm, event));
     event.setType(EventType.LOGIN_ERROR);
-    sender.capture(session, realm, event);
+    sender.deliver(SigninNetworkSender.snapshot(session, realm, event));
     event.setType(EventType.LOGIN);
     event.setError("invalid_user_credentials");
-    sender.capture(session, realm, event);
+    sender.deliver(SigninNetworkSender.snapshot(session, realm, event));
     event.setError(null);
-    sender.capture(session, LogRealm.fromName("tenant-" + TENANT), event);
+    sender.deliver(
+        SigninNetworkSender.snapshot(session, LogRealm.fromName("tenant-" + TENANT), event));
     event.setUserId(null);
-    sender.capture(session, realm, event);
+    sender.deliver(SigninNetworkSender.snapshot(session, realm, event));
     verifyNoInteractions(http, tokens, headers);
   }
 
@@ -163,12 +163,12 @@ class SigninNetworkSenderTest {
   void policyIsRecheckedOnEveryLoginAndOversizedMetadataIsOmitted() throws Exception {
     when(headers.getHeaderString("User-Agent")).thenReturn("é".repeat(600));
     when(headers.getHeaderString("CF-IPCountry")).thenReturn("untrusted country text");
-    sender.capture(session, realm, event);
+    sender.deliver(SigninNetworkSender.snapshot(session, realm, event));
     JsonNode payload = json.readTree(body(requests.get(1)));
     assertTrue(payload.path("user_agent").isNull());
     assertTrue(payload.path("country").isNull());
     policy = "{\"network_data_policy\":\"do-not-store\"}";
-    sender.capture(session, realm, event);
+    sender.deliver(SigninNetworkSender.snapshot(session, realm, event));
     assertEquals(3, requests.size());
     assertEquals("GET", requests.get(2).method());
   }
@@ -178,7 +178,7 @@ class SigninNetworkSenderTest {
     when(http.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
         .thenThrow(new InterruptedException("synthetic private metadata"));
     try {
-      assertDoesNotThrow(() -> sender.capture(session, realm, event));
+      assertDoesNotThrow(() -> sender.deliver(SigninNetworkSender.snapshot(session, realm, event)));
       assertTrue(Thread.currentThread().isInterrupted());
     } finally {
       Thread.interrupted();
@@ -224,7 +224,7 @@ class SigninNetworkSenderTest {
           .thenThrow(
               new IOException(
                   "198.51.100.7 " + VOTER + " Synthetic browser synthetic-service-token"));
-      sender.capture(session, realm, event);
+      sender.deliver(SigninNetworkSender.snapshot(session, realm, event));
       assertFalse(records.isEmpty());
       for (java.util.logging.LogRecord record : records) {
         assertNull(record.getThrown());
@@ -249,8 +249,58 @@ class SigninNetworkSenderTest {
     when(http.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
         .thenReturn(allowed)
         .thenReturn(refusal);
-    assertDoesNotThrow(() -> sender.capture(session, realm, event));
+    assertDoesNotThrow(() -> sender.deliver(SigninNetworkSender.snapshot(session, realm, event)));
     verify(http, times(2)).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
+  }
+
+  @Test
+  void pendingRegistrationRetriesWithSameDeliveryIdAndRechecksPolicy() throws Exception {
+    SigninNetworkSender.Evidence snapshot = SigninNetworkSender.snapshot(session, realm, event);
+    HttpResponse<String> enabled = mock(HttpResponse.class);
+    when(enabled.statusCode()).thenReturn(200);
+    when(enabled.body()).thenReturn(policy);
+    HttpResponse<Void> pending = mock(HttpResponse.class);
+    when(pending.statusCode()).thenReturn(503);
+    HttpResponse<Void> accepted = mock(HttpResponse.class);
+    when(accepted.statusCode()).thenReturn(204);
+    AtomicInteger call = new AtomicInteger();
+    when(http.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+        .thenAnswer(
+            invocation -> {
+              HttpRequest request = invocation.getArgument(0);
+              requests.add(request);
+              int current = call.incrementAndGet();
+              if (request.method().equals("GET")) return enabled;
+              return current == 2 ? pending : accepted;
+            });
+    assertEquals(SigninNetworkSender.Delivery.RETRY, sender.deliver(snapshot));
+    event.setUserId("not-the-original-voter");
+    event.setIpAddress("203.0.113.9");
+    when(headers.getHeaderString("User-Agent")).thenReturn("Mutated browser");
+    assertEquals(SigninNetworkSender.Delivery.COMPLETE, sender.deliver(snapshot));
+    assertEquals(
+        List.of("GET", "POST", "GET", "POST"), requests.stream().map(HttpRequest::method).toList());
+    assertEquals(body(requests.get(1)), body(requests.get(3)));
+    assertEquals("198.51.100.7", json.readTree(body(requests.get(3))).path("ip").asText());
+    when(enabled.body()).thenReturn("{\"network_data_policy\":\"do-not-store\"}");
+    assertEquals(SigninNetworkSender.Delivery.COMPLETE, sender.deliver(snapshot));
+    assertEquals(5, requests.size());
+    assertEquals("GET", requests.get(4).method());
+  }
+
+  @Test
+  void authorizationRefusalsAreTerminalButTransientHttpFailuresCanRetry() throws Exception {
+    SigninNetworkSender.Evidence snapshot = SigninNetworkSender.snapshot(session, realm, event);
+    for (int status : List.of(401, 403, 404)) {
+      policyStatus = status;
+      assertEquals(SigninNetworkSender.Delivery.COMPLETE, sender.deliver(snapshot));
+    }
+    for (int status : List.of(429, 500, 503)) {
+      policyStatus = status;
+      assertEquals(SigninNetworkSender.Delivery.RETRY, sender.deliver(snapshot));
+    }
+    assertEquals(6, requests.size());
+    assertTrue(requests.stream().allMatch(request -> request.method().equals("GET")));
   }
 
   private String body(HttpRequest request) throws Exception {

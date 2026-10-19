@@ -14,7 +14,7 @@ import org.keycloak.models.KeycloakSessionFactory;
 public class CustomEventListenerProviderFactory implements EventListenerProviderFactory {
 
   private PgmqEventPublisher pgmqEventPublisher;
-  private SigninNetworkSender signinNetworkSender;
+  private SigninNetworkDispatcher signinNetworkDispatcher;
 
   // Quarkus instantiates factories during image augmentation without runtime configuration.
   public CustomEventListenerProviderFactory() {}
@@ -25,7 +25,7 @@ public class CustomEventListenerProviderFactory implements EventListenerProvider
 
   @Override
   public EventListenerProvider create(KeycloakSession session) {
-    return new CustomEventListenerProvider(session, pgmqEventPublisher, signinNetworkSender);
+    return new CustomEventListenerProvider(session, pgmqEventPublisher, signinNetworkDispatcher);
   }
 
   @Override
@@ -37,11 +37,14 @@ public class CustomEventListenerProviderFactory implements EventListenerProvider
       pgmqEventPublisher = PgmqEventPublisher.fromEnvironment();
     }
     pgmqEventPublisher.checkQueueDatabase();
-    signinNetworkSender = SigninNetworkSender.fromEnvironment();
+    signinNetworkDispatcher = new SigninNetworkDispatcher(SigninNetworkSender.fromEnvironment());
   }
 
   @Override
   public void close() {
+    if (signinNetworkDispatcher != null) {
+      signinNetworkDispatcher.close();
+    }
     if (pgmqEventPublisher != null) {
       pgmqEventPublisher.close();
     }

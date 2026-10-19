@@ -37,7 +37,7 @@ public class CustomEventListenerProvider implements EventListenerProvider {
 
   private final KeycloakSession session;
   private final PgmqEventPublisher pgmqEventPublisher;
-  private final SigninNetworkSender signinNetworkSender;
+  private final SigninNetworkDispatcher signinNetworkDispatcher;
 
   // Environment variables (read once for performance)
   private static final String TASK_NAME =
@@ -54,10 +54,10 @@ public class CustomEventListenerProvider implements EventListenerProvider {
   CustomEventListenerProvider(
       KeycloakSession session,
       PgmqEventPublisher pgmqEventPublisher,
-      SigninNetworkSender signinNetworkSender) {
+      SigninNetworkDispatcher signinNetworkDispatcher) {
     this.session = session;
     this.pgmqEventPublisher = pgmqEventPublisher;
-    this.signinNetworkSender = signinNetworkSender;
+    this.signinNetworkDispatcher = signinNetworkDispatcher;
   }
 
   private static LogRealm logRealm(RealmModel realm) {
@@ -175,10 +175,10 @@ public class CustomEventListenerProvider implements EventListenerProvider {
             event.getTime(),
             Map.of("details", UserEventDetails.of(event, account))));
 
-    if (signinNetworkSender != null && SigninNetworkSender.eligible(realm, event)) {
+    if (signinNetworkDispatcher != null && SigninNetworkSender.eligible(realm, event)) {
       // A rollback must not publish successful sign-in attribution. The callback is request-local;
       // it does not put network data in a durable task or the ordinary audit queue.
-      Event snapshot = event.clone();
+      SigninNetworkSender.Evidence snapshot = SigninNetworkSender.snapshot(session, realm, event);
       if (session.getTransactionManager().isActive()) {
         session
             .getTransactionManager()
@@ -186,14 +186,14 @@ public class CustomEventListenerProvider implements EventListenerProvider {
                 new AbstractKeycloakTransaction() {
                   @Override
                   protected void commitImpl() {
-                    signinNetworkSender.capture(session, realm, snapshot);
+                    signinNetworkDispatcher.submit(snapshot);
                   }
 
                   @Override
                   protected void rollbackImpl() {}
                 });
       } else {
-        signinNetworkSender.capture(session, realm, snapshot);
+        signinNetworkDispatcher.submit(snapshot);
       }
     }
   }
