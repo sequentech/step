@@ -214,7 +214,7 @@ import, open each area and remove the contests that are not for that area.
 | Problem | Action |
 | --- | --- |
 | The **+** icon next to **Election Events** is not there. | Your account does not have the permission to create election events. Ask your tenant administrator. |
-| The import shows "Hashes don't match. Integrity check failure." | The file is not the file that you expect. Get the file again from its source. Do not import it without the check. |
+| The import task fails with "Failed to verify the integrity: …". Look at the **Tasks** tab. | The hash of the file is not the hash that you typed. The file is not the file that you expect, or you typed the hash incorrectly. Get the file again from its source. Do not import it without the check. |
 | A language is not available in **Language**. | Turn on the language in **Settings** > **LANGUAGES**. See [Set Up the Tenant](01-tenant.md). |
 | A contest is not in the list of **Area contest**. | Make sure that you created the contest. Type part of the contest name. |
 | "Error creating candidate" when you create a contest | Version 9.0 shows this text for a contest error. Check the **Name**, then save again. |

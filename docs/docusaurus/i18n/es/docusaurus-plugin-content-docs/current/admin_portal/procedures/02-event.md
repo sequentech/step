@@ -226,7 +226,7 @@ Después de la importación, abra cada área y quite las preguntas que no son de
 | Problema | Acción |
 | --- | --- |
 | El icono **+** junto a **Procesos Electorales** no está. | Su cuenta no tiene el permiso para crear procesos electorales. Pregunte al administrador del inquilino. |
-| La importación muestra "Hashes don't match. Integrity check failure." (los hashes no coinciden). | El archivo no es el archivo que espera. Obtenga el archivo de nuevo desde su origen. No lo importe sin la verificación. |
+| La tarea de importación falla con "Failed to verify the integrity: …". Mire la pestaña **Tareas**. | El hash del archivo no es el hash que escribió. El archivo no es el que espera, o escribió mal el hash. Vuelva a obtener el archivo de su origen. No lo importe sin la comprobación. |
 | Un idioma no está disponible en **Idiomas**. | Active el idioma en **Configuracion** > **IDIOMAS**. Consulte [Configurar el inquilino](01-tenant.md). |
 | Una pregunta no está en la lista de **Preguntas del Área**. | Asegúrese de que creó la pregunta. Escriba parte del nombre de la pregunta. |
 | "Error creando pregunta" cuando crea una pregunta | Compruebe el **Nombre** y después guarde de nuevo. |
