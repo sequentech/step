@@ -37,6 +37,7 @@ import {ElectoralLogConsole} from "./screens/ElectoralLogConsole"
 import {TaskQueues} from "./screens/TaskQueues"
 import {ListUsers} from "./resources/User/ListUsers"
 import {CustomLayout} from "./components/CustomLayout"
+import {PluginRoute} from "./plugins/PluginRoutes"
 import {EditAreaContest} from "./resources/AreaContest/EditAreaContest"
 import {EditTenant} from "./resources/Tenant/EditTenant"
 import {CreateTenant} from "./resources/Tenant/CreateTenant"
@@ -146,6 +147,7 @@ const App: React.FC<AppProps> = () => {
                     <Route path="/electoral-log-console" element={<ElectoralLogConsole />} />
                     <Route path="/task-queues" element={<TaskQueues />} />
                     <Route path="/settings/*" element={<SettingsScreen />} />
+                    <Route path="/plugins/:id/*" element={<PluginRoute />} />
                 </CustomRoutes>
 
                 <Resource

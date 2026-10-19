@@ -25,6 +25,7 @@ import SettingsLocalization from "@/resources/Settings/SettingsLocalization"
 import {SettingsBackupRestore} from "@/resources/Settings/SettingsBackupRestore"
 import {SettingsPreviews} from "@/resources/Settings/SettingsPreviews"
 import {SettingsLogs} from "@/resources/Settings/SettingsLogs"
+import {PluginSettings} from "@/plugins/PluginSettings"
 import {
     ESettingsAccess,
     settingsAccess,
@@ -118,6 +119,7 @@ export const SettingsScreen: React.FC = () => {
             label: t("settings.previewScreen.label"),
             component: () => <Resource name="sequent_backend_preview" list={SettingsPreviews} />,
         },
+        {label: t("plugins.title"), component: () => <PluginSettings />},
     ]
 
     return (

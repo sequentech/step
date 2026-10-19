@@ -10,6 +10,12 @@ use strum_macros::{Display, EnumIter, EnumString};
     Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString,
 )]
 pub enum Permissions {
+    #[strum(serialize = "projects-read")]
+    PROJECTS_READ,
+    #[strum(serialize = "projects-write")]
+    PROJECTS_WRITE,
+    #[strum(serialize = "projects-manage")]
+    PROJECTS_MANAGE,
     #[strum(serialize = "admin-user")]
     ADMIN_USER,
     #[strum(serialize = "tenant-create")]

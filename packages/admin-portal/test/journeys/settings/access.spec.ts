@@ -32,6 +32,7 @@ const TABS = [
     "Countries",
     "Backup / Restore",
     "Previews",
+    "Plugins",
 ]
 
 for (const [missing, roles] of [
@@ -71,7 +72,7 @@ test.describe("an auditor, with tenant-logs-read and without tenant-write", () =
 test.describe("a security officer, with tenant-write and tenant-logs-read", () => {
     test.use({roles: [...SETTINGS_ROLES, "tenant-logs-read", "tenant-logs-export"]})
 
-    test("sees every settings tab, with Logs after Previews", async ({page, portal}) => {
+    test("sees every settings tab, with Logs last", async ({page, portal}) => {
         mockTenant(portal)
         mockTenantLog(portal)
         mockElectionTypes(portal, [electionType()])

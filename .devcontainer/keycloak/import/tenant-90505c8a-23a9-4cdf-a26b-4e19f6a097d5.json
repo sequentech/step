@@ -2335,6 +2335,33 @@
         "clientRole": false,
         "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
         "attributes": {}
+      },
+      {
+        "id": "ad96ea2f-f147-5de4-b6f4-c36bb54f4354",
+        "name": "projects-read",
+        "description": "Projects planning permission",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "2437da66-286f-50a3-a729-25c6b8899c3b",
+        "name": "projects-write",
+        "description": "Projects planning permission",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "c3875b1e-779f-56a7-b005-920f2952aec5",
+        "name": "projects-manage",
+        "description": "Projects planning permission",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
       }
     ],
     "client": {
@@ -2983,7 +3010,10 @@
         "sign-approve-voter",
         "sign-approve-configuration",
         "sign-key-ceremony",
-        "sign-tally-key"
+        "sign-tally-key",
+        "projects-read",
+        "projects-write",
+        "projects-manage"
       ],
       "clientRoles": {}
     },
