@@ -24,6 +24,7 @@ import {
 import {styled} from "@mui/material/styles"
 import {Box} from "@mui/material"
 import {isVotedByElectionId} from "../../store/extra/extraSlice"
+import {useBallotSlates} from "../../providers/BallotSlatesProvider"
 import {useParams} from "react-router-dom"
 import {IInvalidPlaintextErrorType} from "../../types/errors"
 
@@ -68,6 +69,7 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
     setIsTouched,
 }) => {
     const {t} = useTranslation()
+    const hasSlates = !!useBallotSlates()
     // Note that if we have reviewed, then we can asume we have touched
     const {electionId} = useParams<{electionId?: string}>()
     const isVotedState = useAppSelector(isVotedByElectionId(electionId))
@@ -120,11 +122,15 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
                         !(
                             ("errors.implicit.underVote" === error.message &&
                                 !isReview &&
-                                under_vote_policy === EUnderVotePolicy.WARN_ONLY_IN_REVIEW) ||
+                                (under_vote_policy === EUnderVotePolicy.WARN_ONLY_IN_REVIEW ||
+                                    under_vote_policy ===
+                                        EUnderVotePolicy.WARN_AND_CONFIRM_IN_REVIEW)) ||
                             ("errors.implicit.blankVote" === error.message &&
                                 !isReview &&
                                 blank_vote_policy === EBlankVotePolicy.WARN_ONLY_IN_REVIEW) ||
-                            (error.message === "errors.implicit.overVoteDisabled" && isReview)
+                            // A ballot with slates says it in its own words (see Question).
+                            (error.message === "errors.implicit.overVoteDisabled" &&
+                                (isReview || hasSlates))
                         )
                 ) || [],
         }

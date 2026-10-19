@@ -10,6 +10,7 @@ use crate::postgres::election_event::{
 use crate::postgres::reports::insert_reports;
 use crate::postgres::reports::Report;
 use crate::postgres::trustee::get_all_trustees;
+use crate::services::ballot_styles::slates::slates_path;
 use crate::services::ceremonies::auditable_ballots::AUDITABLE_BALLOTS_FILE;
 use crate::services::electoral_log::ElectoralLogAdminContext;
 use crate::services::import::import_publications::{
@@ -48,6 +49,7 @@ use sequent_core::services::keycloak::{
     KeycloakAdminClient,
 };
 use sequent_core::services::replace_uuids::replace_uuids;
+use sequent_core::slates::{check_election, InvalidSlates};
 use sequent_core::types::hasura::core::Application;
 use sequent_core::types::hasura::core::AreaContest;
 use sequent_core::types::hasura::core::Document;
@@ -688,7 +690,33 @@ pub async fn get_election_event_schema(
         .map_err(|_| anyhow!("Environment variable {ENV_VAR_APP_VERSION} should be set"))?;
     check_version_compatibility(imported_version, &current_version)?;
     let original_data: ImportElectionEventSchema = deserialize_str(data_str)?;
+    validate_imported_slates(&original_data)?;
     replace_ids(data_str, &original_data, event_id, tenant_id.clone())
+}
+
+/// Refuse a bundle whose election slates are invalid. Checked before ids are
+/// replaced so the reported ids match the uploaded file.
+fn validate_imported_slates(data: &ImportElectionEventSchema) -> Result<()> {
+    let mut problems = Vec::new();
+    for election in &data.elections {
+        for problem in check_election(
+            election,
+            &data.contests,
+            &data.candidates,
+            &slates_path(&election.id),
+        ) {
+            if problem.is_error() {
+                problems.push(problem);
+            } else {
+                event!(Level::WARN, "Imported slate configuration: {problem}");
+            }
+        }
+    }
+    if problems.is_empty() {
+        Ok(())
+    } else {
+        Err(InvalidSlates { problems }.into())
+    }
 }
 
 #[instrument(err, skip_all)]
@@ -1954,5 +1982,139 @@ mod new_election_event_tests {
         second.rollback().await?;
         first.rollback().await?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod slates_import_tests {
+    use super::*;
+    use sequent_core::slates::{parse, SLATES_ANNOTATION};
+
+    struct Ids {
+        tenant: String,
+        event: String,
+        election: String,
+        president: String,
+        trustees: String,
+        president_a: String,
+        trustee_a: String,
+    }
+
+    fn ids() -> Ids {
+        let id = || Uuid::new_v4().to_string();
+        Ids {
+            tenant: id(),
+            event: id(),
+            election: id(),
+            president: id(),
+            trustees: id(),
+            president_a: id(),
+            trustee_a: id(),
+        }
+    }
+
+    fn slates(ids: &Ids) -> Value {
+        json!({
+            "version": 1,
+            "slates": [{
+                "id": "forward-together",
+                "name": {"en": "Forward Together"},
+                "members": {
+                    &ids.president: [&ids.president_a],
+                    &ids.trustees: [&ids.trustee_a],
+                },
+            }],
+        })
+    }
+
+    fn bundle(ids: &Ids, slates: &Value) -> Value {
+        let contest = |id: &str, max_votes: i64| {
+            json!({
+                "id": id, "tenant_id": ids.tenant, "election_event_id": ids.event,
+                "election_id": ids.election, "max_votes": max_votes,
+                "counting_algorithm": "plurality-at-large"
+            })
+        };
+        let candidate = |id: &str, contest_id: &str| {
+            json!({
+                "id": id, "tenant_id": ids.tenant, "election_event_id": ids.event,
+                "contest_id": contest_id
+            })
+        };
+        json!({
+            "tenant_id": ids.tenant,
+            "election_event": {
+                "id": ids.event, "tenant_id": ids.tenant, "is_archived": false,
+                "encryption_protocol": "RSA"
+            },
+            "elections": [{
+                "id": ids.election, "tenant_id": ids.tenant,
+                "election_event_id": ids.event,
+                "annotations": {SLATES_ANNOTATION: slates.to_string()}
+            }],
+            "contests": [contest(&ids.president, 1), contest(&ids.trustees, 3)],
+            "candidates": [
+                candidate(&ids.president_a, &ids.president),
+                candidate(&ids.trustee_a, &ids.trustees),
+            ],
+            "areas": [], "area_contests": [], "reports": []
+        })
+    }
+
+    fn schema(bundle: &Value) -> ImportElectionEventSchema {
+        serde_json::from_value(bundle.clone()).unwrap()
+    }
+
+    #[test]
+    fn valid_slates_are_imported() {
+        let ids = ids();
+        assert!(validate_imported_slates(&schema(&bundle(&ids, &slates(&ids)))).is_ok());
+    }
+
+    #[test]
+    fn a_slate_member_missing_from_the_bundle_fails_the_import() {
+        let ids = ids();
+        let mut slates = slates(&ids);
+        let missing = Uuid::new_v4().to_string();
+        slates["slates"][0]["members"][&ids.trustees] = json!([missing]);
+        let error = validate_imported_slates(&schema(&bundle(&ids, &slates)))
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains(&ids.election), "{error}");
+        assert!(error.contains(&missing), "{error}");
+    }
+
+    #[test]
+    fn replacing_ids_remaps_slate_members_with_their_contests_and_candidates() {
+        let ids = ids();
+        let input = bundle(&ids, &slates(&ids));
+        let original = schema(&input);
+        let (imported, map) = replace_ids(
+            &input.to_string(),
+            &original,
+            Some(Uuid::new_v4().to_string()),
+            Uuid::new_v4().to_string(),
+        )
+        .unwrap();
+
+        let annotation = imported.elections[0].annotations.as_ref().unwrap()[SLATES_ANNOTATION]
+            .as_str()
+            .unwrap();
+        let config = parse(annotation, SLATES_ANNOTATION).unwrap();
+        let members = &config.slates[0].members;
+        for (contest, candidate) in [
+            (&ids.president, &ids.president_a),
+            (&ids.trustees, &ids.trustee_a),
+        ] {
+            let new_contest = &map[contest];
+            let new_candidate = &map[candidate];
+            assert_ne!(new_contest, contest);
+            assert_ne!(new_candidate, candidate);
+            assert!(imported.contests.iter().any(|c| &c.id == new_contest));
+            assert!(imported.candidates.iter().any(|c| &c.id == new_candidate));
+            assert_eq!(members[new_contest], vec![new_candidate.clone()]);
+        }
+        assert_eq!(members.len(), 2);
+        assert!(validate_imported_slates(&imported).is_ok());
     }
 }
