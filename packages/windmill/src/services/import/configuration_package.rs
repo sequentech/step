@@ -28,6 +28,7 @@ use crate::services::electoral_log_board::get_event_board;
 use crate::services::import::rejection::reject;
 use electoral_log::messages::newtypes::{
     ConfigurationDesignDigest, ConfigurationPackageAction, ConfigurationPackageDetails,
+    ConfigurationPackageImportDetails,
 };
 
 const WHAT: &str = "configuration package";
@@ -122,27 +123,34 @@ pub async fn log_import(
     electoral_log
         .post_configuration_package(
             election_event_id.to_string(),
-            ConfigurationPackageDetails {
-                action: ConfigurationPackageAction::Imported,
-                external_id: package.manifest.configuration.external_id.clone(),
-                revision: package.manifest.configuration.revision,
-                manifest_sha256: package.manifest_sha256.clone(),
-                design_digests: package
-                    .manifest
-                    .content
-                    .ballot_designs
-                    .iter()
-                    .map(|design| ConfigurationDesignDigest {
-                        area: design.area.clone(),
-                        election: design.election.clone(),
-                        sha256: design.sha256.clone(),
-                    })
-                    .collect(),
-            },
+            import_log_details(package),
             initiator.map(|initiator| initiator.user_id.clone()),
             initiator.and_then(|initiator| initiator.username.clone()),
         )
         .await
+}
+
+fn import_log_details(package: &VerifiedPackage) -> ConfigurationPackageImportDetails {
+    ConfigurationPackageImportDetails {
+        package: ConfigurationPackageDetails {
+            action: ConfigurationPackageAction::Imported,
+            external_id: package.manifest.configuration.external_id.clone(),
+            revision: package.manifest.configuration.revision,
+            manifest_sha256: package.manifest_sha256.clone(),
+            design_digests: package
+                .manifest
+                .content
+                .ballot_designs
+                .iter()
+                .map(|design| ConfigurationDesignDigest {
+                    area: design.area.clone(),
+                    election: design.election.clone(),
+                    sha256: design.sha256.clone(),
+                })
+                .collect(),
+        },
+        content_hash: package.manifest.content_sha256.clone(),
+    }
 }
 
 /// Records an imported package and keeps the revocation lists it carried,
@@ -180,7 +188,32 @@ pub fn typed_checksum<P>(typed: Option<String>, package: Option<&P>) -> Option<S
 
 #[cfg(test)]
 mod tests {
-    use super::typed_checksum;
+    use super::*;
+
+    #[test]
+    fn an_import_logs_the_verified_content_hash_separately_from_the_manifest_hash() {
+        let package = VerifiedPackage {
+            manifest: serde_json::from_value(serde_json::json!({
+                "format": "sequent.configuration-manifest/1",
+                "configuration": {"external_id": "approved-configuration", "name": "Election", "revision": 9, "previous": null},
+                "content_sha256": "cd".repeat(32),
+                "content": {"files": [], "ballot_designs": [], "reports": []},
+                "approvals": [],
+                "produced": {"at": "2026-10-17T00:00:00Z", "custodian": "Custodian", "key_label": "configuration", "producer": {}}
+            })).unwrap(),
+            manifest_sha256: "ab".repeat(32),
+            signer: sequent_core::election_config::package_verify::CertificateIdentity {
+                subject: "Signer".into(), issuer: "Issuer".into(), serial: "1".into(), fingerprint_sha256: "ef".repeat(32),
+            },
+            approvers: vec![],
+            members: vec![],
+        };
+        let details = import_log_details(&package);
+        assert_eq!(details.content_hash, "cd".repeat(32));
+        assert_eq!(details.package.manifest_sha256, "ab".repeat(32));
+        assert_eq!(details.package.external_id, "approved-configuration");
+        assert_eq!(details.package.revision, 9);
+    }
 
     #[test]
     fn a_plain_upload_keeps_the_checksum_typed_with_it() {

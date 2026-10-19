@@ -56,6 +56,7 @@ import {
     ITenantSettings,
     EVotingPortalCountdownPolicy,
     EElectionEventLockedDown,
+    EFileIntegrityPolicy,
     EBallotBoxSealPolicy,
     EBallotBoxSealRecordPolicy,
     EElectionEventEnrollment,
@@ -95,6 +96,7 @@ import {
     type ILifecyclePolicies,
 } from "@sequentech/ui-core"
 import {ListActions} from "@/components/ListActions"
+import {ReadinessCheckButton} from "@/components/election-event/ReadinessCheckButton"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
 import {ListSupportMaterials} from "../SupportMaterials/ListSuportMaterial"
 import {useTenantStore} from "@/providers/TenantContextProvider"
@@ -1456,7 +1458,13 @@ export const EditElectionEventDataForm: React.FC<{
                     isExportDisabled={openExport || loadingExport}
                     withColumns={false}
                     withFilter={false}
-                    extraActions={extraActionsButtons()}
+                    extraActions={[
+                        ...extraActionsButtons(),
+                        <ReadinessCheckButton
+                            key={`readiness-${parsedValue.id}`}
+                            event={parsedValue}
+                        />,
+                    ]}
                 />
             </Box>
             <SimpleForm
@@ -2140,6 +2148,26 @@ export const EditElectionEventDataForm: React.FC<{
                         </ElectionHeaderStyles.Wrapper>
                     </AccordionSummary>
                     <AccordionDetails>
+                        <SelectInput
+                            disabled={!canEdit}
+                            source="presentation.file_integrity_policy"
+                            choices={Object.values(EFileIntegrityPolicy).map((policy) => ({
+                                id: policy,
+                                name: String(
+                                    t(
+                                        `electionEventScreen.field.fileIntegrityPolicy.options.${policy}`
+                                    )
+                                ),
+                            }))}
+                            label={String(
+                                t("electionEventScreen.field.fileIntegrityPolicy.policyLabel")
+                            )}
+                            helperText={String(
+                                t("electionEventScreen.field.fileIntegrityPolicy.helperText")
+                            )}
+                            format={(value: unknown) => value ?? EFileIntegrityPolicy.OPTIONAL}
+                            emptyText={undefined}
+                        />
                         <SelectInput
                             source={"presentation.contest_encryption_policy"}
                             choices={contestEncryptionPolicyChoices()}

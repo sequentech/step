@@ -691,3 +691,90 @@ describe("field and object names", () => {
         expect(logObjectTypeKey("ballot_style")).toBeNull()
     })
 })
+
+describe("certified import and readiness evidence", () => {
+    it("shows voter import hash, stable area counts and the authenticated actor", () => {
+        const view = logEntryView(
+            audit(
+                "VotersImported",
+                {
+                    actor: {user_id: USER_ID, username: "certified.operator", role: "voter-write"},
+                    import_id: "import-123",
+                    document_id: "document-456",
+                    file_name: "registry.csv",
+                    sha256: "ab".repeat(32),
+                    declared_sha256: "ab".repeat(32),
+                    counts_by_area: {"Area A": 12, "Area B": 0},
+                    imported_at: "2026-10-14T09:00:00Z",
+                },
+                {username: null, userId: null}
+            )
+        )
+        expect(view.who).toMatchObject({
+            username: "certified.operator",
+            userId: USER_ID,
+            role: "voter-write",
+        })
+        expect(view.extra).toEqual(
+            expect.arrayContaining([
+                {name: "import_id", value: "import-123"},
+                {name: "sha256", value: "ab".repeat(32)},
+                {name: "counts_by_area", value: "Area A: 12; Area B: 0"},
+            ])
+        )
+    })
+    it("keeps complete readiness checks and evidence visible in the event log", () => {
+        const report = {
+            official_event_id: EVENT_ID,
+            tested_event_id: "tested-event",
+            passed: true,
+            checks: [
+                {name: "configuration", passed: true, evidence: {content_sha256: "cd".repeat(32)}},
+            ],
+        }
+        const view = logEntryView(
+            audit("ReadinessVerified", {actor: {username: "operator"}, report})
+        )
+        expect(view.extra).toEqual(
+            expect.arrayContaining([
+                {name: "report", value: expect.stringContaining("tested-event")},
+                {name: "report", value: expect.stringContaining("cd".repeat(32))},
+            ])
+        )
+    })
+})
+
+describe("configuration package import evidence", () => {
+    const details = {
+        action: "Imported",
+        external_id: "approved-configuration",
+        revision: 9,
+        manifest_sha256: "ab".repeat(32),
+        design_digests: [],
+    }
+    it("shows the signed content hash separately from the manifest hash", () => {
+        const view = logEntryView(
+            row("ConfigurationPackageImported", {
+                ConfigurationPackageWithContentHash: [
+                    EVENT_ID,
+                    {...details, content_hash: "cd".repeat(32)},
+                ],
+            })
+        )
+        expect(view.extra).toEqual(
+            expect.arrayContaining([
+                {name: "content_hash", value: "cd".repeat(32)},
+                {name: "manifest_sha256", value: "ab".repeat(32)},
+            ])
+        )
+    })
+    it("shows historical import details without inventing a content hash", () => {
+        const view = logEntryView(
+            row("ConfigurationPackageImported", {
+                ConfigurationPackage: [EVENT_ID, details],
+            })
+        )
+        expect(view.extra).toContainEqual({name: "manifest_sha256", value: "ab".repeat(32)})
+        expect(view.extra.some(({name}) => name === "content_hash")).toBe(false)
+    })
+})

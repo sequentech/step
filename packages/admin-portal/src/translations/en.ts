@@ -4,6 +4,29 @@
 
 const englishTranslation = {
     translations: {
+        readiness: {
+            close: "Close",
+            action: "Check readiness",
+            title: "Election readiness",
+            description:
+                "Compare this official event with a completed rehearsal. A passing check writes signed evidence to this official event’s log.",
+            testedEvent: "Tested event",
+            archived: "Archived",
+            noEvents: "No other events available",
+            retry: "Retry",
+            eventsError: "Could not load election events.",
+            run: "Run check",
+            running: "Checking readiness…",
+            error: "The check could not be completed. Check Logs before retrying; the response may have been lost after evidence was recorded.",
+            downloadError: "Could not download the report. Try again.",
+            success:
+                "Readiness verified. Signed evidence was recorded in the official event’s Logs.",
+            failed: "Readiness failed. Resolve the failed checks and run again. No readiness entry was recorded.",
+            download: "Download JSON report",
+            snapshot:
+                "This report is a snapshot. Repeat after relevant changes; it does not freeze the event or replace operational approval.",
+            results: "Check results",
+        },
         plugins: {
             title: "Plugins",
             description:
@@ -427,6 +450,85 @@ const englishTranslation = {
             },
         },
         logsScreen: {
+            configurationPackage: {
+                imported:
+                    "Configuration {{externalId}} revision {{revision}} imported from a signed package.",
+                fields: {
+                    action: "Action",
+                    external_id: "External ID",
+                    revision: "Revision",
+                    manifest_sha256: "Manifest SHA-256",
+                    content_hash: "Content hash",
+                    design_digests: "Ballot design digests",
+                },
+            },
+            readiness: {
+                passed: "Passed",
+                failed: "Failed",
+                checkResult: "{{outcome}}: {{description}}",
+                description: {
+                    VotersImported: "Voter file imported.",
+                    ReadinessVerified:
+                        "Official event readiness verified against the tested event.",
+                },
+                checks: {
+                    configuration:
+                        "Both events have the same approved content, verified approvers and areas.",
+                    certified_voters:
+                        "Both events match the same certified voter file and current counts by area.",
+                    official_zero:
+                        "The official event has never opened voting and has no ballots or tally sessions.",
+                    publication: "The official publication matches its signed configuration.",
+                    tested_finished:
+                        "The tested event’s voting channels are closed and all expected ballot boxes are sealed.",
+                },
+                fields: {
+                    report: "Readiness report",
+                    passed: "Passed",
+                    checked_at: "Checked at",
+                    evidence: "Evidence",
+                    official: "Official event",
+                    tested: "Tested event",
+                    official_event_id: "Official event ID",
+                    tested_event_id: "Tested event ID",
+                    event_id: "Event ID",
+                    election_id: "Election ID",
+                    configuration: "Configuration",
+                    external_id: "External ID",
+                    revision: "Revision",
+                    content_sha256: "Content SHA-256",
+                    manifest_sha256: "Manifest SHA-256",
+                    approvers: "Verified approvers",
+                    areas: "Areas",
+                    voters: "Voter import",
+                    import_id: "Import ID",
+                    document_id: "Document ID",
+                    file_name: "File name",
+                    sha256: "File SHA-256",
+                    declared_sha256: "Declared SHA-256",
+                    counts_by_area: "Voters by area",
+                    imported_at: "Imported at",
+                    voter_log_delivered: "Signed import recorded",
+                    current_voter_counts: "Current voters by area",
+                    voter_import_in_progress: "Voter import active",
+                    status: "Status",
+                    elections: "Elections",
+                    ballot_count: "Ballots stored",
+                    received_ballot_count: "Ballots received at review",
+                    tally_session_count: "Tally sessions",
+                    publication: "Publication",
+                    publication_id: "Publication ID",
+                    publication_ids: "Publication IDs",
+                    matches_manifest: "Matches signed manifest",
+                    design_count: "Published designs",
+                    seal_at_close: "Seal at close",
+                    expected_boxes: "Expected ballot boxes",
+                    sealed_boxes: "Sealed ballot boxes",
+                    all_channels_closed: "All voting channels closed",
+                    locked_down: "Locked down",
+                    log_entry_id: "Log entry ID",
+                },
+            },
             noPermissions: "You don't have permission to access logs.",
             title: "Logs",
             subtitle:
@@ -1070,6 +1172,10 @@ const englishTranslation = {
             },
         },
         electionEventScreen: {
+            dataUnavailable: "Data is unavailable for this election event.",
+            noAccessibleTabs:
+                "You don't have access to any available tabs for this election event.",
+
             common: {
                 subtitle: "Election event configuration.",
                 showMore: "Show More",
@@ -1233,6 +1339,11 @@ const englishTranslation = {
                     },
                 },
                 lockdownState: {
+                    since: "Locked down since {{date}}.",
+                    scheduledEnd: "End of lockdown scheduled for {{date}}.",
+                    endScheduled: "An end of lockdown is scheduled.",
+                    noScheduledEnd: "No end of lockdown is scheduled.",
+                    banner: "This election event is in lockdown.",
                     policyLabel: "Lockdown Status",
                     helperText:
                         "Schedule a start or end of the lockdown period to change this state.",
@@ -1278,6 +1389,15 @@ const englishTranslation = {
                     options: {
                         "included": "Include",
                         "not-included": "Don't include",
+                    },
+                },
+                fileIntegrityPolicy: {
+                    policyLabel: "Voter file integrity",
+                    helperText:
+                        "Require the independently certified SHA-256 before importing voters.",
+                    options: {
+                        OPTIONAL: "Optional SHA-256",
+                        REQUIRED_SHA256: "Required SHA-256",
                     },
                 },
                 contestEncryptionPolicy: {
@@ -1606,6 +1726,8 @@ const englishTranslation = {
                 importVotersError: "Error importing Voters",
                 importElectionEventSuccess: "Election event imported Successfully",
                 importElectionEventError: "Error importing election event",
+                shaRequiredHelp:
+                    "Enter the independently certified 64-character hexadecimal SHA-256. Import cannot proceed without it.",
                 shaDialog: {
                     ok: "Yes, Import without Integrity Check",
                     cancel: "Go Back",
@@ -2192,6 +2314,7 @@ const englishTranslation = {
                 "application-read": "Read Application",
                 "application-write": "Edit Application",
                 "approval-matrix-write": "Edit Approval Matrix",
+                "readiness-check": "Verify election readiness",
                 "logs-export": "Export Logs",
                 "tenant-logs-read": "Read Tenant Logs",
                 "tenant-logs-export": "Export Tenant Logs",

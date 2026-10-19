@@ -1758,6 +1758,11 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 title="electionEventScreen.import.title"
                 subtitle="electionEventScreen.import.subtitle"
                 paragraph="electionEventScreen.import.votersParagraph"
+                fileIntegrityPolicy={
+                    (electionEventRecord?.presentation as IElectionEventPresentation | undefined)
+                        ?.file_integrity_policy
+                }
+                disableImport={Boolean(electionEventId && !electionEventRecord)}
                 doImport={handleImportVoters}
                 errors={null}
             />

@@ -621,6 +621,50 @@ pub fn flatten_election_ids(election_ids: Option<Vec<String>>) -> Option<String>
 }
 
 impl ElectoralLog {
+    /// Sign the complete successful snapshot and wait for its append. This is
+    /// deliberately not a queued success: the operator needs retained evidence.
+    pub async fn post_readiness_verified(
+        &self,
+        event_id: &str,
+        report: &crate::domain::readiness::ReadinessReport,
+        actor: &crate::services::audit_log::AuditActor,
+    ) -> Result<()> {
+        ensure!(
+            report.passed,
+            "Only successful readiness checks may be recorded"
+        );
+        let entry_id = report
+            .log_entry_id
+            .as_ref()
+            .context("Readiness entry has no delivery identity")?;
+        let entry = AuditLogEntry {
+            kind: AuditStatementKind::ReadinessVerified,
+            event_type: electoral_log::messages::statement::StatementEventType::SYSTEM,
+            log_type: electoral_log::messages::statement::StatementLogType::INFO,
+            description: format!(
+                "Readiness verified against event {}",
+                report.evidence.tested.event_id
+            ),
+            details_json: serde_json::to_string(
+                &serde_json::json!({"actor": actor, "report": report}),
+            )?,
+            entry_id: entry_id.clone(),
+        };
+        let timestamp = chrono::DateTime::parse_from_rfc3339(&report.checked_at)?.timestamp();
+        let message = Message::audit_message(
+            EventIdString(event_id.into()),
+            entry,
+            u64::try_from(timestamp)?,
+            &self.sd,
+            actor.user_id.clone(),
+            actor.username.clone(),
+            None,
+            None,
+        )?;
+        self.post_with_delivery_id(&message, format!("readiness:{entry_id}"))
+            .await
+    }
+
     #[instrument(err, name = "ElectoralLog::new")]
     pub async fn new(
         hasura_transaction: &Transaction<'_>,
@@ -1085,12 +1129,12 @@ impl ElectoralLog {
     pub async fn post_configuration_package(
         &self,
         event_id: String,
-        details: ConfigurationPackageDetails,
+        details: ConfigurationPackageImportDetails,
         user_id: Option<String>,
         username: Option<String>,
     ) -> Result<()> {
-        let delivery_id = configuration_package_delivery_id(&details);
-        let message = Message::configuration_package_message(
+        let delivery_id = configuration_package_delivery_id(&details.package);
+        let message = Message::configuration_package_with_content_hash_message(
             EventIdString(event_id),
             details,
             &self.sd,

@@ -60,6 +60,7 @@ CRUD endpoints for:
 - election-event-voter-list-reconciliation
 - monitoring-view|configure
 - approval-matrix-write
+- readiness-check (compare tested and official events and sign successful readiness evidence)
 - signing-rules-read|write
 - signing-certificates-read|register|revoke
 - signing-issuers-write

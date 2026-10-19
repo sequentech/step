@@ -165,6 +165,8 @@ export interface ILogEntryView {
     signatures: ILogSignatures
 }
 
+export const STATEMENT_KIND_VOTERS_IMPORTED = "VotersImported"
+export const STATEMENT_KIND_READINESS_VERIFIED = "ReadinessVerified"
 export const STATEMENT_KIND_KEYCLOAK_USER_EVENT = "KeycloakUserEvent"
 export const STATEMENT_KIND_ADMIN_CHANGE = "AdminChange"
 export const STATEMENT_KIND_KEYCLOAK_ADMIN_EVENT = "KeycloakAdminEvent"
@@ -493,9 +495,25 @@ export const logEntryView = (
     if (isObject(body) && Array.isArray(body[STATEMENT_KIND_ADMIN_PUBLIC_KEY])) {
         view.publicKey = keyText(body[STATEMENT_KIND_ADMIN_PUBLIC_KEY][2])
     }
+    if (kind === "ConfigurationPackageImported" && isObject(body)) {
+        const imported = body.ConfigurationPackageWithContentHash ?? body.ConfigurationPackage
+        if (Array.isArray(imported) && isObject(imported[1])) view.extra = rows(imported[1])
+    }
     if (!details) return view
 
     switch (kind) {
+        case STATEMENT_KIND_VOTERS_IMPORTED:
+        case STATEMENT_KIND_READINESS_VERIFIED: {
+            const actor = isObject(details.actor) ? details.actor : {}
+            view.who = {
+                ...view.who,
+                username: view.who.username ?? text(actor.username),
+                userId: view.who.userId ?? text(actor.user_id),
+                role: text(actor.role),
+            }
+            view.extra = rows(details, ["actor"])
+            break
+        }
         case STATEMENT_KIND_ADMIN_CHANGE: {
             const actor = isObject(details.actor) ? details.actor : {}
             const object = isObject(details.object) ? details.object : null

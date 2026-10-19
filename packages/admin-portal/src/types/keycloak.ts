@@ -161,6 +161,7 @@ export enum IPermissions {
     APPLICATION_READ = "application-read",
     APPLICATION_WRITE = "application-write",
     APPROVAL_MATRIX_WRITE = "approval-matrix-write",
+    READINESS_CHECK = "readiness-check",
     EE_VOTERS_COLUMNS = "ee-voters-columns",
     EE_VOTERS_FILTERS = "ee-voters-filters",
     EE_VOTERS_LOGS = "ee-voters-logs",

@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React from "react"
+import type {EFileIntegrityPolicy} from "@sequentech/ui-core"
 import {DrawerStyles} from "@/components/styles/DrawerStyles"
 import ElectionHeader from "@/components/ElectionHeader"
 import {useTranslation} from "react-i18next"
@@ -18,6 +19,7 @@ interface ImportVotersTabsProps {
     subtitle: string
     paragraph: string
     doImport?: (documentId: string, sha256: string, password?: string) => Promise<void> | null
+    fileIntegrityPolicy?: EFileIntegrityPolicy
     disableImport?: boolean
     uploadCallback?: (documentId: string) => Promise<void> | null
     errors?: string | null
@@ -32,6 +34,7 @@ export const ImportDataDrawer: React.FC<ImportVotersTabsProps> = ({
     paragraph,
     doImport = null,
     disableImport,
+    fileIntegrityPolicy,
     uploadCallback = null,
     errors,
     problems,
@@ -65,6 +68,7 @@ export const ImportDataDrawer: React.FC<ImportVotersTabsProps> = ({
                         <>
                             <DrawerStyles.SubTitle>{t(paragraph)}</DrawerStyles.SubTitle>
                             <ImportScreen
+                                fileIntegrityPolicy={fileIntegrityPolicy}
                                 allowHistoricalSource={!doImport}
                                 onSourceChange={!doImport ? openImportDrawer : undefined}
                                 refresh="electionEventScreen.import.voters"

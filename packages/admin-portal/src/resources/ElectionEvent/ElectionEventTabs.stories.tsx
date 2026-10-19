@@ -12,7 +12,12 @@ import {
     initCore,
     type IElectionEventPresentation,
 } from "@sequentech/ui-core"
-import {AdminStoryProvider, EVENT_ID, graphqlBoundary} from "@/__stories__/AdminStoryProvider"
+import {
+    AdminStoryProvider,
+    EVENT_ID,
+    TENANT_ID,
+    graphqlBoundary,
+} from "@/__stories__/AdminStoryProvider"
 import {eventPresentation, eventRecord} from "@/__stories__/fixtures"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {ElectionEventTabs} from "./ElectionEventTabs"
@@ -63,6 +68,8 @@ interface Scenario {
     uncached?: boolean
     /** Replaces the permissions global's roles, for a story about one permission. */
     roles?: string[]
+    lockdownTiming?: "scheduled" | "unscheduled"
+    readinessResult?: "pass" | "fail"
 }
 
 let graphql: ReturnType<typeof graphqlBoundary>
@@ -73,6 +80,7 @@ let data: ReturnType<typeof recordsOrPending>
 const tabsEvent = (lockedDown: boolean) => {
     const presentation: IElectionEventPresentation = {
         ...eventPresentation,
+        timezones: {primary: "Asia/Manila", configured: ["Asia/Manila"]},
         voter_certificate_policy: EVoterCertificatePolicy.ENABLED,
         locked_down: lockedDown
             ? EElectionEventLockedDown.LOCKED_DOWN
@@ -131,18 +139,146 @@ const meta = {
         data = recordsOrPending(
             args.loading || args.uncached
                 ? {}
-                : {sequent_backend_election_event: [tabsEvent(args.lockedDown)]}
+                : {
+                      sequent_backend_election_event: [tabsEvent(args.lockedDown)],
+                      ...(args.lockdownTiming
+                          ? {
+                                electoral_log: [
+                                    // A repeated start must not move the beginning of lockdown.
+                                    {
+                                        id: 2,
+                                        statement_kind: "LockdownChanged",
+                                        statement_timestamp: 1839981600,
+                                        message: JSON.stringify({
+                                            statement: {
+                                                body: {
+                                                    LockdownChanged: {
+                                                        details_json: JSON.stringify({
+                                                            locked_down: true,
+                                                            previous: true,
+                                                        }),
+                                                    },
+                                                },
+                                            },
+                                        }),
+                                    },
+                                    {
+                                        id: 1,
+                                        statement_kind: "LockdownChanged",
+                                        statement_timestamp: 1839974400,
+                                        message: JSON.stringify({
+                                            statement: {
+                                                body: {
+                                                    LockdownChanged: {
+                                                        details_json: JSON.stringify({
+                                                            locked_down: true,
+                                                            previous: false,
+                                                        }),
+                                                    },
+                                                },
+                                            },
+                                        }),
+                                    },
+                                ],
+                                sequent_backend_scheduled_event: [
+                                    ...[
+                                        {
+                                            id: "completed-end",
+                                            stopped_at: "2028-04-01T00:00:00Z",
+                                            archived_at: null,
+                                        },
+                                        {
+                                            id: "archived-end",
+                                            stopped_at: null,
+                                            archived_at: "2028-04-01T00:00:00Z",
+                                        },
+                                        ...(args.lockdownTiming === "scheduled"
+                                            ? [
+                                                  {
+                                                      id: "end-lockdown",
+                                                      stopped_at: null,
+                                                      archived_at: null,
+                                                  },
+                                              ]
+                                            : []),
+                                    ].map((row) => ({
+                                        ...row,
+                                        tenant_id: TENANT_ID,
+                                        election_event_id: EVENT_ID,
+                                        event_processor: "END_LOCKDOWN_PERIOD",
+                                        cron_config: {
+                                            scheduled_date:
+                                                row.id === "end-lockdown"
+                                                    ? "2028-05-08T00:00:00Z"
+                                                    : "2028-04-01T00:00:00Z",
+                                        },
+                                    })),
+                                ],
+                            }
+                          : {}),
+                  }
         )
-        graphql = graphqlBoundary(answerOrPending(legacyMonitoring()), {
-            schema: true,
-            // The header's list for signers: the schema has no signing types yet.
-            unvalidated: [
-                "GetWaitingSigningRequests",
-                "SigningEventInfo",
-                "GetMessagingCallbackStatus",
-                "GetEventMessagingConfigAuthor",
-            ],
-        })
+        graphql = graphqlBoundary(
+            answerOrPending({
+                ...legacyMonitoring(),
+                ...(args.readinessResult
+                    ? {
+                          GetReadinessEvents: () => ({
+                              data: {
+                                  sequent_backend_election_event: [
+                                      {
+                                          id: "33333333-3333-4333-8333-333333333333",
+                                          presentation: {i18n: {en: {name: "Archived FTL"}}},
+                                          is_archived: true,
+                                      },
+                                  ],
+                              },
+                          }),
+                          ReadinessCheck: () => ({
+                              data: {
+                                  readiness_check: {
+                                      passed: args.readinessResult === "pass",
+                                      checked_at: "2028-04-22T00:00:00Z",
+                                      checks: [
+                                          "configuration",
+                                          "certified_voters",
+                                          "official_zero",
+                                          "publication",
+                                          "tested_finished",
+                                      ].map((kind) => ({
+                                          kind,
+                                          passed:
+                                              args.readinessResult === "pass" ||
+                                              kind !== "certified_voters",
+                                          message: "Readiness evidence",
+                                      })),
+                                      evidence: {
+                                          official: {event_id: EVENT_ID},
+                                          tested: {
+                                              event_id: "33333333-3333-4333-8333-333333333333",
+                                          },
+                                      },
+                                      log_entry_id:
+                                          args.readinessResult === "pass"
+                                              ? "lockdown-readiness-entry"
+                                              : null,
+                                  },
+                              },
+                          }),
+                      }
+                    : {}),
+            }),
+            {
+                schema: true,
+                // The header's list for signers: the schema has no signing types yet.
+                unvalidated: [
+                    "GetWaitingSigningRequests",
+                    "SigningEventInfo",
+                    "GetMessagingCallbackStatus",
+                    "GetEventMessagingConfigAuthor",
+                ],
+            }
+        )
         // The dashboard builds the voting portal addresses with sequent-core.
         await Promise.all([graphql.ready, initCore()])
     },
@@ -242,6 +378,7 @@ export const Populated: Story = {
         const canvas = within(canvasElement)
         await expect(await canvas.findByText("Council")).toBeVisible()
         expect(await tabNames(canvasElement)).toEqual(ADMIN_TABS)
+        expect(canvas.queryByRole("status", {name: "Lockdown Status"})).toBeNull()
         await expect(canvas.getByRole("tab", {name: "Dashboard"})).toHaveAttribute(
             "aria-selected",
             "true"
@@ -267,6 +404,7 @@ export const LockedDownEvent: Story = {
     play: async ({canvasElement}) => {
         expect(await tabNames(canvasElement)).toEqual([
             "Dashboard",
+            "Data",
             "IVR",
             "Voters",
             "Signatures",
@@ -275,6 +413,52 @@ export const LockedDownEvent: Story = {
             "Reports",
         ])
         await dashboardLoads(canvasElement)
+        const canvas = within(canvasElement)
+        const banner = canvas.getByRole("status", {name: "Lockdown Status"})
+        expect(banner).toHaveTextContent("This election event is in lockdown.")
+        expect(banner).not.toHaveTextContent("No end of lockdown is scheduled.")
+        expect(banner).toBeVisible()
+        await openTab(canvasElement, "Logs")
+        expect(banner).toBeVisible()
+        await openTab(canvasElement, "Dashboard")
+        await dashboardLoads(canvasElement)
+    },
+}
+
+export const LockdownWithScheduledEnd: Story = {
+    args: {lockedDown: true, lockdownTiming: "scheduled"},
+    parameters: spinnerDefects("The election event dashboard"),
+    play: async ({canvasElement}) => {
+        await dashboardLoads(canvasElement)
+        const banner = within(canvasElement).getByRole("status", {name: "Lockdown Status"})
+        await waitFor(() => expect(banner).toHaveTextContent("Locked down since"))
+        expect(banner).toHaveTextContent("Apr 22, 2028, 08:00")
+        expect(banner).toHaveTextContent("End of lockdown scheduled for")
+        expect(banner).toHaveTextContent("May 08, 2028, 08:00")
+        expect(banner).toHaveTextContent("PhST")
+    },
+}
+
+export const LockdownWithoutScheduledEnd: Story = {
+    args: {lockedDown: true, lockdownTiming: "unscheduled"},
+    parameters: spinnerDefects("The election event dashboard"),
+    play: async ({canvasElement}) => {
+        await dashboardLoads(canvasElement)
+        const banner = within(canvasElement).getByRole("status", {name: "Lockdown Status"})
+        await waitFor(() => expect(banner).toHaveTextContent("No end of lockdown is scheduled."))
+        expect(banner).toHaveTextContent("Apr 22, 2028, 08:00")
+    },
+}
+
+export const LockdownWithoutTimingPermissions: Story = {
+    args: {lockedDown: true, roles: [IPermissions.ADMIN_DASHBOARD_VIEW]},
+    parameters: spinnerDefects("The election event dashboard"),
+    play: async ({canvasElement}) => {
+        await dashboardLoads(canvasElement)
+        const banner = within(canvasElement).getByRole("status", {name: "Lockdown Status"})
+        expect(banner).toHaveTextContent("This election event is in lockdown.")
+        expect(readsOf(data)).not.toContain("getList electoral_log")
+        expect(readsOf(data)).not.toContain("getList sequent_backend_scheduled_event")
     },
 }
 
@@ -346,13 +530,13 @@ const withoutSchema: Pick<Story, "beforeEach"> = {
 export const Data: Story = {
     // The Voting lifecycle section's snapshot query isn't in the generated schema yet.
     ...withoutSchema,
-    parameters: {widgets: ["DataTab"]},
+    parameters: {widgets: ["ElectionEventDataTab"]},
     play: tabPlay("Data", {reads: ["getList sequent_backend_election"]}),
 }
 
 export const DataWhileTheEventLoads: Story = {
     args: {uncached: true},
-    parameters: {widgets: ["DataTab"]},
+    parameters: {widgets: ["ElectionEventDataTab"]},
     play: async ({canvasElement}) => {
         await openTab(canvasElement, "Data")
         await expect(
@@ -589,4 +773,126 @@ export const Approvals: Story = {
     play: tabPlay("Approvals", {
         operations: ["getUserProfileAttributes"],
     }),
+}
+
+export const ReadinessRequiresDataTab: Story = {
+    args: {
+        lockedDown: true,
+        roles: [IPermissions.READINESS_CHECK, IPermissions.ELECTION_EVENT_READ],
+    },
+    parameters: {widgets: []},
+    play: async ({canvasElement}) => {
+        await expect(await within(canvasElement).findByText("Council")).toBeVisible()
+        expect(
+            within(canvasElement).queryByRole("button", {name: i18n.t("readiness.action")})
+        ).toBeNull()
+        expect(within(canvasElement).queryByRole("tab", {name: "Data"})).toBeNull()
+        expect(within(canvasElement).queryByRole("tab", {name: "Logs"})).toBeNull()
+    },
+}
+
+export const LockedDownData: Story = {
+    args: {
+        lockedDown: true,
+        roles: [
+            IPermissions.ELECTION_EVENT_DATA_TAB,
+            IPermissions.READINESS_CHECK,
+            IPermissions.ELECTION_EVENT_READ,
+        ],
+    },
+    parameters: {widgets: ["ElectionEventDataTab", "LockedDownDataTab"]},
+    play: async ({canvasElement}) => {
+        expect(await tabNames(canvasElement)).toEqual(["Data"])
+        const canvas = within(canvasElement)
+        const button = await canvas.findByRole("button", {name: i18n.t("readiness.action")})
+        expect(canvas.getAllByRole("button")).toEqual([button])
+        expect(button.getBoundingClientRect().right).toBeLessThanOrEqual(
+            canvas.getByRole("tablist").getBoundingClientRect().right
+        )
+        expect(canvas.queryByRole("textbox")).toBeNull()
+        expect(canvasElement.querySelector("form")).toBeNull()
+        expect(readsOf(data)).toEqual(["getOne sequent_backend_election_event"])
+        await userEvent.click(button)
+        const dialog = within(await within(document.body).findByRole("dialog"))
+        expect(dialog.getByRole("button", {name: i18n.t("readiness.run")})).toBeDisabled()
+        expect(graphql.calls).toEqual([expect.objectContaining({name: "GetReadinessEvents"})])
+        await userEvent.click(dialog.getByRole("button", {name: i18n.t("readiness.close")}))
+    },
+}
+
+export const LockedDownDataNeedsReadinessPermission: Story = {
+    args: {lockedDown: true, roles: [IPermissions.ELECTION_EVENT_DATA_TAB]},
+    parameters: {widgets: []},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(await canvas.findByText("Council")).toBeVisible()
+        expect(canvas.queryByRole("tab", {name: "Data"})).toBeNull()
+        expect(await canvas.findByRole("alert")).toHaveTextContent(
+            i18n.t("electionEventScreen.noAccessibleTabs")
+        )
+        expect(canvas.queryByRole("button", {name: i18n.t("readiness.action")})).toBeNull()
+        expect(canvasElement.querySelector("form")).toBeNull()
+        expect(graphql.calls).toEqual([])
+    },
+}
+
+export const LockedDownDataLink: Story = {
+    ...LockedDownData,
+    parameters: {
+        widgets: ["ElectionEventDataTab", "LockedDownDataTab"],
+        router: {
+            path: "/sequent_backend_election_event/:id/*",
+            initialEntries: [`/sequent_backend_election_event/${EVENT_ID}?tabId=data&tabIndex=-1`],
+        },
+    },
+}
+
+const runLockedDownReadiness =
+    (passed: boolean): Story["play"] =>
+    async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await userEvent.click(await canvas.findByRole("button", {name: i18n.t("readiness.action")}))
+        const dialog = within(await within(document.body).findByRole("dialog"))
+        expect(dialog.getByRole("button", {name: i18n.t("readiness.run")})).toBeDisabled()
+        await userEvent.click(dialog.getByRole("combobox"))
+        await userEvent.click(
+            await within(document.body).findByRole("option", {name: /Archived FTL/})
+        )
+        await userEvent.click(dialog.getByRole("button", {name: i18n.t("readiness.run")}))
+        await expect(
+            await dialog.findByText(i18n.t(passed ? "readiness.success" : "readiness.failed"))
+        ).toBeVisible()
+        for (const kind of [
+            "configuration",
+            "certified_voters",
+            "official_zero",
+            "publication",
+            "tested_finished",
+        ]) {
+            expect(dialog.getByText(i18n.t(`logsScreen.readiness.checks.${kind}`))).toBeVisible()
+        }
+        expect(graphql.calls.filter(({name}) => name === "ReadinessCheck")).toEqual([
+            {
+                name: "ReadinessCheck",
+                variables: {
+                    official_event_id: EVENT_ID,
+                    tested_event_id: "33333333-3333-4333-8333-333333333333",
+                },
+                headers: {"x-hasura-role": IPermissions.READINESS_CHECK},
+            },
+        ])
+        expect(dialog.queryByText("lockdown-readiness-entry") !== null).toBe(passed)
+        expect(data.writes).toEqual([])
+        await userEvent.click(dialog.getByRole("button", {name: i18n.t("readiness.close")}))
+    }
+
+export const LockedDownReadinessPass: Story = {
+    ...LockedDownData,
+    args: {...LockedDownData.args, readinessResult: "pass"},
+    play: runLockedDownReadiness(true),
+}
+export const LockedDownReadinessFailure: Story = {
+    ...LockedDownData,
+    args: {...LockedDownData.args, readinessResult: "fail"},
+    play: runLockedDownReadiness(false),
 }

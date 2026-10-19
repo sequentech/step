@@ -22,6 +22,7 @@ import {GetUploadUrlMutation} from "@/gql/graphql"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 import {useMutation} from "@apollo/client"
 import {SimpleForm, useNotify} from "react-admin"
+import {EFileIntegrityPolicy} from "@sequentech/ui-core"
 import {selectImportFiles} from "@/services/ImportFileSelection"
 import {ImportRequestError} from "@/services/ImportRequestError"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
@@ -40,6 +41,7 @@ interface ImportScreenProps {
      * paragraph.
      */
     problems?: Problem[] | null
+    fileIntegrityPolicy?: EFileIntegrityPolicy
     allowHistoricalSource?: boolean
     disableImport?: boolean
     refresh?: string
@@ -101,6 +103,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
             problems,
             allowHistoricalSource,
         } = props
+        const requiresSha = props.fileIntegrityPolicy === EFileIntegrityPolicy.REQUIRED_SHA256
         const {globalSettings} = React.useContext(SettingsContext)
         const configuredUrl = globalSettings.ELECTION_EVENT_IMPORT_CONVERTER_BASE_URL
         const converterUrl = typeof configuredUrl === "string" ? configuredUrl.trim() : undefined
@@ -304,8 +307,10 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
             await uploadFileToS3(theFile, password)
         }
 
+        const validSha = /^[a-fA-F0-9]{64}$/.test(shaField)
+
         const submitImport = async (id = documentId) => {
-            if (!id) return
+            if (!id || (requiresSha && !validSha)) return
             setLoading(true)
             setStage("creating")
             try {
@@ -322,6 +327,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
             }
         }
         const onImportButtonClick = async () => {
+            if (requiresSha && !validSha) return
             if (generatedHash && !historicalEnabled) return
             if (generatedHash && theFile && !documentId) {
                 const id = await uploadFileToS3(theFile, "", generatedHash)
@@ -373,6 +379,11 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
             <Box sx={{padding: "0"}}>
                 <TextField
                     disabled={isWorking() || !!generatedHash}
+                    required={requiresSha}
+                    helperText={
+                        requiresSha ? t("electionEventScreen.import.shaRequiredHelp") : undefined
+                    }
+                    error={requiresSha && shaField.length > 0 && !validSha}
                     label={String(t("electionEventScreen.import.sha"))}
                     size="small"
                     value={shaField}
@@ -522,7 +533,8 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                             stage === "validation-error" ||
                             !!errors ||
                             problems?.some((p) => p.severity === "error") ||
-                            showShaDialog
+                            showShaDialog ||
+                            (requiresSha && !validSha)
                         }
                         onClick={onImportButtonClick}
                     >
@@ -536,12 +548,12 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
 
                 <Dialog
                     variant="warning"
-                    open={showShaDialog}
+                    open={!requiresSha && showShaDialog}
                     ok={String(t("electionEventScreen.import.shaDialog.ok"))}
                     cancel={String(t("electionEventScreen.import.shaDialog.cancel"))}
                     title={String(t("electionEventScreen.import.shaDialog.title"))}
                     handleClose={(result: boolean) => {
-                        if (result) {
+                        if (result && !requiresSha) {
                             void submitImport()
                         }
 

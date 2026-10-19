@@ -294,6 +294,20 @@ The cost is that one board accepts one append at a time. Batching amortizes this
 | Imported logs | The exported delivery IDs, which the record commitments include |
 | CSV imports of older exports | A new UUID per imported row |
 
+A `ConfigurationPackageImported` entry records the verified manifest's
+`content_sha256` as `content_hash`, alongside `manifest_sha256`, the configuration
+identity and revision, and approved ballot design digests. The content hash is
+what the approvers signed and can match across packages with different revisions
+and manifest hashes. In the Admin Portal's Logs, the description identifies the
+configuration and revision; the entry's details show the full **Content hash**
+and **Manifest SHA-256** separately. Historical descriptions containing hashes
+get the same concise display without changing their signed messages.
+
+New entries use the appended `ConfigurationPackageWithContentHash` body. Upgrade
+electoral-log readers, including CLI and auditor tools, before enabling writers
+that emit it. Historical `ConfigurationPackage` bodies keep their original bytes
+and signatures; they have no content hash to display.
+
 Two different events with identical contents have different delivery IDs, so both are stored.
 
 ### 6.5 Failures and retries

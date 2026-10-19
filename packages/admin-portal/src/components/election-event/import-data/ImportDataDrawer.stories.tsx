@@ -8,6 +8,7 @@ import {AdminStoryProvider, TENANT_ID} from "@/__stories__/AdminStoryProvider"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {useCreateElectionEventStore} from "@/providers/CreateElectionEventContextProvider"
 import {ImportDataDrawer} from "./ImportDataDrawer"
+import {EFileIntegrityPolicy} from "@sequentech/ui-core"
 import {
     CHECKSUM,
     CreateFlowStory,
@@ -32,6 +33,7 @@ interface Scenario {
     importProblems?: unknown[]
     /** An error the page passes to the drawer. */
     errors?: string | null
+    fileIntegrityPolicy?: EFileIntegrityPolicy
     doImport: (documentId: string, sha256: string, password?: string) => Promise<void>
     closeDrawer: () => void
 }
@@ -45,7 +47,7 @@ function OpenFromProvider() {
 }
 
 /** A page with its own import drawer state, such as the backup restore settings. */
-function PageDrawer({errors, doImport, closeDrawer}: Scenario) {
+function PageDrawer({errors, doImport, closeDrawer, fileIntegrityPolicy}: Scenario) {
     const [open, setOpen] = useState(true)
     return (
         <ImportDataDrawer
@@ -57,6 +59,7 @@ function PageDrawer({errors, doImport, closeDrawer}: Scenario) {
             title="settings.backupRestore.restore.title"
             subtitle="settings.backupRestore.restore.subtitle"
             paragraph="settings.backupRestore.restore.paragraph"
+            fileIntegrityPolicy={fileIntegrityPolicy}
             doImport={doImport}
             errors={errors}
         />
@@ -264,5 +267,22 @@ export const PageCancel: Story = {
             expect(within(document.body).queryByText("Import Tenant Configurations")).toBeNull()
         )
         expect(args.doImport).not.toHaveBeenCalled()
+    },
+}
+
+export const RequiredIntegrityPolicy: Story = {
+    args: {mode: "props", fileIntegrityPolicy: EFileIntegrityPolicy.REQUIRED_SHA256},
+    parameters: {expectedFailure: null},
+    play: async () => {
+        const root = await drawer("Import Tenant Configurations")
+        const hash = within(root).getByRole("textbox", {name: /Integrity Check/})
+        await expect(hash).toBeRequired()
+        await expect(within(root).getByText(/independently certified 64-character/)).toBeVisible()
+        await expect(within(root).getByRole("button", {name: "Import"})).toBeDisabled()
+        await waitFor(() =>
+            expect(hash.getBoundingClientRect().right).toBeLessThanOrEqual(
+                root.getBoundingClientRect().right
+            )
+        )
     },
 }

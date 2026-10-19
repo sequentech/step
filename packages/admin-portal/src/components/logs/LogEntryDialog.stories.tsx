@@ -9,6 +9,7 @@ import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {MyTimeZoneProvider} from "@/providers/EventTimeZoneProvider"
 import {LogEntryDialog, type ILogRow} from "./LogEntryDialog"
 import {ELogScope, type ILogTarget} from "./logScope"
+import {triggerOverrideTranslations} from "@/services/i18n"
 import {
     ADMIN_KEY,
     DELETED_EVENT_DATABASE,
@@ -35,6 +36,7 @@ interface Scenario {
     zone: string
     myZone: string
     onClose: () => void
+    readinessTerminology?: "areas" | "districts"
 }
 
 const TENANT_LOG: ILogTarget = {kind: ELogScope.TENANT}
@@ -78,9 +80,26 @@ const meta = {
         myZone: "America/New_York",
         onClose: fn(),
     },
-    beforeEach: async () => {
+    beforeEach: async ({args}) => {
+        triggerOverrideTranslations(
+            args.readinessTerminology === "districts"
+                ? {
+                      en: {
+                          "logsScreen.readiness.fields.areas": "Districts",
+                          "logsScreen.readiness.fields.counts_by_area": "Voters by district",
+                          "logsScreen.readiness.fields.current_voter_counts":
+                              "Current voters by district",
+                          "logsScreen.readiness.checks.configuration":
+                              "Both events have matching approved content, approvers and districts.",
+                          "logsScreen.readiness.checks.certified_voters":
+                              "Both events match the certified district registry.",
+                      },
+                  }
+                : undefined
+        )
         graphql = graphqlBoundary({}, {schema: true})
         await graphql.ready
+        return () => triggerOverrideTranslations()
     },
     render: ({myZone, ...args}: Scenario) => (
         <AdminStoryProvider boundary={graphql}>
@@ -381,5 +400,153 @@ export const Closed: Story = {
     args: {entry: null},
     play: async () => {
         expect(within(document.body).queryByRole("dialog")).toBeNull()
+    },
+}
+
+const READINESS_ENTRY: ILogRow = {
+    id: 18443,
+    statement_timestamp: 1833186097,
+    statement_kind: "ReadinessVerified",
+    message: JSON.stringify({
+        user_id: "readiness-operator",
+        username: "readiness.operator",
+        system_signature: SYSTEM_SIGNATURE,
+        statement: {
+            head: {event_type: "USER", log_type: "INFO", description: "Legacy server description"},
+            body: {
+                Audit: {
+                    details_json: JSON.stringify({
+                        actor: {
+                            user_id: "readiness-operator",
+                            username: "readiness.operator",
+                            role: "readiness-check",
+                        },
+                        report: {
+                            passed: true,
+                            checked_at: "2026-10-15T10:00:00Z",
+                            checks: [
+                                {
+                                    kind: "configuration",
+                                    passed: true,
+                                    message: "Legacy configuration wording",
+                                },
+                                {
+                                    kind: "certified_voters",
+                                    passed: true,
+                                    message: "Legacy registry wording",
+                                },
+                            ],
+                            evidence: {
+                                official: {
+                                    event_id: EVENT_ID,
+                                    configuration: {areas: ["Area A", "Area B"]},
+                                    voters: {
+                                        sha256: "ab".repeat(32),
+                                        counts_by_area: {"Area A": 12, "Area B": 0},
+                                    },
+                                },
+                                tested: {
+                                    event_id: "tested-event",
+                                    current_voter_counts: {"Area A": 12, "Area B": 0},
+                                },
+                            },
+                        },
+                    }),
+                },
+            },
+        },
+    }),
+}
+
+export const ReadinessEvidence: Story = {
+    args: {entry: READINESS_ENTRY, log: {kind: ELogScope.EVENT, electionEventId: EVENT_ID}},
+    play: async () => {
+        const view = await dialog()
+        await expect(view.getByText("ReadinessVerified")).toBeVisible()
+        await expect(view.getByText(/tested-event/)).toBeVisible()
+        await expect(view.getByText(/Areas: Area A, Area B/)).toBeVisible()
+        await expect(view.getByText(/Voters by area: Area A: 12; Area B: 0/)).toBeVisible()
+        await expect(
+            view.getByText(
+                "Passed: Both events match the same certified voter file and current counts by area."
+            )
+        ).toBeVisible()
+        await expect(view.queryByText(/Legacy registry wording/)).toBeNull()
+        await expect(view.getByText("readiness.operator")).toBeVisible()
+    },
+}
+
+// Historical signed payloads retain their original field names in storage.
+const LEGACY_READINESS_ENTRY = {
+    ...READINESS_ENTRY,
+    message: READINESS_ENTRY.message
+        ?.replaceAll("counts_by_area", "counts_by_post")
+        .replaceAll("areas", "posts"),
+}
+
+export const ReadinessDistrictTerminology: Story = {
+    args: {
+        entry: LEGACY_READINESS_ENTRY,
+        readinessTerminology: "districts",
+        log: {kind: ELogScope.EVENT, electionEventId: EVENT_ID},
+    },
+    play: async () => {
+        const original = LEGACY_READINESS_ENTRY.message
+        const view = await dialog()
+        await expect(view.getByText(/Districts: Area A, Area B/)).toBeVisible()
+        await expect(view.getByText(/Voters by district: Area A: 12; Area B: 0/)).toBeVisible()
+        await expect(
+            view.getByText("Passed: Both events match the certified district registry.")
+        ).toBeVisible()
+        await expect(view.queryByText(/Legacy registry wording/)).toBeNull()
+        await expect(view.queryByText(/counts_by_post/)).toBeNull()
+        expect(LEGACY_READINESS_ENTRY.message).toBe(original)
+        expect(LEGACY_READINESS_ENTRY.message).toContain("counts_by_post")
+    },
+}
+
+export const ConfigurationPackageImport: Story = {
+    args: {
+        log: {kind: ELogScope.EVENT, electionEventId: EVENT_ID},
+        entry: {
+            ...SEAL_ENTRY,
+            statement_kind: "ConfigurationPackageImported",
+            message: JSON.stringify({
+                user_id: "configuration-operator",
+                username: "configuration.operator",
+                statement: {
+                    head: {
+                        event_type: "USER",
+                        log_type: "INFO",
+                        description: `Configuration approved-configuration revision 9 imported from a signed package (manifest ${"ab".repeat(32)}, content_hash ${"cd".repeat(32)}).`,
+                    },
+                    body: {
+                        ConfigurationPackageWithContentHash: [
+                            EVENT_ID,
+                            {
+                                action: "Imported",
+                                external_id: "approved-configuration",
+                                revision: 9,
+                                manifest_sha256: "ab".repeat(32),
+                                content_hash: "cd".repeat(32),
+                                design_digests: [],
+                            },
+                        ],
+                    },
+                },
+            }),
+        },
+    },
+    play: async () => {
+        const view = await dialog()
+        await expect(
+            view.getByText(
+                "Configuration approved-configuration revision 9 imported from a signed package.",
+                {exact: true}
+            )
+        ).toBeVisible()
+        await expect(view.getByText("Content hash", {exact: true})).toBeVisible()
+        await expect(view.getByText("cd".repeat(32), {exact: true})).toBeVisible()
+        await expect(view.getByText("ab".repeat(32), {exact: true})).toBeVisible()
     },
 }

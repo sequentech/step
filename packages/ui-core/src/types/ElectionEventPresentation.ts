@@ -74,6 +74,12 @@ export enum EElectionEventLockedDown {
     NOT_LOCKED_DOWN = "not-locked-down",
 }
 
+/** Integrity required for voter-file imports; absent preserves legacy behavior. */
+export enum EFileIntegrityPolicy {
+    OPTIONAL = "OPTIONAL",
+    REQUIRED_SHA256 = "REQUIRED_SHA256",
+}
+
 /** Whether each ballot box is sealed when voting closes (VOTE-FREEZE). Locked once voting has opened. */
 export enum EBallotBoxSealPolicy {
     DO_NOT_SEAL = "do-not-seal",
@@ -288,6 +294,8 @@ export interface IElectionEventPresentation {
     timezones?: IElectionEventTimeZones
     /** Lifecycle decisions that are part of the (signed) configuration. */
     lifecycle_policies?: ILifecyclePolicies
+    /** Unset preserves optional integrity checks for legacy imports. */
+    file_integrity_policy?: EFileIntegrityPolicy
     /** Unset means do-not-seal (VOTE-FREEZE). */
     ballot_box_seal_policy?: EBallotBoxSealPolicy
     /** Unset means restricted (VOTE-FREEZE). */

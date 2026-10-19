@@ -513,6 +513,17 @@ impl Message {
         Self::from_body(event, body, sd, user_id, username, None, None, None)
     }
 
+    pub fn configuration_package_with_content_hash_message(
+        event: EventIdString,
+        details: ConfigurationPackageImportDetails,
+        sd: &SigningData,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<Self> {
+        let body = StatementBody::ConfigurationPackageWithContentHash(event.clone(), details);
+        Self::from_body(event, body, sd, user_id, username, None, None, None)
+    }
+
     /// The hash manifest of a generated report. The entry is the user's
     /// when one asked for the report, and the system's otherwise.
     pub fn report_generated_message(
