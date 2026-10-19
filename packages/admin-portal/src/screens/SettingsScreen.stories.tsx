@@ -84,7 +84,10 @@ export const Populated: Story = {
         ).toBeVisible()
         await expect(tab(canvasElement, "electionTypes")).toHaveAttribute("aria-selected", "true")
         await expect(await canvas.findByRole("row", {name: /Referendum/})).toBeVisible()
-        expect(canvas.getAllByRole("tab")).toHaveLength(10)
+        const tabs = canvas.getAllByRole("tab")
+        expect(tabs).toHaveLength(11)
+        // Plugins is appended, so the default tab and existing order are unchanged.
+        expect(tabs.at(-1)).toHaveTextContent(i18n.t("plugins.title"))
         expect(canvas.queryByRole("tab", {name: "Logs"})).toBeNull()
         expect(data.calls.map(({method, args}) => [method, args[0]])).toEqual([
             ["getList", ELECTION_TYPE_RESOURCE],
@@ -102,10 +105,11 @@ export const EveryTabAndLogs: Story = {
         const canvas = within(canvasElement)
         await canvas.findByRole("row", {name: /Referendum/})
         const tabs = canvas.getAllByRole("tab")
-        expect(tabs).toHaveLength(11)
+        expect(tabs).toHaveLength(12)
         expect(tabs.at(-1)).toHaveTextContent("Logs")
-        expect(tabs.at(-2)).toHaveTextContent(i18n.t("settings.previewScreen.label"))
-        await userEvent.click(tabs[10])
+        expect(tabs.at(-2)).toHaveTextContent(i18n.t("plugins.title"))
+        expect(tabs.at(-3)).toHaveTextContent(i18n.t("settings.previewScreen.label"))
+        await userEvent.click(tabs[11])
         await expect(
             await canvas.findByText("Settings changed: Languages, Integrations and Voting Channels")
         ).toBeVisible()
@@ -179,7 +183,7 @@ export const OpenTheMessagingAccounts: Story = {
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await canvas.findByRole("row", {name: /Referendum/})
-        expect(canvas.getAllByRole("tab")).toHaveLength(11)
+        expect(canvas.getAllByRole("tab")).toHaveLength(12)
         await userEvent.click(canvas.getByRole("tab", {name: i18n.t("messagingAccounts.tab")}))
         await expect(await canvas.findByText(i18n.t("messagingAccounts.list.empty"))).toBeVisible()
         expect(graphql.calls.map(({name}) => name).sort()).toEqual([

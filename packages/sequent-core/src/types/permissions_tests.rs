@@ -775,3 +775,41 @@ fn every_realm_grants_the_tenant_log_to_its_administrators_and_feeds_it() {
         assert_eq!(realm["adminEventsDetailsEnabled"], true, "{name}");
     }
 }
+
+const PROJECTS_PERMISSIONS: [(&str, Permissions); 3] = [
+    ("projects-read", Permissions::PROJECTS_READ),
+    ("projects-write", Permissions::PROJECTS_WRITE),
+    ("projects-manage", Permissions::PROJECTS_MANAGE),
+];
+
+#[test]
+fn projects_permissions_have_their_plugin_names() {
+    for (name, permission) in PROJECTS_PERMISSIONS {
+        assert_eq!(Permissions::from_str(name), Ok(permission.clone()));
+        assert_eq!(permission.to_string(), name);
+    }
+}
+
+/// New tenants' administrators get Projects; other tenants receive the roles
+/// when they turn the plugin on, so other realm templates need not define them.
+#[test]
+fn the_tenant_template_grants_projects_to_its_administrators_only() {
+    let (name, text) = REALMS[0];
+    let realm: Value = serde_json::from_str(text)
+        .unwrap_or_else(|why| panic!("{name}: {why}"));
+    for (permission, _) in PROJECTS_PERMISSIONS {
+        assert!(
+            realm["roles"]["realm"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .any(|role| role["name"] == permission),
+            "{name}: no {permission} role"
+        );
+        assert_eq!(
+            groups_granting(&realm, permission),
+            BTreeSet::from(["admin".to_string()]),
+            "{name}: {permission}"
+        );
+    }
+}

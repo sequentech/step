@@ -7,6 +7,9 @@
 export const ATTR_RESET_VALUE = "NONE"
 
 export enum IPermissions {
+    PROJECTS_READ = "projects-read",
+    PROJECTS_WRITE = "projects-write",
+    PROJECTS_MANAGE = "projects-manage",
     ADMIN_USER = "admin-user",
     TENANT_CREATE = "tenant-create",
     TENANT_READ = "tenant-read",
