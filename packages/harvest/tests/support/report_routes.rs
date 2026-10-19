@@ -930,3 +930,127 @@ async fn a_transmission_report_the_task_queues_cannot_take_is_a_server_error() {
         )
     );
 }
+
+/// An event with an election and a finished tally session that counts it.
+async fn tallied_election(services: &Services) -> (Event, String, String) {
+    let event = rows::event(&services.hasura).await;
+    let election_id = event.election(&services.hasura).await;
+    let session_id = event
+        .tally_session(
+            &services.hasura,
+            std::slice::from_ref(&election_id),
+            "SUCCESS",
+        )
+        .await;
+    (event, election_id, session_id)
+}
+
+#[rocket::async_test]
+async fn a_transmission_report_without_task_queues_writes_no_task_row() {
+    let services = Services::on_test_database()
+        .await
+        .with_tasks(MemoryTaskQueue::unreachable());
+    let client = services.client().await;
+    let (event, election_id, session_id) = tallied_election(&services).await;
+
+    let response = post(
+        &client,
+        "/generate-transmission-report",
+        &transmission_officer(&event),
+        &transmission_request(&event, Some(&election_id), Some(&session_id)),
+    )
+    .await;
+    assert_eq!(
+        text(response).await,
+        (
+            Status::InternalServerError,
+            "The task queues are not available: Timed out connecting to the task-queue database"
+                .into()
+        )
+    );
+    assert!(services.ledger.tasks().is_empty());
+}
+
+#[rocket::async_test]
+async fn a_transmission_report_whose_task_row_cannot_be_written_is_not_queued()
+{
+    let services = Services::on_test_database()
+        .await
+        .with_ledger(MemoryTaskLedger::refusing());
+    let client = services.client().await;
+    let (event, election_id, session_id) = tallied_election(&services).await;
+
+    let (status, message) = text(
+        post(
+            &client,
+            "/generate-transmission-report",
+            &transmission_officer(&event),
+            &transmission_request(
+                &event,
+                Some(&election_id),
+                Some(&session_id),
+            ),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::InternalServerError);
+    assert!(
+        message.starts_with(
+            "Failed to insert task execution record: tasks_execution is unavailable"
+        ),
+        "{message}"
+    );
+    assert!(services.tasks.sent().is_empty());
+}
+
+#[rocket::async_test]
+async fn a_transmission_report_names_a_caller_without_a_username_by_their_id() {
+    let services = Services::on_test_database().await;
+    let client = services.client().await;
+    let (event, election_id, session_id) = tallied_election(&services).await;
+
+    let (status, body) = json(
+        post(
+            &client,
+            "/generate-transmission-report",
+            &Claims::new(&event.tenant_id, USER_ID)
+                .roles([Permissions::TRANSMISSION_REPORT_GENERATE]),
+            &transmission_request(
+                &event,
+                Some(&election_id),
+                Some(&session_id),
+            ),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::Ok, "{body}");
+    assert_eq!(
+        services.tasks.sent()[0].kwargs["executer_username"],
+        USER_ID
+    );
+    assert_eq!(services.ledger.tasks()[0].executed_by_user, USER_ID);
+}
+
+#[rocket::async_test]
+async fn a_tally_session_id_the_database_cannot_read_is_a_server_error() {
+    let services = Services::on_test_database().await;
+    let client = services.client().await;
+    let (event, election_id, _) = tallied_election(&services).await;
+    // A UUID, but not a version 4 one: tally sessions are looked up by those.
+    let not_v4 = "00000000-0000-0000-0000-000000000001";
+
+    let (status, message) = text(
+        post(
+            &client,
+            "/generate-transmission-report",
+            &transmission_officer(&event),
+            &transmission_request(&event, Some(&election_id), Some(not_v4)),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::InternalServerError, "{message}");
+    assert!(services.ledger.tasks().is_empty());
+}

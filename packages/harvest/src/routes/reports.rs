@@ -602,6 +602,13 @@ pub async fn encrypt_report_route(
     Ok(Json(output))
 }
 
+/// A server error saying what failed, then why.
+fn server_error<E: std::fmt::Debug>(
+    what: &'static str,
+) -> impl FnOnce(E) -> (Status, String) {
+    move |error| (Status::InternalServerError, format!("{what}: {error:?}"))
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GenerateTransmissionReportBody {
     pub tenant_id: String,
@@ -647,20 +654,17 @@ pub async fn generate_transmission_report(
         (Status::BadRequest, "Invalid tally session id".to_string())
     })?;
 
-    let mut hasura_db_client: DbClient =
-        services.databases.hasura().await.get().await.map_err(|e| {
-            (
-                Status::InternalServerError,
-                format!("Error obtaining hasura client: {e:?}"),
-            )
-        })?;
-    let hasura_transaction =
-        hasura_db_client.transaction().await.map_err(|e| {
-            (
-                Status::InternalServerError,
-                format!("Error obtaining hasura transaction: {e:?}"),
-            )
-        })?;
+    let mut hasura_db_client: DbClient = services
+        .databases
+        .hasura()
+        .await
+        .get()
+        .await
+        .map_err(server_error("Error obtaining hasura client"))?;
+    let hasura_transaction = hasura_db_client
+        .transaction()
+        .await
+        .map_err(server_error("Error obtaining hasura transaction"))?;
     authorize_election_permission_labels(
         &hasura_transaction,
         &claims,
@@ -675,7 +679,7 @@ pub async fn generate_transmission_report(
         &tally_session_id,
     )
     .await
-    .map_err(|error| (Status::InternalServerError, format!("{error:?}")))?
+    .map_err(server_error("Error reading the tally session"))?
     .ok_or_else(|| {
         (
             Status::NotFound,
@@ -703,12 +707,7 @@ pub async fn generate_transmission_report(
         &input.election_id,
     )
     .await
-    .map_err(|e| {
-        (
-            Status::InternalServerError,
-            format!("Error getting report by type: {e:?}"),
-        )
-    })?
+    .map_err(server_error("Error getting report by type"))?
     .unwrap_or_else(|| Report {
         id: Uuid::new_v4().to_string(),
         election_event_id: input.election_event_id.clone(),
@@ -747,12 +746,7 @@ pub async fn generate_transmission_report(
             &executer_name,
         )
         .await
-        .map_err(|error| {
-            (
-                Status::InternalServerError,
-                format!("Failed to insert task execution record: {error:?}"),
-            )
-        })?;
+        .map_err(server_error("Failed to insert task execution record"))?;
 
     let document_id: String = Uuid::new_v4().to_string();
     celery_app
