@@ -40,9 +40,9 @@ Set up the following environment variables with your instance details:
 | `KEYCLOAK_URL` | Base URL of your Keycloak instance | `https://keycloak.example.sequent.vote` |
 | `TENANT_ID` | Your tenant identifier | `my-tenant-123` |
 | `CLIENT_ID` | OAuth2 client ID for CLI/admin operations | `admin-portal` |
-| `CLIENT_SECRET` | OAuth2 client secret | `admin-portal-client-secret` |
+| `CLIENT_SECRET` | OAuth2 client secret | `<client-secret>` |
 | `USERNAME` | Your username | `user@example.com` |
-| `PASSWORD` | Your password | `your-secure-password` |
+| `PASSWORD` | Your password | `<password>` |
 
 **Important Notes:**
 - For **CLI and administrative operations** (like importing election events, managing users), use the `admin-portal` client ID which has the necessary permissions
@@ -57,9 +57,9 @@ For **bash/CURL** (Linux/macOS):
 export KEYCLOAK_URL="https://keycloak.example.sequent.vote"
 export TENANT_ID="my-tenant-123"
 export CLIENT_ID="admin-portal"
-export CLIENT_SECRET="admin-portal-client-secret"
+export CLIENT_SECRET="<client-secret>"
 export USERNAME="user@example.com"
-export PASSWORD="your-secure-password"
+export PASSWORD="<password>"
 ```
 
 Alternatively, create a `.env` file and source it:
@@ -70,9 +70,9 @@ cat > .env <<EOF
 export KEYCLOAK_URL="https://keycloak.example.sequent.vote"
 export TENANT_ID="my-tenant-123"
 export CLIENT_ID="admin-portal"
-export CLIENT_SECRET="admin-portal-client-secret"
+export CLIENT_SECRET="<client-secret>"
 export USERNAME="user@example.com"
-export PASSWORD="your-secure-password"
+export PASSWORD="<password>"
 EOF
 
 # Load the environment variables
@@ -164,18 +164,18 @@ print(f"Access token obtained, expires in {expires_in} seconds")
 
 ### Sample Response
 
-A successful response will look like this:
+A successful response has this structure. Token and session values below are placeholders; use the values returned by your own authentication request:
 
 ```json
 {
-  "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJC...",
+  "access_token": "<access-token>",
   "expires_in": 300,
   "refresh_expires_in": 1800,
-  "refresh_token": "eyJhbGciOiJIUzUxMiIsInR5cCIgOiAiSldUIiwia2lkIiA6IC...",
+  "refresh_token": "<refresh-token>",
   "token_type": "Bearer",
-  "id_token": "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJC...",
+  "id_token": "<id-token>",
   "not-before-policy": 1712715173,
-  "session_state": "0986ebd3-b08b-9981-191a-5a418381d0bd",
+  "session_state": "<session-id>",
   "scope": "openid profile email"
 }
 ```
@@ -214,7 +214,7 @@ if time.time() - token_acquired_at > expires_in - 300:
 
 ```bash
 # Save the refresh token from the initial authentication
-REFRESH_TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+REFRESH_TOKEN="<refresh-token>"
 
 # Use it to get a new access token
 curl -X POST "${KEYCLOAK_URL}/realms/tenant-${TENANT_ID}/protocol/openid-connect/token" \
@@ -274,7 +274,7 @@ Once you have an access token, include it in the `Authorization` header of your 
 
 ```bash
 # Save the access token from authentication
-ACCESS_TOKEN="eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."
+ACCESS_TOKEN="<access-token>"
 
 # Use it in API requests
 curl -X POST "https://api.example.sequent.vote/graphql" \
