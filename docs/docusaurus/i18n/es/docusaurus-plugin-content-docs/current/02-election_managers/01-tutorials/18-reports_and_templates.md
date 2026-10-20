@@ -38,6 +38,21 @@ Después de crear una entrada de informe, la verá en la lista. Haga clic en el 
 
 *Los tipos de informe adicionales se documentarán aquí a medida que estén disponibles.*
 
+## Campos del votante en los informes {#voter-fields-in-reports}
+
+Los informes que muestran un votante identificado cada vez, como las cartas de información para el votante y los informes de verificación manual, pueden imprimir cualquiera de los campos del votante. Use `user.<attribute>` para un atributo de usuario, por ejemplo `{{user.ward}}` o `{{user.school_support_choice}}`, y `user.first_name`, `user.last_name`, `user.username` o `user.email` para los campos estándar. Los informes agregados no reciben campos del votante.
+
+Los votantes a menudo dejan algunos campos vacíos. El auxiliar `concat` une los campos que están presentes y omite el resto, `format_pattern` da formato a valores como los códigos postales y `upper` los convierte a mayúsculas:
+
+```handlebars
+<p>{{concat user.first_name user.middle_names user.last_name}}</p>
+<p>{{concat user.corr_unit user.corr_street_number user.corr_street}}</p>
+<p>{{concat user.corr_city user.corr_province (format_pattern user.corr_postal_code "### ###")}}</p>
+<p>{{upper user.corr_country_name}}</p>
+```
+
+Consulte [Variables del votante](../02-reference/02-election-event/13-02-election_management_election-event_templates.md#voter-variables) para ver cada variable y auxiliar, incluidos los campos fijos de la carta de información para el votante.
+
 ## Campos secretos del votante en los informes {#secret-voter-fields-in-reports}
 
 Los campos secretos del votante solo están disponibles para los informes que muestran un votante identificado cada vez. Los ejemplos actuales son las cartas de información al votante y los informes de verificación manual. Los informes agregados, como los de participación, actividad electoral, recuento y resultados, no reciben un objeto de votante y no pueden usar campos secretos.

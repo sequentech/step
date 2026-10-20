@@ -73,9 +73,9 @@ La importación usa el ID de inquilino de cada fila del archivo, no el inquilino
 - En las plantillas de documento, asegúrese de que todos los recursos necesarios (logotipos, imágenes) sean accesibles y estén referenciados correctamente.
 - Si su sistema admite la previsualización o lenguajes de plantillas (por ejemplo, handlebars o Liquid), incluya datos de muestra para verificar la representación.
 
-## Variables del votante en las plantillas de notificación {#voter-variables-in-notification-templates}
+## Variables del votante {#voter-variables}
 
-Las plantillas de correo electrónico y SMS de Handlebars pueden usar estas variables estándar del votante:
+Las plantillas de correo electrónico y SMS, y las plantillas de documento de los informes que muestran un votante cada vez (la carta de información para el votante y el informe de verificación manual), pueden usar estas variables estándar del votante:
 
 - `user.first_name`
 - `user.last_name`
@@ -83,6 +83,10 @@ Las plantillas de correo electrónico y SMS de Handlebars pueden usar estas vari
 - `user.email`
 
 También están disponibles los atributos personalizados de usuario de Keycloak. El primer valor se expone como `user.<attribute>`. La lista completa de valores sigue disponible como `user.attributes.<attribute>`. Las variables estándar tienen prioridad si un atributo personalizado usa el mismo nombre. El nombre `attributes` está reservado para el mapa completo de atributos. Las listas de valores personalizados vacías solo aparecen en `user.attributes`.
+
+Los informes agregados, como los de participación, actividad, recuento y resultados, muestran muchos votantes a la vez y no reciben un objeto `user`.
+
+Los atributos secretos (`sequent.secret=true`) son la excepción: solo están disponibles cuando la plantilla los declara en `secret_attribute_names`. Consulte [Variables secretas del votante](../user-manual/templates/admin_portal_reference_user-manual_templates.md#secret-voter-variables).
 
 La notación con punto funciona con nombres sencillos, como `dateOfBirth`. Use `lookup` de Handlebars para nombres que contengan puntos o guiones. Por ejemplo:
 
@@ -96,6 +100,45 @@ Por ejemplo, un atributo `reference` con los valores `ABC-123` y `legacy-456` se
 ```handlebars
 Primary reference: {{user.reference}}
 All references: {{#each user.attributes.reference}}{{this}} {{/each}}
+```
+
+### Variables de la carta de información para el votante {#voter-information-letter-variables}
+
+Además de `user`, la plantilla de la carta de información para el votante recibe estos campos:
+
+| Variable | Contenido |
+| --- | --- |
+| `election_event_name` | El nombre del proceso electoral en el idioma predeterminado del proceso. |
+| `issue_date` | La fecha de generación, escrita en el idioma predeterminado del proceso electoral. |
+| `voter_first_name` | El nombre del votante. |
+| `voter_last_name` | El apellido del votante. |
+| `voter_full_name` | Nombre y apellido, separados por un espacio. |
+| `username` | El nombre de usuario del votante. |
+| `password` | La nueva credencial del votante. Cuando el realm usa un patrón de credencial estructurado, se formatea con ese patrón, por ejemplo `1234-5678-9012-3456`. |
+| `voting_portal_url` | La URL de inicio de sesión del portal de votación para el proceso electoral. |
+| `logo_url` | La URL del logotipo predeterminado. |
+
+### Funciones de texto {#text-helpers}
+
+Estos auxiliares facilitan la impresión de datos del votante que pueden estar incompletos. Nunca fallan: un valor que falta se muestra como una cadena vacía. Úselos como subexpresiones para combinarlos.
+
+| Auxiliar | Ejemplo | Resultado |
+| --- | --- | --- |
+| `concat` | `{{concat user.first_name user.middle_names user.last_name}}` | `Jane Doe` cuando `middle_names` falta o está vacío. |
+| `concat` con `sep` | `{{concat user.corr_city user.corr_province sep=", "}}` | `Denbigh, ON` |
+| `format_pattern` | `{{format_pattern user.corr_postal_code "### ###"}}` | `K0H 1L0` a partir de `K0H1L0`. |
+| `upper` | `{{upper user.corr_country_name}}` | `CA` a partir de `Ca`. |
+
+`concat` une cualquier número de valores con un separador, un espacio de forma predeterminada. Recorta cada valor y omite los que faltan, son nulos, están vacíos o solo contienen espacios, de modo que el separador solo aparece entre valores presentes. Los arrays, como `user.attributes.<attribute>`, se aplanan. También se aceptan números y literales entre comillas.
+
+`format_pattern` rellena cada `#` del patrón con el siguiente carácter que no sea un espacio del valor. Cada otro carácter del patrón se copia tal cual. Si el valor no tiene exactamente tantos caracteres como `#` tiene el patrón, el valor recortado se imprime sin cambios.
+
+Por ejemplo, una dirección postal que omite las partes que un votante no tiene:
+
+```handlebars
+{{concat user.corr_unit user.corr_street_number user.corr_street_number_suffix user.corr_street}}
+{{concat user.corr_city user.corr_province (format_pattern user.corr_postal_code "### ###")}}
+{{upper user.corr_country_name}}
 ```
 
 ### Enlaces de voto con datos precargados {#prefilled-voting-links}

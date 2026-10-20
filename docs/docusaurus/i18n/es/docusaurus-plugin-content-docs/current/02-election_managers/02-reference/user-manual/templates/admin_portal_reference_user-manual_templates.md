@@ -29,6 +29,10 @@ El sistema usará automáticamente la plantilla creada al generar documentos de 
 
 También puede usar esta plantilla al [crear informes](../../../01-tutorials/18-reports_and_templates.md) manualmente en la pestaña **Informes**.
 
+## Variables del votante {#voter-variables}
+
+Las comunicaciones y los informes que muestran un votante cada vez, como la carta de información para el votante y el informe de verificación manual, reciben el votante como `user`: `user.first_name`, `user.last_name`, `user.username`, `user.email`, y cada atributo de usuario como `user.<attribute>`. Por ejemplo, una carta puede imprimir `{{user.ward}}` o una dirección postal guardada en atributos personalizados sin configuración adicional. Use los auxiliares `concat`, `format_pattern` y `upper` para imprimir los campos que algunos votantes dejan vacíos. Consulte [Variables del votante](../../02-election-event/13-02-election_management_election-event_templates.md#voter-variables) para ver la lista completa de variables y auxiliares.
+
 ## Variables secretas del votante {#secret-voter-variables}
 
 Una comunicación o un informe real por votante puede usar campos configurados con `sequent.secret=true`.
