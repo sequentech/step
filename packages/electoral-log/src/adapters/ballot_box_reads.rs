@@ -426,11 +426,13 @@ impl PostgresStore {
             .collect()
     }
 
-    /// Valid ballots of an event, or of one of its elections, and their voters.
+    /// Valid ballots of an event, or of one of its elections, and their voters;
+    /// those cast in one area when `area_id` names it.
     pub async fn participation(
         &self,
         election_event_id: &str,
         election_id: Option<&str>,
+        area_id: Option<&str>,
     ) -> Result<Participation> {
         let row = self
             .client()
@@ -438,8 +440,9 @@ impl PostgresStore {
             .query_one(
                 "SELECT count(*), count(DISTINCT voter_id) FROM ballot_box_ballot \
                  WHERE election_event_id = $1::text::uuid AND status = $3 \
-                   AND ($2::text IS NULL OR election_id = $2::text::uuid)",
-                &[&election_event_id, &election_id, &VALID],
+                   AND ($2::text IS NULL OR election_id = $2::text::uuid) \
+                   AND ($4::text IS NULL OR area_id = $4::text::uuid)",
+                &[&election_event_id, &election_id, &VALID, &area_id],
             )
             .await
             .context("Error counting participation")?;

@@ -135,9 +135,10 @@ summary = "The public webhook component: relays provider callbacks, signed, to h
 test_inputs = ["hasura/migrations/backend-db/**", ".devcontainer/postgresql/init.sh", "hasura/metadata/databases/backend-db/tables/**"]
 
 [units.windmill]
-# The signing configuration tests read the organization fixtures, and the
-# approval matrix tests the janitor presets.
-test_inputs = ["hasura/migrations/backend-db/**", "packages/windmill/external-bin/janitor/templates/*/approvalMatrix.json", ".devcontainer/postgresql/init.sh", "packages/admin-portal/src/translations/en.ts", ".devcontainer/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json", "scripts/dev/scenario/signing-organizations/**"]
+# The signing configuration tests read the organization fixtures, the
+# approval matrix tests the janitor presets, and the report template tests
+# the default templates.
+test_inputs = [".devcontainer/minio/public-assets/**", "hasura/migrations/backend-db/**", "packages/windmill/external-bin/janitor/templates/*/approvalMatrix.json", ".devcontainer/postgresql/init.sh", "packages/admin-portal/src/translations/en.ts", ".devcontainer/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json", "scripts/dev/scenario/signing-organizations/**"]
 
 [units.sequent-core]
 # The permission tests read the realm templates.

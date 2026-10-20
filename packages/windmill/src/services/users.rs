@@ -2268,7 +2268,7 @@ pub async fn count_have_voted(
     } else {
         ballot_box
             .store
-            .participation(election_event_id, election_id.as_deref())
+            .participation(election_event_id, election_id.as_deref(), None)
             .await?
             .voters
     };

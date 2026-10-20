@@ -109,7 +109,7 @@ impl ParticipationReportTemplate {
         let election_id = election_uuid.map(|id| id.to_string());
         let participation = ballot_box
             .store
-            .participation(&self.ids.election_event_id, election_id.as_deref())
+            .participation(&self.ids.election_event_id, election_id.as_deref(), None)
             .await?;
         let voted_voters = if ballot_box
             .store
