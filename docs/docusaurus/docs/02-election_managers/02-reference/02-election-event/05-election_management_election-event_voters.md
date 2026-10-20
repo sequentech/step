@@ -104,6 +104,25 @@ You can add additional fields like the voter's birthday or sex. [Check out the t
 
 **Important:** Additional attributes for voters must be added before the enrollment process. For instance, if the sex attribute is not added, this trait will not be reflected in the reports and statistics.
 
+### External system (i.e. Datafix) API client credentials
+
+The external-system voter API authenticates with the `datafix-account` Keycloak
+client of the tenant realm, using the client credentials grant. The client
+secret is a credential, so follow these rules:
+
+- Create the client in Keycloak and let Keycloak generate its secret
+  (Clients, `datafix-account`, Credentials, Regenerate). Never import a client
+  export file that carries a fixed `secret` value, and never commit one to a
+  repository.
+- Give the generated secret to the external system through a private channel.
+- If a client in a realm was ever created from an export file with a fixed
+  secret, regenerate its secret and give the new one to the external system.
+  The voter synchronization pauses until the external system uses the new
+  secret. Voting and tally are not affected.
+- To check a realm, request a `client_credentials` token for `datafix-account`
+  with the old secret. It must fail with `unauthorized_client` where the client
+  exists and with `invalid_client` where it does not.
+
 ### External system (i.e. Datafix) voter-list reconciliation
 
 Users with the `election-event-voter-list-reconciliation` permission can open
