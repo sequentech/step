@@ -265,7 +265,6 @@ select_permissions:
           columns:
               - name
               - type
-              - annotations
               - labels
               - description
               - created_at
