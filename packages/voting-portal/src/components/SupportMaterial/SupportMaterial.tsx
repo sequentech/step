@@ -67,7 +67,7 @@ const StyledTitle = styled(Typography)`
     }
 `
 
-const StyledSubTitle = styled(Typography)<TypographyProps>`
+const StyledSubTitle = styled(Typography)<TypographyProps & {component?: React.ElementType}>`
     font-size: 18px;
     line-height: 20px;
     margin-top: 0;
