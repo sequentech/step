@@ -29,6 +29,26 @@ def get(url):
         return response.read()
 
 
+def verification_paths(site, target=None):
+    paths = [".pages-deployment.json"]
+    if target:
+        paths.append(target + "/index.html")
+    for number in (2335, 3949):
+        prefix = f"docusaurus/pr-preview/pr-{number}/"
+        policy = prefix + "docs/technology/vulnerability-disclosure-policy"
+        # Docusaurus currently uses trailingSlash: false (.html output).
+        # Also support a reviewed future switch to directory/index.html output.
+        candidates = [policy + ".html", policy + "/index.html"]
+        present = [path for path in candidates if (site / path).is_file()]
+        if len(present) != 1:
+            raise RuntimeError(f"Missing or ambiguous protected policy output for PR {number}")
+        paths.extend(present + [prefix + ".well-known/security.txt", prefix + "security/pgp-key.txt"])
+    for path in paths:
+        if not (site / path).is_file():
+            raise RuntimeError(f"Missing expected publication file: {path}")
+    return paths
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--repo", required=True)
@@ -49,14 +69,7 @@ def main():
         time.sleep(20)
     else:
         raise RuntimeError("Timed out waiting for Pages deployment")
-    paths = [".pages-deployment.json"]
-    if args.target:
-        paths.append(args.target + "/index.html")
-    for number in (2335, 3949):
-        prefix = f"docusaurus/pr-preview/pr-{number}/"
-        paths.extend(prefix + suffix for suffix in (
-            "docs/technology/vulnerability-disclosure-policy/index.html",
-            ".well-known/security.txt", "security/pgp-key.txt"))
+    paths = verification_paths(site, args.target)
     while time.monotonic() < deadline:
         try:
             for path in paths:

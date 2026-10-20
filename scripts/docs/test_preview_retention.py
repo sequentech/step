@@ -6,7 +6,7 @@ import tempfile
 import unittest
 
 from preview_retention import apply, open_prs, plan, size
-from verify_pages import deployed
+from verify_pages import deployed, verification_paths
 
 
 class RetentionTests(unittest.TestCase):
@@ -126,6 +126,20 @@ class DeploymentTests(unittest.TestCase):
     def run_record(self, **kwargs):
         return dict(id=1,name='pages build and deployment',head_sha='expected',
                     status='completed',conclusion='success',html_url='https://example.invalid/run',**kwargs)
+
+    def test_protected_policies_support_real_flat_html_and_directory_layouts(self):
+        with tempfile.TemporaryDirectory() as directory:
+            site=Path(directory);(site/'.pages-deployment.json').write_text('{}')
+            for number,suffix in ((2335,'.html'),(3949,'/index.html')):
+                prefix=site/f'docusaurus/pr-preview/pr-{number}'
+                for path in [prefix/('docs/technology/vulnerability-disclosure-policy'+suffix),
+                             prefix/'.well-known/security.txt',prefix/'security/pgp-key.txt']:
+                    path.parent.mkdir(parents=True,exist_ok=True);path.write_text('published content')
+            paths=verification_paths(site)
+            self.assertEqual(len(paths),7)
+            self.assertTrue(all((site/path).is_file() for path in paths))
+            (site/paths[1]).unlink()
+            with self.assertRaisesRegex(RuntimeError,'Missing or ambiguous'):verification_paths(site)
 
     def test_build_success_is_not_pages_deployment_success(self):
         r=self.run_record();r['name']='Documentation Preview'
