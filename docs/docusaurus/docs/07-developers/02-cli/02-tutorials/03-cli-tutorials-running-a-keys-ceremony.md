@@ -43,9 +43,9 @@ cli step config --tenant-id 90505c8a-23a9-4cdf-a26b-4e19f6a097d5 \
 --endpoint-url http://graphql-engine:8080/v1/graphql \
 --keycloak-url http://keycloak:8090 \
 --keycloak-user admin \
---keycloak-password admin \
+--keycloak-password "<password>" \
 --keycloak-client-id api-key-client \
---keycloak-client-secret 4lzmxNgZHjfzS5BwDVlyrRUDqwvFLUvL
+--keycloak-client-secret "<client-secret>"
 ```
 ### 2. Start the Keys Ceremony
 After successfully authenticating as the admin user, start a Keys Ceremony for the given election event:
@@ -82,9 +82,9 @@ cli step config --tenant-id 90505c8a-23a9-4cdf-a26b-4e19f6a097d5 \
 --endpoint-url http://graphql-engine:8080/v1/graphql \
 --keycloak-url http://keycloak:8090 \
 --keycloak-user trustee1 \
---keycloak-password trustee1 \
+--keycloak-password "<password>" \
 --keycloak-client-id api-key-client \
---keycloak-client-secret 4lzmxNgZHjfzS5BwDVlyrRUDqwvFLUvL
+--keycloak-client-secret "<client-secret>"
 ```
 
 ### 2. Run the Completion Command
@@ -114,9 +114,9 @@ cli step config --tenant-id 90505c8a-23a9-4cdf-a26b-4e19f6a097d5 \
 --endpoint-url http://graphql-engine:8080/v1/graphql \
 --keycloak-url http://keycloak:8090 \
 --keycloak-user admin \
---keycloak-password admin \
+--keycloak-password "<password>" \
 --keycloak-client-id api-key-client \
---keycloak-client-secret 4lzmxNgZHjfzS5BwDVlyrRUDqwvFLUvL
+--keycloak-client-secret "<client-secret>"
 ```
 ### 2. Publish the Election Event
 Once authenticated, publish the election event and create publication:
