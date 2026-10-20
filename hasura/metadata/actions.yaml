@@ -112,6 +112,7 @@ actions:
           - role: forensic-read
     - name: resolve_voter_pseudonym
       definition:
+          kind: synchronous
           type: mutation
           handler: http://{{HARVEST_DOMAIN}}/resolve-voter-pseudonym
           forward_client_headers: true

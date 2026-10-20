@@ -66,6 +66,8 @@ Record actual results for every step. The procedure itself does not resolve a vo
 
 ## Reproducible local demonstration
 
+Before testing through the portals, apply the backend migrations and Hasura metadata, start `harvest-edge`, and activate the Keycloak privacy providers described below. Hasura metadata consistency alone does not establish that the privacy actions or database guards are deployed. Migration versions must be unique within each database source; check the catalog with `python3 -m unittest scripts.dev.test_hasura_migrations`. Set `ELECTORAL_LOG_TEST_DATABASE_URL` to a disposable PostgreSQL database to also exercise the upgrade that preserves existing readiness audit records while adding transmission downloads. That check requires `psql` and uses a temporary table inside a rolled-back transaction.
+
 Run the synthetic demonstration inside `devenv` with `ELECTORAL_LOG_PG_*` pointing to a disposable event catalog and `HASURA_DB__*` pointing to a test PostgreSQL server whose user can create databases. The driver uses devenv's `CHROMIUM_EXECUTABLE_PATH` for the generated PDF check; `CHROME` can select another local Chromium executable. The fixtures create random event databases and a separately migrated Harvest database; never select a production catalog. The driver uses a synthetic local vault key only for secrets it creates.
 
 ```sh
