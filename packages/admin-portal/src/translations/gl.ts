@@ -693,6 +693,15 @@ const galegoTranslation: TranslationType = {
                         disabled: "Desactivado",
                     },
                 },
+                batchAnonymityPolicy: {
+                    policyLabel: "Política de Anonimato de Lotes",
+                    helperText:
+                        "Rexeitar detén o escrutinio cando o lote de papeletas dunha área ten menos de cinco votantes, ou difire do lote que outro escrutinio xa publicou para a mesma área e concurso.",
+                    options: {
+                        warn: "Advertir",
+                        refuse: "Rexeitar",
+                    },
+                },
                 languageDetectionPolicy: {
                     policyLabel: "Política de detección de idioma",
                     options: {

@@ -4,10 +4,10 @@
 
 use crate::{
     ballot::{
-        Contest, ContestEncryptionPolicy, ContestPresentation,
-        DecodedBallotsInclusionPolicy, DelegatedVotingPolicy,
-        ElectionEventPresentation, ElectionPresentation, I18nContent,
-        LanguageDetectionPolicy, VotingPortalDateTimeFormat,
+        BatchAnonymityPolicy, Contest, ContestEncryptionPolicy,
+        ContestPresentation, DecodedBallotsInclusionPolicy,
+        DelegatedVotingPolicy, ElectionEventPresentation, ElectionPresentation,
+        I18nContent, LanguageDetectionPolicy, VotingPortalDateTimeFormat,
         WeightedVotingPolicy,
     },
     serialization::deserialize_with_path::deserialize_value,
@@ -87,6 +87,12 @@ impl ElectionEvent {
     pub fn get_weighted_voting_policy(&self) -> WeightedVotingPolicy {
         parse_presentation::<ElectionEventPresentation>(&self.presentation)
             .and_then(|p| p.weighted_voting_policy)
+            .unwrap_or_default()
+    }
+
+    pub fn get_batch_anonymity_policy(&self) -> BatchAnonymityPolicy {
+        parse_presentation::<ElectionEventPresentation>(&self.presentation)
+            .and_then(|p| p.batch_anonymity_policy)
             .unwrap_or_default()
     }
 
@@ -178,7 +184,7 @@ impl Name for Contest {
 
 #[cfg(test)]
 mod tests {
-    use crate::ballot::VotingPortalDateTimeFormat;
+    use crate::ballot::{BatchAnonymityPolicy, VotingPortalDateTimeFormat};
     use crate::types::hasura::core::ElectionEvent;
 
     fn election_event_with_presentation(
@@ -240,5 +246,36 @@ mod tests {
             event.get_voting_portal_datetime_format(),
             VotingPortalDateTimeFormat::Custom("dd/MM/yyyy HH:mm".to_string())
         );
+    }
+
+    #[test]
+    fn batch_anonymity_policy_defaults_to_warn_when_absent() {
+        let event = election_event_with_presentation(None);
+        assert_eq!(
+            event.get_batch_anonymity_policy(),
+            BatchAnonymityPolicy::WARN
+        );
+
+        let event =
+            election_event_with_presentation(Some(serde_json::json!({})));
+        assert_eq!(
+            event.get_batch_anonymity_policy(),
+            BatchAnonymityPolicy::WARN
+        );
+    }
+
+    #[test]
+    fn batch_anonymity_policy_reads_each_value() {
+        let cases = [
+            ("warn", BatchAnonymityPolicy::WARN),
+            ("refuse", BatchAnonymityPolicy::REFUSE),
+        ];
+        for (wire, expected) in cases {
+            let event =
+                election_event_with_presentation(Some(serde_json::json!({
+                    "batch_anonymity_policy": wire,
+                })));
+            assert_eq!(event.get_batch_anonymity_policy(), expected);
+        }
     }
 }
