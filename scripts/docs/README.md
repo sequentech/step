@@ -40,3 +40,8 @@ GitHub Pages must retain its existing branch source (`doc-previews`, root).
 The existing PAT is used only for the output checkout/push so the Pages
 workflow is triggered. API reads use the job token. No new permissions, token
 scopes, Git history rewriting or production deployment settings are needed.
+
+PR publication uses tooling from the PR base commit, so proposed changes to
+retention cannot alter generated output before review and merge. During the
+initial rollout, this maintenance PR runs its tests and documentation build
+without publishing because the base branch does not yet have the tooling.
