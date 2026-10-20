@@ -232,7 +232,8 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     const [selectedActedTrustee, setSelectedActedTrustee] = useState<string>("")
     const [selectedRolesOnCreate, setSelectedRolesOnCreate] = useState<string[]>([])
     const [phoneInputs, setPhoneInputs] = useState<{[key: string]: string[]}>({})
-    const {canEditVoters, canEditVotersWhoVoted, canEditVotersEmailTlf} = useUsersPermissions()
+    const {canEditVoters, canEditVotersWhoVoted, canEditVotersEmailTlf, canWritePermissionLabels} =
+        useUsersPermissions()
     const [tenantId] = useTenantStore()
     const refresh = useRefresh()
     const notify = useNotify()
@@ -754,10 +755,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                             onChange={handlePermissionLabelChanged}
                             choices={choices}
                             disabled={
-                                !createMode &&
-                                !electionEventId &&
-                                !canEditVoters &&
-                                !canEditVotersWhoVoted
+                                !fieldEditable || (!electionEventId && !canWritePermissionLabels)
                             }
                         />
                     )
@@ -788,7 +786,15 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                 )
             }
         },
-        [user, permissionLabels, choices, electionsList, canEditField, canEditVotersWhoVoted]
+        [
+            user,
+            permissionLabels,
+            choices,
+            electionsList,
+            canEditField,
+            canWritePermissionLabels,
+            electionEventId,
+        ]
     )
 
     const isFieldRequired = (config: UserProfileAttribute): boolean => {
