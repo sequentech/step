@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["submit_tally_resolution"],"mod":["submit_tally_resolution_mutation"],"struct":["SubmitTallyResolution","SubmitTallyResolutionMutation"]};

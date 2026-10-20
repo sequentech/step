@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["get_custom_url","update_custom_url"],"struct":["GetCustomUrlInput","GetCustomUrlOutput","UpdateCustomUrlInput","UpdateCustomUrlOutput"]};

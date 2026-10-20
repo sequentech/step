@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["test_multi_contest_reencoding"],"struct":["BallotChoices","ContestChoice","ContestChoices","DecodedBallotChoices","DecodedContestChoice","DecodedContestChoices"]};

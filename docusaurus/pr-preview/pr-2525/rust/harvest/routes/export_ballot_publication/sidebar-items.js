@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["export_ballot_publication_route"],"struct":["ExportBallotPublicationInput","ExportBallotPublicationOutput"]};

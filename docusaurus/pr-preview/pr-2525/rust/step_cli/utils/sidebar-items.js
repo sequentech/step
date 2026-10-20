@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"mod":["areas","elections","hasura","keycloak","publication","read_config","tally","tasks","trustees","upload_file"]};

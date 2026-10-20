@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"mod":["area_tree","authorization","connection","date","error_checker","generate_urls","jwt","keycloak","pdf","probe","replace_uuids","reports","s3","translations","uuid_validation"]};

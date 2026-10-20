@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["insert_votes"],"struct":["DuplicateVotes"]};

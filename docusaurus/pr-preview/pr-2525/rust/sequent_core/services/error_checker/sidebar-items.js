@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["check_contest","check_max_selections_per_type"]};

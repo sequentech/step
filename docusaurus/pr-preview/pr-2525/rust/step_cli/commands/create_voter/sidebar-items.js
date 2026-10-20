@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["create_voter"],"mod":["create_user"],"struct":["CreateUser","CreateVoter"]};

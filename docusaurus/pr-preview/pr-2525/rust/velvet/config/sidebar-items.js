@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"mod":["ballot_images_config","generate_reports"],"struct":["Config","PipeConfig","Stage","Stages"]};

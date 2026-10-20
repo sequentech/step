@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["generate_ballots","generate_mcballots"]};

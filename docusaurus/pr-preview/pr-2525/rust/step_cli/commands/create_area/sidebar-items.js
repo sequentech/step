@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["create_area"],"mod":["insert_area"],"struct":["CreateArea","InsertArea"]};

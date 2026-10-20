@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["normalize_election","normalize_vote_choice","normalize_vote_contest"]};

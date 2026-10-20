@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["get_config","get_config_mcballots"],"struct":["TestFixture"]};

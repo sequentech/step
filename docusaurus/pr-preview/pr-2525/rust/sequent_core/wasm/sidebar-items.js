@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"mod":["areas","templates","wasm","wasm_hasura_types","wasm_interpret_plaintext","wasm_keycloak","wasm_permissions","wasm_plaintext"]};

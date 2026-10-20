@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["import_application_route"],"struct":["ImportApplicationsInput","ImportApplicationsOutput"]};

@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["update_realm_attributes_route"],"struct":["UpdateRealmAttributesInput","UpdateRealmAttributesOutput"]};

@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["complete_ceremony"],"struct":["Complete"]};

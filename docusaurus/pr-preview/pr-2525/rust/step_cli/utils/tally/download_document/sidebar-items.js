@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["download_file","fetch_document"],"mod":["fetch_document"],"struct":["FetchDocument","FetchDocumentOutput"]};

@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["create_ballot_receipt"],"struct":["CreateBallotReceiptInput","CreateBallotReceiptOutput"]};

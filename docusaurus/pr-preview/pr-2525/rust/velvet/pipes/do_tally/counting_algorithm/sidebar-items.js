@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["Error"],"mod":["instant_runoff","plurality_at_large","utils"],"trait":["CountingAlgorithm"],"type":["Result"]};

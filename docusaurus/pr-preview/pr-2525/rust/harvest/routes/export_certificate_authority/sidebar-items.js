@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["export_certificate_authority_route"],"struct":["ExportCertificateAuthorityInput","ExportCertificateAuthorityOutput"]};

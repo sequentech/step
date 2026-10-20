@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["get_mime_types","matches_mime"]};

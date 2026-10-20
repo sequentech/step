@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"constant":["OPERATION_NAME","QUERY","__QUERY_WORKAROUND"],"struct":["ResponseData","UpdateTallyCeremonyUpdateTallyCeremony","Variables"],"type":["Boolean","Float","ID","Int","uuid"]};

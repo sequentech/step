@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["get_election_config_1","get_election_config_2","get_election_config_3"]};

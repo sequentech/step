@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["iso_639_2t_to_bcp47","locale_to_internal_language_code"]};

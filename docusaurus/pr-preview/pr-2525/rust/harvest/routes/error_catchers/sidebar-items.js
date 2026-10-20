@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["default","internal_error","not_found"],"struct":["ErrorResponse"]};

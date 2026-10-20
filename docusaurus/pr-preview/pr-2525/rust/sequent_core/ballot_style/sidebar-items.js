@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["create_ballot_style","parse_i18n_field"]};

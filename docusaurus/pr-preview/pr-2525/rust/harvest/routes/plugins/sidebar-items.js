@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["plugin_routes"],"struct":["PluginsRouteInput","PluginsRouteOutput","PluginsRouteTaskOutput"]};

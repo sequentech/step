@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["create_results_election_area_sqlite"]};

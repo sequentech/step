@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["PipeName","PipeNameOutputDir"],"fn":["deserialize_pipe"]};

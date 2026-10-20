@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["get_documents"],"mod":["get_results_event"],"struct":["GetResultsEvent"]};

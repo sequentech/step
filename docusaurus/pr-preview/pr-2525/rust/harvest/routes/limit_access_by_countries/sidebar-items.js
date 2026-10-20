@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["limit_access_by_countries"],"struct":["LimitAccessByCountriesInput","LimitAccessByCountriesOutput"]};

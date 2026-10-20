@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["parse_uuid_v4","parse_uuid_v4_field"]};

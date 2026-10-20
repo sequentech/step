@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["list_electoral_log"]};

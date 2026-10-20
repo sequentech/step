@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["InvalidPlaintextErrorType","PreferencialOrderErrorType"],"fn":["map_decoded_ballot_choices_to_decoded_contests","map_to_decoded_contest","map_to_decoded_multi_contest"],"struct":["DecodedVoteChoice","DecodedVoteContest","InvalidPlaintextError"]};

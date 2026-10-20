@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["export_election_event"],"mod":["export_election_event"],"struct":["ExportElectionEvent","ExportElectionEventCommand"]};

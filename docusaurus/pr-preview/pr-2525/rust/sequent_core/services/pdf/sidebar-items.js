@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["DocRendererBackend","PdfTransport"],"fn":["doc_renderer_backend","html_to_pdf"],"mod":["sync"],"struct":["PdfRenderer","PrintToPdfOptions","TransferMode"]};

@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["ErrorCode"],"struct":["ErrorExtensions","ErrorResponse"],"type":["JsonError"]};

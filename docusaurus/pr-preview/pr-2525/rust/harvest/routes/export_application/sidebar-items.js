@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["export_application_route"],"struct":["ExportApplicationBody","ExportApplicationOutput"]};

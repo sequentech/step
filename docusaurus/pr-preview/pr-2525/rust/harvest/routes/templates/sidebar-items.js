@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["get_user_template"],"struct":["GetUserTemplateBody","GetUserTemplateResponse"]};

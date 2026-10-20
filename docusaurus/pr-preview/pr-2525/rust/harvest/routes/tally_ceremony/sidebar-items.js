@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["create_tally_ceremony","restore_private_key","submit_tally_resolution","update_tally_ceremony"],"struct":["CreateTallyCeremonyInput","CreateTallyCeremonyOutput","SetPrivateKeyInput","SetPrivateKeyOutput","SubmitTallyResolutionInput","SubmitTallyResolutionOutput","UpdateTallyCeremonyInput"]};

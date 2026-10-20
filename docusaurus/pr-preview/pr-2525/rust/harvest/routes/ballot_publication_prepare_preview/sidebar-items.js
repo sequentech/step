@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["prepare_ballot_publication_preview"],"struct":["PreparePublPreviewInput","PreparePublPreviewOutput"]};

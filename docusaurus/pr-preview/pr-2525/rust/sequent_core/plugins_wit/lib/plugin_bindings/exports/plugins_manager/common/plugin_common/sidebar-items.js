@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"struct":["Guest","GuestIndices"],"type":["Manifest","PluginRoute"]};

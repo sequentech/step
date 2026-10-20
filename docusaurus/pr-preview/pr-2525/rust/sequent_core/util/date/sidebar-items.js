@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["get_current_date","get_seconds_later","timestamp"]};

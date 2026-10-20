@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"constant":["OUTPUT_ALL_AREAS_HTML","OUTPUT_ALL_AREAS_JSON","OUTPUT_HTML","OUTPUT_JSON","OUTPUT_PDF","PARALLEL_CHUNK_SIZE"],"struct":["BasicArea","CandidateResultForReport","ElectionReportDataComputed","ElectionResultReport","GenerateReports","GeneratedReportsBytes","ReportData","ReportDataComputed","TemplateData"]};

@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"mod":["bases","bigint","character_map","checker","multi_ballot","plaintext_contest","raw_ballot","vec"],"trait":["BallotCodec"]};

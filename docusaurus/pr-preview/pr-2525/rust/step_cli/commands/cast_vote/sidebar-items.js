@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["cast_vote"],"mod":["insert_cast_vote"],"struct":["CastVote","InsertCastVote"]};

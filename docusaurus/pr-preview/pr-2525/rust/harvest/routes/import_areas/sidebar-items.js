@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["import_areas_route","upsert_areas_route"],"struct":["ImportAreasInput","ImportAreasOutput"]};

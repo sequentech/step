@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["OrderDirection"],"struct":["Aggregate","DataList","SortPayload","TotalAggregate"]};

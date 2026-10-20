@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["create_tree_js","get_contest_matches_js"]};

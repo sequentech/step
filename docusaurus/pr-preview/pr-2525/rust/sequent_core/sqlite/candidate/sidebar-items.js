@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["create_candidate_sqlite","import_candidate_sqlite"]};

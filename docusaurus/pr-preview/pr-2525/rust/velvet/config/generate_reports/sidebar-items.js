@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"constant":["CONTEST_REPORT_CONFIG"],"enum":["CandidatesOrderPolicy"],"struct":["ContestReportConfig","PipeConfigGenerateReports"]};

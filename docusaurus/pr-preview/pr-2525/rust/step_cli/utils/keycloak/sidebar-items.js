@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["generate_keycloak_token","get_auth_token_dir","get_keyckloak_pool","read_token","refresh_keycloak_token"]};

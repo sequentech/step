@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["start_ceremony"],"mod":["create_keys_ceremony"],"struct":["CreateKeysCeremony","StartKeyCeremony"]};

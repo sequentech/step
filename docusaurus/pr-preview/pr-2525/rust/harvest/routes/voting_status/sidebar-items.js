@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["update_election_status","update_event_status"],"struct":["UpdateEventVotingStatusInput","UpdateEventVotingStatusOutput"]};

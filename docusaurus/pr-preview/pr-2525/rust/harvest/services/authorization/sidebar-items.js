@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["authorize","authorize_voter_election"]};
