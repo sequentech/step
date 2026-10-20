@@ -1032,6 +1032,29 @@ const englishTranslation = {
                     "no-gold-level": "No Gold level Authentication",
                 },
             },
+            slates: {
+                enable: {
+                    label: "Enable slates",
+                    helper: "When enabled, voters can select a named slate and change any race, including Independent candidates.",
+                },
+                disable: {
+                    confirm: "Turn off slates",
+                    message_one:
+                        "This election has {{count}} slate. Turning slates off deletes it when you save.",
+                    message_many:
+                        "This election has {{count}} slates. Turning slates off deletes them when you save.",
+                    message_other:
+                        "This election has {{count}} slates. Turning slates off deletes them when you save.",
+                },
+                mobileCandidateLists: {
+                    label: "Mobile candidate lists",
+                    helper: "How each slate's candidate list first appears on phones: Collapsed or Expanded. Voters can still open or close any list. Desktop always shows every candidate.",
+                    options: {
+                        collapsed: "Collapsed",
+                        expanded: "Expanded",
+                    },
+                },
+            },
             startScreenTitlePolicy: {
                 label: "Start Screen Title Policy",
                 options: {
@@ -1740,6 +1763,7 @@ const englishTranslation = {
             election: "Create an Election",
             contest: "Create a Contest",
             candidate: "Create a Candidate",
+            slate: "Create a Slate",
         },
         importResource: {
             electionEvent: "Import an Election Event",
@@ -1779,6 +1803,7 @@ const englishTranslation = {
                     election: "Remove this Election",
                     contest: "Remove this Contest",
                     candidate: "Remove this Candidate",
+                    slate: "Remove this Slate",
                 },
                 messages: {
                     confirm: {
@@ -1842,6 +1867,38 @@ const englishTranslation = {
             createCandidateSuccess: "Candidate created",
             createCandidateError: "Error creating candidate",
         },
+        slateScreen: {
+            common: {
+                subtitle: "Slate configuration.",
+                newSlate: "New slate",
+                notFound: "This slate does not exist.",
+            },
+            tabs: {
+                data: "Data",
+            },
+            edit: {
+                general: "General",
+                members: "Members",
+            },
+            field: {
+                name: "Name",
+                alias: "Alias",
+                description: "Description",
+                externalId: "External ID",
+            },
+            members: {
+                helper: "Assign up to the maximum number of candidates for each contest. Leave a contest empty so this slate undervotes that race. Candidates not assigned to any slate appear as Independent in that race.",
+                contest: "Contest",
+                candidate: "Candidate",
+                noCandidate: "No candidate",
+            },
+            messages: {
+                saved: "Slate saved",
+                invalid: "The slate cannot be saved. Fix the problems listed below.",
+                error: "The slate could not be saved.",
+                unreadable: "The election's slate configuration cannot be read.",
+            },
+        },
         contestScreen: {
             common: {
                 subtitle: "Contest configuration.",
@@ -1885,6 +1942,7 @@ const englishTranslation = {
                 "warn-only-in-review": "Warn in Review",
                 "warn": "Warn",
                 "warn-and-alert": "Warn and Alert",
+                "warn-and-confirm-in-review": "Warn and Confirm in Review",
             },
             invalidVotePolicy: {
                 "label": "Invalid Vote Policy",
