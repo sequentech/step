@@ -274,6 +274,11 @@ const englishTranslation = {
                 "When you’re ready, cast your ballot so it’s officially recorded. Or choose to audit first to confirm it was correctly captured and encrypted",
         },
         reviewScreen: {
+            castRecovery: {
+                uncertain:
+                    "The cast result has not been confirmed. You can retry the same request or check your Ballot ID before starting again.",
+                checkBallot: "Check ballot",
+            },
             acclamation: {
                 title: "Decided by acclamation",
                 helpDialog: {

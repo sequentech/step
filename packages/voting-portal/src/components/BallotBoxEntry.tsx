@@ -42,7 +42,7 @@ export const BallotBoxEntry: React.FC<BallotBoxEntryProps> = ({
         fetchPolicy: "no-cache",
     })
     const keys = useQuery<{ballot_box_keys: {payload: BallotLogTrust}}>(BALLOT_BOX_KEYS, {
-        variables: {electionEventId, electionId},
+        variables: {electionEventId, electionId, ballotId},
         fetchPolicy: "no-cache",
     })
     const proof = entry.data?.ballot_box_entry.payload
@@ -57,6 +57,7 @@ export const BallotBoxEntry: React.FC<BallotBoxEntryProps> = ({
         trust?.election_event_id === electionEventId
     return (
         <Dialog
+            className="ballot-proof-dialog"
             open
             onClose={onClose}
             fullWidth
@@ -64,23 +65,34 @@ export const BallotBoxEntry: React.FC<BallotBoxEntryProps> = ({
             fullScreen={narrow}
             aria-labelledby="ballot-proof-title"
         >
-            <DialogTitle id="ballot-proof-title">
+            <DialogTitle className="ballot-proof-title" id="ballot-proof-title">
                 {t("ballotPrivacy.detailTitle", {ballotId})}
             </DialogTitle>
-            <DialogContent>
+            <DialogContent className="ballot-proof-content">
                 {entry.loading || keys.loading ? (
-                    <CircularProgress aria-label={t("ballotPrivacy.checking")} />
+                    <CircularProgress
+                        className="ballot-proof-loading"
+                        aria-label={t("ballotPrivacy.checking")}
+                    />
                 ) : entry.error || keys.error || !proof || !trust || !contextMatches ? (
-                    <Alert severity="error">{t("ballotPrivacy.proofError")}</Alert>
+                    <Alert className="ballot-proof-error" severity="error">
+                        {t("ballotPrivacy.proofError")}
+                    </Alert>
                 ) : (
                     <BallotLogProof proof={proof} trust={trust} />
                 )}
             </DialogContent>
-            <DialogActions sx={{flexWrap: "wrap"}}>
-                <Button onClick={retry} disabled={entry.loading || keys.loading}>
+            <DialogActions className="ballot-proof-actions" sx={{flexWrap: "wrap"}}>
+                <Button
+                    className="ballot-proof-retry-button"
+                    onClick={retry}
+                    disabled={entry.loading || keys.loading}
+                >
                     {t("ballotPrivacy.retry")}
                 </Button>
-                <Button onClick={onClose}>{t("ballotPrivacy.close")}</Button>
+                <Button className="ballot-proof-close-button" onClick={onClose}>
+                    {t("ballotPrivacy.close")}
+                </Button>
             </DialogActions>
         </Dialog>
     )

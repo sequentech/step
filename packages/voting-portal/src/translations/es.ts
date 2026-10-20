@@ -142,6 +142,11 @@ const spanishTranslation: TranslationType = {
                 "Cuando esté listo, emita su papeleta para que quede registrada oficialmente. O elija auditar primero para confirmar que fue correctamente capturada y cifrada",
         },
         reviewScreen: {
+            castRecovery: {
+                uncertain:
+                    "No se ha confirmado el resultado del envío. Puede reintentar la misma solicitud o comprobar el identificador de la papeleta antes de empezar de nuevo.",
+                checkBallot: "Comprobar papeleta",
+            },
             acclamation: {
                 title: "Resuelto por aclamación",
                 helpDialog: {

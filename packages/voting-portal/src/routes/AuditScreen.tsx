@@ -173,9 +173,14 @@ const AuditScreen: React.FC = () => {
             <PageLimit maxWidth="lg" className="audit-screen screen">
                 {audit.error ? (
                     <Alert
+                        className="audit-confirmation-error"
                         severity="error"
                         action={
-                            <Button onClick={() => void audit.retry()} disabled={audit.loading}>
+                            <Button
+                                className="audit-confirmation-retry-button"
+                                onClick={() => void audit.retry()}
+                                disabled={audit.loading}
+                            >
                                 {t("ballotPrivacy.retry")}
                             </Button>
                         }
@@ -183,7 +188,10 @@ const AuditScreen: React.FC = () => {
                         {t("auditScreen.auditUnavailable")}
                     </Alert>
                 ) : (
-                    <CircularProgress aria-label={t("auditScreen.confirmingAudit")} />
+                    <CircularProgress
+                        className="audit-confirmation-loading"
+                        aria-label={t("auditScreen.confirmingAudit")}
+                    />
                 )}
             </PageLimit>
         )

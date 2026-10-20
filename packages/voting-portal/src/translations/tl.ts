@@ -142,6 +142,11 @@ const tagalogTranslation: TranslationType = {
                 "I-submit ang iyong balota upang ito ay tamang maitala, o suriin ito upang tiyakin na ito ay tama ang pagkaka-encrypt.",
         },
         reviewScreen: {
+            castRecovery: {
+                uncertain:
+                    "Hindi pa nakumpirma ang resulta ng pagboto. Maaari mong subukan muli ang parehong kahilingan o tingnan ang Ballot ID bago magsimulang muli.",
+                checkBallot: "Tingnan ang balota",
+            },
             acclamation: {
                 title: "Napagpasyahan sa pamamagitan ng aklamasyon",
                 helpDialog: {

@@ -142,6 +142,11 @@ const frenchTranslation: TranslationType = {
                 "Soumettez votre bulletin pour qu'il soit enregistré, ou lancez un audit afin de vérifier qu'il a été correctement chiffré.",
         },
         reviewScreen: {
+            castRecovery: {
+                uncertain:
+                    "Le résultat du vote n’a pas été confirmé. Vous pouvez réessayer la même demande ou vérifier votre identifiant de bulletin avant de recommencer.",
+                checkBallot: "Vérifier le bulletin",
+            },
             acclamation: {
                 title: "Acquis par acclamation",
                 helpDialog: {

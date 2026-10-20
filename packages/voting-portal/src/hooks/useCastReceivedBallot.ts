@@ -59,8 +59,12 @@ export const useCastReceivedBallot = () => {
 
     return async (
         {receivedBallot, ballotBoxKey, castSignature}: IReceivedCast,
-        setErrorMsg: (msg: string) => void
+        reportError: (msg: string) => void,
+        isCurrent: () => boolean = () => true
     ): Promise<boolean> => {
+        const setErrorMsg = (message: string) => {
+            if (isCurrent()) reportError(message)
+        }
         let answer: NonNullable<CastBallotMutation["cast_ballot"]>
         try {
             const result = await castBallot({
@@ -110,6 +114,8 @@ export const useCastReceivedBallot = () => {
             )
             return false
         }
+
+        if (!isCurrent()) return false
 
         const currentBallot =
             store.getState().auditableBallots[receivedBallot.election_id]?.auditableBallot

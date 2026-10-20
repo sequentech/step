@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {StartupError} from "../components/StartupError"
+import {clearSessionStorageBallotData} from "../store/castVotes/sessionBallotData"
 import React, {useContext} from "react"
 
 import Keycloak, {KeycloakConfig, KeycloakInitOptions} from "keycloak-js"
@@ -322,6 +323,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 } else {
                     newKeycloak.logout()
                 }*/
+                clearSessionStorageBallotData()
                 newKeycloak.logout({
                     redirectUri: getLogoutRedirectUrl({
                         origin: window.location.origin,
@@ -477,15 +479,13 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     }
 
     const reauthWithGold = async (redirectUri: string): Promise<void> => {
-        try {
-            await keycloak?.login({
-                acr: {essential: true, values: [IPermissions.GOLD_PERMISSION]},
-                redirectUri: redirectUri || window.location.href, // Use the passed URL or fallback to current URL
-                locale: toBCP47(i18n.language),
-            })
-        } catch (error) {
-            console.error("Re-authentication failed:", error)
-        }
+        if (!keycloak) throw new Error("Authentication is not initialized")
+        await keycloak.login({
+            acr: {essential: true, values: [IPermissions.GOLD_PERMISSION]},
+            maxAge: 0,
+            redirectUri: redirectUri || window.location.href,
+            locale: toBCP47(i18n.language),
+        })
     }
 
     const changeContactChannel = async (): Promise<void> => {
@@ -585,6 +585,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     }
 
     const logout = (redirectUrl?: string) => {
+        clearSessionStorageBallotData()
         if (!keycloak) {
             // If no keycloak object initailized manually clear cookies and redirect user
             clearAllCookies()

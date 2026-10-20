@@ -142,6 +142,11 @@ const catalanTranslation: TranslationType = {
                 "Quan estigueu a punt, emeteu la vostra papereta perquè quedi registrada oficialment. O trieu auditar primer per confirmar que va ser capturada i xifrada correctament",
         },
         reviewScreen: {
+            castRecovery: {
+                uncertain:
+                    "El resultat de l’emissió no s’ha confirmat. Podeu reintentar la mateixa sol·licitud o comprovar l’identificador de la papereta abans de tornar a començar.",
+                checkBallot: "Comprova la papereta",
+            },
             acclamation: {
                 title: "Resolt per aclamació",
                 helpDialog: {

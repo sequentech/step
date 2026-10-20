@@ -242,3 +242,14 @@ it("shows the generic cast error when the request fails without a reason", async
     expect(await cast()).toBe(false)
     expect(setErrorMsg).toHaveBeenCalledWith("reviewScreen.error.CAST_VOTE")
 })
+
+it("does not mutate voter state when a verified response belongs to an abandoned attempt", async () => {
+    const hook = renderHook(() => useCastReceivedBallot(), {
+        wrapper: ({children}) => <Provider store={store}>{children}</Provider>,
+    })
+    expect(await hook.result.current(CAST, setErrorMsg, () => false)).toBe(false)
+    expect(mockVerifyCastReceipt).toHaveBeenCalled()
+    expect(mockDispatch).not.toHaveBeenCalled()
+    expect(mockForgetVoterSigningKey).not.toHaveBeenCalled()
+    expect(setErrorMsg).not.toHaveBeenCalled()
+})

@@ -142,6 +142,11 @@ const dutchTranslation: TranslationType = {
                 "Breng uw stem uit zodat deze correct wordt geregistreerd, of kies voor audit om te bevestigen dat het stembiljet correct is versleuteld.",
         },
         reviewScreen: {
+            castRecovery: {
+                uncertain:
+                    "Het resultaat van het uitbrengen is niet bevestigd. U kunt hetzelfde verzoek opnieuw proberen of uw stembiljet-ID controleren voordat u opnieuw begint.",
+                checkBallot: "Stembiljet controleren",
+            },
             acclamation: {
                 title: "Bij acclamatie beslist",
                 helpDialog: {

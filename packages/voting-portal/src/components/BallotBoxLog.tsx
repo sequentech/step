@@ -82,7 +82,11 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
         const length = prefix.length + (prefix.length > 4 ? 1 : 0)
         return (
             <>
-                <Box component="mark" sx={{bgcolor: "warning.light"}}>
+                <Box
+                    className="ballot-box-log-match"
+                    component="mark"
+                    sx={{bgcolor: "warning.light"}}
+                >
                     {value.slice(0, length)}
                 </Box>
                 {value.slice(length)}
@@ -90,51 +94,102 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
         )
     }
     return (
-        <Stack spacing={2} sx={{minWidth: 0}}>
-            <Box>
-                <Typography variant="h5" component="h2">
+        <Stack className="ballot-box-log" spacing={2} sx={{minWidth: 0}}>
+            <Box className="ballot-box-log-heading">
+                <Typography className="ballot-box-log-title" variant="h5" component="h2">
                     {t("ballotPrivacy.title")}
                 </Typography>
-                <Typography>{t("ballotPrivacy.subtitle")}</Typography>
-                <Stack direction="row" useFlexGap flexWrap="wrap" gap={1} sx={{mt: 2}}>
+                <Typography className="ballot-box-log-subtitle">
+                    {t("ballotPrivacy.subtitle")}
+                </Typography>
+                <Stack
+                    className="ballot-box-log-badges"
+                    direction="row"
+                    useFlexGap
+                    flexWrap="wrap"
+                    gap={1}
+                    sx={{mt: 2}}
+                >
                     {["private", "signed", "device"].map((key) => (
-                        <Chip key={key} size="small" label={t(`ballotPrivacy.${key}`)} />
+                        <Chip
+                            className="ballot-box-log-badge"
+                            key={key}
+                            size="small"
+                            label={t(`ballotPrivacy.${key}`)}
+                        />
                     ))}
                 </Stack>
             </Box>
             {ownBallots.map((ballot) => (
                 <Alert
+                    className="ballot-box-log-own-ballot"
                     key={ballot.ballot_id}
                     severity="success"
                     sx={{"& .MuiAlert-message": {minWidth: 0, flex: 1}}}
                 >
-                    <Typography fontWeight={700}>{t("ballotPrivacy.own")}</Typography>
-                    <Typography component="div" variant="h6" sx={{overflowWrap: "anywhere"}}>
+                    <Typography className="ballot-box-log-own-title" fontWeight={700}>
+                        {t("ballotPrivacy.own")}
+                    </Typography>
+                    <Typography
+                        className="ballot-box-log-own-id"
+                        component="div"
+                        variant="h6"
+                        sx={{overflowWrap: "anywhere"}}
+                    >
                         {ballot.ballot_id}
                     </Typography>
-                    <Typography variant="body2">
+                    <Typography className="ballot-box-log-own-details" variant="body2">
                         {formatTime(ballot.cast_at)} · {channel(ballot.voting_channel)}
                     </Typography>
-                    <Typography component="div" variant="body2">
-                        {t("ballotPrivacy.listedAs")} <Chip label={ballot.pseudonym} size="small" />
+                    <Typography
+                        className="ballot-box-log-own-pseudonym-label"
+                        component="div"
+                        variant="body2"
+                    >
+                        {t("ballotPrivacy.listedAs")}{" "}
+                        <Chip
+                            className="ballot-box-log-own-pseudonym"
+                            label={ballot.pseudonym}
+                            size="small"
+                        />
                     </Typography>
-                    <Stack direction="row" useFlexGap flexWrap="wrap" gap={1} sx={{mt: 1}}>
-                        <Button variant="contained" onClick={() => onOpen(ballot)}>
+                    <Stack
+                        className="ballot-box-log-own-actions"
+                        direction="row"
+                        useFlexGap
+                        flexWrap="wrap"
+                        gap={1}
+                        sx={{mt: 1}}
+                    >
+                        <Button
+                            className="ballot-box-log-own-check-button"
+                            variant="contained"
+                            onClick={() => onOpen(ballot)}
+                        >
                             {t("ballotPrivacy.check")}
                         </Button>
-                        <Button onClick={() => void copy(ballot.ballot_id)}>
+                        <Button
+                            className="ballot-box-log-copy-button"
+                            onClick={() => void copy(ballot.ballot_id)}
+                        >
                             {t("ballotPrivacy.copy")}
                         </Button>
                     </Stack>
                 </Alert>
             ))}
             {copyStatus && (
-                <Typography role="status" variant="body2">
+                <Typography className="ballot-box-log-copy-status" role="status" variant="body2">
                     {t(`ballotPrivacy.${copyStatus}`)}
                 </Typography>
             )}
-            <Stack direction={{xs: "column", sm: "row"}} gap={1} alignItems={{sm: "center"}}>
+            <Stack
+                className="ballot-box-log-search-controls"
+                direction={{xs: "column", sm: "row"}}
+                gap={1}
+                alignItems={{sm: "center"}}
+            >
                 <TextField
+                    className="ballot-box-log-search"
                     fullWidth
                     label={t("ballotPrivacy.search")}
                     placeholder={t("ballotPrivacy.placeholder")}
@@ -144,22 +199,35 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
                     helperText={prefix === null ? t("ballotPrivacy.invalidPrefix") : undefined}
                     slotProps={{htmlInput: {autoCapitalize: "characters", spellCheck: false}}}
                 />
-                {search && <Button onClick={() => onSearch("")}>{t("ballotPrivacy.clear")}</Button>}
+                {search && (
+                    <Button className="ballot-box-log-clear-button" onClick={() => onSearch("")}>
+                        {t("ballotPrivacy.clear")}
+                    </Button>
+                )}
             </Stack>
             {error ? (
                 <Alert
+                    className="ballot-box-log-error"
                     severity="error"
-                    action={<Button onClick={onRetry}>{t("ballotPrivacy.retry")}</Button>}
+                    action={
+                        <Button className="ballot-box-log-retry-button" onClick={onRetry}>
+                            {t("ballotPrivacy.retry")}
+                        </Button>
+                    }
                 >
                     {t("ballotPrivacy.loadError")}
                 </Alert>
             ) : null}
             {loading ? (
-                <CircularProgress size={24} aria-label={t("ballotPrivacy.checking")} />
+                <CircularProgress
+                    className="ballot-box-log-loading"
+                    size={24}
+                    aria-label={t("ballotPrivacy.checking")}
+                />
             ) : null}
             {page && prefix !== null && !loading && !error ? (
                 <>
-                    <Typography variant="body2" role="status">
+                    <Typography className="ballot-box-log-count" variant="body2" role="status">
                         {prefix
                             ? t(
                                   page.match_count_capped
@@ -170,56 +238,82 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
                             : t("ballotPrivacy.ballots", {count: page.total})}
                     </Typography>
                     {!page.ballots.length ? (
-                        <Alert severity="info">
+                        <Alert className="ballot-box-log-empty" severity="info">
                             {prefix
                                 ? t("ballotPrivacy.noMatch", {prefix: search})
                                 : t("ballotPrivacy.noBallots")}
                         </Alert>
                     ) : (
-                        <Paper variant="outlined" sx={{overflow: "hidden"}}>
+                        <Paper
+                            className="ballot-box-log-list"
+                            variant="outlined"
+                            sx={{overflow: "hidden"}}
+                        >
                             <Table
+                                className="ballot-box-log-table"
                                 sx={{tableLayout: "fixed", display: {xs: "none", sm: "table"}}}
                                 aria-label={t("ballotPrivacy.title")}
                             >
-                                <TableHead>
-                                    <TableRow>
+                                <TableHead className="ballot-box-log-table-head">
+                                    <TableRow className="ballot-box-log-header-row">
                                         {["ballotId", "pseudonym", "castAt", "channel"].map(
                                             (key) => (
-                                                <TableCell key={key}>
+                                                <TableCell
+                                                    className="ballot-box-log-column-heading"
+                                                    key={key}
+                                                >
                                                     {t(`ballotPrivacy.${key}`)}
                                                 </TableCell>
                                             )
                                         )}
                                     </TableRow>
                                 </TableHead>
-                                <TableBody>
+                                <TableBody className="ballot-box-log-table-body">
                                     {page.ballots.map((ballot) => (
-                                        <TableRow key={ballot.ballot_id}>
-                                            <TableCell>
+                                        <TableRow
+                                            className="ballot-box-log-row"
+                                            key={ballot.ballot_id}
+                                        >
+                                            <TableCell className="ballot-box-log-ballot-id-cell">
                                                 <Button
+                                                    className="ballot-box-log-check-button"
                                                     onClick={() => onOpen(ballot)}
                                                     sx={{fontWeight: 700, p: 0}}
                                                 >
                                                     {code(ballot.ballot_id)}
                                                 </Button>
                                                 {ownIds.has(ballot.ballot_id) && (
-                                                    <Typography variant="caption" display="block">
+                                                    <Typography
+                                                        className="ballot-box-log-yours-label"
+                                                        variant="caption"
+                                                        display="block"
+                                                    >
                                                         {t("ballotPrivacy.yours")}
                                                     </Typography>
                                                 )}
                                             </TableCell>
-                                            <TableCell>
-                                                <Chip size="small" label={code(ballot.pseudonym)} />
+                                            <TableCell className="ballot-box-log-pseudonym-cell">
+                                                <Chip
+                                                    className="ballot-box-log-pseudonym"
+                                                    size="small"
+                                                    label={code(ballot.pseudonym)}
+                                                />
                                             </TableCell>
-                                            <TableCell sx={{overflowWrap: "anywhere"}}>
+                                            <TableCell
+                                                className="ballot-box-log-time-cell"
+                                                sx={{overflowWrap: "anywhere"}}
+                                            >
                                                 {formatTime(ballot.cast_at)}
                                             </TableCell>
-                                            <TableCell>{channel(ballot.voting_channel)}</TableCell>
+                                            <TableCell className="ballot-box-log-channel-cell">
+                                                {channel(ballot.voting_channel)}
+                                            </TableCell>
                                         </TableRow>
                                     ))}
                                 </TableBody>
                             </Table>
                             <Box
+                                className="ballot-box-log-mobile-list"
                                 component="ul"
                                 sx={{
                                     display: {xs: "block", sm: "none"},
@@ -230,11 +324,13 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
                             >
                                 {page.ballots.map((ballot) => (
                                     <Box
+                                        className="ballot-box-log-mobile-row"
                                         component="li"
                                         key={ballot.ballot_id}
                                         sx={{p: 1.5, borderBottom: 1, borderColor: "divider"}}
                                     >
                                         <Button
+                                            className="ballot-box-log-mobile-check-button"
                                             onClick={() => onOpen(ballot)}
                                             sx={{p: 0, fontWeight: 700}}
                                         >
@@ -242,14 +338,28 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
                                         </Button>
                                         {ownIds.has(ballot.ballot_id) && (
                                             <Chip
+                                                className="ballot-box-log-mobile-yours"
                                                 size="small"
                                                 label={t("ballotPrivacy.yours")}
                                                 sx={{ml: 1}}
                                             />
                                         )}
-                                        <Stack direction="row" useFlexGap flexWrap="wrap" gap={1}>
-                                            <Chip size="small" label={code(ballot.pseudonym)} />
-                                            <Typography variant="caption">
+                                        <Stack
+                                            className="ballot-box-log-mobile-details"
+                                            direction="row"
+                                            useFlexGap
+                                            flexWrap="wrap"
+                                            gap={1}
+                                        >
+                                            <Chip
+                                                className="ballot-box-log-mobile-pseudonym"
+                                                size="small"
+                                                label={code(ballot.pseudonym)}
+                                            />
+                                            <Typography
+                                                className="ballot-box-log-mobile-time-channel"
+                                                variant="caption"
+                                            >
                                                 {formatTime(ballot.cast_at)} ·{" "}
                                                 {channel(ballot.voting_channel)}
                                             </Typography>
@@ -259,8 +369,16 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
                             </Box>
                         </Paper>
                     )}
-                    <Stack direction="row" useFlexGap flexWrap="wrap" gap={1} alignItems="center">
+                    <Stack
+                        className="ballot-box-log-pagination"
+                        direction="row"
+                        useFlexGap
+                        flexWrap="wrap"
+                        gap={1}
+                        alignItems="center"
+                    >
                         <TextField
+                            className="ballot-box-log-page-size"
                             select
                             size="small"
                             label={t("ballotPrivacy.rows")}
@@ -269,34 +387,60 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
                             sx={{minWidth: 140}}
                         >
                             {[10, 25, 50].map((size) => (
-                                <MenuItem key={size} value={size}>
+                                <MenuItem
+                                    className="ballot-box-log-page-size-option"
+                                    key={size}
+                                    value={size}
+                                >
                                     {size}
                                 </MenuItem>
                             ))}
                         </TextField>
-                        <Button disabled={!canPrevious} onClick={onPrevious}>
+                        <Button
+                            className="ballot-box-log-previous-button"
+                            disabled={!canPrevious}
+                            onClick={onPrevious}
+                        >
                             {t("ballotPrivacy.previous")}
                         </Button>
-                        <Button disabled={!page.next_cursor} onClick={onNext}>
+                        <Button
+                            className="ballot-box-log-next-button"
+                            disabled={!page.next_cursor}
+                            onClick={onNext}
+                        >
                             {t("ballotPrivacy.next")}
                         </Button>
                     </Stack>
                 </>
             ) : null}
-            <Button sx={{alignSelf: "flex-start"}} onClick={() => setHelp(true)}>
+            <Button
+                className="ballot-box-log-help-button"
+                sx={{alignSelf: "flex-start"}}
+                onClick={() => setHelp(true)}
+            >
                 {t("ballotPrivacy.help")}
             </Button>
             <Dialog
+                className="ballot-box-log-help-dialog"
                 open={help}
                 onClose={() => setHelp(false)}
                 fullWidth
                 maxWidth="sm"
                 aria-labelledby="ballot-log-help"
             >
-                <DialogTitle id="ballot-log-help">{t("ballotPrivacy.help")}</DialogTitle>
-                <DialogContent>{t("ballotPrivacy.helpText")}</DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setHelp(false)}>{t("ballotPrivacy.close")}</Button>
+                <DialogTitle className="ballot-box-log-help-title" id="ballot-log-help">
+                    {t("ballotPrivacy.help")}
+                </DialogTitle>
+                <DialogContent className="ballot-box-log-help-content">
+                    {t("ballotPrivacy.helpText")}
+                </DialogContent>
+                <DialogActions className="ballot-box-log-help-actions">
+                    <Button
+                        className="ballot-box-log-help-close-button"
+                        onClick={() => setHelp(false)}
+                    >
+                        {t("ballotPrivacy.close")}
+                    </Button>
                 </DialogActions>
             </Dialog>
         </Stack>

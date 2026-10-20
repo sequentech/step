@@ -142,6 +142,11 @@ const basqueTranslation: TranslationType = {
                 "Eman zure bozketa erregistratzeko, edo zifraketa zuzen egin dela egiaztatu.",
         },
         reviewScreen: {
+            castRecovery: {
+                uncertain:
+                    "Botoaren emaitza ez da baieztatu. Eskaera bera berriro bidal dezakezu edo boto-paperaren IDa egiaztatu berriro hasi aurretik.",
+                checkBallot: "Egiaztatu boto-papera",
+            },
             acclamation: {
                 title: "Aklamazioz erabakia",
                 helpDialog: {

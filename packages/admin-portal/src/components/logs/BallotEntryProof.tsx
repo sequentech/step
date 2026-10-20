@@ -25,7 +25,7 @@ export const BallotEntryProof: React.FC<{
         context,
     })
     const keys = useQuery<{ballot_box_keys: {payload: BallotLogTrust}}>(BALLOT_BOX_KEYS, {
-        variables: {electionEventId, electionId},
+        variables: {electionEventId, electionId, ballotId},
         fetchPolicy: "no-cache",
         context,
     })

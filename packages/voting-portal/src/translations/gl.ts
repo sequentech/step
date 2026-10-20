@@ -143,6 +143,11 @@ const galegoTranslation: TranslationType = {
                 "Emite a túa papeleta para que quede rexistrada, ou auditala para confirmar que foi encriptada correctamente.",
         },
         reviewScreen: {
+            castRecovery: {
+                uncertain:
+                    "Non se confirmou o resultado do envío. Pode tentar de novo a mesma solicitude ou comprobar o identificador da papeleta antes de comezar de novo.",
+                checkBallot: "Comprobar papeleta",
+            },
             acclamation: {
                 title: "Resolto por aclamación",
                 helpDialog: {
