@@ -6,6 +6,7 @@ pub mod activity_logs_report;
 pub mod apply_reconciliation_patch;
 pub mod audit_electoral_log;
 pub mod audit_log_outbox;
+pub mod backfill_ballot_verification_keys;
 pub mod create_ballot_receipt;
 pub mod create_keys;
 pub mod delete_election_event;

@@ -48,13 +48,13 @@ This is a known-value regression detector. It does not prove the absence of arbi
    step-cli step audit-electoral-log --election-event-id EVENT_UUID
    ```
 
-6. Confirm an account without `voter-pseudonym-resolve` is refused by the resolver. Only the explicitly authorized investigation operator performs the following step, with a reason containing no voter or network data:
+6. Confirm an account without `voter-pseudonym-resolve` is refused by the resolver. Only the explicitly authorized investigation operator performs the following step, with one approved fixed reason (`investigation`, `compliance-review`, or `test-validation`):
 
    ```sh
    step-cli step resolve-voter-pseudonym \
      --election-event-id EVENT_UUID \
      --pseudonym XXXX-XXXX \
-     --reason "Authorized synthetic privacy acceptance check"
+     --reason test-validation
    ```
 
    Keep the returned voter ID in the private acceptance record. Confirm it matches the synthetic census account. Ordinary Logs and proof actions must never return this resolution.
@@ -117,3 +117,35 @@ The internal Nginx template is `.devcontainer/harvest-edge/default.conf.template
 Run `python3 scripts/dev/test_ballot_log_edge.py` with Docker and the local `nginx:latest` image to exercise the shipped template using temporary upstreams and a disposable proxy. It checks cross-user sharing within one authorized population, isolation across populations and request bodies, reauthorization on hits, denied access, method isolation and private-path bypass. It does not restart the development stack.
 
 Search limits are shared in each event database, keyed by a one-way digest of the authenticated session and scope. Refreshed access tokens retain their session limit; different sessions are independent. Expired limiter rows are removed in bounded batches, without retaining raw tokens, user IDs or network metadata.
+
+## Service ownership and cost checks
+
+Casting a received privacy ballot resolves the authenticated voter inside the existing receipt ownership query. Its result contains the storage pseudonym, never the real voter ID. The query checks event, election and area, and refuses missing or purged mappings. It does not allocate identities. Legacy events without a mapping-policy row continue using their voter IDs. Receiving retains its indexed registration lookup.
+
+Run the ignored `real_services_match_cast_query_counts_and_report_receive_cast_cost` test in Windmill's `postgres_ballot_privacy_service` target alone against disposable PostgreSQL. It calls the actual receive and cast services with valid encrypted, signed ballots and published styles in legacy signed-receipt, pseudonym do-not-store and pseudonym forensic-store modes. A local test wire observer counts SQL executions, including pool-health checks and transaction boundaries, without recording bound parameters or changing server logging. Privacy cast must use the same number of observed executions as legacy cast and must not issue a standalone mapping query.
+
+The fixture prepares publications, identities and encrypted inputs before timing; it warms every mode and rotates mode order across eight batches of four distinct voters. It measures receive and cast separately, then repeats with revotes as a separate case. Report raw batch means and their p50/p95 quantiles. These timings include service validation, receipt signing, storage and the test wire proxy; they exclude setup, client encryption, HTTP/authentication and later sequencing. They are neither individual-request tail latencies nor a throughput certification. The older adapter-only benchmark does not establish service query parity.
+
+## Retained public verification keys
+
+Apply the additive `ballot_verification_key` migration before deploying public-only proof reads. New ballot publications retain their authority public key, ballot-box public key, receipt-key fingerprint and board log identity in the publication transaction. Conflict handling compares existing public material and refuses replacement. Mapping/network purges and private-secret retirement do not delete these snapshots. `/ballot-box-keys` and the administrative key display read public snapshots only; they never retrieve private signing keys.
+
+For existing elections, run the internal `backfill_ballot_verification_keys` task with the explicit tenant and event and `source: "published-only"`. The bounded operation reads completed ballot styles and matching signed checkpoints and verifies receipt-key coverage. Run it for each proof-visible event and reconcile all failures before switching the deployment to public-only reads. When published authority material is missing but the existing signing key remains available, an explicitly scheduled compatibility run with `source: "existing-signing-key"` may derive public material once. This migration option is never a fallback in a proof request. It does not generate replacement keys. Missing or contradictory historical material requires recovery of the original artifacts.
+
+The audit export manifest retains snapshots with defaulted fields so older manifests remain readable. Imports preserve the original signing event and board identity separately from the event owning the archive; a cloned event does not adopt the original event's keys as its current authority. When an archive has no published checkpoint, its snapshot is retained metadata, not an independently authenticated authority statement. Compare it with independently retained publication artifacts before treating it as external evidence. Keep these public snapshots and their exported copies for as long as the corresponding signed evidence. Whole-event deletion follows the deployment's existing archive-retention process.
+
+The proof-key action accepts an optional Ballot ID. Proof popups supply it so the receipt's signed key ID selects the retained public key. A request without it must have an unambiguous retained pair. Tests cover public-only historical recovery without storing private keys, snapshot conflict refusal, explicit compatibility recovery, legacy manifests, clone identity and real proof API reads after the fixture's private signing secrets are removed or replaced by unrelated live keys. Run `postgres_public_ballot_keys` with its ignored test enabled and the synthetic local master-secret backend, plus Harvest's real privacy proof fixture. Public snapshot retention preserves the authenticated publication trust model; independently archived public artifacts remain necessary for stronger external pinning.
+
+## Participation commands and protected downloads
+
+Voter CSV exports, voter data inside event archives, and bulk messages selected by voted/not-voted status carry an explicit authorized election set. Harvest derives that set from the authenticated caller's permission labels. The authoritative grant is stored in the protected `participation_authorization` database column of the task or scheduled send; public annotations, request bodies and queue arguments cannot grant participation access. Hasura role column lists omit both protected columns. Consumers reload and validate the saved command binding before reading participation. An explicit empty election set remains empty, and elections added after scheduling cannot expand the saved set.
+
+Generated documents carry a `participation_scope` annotation. Its identity and scope cannot be changed by ordinary document mutations. Download checks every saved election against current permissions and requires those elections still to exist. Legacy CSV/event archives without verified scope must be regenerated; renaming or deleting a protected document through an ordinary role is refused. Historical jobs without a protected grant must be recreated by an authorized operator, including retries of participation-based sends. A missing grant never becomes unrestricted access.
+
+Apply the additive migrations and the enforcing producers and consumers together during a coordinated rollout. Pause affected participation work while old consumers could still run, and reauthorize old jobs through new exports or sends. Validate current-label download refusals after updating metadata. This does not set an election authority's retention period or erase previously downloaded copies.
+
+## Additional-authentication recovery
+
+Before leaving Review for additional authentication, the portal saves ciphertext and the exact signed cast request with its authenticated owner and a five-minute deadline. The one-minute gold-authentication freshness check remains independent: reauthentication requests a fresh login and never extends that deadline. A verified cast receipt is required before confirmation. Transient or uncertain failures retain the request for retry; an expired or ownerless pre-upgrade record cannot be cast. The recovery view explains that expiry does not establish absence of a previously accepted vote and links to its Ballot ID.
+
+The lifecycle regressions cover pending requests, byte-identical retries, authentication rejection, stale authentication, expiry, malformed data, changed owners, unmount and replaced-session late responses. The actual `Voting/Cast recovery` stories exercise authentication failure, retry without deadline renewal, explicit abandonment and the Ballot ID link at desktop, tablet and phone widths. These fixture checks do not replace a connected deployment's authentication/cast journey.

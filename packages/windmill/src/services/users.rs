@@ -1129,6 +1129,15 @@ fn get_sort_clause_and_field_param(
     sort: Option<HashMap<String, String>>,
     param_number: i32,
 ) -> (String, Option<String>) {
+    user_sort_for_alias(sort, param_number, "u")
+}
+
+/// Aliases are fixed by the two SELECTs, never supplied by the client.
+fn user_sort_for_alias(
+    sort: Option<HashMap<String, String>>,
+    param_number: i32,
+    alias: &str,
+) -> (String, Option<String>) {
     const ASC: &str = "ASC";
     const DESC: &str = "DESC";
     fn sanitize_string(s: &str) -> String {
@@ -1155,17 +1164,37 @@ fn get_sort_clause_and_field_param(
     };
 
     match sort_field.as_str() {
-        "id" | "email" | "first_name" | "last_name" | "username" | "enabled" | "email_verified" => {
-            (format!(r#"ORDER BY {sort_field} {verified_order}"#), None)
-        }
-        "has_voted" | "actions" => ("".to_string(), None),
+        "id" => (format!("ORDER BY {alias}.id {verified_order}"), None),
+        "email" | "first_name" | "last_name" | "username" | "enabled" | "email_verified" => (
+            format!(r#"ORDER BY {alias}.{sort_field} {verified_order}, {alias}.id ASC"#),
+            None,
+        ),
+        "has_voted" | "actions" => (format!("ORDER BY {alias}.id ASC"), None),
         _ => (
             format!(
-                r#"ORDER BY (SELECT value FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${}) {}"#,
-                param_number, verified_order
+                r#"ORDER BY (SELECT min(value) FROM user_attribute ua WHERE ua.user_id = {alias}.id AND ua.name = ${param_number}) {verified_order}, {alias}.id ASC"#,
             ),
             Some(sort_field),
         ),
+    }
+}
+
+#[cfg(test)]
+mod privacy_sort_regressions {
+    use super::*;
+
+    #[test]
+    fn privacy_participation_sort_has_a_unique_tie_breaker_and_safe_fallback() {
+        for field in ["last_name", "enabled", "region", "has_voted", "actions"] {
+            let (order, _) = get_sort_clause_and_field_param(
+                Some(HashMap::from([
+                    ("'field'".into(), field.into()),
+                    ("'order'".into(), "DESC".into()),
+                ])),
+                3,
+            );
+            assert!(order.ends_with("u.id ASC"), "{field}: {order}");
+        }
     }
 }
 
@@ -1493,16 +1522,16 @@ async fn list_users_page(
     } else {
         ""
     };
-    let scan_order = if keyset_scan { "ORDER BY lu.id" } else { "" };
 
     // The count query below has no ORDER BY clause, so it must not receive the
     // optional dynamic-attribute sort parameter used by the listing query.
     let count_params_len = params.len();
     let mut sort_params: Vec<Option<String>> = vec![];
-    let (sort_clause, field_param) = get_sort_clause_and_field_param(
-        if keyset_scan { None } else { filter.sort },
-        next_param_number,
-    );
+    let requested_sort = if keyset_scan { None } else { filter.sort };
+    let (sort_clause, field_param) =
+        get_sort_clause_and_field_param(requested_sort.clone(), next_param_number);
+    // Ordering inside a CTE does not order the containing SELECT.
+    let (scan_order, _) = user_sort_for_alias(requested_sort, next_param_number, "lu");
 
     if field_param.is_some() {
         sort_params.push(field_param);

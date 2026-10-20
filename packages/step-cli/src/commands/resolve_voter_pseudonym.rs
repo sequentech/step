@@ -4,13 +4,14 @@
 use crate::utils::read_config::read_config;
 use clap::Args;
 use graphql_client::Response;
-use sequent_core::{ballot_receipt::normalize_ballot_id, types::permissions::Permissions};
+use sequent_core::{
+    ballot_receipt::normalize_ballot_id,
+    types::{permissions::Permissions, vote_privacy::PseudonymResolutionReason},
+};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use std::{error::Error, time::Duration};
 use uuid::Uuid;
-
-const MAX_REASON_BYTES: usize = 512;
 
 #[derive(Args)]
 #[command(
@@ -23,7 +24,7 @@ pub struct ResolveVoterPseudonym {
     /// One eight-character pseudonym, such as 7QKM-2HXD
     #[arg(long, value_parser = parse_pseudonym)]
     pseudonym: String,
-    /// Purpose of this resolution; do not include voter or network data
+    /// Public purpose: investigation, compliance-review, or test-validation
     #[arg(long, value_parser = parse_reason)]
     reason: String,
 }
@@ -33,16 +34,10 @@ fn parse_pseudonym(value: &str) -> Result<String, String> {
 }
 
 fn parse_reason(value: &str) -> Result<String, String> {
-    let trimmed = value.trim();
-    if trimmed.is_empty()
-        || trimmed.len() > MAX_REASON_BYTES
-        || trimmed.chars().any(char::is_control)
-    {
-        return Err(format!(
-            "Reason must contain 1 to {MAX_REASON_BYTES} UTF-8 bytes and no control characters"
-        ));
-    }
-    Ok(trimmed.to_owned())
+    value
+        .parse::<PseudonymResolutionReason>()
+        .map(|reason| reason.as_str().to_owned())
+        .map_err(str::to_owned)
 }
 
 #[derive(Deserialize)]
@@ -121,18 +116,18 @@ mod tests {
             "--pseudonym",
             "7qkm2hxd",
             "--reason",
-            " Election protest ",
+            " test validation ",
         ])
         .unwrap();
         assert_eq!(args.command.pseudonym, "7QKM-2HXD");
-        assert_eq!(args.command.reason, "Election protest");
+        assert_eq!(args.command.reason, "test-validation");
         for invalid in ["", "7QKM-2HXD,ABCD-EFGH", "7QKM-2HXD ABCD-EFGH"] {
             assert!(parse_pseudonym(invalid).is_err());
         }
         assert!(parse_reason("   ").is_err());
         assert!(parse_reason("first\nsecond").is_err());
         assert!(parse_reason(&"é".repeat(257)).is_err());
-        assert!(parse_reason(&"x".repeat(MAX_REASON_BYTES + 1)).is_err());
+        assert!(parse_reason(&"x".repeat(513)).is_err());
         assert!(Arguments::try_parse_from([
             "resolve",
             "--election-event-id",
@@ -141,6 +136,21 @@ mod tests {
             "7QKM-2HXD"
         ])
         .is_err());
+    }
+
+    #[test]
+    fn public_resolution_reason_rejects_personal_and_arbitrary_text() {
+        for reason in [
+            "Jane Doe",
+            "jane@example.test",
+            "Election protest",
+            "11111111-1111-4111-8111-111111111111",
+        ] {
+            assert!(
+                parse_reason(reason).is_err(),
+                "arbitrary public reason accepted"
+            );
+        }
     }
 
     #[test]

@@ -32,6 +32,14 @@ In the Admin Portal, open a ballot entry in the event's **Logs** tab to run the 
 
 Auditing reveals the ballot's choices and encryption evidence so they can be checked. Before displaying or downloading that evidence, the portal asks the ballot box to permanently mark the received ballot as audited. An audited ballot cannot subsequently be cast, including by returning to Review. To vote after an audit, prepare a new ballot. A ballot that has already been cast cannot be audited; the portal discards its audit material and keeps its non-disclosing confirmation and receipts.
 
+## Recovering after additional authentication
+
+For elections requiring additional authentication, the portal keeps the exact signed cast request in this tab for at most five minutes. If the cast response cannot be confirmed, Retry sends that same request. Additional authentication may be required again after one minute; it does not extend the saved request's deadline. A resolved login alone never confirms a vote. Expiry does not establish whether a previous cast reached the ballot box: check the Ballot ID before starting again. Back abandons the saved request; signing out clears it.
+
+## Participation exports
+
+Voter exports, including the voter CSV inside an event archive, and messages selected by voted/not-voted status require permission for every included election. The service saves the authorized election set with each task and refuses to expand it when the task runs or retries. Downloading the generated document checks current permissions again. Old participation jobs and exports without a saved authorization set must be recreated by an authorized operator.
+
 ## Network data
 
 **Data > Privacy > Network data** offers two policies:
@@ -39,7 +47,7 @@ Auditing reveals the ballot's choices and encryption evidence so they can be che
 - **Do not store**: no new network data is retained, and the IP Addresses list is hidden.
 - **Keep for forensic review**: successful voter sign-ins and ballot receive and cast requests retain IP address and available country and browser data separately in the forensic store. The dashboard lists pseudonyms, never voter identities, and each read is recorded.
 
-Sign-in capture runs in a bounded background worker after a successful authentication transaction, so service calls do not hold the login response. Keycloak checks the event policy before sending attribution directly to the internal Harvest service; Harvest checks it again before storage. Ordinary sign-in audit records and queues contain no network data. Failed sign-ins, tenant administrator sign-ins, unpublished events and events whose private mapping has been purged are not captured.
+Sign-in capture runs in a bounded background worker after a successful authentication transaction, so service calls do not hold the login response. Keycloak checks the event policy before sending attribution directly to the internal Harvest service; Harvest checks it again before storage. Ordinary sign-in audit records and queues contain no network data. Keycloak’s configured audit database also stores a sanitized copy for event realms while retaining normal audit queries and expiry. Failed sign-ins, tenant administrator sign-ins, unpublished events and events whose private mapping has been purged are not captured.
 
 Temporary service failures and a pending voter registration are retried with the same delivery identifier; each attempt checks the current policy again. Retries stop if storage is disabled. Delivery uses bounded process memory, with no durable queue containing network data. A prolonged outage, exhausted capacity or a process restart can still leave a gap, while the completed sign-in remains valid. The forensic store therefore does not establish a lossless history of sign-in addresses.
 
@@ -57,10 +65,10 @@ There is no portal screen for resolving a pseudonym. An explicitly authorized op
 step-cli step resolve-voter-pseudonym \
   --election-event-id 11111111-1111-4111-8111-111111111111 \
   --pseudonym 7QKM-2HXD \
-  --reason "Authorized election protest review"
+  --reason investigation
 ```
 
-The command requests the `voter-pseudonym-resolve` role and resolves one code. A reason is required, with at most 512 UTF-8 bytes and no control characters. Do not put voter identities or network data in the reason: it becomes part of the signed resolution log. The service records the requesting actor, pseudonym and reason; the returned voter ID goes only to the requester. Handle the command's output as private information.
+The command requests the `voter-pseudonym-resolve` role and resolves one code. The required reason must be one of `investigation`, `compliance-review`, or `test-validation`. The service records only this fixed category in the signed resolution log and rejects arbitrary text. Keep names, identifiers and detailed narratives in private case records. Existing clients that supplied prose must switch to an approved category; historical signed records keep their original bytes. The service records the requesting actor, pseudonym and reason; the returned voter ID goes only to the requester. Handle the command's output as private information.
 
 ## Retention and limitations
 

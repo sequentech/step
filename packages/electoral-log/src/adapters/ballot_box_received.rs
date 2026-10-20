@@ -337,6 +337,43 @@ impl PostgresStore {
 
     /// The voter's received ballot with this short Ballot ID in an election, whoever
     /// else's ballot has it.
+    /// Resolve authenticated ownership in the receipt read itself. The private
+    /// identity is a query parameter only; returned ballot rows keep the pseudonym.
+    pub async fn received_ballot_for_owner(
+        &self,
+        event: &str,
+        election: &str,
+        area: &str,
+        authenticated_voter: &str,
+        ballot_id: &str,
+        mode: BallotIdentity,
+    ) -> Result<Option<ReceivedBallot>> {
+        let owner = match mode {
+            BallotIdentity::VoterId => "$3",
+            BallotIdentity::Pseudonym => {
+                "(SELECT p.pseudonym FROM sequent_backend.voter_pseudonym p
+                JOIN sequent_backend.ballot_identity i USING(election_event_id)
+                WHERE p.election_event_id=$1::text::uuid AND p.voter_id=$3
+                    AND i.mode='pseudonym' AND i.mapping_purged_at IS NULL)"
+            }
+        };
+        self.client()
+            .await?
+            .query_opt(
+                &format!(
+                    "SELECT {RECEIVED_COLUMNS} FROM ballot_box_received
+                WHERE election_event_id=$1::text::uuid AND election_id=$2::text::uuid
+                    AND voter_id={owner} AND ballot_id=$4 AND area_id=$5::text::uuid"
+                ),
+                &[&event, &election, &authenticated_voter, &ballot_id, &area],
+            )
+            .await
+            .context("Error reading the authenticated owner's receipt")?
+            .as_ref()
+            .map(received_ballot)
+            .transpose()
+    }
+
     pub async fn received_ballot_by_id(
         &self,
         election_event_id: &str,

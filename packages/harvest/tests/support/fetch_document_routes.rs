@@ -51,6 +51,79 @@ async fn fetch(
 }
 
 #[rocket::async_test]
+async fn privacy_export_download_rechecks_current_election_labels() {
+    let services = Services::on_test_database().await;
+    let event = rows::event(&services.hasura).await;
+    let north = event.labelled_election(&services.hasura, "north").await;
+    let south = event.labelled_election(&services.hasura, "south").await;
+    let id = document(&services, &event, Some(json!({"participation_scope": {
+        "election_event_id": event.election_event_id, "election_ids": [north]
+    }}))).await;
+    for (labels, expected) in [
+        (&["north"][..], Status::Ok),
+        (&["south"][..], Status::Forbidden),
+        (&[][..], Status::Forbidden),
+    ] {
+        let (status, body) = fetch(
+            &services,
+            &reader(&event, &[Permissions::DOCUMENT_DOWNLOAD])
+                .permission_labels(labels),
+            &request(&event, &id),
+        )
+        .await;
+        assert_eq!(status, expected, "{body}");
+    }
+    let legacy = event
+        .document(&services.hasura, "users-export-old.csv", "text/csv", None)
+        .await;
+    let (status, _) = fetch(
+        &services,
+        &reader(&event, &[Permissions::DOCUMENT_DOWNLOAD])
+            .permission_labels(&["north", "south"]),
+        &request(&event, &legacy),
+    )
+    .await;
+    assert_eq!(
+        status,
+        Status::Forbidden,
+        "old exports require a fresh scoped export"
+    );
+    let unknown = document(&services, &event, Some(json!({"participation_scope": {
+        "election_event_id": event.election_event_id, "election_ids": [uuid::Uuid::new_v4().to_string()]
+    }}))).await;
+    assert_eq!(
+        fetch(
+            &services,
+            &reader(&event, &[Permissions::DOCUMENT_DOWNLOAD])
+                .permission_labels(&["north", "south"]),
+            &request(&event, &unknown)
+        )
+        .await
+        .0,
+        Status::Forbidden
+    );
+    let empty = document(
+        &services,
+        &event,
+        Some(json!({"participation_scope": {
+            "election_event_id": event.election_event_id, "election_ids": []
+        }})),
+    )
+    .await;
+    assert_eq!(
+        fetch(
+            &services,
+            &reader(&event, &[Permissions::DOCUMENT_DOWNLOAD]),
+            &request(&event, &empty)
+        )
+        .await
+        .0,
+        Status::Ok
+    );
+    assert_ne!(north, south);
+}
+
+#[rocket::async_test]
 async fn a_document_is_answered_with_its_storage_url() {
     let services = Services::on_test_database().await;
     let event = rows::event(&services.hasura).await;

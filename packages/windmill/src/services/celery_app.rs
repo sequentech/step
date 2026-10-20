@@ -19,6 +19,7 @@ use crate::tasks::activity_logs_report::generate_activity_logs_report;
 use crate::tasks::apply_reconciliation_patch::apply_reconciliation_patch;
 use crate::tasks::audit_electoral_log::audit_electoral_log;
 use crate::tasks::audit_log_outbox::post_audit_log_outbox;
+use crate::tasks::backfill_ballot_verification_keys::backfill_ballot_verification_keys;
 use crate::tasks::create_ballot_receipt::create_ballot_receipt;
 use crate::tasks::create_keys::create_keys;
 use crate::tasks::delete_election_event::delete_election_event_t;
@@ -373,6 +374,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             generate_voter_information_letter,
             migrate_realm_permissions,
             purge_vote_privacy,
+            backfill_ballot_verification_keys,
             post_signing_log_outbox,
             post_audit_log_outbox,
             migrate_tenant_logs,
@@ -474,6 +476,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             generate_voter_information_letter::NAME => Queue::Reports.queue_name(),
             migrate_realm_permissions::NAME => Queue::Short.queue_name(),
             purge_vote_privacy::NAME => Queue::Short.queue_name(),
+            backfill_ballot_verification_keys::NAME => Queue::Short.queue_name(),
             migrate_registration_flows::NAME => Queue::Short.queue_name(),
             migrate_messaging_attributes::NAME => Queue::Short.queue_name(),
             post_signing_log_outbox::NAME => Queue::ElectoralLogBeat.queue_name(),

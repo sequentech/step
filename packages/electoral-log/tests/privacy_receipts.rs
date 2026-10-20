@@ -30,8 +30,8 @@ impl Fixture {
         store.initialize().await?;
         let event = Uuid::new_v4().to_string();
         store.create_ballot_box(&event).await?;
-        store.set_ballot_identity(&event, identity).await?;
         let pseudonym = if identity == BallotIdentity::Pseudonym {
+            store.set_ballot_identity(&event, identity).await?;
             store
                 .allocate_voter_pseudonyms(&event, &["synthetic-voter".into()])
                 .await?;
@@ -73,6 +73,100 @@ fn signature(_: chrono::DateTime<Utc>) -> Result<ReceivedSignature> {
         key_id: "synthetic-key".into(),
         received_signature: "synthetic-receipt".into(),
     })
+}
+
+#[tokio::test]
+#[ignore = "needs isolated ELECTORAL_LOG_TEST_DATABASE_URL"]
+async fn authenticated_receipt_lookup_keeps_the_mapping_inside_its_query() -> Result<()> {
+    for mode in [BallotIdentity::VoterId, BallotIdentity::Pseudonym] {
+        let f = Fixture::with_identity(mode).await?;
+        f.store
+            .receive_ballot(&f.ballot(), Utc::now(), signature)
+            .await?;
+        // The legacy fixture deliberately never creates an identity-policy row.
+        let owned = f
+            .store
+            .received_ballot_for_owner(
+                &f.event,
+                &f.election,
+                &f.area,
+                "synthetic-voter",
+                "ABCD-1234",
+                mode,
+            )
+            .await?
+            .unwrap();
+        assert_eq!(owned.voter_id, f.pseudonym);
+        for (event, election, area, voter) in [
+            (
+                Uuid::new_v4().to_string(),
+                f.election.clone(),
+                f.area.clone(),
+                "synthetic-voter",
+            ),
+            (
+                f.event.clone(),
+                Uuid::new_v4().to_string(),
+                f.area.clone(),
+                "synthetic-voter",
+            ),
+            (
+                f.event.clone(),
+                f.election.clone(),
+                Uuid::new_v4().to_string(),
+                "synthetic-voter",
+            ),
+            (
+                f.event.clone(),
+                f.election.clone(),
+                f.area.clone(),
+                "another-voter",
+            ),
+        ] {
+            assert!(f
+                .store
+                .received_ballot_for_owner(&event, &election, &area, voter, "ABCD-1234", mode)
+                .await?
+                .is_none());
+        }
+        if mode == BallotIdentity::Pseudonym {
+            assert!(f
+                .store
+                .received_ballot_for_owner(
+                    &f.event,
+                    &f.election,
+                    &f.area,
+                    &f.pseudonym,
+                    "ABCD-1234",
+                    mode
+                )
+                .await?
+                .is_none());
+            f.store
+                .allocate_voter_pseudonyms(&f.event, &["000-first".into()])
+                .await?;
+            assert_eq!(f.store.purge_voter_pseudonyms_batch(&f.event, 1).await?, 1);
+            assert!(f
+                .store
+                .voter_pseudonym(&f.event, "synthetic-voter")
+                .await?
+                .is_some());
+            assert!(f
+                .store
+                .received_ballot_for_owner(
+                    &f.event,
+                    &f.election,
+                    &f.area,
+                    "synthetic-voter",
+                    "ABCD-1234",
+                    mode
+                )
+                .await?
+                .is_none());
+        }
+        f.cleanup().await?;
+    }
+    Ok(())
 }
 
 #[tokio::test]

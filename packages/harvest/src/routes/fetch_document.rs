@@ -124,6 +124,12 @@ async fn fetch_document_url(
     if document.is_ballot_receipt() {
         return Err((Status::NotFound, DOCUMENT_NOT_FOUND.to_string()));
     }
+    let legacy_voter_export = document.election_event_id.is_some()
+        && document.name.as_deref().is_some_and(|name| {
+            name.starts_with("users-export-")
+                || (name.starts_with("election-event-")
+                    && name.contains("-export-sha256-"))
+        });
     let annotations = document
         .annotations
         .map(serde_json::from_value::<DocumentAnnotations>)
@@ -134,6 +140,22 @@ async fn fetch_document_url(
                 format!("Error reading document access policy: {error}"),
             )
         })?;
+    match annotations.as_ref().and_then(|value| value.participation_scope.as_ref()) {
+        Some(scope) => {
+            if document.election_event_id.as_deref() != Some(scope.election_event_id.as_str()) {
+                return Err((Status::Forbidden, "Invalid voter export participation scope".into()));
+            }
+            let permitted = crate::services::authorization::explicit_participation_elections(
+                &hasura_transaction, &claims, &scope.election_event_id,
+            ).await?;
+            if !scope.election_ids.iter().all(|id| permitted.contains(id)) {
+                return Err((Status::Forbidden, "Election outside the user's permission labels".into()));
+            }
+        }
+        None if legacy_voter_export => return Err((Status::Forbidden,
+            "This voter export has no verified participation scope; create a new export".into())),
+        None => {}
+    }
     let extra_permissions = document_extra_permissions(annotations.as_ref());
     if !extra_permissions.is_empty() {
         authorize(

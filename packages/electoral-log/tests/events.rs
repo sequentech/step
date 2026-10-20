@@ -458,6 +458,7 @@ async fn export(store: &PostgresStore) -> Result<(Vec<ExportedRecord>, ExportMan
             format: EXPORT_FORMAT_V1.into(),
             election_event_id: "source".into(),
             board_log_uid: None,
+            ballot_verification_keys: vec![],
             logs,
         },
     ))

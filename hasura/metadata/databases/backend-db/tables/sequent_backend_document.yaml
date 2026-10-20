@@ -279,6 +279,29 @@ update_permissions:
                                     annotations:
                                         _contains:
                                             purpose: ballot-receipt
+                  - _or:
+                        - annotations:
+                              _is_null: true
+                        - _not:
+                              annotations:
+                                  _has_key: participation_scope
+                  - _or:
+                        - name:
+                              _is_null: true
+                        - name:
+                              _nilike: users-export-%
+                  - _or:
+                        - name:
+                              _is_null: true
+                        - name:
+                              _nilike: election-event-%-export-sha256-%
+                  - _or:
+                        - annotations:
+                              _is_null: true
+                        - _not:
+                              annotations:
+                                  _contains:
+                                      purpose: voter-export
           check:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
@@ -322,6 +345,29 @@ update_permissions:
                                     annotations:
                                         _contains:
                                             purpose: ballot-receipt
+                  - _or:
+                        - annotations:
+                              _is_null: true
+                        - _not:
+                              annotations:
+                                  _has_key: participation_scope
+                  - _or:
+                        - name:
+                              _is_null: true
+                        - name:
+                              _nilike: users-export-%
+                  - _or:
+                        - name:
+                              _is_null: true
+                        - name:
+                              _nilike: election-event-%-export-sha256-%
+                  - _or:
+                        - annotations:
+                              _is_null: true
+                        - _not:
+                              annotations:
+                                  _contains:
+                                      purpose: voter-export
           check:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
@@ -340,7 +386,31 @@ update_permissions:
               - name
               - size
               - tenant_id
-          filter: {}
+          filter:
+              _and:
+                  - _or:
+                        - annotations:
+                              _is_null: true
+                        - _not:
+                              annotations:
+                                  _has_key: participation_scope
+                  - _or:
+                        - name:
+                              _is_null: true
+                        - name:
+                              _nilike: users-export-%
+                  - _or:
+                        - name:
+                              _is_null: true
+                        - name:
+                              _nilike: election-event-%-export-sha256-%
+                  - _or:
+                        - annotations:
+                              _is_null: true
+                        - _not:
+                              annotations:
+                                  _contains:
+                                      purpose: voter-export
           check: {}
       role: service-account
 delete_permissions:
@@ -371,6 +441,29 @@ delete_permissions:
                                     annotations:
                                         _contains:
                                             purpose: ballot-receipt
+                  - _or:
+                        - annotations:
+                              _is_null: true
+                        - _not:
+                              annotations:
+                                  _has_key: participation_scope
+                  - _or:
+                        - name:
+                              _is_null: true
+                        - name:
+                              _nilike: users-export-%
+                  - _or:
+                        - name:
+                              _is_null: true
+                        - name:
+                              _nilike: election-event-%-export-sha256-%
+                  - _or:
+                        - annotations:
+                              _is_null: true
+                        - _not:
+                              annotations:
+                                  _contains:
+                                      purpose: voter-export
       role: admin-user
     - permission:
           filter:
@@ -399,8 +492,55 @@ delete_permissions:
                                     annotations:
                                         _contains:
                                             purpose: ballot-receipt
+                  - _or:
+                        - annotations:
+                              _is_null: true
+                        - _not:
+                              annotations:
+                                  _has_key: participation_scope
+                  - _or:
+                        - name:
+                              _is_null: true
+                        - name:
+                              _nilike: users-export-%
+                  - _or:
+                        - name:
+                              _is_null: true
+                        - name:
+                              _nilike: election-event-%-export-sha256-%
+                  - _or:
+                        - annotations:
+                              _is_null: true
+                        - _not:
+                              annotations:
+                                  _contains:
+                                      purpose: voter-export
       role: document-write
     - comment: ""
       permission:
-          filter: {}
+          filter:
+              _and:
+                  - _or:
+                        - annotations:
+                              _is_null: true
+                        - _not:
+                              annotations:
+                                  _has_key: participation_scope
+                  - _or:
+                        - name:
+                              _is_null: true
+                        - name:
+                              _nilike: users-export-%
+                  - _or:
+                        - name:
+                              _is_null: true
+                        - name:
+                              _nilike: election-event-%-export-sha256-%
+                  - _or:
+                        - annotations:
+                              _is_null: true
+                        - _not:
+                              annotations:
+                                  _contains:
+                                      purpose: voter-export
       role: service-account

@@ -210,6 +210,40 @@ pub async fn find_received_cast(
     }
 }
 
+/// The authenticated voter is resolved inside the existing receipt ownership
+/// query. Only the receipt's storage identity leaves that query.
+#[instrument(skip_all)]
+pub async fn find_received_cast_for_owner(
+    store: &PostgresStore,
+    event: &str,
+    area: &str,
+    voter: &str,
+    mode: electoral_log::adapters::privacy::BallotIdentity,
+    input: &CastBallotInput,
+) -> Result<FoundCast, CastVoteError> {
+    let ballot_id =
+        normalize_ballot_id(&input.ballot_id).ok_or(CastVoteError::BallotNotReceived)?;
+    let received = store
+        .received_ballot_for_owner(
+            event,
+            &input.election_id.to_string(),
+            area,
+            voter,
+            &ballot_id,
+            mode,
+        )
+        .await
+        .map_err(store_error)?
+        .ok_or(CastVoteError::BallotNotReceived)?;
+    let signature = check_cast_signature(&received, &input.cast_signature)?;
+    match cast_or_stored_receipt(&received, &signature)? {
+        None => Ok(FoundCast::ToCast(received, signature)),
+        Some(receipt) => Ok(FoundCast::AlreadyCast(
+            cast_output(store, &received, receipt).await?,
+        )),
+    }
+}
+
 /// What casting a received ballot takes: the ballot as it was received, and
 /// the key that signs the receipt.
 pub fn received_cast(
@@ -375,12 +409,25 @@ pub(crate) async fn prepare_received_cast(
     hasura_transaction: &Transaction<'_>,
     election_event: &ElectionEvent,
     voter_id: &str,
+    area_id: &str,
     input: &CastBallotInput,
 ) -> Result<PreparedCast, CastVoteError> {
     let store = get_event_store(&election_event.id)
         .await
         .map_err(store_error)?;
-    let found = find_received_cast(&store, &election_event.id, voter_id, input).await?;
+    let mode = match crate::services::vote_privacy::identity_mode(election_event)
+        .map_err(|_| CastVoteError::CheckStatusFailed("Invalid ballot privacy policy".into()))?
+    {
+        sequent_core::types::vote_privacy::BallotIdentity::VoterId => {
+            electoral_log::adapters::privacy::BallotIdentity::VoterId
+        }
+        sequent_core::types::vote_privacy::BallotIdentity::Pseudonym => {
+            electoral_log::adapters::privacy::BallotIdentity::Pseudonym
+        }
+    };
+    let found =
+        find_received_cast_for_owner(&store, &election_event.id, area_id, voter_id, mode, input)
+            .await?;
     let (received, cast_signature) = match found {
         FoundCast::AlreadyCast(cast) => return Ok(PreparedCast::AlreadyCast(cast)),
         FoundCast::ToCast(received, cast_signature) => (received, cast_signature),

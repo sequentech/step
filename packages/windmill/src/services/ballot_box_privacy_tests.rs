@@ -130,6 +130,27 @@ async fn privacy_sequencer_orders_bindings_and_deduplicates_recovery() -> Result
             outcome => anyhow::bail!("Unexpected receive outcome {outcome:?}"),
         };
         let cast_signature = sign_cast_statement(&voter_key, &election, &received.ballot_id)?;
+        let owned_input = crate::services::cast_ballot::CastBallotInput {
+            election_id: election.parse()?,
+            ballot_id: received.ballot_id.clone(),
+            cast_signature: cast_signature.clone(),
+        };
+        let owned = crate::services::cast_ballot::find_received_cast_for_owner(
+            &store,
+            &event,
+            &area,
+            &real_voter,
+            BallotIdentity::Pseudonym,
+            &owned_input,
+        )
+        .await;
+        assert!(
+            matches!(
+                owned,
+                Ok(crate::services::cast_ballot::FoundCast::ToCast(..))
+            ),
+            "authenticated ownership must resolve inside the existing receipt lookup"
+        );
         let cast_receipt = sign_cast_receipt(
             &receipt_key,
             CastReceiptStatement {
@@ -174,6 +195,20 @@ async fn privacy_sequencer_orders_bindings_and_deduplicates_recovery() -> Result
             )
             .await?;
         assert!(matches!(outcome, AcceptOutcome::Accepted { .. }));
+        let replay = crate::services::cast_ballot::find_received_cast_for_owner(
+            &store,
+            &event,
+            &area,
+            &real_voter,
+            BallotIdentity::Pseudonym,
+            &owned_input,
+        )
+        .await
+        .map_err(|error| anyhow::anyhow!("authenticated replay: {error:?}"))?;
+        let crate::services::cast_ballot::FoundCast::AlreadyCast(replay) = replay else {
+            anyhow::bail!("authenticated replay must return its original cast receipt")
+        };
+        assert_eq!(replay.receipt, cast_receipt);
         let queued = store.pending_received_ballots(&event, 100).await?;
         assert_eq!(queued.len(), 1);
         if simulate_queue_race {

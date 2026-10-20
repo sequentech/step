@@ -3282,6 +3282,7 @@ type Query {
     ballot_box_keys(
         election_event_id: uuid!
         election_id: uuid!
+        ballot_id: String
     ): BallotPrivacyPayload!
     ballot_privacy_settings(election_event_id: uuid!): BallotPrivacyPayload!
     forensic_network_summary(

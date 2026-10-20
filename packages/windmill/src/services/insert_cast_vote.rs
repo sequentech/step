@@ -486,22 +486,8 @@ pub(crate) async fn try_cast(
 
     crate::services::vote_privacy::require_signed_receipts(&election_event, Some(voting_channel))
         .map_err(|_| CastVoteError::CheckStatusFailed("Incompatible ballot privacy policy".into()))?;
-    let storage_identity =
-        crate::services::vote_privacy::ballot_identity(&election_event, voter_id)
-            .await
-            .map_err(|_| {
-                CastVoteError::CheckStatusFailed("Voter privacy registration is not ready".into())
-            })?;
     let private_ballot = presentation.ballot_identity
         == Some(sequent_core::types::vote_privacy::BallotIdentity::Pseudonym);
-    let voter_id = storage_identity.as_str();
-    // Network attribution is handled by the isolated forensic writer, never by ballot rows.
-    let private_username = Some(storage_identity.clone());
-    let username = if private_ballot {
-        &private_username
-    } else {
-        username
-    };
 
     // With receipts on, the ballot box casts only what it has received from
     // this voter, on the voter's signed request.
@@ -520,8 +506,14 @@ pub(crate) async fn try_cast(
             )));
         }
         CastRequest::Received(cast) => {
-            let prepared =
-                prepare_received_cast(&hasura_transaction, &election_event, voter_id, &cast).await;
+            let prepared = prepare_received_cast(
+                &hasura_transaction,
+                &election_event,
+                voter_id,
+                area_id,
+                &cast,
+            )
+            .await;
             match prepared {
                 Ok(PreparedCast::ToCast(input, received_cast)) => (input, Some(received_cast)),
                 Ok(PreparedCast::AlreadyCast(cast)) => {
@@ -532,6 +524,19 @@ pub(crate) async fn try_cast(
                 }
             }
         }
+    };
+
+    let storage_identity = received_cast
+        .as_ref()
+        .map(|cast| cast.received_ballot.voter_id.clone())
+        .unwrap_or_else(|| voter_id.to_owned());
+    let voter_id = storage_identity.as_str();
+    // Only the owned receipt's pseudonym enters ballot objects and evidence.
+    let private_username = Some(storage_identity.clone());
+    let username = if private_ballot {
+        &private_username
+    } else {
+        username
     };
 
     crate::services::receive_ballot::check_published_ballot(

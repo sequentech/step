@@ -214,6 +214,9 @@ pub struct Candidate {
 
 #[derive(PartialEq, Eq, Debug, Clone, Default, Serialize, Deserialize)]
 pub struct DocumentAnnotations {
+    /// Election participation included in an export. Downloads recheck this scope.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub participation_scope: Option<DocumentParticipationScope>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub purpose: Option<DocumentPurpose>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -226,6 +229,12 @@ pub struct DocumentAnnotations {
     /// The document that stores that `report-manifest.json` as a file.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub report_manifest_file: Option<ReportManifestFile>,
+}
+
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+pub struct DocumentParticipationScope {
+    pub election_event_id: String,
+    pub election_ids: Vec<String>,
 }
 
 /// Immutable classification for private generated documents.

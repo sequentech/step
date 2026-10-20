@@ -273,6 +273,26 @@ fn authorized_resolution_is_private_durable_and_unavailable_after_purge() {
             .await
             .unwrap();
         store.create_board(&board).await.unwrap();
+        let mut publication_db = services.hasura.get().await.unwrap();
+        let publication_tx = publication_db.transaction().await.unwrap();
+        let published_event =
+            windmill::postgres::election_event::get_election_event_by_id(
+                &publication_tx,
+                &event.tenant_id,
+                &event.election_event_id,
+            )
+            .await
+            .unwrap();
+        windmill::services::public_ballot_keys::for_publication(
+            &publication_tx,
+            &published_event,
+            &windmill::services::ballot_box_key::published_key(&receipt_key)
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+        publication_tx.commit().await.unwrap();
+        drop(publication_db);
         store
             .create_ballot_box(&event.election_event_id)
             .await
@@ -404,7 +424,7 @@ fn authorized_resolution_is_private_durable_and_unavailable_after_purge() {
             assert_eq!(checks.cast, CheckStatus::Passed);
         };
         verify();
-        let body = json!({"election_event_id":event.election_event_id,"pseudonym":displayed,"reason":"Synthetic official investigation"});
+        let body = json!({"election_event_id":event.election_event_id,"pseudonym":displayed,"reason":"test validation"});
         let reader = Claims::new(&event.tenant_id, "viewer")
             .roles([Permissions::LOGS_READ]);
         assert_eq!(
@@ -421,6 +441,32 @@ fn authorized_resolution_is_private_durable_and_unavailable_after_purge() {
         let investigator =
             Claims::new(&event.tenant_id, "synthetic-investigator")
                 .roles([Permissions::VOTER_PSEUDONYM_RESOLVE]);
+        for unsafe_reason in [
+            "Jane Doe",
+            "jane@example.test",
+            "11111111-1111-4111-8111-111111111111",
+            "198.51.100.7",
+            "Official investigation",
+        ] {
+            let unsafe_body = json!({"election_event_id":event.election_event_id,"pseudonym":displayed,"reason":unsafe_reason});
+            assert_eq!(
+                post(
+                    &client,
+                    "/resolve-voter-pseudonym",
+                    &investigator,
+                    &unsafe_body
+                )
+                .await
+                .status(),
+                Status::BadRequest,
+                "non-categorical resolution reason accepted"
+            );
+        }
+        assert!(store
+            .pending_privacy_messages(&event.election_event_id, 10)
+            .await
+            .unwrap()
+            .is_empty());
         let logs = privacy_trace::capture(async {
             let response =
                 post(&client, "/resolve-voter-pseudonym", &investigator, &body)
@@ -448,7 +494,7 @@ fn authorized_resolution_is_private_durable_and_unavailable_after_purge() {
         let body_json = &json["statement"]["body"]["PseudonymResolved"];
         assert_eq!(body_json["pseudonym"], code);
         assert_eq!(body_json["actor_id"], "synthetic-investigator");
-        assert_eq!(body_json["reason"], "Synthetic official investigation");
+        assert_eq!(body_json["reason"], "test-validation");
         assert!(!serde_json::to_string(&message).unwrap().contains(voter));
         let durable_entry = electoral_log::LogEntry {
             delivery_id: pending[0].delivery_id.clone(),
@@ -522,6 +568,71 @@ fn authorized_resolution_is_private_durable_and_unavailable_after_purge() {
         assert_eq!(retained.status(), Status::Ok);
         let retained: Value = retained.into_json().await.unwrap();
         assert_eq!(retained["payload"], entry["payload"]);
+        let mut db = services.hasura.get().await.unwrap();
+        let tx = db.transaction().await.unwrap();
+        for path in [
+            get_protocol_manager_secret_path(&board),
+            windmill::services::ballot_box_key::get_ballot_box_secret_path(
+                &board,
+            ),
+        ] {
+            assert!(windmill::services::vault::delete_secret(
+                &tx,
+                &event.tenant_id,
+                &path
+            )
+            .await
+            .unwrap());
+        }
+        tx.commit().await.unwrap();
+        drop(db);
+        let public_keys =
+            post(&client, "/ballot-box-keys", &ordinary, &scope).await;
+        assert_eq!(public_keys.status(), Status::Ok,
+            "retained public proof must not require either private signing secret");
+        let public_keys: Value = public_keys.into_json().await.unwrap();
+        assert_eq!(public_keys["payload"], keys["payload"]);
+        // An unrelated live key must not become the authority for an older receipt.
+        let replacement = SigningKey::generate().unwrap();
+        assert_ne!(
+            windmill::services::ballot_box_key::published_key(&replacement)
+                .unwrap(),
+            trust.ballot_box_key
+        );
+        let mut db = services.hasura.get().await.unwrap();
+        let tx = db.transaction().await.unwrap();
+        windmill::services::vault::save_secret(
+            &tx,
+            &event.tenant_id,
+            Some(&event.election_event_id),
+            &get_protocol_manager_secret_path(&board),
+            &format!(
+                "signing_key = {:?}",
+                replacement.to_b64_string().unwrap()
+            ),
+        )
+        .await
+        .unwrap();
+        windmill::services::vault::save_secret(
+            &tx,
+            &event.tenant_id,
+            Some(&event.election_event_id),
+            &windmill::services::ballot_box_key::get_ballot_box_secret_path(
+                &board,
+            ),
+            &replacement.to_b64_string().unwrap(),
+        )
+        .await
+        .unwrap();
+        tx.commit().await.unwrap();
+        drop(db);
+        let with_live_replacement =
+            post(&client, "/ballot-box-keys", &ordinary, &scope).await;
+        assert_eq!(with_live_replacement.status(), Status::Ok);
+        let with_live_replacement: Value =
+            with_live_replacement.into_json().await.unwrap();
+        assert_eq!(with_live_replacement["payload"], keys["payload"]);
+        verify();
         Message::record_deserialize(
             &store
                 .query(&board, &electoral_log::LogQuery::default())

@@ -27,7 +27,9 @@ use sequent_core::ballot_privacy::{BallotPrivacyProof, BallotPrivacyTrust};
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::hasura::core::ElectionEvent;
 use sequent_core::types::permissions::{Permissions, VoterPermissions};
-use sequent_core::types::vote_privacy::NetworkDataPolicy;
+use sequent_core::types::vote_privacy::{
+    NetworkDataPolicy, PseudonymResolutionReason,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -37,7 +39,6 @@ use std::{
     time::{Duration, Instant},
 };
 use tokio::sync::Mutex;
-use voting_crypto::signing::VerificationKey;
 use windmill::services::{
     election_event_board::get_election_event_board,
     electoral_log_board::{get_board_signing_key, get_event_store},
@@ -88,6 +89,7 @@ pub struct BallotEntryInput {
 pub struct BallotKeysInput {
     election_event_id: String,
     election_id: String,
+    ballot_id: Option<String>,
 }
 
 async fn event(
@@ -676,7 +678,26 @@ pub async fn ballot_box_keys(
 ) -> Result<Json<PrivacyPayload>, ApiError> {
     proof_token_scope(&claims, &body.election_event_id, &body.election_id)?;
     let event = event(services, &claims, &body.election_event_id).await?;
-    proof_scope(services, &claims, &event, &body.election_id).await?;
+    let allowed_area =
+        proof_scope(services, &claims, &event, &body.election_id).await?;
+    let store = get_event_store(&event.id).await.map_err(unavailable)?;
+    let key_id = if let Some(ballot_id) = body.ballot_id.as_deref() {
+        let code =
+            electoral_log::adapters::privacy::normalize_privacy_code(ballot_id)
+                .ok_or_else(|| bad("Invalid Ballot ID"))?;
+        let row = store.client().await.map_err(unavailable)?.query_opt(
+            "SELECT key_id,status FROM ballot_box_received WHERE election_event_id=$1::text::uuid AND election_id=$2::text::uuid AND ballot_id=$3 AND ($4::text IS NULL OR area_id=$4::text::uuid)",
+            &[&event.id,&body.election_id,&code,&allowed_area],
+        ).await.map_err(unavailable)?.ok_or_else(||(Status::NotFound,"Ballot not found".into()))?;
+        let status: String = row.try_get(1).map_err(unavailable)?;
+        ensure_proof_receipt_visible(
+            allowed_area.is_some(),
+            status.parse().map_err(unavailable)?,
+        )?;
+        Some(row.try_get::<_, String>(0).map_err(unavailable)?)
+    } else {
+        None
+    };
     let mut client = services
         .databases
         .hasura()
@@ -688,33 +709,45 @@ pub async fn ballot_box_keys(
     let board =
         get_election_event_board(event.bulletin_board_reference.clone())
             .ok_or_else(|| unavailable("Event log unavailable"))?;
-    let key =
-        get_board_signing_key(&tx, &event.tenant_id, Some(&event.id), &board)
-            .await
-            .map_err(unavailable)?;
-    let box_key =
-        windmill::services::ballot_box_key::get_ballot_box_signing_key(
-            &tx, &event,
-        )
+    let checkpoint = store
+        .journal()
+        .checkpoint(&board)
         .await
-        .map_err(unavailable)?
-        .ok_or_else(|| {
-            (
-                Status::NotFound,
-                "Published ballot box key unavailable".into(),
-            )
-        })?;
+        .map_err(unavailable)?;
+    let mut keys = windmill::services::public_ballot_keys::list(
+        &tx,
+        &event.tenant_id,
+        &event.id,
+    )
+    .await
+    .map_err(unavailable)?
+    .into_iter()
+    .filter(|key| {
+        key.election_event_id == event.id
+            && key.board_log_uid == checkpoint.log_uid
+            && key.board_name == board
+            && key_id
+                .as_ref()
+                .is_none_or(|id| id == &key.ballot_box_key_id)
+    });
+    let key = keys.next().ok_or_else(|| {
+        (
+            Status::NotFound,
+            "Published verification keys unavailable; backfill required".into(),
+        )
+    })?;
+    if keys.next().is_some() {
+        return Err(bad("Give a Ballot ID to select its published key"));
+    }
     payload(BallotPrivacyTrust {
         tenant_id: event.tenant_id,
         election_event_id: event.id,
         election_id: body.election_id.clone(),
-        system_public_key: VerificationKey::from_sk(&key)
-            .and_then(|key| key.to_b64_string())
-            .map_err(unavailable)?,
-        ballot_box_key: windmill::services::ballot_box_key::published_key(
-            &box_key,
-        )
-        .map_err(unavailable)?,
+        system_public_key: key.system_public_key,
+        ballot_box_key: sequent_core::ballot::BallotBoxKey {
+            key_id: key.ballot_box_key_id,
+            public_key: key.ballot_box_public_key,
+        },
     })
 }
 
@@ -767,20 +800,9 @@ pub async fn resolve_voter_pseudonym(
         &body.pseudonym,
     )
     .ok_or_else(|| bad("Invalid pseudonym"))?;
-    let reason = body.reason.trim();
-    let mut safe_reason = Value::String(reason.into());
-    windmill::services::privacy_signin::redact_network(&mut safe_reason);
-    if safe_reason != Value::String(reason.into()) {
-        return Err(bad(
-            "The resolution reason must not contain network attribution",
-        ));
-    }
-    if reason.is_empty()
-        || reason.len() > 512
-        || reason.chars().any(char::is_control)
-    {
-        return Err(bad("Give a reason of 1 to 512 characters without personal or network data"));
-    }
+    let reason = body.reason.parse::<PseudonymResolutionReason>().map_err(
+        |_| bad("Choose investigation, compliance-review, or test-validation"),
+    )?;
     let store = get_event_store(&event.id).await.map_err(unavailable)?;
     let voter = store
         .resolve_pseudonym(&event.id, &code)
@@ -792,12 +814,6 @@ pub async fn resolve_voter_pseudonym(
                 "Pseudonym not found or no longer retained".into(),
             )
         })?;
-    // Refuse the most direct accidental disclosure in the required public reason.
-    if reason.contains(&voter) {
-        return Err(bad(
-            "The resolution reason must not contain voter identity",
-        ));
-    }
     let signing = audit_signing(services, &claims, &event).await?;
     let message = Message::pseudonym_resolved_message(
         &event.id,
@@ -805,7 +821,7 @@ pub async fn resolve_voter_pseudonym(
             tenant_id: event.tenant_id.clone(),
             pseudonym: code,
             actor_id: claims.hasura_claims.user_id.clone(),
-            reason: reason.into(),
+            reason: reason.as_str().into(),
         },
         &signing,
     )
@@ -1085,19 +1101,28 @@ pub async fn ballot_privacy_settings(
         let board =
             get_election_event_board(event.bulletin_board_reference.clone())
                 .ok_or_else(|| unavailable("Event log unavailable"))?;
-        let key = get_board_signing_key(
+        let keys = windmill::services::public_ballot_keys::list(
             &tx,
             &event.tenant_id,
-            Some(&event.id),
-            &board,
+            &event.id,
         )
         .await
         .map_err(unavailable)?;
-        Some(
-            VerificationKey::from_sk(&key)
-                .and_then(|key| key.to_b64_string())
-                .map_err(unavailable)?,
-        )
+        let mut public = None;
+        for key in keys.into_iter().filter(|key| {
+            key.election_event_id == event.id && key.board_name == board
+        }) {
+            if public
+                .as_ref()
+                .is_some_and(|previous| previous != &key.system_public_key)
+            {
+                return Err(unavailable(
+                    "Conflicting published authority keys",
+                ));
+            }
+            public = Some(key.system_public_key);
+        }
+        public
     } else {
         None
     };
