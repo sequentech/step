@@ -22,6 +22,9 @@ mod types;
 async fn rocket() -> _ {
     dotenv().ok();
     init_log(true);
+    if let Err(error) = sequent_core::services::jwks::configured_audiences() {
+        tracing::error!("Harvest refuses every bearer token: {error}");
+    }
 
     setup_probe(AppName::HARVEST).await;
     set_is_app_active(true);
