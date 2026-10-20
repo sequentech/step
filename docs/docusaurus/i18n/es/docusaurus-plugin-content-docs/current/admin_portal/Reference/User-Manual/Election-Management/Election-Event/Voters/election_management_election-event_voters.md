@@ -90,6 +90,31 @@ la tarea **Importar usuarios** en la pestaña **Tareas**.
 | **Método de Comunicación** | **Método de Plantillas** (**Email** o **SMS**), **Tipo de Comunicación** y **Alias de la Plantilla**. |
 | **Enviar Notificación** | Envía o programa el mensaje. |
 
+## Conexión con el sistema externo {#external-system-connection}
+
+La anotación `datafix:voterview_request` del proceso electoral contiene la `url` del sistema
+externo, las credenciales `usr` y `psw` y el código `county_mun`.
+
+El campo opcional `transport_policy` de esa anotación indica qué esquemas de URL se aceptan:
+
+- `https-only` (predeterminado): la `url` debe usar `https`.
+- `allow-plaintext`: la `url` puede usar `https` o `http`. Úselo solo para endpoints de prueba.
+
+Por ejemplo:
+
+```json
+{
+  "url": "https://voters.example.org/service.asmx",
+  "usr": "user",
+  "psw": "password",
+  "county_mun": "county",
+  "transport_policy": "https-only"
+}
+```
+
+Una solicitud cuya `url` no cumple la política de transporte no se envía. No se siguen las
+redirecciones del sistema externo y se rechazan las respuestas de más de 1 MiB.
+
 ## Si hay un problema {#if-there-is-a-problem}
 
 | Problema | Acción |

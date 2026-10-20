@@ -3,7 +3,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::application::insert_applications;
-use crate::postgres::election_event::{get_election_event_by_id_if_exist, update_bulletin_board};
+use crate::postgres::election_event::{
+    election_event_id_exists, get_election_event_by_id_if_exist, lock_election_event_id,
+    update_bulletin_board,
+};
 use crate::postgres::reports::insert_reports;
 use crate::postgres::reports::Report;
 use crate::postgres::trustee::get_all_trustees;
@@ -288,6 +291,22 @@ pub async fn upsert_keycloak_realm(
     Ok(())
 }
 
+/// Fails when an election event with this id already exists in any tenant, so
+/// the create and import paths only ever set up new events and their realms.
+/// The id stays locked until the transaction ends, so two attempts with the
+/// same id cannot both pass this check.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn ensure_new_election_event(
+    hasura_transaction: &Transaction<'_>,
+    election_event_id: &str,
+) -> Result<()> {
+    lock_election_event_id(hasura_transaction, election_event_id).await?;
+    if election_event_id_exists(hasura_transaction, election_event_id).await? {
+        return Err(anyhow!("Election event {election_event_id} already exists"));
+    }
+    Ok(())
+}
+
 #[instrument(skip(hasura_transaction), err)]
 pub async fn insert_election_event_db(
     hasura_transaction: &Transaction<'_>,
@@ -358,9 +377,8 @@ pub fn replace_ids(
 ) -> Result<(ImportElectionEventSchema, HashMap<String, String>)> {
     let mut keep: Vec<String> = vec![];
     keep.push(original_data.tenant_id.clone().to_string());
-    if id_opt.is_some() {
-        keep.push(original_data.election_event.id.clone());
-    }
+    keep.push(original_data.election_event.id.clone());
+    let election_event_id = id_opt.unwrap_or_else(|| Uuid::new_v4().to_string());
     // find other ids to maintain
     if let Some(realm) = original_data.keycloak_event_realm.clone() {
         if let Some(authenticator_configs) = realm.authenticator_config.clone() {
@@ -379,15 +397,80 @@ pub fn replace_ids(
 
     let (mut new_data, replacement_map) = replace_uuids(data_str, keep);
 
-    if let Some(id) = id_opt {
-        new_data = new_data.replace(&original_data.election_event.id, &id);
-    }
+    new_data = new_data.replace(&original_data.election_event.id, &election_event_id);
     if original_data.tenant_id.to_string() != tenant_id {
         new_data = new_data.replace(&original_data.tenant_id.to_string(), &tenant_id);
     }
 
     let data: ImportElectionEventSchema = deserialize_str(&new_data)?;
+    validate_import_scope(&data, &tenant_id, &election_event_id)?;
+
     Ok((data, replacement_map))
+}
+
+/// Id, tenant id and election event id of every row an import inserts.
+fn import_row_scopes(data: &ImportElectionEventSchema) -> Vec<(&str, &str, &str)> {
+    macro_rules! scopes {
+        ($rows:expr) => {
+            $rows.iter().map(|row| {
+                (
+                    row.id.as_str(),
+                    row.tenant_id.as_str(),
+                    row.election_event_id.as_str(),
+                )
+            })
+        };
+    }
+    let keys_ceremonies = data.keys_ceremonies.as_deref().unwrap_or_default();
+    let applications = data.applications.as_deref().unwrap_or_default();
+    scopes!(data.elections)
+        .chain(scopes!(data.contests))
+        .chain(scopes!(data.candidates))
+        .chain(scopes!(data.areas))
+        .chain(scopes!(keys_ceremonies))
+        .chain(scopes!(applications))
+        .collect()
+}
+
+/// Checks that the imported election event and every row it carries belong to
+/// the target tenant and election event once the ids have been replaced.
+fn validate_import_scope(
+    data: &ImportElectionEventSchema,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<()> {
+    let tenant =
+        Uuid::parse_str(tenant_id).with_context(|| format!("Invalid tenant id {tenant_id}"))?;
+    let event = Uuid::parse_str(election_event_id)
+        .with_context(|| format!("Invalid election event id {election_event_id}"))?;
+    let in_scope = |row_tenant_id: &str, row_event_id: &str| -> Result<bool> {
+        let row_tenant = Uuid::parse_str(row_tenant_id)
+            .with_context(|| format!("Invalid tenant id {row_tenant_id}"))?;
+        let row_event = Uuid::parse_str(row_event_id)
+            .with_context(|| format!("Invalid election event id {row_event_id}"))?;
+        Ok(row_tenant == tenant && row_event == event)
+    };
+
+    if data.tenant_id != tenant
+        || !in_scope(&data.election_event.tenant_id, &data.election_event.id)
+            .context("Invalid imported election event")?
+    {
+        return Err(anyhow!(
+            "Imported election event does not match tenant {tenant} and election event {event}"
+        ));
+    }
+
+    for (id, row_tenant_id, row_event_id) in import_row_scopes(data) {
+        if !in_scope(row_tenant_id, row_event_id)
+            .with_context(|| format!("Invalid imported row {id}"))?
+        {
+            return Err(anyhow!(
+                "Imported row {id} does not belong to tenant {tenant} and election event {event}"
+            ));
+        }
+    }
+
+    Ok(())
 }
 
 #[instrument(err, skip_all)]
@@ -533,6 +616,8 @@ pub async fn process_election_event_file(
         })
         .collect::<Result<Vec<Election>>>()
         .with_context(|| "Error processing elections")?;
+
+    ensure_new_election_event(hasura_transaction, &election_event_id).await?;
 
     upsert_keycloak_realm(
         tenant_id.as_str(),
@@ -1370,4 +1455,235 @@ pub async fn maybe_create_scheduled_event(
     .await?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod import_scope_tests {
+    use super::*;
+
+    const ROW_KINDS: [&str; 6] = [
+        "elections",
+        "contests",
+        "candidates",
+        "areas",
+        "keys_ceremonies",
+        "applications",
+    ];
+
+    fn new_id() -> String {
+        Uuid::new_v4().to_string()
+    }
+
+    fn bundle(tenant: &str, event: &str) -> Value {
+        let election = new_id();
+        json!({
+            "tenant_id": tenant,
+            "election_event": {
+                "id": event, "tenant_id": tenant, "is_archived": false,
+                "encryption_protocol": "RSA", "name": "event"
+            },
+            "elections": [
+                {"id": election, "tenant_id": tenant, "election_event_id": event, "name": "election"}
+            ],
+            "contests": [{
+                "id": new_id(), "tenant_id": tenant, "election_event_id": event,
+                "election_id": election, "name": "contest"
+            }],
+            "candidates": [
+                {"id": new_id(), "tenant_id": tenant, "election_event_id": event}
+            ],
+            "areas": [
+                {"id": new_id(), "tenant_id": tenant, "election_event_id": event}
+            ],
+            "area_contests": [],
+            "reports": [],
+            "keys_ceremonies": [{
+                "id": new_id(), "tenant_id": tenant, "election_event_id": event,
+                "trustee_ids": [], "threshold": 2
+            }],
+            "applications": [{
+                "id": new_id(), "tenant_id": tenant, "election_event_id": event,
+                "applicant_id": new_id(), "applicant_data": {},
+                "verification_type": "MANUAL", "status": "PENDING"
+            }]
+        })
+    }
+
+    fn import(
+        input: &Value,
+        event_id: Option<String>,
+        tenant_id: &str,
+    ) -> Result<ImportElectionEventSchema> {
+        let original: ImportElectionEventSchema = serde_json::from_value(input.clone())?;
+        replace_ids(
+            &input.to_string(),
+            &original,
+            event_id,
+            tenant_id.to_string(),
+        )
+        .map(|(data, _)| data)
+    }
+
+    #[test]
+    fn accepts_rows_of_the_imported_event() {
+        let tenant = new_id();
+        let event = new_id();
+        let input = bundle(&tenant, &event);
+        for target_tenant in [tenant.clone(), new_id()] {
+            for target_event in [None, Some(new_id())] {
+                let imported = import(&input, target_event.clone(), &target_tenant).unwrap();
+                if let Some(expected) = target_event {
+                    assert_eq!(imported.election_event.id, expected);
+                }
+                assert_eq!(imported.election_event.tenant_id, target_tenant);
+                let scopes = import_row_scopes(&imported);
+                assert_eq!(scopes.len(), ROW_KINDS.len());
+                for (_, row_tenant, row_event) in scopes {
+                    assert_eq!(row_tenant, target_tenant);
+                    assert_eq!(row_event, imported.election_event.id);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn picks_a_new_event_id_even_when_the_bundle_lists_it_for_keeping() {
+        let tenant = new_id();
+        let event = new_id();
+        let mut input = bundle(&tenant, &event);
+        input["authenticatorConfig"] = json!([{"alias": "kept", "config": {"id": event}}]);
+        let imported = import(&input, None, &tenant).unwrap();
+        assert_ne!(imported.election_event.id, event);
+        assert!(!serde_json::to_string(&imported).unwrap().contains(&event));
+    }
+
+    #[test]
+    fn rejects_rows_of_another_tenant() {
+        let tenant = new_id();
+        let event = new_id();
+        let other_tenant = Uuid::new_v4().simple().to_string();
+        for kind in ROW_KINDS {
+            let mut input = bundle(&tenant, &event);
+            input[kind][0]["tenant_id"] = json!(other_tenant);
+            assert!(
+                import(&input, Some(new_id()), &tenant).is_err(),
+                "{kind} row of another tenant was accepted"
+            );
+        }
+        let mut input = bundle(&tenant, &event);
+        input["election_event"]["tenant_id"] = json!(other_tenant);
+        assert!(import(&input, Some(new_id()), &tenant).is_err());
+    }
+
+    /// A row whose tenant id is not a UUID is reported with that value, not
+    /// as a row of another tenant.
+    #[test]
+    fn names_a_row_tenant_id_that_is_not_a_uuid() {
+        let tenant = new_id();
+        let mut input = bundle(&tenant, &new_id());
+        input["areas"][0]["tenant_id"] = json!("not-a-uuid");
+        let error = import(&input, Some(new_id()), &tenant).unwrap_err();
+        assert!(
+            format!("{error:#}").contains("Invalid tenant id not-a-uuid"),
+            "{error:#}"
+        );
+    }
+
+    #[test]
+    fn rejects_rows_of_another_event() {
+        let tenant = new_id();
+        let event = new_id();
+        let other_event = new_id();
+        for kind in ROW_KINDS {
+            let mut input = bundle(&tenant, &event);
+            input["authenticatorConfig"] =
+                json!([{"alias": "kept", "config": {"id": other_event}}]);
+            input[kind][0]["election_event_id"] = json!(other_event);
+            assert!(
+                import(&input, Some(new_id()), &tenant).is_err(),
+                "{kind} row of another event was accepted"
+            );
+        }
+    }
+}
+
+#[cfg(test)]
+mod new_election_event_tests {
+    use super::*;
+    use crate::services::database::generate_hasura_pool;
+    use tokio_postgres::error::SqlState;
+
+    const ELECTION_EVENT_TABLE: &str = r#"
+        CREATE SCHEMA IF NOT EXISTS sequent_backend;
+        CREATE TABLE sequent_backend.election_event (
+            id UUID PRIMARY KEY,
+            tenant_id UUID NOT NULL
+        );
+    "#;
+
+    /// Election event ids are unique across tenants, so an id is taken as soon
+    /// as any tenant uses it.
+    #[tokio::test]
+    #[ignore = "requires an empty PostgreSQL configured through HASURA_DB__*; exercised by the dedicated CI job"]
+    async fn rejects_an_election_event_id_used_in_another_tenant() -> Result<()> {
+        let pool = generate_hasura_pool().await?;
+        let mut client = pool.get().await?;
+        let transaction = client.transaction().await?;
+        transaction.batch_execute(ELECTION_EVENT_TABLE).await?;
+        let used_id = Uuid::new_v4();
+        transaction
+            .execute(
+                "INSERT INTO sequent_backend.election_event (id, tenant_id) VALUES ($1, $2)",
+                &[&used_id, &Uuid::new_v4()],
+            )
+            .await?;
+
+        assert!(
+            ensure_new_election_event(&transaction, &used_id.to_string())
+                .await
+                .is_err()
+        );
+        assert!(
+            ensure_new_election_event(&transaction, &Uuid::new_v4().to_string())
+                .await
+                .is_ok()
+        );
+
+        transaction.rollback().await?;
+        Ok(())
+    }
+
+    /// A second create or import of the same id waits for the first one's
+    /// transaction to end instead of setting the event up alongside it.
+    #[tokio::test]
+    #[ignore = "requires an empty PostgreSQL configured through HASURA_DB__*; exercised by the dedicated CI job"]
+    async fn holds_the_election_event_id_until_the_transaction_ends() -> Result<()> {
+        let pool = generate_hasura_pool().await?;
+        let mut first_client = pool.get().await?;
+        let mut second_client = pool.get().await?;
+        let election_event_id = Uuid::new_v4().to_string();
+
+        let first = first_client.transaction().await?;
+        first.batch_execute(ELECTION_EVENT_TABLE).await?;
+        ensure_new_election_event(&first, &election_event_id).await?;
+
+        let second = second_client.transaction().await?;
+        second
+            .batch_execute("SET LOCAL lock_timeout = '200ms'")
+            .await?;
+        let error = ensure_new_election_event(&second, &election_event_id)
+            .await
+            .expect_err("a second setup of the same id must wait for the first");
+        assert_eq!(
+            error
+                .downcast_ref::<tokio_postgres::Error>()
+                .and_then(tokio_postgres::Error::code),
+            Some(&SqlState::LOCK_NOT_AVAILABLE),
+            "{error:#}"
+        );
+
+        second.rollback().await?;
+        first.rollback().await?;
+        Ok(())
+    }
 }

@@ -90,6 +90,31 @@ the **Tasks** tab.
 | **Communication Template** | **Template Method** (**Email** or **SMS**), **Communication Type** and **Template Alias**. |
 | **Send Notification** | Sends or schedules the message. |
 
+## External system connection
+
+The `datafix:voterview_request` annotation of the election event holds the endpoint `url` of
+the external system, the `usr` and `psw` credentials and the `county_mun` code.
+
+The optional `transport_policy` field of that annotation sets which URL schemes are accepted:
+
+- `https-only` (default): the `url` must use `https`.
+- `allow-plaintext`: the `url` may use `https` or `http`. Use it only for test endpoints.
+
+For example:
+
+```json
+{
+  "url": "https://voters.example.org/service.asmx",
+  "usr": "user",
+  "psw": "password",
+  "county_mun": "county",
+  "transport_policy": "https-only"
+}
+```
+
+A request whose `url` does not match the transport policy is not sent. Redirects from the
+external system are not followed, and responses larger than 1 MiB are rejected.
+
 ## If there is a problem
 
 | Problem | Action |
