@@ -88,6 +88,8 @@ import {
     SessionBallotSnapshot,
     snapshotSessionBallotData,
     isCurrentSessionBallotData,
+    readSessionBallotLocator,
+    SessionBallotLocator,
 } from "../store/castVotes/sessionBallotData"
 import {setConfirmationScreenData} from "../store/castVotes/confirmationScreenDataSlice"
 import {selectElectionById} from "../store/elections/electionsSlice"
@@ -845,18 +847,26 @@ export const ReviewScreen: React.FC = () => {
     }
 
     const getBallotDataFromSessionStorage = (snapshot: SessionBallotSnapshot) => {
-        const fail = (error: CastBallotsErrorType, expired = false) => {
-            clearSessionStorageBallotData(snapshot)
+        const owner = {tenantId: tenantId ?? "", eventId: eventId ?? "", userId: authContext.userId}
+        const fail = (
+            error: CastBallotsErrorType,
+            expired = false,
+            locator?: SessionBallotLocator
+        ) => {
+            clearSessionStorageBallotData(snapshot, locator)
             setErrorMsg(t(`reviewScreen.error.${error}`))
             setRecovery(expired ? ECastRecovery.EXPIRED : ECastRecovery.RETRY)
             return undefined
+        }
+        if (!snapshot.serialized && !snapshot.expiry) {
+            const locator = readSessionBallotLocator(owner, electionId ?? "")
+            if (locator) return fail(CastBallotsErrorType.SESSION_EXPIRED, true, locator)
         }
         if (!snapshot.serialized || !snapshot.expiry)
             return fail(CastBallotsErrorType.SESSION_STORAGE_ERROR)
         const expiresAt = Number(snapshot.expiry)
         if (!Number.isFinite(expiresAt) || expiresAt > Date.now() + 5 * 60 * 1000)
             return fail(CastBallotsErrorType.NOT_VALID_BALLOT_DATA_ERROR)
-        if (Date.now() >= expiresAt) return fail(CastBallotsErrorType.SESSION_EXPIRED, true)
         try {
             const data = JSON.parse(snapshot.serialized) as SessionBallotData
             if (
@@ -883,9 +893,16 @@ export const ReviewScreen: React.FC = () => {
                     receipt.election_event_id !== eventId ||
                     receipt.election_id !== electionId ||
                     receipt.ballot_hash !== data.ballotId ||
-                    !data.receivedCast.castSignature)
+                    !data.receivedCast.castSignature ||
+                    !/^[0-9A-HJKMNP-TV-Z]{4}-[0-9A-HJKMNP-TV-Z]{4}$/.test(receipt.ballot_id))
             )
                 return fail(CastBallotsErrorType.NOT_VALID_BALLOT_DATA_ERROR)
+            if (Date.now() >= expiresAt)
+                return fail(CastBallotsErrorType.SESSION_EXPIRED, true, {
+                    owner,
+                    electionId: data.electionId,
+                    ballotId: receipt?.ballot_id ?? data.ballotId,
+                })
             return data
         } catch {
             return fail(CastBallotsErrorType.PARSE_BALLOT_DATA_ERROR)
@@ -978,10 +995,23 @@ export const ReviewScreen: React.FC = () => {
     if (needsRecovery && !hasInconsistentHash) {
         const saved = snapshotSessionBallotData()
         const canRetry = recovery === ECastRecovery.RETRY && !!saved.serialized && !!saved.expiry
-        let savedBallotId = ""
+        let savedBallotId =
+            readSessionBallotLocator(
+                {tenantId: tenantId ?? "", eventId: eventId ?? "", userId: authContext.userId},
+                electionId ?? ""
+            )?.ballotId ?? ""
         try {
             const data = JSON.parse(saved.serialized ?? "null") as SessionBallotData | null
-            savedBallotId = data?.receivedCast?.receivedBallot.ballot_id ?? data?.ballotId ?? ""
+            if (
+                data &&
+                data.owner &&
+                data.owner.tenantId === tenantId &&
+                data.owner.eventId === eventId &&
+                data.owner.userId === authContext.userId &&
+                data.electionId === electionId
+            )
+                savedBallotId =
+                    data.receivedCast?.receivedBallot.ballot_id ?? data.ballotId ?? savedBallotId
         } catch {
             /* Invalid data is already rejected by recovery. */
         }
@@ -1025,7 +1055,11 @@ export const ReviewScreen: React.FC = () => {
                             component={RouterLink}
                             to={`/tenant/${tenantId}/event/${eventId}/election/${electionId}/ballot-locator/${encodeURIComponent(savedBallotId)}${location.search}`}
                         >
-                            {t("reviewScreen.castRecovery.checkBallot")}
+                            {t(
+                                savedBallotId
+                                    ? "reviewScreen.castRecovery.checkBallot"
+                                    : "ballotLocator.locate"
+                            )}
                         </StyledButton>
                     </>
                 )}

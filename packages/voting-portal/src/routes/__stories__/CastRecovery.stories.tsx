@@ -26,6 +26,13 @@ const reauthenticate = fn(async () => {
     throw new Error("Synthetic authentication outage")
 })
 const client = createPreviewApolloClient()
+const expiredViewport = (width: number) => ({
+    ...atViewport(width),
+    beforeEach: () => {
+        atViewport(width).beforeEach()
+        sessionStorage.setItem(BALLOT_DATA_EXPIRATION_KEY, String(Date.now() - 1))
+    },
+})
 const meta = {
     title: "Voting/Cast recovery",
     parameters: {
@@ -117,3 +124,26 @@ export const AuthenticationUnavailableTablet: Story = {
     ...AuthenticationUnavailable,
     ...atViewport(820),
 }
+
+export const ExpiredRequest: Story = {
+    ...expiredViewport(1440),
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(await canvas.findByRole("alert")).toHaveTextContent(
+            "The cast result has not been confirmed"
+        )
+        expect(sessionStorage.getItem(BALLOT_DATA_KEY)).toBeNull()
+        expect(sessionStorage.getItem(BALLOT_DATA_EXPIRATION_KEY)).toBeNull()
+        expect(canvas.queryByRole("button", {name: "Try again"})).not.toBeInTheDocument()
+        const check = canvas.getByRole("link", {name: "Check ballot"})
+        expect(check).toHaveAttribute("href", `${electionPath}/ballot-locator/FTBE-MHRX?lang=en`)
+        expect(reauthenticate).not.toHaveBeenCalled()
+        expect(canvasElement.scrollWidth).toBeLessThanOrEqual(canvasElement.clientWidth + 1)
+        await userEvent.click(check)
+        expect(await canvas.findByLabelText("Current location")).toHaveTextContent(
+            `${electionPath}/ballot-locator/FTBE-MHRX`
+        )
+    },
+}
+export const ExpiredRequestPhone: Story = {...ExpiredRequest, ...expiredViewport(390)}
+export const ExpiredRequestTablet: Story = {...ExpiredRequest, ...expiredViewport(820)}

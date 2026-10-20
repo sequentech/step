@@ -33,6 +33,7 @@ import confirmationScreenDataReducer, {
 import {
     BALLOT_DATA_EXPIRATION_KEY,
     BALLOT_DATA_KEY,
+    BALLOT_LOCATOR_KEY,
     SessionBallotData,
 } from "../store/castVotes/sessionBallotData"
 import {EReceiveBallotStatus} from "../hooks/useReceiveBallot"
@@ -980,6 +981,59 @@ describe("ballot received by the ballot box at review", () => {
             expect(mockInsertCastVote).not.toHaveBeenCalled()
             expect(routeAction).not.toHaveBeenCalled()
             expect(sessionStorage.getItem(BALLOT_DATA_KEY)).toBeNull()
+            if (kind === "expired") {
+                expect(
+                    screen.getByRole("link", {name: "reviewScreen.castRecovery.checkBallot"})
+                ).toHaveAttribute(
+                    "href",
+                    `/tenant/tenant-1/event/event-1/election/election-1/ballot-locator/${RECEIVED_BALLOT_ID}?preview=true`
+                )
+            }
+        }
+    )
+
+    it("keeps the expired receipt locator across reloads without retaining a cast request", async () => {
+        saveRecovery({}, Date.now() - 1)
+        mockIsGoldUser = true
+        const first = renderRoute(<ReviewScreen />, "review")
+        const check = await screen.findByRole("link", {
+            name: "reviewScreen.castRecovery.checkBallot",
+        })
+        expect(check).toHaveAttribute("href", expect.stringContaining(RECEIVED_BALLOT_ID))
+        expect(sessionStorage.getItem(BALLOT_DATA_KEY)).toBeNull()
+        first.unmount()
+        renderRoute(<ReviewScreen />, "review")
+        expect(
+            await screen.findByRole("link", {name: "reviewScreen.castRecovery.checkBallot"})
+        ).toHaveAttribute("href", expect.stringContaining(RECEIVED_BALLOT_ID))
+        expect(mockCastReceivedBallot).not.toHaveBeenCalled()
+        expect(mockInsertCastVote).not.toHaveBeenCalled()
+        await userEvent.setup().click(screen.getByRole("button", {name: "reviewScreen.backButton"}))
+        expect(sessionStorage.getItem(BALLOT_LOCATOR_KEY)).toBeNull()
+    })
+
+    it.each(["wrong-owner", "wrong-election", "wrong-receipt"])(
+        "does not retain an expired %s locator",
+        async (kind) => {
+            saveRecovery(
+                kind === "wrong-owner"
+                    ? {owner: {tenantId: "tenant-1", eventId: "event-1", userId: "other"}}
+                    : kind === "wrong-election"
+                      ? {electionId: "other"}
+                      : {
+                            receivedCast: {
+                                ...receivedCast,
+                                receivedBallot: {...receivedBallot, ballot_id: "invalid"},
+                            },
+                        },
+                Date.now() - 1
+            )
+            mockIsGoldUser = true
+            renderRoute(<ReviewScreen />, "review")
+            const generic = await screen.findByRole("link", {name: "ballotLocator.locate"})
+            expect(generic).toHaveAttribute("href", expect.not.stringContaining(RECEIVED_BALLOT_ID))
+            expect(sessionStorage.getItem(BALLOT_LOCATOR_KEY)).toBeNull()
+            expect(mockCastReceivedBallot).not.toHaveBeenCalled()
         }
     )
 

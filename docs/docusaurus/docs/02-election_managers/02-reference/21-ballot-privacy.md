@@ -34,7 +34,7 @@ Auditing reveals the ballot's choices and encryption evidence so they can be che
 
 ## Recovering after additional authentication
 
-For elections requiring additional authentication, the portal keeps the exact signed cast request in this tab for at most five minutes. If the cast response cannot be confirmed, Retry sends that same request. Additional authentication may be required again after one minute; it does not extend the saved request's deadline. A resolved login alone never confirms a vote. Expiry does not establish whether a previous cast reached the ballot box: check the Ballot ID before starting again. Back abandons the saved request; signing out clears it.
+For elections requiring additional authentication, the portal keeps the exact signed cast request in this tab for at most five minutes. If the cast response cannot be confirmed, Retry sends that same request. Additional authentication may be required again after one minute; it does not extend the saved request's deadline. A resolved login alone never confirms a vote. Expiry does not establish whether a previous cast reached the ballot box: check the Ballot ID before starting again. After expiry, this tab retains only the Ballot ID for the same signed-in voter, so **Check ballot** still works after reloading; the expired signed request cannot be retried. Editing the ballot or signing out clears the saved recovery information.
 
 ## Participation exports
 
