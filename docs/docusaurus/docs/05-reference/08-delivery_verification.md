@@ -19,7 +19,7 @@ stop: do not deploy, and report it to
 [security@sequentech.io](mailto:security@sequentech.io). The delivery is then
 repeated.
 
-The commands run in bash on Linux and need curl, GnuPG, cryptsetup, skopeo and
+The commands run in bash on Linux and need curl, GnuPG, cryptsetup, skopeo, Python 3 and
 the GNU coreutils, diffutils and findutils. Save the signed delivery note as
 `delivery-note.asc` in the current directory, and in the commands replace
 `/dev/sdX` with the device of the delivery medium (see `lsblk`) and `v10.0.0`
@@ -55,24 +55,47 @@ Use the passphrase received separately, never one that came with the package.
 A medium that does not decrypt with it is a failed delivery.
 
 ```bash
-sudo -s                                                 # steps 3 to 6 run as root
+sudo bash                                               # steps 3 to 6 run in Bash as root
 cryptsetup open --readonly /dev/sdX temenos-delivery    # asks for the passphrase
 mkdir -p /mnt/temenos-delivery
 mount -o ro /dev/mapper/temenos-delivery /mnt/temenos-delivery
 M=/mnt/temenos-delivery
+DELIVERY_TAG='v10.0.0'    # copy the exact release tag from the verified delivery note
 ```
 
 ## 4. Verify the files and the images
 
 Every file must match `checksums.txt`, none may be missing or unlisted, and
-each image must have the digest that `image-digests.txt` gives for it.
+each image must have the digest that `image-digests.txt` gives for it. The
+manifest has one `image-name sha256:<64-lowercase-hex-digits>` entry per image;
+blank lines and lines beginning with `#` are ignored. The block exits nonzero
+on any failed check, malformed entry or empty manifest. Stop if it fails.
 
 ```bash
-(cd "$M" && sha256sum --check --strict --quiet checksums.txt) && echo "all listed files verified"
-diff <(cut -c67- "$M/checksums.txt" | sort) <(find "$M" -type f ! -path "$M/checksums.txt" -printf '%P\n' | sort) && echo "no unlisted files"
-grep ' sha256:' "$M/image-digests.txt" | while read -r name digest; do
-  [ "$(skopeo inspect --format '{{.Digest}}' "oci:$M/images/$name:v10.0.0")" = "$digest" ] && echo "$name verified" || echo "$name FAILED"
-done
+(
+  set -euo pipefail
+  (cd "$M" && sha256sum --check --strict --quiet checksums.txt)
+  echo "all listed files verified"
+  diff <(cut -c67- "$M/checksums.txt" | sort) <(find "$M" -type f ! -path "$M/checksums.txt" -printf '%P\n' | sort)
+  echo "no unlisted files"
+
+  failed=0
+  count=0
+  while read -r name digest extra || [[ -n "$name$digest$extra" ]]; do
+    [[ -z "$name" || "$name" == \#* ]] && continue
+    count=$((count + 1))
+    if [[ ! "$name" =~ ^[a-z0-9][a-z0-9-]*$ || ! "$digest" =~ ^sha256:[0-9a-f]{64}$ || -n "$extra" ]]; then
+      echo "Malformed image digest entry: $name" >&2
+      failed=1
+    elif actual=$(skopeo inspect --format '{{.Digest}}' "oci:$M/images/$name:$DELIVERY_TAG") && [[ "$actual" == "$digest" ]]; then
+      echo "$name verified"
+    else
+      echo "$name FAILED" >&2
+      failed=1
+    fi
+  done < "$M/image-digests.txt"
+  [[ "$count" -gt 0 && "$failed" -eq 0 ]] || exit 1
+)
 ```
 
 ## 5. Compare with the signed delivery note
@@ -93,7 +116,25 @@ delivered software. Each handbook states it on its first page, and the guidance
 manifest records it.
 
 ```bash
-grep '"tag"' "$M/guidance/manifest.json"    # must be the release tag in the note
+python3 - "$M/guidance/manifest.json" "$DELIVERY_TAG" <<'PYTHON'
+import json
+import sys
+
+def unique_fields(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("Duplicate manifest field: " + key)
+        result[key] = value
+    return result
+
+with open(sys.argv[1]) as source:
+    manifest = json.load(source, object_pairs_hook=unique_fields)
+expected = sys.argv[2]
+if not expected or not isinstance(manifest, dict) or manifest.get("tag") != expected:
+    sys.exit("Guidance tag missing or different from the verified delivery note; STOP")
+print("guidance tag matches the verified delivery note")
+PYTHON
 ```
 
 ## 7. Confirm receipt
