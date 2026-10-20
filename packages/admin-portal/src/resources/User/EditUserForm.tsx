@@ -334,6 +334,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         canEditVotersEmailTlf,
         canReadVoterSecretAttributes,
         canWriteVoterSecretAttributes,
+        canWritePermissionLabels,
     } = useUsersPermissions()
     const [tenantId] = useTenantStore()
     const refresh = useRefresh()
@@ -1351,10 +1352,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                             onChange={handlePermissionLabelChanged}
                             choices={choices}
                             disabled={
-                                !createMode &&
-                                !electionEventId &&
-                                !canEditVoters &&
-                                !canEditVotersWhoVoted
+                                !fieldEditable || (!electionEventId && !canWritePermissionLabels)
                             }
                         />
                     )
@@ -1435,10 +1433,10 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
             commitSecretAttribute,
             canReadVoterSecretAttributes,
             canWriteVoterSecretAttributes,
-            canEditVoters,
+            canWritePermissionLabels,
             createMode,
+            electionEventId,
             canEditField,
-            canEditVotersWhoVoted,
         ]
     )
 
