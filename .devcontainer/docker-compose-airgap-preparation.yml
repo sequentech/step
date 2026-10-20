@@ -264,6 +264,7 @@ services:
       --features=preview
       --health-enabled=true
       --spi-events-store--provider-default=sequent-privacy
+      --spi-user-sessions--provider-default=sequent-privacy
       --spi-user-profile-declarative-user-profile-read-only-attributes=area-id,tenant-id
       --spi-user-profile-declarative-user-profile-admin-read-only-attributes=sequent.admin-read-only.*
       -Dkeycloak.profile.feature.upload_scripts=enabled
