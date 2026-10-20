@@ -24,12 +24,40 @@ import java.security.spec.ECGenParameterSpec;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
+import java.util.Map;
 import java.io.StringWriter;
 import java.io.PrintWriter;
 import java.security.cert.*;
 import java.security.interfaces.RSAPublicKey;
 
 public class ECIESEncryptionTool {
+
+    static final String ENV_SECRET_PREFIX = "env:";
+
+    static String resolveSecretArgument(String argument, Map<String, String> environment) {
+        if (!argument.startsWith(ENV_SECRET_PREFIX)) {
+            return argument;
+        }
+        String name = argument.substring(ENV_SECRET_PREFIX.length());
+        if (name.isEmpty()) {
+            throw new IllegalArgumentException("Missing environment variable name after " + ENV_SECRET_PREFIX);
+        }
+        String value = environment.get(name);
+        if (value == null) {
+            throw new IllegalArgumentException("Environment variable " + name + " is not set");
+        }
+        return value;
+    }
+
+    private static String secretArgument(String argument) {
+        try {
+            return resolveSecretArgument(argument, System.getenv());
+        } catch (IllegalArgumentException e) {
+            System.err.println("Error: " + e.getMessage());
+            System.exit(1);
+            return null;
+        }
+    }
 
     public static void main(String[] args) throws Exception {
         Security.addProvider(new BouncyCastleProvider());
@@ -47,6 +75,9 @@ public class ECIESEncryptionTool {
             System.out.println("  sign-rsa <p12-private-key-file> <plaintext-file> <p12-password>");
             System.out.println("  verify-rsa <public-key-file> <plaintext-file> <signature-base64>");
             System.out.println("  public-key <p12-private-key-file> <p12-password>");
+            System.out.println();
+            System.out.println("<plaintext-base64> and <p12-password> also accept env:NAME, which reads");
+            System.out.println("the value from environment variable NAME instead of the command line.");
             System.exit(1);
 
             return;
@@ -69,7 +100,7 @@ public class ECIESEncryptionTool {
                     System.exit(1);
                     return;
                 }
-                String encryptedText = encryptText(args[1], args[2]);
+                String encryptedText = encryptText(args[1], secretArgument(args[2]));
                 System.out.println(encryptedText);
                 break;
 
@@ -118,7 +149,7 @@ public class ECIESEncryptionTool {
                     System.exit(1);
                     return;
                 }
-                String ecSignature = signTextP12(args[1], args[2], true, args[3]);
+                String ecSignature = signTextP12(args[1], args[2], true, secretArgument(args[3]));
                 System.out.println(ecSignature);
                 break;
 
@@ -143,7 +174,7 @@ public class ECIESEncryptionTool {
                     System.exit(1);
                     return;
                 }
-                String rsaSignature = signTextP12(args[1], args[2], false, args[3]);
+                String rsaSignature = signTextP12(args[1], args[2], false, secretArgument(args[3]));
                 System.out.println(rsaSignature);
                 break;
 
@@ -163,7 +194,7 @@ public class ECIESEncryptionTool {
                     System.exit(1);
                     return;
                 }
-                String publicKey = publicKeyPemFromP12(args[1], args[2]);
+                String publicKey = publicKeyPemFromP12(args[1], secretArgument(args[2]));
                 System.out.println(publicKey);
                 break;
 

@@ -1,25 +1,74 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::signatures::shell::run_shell_command;
+use crate::signatures::shell::{build_command, run_command};
 use crate::util::temp_path::generate_temp_file;
 use anyhow::{anyhow, Context, Result};
 use base64::{engine::general_purpose::STANDARD, Engine};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::ffi::OsStr;
+use std::fmt;
 use std::fs;
 use std::fs::File;
 use std::io::{self, Read, Seek, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use std::process::Command;
 use strand::hash::hash_sha256;
 use tempfile::tempdir;
 use tracing::{info, instrument};
 
 pub const ECIES_TOOL_PATH: &str = "/usr/local/bin/ecies-tool.jar";
-#[derive(Debug, Clone, Serialize, Deserialize)]
+pub const ECIES_SECRET_ENV: &str = "ECIES_SECRET";
+#[derive(Clone, Serialize, Deserialize)]
 pub struct EciesKeyPair {
     pub private_key_pem: String,
     pub public_key_pem: String,
+}
+
+impl fmt::Debug for EciesKeyPair {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("EciesKeyPair")
+            .field("private_key_pem", &"<redacted>")
+            .field("public_key_pem", &self.public_key_pem)
+            .finish()
+    }
+}
+
+/// Builds the command that runs the ECIES tool with the given arguments,
+/// without a shell.
+pub fn ecies_tool_command<S: AsRef<OsStr>>(args: &[S]) -> Command {
+    let mut command = build_command(
+        "java",
+        &[OsStr::new("-jar"), OsStr::new(ECIES_TOOL_PATH)],
+    );
+    command.args(args);
+    command
+}
+
+/// Builds the command that runs the ECIES tool with the given arguments
+/// followed by `secret`. The secret is handed to the tool through the
+/// `ECIES_SECRET_ENV` environment variable, so that it never shows up in the
+/// process arguments.
+pub fn ecies_tool_command_with_secret<S: AsRef<OsStr>>(
+    args: &[S],
+    secret: &str,
+) -> Command {
+    let mut command = ecies_tool_command(args);
+    command.arg(format!("env:{ECIES_SECRET_ENV}"));
+    command.env(ECIES_SECRET_ENV, secret);
+    command
+}
+
+fn encrypt_command(public_key_path: &Path, plaintext: &str) -> Command {
+    ecies_tool_command_with_secret(
+        &[OsStr::new("encrypt"), public_key_path.as_os_str()],
+        plaintext,
+    )
+}
+
+fn run_ecies_tool<S: AsRef<OsStr>>(args: &[S]) -> Result<String> {
+    run_command(ecies_tool_command(args))
 }
 
 #[instrument(skip(password), err)]
@@ -29,7 +78,6 @@ pub fn ecies_encrypt_string(
 ) -> Result<String> {
     let temp_pem_file = generate_temp_file("public_key", ".pem")?;
     let temp_pem_file_path = temp_pem_file.path();
-    let temp_pem_file_string = temp_pem_file_path.to_string_lossy().to_string();
     // Write the salt and encrypted data to the output file
     // Using brackets: let it drop out of scope so that all bytes are written
     {
@@ -39,15 +87,8 @@ pub fn ecies_encrypt_string(
             .write_all(public_key_pem.as_bytes())
             .context("Failed to write file")?;
     }
-    // Encode the &[u8] to a Base64 string
-
-    let command = format!(
-        "java -jar {} encrypt {} {}",
-        ECIES_TOOL_PATH, temp_pem_file_string, password
-    );
-    info!("command: '{}'", command);
-
-    let result = run_shell_command(&command)?.replace("\n", "");
+    let result = run_command(encrypt_command(temp_pem_file_path, password))?
+        .replace("\n", "");
 
     info!("ecies_encrypt_string: '{}'", result);
 
@@ -58,24 +99,18 @@ pub fn ecies_encrypt_string(
 pub fn generate_ecies_key_pair() -> Result<EciesKeyPair> {
     let temp_private_pem_file = generate_temp_file("private_key", ".pem")?;
     let temp_private_pem_file_path = temp_private_pem_file.path();
-    let temp_private_pem_file_string =
-        temp_private_pem_file_path.to_string_lossy().to_string();
 
     let temp_public_pem_file = generate_temp_file("public_key", ".pem")?;
     let temp_public_pem_file_path = temp_public_pem_file.path();
-    let temp_public_pem_file_string =
-        temp_public_pem_file_path.to_string_lossy().to_string();
 
-    let command = format!(
-        "java -jar {} create-keys {} {}",
-        ECIES_TOOL_PATH,
-        temp_public_pem_file_string,
-        temp_private_pem_file_string
-    );
-    run_shell_command(&command)?;
+    run_ecies_tool(&[
+        OsStr::new("create-keys"),
+        temp_public_pem_file_path.as_os_str(),
+        temp_private_pem_file_path.as_os_str(),
+    ])?;
 
     let private_key_pem = fs::read_to_string(temp_private_pem_file_path)?;
-    let public_key_pem = fs::read_to_string(temp_public_pem_file_string)?;
+    let public_key_pem = fs::read_to_string(temp_public_pem_file_path)?;
 
     info!("generate_ecies_key_pair(): public_key_pem: {public_key_pem:?}");
 
@@ -85,17 +120,13 @@ pub fn generate_ecies_key_pair() -> Result<EciesKeyPair> {
     })
 }
 
-#[instrument(skip(data), err)]
+#[instrument(skip(acm_key_pair, data), err)]
 pub fn ecies_sign_data(
     acm_key_pair: &EciesKeyPair,
     data: &str,
 ) -> Result<String> {
-    // Retrieve the PEM as a string
-    info!("pem: {}", acm_key_pair.private_key_pem);
-
     let temp_pem_file = generate_temp_file("private_key", ".pem")?;
     let temp_pem_file_path = temp_pem_file.path();
-    let temp_pem_file_string = temp_pem_file_path.to_string_lossy().to_string();
     // Write the salt and encrypted data to the output file
     // Using brackets: let it drop out of scope so that all bytes are written
     {
@@ -107,8 +138,6 @@ pub fn ecies_sign_data(
     }
     let temp_data_file = generate_temp_file("data", ".eml")?;
     let temp_data_file_path = temp_data_file.path();
-    let temp_data_file_string =
-        temp_data_file_path.to_string_lossy().to_string();
     // Write the salt and encrypted data to the output file
     {
         let mut output_file = File::create(temp_data_file_path)
@@ -118,12 +147,12 @@ pub fn ecies_sign_data(
             .context("Failed to write file")?;
     }
 
-    let command = format!(
-        "java -jar {} sign {} {}",
-        ECIES_TOOL_PATH, temp_pem_file_string, temp_data_file_string
-    );
-
-    let encrypted_base64 = run_shell_command(&command)?.replace("\n", "");
+    let encrypted_base64 = run_ecies_tool(&[
+        OsStr::new("sign"),
+        temp_pem_file_path.as_os_str(),
+        temp_data_file_path.as_os_str(),
+    ])?
+    .replace("\n", "");
 
     info!("ecies_sign_data: '{}'", encrypted_base64);
 
@@ -177,23 +206,18 @@ pub fn ecies_sign_data_bulk(
         file_map.insert(req.id.clone(), path);
     }
 
-    // 4. Build the sign-bulk command (one call). sign-bulk <private_key_file>
+    // 4. Run sign-bulk in one call: sign-bulk <private_key_file>
     //    <folder_to_sign>
     //
     //    The second parameter is just the directory path;
     //    the Java tool will sign every file that doesn't end with .sign
-    let cmd = format!(
-        "java -jar {ecies_tool_path} sign-bulk {key} {folder}",
-        ecies_tool_path = ECIES_TOOL_PATH,
-        key = private_key_path.to_string_lossy(),
-        folder = tmp_dir.path().to_string_lossy(),
-    );
-    info!("Running sign-bulk => {}", cmd);
+    run_ecies_tool(&[
+        OsStr::new("sign-bulk"),
+        private_key_path.as_os_str(),
+        tmp_dir.path().as_os_str(),
+    ])?;
 
-    // 5. Execute the shell command (similar to your run_shell_command).
-    run_shell_command(&cmd)?;
-
-    // 6. After sign-bulk finishes, we collect the results: For each
+    // 5. After sign-bulk finishes, we collect the results: For each
     //    sign_xxxx.txt, the tool should have produced sign_xxxx.txt.sign We'll
     //    read them into a map of (id -> signature_base64)
     let mut signature_map = HashMap::new();
@@ -216,6 +240,72 @@ pub fn ecies_sign_data_bulk(
         signature_map.insert(id.clone(), signature_b64);
     }
 
-    // 7. Return all signatures in a HashMap keyed by the "id"
+    // 6. Return all signatures in a HashMap keyed by the "id"
     Ok(signature_map)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_key_pair_debug_redacts_private_key() {
+        let key_pair = EciesKeyPair {
+            private_key_pem: "PRIVATE-KEY-PEM-CONTENT".to_string(),
+            public_key_pem: "PUBLIC-KEY-PEM-CONTENT".to_string(),
+        };
+        let debug = format!("{:?}", key_pair);
+        assert!(!debug.contains("PRIVATE-KEY-PEM-CONTENT"));
+        assert!(debug.contains("PUBLIC-KEY-PEM-CONTENT"));
+    }
+
+    #[test]
+    fn test_ecies_tool_command_with_secret_passes_secret_through_environment() {
+        let secret = "pass word; rm -rf / $(touch pwned) `id` | cat";
+        let command = ecies_tool_command_with_secret(
+            &["sign-rsa", "/tmp/key.p12", "/tmp/data"],
+            secret,
+        );
+        assert_eq!(command.get_program(), "java");
+        let args: Vec<&OsStr> = command.get_args().collect();
+        assert_eq!(
+            args,
+            vec![
+                "-jar",
+                ECIES_TOOL_PATH,
+                "sign-rsa",
+                "/tmp/key.p12",
+                "/tmp/data",
+                "env:ECIES_SECRET"
+            ]
+        );
+        assert!(command
+            .get_envs()
+            .any(|(key, value)| key == ECIES_SECRET_ENV
+                && value == Some(OsStr::new(secret))));
+    }
+
+    #[test]
+    fn test_encrypt_command_keeps_password_out_of_arguments() {
+        let password = "pass word; rm -rf / $(touch pwned) `id` | cat";
+        let command = encrypt_command(Path::new("/tmp/key.pem"), password);
+        let args: Vec<&OsStr> = command.get_args().collect();
+        assert_eq!(
+            args,
+            vec![
+                "-jar",
+                ECIES_TOOL_PATH,
+                "encrypt",
+                "/tmp/key.pem",
+                "env:ECIES_SECRET"
+            ]
+        );
+        assert!(!command
+            .get_args()
+            .any(|arg| arg.to_string_lossy().contains(password)));
+        assert!(command
+            .get_envs()
+            .any(|(key, value)| key == ECIES_SECRET_ENV
+                && value == Some(OsStr::new(password))));
+    }
 }

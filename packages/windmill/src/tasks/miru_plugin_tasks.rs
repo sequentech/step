@@ -101,7 +101,7 @@ pub async fn send_transmission_package_task(
     Ok(())
 }
 
-#[instrument(err)]
+#[instrument(skip(password), err)]
 pub async fn upload_signature_task(
     tenant_id: String,
     election_id: String,

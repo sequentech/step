@@ -253,7 +253,7 @@ pub fn create_server_signature(
     })
 }
 
-#[instrument(err)]
+#[instrument(skip(password), err)]
 pub async fn upload_transmission_package_signature_service(
     tenant_id: &str,
     election_id: &str,
