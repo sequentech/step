@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
-import {render, screen} from "@testing-library/react"
+import {fireEvent, render, screen, waitFor} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import {BallotBoxLog, BallotBoxLogView, type BallotBoxLogViewProps} from "./BallotBoxLog"
 
@@ -78,4 +78,54 @@ test("public rows remain usable when the private own-ballot lookup is unavailabl
     render(<BallotBoxLog electionEventId="event" formatTime={() => "03:00 UTC"} />)
     expect(screen.getAllByRole("button", {name: "FTBE-MHRX"}).length).toBeGreaterThan(0)
     expect(screen.queryByText("ballotPrivacy.own")).not.toBeInTheDocument()
+})
+
+test("copying an own Ballot ID reports success and clipboard failure without exposing identity", async () => {
+    const user = userEvent.setup()
+    const write = jest.spyOn(navigator.clipboard, "writeText")
+    write.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error("Clipboard denied"))
+    try {
+        render(<BallotBoxLogView {...props()} />)
+        await user.click(screen.getByRole("button", {name: "ballotPrivacy.copy"}))
+        expect(write).toHaveBeenCalledWith("FTBE-MHRX")
+        expect(await screen.findByText("ballotPrivacy.copied")).toBeVisible()
+        await user.click(screen.getByRole("button", {name: "ballotPrivacy.copy"}))
+        expect(await screen.findByText("ballotPrivacy.copyFailed")).toBeVisible()
+    } finally {
+        write.mockRestore()
+    }
+})
+
+test("privacy help explains pseudonyms and signatures and closes without leaving the log", async () => {
+    const user = userEvent.setup()
+    render(<BallotBoxLogView {...props()} />)
+    await user.click(screen.getByRole("button", {name: "ballotPrivacy.help"}))
+    expect(screen.getByRole("dialog")).toHaveTextContent(
+        "ballotPrivacy.helpSections.pseudonyms.text"
+    )
+    expect(screen.getByRole("dialog")).toHaveTextContent(
+        "ballotPrivacy.helpSections.signatures.text"
+    )
+    await user.click(screen.getByRole("button", {name: "ballotPrivacy.close"}))
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument())
+    expect(screen.getByRole("textbox", {name: "ballotPrivacy.search"})).toBeVisible()
+})
+
+test("search and page-size controls forward user choices and opening a row fires only once", async () => {
+    const input = props()
+    const user = userEvent.setup()
+    render(<BallotBoxLogView {...input} />)
+    fireEvent.change(screen.getByRole("textbox", {name: "ballotPrivacy.search"}), {
+        target: {value: "7QKM"},
+    })
+    expect(input.onSearch).toHaveBeenCalledWith("7QKM")
+    await user.click(screen.getByRole("combobox", {name: "ballotPrivacy.rows"}))
+    await user.click(screen.getByRole("option", {name: "25"}))
+    expect(input.onLimit).toHaveBeenCalledWith(25)
+    // The nested button must not bubble to the clickable desktop row.
+    fireEvent.click(document.querySelector(".ballot-box-log-check-button")!)
+    expect(input.onOpen).toHaveBeenCalledTimes(1)
+    fireEvent.click(document.querySelector(".ballot-box-log-row")!)
+    expect(input.onOpen).toHaveBeenCalledTimes(2)
+    expect(input.onOpen).toHaveBeenLastCalledWith(ballot)
 })
