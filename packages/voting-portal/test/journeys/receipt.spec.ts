@@ -4,7 +4,7 @@
 import jsQR from "jsqr"
 import {readFile, mkdir, writeFile, rm} from "node:fs/promises"
 import {resolve, dirname} from "node:path"
-import {test, expect, eventPath, IDS, FIXED_TIME, electionFixture} from "./fixtures"
+import {test, expect, eventPath, IDS, electionFixture} from "./fixtures"
 import {review} from "./flow"
 
 const documentId = "a0000000-0000-4000-8000-000000000001"
@@ -25,34 +25,24 @@ test("receipt QR independently decodes to the scoped locator and print waits for
         },
     }))
     let documentReady = false
-    portal.graphql.on("GetDocument", () => ({
-        data: {
-            sequent_backend_document: documentReady
-                ? [
-                      {
-                          id: documentId,
-                          tenant_id: IDS.tenant,
-                          election_event_id: IDS.event,
-                          name: "receipt.pdf",
-                          media_type: "application/pdf",
-                          size: pdf.length,
-                          is_public: true,
-                          created_at: FIXED_TIME,
-                          last_updated_at: FIXED_TIME,
-                          labels: {},
-                          annotations: {},
-                      },
-                  ]
-                : [],
-        },
-    }))
     const key = `tenant-${IDS.tenant}/document-${documentId}/ballot_receipt_${IDS.event}.pdf`
     const receiptUrl = portal.s3.putBytes(
-        "public",
+        "private",
         key,
         new TextEncoder().encode(pdf),
         "application/pdf"
     )
+    portal.graphql.on("ReceiptDocument", () => ({
+        data: {
+            receipt_document: {
+                payload: {
+                    document: documentReady
+                        ? {id: documentId, name: "receipt.pdf", url: receiptUrl}
+                        : null,
+                },
+            },
+        },
+    }))
     // Chromium may fetch an <a download> in its browser process, outside page routing.
     // Keep the same disposable fixture available on the owned loopback server.
     const receiptFile = resolve(__dirname, "../../dist", `.${new URL(receiptUrl).pathname}`)
@@ -81,7 +71,7 @@ test("receipt QR independently decodes to the scoped locator and print waits for
         const locatorUrl = `${portal.origin}${eventPath}/election/${IDS.election}/ballot-locator/${ballotId}`
         expect(jsQR(new Uint8ClampedArray(pixels), 544, 544)?.data).toBe(locatorUrl)
         await page.getByRole("button", {name: "Print", exact: true}).click()
-        await expect.poll(() => portal.graphql.callsTo("GetDocument").length).toBeGreaterThan(0)
+        await expect.poll(() => portal.graphql.callsTo("ReceiptDocument").length).toBeGreaterThan(0)
         await expect(page.getByRole("button", {name: "Print", exact: true})).toBeDisabled()
         documentReady = true
         const pendingDownload = page.waitForEvent("download")
@@ -96,6 +86,11 @@ test("receipt QR independently decodes to the scoped locator and print waits for
             tenant_id: IDS.tenant,
             election_id: IDS.election,
         })
+        for (const call of portal.graphql.callsTo("ReceiptDocument")) {
+            expect(call.variables).toEqual({electionEventId: IDS.event, documentId})
+            expect(call.headers["x-hasura-role"]).toBe("cast-vote")
+        }
+        expect(portal.graphql.callsTo("GetDocument")).toHaveLength(0)
         await expect(page.getByRole("button", {name: "Print", exact: true})).toBeEnabled()
     } finally {
         await rm(dirname(receiptFile), {recursive: true, force: true})
@@ -139,25 +134,27 @@ for (const fault of ["query", "timeout", "create"] as const) {
                       },
                   }
         )
-        portal.graphql.on("GetDocument", () =>
+        portal.graphql.on("ReceiptDocument", () =>
             fail && fault === "query"
                 ? {
                       errors: [{message: "Synthetic receipt generation failed"}],
                   }
-                : {data: {sequent_backend_document: []}}
+                : {data: {receipt_document: {payload: {document: null}}}}
         )
         await review(page, portal)
         await page.getByRole("button", {name: "Cast ballot", exact: true}).click()
         await expect(page).toHaveURL(/\/confirmation/)
         await page.getByRole("button", {name: "Print", exact: true}).click()
         if (fault !== "create") {
-            await expect.poll(() => portal.graphql.callsTo("GetDocument").length).toBeGreaterThan(0)
+            await expect
+                .poll(() => portal.graphql.callsTo("ReceiptDocument").length)
+                .toBeGreaterThan(0)
         }
         if (fault === "timeout") await page.clock.runFor(5100)
         await expect(page.getByRole("dialog")).toBeVisible()
-        const requests = portal.graphql.callsTo("GetDocument").length
+        const requests = portal.graphql.callsTo("ReceiptDocument").length
         await page.clock.runFor(7000)
-        expect(portal.graphql.callsTo("GetDocument")).toHaveLength(requests)
+        expect(portal.graphql.callsTo("ReceiptDocument")).toHaveLength(requests)
         expect(portal.graphql.callsTo("createBallotReceipt")).toHaveLength(1)
         await page.getByRole("dialog").getByRole("button", {name: "OK", exact: true}).click()
         await expect(page.getByRole("button", {name: "Print", exact: true})).toBeEnabled()
@@ -165,7 +162,7 @@ for (const fault of ["query", "timeout", "create"] as const) {
         await page.getByRole("button", {name: "Print", exact: true}).click()
         await expect.poll(() => portal.graphql.callsTo("createBallotReceipt").length).toBe(2)
         await expect
-            .poll(() => portal.graphql.callsTo("GetDocument").length)
+            .poll(() => portal.graphql.callsTo("ReceiptDocument").length)
             .toBeGreaterThan(requests)
         await expect(page.getByRole("button", {name: "Print", exact: true})).toBeDisabled()
         await expect(page.getByRole("dialog")).toHaveCount(0)

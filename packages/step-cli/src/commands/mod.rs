@@ -42,6 +42,7 @@ pub mod publish_changes;
 pub mod readiness_check;
 pub mod refresh_token;
 pub mod render_template;
+pub mod resolve_voter_pseudonym;
 pub mod results_publication;
 pub mod start_key_ceremony;
 pub mod start_tally;

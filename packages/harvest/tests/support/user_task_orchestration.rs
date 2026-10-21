@@ -62,6 +62,40 @@ async fn export(
 }
 
 #[tokio::test]
+async fn privacy_export_persists_a_bounded_participation_grant() {
+    let tasks = InMemoryUserTasks::default();
+    export(
+        &tasks,
+        claims(&[VOTER_READ]),
+        export_input(Some("event-a"), false),
+    )
+    .await
+    .unwrap();
+    let state = tasks.snapshot();
+    let grant = &state.tasks[0].annotations.as_ref().unwrap()
+        ["participation_authorization"];
+    assert_eq!(grant["tenant_id"], "tenant-a");
+    assert_eq!(grant["election_event_id"], "event-a");
+    assert_eq!(grant["actor_id"], "user-a");
+    assert_eq!(grant["command_id"], "document-1");
+    assert_eq!(grant["election_ids"], json!(["election-a"]));
+}
+
+#[tokio::test]
+async fn privacy_export_refuses_an_election_outside_the_authorized_snapshot() {
+    let tasks = InMemoryUserTasks::default();
+    let mut body = export_input(Some("event-a"), false);
+    body.election_id = Some("election-b".into());
+    let result = export(&tasks, claims(&[VOTER_READ]), body).await;
+    assert!(
+        result.is_err(),
+        "an inaccessible election must be refused before queueing"
+    );
+    assert_eq!(result.unwrap_err().0, Status::Forbidden);
+    assert!(tasks.snapshot().tasks.is_empty());
+}
+
+#[tokio::test]
 async fn denied_imports_do_not_leave_a_pending_task_that_blocks_readiness() {
     let tasks = InMemoryUserTasks::default();
     let error = import(&tasks, claims(&[]), import_input(Some("event-a")))
@@ -420,10 +454,9 @@ async fn decrypted_exports_bind_the_audit_grant_and_message_to_the_same_document
     );
     assert_eq!(state.tasks[0].task_type, "EXPORT_VOTERS");
     assert_eq!(
-        state.tasks[0].annotations,
-        Some(
-            json!({"secret_export_authorization": {"document_id":"document-1", "voter_secret_attributes":true, "expires_at":"2026-01-02T00:00:00Z"}})
-        )
+        state.tasks[0].annotations.as_ref().unwrap()
+            ["secret_export_authorization"],
+        json!({"document_id":"document-1", "voter_secret_attributes":true, "expires_at":"2026-01-02T00:00:00Z"})
     );
     let sent = &state.export_attempts[0];
     assert_eq!(
@@ -455,10 +488,9 @@ async fn ordinary_voter_exports_bind_a_grant_without_secret_read_access() {
     let state = tasks.snapshot();
     assert!(state.audits.is_empty());
     assert_eq!(
-        state.tasks[0].annotations,
-        Some(
-            json!({"secret_export_authorization": {"document_id":"document-1", "voter_secret_attributes":false, "expires_at":"2026-01-02T00:00:00Z"}})
-        )
+        state.tasks[0].annotations.as_ref().unwrap()
+            ["secret_export_authorization"],
+        json!({"document_id":"document-1", "voter_secret_attributes":false, "expires_at":"2026-01-02T00:00:00Z"})
     );
 }
 

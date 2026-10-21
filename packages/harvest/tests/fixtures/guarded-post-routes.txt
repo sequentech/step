@@ -6,6 +6,12 @@
 # of claims, and refuses any request without it the same way.
 /acknowledge-support-materials
 /applications/support-reference
+/audit-ballot
+/ballot-box-entry
+/ballot-box-keys
+/ballot-box-log
+/ballot-box-own
+/ballot-privacy-settings
 /apply-reconciliation-changes
 /cast-ballot
 /change-application-status
@@ -63,6 +69,8 @@
 /export-users
 /fetch-document
 /fetch-results-artifact
+/forensic-network-detail
+/forensic-network-summary
 /generate-ballot-publication
 /generate-google-meeting
 /generate-preview-url
@@ -145,14 +153,17 @@
 /plugins/execute
 /plugins/state
 /prepare-ballot-publication-preview
+/privacy/sign-in-network
 /preview-tally-sheet-import
 /publish-ballot
 /publish-results-website
 /receive-ballot
+/receipt-document
 /recount-tally-session
 /refresh-results-publication-index
 /render-document-pdf
 /resolve-results-publication
+/resolve-voter-pseudonym
 /authorize-tally-custody
 /reveal-voter-secret-attribute
 /review-tally-sheet

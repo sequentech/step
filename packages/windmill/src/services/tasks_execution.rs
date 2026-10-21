@@ -192,6 +192,38 @@ pub async fn post_with_annotations(
     .await
 }
 
+/// Only authenticated native producers call this. The grant is stripped from
+/// annotations and stored atomically in the column Hasura never exposes.
+pub async fn post_with_participation(
+    tenant_id: &str,
+    election_event_id: &str,
+    task_type: ETasksExecution,
+    executed_by_user: &str,
+    mut annotations: serde_json::Value,
+) -> Result<TasksExecution> {
+    use crate::services::participation_authorization::{
+        ParticipationAuthorization, PARTICIPATION_AUTHORIZATION,
+    };
+    let grant = annotations
+        .as_object_mut()
+        .and_then(|value| value.remove(PARTICIPATION_AUTHORIZATION))
+        .context("Missing server participation authorization")?;
+    let _: ParticipationAuthorization = serde_json::from_value(grant.clone())?;
+    crate::postgres::tasks_execution::insert_tasks_execution_with_participation(
+        tenant_id,
+        Some(election_event_id),
+        &task_type.to_name(),
+        &task_type.to_string(),
+        TasksExecutionStatus::IN_PROGRESS,
+        Some(annotations),
+        None,
+        Some(serde_json::to_value(general_start_log())?),
+        executed_by_user,
+        Some(grant),
+    )
+    .await
+}
+
 async fn post_internal(
     tenant_id: &str,
     election_event_id: Option<&str>,

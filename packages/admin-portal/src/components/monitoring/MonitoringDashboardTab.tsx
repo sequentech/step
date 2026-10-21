@@ -17,6 +17,7 @@ import {MonitoringProvider, type MonitoringEditorActions} from "./MonitoringProv
 import {MonitoringDashboard} from "./MonitoringDashboard"
 import type {IMonitoringEditorApi} from "./editor/api"
 import {useMonitoringTabEditor} from "./editor/useMonitoringTabEditor"
+import {StandardDashboardContent} from "../dashboard/DashboardContent"
 
 export interface MonitoringDashboardTabProps {
     electionEventId?: string | null
@@ -30,6 +31,8 @@ export interface MonitoringDashboardTabProps {
      * standard dashboard needs under it.
      */
     below?: ReactNode
+    /** Shown in every mode, within the selected dashboard's content bounds. */
+    footer?: ReactNode
     lock?: EMonitoringLock
     /** Replaces the editor's entry points, which a viewer who may configure gets. */
     actions?: MonitoringEditorActions
@@ -48,6 +51,7 @@ export function MonitoringDashboardTab({
     electionId,
     legacy,
     below,
+    footer,
     lock = EMonitoringLock.OPEN,
     actions,
     editorApi,
@@ -69,29 +73,39 @@ export function MonitoringDashboardTab({
         skip: !allowed,
     })
 
-    if (!allowed) return <>{legacy}</>
+    const standard = (
+        <StandardDashboardContent>
+            {legacy}
+            {footer}
+        </StandardDashboardContent>
+    )
+    if (!allowed) return standard
     if (error) {
         return (
             <Stack spacing={2}>
                 <Alert severity="warning">{t("monitoring.unavailableAlert")}</Alert>
-                {legacy}
+                {standard}
             </Stack>
         )
     }
     const list = data?.monitoringListDashboards
     if (loading || !list) {
         return (
-            <Box sx={{display: "flex", justifyContent: "center", py: 4}}>
-                <CircularProgress aria-label={t("monitoring.loading")} />
-            </Box>
+            <>
+                <Box sx={{display: "flex", justifyContent: "center", py: 4}}>
+                    <CircularProgress aria-label={t("monitoring.loading")} />
+                </Box>
+                {footer}
+            </>
         )
     }
-    if (list.mode !== EMonitoringMode.CONFIGURED) return <>{legacy}</>
+    if (list.mode !== EMonitoringMode.CONFIGURED) return standard
     if (!list.dashboards.length) {
         return (
             <Stack spacing={2}>
                 <Alert severity="info">{t("monitoring.noDashboards")}</Alert>
                 {below}
+                {footer}
             </Stack>
         )
     }
@@ -112,6 +126,7 @@ export function MonitoringDashboardTab({
                 {editor.element}
             </MonitoringProvider>
             {below}
+            {footer}
         </>
     )
 }

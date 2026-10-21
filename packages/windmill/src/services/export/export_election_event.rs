@@ -61,9 +61,7 @@ use super::export_tally;
 use super::export_users::export_users_file;
 use super::export_users::ExportBody;
 use crate::services::consolidation::aes_256_cbc_encrypt::encrypt_file_aes_256_cbc;
-use crate::services::documents::{
-    upload_and_return_document, upload_and_return_document_with_annotations,
-};
+use crate::services::documents::upload_and_return_document_with_annotations;
 use crate::services::password;
 
 #[instrument(err, skip(transaction, export_config))]
@@ -466,6 +464,7 @@ pub async fn process_export_zip(
     election_event_id: &str,
     document_id: &str,
     export_config: ExportOptions,
+    permitted_election_ids: &[String],
 ) -> Result<()> {
     export_config.validate_protocol_archive()?;
     let contains_voter_secrets = export_config.contains_voter_secrets;
@@ -478,6 +477,18 @@ pub async fn process_export_zip(
         .transaction()
         .await
         .map_err(|err| anyhow!("Error starting hasura transaction: {err}"))?;
+    let current_elections = crate::services::election::get_election_event_elections(
+        &hasura_transaction,
+        tenant_id,
+        election_event_id,
+    )
+    .await?;
+    anyhow::ensure!(
+        current_elections
+            .iter()
+            .all(|election| permitted_election_ids.contains(&election.id)),
+        "Event elections changed after authorization; create a new archive export"
+    );
     info!(
         include_voters = export_config.include_voters,
         contains_voter_secrets, "exporting election event"
@@ -552,6 +563,7 @@ pub async fn process_export_zip(
                 election_id: None,
                 include_secret_attributes: export_config.contains_voter_secrets,
             },
+            Some(permitted_election_ids),
         )
         .await
         .map_err(|e| anyhow!("Error exporting users file: {e:?}"))?;
@@ -987,34 +999,30 @@ pub async fn process_export_zip(
     let upload_path = upload_path
         .to_str()
         .ok_or_else(|| anyhow!("Can't convert {:?} to string", upload_path))?;
-    let _document = if contains_voter_secrets {
-        upload_and_return_document_with_annotations(
-            &hasura_transaction,
-            upload_path,
-            zip_size,
-            "application/zip",
-            &tenant_id.to_string(),
-            Some(election_event_id.to_string()),
-            &export_event_filename,
-            Some(document_id.to_string()),
-            false,
-            &DocumentAnnotations::voter_secret_export(),
-        )
-        .await?
+    let mut document_annotations = if contains_voter_secrets {
+        DocumentAnnotations::voter_secret_export()
     } else {
-        upload_and_return_document(
-            &hasura_transaction,
-            upload_path,
-            zip_size,
-            "application/zip",
-            &tenant_id.to_string(),
-            Some(election_event_id.to_string()),
-            &export_event_filename,
-            Some(document_id.to_string()),
-            false,
-        )
-        .await?
+        DocumentAnnotations::default()
     };
+    document_annotations.participation_scope = Some(
+        sequent_core::types::hasura::core::DocumentParticipationScope {
+            election_event_id: election_event_id.to_string(),
+            election_ids: permitted_election_ids.to_vec(),
+        },
+    );
+    let _document = upload_and_return_document_with_annotations(
+        &hasura_transaction,
+        upload_path,
+        zip_size,
+        "application/zip",
+        &tenant_id.to_string(),
+        Some(election_event_id.to_string()),
+        &export_event_filename,
+        Some(document_id.to_string()),
+        false,
+        &document_annotations,
+    )
+    .await?;
 
     hasura_transaction
         .commit()

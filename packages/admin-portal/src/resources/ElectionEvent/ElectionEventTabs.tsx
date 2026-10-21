@@ -14,6 +14,7 @@ import React, {
 import {useRecordContext, useSidebarState, RecordContextProvider} from "react-admin"
 import {Sequent_Backend_Election_Event} from "@/gql/graphql"
 import ElectionHeader from "@/components/ElectionHeader"
+import {ListIpAddress} from "@/resources/ElectionEvent/ListIpAddress"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import {useTranslation} from "react-i18next"
@@ -116,20 +117,26 @@ const DashboardTab: React.FC<ITabProps> = ({refreshRef, handleChildMount}) => {
     const lock = monitoringLock(record)
     return (
         <Suspense fallback={<div>Loading Dashboard...</div>}>
-            {/* A failed seal is an incident the event shows in both monitoring modes. */}
-            <FailedSealsBanner electionEventId={record?.id} presentation={record?.presentation} />
-            <MonitoringDashboardTab
-                electionEventId={record?.id}
-                lock={lock}
-                legacy={
-                    <Box sx={{overflowX: "auto"}}>
-                        <DashboardElectionEvent
-                            refreshRef={refreshRef}
-                            onMount={handleChildMount}
-                        />
-                    </Box>
-                }
-            />
+            <Box sx={{width: "100%", minWidth: 0}}>
+                {/* A failed seal is an incident the event shows in both monitoring modes. */}
+                <FailedSealsBanner
+                    electionEventId={record?.id}
+                    presentation={record?.presentation}
+                />
+                <MonitoringDashboardTab
+                    electionEventId={record?.id}
+                    lock={lock}
+                    footer={<ListIpAddress />}
+                    legacy={
+                        <Box sx={{overflowX: "auto"}}>
+                            <DashboardElectionEvent
+                                refreshRef={refreshRef}
+                                onMount={handleChildMount}
+                            />
+                        </Box>
+                    }
+                />
+            </Box>
         </Suspense>
     )
 }

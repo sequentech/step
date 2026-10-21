@@ -2,6 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use super::privacy::{
+    BallotCastEvidence, BallotReceivedEvidence, ForensicRead, PrivateBallotEvent,
+    PseudonymResolution,
+};
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
@@ -42,6 +46,36 @@ impl StatementHead {
         };
 
         match body {
+            StatementBody::BallotReceived(_) => StatementHead {
+                kind: StatementType::BallotReceived,
+                description: "Ballot received under a pseudonym.".into(),
+                ..default_head
+            },
+            StatementBody::PrivacyCastVote(_) => StatementHead {
+                kind: StatementType::CastVote,
+                description: "Ballot cast under a pseudonym.".into(),
+                ..default_head
+            },
+            StatementBody::PseudonymResolved(_) => StatementHead {
+                kind: StatementType::PseudonymResolved,
+                description: "Pseudonym resolved by an authorized operator.".into(),
+                event_type: StatementEventType::USER,
+                ..default_head
+            },
+            StatementBody::ForensicRead(_) => StatementHead {
+                kind: StatementType::ForensicRead,
+                description: "Forensic data read by an authorized operator.".into(),
+                event_type: StatementEventType::USER,
+                ..default_head
+            },
+            StatementBody::PrivateBallotEvent(event) => StatementHead {
+                kind: match event.outcome {
+                    super::privacy::PrivateBallotOutcome::Rejected => StatementType::CastVoteError,
+                    super::privacy::PrivateBallotOutcome::Audited => StatementType::BallotAudited,
+                },
+                description: "Private ballot operation recorded.".into(),
+                ..default_head
+            },
             StatementBody::CastVote(_, _, _, _, _) => StatementHead {
                 kind: StatementType::CastVote,
                 description: "Inserted cast vote.".to_string(),
@@ -830,6 +864,12 @@ pub enum StatementBody {
     /// `ConfigurationPackage` body is unchanged so existing signatures verify.
     /// Upgrade electoral-log readers before writers emit this variant.
     ConfigurationPackageWithContentHash(EventIdString, ConfigurationPackageImportDetails),
+    // Append only: keep all existing signed Borsh discriminants unchanged.
+    BallotReceived(BallotReceivedEvidence),
+    PrivacyCastVote(BallotCastEvidence),
+    PseudonymResolved(PseudonymResolution),
+    ForensicRead(ForensicRead),
+    PrivateBallotEvent(PrivateBallotEvent),
 }
 
 // Note: When creating new variants, consider that the length limit STATEMENT_KIND_VARCHAR_LENGTH is 40.
@@ -908,6 +948,10 @@ pub enum StatementType {
     // Append only: signed historical statements encode this variant index.
     VotersImported,
     ReadinessVerified,
+    BallotReceived,
+    BallotAudited,
+    PseudonymResolved,
+    ForensicRead,
 }
 
 #[derive(

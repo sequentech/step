@@ -528,11 +528,15 @@ impl PostgresStore {
             .client()
             .await?
             .query_one(
-                "SELECT count(*) FROM ballot_box_pending p \
-                 JOIN ballot_box_ballot b \
-                   ON b.election_event_id = p.election_event_id AND b.seq = p.seq \
-                 WHERE p.election_event_id = $1::text::uuid \
-                   AND b.election_id = $2::text::uuid AND b.area_id = $3::text::uuid",
+                "SELECT (SELECT count(*) FROM ballot_box_pending p
+                 JOIN ballot_box_ballot b
+                   ON b.election_event_id = p.election_event_id AND b.seq = p.seq
+                 WHERE p.election_event_id = $1::text::uuid
+                   AND b.election_id = $2::text::uuid AND b.area_id = $3::text::uuid)
+                 + (SELECT count(*) FROM sequent_backend.ballot_evidence_pending p
+                    JOIN ballot_box_received r ON r.election_event_id = p.election_event_id AND r.id = p.received_id
+                    WHERE p.election_event_id = $1::text::uuid
+                      AND r.election_id = $2::text::uuid AND r.area_id = $3::text::uuid)",
                 &[&election_event_id, &election_id, &area_id],
             )
             .await

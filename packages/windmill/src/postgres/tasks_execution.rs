@@ -55,6 +55,34 @@ pub async fn insert_tasks_execution(
     logs: Option<Value>,
     executed_by_user: &str,
 ) -> Result<TasksExecution> {
+    insert_tasks_execution_with_participation(
+        tenant_id,
+        election_event_id,
+        name,
+        task_type,
+        execution_status,
+        annotations,
+        labels,
+        logs,
+        executed_by_user,
+        None,
+    )
+    .await
+}
+
+/// The final argument is server-derived and never comes from public annotations.
+pub async fn insert_tasks_execution_with_participation(
+    tenant_id: &str,
+    election_event_id: Option<&str>,
+    name: &str,
+    task_type: &str,
+    execution_status: TasksExecutionStatus,
+    annotations: Option<Value>,
+    labels: Option<Value>,
+    logs: Option<Value>,
+    executed_by_user: &str,
+    participation_authorization: Option<Value>,
+) -> Result<TasksExecution> {
     let db_client: DbClient = get_hasura_pool()
         .await
         .get()
@@ -82,9 +110,9 @@ pub async fn insert_tasks_execution(
             r#"
                 INSERT INTO
                     sequent_backend.tasks_execution
-                (tenant_id, election_event_id, name, type, execution_status, annotations, labels, logs, executed_by_user)
+                (tenant_id, election_event_id, name, type, execution_status, annotations, labels, logs, executed_by_user, participation_authorization)
                 VALUES (
-                    $1, $2, $3, $4, $5, $6, $7, $8, $9
+                    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
                 )
                 RETURNING
                     *;
@@ -105,6 +133,7 @@ pub async fn insert_tasks_execution(
                 &labels,
                 &logs,
                 &executed_by_user,
+                &participation_authorization,
             ],
         )
         .await
@@ -433,6 +462,7 @@ pub async fn get_tasks_by_election_event_id(
             WHERE
                 tenant_id = $1
                 AND election_event_id = $2
+                AND type IS DISTINCT FROM 'CREATE_BALLOT_RECEIPT'
         "#,
         )
         .await?;

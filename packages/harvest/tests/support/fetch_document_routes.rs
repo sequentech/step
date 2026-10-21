@@ -51,6 +51,79 @@ async fn fetch(
 }
 
 #[rocket::async_test]
+async fn privacy_export_download_rechecks_current_election_labels() {
+    let services = Services::on_test_database().await;
+    let event = rows::event(&services.hasura).await;
+    let north = event.labelled_election(&services.hasura, "north").await;
+    let south = event.labelled_election(&services.hasura, "south").await;
+    let id = document(&services, &event, Some(json!({"participation_scope": {
+        "election_event_id": event.election_event_id, "election_ids": [north]
+    }}))).await;
+    for (labels, expected) in [
+        (&["north"][..], Status::Ok),
+        (&["south"][..], Status::Forbidden),
+        (&[][..], Status::Forbidden),
+    ] {
+        let (status, body) = fetch(
+            &services,
+            &reader(&event, &[Permissions::DOCUMENT_DOWNLOAD])
+                .permission_labels(labels),
+            &request(&event, &id),
+        )
+        .await;
+        assert_eq!(status, expected, "{body}");
+    }
+    let legacy = event
+        .document(&services.hasura, "users-export-old.csv", "text/csv", None)
+        .await;
+    let (status, _) = fetch(
+        &services,
+        &reader(&event, &[Permissions::DOCUMENT_DOWNLOAD])
+            .permission_labels(&["north", "south"]),
+        &request(&event, &legacy),
+    )
+    .await;
+    assert_eq!(
+        status,
+        Status::Forbidden,
+        "old exports require a fresh scoped export"
+    );
+    let unknown = document(&services, &event, Some(json!({"participation_scope": {
+        "election_event_id": event.election_event_id, "election_ids": [uuid::Uuid::new_v4().to_string()]
+    }}))).await;
+    assert_eq!(
+        fetch(
+            &services,
+            &reader(&event, &[Permissions::DOCUMENT_DOWNLOAD])
+                .permission_labels(&["north", "south"]),
+            &request(&event, &unknown)
+        )
+        .await
+        .0,
+        Status::Forbidden
+    );
+    let empty = document(
+        &services,
+        &event,
+        Some(json!({"participation_scope": {
+            "election_event_id": event.election_event_id, "election_ids": []
+        }})),
+    )
+    .await;
+    assert_eq!(
+        fetch(
+            &services,
+            &reader(&event, &[Permissions::DOCUMENT_DOWNLOAD]),
+            &request(&event, &empty)
+        )
+        .await
+        .0,
+        Status::Ok
+    );
+    assert_ne!(north, south);
+}
+
+#[rocket::async_test]
 async fn a_document_is_answered_with_its_storage_url() {
     let services = Services::on_test_database().await;
     let event = rows::event(&services.hasura).await;
@@ -156,4 +229,59 @@ async fn an_unreachable_database_is_an_error_without_its_details() {
     assert_eq!(status, Status::InternalServerError);
     assert_eq!(body["extensions"]["code"], "InternalServerError");
     assert_eq!(body["message"], "Could not fetch the document.");
+}
+
+/// Metadata and a legacy receipt name independently prevent administrative downloads.
+#[rocket::async_test]
+async fn ballot_receipts_are_unavailable_through_the_admin_document_route() {
+    let services = Services::on_test_database().await;
+    let event = rows::event(&services.hasura).await;
+    let marked = document(
+        &services,
+        &event,
+        Some(json!({"purpose": "ballot-receipt"})),
+    )
+    .await;
+    let legacy = event
+        .document(
+            &services.hasura,
+            "ballot_receipt_event.pdf",
+            "application/pdf",
+            None,
+        )
+        .await;
+    for id in [marked, legacy] {
+        let (status, body) = fetch(
+            &services,
+            &reader(&event, &[Permissions::DOCUMENT_DOWNLOAD]),
+            &request(&event, &id),
+        )
+        .await;
+        assert_eq!(status, Status::NotFound, "{body}");
+        assert_eq!(body["message"], "Document not found");
+    }
+}
+
+/// A generated sample receipt contains no voter ballot and remains a private
+/// administrative report. Real receipts still use the separate ownership route.
+#[rocket::async_test]
+async fn a_receipt_preview_is_available_through_the_admin_document_route() {
+    let services = Services::on_test_database().await;
+    let event = rows::event(&services.hasura).await;
+    let id = event
+        .document(
+            &services.hasura,
+            "preview_ballot_receipt_event.pdf",
+            "application/pdf",
+            None,
+        )
+        .await;
+    let (status, body) = fetch(
+        &services,
+        &reader(&event, &[Permissions::DOCUMENT_DOWNLOAD]),
+        &request(&event, &id),
+    )
+    .await;
+    assert_eq!(status, Status::Ok, "{body}");
+    assert_eq!(body["url"], format!("https://documents.test/{id}"));
 }

@@ -12,9 +12,9 @@ use super::audit::{AttemptOutcome, MessageKind, ENVIRONMENT_PROVIDER};
 use super::config::get_event_messaging_config;
 use super::keys::{tenant_key, TenantKey};
 use crate::postgres::messaging::{
-    cancel_retry, get_bulk_send_payload, get_message, get_messaging_account, insert_message,
-    last_get_started_at, list_attempts, list_messaging_accounts, mark_dispatched,
-    transition_message, MessageRecord, MessagingAccount, NewMessage, StateChange,
+    cancel_retry, get_message, get_messaging_account, insert_message, last_get_started_at,
+    list_attempts, list_messaging_accounts, mark_dispatched, transition_message, MessageRecord,
+    MessagingAccount, NewMessage, StateChange,
 };
 use crate::postgres::rate_bucket::{self, Take};
 use crate::services::providers::email_sender::{EmailSender, TransportFailure};
@@ -703,13 +703,18 @@ pub async fn bulk_send_body(
     let Some(send_id) = bulk_send_id(logical_key) else {
         return Ok(None);
     };
-    let Some(payload) = get_bulk_send_payload(tx, tenant_id, &send_id).await? else {
-        return Ok(None);
-    };
-    match serde_json::from_value::<SendTemplateBody>(payload) {
-        Ok(body) => Ok(Some(body)),
+    match crate::services::participation_authorization::authorized_bulk_send(
+        tx, tenant_id, &send_id,
+    )
+    .await
+    {
+        Ok(command) => Ok(command.map(|command| command.body)),
         Err(error) => {
-            warn!(%send_id, "unreadable bulk send payload: {error}");
+            if error.downcast_ref::<tokio_postgres::Error>().is_some()
+                || error.downcast_ref::<crate::services::participation_authorization::ParticipationReauthorization>().is_some() {
+                return Err(error);
+            }
+            warn!(%send_id, "bulk send requires reauthorization or repair: {error}");
             Ok(None)
         }
     }
@@ -736,12 +741,15 @@ pub async fn retry_refusal(
         return Ok(Some(MessageReason::NO_STORED_TEMPLATE));
     };
     Ok(match MessageKind::of(logical_key) {
-        MessageKind::BULK_NOTICE => match bulk_send_body(tx, tenant_id, logical_key).await? {
-            None => Some(MessageReason::NO_STORED_TEMPLATE),
-            Some(body) if !body.secret_attribute_names.is_empty() => {
+        MessageKind::BULK_NOTICE => match bulk_send_body(tx, tenant_id, logical_key).await {
+            Err(error) if error.downcast_ref::<crate::services::participation_authorization::ParticipationReauthorization>().is_some() =>
+                Some(MessageReason::PARTICIPATION_REAUTHORIZATION_REQUIRED),
+            Err(error) => return Err(error),
+            Ok(None) => Some(MessageReason::NO_STORED_TEMPLATE),
+            Ok(Some(body)) if !body.secret_attribute_names.is_empty() => {
                 Some(MessageReason::PROTECTED_FIELDS)
             }
-            Some(_) => None,
+            Ok(Some(_)) => None,
         },
         MessageKind::APPLICATION_RESULT if template_alias.is_some() => None,
         _ => Some(MessageReason::NO_STORED_TEMPLATE),

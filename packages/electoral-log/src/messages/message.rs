@@ -60,6 +60,182 @@ impl fmt::Display for Message {
 }
 
 impl Message {
+    /// Authority-signed receipt binding; the row carries no private identity.
+    pub fn ballot_received_message(
+        pseudonym: &str,
+        evidence: super::privacy::BallotReceivedEvidence,
+        system_key: &SigningKey,
+    ) -> Result<Self> {
+        let receipt: serde_json::Value = serde_json::from_str(&evidence.received_ballot_json)?;
+        let ballot_id = receipt
+            .get("ballot_id")
+            .and_then(serde_json::Value::as_str)
+            .ok_or_else(|| anyhow::anyhow!("Received evidence has no Ballot ID"))?
+            .to_owned();
+        let event = evidence.election_event_id.clone();
+        let election = evidence.election_id.clone();
+        Self::private_ballot_message(
+            &event,
+            &election,
+            pseudonym,
+            Some(ballot_id),
+            StatementBody::BallotReceived(evidence),
+            None,
+            system_key,
+        )
+    }
+
+    pub fn privacy_cast_vote_message(
+        pseudonym: &str,
+        evidence: super::privacy::BallotCastEvidence,
+        system_key: &SigningKey,
+    ) -> Result<Self> {
+        let event = evidence.election_event_id.clone();
+        let election = evidence.election_id.clone();
+        let ballot_id = evidence.ballot_id.clone();
+        Self::private_ballot_message(
+            &event,
+            &election,
+            pseudonym,
+            Some(ballot_id),
+            StatementBody::PrivacyCastVote(evidence),
+            None,
+            system_key,
+        )
+    }
+
+    pub fn private_ballot_event_message(
+        event: &str,
+        pseudonym: &str,
+        evidence: super::privacy::PrivateBallotEvent,
+        system_key: &SigningKey,
+    ) -> Result<Self> {
+        let election = evidence.election_id.clone();
+        let ballot_id = evidence.ballot_id.clone();
+        Self::private_ballot_message(
+            event,
+            &election,
+            pseudonym,
+            ballot_id,
+            StatementBody::PrivateBallotEvent(evidence),
+            None,
+            system_key,
+        )
+    }
+
+    /// Uses the persisted occurrence time so delayed/retried audit evidence
+    /// always signs identical bytes and reports when auditing actually happened.
+    pub fn private_ballot_event_message_at(
+        event: &str,
+        pseudonym: &str,
+        evidence: super::privacy::PrivateBallotEvent,
+        occurred_at: u64,
+        system_key: &SigningKey,
+    ) -> Result<Self> {
+        let election = evidence.election_id.clone();
+        let ballot_id = evidence.ballot_id.clone();
+        Self::private_ballot_message(
+            event,
+            &election,
+            pseudonym,
+            ballot_id,
+            StatementBody::PrivateBallotEvent(evidence),
+            Some(occurred_at),
+            system_key,
+        )
+    }
+
+    fn private_ballot_message(
+        event: &str,
+        election: &str,
+        pseudonym: &str,
+        ballot_id: Option<String>,
+        body: StatementBody,
+        occurred_at: Option<u64>,
+        system_key: &SigningKey,
+    ) -> Result<Self> {
+        let hash = super::privacy::pseudonym_hash(pseudonym)
+            .ok_or_else(|| anyhow::anyhow!("Invalid canonical pseudonym"))?;
+        let expected = match &body {
+            StatementBody::BallotReceived(e) => &e.pseudonym_hash,
+            StatementBody::PrivacyCastVote(e) => &e.pseudonym_hash,
+            StatementBody::PrivateBallotEvent(e) => &e.pseudonym_hash,
+            _ => anyhow::bail!("Not a private ballot statement"),
+        };
+        anyhow::ensure!(
+            &hash == expected,
+            "Pseudonym does not match signed evidence"
+        );
+        let mut head = StatementHead::from_body(EventIdString(event.into()), &body);
+        if let Some(occurred_at) = occurred_at {
+            head.timestamp = occurred_at;
+        }
+        let receipt_time = match &body {
+            StatementBody::BallotReceived(e) => Some((&e.received_ballot_json, "received_at")),
+            StatementBody::PrivacyCastVote(e) => Some((&e.cast_receipt_json, "cast_at")),
+            _ => None,
+        };
+        if let Some((receipt, field)) = receipt_time {
+            let receipt: serde_json::Value = serde_json::from_str(receipt)?;
+            let timestamp = receipt
+                .get(field)
+                .and_then(serde_json::Value::as_str)
+                .ok_or_else(|| anyhow::anyhow!("Private ballot receipt has no timestamp"))?;
+            head.timestamp = chrono::DateTime::parse_from_rfc3339(timestamp)?
+                .timestamp()
+                .try_into()
+                .map_err(|_| anyhow::anyhow!("Private ballot receipt timestamp precedes epoch"))?;
+        }
+        Self::sign(
+            Statement::new(head, body),
+            None,
+            system_key,
+            pseudonym,
+            system_key,
+            None,
+            Some(pseudonym.into()),
+            Some(election.into()),
+            None,
+            ballot_id,
+        )
+    }
+
+    pub fn pseudonym_resolved_message(
+        event: &str,
+        resolution: super::privacy::PseudonymResolution,
+        signing: &SigningData,
+    ) -> Result<Self> {
+        let actor = resolution.actor_id.clone();
+        Self::from_body(
+            EventIdString(event.into()),
+            StatementBody::PseudonymResolved(resolution),
+            signing,
+            Some(actor),
+            None,
+            None,
+            None,
+            None,
+        )
+    }
+
+    pub fn forensic_read_message(
+        event: &str,
+        read: super::privacy::ForensicRead,
+        signing: &SigningData,
+    ) -> Result<Self> {
+        let actor = read.actor_id.clone();
+        Self::from_body(
+            EventIdString(event.into()),
+            StatementBody::ForensicRead(read),
+            signing,
+            Some(actor),
+            None,
+            None,
+            None,
+            None,
+        )
+    }
+
     #[instrument(skip_all, err)]
     pub fn external_api_request_message(
         event_id: EventIdString,
@@ -1049,6 +1225,11 @@ impl TryFrom<&Message> for ElectoralLogMessage {
 
     fn try_from(message: &Message) -> Result<ElectoralLogMessage> {
         let version = match &message.statement.body {
+            StatementBody::BallotReceived(_)
+            | StatementBody::PrivacyCastVote(_)
+            | StatementBody::PseudonymResolved(_)
+            | StatementBody::ForensicRead(_)
+            | StatementBody::PrivateBallotEvent(_) => "3".into(),
             StatementBody::CastVoteWithChannel(_, _, _, _, _, _) => {
                 crate::get_cast_vote_channel_schema_version()
             }

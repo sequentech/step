@@ -5,6 +5,7 @@ import englishTranslation, {TranslationType} from "./en"
 
 const basqueTranslation: TranslationType = {
     translations: {
+        ballotPrivacy: englishTranslation.translations.ballotPrivacy,
         readiness: {
             close: "Itxi",
             action: "Prestasuna egiaztatu",
@@ -2326,6 +2327,8 @@ const basqueTranslation: TranslationType = {
                 "application-write": "Editatu Aplikazioa",
                 "approval-matrix-write": "Editatu Onarpen Matrizea",
                 "readiness-check": "Egiaztatu hauteskundeen prestasuna",
+                "forensic-read": "Sareko datu forentse isolatuak irakurri",
+                "voter-pseudonym-resolve": "Hautesle baten ezizena argitu arrazoi ikuskatu batekin",
                 "logs-export": "Esportatu Egunkariak",
                 "tenant-logs-read": "Irakurri Maizterraren Egunkaria",
                 "tenant-logs-export": "Esportatu Maizterraren Egunkaria",

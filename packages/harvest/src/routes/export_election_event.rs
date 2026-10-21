@@ -22,6 +22,10 @@ use windmill::services::electoral_log::{
     post_voter_secret_attribute_audit, ElectoralLogAdminContext,
     VoterSecretAttributeAction, VoterSecretAttributeAudit,
 };
+use windmill::services::participation_authorization::{
+    ParticipationAuthorization, ParticipationCommand,
+    PARTICIPATION_AUTHORIZATION,
+};
 use windmill::services::voter_secret_attributes::get_secret_attribute_config;
 use windmill::services::{password, tasks_execution::*};
 use windmill::tasks::export_election_event::{self, ExportOptions};
@@ -105,6 +109,48 @@ pub async fn export_election_event_route(
     }
 
     let document_id = Uuid::new_v4().to_string();
+    // An archive contains the whole event, so the caller must be allowed to
+    // read every current election. Persist that explicit upper bound.
+    let mut scope_client = services
+        .databases
+        .hasura()
+        .await
+        .get()
+        .await
+        .map_err(|error| (Status::InternalServerError, error.to_string()))?;
+    let scope_tx = scope_client
+        .transaction()
+        .await
+        .map_err(|error| (Status::InternalServerError, error.to_string()))?;
+    crate::services::authorization::authorize_election_permission_labels(
+        &scope_tx,
+        &claims,
+        &election_event_id,
+        None,
+    )
+    .await?;
+    let election_ids =
+        crate::services::authorization::explicit_participation_elections(
+            &scope_tx,
+            &claims,
+            &election_event_id,
+        )
+        .await?;
+    drop(scope_tx);
+    let mut task_annotations = secret_export_task_annotations(
+        &document_id,
+        export_config.contains_voter_secrets,
+    );
+    task_annotations[PARTICIPATION_AUTHORIZATION] =
+        serde_json::to_value(ParticipationAuthorization {
+            tenant_id: tenant_id.clone(),
+            election_event_id: election_event_id.clone(),
+            actor_id: claims.hasura_claims.user_id.clone(),
+            command: ParticipationCommand::EventArchive,
+            command_id: document_id.clone(),
+            election_ids,
+        })
+        .map_err(|error| (Status::InternalServerError, error.to_string()))?;
     if export_config.contains_voter_secrets {
         post_voter_secret_attribute_audit(
             &tenant_id,
@@ -128,15 +174,12 @@ pub async fn export_election_event_route(
     }
 
     // Insert the task execution record
-    let task_execution = post_with_annotations(
+    let task_execution = post_with_participation(
         &tenant_id,
-        Some(&election_event_id),
+        &election_event_id,
         ETasksExecution::EXPORT_ELECTION_EVENT,
         &executer_name,
-        secret_export_task_annotations(
-            &document_id,
-            export_config.contains_voter_secrets,
-        ),
+        task_annotations,
     )
     .await
     .map_err(|error| {

@@ -41,6 +41,7 @@ jest.mock("./MonitoringDashboard", () => ({
 
 const LEGACY = "legacy dashboard"
 const SLOT = "under the dashboards"
+const FOOTER = "forensic review"
 
 const renderTab = () =>
     render(
@@ -49,6 +50,7 @@ const renderTab = () =>
             electionId="election"
             legacy={<p>{LEGACY}</p>}
             below={<p>{SLOT}</p>}
+            footer={<p>{FOOTER}</p>}
         />
     )
 
@@ -59,8 +61,17 @@ beforeEach(() => {
 })
 
 describe("MonitoringDashboardTab slot", () => {
+    it("keeps the footer available while dashboards load", () => {
+        mockList = undefined
+        renderTab()
+        expect(screen.getByText(FOOTER)).toBeTruthy()
+        expect(screen.getByRole("progressbar")).toBeTruthy()
+        expect(screen.queryByText(SLOT)).toBeNull()
+    })
+
     it("renders the slot under the dashboards when monitoring is configured", () => {
         renderTab()
+        expect(screen.getByText(FOOTER)).toBeTruthy()
         expect(screen.getByText("dashboards")).toBeTruthy()
         expect(screen.getByText(SLOT)).toBeTruthy()
         expect(screen.queryByText(LEGACY)).toBeNull()
@@ -69,6 +80,7 @@ describe("MonitoringDashboardTab slot", () => {
     it("renders the slot when monitoring is configured without dashboards", () => {
         mockList = {mode: EMonitoringMode.CONFIGURED, dashboards: []}
         renderTab()
+        expect(screen.getByText(FOOTER)).toBeTruthy()
         expect(screen.getByText("monitoring.noDashboards")).toBeTruthy()
         expect(screen.getByText(SLOT)).toBeTruthy()
     })
@@ -76,6 +88,7 @@ describe("MonitoringDashboardTab slot", () => {
     it("renders no slot in legacy mode", () => {
         mockList = {mode: EMonitoringMode.LEGACY, dashboards: []}
         renderTab()
+        expect(screen.getByText(FOOTER)).toBeTruthy()
         expect(screen.getByText(LEGACY)).toBeTruthy()
         expect(screen.queryByText(SLOT)).toBeNull()
     })
@@ -83,6 +96,7 @@ describe("MonitoringDashboardTab slot", () => {
     it("renders no slot when monitoring can't be loaded", () => {
         mockError = new Error("unavailable")
         renderTab()
+        expect(screen.getByText(FOOTER)).toBeTruthy()
         expect(screen.getByText(LEGACY)).toBeTruthy()
         expect(screen.queryByText(SLOT)).toBeNull()
     })
@@ -90,6 +104,7 @@ describe("MonitoringDashboardTab slot", () => {
     it("renders no slot for a viewer without monitoring-view", () => {
         mockView = EMonitoringCapability.DENIED
         renderTab()
+        expect(screen.getByText(FOOTER)).toBeTruthy()
         expect(screen.getByText(LEGACY)).toBeTruthy()
         expect(screen.queryByText(SLOT)).toBeNull()
     })
