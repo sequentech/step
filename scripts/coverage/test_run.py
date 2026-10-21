@@ -49,7 +49,8 @@ class CoverageRunnerTests(unittest.TestCase):
             '[toolchain]\nchannel = "1.96.0"\n'
         )
         self.config = self.root / "profiles.toml"
-        self.config.write_text("""cargo_llvm_cov_version = "0.9.1"
+        self.config.write_text(
+            """cargo_llvm_cov_version = "0.9.1"
 minimum_lines = 95
 [profiles.sequent-core]
 package = "sequent-core"
@@ -57,7 +58,8 @@ features = ["default_features", "keycloak"]
 limitations = ["Native test profile only"]
 issue = "https://github.com/sequentech/meta/issues/13292"
 [profiles.sequent-core.scope_exceptions]
-""")
+"""
+        )
         for name, value in (
             ("ROOT", self.root),
             ("WORKSPACE", self.workspace),
@@ -121,6 +123,104 @@ issue = "https://github.com/sequentech/meta/issues/13292"
         self.assertEqual(summary["tests_passed"], 3)
         self.assertEqual(summary["tests_ignored"], 1)
         self.assertEqual(summary["features"], ["default_features", "keycloak"])
+
+    def test_database_suites_run_ignored_tests_before_export_with_serial_fixture_access(
+        self,
+    ):
+        self.config.write_text(
+            self.config.read_text().replace(
+                'package = "sequent-core"',
+                'package = "sequent-core"\ndatabase_tests = ["privacy"]\n'
+                'database_test_skips = ["storage_benchmark"]',
+            )
+        )
+        suite = self.workspace / "sequent-core/tests/privacy.rs"
+        suite.parent.mkdir()
+        suite.write_text("// PostgreSQL contract tests\n")
+        commands = []
+        original = self.tool_output
+
+        def tool_output(command, log, environment):
+            commands.append(command)
+            if "--ignored" in command:
+                self.assertIn("--test-threads=1", command)
+                self.assertIn("--locked", command)
+                self.assertIn("default_features,keycloak", command)
+                self.assertEqual(command[command.index("--test") + 1], "privacy")
+                self.assertEqual(
+                    command[command.index("--skip") + 1], "storage_benchmark"
+                )
+                return "test result: ok. 2 passed; 0 failed; 0 ignored;"
+            return original(command, log, environment)
+
+        with patch.object(run, "execute", side_effect=tool_output):
+            code = run.measure("sequent-core", True, True)
+        self.assertEqual(code, 0)
+        database = next(i for i, cmd in enumerate(commands) if "--ignored" in cmd)
+        export = next(i for i, cmd in enumerate(commands) if "--json" in cmd)
+        self.assertLess(database, export)
+        summary = json.loads(
+            next(self.root.glob("coverage/sequent-core/*/summary.json")).read_text()
+        )
+        self.assertEqual(summary["tests_passed"], 5)
+        self.assertEqual(summary["database_tests"], ["privacy"])
+
+    def test_database_suite_missing_from_head_is_an_error_before_cargo_runs(self):
+        self.config.write_text(
+            self.config.read_text().replace(
+                'package = "sequent-core"',
+                'package = "sequent-core"\ndatabase_tests = ["privacy"]',
+            )
+        )
+        code, summary = self.attempt(True)
+        self.assertEqual(code, 2)
+        self.assertIn("privacy", summary["error"])
+
+    def test_empty_or_failed_database_suite_cannot_export_a_successful_measurement(
+        self,
+    ):
+        self.config.write_text(
+            self.config.read_text().replace(
+                'package = "sequent-core"',
+                'package = "sequent-core"\ndatabase_tests = ["privacy"]',
+            )
+        )
+        suite = self.workspace / "sequent-core/tests/privacy.rs"
+        suite.parent.mkdir()
+        suite.write_text("// PostgreSQL contract tests\n")
+        for failed in [False, True]:
+            commands = []
+            original = self.tool_output
+
+            def tool_output(command, log, environment):
+                commands.append(command)
+                if "--ignored" in command:
+                    if failed:
+                        raise CoverageError("PostgreSQL unavailable")
+                    return "test result: ok. 0 passed; 0 failed; 0 ignored;"
+                return original(command, log, environment)
+
+            with (
+                self.subTest(failed=failed),
+                patch.object(run, "execute", side_effect=tool_output),
+            ):
+                self.assertEqual(run.measure("sequent-core", True, True), 2)
+                self.assertFalse(any("--json" in cmd for cmd in commands))
+
+    def test_comparison_base_records_database_suites_it_predates(self):
+        self.config.write_text(
+            self.config.read_text().replace(
+                'package = "sequent-core"',
+                'package = "sequent-core"\ndatabase_tests = ["privacy"]',
+            )
+        )
+        with patch.object(run, "execute", side_effect=self.tool_output):
+            code = run.measure("sequent-core", True, True, comparison_base=True)
+        self.assertEqual(code, 0)
+        summary = json.loads(
+            next(self.root.glob("coverage/sequent-core/*/summary.json")).read_text()
+        )
+        self.assertEqual(summary["database_tests_absent_from_base"], ["privacy"])
 
     def test_consumers_run_without_contributing_to_package_counters(self):
         self.config.write_text(
@@ -738,9 +838,11 @@ class CommandExecutionTests(unittest.TestCase):
                         if marker.exists():
                             os.kill(
                                 os.getpid(),
-                                run.signal.SIGINT
-                                if cancellation == "interrupt"
-                                else run.signal.SIGTERM,
+                                (
+                                    run.signal.SIGINT
+                                    if cancellation == "interrupt"
+                                    else run.signal.SIGTERM
+                                ),
                             )
 
                     sender = threading.Thread(target=send_when_running)

@@ -105,6 +105,19 @@ async fn privacy_storage_keeps_identity_private_and_cast_effects_atomic() -> Res
     let pending = store.pending_received_ballots(&event, 100).await?;
     assert_eq!(pending.len(), 1);
     assert_eq!(pending[0].kind, ReceivedEvidenceKind::Received);
+    assert_eq!(pending[0].kind.as_str(), "received");
+    let by_hash = store
+        .received_ballots_for_hashes(
+            &event,
+            &["encrypted-ballot-hash".into(), "absent-hash".into()],
+        )
+        .await?;
+    assert_eq!(by_hash.len(), 1);
+    assert_eq!(by_hash[0].ballot_id, stored.ballot_id);
+    assert!(store
+        .received_ballots_for_hashes(&other_election, &["encrypted-ballot-hash".into()])
+        .await?
+        .is_empty());
     store.create_ballot_box(&event).await?;
     assert_eq!(
         store.pending_received_ballots(&event, 100).await?.len(),
@@ -200,6 +213,23 @@ async fn privacy_storage_keeps_identity_private_and_cast_effects_atomic() -> Res
         .is_empty());
     assert_eq!(store.privacy_participation_count(&event, None).await?, 1);
     assert_eq!(
+        store.participating_voters(&event, Some(&election)).await?,
+        vec![voter.clone()]
+    );
+    assert!(store
+        .participating_voters(&event, Some(&other_election))
+        .await?
+        .is_empty());
+    let mapped = store
+        .voters_for_pseudonyms(&event, &[pseudonym.clone(), "ABCD-EFGH".into()])
+        .await?;
+    assert_eq!(mapped.len(), 1);
+    assert_eq!(mapped.get(&pseudonym), Some(&voter));
+    assert!(store
+        .voters_for_pseudonyms(&other_election, &[pseudonym.clone()])
+        .await?
+        .is_empty());
+    assert_eq!(
         store
             .privacy_participation_count(&event, Some(&election))
             .await?,
@@ -276,6 +306,13 @@ async fn privacy_storage_keeps_identity_private_and_cast_effects_atomic() -> Res
         .privacy_ballot_details(&event, &other_area, Some(&election), &stored.ballot_id)
         .await?
         .is_none());
+    let ids = pending.iter().map(|entry| entry.id).collect::<Vec<_>>();
+    assert_eq!(
+        store.remove_pending_received(&other_election, &ids).await?,
+        0
+    );
+    assert_eq!(store.remove_pending_received(&event, &ids).await?, 1);
+    assert_eq!(store.remove_pending_received(&event, &ids).await?, 0);
     assert_eq!(
         store
             .purge_forensic_network(&event, now + Duration::seconds(1), 100)
@@ -343,6 +380,85 @@ async fn privacy_storage_keeps_identity_private_and_cast_effects_atomic() -> Res
         7
     );
     assert_eq!(store.purge_voter_pseudonyms(&allocation_event).await?, 93);
+    Ok(())
+}
+
+#[tokio::test]
+#[ignore = "needs isolated ELECTORAL_LOG_TEST_DATABASE_URL"]
+async fn privacy_delivery_queue_preserves_original_bytes_and_scoped_acknowledgements() -> Result<()>
+{
+    let store = PostgresStore::new(std::env::var("ELECTORAL_LOG_TEST_DATABASE_URL")?.parse()?)?;
+    store.initialize().await?;
+    let event = Uuid::new_v4().to_string();
+    let other = Uuid::new_v4().to_string();
+    store
+        .queue_privacy_message(&event, "delivery-1", b"original-signed-entry")
+        .await?;
+    store
+        .queue_privacy_message(&event, "delivery-1", b"retry-must-not-replace")
+        .await?;
+    store
+        .queue_privacy_message(&event, "delivery-2", b"second-signed-entry")
+        .await?;
+    store
+        .queue_privacy_message(&other, "delivery-1", b"another-events-entry")
+        .await?;
+    let first = store.pending_privacy_messages(&event, 1).await?;
+    assert_eq!(first.len(), 1);
+    assert_eq!(first[0].delivery_id, "delivery-1");
+    assert_eq!(first[0].message, b"original-signed-entry");
+    assert_eq!(
+        store
+            .remove_pending_privacy_messages(&other, &[first[0].id])
+            .await?,
+        0
+    );
+    assert_eq!(
+        store
+            .remove_pending_privacy_messages(&event, &[first[0].id])
+            .await?,
+        1
+    );
+    assert_eq!(
+        store
+            .remove_pending_privacy_messages(&event, &[first[0].id])
+            .await?,
+        0
+    );
+    let next = store.pending_privacy_messages(&event, 10).await?;
+    assert_eq!(next.len(), 1);
+    assert_eq!(next[0].delivery_id, "delivery-2");
+    assert_eq!(next[0].message, b"second-signed-entry");
+    let other_rows = store.pending_privacy_messages(&other, 10).await?;
+    assert_eq!(other_rows.len(), 1);
+    assert_eq!(other_rows[0].message, b"another-events-entry");
+    for limit in [0, 10_001] {
+        assert_eq!(
+            store
+                .pending_privacy_messages(&event, limit)
+                .await
+                .unwrap_err()
+                .to_string(),
+            "Invalid privacy message batch size"
+        );
+    }
+    for (delivery, message) in [("", &b"entry"[..]), ("delivery", &b""[..])] {
+        assert_eq!(
+            store
+                .queue_privacy_message(&event, delivery, message)
+                .await
+                .unwrap_err()
+                .to_string(),
+            "Empty privacy audit message"
+        );
+    }
+    store
+        .remove_pending_privacy_messages(&event, &[next[0].id])
+        .await?;
+    store
+        .remove_pending_privacy_messages(&other, &[other_rows[0].id])
+        .await?;
+    assert!(store.pending_privacy_messages(&event, 10).await?.is_empty());
     Ok(())
 }
 

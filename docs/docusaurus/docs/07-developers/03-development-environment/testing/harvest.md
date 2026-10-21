@@ -49,6 +49,7 @@ From `packages`, run the focused suites with locked cached dependencies:
 ```sh
 # Synthetic configuration for SQL generation; these tests do not contact a database.
 export KEYCLOAK_DB__HOST=127.0.0.1 HASURA_DB__HOST=127.0.0.1
+export KEYCLOAK_VOTER_GROUP_NAME=voter
 export LOW_SQL_LIMIT=1000 DEFAULT_SQL_LIMIT=20 DEFAULT_SQL_BATCH_SIZE=1000
 cargo test -p harvest --locked --offline --bin harvest -- request_boundaries
 cargo test -p harvest --locked --offline --bin harvest -- error_contracts
@@ -121,6 +122,7 @@ export HASURA_DB__HOST=127.0.0.1 HASURA_DB__PORT=5432
 export HASURA_DB__USER=test HASURA_DB__PASSWORD=test HASURA_DB__DBNAME=test
 export KEYCLOAK_DB__HOST=127.0.0.1 KEYCLOAK_DB__PORT=5432
 export KEYCLOAK_DB__USER=test KEYCLOAK_DB__PASSWORD=test KEYCLOAK_DB__DBNAME=test
+export KEYCLOAK_VOTER_GROUP_NAME=voter
 export LOW_SQL_LIMIT=1000 DEFAULT_SQL_LIMIT=20 DEFAULT_SQL_BATCH_SIZE=1000
 cargo test -p harvest --locked
 ```

@@ -332,6 +332,22 @@ def measure(
         excluded_files = profile.get("excluded_files", {})
         scope_exceptions = profile.get("scope_exceptions", {})
         cargo_features = profile["features"]
+        database_tests = profile.get("database_tests", [])
+        if not isinstance(database_tests, list) or any(
+            not isinstance(name, str) or not re.fullmatch(r"[a-z][a-z0-9_]*", name)
+            for name in database_tests
+        ):
+            raise CoverageError("Invalid database test targets")
+        missing_tests = [
+            name
+            for name in database_tests
+            if not (package / "tests" / f"{name}.rs").is_file()
+        ]
+        if missing_tests and not comparison_base:
+            raise CoverageError(f"Missing database test targets: {missing_tests}")
+        database_tests = [name for name in database_tests if name not in missing_tests]
+        if comparison_base:
+            result["database_tests_absent_from_base"] = missing_tests
         if comparison_base:
             # Features the head adds cannot be requested from an older
             # manifest; the recorded profile features stay the head's.
@@ -380,6 +396,8 @@ def measure(
                 "config_sha256": hashlib.sha256(CONFIG.read_bytes()).hexdigest(),
                 "features": profile["features"],
                 "consumer_packages": profile.get("consumer_packages", []),
+                "database_tests": database_tests,
+                "database_test_skips": profile.get("database_test_skips", []),
                 "test_environment": profile.get("test_environment", {}),
                 "command_timeout_seconds": command_timeout_seconds(environment),
                 "build_environment": {
@@ -430,6 +448,24 @@ def measure(
         )
         test_command = ["cargo", "llvm-cov", "--tests", "--no-report", *arguments]
         test_log = execute(test_command, output / "tests.log", environment)
+        if database_tests:
+            database_command = ["cargo", "llvm-cov", "--no-report", *arguments]
+            for name in database_tests:
+                database_command.extend(["--test", name])
+            database_command.extend(["--", "--ignored", "--test-threads=1"])
+            for name in profile.get("database_test_skips", []):
+                database_command.extend(["--skip", name])
+            database_log = execute(
+                database_command, output / "database-tests.log", environment
+            )
+            if not any(
+                int(count) > 0
+                for count in re.findall(
+                    r"test result: ok\. (\d+) passed;", database_log
+                )
+            ):
+                raise CoverageError("No passing database tests were recorded")
+            test_log += "\n" + database_log
         counts = re.findall(
             r"test result: ok\. (\d+) passed; \d+ failed; (\d+) ignored;", test_log
         )

@@ -279,6 +279,7 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 # The route tests' database server comes from the ambient HASURA_DB__* and
 # KEYCLOAK_DB__* settings, as in the ordinary test job; only the host is fixed.
 [profiles.harvest.test_environment]
+KEYCLOAK_VOTER_GROUP_NAME = "voter"
 KEYCLOAK_DB__HOST = "127.0.0.1"
 HASURA_DB__HOST = "127.0.0.1"
 LOW_SQL_LIMIT = "1000"
@@ -463,9 +464,11 @@ DEFAULT_SQL_BATCH_SIZE = "1000"
 [profiles.electoral-log-native]
 package = "electoral-log"
 features = []
+database_tests = ["postgres", "ballot_box", "events", "provisioning", "console", "privacy", "privacy_receipts"]
+database_test_skips = ["matched_receipt_and_cast_storage_cost"]
 limitations = [
     "Default-feature profile; inline tests remain counted.",
-    "The PostgreSQL store, ballot box, event database and provisioning tests are ignored here; they run against a PostgreSQL server in the Rust CI test job.",
+    "Includes PostgreSQL storage, ballot box, event database, provisioning, console and privacy contracts on a disposable local server; storage-cost and scale benchmarks are not coverage tests.",
     "Native branches and optional features require separate evidence.",
 ]
 issue = "https://github.com/sequentech/meta/issues/13302"
@@ -475,6 +478,16 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 "src/adapters/mod.rs" = "Module declarations only."
 "src/messages/artifact.rs" = "Empty source file with license header only."
 "src/ports.rs" = "Store trait declaration only; its implementations are measured in src/adapters/postgres.rs and src/adapters/events.rs."
+
+[profiles.electoral-log-native.test_environment]
+ELECTORAL_LOG_TEST_DATABASE_URL = "postgresql://test:test@127.0.0.1:3322/test?sslmode=disable"
+ELECTORAL_LOG_PG_HOST = "127.0.0.1"
+ELECTORAL_LOG_PG_PORT = "3322"
+ELECTORAL_LOG_PG_USER = "test"
+ELECTORAL_LOG_PG_PASSWORD = "test"
+ELECTORAL_LOG_PG_DATABASE = "test"
+ELECTORAL_LOG_PG_SSLMODE = "disable"
+ENV_SLUG = "electoral-log-tests"
 
 [profiles.pgmq-broker]
 package = "pgmq-broker"
