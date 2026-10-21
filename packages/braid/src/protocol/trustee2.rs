@@ -156,7 +156,7 @@ impl<C: Ctx> Trustee<C> {
         };
 
         let (added_messages, last_id) = self.update_local_board(messages)?;
-        if added_messages > 0 {
+        if last_id > self.last_message_id {
             let max_messages = self.local_board.max_messages();
             info!("Setting last id {} (/{})", last_id, max_messages);
             self.last_message_id = last_id;
@@ -254,7 +254,7 @@ impl<C: Ctx> Trustee<C> {
     /// artifact maps.
     ///
     /// Takes a vector of (message, message_id) pairs as input, returns a pair
-    /// of (updated messages count, last message id added)
+    /// of (updated messages count, last message id processed)
     #[instrument(name = "Trustee::update_local_board", skip_all, level = "trace")]
     fn update_local_board(
         &mut self,
@@ -271,10 +271,11 @@ impl<C: Ctx> Trustee<C> {
     ///////////////////////////////////////////////////////////////////////////
     // General (non-bootstrap) update
     //
-    // Each message is verified and added to the local board.
+    // Each message is verified and added to the local board. Messages that
+    // do not verify are skipped, so that they are not processed again.
     //
     // Takes a vector of (message, message_id) pairs as input plus configuration,
-    // returns a pair of (updated messages count, last message id added)
+    // returns a pair of (updated messages count, last message id processed)
     ///////////////////////////////////////////////////////////////////////////
     fn update(
         &mut self,
@@ -282,7 +283,7 @@ impl<C: Ctx> Trustee<C> {
         configuration: Configuration<C>,
     ) -> Result<(i64, i64), ProtocolError> {
         let mut added = 0;
-        let mut last_added_id: i64 = -1;
+        let mut last_id: i64 = -1;
 
         // Sanity check: field cfg_hash must exist at this point
         let cfg_hash = self.local_board.get_cfg_hash();
@@ -304,102 +305,82 @@ impl<C: Ctx> Trustee<C> {
         }
 
         for (message, id) in messages.into_iter() {
+            last_id = last_id.max(id);
             let statement_info = message.statement.to_string();
-            let verified = message.verify(&configuration).map_err(|_e| {
-                ProtocolError::VerificationError(format!(
-                    "Message failed verification: {:?}, cfg: {:?}",
-                    statement_info, &configuration
-                ))
-            })?;
+            let verified = match message.verify(&configuration) {
+                Ok(verified) => verified,
+                Err(e) => {
+                    warn!(
+                        "Message failed verification, skipping message {}: {:?}, cfg: {:?}: {}",
+                        id, statement_info, &configuration, e
+                    );
+                    continue;
+                }
+            };
 
             if verified.statement.get_cfg_h() != cfg_hash {
-                return Err(ProtocolError::MessageConfigurationMismatch(format!(
-                    "Message has mismatched configuration hash"
-                )));
+                warn!(
+                    "Message has mismatched configuration hash, skipping message {}: {:?}",
+                    id, statement_info
+                );
+                continue;
             }
 
             let stmt = verified.statement.clone();
             let _ = self.local_board.add(verified, id)?;
             debug!("Added message type=[{}]", stmt);
             added += 1;
-            if id > last_added_id {
-                last_added_id = id;
-            }
         }
 
-        Ok((added, last_added_id))
+        Ok((added, last_id))
     }
 
     ///////////////////////////////////////////////////////////////////////////
     // Bootstrapping update
     //
-    // There is no configuration. We retrieve message zero, check that it's the
-    // configuration and add it to the local board.
+    // There is no configuration. We retrieve the first message that is a valid
+    // configuration and add it to the local board. Messages before it are
+    // skipped.
     //
     // Takes a vector of (message, message_id) pairs as input, returns a pair
-    // of (updated messages count, last message id added)
+    // of (updated messages count, last message id processed)
     ///////////////////////////////////////////////////////////////////////////
     fn update_bootstrap(
         &mut self,
-        mut messages: Vec<(Message, i64)>,
+        messages: Vec<(Message, i64)>,
     ) -> Result<(i64, i64), ProtocolError> {
-        let mut added = 0;
-        let mut last_added_id: i64 = -1;
-
         trace!("Configuration not present in board, getting first remote message");
         if messages.is_empty() {
             return Err(ProtocolError::BootstrapError(format!(
                 "Zero messages received, cannot retrieve configuration"
             )));
         }
-        let (zero, last_id) = messages.remove(0);
 
-        if zero.statement.get_kind() != StatementType::Configuration {
-            return Err(ProtocolError::BootstrapError(format!(
-                "Invalid statement type for zeroth message {:?}",
-                zero.statement.get_kind()
-            )));
+        let mut last_id: i64 = -1;
+        let mut messages = messages.into_iter();
+        while let Some((message, id)) = messages.next() {
+            last_id = last_id.max(id);
+            let (configuration, verified) = match LocalBoard::<C>::verify_bootstrap(&message) {
+                Ok(bootstrap) => bootstrap,
+                Err(e) => {
+                    warn!(
+                        "Message is not a valid configuration, skipping message {}: {}",
+                        id, e
+                    );
+                    continue;
+                }
+            };
+            trace!("Verified signature, Configuration signed by Protocol Manager");
+
+            self.local_board.add(verified, id)?;
+
+            // Process the rest of the messages
+            let (added, rest_last_id) = self.update(messages.collect(), configuration)?;
+
+            return Ok((added + 1, last_id.max(rest_last_id)));
         }
 
-        if zero.artifact.is_none() {
-            return Err(ProtocolError::BootstrapError(format!(
-                "No artifact for configuration message"
-            )));
-        }
-
-        let artifact = zero.artifact.as_ref().expect("impossible");
-        let configuration = Configuration::strand_deserialize(artifact)?;
-
-        if !configuration.is_valid() {
-            return Err(ProtocolError::InvalidConfiguration(format!(
-                "Configuration::is_valid failed, {:?}",
-                configuration
-            )));
-        }
-
-        let verified = zero.verify(&configuration).map_err(|e| {
-            ProtocolError::VerificationError(format!(
-                "Configuration signature did not verify: {:?}",
-                e
-            ))
-        })?;
-
-        assert!(verified.signer_position == PROTOCOL_MANAGER_INDEX);
-        trace!("Verified signature, Configuration signed by Protocol Manager");
-
-        let added_ = self.local_board.add(verified, last_id);
-        if added_.is_ok() {
-            added += 1;
-            last_added_id = last_id;
-        } else {
-            return added_.map(|()| (0, last_added_id));
-        }
-        // Process the rest of the messages
-        if !messages.is_empty() {
-            return self.update(messages, configuration);
-        }
-
-        Ok((added, last_added_id))
+        Ok((0, last_id))
     }
 
     ///////////////////////////////////////////////////////////////////////////
@@ -832,5 +813,82 @@ impl StepResult {
             _added_messages,
             _last_id,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::protocol::board::local2::tests::{remote, TestBoard, TestStore};
+    use strand::backend::ristretto::RistrettoCtx;
+
+    fn trustee(
+        board: &TestBoard,
+        position: usize,
+        store: Option<PathBuf>,
+    ) -> Trustee<RistrettoCtx> {
+        Trustee::new(
+            position.to_string(),
+            "board".to_string(),
+            board.trustee_keys[position].clone(),
+            symm::gen_key(),
+            store,
+            None,
+        )
+    }
+
+    fn has_configuration_signature(trustee: &Trustee<RistrettoCtx>, position: usize) -> bool {
+        trustee.local_board.get_statement_entries().iter().any(|e| {
+            e.key.kind == StatementType::ConfigurationSigned && e.key.signer_position == position
+        })
+    }
+
+    #[test]
+    fn step_skips_message_that_fails_verification() {
+        let board = TestBoard::new(2);
+        let mut trustee = trustee(&board, 1, None);
+
+        trustee.step(&remote(0, vec![board.bootstrap()])).unwrap();
+        trustee
+            .step(&remote(1, vec![board.unverifiable_as(0)]))
+            .unwrap();
+        assert_eq!(trustee.last_message_id, 1);
+
+        trustee.step(&remote(2, vec![board.signed_by(0)])).unwrap();
+        assert_eq!(trustee.last_message_id, 2);
+        assert!(has_configuration_signature(&trustee, 0));
+    }
+
+    #[test]
+    fn step_skips_messages_before_configuration() {
+        let board = TestBoard::new(2);
+        let mut trustee = trustee(&board, 1, None);
+
+        trustee
+            .step(&remote(
+                0,
+                vec![board.unverifiable_as(0), board.bootstrap()],
+            ))
+            .unwrap();
+
+        assert!(trustee.local_board.get_configuration_raw().is_some());
+        assert_eq!(trustee.last_message_id, 1);
+    }
+
+    #[test]
+    fn step_with_store_skips_message_that_fails_verification() {
+        let board = TestBoard::new(2);
+        let store = TestStore::new("step_with_store_skips_message_that_fails_verification");
+        let mut trustee = trustee(&board, 1, Some(store.path()));
+
+        trustee
+            .step(&remote(
+                0,
+                vec![board.bootstrap(), board.unverifiable_as(0)],
+            ))
+            .unwrap();
+        trustee.step(&remote(2, vec![board.signed_by(0)])).unwrap();
+
+        assert!(has_configuration_signature(&trustee, 0));
     }
 }

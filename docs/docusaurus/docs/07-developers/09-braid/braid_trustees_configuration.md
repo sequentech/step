@@ -144,6 +144,10 @@ The generated configuration will be:
 
 4. **Secrets Backend Connection Issues**: Verify network connectivity and authentication credentials for your chosen secrets backend.
 
+5. **Board messages that fail verification**: A trustee verifies each board message against the board configuration before it stores the message in its local message store and before it uses it. A message that does not verify is skipped and logged with `Message failed verification`, and the trustee carries on with the rest of the board. Run the `verify` binary (`--server-url <b3 url> --board <board>`) to list the ids of the messages on a board that fail verification.
+
+   If a board does not progress and it holds messages that fail verification, inspect those rows, remove them from the board's table in the b3 database and from the `MESSAGES` table of each trustee's local message store (`message_store/<board name>` in the trustee's working directory), then restart the trustees.
+
 ### Logging
 
 The trustee startup script logs important events with timestamps. Monitor these logs for:
