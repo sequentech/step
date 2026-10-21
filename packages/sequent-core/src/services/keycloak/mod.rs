@@ -8,6 +8,7 @@ mod permission;
 mod realm;
 mod realm_attributes;
 mod realm_password_policy;
+mod realm_provisioning;
 mod role;
 mod user;
 
