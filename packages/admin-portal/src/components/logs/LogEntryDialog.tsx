@@ -39,6 +39,7 @@ export interface ILogRow {
     statement_kind?: string | null
     message?: string | null
     user_id?: string | null
+    username?: string | null
 }
 
 export interface LogEntryDialogProps {

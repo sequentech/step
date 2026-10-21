@@ -784,6 +784,22 @@ export const PseudonymResolved: Story = {
     },
 }
 
+/** A historical entry can display a backfilled name without rewriting its message. */
+export const HistoricalPseudonymResolved: Story = {
+    ...PseudonymResolved,
+    args: {
+        ...PseudonymResolved.args,
+        entry: {
+            ...PseudonymResolved.args!.entry!,
+            username: "election-reviewer",
+            message: JSON.stringify({
+                ...JSON.parse(PseudonymResolved.args!.entry!.message!),
+                username: null,
+            }),
+        },
+    },
+}
+
 /** A received-only ballot is verifiable before a cast entry exists. */
 export const ReceivedBeforeCast: Story = {
     ...atViewport(1440),

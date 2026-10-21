@@ -181,7 +181,9 @@ const headField = (record: ILogRow, field: "event_type" | "log_type"): string | 
 
 const messageUser = (record: ILogRow, field: "user_id" | "username"): string | null => {
     const value = logMessage(record)?.[field]
-    return !value || value === "null" ? null : value
+    if (value && value !== "null") return value
+    const projected = field === "username" ? record.username : null
+    return !projected || projected === "null" ? null : projected
 }
 
 const description = (t: TFunction, record: ILogRow): string =>

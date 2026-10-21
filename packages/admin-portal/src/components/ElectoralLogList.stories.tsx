@@ -22,7 +22,13 @@ import {useStoryGlobals} from "../../../ui-essentials/.storybook/globals"
 
 interface Scenario {
     reads: ReadState
-    logs: "listed" | "none" | "configuration-import" | "privacy" | "long-descriptions"
+    logs:
+        | "listed"
+        | "none"
+        | "configuration-import"
+        | "privacy"
+        | "long-descriptions"
+        | "historical-requester"
     /** Rendered inside the event's record, as the event's Logs tab does. */
     inEvent: boolean
     electionEventId?: string
@@ -127,6 +133,18 @@ const logs = [
         description: "Keys generated",
     }),
 ]
+
+const historicalRequester = logRow(
+    6,
+    "PseudonymResolved",
+    {id: STORY_IDS.user, name: "election-reviewer"},
+    {event_type: "USER", log_type: "INFO", description: "Pseudonym resolved"}
+)
+historicalRequester.username = "election-reviewer"
+historicalRequester.message = JSON.stringify({
+    ...JSON.parse(historicalRequester.message),
+    username: null,
+})
 
 const LONG_DESCRIPTION =
     "An administrator reviewed the election configuration and recorded the result. ".repeat(20)
@@ -266,22 +284,31 @@ const meta = {
         reads: {control: "inline-radio", options: ["records", "loading", "error"]},
         logs: {
             control: "inline-radio",
-            options: ["listed", "none", "configuration-import", "privacy", "long-descriptions"],
+            options: [
+                "listed",
+                "none",
+                "configuration-import",
+                "privacy",
+                "long-descriptions",
+                "historical-requester",
+            ],
         },
     },
     beforeEach: async ({args}) => {
         data = resourceBoundary(
             {
                 electoral_log:
-                    args.logs === "long-descriptions"
-                        ? descriptionLogs
-                        : args.logs === "privacy"
-                          ? privacyLogs
-                          : args.logs === "configuration-import"
-                            ? [CONFIGURATION_IMPORT]
-                            : args.logs === "listed"
-                              ? logs
-                              : [],
+                    args.logs === "historical-requester"
+                        ? [historicalRequester]
+                        : args.logs === "long-descriptions"
+                          ? descriptionLogs
+                          : args.logs === "privacy"
+                            ? privacyLogs
+                            : args.logs === "configuration-import"
+                              ? [CONFIGURATION_IMPORT]
+                              : args.logs === "listed"
+                                ? logs
+                                : [],
             },
             {reads: args.reads}
         )
@@ -410,6 +437,18 @@ export const Populated: Story = {
             }),
         ])
         await waitFor(() => expect(graphql.calls).toEqual(ledgerReads))
+    },
+}
+
+export const HistoricalRequester: Story = {
+    ...atViewport(1440),
+    args: {logs: "historical-requester"},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(await canvas.findByText("election-reviewer")).toBeVisible()
+        await userEvent.click(canvas.getByText("Pseudonym resolved"))
+        const entry = await within(document.body).findByRole("dialog", {name: "Log entry 6"})
+        expect(within(entry).getByText("Who").parentElement).toHaveTextContent("election-reviewer")
     },
 }
 
