@@ -30,6 +30,8 @@ import org.keycloak.sessions.AuthenticationSessionModel;
 import sequent.keycloak.scanovate_authenticator.FaceMatchClient.FaceComparison;
 import sequent.keycloak.scanovate_authenticator.FaceMatchClient.FaceMatchOutcome;
 import sequent.keycloak.scanovate_authenticator.LivenessSessions.LivenessResult;
+import sequent.keycloak.voter_enrollment.IdentityMethod;
+import sequent.keycloak.voter_enrollment.LookupAndUpdateUser;
 import sequent.keycloak.voter_enrollment.Utils;
 
 /**
@@ -46,6 +48,10 @@ import sequent.keycloak.voter_enrollment.Utils;
  * it, using Face Match, reads the document sides with the OCR service, validates the results
  * against the configured rules, and stores the extracted attributes as auth notes for the voter to
  * confirm.
+ *
+ * <p>Only a verification this step completed, and the voter confirmed when there was something to
+ * confirm, sets the {@link LookupAndUpdateUser#IDENTITY_METHOD} note to {@link
+ * IdentityMethod#VERIFIED}. Starting over, a retry, a failure or an error removes it.
  */
 @JBossLog
 public class ScanovateAuthenticator implements Authenticator {
@@ -53,6 +59,13 @@ public class ScanovateAuthenticator implements Authenticator {
   static final String LIVENESS_TOKEN_NOTE = "scanovate-liveness-token";
   static final String CAPTURE_TOKEN_NOTE = "scanovate-capture-token";
   static final String ATTEMPTS_NOTE = "scanovate-attempts";
+
+  /**
+   * The case whose read attributes await the voter's confirmation. Unlike the status note, a form
+   * can't set it.
+   */
+  static final String CONFIRMATION_CASE_NOTE = "scanovate-confirmation-case";
+
   static final String FORM_ACTION_PARAM = "action";
   static final String USER_STATUS_VERIFIED = "VERIFIED";
   static final String CONFIRMATION_FORM = "scanovate-confirmation.ftl";
@@ -140,7 +153,9 @@ public class ScanovateAuthenticator implements Authenticator {
     if (user != null
         && statusAttribute != null
         && USER_STATUS_VERIFIED.equals(user.getFirstAttribute(statusAttribute))) {
+      // The attribute isn't proof of a verification in this session: no identity method.
       log.info("authenticate: user already verified");
+      context.getAuthenticationSession().removeAuthNote(LookupAndUpdateUser.IDENTITY_METHOD);
       context.success();
       return;
     }
@@ -546,6 +561,7 @@ public class ScanovateAuthenticator implements Authenticator {
       succeed(context);
       return;
     }
+    authSession.setAuthNote(CONFIRMATION_CASE_NOTE, caseId);
     context.challenge(
         context
             .form()
@@ -557,8 +573,10 @@ public class ScanovateAuthenticator implements Authenticator {
   }
 
   private void confirm(AuthenticationFlowContext context) {
+    AuthenticationSessionModel authSession = context.getAuthenticationSession();
     String statusNote = userStatusNote(config(context));
-    if (!USER_STATUS_VERIFIED.equals(context.getAuthenticationSession().getAuthNote(statusNote))) {
+    if (authSession.getAuthNote(CONFIRMATION_CASE_NOTE) == null
+        || !USER_STATUS_VERIFIED.equals(authSession.getAuthNote(statusNote))) {
       log.warn("confirm: received a confirmation without a successful verification");
       startVerification(context);
       return;
@@ -566,8 +584,12 @@ public class ScanovateAuthenticator implements Authenticator {
     succeed(context);
   }
 
+  /** Completes the step: the identity was verified, and confirmed if there was anything to. */
   private void succeed(AuthenticationFlowContext context) {
-    context.getAuthenticationSession().removeAuthNote(ATTEMPTS_NOTE);
+    AuthenticationSessionModel authSession = context.getAuthenticationSession();
+    authSession.removeAuthNote(ATTEMPTS_NOTE);
+    authSession.removeAuthNote(CONFIRMATION_CASE_NOTE);
+    authSession.setAuthNote(LookupAndUpdateUser.IDENTITY_METHOD, IdentityMethod.VERIFIED.name());
     context.getEvent().detail("action", "ScanovateAuthenticator: user verified").success();
     context.success();
   }
@@ -617,7 +639,9 @@ public class ScanovateAuthenticator implements Authenticator {
       authSession.removeAuthNote(CAPTURE_TOKEN_NOTE);
     }
     authSession.removeAuthNote(CASE_ID_NOTE);
+    authSession.removeAuthNote(CONFIRMATION_CASE_NOTE);
     authSession.removeAuthNote(userStatusNote(config(context)));
+    authSession.removeAuthNote(LookupAndUpdateUser.IDENTITY_METHOD);
   }
 
   private int attempts(AuthenticationFlowContext context) {

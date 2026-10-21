@@ -76,8 +76,9 @@ public class Utils {
 
   /**
    * Notes that only Keycloak sets: the code and its state, what a code verified, the verification
-   * outcome, the stored field list and the matched user. A submitted form field with one of these
-   * names must not become a note, or it could plant a code, a verified contact or another voter.
+   * outcome, the identity method, the stored field list and the matched user. A submitted form
+   * field with one of these names must not become a note, or it could plant a code, a verified
+   * contact, a verified identity or another voter.
    */
   private static final Set<String> RESERVED_NOTES =
       Stream.concat(
@@ -93,13 +94,14 @@ public class Utils {
                   LookupAndUpdateUser.VERIFICATION_REJECTION_REASON,
                   LookupAndUpdateUser.VERIFICATION_MISMATCHED_FIELDS,
                   LookupAndUpdateUser.FIELDS_MATCH,
+                  LookupAndUpdateUser.IDENTITY_METHOD,
                   KEYS_USERDATA,
                   USER_ID))
           .collect(Collectors.toUnmodifiableSet());
 
   /**
    * Form fields that become notes besides the user profile's attributes: the account fields, the
-   * password, the terms box, the identity method and the messaging channel choice.
+   * password, the terms box and the messaging channel choice.
    */
   static final Set<String> FORM_FIELDS =
       Set.of(
@@ -110,7 +112,6 @@ public class Utils {
           "password",
           "password-confirm",
           "termsAccepted",
-          "identity-method",
           MessagingAttributes.FORM_OTP_CHANNEL,
           MessagingAttributes.FORM_WHATSAPP_NUMBER,
           MessagingAttributes.FORM_VIBER_NUMBER,
@@ -239,6 +240,8 @@ public class Utils {
     } else {
       sessionModel.removeAuthNote(USER_ID);
     }
+    // The data was typed again: what an earlier verification established no longer holds.
+    sessionModel.removeAuthNote(LookupAndUpdateUser.IDENTITY_METHOD);
   }
 
   /** We retrieve the user data stored in the session notes and create a new user in this realm. */
