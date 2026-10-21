@@ -55,10 +55,13 @@ import org.keycloak.sessions.RootAuthenticationSessionModel;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
 import sequent.keycloak.scanovate_authenticator.FaceMatchClient.FaceComparison;
+import sequent.keycloak.voter_enrollment.IdentityMethod;
+import sequent.keycloak.voter_enrollment.LookupAndUpdateUser;
 import sequent.keycloak.voter_enrollment.Utils;
 
 class ScanovateAuthenticatorTest {
   private static final String STATUS_NOTE = "sequent.read-only.id-card-number-validated";
+  private static final String IDENTITY_METHOD = LookupAndUpdateUser.IDENTITY_METHOD;
   private static final byte[] FRONT_JPEG = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, 'f'};
   private static final byte[] BACK_JPEG = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, 'b'};
   private static final byte[] HOLDING_JPEG = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, 'h'};
@@ -306,16 +309,179 @@ class ScanovateAuthenticatorTest {
     assertNull(authNotes.get(ScanovateAuthenticator.ATTEMPTS_NOTE));
   }
 
+  /** The method the enrollment's application would carry, as LookupAndUpdateUser reads it. */
+  private Optional<IdentityMethod> forwardedMethod() {
+    return LookupAndUpdateUser.identityMethod(context.getAuthenticationSession());
+  }
+
+  private void post(FormAction action) {
+    formParams.clear();
+    formParams.add(ScanovateAuthenticator.FORM_ACTION_PARAM, action.value());
+  }
+
+  /**
+   * The user attribute says that an earlier enrollment verified the voter, but it is not proof of
+   * this session's verification: the shortcut keeps passing the step and establishes no method.
+   */
   @Test
   void alreadyVerifiedUserSkipsVerification() {
     UserModel user = mock(UserModel.class);
     when(user.getFirstAttribute(STATUS_NOTE)).thenReturn("VERIFIED");
     when(context.getUser()).thenReturn(user);
+    authNotes.put(IDENTITY_METHOD, "VERIFIED");
 
     authenticator.authenticate(context);
 
     verify(context).success();
     verify(form, never()).createForm(anyString());
+    assertEquals(Optional.empty(), forwardedMethod());
+  }
+
+  @Test
+  void aConfirmedVerificationEstablishesAVerifiedIdentity() {
+    passedCapture();
+
+    authenticator.action(context);
+
+    verify(form).createForm(ScanovateAuthenticator.CONFIRMATION_FORM);
+    assertNull(authNotes.get(IDENTITY_METHOD));
+
+    post(FormAction.CONFIRM);
+    authenticator.action(context);
+
+    verify(context).success();
+    assertEquals(Optional.of(IdentityMethod.VERIFIED), forwardedMethod());
+  }
+
+  @Test
+  void aVerificationWithoutAttributesToConfirmEstablishesAVerifiedIdentity() {
+    config.remove(ScanovateAuthenticatorFactory.ATTRIBUTES_TO_STORE);
+    passedCapture();
+
+    authenticator.action(context);
+
+    verify(context).success();
+    assertEquals(Optional.of(IdentityMethod.VERIFIED), forwardedMethod());
+  }
+
+  /**
+   * The status note is also a profile attribute, which a form could submit: a confirmation needs
+   * the verification this step completed, not that note.
+   */
+  @Test
+  void aConfirmationWithoutACompletedVerificationEstablishesNothing() {
+    authNotes.put(STATUS_NOTE, "VERIFIED");
+    post(FormAction.CONFIRM);
+
+    authenticator.action(context);
+
+    verify(context, never()).success();
+    assertNull(authNotes.get(STATUS_NOTE));
+    assertEquals(Optional.empty(), forwardedMethod());
+  }
+
+  @Test
+  void aConfirmationAbandonedForANewCaptureEstablishesNothing() {
+    passedCapture();
+    authenticator.action(context);
+
+    // The voter reloads the confirmation page, which starts over, and confirms the old one.
+    authenticator.authenticate(context);
+    post(FormAction.CONFIRM);
+    authenticator.action(context);
+
+    verify(context, never()).success();
+    assertEquals(Optional.empty(), forwardedMethod());
+  }
+
+  @Test
+  void aFailedVerificationDropsAnEarlierVerifiedIdentity() throws IOException {
+    authNotes.put(IDENTITY_METHOD, "VERIFIED");
+    passedCapture();
+    when(faceMatch.compare(FRONT_JPEG, JPEG)).thenReturn(match(0.3));
+
+    authenticator.action(context);
+
+    verifyFailedAttempt(ScanovateError.FACE_MISMATCH.messageKey());
+    assertEquals(Optional.empty(), forwardedMethod());
+  }
+
+  @Test
+  void aProviderErrorDropsAnEarlierVerifiedIdentity() throws IOException {
+    authNotes.put(IDENTITY_METHOD, "VERIFIED");
+    passedCapture();
+    when(ocr.recognize(anyString(), any(), anyString())).thenThrow(new IOException("down"));
+
+    authenticator.action(context);
+
+    verifyError(ScanovateError.INTERNAL, true);
+    assertEquals(Optional.empty(), forwardedMethod());
+  }
+
+  @Test
+  void aRetryDropsAnEarlierVerifiedIdentity() {
+    authNotes.put(IDENTITY_METHOD, "VERIFIED");
+    post(FormAction.RETRY);
+
+    authenticator.action(context);
+
+    verifyCapturePage(List.of("FRONT", "BACK"), 3);
+    assertEquals(Optional.empty(), forwardedMethod());
+  }
+
+  @Test
+  void aRetryAfterAFailureCanStillEstablishAVerifiedIdentity() throws IOException {
+    passedCapture();
+    when(faceMatch.compare(FRONT_JPEG, JPEG)).thenReturn(match(0.3));
+    authenticator.action(context);
+    assertEquals("1", authNotes.get(ScanovateAuthenticator.ATTEMPTS_NOTE));
+
+    when(faceMatch.compare(FRONT_JPEG, JPEG)).thenReturn(match(0.9));
+    post(FormAction.RETRY);
+    authenticator.action(context);
+    formParams.clear();
+    livenessResult(authNotes.get(ScanovateAuthenticator.LIVENESS_TOKEN_NOTE), true);
+    capture(FRONT_JPEG, BACK_JPEG, HOLDING_JPEG);
+    authenticator.action(context);
+    post(FormAction.CONFIRM);
+    authenticator.action(context);
+
+    verify(context).success();
+    assertEquals(Optional.of(IdentityMethod.VERIFIED), forwardedMethod());
+    assertNull(authNotes.get(ScanovateAuthenticator.ATTEMPTS_NOTE));
+  }
+
+  @Test
+  void restartingTheStepDropsAnEarlierVerifiedIdentity() {
+    authNotes.put(IDENTITY_METHOD, "VERIFIED");
+
+    authenticator.authenticate(context);
+
+    verifyCapturePage(List.of("FRONT", "BACK"), 3);
+    assertEquals(Optional.empty(), forwardedMethod());
+  }
+
+  @Test
+  void reachingTheAttemptLimitDropsAnEarlierVerifiedIdentity() {
+    authNotes.put(IDENTITY_METHOD, "VERIFIED");
+    authNotes.put(ScanovateAuthenticator.ATTEMPTS_NOTE, "3");
+
+    authenticator.authenticate(context);
+
+    verifyMaxRetriesWithoutNewCapture();
+    assertEquals(Optional.empty(), forwardedMethod());
+  }
+
+  @Test
+  void anAlternativeStepThatFailsLeavesNoVerifiedIdentity() {
+    when(execution.isAlternative()).thenReturn(true);
+    authNotes.put(IDENTITY_METHOD, "VERIFIED");
+    config.put(ScanovateAuthenticatorFactory.OCR_URL, "");
+
+    authenticator.authenticate(context);
+
+    verify(context).attempted();
+    assertEquals(Optional.empty(), forwardedMethod());
   }
 
   @Test
@@ -590,8 +756,9 @@ class ScanovateAuthenticatorTest {
 
   @Test
   void confirmationCompletesTheVerification() {
-    authNotes.put(STATUS_NOTE, "VERIFIED");
-    formParams.add(ScanovateAuthenticator.FORM_ACTION_PARAM, FormAction.CONFIRM.value());
+    passedCapture();
+    authenticator.action(context);
+    post(FormAction.CONFIRM);
 
     authenticator.action(context);
 

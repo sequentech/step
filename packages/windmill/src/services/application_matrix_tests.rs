@@ -351,3 +351,88 @@ fn the_known_identity_documents_are_listed() {
         ]
     );
 }
+
+/// A matrix that only accepts a verified identity, for the identity method
+/// tests.
+fn requires_a_verified_identity() -> MatrixVersion {
+    let matrix: ApprovalMatrix = serde_json::from_value(json!({
+        "compared_fields": ["firstName", "lastName", "dateOfBirth"],
+        "rules": [
+            {"when": {"identity": "VERIFIED", "differing": "none"}, "then": {"decision": "ACCEPTED"}}
+        ],
+        "otherwise": {"decision": "PENDING", "reason": "IDENTITY_NOT_VERIFIED"}
+    }))
+    .unwrap();
+    MatrixVersion {
+        version: 2,
+        source: MatrixSource::SAVED,
+        matrix,
+    }
+}
+
+#[test]
+fn a_verified_identity_reaches_the_decision_and_is_stored_with_it() {
+    let matrix = requires_a_verified_identity();
+    let (result, decision) = verify(
+        vec![registry_voter("a", &[])],
+        &matrix,
+        Some("VERIFIED"),
+        None,
+    );
+
+    assert_eq!(result.application_status, ApplicationStatus::ACCEPTED);
+    assert_eq!(decision.matrix_version, 2);
+    assert_eq!(decision.rule, Some(1));
+    assert_eq!(decision.inputs.identity, Some(IdentityMethod::VERIFIED));
+
+    let mut stored = annotations(Some("VERIFIED"));
+    stored.decision = Some(decision);
+    let value = serde_json::to_value(&stored).unwrap();
+    assert_eq!(value["identity-method"], "VERIFIED");
+    assert_eq!(value["decision"]["inputs"]["identity"], "VERIFIED");
+    assert_eq!(value["decision"]["matrix_version"], 2);
+    assert_eq!(value["decision"]["rule"], 1);
+}
+
+#[test]
+fn without_an_identity_method_a_rule_for_verified_identities_does_not_apply() {
+    let matrix = requires_a_verified_identity();
+    let (result, decision) = verify(vec![registry_voter("a", &[])], &matrix, None, None);
+
+    assert_eq!(result.application_status, ApplicationStatus::PENDING);
+    assert_eq!(
+        result.rejection_reason,
+        Some(ApplicationRejectReason::IDENTITY_NOT_VERIFIED)
+    );
+    assert_eq!(decision.rule, None);
+    assert_eq!(decision.inputs.identity, None);
+}
+
+#[test]
+fn a_manual_entry_does_not_meet_a_rule_for_verified_identities() {
+    let matrix = requires_a_verified_identity();
+    let (result, decision) = verify(
+        vec![registry_voter("a", &[])],
+        &matrix,
+        Some("MANUAL_ENTRY"),
+        None,
+    );
+
+    assert_eq!(result.application_status, ApplicationStatus::PENDING);
+    assert_eq!(decision.rule, None);
+    assert_eq!(decision.inputs.identity, Some(IdentityMethod::MANUAL_ENTRY));
+}
+
+/// Keycloak only sends the methods it knows; anything else is refused
+/// instead of deciding without it.
+#[test]
+fn an_unknown_identity_method_is_refused() {
+    for method in ["verified", "AUTOMATIC", ""] {
+        let read: Result<ApplicationAnnotations, _> = serde_json::from_value(json!({
+            "search-attributes": SEARCH,
+            "unset-attributes": "email",
+            "identity-method": method,
+        }));
+        assert!(read.is_err(), "{method}");
+    }
+}
