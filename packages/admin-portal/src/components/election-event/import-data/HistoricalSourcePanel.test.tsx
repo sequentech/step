@@ -5,6 +5,12 @@ import React from "react"
 import {fireEvent, render, screen, waitFor} from "@testing-library/react"
 import "@testing-library/jest-dom"
 import {HistoricalSourcePanel} from "./HistoricalSourcePanel"
+jest.mock("@/providers/SettingsContextProvider", () => ({
+    SettingsContext: require("react").createContext({
+        loaded: true,
+        globalSettings: {APP_VERSION: "v11.0.0-rc.0"},
+    }),
+}))
 const mockBuild = jest.fn()
 jest.mock("react-i18next", () => ({
     useTranslation: () => ({

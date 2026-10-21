@@ -44,6 +44,15 @@ and `/historical-import-worker.js`. Conversion requires no Internet or S3 access
 Do not point this setting at a source SQL/XLSX file. The normal backend upload
 and import still require the existing backend services.
 
+Historical conversion waits for loaded runtime settings and passes `APP_VERSION`
+to the builder as `baseExport.version`. Use the deployment's version (for example,
+`v11.0.0-rc.0`), or `dev` for a development deployment. A missing, placeholder or
+malformed version blocks conversion before reading the source files; it never
+falls back to the standalone converter's version. Reload the page after correcting
+`global-settings.json`. Changing the runtime version invalidates any prior
+conversion and rebuilds from the retained sources. Native archives keep their
+existing embedded version and backend compatibility check.
+
 The normal Import Event side drawer opens with the same native-import UI
 whether the plugin is enabled or disabled. There are no initial converter
 controls or policy settings. Its one drag/drop zone accepts multiple source
@@ -166,7 +175,8 @@ step-cli step build-election-event \
 Run without `--check-only` to write a validated package. `--strict` also refuses
 warnings. The existing workbook-only command remains available.
 
-The command above uses exactly the drawer preset. For advanced CLI conversion,
+The command above uses the drawer's historical policy preset. The drawer additionally
+supplies its loaded runtime version through `baseExport.version`. For advanced CLI conversion,
 supply a separate reviewed decisions file. Such a file uses these fields; replace the hash placeholders with the
 displayed hashes and review the row associations against the original files:
 

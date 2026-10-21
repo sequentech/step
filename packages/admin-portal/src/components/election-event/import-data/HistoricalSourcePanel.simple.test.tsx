@@ -5,6 +5,13 @@ import React from "react"
 import {act, fireEvent, render, screen, waitFor} from "@testing-library/react"
 import "@testing-library/jest-dom"
 import {HistoricalSourcePanel} from "./HistoricalSourcePanel"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
+jest.mock("@/providers/SettingsContextProvider", () => ({
+    SettingsContext: require("react").createContext({
+        loaded: true,
+        globalSettings: {APP_VERSION: "v11.0.0-rc.0"},
+    }),
+}))
 const mockBuild = jest.fn()
 jest.mock("react-i18next", () => ({
     useTranslation: () => ({
@@ -164,3 +171,106 @@ it("prepares only the validated ZIP and its actual digest locally", async () => 
             .digest("hex")
     )
 })
+
+// Keep the same files and converter between settings updates: configuration changes
+// must invalidate the old package even when the operator has not dropped files again.
+function configuredPanel(
+    p: ReturnType<typeof props>,
+    files: File[],
+    loaded: boolean,
+    version: unknown
+) {
+    const settings = {loaded, globalSettings: {APP_VERSION: version}} as React.ContextType<
+        typeof SettingsContext
+    >
+    return (
+        <SettingsContext.Provider value={settings}>
+            <HistoricalSourcePanel {...p} droppedFiles={files} />
+        </SettingsContext.Provider>
+    )
+}
+it.each(["v11.0.0-rc.0", "11.0.0", "V11.0.0", "v10.1.2", "dev"])(
+    "declares the loaded runtime version %s in the converted export",
+    async (version) => {
+        mockBuild.mockResolvedValue(rejected)
+        render(configuredPanel(props(), [sql, xlsx], true, version))
+        await waitFor(() => expect(mockBuild).toHaveBeenCalledTimes(1))
+        expect(mockBuild.mock.calls[0][3]).toEqual({baseExport: {version}})
+    }
+)
+it("waits for settings before reading files and resumes when settings load", async () => {
+    mockBuild.mockResolvedValue(rejected)
+    const unread = new File([], "unread.sql")
+    const read = jest.fn(async () => new ArrayBuffer(0))
+    Object.defineProperty(unread, "arrayBuffer", {value: read})
+    const p = props()
+    const files = [unread, xlsx]
+    const view = render(configuredPanel(p, files, false, "v11.0.0-rc.0"))
+    expect(screen.getByRole("status")).toHaveTextContent("Waiting for application settings")
+    await act(async () => {})
+    expect(read).not.toHaveBeenCalled()
+    expect(mockBuild).not.toHaveBeenCalled()
+    expect(p.onAccepted).not.toHaveBeenCalled()
+    view.rerender(configuredPanel(p, files, true, "v11.0.0-rc.0"))
+    await waitFor(() => expect(mockBuild).toHaveBeenCalledTimes(1))
+    expect(mockBuild.mock.calls[0][3]).toEqual({baseExport: {version: "v11.0.0-rc.0"}})
+})
+it.each([undefined, null, "", " ", "-", "not-a-version", "v11.bad.0", 11, {}])(
+    "blocks invalid loaded APP_VERSION %p without falling back to the converter default",
+    async (version) => {
+        mockBuild.mockResolvedValue(rejected)
+        const unread = new File([], "unread.sql")
+        const read = jest.fn(async () => new ArrayBuffer(0))
+        Object.defineProperty(unread, "arrayBuffer", {value: read})
+        const p = props()
+        const files = [unread, xlsx]
+        const view = render(configuredPanel(p, files, true, version))
+        expect(await screen.findByRole("alert")).toHaveTextContent(
+            "application version is unavailable or invalid"
+        )
+        fireEvent.click(screen.getByRole("button", {name: "Retry local validation"}))
+        expect(read).not.toHaveBeenCalled()
+        expect(mockBuild).not.toHaveBeenCalled()
+        expect(p.onAccepted).not.toHaveBeenCalled()
+        view.rerender(configuredPanel(p, files, true, "v11.0.0-rc.0"))
+        await waitFor(() => expect(mockBuild).toHaveBeenCalledTimes(1))
+        expect(mockBuild.mock.calls[0][3]).toEqual({baseExport: {version: "v11.0.0-rc.0"}})
+    }
+)
+it.each([
+    [true, "v11.0.1"],
+    [false, "v11.0.0-rc.0"],
+    [true, "-"],
+])(
+    "invalidates an in-flight package when runtime settings change to %p / %p",
+    async (loaded, version) => {
+        let finish: (value: unknown) => void = () => {}
+        mockBuild
+            .mockImplementationOnce(
+                () =>
+                    new Promise((resolve) => {
+                        finish = resolve
+                    })
+            )
+            .mockResolvedValueOnce(rejected)
+        const p = props()
+        const files = [sql, xlsx]
+        const view = render(configuredPanel(p, files, true, "v11.0.0-rc.0"))
+        await waitFor(() => expect(mockBuild).toHaveBeenCalledTimes(1))
+        view.rerender(configuredPanel(p, files, loaded as boolean, version))
+        await act(async () =>
+            finish({
+                output: {archive: {bytes: [80, 75], name: "stale.zip"}, report: {problems: []}},
+                summary: {},
+            })
+        )
+        expect(p.onPrepare).toHaveBeenCalledTimes(2)
+        expect(p.onAccepted).not.toHaveBeenCalled()
+        if (version === "v11.0.1") {
+            expect(mockBuild).toHaveBeenCalledTimes(2)
+            expect(mockBuild.mock.calls[1][3]).toEqual({baseExport: {version}})
+        } else {
+            expect(mockBuild).toHaveBeenCalledTimes(1)
+        }
+    }
+)
