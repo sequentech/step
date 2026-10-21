@@ -26,7 +26,7 @@ Opening a ballot checks four things on the device:
 
 The browser uses published keys independently of the proof response. **Still being added to the log** means a required signed entry has not arrived yet; retry later. **A check failed** means available evidence did not verify; do not rely on that entry. A failed check takes precedence even when another entry is pending. Signed entries can be downloaded for independent verification. The existing receipt checks-period setting still applies.
 
-In the Admin Portal, open a ballot entry in the event's **Logs** tab to run the same checks. Other audit explanations, filters and exports remain available. For pseudonym events, **Voters > User's Logs** contains the voter's sign-ins and messages rather than their ballots. Participation remains available without an individual ballot timestamp.
+In the Admin Portal, open a ballot entry in the event's **Logs** tab to run the same checks. **Ballot and pseudonym** shows the two codes, voter key and ballot-box key, followed by the received and cast entries with their numbers, times and verification results. **This entry** marks the entry you opened. The received row groups the key binding, received ballot and Ballot ID checks; the cast row checks the cast signatures. Missing evidence waits, while a failed check is shown as an error. Other audit explanations, filters and exports remain available. For pseudonym events, **Voters > User's Logs** contains the voter's sign-ins and messages rather than their ballots. Participation remains available without an individual ballot timestamp.
 
 ## Auditing a ballot
 

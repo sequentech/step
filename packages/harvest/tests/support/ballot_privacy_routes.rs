@@ -391,6 +391,32 @@ fn authorized_resolution_is_private_durable_and_unavailable_after_purge() {
         assert_eq!(entry.status(), Status::Ok);
         let entry: Value = entry.into_json().await.unwrap();
         assert!(!entry.to_string().contains(voter));
+        let display_entries = entry["payload"]["log_entries"]
+            .as_array()
+            .expect("ballot details include public log entry metadata");
+        assert_eq!(display_entries.len(), 2);
+        let stored = store
+            .query(&board, &electoral_log::LogQuery::default())
+            .await
+            .unwrap();
+        for row in &stored {
+            let displayed = display_entries
+                .iter()
+                .find(|entry| entry["id"] == row.id.to_string())
+                .unwrap();
+            let signed = Message::record_deserialize(&row.message).unwrap();
+            assert_eq!(displayed["kind"], row.statement_kind);
+            assert_eq!(displayed["timestamp"], signed.statement.head.timestamp);
+            assert_eq!(
+                displayed["description"],
+                signed.statement.head.description
+            );
+            if let electoral_log::messages::statement::StatementBody::BallotReceived(evidence) = signed.statement.body {
+                assert_eq!(displayed["voter_public_key"], evidence.voter_signing_pk);
+            } else {
+                assert!(displayed["voter_public_key"].is_null());
+            }
+        }
         let ballot_proof: sequent_core::ballot_privacy::BallotPrivacyProof =
             serde_json::from_value(entry["payload"].clone()).unwrap();
         let keys = post(&client, "/ballot-box-keys", &ordinary, &scope).await;

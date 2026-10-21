@@ -4,22 +4,26 @@ import React from "react"
 import {useQuery} from "@apollo/client"
 import {Alert, Button, CircularProgress, Stack} from "@mui/material"
 import {useTranslation} from "react-i18next"
-import {
-    BallotLogProof,
-    type BallotLogEvidence,
-    type BallotLogTrust,
-} from "@sequentech/ui-essentials"
+import type {BallotLogTrust} from "@sequentech/ui-essentials"
 import {BALLOT_BOX_ENTRY, BALLOT_BOX_KEYS} from "@/queries/BallotBoxLog"
 import {IPermissions} from "@/types/keycloak"
+import {
+    BallotEntryEvidence,
+    type IAdminBallotEvidence,
+    type IBallotLogSelection,
+} from "./BallotEntryEvidence"
 
 export const BallotEntryProof: React.FC<{
     electionEventId: string
     electionId: string
     ballotId: string
-}> = ({electionEventId, electionId, ballotId}) => {
+    pseudonym: string
+    selectedEntry: IBallotLogSelection
+    zone: string
+}> = ({electionEventId, electionId, ballotId, pseudonym, selectedEntry, zone}) => {
     const {t} = useTranslation()
     const context = {headers: {"x-hasura-role": IPermissions.LOGS_READ}}
-    const entry = useQuery<{ballot_box_entry: {payload: BallotLogEvidence}}>(BALLOT_BOX_ENTRY, {
+    const entry = useQuery<{ballot_box_entry: {payload: IAdminBallotEvidence}}>(BALLOT_BOX_ENTRY, {
         variables: {electionEventId, electionId, ballotId},
         fetchPolicy: "no-cache",
         context,
@@ -38,6 +42,7 @@ export const BallotEntryProof: React.FC<{
     }
     const contextMatches =
         proof?.ballot_id === ballotId &&
+        proof?.pseudonym === pseudonym &&
         trust?.election_id === electionId &&
         trust?.election_event_id === electionEventId
     return (
@@ -50,7 +55,13 @@ export const BallotEntryProof: React.FC<{
                     <Button onClick={retry}>{t("ballotPrivacy.retry")}</Button>
                 </>
             ) : (
-                <BallotLogProof trust={trust} proof={proof} onRetry={retry} />
+                <BallotEntryEvidence
+                    trust={trust}
+                    proof={proof}
+                    selectedEntry={selectedEntry}
+                    zone={zone}
+                    onRetry={retry}
+                />
             )}
         </Stack>
     )

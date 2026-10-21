@@ -6,6 +6,7 @@ import React from "react"
 import initCore from "sequent-core"
 import ballotFixture from "../../../../voting-portal/src/components/__stories__/ballotProof.json"
 import {IPermissions} from "@/types/keycloak"
+import {GraphQLError} from "graphql"
 import type {StoryObj} from "@storybook/react-vite"
 import {expect, fn, userEvent, waitFor, within} from "storybook/test"
 import {AdminStoryProvider, EVENT_ID, graphqlBoundary} from "@/__stories__/AdminStoryProvider"
@@ -42,11 +43,31 @@ interface Scenario {
     onClose: () => void
     readinessTerminology?: "areas" | "districts"
     pendingCast?: boolean
+    tamperedCast?: boolean
+    proofError?: boolean
+    withoutMetadata?: boolean
 }
 
 const TENANT_LOG: ILogTarget = {kind: ELogScope.TENANT}
 const SEAL_HASH = `ef187f0b${"3c".repeat(56)}22a65e5b`
 const SEALED = "Ballot box of the North area sealed: 1,340 of 1,342 ballots counted."
+
+const BALLOT_LOG_ENTRIES = [
+    {
+        id: "18443",
+        kind: "BallotReceived",
+        timestamp: 1833186097,
+        description: `Ballot ${ballotFixture.proof.ballot_id} received`,
+        voter_public_key: "gTl3Dqh9F19Wo1Rmw0x+zMuNipG07jeiXfYPW4/Js5Q=",
+    },
+    {
+        id: "18445",
+        kind: "CastVote",
+        timestamp: 1833186225,
+        description: `Ballot ${ballotFixture.proof.ballot_id} cast, online`,
+        voter_public_key: null,
+    },
+]
 
 /** An entry of an election event's log whose kind has an explanation of its own. */
 const SEAL_ENTRY: ILogRow = {
@@ -102,18 +123,33 @@ const meta = {
                   }
                 : undefined
         )
-        if (args.entry?.statement_kind === "BallotReceived") await initCore()
+        if (["BallotReceived", "CastVote"].includes(args.entry?.statement_kind ?? ""))
+            await initCore()
         graphql = graphqlBoundary(
             {
-                BallotBoxEntry: () => ({
-                    data: {
-                        ballot_box_entry: {
-                            payload: args.pendingCast
-                                ? {...ballotFixture.proof, cast_entry: null, voting_channel: ""}
-                                : ballotFixture.proof,
-                        },
-                    },
-                }),
+                BallotBoxEntry: () =>
+                    args.proofError
+                        ? {errors: [new GraphQLError("Synthetic log unavailable")]}
+                        : {
+                              data: {
+                                  ballot_box_entry: {
+                                      payload: {
+                                          ...ballotFixture.proof,
+                                          ...(args.pendingCast
+                                              ? {cast_entry: null, voting_channel: ""}
+                                              : {}),
+                                          ...(args.tamperedCast ? {cast_entry: "AAAA"} : {}),
+                                          ...(args.withoutMetadata
+                                              ? {}
+                                              : {
+                                                    log_entries: args.pendingCast
+                                                        ? BALLOT_LOG_ENTRIES.slice(0, 1)
+                                                        : BALLOT_LOG_ENTRIES,
+                                                }),
+                                      },
+                                  },
+                              },
+                          },
                 BallotBoxKeys: () => ({data: {ballot_box_keys: {payload: ballotFixture.trusted}}}),
             },
             {schema: true}
@@ -603,10 +639,21 @@ export const PseudonymousReceived: Story = {
             }),
         },
     },
-    play: async () => {
+    play: async ({args}) => {
         const view = await dialog()
         await expect(await view.findByText("All four checks passed")).toBeVisible()
-        expect(view.getAllByText("Passed")).toHaveLength(4)
+        const entries = view.getByRole("list", {
+            name: "This ballot's entries, checked in this browser",
+        })
+        expect(within(entries).getAllByRole("listitem")).toHaveLength(2)
+        expect(within(entries).getByText("This entry")).toBeVisible()
+        expect(view.getByText("Voter key")).toBeVisible()
+        expect(entries.querySelectorAll('[data-check-state="passed"]')).toHaveLength(2)
+        expect(
+            entries.querySelector('[aria-current="true"]')?.getAttribute("data-entry-kind")
+        ).toBe(args.entry?.statement_kind)
+        if (!args.withoutMetadata)
+            expect(view.getByTitle("gTl3Dqh9F19Wo1Rmw0x+zMuNipG07jeiXfYPW4/Js5Q=")).toBeVisible()
         expect(view.queryByRole("button", {name: "Try again"})).toBeNull()
         expect(view.getByRole("button", {name: "Download signed log entries"})).toBeVisible()
         expect(graphql.calls.map(({name}) => name).sort()).toEqual([
@@ -618,6 +665,76 @@ export const PseudonymousReceived: Story = {
         ).toBe(true)
         const element = within(document.body).getByRole("dialog")
         expect(element.scrollWidth).toBeLessThanOrEqual(element.clientWidth + 1)
+    },
+}
+
+export const PseudonymousCast: Story = {
+    ...PseudonymousReceived,
+    args: {
+        ...PseudonymousReceived.args,
+        entry: {
+            id: 18445,
+            statement_timestamp: 1833186225,
+            statement_kind: "CastVote",
+            message: JSON.stringify({
+                sender: {
+                    name: ballotFixture.proof.pseudonym,
+                    pk: ballotFixture.trusted.system_public_key,
+                },
+                username: ballotFixture.proof.pseudonym,
+                ballot_id: ballotFixture.proof.ballot_id,
+                election_id: ballotFixture.trusted.election_id,
+                statement: {
+                    head: {
+                        event_type: "USER",
+                        log_type: "INFO",
+                        description: "Ballot cast under a pseudonym.",
+                    },
+                    body: {PrivacyCastVote: {}},
+                },
+            }),
+        },
+    },
+}
+
+export const BallotWithoutDisplayMetadata: Story = {
+    ...PseudonymousReceived,
+    args: {...PseudonymousReceived.args, withoutMetadata: true},
+}
+
+export const BallotWithFailedCastCheck: Story = {
+    ...PseudonymousCast,
+    args: {...PseudonymousCast.args, tamperedCast: true},
+    play: async () => {
+        const view = await dialog()
+        await expect(await view.findByText("Do not rely on this entry.")).toBeVisible()
+        const list = view.getByRole("list")
+        expect(list.querySelector('[data-entry-kind="BallotReceived"]')).toHaveAttribute(
+            "data-check-state",
+            "passed"
+        )
+        expect(list.querySelector('[data-entry-kind="CastVote"]')).toHaveAttribute(
+            "data-check-state",
+            "failed"
+        )
+        expect(view.queryByText("All four checks passed")).toBeNull()
+        expect(view.getByRole("button", {name: "Download signed log entries"})).toBeVisible()
+    },
+}
+
+export const BallotProofUnavailable: Story = {
+    ...PseudonymousReceived,
+    args: {...PseudonymousReceived.args, proofError: true},
+    play: async () => {
+        const view = await dialog()
+        await expect(
+            await view.findByText(
+                "The signed entries or published keys could not be loaded. Try again."
+            )
+        ).toBeVisible()
+        await userEvent.click(view.getByRole("button", {name: "Try again"}))
+        await waitFor(() => expect(graphql.calls).toHaveLength(4))
+        expect(view.queryByText("All four checks passed")).toBeNull()
     },
 }
 
@@ -672,7 +789,9 @@ export const ReceivedBeforeCast: Story = {
     play: async () => {
         const view = await dialog()
         await expect(await view.findByText("Still being added to the log")).toBeVisible()
-        expect(view.getAllByText("Passed")).toHaveLength(3)
+        expect(
+            view.getByRole("list").querySelector('[data-entry-kind="BallotReceived"]')
+        ).toHaveAttribute("data-check-state", "passed")
         expect(view.getByText("Not in the log yet.")).toBeVisible()
         await userEvent.click(view.getByRole("button", {name: "Try again"}))
         await waitFor(() => expect(graphql.calls).toHaveLength(4))
@@ -691,6 +810,16 @@ export const PseudonymousReceivedPhone: Story = {
 
 export const PseudonymousReceivedTablet: Story = {
     ...PseudonymousReceived,
+    ...atViewport(820),
+}
+
+export const PseudonymousCastPhone: Story = {
+    ...PseudonymousCast,
+    ...atViewport(390),
+}
+
+export const PseudonymousCastTablet: Story = {
+    ...PseudonymousCast,
     ...atViewport(820),
 }
 

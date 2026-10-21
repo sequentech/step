@@ -80,6 +80,21 @@ const englishTranslation = {
             userLogs:
                 "A voter's own entries: sign-ins and messages. Their ballots are in the log under a pseudonym, so they never appear here; only a logged resolution links the two.",
             ballotSection: "Ballot and pseudonym",
+            admin: {
+                voterKey: "Voter key",
+                entries: "This ballot's entries, checked in this browser",
+                thisEntry: "This entry",
+                entryNumber: "Entry {{id}}",
+                receivedTitle: "Ballot {{ballotId}} received",
+                castTitle: "Ballot {{ballotId}} cast",
+                receivedHelp:
+                    "This log's system key signed that the pseudonym uses this voter key; the ballot box signed that it received a ballot signed with it, and the Ballot ID comes from that ballot.",
+                castHelp: "The same key cast it, and the ballot box confirmed the cast.",
+                pseudonymHelp: "A pseudonym, never the voter",
+                neverPublished:
+                    "No entry about a ballot names the voter or holds their IP address, country or device. Only a logged resolution links a pseudonym to its voter.",
+                signedBy: "The log's system key and the ballot box key",
+            },
             resolution: "Pseudonym resolution",
             resolutionHelp:
                 "The answer went only to the person who asked. The voter is never named in this log.",

@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useId} from "react"
-import {Box, Chip, Divider, Typography} from "@mui/material"
+import {Box, Chip, Divider, Typography, styled} from "@mui/material"
+import {FontAwesomeIcon} from "@fortawesome/react-fontawesome"
+import {faUserSecret} from "@fortawesome/free-solid-svg-icons"
 import {useTranslation} from "react-i18next"
 import type {TFunction} from "i18next"
 import {Dialog} from "@sequentech/ui-essentials"
@@ -53,6 +55,40 @@ const LOG_TYPE_ERROR = "ERROR"
 const STATUS_RETIRED = "RETIRED"
 const MONO = {fontFamily: "monospace", fontSize: "0.8125rem", overflowWrap: "anywhere"} as const
 
+const EntryDialog = styled(Dialog)(({theme}) => ({
+    [theme.breakpoints.down("sm")]: {
+        "&.log-entry-ballot-dialog .dialog-paper": {
+            margin: 0,
+            width: "100%",
+            maxWidth: "100%",
+            height: "100%",
+            maxHeight: "100%",
+            borderRadius: 0,
+        },
+        "&.log-entry-ballot-dialog .dialog-content": {padding: "16px 16px 0 !important"},
+        "&.log-entry-ballot-dialog .MuiDialogActions-root": {paddingLeft: 16, paddingRight: 16},
+    },
+}))
+
+const PseudonymChip: React.FC<{code: string}> = ({code}) => (
+    <Chip
+        size="small"
+        variant="outlined"
+        icon={<FontAwesomeIcon icon={faUserSecret} />}
+        label={code}
+        sx={{
+            height: 24,
+            borderRadius: "4px",
+            bgcolor: "#F7F9FC",
+            borderColor: "#DFE6EF",
+            color: "#405269",
+            fontFamily: "monospace",
+            fontWeight: 600,
+            fontSize: 12,
+        }}
+    />
+)
+
 const Fact: React.FC<
     React.PropsWithChildren<{label: string; detail?: React.ReactNode; wide?: boolean}>
 > = ({label, detail, wide, children}) => (
@@ -88,6 +124,7 @@ const Fact: React.FC<
 
 const Facts: React.FC<React.PropsWithChildren> = ({children}) => (
     <Box
+        className="log-entry-facts"
         component="dl"
         sx={{
             display: "grid",
@@ -295,7 +332,16 @@ const EntryContent: React.FC<{entry: ILogRow; log: ILogTarget; zone: string}> = 
             role="group"
             tabIndex={0}
             aria-labelledby={descriptionId}
-            sx={{display: "flex", flexDirection: "column", gap: 2, pt: 1, minWidth: 0}}
+            sx={{
+                "display": "flex",
+                "flexDirection": "column",
+                "gap": 2,
+                "pt": 1,
+                "minWidth": 0,
+                "& .log-entry-facts": ballot
+                    ? {gridTemplateColumns: {xs: "minmax(0, 1fr)", sm: "repeat(2, minmax(0, 1fr))"}}
+                    : undefined,
+            }}
         >
             <Typography
                 component="p"
@@ -306,7 +352,12 @@ const EntryContent: React.FC<{entry: ILogRow; log: ILogTarget; zone: string}> = 
             >
                 {readinessDescription(t, entry.statement_kind) ??
                     configurationPackageDescription(t, view.statementKind, message) ??
-                    (view.description || "-")}
+                    (ballot
+                        ? t(
+                              `ballotPrivacy.admin.${entry.statement_kind === "BallotReceived" ? "received" : "cast"}Title`,
+                              {ballotId: ballot.ballotId}
+                          )
+                        : view.description || "-")}
             </Typography>
             <Box sx={{display: "flex", flexWrap: "wrap", gap: 1}}>
                 {chips.map(({title, label, error}) =>
@@ -353,7 +404,9 @@ const EntryContent: React.FC<{entry: ILogRow; log: ILogTarget; zone: string}> = 
                     <Fact
                         label={String(t("logsScreen.entry.who"))}
                         detail={
-                            who.userId || who.role ? (
+                            ballot ? (
+                                t("ballotPrivacy.admin.pseudonymHelp")
+                            ) : who.userId || who.role ? (
                                 <>
                                     {who.userId ? (
                                         <Box component="span" sx={{display: "block"}}>
@@ -369,7 +422,7 @@ const EntryContent: React.FC<{entry: ILogRow; log: ILogTarget; zone: string}> = 
                             ) : undefined
                         }
                     >
-                        {ballot ? <Chip size="small" label={ballot.pseudonym} /> : whoName}
+                        {ballot ? <PseudonymChip code={ballot.pseudonym} /> : whoName}
                     </Fact>
                     {view.origin && !keycloak ? (
                         <Fact label={String(t("logsScreen.entry.madeIn"))}>
@@ -398,15 +451,22 @@ const EntryContent: React.FC<{entry: ILogRow; log: ILogTarget; zone: string}> = 
             {ballot && log.kind === ELogScope.EVENT ? (
                 <Section title={String(t("ballotPrivacy.ballotSection"))}>
                     <Facts>
-                        <Fact label={String(t("ballotPrivacy.ballotId"))}>{ballot.ballotId}</Fact>
                         <Fact label={String(t("ballotPrivacy.pseudonym"))}>
-                            <Chip size="small" label={ballot.pseudonym} />
+                            <PseudonymChip code={ballot.pseudonym} />
+                        </Fact>
+                        <Fact label={String(t("ballotPrivacy.ballotId"))}>
+                            <Box component="span" sx={{fontFamily: "monospace", fontWeight: 600}}>
+                                {ballot.ballotId}
+                            </Box>
                         </Fact>
                     </Facts>
                     <BallotEntryProof
                         electionEventId={log.electionEventId}
                         electionId={ballot.electionId}
                         ballotId={ballot.ballotId}
+                        pseudonym={ballot.pseudonym}
+                        selectedEntry={entry}
+                        zone={zone}
                     />
                 </Section>
             ) : null}
@@ -742,20 +802,24 @@ const EntryContent: React.FC<{entry: ILogRow; log: ILogTarget; zone: string}> = 
                         <Fact
                             label={String(t("logsScreen.entry.signatures.signedBy"))}
                             detail={
-                                signatures.signedBy && signatures.senderKey ? (
+                                !ballot && signatures.signedBy && signatures.senderKey ? (
                                     <Shortened value={signatures.senderKey} />
                                 ) : undefined
                             }
                         >
                             {ballot
-                                ? t("ballotPrivacy.signed")
+                                ? t("ballotPrivacy.admin.signedBy")
                                 : signatures.signedBy
                                   ? t("logsScreen.entry.signatures.adminKey", {
                                         name: signatures.signedBy,
                                     })
                                   : t("logsScreen.entry.signatures.systemOnly")}
                         </Fact>
-                        {signatures.systemSignature ? (
+                        {ballot && signatures.senderKey ? (
+                            <Fact label={String(t("ballotPrivacy.systemKey"))}>
+                                <Shortened value={signatures.senderKey} />
+                            </Fact>
+                        ) : !ballot && signatures.systemSignature ? (
                             <Fact label={String(t("logsScreen.entry.signatures.systemSignature"))}>
                                 <Shortened value={signatures.systemSignature} />
                             </Fact>
@@ -780,12 +844,16 @@ const EntryContent: React.FC<{entry: ILogRow; log: ILogTarget; zone: string}> = 
 export const LogEntryDialog: React.FC<LogEntryDialogProps> = ({entry, log, zone, onClose}) => {
     const {t, i18n} = useTranslation()
     return (
-        <Dialog
+        <EntryDialog
             variant="info"
             open={!!entry}
             fullWidth
             maxWidth="md"
-            className="log-entry-dialog"
+            className={
+                ballotLogDetails(logMessage(entry))
+                    ? "log-entry-dialog log-entry-ballot-dialog"
+                    : "log-entry-dialog"
+            }
             title={String(
                 t("logsScreen.entry.title", {
                     id: entry ? entryNumber(entry.id, i18n.language) : "",
@@ -795,6 +863,6 @@ export const LogEntryDialog: React.FC<LogEntryDialogProps> = ({entry, log, zone,
             handleClose={onClose}
         >
             {entry ? <EntryContent entry={entry} log={log} zone={zone} /> : null}
-        </Dialog>
+        </EntryDialog>
     )
 }

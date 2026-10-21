@@ -19,6 +19,7 @@ use electoral_log::domain::{Filter, LogQuery, SqlCompOperators, TextColumn};
 use electoral_log::messages::{
     message::{Message, SigningData},
     privacy::{ForensicRead, ForensicReadOperation, PseudonymResolution},
+    statement::StatementBody,
 };
 use electoral_log::ports::ElectoralLogStore;
 use rocket::{http::Status, serde::json::Json, State};
@@ -39,6 +40,7 @@ use std::{
     time::{Duration, Instant},
 };
 use tokio::sync::Mutex;
+use voting_crypto::RecordDeserialize;
 use windmill::services::{
     election_event_board::get_election_event_board,
     electoral_log_board::{get_board_signing_key, get_event_store},
@@ -661,13 +663,37 @@ pub async fn ballot_box_entry(
             .find(|entry| entry.statement_kind == kind)
             .map(|entry| STANDARD.encode(&entry.message))
     };
-    payload(BallotPrivacyProof {
+    let log_entries: Vec<Value> = entries
+        .iter()
+        .filter_map(|entry| {
+            let message = Message::record_deserialize(&entry.message).ok()?;
+            let voter_key = match &message.statement.body {
+                StatementBody::BallotReceived(evidence) => {
+                    Some(evidence.voter_signing_pk.as_str())
+                }
+                StatementBody::PrivacyCastVote(_) => None,
+                _ => return None,
+            };
+            Some(json!({
+                "id": entry.id.to_string(),
+                "kind": entry.statement_kind,
+                "timestamp": message.statement.head.timestamp,
+                "description": message.statement.head.description,
+                "voter_public_key": voter_key,
+            }))
+        })
+        .collect();
+    let mut response = serde_json::to_value(BallotPrivacyProof {
         ballot_id: code,
         pseudonym: received.voter_id,
         voting_channel: channel,
         received_entry: find("BallotReceived"),
         cast_entry: find("CastVote"),
     })
+    .map_err(unavailable)?;
+    // Display fields never supply trust or replace the canonical signed proof.
+    response["log_entries"] = json!(log_entries);
+    payload(response)
 }
 
 #[post("/ballot-box-keys", format = "json", data = "<body>")]
