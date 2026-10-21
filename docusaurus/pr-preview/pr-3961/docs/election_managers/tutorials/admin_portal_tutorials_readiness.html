@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Election Readiness Rehearsal and Verification | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3961/docs/election_managers/tutorials/admin_portal_tutorials_readiness"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Election Readiness Rehearsal and Verification | Sequent Online Voting"><meta data-rh="true" name="description" content="--&gt;"><meta data-rh="true" property="og:description" content="--&gt;"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3961/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3961/docs/election_managers/tutorials/admin_portal_tutorials_readiness"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3961/docs/election_managers/tutorials/admin_portal_tutorials_readiness" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3961/docs/election_managers/tutorials/admin_portal_tutorials_readiness" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Election Readiness Rehearsal and Verification","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3961/docs/election_managers/tutorials/admin_portal_tutorials_readiness"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3961/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3961/assets/js/runtime~main.baba9bc7.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3961/assets/js/runtime~main.ed909639.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3961/assets/js/main.7118c96f.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -182,16 +182,26 @@ Data, which contains only <strong>Check readiness</strong>. Configuration fields
 actions are unavailable. Users without readiness permission do not get this
 lockdown Data view. Running the check does not require access to the Logs tab.</p>
 <p>The dialog shows every check&#x27;s outcome, the check time and, on success, the signed
-log entry reference. Select <strong>Download JSON report</strong> to retain the complete report,
+log entry reference. Under each check&#x27;s label it shows the condition the server
+checked, in the server&#x27;s own words. Under a failed check it lists why it failed,
+as the server observed it: which event, area or election, and the values that
+did not match, for example &quot;The official event now has 4 voters in Area A, but
+its certified import has 3.&quot; A report from an older server has no such detail and
+says so. Select <strong>Download JSON report</strong> to retain the complete report,
 including evidence for failed checks. Changing the tested event clears the previous
-result. If a request fails, check the official event&#x27;s Logs before retrying: the
-server may have recorded evidence before the response was lost.</p>
+result. If a request fails, the dialog shows the server&#x27;s message, which names
+the step that stopped the check (locking the events, reading either event&#x27;s
+evidence, or confirming the signed entry). Check the official event&#x27;s Logs before
+retrying: the server may have recorded evidence before the response was lost.</p>
 <p>Run this check after FTL closes and again when scheduled lockdown starts, as above.
 The CLI alternative is
 <code>step-cli step readiness-check</code>. Each successful invocation records a separate
-signed <code>ReadinessVerified</code> entry in the official event&#x27;s existing <strong>Logs</strong>. Retain
-the JSON report and returned log entry reference, and correlate them with the
-exported event log.</p>
+signed <code>ReadinessVerified</code> entry in the official event&#x27;s existing <strong>Logs</strong>. The
+entry is a <code>USER</code> event under the account that ran the check, from the Admin
+Portal or the CLI, and keeps the complete report. Entries recorded before this
+classification are <code>SYSTEM</code> events; they stay as signed and still name the
+operator in their details. Retain the JSON report and returned log entry
+reference, and correlate them with the exported event log.</p>
 <p>The report compares approved content and approvers, certified voter hashes and
 area counts, official zero state, publication designs and tested close/seal state.
 Evidence includes <code>current_voter_counts</code>, <code>voter_import_in_progress</code> and
