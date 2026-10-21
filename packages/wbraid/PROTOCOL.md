@@ -1338,7 +1338,7 @@ Attribution only — this document is self-contained.
 - [BEN06] J. Benaloh, *Simple Verifiable Elections*, EVT 2006.
 - [BPW12] D. Bernhard, O. Pereira, B. Warinschi, *How Not to Prove Yourself: Pitfalls of the Fiat-Shamir Heuristic and Applications to Helios*, ASIACRYPT 2012.
 - [BNP24] J. Benaloh, M. Naehrig, O. Pereira, *REACTIVE: Rethinking Effective Approaches Concerning Trustees in Verifiable Elections*, IACR ePrint 2024/915. (Rogue-key concerns on DKG checking values; motivates the Schnorr proofs of Section 4.3.)
-- [BGR98] M. Bellare, J. Garay, T. Rabin, *Batch Verification with Applications to Cryptography and Checking*, LATIN 1998.
+- [BGR98] M. Bellare, J. Garay, T. Rabin, *Fast Batch Verification for Modular Exponentiation and Digital Signatures*, EUROCRYPT 1998.
 - [VMNV] D. Wikström, *How to Implement a Stand-alone Verifier for the Verificatum Mix-Net (VMN 3.1.0)*, 2022.
 - [RIS] ristretto255 group specification (RFC 9496 / draft-irtf-cfrg-ristretto255-decaf448).
 - [FIPS-202] NIST FIPS 202, *SHA-3 Standard*.
