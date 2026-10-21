@@ -183,6 +183,23 @@ def enroll_trustees(keycloak):
         )
 
 
+def enable_test_api_key_client(keycloak, realm=TENANT_REALM, *, fixture_secret=None):
+    """Explicit opt-in for the isolated CLI/trustee test integration.
+
+    Production provisioning never calls this helper. Only the super-tenant
+    fixture supplies a synthetic secret so its preconfigured test containers
+    agree; organization scenarios keep Keycloak's generated credential.
+    """
+    (client,) = keycloak.admin("GET", f"{realm}/clients?clientId=api-key-client")
+    if client.get("enabled"):
+        return False
+    update = {"enabled": True}
+    if fixture_secret is not None:
+        update["secret"] = fixture_secret
+    keycloak.admin("PUT", f"{realm}/clients/{client['id']}", update, expect=(204,))
+    return True
+
+
 def admin_token(keycloak):
     """An administrator token from the API key client, the one step-cli uses."""
     return keycloak.password_grant(
@@ -269,6 +286,7 @@ def main():
         timeout=300,
     )
     mark("JWKS published")
+    enable_test_api_key_client(keycloak, fixture_secret=ENV["API_KEY_CLIENT_SECRET"])
     set_admin_password(keycloak)
     enrolled = enroll_admin_mfa(keycloak)
     mark("administrator enrolled" if enrolled else "administrator already enrolled")
