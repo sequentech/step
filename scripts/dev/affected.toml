@@ -285,6 +285,7 @@ globs = [
     "scripts/loc.sh",
     "scripts/replacements.sh",
     "scripts/update_license_headers.py",
+    "scripts/vote_privacy_audit.py",
 ]
 units = ["scripts-misc"]
 
