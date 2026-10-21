@@ -309,15 +309,33 @@ ELECTORAL_LOG_PG_SSLMODE = "disable"
 [profiles.windmill]
 package = "windmill"
 features = []
+test_arguments = [
+    "--include-ignored",
+    "--skip", "test_generate_export_csv_data_120k_memory",
+    "--skip", "the_pdf_holds_the_copies_one_after_another",
+    "--skip", "copies_are_write_once_and_tampering_is_reported",
+    "--skip", "publication_objects_and_authorized_references",
+    "--skip", "the_jar_opens_what_is_sealed_natively",
+    "--skip", "seal_130_boxes_the_largest_with_50k_ballots",
+    "--skip", "materialized_dates_match_schedule_contract_and_remain_tenant_scoped",
+    "--skip", "materialized_dates_follow_the_online_voting_channel",
+    "--skip", "channel_enablement_and_pause_are_rechecked_from_the_writer",
+]
 limitations = [
     "Native default FIPS profile with local synthetic PostgreSQL 16 on port 3322, which also hosts the electoral log, matching the Rust CI service fixtures.",
-    "The ignored electoral-log wiring and cast-vote PostgreSQL tests run in the Rust CI test job; ignored full-service activity-log coverage remains open.",
+    "Includes isolated PostgreSQL sequencer, receive/cast, public-key recovery, delegation and dead-letter contracts. Live renderer, Java, S3, scale benchmarks and scheduling tests requiring the full devenv schema remain separate; their production code remains measured.",
     "Cloud transports, complete election workflows, optional features and branch coverage require separate evidence.",
     "Existing inline tests contribute to LLVM source counters; this aggregate is not production-only coverage.",
 ]
 issue = "https://github.com/sequentech/meta/issues/13302"
 
 [profiles.windmill.test_environment]
+ELECTORAL_LOG_PG_PROVISIONING_USER = ""
+ELECTORAL_LOG_PG_READER_USER = ""
+ELECTORAL_LOG_PG_BACKUP_USER = ""
+SECRETS_BACKEND = "EnvVarMasterSecret"
+MASTER_SECRET = "1111111111111111111111111111111111111111111111111111111111111111"
+PGMQ_TEST_DATABASE_URL = "postgres://test:test@127.0.0.1:3322/test"
 KEYCLOAK_DB__HOST = "127.0.0.1"
 KEYCLOAK_DB__PORT = "3322"
 KEYCLOAK_DB__USER = "test"
@@ -342,6 +360,7 @@ ENV_SLUG = "electoral-log-tests"
 WBRAID_BOARD_DATABASE_URL = "postgres://test:test@127.0.0.1:3322/test"
 
 [profiles.windmill.excluded_files]
+"src/services/ballot_box_privacy_tests.rs" = "Standalone unit-test module under cfg(test); signed sequencing, receive/cast and retention remain measured in production services."
 "src/services/messaging/insights_tests.rs" = "Standalone unit-test module under cfg(test); the messaging audience preview and stats remain measured."
 "src/services/ceremonies/keys_ceremony_tests.rs" = "Standalone unit-test module under cfg(test); the keys ceremony use cases remain measured."
 "src/services/ceremonies/tally_ceremony_creation_tests.rs" = "Standalone unit-test module under cfg(test); the tally creation use case remains measured."

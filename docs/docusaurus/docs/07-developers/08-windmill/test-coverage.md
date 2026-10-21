@@ -28,9 +28,15 @@ own transaction; the unsafe-string-mode test uses a separate connection option.
 It never changes shared database defaults. The coverage profile provides these
 public fixture settings; it must run in the isolated worker, not on production.
 
-The existing ignored voter-channel PostgreSQL regression is run explicitly as
-separate evidence. The other ignored activity-log test requires a fuller
-service fixture and must remain visible in the report. Native default-feature
+The coverage profile includes the isolated PostgreSQL contracts that are
+otherwise ignored: signed privacy sequencing and crash recovery, authenticated
+receive/cast and revote ownership, public-key recovery without private secrets,
+delegation and dead-letter replay. It supplies a synthetic vault key and clears
+optional deployment database roles. Standalone test modules are excluded from
+the source inventory; their production services remain measured.
+
+Live renderer, Java and S3 contracts, scale benchmarks, and scheduling tests
+requiring the complete devenv schema stay separate. Native default-feature
 coverage does not certify cloud transports, full election services, optional
 features or branches. Keep untested workers in the measured source scope.
 
