@@ -3208,10 +3208,11 @@
       "alwaysDisplayInConsole": false,
       "clientAuthenticatorType": "client-secret",
       "redirectUris": [
-        "*"
+        "/*",
+        "http://localhost:3002/*"
       ],
       "webOrigins": [
-        "*"
+        "+"
       ],
       "notBefore": 0,
       "bearerOnly": false,
@@ -3225,7 +3226,8 @@
       "protocol": "openid-connect",
       "attributes": {
         "client.secret.creation.time": "1698263635",
-        "post.logout.redirect.uris": "*",
+        "post.logout.redirect.uris": "+",
+        "pkce.code.challenge.method": "S256",
         "oauth2.device.authorization.grant.enabled": "false",
         "backchannel.logout.revoke.offline.tokens": "false",
         "use.refresh.tokens": "true",
@@ -3238,7 +3240,6 @@
         "require.pushed.authorization.requests": "false",
         "acr.loa.map": "{}",
         "display.on.consent.screen": "false",
-        "request.uris": "*",
         "token.response.type.bearer.lower-case": "false",
         "dpop.bound.access.tokens": "false"
       },
@@ -3645,12 +3646,8 @@
       "alwaysDisplayInConsole": false,
       "clientAuthenticatorType": "client-secret",
       "secret": "wBy8rpuKQxPWikQ3rIFv9g42t0WK0Xiu",
-      "redirectUris": [
-        "*"
-      ],
-      "webOrigins": [
-        "*"
-      ],
+      "redirectUris": [],
+      "webOrigins": [],
       "notBefore": 0,
       "bearerOnly": false,
       "consentRequired": false,
@@ -3663,7 +3660,7 @@
       "protocol": "openid-connect",
       "attributes": {
         "client.secret.creation.time": "1698263635",
-        "post.logout.redirect.uris": "*",
+        "post.logout.redirect.uris": "+",
         "oauth2.device.authorization.grant.enabled": "false",
         "backchannel.logout.revoke.offline.tokens": "false",
         "use.refresh.tokens": "true",
@@ -3676,7 +3673,6 @@
         "require.pushed.authorization.requests": "false",
         "acr.loa.map": "{}",
         "display.on.consent.screen": "false",
-        "request.uris": "*",
         "token.response.type.bearer.lower-case": "false",
         "dpop.bound.access.tokens": "false"
       },
