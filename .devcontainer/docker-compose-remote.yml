@@ -74,8 +74,6 @@ services:
       ELECTORAL_LOG_PUBLISH_FAILURE_POLICY: ${ELECTORAL_LOG_PUBLISH_FAILURE_POLICY:-fail-request}
       KC_SPI_TRUSTSTORE_PROVIDER: ${KC_SPI_TRUSTSTORE_PROVIDER:-}
       KC_SPI_TRUSTSTORE_URL_REFRESH_INTERVAL_SECONDS: ${KC_SPI_TRUSTSTORE_URL_REFRESH_INTERVAL_SECONDS:-0}
-    volumes:
-      - ./keycloak/import:/opt/keycloak/data/import:ro,z
     entrypoint: >
       /opt/keycloak/bin/kc.sh start-dev
       --features=preview
