@@ -32,9 +32,13 @@ jest.mock("@sequentech/ui-core", () => ({
     EBallotIdentity: {PSEUDONYM: "pseudonym", VOTER_ID: "voter-id"},
     ENetworkDataPolicy: {FORENSIC_STORE: "forensic-store", DO_NOT_STORE: "do-not-store"},
 }))
-jest.mock("@sequentech/ui-essentials", () => ({
-    PseudonymChip: ({children}: React.PropsWithChildren) => <span>{children}</span>,
-}))
+jest.mock(
+    "@sequentech/ui-essentials",
+    () => ({
+        PseudonymChip: ({children}: React.PropsWithChildren) => <span>{children}</span>,
+    }),
+    {virtual: true}
+)
 jest.mock("react-router", () => ({
     Link: ({to, children, ...props}: React.PropsWithChildren<{to: string}>) => (
         <a href={to} {...props}>

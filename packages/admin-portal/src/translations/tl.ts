@@ -2347,6 +2347,9 @@ const tagalogTranslation: TranslationType = {
                 "application-write": "I-edit ang Aplikasyon",
                 "approval-matrix-write": "I-edit ang Matrix ng Pag-apruba",
                 "readiness-check": "Suriin ang kahandaan ng halalan",
+                "forensic-read": "Basahin ang nakahiwalay na forensic na datos ng network",
+                "voter-pseudonym-resolve":
+                    "Tukuyin ang botante mula sa sagisag-panalan na may na-audit na dahilan",
                 "logs-export": "I-export ang mga Log",
                 "tenant-logs-read": "Basahin ang Log ng Tenant",
                 "tenant-logs-export": "I-export ang Log ng Tenant",

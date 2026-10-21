@@ -2334,6 +2334,9 @@ const dutchTranslation: TranslationType = {
                 "application-write": "Applicatie Bewerken",
                 "approval-matrix-write": "Goedkeuringsmatrix Bewerken",
                 "readiness-check": "Verkiezingsgereedheid controleren",
+                "forensic-read": "Geïsoleerde forensische netwerkgegevens lezen",
+                "voter-pseudonym-resolve":
+                    "Een kiezerspseudoniem herleiden met een gecontroleerde reden",
                 "logs-export": "Logs Exporteren",
                 "tenant-logs-read": "Tenantlog Lezen",
                 "tenant-logs-export": "Tenantlog Exporteren",
