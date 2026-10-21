@@ -103,7 +103,7 @@ fn get_keycloak_login_admin_config() -> KeycloakLoginConfig {
     KeycloakLoginConfig::new(client_id, client_secret, tenant_id)
 }
 
-#[instrument(err, skip_all)]
+#[instrument(err)]
 pub async fn get_credentials_inner(
     login_config: KeycloakLoginConfig,
 ) -> Result<String> {
@@ -127,8 +127,9 @@ pub async fn get_credentials_inner(
         .build();
     event!(
         Level::INFO,
-        "Acquiring credentials from {}",
-        keycloak_endpoint
+        "Acquiring credentials to {} with {:?}",
+        keycloak_endpoint,
+        body_string
     );
 
     let res = async {
@@ -186,7 +187,7 @@ pub async fn get_auth_credentials() -> Result<KeycloakAdminToken> {
 
 /// Authenticate a party client in keycloak with specific client credentials and
 /// tenant_id
-#[instrument(err, skip(client_secret))]
+#[instrument(err)]
 pub async fn get_third_party_client_access_token(
     client_id: String,
     client_secret: String,
