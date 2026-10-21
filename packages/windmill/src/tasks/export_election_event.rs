@@ -187,7 +187,39 @@ async fn export_election_event_impl(
     }
 
     // Process the export
-    match process_export_zip(&tenant_id, &election_event_id, &document_id, export_config).await {
+    let authorization = async {
+        use crate::services::participation_authorization::{
+            export_authorization, ParticipationCommand,
+        };
+        let grant =
+            export_authorization(&hasura_transaction, &tenant_id, &persisted_task.id).await?;
+        grant.validate(
+            &tenant_id,
+            &election_event_id,
+            &grant.actor_id,
+            ParticipationCommand::EventArchive,
+            &document_id,
+        )?;
+        Ok::<_, anyhow::Error>(grant)
+    }
+    .await;
+    let authorization = match authorization {
+        Ok(grant) => grant,
+        Err(error) => {
+            drop(hasura_transaction);
+            update_export_fail(&persisted_task, &error.to_string()).await?;
+            return Err(Error::String(error.to_string()));
+        }
+    };
+    match process_export_zip(
+        &tenant_id,
+        &election_event_id,
+        &document_id,
+        export_config,
+        &authorization.election_ids,
+    )
+    .await
+    {
         Ok(_) => (),
         Err(err) => {
             let err_str = format!("Failed to export election event data: {err:?}");

@@ -1,11 +1,12 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 
-import {TranslationType} from "./en"
+import englishTranslation, {TranslationType} from "./en"
 
 // SPDX-License-Identifier: AGPL-3.0-only
 const galegoTranslation: TranslationType = {
     translations: {
+        ballotPrivacy: englishTranslation.translations.ballotPrivacy,
         startup: {
             error: "Non se puido iniciar o portal de votación. Téntao de novo.",
             retry: "Tentar de novo",
@@ -142,6 +143,11 @@ const galegoTranslation: TranslationType = {
                 "Emite a túa papeleta para que quede rexistrada, ou auditala para confirmar que foi encriptada correctamente.",
         },
         reviewScreen: {
+            castRecovery: {
+                uncertain:
+                    "Non se confirmou o resultado do envío. Pode tentar de novo a mesma solicitude ou comprobar o identificador da papeleta antes de comezar de novo.",
+                checkBallot: "Comprobar papeleta",
+            },
             acclamation: {
                 title: "Resolto por aclamación",
                 helpDialog: {
@@ -363,6 +369,9 @@ const galegoTranslation: TranslationType = {
             demoQRText: "O rastrexador de papeletas está desactivado en modo de demostración",
         },
         auditScreen: {
+            confirmingAudit: "Confirmando que esta papeleta xa non se pode emitir…",
+            auditUnavailable:
+                "Non se puido auditar a papeleta. Non se revelou o seu contido. Téntao de novo.",
             printButton: "Imprimir",
             restartButton: "Comezar a votar",
             title: "Comproba a túa Papeleta",

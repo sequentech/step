@@ -20,6 +20,7 @@ required-features = ["reports"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+electoral-log = { path = "../electoral-log", default-features = false, optional = true }
 voting-crypto = { path = "../voting-crypto" }
 vsc = { workspace = true }
 # serialization
@@ -197,7 +198,7 @@ lambda_inplace = []
 lambda_openwhisk = []
 lambda_aws_lambda = []
 plugins_wit = ["dep:wasmtime", "dep:wasmtime-wasi"]
-default_features = ["dep:num-bigint", "dep:tempfile", "dep:ammonia", "dep:sha1", "dep:sha2", "dep:hmac", "dep:uuid"]
+default_features = ["dep:electoral-log", "dep:num-bigint", "dep:tempfile", "dep:ammonia", "dep:sha1", "dep:sha2", "dep:hmac", "dep:uuid"]
 # Reading .xlsx into an election_config::sheet::Workbook. Separate from
 # default_features because admin-portal and voting-portal have no workbook to
 # read and should not pay for a spreadsheet parser in their bundle.

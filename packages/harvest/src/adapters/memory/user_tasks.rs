@@ -149,6 +149,14 @@ impl UserTaskLedger for InMemoryUserTasks {
 }
 
 impl UserTaskAuthorization for InMemoryUserTasks {
+    async fn participation_elections(
+        &self,
+        _claims: &JwtClaims,
+        _event_id: &str,
+    ) -> UserTaskResult<Vec<String>> {
+        Ok(vec!["election-a".into()])
+    }
+
     fn authorize(
         &self,
         claims: &JwtClaims,

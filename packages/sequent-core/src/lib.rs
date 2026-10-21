@@ -8,6 +8,8 @@ extern crate cfg_if;
 #[cfg(feature = "default_features")]
 pub mod ballot;
 #[cfg(feature = "default_features")]
+pub mod ballot_privacy;
+#[cfg(feature = "default_features")]
 pub mod ballot_receipt;
 #[cfg(feature = "default_features")]
 pub mod ballot_style;

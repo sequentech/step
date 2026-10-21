@@ -16,7 +16,7 @@ use deadpool_postgres::Client as DbClient;
 use sequent_core::types::hasura::core::TasksExecution;
 use tracing::instrument;
 
-#[instrument(err)]
+#[instrument(skip_all)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
 pub async fn create_ballot_receipt(

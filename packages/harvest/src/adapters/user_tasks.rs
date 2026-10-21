@@ -20,7 +20,7 @@ use windmill::services::electoral_log::{
 };
 use windmill::services::export::export_users::ExportBody;
 use windmill::services::tasks_execution::{
-    post, post_with_annotations, secret_export_task_annotations, update_fail,
+    post, post_with_participation, secret_export_task_annotations, update_fail,
 };
 use windmill::tasks::{export_users, import_users};
 use windmill::types::tasks::ETasksExecution;
@@ -49,9 +49,9 @@ impl UserTaskLedger for WindmillUserTaskLedger {
         executed_by: &str,
         annotations: Value,
     ) -> anyhow::Result<TasksExecution> {
-        post_with_annotations(
+        post_with_participation(
             tenant_id,
-            Some(event_id),
+            event_id,
             ETasksExecution::EXPORT_VOTERS,
             executed_by,
             annotations,
@@ -70,6 +70,27 @@ impl UserTaskLedger for WindmillUserTaskLedger {
 pub struct ClaimsUserTaskAuthorization;
 
 impl UserTaskAuthorization for ClaimsUserTaskAuthorization {
+    async fn participation_elections(
+        &self,
+        claims: &JwtClaims,
+        event_id: &str,
+    ) -> UserTaskResult<Vec<String>> {
+        let mut client = windmill::services::database::get_hasura_pool()
+            .await
+            .get()
+            .await
+            .map_err(|error| {
+                (Status::InternalServerError, error.to_string())
+            })?;
+        let tx = client.transaction().await.map_err(|error| {
+            (Status::InternalServerError, error.to_string())
+        })?;
+        crate::services::authorization::explicit_participation_elections(
+            &tx, claims, event_id,
+        )
+        .await
+    }
+
     fn authorize(
         &self,
         claims: &JwtClaims,

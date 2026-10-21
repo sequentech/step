@@ -91,3 +91,11 @@ pub mod scheduled_outcomes;
 pub mod signing;
 pub mod signing_certificates;
 pub mod task_queues;
+
+pub mod ballot_privacy;
+
+pub mod privacy_signin;
+
+pub mod receipt_document;
+
+pub mod audit_ballot;

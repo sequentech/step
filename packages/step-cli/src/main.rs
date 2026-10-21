@@ -94,6 +94,7 @@ enum StepCommands {
     VerifyBallotBoxSeal(commands::verify_ballot_box_seal::VerifyBallotBoxSeal),
     VerifyPackage(commands::verify_package::VerifyPackage),
     ReadinessCheck(commands::readiness_check::ReadinessCheck),
+    ResolveVoterPseudonym(commands::resolve_voter_pseudonym::ResolveVoterPseudonym),
     VerifyTransmissionPackage(commands::verify_transmission_package::VerifyTransmissionPackage),
 }
 
@@ -188,6 +189,7 @@ fn main() {
             }
             StepCommands::VerifyPackage(cmd) => cmd.run(),
             StepCommands::ReadinessCheck(cmd) => exit_on_error(cmd.run()),
+            StepCommands::ResolveVoterPseudonym(cmd) => exit_on_error(cmd.run()),
             StepCommands::VerifyTransmissionPackage(cmd) => cmd.run(),
         },
     }

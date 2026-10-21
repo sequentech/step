@@ -314,8 +314,7 @@ pub fn sign_row(
 pub fn monitoring_line(board: &str, record_id: Option<i64>, stored: &ElectoralLogMessage) -> Value {
     let message = Message::record_deserialize(&stored.message).ok();
     let head = message.as_ref().map(|message| &message.statement.head);
-    let (mut object, mut action, mut changed, mut ip_address) =
-        (Value::Null, Value::Null, Value::Null, Value::Null);
+    let (mut object, mut action, mut changed) = (Value::Null, Value::Null, Value::Null);
     match message.as_ref().map(|message| &message.statement.body) {
         Some(StatementBody::Audit(entry)) => {
             let details: Value = serde_json::from_str(&entry.details_json).unwrap_or(Value::Null);
@@ -339,16 +338,12 @@ pub fn monitoring_line(board: &str, record_id: Option<i64>, stored: &ElectoralLo
                         "id": details["resource_path"],
                     });
                     action = details["operation"].clone();
-                    ip_address = details["actor"]["ip_address"].clone();
                 }
                 _ => {}
             }
         }
-        Some(StatementBody::KeycloakUserEvent(text, event)) => {
+        Some(StatementBody::KeycloakUserEvent(_, event)) => {
             action = json!(event.0);
-            if let Ok(details) = serde_json::from_str::<Value>(&text.0) {
-                ip_address = details["ip_address"].clone();
-            }
         }
         _ => {}
     }
@@ -366,7 +361,6 @@ pub fn monitoring_line(board: &str, record_id: Option<i64>, stored: &ElectoralLo
         "object": object,
         "action": action,
         "changed_fields": changed,
-        "ip_address": ip_address,
         "entry_sha256": hex::encode(Sha256::digest(&stored.message)),
     })
 }

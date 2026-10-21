@@ -2,15 +2,19 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
+import {atViewport} from "../../../../test-support/storybook/viewport"
 import type {StoryObj} from "@storybook/react-vite"
 import {expect, userEvent, waitFor, within} from "storybook/test"
 import {ResourceContextProvider, ShowBase} from "react-admin"
-import {EElectionEventLockedDown, i18n, initCore} from "@sequentech/ui-core"
+import {EElectionEventLockedDown, ENetworkDataPolicy, i18n, initCore} from "@sequentech/ui-core"
 import {AdminStoryProvider, graphqlBoundary} from "@/__stories__/AdminStoryProvider"
 import {STORY_IDS, electionRecord, eventPresentation, eventRecord} from "@/__stories__/fixtures"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {IPermissions} from "@/types/keycloak"
-import {legacyMonitoring} from "@/components/monitoring/__stories__/MonitoringFixture"
+import {
+    monitoringHandlers,
+    EMonitoringListScenario,
+} from "@/components/monitoring/__stories__/MonitoringFixture"
 import {ElectionTabs} from "./ElectionTabs"
 import {
     answerOrPending,
@@ -22,6 +26,9 @@ import {EStoryPermissions, useStoryGlobals} from "../../../../ui-essentials/.sto
 const RESOURCE = "sequent_backend_election"
 
 interface Scenario {
+    dashboard?: "records"
+    networkPolicy?: ENetworkDataPolicy
+    monitoring?: EMonitoringListScenario
     /** Whether the election has not loaded yet. */
     loading: boolean
     /** Whether the election's event is locked down. */
@@ -79,6 +86,7 @@ const meta = {
         const event = eventRecord(undefined, {
             presentation: {
                 ...eventPresentation,
+                network_data_policy: args.networkPolicy,
                 locked_down: args.eventLockedDown
                     ? EElectionEventLockedDown.LOCKED_DOWN
                     : EElectionEventLockedDown.NOT_LOCKED_DOWN,
@@ -92,9 +100,31 @@ const meta = {
                           electionRecord(undefined, {permission_label: args.label ?? null}),
                       ],
                       sequent_backend_election_event: [event],
+                      ip_address: [],
                   }
         )
-        graphql = graphqlBoundary(answerOrPending(legacyMonitoring()), {schema: true})
+        graphql = graphqlBoundary(
+            answerOrPending({
+                ...monitoringHandlers({list: args.monitoring ?? EMonitoringListScenario.LEGACY}),
+                ...(args.dashboard
+                    ? {
+                          GetElectionStats: () => ({
+                              data: {
+                                  stats: {
+                                      total_distinct_voters: 38,
+                                      total_areas: 2,
+                                      voters_by_channel: [],
+                                      votes_per_day: [],
+                                  },
+                                  users: {count: 1204},
+                                  election: [{statistics: {num_emails_sent: 12, num_sms_sent: 3}}],
+                              },
+                          }),
+                      }
+                    : {}),
+            }),
+            {schema: true}
+        )
         // The dashboard builds the voting portal addresses with sequent-core.
         await Promise.all([graphql.ready, initCore()])
     },
@@ -329,4 +359,79 @@ export const TallySheets: Story = {
         text: "Digitalized ballot boxes by channel",
         reads: ["getList sequent_backend_tally_sheet"],
     }),
+}
+
+const expectForensicDashboardWidth = async (canvasElement: HTMLElement) => {
+    const panel = await within(canvasElement).findByRole("region", {name: "IP Addresses"})
+    await expect(panel).toBeVisible()
+    const parent = panel.parentElement
+    if (!parent) throw new Error("The forensic panel must have a dashboard parent")
+    expect(panel.getBoundingClientRect().width).toBeCloseTo(parent.clientWidth, 0)
+}
+
+export const ForensicReviewWithCustomDashboard: Story = {
+    args: {
+        networkPolicy: ENetworkDataPolicy.FORENSIC_STORE,
+        monitoring: EMonitoringListScenario.CONFIGURED,
+        roles: [
+            IPermissions.ELECTION_DASHBOARD_TAB,
+            IPermissions.MONITORING_VIEW,
+            IPermissions.FORENSIC_READ,
+        ],
+    },
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await waitFor(
+            () => expect(graphql.calls.map(({name}) => name)).toContain("MonitoringGetDashboard"),
+            {timeout: 10000}
+        )
+        await expectForensicDashboardWidth(canvasElement)
+        expect(canvas.getAllByRole("region", {name: "IP Addresses"})).toHaveLength(1)
+    },
+}
+
+export const ForensicReviewWhileDashboardLoads: Story = {
+    ...ForensicReviewWithCustomDashboard,
+    args: {...ForensicReviewWithCustomDashboard.args, monitoring: EMonitoringListScenario.LOADING},
+    play: async ({canvasElement}) => {
+        await waitFor(
+            () => expect(graphql.calls.map(({name}) => name)).toContain("MonitoringListDashboards"),
+            {timeout: 10000}
+        )
+        await expectForensicDashboardWidth(canvasElement)
+    },
+}
+
+export const ForensicReviewOnStandardDashboard: Story = {
+    ...ForensicReviewWhileDashboardLoads,
+    args: {
+        ...ForensicReviewWhileDashboardLoads.args,
+        monitoring: EMonitoringListScenario.LEGACY,
+        dashboard: "records",
+    },
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(await canvas.findByText("Eligible Voters")).toBeVisible()
+        const dashboard = canvasElement.querySelector<HTMLElement>(".dashboard")
+        if (!dashboard) throw new Error("The normal dashboard must be loaded")
+        const panel = await canvas.findByRole("region", {name: "IP Addresses"})
+        expect(panel.getBoundingClientRect().width).toBeCloseTo(
+            dashboard.getBoundingClientRect().width,
+            0
+        )
+        expect(panel.getBoundingClientRect().left).toBeCloseTo(
+            dashboard.getBoundingClientRect().left,
+            0
+        )
+    },
+}
+
+export const ForensicReviewOnStandardDashboardWide: Story = {
+    ...ForensicReviewOnStandardDashboard,
+    ...atViewport(1440),
+}
+
+export const ForensicReviewOnStandardDashboardTablet: Story = {
+    ...ForensicReviewOnStandardDashboard,
+    ...atViewport(820),
 }

@@ -70,6 +70,8 @@ export enum IPermissions {
     PUBLISH_WRITE = "publish-write",
     PUBLISH_RESULTS_READ = "publish-results-read",
     PUBLISH_RESULTS_WRITE = "publish-results-write",
+    FORENSIC_READ = "forensic-read",
+    VOTER_PSEUDONYM_RESOLVE = "voter-pseudonym-resolve",
     LOGS_READ = "logs-read",
     ELECTORAL_LOG_AUDIT = "electoral-log-audit",
     ELECTORAL_LOG_CONSOLE_READ = "electoral-log-console-read",

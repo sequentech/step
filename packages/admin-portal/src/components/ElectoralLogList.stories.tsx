@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+import {atViewport} from "../../../test-support/storybook/viewport"
 import React from "react"
 import type {StoryObj} from "@storybook/react-vite"
 import {expect, userEvent, waitFor, within} from "storybook/test"
@@ -15,12 +16,19 @@ import {STORY_IDS, type StoryRecord, eventRecord} from "@/__stories__/fixtures"
 import type {ElectoralLogRow} from "@/gql/graphql"
 import {WidgetsContextProvider} from "@/providers/WidgetsContextProvider"
 import {startedTask, taskHandler} from "@/components/tally/__stories__/DownloadFixture"
+import {widgetDefects} from "@/components/__stories__/WidgetFixture"
 import {ElectoralLogFilters, ElectoralLogList} from "./ElectoralLogList"
 import {useStoryGlobals} from "../../../ui-essentials/.storybook/globals"
 
 interface Scenario {
     reads: ReadState
-    logs: "listed" | "none" | "configuration-import"
+    logs:
+        | "listed"
+        | "none"
+        | "configuration-import"
+        | "privacy"
+        | "long-descriptions"
+        | "historical-requester"
     /** Rendered inside the event's record, as the event's Logs tab does. */
     inEvent: boolean
     electionEventId?: string
@@ -126,6 +134,66 @@ const logs = [
     }),
 ]
 
+const historicalRequester = logRow(
+    6,
+    "PseudonymResolved",
+    {id: STORY_IDS.user, name: "election-reviewer"},
+    {event_type: "USER", log_type: "INFO", description: "Pseudonym resolved"}
+)
+historicalRequester.username = "election-reviewer"
+historicalRequester.message = JSON.stringify({
+    ...JSON.parse(historicalRequester.message),
+    username: null,
+})
+
+const LONG_DESCRIPTION =
+    "An administrator reviewed the election configuration and recorded the result. ".repeat(20)
+const UNBROKEN_DESCRIPTION = "0123456789abcdef".repeat(80)
+const descriptionLogs = ["Short description", LONG_DESCRIPTION, UNBROKEN_DESCRIPTION].map(
+    (description, index) =>
+        logRow(
+            index + 10,
+            "AdminChange",
+            {id: STORY_IDS.user, name: "alice"},
+            {
+                event_type: "USER",
+                log_type: "INFO",
+                description,
+            }
+        )
+)
+
+const PRIVACY_PSEUDONYM = "K7M2-P9AX"
+const privacyLogs = [
+    logRow(
+        8,
+        "CastVote",
+        {id: "", name: PRIVACY_PSEUDONYM},
+        {event_type: "CAST_VOTE", log_type: "INFO", description: "Pseudonymous ballot cast"},
+        {PrivacyCastVote: {}}
+    ),
+    logRow(
+        7,
+        "KeycloakUserEvent",
+        {id: STORY_IDS.user, name: "alice"},
+        {event_type: "USER", log_type: "INFO", description: "Account signed in"},
+        {KeycloakUserEvent: [JSON.stringify({client_id: "voting-portal"}), "LOGIN"]}
+    ),
+    logRow(
+        6,
+        "SendCommunications",
+        {id: STORY_IDS.user, name: "alice"},
+        {event_type: "SEND_COMMUNICATIONS", log_type: "INFO", description: "Account message sent"},
+        {SendCommunications: JSON.stringify({channel: "email", outcome: "ACCEPTED"})}
+    ),
+].map((row) => {
+    const head = JSON.parse(row.message).statement.head as {
+        event_type: string
+        log_type: string
+    }
+    return {...row, event_type: head.event_type, log_type: head.log_type}
+})
+
 let graphql: ReturnType<typeof graphqlBoundary>
 let data: ReturnType<typeof resourceBoundary>
 
@@ -203,20 +271,44 @@ function Fixture({
 const meta = {
     title: "Admin/Components/ElectoralLogList",
     component: ElectoralLogList,
+    parameters: {
+        viewport: {
+            options: {
+                privacyPhone: {name: "Privacy phone", styles: {width: "390px", height: "1000px"}},
+                privacyTablet: {name: "Privacy tablet", styles: {width: "820px", height: "1000px"}},
+            },
+        },
+    },
     args: {reads: "records", logs: "listed", inEvent: true},
     argTypes: {
         reads: {control: "inline-radio", options: ["records", "loading", "error"]},
-        logs: {control: "inline-radio", options: ["listed", "none", "configuration-import"]},
+        logs: {
+            control: "inline-radio",
+            options: [
+                "listed",
+                "none",
+                "configuration-import",
+                "privacy",
+                "long-descriptions",
+                "historical-requester",
+            ],
+        },
     },
     beforeEach: async ({args}) => {
         data = resourceBoundary(
             {
                 electoral_log:
-                    args.logs === "configuration-import"
-                        ? [CONFIGURATION_IMPORT]
-                        : args.logs === "listed"
-                          ? logs
-                          : [],
+                    args.logs === "historical-requester"
+                        ? [historicalRequester]
+                        : args.logs === "long-descriptions"
+                          ? descriptionLogs
+                          : args.logs === "privacy"
+                            ? privacyLogs
+                            : args.logs === "configuration-import"
+                              ? [CONFIGURATION_IMPORT]
+                              : args.logs === "listed"
+                                ? logs
+                                : [],
             },
             {reads: args.reads}
         )
@@ -323,7 +415,8 @@ const exported = (electionEventId: string, format: string) => [
 ]
 
 export const Populated: Story = {
-    parameters: {widgets: ["LogRowTime"]},
+    ...atViewport(1440),
+    parameters: {...atViewport(1440).parameters, widgets: ["LogRowTime", "LogRowDescription"]},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(await canvas.findByText("alice")).toBeVisible()
@@ -344,6 +437,18 @@ export const Populated: Story = {
             }),
         ])
         await waitFor(() => expect(graphql.calls).toEqual(ledgerReads))
+    },
+}
+
+export const HistoricalRequester: Story = {
+    ...atViewport(1440),
+    args: {logs: "historical-requester"},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(await canvas.findByText("election-reviewer")).toBeVisible()
+        await userEvent.click(canvas.getByText("Pseudonym resolved"))
+        const entry = await within(document.body).findByRole("dialog", {name: "Log entry 6"})
+        expect(within(entry).getByText("Who").parentElement).toHaveTextContent("election-reviewer")
     },
 }
 
@@ -396,7 +501,7 @@ export const StatusAsLogged: Story = {
 const entryDialog = () => within(document.body).findByRole("dialog", {name: /^Log entry/})
 
 /**
- * The description stays on one line; clicking the row opens the entry's
+ * The description stays within two lines; clicking the row opens the entry's
  * popup, with the whole description and the seal's details (hash, counts).
  */
 export const OpenAnEntry: Story = {
@@ -405,7 +510,7 @@ export const OpenAnEntry: Story = {
         const canvas = within(canvasElement)
         await canvas.findByText("alice")
         const description = canvas.getByText(SEALED)
-        await expect(description).toHaveStyle({whiteSpace: "nowrap", textOverflow: "ellipsis"})
+        await expect(description).toHaveStyle({whiteSpace: "normal", overflow: "hidden"})
         expect(canvas.queryByRole("button", {name: "Show More"})).toBeNull()
         expect(canvas.queryByText(`Seal hash: ${SEAL_HASH}`)).toBeNull()
         await userEvent.click(description)
@@ -422,6 +527,60 @@ export const OpenAnEntry: Story = {
         await userEvent.click(within(await entryDialog()).getByRole("button", {name: "Close"}))
         await waitFor(() => expect(within(document.body).queryByRole("dialog")).toBeNull())
     },
+}
+
+/** Long prose and unbroken codes use the available column without growing the table or rows. */
+export const BoundedDescriptions: Story = {
+    ...atViewport(1800),
+    args: {logs: "long-descriptions", width: 1600, zones: ["Asia/Manila"]},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        const prose = await canvas.findByText(LONG_DESCRIPTION.trim())
+        const unbroken = canvas.getByText(UNBROKEN_DESCRIPTION)
+        const short = canvas.getByText("Short description")
+        const table = canvas.getByRole("table")
+        const list = canvasElement.querySelector(".electoral-log-list") as HTMLElement
+        const controlRow = short.closest("tr") as HTMLElement
+        expect(table.getBoundingClientRect().width).toBeLessThanOrEqual(list.clientWidth + 1)
+        for (const element of [prose, unbroken]) {
+            const row = element.closest("tr") as HTMLElement
+            const cell = element.closest("td") as HTMLElement
+            const rect = element.getBoundingClientRect()
+            expect(row.getBoundingClientRect().height).toBeLessThanOrEqual(
+                controlRow.getBoundingClientRect().height + 1
+            )
+            expect(rect.width).toBeGreaterThan(0)
+            expect(rect.right).toBeLessThanOrEqual(cell.getBoundingClientRect().right)
+            expect(element.scrollHeight).toBeGreaterThan(element.clientHeight)
+            if (controlRow.querySelector(".log-time-mine")) {
+                expect(element.clientHeight).toBeGreaterThan(
+                    parseFloat(getComputedStyle(element).lineHeight)
+                )
+            }
+            expect(element).toHaveAttribute(
+                "title",
+                element === prose ? LONG_DESCRIPTION : UNBROKEN_DESCRIPTION
+            )
+        }
+        await userEvent.click(prose)
+        const dialog = within(await entryDialog())
+        await waitFor(() => expect(dialog.getByText(LONG_DESCRIPTION.trim())).toBeVisible())
+    },
+}
+
+export const BoundedDescriptionsMedium: Story = {
+    ...BoundedDescriptions,
+    args: {...BoundedDescriptions.args, width: 1200},
+}
+
+export const BoundedDescriptionsSameZone: Story = {
+    ...BoundedDescriptions,
+    args: {...BoundedDescriptions.args, zones: ["UTC"]},
+}
+
+export const BoundedDescriptionsSmallestTable: Story = {
+    ...BoundedDescriptions,
+    args: {...BoundedDescriptions.args, width: 1000},
 }
 
 /** The column headers, also while the Columns menu covers the list. */
@@ -494,6 +653,7 @@ export const NarrowList: Story = {
 
 /** The event type and log type filters reach the list request. */
 export const FilterByEventAndLogType: Story = {
+    ...atViewport(1440),
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await canvas.findByText("alice")
@@ -641,6 +801,7 @@ export const WithoutExportPermission: Story = {
 }
 
 export const ExportAsCsv: Story = {
+    ...atViewport(1440),
     play: async ({canvasElement}) => {
         const dialog = await exportAs(canvasElement, "CSV")
         const title = dialog.getByText("Export logs")
@@ -681,17 +842,20 @@ async function openAudit(canvasElement: HTMLElement) {
     const dialog = within(
         await within(document.body).findByRole("dialog", {name: "Audit electoral log"})
     )
-    await expect(dialog.getByText(/checks every log entry against its Merkle log/)).toBeVisible()
+    await waitFor(() =>
+        expect(dialog.getByText(/checks every log entry against its Merkle log/)).toBeVisible()
+    )
     return dialog
 }
 
 export const AuditTheLog: Story = {
     args: {taskWidgets: true},
-    parameters: {widgets: ["AuditDialog"]},
+    parameters: {...widgetDefects("color-contrast"), widgets: ["AuditDialog"]},
     play: async ({canvasElement}) => {
         const dialog = await openAudit(canvasElement)
         await userEvent.click(dialog.getByRole("button", {name: "Audit"}))
-        await expect(await within(document.body).findByText("SUCCESS")).toBeVisible()
+        const success = await within(document.body).findByText("SUCCESS")
+        await waitFor(() => expect(success).toBeVisible())
         expect(audits()).toEqual([
             {
                 name: "AuditElectoralLog",
@@ -734,4 +898,93 @@ export const WithoutAuditPermission: Story = {
         await expect(canvas.getByRole("button", {name: "Export"})).toBeVisible()
         expect(canvas.queryByRole("button", {name: "Audit"})).toBeNull()
     },
+}
+
+/** The compact privacy list preserves filters/export without resolving a ballot's identity. */
+export const PrivacyCompactListFiltersAndExport: Story = {
+    globals: {viewport: {value: "privacyPhone", isRotated: false}},
+    args: {logs: "privacy", roles: ["logs-read", "logs-export"]},
+    play: async ({canvasElement, globals}) => {
+        expect(window.innerWidth).toBe(globals.viewport.value === "privacyPhone" ? 390 : 820)
+        const canvas = within(canvasElement)
+        await waitFor(() => expect(canvas.getAllByRole("listitem")).toHaveLength(3))
+        expect(canvas.queryByRole("table")).toBeNull()
+        expect(canvas.getByText(new RegExp(PRIVACY_PSEUDONYM))).toBeVisible()
+        expect(canvas.queryByText(STORY_IDS.user, {exact: true})).toBeNull()
+        expect(canvas.getByText("Account signed in")).toBeVisible()
+        expect(canvas.getByText("Account message sent")).toBeVisible()
+        const list = canvasElement.querySelector(".electoral-log-list") as HTMLElement
+        expect(list.getBoundingClientRect().right).toBeLessThanOrEqual(window.innerWidth + 1)
+        expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth + 1)
+
+        await userEvent.click(canvas.getByRole("button", {name: "Add filter"}))
+        await userEvent.click(
+            await within(document.body).findByRole("menuitemcheckbox", {name: "Statement kind"})
+        )
+        await userEvent.type(
+            await canvas.findByRole("textbox", {name: "Statement kind"}),
+            "CastVote"
+        )
+        await waitFor(() => expect(canvas.getAllByRole("listitem")).toHaveLength(1))
+        expect(canvas.queryByText("Account signed in")).toBeNull()
+        expect(
+            data.calls.some(
+                ({method, args}) =>
+                    method === "getList" &&
+                    (args[1] as {filter?: {statement_kind?: string}}).filter?.statement_kind ===
+                        "CastVote"
+            )
+        ).toBe(true)
+
+        await userEvent.click(canvas.getByRole("button", {name: "Export"}))
+        const view = within(await within(document.body).findByRole("dialog"))
+        expect(view.getByRole("combobox", {name: "Scope"})).toHaveTextContent(
+            "The whole election event"
+        )
+        await userEvent.click(view.getByRole("button", {name: "Export"}))
+        await waitFor(() => expect(graphql.calls).toEqual(exported(EVENT_ID, "CSV").slice(1)))
+        expect(data.calls.every(({method}) => method === "getList")).toBe(true)
+    },
+}
+
+/** The real user's auth/message history stays visible; pseudonymous ballots have no user ID. */
+export const PrivacyUserLogsKeepAccountHistory: Story = {
+    globals: {viewport: {value: "privacyPhone", isRotated: false}},
+    args: {
+        logs: "privacy",
+        roles: ["logs-read"],
+        inDialog: true,
+        showActions: false,
+        filterToShow: ElectoralLogFilters.USER_ID,
+        filterValue: STORY_IDS.user,
+    },
+    play: async ({globals}) => {
+        expect(window.innerWidth).toBe(globals.viewport.value === "privacyPhone" ? 390 : 820)
+        const popup = await within(document.body).findByRole("dialog", {name: "Voter logs"})
+        const view = within(popup)
+        await waitFor(() => expect(view.getAllByRole("listitem")).toHaveLength(2))
+        expect(view.getByText("Account signed in")).toBeVisible()
+        expect(view.getByText("Account message sent")).toBeVisible()
+        expect(view.queryByText(/Pseudonymous ballot cast|K7M2-P9AX/)).toBeNull()
+        expect(listed()?.[1]).toMatchObject({
+            filter: {election_event_id: EVENT_ID, user_id: STORY_IDS.user},
+        })
+        expect(view.queryByRole("button", {name: "Export"})).toBeNull()
+        expect(graphql.calls).toEqual([])
+        await userEvent.click(view.getByText("Account signed in"))
+        const entry = within(await entryDialog())
+        await waitFor(() => expect(entry.getByText("alice")).toBeVisible())
+        expect(entry.queryByText(PRIVACY_PSEUDONYM)).toBeNull()
+        expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth + 1)
+    },
+}
+
+export const PrivacyTabletListFiltersAndExport: Story = {
+    ...PrivacyCompactListFiltersAndExport,
+    globals: {viewport: {value: "privacyTablet", isRotated: false}},
+}
+
+export const PrivacyTabletUserLogsKeepAccountHistory: Story = {
+    ...PrivacyUserLogsKeepAccountHistory,
+    globals: {viewport: {value: "privacyTablet", isRotated: false}},
 }

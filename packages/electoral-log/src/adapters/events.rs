@@ -111,6 +111,12 @@ pub struct RetiredEventDatabase {
     pub database_name: String,
 }
 
+#[derive(Clone, Copy)]
+enum RetiredAccess {
+    ReadOnly,
+    PrivacyPurge,
+}
+
 /// Whose log a board is.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BoardOwner {
@@ -702,6 +708,93 @@ impl EventDatabases {
         F: FnOnce(PostgresStore) -> Fut,
         Fut: std::future::Future<Output = Result<T>>,
     {
+        self.with_retired_store(retired, RetiredAccess::ReadOnly, read)
+            .await
+    }
+
+    /// Visit the active database and every retained copy of this event. Each
+    /// copy uses its own bounded transaction; retries finish partially purged
+    /// copies without changing their public ballot/log evidence.
+    pub async fn purge_event_privacy(
+        &self,
+        tenant: &str,
+        event: &str,
+        scope: super::privacy::PrivacyPurge,
+        limit_per_copy: i64,
+    ) -> Result<u64> {
+        let tenant = canonical_uuid(tenant)?;
+        let event = canonical_uuid(event)?;
+        let active = self.event(&event).await?;
+        if let Some(active) = &active {
+            ensure!(
+                active.tenant_id == tenant,
+                "Retention event does not belong to tenant"
+            );
+        }
+        let retired = self
+            .retired_events(&tenant)
+            .await?
+            .into_iter()
+            .filter(|copy| copy.election_event_id == event)
+            .collect::<Vec<_>>();
+        ensure!(
+            active.is_some() || !retired.is_empty(),
+            "No active or retired event for privacy retention"
+        );
+        let mut removed = 0;
+        if active.is_some() {
+            removed += self
+                .store(&event)
+                .await?
+                .purge_privacy_batch(&event, scope.clone(), limit_per_copy)
+                .await?;
+        }
+        for copy in retired {
+            removed += self
+                .purge_retired_privacy(&copy, scope.clone(), limit_per_copy)
+                .await?;
+        }
+        Ok(removed)
+    }
+
+    /// A retention worker can remove private data without exposing a writable
+    /// retired store to callers. The catalog lock and connection closure are
+    /// identical to read-only historical verification.
+    pub async fn purge_retired_privacy(
+        &self,
+        retired: &RetiredEventDatabase,
+        scope: super::privacy::PrivacyPurge,
+        limit: i64,
+    ) -> Result<u64> {
+        let event = retired.election_event_id.clone();
+        self.with_retired_store(retired, RetiredAccess::PrivacyPurge, |store| async move {
+            let exists: bool = store
+                .client()
+                .await?
+                .query_one(
+                    "SELECT to_regclass('sequent_backend.ballot_identity') IS NOT NULL",
+                    &[],
+                )
+                .await?
+                .get(0);
+            if !exists {
+                return Ok(0);
+            }
+            store.purge_privacy_batch(&event, scope, limit).await
+        })
+        .await
+    }
+
+    async fn with_retired_store<T, F, Fut>(
+        &self,
+        retired: &RetiredEventDatabase,
+        access: RetiredAccess,
+        read: F,
+    ) -> Result<T>
+    where
+        F: FnOnce(PostgresStore) -> Fut,
+        Fut: std::future::Future<Output = Result<T>>,
+    {
         let tenant = canonical_uuid(&retired.tenant_id)?;
         let event = canonical_uuid(&retired.election_event_id)?;
         self.initialize().await?;
@@ -741,10 +834,15 @@ impl EventDatabases {
                 ))
                 .await
                 .with_context(|| format!("Error opening database {}", retired.database_name))?;
-            let store = self
-                .inner
-                .connection
-                .read_only_store_of(&retired.database_name, 1)?;
+            let store = match access {
+                RetiredAccess::ReadOnly => self
+                    .inner
+                    .connection
+                    .read_only_store_of(&retired.database_name, 1)?,
+                RetiredAccess::PrivacyPurge => {
+                    self.inner.connection.store_of(&retired.database_name, 1)?
+                }
+            };
             let result = read(store.clone()).await;
             store.close();
             result

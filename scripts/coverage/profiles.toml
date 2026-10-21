@@ -248,11 +248,12 @@ issue = "https://github.com/sequentech/meta/issues/13755"
 [profiles.harvest]
 package = "harvest"
 features = []
+test_arguments = ["--include-ignored", "--skip", "a_widget_checks_saves_and_draws_through_the_real_renderer", "--skip", "every_preset_widget_passes_the_real_engine_and_the_sanitizer"]
 limitations = [
     "Native tests with declared default dependencies, including Windmill's default FIPS feature selection.",
     "Request-boundary tests use Rocket's local client; they do not start service workers. Claims are signed with a public test key and verified against a local key server, not a deployed identity provider.",
     "Route tests run against a private migrated database on the PostgreSQL server HASURA_DB__* names, with in-memory task ledger, broker and storage and a local Keycloak stand-in.",
-    "Deployed Keycloak, the task-queue database, S3, the electoral-log databases and complete worker-side workflows remain outside this profile.",
+    "Includes isolated electoral-log storage, signed proof, resolution-audit and receipt contracts; the two live-renderer tests remain separate. Deployed Keycloak, S3 and complete worker-side workflows remain outside this profile.",
     "Existing inline unit tests contribute to LLVM source counters; branch and deployment coverage are separate scopes.",
 ]
 issue = "https://github.com/sequentech/meta/issues/13302"
@@ -276,11 +277,25 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 "src/types/mod.rs" = "Module declarations only."
 "src/types/optional.rs" = "Struct and derives only; no handwritten executable methods or LLVM line regions."
 
-# The route tests' database server comes from the ambient HASURA_DB__* and
-# KEYCLOAK_DB__* settings, as in the ordinary test job; only the host is fixed.
+# Public disposable SQL and vault fixtures; no deployment settings are inherited.
 [profiles.harvest.test_environment]
+ELECTORAL_LOG_PG_PROVISIONING_USER = ""
+ELECTORAL_LOG_PG_READER_USER = ""
+ELECTORAL_LOG_PG_BACKUP_USER = ""
+KEYCLOAK_VOTER_GROUP_NAME = "voter"
+ENV_SLUG = "electoral-log-tests"
+SECRETS_BACKEND = "EnvVarMasterSecret"
+MASTER_SECRET = "0101010101010101010101010101010101010101010101010101010101010101"
 KEYCLOAK_DB__HOST = "127.0.0.1"
+KEYCLOAK_DB__PORT = "3322"
+KEYCLOAK_DB__USER = "test"
+KEYCLOAK_DB__PASSWORD = "test"
+KEYCLOAK_DB__DBNAME = "test"
 HASURA_DB__HOST = "127.0.0.1"
+HASURA_DB__PORT = "3322"
+HASURA_DB__USER = "test"
+HASURA_DB__PASSWORD = "test"
+HASURA_DB__DBNAME = "test"
 LOW_SQL_LIMIT = "1000"
 DEFAULT_SQL_LIMIT = "20"
 DEFAULT_SQL_BATCH_SIZE = "1000"
@@ -294,15 +309,33 @@ ELECTORAL_LOG_PG_SSLMODE = "disable"
 [profiles.windmill]
 package = "windmill"
 features = []
+test_arguments = [
+    "--include-ignored",
+    "--skip", "test_generate_export_csv_data_120k_memory",
+    "--skip", "the_pdf_holds_the_copies_one_after_another",
+    "--skip", "copies_are_write_once_and_tampering_is_reported",
+    "--skip", "publication_objects_and_authorized_references",
+    "--skip", "the_jar_opens_what_is_sealed_natively",
+    "--skip", "seal_130_boxes_the_largest_with_50k_ballots",
+    "--skip", "materialized_dates_match_schedule_contract_and_remain_tenant_scoped",
+    "--skip", "materialized_dates_follow_the_online_voting_channel",
+    "--skip", "channel_enablement_and_pause_are_rechecked_from_the_writer",
+]
 limitations = [
     "Native default FIPS profile with local synthetic PostgreSQL 16 on port 3322, which also hosts the electoral log, matching the Rust CI service fixtures.",
-    "The ignored electoral-log wiring and cast-vote PostgreSQL tests run in the Rust CI test job; ignored full-service activity-log coverage remains open.",
+    "Includes isolated PostgreSQL sequencer, receive/cast, public-key recovery, delegation and dead-letter contracts. Live renderer, Java, S3, scale benchmarks and scheduling tests requiring the full devenv schema remain separate; their production code remains measured.",
     "Cloud transports, complete election workflows, optional features and branch coverage require separate evidence.",
     "Existing inline tests contribute to LLVM source counters; this aggregate is not production-only coverage.",
 ]
 issue = "https://github.com/sequentech/meta/issues/13302"
 
 [profiles.windmill.test_environment]
+ELECTORAL_LOG_PG_PROVISIONING_USER = ""
+ELECTORAL_LOG_PG_READER_USER = ""
+ELECTORAL_LOG_PG_BACKUP_USER = ""
+SECRETS_BACKEND = "EnvVarMasterSecret"
+MASTER_SECRET = "1111111111111111111111111111111111111111111111111111111111111111"
+PGMQ_TEST_DATABASE_URL = "postgres://test:test@127.0.0.1:3322/test"
 KEYCLOAK_DB__HOST = "127.0.0.1"
 KEYCLOAK_DB__PORT = "3322"
 KEYCLOAK_DB__USER = "test"
@@ -327,6 +360,7 @@ ENV_SLUG = "electoral-log-tests"
 WBRAID_BOARD_DATABASE_URL = "postgres://test:test@127.0.0.1:3322/test"
 
 [profiles.windmill.excluded_files]
+"src/services/ballot_box_privacy_tests.rs" = "Standalone unit-test module under cfg(test); signed sequencing, receive/cast and retention remain measured in production services."
 "src/services/messaging/insights_tests.rs" = "Standalone unit-test module under cfg(test); the messaging audience preview and stats remain measured."
 "src/services/ceremonies/keys_ceremony_tests.rs" = "Standalone unit-test module under cfg(test); the keys ceremony use cases remain measured."
 "src/services/ceremonies/tally_ceremony_creation_tests.rs" = "Standalone unit-test module under cfg(test); the tally creation use case remains measured."
@@ -463,9 +497,11 @@ DEFAULT_SQL_BATCH_SIZE = "1000"
 [profiles.electoral-log-native]
 package = "electoral-log"
 features = []
+database_tests = ["postgres", "ballot_box", "events", "provisioning", "console", "privacy", "privacy_receipts"]
+database_test_skips = ["matched_receipt_and_cast_storage_cost"]
 limitations = [
     "Default-feature profile; inline tests remain counted.",
-    "The PostgreSQL store, ballot box, event database and provisioning tests are ignored here; they run against a PostgreSQL server in the Rust CI test job.",
+    "Includes PostgreSQL storage, ballot box, event database, provisioning, console and privacy contracts on a disposable local server; storage-cost and scale benchmarks are not coverage tests.",
     "Native branches and optional features require separate evidence.",
 ]
 issue = "https://github.com/sequentech/meta/issues/13302"
@@ -475,6 +511,16 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 "src/adapters/mod.rs" = "Module declarations only."
 "src/messages/artifact.rs" = "Empty source file with license header only."
 "src/ports.rs" = "Store trait declaration only; its implementations are measured in src/adapters/postgres.rs and src/adapters/events.rs."
+
+[profiles.electoral-log-native.test_environment]
+ELECTORAL_LOG_TEST_DATABASE_URL = "postgresql://test:test@127.0.0.1:3322/test?sslmode=disable"
+ELECTORAL_LOG_PG_HOST = "127.0.0.1"
+ELECTORAL_LOG_PG_PORT = "3322"
+ELECTORAL_LOG_PG_USER = "test"
+ELECTORAL_LOG_PG_PASSWORD = "test"
+ELECTORAL_LOG_PG_DATABASE = "test"
+ELECTORAL_LOG_PG_SSLMODE = "disable"
+ENV_SLUG = "electoral-log-tests"
 
 [profiles.pgmq-broker]
 package = "pgmq-broker"
