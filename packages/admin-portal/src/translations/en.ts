@@ -74,6 +74,8 @@ const englishTranslation = {
             neverPublished:
                 "Never published: the voter's name, username, IP address, country or device.",
             download: "Download signed log entries",
+            downloadAction: "Download",
+            signedEntries: "Signed log entries ({{count}})",
             close: "Close",
             systemKey: "Election event log key",
             boxKey: "Ballot box key",
@@ -109,6 +111,7 @@ const englishTranslation = {
                 noRoles: "No role yet",
                 title: "Privacy",
                 identity: "Voter pseudonyms",
+                example: "A pseudonym looks like",
                 on: "On: ballots, the log and its exports name a pseudonym for each voter, never the voter.",
                 legacy: "This event uses the historical voter identity mode.",
                 immutable:

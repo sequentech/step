@@ -197,3 +197,4 @@ export {IInvalidPlaintextErrorType} from "./ballot/errors"
 // Election Architect as the workbench build's `dist/problem-list/`, with its sentences.
 export * from "./components/ProblemList"
 export * from "./components/BallotLogProof/BallotLogProof"
+export * from "./components/PseudonymChip"

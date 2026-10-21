@@ -1782,6 +1782,31 @@ export const EditElectionEventDataForm: React.FC<{
 
                 <Accordion
                     sx={{width: "100%"}}
+                    expanded={expanded === "election-event-data-privacy"}
+                    onChange={() =>
+                        setExpanded((previous) =>
+                            previous === "election-event-data-privacy"
+                                ? ""
+                                : "election-event-data-privacy"
+                        )
+                    }
+                >
+                    <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                        <ElectionHeaderStyles.Wrapper>
+                            <ElectionHeaderStyles.Title>
+                                {t("ballotPrivacy.settings.title")}
+                            </ElectionHeaderStyles.Title>
+                        </ElectionHeaderStyles.Wrapper>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                        {expanded === "election-event-data-privacy" ? (
+                            <PrivacySettings canEdit={canEdit} />
+                        ) : null}
+                    </AccordionDetails>
+                </Accordion>
+
+                <Accordion
+                    sx={{width: "100%"}}
                     expanded={expanded === "election-event-data-allowed"}
                     onChange={() =>
                         setExpanded((prev) =>
@@ -2108,31 +2133,6 @@ export const EditElectionEventDataForm: React.FC<{
                                 ) : null
                             }
                         </FormDataConsumer>
-                    </AccordionDetails>
-                </Accordion>
-
-                <Accordion
-                    sx={{width: "100%"}}
-                    expanded={expanded === "election-event-data-privacy"}
-                    onChange={() =>
-                        setExpanded((previous) =>
-                            previous === "election-event-data-privacy"
-                                ? ""
-                                : "election-event-data-privacy"
-                        )
-                    }
-                >
-                    <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                        <ElectionHeaderStyles.Wrapper>
-                            <ElectionHeaderStyles.Title>
-                                {t("ballotPrivacy.settings.title")}
-                            </ElectionHeaderStyles.Title>
-                        </ElectionHeaderStyles.Wrapper>
-                    </AccordionSummary>
-                    <AccordionDetails>
-                        {expanded === "election-event-data-privacy" ? (
-                            <PrivacySettings canEdit={canEdit} />
-                        ) : null}
                     </AccordionDetails>
                 </Accordion>
 

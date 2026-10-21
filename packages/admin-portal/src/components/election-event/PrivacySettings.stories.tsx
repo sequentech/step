@@ -3,7 +3,7 @@
 import {atViewport} from "../../../../test-support/storybook/viewport"
 import React from "react"
 import type {StoryObj} from "@storybook/react-vite"
-import {expect, within} from "storybook/test"
+import {expect, userEvent, within} from "storybook/test"
 import {RecordContextProvider, SimpleForm} from "react-admin"
 import {EBallotIdentity, ENetworkDataPolicy} from "@sequentech/ui-core"
 import {AdminStoryProvider, graphqlBoundary} from "@/__stories__/AdminStoryProvider"
@@ -77,10 +77,32 @@ export const ForensicStore: Story = {
         await expect(await canvas.findByText("Election reviewers")).toBeVisible()
         expect(canvas.getByText("No role yet")).toBeVisible()
         expect(canvas.getByRole("radio", {name: "Keep for forensic review"})).toBeChecked()
+        expect(canvas.getByRole("group", {name: "Voter pseudonyms"})).toBeVisible()
+        expect(canvas.getByRole("radiogroup", {name: "Network data"})).toBeVisible()
+        const holders = canvas.getByRole("group", {name: "Who can see or link it"})
+        expect(within(holders).getByText("Election reviewers")).toBeVisible()
         expect(canvasElement.scrollWidth).toBeLessThanOrEqual(canvasElement.clientWidth + 1)
     },
 }
+export const ChangePolicy: Story = {
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await userEvent.click(canvas.getByText(/Nothing new is kept/))
+        expect(canvas.getByRole("radio", {name: "Do not store"})).toBeChecked()
+        await userEvent.click(canvas.getByText(/Kept apart in the forensic store/))
+        expect(canvas.getByRole("radio", {name: "Keep for forensic review"})).toBeChecked()
+    },
+}
 export const SecondOrganization: Story = {args: {network: ENetworkDataPolicy.DO_NOT_STORE}}
+export const ReadOnly: Story = {
+    args: {canEdit: false},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await userEvent.click(canvas.getByText(/Nothing new is kept/))
+        expect(canvas.getByRole("radio", {name: "Keep for forensic review"})).toBeChecked()
+        expect(canvas.getByRole("radio", {name: "Do not store"})).toBeDisabled()
+    },
+}
 export const Legacy: Story = {
     args: {legacy: true, canEdit: true, network: ENetworkDataPolicy.DO_NOT_STORE},
     play: async ({canvasElement}) => {
