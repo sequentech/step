@@ -1476,7 +1476,7 @@
   "eventsEnabled" : false,
   "eventsListeners" : [ "custom-event-listener", "jboss-logging" ],
   "enabledEventTypes" : [ ],
-  "adminEventsEnabled" : false,
+  "adminEventsEnabled" : true,
   "adminEventsDetailsEnabled" : false,
   "identityProviders" : [ {
     "alias" : "simplesamlphp",

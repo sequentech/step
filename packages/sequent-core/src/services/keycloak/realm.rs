@@ -22,6 +22,9 @@ use std::env;
 use std::hash::RandomState;
 use tracing::{error, info, instrument};
 
+use super::realm_provisioning::{
+    prepare_admin_event_defaults, prepare_api_key_client, RealmProvisioning,
+};
 use super::PubKeycloakAdmin;
 
 #[derive(Debug, Clone, Copy)]
@@ -422,7 +425,13 @@ impl KeycloakAdminClient {
         display_name: Option<String>,
         election_event_id: Option<String>,
     ) -> Result<()> {
-        let real_get_result = self.client.realm_get(board_name).await;
+        let provisioning = match self.client.realm_get(board_name).await {
+            Ok(_) => RealmProvisioning::Update,
+            Err(KeycloakError::HttpFailure { status: 404, .. }) => {
+                RealmProvisioning::Create
+            }
+            Err(error) => return Err(error.into()),
+        };
         let replaced_ids_config = if replace_ids {
             let (result, _) = replace_uuids(json_realm_config, vec![]);
             result
@@ -510,13 +519,23 @@ impl KeycloakAdminClient {
                 .collect(),
         );
 
-        match real_get_result {
-            Ok(_) => self
+        prepare_api_key_client(
+            &self.client,
+            board_name,
+            &mut realm,
+            provisioning,
+        )
+        .await?;
+
+        prepare_admin_event_defaults(&mut realm, provisioning);
+
+        match provisioning {
+            RealmProvisioning::Update => self
                 .client
                 .realm_put(&board_name, realm)
                 .await
                 .map_err(|err| anyhow!("Keycloak error: {:?}", err)),
-            Err(_) => self
+            RealmProvisioning::Create => self
                 .client
                 .post(realm)
                 .await

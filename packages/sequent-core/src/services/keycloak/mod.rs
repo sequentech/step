@@ -6,6 +6,7 @@ mod admin_client;
 mod path_segment;
 mod permission;
 mod realm;
+mod realm_provisioning;
 mod role;
 mod user;
 
