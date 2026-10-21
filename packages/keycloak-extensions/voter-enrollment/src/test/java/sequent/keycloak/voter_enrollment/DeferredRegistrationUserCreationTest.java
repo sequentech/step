@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.inOrder;
@@ -379,7 +380,8 @@ class DeferredRegistrationUserCreationTest {
     when(authenticationSession.getParentSession()).thenReturn(rootSession);
     when(rootSession.getId()).thenReturn("session-id");
     when(session.users()).thenReturn(users);
-    when(users.searchForUserStream(realm, Map.of("phone", "123")))
+    when(users.searchForUserStream(
+            realm, Map.of("phone", "123", UserModel.EXACT, Boolean.TRUE.toString())))
         .thenReturn(Stream.of(user, duplicate));
 
     try (MockedStatic<Utils> utils = mockStatic(Utils.class)) {
@@ -407,6 +409,54 @@ class DeferredRegistrationUserCreationTest {
     notes
         .verify(authenticationSession)
         .removeAuthNote(AbstractUsernameFormAuthenticator.ATTEMPTED_USERNAME);
+  }
+
+  @Test
+  void loginWithoutPasswordDoesNotAuthenticateWhenASearchAttributeIsMissing() {
+    ValidationContext context = mock(ValidationContext.class);
+    AuthenticatorConfigModel config = mock(AuthenticatorConfigModel.class);
+    KeycloakSession session = mock(KeycloakSession.class);
+    RealmModel realm = mock(RealmModel.class);
+    HttpRequest request = mock(HttpRequest.class);
+    EventBuilder event = mock(EventBuilder.class);
+    AuthenticationSessionModel authenticationSession = mock(AuthenticationSessionModel.class);
+    RootAuthenticationSessionModel rootSession = mock(RootAuthenticationSessionModel.class);
+    UserProfile profile = mock(UserProfile.class);
+    Attributes attributes = mock(Attributes.class);
+    UserProvider users = mock(UserProvider.class);
+    UserModel user = mock(UserModel.class);
+    MultivaluedMap<String, String> formData = new MultivaluedHashMap<>();
+    formData.add(UserModel.USERNAME, "123456");
+
+    when(context.getAuthenticatorConfig()).thenReturn(config);
+    when(config.getConfig())
+        .thenReturn(
+            Map.of(
+                DeferredRegistrationUserCreation.SEARCH_ATTRIBUTES,
+                UserModel.USERNAME + ",dateOfBirth",
+                DeferredRegistrationUserCreation.FORM_MODE,
+                DeferredRegistrationUserCreation.FormMode.LOGIN.getValue(),
+                DeferredRegistrationUserCreation.PASSWORD_REQUIRED,
+                "false"));
+    when(context.getSession()).thenReturn(session);
+    when(context.getRealm()).thenReturn(realm);
+    when(realm.getAttributes()).thenReturn(Map.of());
+    when(context.getHttpRequest()).thenReturn(request);
+    when(request.getDecodedFormParameters()).thenReturn(formData);
+    when(context.getEvent()).thenReturn(event);
+    when(context.getAuthenticationSession()).thenReturn(authenticationSession);
+    when(authenticationSession.getParentSession()).thenReturn(rootSession);
+    when(rootSession.getId()).thenReturn("session-id");
+    when(session.getAttribute("UP_REGISTER")).thenReturn(profile);
+    when(profile.getAttributes()).thenReturn(attributes);
+    when(session.users()).thenReturn(users);
+    when(users.searchForUserStream(any(RealmModel.class), anyMap())).thenReturn(Stream.of(user));
+
+    new DeferredRegistrationUserCreation().validate(context);
+
+    verify(authenticationSession, never()).setAuthenticatedUser(any());
+    verify(context, never()).success();
+    verify(context).validationError(eq(formData), anyList());
   }
 
   @Test
