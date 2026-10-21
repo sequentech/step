@@ -14,6 +14,7 @@ import React, {
 import {useRecordContext, useSidebarState, RecordContextProvider} from "react-admin"
 import {Sequent_Backend_Election_Event} from "@/gql/graphql"
 import ElectionHeader from "@/components/ElectionHeader"
+import {ListIpAddress} from "@/resources/ElectionEvent/ListIpAddress"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import {useTranslation} from "react-i18next"
@@ -130,6 +131,7 @@ const DashboardTab: React.FC<ITabProps> = ({refreshRef, handleChildMount}) => {
                     </Box>
                 }
             />
+            <ListIpAddress />
         </Suspense>
     )
 }

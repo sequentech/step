@@ -7,6 +7,7 @@ import {expect, userEvent, waitFor, within} from "storybook/test"
 import {RecordContextProvider, ResourceContextProvider, ShowBase} from "react-admin"
 import {
     EElectionEventLockedDown,
+    ENetworkDataPolicy,
     EVoterCertificatePolicy,
     i18n,
     initCore,
@@ -31,7 +32,11 @@ import {logsFilterSearch} from "@/components/logs/messagingLogFilters"
 import {EMessageChannel} from "@/types/messaging"
 import {IPermissions} from "@/types/keycloak"
 import {jsonEditorDefects} from "./__stories__/IvrFixture"
-import {legacyMonitoring} from "@/components/monitoring/__stories__/MonitoringFixture"
+import {
+    legacyMonitoring,
+    monitoringHandlers,
+    EMonitoringListScenario,
+} from "@/components/monitoring/__stories__/MonitoringFixture"
 import {EStoryPermissions, useStoryGlobals} from "../../../../ui-essentials/.storybook/globals"
 import {SigningProvider} from "@/components/signing/SigningProvider"
 import {idleSigningApi} from "./Signatures/__stories__/SignaturesFixture"
@@ -57,6 +62,8 @@ import "./EditElectionEventApprovals"
 import "../Reports/EditReportsTab"
 
 interface Scenario {
+    networkPolicy?: ENetworkDataPolicy
+    monitoring?: EMonitoringListScenario
     /** Whether the event is locked down, which hides its editing tabs. */
     lockedDown: boolean
     /** Whether the event has no record yet. */
@@ -77,9 +84,10 @@ const signingApi = idleSigningApi()
 let data: ReturnType<typeof recordsOrPending>
 
 /** An event with telephone voting and voter certificates, which show the IVR and CA tabs. */
-const tabsEvent = (lockedDown: boolean) => {
+const tabsEvent = (lockedDown: boolean, networkPolicy?: ENetworkDataPolicy) => {
     const presentation: IElectionEventPresentation = {
         ...eventPresentation,
+        network_data_policy: networkPolicy,
         timezones: {primary: "Asia/Manila", configured: ["Asia/Manila"]},
         voter_certificate_policy: EVoterCertificatePolicy.ENABLED,
         locked_down: lockedDown
@@ -140,7 +148,10 @@ const meta = {
             args.loading || args.uncached
                 ? {}
                 : {
-                      sequent_backend_election_event: [tabsEvent(args.lockedDown)],
+                      sequent_backend_election_event: [
+                          tabsEvent(args.lockedDown, args.networkPolicy),
+                      ],
+                      ip_address: [],
                       ...(args.lockdownTiming
                           ? {
                                 electoral_log: [
@@ -220,7 +231,7 @@ const meta = {
         )
         graphql = graphqlBoundary(
             answerOrPending({
-                ...legacyMonitoring(),
+                ...monitoringHandlers({list: args.monitoring ?? EMonitoringListScenario.LEGACY}),
                 ...(args.readinessResult
                     ? {
                           GetReadinessEvents: () => ({
@@ -895,4 +906,44 @@ export const LockedDownReadinessFailure: Story = {
     ...LockedDownData,
     args: {...LockedDownData.args, readinessResult: "fail"},
     play: runLockedDownReadiness(false),
+}
+
+export const ForensicReviewWithCustomDashboard: Story = {
+    args: {
+        networkPolicy: ENetworkDataPolicy.FORENSIC_STORE,
+        monitoring: EMonitoringListScenario.CONFIGURED,
+        roles: [
+            IPermissions.ADMIN_DASHBOARD_VIEW,
+            IPermissions.MONITORING_VIEW,
+            IPermissions.FORENSIC_READ,
+        ],
+    },
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await waitFor(
+            () => expect(graphql.calls.map(({name}) => name)).toContain("MonitoringGetDashboard"),
+            {timeout: 10000}
+        )
+        await expect(await canvas.findByRole("region", {name: "IP Addresses"})).toBeVisible()
+        expect(canvas.getAllByRole("region", {name: "IP Addresses"})).toHaveLength(1)
+    },
+}
+
+export const ForensicReviewWhileDashboardLoads: Story = {
+    ...ForensicReviewWithCustomDashboard,
+    args: {...ForensicReviewWithCustomDashboard.args, monitoring: EMonitoringListScenario.LOADING},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await waitFor(
+            () => expect(graphql.calls.map(({name}) => name)).toContain("MonitoringListDashboards"),
+            {timeout: 10000}
+        )
+        await expect(await canvas.findByRole("region", {name: "IP Addresses"})).toBeVisible()
+    },
+}
+
+export const ForensicReviewOnStandardDashboard: Story = {
+    ...ForensicReviewWhileDashboardLoads,
+    args: {...ForensicReviewWhileDashboardLoads.args, monitoring: EMonitoringListScenario.LEGACY},
+    parameters: spinnerDefects("The election event dashboard"),
 }

@@ -118,11 +118,13 @@ const englishTranslation = {
                 roles: "Manage in Users and Roles",
             },
             forensic: {
+                address: "IP address",
                 allElections: "All permitted elections",
                 exportError: "The forensic records could not be exported.",
                 subtitle:
                     "Where ballots were sent from, by pseudonym. Only people with Forensic Read see this list, and each view is logged.",
                 store: "Forensic store",
+                ballots: "Ballots",
                 pseudonyms: "Pseudonyms",
                 first: "First ballot",
                 last: "Last ballot",
@@ -137,6 +139,7 @@ const englishTranslation = {
                     "Opening this address was written to the election event’s log. Nobody is named here: each ballot is listed by its pseudonym.",
                 error: "The forensic records could not be loaded.",
                 empty: "No forensic ballot records for this address.",
+                emptyList: "No ballot network records yet.",
             },
         },
         readiness: {

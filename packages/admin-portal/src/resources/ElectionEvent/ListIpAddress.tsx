@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {ReactElement, useContext, useState} from "react"
+import React, {ReactElement, useContext, useId, useState} from "react"
 import {
     DatagridConfigurable,
     FunctionField,
@@ -9,7 +9,9 @@ import {
     useListContext,
     useRecordContext,
 } from "react-admin"
-import {Box, Button, Chip, IconButton, Menu, MenuItem, Stack, Typography} from "@mui/material"
+import {Box, Chip, IconButton, Menu, MenuItem, Stack, Typography} from "@mui/material"
+import LockOutlinedIcon from "@mui/icons-material/LockOutlined"
+import LanguageIcon from "@mui/icons-material/Language"
 import MoreVertIcon from "@mui/icons-material/MoreVert"
 import {useTranslation} from "react-i18next"
 import {
@@ -31,6 +33,12 @@ import {useContainerWidth} from "@/hooks/useContainerWidth"
 import {AdminDateTime} from "@/components/AdminDateTime"
 import {IPermissions} from "@/types/keycloak"
 import {ForensicAddressDialog} from "./ForensicAddressDialog"
+import {
+    ForensicPseudonym,
+    ForensicCountry,
+    ForensicBallotCount,
+    ForensicAddressButton,
+} from "./ForensicFields"
 
 export interface ListIpAddressProps {
     aside?: ReactElement
@@ -42,7 +50,14 @@ export interface RecordVoteCloudflareData {
 
 const Empty: React.FC = () => {
     const {t} = useTranslation()
-    return <Typography sx={{p: 2}}>{t("dashboard.ipAddress.emptyState")}</Typography>
+    return (
+        <Stack alignItems="center" spacing={1} sx={{py: 6, px: 3, textAlign: "center"}}>
+            <LanguageIcon sx={{fontSize: 36, color: "text.secondary"}} />
+            <Typography variant="body2" color="text.secondary">
+                {t("ballotPrivacy.forensic.emptyList")}
+            </Typography>
+        </Stack>
+    )
 }
 
 const SelectedForensicAddress: React.FC<{
@@ -52,6 +67,8 @@ const SelectedForensicAddress: React.FC<{
     onClose: () => void
 }> = ({electionEventId, electionId, selected, onClose}) => {
     const {filterValues} = useListContext()
+    const aliasRenderer = useAliasRenderer()
+    const {t} = useTranslation()
     const effectiveElectionId = electionId ?? filterValues.election_id
     return selected ? (
         <ForensicAddressDialog
@@ -59,6 +76,12 @@ const SelectedForensicAddress: React.FC<{
             electionEventId={electionEventId}
             electionId={effectiveElectionId}
             ip={selected.ip}
+            shared={selected.shared}
+            electionLabel={
+                selected.election_presentation
+                    ? aliasRenderer(selected.election_presentation)
+                    : t("ballotPrivacy.forensic.allElections")
+            }
             onClose={onClose}
         />
     ) : null
@@ -80,6 +103,7 @@ const AddressActions: React.FC<{row: IForensicAddress; onOpen: () => void}> = ({
     return (
         <>
             <IconButton
+                size="small"
                 aria-label={t("common.label.actions")}
                 onClick={(event) => {
                     event.stopPropagation()
@@ -110,6 +134,7 @@ const AddressActions: React.FC<{row: IForensicAddress; onOpen: () => void}> = ({
 
 export const ListIpAddress: React.FC<ListIpAddressProps> = ({aside}) => {
     const {t} = useTranslation()
+    const titleId = useId()
     const [tenantId] = useTenantStore()
     const {globalSettings} = useContext(SettingsContext)
     const auth = useContext(AuthContext)
@@ -124,6 +149,8 @@ export const ListIpAddress: React.FC<ListIpAddressProps> = ({aside}) => {
     const [selected, setSelected] = useState<IForensicAddress>()
     const [ref, width] = useContainerWidth<HTMLDivElement>()
     const compact = width !== null && width < 1000
+    const pseudonymLimit = width !== null && width < 600 ? 1 : 2
+    const preferenceKey = `forensic_network.${electionId ? "election" : "event"}.${compact ? "compact" : "table"}`
     const canRead = auth.isAuthorized(true, tenantId, IPermissions.FORENSIC_READ)
     if (
         !electionEventId ||
@@ -133,25 +160,67 @@ export const ListIpAddress: React.FC<ListIpAddressProps> = ({aside}) => {
         return null
     const preview = (row: IForensicAddress) => (
         <Stack direction="row" useFlexGap flexWrap="wrap" gap={0.5}>
-            {(row.pseudonyms ?? []).slice(0, compact ? 1 : 3).map((pseudonym) => (
-                <Chip key={pseudonym} size="small" label={pseudonym} />
+            {(row.pseudonyms ?? []).slice(0, pseudonymLimit).map((pseudonym) => (
+                <ForensicPseudonym key={pseudonym} code={pseudonym} />
             ))}
-            {(row.pseudonym_count ?? row.pseudonyms?.length) > (compact ? 1 : 3) && (
-                <Typography variant="caption">
+            {(row.pseudonym_count ?? row.pseudonyms?.length) > pseudonymLimit && (
+                <Typography
+                    variant="caption"
+                    color="#0F054C"
+                    sx={{alignSelf: "center", whiteSpace: "nowrap", fontWeight: 600}}
+                >
                     {t("ballotPrivacy.forensic.more", {
-                        count: (row.pseudonym_count ?? row.pseudonyms.length) - (compact ? 1 : 3),
+                        count: (row.pseudonym_count ?? row.pseudonyms.length) - pseudonymLimit,
                     })}
                 </Typography>
             )}
         </Stack>
     )
     return (
-        <Box ref={ref} className="print-hidden" sx={{minWidth: 0, maxWidth: "100%"}}>
-            <Typography variant="h4">{t("dashboard.ipAddress.title")}</Typography>
-            <Typography variant="body2" sx={{my: 1}}>
-                {t("ballotPrivacy.forensic.subtitle")}
-            </Typography>
-            <Chip size="small" label={t("ballotPrivacy.forensic.store")} />
+        <Box
+            ref={ref}
+            component="section"
+            aria-labelledby={titleId}
+            className="print-hidden forensic-network-panel"
+            sx={{minWidth: 0, maxWidth: "100%", mt: 3}}
+        >
+            <Stack
+                direction="row"
+                justifyContent="space-between"
+                alignItems="flex-start"
+                useFlexGap
+                flexWrap="wrap"
+                gap={1}
+                sx={{mb: 1}}
+            >
+                <Box sx={{minWidth: 0}}>
+                    <Typography
+                        component="h2"
+                        variant="h5"
+                        id={titleId}
+                        sx={{fontWeight: 600, fontSize: 24}}
+                    >
+                        {t("dashboard.ipAddress.title")}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{mt: 0.5}}>
+                        {t("ballotPrivacy.forensic.subtitle")}
+                    </Typography>
+                </Box>
+                <Chip
+                    size="small"
+                    icon={<LockOutlinedIcon />}
+                    label={t("ballotPrivacy.forensic.store")}
+                    sx={{
+                        "height": 26,
+                        "borderRadius": "100px",
+                        "fontSize": 12,
+                        "fontWeight": 500,
+                        "color": "#0F054C",
+                        "bgcolor": "#F1F0FA",
+                        "& .MuiChip-icon": {fontSize: 15, color: "inherit"},
+                    }}
+                />
+            </Stack>
             <List
                 resource="ip_address"
                 queryOptions={{refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS}}
@@ -192,18 +261,77 @@ export const ListIpAddress: React.FC<ListIpAddressProps> = ({aside}) => {
                     <ForensicExportActions
                         electionEventId={electionEventId}
                         electionId={electionId}
+                        preferenceKey={preferenceKey}
                     />
                 }
                 sx={{
-                    "& .RaFilterForm-form": {flexWrap: "wrap"},
-                    "& .RaList-actions": {flexWrap: "wrap"},
-                    "& .RaDatagrid-table": {tableLayout: "fixed"},
-                    "& .RaDatagrid-rowCell": {overflowWrap: "anywhere"},
+                    "minWidth": 0,
+                    "& .RaList-main": {minWidth: 0},
+                    "& .RaList-content": {
+                        border: "1px solid",
+                        borderColor: "divider",
+                        borderRadius: 1,
+                        boxShadow: "none",
+                    },
+                    "& .RaFilterForm-form": {flexWrap: "wrap", minWidth: 0},
+                    "& .RaFilterForm-filterFormInput": {maxWidth: "100%", minWidth: 0},
+                    "& .RaList-actions": {flexWrap: "wrap", p: 0, mb: 2, gap: 1},
+                    "& .RaList-actions > form": {flex: "1 1 auto", minHeight: 0, p: 0, m: 0},
+                    "& .RaList-actions > .list-actions": {ml: "auto", maxWidth: "100%"},
+                    "& .RaList-actions .MuiToolbar-root": {
+                        minHeight: 0,
+                        p: 0,
+                        borderRight: 0,
+                        gap: 0,
+                    },
+                    "& .RaList-actions .MuiButton-root": {
+                        "bgcolor": "transparent",
+                        "color": "#0F054C",
+                        "border": "1px solid",
+                        "borderColor": "#0F054C",
+                        "borderRadius": 0,
+                        "minHeight": 36,
+                        "minWidth": 36,
+                        "textTransform": "uppercase",
+                        "fontSize": 12,
+                        "fontWeight": 500,
+                        "&:hover": {bgcolor: "action.hover"},
+                        "& + .MuiButton-root": {borderLeft: 0},
+                    },
+                    "& .MuiToolbar-root:last-child": {borderRight: 0},
+                    "& .MuiToolbar-root": {flexWrap: "wrap", gap: 0.5},
+                    "& .RaDatagrid-table": {tableLayout: "fixed", width: "100%"},
+                    "& .RaDatagrid-headerCell": {
+                        bgcolor: "background.paper",
+                        color: "text.secondary",
+                        fontWeight: 600,
+                        py: 1,
+                    },
+                    "& .RaDatagrid-rowCell": {
+                        overflowWrap: "anywhere",
+                        py: compact ? 2 : 1.5,
+                        verticalAlign: "middle",
+                    },
+                    "& .RaDatagrid-checkbox": {width: 42, p: 0},
+                    "& .MuiCheckbox-root": {width: 36, height: 36, p: 0},
+                    "& td.MuiTableCell-paddingCheckbox, & th.MuiTableCell-paddingCheckbox": {
+                        width: 42,
+                        px: 1,
+                        py: 0,
+                    },
+                    "& .column-ip": {width: compact ? "auto" : "18%"},
+                    "& .column-country": {width: 80},
+                    "& .column-vote_count": {width: 130, textAlign: "right"},
+                    "& .column-election_presentation": {width: "16%"},
+                    "& .column-first_ballot, & .column-last_ballot": {width: "19%"},
+                    "& .column-actions": {width: 56, textAlign: "right"},
+                    "& .RaPagination-root": {px: 1},
                 }}
             >
                 <DatagridConfigurable
                     key={compact ? "compact" : "table"}
-                    omit={compact ? [] : ["first_ballot"]}
+                    preferenceKey={preferenceKey}
+                    omit={compact ? [] : ["first_ballot", "election_presentation"]}
                     bulkActionButtons={
                         <ForensicExportActions
                             electionEventId={electionEventId}
@@ -216,39 +344,40 @@ export const ListIpAddress: React.FC<ListIpAddressProps> = ({aside}) => {
                         <FunctionField
                             source="ip"
                             sortable={false}
-                            label={t("dashboard.ipAddress.ip")}
+                            label={t("ballotPrivacy.forensic.address")}
                             render={(row: IForensicAddress) => (
-                                <Stack spacing={0.5}>
+                                <Stack spacing={1}>
                                     <Stack
                                         direction="row"
+                                        alignItems="flex-start"
+                                        justifyContent="space-between"
+                                        spacing={1}
+                                    >
+                                        <ForensicAddressButton
+                                            ip={row.ip}
+                                            onOpen={() => setSelected(row)}
+                                        />
+                                        <ForensicBallotCount
+                                            count={row.vote_count}
+                                            shared={row.shared}
+                                        />
+                                    </Stack>
+                                    <Stack
+                                        direction="row"
+                                        alignItems="center"
                                         useFlexGap
                                         flexWrap="wrap"
-                                        alignItems="center"
                                         gap={1}
                                     >
-                                        <Button sx={{p: 0}} onClick={() => setSelected(row)}>
-                                            {row.ip}
-                                        </Button>
-                                        {row.shared && (
-                                            <Chip
-                                                size="small"
-                                                label={t("ballotPrivacy.forensic.shared")}
-                                            />
-                                        )}
+                                        <ForensicCountry code={row.country} showName />
                                         <Typography variant="body2">
-                                            {t("ballotPrivacy.ballots", {
-                                                count: row.vote_count,
-                                            })}
+                                            <AdminDateTime
+                                                value={row.last_ballot}
+                                                event={electionEventId}
+                                                seconds
+                                            />
                                         </Typography>
                                     </Stack>
-                                    <Typography variant="caption">
-                                        {row.country ?? "—"} ·{" "}
-                                        <AdminDateTime
-                                            value={row.last_ballot}
-                                            event={electionEventId}
-                                            seconds
-                                        />
-                                    </Typography>
                                     {preview(row)}
                                 </Stack>
                             )}
@@ -258,35 +387,32 @@ export const ListIpAddress: React.FC<ListIpAddressProps> = ({aside}) => {
                             <FunctionField
                                 source="ip"
                                 sortable={false}
-                                label={t("dashboard.ipAddress.ip")}
+                                label={t("ballotPrivacy.forensic.address")}
                                 render={(row: IForensicAddress) => (
-                                    <>
-                                        <Button
-                                            sx={{p: 0, overflowWrap: "anywhere"}}
-                                            onClick={() => setSelected(row)}
-                                        >
-                                            {row.ip}
-                                        </Button>
-                                        {row.shared && (
-                                            <Chip
-                                                size="small"
-                                                title={t("ballotPrivacy.forensic.sharedHelp")}
-                                                label={t("ballotPrivacy.forensic.shared")}
-                                            />
-                                        )}
-                                    </>
+                                    <ForensicAddressButton
+                                        ip={row.ip}
+                                        onOpen={() => setSelected(row)}
+                                    />
                                 )}
                             />,
-                            <TextField
-                                emptyText="—"
+                            <FunctionField
                                 source="country"
                                 sortable={false}
                                 label={t("dashboard.ipAddress.country")}
+                                render={(row: IForensicAddress) => (
+                                    <ForensicCountry code={row.country} />
+                                )}
                             />,
-                            <TextField
+                            <FunctionField
                                 source="vote_count"
                                 sortable={false}
-                                label={t("dashboard.ipAddress.VoteCount")}
+                                label={t("ballotPrivacy.forensic.ballots")}
+                                render={(row: IForensicAddress) => (
+                                    <ForensicBallotCount
+                                        count={row.vote_count}
+                                        shared={row.shared}
+                                    />
+                                )}
                             />,
                             <FunctionField
                                 source="election_presentation"
@@ -321,11 +447,17 @@ export const ListIpAddress: React.FC<ListIpAddressProps> = ({aside}) => {
                                 sortable={false}
                                 label={t("ballotPrivacy.forensic.last")}
                                 render={(row: IForensicAddress) => (
-                                    <AdminDateTime
-                                        value={row.last_ballot}
-                                        event={electionEventId}
-                                        seconds
-                                    />
+                                    <Typography
+                                        variant="body2"
+                                        color="text.secondary"
+                                        sx={{fontSize: 12, lineHeight: 1.7}}
+                                    >
+                                        <AdminDateTime
+                                            value={row.last_ballot}
+                                            event={electionEventId}
+                                            seconds
+                                        />
+                                    </Typography>
                                 )}
                             />,
                         ]

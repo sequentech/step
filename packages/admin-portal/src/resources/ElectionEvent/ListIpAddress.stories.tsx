@@ -35,6 +35,7 @@ interface Scenario {
     scope: "event" | "election"
     networkPolicy?: ENetworkDataPolicy
     allowed?: boolean
+    detailPages?: "paged"
 }
 
 const RESOURCE = "ip_address"
@@ -48,6 +49,14 @@ const votes = [
         shared: true,
     },
     {ip: "198.51.100.7", country: null, vote_count: 1, pseudonyms: ["9KMP-2RST"], shared: false},
+    {
+        ip: "2001:db8:1234:5678:90ab:cdef:1234:5678",
+        country: "FR",
+        vote_count: 1204,
+        pseudonyms: ["3BCF-5GHJ", "9KMP-2RST", "7QKM-2HXD"],
+        pseudonym_count: 18,
+        shared: true,
+    },
 ].map((row, index) => ({
     id: storyId(3, index + 5),
     tenant_id: TENANT_ID,
@@ -125,7 +134,7 @@ const meta = {
                         forensic_network_summary: {payload: {items: votes, total: votes.length}},
                     },
                 }),
-                ForensicNetworkDetail: () => ({
+                ForensicNetworkDetail: ({variables}) => ({
                     data: {
                         forensic_network_detail: {
                             payload: {
@@ -136,12 +145,15 @@ const meta = {
                                 last_ballot: "2028-05-08T04:00:00Z",
                                 ballots: [
                                     {
-                                        ballot_id: "FTBE-MHRX",
+                                        ballot_id: variables.cursor ? "2BCD-3EFG" : "FTBE-MHRX",
                                         pseudonym: "7QKM-2HXD",
                                         cast_at: "2028-05-08T03:00:00Z",
                                     },
                                 ],
-                                next_cursor: null,
+                                next_cursor:
+                                    args.detailPages === "paged" && !variables.cursor
+                                        ? "next-page"
+                                        : null,
                             },
                         },
                     },
@@ -169,7 +181,8 @@ export const Populated: Story = {
     ...atViewport(1440),
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
-        await expect(canvas.getByText("IP Addresses")).toBeVisible()
+        await expect(canvas.getByRole("region", {name: "IP Addresses"})).toBeVisible()
+        expect(canvasElement.scrollWidth).toBeLessThanOrEqual(canvasElement.clientWidth + 1)
         const first = await voteRow(canvasElement, "192.0.2.10")
         await expect(within(first).getByText(/^ES/)).toBeVisible()
         await expect(within(first).getByText("7QKM-2HXD")).toBeVisible()
@@ -177,6 +190,8 @@ export const Populated: Story = {
         await expect(
             within(await voteRow(canvasElement, "198.51.100.7")).getByText("—", {exact: false})
         ).toBeVisible()
+        const ipv6 = await voteRow(canvasElement, "2001:db8:1234:5678:90ab:cdef:1234:5678")
+        expect(ipv6.scrollWidth).toBeLessThanOrEqual(ipv6.clientWidth + 1)
         expect(canvas.queryByText("voter-3")).toBeNull()
         expect(listFilter()).toEqual({tenant_id: TENANT_ID, election_event_id: EVENT_ID})
     },
@@ -198,7 +213,9 @@ export const Empty: Story = {
     args: {empty: true},
     parameters: {expectedFailure: null, widgets: ["Empty"]},
     play: async ({canvasElement}) => {
-        await expect(await within(canvasElement).findByText("No votes yet.")).toBeVisible()
+        await expect(
+            await within(canvasElement).findByText("No ballot network records yet.")
+        ).toBeVisible()
         expect(within(canvasElement).queryByRole("table")).toBeNull()
     },
 }
@@ -379,4 +396,28 @@ export const NoNetworkStorageTablet: Story = {
     ...NoNetworkStorage,
     ...atViewport(820),
     parameters: {...NoNetworkStorage.parameters, ...atViewport(820).parameters},
+}
+
+export const PaginatedAddressDetails: Story = {
+    parameters: {expectedFailure: null},
+    args: {detailPages: "paged"},
+    play: async ({canvasElement}) => {
+        await userEvent.click(
+            await within(canvasElement).findByRole("button", {name: "192.0.2.10"})
+        )
+        const dialog = within(
+            await within(document.body).findByRole("dialog", {name: "IP address 192.0.2.10"})
+        )
+        await expect(await dialog.findByRole("cell", {name: "FTBE-MHRX"})).toBeVisible()
+        await userEvent.click(dialog.getByRole("button", {name: "Next"}))
+        await expect(await dialog.findByRole("cell", {name: "2BCD-3EFG"})).toBeVisible()
+        await userEvent.click(dialog.getByRole("button", {name: "Previous"}))
+        await expect(await dialog.findByRole("cell", {name: "FTBE-MHRX"})).toBeVisible()
+        expect(
+            graphql.calls
+                .filter(({name}) => name === "ForensicNetworkDetail")
+                .map(({variables}) => variables.cursor)
+        ).toEqual([null, "next-page", null])
+        expect(dialog.queryByRole("button", {name: "Try again"})).toBeNull()
+    },
 }

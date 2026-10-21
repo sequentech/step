@@ -31,7 +31,6 @@ import {EVotingStatus, IElectionEventStatistics, IElectionEventStatus} from "@se
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {GET_ELECTION_EVENT_STATS} from "@/queries/GetElectionEventStats"
 import {getAuthUrl} from "@/services/UrlGeneration"
-import {ListIpAddress} from "@/resources/ElectionEvent/ListIpAddress"
 import {IPermissions} from "@/types/keycloak"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {LIST_KEYS_CEREMONY} from "@/queries/ListKeysCeremonies"
@@ -69,11 +68,6 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
     const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone
 
     const isTrustee = authContext.isAuthorized(true, tenantId, IPermissions.TRUSTEE_CEREMONY)
-    const showIpAdresses = authContext.isAuthorized(
-        true,
-        authContext.tenantId,
-        IPermissions.FORENSIC_READ
-    )
 
     // Ensure required parameters are set before running the query.
     const canQuery = Boolean(tenantId && record?.id)
@@ -272,7 +266,6 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
                             height={cardHeight}
                         />
                     </Container>
-                    {showIpAdresses && record?.id && <ListIpAddress />}
                 </Box>
                 <Box
                     sx={{

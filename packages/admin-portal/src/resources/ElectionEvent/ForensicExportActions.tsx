@@ -20,8 +20,9 @@ import {IPermissions} from "@/types/keycloak"
 export const ForensicExportActions: React.FC<{
     electionEventId: string
     electionId?: string
+    preferenceKey?: string
     selectedOnly?: boolean
-}> = ({electionEventId, electionId, selectedOnly = false}) => {
+}> = ({electionEventId, electionId, preferenceKey, selectedOnly = false}) => {
     const {filterValues, selectedIds, total} = useListContext()
     const client = useApolloClient()
     const dataProvider = useDataProvider()
@@ -76,6 +77,7 @@ export const ForensicExportActions: React.FC<{
     return (
         <ListActions
             withImport={false}
+            preferenceKey={preferenceKey}
             doExport={() => void exportRows()}
             isExportDisabled={exporting || !total}
         />

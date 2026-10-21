@@ -5,12 +5,15 @@ import React from "react"
 import type {StoryObj} from "@storybook/react-vite"
 import {expect, userEvent, waitFor, within} from "storybook/test"
 import {ResourceContextProvider, ShowBase} from "react-admin"
-import {EElectionEventLockedDown, i18n, initCore} from "@sequentech/ui-core"
+import {EElectionEventLockedDown, ENetworkDataPolicy, i18n, initCore} from "@sequentech/ui-core"
 import {AdminStoryProvider, graphqlBoundary} from "@/__stories__/AdminStoryProvider"
 import {STORY_IDS, electionRecord, eventPresentation, eventRecord} from "@/__stories__/fixtures"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {IPermissions} from "@/types/keycloak"
-import {legacyMonitoring} from "@/components/monitoring/__stories__/MonitoringFixture"
+import {
+    monitoringHandlers,
+    EMonitoringListScenario,
+} from "@/components/monitoring/__stories__/MonitoringFixture"
 import {ElectionTabs} from "./ElectionTabs"
 import {
     answerOrPending,
@@ -22,6 +25,8 @@ import {EStoryPermissions, useStoryGlobals} from "../../../../ui-essentials/.sto
 const RESOURCE = "sequent_backend_election"
 
 interface Scenario {
+    networkPolicy?: ENetworkDataPolicy
+    monitoring?: EMonitoringListScenario
     /** Whether the election has not loaded yet. */
     loading: boolean
     /** Whether the election's event is locked down. */
@@ -79,6 +84,7 @@ const meta = {
         const event = eventRecord(undefined, {
             presentation: {
                 ...eventPresentation,
+                network_data_policy: args.networkPolicy,
                 locked_down: args.eventLockedDown
                     ? EElectionEventLockedDown.LOCKED_DOWN
                     : EElectionEventLockedDown.NOT_LOCKED_DOWN,
@@ -92,9 +98,15 @@ const meta = {
                           electionRecord(undefined, {permission_label: args.label ?? null}),
                       ],
                       sequent_backend_election_event: [event],
+                      ip_address: [],
                   }
         )
-        graphql = graphqlBoundary(answerOrPending(legacyMonitoring()), {schema: true})
+        graphql = graphqlBoundary(
+            answerOrPending(
+                monitoringHandlers({list: args.monitoring ?? EMonitoringListScenario.LEGACY})
+            ),
+            {schema: true}
+        )
         // The dashboard builds the voting portal addresses with sequent-core.
         await Promise.all([graphql.ready, initCore()])
     },
@@ -329,4 +341,44 @@ export const TallySheets: Story = {
         text: "Digitalized ballot boxes by channel",
         reads: ["getList sequent_backend_tally_sheet"],
     }),
+}
+
+export const ForensicReviewWithCustomDashboard: Story = {
+    args: {
+        networkPolicy: ENetworkDataPolicy.FORENSIC_STORE,
+        monitoring: EMonitoringListScenario.CONFIGURED,
+        roles: [
+            IPermissions.ELECTION_DASHBOARD_TAB,
+            IPermissions.MONITORING_VIEW,
+            IPermissions.FORENSIC_READ,
+        ],
+    },
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await waitFor(
+            () => expect(graphql.calls.map(({name}) => name)).toContain("MonitoringGetDashboard"),
+            {timeout: 10000}
+        )
+        await expect(await canvas.findByRole("region", {name: "IP Addresses"})).toBeVisible()
+        expect(canvas.getAllByRole("region", {name: "IP Addresses"})).toHaveLength(1)
+    },
+}
+
+export const ForensicReviewWhileDashboardLoads: Story = {
+    ...ForensicReviewWithCustomDashboard,
+    args: {...ForensicReviewWithCustomDashboard.args, monitoring: EMonitoringListScenario.LOADING},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await waitFor(
+            () => expect(graphql.calls.map(({name}) => name)).toContain("MonitoringListDashboards"),
+            {timeout: 10000}
+        )
+        await expect(await canvas.findByRole("region", {name: "IP Addresses"})).toBeVisible()
+    },
+}
+
+export const ForensicReviewOnStandardDashboard: Story = {
+    ...ForensicReviewWhileDashboardLoads,
+    args: {...ForensicReviewWhileDashboardLoads.args, monitoring: EMonitoringListScenario.LEGACY},
+    parameters: dashboardDefects,
 }

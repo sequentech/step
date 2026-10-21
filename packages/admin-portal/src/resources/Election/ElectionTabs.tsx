@@ -16,6 +16,7 @@ import {v4 as uuidv4} from "uuid"
 
 import {AuthContext} from "@/providers/AuthContextProvider"
 import ElectionHeader from "@/components/ElectionHeader"
+import {ListIpAddress} from "@/resources/ElectionEvent/ListIpAddress"
 import DashboardElection from "@/components/dashboard/election/Dashboard"
 import {BallotBoxesCard} from "@/components/dashboard/election/BallotBoxesCard"
 import {BallotBoxesSection} from "@/components/dashboard/election/BallotBoxesSection"
@@ -72,6 +73,7 @@ const DashboardTab: React.FC = () => {
                 }
                 below={<BallotBoxesSection {...ballotBoxes} />}
             />
+            <ListIpAddress />
         </Suspense>
     )
 }

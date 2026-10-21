@@ -55,7 +55,7 @@ Temporary service failures and a pending voter registration are retried with the
 
 Forensic attribution is available only for new events using voter pseudonyms. Historical and Datafix events retain their existing identity mode; their Privacy settings do not offer forensic storage.
 
-The IP Addresses list requires the dedicated **Forensic Read** permission on the server and in the portal. Opening an address shows its ballot records and records another read. List controls include columns, filters, export, selection, row actions and pagination. An address marked **Shared** has ballots from several pseudonyms; this can happen on a shared office or hotel network and does not identify a voter.
+Open **Dashboard > IP Addresses** on the election event or an individual election. The section appears below both standard and custom monitoring dashboards, and remains available while monitoring is loading or unavailable. The IP Addresses list requires the dedicated **Forensic Read** permission on the server and in the portal. Opening an address shows its ballot records and records another read. List controls include columns, filters, export, selection, row actions and pagination. An address marked **Shared** has ballots from several pseudonyms; this can happen on a shared office or hotel network and does not identify a voter.
 
 No preset role grants **Forensic Read** or **Resolve a pseudonym**. Privacy settings show the role assignments returned by the service and link to **Users and Roles**. A failed permissions lookup is shown as an error rather than as an empty assignment list.
 

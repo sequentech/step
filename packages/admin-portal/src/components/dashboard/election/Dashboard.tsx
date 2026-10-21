@@ -22,9 +22,6 @@ import {useQuery} from "@apollo/client"
 import {GET_ELECTION_STATS} from "@/queries/GetElectionStats"
 import {IElectionStatistics, translateFromPresentation} from "@sequentech/ui-core"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import {AuthContext} from "@/providers/AuthContextProvider"
-import {IPermissions} from "@/types/keycloak"
-import {ListIpAddress} from "@/resources/ElectionEvent/ListIpAddress"
 import {useTranslation} from "react-i18next"
 
 const Container = styled(Box)`
@@ -48,13 +45,6 @@ export default function DashboardElection() {
     const endDate = getToday()
     const startDate = daysBefore(endDate, 6)
     const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone
-    const authContext = useContext(AuthContext)
-
-    const showIpAdresses = authContext.isAuthorized(
-        true,
-        authContext.tenantId,
-        IPermissions.FORENSIC_READ
-    )
 
     // Ensure required parameters are set before running the query.
     const canQueryStats = Boolean(tenantId && record?.election_event_id && record?.id)
@@ -121,7 +111,6 @@ export default function DashboardElection() {
                         height={cardHeight}
                     />
                 </Container>
-                {showIpAdresses && record?.id && <ListIpAddress />}
             </Box>
         </Box>
     )
