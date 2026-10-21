@@ -21,7 +21,7 @@ import {useStoryGlobals} from "../../../ui-essentials/.storybook/globals"
 
 interface Scenario {
     reads: ReadState
-    logs: "listed" | "none" | "configuration-import" | "privacy"
+    logs: "listed" | "none" | "configuration-import" | "privacy" | "long-descriptions"
     /** Rendered inside the event's record, as the event's Logs tab does. */
     inEvent: boolean
     electionEventId?: string
@@ -126,6 +126,23 @@ const logs = [
         description: "Keys generated",
     }),
 ]
+
+const LONG_DESCRIPTION =
+    "An administrator reviewed the election configuration and recorded the result. ".repeat(20)
+const UNBROKEN_DESCRIPTION = "0123456789abcdef".repeat(80)
+const descriptionLogs = ["Short description", LONG_DESCRIPTION, UNBROKEN_DESCRIPTION].map(
+    (description, index) =>
+        logRow(
+            index + 10,
+            "AdminChange",
+            {id: STORY_IDS.user, name: "alice"},
+            {
+                event_type: "USER",
+                log_type: "INFO",
+                description,
+            }
+        )
+)
 
 const PRIVACY_PSEUDONYM = "K7M2-P9AX"
 const privacyLogs = [
@@ -248,20 +265,22 @@ const meta = {
         reads: {control: "inline-radio", options: ["records", "loading", "error"]},
         logs: {
             control: "inline-radio",
-            options: ["listed", "none", "configuration-import", "privacy"],
+            options: ["listed", "none", "configuration-import", "privacy", "long-descriptions"],
         },
     },
     beforeEach: async ({args}) => {
         data = resourceBoundary(
             {
                 electoral_log:
-                    args.logs === "privacy"
-                        ? privacyLogs
-                        : args.logs === "configuration-import"
-                          ? [CONFIGURATION_IMPORT]
-                          : args.logs === "listed"
-                            ? logs
-                            : [],
+                    args.logs === "long-descriptions"
+                        ? descriptionLogs
+                        : args.logs === "privacy"
+                          ? privacyLogs
+                          : args.logs === "configuration-import"
+                            ? [CONFIGURATION_IMPORT]
+                            : args.logs === "listed"
+                              ? logs
+                              : [],
             },
             {reads: args.reads}
         )
@@ -442,7 +461,7 @@ export const StatusAsLogged: Story = {
 const entryDialog = () => within(document.body).findByRole("dialog", {name: /^Log entry/})
 
 /**
- * The description stays on one line; clicking the row opens the entry's
+ * The description stays within two lines; clicking the row opens the entry's
  * popup, with the whole description and the seal's details (hash, counts).
  */
 export const OpenAnEntry: Story = {
@@ -451,7 +470,7 @@ export const OpenAnEntry: Story = {
         const canvas = within(canvasElement)
         await canvas.findByText("alice")
         const description = canvas.getByText(SEALED)
-        await expect(description).toHaveStyle({whiteSpace: "nowrap", textOverflow: "ellipsis"})
+        await expect(description).toHaveStyle({whiteSpace: "normal", overflow: "hidden"})
         expect(canvas.queryByRole("button", {name: "Show More"})).toBeNull()
         expect(canvas.queryByText(`Seal hash: ${SEAL_HASH}`)).toBeNull()
         await userEvent.click(description)
@@ -468,6 +487,60 @@ export const OpenAnEntry: Story = {
         await userEvent.click(within(await entryDialog()).getByRole("button", {name: "Close"}))
         await waitFor(() => expect(within(document.body).queryByRole("dialog")).toBeNull())
     },
+}
+
+/** Long prose and unbroken codes use the available column without growing the table or rows. */
+export const BoundedDescriptions: Story = {
+    ...atViewport(1800),
+    args: {logs: "long-descriptions", width: 1600, zones: ["Asia/Manila"]},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        const prose = await canvas.findByText(LONG_DESCRIPTION.trim())
+        const unbroken = canvas.getByText(UNBROKEN_DESCRIPTION)
+        const short = canvas.getByText("Short description")
+        const table = canvas.getByRole("table")
+        const list = canvasElement.querySelector(".electoral-log-list") as HTMLElement
+        const controlRow = short.closest("tr") as HTMLElement
+        expect(table.getBoundingClientRect().width).toBeLessThanOrEqual(list.clientWidth + 1)
+        for (const element of [prose, unbroken]) {
+            const row = element.closest("tr") as HTMLElement
+            const cell = element.closest("td") as HTMLElement
+            const rect = element.getBoundingClientRect()
+            expect(row.getBoundingClientRect().height).toBeLessThanOrEqual(
+                controlRow.getBoundingClientRect().height + 1
+            )
+            expect(rect.width).toBeGreaterThan(0)
+            expect(rect.right).toBeLessThanOrEqual(cell.getBoundingClientRect().right)
+            expect(element.scrollHeight).toBeGreaterThan(element.clientHeight)
+            if (controlRow.querySelector(".log-time-mine")) {
+                expect(element.clientHeight).toBeGreaterThan(
+                    parseFloat(getComputedStyle(element).lineHeight)
+                )
+            }
+            expect(element).toHaveAttribute(
+                "title",
+                element === prose ? LONG_DESCRIPTION : UNBROKEN_DESCRIPTION
+            )
+        }
+        await userEvent.click(prose)
+        const dialog = within(await entryDialog())
+        await waitFor(() => expect(dialog.getByText(LONG_DESCRIPTION.trim())).toBeVisible())
+    },
+}
+
+export const BoundedDescriptionsMedium: Story = {
+    ...BoundedDescriptions,
+    args: {...BoundedDescriptions.args, width: 1200},
+}
+
+export const BoundedDescriptionsSameZone: Story = {
+    ...BoundedDescriptions,
+    args: {...BoundedDescriptions.args, zones: ["UTC"]},
+}
+
+export const BoundedDescriptionsSmallestTable: Story = {
+    ...BoundedDescriptions,
+    args: {...BoundedDescriptions.args, width: 1000},
 }
 
 /** The column headers, also while the Columns menu covers the list. */

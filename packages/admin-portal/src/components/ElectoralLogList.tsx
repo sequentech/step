@@ -189,6 +189,39 @@ const description = (t: TFunction, record: ILogRow): string =>
     configurationPackageDescription(t, record.statement_kind, logMessage(record)) ??
     (logMessage(record)?.statement?.head?.description || "-")
 
+/** Use the timestamp's existing height; the description never adds another line to the row. */
+const LogRowDescription: React.FC<{
+    record: ILogRow
+    zones: ILogZones
+    format: IZonedFormat
+}> = ({record, zones, format}) => {
+    const {t} = useTranslation()
+    const zoneOf = useLogRowZone(zones)
+    const seconds = record.statement_timestamp ?? record.created
+    const hasMyTime =
+        seconds !== null &&
+        seconds !== undefined &&
+        format.mine(seconds * 1000, zoneOf(logMessage(record)?.election_id)) !== null
+    const text = description(t, record)
+    return (
+        <Box
+            component="span"
+            className="log-description"
+            title={text}
+            sx={{
+                display: "-webkit-box",
+                WebkitBoxOrient: "vertical",
+                WebkitLineClamp: hasMyTime ? 2 : 1,
+                overflow: "hidden",
+                overflowWrap: "anywhere",
+                whiteSpace: "normal",
+            }}
+        >
+            {text}
+        </Box>
+    )
+}
+
 /** A narrow list's entry: two lines that open the same popup as a row. */
 const CompactLogEntry: React.FC<{
     record: ILogRow
@@ -472,6 +505,7 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                 sx={{
                     "& .RaDatagrid-headerCell": {whiteSpace: "nowrap"},
                     "& .RaDatagrid-rowCell": {verticalAlign: "top"},
+                    "& .column-description": {width: "100%", maxWidth: 0},
                 }}
             >
                 <NumberField source="id" label={String(t("logsScreen.column.id"))} />
@@ -547,14 +581,7 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                     source="description"
                     label={String(t("logsScreen.column.description"))}
                     render={(row: ILogRow) => (
-                        <Box
-                            component="span"
-                            className="log-description"
-                            title={description(t, row)}
-                            sx={{...ONE_LINE, maxWidth: "min(40vw, 34rem)"}}
-                        >
-                            {description(t, row)}
-                        </Box>
+                        <LogRowDescription record={row} zones={zones} format={format} />
                     )}
                 />
                 <FunctionField
