@@ -5,6 +5,7 @@
 package sequent.keycloak.voter_enrollment;
 
 import static java.util.Arrays.asList;
+import static sequent.keycloak.authenticator.Utils.EMAIL_VERIFIED;
 import static sequent.keycloak.authenticator.Utils.PHONE_NUMBER_ATTRIBUTE;
 import static sequent.keycloak.authenticator.Utils.sendConfirmation;
 import static sequent.keycloak.authenticator.Utils.sendConfirmationDiffPost;
@@ -73,7 +74,6 @@ import sequent.keycloak.authenticator.credential.MessageOTPCredentialProvider;
 @AutoService(AuthenticatorFactory.class)
 public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory {
   public static final String MOBILE_NUMBER_FIELD = "sequent.read-only.mobile-number";
-  private static final String EMAIL_VERIFIED = "Email verified";
 
   public static final String PROVIDER_ID = "lookup-and-update-user";
   public static final String SEARCH_ATTRIBUTES = "search-attributes";
@@ -86,8 +86,9 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
 
   public static final String VERIFICATION_COMPLETED = "verificationCompleted";
   public static final String VERIFICATION_STATUS = "verificationStatus";
-  private static final String VERIFICATION_REJECTION_REASON = "verificationRejectionReason";
-  private static final String VERIFICATION_MISSMATCHED_FIELDS = "verificationMismatchedFields";
+  static final String VERIFICATION_REJECTION_REASON = "verificationRejectionReason";
+  static final String VERIFICATION_MISMATCHED_FIELDS = "verificationMismatchedFields";
+  static final String FIELDS_MATCH = "fields_match";
 
   // Enumerate the rejection reasons
   private enum VerificationRejectionReason {
@@ -139,7 +140,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       String rejectionReason =
           context.getAuthenticationSession().getAuthNote(VERIFICATION_REJECTION_REASON);
       String verificationMismatchedFields =
-          context.getAuthenticationSession().getAuthNote(VERIFICATION_MISSMATCHED_FIELDS);
+          context.getAuthenticationSession().getAuthNote(VERIFICATION_MISMATCHED_FIELDS);
 
       log.infov("authenticate(): verificationStatus {0}", verificationStatus);
       log.infov("authenticate(): rejectionReason {0}", rejectionReason);
@@ -337,7 +338,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       }
 
       // Store the fields_match in the auth session
-      context.getAuthenticationSession().setAuthNote("fields_match", fieldsMatch);
+      context.getAuthenticationSession().setAuthNote(FIELDS_MATCH, fieldsMatch);
 
       log.infov("Stored fields_match in auth session: {0}", fieldsMatch);
 
@@ -364,7 +365,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       try {
         context
             .getAuthenticationSession()
-            .setAuthNote(VERIFICATION_MISSMATCHED_FIELDS, om.writeValueAsString(mismatchedFields));
+            .setAuthNote(VERIFICATION_MISMATCHED_FIELDS, om.writeValueAsString(mismatchedFields));
       } catch (JsonProcessingException e) {
         e.printStackTrace();
         throw new IllegalStateException(e);
@@ -734,7 +735,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
   private void updateUserAttributes(
       UserModel user, AuthenticationFlowContext context, List<String> attributes) {
     // Get the fields_match from auth session
-    String fieldsMatchStr = context.getAuthenticationSession().getAuthNote("fields_match");
+    String fieldsMatchStr = context.getAuthenticationSession().getAuthNote(FIELDS_MATCH);
     log.infov("Fields match from auth session: {0}", fieldsMatchStr);
 
     ObjectMapper objectMapper = new ObjectMapper();
