@@ -182,7 +182,7 @@ export const ListIpAddress: React.FC<ListIpAddressProps> = ({aside}) => {
             component="section"
             aria-labelledby={titleId}
             className="print-hidden forensic-network-panel"
-            sx={{minWidth: 0, maxWidth: "100%", mt: 3}}
+            sx={{width: "100%", minWidth: 0, maxWidth: "100%", mt: 3}}
         >
             <Stack
                 direction="row"

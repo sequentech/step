@@ -61,19 +61,21 @@ const DashboardTab: React.FC = () => {
     }
     return (
         <Suspense fallback={<div>Loading Dashboard...</div>}>
-            <MonitoringDashboardTab
-                electionEventId={record?.election_event_id}
-                electionId={record?.id}
-                lock={lock}
-                legacy={
-                    <>
-                        <DashboardElection />
-                        <BallotBoxesCard {...ballotBoxes} />
-                    </>
-                }
-                below={<BallotBoxesSection {...ballotBoxes} />}
-            />
-            <ListIpAddress />
+            <Box sx={{width: "100%", minWidth: 0}}>
+                <MonitoringDashboardTab
+                    electionEventId={record?.election_event_id}
+                    electionId={record?.id}
+                    lock={lock}
+                    legacy={
+                        <>
+                            <DashboardElection />
+                            <BallotBoxesCard {...ballotBoxes} />
+                        </>
+                    }
+                    below={<BallotBoxesSection {...ballotBoxes} />}
+                />
+                <ListIpAddress />
+            </Box>
         </Suspense>
     )
 }

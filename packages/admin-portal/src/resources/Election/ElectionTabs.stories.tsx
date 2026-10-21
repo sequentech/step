@@ -343,6 +343,14 @@ export const TallySheets: Story = {
     }),
 }
 
+const expectForensicDashboardWidth = async (canvasElement: HTMLElement) => {
+    const panel = await within(canvasElement).findByRole("region", {name: "IP Addresses"})
+    await expect(panel).toBeVisible()
+    const parent = panel.parentElement
+    if (!parent) throw new Error("The forensic panel must have a dashboard parent")
+    expect(panel.getBoundingClientRect().width).toBeCloseTo(parent.clientWidth, 0)
+}
+
 export const ForensicReviewWithCustomDashboard: Story = {
     args: {
         networkPolicy: ENetworkDataPolicy.FORENSIC_STORE,
@@ -359,7 +367,7 @@ export const ForensicReviewWithCustomDashboard: Story = {
             () => expect(graphql.calls.map(({name}) => name)).toContain("MonitoringGetDashboard"),
             {timeout: 10000}
         )
-        await expect(await canvas.findByRole("region", {name: "IP Addresses"})).toBeVisible()
+        await expectForensicDashboardWidth(canvasElement)
         expect(canvas.getAllByRole("region", {name: "IP Addresses"})).toHaveLength(1)
     },
 }
@@ -368,12 +376,11 @@ export const ForensicReviewWhileDashboardLoads: Story = {
     ...ForensicReviewWithCustomDashboard,
     args: {...ForensicReviewWithCustomDashboard.args, monitoring: EMonitoringListScenario.LOADING},
     play: async ({canvasElement}) => {
-        const canvas = within(canvasElement)
         await waitFor(
             () => expect(graphql.calls.map(({name}) => name)).toContain("MonitoringListDashboards"),
             {timeout: 10000}
         )
-        await expect(await canvas.findByRole("region", {name: "IP Addresses"})).toBeVisible()
+        await expectForensicDashboardWidth(canvasElement)
     },
 }
 

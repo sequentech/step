@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {atViewport} from "../../../../test-support/storybook/viewport"
 import React from "react"
+import {Box} from "@mui/material"
 import type {StoryObj} from "@storybook/react-vite"
 import {expect, userEvent, waitFor, within} from "storybook/test"
 import {ENetworkDataPolicy, EBallotIdentity} from "@sequentech/ui-core"
@@ -36,6 +37,7 @@ interface Scenario {
     networkPolicy?: ENetworkDataPolicy
     allowed?: boolean
     detailPages?: "paged"
+    layout?: "dashboard"
 }
 
 const RESOURCE = "ip_address"
@@ -76,6 +78,7 @@ function Fixture({
     scope,
     networkPolicy = ENetworkDataPolicy.FORENSIC_STORE,
     allowed = true,
+    layout,
 }: Scenario) {
     const {permissions, tenant} = useStoryGlobals()
     const event = eventRecord(undefined, {
@@ -99,7 +102,20 @@ function Fixture({
         >
             <EventTimeZoneProvider event={event}>
                 <RecordContextProvider value={scope === "event" ? event : electionRecord()}>
-                    <ListIpAddress />
+                    <Box
+                        sx={{
+                            width: "100%",
+                            ...(layout === "dashboard"
+                                ? {
+                                      display: "flex",
+                                      flexDirection: "column",
+                                      alignItems: "flex-start",
+                                  }
+                                : {}),
+                        }}
+                    >
+                        <ListIpAddress />
+                    </Box>
                 </RecordContextProvider>
             </EventTimeZoneProvider>
         </AdminStoryProvider>
@@ -217,6 +233,21 @@ export const Empty: Story = {
             await within(canvasElement).findByText("No ballot network records yet.")
         ).toBeVisible()
         expect(within(canvasElement).queryByRole("table")).toBeNull()
+    },
+}
+
+export const DashboardWidth: Story = {
+    ...atViewport(1440),
+    args: {empty: true, layout: "dashboard"},
+    parameters: {...atViewport(1440).parameters, expectedFailure: null},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(await canvas.findByText("No ballot network records yet.")).toBeVisible()
+        const panel = canvas.getByRole("region", {name: "IP Addresses"})
+        const parent = panel.parentElement
+        if (!parent) throw new Error("The forensic panel must have a dashboard parent")
+        expect(panel.getBoundingClientRect().width).toBeCloseTo(parent.clientWidth, 0)
+        expect(canvasElement.scrollWidth).toBeLessThanOrEqual(canvasElement.clientWidth + 1)
     },
 }
 

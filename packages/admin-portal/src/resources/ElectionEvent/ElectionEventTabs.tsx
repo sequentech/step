@@ -117,21 +117,26 @@ const DashboardTab: React.FC<ITabProps> = ({refreshRef, handleChildMount}) => {
     const lock = monitoringLock(record)
     return (
         <Suspense fallback={<div>Loading Dashboard...</div>}>
-            {/* A failed seal is an incident the event shows in both monitoring modes. */}
-            <FailedSealsBanner electionEventId={record?.id} presentation={record?.presentation} />
-            <MonitoringDashboardTab
-                electionEventId={record?.id}
-                lock={lock}
-                legacy={
-                    <Box sx={{overflowX: "auto"}}>
-                        <DashboardElectionEvent
-                            refreshRef={refreshRef}
-                            onMount={handleChildMount}
-                        />
-                    </Box>
-                }
-            />
-            <ListIpAddress />
+            <Box sx={{width: "100%", minWidth: 0}}>
+                {/* A failed seal is an incident the event shows in both monitoring modes. */}
+                <FailedSealsBanner
+                    electionEventId={record?.id}
+                    presentation={record?.presentation}
+                />
+                <MonitoringDashboardTab
+                    electionEventId={record?.id}
+                    lock={lock}
+                    legacy={
+                        <Box sx={{overflowX: "auto"}}>
+                            <DashboardElectionEvent
+                                refreshRef={refreshRef}
+                                onMount={handleChildMount}
+                            />
+                        </Box>
+                    }
+                />
+                <ListIpAddress />
+            </Box>
         </Suspense>
     )
 }
