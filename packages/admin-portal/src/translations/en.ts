@@ -2471,6 +2471,8 @@ const englishTranslation = {
                 "application-write": "Edit Application",
                 "approval-matrix-write": "Edit Approval Matrix",
                 "readiness-check": "Verify election readiness",
+                "forensic-read": "Read isolated forensic network data",
+                "voter-pseudonym-resolve": "Resolve a voter pseudonym with an audited reason",
                 "logs-export": "Export Logs",
                 "tenant-logs-read": "Read Tenant Logs",
                 "tenant-logs-export": "Export Tenant Logs",

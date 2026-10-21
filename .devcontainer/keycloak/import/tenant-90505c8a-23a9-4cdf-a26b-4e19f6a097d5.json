@@ -2365,14 +2365,14 @@
       },
       {
         "name": "forensic-read",
-        "description": "Read isolated forensic network data; every access is audited",
+        "description": "Read isolated forensic network data",
         "composite": false,
         "clientRole": false,
         "attributes": {}
       },
       {
         "name": "voter-pseudonym-resolve",
-        "description": "Resolve one voter pseudonym with an audited reason",
+        "description": "Resolve a voter pseudonym with an audited reason",
         "composite": false,
         "clientRole": false,
         "attributes": {}
