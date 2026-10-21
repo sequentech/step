@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::routes::ballot_checks::ensure_checks_open;
+use crate::routes::ballot_checks::ensure_checks_open_with_pool;
 use crate::routes::ballot_privacy::PrivacyPayload;
 use crate::services::authorization::authorize_voter_event;
 use crate::services::dependencies::HarvestServices;
@@ -41,13 +41,8 @@ pub async fn receipt_document(
     )?;
     uuid::Uuid::parse_str(&body.document_id).map_err(|_| denied())?;
     let tenant = &claims.hasura_claims.tenant_id;
-    let mut client = services
-        .databases
-        .hasura()
-        .await
-        .get()
-        .await
-        .map_err(unavailable)?;
+    let pool = services.databases.hasura().await;
+    let mut client = pool.get().await.map_err(unavailable)?;
     let tx = client.transaction().await.map_err(unavailable)?;
     let event = windmill::postgres::election_event::get_election_event_by_id(
         &tx,
@@ -73,7 +68,7 @@ pub async fn receipt_document(
     {
         return Err(denied());
     }
-    ensure_checks_open(tenant, &event.id).await?;
+    ensure_checks_open_with_pool(&pool, tenant, &event.id).await?;
     let document = windmill::postgres::document::get_document(
         &tx,
         tenant,

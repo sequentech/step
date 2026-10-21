@@ -190,6 +190,32 @@ async fn private_receipt_polling_refuses_other_event_and_missing_voter_scope_bef
     );
 }
 
+#[tokio::test]
+async fn receipt_backend_failure_is_generic_after_voter_authorization() {
+    let services = Services::without_database();
+    let client = services.client().await;
+    let response = post(&client, "/receipt-document", &voter(), &input()).await;
+    assert_eq!(response.status(), Status::InternalServerError);
+    assert_eq!(response.into_string().await.unwrap(), "Receipt unavailable");
+}
+
+#[tokio::test]
+async fn forensic_detail_requires_an_exact_ip_address_before_querying_storage()
+{
+    let services = Services::without_database();
+    let client = services.client().await;
+    let reader = Claims::new(TENANT, "forensic-reader")
+        .roles([Permissions::FORENSIC_READ]);
+    for ip in [Value::Null, json!("198.51.100.%"), json!("not-an-address")] {
+        let mut body = input();
+        body["ip"] = ip;
+        let response =
+            post(&client, "/forensic-network-detail", &reader, &body).await;
+        assert_eq!(response.status(), Status::BadRequest);
+        assert_eq!(response.into_string().await.unwrap(), "Give an IP address");
+    }
+}
+
 #[test]
 fn received_only_admin_proof_is_pending_without_exposing_uncast_ballots_to_voters(
 ) {
@@ -273,6 +299,12 @@ fn authorized_resolution_is_private_durable_and_unavailable_after_purge() {
             .await
             .unwrap();
         store.create_board(&board).await.unwrap();
+        let prepublication_client = services.client().await;
+        let log_reader = Claims::new(&event.tenant_id, "verification-reader")
+            .roles([Permissions::LOGS_READ]);
+        let key_scope = json!({"election_event_id":event.election_event_id,"election_id":election});
+        assert_eq!(post(&prepublication_client, "/ballot-box-keys", &log_reader, &key_scope).await.status(), Status::NotFound,
+            "a live signing secret cannot substitute for published verification keys");
         let mut publication_db = services.hasura.get().await.unwrap();
         let publication_tx = publication_db.transaction().await.unwrap();
         let published_event =
@@ -308,12 +340,17 @@ fn authorized_resolution_is_private_durable_and_unavailable_after_purge() {
         store
             .allocate_voter_pseudonyms(
                 &event.election_event_id,
-                &[voter.into()],
+                &[voter.into(), "second-synthetic-voter".into()],
             )
             .await
             .unwrap();
         let code = store
             .voter_pseudonym(&event.election_event_id, voter)
+            .await
+            .unwrap()
+            .unwrap();
+        let peer_code = store
+            .voter_pseudonym(&event.election_event_id, "second-synthetic-voter")
             .await
             .unwrap()
             .unwrap();
@@ -327,6 +364,7 @@ fn authorized_resolution_is_private_durable_and_unavailable_after_purge() {
             &code,
             &key,
             &receipt_key,
+            true,
         )
         .await;
         let client = services.client().await;
@@ -336,6 +374,21 @@ fn authorized_resolution_is_private_durable_and_unavailable_after_purge() {
             .election_event(&event.election_event_id)
             .authorized_elections(&[&election])
             .roles([VoterPermissions::CAST_VOTE]);
+        // A second accepted ballot is still pending log publication. Public
+        // pagination and the private own view must both reflect durable casts.
+        let second_ballot = signed_private_ballot(
+            &store,
+            &event.tenant_id,
+            &event.election_event_id,
+            &election,
+            &area,
+            &board,
+            &code,
+            &key,
+            &receipt_key,
+            false,
+        )
+        .await;
         let scope = json!({"election_event_id":event.election_event_id,"election_id":election,"ballot_id":ballot_id});
         let authorize = client
             .get("/ballot-box-log-authorize")
@@ -382,11 +435,33 @@ fn authorized_resolution_is_private_durable_and_unavailable_after_purge() {
             Some("private, no-store")
         );
         let page: Value = page.into_json().await.unwrap();
-        assert_eq!(page["payload"]["ballots"].as_array().unwrap().len(), 1);
+        assert_eq!(page["payload"]["ballots"].as_array().unwrap().len(), 2);
         let displayed =
             page["payload"]["ballots"][0]["pseudonym"].as_str().unwrap();
         assert_eq!(displayed, code);
         assert!(!page.to_string().contains(voter));
+        let own = post(&client, "/ballot-box-own", &ordinary, &scope).await;
+        assert_eq!(own.status(), Status::Ok);
+        let own: Value = own.into_json().await.unwrap();
+        assert_eq!(own["payload"]["ballots"].as_array().unwrap().len(), 2);
+        assert!(!own.to_string().contains(voter));
+        let mut paged = scope.clone();
+        paged["limit"] = json!(1);
+        let first = post(&client, "/ballot-box-log", &ordinary, &paged).await;
+        assert_eq!(first.status(), Status::Ok);
+        let first: Value = first.into_json().await.unwrap();
+        assert_eq!(first["payload"]["ballots"][0]["ballot_id"], second_ballot);
+        paged["cursor"] = first["payload"]["next_cursor"].clone();
+        assert!(paged["cursor"].is_string());
+        let next = post(&client, "/ballot-box-log", &ordinary, &paged).await;
+        assert_eq!(next.status(), Status::Ok);
+        let next: Value = next.into_json().await.unwrap();
+        assert_eq!(next["payload"]["ballots"][0]["ballot_id"], ballot_id);
+        assert!(next["payload"]["next_cursor"].is_null());
+        assert_public_rejections(
+            &client, &event, &ordinary, &scope, &area, &election, &code,
+        )
+        .await;
         let entry = post(&client, "/ballot-box-entry", &ordinary, &scope).await;
         assert_eq!(entry.status(), Status::Ok);
         let entry: Value = entry.into_json().await.unwrap();
@@ -450,6 +525,14 @@ fn authorized_resolution_is_private_durable_and_unavailable_after_purge() {
             assert_eq!(checks.cast, CheckStatus::Passed);
         };
         verify();
+        assert_missing_log_is_closed(
+            &services, &client, &event, &ordinary, &scope, &code, &board,
+        )
+        .await;
+        assert_receipt_document_scope(
+            &services, &client, &event, &ordinary, &store, &code,
+        )
+        .await;
         let reason = "Election protest EP-2028-014, order of 19 May 2028";
         let body = json!({"election_event_id":event.election_event_id,"pseudonym":displayed,"reason":format!("  {reason}  "),"username":"untrusted-requester"});
         let reader = Claims::new(&event.tenant_id, "viewer")
@@ -576,7 +659,7 @@ fn authorized_resolution_is_private_durable_and_unavailable_after_purge() {
                 .purge_voter_pseudonyms(&event.election_event_id)
                 .await
                 .unwrap(),
-            1
+            2
         );
         assert_eq!(
             post(&client, "/resolve-voter-pseudonym", &investigator, &body)
@@ -604,15 +687,62 @@ fn authorized_resolution_is_private_durable_and_unavailable_after_purge() {
         assert_eq!(retained.status(), Status::Ok);
         let retained: Value = retained.into_json().await.unwrap();
         assert_eq!(retained["payload"], entry["payload"]);
-        for (path, operation, username) in [
-            ("/forensic-network-summary", "list", Some("audit.reader")),
+        // Independent forensic retention can outlive the private identity map.
+        for (index, pseudonym) in
+            [&code, &peer_code, &code].into_iter().enumerate()
+        {
+            store
+                .record_forensic_network(
+                    &electoral_log::adapters::privacy::ForensicNetworkRecord {
+                        election_event_id: &event.election_event_id,
+                        election_id: Some(&election),
+                        area_id: Some(&area),
+                        event_kind: "cast",
+                        delivery_id: &format!("forensic-fixture-{index}"),
+                        pseudonym,
+                        ballot_id: Some(&ballot_id),
+                        ip: "198.51.100.7",
+                        country: Some("ES"),
+                        user_agent: Some("synthetic-forensic-agent"),
+                        recorded_at: chrono::Utc::now(),
+                    },
+                )
+                .await
+                .unwrap();
+        }
+        assert_eq!(
+            store
+                .refresh_forensic_summary(&event.election_event_id, 100)
+                .await
+                .unwrap(),
+            3
+        );
+        for (path, operation, username, empty) in [
+            (
+                "/forensic-network-summary",
+                "list",
+                Some("audit.reader"),
+                false,
+            ),
             (
                 "/forensic-network-summary",
                 "export",
                 Some("audit.exporter"),
+                false,
             ),
-            ("/forensic-network-detail", "detail", Some("audit.reviewer")),
-            ("/forensic-network-summary", "list", None),
+            (
+                "/forensic-network-detail",
+                "detail",
+                Some("audit.reviewer"),
+                false,
+            ),
+            ("/forensic-network-summary", "list", None, false),
+            (
+                "/forensic-network-detail",
+                "detail",
+                Some("audit.empty"),
+                true,
+            ),
         ] {
             let mut reader =
                 Claims::new(&event.tenant_id, "forensic-reader-id")
@@ -621,11 +751,33 @@ fn authorized_resolution_is_private_durable_and_unavailable_after_purge() {
                 reader = reader.username(username);
             }
             let body = json!({"election_event_id":event.election_event_id,
-                "operation":operation,"ip":"198.51.100.7","username":"untrusted-input"});
-            assert_eq!(
-                post(&client, path, &reader, &body).await.status(),
-                Status::Ok
-            );
+                "election_id":election,"limit":1,"operation":operation,"ip":if empty {"198.51.100.99"} else {"198.51.100.7"},"username":"untrusted-input"});
+            let response = post(&client, path, &reader, &body).await;
+            assert_eq!(response.status(), Status::Ok);
+            let response: Value = response.into_json().await.unwrap();
+            if empty {
+                assert_eq!(response["payload"]["ballots"], json!([]));
+                assert_eq!(response["payload"]["vote_count"], 0);
+                assert!(response["payload"]["next_cursor"].is_null());
+                assert!(response["payload"]["first_ballot"].is_null());
+                assert!(response["payload"]["last_ballot"].is_null());
+            } else if path == "/forensic-network-summary" {
+                assert_eq!(response["payload"]["total"], 1);
+                let item = &response["payload"]["items"][0];
+                assert_eq!(item["vote_count"], 3);
+                assert_eq!(item["country"], "ES");
+                assert_eq!(item["shared"], true);
+                assert_eq!(item["pseudonym_count"], 2);
+            } else {
+                assert_eq!(
+                    response["payload"]["ballots"].as_array().unwrap().len(),
+                    1
+                );
+                assert!(response["payload"]["next_cursor"].is_string());
+                assert_eq!(response["payload"]["vote_count"], 3);
+            }
+            assert!(!response.to_string().contains(voter));
+            assert!(!response.to_string().contains("synthetic-forensic-agent"));
             let pending = store
                 .pending_privacy_messages(&event.election_event_id, 10)
                 .await
@@ -739,6 +891,234 @@ fn authorized_resolution_is_private_durable_and_unavailable_after_purge() {
 #[path = "privacy_trace.rs"]
 mod privacy_trace;
 
+async fn assert_missing_log_is_closed(
+    services: &Services,
+    client: &rocket::local::asynchronous::Client,
+    event: &rows::Event,
+    voter: &Claims,
+    scope: &Value,
+    pseudonym: &str,
+    board: &str,
+) {
+    rows::execute(&services.hasura, "UPDATE sequent_backend.election_event SET presentation=jsonb_set(presentation,'{show_cast_vote_logs}',$2) WHERE id=$1::text::uuid", &[&event.election_event_id, &json!("unsupported-policy")]).await;
+    let malformed = post(client, "/ballot-box-log", voter, scope).await;
+    assert_eq!(malformed.status(), Status::InternalServerError);
+    assert_eq!(
+        malformed.into_string().await.unwrap(),
+        "Unable to read ballot privacy data"
+    );
+    rows::execute(&services.hasura, "UPDATE sequent_backend.election_event SET presentation=jsonb_set(presentation,'{show_cast_vote_logs}',$2) WHERE id=$1::text::uuid", &[&event.election_event_id, &json!("show-logs-tab")]).await;
+    rows::execute(&services.hasura, "UPDATE sequent_backend.election_event SET bulletin_board_reference=NULL WHERE id=$1::text::uuid", &[&event.election_event_id]).await;
+    for path in ["/ballot-box-entry", "/ballot-box-keys"] {
+        let response = post(client, path, voter, scope).await;
+        assert_eq!(response.status(), Status::InternalServerError);
+        assert_eq!(
+            response.into_string().await.unwrap(),
+            "Unable to read ballot privacy data"
+        );
+    }
+    let investigator = Claims::new(&event.tenant_id, "resolution-reader")
+        .roles([Permissions::VOTER_PSEUDONYM_RESOLVE]);
+    let body = json!({"election_event_id":event.election_event_id,"pseudonym":pseudonym,"reason":"Official investigation"});
+    let response =
+        post(client, "/resolve-voter-pseudonym", &investigator, &body).await;
+    assert_eq!(response.status(), Status::InternalServerError);
+    assert_eq!(
+        response.into_string().await.unwrap(),
+        "Unable to read ballot privacy data"
+    );
+    let mut invalid = body;
+    invalid["pseudonym"] = json!("invalid%");
+    assert_eq!(
+        post(client, "/resolve-voter-pseudonym", &investigator, &invalid)
+            .await
+            .status(),
+        Status::BadRequest
+    );
+    rows::execute(&services.hasura, "UPDATE sequent_backend.election_event SET bulletin_board_reference=$2 WHERE id=$1::text::uuid", &[&event.election_event_id, &json!({"id":1,"database_name":board,"is_archived":false})]).await;
+}
+
+async fn assert_receipt_document_scope(
+    services: &Services,
+    client: &rocket::local::asynchronous::Client,
+    event: &rows::Event,
+    owner: &Claims,
+    store: &PostgresStore,
+    pseudonym: &str,
+) {
+    let pending = uuid::Uuid::new_v4().to_string();
+    store
+        .register_receipt_document(
+            &event.election_event_id,
+            &pending,
+            pseudonym,
+        )
+        .await
+        .unwrap();
+    let body = json!({"election_event_id":event.election_event_id,"document_id":pending});
+    let response = post(client, "/receipt-document", owner, &body).await;
+    assert_eq!(
+        response.status(),
+        Status::Ok,
+        "an owned receipt may still be rendering"
+    );
+    assert_eq!(
+        response.into_json::<Value>().await.unwrap()["payload"]["document"],
+        Value::Null
+    );
+    let document = event
+        .document(
+            &services.hasura,
+            "ballot_receipt.pdf",
+            "application/pdf",
+            Some(42),
+        )
+        .await;
+    store
+        .register_receipt_document(
+            &event.election_event_id,
+            &document,
+            pseudonym,
+        )
+        .await
+        .unwrap();
+    let body = json!({"election_event_id":event.election_event_id,"document_id":document});
+    let response = post(client, "/receipt-document", owner, &body).await;
+    assert_eq!(response.status(), Status::Ok);
+    assert_eq!(
+        response.into_json::<Value>().await.unwrap()["payload"]["document"],
+        json!({"id":document,"name":"ballot_receipt.pdf","url":format!("https://documents.test/{document}")})
+    );
+    let (area, elections) =
+        voter_token_scope(&owner.build(), &event.election_event_id, None)
+            .unwrap();
+    let elections = elections.iter().map(String::as_str).collect::<Vec<_>>();
+    let other = Claims::new(&event.tenant_id, "other-receipt-owner")
+        .azp("voting-portal")
+        .area(&area)
+        .election_event(&event.election_event_id)
+        .authorized_elections(&elections)
+        .roles([VoterPermissions::CAST_VOTE]);
+    assert_eq!(
+        post(client, "/receipt-document", &other, &body)
+            .await
+            .status(),
+        Status::Forbidden
+    );
+    let absent = uuid::Uuid::new_v4().to_string();
+    let other_event = Claims::new(&event.tenant_id, "other-event-owner")
+        .azp("voting-portal")
+        .area(&area)
+        .election_event(&absent)
+        .authorized_elections(&elections)
+        .roles([VoterPermissions::CAST_VOTE]);
+    let absent_body =
+        json!({"election_event_id":absent,"document_id":document});
+    assert_eq!(
+        post(client, "/receipt-document", &other_event, &absent_body)
+            .await
+            .status(),
+        Status::Forbidden
+    );
+    rows::execute(&services.hasura,
+        "UPDATE sequent_backend.election_event SET presentation=jsonb_set(presentation,'{receipts}',$2) WHERE id=$1::text::uuid",
+        &[&event.election_event_id, &json!({"policy":"signed-by-ballot-box","checks_period_policy":"until-date","checks_available_until":"2000-01-01T00:00:00Z"})]).await;
+    let ended = post(client, "/receipt-document", owner, &body).await;
+    assert_eq!(ended.status(), Status::Forbidden);
+    assert_eq!(ended.into_string().await.unwrap(), "checks-ended");
+    rows::execute(&services.hasura,
+        "UPDATE sequent_backend.election_event SET presentation=jsonb_set(presentation,'{receipts}',$2) WHERE id=$1::text::uuid",
+        &[&event.election_event_id, &json!({"policy":"signed-by-ballot-box"})]).await;
+    for document in ["not-a-uuid".to_owned(), uuid::Uuid::new_v4().to_string()]
+    {
+        let body = json!({"election_event_id":event.election_event_id,"document_id":document});
+        assert_eq!(
+            post(client, "/receipt-document", owner, &body)
+                .await
+                .status(),
+            Status::Forbidden
+        );
+    }
+}
+
+async fn assert_public_rejections(
+    client: &rocket::local::asynchronous::Client,
+    event: &rows::Event,
+    voter: &Claims,
+    scope: &Value,
+    area: &str,
+    election: &str,
+    pseudonym: &str,
+) {
+    for path in ["/ballot-box-entry", "/ballot-box-keys"] {
+        let mut body = scope.clone();
+        body["ballot_id"] = json!("invalid%");
+        assert_eq!(
+            post(client, path, voter, &body).await.status(),
+            Status::BadRequest
+        );
+        body["ballot_id"] = json!(pseudonym);
+        assert_eq!(
+            post(client, path, voter, &body).await.status(),
+            Status::NotFound
+        );
+    }
+    let unregistered = Claims::new(&event.tenant_id, "unregistered-voter")
+        .azp("voting-portal")
+        .area(area)
+        .election_event(&event.election_event_id)
+        .authorized_elections(&[election])
+        .roles([VoterPermissions::CAST_VOTE]);
+    assert_eq!(
+        post(client, "/ballot-box-own", &unregistered, scope)
+            .await
+            .status(),
+        Status::InternalServerError
+    );
+    let shared = post(client, "/ballot-box-log", &unregistered, scope).await;
+    assert_eq!(shared.status(), Status::Ok);
+    assert_eq!(shared.headers().get_one("X-Ballot-Cacheable"), Some("1"));
+    let shared: Value = shared.into_json().await.unwrap();
+    assert_eq!(shared["payload"]["ballots"].as_array().unwrap().len(), 2);
+    assert!(!shared.to_string().contains("voter_id"));
+    for change in [
+        json!({"limit":0}),
+        json!({"limit":101}),
+        json!({"prefix":"%"}),
+        json!({"cursor":URL_SAFE_NO_PAD.encode(b"not JSON")}),
+    ] {
+        let mut body = scope.clone();
+        body.as_object_mut()
+            .unwrap()
+            .extend(change.as_object().unwrap().clone());
+        assert_eq!(
+            post(client, "/ballot-box-log", voter, &body).await.status(),
+            Status::BadRequest
+        );
+    }
+    let missing_event = Claims::new(&event.tenant_id, "voter")
+        .azp("voting-portal")
+        .area(area)
+        .election_event("not-a-uuid")
+        .authorized_elections(&[election])
+        .roles([VoterPermissions::CAST_VOTE]);
+    let mut body = scope.clone();
+    body["election_event_id"] = json!("not-a-uuid");
+    assert_eq!(
+        post(client, "/ballot-box-log", &missing_event, &body)
+            .await
+            .status(),
+        Status::BadRequest
+    );
+    let keys = json!({"election_event_id":event.election_event_id,"election_id":election});
+    assert_eq!(
+        post(client, "/ballot-box-keys", voter, &keys)
+            .await
+            .status(),
+        Status::Ok
+    );
+}
+
 /// Build a real encrypted, voter-signed received/cast pair for the HTTP proof flow.
 async fn signed_private_ballot(
     store: &electoral_log::adapters::postgres::PostgresStore,
@@ -750,6 +1130,7 @@ async fn signed_private_ballot(
     pseudonym: &str,
     authority_key: &voting_crypto::signing::SigningKey,
     receipt_key: &voting_crypto::signing::SigningKey,
+    publish: bool,
 ) -> String {
     use chrono::Utc;
     use electoral_log::adapters::ballot_box::{
@@ -902,6 +1283,9 @@ async fn signed_private_ballot(
             .await?;
         assert!(matches!(outcome, AcceptOutcome::Accepted { .. }));
 
+        if !publish {
+            return Ok(received.ballot_id);
+        }
         let queued = store.pending_received_ballots(&event, 10).await?;
         let received = store
             .received_ballot_by_id(
