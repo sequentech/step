@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use super::*;
+use sequent_core::ballot::TYPES_VERSION;
 use serde_json::json;
+use strand::context::Ctx;
+use strand::elgamal::{PrivateKey, PublicKey};
 
 fn election_event(annotations: Option<serde_json::Value>) -> ElectionEvent {
     ElectionEvent {
@@ -26,6 +29,84 @@ fn election_event(annotations: Option<serde_json::Value>) -> ElectionEvent {
         statistics: None,
         external_id: None,
     }
+}
+
+fn encrypted_contest(contest_id: &str) -> HashableBallotContest<RistrettoCtx> {
+    let ctx = RistrettoCtx;
+    let mut rng = ctx.get_rng();
+    let secret_key = PrivateKey::gen(&ctx);
+    let public_key = PublicKey::from_element(secret_key.pk_element(), &ctx);
+    let (ciphertext, proof, _) = public_key
+        .encrypt_and_pok(&ctx.rnd(&mut rng), &DEFAULT_PLAINTEXT_LABEL)
+        .unwrap();
+    HashableBallotContest {
+        contest_id: contest_id.to_string(),
+        ciphertext,
+        proof,
+    }
+}
+
+fn cast_input(
+    election_id: Uuid,
+    issue_date: &str,
+    contests: Vec<HashableBallotContest<RistrettoCtx>>,
+) -> InsertCastVoteInput {
+    let hashable_ballot = HashableBallot {
+        version: TYPES_VERSION,
+        issue_date: issue_date.to_string(),
+        contests: HashableBallot::serialize_contests(&contests).unwrap(),
+        config: "style".to_string(),
+        ballot_style_hash: "style-hash".to_string(),
+    };
+    let signed_hashable_ballot = SignedHashableBallot {
+        version: hashable_ballot.version,
+        issue_date: hashable_ballot.issue_date.clone(),
+        contests: hashable_ballot.contests.clone(),
+        config: hashable_ballot.config.clone(),
+        ballot_style_hash: hashable_ballot.ballot_style_hash.clone(),
+        voter_signing_pk: None,
+        voter_ballot_signature: None,
+    };
+    InsertCastVoteInput {
+        ballot_id: hash_ballot(&hashable_ballot).unwrap(),
+        election_id,
+        content: serde_json::to_string(&signed_hashable_ballot).unwrap(),
+    }
+}
+
+#[test]
+fn contest_ciphertext_moved_into_another_ballot_keeps_its_fingerprint() {
+    let election_id = Uuid::new_v4();
+    let original = encrypted_contest("contest");
+    let moved = HashableBallotContest {
+        contest_id: "other-contest".to_string(),
+        ..original.clone()
+    };
+    let first = cast_input(election_id, "2026-01-01", vec![original]);
+    let second = cast_input(
+        election_id,
+        "2026-01-02",
+        vec![encrypted_contest("contest"), moved],
+    );
+    assert_ne!(first.ballot_id, second.ballot_id);
+
+    let (_, _, _, first_fingerprints) = deserialize_and_check_ballot(&first, "first").unwrap();
+    let (_, _, _, second_fingerprints) = deserialize_and_check_ballot(&second, "second").unwrap();
+
+    assert_eq!(first_fingerprints.len(), 1);
+    assert_eq!(second_fingerprints.len(), 2);
+    assert_ne!(second_fingerprints[0], first_fingerprints[0]);
+    assert_eq!(second_fingerprints[1], first_fingerprints[0]);
+}
+
+#[test]
+fn ciphertext_already_cast_is_not_retried() {
+    assert!(matches!(
+        skip_or_propagate(CastVoteError::CiphertextAlreadyCast),
+        Ok(InsertCastVoteResult::SkipRetryFailure(
+            CastVoteError::CiphertextAlreadyCast
+        ))
+    ));
 }
 
 #[test]
