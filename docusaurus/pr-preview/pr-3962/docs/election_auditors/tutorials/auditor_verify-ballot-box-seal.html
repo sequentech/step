@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Verify a ballot box seal | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3962/docs/election_auditors/tutorials/auditor_verify-ballot-box-seal"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Verify a ballot box seal | Sequent Online Voting"><meta data-rh="true" name="description" content="--&gt;"><meta data-rh="true" property="og:description" content="--&gt;"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3962/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3962/docs/election_auditors/tutorials/auditor_verify-ballot-box-seal"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3962/docs/election_auditors/tutorials/auditor_verify-ballot-box-seal" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3962/docs/election_auditors/tutorials/auditor_verify-ballot-box-seal" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Verify a ballot box seal","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3962/docs/election_auditors/tutorials/auditor_verify-ballot-box-seal"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3962/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3962/assets/js/runtime~main.04696772.js" defer="defer"></script>
-<script src="/docusaurus/pr-preview/pr-3962/assets/js/main.985d1f87.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3962/assets/js/runtime~main.6d9af1b8.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3962/assets/js/main.c94dd373.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
 <svg style="display: none;"><defs>
@@ -201,19 +201,24 @@ the row count on the line first.</li>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="privacy-what-the-record-reveals">Privacy: what the record reveals<a href="#privacy-what-the-record-reveals" class="hash-link" aria-label="Direct link to Privacy: what the record reveals" title="Direct link to Privacy: what the record reveals" translate="no">​</a></h2>
 <p>The record pairs each Ballot ID with how it counts, its weight and its channel.
 Compare it with what other sources already show.</p>
-<p><strong>What the electoral log already shows.</strong> Each <code>CastVote</code> entry of the
-electoral log carries the voter&#x27;s pseudonym, the ballot&#x27;s <strong>channel</strong> (Online,
-Kiosk, Early Voting or Telephone), and the voter&#x27;s <strong>IP address</strong> and
-<strong>country</strong>. The pseudonym is an unsalted hash of the voter&#x27;s ID
-(<code>hash_voter_id</code>), the same for every ballot of that voter, so anyone who knows
-a voter&#x27;s ID can find that voter&#x27;s entries. Anyone who can read the log can
-link a voter&#x27;s ballots, see that the voter voted again, and, with a Ballot ID
-from a receipt, find that voter&#x27;s other ballots. Revoting and channels are
-visible there, with or without the seal record.</p>
+<p><strong>What the electoral log already shows depends on the event&#x27;s identity mode.</strong>
+New pseudonym-mode events use a random code for each voter within that event.
+Their signed Received/Cast entries contain the Ballot ID, pseudonym binding and
+channel, without the real voter ID, IP address or country. Knowing a voter ID
+does not reveal that code. Entries with the same pseudonym remain linkable, so
+revoting and channels remain visible, with or without the seal record.</p>
+<p>Historical voter-ID-mode entries retain their original format and signatures.
+Those <code>CastVote</code> entries may contain IP address and country, and their pseudonym
+is the unsalted <code>hash_voter_id</code> of the voter ID. Someone who knows that voter ID
+can derive the legacy pseudonym and link those historical entries. The privacy
+change does not rewrite or erase this signed evidence.</p>
 <p><strong>What the ballot locator shows.</strong> When the event&#x27;s <code>show_cast_vote_logs</code>
-setting is <strong>ShowLogsTab</strong>, the voting portal&#x27;s ballot locator lists every
-<code>CastVote</code> entry of the election, with its log message, to any voter signed in
-to that election, for example during voting.</p>
+setting is <strong>ShowLogsTab</strong> and ballot checks are open, the new pseudonym-mode
+Logs tab lists cast ballots within the signed-in voter&#x27;s authorized election
+and area. It shows Ballot ID, pseudonym, cast time and channel, with a separate
+view of that voter&#x27;s own ballots. Historical events retain their legacy viewer.
+See <a class="" href="/docusaurus/pr-preview/pr-3962/docs/election_managers/reference/ballot_privacy">Ballot privacy</a>
+for identity modes and forensic policy limits.</p>
 <p><strong>What the seal record adds</strong>, for each Ballot ID:</p>
 <ul>
 <li class="">whether it was counted as <strong>not eligible</strong> (the census at the seal);</li>
