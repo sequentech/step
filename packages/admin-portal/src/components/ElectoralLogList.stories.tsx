@@ -803,7 +803,9 @@ async function openAudit(canvasElement: HTMLElement) {
     const dialog = within(
         await within(document.body).findByRole("dialog", {name: "Audit electoral log"})
     )
-    await expect(dialog.getByText(/checks every log entry against its Merkle log/)).toBeVisible()
+    await waitFor(() =>
+        expect(dialog.getByText(/checks every log entry against its Merkle log/)).toBeVisible()
+    )
     return dialog
 }
 
@@ -813,7 +815,8 @@ export const AuditTheLog: Story = {
     play: async ({canvasElement}) => {
         const dialog = await openAudit(canvasElement)
         await userEvent.click(dialog.getByRole("button", {name: "Audit"}))
-        await expect(await within(document.body).findByText("SUCCESS")).toBeVisible()
+        const success = await within(document.body).findByText("SUCCESS")
+        await waitFor(() => expect(success).toBeVisible())
         expect(audits()).toEqual([
             {
                 name: "AuditElectoralLog",
