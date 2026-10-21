@@ -64,6 +64,47 @@ it("shows rejected source counts and diagnostics without calling upload", async 
     expect(accepted).not.toHaveBeenCalled()
 })
 
+it("names the source row, field and dangling reference, and never accepts the conversion", async () => {
+    const accepted = jest.fn()
+    mockBuild.mockResolvedValue({
+        summary: {
+            sourceRows: {candidate: 2},
+            generatedRows: {},
+            excludedVoters: 0,
+            outsideScopeCandidates: 0,
+            opaqueBinaryValues: 0,
+        },
+        output: {
+            report: {
+                problems: [
+                    {
+                        severity: "error",
+                        code: "dangling_reference",
+                        path: "SQL table candidate row 2 column POST_CODE",
+                        message: "contest C99 does not exist in the source contest table",
+                        details: {reference: "C99", target: "contest.POSTCODE"},
+                    },
+                ],
+            },
+        },
+    })
+    render(
+        <HistoricalSourcePanel
+            droppedFiles={inputs()}
+            api={{buildFromHistorical: mockBuild}}
+            disabled={false}
+            onPrepare={jest.fn()}
+            onAccepted={accepted}
+        />
+    )
+    expect(
+        await screen.findByText(
+            "SQL table candidate row 2 column POST_CODE: contest C99 does not exist in the source contest table"
+        )
+    ).toBeInTheDocument()
+    expect(accepted).not.toHaveBeenCalled()
+})
+
 it("keeps local source files after a runtime failure and does not reveal exception values", async () => {
     const accepted = jest.fn()
     mockBuild.mockRejectedValue(new Error("synthetic-private-value"))

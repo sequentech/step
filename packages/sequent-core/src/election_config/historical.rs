@@ -550,6 +550,78 @@ fn sheet_row<'a>(
         )
     })
 }
+/// Resolve every candidate's contest and seat against the whole source, before
+/// any seat is selected. Scope policy filters valid rows; it must never be what
+/// a broken reference hides behind. Codes are source configuration, not personal
+/// records, so the offending reference is named.
+fn check_candidate_references(
+    candidates: &Data,
+    seats: &Data,
+    contests: &Data,
+    contests_by_name: &BTreeMap<String, usize>,
+) -> Result<(), Problem> {
+    let unresolved =
+        |row: usize, column: &str, value: &str, target: &str, message: &str| {
+            problem("candidate", row, column, Code::DanglingReference, message)
+                .detail("reference", value)
+                .detail("target", target)
+        };
+    let postcodes = (0..contests.table.rows.len())
+        .map(|i| contests.text(i, "POSTCODE"))
+        .collect::<Result<BTreeSet<_>, _>>()?;
+    let seats_by_district = seats.index("DISTRICTCODE")?;
+    for candidate in 0..candidates.table.rows.len() {
+        let postcode = candidates.text(candidate, "POST_CODE")?;
+        if !postcodes.contains(&postcode) {
+            return Err(unresolved(
+                candidate,
+                "POST_CODE",
+                &postcode,
+                "contest.POSTCODE",
+                &format!("contest {postcode} does not exist in the source contest table"),
+            ));
+        }
+        let district = candidates.text(candidate, "DISTRICTCODE")?;
+        let Some(&seat) = seats_by_district.get(&district) else {
+            return Err(unresolved(
+                candidate,
+                "DISTRICTCODE",
+                &district,
+                "seat.DISTRICTCODE",
+                &format!(
+                    "seat {district} does not exist in the source seat table"
+                ),
+            ));
+        };
+        let name = seats.text(seat, "CONTEST")?;
+        let contest = contests_by_name.get(&name).copied().ok_or_else(|| {
+            problem(
+                "seat",
+                seat,
+                "CONTEST",
+                Code::DanglingReference,
+                &format!("seat contest {name} does not exist in the source contest table, so candidate row {} cannot be placed", candidate + 1),
+            )
+            .detail("reference", &name)
+            .detail("target", "contest.POSTNAME")
+        })?;
+        let seat_postcode = contests.text(contest, "POSTCODE")?;
+        if seat_postcode != postcode {
+            return Err(problem(
+                "candidate",
+                candidate,
+                "DISTRICTCODE",
+                Code::ConflictingColumns,
+                &format!("seat {district} belongs to contest {seat_postcode}, not to the candidate's POST_CODE {postcode}"),
+            )
+            .detail("reference", &district)
+            .detail("target", "seat.DISTRICTCODE")
+            .detail("contest", &postcode)
+            .detail("seatContest", &seat_postcode));
+        }
+    }
+    Ok(())
+}
 
 fn map(
     dump: &SqlDump,
@@ -736,6 +808,7 @@ fn map(
     let gi = geography.index("GEOCODE")?;
     seats.index("DISTRICTCODE")?;
     candidates.index("CAND_CODE")?;
+    check_candidate_references(&candidates, &seats, &contests, &ti)?;
     let erows = workbook.rows("elections");
     workbook_index(erows, "alias")?;
     let mut ei: BTreeMap<String, Vec<usize>> = BTreeMap::new();

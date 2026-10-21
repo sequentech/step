@@ -140,6 +140,16 @@ coverage, explicit associations and preserving unresolved affiliation codes
 require both source SHA-256 values. Changed bytes invalidate those decisions.
 No source policy controls or separate file pickers appear in the drawer.
 
+Candidate references are resolved against the whole source before any seat is
+selected, whatever the scope policy. A `candidate.POST_CODE` with no
+`contest.POSTCODE`, a `candidate.DISTRICTCODE` with no `seat.DISTRICTCODE`, a
+referenced seat whose `CONTEST` names no contest, and a seat that belongs to a
+different contest than the candidate's `POST_CODE` are blocking errors naming the
+source table, row, column and the offending code (`dangling_reference` or
+`conflicting_columns`, with `reference` in the problem details). Only a
+candidate whose contest and seat both resolve can be counted as outside the
+configured seats under `configured-seats-only`.
+
 ## CLI
 
 From `packages/`, using a built CLI:
