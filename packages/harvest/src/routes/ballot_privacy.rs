@@ -800,9 +800,10 @@ pub async fn resolve_voter_pseudonym(
         &body.pseudonym,
     )
     .ok_or_else(|| bad("Invalid pseudonym"))?;
-    let reason = body.reason.parse::<PseudonymResolutionReason>().map_err(
-        |_| bad("Choose investigation, compliance-review, or test-validation"),
-    )?;
+    let reason = body
+        .reason
+        .parse::<PseudonymResolutionReason>()
+        .map_err(bad)?;
     let store = get_event_store(&event.id).await.map_err(unavailable)?;
     let voter = store
         .resolve_pseudonym(&event.id, &code)

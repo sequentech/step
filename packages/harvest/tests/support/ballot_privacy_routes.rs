@@ -424,7 +424,8 @@ fn authorized_resolution_is_private_durable_and_unavailable_after_purge() {
             assert_eq!(checks.cast, CheckStatus::Passed);
         };
         verify();
-        let body = json!({"election_event_id":event.election_event_id,"pseudonym":displayed,"reason":"test validation"});
+        let reason = "Election protest EP-2028-014, order of 19 May 2028";
+        let body = json!({"election_event_id":event.election_event_id,"pseudonym":displayed,"reason":format!("  {reason}  ")});
         let reader = Claims::new(&event.tenant_id, "viewer")
             .roles([Permissions::LOGS_READ]);
         assert_eq!(
@@ -442,11 +443,12 @@ fn authorized_resolution_is_private_durable_and_unavailable_after_purge() {
             Claims::new(&event.tenant_id, "synthetic-investigator")
                 .roles([Permissions::VOTER_PSEUDONYM_RESOLVE]);
         for unsafe_reason in [
-            "Jane Doe",
-            "jane@example.test",
-            "11111111-1111-4111-8111-111111111111",
-            "198.51.100.7",
-            "Official investigation",
+            "".to_owned(),
+            "   ".to_owned(),
+            "first\nsecond".to_owned(),
+            "reason\0".to_owned(),
+            "x".repeat(513),
+            "é".repeat(257),
         ] {
             let unsafe_body = json!({"election_event_id":event.election_event_id,"pseudonym":displayed,"reason":unsafe_reason});
             assert_eq!(
@@ -459,7 +461,7 @@ fn authorized_resolution_is_private_durable_and_unavailable_after_purge() {
                 .await
                 .status(),
                 Status::BadRequest,
-                "non-categorical resolution reason accepted"
+                "invalid resolution reason accepted"
             );
         }
         assert!(store
@@ -494,7 +496,7 @@ fn authorized_resolution_is_private_durable_and_unavailable_after_purge() {
         let body_json = &json["statement"]["body"]["PseudonymResolved"];
         assert_eq!(body_json["pseudonym"], code);
         assert_eq!(body_json["actor_id"], "synthetic-investigator");
-        assert_eq!(body_json["reason"], "test-validation");
+        assert_eq!(body_json["reason"], reason);
         assert!(!serde_json::to_string(&message).unwrap().contains(voter));
         let durable_entry = electoral_log::LogEntry {
             delivery_id: pending[0].delivery_id.clone(),

@@ -48,18 +48,18 @@ This is a known-value regression detector. It does not prove the absence of arbi
    step-cli step audit-electoral-log --election-event-id EVENT_UUID
    ```
 
-6. Confirm an account without `voter-pseudonym-resolve` is refused by the resolver. Only the explicitly authorized investigation operator performs the following step, with one approved fixed reason (`investigation`, `compliance-review`, or `test-validation`):
+6. Confirm an account without `voter-pseudonym-resolve` is refused by the resolver. Only the explicitly authorized investigation operator performs the following step, with a free-text justification for the authority-approved resolution:
 
    ```sh
    step-cli step resolve-voter-pseudonym \
      --election-event-id EVENT_UUID \
      --pseudonym XXXX-XXXX \
-     --reason test-validation
+     --reason "Privacy validation of synthetic ballot"
    ```
 
    Keep the returned voter ID in the private acceptance record. Confirm it matches the synthetic census account. Ordinary Logs and proof actions must never return this resolution.
 
-7. Wait for the signed `PseudonymResolved` audit entry. Verify its authority signature through the electoral-log audit and inspect its actor, pseudonym, and reason. Confirm the resolved voter ID is absent from the public statement. Repeat the ballot artifact scan and retain its output.
+7. Wait for the signed `PseudonymResolved` audit entry. Verify its authority signature through the electoral-log audit and inspect its actor, pseudonym, and reason. Confirm the reason matches the supplied free text after trimming surrounding whitespace, and the resolved voter ID is absent from the public statement. Repeat the ballot artifact scan and retain its output.
 8. Repeat cast/storage checks with **Do not store** and **Keep for forensic review**. With forensic retention enabled, use the dedicated permission to view attribution and confirm every successful read queues a signed `ForensicRead` statement. Without that permission, the request must fail before private storage is read. For an already published pseudonym event, repeat a successful voter sign-in and confirm a private `sign-in` record exists only with forensic retention enabled. Confirm it contains the pseudonym, not the voter ID, and ordinary sign-in logs/queues contain no network metadata. Disable the policy and repeat immediately; no new attribution should be sent or retained. Authentication rollback, failed login and tenant administrator login must not create private records. During an unavailable Harvest or token service, completed login remains valid and attribution may be missing; this path has no durable retry queue.
 
 Record actual results for every step. The procedure itself does not resolve a voter, change a running election, or establish approval to investigate production voters.

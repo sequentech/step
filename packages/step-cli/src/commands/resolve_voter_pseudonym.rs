@@ -24,7 +24,7 @@ pub struct ResolveVoterPseudonym {
     /// One eight-character pseudonym, such as 7QKM-2HXD
     #[arg(long, value_parser = parse_pseudonym)]
     pseudonym: String,
-    /// Public purpose: investigation, compliance-review, or test-validation
+    /// Free-text reason recorded in the signed event log (maximum 512 UTF-8 bytes)
     #[arg(long, value_parser = parse_reason)]
     reason: String,
 }
@@ -116,11 +116,14 @@ mod tests {
             "--pseudonym",
             "7qkm2hxd",
             "--reason",
-            " test validation ",
+            " Election protest EP-2028-014, order of 19 May 2028 ",
         ])
         .unwrap();
         assert_eq!(args.command.pseudonym, "7QKM-2HXD");
-        assert_eq!(args.command.reason, "test-validation");
+        assert_eq!(
+            args.command.reason,
+            "Election protest EP-2028-014, order of 19 May 2028"
+        );
         for invalid in ["", "7QKM-2HXD,ABCD-EFGH", "7QKM-2HXD ABCD-EFGH"] {
             assert!(parse_pseudonym(invalid).is_err());
         }
@@ -139,17 +142,17 @@ mod tests {
     }
 
     #[test]
-    fn public_resolution_reason_rejects_personal_and_arbitrary_text() {
+    fn free_text_resolution_reasons_are_not_replaced_with_categories() {
         for reason in [
-            "Jane Doe",
-            "jane@example.test",
-            "Election protest",
-            "11111111-1111-4111-8111-111111111111",
+            "Election protest EP-2028-014, order of 19 May 2028",
+            "Court order 28/2028",
+            "Compliance review",
+            "Revisión electoral",
+            "investigation",
+            "compliance-review",
+            "test-validation",
         ] {
-            assert!(
-                parse_reason(reason).is_err(),
-                "arbitrary public reason accepted"
-            );
+            assert_eq!(parse_reason(reason).unwrap(), reason);
         }
     }
 

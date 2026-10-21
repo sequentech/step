@@ -43,25 +43,16 @@ pub enum NetworkDataPolicy {
     DoNotStore,
 }
 
-/// Closed public purposes approved for newly requested pseudonym resolutions.
-/// Historical signed reasons remain strings and are never rewritten.
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema,
-)]
-#[serde(rename_all = "kebab-case")]
-pub enum PseudonymResolutionReason {
-    Investigation,
-    ComplianceReview,
-    TestValidation,
-}
+/// Free-text justification recorded in the signed resolution audit entry.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(try_from = "String")]
+pub struct PseudonymResolutionReason(String);
+
+const MAX_RESOLUTION_REASON_BYTES: usize = 512;
 
 impl PseudonymResolutionReason {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::Investigation => "investigation",
-            Self::ComplianceReview => "compliance-review",
-            Self::TestValidation => "test-validation",
-        }
+    pub fn as_str(&self) -> &str {
+        &self.0
     }
 }
 
@@ -69,19 +60,25 @@ impl std::str::FromStr for PseudonymResolutionReason {
     type Err = &'static str;
 
     fn from_str(value: &str) -> Result<Self, Self::Err> {
-        const INVALID: &str =
-            "Choose investigation, compliance-review, or test-validation";
         if value.chars().any(char::is_control) {
-            return Err(INVALID);
+            return Err("Reason must not contain control characters");
         }
-        match value.trim() {
-            "investigation" => Ok(Self::Investigation),
-            "compliance-review" | "compliance review" => {
-                Ok(Self::ComplianceReview)
-            }
-            "test-validation" | "test validation" => Ok(Self::TestValidation),
-            _ => Err(INVALID),
+        let trimmed = value.trim();
+        if trimmed.is_empty() {
+            return Err("Enter a reason for resolving this pseudonym");
         }
+        if trimmed.len() > MAX_RESOLUTION_REASON_BYTES {
+            return Err("Reason must not exceed 512 UTF-8 bytes");
+        }
+        Ok(Self(trimmed.to_owned()))
+    }
+}
+
+impl TryFrom<String> for PseudonymResolutionReason {
+    type Error = &'static str;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        value.parse()
     }
 }
 
@@ -90,37 +87,52 @@ mod tests {
     use super::*;
 
     #[test]
-    fn resolution_categories_have_only_the_approved_public_values() {
-        for (input, canonical) in [
-            ("investigation", "investigation"),
-            (" compliance review ", "compliance-review"),
-            ("compliance-review", "compliance-review"),
-            ("test validation", "test-validation"),
-            ("test-validation", "test-validation"),
+    fn resolution_reasons_preserve_free_text() {
+        for text in [
+            "Election protest EP-2028-014, order of 19 May 2028",
+            "Court order 28/2028",
+            "Revisión electoral – expediente 28",
+            "investigation",
+            "compliance-review",
+            "compliance review",
+            "test-validation",
         ] {
-            let reason = input.parse::<PseudonymResolutionReason>().unwrap();
-            assert_eq!(reason.as_str(), canonical);
-            assert_eq!(serde_json::to_value(reason).unwrap(), canonical);
+            let reason = format!("  {text}  ")
+                .parse::<PseudonymResolutionReason>()
+                .unwrap();
+            assert_eq!(reason.as_str(), text);
+            assert_eq!(serde_json::to_value(&reason).unwrap(), text);
+            let decoded: PseudonymResolutionReason =
+                serde_json::from_value(serde_json::json!(text)).unwrap();
+            assert_eq!(decoded.as_str(), text);
+        }
+    }
+
+    #[test]
+    fn resolution_reasons_require_bounded_text_without_control_characters() {
+        for text in ["x".repeat(512), "é".repeat(256)] {
+            assert_eq!(
+                text.parse::<PseudonymResolutionReason>().unwrap().as_str(),
+                text
+            );
         }
         for rejected in [
-            "",
-            "Jane Doe",
-            "jane@example.test",
-            "11111111-1111-4111-8111-111111111111",
-            "AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA",
-            "198.51.100.7",
-            "AQ",
-            "Mozilla/5.0",
-            "investigation\n",
-            "other",
-            "Election protest",
+            "".to_owned(),
+            "   ".to_owned(),
+            "first\nsecond".to_owned(),
+            "first\rsecond".to_owned(),
+            "first\tsecond".to_owned(),
+            "reason\0".to_owned(),
+            "reason\u{007f}".to_owned(),
+            "x".repeat(513),
+            "é".repeat(257),
         ] {
             assert!(rejected.parse::<PseudonymResolutionReason>().is_err());
+            assert!(serde_json::from_value::<PseudonymResolutionReason>(
+                serde_json::json!(rejected)
+            )
+            .is_err());
         }
-        assert!(
-            serde_json::from_str::<PseudonymResolutionReason>("\"other\"")
-                .is_err()
-        );
     }
 
     #[test]

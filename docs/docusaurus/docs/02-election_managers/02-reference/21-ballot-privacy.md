@@ -67,10 +67,10 @@ There is no portal screen for resolving a pseudonym. An explicitly authorized op
 step-cli step resolve-voter-pseudonym \
   --election-event-id 11111111-1111-4111-8111-111111111111 \
   --pseudonym 7QKM-2HXD \
-  --reason investigation
+  --reason "Election protest EP-2028-014, order of 19 May 2028"
 ```
 
-The command requests the `voter-pseudonym-resolve` role and resolves one code. The required reason must be one of `investigation`, `compliance-review`, or `test-validation`. The service records only this fixed category in the signed resolution log and rejects arbitrary text. Keep names, identifiers and detailed narratives in private case records. Existing clients that supplied prose must switch to an approved category; historical signed records keep their original bytes. The service records the requesting actor, pseudonym and reason; the returned voter ID goes only to the requester. Handle the command's output as private information.
+The command requests the `voter-pseudonym-resolve` role and resolves one code. The required reason is free text: after trimming surrounding whitespace, it must be nonempty, at most 512 UTF-8 bytes, and contain no control characters. The service records the text as given, together with the requesting actor and pseudonym, in the signed resolution log. Do not include voter names, voter identifiers or network data in the reason; keep those details in private case records. Historical signed records keep their original bytes. The returned voter ID goes only to the requester. Handle the command's output as private information.
 
 ## Retention and limitations
 
