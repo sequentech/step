@@ -396,6 +396,7 @@ def measure(
                 "config_sha256": hashlib.sha256(CONFIG.read_bytes()).hexdigest(),
                 "features": profile["features"],
                 "consumer_packages": profile.get("consumer_packages", []),
+                "test_arguments": profile.get("test_arguments", []),
                 "database_tests": database_tests,
                 "database_test_skips": profile.get("database_test_skips", []),
                 "test_environment": profile.get("test_environment", {}),
@@ -447,6 +448,8 @@ def measure(
             environment,
         )
         test_command = ["cargo", "llvm-cov", "--tests", "--no-report", *arguments]
+        if profile.get("test_arguments"):
+            test_command.extend(["--", *profile["test_arguments"]])
         test_log = execute(test_command, output / "tests.log", environment)
         if database_tests:
             database_command = ["cargo", "llvm-cov", "--no-report", *arguments]

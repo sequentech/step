@@ -124,6 +124,30 @@ issue = "https://github.com/sequentech/meta/issues/13292"
         self.assertEqual(summary["tests_ignored"], 1)
         self.assertEqual(summary["features"], ["default_features", "keycloak"])
 
+    def test_profile_harness_arguments_include_ignored_contracts(self):
+        arguments = ["--include-ignored", "--skip", "live_renderer"]
+        self.config.write_text(
+            self.config.read_text().replace(
+                'package = "sequent-core"',
+                'package = "sequent-core"\n'
+                'test_arguments = ["--include-ignored", "--skip", "live_renderer"]',
+            )
+        )
+        original = self.tool_output
+        observed = []
+
+        def tool_output(command, log, environment):
+            if "--tests" in command:
+                observed.append(command)
+            return original(command, log, environment)
+
+        self.tool_output = tool_output
+        code, summary = self.attempt(True)
+        self.assertEqual(code, 0)
+        self.assertEqual(observed[0][-4:], ["--", *arguments])
+        self.assertLess(observed[0].index("--offline"), observed[0].index("--"))
+        self.assertEqual(summary["test_arguments"], arguments)
+
     def test_database_suites_run_ignored_tests_before_export_with_serial_fixture_access(
         self,
     ):

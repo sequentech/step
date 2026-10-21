@@ -248,11 +248,12 @@ issue = "https://github.com/sequentech/meta/issues/13755"
 [profiles.harvest]
 package = "harvest"
 features = []
+test_arguments = ["--include-ignored", "--skip", "a_widget_checks_saves_and_draws_through_the_real_renderer", "--skip", "every_preset_widget_passes_the_real_engine_and_the_sanitizer"]
 limitations = [
     "Native tests with declared default dependencies, including Windmill's default FIPS feature selection.",
     "Request-boundary tests use Rocket's local client; they do not start service workers. Claims are signed with a public test key and verified against a local key server, not a deployed identity provider.",
     "Route tests run against a private migrated database on the PostgreSQL server HASURA_DB__* names, with in-memory task ledger, broker and storage and a local Keycloak stand-in.",
-    "Deployed Keycloak, the task-queue database, S3, the electoral-log databases and complete worker-side workflows remain outside this profile.",
+    "Includes isolated electoral-log storage, signed proof, resolution-audit and receipt contracts; the two live-renderer tests remain separate. Deployed Keycloak, S3 and complete worker-side workflows remain outside this profile.",
     "Existing inline unit tests contribute to LLVM source counters; branch and deployment coverage are separate scopes.",
 ]
 issue = "https://github.com/sequentech/meta/issues/13302"
@@ -276,12 +277,22 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 "src/types/mod.rs" = "Module declarations only."
 "src/types/optional.rs" = "Struct and derives only; no handwritten executable methods or LLVM line regions."
 
-# The route tests' database server comes from the ambient HASURA_DB__* and
-# KEYCLOAK_DB__* settings, as in the ordinary test job; only the host is fixed.
+# Public disposable SQL and vault fixtures; no deployment settings are inherited.
 [profiles.harvest.test_environment]
 KEYCLOAK_VOTER_GROUP_NAME = "voter"
+ENV_SLUG = "electoral-log-tests"
+SECRETS_BACKEND = "EnvVarMasterSecret"
+MASTER_SECRET = "0101010101010101010101010101010101010101010101010101010101010101"
 KEYCLOAK_DB__HOST = "127.0.0.1"
+KEYCLOAK_DB__PORT = "3322"
+KEYCLOAK_DB__USER = "test"
+KEYCLOAK_DB__PASSWORD = "test"
+KEYCLOAK_DB__DBNAME = "test"
 HASURA_DB__HOST = "127.0.0.1"
+HASURA_DB__PORT = "3322"
+HASURA_DB__USER = "test"
+HASURA_DB__PASSWORD = "test"
+HASURA_DB__DBNAME = "test"
 LOW_SQL_LIMIT = "1000"
 DEFAULT_SQL_LIMIT = "20"
 DEFAULT_SQL_BATCH_SIZE = "1000"

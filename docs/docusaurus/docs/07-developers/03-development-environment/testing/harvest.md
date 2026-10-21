@@ -58,14 +58,21 @@ cargo test -p harvest --locked --offline --bin harvest -- boundary_tests
 cargo test -p harvest --locked --offline --bin harvest -- services::access
 ```
 
-For a complete native report, from the repository root:
+For a complete native report, start a disposable PostgreSQL server on port
+`3322` with the `test` user, password and database. The role must be able to
+create databases for isolated event logs. From the repository root:
 
 ```sh
 python3 scripts/coverage/run.py harvest --baseline --offline
 ```
 
-The package profile supplies public local SQL configuration. Complete route
-tests also need the PostgreSQL fixture described below. Each run
+The package profile supplies public local SQL and synthetic vault configuration.
+It includes the otherwise ignored PostgreSQL privacy and audit contracts:
+signed public proofs, private receipt polling, operator resolution and forensic
+reads, durable audit entries, and retention after mapping purge. Receipt checks
+use the same managed database pool as ownership and document lookup. The two
+tests requiring a live renderer stay separate; their production code remains
+in the coverage inventory. Each run
 clears old LLVM counters and workspace binaries, so compile-time macro counters
 are collected again; external dependencies stay cached. Never store deployment
 secrets in `test_environment`.
