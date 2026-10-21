@@ -14,6 +14,26 @@ const englishTranslation = {
             listedAs: "Listed as",
             check: "Check my ballot",
             copy: "Copy Ballot ID",
+            ballotIdHelp: "About your Ballot ID",
+            castTime: "Cast {{time}}",
+            timesIn: "Times in {{zone}}",
+            signedEntries: "Signed log entries ({{count}})",
+            noMatchHelp:
+                "Check for typing mistakes. The codes use the digits 0 to 9 and capital letters, without I, L, O and U.",
+            helpSections: {
+                pseudonyms: {
+                    title: "Pseudonyms",
+                    text: "Each voter is listed under a pseudonym, a code such as 7QKM-2HXD. The log never says who the voter is.",
+                },
+                signatures: {
+                    title: "Signatures",
+                    text: "The election authority signs which voter key each pseudonym uses. The ballot box signs each ballot it receives and each cast.",
+                },
+                checks: {
+                    title: "Checks on your device",
+                    text: "Open a ballot to check its signatures in this browser. Anyone can download its signed entries and check them again.",
+                },
+            },
             copied: "Ballot ID copied",
             copyFailed: "Could not copy the Ballot ID. Select the code to copy it.",
             search: "Find a Ballot ID or pseudonym",
@@ -73,6 +93,7 @@ const englishTranslation = {
             neverPublished:
                 "Never published: the voter's name, username, IP address, country or device.",
             download: "Download signed log entries",
+            downloadAction: "Download",
             close: "Close",
             systemKey: "Election event log key",
             boxKey: "Ballot box key",

@@ -6,12 +6,15 @@ import {
     Alert,
     Box,
     Button,
+    ButtonBase,
     Chip,
     CircularProgress,
     Dialog,
     DialogActions,
     DialogContent,
     DialogTitle,
+    IconButton,
+    InputAdornment,
     MenuItem,
     Paper,
     Stack,
@@ -21,10 +24,27 @@ import {
     TableHead,
     TableRow,
     TextField,
+    Tooltip,
     Typography,
 } from "@mui/material"
+import {FontAwesomeIcon} from "@fortawesome/react-fontawesome"
+import {
+    faChevronLeft,
+    faChevronRight,
+    faCircleCheck,
+    faCircleQuestion,
+    faCopy,
+    faDisplay,
+    faFileSignature,
+    faGlobe,
+    faPhone,
+    faSearch,
+    faShieldHalved,
+    faUserSecret,
+} from "@fortawesome/free-solid-svg-icons"
 import {useTranslation} from "react-i18next"
-import type {IBallotLogPage, IBallotLogRow} from "@sequentech/ui-core"
+import {stringToHtml, type IBallotLogPage, type IBallotLogRow} from "@sequentech/ui-core"
+import {PseudonymChip} from "@sequentech/ui-essentials"
 import {BALLOT_BOX_LOG, BALLOT_BOX_OWN} from "../queries/BallotBoxLog"
 import {normalizeBallotLogPrefix} from "../services/BallotLogSearch"
 import {BallotBoxEntry} from "./BallotBoxEntry"
@@ -44,6 +64,7 @@ export interface BallotBoxLogViewProps {
     onRetry: () => void
     onOpen: (ballot: IBallotLogRow) => void
     formatTime: (timestamp: string) => string
+    timeZoneLabel?: string
 }
 
 export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
@@ -61,14 +82,22 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
     onRetry,
     onOpen,
     formatTime,
+    timeZoneLabel,
 }) => {
     const {t} = useTranslation()
     const [help, setHelp] = useState(false)
+    const [ballotHelp, setBallotHelp] = useState(false)
     const [copyStatus, setCopyStatus] = useState<"copied" | "copyFailed">()
     const prefix = normalizeBallotLogPrefix(search)
     const ownIds = new Set(ownBallots.map((ballot) => ballot.ballot_id))
     const channel = (value: string) =>
         t(`ballotPrivacy.channels.${value.toLowerCase()}`, {defaultValue: value})
+    const channelIcon = (value: string) =>
+        value.toLowerCase() === "telephone"
+            ? faPhone
+            : value.toLowerCase() === "kiosk"
+              ? faDisplay
+              : faGlobe
     const copy = async (id: string) => {
         try {
             await navigator.clipboard.writeText(id)
@@ -85,7 +114,7 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
                 <Box
                     className="ballot-box-log-match"
                     component="mark"
-                    sx={{bgcolor: "warning.light"}}
+                    sx={{bgcolor: "#FEF08A", color: "inherit", borderRadius: "2px"}}
                 >
                     {value.slice(0, length)}
                 </Box>
@@ -93,13 +122,57 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
             </>
         )
     }
+    const yours = (
+        <Chip
+            size="small"
+            label={t("ballotPrivacy.yours")}
+            sx={{
+                height: 20,
+                bgcolor: "#0F054C",
+                color: "#FFFFFF",
+                fontSize: 11,
+                fontWeight: 600,
+            }}
+        />
+    )
+    const validPage = page && prefix !== null && !loading && !error
     return (
-        <Stack className="ballot-box-log" spacing={2} sx={{minWidth: 0}}>
+        <Stack
+            className="ballot-box-log"
+            spacing={3}
+            sx={{
+                minWidth: 0,
+                width: "100%",
+                pt: 3,
+                fontFamily: "Roboto, Helvetica, Arial, sans-serif",
+            }}
+        >
             <Box className="ballot-box-log-heading">
-                <Typography className="ballot-box-log-title" variant="h5" component="h2">
-                    {t("ballotPrivacy.title")}
-                </Typography>
-                <Typography className="ballot-box-log-subtitle">
+                <Stack direction="row" alignItems="center" gap={1}>
+                    <Typography
+                        className="ballot-box-log-title"
+                        variant="h5"
+                        component="h2"
+                        sx={{m: 0, fontWeight: 700}}
+                    >
+                        {t("ballotPrivacy.title")}
+                    </Typography>
+                    <Tooltip title={t("ballotPrivacy.help")}>
+                        <IconButton
+                            className="ballot-box-log-help-button"
+                            size="small"
+                            aria-label={t("ballotPrivacy.help")}
+                            onClick={() => setHelp(true)}
+                        >
+                            <FontAwesomeIcon icon={faCircleQuestion} style={{fontSize: 18}} />
+                        </IconButton>
+                    </Tooltip>
+                </Stack>
+                <Typography
+                    className="ballot-box-log-subtitle"
+                    color="text.secondary"
+                    sx={{m: 0, mt: 1}}
+                >
                     {t("ballotPrivacy.subtitle")}
                 </Typography>
                 <Stack
@@ -108,318 +181,547 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
                     useFlexGap
                     flexWrap="wrap"
                     gap={1}
-                    sx={{mt: 2}}
+                    sx={{mt: 2.5}}
                 >
-                    {["private", "signed", "device"].map((key) => (
+                    {[
+                        {key: "private", icon: faUserSecret},
+                        {key: "signed", icon: faFileSignature},
+                        {key: "device", icon: faShieldHalved},
+                    ].map(({key, icon}) => (
                         <Chip
                             className="ballot-box-log-badge"
                             key={key}
-                            size="small"
+                            icon={<FontAwesomeIcon icon={icon} />}
                             label={t(`ballotPrivacy.${key}`)}
+                            sx={{
+                                "height": "auto",
+                                "minHeight": 32,
+                                "py": 0.25,
+                                "bgcolor": "#F7F9FC",
+                                "border": "1px solid #E2E8F0",
+                                "fontSize": 13,
+                                "color": "#0F054C",
+                                "& .MuiChip-label": {whiteSpace: "normal"},
+                                "& .MuiChip-icon": {fontSize: 14, color: "#0F054C", ml: 1.5},
+                            }}
                         />
                     ))}
                 </Stack>
             </Box>
             {ownBallots.map((ballot) => (
-                <Alert
+                <Box
                     className="ballot-box-log-own-ballot"
                     key={ballot.ballot_id}
-                    severity="success"
-                    sx={{"& .MuiAlert-message": {minWidth: 0, flex: 1}}}
+                    sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        flexWrap: {xs: "wrap", md: "nowrap"},
+                        gap: 2.5,
+                        p: {xs: 2, md: 3},
+                        border: "1px solid #059669",
+                        borderRadius: "8px",
+                        bgcolor: "#ECFDF5",
+                        color: "#065F46",
+                    }}
                 >
-                    <Typography className="ballot-box-log-own-title" fontWeight={700}>
-                        {t("ballotPrivacy.own")}
-                    </Typography>
-                    <Typography
-                        className="ballot-box-log-own-id"
-                        component="div"
-                        variant="h6"
-                        sx={{overflowWrap: "anywhere"}}
+                    <Box
+                        sx={{
+                            width: 48,
+                            height: 48,
+                            borderRadius: "50%",
+                            bgcolor: "white",
+                            border: "1px solid #A7D9CC",
+                            display: {xs: "none", sm: "grid"},
+                            placeItems: "center",
+                            flexShrink: 0,
+                        }}
                     >
-                        {ballot.ballot_id}
-                    </Typography>
-                    <Typography className="ballot-box-log-own-details" variant="body2">
-                        {formatTime(ballot.cast_at)} · {channel(ballot.voting_channel)}
-                    </Typography>
-                    <Typography
-                        className="ballot-box-log-own-pseudonym-label"
-                        component="div"
-                        variant="body2"
-                    >
-                        {t("ballotPrivacy.listedAs")}{" "}
-                        <Chip
-                            className="ballot-box-log-own-pseudonym"
-                            label={ballot.pseudonym}
-                            size="small"
+                        <FontAwesomeIcon
+                            icon={faCircleCheck}
+                            style={{fontSize: 24, color: "#047857"}}
                         />
-                    </Typography>
-                    <Stack
-                        className="ballot-box-log-own-actions"
-                        direction="row"
-                        useFlexGap
-                        flexWrap="wrap"
-                        gap={1}
-                        sx={{mt: 1}}
+                    </Box>
+                    <Box sx={{flex: 1, minWidth: 0}}>
+                        <Typography
+                            className="ballot-box-log-own-title"
+                            sx={{
+                                m: 0,
+                                fontSize: 12,
+                                fontWeight: 700,
+                                letterSpacing: 1,
+                                textTransform: "uppercase",
+                            }}
+                        >
+                            {t("ballotPrivacy.own")}
+                        </Typography>
+                        <Stack
+                            direction="row"
+                            alignItems="center"
+                            useFlexGap
+                            flexWrap="wrap"
+                            gap={0.5}
+                        >
+                            <Typography
+                                className="ballot-box-log-own-id"
+                                component="div"
+                                sx={{
+                                    m: 0,
+                                    fontSize: {xs: 25, sm: 30},
+                                    fontWeight: 700,
+                                    letterSpacing: 1.5,
+                                    overflowWrap: "anywhere",
+                                }}
+                            >
+                                {ballot.ballot_id}
+                            </Typography>
+                            <Tooltip title={t("ballotPrivacy.copy")}>
+                                <IconButton
+                                    className="ballot-box-log-copy-button"
+                                    size="small"
+                                    aria-label={t("ballotPrivacy.copy")}
+                                    onClick={() => void copy(ballot.ballot_id)}
+                                >
+                                    <FontAwesomeIcon icon={faCopy} style={{fontSize: 16}} />
+                                </IconButton>
+                            </Tooltip>
+                            <Tooltip title={t("ballotPrivacy.ballotIdHelp")}>
+                                <IconButton
+                                    size="small"
+                                    aria-label={t("ballotPrivacy.ballotIdHelp")}
+                                    onClick={() => setBallotHelp(true)}
+                                >
+                                    <FontAwesomeIcon
+                                        icon={faCircleQuestion}
+                                        style={{fontSize: 16}}
+                                    />
+                                </IconButton>
+                            </Tooltip>
+                        </Stack>
+                        <Stack
+                            direction="row"
+                            useFlexGap
+                            flexWrap="wrap"
+                            gap={1.5}
+                            alignItems="center"
+                            sx={{mt: 0.5}}
+                        >
+                            <Typography
+                                className="ballot-box-log-own-details"
+                                variant="body2"
+                                sx={{m: 0}}
+                            >
+                                {t("ballotPrivacy.castTime", {time: formatTime(ballot.cast_at)})} ·{" "}
+                                {channel(ballot.voting_channel)}
+                            </Typography>
+                            <Stack
+                                className="ballot-box-log-own-pseudonym-label"
+                                direction="row"
+                                alignItems="center"
+                                gap={1}
+                            >
+                                <Typography variant="body2" sx={{m: 0}}>
+                                    {t("ballotPrivacy.listedAs")}
+                                </Typography>
+                                <PseudonymChip className="ballot-box-log-own-pseudonym">
+                                    {ballot.pseudonym}
+                                </PseudonymChip>
+                            </Stack>
+                        </Stack>
+                    </Box>
+                    <Button
+                        className="ballot-box-log-own-check-button"
+                        variant="contained"
+                        startIcon={<FontAwesomeIcon icon={faShieldHalved} />}
+                        onClick={() => onOpen(ballot)}
+                        sx={{
+                            flexShrink: 0,
+                            width: {xs: "100%", md: "auto"},
+                            textTransform: "none",
+                            px: 3,
+                        }}
                     >
-                        <Button
-                            className="ballot-box-log-own-check-button"
-                            variant="contained"
-                            onClick={() => onOpen(ballot)}
-                        >
-                            {t("ballotPrivacy.check")}
-                        </Button>
-                        <Button
-                            className="ballot-box-log-copy-button"
-                            onClick={() => void copy(ballot.ballot_id)}
-                        >
-                            {t("ballotPrivacy.copy")}
-                        </Button>
-                    </Stack>
-                </Alert>
+                        {t("ballotPrivacy.check")}
+                    </Button>
+                </Box>
             ))}
             {copyStatus && (
-                <Typography className="ballot-box-log-copy-status" role="status" variant="body2">
+                <Typography
+                    className="ballot-box-log-copy-status"
+                    role="status"
+                    variant="body2"
+                    sx={{m: 0}}
+                >
                     {t(`ballotPrivacy.${copyStatus}`)}
                 </Typography>
             )}
-            <Stack
-                className="ballot-box-log-search-controls"
-                direction={{xs: "column", sm: "row"}}
-                gap={1}
-                alignItems={{sm: "center"}}
+            <Paper
+                className="ballot-box-log-list"
+                variant="outlined"
+                sx={{
+                    overflow: "hidden",
+                    borderRadius: "8px",
+                    borderColor: "#DFE6EF",
+                    boxShadow: "none",
+                }}
             >
-                <TextField
-                    className="ballot-box-log-search"
-                    fullWidth
-                    label={t("ballotPrivacy.search")}
-                    placeholder={t("ballotPrivacy.placeholder")}
-                    value={search}
-                    onChange={(event) => onSearch(event.target.value)}
-                    error={prefix === null}
-                    helperText={prefix === null ? t("ballotPrivacy.invalidPrefix") : undefined}
-                    slotProps={{htmlInput: {autoCapitalize: "characters", spellCheck: false}}}
-                />
-                {search && (
-                    <Button className="ballot-box-log-clear-button" onClick={() => onSearch("")}>
-                        {t("ballotPrivacy.clear")}
-                    </Button>
-                )}
-            </Stack>
-            {error ? (
-                <Alert
-                    className="ballot-box-log-error"
-                    severity="error"
-                    action={
-                        <Button className="ballot-box-log-retry-button" onClick={onRetry}>
-                            {t("ballotPrivacy.retry")}
-                        </Button>
-                    }
+                <Stack
+                    className="ballot-box-log-search-controls"
+                    direction={{xs: "column", sm: "row"}}
+                    useFlexGap
+                    flexWrap="wrap"
+                    gap={1.5}
+                    alignItems={{sm: "center"}}
+                    sx={{p: 2.5}}
                 >
-                    {t("ballotPrivacy.loadError")}
-                </Alert>
-            ) : null}
-            {loading ? (
-                <CircularProgress
-                    className="ballot-box-log-loading"
-                    size={24}
-                    aria-label={t("ballotPrivacy.checking")}
-                />
-            ) : null}
-            {page && prefix !== null && !loading && !error ? (
-                <>
-                    <Typography className="ballot-box-log-count" variant="body2" role="status">
-                        {prefix
-                            ? t(
-                                  page.match_count_capped
-                                      ? "ballotPrivacy.capped"
-                                      : "ballotPrivacy.matches",
-                                  {count: page.match_count, total: page.total}
-                              )
-                            : t("ballotPrivacy.ballots", {count: page.total})}
-                    </Typography>
-                    {!page.ballots.length ? (
-                        <Alert className="ballot-box-log-empty" severity="info">
-                            {prefix
-                                ? t("ballotPrivacy.noMatch", {prefix: search})
-                                : t("ballotPrivacy.noBallots")}
-                        </Alert>
-                    ) : (
-                        <Paper
-                            className="ballot-box-log-list"
-                            variant="outlined"
-                            sx={{overflow: "hidden"}}
+                    <TextField
+                        className="ballot-box-log-search"
+                        size="small"
+                        fullWidth
+                        placeholder={t("ballotPrivacy.placeholder")}
+                        value={search}
+                        onChange={(event) => onSearch(event.target.value)}
+                        error={prefix === null}
+                        helperText={prefix === null ? t("ballotPrivacy.invalidPrefix") : undefined}
+                        slotProps={{
+                            htmlInput: {
+                                "aria-label": t("ballotPrivacy.search"),
+                                "autoCapitalize": "characters",
+                                "spellCheck": false,
+                            },
+                            input: {
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <FontAwesomeIcon icon={faSearch} />
+                                    </InputAdornment>
+                                ),
+                            },
+                        }}
+                        sx={{maxWidth: {sm: 360}}}
+                    />
+                    {search && (
+                        <Button
+                            className="ballot-box-log-clear-button"
+                            onClick={() => onSearch("")}
                         >
-                            <Table
-                                className="ballot-box-log-table"
-                                sx={{tableLayout: "fixed", display: {xs: "none", sm: "table"}}}
-                                aria-label={t("ballotPrivacy.title")}
-                            >
-                                <TableHead className="ballot-box-log-table-head">
-                                    <TableRow className="ballot-box-log-header-row">
-                                        {["ballotId", "pseudonym", "castAt", "channel"].map(
-                                            (key) => (
-                                                <TableCell
-                                                    className="ballot-box-log-column-heading"
-                                                    key={key}
-                                                >
-                                                    {t(`ballotPrivacy.${key}`)}
+                            {t("ballotPrivacy.clear")}
+                        </Button>
+                    )}
+                    {validPage && (
+                        <Typography
+                            className="ballot-box-log-count"
+                            variant="body2"
+                            role="status"
+                            sx={{m: 0, ml: {sm: "auto"}, color: "text.secondary"}}
+                        >
+                            {prefix
+                                ? t(
+                                      page.match_count_capped
+                                          ? "ballotPrivacy.capped"
+                                          : "ballotPrivacy.matches",
+                                      {count: page.match_count, total: page.total}
+                                  )
+                                : t("ballotPrivacy.ballots", {count: page.total})}
+                        </Typography>
+                    )}
+                </Stack>
+                {error && (
+                    <Alert
+                        className="ballot-box-log-error"
+                        severity="error"
+                        action={
+                            <Button className="ballot-box-log-retry-button" onClick={onRetry}>
+                                {t("ballotPrivacy.retry")}
+                            </Button>
+                        }
+                    >
+                        {t("ballotPrivacy.loadError")}
+                    </Alert>
+                )}
+                {loading && (
+                    <Box sx={{p: 3, textAlign: "center"}}>
+                        <CircularProgress
+                            className="ballot-box-log-loading"
+                            size={24}
+                            aria-label={t("ballotPrivacy.checking")}
+                        />
+                    </Box>
+                )}
+                {validPage && (
+                    <>
+                        {!page.ballots.length ? (
+                            <Box sx={{p: 2.5, borderTop: "1px solid #DFE6EF"}}>
+                                <Alert className="ballot-box-log-empty" severity="info">
+                                    {prefix
+                                        ? t("ballotPrivacy.noMatch", {prefix: search})
+                                        : t("ballotPrivacy.noBallots")}
+                                    {prefix && (
+                                        <Typography variant="body2" sx={{m: 0, mt: 1}}>
+                                            {t("ballotPrivacy.noMatchHelp")}
+                                        </Typography>
+                                    )}
+                                </Alert>
+                            </Box>
+                        ) : (
+                            <>
+                                <Table
+                                    className="ballot-box-log-table"
+                                    sx={{
+                                        "tableLayout": "fixed",
+                                        "display": {xs: "none", min750: "table"},
+                                        "@media (min-width: 750px)": {display: "table"},
+                                        "& th": {
+                                            bgcolor: "#F7F9FC",
+                                            color: "#64748B",
+                                            fontSize: 12,
+                                            fontWeight: 600,
+                                            textTransform: "uppercase",
+                                            letterSpacing: 0.4,
+                                        },
+                                        "& td, & th": {px: 2.5, py: 1.5, borderColor: "#DFE6EF"},
+                                    }}
+                                    aria-label={t("ballotPrivacy.title")}
+                                >
+                                    <TableHead className="ballot-box-log-table-head">
+                                        <TableRow>
+                                            {["ballotId", "pseudonym", "castAt", "channel"].map(
+                                                (key) => (
+                                                    <TableCell
+                                                        key={key}
+                                                        sx={{
+                                                            width:
+                                                                key === "channel" ? "19%" : "27%",
+                                                        }}
+                                                    >
+                                                        {t(`ballotPrivacy.${key}`)}
+                                                    </TableCell>
+                                                )
+                                            )}
+                                        </TableRow>
+                                    </TableHead>
+                                    <TableBody className="ballot-box-log-table-body">
+                                        {page.ballots.map((ballot) => (
+                                            <TableRow
+                                                className="ballot-box-log-row"
+                                                key={ballot.ballot_id}
+                                                hover
+                                                onClick={() => onOpen(ballot)}
+                                                sx={{
+                                                    cursor: "pointer",
+                                                    bgcolor: ownIds.has(ballot.ballot_id)
+                                                        ? "#F0FDF8"
+                                                        : undefined,
+                                                    borderLeft: ownIds.has(ballot.ballot_id)
+                                                        ? "3px solid #34D399"
+                                                        : "3px solid transparent",
+                                                }}
+                                            >
+                                                <TableCell>
+                                                    <Stack
+                                                        direction="row"
+                                                        alignItems="center"
+                                                        useFlexGap
+                                                        flexWrap="wrap"
+                                                        gap={1}
+                                                    >
+                                                        <ButtonBase
+                                                            className="ballot-box-log-check-button"
+                                                            onClick={(event) => {
+                                                                event.stopPropagation()
+                                                                onOpen(ballot)
+                                                            }}
+                                                            sx={{
+                                                                fontWeight: 700,
+                                                                fontSize: 15,
+                                                                letterSpacing: 0.6,
+                                                                color: "text.primary",
+                                                                p: 0,
+                                                                minWidth: 0,
+                                                            }}
+                                                        >
+                                                            {code(ballot.ballot_id)}
+                                                        </ButtonBase>
+                                                        {ownIds.has(ballot.ballot_id) && yours}
+                                                    </Stack>
                                                 </TableCell>
-                                            )
-                                        )}
-                                    </TableRow>
-                                </TableHead>
-                                <TableBody className="ballot-box-log-table-body">
+                                                <TableCell>
+                                                    <PseudonymChip className="ballot-box-log-pseudonym">
+                                                        {code(ballot.pseudonym)}
+                                                    </PseudonymChip>
+                                                </TableCell>
+                                                <TableCell
+                                                    sx={{overflowWrap: "anywhere", fontSize: 14}}
+                                                >
+                                                    {formatTime(ballot.cast_at)}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Stack
+                                                        direction="row"
+                                                        alignItems="center"
+                                                        gap={1}
+                                                    >
+                                                        <FontAwesomeIcon
+                                                            icon={channelIcon(
+                                                                ballot.voting_channel
+                                                            )}
+                                                            style={{color: "#64748B", fontSize: 12}}
+                                                        />
+                                                        <Typography variant="body2" sx={{m: 0}}>
+                                                            {channel(ballot.voting_channel)}
+                                                        </Typography>
+                                                        <Box sx={{ml: "auto", color: "#64748B"}}>
+                                                            <FontAwesomeIcon
+                                                                icon={faChevronRight}
+                                                                style={{fontSize: 12}}
+                                                            />
+                                                        </Box>
+                                                    </Stack>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                                <Box
+                                    className="ballot-box-log-mobile-list"
+                                    component="ul"
+                                    sx={{
+                                        "display": "block",
+                                        "@media (min-width: 750px)": {display: "none"},
+                                        "listStyle": "none",
+                                        "m": 0,
+                                        "p": 0,
+                                    }}
+                                >
                                     {page.ballots.map((ballot) => (
-                                        <TableRow
-                                            className="ballot-box-log-row"
+                                        <Box
+                                            className="ballot-box-log-mobile-row"
+                                            component="li"
                                             key={ballot.ballot_id}
+                                            sx={{
+                                                p: 2,
+                                                borderTop: "1px solid #DFE6EF",
+                                                borderLeft: ownIds.has(ballot.ballot_id)
+                                                    ? "3px solid #34D399"
+                                                    : "3px solid transparent",
+                                                bgcolor: ownIds.has(ballot.ballot_id)
+                                                    ? "#F0FDF8"
+                                                    : undefined,
+                                            }}
                                         >
-                                            <TableCell className="ballot-box-log-ballot-id-cell">
-                                                <Button
-                                                    className="ballot-box-log-check-button"
+                                            <Stack direction="row" alignItems="center" gap={1}>
+                                                <ButtonBase
+                                                    className="ballot-box-log-mobile-check-button"
                                                     onClick={() => onOpen(ballot)}
-                                                    sx={{fontWeight: 700, p: 0}}
+                                                    sx={{
+                                                        p: 0,
+                                                        fontWeight: 700,
+                                                        color: "text.primary",
+                                                        letterSpacing: 0.6,
+                                                    }}
                                                 >
                                                     {code(ballot.ballot_id)}
-                                                </Button>
-                                                {ownIds.has(ballot.ballot_id) && (
-                                                    <Typography
-                                                        className="ballot-box-log-yours-label"
-                                                        variant="caption"
-                                                        display="block"
-                                                    >
-                                                        {t("ballotPrivacy.yours")}
-                                                    </Typography>
-                                                )}
-                                            </TableCell>
-                                            <TableCell className="ballot-box-log-pseudonym-cell">
-                                                <Chip
-                                                    className="ballot-box-log-pseudonym"
-                                                    size="small"
-                                                    label={code(ballot.pseudonym)}
-                                                />
-                                            </TableCell>
-                                            <TableCell
-                                                className="ballot-box-log-time-cell"
-                                                sx={{overflowWrap: "anywhere"}}
+                                                </ButtonBase>
+                                                {ownIds.has(ballot.ballot_id) && yours}
+                                                <Box sx={{ml: "auto"}}>
+                                                    <FontAwesomeIcon
+                                                        icon={faChevronRight}
+                                                        style={{fontSize: 12, color: "#64748B"}}
+                                                    />
+                                                </Box>
+                                            </Stack>
+                                            <Stack
+                                                className="ballot-box-log-mobile-details"
+                                                direction="row"
+                                                alignItems="center"
+                                                useFlexGap
+                                                flexWrap="wrap"
+                                                gap={1}
+                                                sx={{mt: 0.75}}
                                             >
-                                                {formatTime(ballot.cast_at)}
-                                            </TableCell>
-                                            <TableCell className="ballot-box-log-channel-cell">
-                                                {channel(ballot.voting_channel)}
-                                            </TableCell>
-                                        </TableRow>
+                                                <PseudonymChip className="ballot-box-log-mobile-pseudonym">
+                                                    {code(ballot.pseudonym)}
+                                                </PseudonymChip>
+                                                <Typography
+                                                    className="ballot-box-log-mobile-time-channel"
+                                                    variant="caption"
+                                                    color="text.secondary"
+                                                    sx={{m: 0}}
+                                                >
+                                                    {formatTime(ballot.cast_at)} ·{" "}
+                                                    {channel(ballot.voting_channel)}
+                                                </Typography>
+                                            </Stack>
+                                        </Box>
                                     ))}
-                                </TableBody>
-                            </Table>
-                            <Box
-                                className="ballot-box-log-mobile-list"
-                                component="ul"
-                                sx={{
-                                    display: {xs: "block", sm: "none"},
-                                    listStyle: "none",
-                                    m: 0,
-                                    p: 0,
-                                }}
-                            >
-                                {page.ballots.map((ballot) => (
-                                    <Box
-                                        className="ballot-box-log-mobile-row"
-                                        component="li"
-                                        key={ballot.ballot_id}
-                                        sx={{p: 1.5, borderBottom: 1, borderColor: "divider"}}
-                                    >
-                                        <Button
-                                            className="ballot-box-log-mobile-check-button"
-                                            onClick={() => onOpen(ballot)}
-                                            sx={{p: 0, fontWeight: 700}}
-                                        >
-                                            {code(ballot.ballot_id)}
-                                        </Button>
-                                        {ownIds.has(ballot.ballot_id) && (
-                                            <Chip
-                                                className="ballot-box-log-mobile-yours"
-                                                size="small"
-                                                label={t("ballotPrivacy.yours")}
-                                                sx={{ml: 1}}
-                                            />
-                                        )}
-                                        <Stack
-                                            className="ballot-box-log-mobile-details"
-                                            direction="row"
-                                            useFlexGap
-                                            flexWrap="wrap"
-                                            gap={1}
-                                        >
-                                            <Chip
-                                                className="ballot-box-log-mobile-pseudonym"
-                                                size="small"
-                                                label={code(ballot.pseudonym)}
-                                            />
-                                            <Typography
-                                                className="ballot-box-log-mobile-time-channel"
-                                                variant="caption"
-                                            >
-                                                {formatTime(ballot.cast_at)} ·{" "}
-                                                {channel(ballot.voting_channel)}
-                                            </Typography>
-                                        </Stack>
-                                    </Box>
-                                ))}
-                            </Box>
-                        </Paper>
-                    )}
-                    <Stack
-                        className="ballot-box-log-pagination"
-                        direction="row"
-                        useFlexGap
-                        flexWrap="wrap"
-                        gap={1}
-                        alignItems="center"
-                    >
-                        <TextField
-                            className="ballot-box-log-page-size"
-                            select
-                            size="small"
-                            label={t("ballotPrivacy.rows")}
-                            value={limit}
-                            onChange={(event) => onLimit(Number(event.target.value))}
-                            sx={{minWidth: 140}}
+                                </Box>
+                            </>
+                        )}
+                        <Stack
+                            className="ballot-box-log-pagination"
+                            direction="row"
+                            useFlexGap
+                            flexWrap="wrap"
+                            gap={1.5}
+                            alignItems="center"
+                            sx={{px: 2.5, py: 1.5, borderTop: "1px solid #DFE6EF"}}
                         >
-                            {[10, 25, 50].map((size) => (
-                                <MenuItem
-                                    className="ballot-box-log-page-size-option"
-                                    key={size}
-                                    value={size}
+                            {timeZoneLabel && (
+                                <Typography
+                                    variant="caption"
+                                    color="text.secondary"
+                                    sx={{m: 0, mr: "auto"}}
                                 >
-                                    {size}
-                                </MenuItem>
-                            ))}
-                        </TextField>
-                        <Button
-                            className="ballot-box-log-previous-button"
-                            disabled={!canPrevious}
-                            onClick={onPrevious}
-                        >
-                            {t("ballotPrivacy.previous")}
-                        </Button>
-                        <Button
-                            className="ballot-box-log-next-button"
-                            disabled={!page.next_cursor}
-                            onClick={onNext}
-                        >
-                            {t("ballotPrivacy.next")}
-                        </Button>
-                    </Stack>
-                </>
-            ) : null}
-            <Button
-                className="ballot-box-log-help-button"
-                sx={{alignSelf: "flex-start"}}
-                onClick={() => setHelp(true)}
-            >
-                {t("ballotPrivacy.help")}
-            </Button>
+                                    {t("ballotPrivacy.timesIn", {zone: timeZoneLabel})}
+                                </Typography>
+                            )}
+                            <TextField
+                                className="ballot-box-log-page-size"
+                                select
+                                size="small"
+                                label={t("ballotPrivacy.rows")}
+                                value={limit}
+                                onChange={(event) => onLimit(Number(event.target.value))}
+                                sx={{minWidth: 130, width: 140, ml: {sm: "auto"}}}
+                            >
+                                {[10, 25, 50].map((size) => (
+                                    <MenuItem key={size} value={size}>
+                                        {size}
+                                    </MenuItem>
+                                ))}
+                            </TextField>
+                            <Tooltip title={t("ballotPrivacy.previous")}>
+                                <span>
+                                    <IconButton
+                                        className="ballot-box-log-previous-button"
+                                        aria-label={t("ballotPrivacy.previous")}
+                                        disabled={!canPrevious}
+                                        onClick={onPrevious}
+                                    >
+                                        <FontAwesomeIcon
+                                            icon={faChevronLeft}
+                                            style={{fontSize: 14}}
+                                        />
+                                    </IconButton>
+                                </span>
+                            </Tooltip>
+                            <Tooltip title={t("ballotPrivacy.next")}>
+                                <span>
+                                    <IconButton
+                                        className="ballot-box-log-next-button"
+                                        aria-label={t("ballotPrivacy.next")}
+                                        disabled={!page.next_cursor}
+                                        onClick={onNext}
+                                    >
+                                        <FontAwesomeIcon
+                                            icon={faChevronRight}
+                                            style={{fontSize: 14}}
+                                        />
+                                    </IconButton>
+                                </span>
+                            </Tooltip>
+                        </Stack>
+                    </>
+                )}
+            </Paper>
             <Dialog
                 className="ballot-box-log-help-dialog"
                 open={help}
@@ -428,13 +730,22 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
                 maxWidth="sm"
                 aria-labelledby="ballot-log-help"
             >
-                <DialogTitle className="ballot-box-log-help-title" id="ballot-log-help">
-                    {t("ballotPrivacy.help")}
-                </DialogTitle>
-                <DialogContent className="ballot-box-log-help-content">
-                    {t("ballotPrivacy.helpText")}
+                <DialogTitle id="ballot-log-help">{t("ballotPrivacy.help")}</DialogTitle>
+                <DialogContent>
+                    <Stack spacing={2}>
+                        {["pseudonyms", "signatures", "checks"].map((key) => (
+                            <Box key={key}>
+                                <Typography fontWeight={700} sx={{m: 0}}>
+                                    {t(`ballotPrivacy.helpSections.${key}.title`)}
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary" sx={{m: 0}}>
+                                    {t(`ballotPrivacy.helpSections.${key}.text`)}
+                                </Typography>
+                            </Box>
+                        ))}
+                    </Stack>
                 </DialogContent>
-                <DialogActions className="ballot-box-log-help-actions">
+                <DialogActions>
                     <Button
                         className="ballot-box-log-help-close-button"
                         onClick={() => setHelp(false)}
@@ -443,15 +754,32 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
                     </Button>
                 </DialogActions>
             </Dialog>
+            <Dialog
+                open={ballotHelp}
+                onClose={() => setBallotHelp(false)}
+                fullWidth
+                maxWidth="sm"
+                aria-labelledby="log-ballot-id-help"
+            >
+                <DialogTitle id="log-ballot-id-help">
+                    {t("confirmationScreen.ballotIdHelpDialog.title")}
+                </DialogTitle>
+                <DialogContent>
+                    {stringToHtml(t("confirmationScreen.ballotIdHelpDialog.content"))}
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setBallotHelp(false)}>{t("ballotPrivacy.close")}</Button>
+                </DialogActions>
+            </Dialog>
         </Stack>
     )
 }
-
 export const BallotBoxLog: React.FC<{
     electionEventId: string
     electionId?: string
     formatTime: (timestamp: string) => string
-}> = ({electionEventId, electionId, formatTime}) => {
+    timeZoneLabel?: string
+}> = ({electionEventId, electionId, formatTime, timeZoneLabel}) => {
     const [search, setSearch] = useState("")
     const [prefix, setPrefix] = useState<string | null>("")
     const [limit, setLimit] = useState(10)
@@ -511,6 +839,7 @@ export const BallotBoxLog: React.FC<{
                 }}
                 onOpen={setSelected}
                 formatTime={formatTime}
+                timeZoneLabel={timeZoneLabel}
             />
             {selected && (
                 <BallotBoxEntry

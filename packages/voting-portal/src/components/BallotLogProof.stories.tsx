@@ -52,6 +52,16 @@ export const Tampered: Story = {
     },
 }
 
+export const InspectSignedEntries: Story = {
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        const entries = canvas.getByRole("button", {name: "Signed log entries (2)"})
+        await userEvent.click(entries)
+        expect(canvas.getByText(fixture.proof.received_entry)).toBeVisible()
+        expect(canvas.getByText(fixture.proof.cast_entry)).toBeVisible()
+    },
+}
+
 export const VerifiedPhone: Story = {
     ...Verified,
     ...atViewport(390),

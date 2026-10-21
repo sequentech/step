@@ -15,7 +15,7 @@ New pseudonym events require device-held voter signing keys and signed ballot re
 
 ## Checking a ballot
 
-When **Show Cast Vote Logs Tab** is enabled, the Voting Portal's **Logs** tab lists cast ballots with their Ballot ID, pseudonym, cast time and channel. The signed-in voter's own ballot appears separately at the top. Search by the beginning of either code. Results are paged from the last displayed ballot; large searches show a bounded match count and ask for more of the code.
+When **Show Cast Vote Logs Tab** is enabled, the Voting Portal's **Logs** tab lists cast ballots with their Ballot ID, pseudonym, cast time and channel. The signed-in voter's own ballot appears separately at the top. Use the copy and help icons beside its Ballot ID, or **Check my ballot** to inspect its signatures. Search by the beginning of either code. Results are paged from the last displayed ballot; large searches show a bounded match count and ask for more of the code.
 
 Opening a ballot checks four things on the device:
 
@@ -24,7 +24,7 @@ Opening a ballot checks four things on the device:
 3. The Ballot ID follows from the received signed ballot.
 4. The same voter key cast the ballot, and the ballot box confirmed the cast.
 
-The browser uses published keys independently of the proof response. **Still being added to the log** means a required signed entry has not arrived yet; retry later. **A check failed** means available evidence did not verify; do not rely on that entry. A failed check takes precedence even when another entry is pending. Signed entries can be downloaded for independent verification. The existing receipt checks-period setting still applies.
+The browser uses published keys independently of the proof response. **Still being added to the log** means a required signed entry has not arrived yet; retry later. **A check failed** means available evidence did not verify; do not rely on that entry. A failed check takes precedence even when another entry is pending. Expand **Signed log entries** to inspect the signed bytes, or download them for independent verification. The existing receipt checks-period setting still applies.
 
 In the Admin Portal, open a ballot entry in the event's **Logs** tab to run the same checks. **Ballot and pseudonym** shows the two codes, voter key and ballot-box key, followed by the received and cast entries with their numbers, times and verification results. **This entry** marks the entry you opened. The received row groups the key binding, received ballot and Ballot ID checks; the cast row checks the cast signatures. Missing evidence waits, while a failed check is shown as an error. Other audit explanations, filters and exports remain available. For pseudonym events, **Voters > User's Logs** contains the voter's sign-ins and messages rather than their ballots. Participation remains available without an individual ballot timestamp.
 
@@ -42,7 +42,7 @@ Voter exports, including the voter CSV inside an event archive, and messages sel
 
 ## Network data
 
-**Data > Privacy > Network data** offers two policies:
+**Data > Privacy** shows the fixed identity mode in a summary card and the current holders of **Forensic Read** and **Resolve a pseudonym** in a permissions list. **Manage in Users and Roles** opens role management. Under **Network data**, select either policy card:
 
 - **Do not store**: no new network data is retained, and the IP Addresses list is hidden.
 - **Keep for forensic review**: successful voter sign-ins and ballot receive and cast requests retain IP address and available country and browser data separately in the forensic store. The dashboard lists pseudonyms, never voter identities, and each read is recorded.

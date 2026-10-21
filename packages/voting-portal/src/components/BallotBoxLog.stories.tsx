@@ -1,8 +1,10 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 import {atViewport} from "../../../test-support/storybook/viewport"
+import React from "react"
+import {Box} from "@mui/material"
 import type {Meta, StoryObj} from "@storybook/react-vite"
-import {expect, fn, userEvent, within} from "storybook/test"
+import {expect, fn, userEvent, waitFor, within} from "storybook/test"
 import {BallotBoxLogView} from "./BallotBoxLog"
 
 const ballot = {
@@ -15,6 +17,13 @@ const ballot = {
 const meta = {
     title: "Voting/Ballot box log",
     component: BallotBoxLogView,
+    decorators: [
+        (Story) => (
+            <Box sx={{maxWidth: 1152, mx: "auto", px: {xs: 1, sm: 3}}}>
+                <Story />
+            </Box>
+        ),
+    ],
     args: {
         page: {
             ballots: [
@@ -44,6 +53,7 @@ const meta = {
         onRetry: fn(),
         onOpen: fn(),
         formatTime: () => "08 May 2028, 07:00 GST",
+        timeZoneLabel: "Gulf Standard Time",
     },
 } satisfies Meta<typeof BallotBoxLogView>
 export default meta
@@ -54,11 +64,37 @@ export const Ballots: Story = {
     play: async ({canvasElement, args}) => {
         const canvas = within(canvasElement)
         await expect(canvas.getByRole("heading", {name: "Ballot box log"})).toBeVisible()
+        expect(canvas.getByText("Times in Gulf Standard Time")).toBeVisible()
+        const rows = canvasElement.querySelector(
+            window.innerWidth < 750 ? ".ballot-box-log-mobile-list" : ".ballot-box-log-table"
+        )
+        expect(rows).toBeVisible()
+        const help = canvas.getByRole("button", {name: "About the ballot box log"})
+        const title = canvas.getByRole("heading", {name: "Ballot box log"})
+        expect(
+            Math.abs(help.getBoundingClientRect().top - title.getBoundingClientRect().top)
+        ).toBeLessThan(10)
+        const list = canvasElement.querySelector(".ballot-box-log-list")
+        if (!list) throw new Error("The search and rows need a shared list card")
+        expect(
+            within(list as HTMLElement).getByRole("textbox", {
+                name: "Find a Ballot ID or pseudonym",
+            })
+        ).toBeVisible()
         await userEvent.click(canvas.getByRole("button", {name: "Check my ballot"}))
         expect(args.onOpen).toHaveBeenCalledWith(ballot)
         await userEvent.click(canvas.getByRole("button", {name: "Next"}))
         expect(args.onNext).toHaveBeenCalled()
         expect(canvasElement.scrollWidth).toBeLessThanOrEqual(canvasElement.clientWidth + 1)
+    },
+}
+export const BallotIdHelp: Story = {
+    play: async ({canvasElement}) => {
+        await userEvent.click(
+            within(canvasElement).getByRole("button", {name: "About your Ballot ID"})
+        )
+        const dialog = await within(document.body).findByRole("dialog")
+        await waitFor(() => expect(within(dialog).getByText(/About the Ballot ID/)).toBeVisible())
     },
 }
 export const CappedSearch: Story = {
@@ -96,6 +132,11 @@ export const BallotsPhone: Story = {
 export const BallotsTablet: Story = {
     ...Ballots,
     ...atViewport(820),
+}
+
+export const BallotsSmallTablet: Story = {
+    ...Ballots,
+    ...atViewport(740),
 }
 
 export const CappedSearchPhone: Story = {

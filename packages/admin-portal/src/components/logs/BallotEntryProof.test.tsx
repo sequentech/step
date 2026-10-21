@@ -10,15 +10,16 @@ import {BALLOT_BOX_ENTRY} from "@/queries/BallotBoxLog"
 
 jest.mock("@apollo/client", () => ({useQuery: (...args: unknown[]) => mockQuery(...args)}))
 jest.mock("@/queries/BallotBoxLog", () => ({BALLOT_BOX_ENTRY: {}, BALLOT_BOX_KEYS: {}}))
-jest.mock("@sequentech/ui-essentials", () => ({
-    BallotLogProof: jest.requireActual(
-        "../../../../ui-essentials/src/components/BallotLogProof/BallotLogProof"
-    ).BallotLogProof,
-}))
+jest.mock("@/providers/EventTimeZoneProvider", () => ({useMyTimeZone: () => "UTC"}))
 jest.mock("@sequentech/ui-core", () => ({
     verifyBallotLogProof: (...args: unknown[]) => mockVerify(...args),
 }))
-jest.mock("react-i18next", () => ({useTranslation: () => ({t: (key: string) => key})}))
+jest.mock("react-i18next", () => ({
+    useTranslation: () => ({
+        t: (key: string) => key,
+        i18n: {language: "en", resolvedLanguage: "en"},
+    }),
+}))
 
 const mockQuery = jest.fn()
 const mockVerify = jest.fn()
@@ -26,7 +27,14 @@ const entryRefetch = jest.fn().mockResolvedValue(undefined)
 const keysRefetch = jest.fn().mockResolvedValue(undefined)
 const proof = {ballot_id: "FTBE-MHRX", pseudonym: "7QKM-2HXD", voting_channel: "ONLINE"}
 const trust = {election_id: "election", election_event_id: "event", ballot_box_key: {key_id: "key"}}
-const props = {electionEventId: "event", electionId: "election", ballotId: "FTBE-MHRX"}
+const props = {
+    electionEventId: "event",
+    electionId: "election",
+    ballotId: "FTBE-MHRX",
+    pseudonym: "7QKM-2HXD",
+    selectedEntry: {id: 1, statement_kind: "BallotReceived"},
+    zone: "UTC",
+}
 
 const queries = (entry = {}, keys = {}) => {
     mockQuery.mockImplementation((query) =>

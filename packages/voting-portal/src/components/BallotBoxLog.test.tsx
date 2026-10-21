@@ -58,6 +58,17 @@ test("invalid prefix never displays stale rows or unrestricted results", () => {
     expect(screen.queryByText("FTBE-MHRX")).not.toBeInTheDocument()
 })
 
+test("a cast ballot's help uses the confirmation explanation", async () => {
+    render(<BallotBoxLogView {...props()} />)
+    await userEvent.click(screen.getByRole("button", {name: "ballotPrivacy.ballotIdHelp"}))
+    expect(screen.getByRole("dialog")).toHaveTextContent(
+        "confirmationScreen.ballotIdHelpDialog.content"
+    )
+    expect(screen.getByRole("dialog")).not.toHaveTextContent(
+        "reviewScreen.ballotIdHelpDialog.content"
+    )
+})
+
 test("public rows remain usable when the private own-ballot lookup is unavailable", () => {
     mockQuery.mockImplementation((_query, options) =>
         "limit" in options.variables

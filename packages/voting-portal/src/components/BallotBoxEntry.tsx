@@ -63,14 +63,26 @@ export const BallotBoxEntry: React.FC<BallotBoxEntryProps> = ({
             open
             onClose={onClose}
             fullWidth
-            maxWidth="sm"
+            maxWidth="md"
             fullScreen={narrow}
+            slotProps={{
+                paper: {
+                    sx: {maxWidth: 752, boxSizing: "border-box", borderRadius: narrow ? 0 : "4px"},
+                },
+            }}
             aria-labelledby="ballot-proof-title"
         >
-            <DialogTitle className="ballot-proof-title" id="ballot-proof-title">
+            <DialogTitle
+                className="ballot-proof-title"
+                id="ballot-proof-title"
+                sx={{fontSize: 16, fontWeight: 700, bgcolor: "#F7F9FC", py: 1.5}}
+            >
                 {t("ballotPrivacy.detailTitle", {ballotId})}
             </DialogTitle>
-            <DialogContent className="ballot-proof-content">
+            <DialogContent
+                className="ballot-proof-content"
+                sx={{padding: {xs: "16px 16px 0 !important", sm: "16px 48px 0 !important"}}}
+            >
                 {loading ? (
                     <CircularProgress
                         className="ballot-proof-loading"
@@ -84,13 +96,21 @@ export const BallotBoxEntry: React.FC<BallotBoxEntryProps> = ({
                     <BallotLogProof proof={proof} trust={trust} onRetry={retry} />
                 )}
             </DialogContent>
-            <DialogActions className="ballot-proof-actions" sx={{flexWrap: "wrap"}}>
+            <DialogActions
+                className="ballot-proof-actions"
+                sx={{flexWrap: "wrap", px: {xs: 2, sm: 6}, pb: 2}}
+            >
                 {!loading && loadError ? (
                     <Button className="ballot-proof-retry-button" onClick={retry}>
                         {t("ballotPrivacy.retry")}
                     </Button>
                 ) : null}
-                <Button className="ballot-proof-close-button" onClick={onClose}>
+                <Button
+                    className="ballot-proof-close-button"
+                    variant="contained"
+                    fullWidth
+                    onClick={onClose}
+                >
                     {t("ballotPrivacy.close")}
                 </Button>
             </DialogActions>

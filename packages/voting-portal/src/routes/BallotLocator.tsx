@@ -17,6 +17,7 @@ import {
 } from "@sequentech/ui-essentials"
 import {
     stringToHtml,
+    zoneName,
     EShowCastVoteLogsPolicy,
     EBallotIdentity,
     formatVotingPortalDateTime,
@@ -362,6 +363,14 @@ const BallotLocator: React.FC = () => {
                         <BallotBoxLog
                             electionEventId={eventId}
                             electionId={electionId}
+                            timeZoneLabel={
+                                zones
+                                    ? zoneName(zones.timeZone, {
+                                          t,
+                                          lang: i18n.resolvedLanguage || i18n.language,
+                                      })
+                                    : undefined
+                            }
                             formatTime={(timestamp) => formatLogTime(new Date(timestamp).getTime())}
                         />
                     ) : (
