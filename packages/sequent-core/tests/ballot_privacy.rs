@@ -235,6 +235,78 @@ fn verifies_real_voter_receipt_and_authority_signatures() {
 }
 
 #[test]
+fn browser_json_contract_preserves_scope_and_optional_evidence() {
+    let trust: BallotPrivacyTrust = serde_json::from_value(serde_json::json!({
+        "tenant_id": "tenant", "election_event_id": "event", "election_id": "election",
+        "system_public_key": "published-system-key",
+        "ballot_box_key": {"key_id": "box-key-id", "public_key": "published-box-key"}
+    })).unwrap();
+    let proof: BallotPrivacyProof = serde_json::from_value(serde_json::json!({
+        "ballot_id": "FTBE-MHRX", "pseudonym": PSEUDONYM, "voting_channel": "online"
+    })).unwrap();
+    assert_eq!(trust.tenant_id, "tenant");
+    assert_eq!(trust.ballot_box_key.key_id, "box-key-id");
+    let json = serde_json::to_value(&proof).unwrap();
+    assert_eq!(json["received_entry"], serde_json::Value::Null);
+    assert_eq!(json["cast_entry"], serde_json::Value::Null);
+    assert_eq!(json["pseudonym"], PSEUDONYM);
+    let mut missing_scope = serde_json::to_value(&trust).unwrap();
+    missing_scope.as_object_mut().unwrap().remove("tenant_id");
+    assert!(
+        serde_json::from_value::<BallotPrivacyTrust>(missing_scope).is_err()
+    );
+    let report = verify_ballot_log_proof(&trust, &proof);
+    assert_eq!(
+        serde_json::to_value(report).unwrap(),
+        serde_json::json!({
+            "checks": {"binding": "pending", "received": "pending", "ballotId": "pending", "cast": "pending"}
+        })
+    );
+}
+
+#[test]
+fn browser_report_uses_camel_case_ballot_id_and_explicit_check_states() {
+    use sequent_core::ballot_privacy::BallotPrivacyReport;
+    for (wire, status) in [
+        ("passed", CheckStatus::Passed),
+        ("failed", CheckStatus::Failed),
+        ("pending", CheckStatus::Pending),
+    ] {
+        let wire = serde_json::json!({"checks": {"binding": wire, "received": wire, "ballotId": wire, "cast": wire}});
+        let report: BallotPrivacyReport =
+            serde_json::from_value(wire.clone()).unwrap();
+        assert_eq!(report.checks.binding, status);
+        assert_eq!(report.checks.ballot_id, status);
+        assert_eq!(serde_json::to_value(report).unwrap(), wire);
+    }
+    for invalid in [
+        serde_json::json!({"binding": "passed", "received": "passed", "ballot_id": "passed", "cast": "passed"}),
+        serde_json::json!({"binding": "unknown", "received": "passed", "ballotId": "passed", "cast": "passed"}),
+        serde_json::json!({"binding": "passed", "received": "passed", "ballotId": "passed"}),
+    ] {
+        assert!(serde_json::from_value::<BallotPrivacyReport>(
+            serde_json::json!({"checks": invalid})
+        )
+        .is_err());
+    }
+}
+
+#[test]
+fn a_valid_cast_without_its_received_entry_is_pending_and_oversized_evidence_fails_closed(
+) {
+    let (trusted, mut proof) = fixture();
+    proof.received_entry = None;
+    let checks = verify_ballot_log_proof(&trusted, &proof).checks;
+    assert_eq!(checks.binding, CheckStatus::Pending);
+    assert_eq!(checks.cast, CheckStatus::Pending);
+    proof.received_entry = Some("A".repeat(2 * 1024 * 1024 + 1));
+    let checks = verify_ballot_log_proof(&trusted, &proof).checks;
+    assert_eq!(checks.binding, CheckStatus::Failed);
+    assert_eq!(checks.received, CheckStatus::Failed);
+    assert_eq!(checks.cast, CheckStatus::Failed);
+}
+
+#[test]
 fn canonical_pseudonym_hash_has_an_independent_vector() {
     assert_eq!(pseudonym_hash(PSEUDONYM).as_deref(), Some(PSEUDONYM_HASH));
     for text in [
