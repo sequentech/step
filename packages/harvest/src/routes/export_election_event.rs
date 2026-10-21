@@ -44,6 +44,40 @@ pub struct ExportElectionEventOutput {
     task_execution: TasksExecution,
 }
 
+/// Reading the event covers its configuration, including scheduled events.
+/// Every other kind of data needs the permission that exports or reads it on
+/// its own.
+fn required_export_permissions(options: &ExportOptions) -> Vec<Permissions> {
+    let included = [
+        (options.include_voters, Permissions::VOTER_EXPORT),
+        (options.applications, Permissions::APPLICATION_EXPORT),
+        (options.activity_logs, Permissions::LOGS_EXPORT),
+        (options.tally, Permissions::TALLY_RESULTS_READ),
+        (options.reports, Permissions::REPORT_READ),
+        (options.publications, Permissions::PUBLISH_EXPORT),
+        (options.bulletin_board, Permissions::EXPORT_CEREMONY),
+        (options.s3_files, Permissions::DOCUMENT_DOWNLOAD),
+        (options.include_certificates, Permissions::CA_READ),
+    ];
+    std::iter::once(Permissions::ELECTION_EVENT_READ)
+        .chain(included.into_iter().filter_map(|(included, permission)| {
+            included.then_some(permission)
+        }))
+        .collect()
+}
+
+fn authorize_export(
+    claims: &JwtClaims,
+    options: &ExportOptions,
+) -> Result<(), (Status, String)> {
+    authorize(
+        claims,
+        true,
+        Some(claims.hasura_claims.tenant_id.clone()),
+        required_export_permissions(options),
+    )
+}
+
 #[instrument(skip(services, claims, input))]
 #[post("/export-election-event", format = "json", data = "<input>")]
 pub async fn export_election_event_route(
@@ -51,14 +85,9 @@ pub async fn export_election_event_route(
     input: Json<ExportElectionEventInput>,
     services: &State<HarvestServices>,
 ) -> Result<Json<ExportElectionEventOutput>, (Status, String)> {
-    authorize(
-        &claims,
-        true,
-        Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::ELECTION_EVENT_READ],
-    )?;
-
     let body = input.into_inner();
+    authorize_export(&claims, &body.export_configurations)?;
+
     let tenant_id = claims.hasura_claims.tenant_id.clone();
     let election_event_id = body.election_event_id.clone();
     let executer_name = claims
@@ -258,4 +287,91 @@ pub async fn export_election_event_route(
     info!("Sent EXPORT_ELECTION_EVENT task  {:?}", &task_execution);
 
     Ok(Json(output))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::services::authorization::test_claims::{
+        admin_claims, CALLER_TENANT_ID,
+    };
+
+    /// Each kind of exported data with the permission it needs.
+    fn data_kinds() -> Vec<(ExportOptions, &'static str)> {
+        let only = |set: fn(&mut ExportOptions)| {
+            let mut options = ExportOptions::default();
+            set(&mut options);
+            options
+        };
+        vec![
+            (only(|o| o.include_voters = true), "voter-export"),
+            (only(|o| o.applications = true), "application-export"),
+            (only(|o| o.activity_logs = true), "logs-export"),
+            (only(|o| o.tally = true), "tally-results-read"),
+            (only(|o| o.reports = true), "report-read"),
+            (only(|o| o.publications = true), "publish-export"),
+            (only(|o| o.bulletin_board = true), "export-ceremony"),
+            (only(|o| o.s3_files = true), "document-download"),
+            (only(|o| o.include_certificates = true), "ca-read"),
+        ]
+    }
+
+    #[test]
+    fn event_read_alone_exports_only_the_event_configuration() {
+        let reader = admin_claims(CALLER_TENANT_ID, &["election-event-read"]);
+        let configuration = ExportOptions {
+            scheduled_events: true,
+            ..ExportOptions::default()
+        };
+        assert!(authorize_export(&reader, &configuration).is_ok());
+        for (options, permission) in data_kinds() {
+            let error = authorize_export(&reader, &options).unwrap_err();
+            assert_eq!(error.0, Status::Unauthorized, "{permission}");
+        }
+    }
+
+    #[test]
+    fn each_data_kind_is_exported_with_its_permission() {
+        for (options, permission) in data_kinds() {
+            let claims = admin_claims(
+                CALLER_TENANT_ID,
+                &["election-event-read", permission],
+            );
+            assert!(
+                authorize_export(&claims, &options).is_ok(),
+                "{permission}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_full_export_needs_event_read_and_every_data_permission() {
+        let everything = ExportOptions {
+            include_voters: true,
+            applications: true,
+            activity_logs: true,
+            tally: true,
+            reports: true,
+            publications: true,
+            bulletin_board: true,
+            s3_files: true,
+            include_certificates: true,
+            scheduled_events: true,
+            ..ExportOptions::default()
+        };
+        let mut granted: Vec<_> = data_kinds()
+            .into_iter()
+            .map(|(_, permission)| permission)
+            .collect();
+        granted.push("election-event-read");
+        let exporter = admin_claims(CALLER_TENANT_ID, &granted);
+        assert!(authorize_export(&exporter, &everything).is_ok());
+        for missing in &granted {
+            let without: Vec<_> =
+                granted.iter().copied().filter(|p| p != missing).collect();
+            let claims = admin_claims(CALLER_TENANT_ID, &without);
+            let error = authorize_export(&claims, &everything).unwrap_err();
+            assert_eq!(error.0, Status::Unauthorized, "{missing}");
+        }
+    }
 }
