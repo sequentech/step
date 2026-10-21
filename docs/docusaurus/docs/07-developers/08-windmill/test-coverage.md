@@ -46,15 +46,12 @@ With PostgreSQL running, measure from the repository root:
 python3 scripts/coverage/run.py windmill --baseline --offline
 ```
 
-Run the existing voter-channel regression explicitly from `packages/`:
+To focus on signed privacy sequencing, supply the same public fixture settings
+from `profiles.windmill.test_environment` and run from `packages/`:
 
 ```bash
-KEYCLOAK_DB__HOST=127.0.0.1 \
-HASURA_DB__HOST=127.0.0.1 HASURA_DB__PORT=3322 \
-HASURA_DB__USER=test HASURA_DB__PASSWORD=test HASURA_DB__DBNAME=test \
-LOW_SQL_LIMIT=1000 DEFAULT_SQL_LIMIT=20 DEFAULT_SQL_BATCH_SIZE=1000 \
 cargo test -p windmill --locked --offline --lib -- \
-  services::cast_votes::tests::voters_by_channel_defaults_legacy_votes_and_uses_latest_valid_revote \
+  services::ballot_box::privacy_tests::privacy_sequencer_orders_bindings_and_deduplicates_recovery \
   --ignored --exact
 ```
 
