@@ -25,6 +25,10 @@ pub enum EDocuments {
     CERTIFICATES,
     /// The staff issuers of signatures, apart from the voters' authorities.
     STAFF_ISSUERS,
+    /// The records of an event's electoral logs, in log order.
+    ELECTORAL_LOG_RECORDS,
+    /// The identities, roots and published checkpoints of an event's electoral logs.
+    ELECTORAL_LOG_MANIFEST,
 }
 
 impl EDocuments {
@@ -48,6 +52,8 @@ impl EDocuments {
             EDocuments::ELECTION_EVENT_CONFIG => "election_event_config",
             EDocuments::CERTIFICATES => "export_certificates",
             EDocuments::STAFF_ISSUERS => "export_staff_issuers",
+            EDocuments::ELECTORAL_LOG_RECORDS => "electoral_log_records",
+            EDocuments::ELECTORAL_LOG_MANIFEST => "electoral_log_manifest",
         }
     }
 }

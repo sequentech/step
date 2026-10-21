@@ -1,10 +1,252 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {TranslationType} from "./en"
+import englishTranslation, {TranslationType} from "./en"
 
 const tagalogTranslation: TranslationType = {
     translations: {
+        readiness: {
+            close: "Isara",
+            action: "Suriin ang kahandaan",
+            title: "Kahandaan ng halalan",
+            description:
+                "Ihambing ang opisyal na kaganapang ito sa natapos na ensayo. Kapag pumasa, itinatala ang nilagdaang ebidensiya sa log ng opisyal na kaganapan.",
+            testedEvent: "Sinubukang kaganapan",
+            archived: "Naka-archive",
+            noEvents: "Walang ibang kaganapang magagamit",
+            retry: "Subukan muli",
+            eventsError: "Hindi mai-load ang mga kaganapan ng halalan.",
+            run: "Patakbuhin ang pagsusuri",
+            running: "Sinusuri ang kahandaan…",
+            error: "Hindi makumpleto ang pagsusuri. Suriin ang mga log bago ulitin; maaaring nawala ang tugon matapos maitala ang ebidensiya.",
+            downloadError: "Hindi ma-download ang ulat. Subukan muli.",
+            success:
+                "Napatunayan ang kahandaan. Naitala ang nilagdaang ebidensiya sa mga log ng opisyal na kaganapan.",
+            failed: "Nabigo ang pagsusuri ng kahandaan. Ayusin ang mga nabigong pagsusuri at ulitin. Walang naitalang entry ng kahandaan.",
+            download: "I-download ang ulat na JSON",
+            snapshot:
+                "Ang ulat na ito ay kalagayan sa isang sandali. Ulitin pagkatapos ng mahahalagang pagbabago; hindi nito pinipirmi ang kaganapan o pinapalitan ang pag-apruba sa operasyon.",
+            results: "Mga resulta ng pagsusuri",
+        },
+        plugins: {
+            title: "Mga plugin",
+            description:
+                "Kasama ang mga plugin sa release na ito. Kapag binuksan ang isa, idinadagdag ang menu item at mga pahintulot nito para sa tenant na ito; kapag isinara, itinatago ito at pinapanatili ang data at mga pahintulot nito.",
+            enabled: "Bukas",
+            disabled: "Sarado",
+            compatible: "Tugma",
+            incompatible: "Kailangan ng mas bagong release ang naka-save na data",
+            api: "Plugin API {{major}}",
+            permissions: "Mga pahintulot",
+            adminGroup: "ibinibigay sa admin group kapag binuksan",
+            enable: "Buksan",
+            disable: "Isara",
+            confirmEnableTitle: "Buksan ang {{name}}?",
+            confirmDisableTitle: "Isara ang {{name}}?",
+            confirmEnable:
+                "Lalabas ang {{name}} sa menu para sa mga user na may mga pahintulot nito. Gagawin ang mga pahintulot nito sa tenant na ito at ibibigay sa admin group.",
+            confirmDisable:
+                "Itatago ang {{name}} at tatanggihan ang mga kahilingan nito. Pinapanatili ang data, kasaysayan at mga pahintulot nito, at walang ibang nagbabago sa tenant.",
+            confirm: "Kumpirmahin",
+            noPermission: "Kailangan ang pahintulot na tenant-write para baguhin ang mga plugin.",
+            retry: "Subukan muli",
+            loading: "Nilo-load ang mga plugin…",
+            signIn: "Mag-sign in sa napiling tenant para magamit ang mga plugin nito.",
+            unavailable: "Hindi bahagi ng release na ito ang plugin na ito.",
+            incompatibleRoute:
+                "Kailangan ng mas bagong release ang naka-save na data ng plugin na ito. Hindi nagbago ang data nito.",
+            disabledRoute:
+                "Hindi nakabukas ang {{name}} para sa tenant na ito. Mabubuksan ito ng tenant administrator sa Settings → Mga plugin.",
+            forbidden: "Wala kang pahintulot na gamitin ang {{name}}.",
+        },
+        projects: {
+            title: "Mga proyekto",
+            subtitle:
+                "Planuhin ang gawain ng tenant sa isang timeline. Hindi kailanman binabago ng mga proyekto ang iskedyul ng halalan.",
+            cancel: "Kanselahin",
+            retry: "Subukan muli",
+            loading: "Naglo-load…",
+            list: {
+                create: "Bagong proyekto",
+                import: "Mag-import",
+                emptyTitle: "Wala pang proyekto",
+                emptyHelp:
+                    "Gumawa ng proyekto, o mag-import ng CSV file na na-export mula sa ibang proyekto.",
+                emptyViewer: "Wala pang proyektong ginawa sa tenant na ito.",
+                active_one: "Aktibo ({{count}})",
+                active_other: "Aktibo ({{count}})",
+                archived_one: "Naka-archive ({{count}})",
+                archived_other: "Naka-archive ({{count}})",
+                name: "Pangalan",
+                dates: "Mga petsa",
+                tasks: "Mga gawain",
+                timezone: "Time zone",
+                updated: "Huling pagbabago",
+                updatedBy: "{{at}} · {{actor}}",
+                archivedChip: "Naka-archive",
+                noneInTab: "Walang proyekto rito.",
+            },
+            create: {
+                title: "Bagong proyekto",
+                name: "Pangalan ng proyekto",
+                timezone: "Time zone",
+                timezoneHelp:
+                    "Lahat ng petsa sa proyekto ay inilalagay at ipinapakita sa IANA time zone na ito.",
+                submit: "Gumawa ng proyekto",
+            },
+            import: {
+                title: "Mag-import ng proyekto",
+                help: "Laging gumagawa ng bagong proyekto ang pag-import. Gumamit ng UTF-8 CSV file na may mga column na {{columns}}, gaya ng na-export mula sa isang proyekto, na may UTC offset sa bawat petsa. Walang nase-save hangga't hindi mo ginagawa ang proyekto.",
+                choose: "Pumili ng CSV file",
+                noFile: "Walang napiling file",
+                fileLimit: "Dapat hindi hihigit sa 1 MiB ang file.",
+                invalidFile: "Hindi valid na UTF-8 text ang file.",
+                valid_one: "{{count}} gawain ang handa nang i-import.",
+                valid_other: "{{count}} gawain ang handa nang i-import.",
+                invalid_one:
+                    "{{count}} sa {{total}} hilera ang may mali. Itama ang file at piliin ito muli.",
+                invalid_other:
+                    "{{count}} sa {{total}} hilera ang may mali. Itama ang file at piliin ito muli.",
+                previewTable: "Preview ng import",
+                line: "Linya",
+                result: "Pagsusuri",
+                rowValid: "Handa",
+                commit: "Gumawa ng proyekto",
+            },
+            detail: {
+                timezone: "Lahat ng petsa at oras ay nasa {{timezone}}.",
+                export: "I-export",
+                archive: "I-archive",
+                restore: "Ibalik",
+                addTask: "Magdagdag ng gawain",
+                viewOnly:
+                    "Pagbasa lamang. Kailangan ang pahintulot na projects-write para baguhin ang mga gawain.",
+                archivedNotice:
+                    "Naka-archive ang proyektong ito. Ibalik ito para baguhin ang mga gawain nito.",
+            },
+            notices: {
+                saved: "Na-save ang “{{title}}”.",
+                moved: "Na-save ang “{{title}}”: {{start}} – {{end}}.",
+                deleted: "Binura ang “{{title}}”.",
+                archived: "Na-archive ang proyekto.",
+                restored: "Naibalik ang proyekto.",
+            },
+            panel: {
+                details: "Mga detalye ng gawain",
+                edit: "I-edit ang gawain",
+                add: "Magdagdag ng gawain",
+                close: "Isara ang mga detalye ng gawain",
+                hint: "Pumili ng gawain sa timeline para makita rito ang mga detalye nito.",
+                noTasks: "Wala pang gawain ang proyektong ito.",
+            },
+            conflict: {
+                body: "May ibang nagbago sa gawaing ito ({{actor}}, {{at}}). Narito pa ang mga pagbabago mo. Suriin ang kanilang bersyon bago mag-save muli.",
+                load: "I-load ang kanilang bersyon",
+            },
+            unsaved: {
+                body: "May mga pagbabago kang hindi pa naka-save. I-save ang mga ito, o itapon para {{action}}.",
+                keep: "Ituloy ang pag-edit",
+                discard: "Itapon ang mga pagbabago",
+                actions: {
+                    open: "buksan ang “{{title}}”",
+                    add: "magdagdag ng bagong gawain",
+                    leave: "bumalik sa mga proyekto",
+                    close: "isara ang gawain",
+                    state: "baguhin ang proyekto",
+                },
+            },
+            deleteDialog: {
+                title: "Burahin ang gawain?",
+                body: "Aalisin ang “{{title}}” sa proyekto. Pinapanatili ang kasaysayan ng mga pagbabago nito.",
+                confirm: "Burahin",
+            },
+            history: {
+                task: "Kasaysayan ng pagbabago",
+                project: "Kasaysayan ng proyekto",
+                empty: "Wala pang naitalang pagbabago.",
+                more: "Ipakita ang mas lumang pagbabago",
+                by: "{{actor}} · {{at}}",
+                actions: {
+                    create: "Ginawa {{subject}}",
+                    update: "Binago {{subject}}",
+                    delete: "Binura {{subject}}",
+                    import_one: "Na-import ang {{count}} gawain",
+                    import_other: "Na-import ang {{count}} gawain",
+                    export: "Na-export bilang CSV",
+                    other: "{{action}}",
+                },
+            },
+            editor: {
+                title: "Pamagat",
+                type: "Uri",
+                status: "Katayuan",
+                start: "Simula",
+                end: "Wakas",
+                at: "Petsa at oras",
+                notes: "Mga tala",
+                order: "Pagkakasunod",
+                orderHelp:
+                    "Inililista ang mga gawain ayon sa pagkakasunod, pagkatapos ayon sa simula.",
+                timezoneNote: "Ang mga oras ay nasa {{timezone}}.",
+                offset: "UTC{{offset}}",
+                localTime: {
+                    invalid: "Maglagay ng petsa at oras mula 1900 hanggang 2200.",
+                    skipped:
+                        "Wala ang oras na ito sa {{timezone}}: nilalaktawan ito ng orasan. Pumili ng ibang oras.",
+                    repeated:
+                        "Dalawang beses nangyayari ang oras na ito sa {{timezone}}. Piliin kung alin ang tinutukoy mo.",
+                },
+                chooseInstant: "Aling pagkakataon",
+                instantChoice: "Sa UTC{{offset}}",
+                saving: "Sine-save…",
+                toFix_one: "{{count}} field na aayusin",
+                toFix_other: "{{count}} field na aayusin",
+                save: "I-save",
+                delete: "Burahin",
+            },
+            validation: {
+                title: "Maglagay ng pamagat na hindi hihigit sa 200 character.",
+                offset: "Maglagay ng mga valid na petsa.",
+                range: "Dapat pagkatapos ng simula ang wakas.",
+                milestone: "Walang wakas ang milestone.",
+                notes: "Dapat hindi hihigit sa 16,000 character ang mga tala.",
+                order: "Dapat buong numero mula 0 hanggang 1,000,000 ang pagkakasunod.",
+            },
+            status: {
+                not_started: "Hindi pa nasisimulan",
+                in_progress: "Isinasagawa",
+                done: "Tapos na",
+            },
+            type: {
+                task: "Gawain",
+                milestone: "Milestone",
+            },
+            units: {
+                days_one: "{{count}} araw",
+                days_other: "{{count}} araw",
+                hours_one: "{{count}} oras",
+                hours_other: "{{count}} oras",
+                minutes_one: "{{count}} min",
+                minutes_other: "{{count}} min",
+            },
+            timeline: {
+                title: "Timeline",
+                tasks_one: "{{count}} gawain",
+                tasks_other: "{{count}} gawain",
+                empty: "Wala pang gawain.",
+                editHelp:
+                    "Ituro o i-focus ang isang gawain para sa buod; piliin ito para i-edit sa ibaba. I-drag ang bar o gamitin ang ← → para ilipat ito nang 24 na oras; idagdag ang Shift para baguhin ang wakas.",
+                viewHelp:
+                    "Ituro o i-focus ang isang gawain para sa buod. Piliin ito para makita ang mga detalye sa ibaba.",
+                touchEditHelp:
+                    "I-tap ang isang gawain para i-edit ito sa ibaba, o i-drag ang bar para ilipat ito nang buong araw.",
+                touchViewHelp: "I-tap ang isang gawain para makita ang mga detalye nito sa ibaba.",
+                taskLabel: "{{title}}, mula {{start}} hanggang {{end}}, {{status}}",
+                milestoneLabel: "{{title}}, milestone sa {{at}}, {{status}}",
+                previewEdit: "I-click o pindutin ang Enter para i-edit",
+                previewView: "I-click o pindutin ang Enter para sa mga detalye",
+            },
+        },
         philSysID: "PhilSys ID",
         iBP: "Integrated Bar of the Philippines (IBP)",
         philippinePassport: "Pasaporte ng Pilipinas",
@@ -20,14 +262,14 @@ const tagalogTranslation: TranslationType = {
             detailTitle: "Import ng tally sheet",
             empty: "Wala pang mga import ng tally sheet.",
             emptyBody:
-                "Magsimula sa pag-import ng ES&S Enhanced XML o canonical CSV file para sa election event na ito.",
+                "Magsimula sa pag-import ng ES&S Enhanced XML o canonical CSV file para sa kaganapan ng halalan na ito.",
             sourceFormat: {
                 ESS_ENHANCED_XML: "ES&S Enhanced XML",
                 CANONICAL_CSV: "Canonical CSV",
             },
             channel: {
                 PAPER: "Papel",
-                POSTAL: "Postal",
+                POSTAL: "Koreo",
                 IN_PERSON: "Personal",
             },
             table: {
@@ -70,7 +312,7 @@ const tagalogTranslation: TranslationType = {
             actions: {
                 create: "I-import ang mga tally sheet",
                 review: "I-review",
-                source: "Source",
+                source: "Pinagmulan",
                 cancel: "I-cancel",
                 preview: "I-preview",
                 save: "I-save ang import",
@@ -202,13 +444,284 @@ const tagalogTranslation: TranslationType = {
                 },
             },
         },
+        tenantLogs: {
+            explanation: {
+                action: "Aksyon: {{action}}",
+                outcome: {
+                    succeeded: "Tinanggap (HTTP {{status}})",
+                    denied: "Tinanggihan (HTTP {{status}})",
+                    failed: "Nabigo (HTTP {{status}})",
+                },
+                by: "Hiniling ni {{username}} ({{userId}})",
+                detail: "{{name}}: {{value}}",
+                board: "Log: {{board}}",
+                publicKey: "Pampublikong susi ng log: {{key}}",
+            },
+        },
         logsScreen: {
+            configurationPackage: englishTranslation.translations.logsScreen.configurationPackage,
+            readiness: {
+                passed: "Pumasa",
+                failed: "Nabigo",
+                checkResult: "{{outcome}}: {{description}}",
+                description: {
+                    VotersImported: "Na-import ang file ng mga botante.",
+                    ReadinessVerified:
+                        "Nasuri ang kahandaan ng opisyal na kaganapan laban sa sinubukang kaganapan.",
+                },
+                checks: {
+                    configuration:
+                        "Pareho ang aprubadong nilalaman, napatunayang tagapag-apruba at mga lugar ng dalawang kaganapan.",
+                    certified_voters:
+                        "Pareho ang sertipikadong file ng botante at kasalukuyang bilang ayon sa lugar ng dalawang kaganapan.",
+                    official_zero:
+                        "Hindi pa nabubuksan ang opisyal na botohan at wala itong balota o sesyon ng pagbibilang.",
+                    publication:
+                        "Tugma ang opisyal na paglalathala sa nilagdaang configuration nito.",
+                    tested_finished:
+                        "Sarado ang mga channel ng sinubukang botohan at selyado ang lahat ng inaasahang kahon ng balota.",
+                },
+                fields: {
+                    report: "Ulat ng kahandaan",
+                    passed: "Pumasa",
+                    checked_at: "Oras ng pagsusuri",
+                    evidence: "Ebidensiya",
+                    official: "Opisyal na kaganapan",
+                    tested: "Sinubukang kaganapan",
+                    official_event_id: "ID ng opisyal na kaganapan",
+                    tested_event_id: "ID ng sinubukang kaganapan",
+                    event_id: "ID ng kaganapan",
+                    election_id: "ID ng halalan",
+                    configuration: "Configuration",
+                    external_id: "Panlabas na ID",
+                    revision: "Rebisyon",
+                    content_sha256: "SHA-256 ng nilalaman",
+                    manifest_sha256: "SHA-256 ng manifest",
+                    approvers: "Mga napatunayang tagapag-apruba",
+                    areas: "Mga lugar",
+                    voters: "Pag-import ng botante",
+                    import_id: "ID ng import",
+                    document_id: "ID ng dokumento",
+                    file_name: "Pangalan ng file",
+                    sha256: "SHA-256 ng file",
+                    declared_sha256: "Idineklarang SHA-256",
+                    counts_by_area: "Mga botante ayon sa lugar",
+                    imported_at: "Oras ng pag-import",
+                    voter_log_delivered: "Naitala ang nilagdaang import",
+                    current_voter_counts: "Kasalukuyang botante ayon sa lugar",
+                    voter_import_in_progress: "Aktibo ang pag-import ng botante",
+                    status: "Katayuan",
+                    elections: "Mga halalan",
+                    ballot_count: "Mga nakaimbak na balota",
+                    received_ballot_count: "Mga balotang natanggap sa pagsusuri",
+                    tally_session_count: "Mga sesyon ng pagbibilang",
+                    publication: "Paglalathala",
+                    publication_id: "ID ng paglalathala",
+                    publication_ids: "Mga ID ng paglalathala",
+                    matches_manifest: "Tugma sa nilagdaang manifest",
+                    design_count: "Mga nailathalang disenyo",
+                    seal_at_close: "Selyuhan sa pagsasara",
+                    expected_boxes: "Mga inaasahang kahon ng balota",
+                    sealed_boxes: "Mga selyadong kahon ng balota",
+                    all_channels_closed: "Sarado ang lahat ng channel",
+                    locked_down: "Naka-lock",
+                    log_entry_id: "ID ng tala sa log",
+                },
+            },
             noPermissions: "Wala kang permiso upang ma-access ang mga log.",
             title: "Mga Log",
-            subtitle: "Pangkalahatang mga log ng pangunahing at IAM na database",
+            subtitle:
+                "Lahat ng ginawa sa kaganapan ng halalan na ito. Ang mga pag-sign in at mga pagbabago sa labas nito ay nasa Mga Setting > Mga Log.",
+            empty: "Walang nahanap na entry.",
+            tenant: {
+                subtitle:
+                    "Mga pag-sign in, mga account ng kawani at mga tungkulin, mga setting at mga kaganapan ng halalan ng organisasyong ito. Ang bawat kaganapan ng halalan ay may sariling log sa tab nitong Mga Log.",
+                noPermissions: "Wala kang permiso upang makita ang log na ito.",
+            },
+            entry: {
+                title: "Entry ng log {{id}}",
+                statementKind: "Uri ng Pahayag",
+                eventType: "Uri ng Kaganapan",
+                logType: "Uri ng Log",
+                when: "Kailan",
+                utc: "{{time}} UTC",
+                who: "Sino",
+                userId: "ID ng User {{id}}",
+                role: "Tungkulin {{role}}",
+                unknownAccount: "Hindi kilalang account (hindi itinatala ang pangalang itinipa)",
+                madeIn: "Ginawa sa",
+                changed: "Binago",
+                objectId: "ID {{id}}",
+                actionLabel: "Aksyon",
+                details: "Mga Detalye",
+                origin: {
+                    "hasura": "Admin Portal (sa pamamagitan ng Hasura)",
+                    "harvest": "Admin Portal (sa pamamagitan ng Harvest)",
+                    "windmill": "Admin Portal (isang gawain ng Windmill)",
+                    "keycloak-console": "Admin console ng Keycloak, sa labas ng Admin Portal",
+                    "service-account":
+                        "Service account ng Step, para sa pagbabagong ginawa sa Admin Portal",
+                },
+                action: {
+                    create: "Nilikha",
+                    update: "Na-update",
+                    delete: "Binura",
+                    import: "Na-import",
+                    export: "Na-export",
+                    archive: "Na-archive",
+                    unarchive: "Inalis sa archive",
+                    enable: "Pinagana",
+                    disable: "Hindi pinagana",
+                    reset_password: "Na-reset ang password",
+                    grant: "Ibinigay",
+                    revoke: "Binawi",
+                },
+                objectType: {
+                    tenant: "Mga setting ng tenant",
+                    tenant_log: "Log ng tenant",
+                    staff_account: "Account ng kawani",
+                    role: "Tungkulin",
+                    template: "Template",
+                    trustee: "Tagapangasiwa",
+                    election_type: "Uri ng halalan",
+                    election_event: "Kaganapan ng halalan",
+                    election: "Halalan",
+                    contest: "Paligsahan",
+                    candidate: "Kandidato",
+                    area: "Lugar",
+                },
+                values: {
+                    title: "Mga luma at bagong halaga",
+                    field: "Field",
+                    old: "Lumang halaga",
+                    new: "Bagong halaga",
+                    none: "(wala)",
+                    secret: "Binago. Hindi kailanman itinatala ang mga lihim na halaga.",
+                    yes: "Oo",
+                    no: "Hindi",
+                    sha: "SHA-256 {{hash}}",
+                },
+                field: {
+                    tenant: {
+                        slug: "Maikling pangalan",
+                        isActive: "Aktibo",
+                        logsTimezone: "Timezone para sa log ng tenant (Mga Wika)",
+                        languages: "Mga Wika",
+                        enabledLanguages: "Mga pinaganang wika (Mga Wika)",
+                        defaultLanguage: "Default na wika (Mga Wika)",
+                        languageDetection: "Pagtukoy ng wika (Mga Wika)",
+                        translations: "Mga salin (Lokalisasyon)",
+                        sms: "SMS",
+                        mail: "Email",
+                        gapiKey: "Google API key (Mga Integrasyon)",
+                        gapiEmail: "Email ng Google API (Mga Integrasyon)",
+                        helpLinks: "Mga link ng tulong (Itsura)",
+                        displayName: "Pangalan ng organisasyon (Itsura)",
+                        votingCountries: "Mga bansang hinarang sa pagboto (Mga Bansa)",
+                        enrollCountries: "Mga bansang hinarang sa pagpapatala (Mga Bansa)",
+                        logoUrl: "Logo (Itsura)",
+                        css: "Pasadyang CSS (Itsura)",
+                        votingChannels: "Mga Channel ng Pagboto",
+                        onlineVoting: "Online na pagboto (Mga Channel ng Pagboto)",
+                        kioskVoting: "Pagboto sa kiosk (Mga Channel ng Pagboto)",
+                        telephoneVoting: "Pagboto sa telepono (Mga Channel ng Pagboto)",
+                        earlyVoting: "Maagang pagboto (Mga Channel ng Pagboto)",
+                        paperVoting: "Pagboto sa papel (Mga Channel ng Pagboto)",
+                    },
+                },
+                signIn: {
+                    title: "Pag-sign in at seguridad ng account",
+                    event: "Kaganapan ng Keycloak",
+                    error: "Error",
+                    authentication: "Pagpapatunay",
+                    credential: "Kredensyal",
+                    failures: "Magkakasunod na pagkabigo",
+                    client: "Client",
+                    ipAddress: "IP address",
+                },
+                keycloak: {
+                    title: "Pagbabago sa Keycloak",
+                    account: "Account",
+                    operation: "Operasyon",
+                    appliesTo: "Nalalapat sa",
+                    resource: "Resource",
+                    newValue: "Bagong halaga",
+                    error: "Error",
+                },
+                importedFile: {
+                    title: "Ang na-import na file",
+                    declared: "Idineklarang checksum",
+                    sha256: "SHA-256 ng file",
+                    declaredSha256: "Idineklarang SHA-256",
+                    document: "Dokumento",
+                    checksum: {
+                        undeclared: "Walang idineklara",
+                        matches: "Tugma sa file",
+                        mismatch: "Hindi tugma sa file",
+                    },
+                    counts: {
+                        count: "Mga hilera",
+                        elections: "Mga halalan",
+                        contests: "Mga paligsahan",
+                        candidates: "Mga kandidato",
+                        areas: "Mga lugar",
+                        area_contests: "Mga lugar bawat paligsahan",
+                        sections: "Mga seksyon ng configuration",
+                    },
+                },
+                deletedEvent: {
+                    title: "Ang log ng binurang kaganapan ng halalan",
+                    lastEntry: "Huling entry",
+                    stateHash: "Hash ng estado",
+                    logDatabase: "Database ng log",
+                    status: "Katayuan",
+                    retired:
+                        "Inalis sa pagkaka-load at iniingatan hanggang mabura ito ayon sa patakaran sa pagpapanatili",
+                    task: "Gawain",
+                    systemKey: "Ang system key ng log",
+                },
+                exported: {
+                    title: "Pag-export",
+                    entries: "Mga entry",
+                    sha256: "SHA-256 ng file",
+                    document: "Dokumento",
+                    scope: {
+                        TENANT_LOG: "Ang buong log ng tenant",
+                        ACCOUNT: "Isang account",
+                        ACCOUNT_WITH_EVENTS:
+                            "Isang account, kasama ang mga entry nito sa bawat kaganapan ng halalan",
+                        ALL: "Ang buong kaganapan ng halalan",
+                        ELECTION: "Isang halalan",
+                        AREA: "Isang lugar",
+                    },
+                },
+                writer: {
+                    title: "Tagasulat ng log",
+                    release: "Release",
+                    lastEntry: "Huling entry na nai-post",
+                },
+                signatures: {
+                    title: "Log at mga lagda",
+                    log: "Log",
+                    tenantLog: "Log ng tenant",
+                    eventLog: "Log ng kaganapan ng halalan",
+                    signedBy: "Nilagdaan ni",
+                    adminKey: "Admin key ni {{name}}",
+                    systemOnly: "Ang system key lamang ng log",
+                    systemSignature: "Lagda ng system",
+                    publicKey: "Nai-publish na admin key",
+                },
+            },
             actions: {
                 csv: "I-export sa CSV",
                 pdf: "I-export sa PDF",
+                audit: "I-audit",
+            },
+            auditDialog: {
+                title: "I-audit ang log ng halalan",
+                confirm: "I-audit",
+                description:
+                    "Sinusuri ng audit ang bawat entry ng log laban sa Merkle log nito at bine-verify ang mga na-publish na checkpoint. Itinatala ang resulta bilang isang task.",
             },
             exportdialog: {
                 description:
@@ -220,6 +733,28 @@ const tagalogTranslation: TranslationType = {
                 format: "Format",
                 csv: "CSV",
                 pdf: "PDF",
+                sql: "SQL",
+                scope: {
+                    label: "Saklaw",
+                    tenant: {
+                        TENANT_LOG: "Ang buong log ng tenant",
+                        ACCOUNT: "Isang account",
+                    },
+                    event: {
+                        ALL: "Ang buong kaganapan ng halalan",
+                        ELECTION: "Isang halalan",
+                        AREA: "Isang lugar",
+                        ACCOUNT: "Isang account",
+                    },
+                },
+                username: "Username",
+                election: "Halalan",
+                area: "Lugar",
+                withElectionEvents:
+                    "Isama ang mga entry ng account na ito sa bawat kaganapan ng halalan",
+                rowsNameLog:
+                    "Tinutukoy ng mga row mula sa mga kaganapan ng halalan ang kanilang log.",
+                recorded: "Ang mismong pag-export ay itinatala sa log na ito.",
                 zoneNote:
                     "Bawat hilera ay may oras sa UTC (ISO 8601) at sa {{abbr}}, kasama ang pangalan ng timezone. Kasama sa saklaw ng petsa ang magkabilang dulo, sa {{abbr}}.",
                 zoneNotePdf:
@@ -328,6 +863,7 @@ const tagalogTranslation: TranslationType = {
                 PUBLISH_BALLOT: "I-publish ang balota",
                 VOTER_INFORMATION_LETTER: "Liham ng impormasyon para sa botante",
                 EXPORT_MONITORING_DATA: "I-export ang Datos ng Pagsubaybay",
+                AUDIT_ELECTORAL_LOG: "I-audit ang Log ng Halalan",
                 EXPORT_ELECTION_EVENT: "I-export ang Kaganapan sa Halalan",
                 CREATE_ELECTION_EVENT: "Lumikha ng Kaganapan ng Halalan",
                 IMPORT_ELECTION_EVENT: "I-import ang Kaganapan sa Halalan",
@@ -339,6 +875,7 @@ const tagalogTranslation: TranslationType = {
                 EXPORT_BALLOT_PUBLICATION: "I-export ang Paglalathala ng Balota",
                 GENERATE_TRANSMISSION_REPORT: "Bumuo ng Ulat ng Paglilipat",
                 EXPORT_ACTIVITY_LOGS_REPORT: "I-export ang Ulat ng Mga Log ng Aktibidad",
+                EXPORT_TENANT_LOGS: "I-export ang Log ng Tenant",
                 GENERATE_REPORT: "Bumuo ng ulat",
                 EXPORT_TRUSTEES: "I-export ang mga Awtoridad",
                 EXPORT_APPLICATION: "I-export ang Mga Aplikasyon",
@@ -349,7 +886,7 @@ const tagalogTranslation: TranslationType = {
                 EXPORT_TEMPLATES: "I-export ang mga Template",
                 IMPORT_TEMPLATES: "I-import ang mga Template",
                 DELETE_ELECTION_EVENT: "Tanggalin ang Kaganapan ng Halalan",
-                DELETE_VOTERS: "Delete Voters",
+                DELETE_VOTERS: "Tanggalin ang mga botante",
                 PREPARE_PUBLICATION_PREVIEW: "Ihanda ang paunang tingin ng publikasyon",
                 EXPORT_TALLY_RESULTS_XLSX:
                     "I-export ang mga resulta ng pagbibilang sa format na XLSX",
@@ -400,11 +937,15 @@ const tagalogTranslation: TranslationType = {
         },
         integrationsScreen: {
             common: {
-                gapiKey: "Google Calendar Service Account Key",
-                gapiEmail: "Google Calendar Authentication Email",
+                gapiKey: "Service account key ng Google Calendar",
+                gapiEmail: "Email ng authentication sa Google Calendar",
+                gapiKeyHelper:
+                    "Hindi ipinapakita ang naka-save na key. Mag-paste ng bagong key para palitan ito.",
+                gapiKeySaved: "Na-save ang service account key ng Google Calendar",
             },
             errors: {
                 invalidGapiKey: "Hindi wastong format ng Google Calendar Service Account Key",
+                saveGapiKey: "Hindi ma-save ang Google Calendar Service Account Key",
             },
         },
         lookAndFeelScreen: {
@@ -450,6 +991,7 @@ const tagalogTranslation: TranslationType = {
                 schedules: "NAISKEDYUL NA MGA KAGANAPAN",
                 trustees: "TAGAPANGALAGA",
                 BackupRestore: "Backup / Ibalik",
+                logs: "MGA LOG",
             },
         },
         trusteesSettingsScreen: {
@@ -500,7 +1042,7 @@ const tagalogTranslation: TranslationType = {
                 END_INTERNET_VOTING_PERIOD: "Pagtatapos ng Internet voting period",
                 LAB_TEST: "Lab test",
                 FIELD_TEST: "Field test",
-                MOCK_ELECTIONS: "Mock elections",
+                MOCK_ELECTIONS: "Mga pagsubok na halalan",
                 FTS: "FTS",
             },
         },
@@ -549,7 +1091,7 @@ const tagalogTranslation: TranslationType = {
                 },
                 help: {
                     publishing:
-                        "Naka-lock ang ballot box. Muling ipinapaskil ang entry nito sa bulletin board.",
+                        "Naka-lock ang ballot box at nasa bulletin board na ang seal nito. Ipinapaskil ang seal record nito.",
                     counted:
                         "Mga balotang binibilang: ang pinakahuling balidong balota ng bawat kwalipikadong botante. Ang iba sa ballot box ay pinalitan ng mas huling balota ng botante, itinapon, o ibinoto ng botanteng hindi kwalipikado.",
                 },
@@ -589,6 +1131,10 @@ const tagalogTranslation: TranslationType = {
                         "May {{count}} botong isinasagawa pa sa Datafix: sine-seal ang ballot box kapag naresolba ito.",
                     datafixVotes_other:
                         "May {{count}} botong isinasagawa pa sa Datafix: sine-seal ang ballot box kapag naresolba ang mga ito.",
+                    sequencer_one:
+                        "May {{count}} balotang wala pa sa bulletin board: sine-seal ang ballot box kapag naidagdag na ito ng sequencer.",
+                    sequencer_other:
+                        "May {{count}} balotang wala pa sa bulletin board: sine-seal ang ballot box kapag naidagdag na ang mga ito ng sequencer.",
                     stale: "Huling sinubukan noong {{time}}: maaaring hindi tumatakbo ang sealer. Suriin ang Beat at ang seal worker.",
                     notTried:
                         "Hindi pa nasusubukan: maaaring hindi tumatakbo ang sealer. Suriin ang Beat at ang seal worker.",
@@ -617,6 +1163,7 @@ const tagalogTranslation: TranslationType = {
                         "Nasa bulletin board na ang isang seal para sa ballot box na ito.",
                     noBoard: "Walang bulletin board ang election event.",
                     unknownChannel: "May balotang hindi kilala ang voting channel.",
+                    unrecorded: "May balotang walang cast-vote record sa bulletin board.",
                 },
                 incident: {
                     title_one: "{{count}} ballot box ang hindi na-seal",
@@ -636,12 +1183,17 @@ const tagalogTranslation: TranslationType = {
             },
         },
         electionEventScreen: {
+            dataUnavailable: "Hindi available ang data para sa kaganapang ito ng halalan.",
+            noAccessibleTabs:
+                "Wala kang access sa mga available na tab para sa kaganapang ito ng halalan.",
+
             common: {
                 subtitle: "Pag-configure ng kaganapan ng halalan.",
                 showMore: "Lakihan ang nakikita",
                 showLess: "Bawasan ang nakikita",
                 adminPortal: "Admin Portal",
-                allowPublishAfterLockdown: "Only allow election event publishing after lockdown",
+                allowPublishAfterLockdown:
+                    "Payagan lamang ang pag-publish ng kaganapan ng halalan pagkatapos ng lockdown",
                 reset: "I-reset ang custom na filter",
             },
             edit: {
@@ -660,16 +1212,20 @@ const tagalogTranslation: TranslationType = {
                 importCandidates: "Mag-import ng mga Kandidato",
                 custom_filters: "Pasadyang mga filter",
                 voter_authentication: "Pag-authenticate ng Botante",
-                realm_attributes: "Keycloak realm attributes",
-                realm_attributes_load_error: "Error loading Keycloak realm attributes",
-                realm_attributes_update_error: "Error updating Keycloak realm attributes",
+                realm_attributes: "Mga katangian ng realm ng Keycloak",
+                realm_attributes_load_error:
+                    "Error sa pag-load ng mga katangian ng realm ng Keycloak",
+                realm_attributes_update_error:
+                    "Error sa pag-update ng mga katangian ng realm ng Keycloak",
                 realm_attributes_not_loaded:
-                    "Keycloak realm attributes have not loaded, changes were not saved",
-                password_policy: "Password Policy",
-                password_policy_load_error: "Error loading Keycloak password policy",
-                password_policy_update_error: "Error updating Keycloak password policy",
+                    "Hindi na-load ang mga katangian ng realm ng Keycloak; hindi na-save ang mga pagbabago",
+                password_policy: "Patakaran sa password",
+                password_policy_load_error:
+                    "Error sa pag-load ng patakaran sa password ng Keycloak",
+                password_policy_update_error:
+                    "Error sa pag-update ng patakaran sa password ng Keycloak",
                 password_policy_not_loaded:
-                    "Keycloak password policy has not loaded, changes were not saved",
+                    "Hindi na-load ang patakaran sa password ng Keycloak; hindi na-save ang mga pagbabago",
             },
             customUrls: {
                 login: "Pag-login",
@@ -696,7 +1252,7 @@ const tagalogTranslation: TranslationType = {
                     value: "Halaga",
                 },
                 scopes: {
-                    legacy: "Legacy ({{portal}})",
+                    legacy: "Luma ({{portal}})",
                     global: "Pangkalahatan",
                     votingPortal: "Portal ng pagboto",
                     ballotVerifier: "Tagapagpatunay ng balota",
@@ -761,7 +1317,7 @@ const tagalogTranslation: TranslationType = {
                 userVerification:
                     "Puede kang mag-introdusir nin sarong pasadyang plantilya na gagamiton tanganing mano-manong ma-verify an mga botante",
                 redirectFinishUrl: "Redirect Finish URL",
-                kioskRedirectFinishUrl: "Kiosk Redirect Finish URL",
+                kioskRedirectFinishUrl: "URL ng Pag-redirect sa Pagtatapos ng Kiosk",
                 css: "Custom CSS",
                 skipElectionList: "Laktawan ang Screen ng Listahan ng Halalan",
                 showUserProfile: "Ipakita ang Profile ng Gumagamit",
@@ -802,6 +1358,11 @@ const tagalogTranslation: TranslationType = {
                     },
                 },
                 lockdownState: {
+                    since: "Naka-lockdown mula {{date}}.",
+                    scheduledEnd: "Nakatakda ang pagtatapos ng lockdown sa {{date}}.",
+                    endScheduled: "May nakatakdang pagtatapos ng lockdown.",
+                    noScheduledEnd: "Walang nakatakdang pagtatapos ng lockdown.",
+                    banner: "Naka-lockdown ang kaganapang ito ng halalan.",
                     policyLabel: "Kalagayan ng Lockdown",
                     helperText:
                         "Iiskedyul ang simula o katapusan ng panahon ng lockdown upang baguhin ang kalagayang ito.",
@@ -848,6 +1409,15 @@ const tagalogTranslation: TranslationType = {
                     policyLabel: "Isama ang mga na-decode na balota sa database ng mga resulta",
                     options: {"included": "Isama", "not-included": "Huwag isama"},
                 },
+                fileIntegrityPolicy: {
+                    policyLabel: "Integridad ng file ng mga botante",
+                    helperText:
+                        "Hingin ang hiwalay na sertipikadong SHA-256 bago mag-import ng mga botante.",
+                    options: {
+                        OPTIONAL: "Opsyonal na SHA-256",
+                        REQUIRED_SHA256: "Kinakailangang SHA-256",
+                    },
+                },
                 contestEncryptionPolicy: {
                     options: {
                         "single-contest": "Isang Paligsahan",
@@ -861,7 +1431,7 @@ const tagalogTranslation: TranslationType = {
                         'Nalalapat sa buong kaganapan. Upang i-override bawat wika, idagdag ang key na "votingPortalDateTimeFormat" sa tab na Localization gamit ang mga token na yyyy, MM, dd, HH, mm, ss (hal. dd/MM/yyyy HH:mm). Tingnan ang dokumentasyon para sa mga detalye.',
                     options: {
                         "legacy-gb-24h": "Legacy GB 24h (dd/MM/yyyy HH:mm, 24h)",
-                        "iso-local": "ISO Local (yyyy-MM-dd HH:mm)",
+                        "iso-local": "ISO Lokal (yyyy-MM-dd HH:mm)",
                         "us-12h": "US 12h (MM/dd/yyyy h:mm AM/PM)",
                         "locale-medium": "Locale Medium (katamtamang petsa, maikling oras)",
                         "date-only": "Date Only (walang oras)",
@@ -898,7 +1468,7 @@ const tagalogTranslation: TranslationType = {
                     "lockedHelperText": "Hindi na ito mababago kapag nagsimula na ang botohan.",
                 },
                 VoterCertificatePolicy: {
-                    policyLabel: "Voter Digital Certificate Policy",
+                    policyLabel: "Patakaran sa digital na sertipiko ng botante",
                     enabled: "Naka-enable",
                     disabled: "Naka-disable",
                 },
@@ -947,6 +1517,15 @@ const tagalogTranslation: TranslationType = {
                     options: {
                         enabled: "Pinagana",
                         disabled: "Hindi pinagana",
+                    },
+                },
+                batchAnonymityPolicy: {
+                    policyLabel: "Patakaran sa Pagiging Anonimo ng mga Batch",
+                    helperText:
+                        "Ang Tanggihan ay humihinto sa bilang kapag ang batch ng mga balota ng isang lugar ay may mas kaunti sa limang botante, o iba sa batch na nai-post na ng ibang bilang para sa parehong lugar at paligsahan.",
+                    options: {
+                        warn: "Magbabala",
+                        refuse: "Tanggihan",
                     },
                 },
                 languageDetectionPolicy: {
@@ -1020,9 +1599,9 @@ const tagalogTranslation: TranslationType = {
                     hints: {
                         title: "Mga pahiwatig",
                         publishRequired:
-                            "Ang anumang pagbabagong ginawa sa mga halalan, mga contest, o mga kandidato ay dapat munang i-publish para maging available. Tanging ang pinakabagong na-publish na mga ballot style para sa tumutugmang lugar ang gagamitin sa emulator.",
+                            "Ang anumang pagbabagong ginawa sa mga halalan, mga paligsahan, o mga kandidato ay dapat munang i-publish para maging available. Tanging ang pinakabagong na-publish na mga ballot style para sa tumutugmang lugar ang gagamitin sa emulator.",
                         eventChangesImmediate:
-                            "Ang mga pagbabagong ginawa sa election event, gaya ng IVR configuration o mga pagbabago sa prompt, ay available kaagad kapag ni-restart ang emulator session.",
+                            "Ang mga pagbabagong ginawa sa kaganapan ng halalan, gaya ng IVR configuration o mga pagbabago sa prompt, ay available kaagad kapag ni-restart ang emulator session.",
                         credentials: 'Ang valid na voter ID at PIN ay "123" at "123".',
                     },
                     sendDtmf: "Magpadala ng DTMF input",
@@ -1089,7 +1668,7 @@ const tagalogTranslation: TranslationType = {
                 voters: "Mga Botante",
                 areas: "Mga Lugar",
                 keys: "Mga Susi",
-                tally: "Tally",
+                tally: "Pagbibilang",
                 tallySheetImports: "Mga import ng tally sheet",
                 publish: "I-publish",
                 logs: "Mga Log",
@@ -1097,7 +1676,7 @@ const tagalogTranslation: TranslationType = {
                 events: "Naka-schedule na Kaganapan",
                 notifications: "Mga Abiso",
                 reports: "Ulat",
-                approvals: "Approvals",
+                approvals: "Mga pag-apruba",
                 cas: "Mga Sertipiko",
             },
             tally: {
@@ -1134,7 +1713,7 @@ const tagalogTranslation: TranslationType = {
                     participateNow:
                         "Naanyayahan kang makibahagi sa seremonya ng Tally. Mangyaring <1>i-click ang Aksyon ng Key ng seremonya</1> upang makilahok.",
                     startDisabled:
-                        "Hindi mo maaaring ipagpatuloy ang seremonya dahil walang napiling eleksyon o ang eleksyon ay hindi pa na-publish.",
+                        "Hindi mo maaaring ipagpatuloy ang seremonya dahil walang napiling halalan o ang halalan ay hindi pa na-publish.",
                     ceremonyDisabled:
                         "Hindi mo maaaring ipagpatuloy ang seremonya dahil ang tally session ay hindi konektado o ang pagsisimula ng seremonya ay hindi pinapayagan.",
                 },
@@ -1167,8 +1746,10 @@ const tagalogTranslation: TranslationType = {
                 fileUploadError: "Error sa pag-upload ng file",
                 importVotersSuccess: "Matagumpay na na-iskedyul ang Pag-import ng mga Botante",
                 importVotersError: "Error sa pag-import ng mga Botante",
-                importElectionEventSuccess: "Election event imported Successfully",
-                importElectionEventError: "Error importing election event",
+                importElectionEventSuccess: "Matagumpay na na-import ang kaganapan ng halalan",
+                importElectionEventError: "Error sa pag-import ng kaganapan ng halalan",
+                shaRequiredHelp:
+                    "Ilagay ang sertipikadong SHA-256 na may 64 na hexadecimal na character. Kailangan ito upang mag-import.",
                 shaDialog: {
                     ok: "Oo, Mag-import nang walang Pag-check ng Integridad",
                     cancel: "Bumalik",
@@ -1177,7 +1758,7 @@ const tagalogTranslation: TranslationType = {
                         "Hindi mo ipinakita ang field para sa Pag-check ng Integridad (SHA-256). Mangyaring kumpirmahin na ini-import mo ang tamang file at nais mo itong i-import.",
                 },
                 passwordDialog: {
-                    title: "Decryption Password",
+                    title: "Password sa pag-decrypt",
                     description: "Ilagay ang password para i-decrypt ang file",
                     label: "Password",
                     copyPassword: "Kopyahin ang Password",
@@ -1274,7 +1855,7 @@ const tagalogTranslation: TranslationType = {
                 voters: "Mga Botante",
                 publish: "I-publish",
                 logs: "Mga Log",
-                approvals: "Approvals",
+                approvals: "Mga pag-apruba",
                 tallySheets: "Mga Talaksahan",
             },
             gracePeriodPolicy: {
@@ -1294,10 +1875,10 @@ const tagalogTranslation: TranslationType = {
                 "required": "Kinakailangan",
             },
             castVoteGoldLevelPolicy: {
-                label: "Gold level Authentication Policy",
+                label: "Patakaran sa gold level na authentication",
                 options: {
-                    "gold-level": "Gold level Authentication",
-                    "no-gold-level": "No Gold level Authentication",
+                    "gold-level": "Gold level na authentication",
+                    "no-gold-level": "Walang gold level na authentication",
                 },
             },
             slates: {
@@ -1406,7 +1987,7 @@ const tagalogTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "Nakaboto",
-                    "support_materials_viewed": "Support Materials Viewed",
+                    "support_materials_viewed": "Mga Karagdagang Materyales na Nakita",
                     "vote-weight": "Bigat ng Boto",
                     "voted-channel": "Channel ng pagboto",
                     "disable-comment": "Komento sa pag-disable",
@@ -1439,11 +2020,12 @@ const tagalogTranslation: TranslationType = {
                 delete: {
                     body: "Sigurado ka bang gusto mong tanggalin ang tagagamit na ito?",
                     bulkBody: "Sigurado ka bang gusto mong tanggalin ang mga napiling tagagamit?",
-                    bulkBodySelected: "Delete the {{count}} selected users? This cannot be undone.",
+                    bulkBodySelected:
+                        "Tanggalin ang {{count}} napiling tagagamit? Hindi na ito maaaring bawiin.",
                     bulkBodyChoose:
-                        "{{count}} users are selected. You can instead delete every user matching the current filters, which may be more. This cannot be undone.",
-                    okSelected: "Delete {{count}} selected",
-                    okAllMatching: "Delete all matching",
+                        "{{count}} tagagamit ang napili. Maaari mo ring tanggalin ang lahat ng tagagamit na tumutugma sa kasalukuyang mga filter, na maaaring mas marami. Hindi na ito maaaring bawiin.",
+                    okSelected: "Tanggalin ang {{count}} napili",
+                    okAllMatching: "Tanggalin ang lahat ng tumutugma",
                 },
                 notifications: {
                     exportError: "Error sa pag-export ng mga tagagamit",
@@ -1538,11 +2120,11 @@ const tagalogTranslation: TranslationType = {
                     body: "Sigurado ka bang gusto mong tanggalin ang botante na ito?",
                     bulkBody: "Sigurado ka bang gusto mong tanggalin ang mga napiling botante?",
                     bulkBodySelected:
-                        "Delete the {{count}} selected voters? This cannot be undone.",
+                        "Tanggalin ang {{count}} napiling botante? Hindi na ito maaaring bawiin.",
                     bulkBodyChoose:
-                        "{{count}} voters are selected. You can instead delete every voter matching the current filters, which may be more. This cannot be undone.",
-                    okSelected: "Delete {{count}} selected",
-                    okAllMatching: "Delete all matching",
+                        "{{count}} botante ang napili. Maaari mo ring tanggalin ang lahat ng botante na tumutugma sa kasalukuyang mga filter, na maaaring mas marami. Hindi na ito maaaring bawiin.",
+                    okSelected: "Tanggalin ang {{count}} napili",
+                    okAllMatching: "Tanggalin ang lahat ng tumutugma",
                 },
                 notifications: {
                     exportError: "Error sa pag-export ng mga botante",
@@ -1619,8 +2201,8 @@ const tagalogTranslation: TranslationType = {
                 "election-event-create": "Lumikha ng Kaganapan ng Halalan",
                 "election-event-read": "Basahin ang Kaganapan ng Halalan",
                 "election-event-write": "I-edit ang Kaganapan ng Halalan",
-                "keycloak-realm-attributes-read": "Read Keycloak realm attributes",
-                "keycloak-realm-attributes-write": "Edit Keycloak realm attributes",
+                "keycloak-realm-attributes-read": "Basahin ang mga katangian ng realm ng Keycloak",
+                "keycloak-realm-attributes-write": "I-edit ang mga katangian ng realm ng Keycloak",
                 "election-event-delete": "Tanggalin ang Kaganapan ng Halalan",
                 "voter-create": "Lumikha ng Botante",
                 "voter-read": "Basahin ang Botante",
@@ -1663,6 +2245,14 @@ const tagalogTranslation: TranslationType = {
                 "publish-results-read": "Basahin ang Results Publication",
                 "publish-results-write": "I-edit ang Results Publication",
                 "logs-read": "Basahin ang Logs",
+                "electoral-log-audit": "I-audit ang Log ng Halalan",
+                "electoral-log-console-read": "I-browse ang Log ng Halalan",
+                "electoral-log-console-query": "I-query ang Log ng Halalan",
+                "electoral-log-personal-data-read":
+                    "Basahin ang Personal na Datos ng Log ng Halalan",
+                "task-queues-read": "Basahin ang Mga Task Queue",
+                "task-queues-write": "Pamahalaan ang Mga Task Queue",
+                "task-queues-query": "I-query ang Mga Task Queue",
                 "tasks-read": "Basahin ang Pagpapatupad ng Mga Gawain",
                 "keys-read": "Basahin ang Mga Susi",
                 "document-upload": "Mag-upload ng Mga Dokumento",
@@ -1678,7 +2268,6 @@ const tagalogTranslation: TranslationType = {
                 "tally-sheet-view": "Tingnan ang Tally Sheet",
                 "admin-ceremony": "Seremonya ng Admin",
                 "tally-sheet-delete": "Tanggalin ang Tally Sheet",
-                "cast-vote-read": "Basahin ang Na-cast na Mga Boto",
                 "document-read": "Basahin ang Mga Dokumento",
                 "document-write": "I-edit ang Mga Dokumento",
                 "support-material-read": "Basahin ang Suportang Materyal",
@@ -1756,7 +2345,10 @@ const tagalogTranslation: TranslationType = {
                 "application-read": "Basahin ang Aplikasyon",
                 "application-write": "I-edit ang Aplikasyon",
                 "approval-matrix-write": "I-edit ang Matrix ng Pag-apruba",
+                "readiness-check": "Suriin ang kahandaan ng halalan",
                 "logs-export": "I-export ang mga Log",
+                "tenant-logs-read": "Basahin ang Log ng Tenant",
+                "tenant-logs-export": "I-export ang Log ng Tenant",
                 "election-event-logs-columns": "Mga Kolum ng mga Log ng Kaganapang Halalan",
                 "election-events-logs-filters": "Mga Filter ng mga Log ng Kaganapang Halalan",
                 "election-event-scheduled-event-columns":
@@ -1780,7 +2372,7 @@ const tagalogTranslation: TranslationType = {
                 "monitor-posts-already-closed-voting":
                     "Basahin ang Pagmamatyag sa Mga Post na Sarado na ang Botohan",
                 "monitor-posts-already-generated-election-results":
-                    "Basahin ang Pagmamatyag sa Mga Post na Naglabas na ng Resulta ng Eleksyon",
+                    "Basahin ang Pagmamatyag sa Mga Post na Naglabas na ng Resulta ng Halalan",
                 "monitor-posts-already-opened-voting":
                     "Basahin ang Pagmamatyag sa Mga Post na Binuksan na ang Botohan",
                 "monitor-posts-already-started-counting-votes":
@@ -1825,12 +2417,12 @@ const tagalogTranslation: TranslationType = {
                 "cloudflare-write": "I-edit ang mga patakaran sa pag-block ng bansa sa Cloudflare",
                 "transmission-report-generate": "Lumikha ng Ulat ng Transmisyon",
                 "google-meet-link": "Bumuo ng Google Meet Link",
-                "service-account": "Service account",
-                "datafix-account": "Datafix account",
+                "service-account": "Account ng serbisyo",
+                "datafix-account": "Account ng Datafix",
                 "gold": "Ginto",
                 "silver": "Pilak",
-                "election-event-ivr-tab": "Tingnan ang IVR ng election event",
-                "election-event-cas-tab": "Tingnan ang CAS ng election event",
+                "election-event-ivr-tab": "Tingnan ang IVR ng kaganapan ng halalan",
+                "election-event-cas-tab": "Tingnan ang CAS ng kaganapan ng halalan",
                 "ca-read": "Basahin ang mga certificate authority",
                 "ca-write": "I-edit ang mga certificate authority",
                 "generate-preview": "Bumuo ng preview",
@@ -1841,10 +2433,11 @@ const tagalogTranslation: TranslationType = {
                 "phone-blacklist-update": "I-edit ang mga entry sa blacklist ng telepono",
                 "phone-blacklist-delete": "Tanggalin ang mga entry sa blacklist ng telepono",
                 "election-event-voter-list-reconciliation":
-                    "I-reconcile ang listahan ng mga botante ng election event",
+                    "I-reconcile ang listahan ng mga botante ng kaganapan ng halalan",
                 "messaging-account-read": "Basahin ang mga messaging account",
                 "messaging-account-write": "Pamahalaan ang mga messaging account",
-                "messaging-config-write": "I-configure ang messaging ng election event",
+                "messaging-config-write": "I-configure ang messaging ng kaganapan ng halalan",
+                "messaging-config-read": "Basahin ang messaging ng kaganapan ng halalan",
             },
         },
         generalSettingsScreen: {
@@ -1864,10 +2457,10 @@ const tagalogTranslation: TranslationType = {
             },
             eventType: {
                 label: "Uri",
-                ALLOW_INIT_REPORT: "Allow Initialization Report",
+                ALLOW_INIT_REPORT: "Payagan ang ulat ng inisyalisasyon",
                 START_VOTING_PERIOD: "Simula ng Panahon ng Pagboto",
                 END_VOTING_PERIOD: "Pagtatapos ng Panahon ng Pagboto",
-                ALLOW_VOTING_PERIOD_END: "Allow Voting Period End",
+                ALLOW_VOTING_PERIOD_END: "Payagan ang pagtatapos ng panahon ng pagboto",
                 START_ENROLLMENT_PERIOD: "Simulan ang Panahon ng Pagpapatala",
                 END_ENROLLMENT_PERIOD: "Panahon ng Pagpapatala",
                 START_LOCKDOWN_PERIOD: "Simulan ang Lockdown Period",
@@ -1924,7 +2517,7 @@ const tagalogTranslation: TranslationType = {
                 updateSuccess: "Matagumpay na na-update ang Ulat",
                 passwordMismatch:
                     "Ang password at confirm password ay hindi magkatugma. Siguraduhing pareho ang password sa dalawang field.",
-                incorectPassword: "Incorrect password",
+                incorectPassword: "Maling password",
                 decryptFileTitle: "Decrypt File",
                 decryptInstructions:
                     "1. '-in' : Ang path patungo sa naka-encrypt na file. \n2. '-out' : Ang path kung saan ise-save ang na-decrypt na file. \n3. '-pass' : Ang password na ginamit para i-encrypt ang file. \n",
@@ -1933,7 +2526,7 @@ const tagalogTranslation: TranslationType = {
             },
             reportType: {
                 BALLOT_RECEIPT: "Resibo ng Balota",
-                ELECTORAL_RESULTS: "Mga Resulta ng Eleksyon",
+                ELECTORAL_RESULTS: "Mga Resulta ng Halalan",
                 MANUAL_VERIFICATION: "Manwal na Pag-verify",
                 PARTICIPATION_REPORT: "Ulat ng Pakikilahok",
                 STATISTICAL_REPORT: "Ulat ng Istatistika",
@@ -2059,7 +2652,7 @@ const tagalogTranslation: TranslationType = {
                 es: "Espanyol",
                 en: "Ingles",
                 fr: "Pranses",
-                cat: "Valencian",
+                cat: "Valenciano",
                 tl: "Tagalog",
                 gl: "Galego",
                 nl: "Nederlands",
@@ -2088,16 +2681,18 @@ const tagalogTranslation: TranslationType = {
             election: "Mag-import ng Halalan",
             contest: "Mag-import ng Paligsahan",
             candidate: "Mag-import ng Kandidato",
-            ImportHashMismatch: "Hashes don't match. Integrity check failure.",
+            ImportHashMismatch: "Hindi tugma ang mga hash. Nabigo ang pagsusuri ng integridad.",
         },
         sideMenu: {
             electionEvents: "Mga Kaganapan ng Halalan",
             search: "Maghanap",
             usersAndRoles: "Mga Tagagamit at Tungkulin",
+            electoralLogConsole: "Log ng Halalan",
+            taskQueues: "Mga Task Queue",
             logs: "Mga Log",
             settings: "Mga Setting",
             help: "Tulong",
-            templates: "Templates",
+            templates: "Mga template",
             active: "Aktibo",
             archived: "Arkilado",
             addResource: {
@@ -2165,7 +2760,7 @@ const tagalogTranslation: TranslationType = {
                 isExplicitInvalid: "Di-wastong Boto",
                 isExplicitBlank: "Blangkong Boto",
                 isCategoryList: "Listahan ng Kategorya",
-                isWriteIn: "Write-in",
+                isWriteIn: "Sinusulat na boto",
             },
             field: {
                 name: "Pangalan",
@@ -2175,7 +2770,7 @@ const tagalogTranslation: TranslationType = {
             options: {
                 "candidate": "Kandidato",
                 "option": "Opsyon",
-                "write-in": "Write-in",
+                "write-in": "Sinusulat na boto",
                 "open-list": "Bukas na Listahan",
                 "closed-list": "Saradong Listahan",
                 "semi-open-list": "Semi Bukas na Listahan",
@@ -2216,7 +2811,7 @@ const tagalogTranslation: TranslationType = {
                 "plurality-at-large": "Pluralidad sa Lahat",
                 "instant-runoff": "Instant Runoff",
                 "random": "Random",
-                "external-procedure": "External Procedure",
+                "external-procedure": "Panlabas na pamamaraan",
                 "custom": "Pasadya",
                 "alphabetical": "Alpabetikal",
             },
@@ -2232,7 +2827,7 @@ const tagalogTranslation: TranslationType = {
             underVotePolicy: {
                 "label": "Sa irarom kan Patakaran sa Pagboto",
                 "allowed": "Tinogotan",
-                "warn-only-in-review": "Warn in Review",
+                "warn-only-in-review": "Magbabala sa pagsusuri",
                 "warn": "Patanid",
                 "warn-and-alert": "Patanid asin Alerto",
                 "warn-and-confirm-in-review": "Patanid asin Kumpirmahon sa Review",
@@ -2249,7 +2844,7 @@ const tagalogTranslation: TranslationType = {
             },
             candidatesIconCheckboxPolicy: {
                 "label": "An porma kan icon kan kahon kan mga kandidato",
-                "square-checkbox": "Square Checkbox",
+                "square-checkbox": "Parisukat na checkbox",
                 "round-checkbox": "Bilog na Kahon nin Tsek",
             },
             checkableListPolicy: {
@@ -2317,17 +2912,55 @@ const tagalogTranslation: TranslationType = {
             createContestError: "Error sa paglikha ng paligsahan",
         },
         keysGeneration: {
+            ...englishTranslation.translations.keysGeneration,
+            downloadStep: {
+                ...englishTranslation.translations.keysGeneration.downloadStep,
+                title: "I-download ang file ng kustodiya",
+                downloadButton: "I-download ang file ng kustodiya",
+                confirmdDialog: {
+                    ...englishTranslation.translations.keysGeneration.downloadStep.confirmdDialog,
+                    title: "I-save ang file ng kustodiya",
+                },
+            },
+            checkStep: {
+                ...englishTranslation.translations.keysGeneration.checkStep,
+                subtitle:
+                    "I-upload ang na-save na file ng kustodiya o isang nilagdaang patunay ng kustodiya:",
+                required: "Kailangang kumpirmahin ang kustodiya",
+                reconfirmButton: "Kumpirmahin muli ang kustodiya (opsyonal)",
+                reconfirmDescription:
+                    "Nakumpirma na ang iyong kustodiya. Opsyonal ang karagdagang pagkumpirmang ito.",
+            },
+            serverCustody: {
+                recoveryInstructions:
+                    "Kung na-import mo ang kaganapang ito sa halalan o nawala ang na-save na file, i-download dito ang kasalukuyang file ng kustodiya. I-save ito, pagkatapos ay i-upload sa ibaba.",
+                fileFormat: "Sinusuportahang format: JSON",
+                waiting: "Hinihintay ang trustee server na gumawa ng patunay ng pag-iingat…",
+                unavailable:
+                    "Hindi tumugon ang trustee server. Tiyaking tumatakbo ito, pagkatapos ay i-upload muli ang file ng kustodiya.",
+                failed: "Hindi nagawa ng trustee server ang patunay: {{error}}",
+                invalidReply: "Hindi kumpleto ang tugon ng trustee server. Subukan muli.",
+                cancelled: "Nakansela ang kahilingan. I-upload muli ang file upang magpatuloy.",
+                downloadInstructions:
+                    "I-download at itago ang file ng kustodiya na ito. I-upload ang parehong file sa susunod na hakbang at sa mga susunod na pagbibilang. Hindi ito backup ng iyong mga pribadong susi.",
+                uploadInstructions:
+                    "I-upload ang na-download na file ng kustodiya. Gagawa ng patunay ang iyong trustee server. Maaari ka ring mag-upload ng patunay mula sa offline o browser trustee.",
+                tallyInstructions:
+                    "I-upload ang file na itinago noong key ceremony. Gagawa ang trustee server ng bagong patunay para sa pagbibilang na ito. Tinatanggap din ang mga patunay mula sa offline at browser trustees.",
+            },
             configureStep: {
                 create: "Lumikha ng Seremonya ng Mga Susi",
                 name: "Pangalan ng Seremonya ng mga Susi",
                 allElections: "Lahat ng Halalan",
                 title: "Lumikha ng Seremonya ng Mga Susi para sa Kaganapan sa Halalan",
                 subtitle:
-                    "Sa Seremonya ng Mga Susi, bawat trustee ay lilikha at magda-download ng kanilang piraso ng pribadong susi para sa Kaganapan sa Halalan. Upang magpatuloy, mangyaring pumili ng mga trustee na lalahok sa seremonya at ang threshold, na siyang minimum na bilang ng mga trustee na kinakailangan upang magbilang.",
+                    "Lokal na binubuo at iniingatan ng bawat tagapangasiwa ang kanilang mga susi at kinukumpirma ang pag-iingat. Piliin ang mga tagapangasiwa at ang pinakamababang bilang na kailangan para sa pagbilang.",
                 threshold: "Threshold",
                 trusteeList: "Mga Trustee",
                 errorMinTrustees_one:
                     "Pumili ka lamang ng {{selected}} trustee, ngunit kailangan mong pumili ng hindi bababa sa {{threshold}}.",
+                errorMinTrustees_many:
+                    "Pumili ka lamang ng {{selected}} mga trustee, ngunit kailangan mong pumili ng hindi bababa sa {{threshold}}.",
                 errorMinTrustees_other:
                     "Pumili ka lamang ng {{selected}} mga trustee, ngunit kailangan mong pumili ng hindi bababa sa {{threshold}}.",
                 errorThreshold:
@@ -2343,18 +2976,23 @@ const tagalogTranslation: TranslationType = {
                     description:
                         "Ikaw ay malapit nang lumikha ng Seremonya ng Mga Susi. Ang aksyong ito ay magpapadala ng abiso sa mga Trustee upang lumahok sa paglikha at pamamahagi ng Mga Susi ng Kaganapan sa Halalan.",
                     automaticCeremonyDescription:
-                        "Ikaw ay lilikha ng isang Awtomatikong Seremonya ng mga Susi. Hindi nito aabisuhan ang mga Trustee na lumahok.",
+                        "Nilalaktawan ng awtomatikong seremonya ang manu-manong pagkumpirma ng pag-iingat. Kailangan pa ring bumuo at magberipika ng mga susi ng halalan ang mga runner ng tagapangasiwa.",
                 },
                 filterTrustees: "I-filter ang mga trustee",
                 errorPermisionLabels:
                     "Hindi maipagawa ang Key Ceremony: may nawawala sa isa o higit pang permission label.",
                 automaticCeremonyToggle: "Awtomatikong Seremonya",
             },
+            // Native custody instructions use the English fallback until translated.
             ceremonyStep: {
+                ...englishTranslation.translations.keysGeneration.ceremonyStep,
+                custodyConfirmed: "Nakumpirma na ang kustodiya",
+                custodyComplete: "Tapos na ang iyong bahagi. Wala ka nang kailangang gawin.",
+                waitingForTrustees:
+                    "Hinihintay ang ibang katiwala na makumpleto ang pagkumpirma ng kustodiya at anumang kinakailangang pag-apruba.",
+                moreActions: "Iba pang mga aksyon",
                 cancel: "Kanselahin ang Seremonya ng Mga Susi",
                 progressHeader: "Pag-andar ng Seremonya ng Mga Susi",
-                description:
-                    "Ipinapakita ng screen na ito ang pag-andar at mga tala ng Seremonya ng Mga Susi ng Kaganapan sa Halalan. Sa Seremonya ng Mga Susi, bawat trustee ay lilikha at magda-download ng kanilang piraso ng pribadong susi para sa Kaganapan sa Halalan.",
                 executionStatus: "Katayuan: {{status}}",
                 confirmdDialog: {
                     ok: "Oo, Kanselahin ang Paglikha ng Seremonya ng Mga Susi",
@@ -2364,10 +3002,9 @@ const tagalogTranslation: TranslationType = {
                         "Malapit mo nang ma-kansela ang Seremonya ng Mga Susi. Pagkatapos isagawa ang aksyong ito, upang magkaroon ng matagumpay na Seremonya ng Mga Susi, kailangan mong lumikha ng bago.",
                 },
                 header: {
+                    ...englishTranslation.translations.keysGeneration.ceremonyStep.header,
                     trusteeName: "Pangalan ng Trustee",
                     fragment: "Nalikha ang Piraso ng Susi",
-                    downloaded: "Nai-download na Piraso ng Pribadong Susi",
-                    checked: "Nasuri ang Piraso ng Pribadong Susi",
                 },
                 logsHeader: {
                     title: "Mga Tala",
@@ -2375,46 +3012,6 @@ const tagalogTranslation: TranslationType = {
                     entry: "Entry",
                 },
                 emptyLogs: "Wala pang tala.",
-            },
-            startStep: {
-                title: "Seremonya ng Mga Susi ng Trustee",
-                subtitle:
-                    "Ikaw ay malapit nang lumahok sa Seremonya ng Mga Susi bilang isang Trustee (<strong>{{name}}</strong>). Kasama sa mga hakbang ang mga sumusunod:",
-                one: "<strong>I-download</strong> ang iyong Encrypted Private Key.",
-                two: "Lumikha ng maraming <strong>Backup</strong> ng Encrypted Private Key.",
-                three: "<strong>Surii</strong> na ang mga backup ay maayos na gumagana.",
-            },
-            downloadStep: {
-                title: "I-download ang Encrypted Private Key",
-                subtitle:
-                    "Upang magpatuloy, mangyaring i-download at itago ang iyong Encrypted Private Key sa hindi bababa sa dalawang magkaibang device:",
-                downloadButton: "I-download ang iyong Encrypted Private Key",
-                downloaded: "Matagumpay na na-download ang Encrypted Private Key.",
-                errorEmptyKey: "Error sa pag-download, walang laman na file",
-                unexpectedError: "Hindi ma-download ang pribadong key. Pakisubukang muli.",
-                alreadyVerified: "Na-download at na-verify na ang iyong pribadong key.",
-                unavailable:
-                    "Hindi na maaaring i-download ang pribadong key dahil nagpatuloy na ang seremonya.",
-                confirmdDialog: {
-                    ok: "Kumpirmahin ang mga Backup at Magpatuloy",
-                    cancel: "Bumalik",
-                    title: "I-backup ang iyong Encrypted Private Key",
-                    description:
-                        "Mangyaring i-backup ang iyong Encrypted Private Key sa hindi bababa sa dalawang magkaibang ligtas na lokasyon at pagkatapos ay kumpirmahin ito sa ibaba:",
-                    firstCopy: "Unang backup ay ligtas",
-                    secondCopy: "Ikalawang backup ay ligtas",
-                    confirmError:
-                        "Gumawa ng mga kinakailangang backup at lagyan ng tsek ang mga kahon ng kumpirmasyon upang magpatuloy",
-                },
-            },
-            checkStep: {
-                title: "Suriin ang Iyong Encrypted Private Key Backups",
-                verifyButton: "Beripikahin ang key",
-                subtitle:
-                    "I-upload ang isang Backup ng Encrypted Private Key upang suriin kung ito ay tama. Maaari mong subukan ng maraming beses hangga't kinakailangan, mula sa iyong iba't ibang backups:",
-                errorUploading: "Di-wastong Encrypted Private Key Backup, mangyaring subukan muli",
-                errorEmptyFile: "Walang laman na file o hindi natagpuan",
-                verified: "Backup ay matagumpay na nasuri.",
             },
         },
         miruExport: {
@@ -2431,59 +3028,63 @@ const tagalogTranslation: TranslationType = {
             errorUploadingSignature: "Nagkaroon ng error sa pag-upload ng pirma",
             downloadTransmissionPackage: "I-download ang pakete",
             resultsPublication: {
-                sectionTitle: "Publish to results website",
-                policyTitle: "Results Website",
-                policyAccess: "Results Website Access",
-                policyVisibility: "Results Website Visibility",
-                enabled: "Enabled",
-                disabled: "Disabled",
-                fullEvent: "Full event",
-                areaBased: "Area based",
-                publishStarted: "Results publication started",
-                publishError: "Could not start results publication",
-                revoked: "Results publication revoked",
-                revokeError: "Could not revoke results publication",
-                waitingForTally: "Results can be published after this tally has completed.",
+                sectionTitle: "I-publish sa website ng mga resulta",
+                policyTitle: "Website ng mga resulta",
+                policyAccess: "Pag-access sa website ng mga resulta",
+                policyVisibility: "Visibility ng website ng mga resulta",
+                enabled: "Naka-enable",
+                disabled: "Naka-disable",
+                fullEvent: "Buong kaganapan",
+                areaBased: "Batay sa lugar",
+                publishStarted: "Nagsimula ang paglalathala ng mga resulta",
+                publishError: "Hindi masimulan ang paglalathala ng mga resulta",
+                revoked: "Nabawi ang paglalathala ng mga resulta",
+                revokeError: "Hindi mabawi ang paglalathala ng mga resulta",
+                waitingForTally:
+                    "Maaaring i-publish ang mga resulta pagkatapos makumpleto ang pagbibilang na ito.",
                 writePermissionRequired:
-                    "You need publish-results-write permission to publish or revoke results.",
+                    "Kailangan mo ang pahintulot na publish-results-write para mag-publish o bumawi ng mga resulta.",
                 readPermissionRequired:
-                    "You need publish-results-read permission to view publication history.",
+                    "Kailangan mo ang pahintulot na publish-results-read para tingnan ang kasaysayan ng paglalathala.",
                 disabledPolicy:
-                    "Results website publishing is disabled for this election event. Enable it in the election event data before publishing results.",
-                loadingElectionContext: "Results publication is loading election context.",
-                route: "Route",
-                eventResults: "Event results",
-                electionResults: "Election results",
-                election: "Election",
-                access: "Access",
-                publicAccess: "Public access",
-                authenticatedAccess: "Authenticated access",
+                    "Naka-disable ang pag-publish sa website ng mga resulta para sa kaganapang ito ng halalan. I-enable ito sa data ng kaganapan ng halalan bago i-publish ang mga resulta.",
+                loadingElectionContext:
+                    "Nilo-load ng paglalathala ng mga resulta ang konteksto ng halalan.",
+                route: "Ruta",
+                eventResults: "Mga resulta ng kaganapan",
+                electionResults: "Mga resulta ng halalan",
+                election: "Halalan",
+                access: "Pag-access",
+                publicAccess: "Pampublikong pag-access",
+                authenticatedAccess: "Naka-authenticate na pag-access",
                 visibility: "Visibility",
-                fullPublishedScope: "Full published scope",
-                personalVisibility: "Personal visibility",
-                contests: "Contests",
-                noTalliedContests: "No tallied contests available.",
-                publishSelectedContests: "Publish selected contests",
-                selectedContestCount: "{{count}} contest selected",
-                selectedContestCount_plural: "{{count}} contests selected",
-                history: "Publication history",
-                version: "Version",
-                status: "Status",
-                published: "Published",
-                revokedAt: "Revoked",
-                actions: "Actions",
-                open: "Open",
-                revoke: "Revoke",
-                noPublications: "No publications yet.",
-                confirmTitle: "Start publish to results website?",
+                fullPublishedScope: "Buong nailathalang saklaw",
+                personalVisibility: "Personal na visibility",
+                contests: "Mga Paligsahan",
+                noTalliedContests: "Walang available na mga naibilang na paligsahan.",
+                publishSelectedContests: "I-publish ang mga napiling paligsahan",
+                selectedContestCount_one: "{{count}} paligsahan ang napili",
+                selectedContestCount_many: "{{count}} paligsahan ang napili",
+                selectedContestCount_other: "{{count}} paligsahan ang napili",
+                history: "Kasaysayan ng paglalathala",
+                version: "Bersyon",
+                status: "Katayuan",
+                published: "Nailathala",
+                revokedAt: "Nabawi",
+                actions: "Mga aksyon",
+                open: "Buksan",
+                revoke: "Bawiin",
+                noPublications: "Wala pang mga paglalathala.",
+                confirmTitle: "Simulan ang pag-publish sa website ng mga resulta?",
                 confirmDescription:
-                    "This will create a new publication from the current tally execution. The existing voter-facing results stay active until this publish task succeeds.",
-                close: "Close",
+                    "Gagawa ito ng bagong paglalathala mula sa kasalukuyang pagbibilang. Mananatiling aktibo ang kasalukuyang mga resulta para sa mga botante hanggang magtagumpay ang gawaing ito ng pag-publish.",
+                close: "Isara",
             },
             transmissionPackage: {
                 title: "Pakete ng Transmisyon para sa Lugar '{{name}}' at Halalan na '{{eventName}}'",
                 description:
                     "Hinahayaan kang i-export ang isang Pakete ng Transmisyon sa mga Server ng Destinasyon o i-download ito.",
+                erFileSha256: "SHA-256 ng ER file:",
                 actions: {
                     sign: {
                         title: "I-regenerate",
@@ -2526,6 +3127,10 @@ const tagalogTranslation: TranslationType = {
                         emlTitle: "I-download ang EML {{date}}",
                         transmissionPackageTitle: "I-download ang Pakete ng Transmisyon {{date}}",
                         transmissionReportTitle: "I-download ang Ulat ng Transmisyon",
+                        csvTitle: "I-download ang Results CSV {{date}}",
+                        ovcsPublicKeyTitle: "I-download ang public key ng OVCS",
+                        recordError:
+                            "Hindi naitala ang pag-download, kaya hindi ito sinimulan. Subukang muli.",
                         dialog: {
                             title: "Gusto mo bang i-download ang Pakete ng Transmisyon?",
                             description:
@@ -2540,6 +3145,9 @@ const tagalogTranslation: TranslationType = {
                     description:
                         "Ipinapakita ng talahanayan sa ibaba ang katayuan ng pagpapadala sa bawat isa sa mga Server ng Destinasyon.",
                     status: "Naipadala sa {{signed}} ng {{total}}",
+                    manualReceipt: "Manwal na pagtanggap",
+                    handOver: "I-download ang package at iabot ito nang personal",
+                    sealedFor: "Naka-seal para sa key nito, SHA-256 {{key}}…",
                     table: {
                         serverName: "Pangalan ng Server",
                         sendStatus: "Katayuan ng Pagpapadala",
@@ -2553,7 +3161,8 @@ const tagalogTranslation: TranslationType = {
                         trusteeName: "Miyembro",
                         signed: "Napirmahan",
                     },
-                    status: "{{signed}} sa {{total}} Napirmahan",
+                    status: "{{signed}} sa {{total}}, {{minimum}} ang kailangan",
+                    statusNoMinimum: "{{signed}} sa {{total}}",
                 },
             },
             sendToTransmissionPackageServers:
@@ -2574,15 +3183,17 @@ const tagalogTranslation: TranslationType = {
             logsTitle: "Mga Logs",
             resultsTitle: "Mga Resulta at Pakikilahok",
             generalInfoTitle: "Pangkalahatang Impormasyon",
+            sessionId: "ID ng sesyon ng pagbilang",
+            selectedQuorum: "Napiling quorum",
             trusteeTallyTitle: "Tagapagtiwala",
-            trusteeTallySubTitle: "Katayuan ng pag-import ng fragment ng key",
+            trusteeTallySubTitle: "Katayuan ng pagkumpirma ng pag-iingat",
             ballotBoxes: {
                 unavailable: "Hindi makuha ang mga seal",
                 sealed: "{{sealed}} sa {{total}} ang naka-seal",
-                publishing: "Naka-seal, {{published}} sa {{total}} ang nasa bulletin board",
+                publishing: "Naka-seal, {{published}} sa {{total}} na seal record ang naipaskil",
                 sealing: "Ise-seal sa {{time}}",
                 notSealed: "Hindi naka-seal",
-                help: "Maaaring i-tally ang isang halalan kapag naka-seal na ang bawat ballot box nito at nasa bulletin board na ang seal nito.",
+                help: "Maaaring i-tally ang isang halalan kapag naka-seal na ang bawat ballot box nito at naipaskil na ang seal record nito.",
                 failed: "Hindi naka-seal: insidente",
                 overdue: "Lampas na sa oras ng pag-seal",
                 blocked: "{{name}}: {{reason}}",
@@ -2592,7 +3203,7 @@ const tagalogTranslation: TranslationType = {
                     "sealing": "sine-seal ang mga ballot box nito kapag natapos ang grace period",
                     "overdue":
                         "lampas na sa oras ang mga ballot box nito at hindi pa naka-seal (tingnan ang Dashboard nito)",
-                    "publishing": "ipinapaskil pa sa bulletin board ang ilan sa mga seal nito",
+                    "publishing": "ipinapaskil pa ang seal record ng ilan sa mga ballot box nito",
                     "failed":
                         "may ballot box na hindi na-seal, isang insidente (tingnan ang Dashboard nito)",
                     "unavailable": "hindi mabasa ang mga seal ng mga ballot box nito",
@@ -2609,7 +3220,7 @@ const tagalogTranslation: TranslationType = {
                 endVoting:
                     "Tapusin ang pagboto sa bawat napiling halalan at ihinto ang mga aktibong channel bago gumawa ng pagbibilang.",
                 sealBallotBoxes:
-                    "Maaaring i-tally ang isang halalan kapag naka-seal na ang bawat ballot box nito at nasa bulletin board na ang seal nito.",
+                    "Maaaring i-tally ang isang halalan kapag naka-seal na ang bawat ballot box nito at naipaskil na ang seal record nito.",
             },
             createTallySuccess: "Pagbibilang na ginawa",
             createTallyError: "Error sa paggawa ng pagbibilang",
@@ -2627,7 +3238,8 @@ const tagalogTranslation: TranslationType = {
             recountTallyCeremonyError: "Hindi nasimulan ang muling pagbibilang",
             recountTallyCeremonyOk: "Muling bilangin",
             trusteeTitle: "Proseso ng tagapagtiwala",
-            trusteeSubTitle: "Pakilagay ang iyong fragment ng key",
+            trusteeSubTitle:
+                "I-upload ang na-save na file ng kustodiya o isang nilagdaang patunay ng kustodiya:",
             invited: "Naanyayahan kang lumahok sa isang seremonya ng pagbibilang. Pakisuyo, ",
             click: "i-click ang aksyon ng pagbibilang",
             participate: "para lumahok.",
@@ -2644,9 +3256,9 @@ const tagalogTranslation: TranslationType = {
                 cancel: "Bumalik",
                 next: "Susunod",
                 date: "Petsa ng Pagbibilang",
-                global: "Global",
+                global: "Lahat ng lugar",
                 noTrustees: "Walang mga tagapagtiwala pa",
-                imported: " tagapagtiwala ang nag-import ng kanilang fragment ng key",
+                imported: " tagapangasiwa ang nagkumpirma ng pag-iingat",
                 needed: " tagapagtiwala ang kailangan para sa pagbibilang",
                 start: "Simulan ang Pagbibilang",
                 ceremony: "Simulan ang Seremonya ng Pagbibilang",
@@ -2661,11 +3273,11 @@ const tagalogTranslation: TranslationType = {
                     tallyTitle: "Sigurado ka bang gusto mong simulan ang pagbibilang?",
                     cancelTitle: "Sigurado ka bang gusto mong kanselahin ang pagbibilang?",
                     message:
-                        "Malapit ka nang magsimula ng isang seremonya ng pagbibilang. Aabisuhan nito ang mga tagapagtiwala para i-import ang kanilang mga fragment ng key.",
+                        "Humihingi ang seremonyang ito ng pampublikong patunay ng pag-iingat mula sa mga tagapangasiwa. Panatilihing aktibo ang kanilang mga runner kasama ang lokal na estado ng protocol.",
                     cancelMessage:
                         "Malapit ka nang kanselahin ang seremonya ng pagbibilang. Hindi na mababawi ang aksyong ito.",
                     ceremony:
-                        "Na-verify na ng lahat ng kinakailangang tagapagtiwala ang kanilang mga fragment ng key. Handa na ang lahat para simulan ang pagtanggap ng mga resulta. Nais mo bang simulan ang Pagbibilang?",
+                        "Nakumpirma na ng mga kinakailangang tagapangasiwa ang pag-iingat. Simulan ang pagbilang habang aktibo ang kanilang mga runner?",
                     startAutomatedTallyMessage:
                         "Piliin ang 'Start Tally' upang patakbuhin ang proseso ng pagbilang at ipakita ang mga resulta, o 'Close' upang kanselahin.",
                 },
@@ -2730,7 +3342,7 @@ const tagalogTranslation: TranslationType = {
                 round: "Ikot {{round}}",
                 tieResolutionRequired: "Kinakailangan ang resolusyon sa ugnayan",
                 tieResolved: "Naresolba ang ugnayan",
-                globalArea: "Global",
+                globalArea: "Lahat ng lugar",
                 pendingResolutionsHeader: "Mga nakabinbing resolusyon",
                 pendingResolutionStatus: "Nakabinbing resolusyon",
                 resolvedStatus: "Naresolba",
@@ -2744,7 +3356,7 @@ const tagalogTranslation: TranslationType = {
                 filter: "I-filter",
                 save: "I-save",
                 pendingApplyStatus: "Nakabinbing kalkulasyon",
-                filterElection: "Eleksyon",
+                filterElection: "Halalan",
                 filterContest: "Paligsahan",
                 filterArea: "Lugar",
                 filterStatusLabel: "Katayuan",
@@ -2954,7 +3566,7 @@ const tagalogTranslation: TranslationType = {
             title: "Ipadala ang Abiso",
             subtitle: "Magpadala ng abiso sa mga botante.",
             sendButton: "Ipadala ang Abiso",
-            voters: "Audience",
+            voters: "Mga tatanggap",
             schedule: "Iskedyul",
             nowInput: "Ipadala ngayon",
             dateInput: "Petsa at oras para magsimulang magpadala ng mga abiso",
@@ -2962,7 +3574,7 @@ const tagalogTranslation: TranslationType = {
             languages: "Mga Wika",
             smsMessage: "Mensaheng SMS",
             errorSending: "Error sa pagpapadala ng abiso: {{error}}",
-            successSending: "Nakaprograma/naipadala nang matagumpay ang abiso",
+            successSending: "Matagumpay na naiskedyul ang abiso",
             method: "Pamamaraan ng Mga Template",
             type: "Uri ng Komunikasyon",
             alias: "Alias ng Template",
@@ -2985,7 +3597,7 @@ const tagalogTranslation: TranslationType = {
                 MESSENGER: "Facebook Messenger",
             },
             communicationType: {
-                CREDENTIALS: "Credentials",
+                CREDENTIALS: "Mga kredensyal",
                 BALLOT_RECEIPT: "Resibo ng Balota",
             },
             email: {
@@ -3006,8 +3618,8 @@ const tagalogTranslation: TranslationType = {
                 history: "Kasaysayan ng Paglalathala",
             },
             action: {
-                start: "Simulan ang Eleksyon",
-                stop: "Itigil ang Eleksyon",
+                start: "Simulan ang Halalan",
+                stop: "Itigil ang Halalan",
                 pause: "Pansamantala",
                 generate: "I-regenerate",
                 publish: "I-publish ang mga Pagbabago",
@@ -3025,9 +3637,9 @@ const tagalogTranslation: TranslationType = {
                 unknownCountingAlgorithm:
                     "Hindi nakikilala ang counting algorithm ng paligsahang ito ({{countingAlgorithm}}), kaya hindi matukoy ang pinapayagang bilang ng mga boto ng kandidato. Suriin ang konpigurasyon ng paligsahan.",
                 blankBallotsInconsistent:
-                    "Ang Blangkong Balota ay dapat magkaroon ng parehong halaga sa bawat sheet ng kontest sa kahong ito",
+                    "Ang Blangkong Balota ay dapat magkaroon ng parehong halaga sa bawat sheet ng paligsahan sa kahong ito",
                 blankBallotsOutOfBounds:
-                    "Ang halaga ng Blangkong Balota ay wala sa hanay na ipinahihiwatig ng bilang ng blangkong boto bawat kontest sa kahong ito",
+                    "Ang halaga ng Blangkong Balota ay wala sa hanay na ipinahihiwatig ng bilang ng blangkong boto bawat paligsahan sa kahong ito",
             },
             label: {
                 area: "Lugar",
@@ -3151,7 +3763,7 @@ const tagalogTranslation: TranslationType = {
                 title: "I-edit ang Template",
             },
             form: {
-                smsMessage: "SMS Message",
+                smsMessage: "Mensaheng SMS",
                 document: "Dokumento",
                 pdfOptions: "Mga Opsyon sa PDF",
                 reportOptions: "Mga Pagpipilian sa Ulat",
@@ -3268,6 +3880,7 @@ const tagalogTranslation: TranslationType = {
                 },
             },
             languages: {
+                logsTimezone: "Timezone para sa log ng tenant",
                 default: "Default na Wika",
             },
         },
@@ -3332,6 +3945,9 @@ const tagalogTranslation: TranslationType = {
                     title: "Walang laman dito",
                     text: "Lalabas dito ang mga pagpapatalang may ganitong katayuan. Subukan ang ibang paghahanap o katayuan.",
                 },
+                searchHelp:
+                    "Isang pangalan, email o numero ng ID, o ang reference para sa suporta na ibinigay sa botante, gaya ng Q5KW-8RFX.",
+                referenceError: "Hindi mahanap ang reference para sa suporta.",
             },
             flow: {
                 stepsLabel: "Mga hakbang ng pagsusuri",
@@ -4228,7 +4844,7 @@ const tagalogTranslation: TranslationType = {
         certificateAuthorities: {
             title: "Mga Sertipiko",
             subtitle:
-                "Mga pinagkakatiwalaang awtoridad sa sertipikasyon (CA) para sa kaganapang ito ng eleksyon. Ang mga na-import na CA ay ginagamit upang mapatunayan ang mga sertipiko ng botante.",
+                "Mga pinagkakatiwalaang awtoridad sa sertipikasyon (CA) para sa kaganapang ito ng halalan. Ang mga na-import na CA ay ginagamit upang mapatunayan ang mga sertipiko ng botante.",
             importButton: "Mag-import ng mga sertipiko",
             type: {
                 root: "Ugat",
@@ -4824,7 +5440,7 @@ const tagalogTranslation: TranslationType = {
                 keys_ceremony_id: "Seremonya",
                 tally_session_id: "Tally session",
                 trustee_id: "Trustee",
-                key_share_sha256: "SHA-256 ng piraso ng susi",
+                custody_proof_sha256: "SHA-256 ng patunay ng pag-iingat",
                 channel: "Channel",
                 channels: "Mga channel",
                 publication_id: "Paglalathala ng balota",
@@ -4929,22 +5545,23 @@ const tagalogTranslation: TranslationType = {
                 afterApproval: "Pagkatapos ng pag-apruba",
                 afterApprovalValue:
                     "Ibinibigay at ipinapadala sa botante ang kanyang mga credential",
-                keyShare: "Ang iyong piraso ng susi",
-                keyShareChecked: "Nasuri: ito ang iyong piraso ng susi para sa seremonyang ito",
+                custodyProof: "Ang iyong patunay ng pag-iingat",
+                custodyProofChecked:
+                    "Nasuri: ito ang iyong patunay ng pag-iingat para sa seremonyang ito",
                 recordedIn: "Itinatala sa",
                 recordedInCeremony: "Ang seremonya ng mga susi at ang bulletin board",
                 recordedInTally: "Ang tally session",
             },
-            keyShare: {
+            custodyProof: {
                 signing:
-                    "Pirmahan ang iyong piraso ng susi sa panel ng pagpirma. Itatala ito kapag napirmahan mo na.",
-                record: "Itala ang aking piraso ng susi",
-                failed: "Hindi maitala ang iyong pinirmahang piraso ng susi: {{error}}",
+                    "Pirmahan ang iyong patunay ng pag-iingat sa panel ng pagpirma. Itatala ito kapag napirmahan mo na.",
+                record: "Itala ang aking patunay ng pag-iingat",
+                failed: "Hindi maitala ang iyong pinirmahang patunay ng pag-iingat: {{error}}",
                 dropAgain:
-                    "I-drop muli ang file ng iyong piraso ng susi para maitala ang iyong pinirmahang piraso ng susi.",
-                redo: "Naiambag ang iyong piraso ng susi nang walang pirma mo, na kailangan na ngayon ng halalang ito. Iambag itong muli at pirmahan.",
+                    "I-drop muli ang file ng iyong patunay ng pag-iingat para maitala ang iyong pinirmahang patunay ng pag-iingat. (signed-custody-proof.json)",
+                redo: "Naiambag ang iyong patunay ng pag-iingat nang walang pirma mo, na kailangan na ngayon ng halalang ito. Iambag itong muli at pirmahan.",
                 notTaken:
-                    "Hindi na tinatanggap ng seremonya ang piraso ng susi na ito. I-drop muli ang file ng iyong piraso ng susi.",
+                    "Hindi na tinatanggap ng seremonya ang patunay ng pag-iingat na ito. I-drop muli ang file ng iyong patunay ng pag-iingat. (signed-custody-proof.json)",
             },
         },
         lifecycle: {
@@ -5348,10 +5965,8 @@ const tagalogTranslation: TranslationType = {
             sections: {
                 channels: "Mga channel",
                 templates: "Mga aprubadong template",
-                fallback: "Pagkakasunod-sunod ng fallback para sa mga abiso",
                 posts: "Mga channel ayon sa Post",
                 postsCount: "Mga channel ayon sa Post ({{count}} Post)",
-                reply: "Sagot sa mga papasok na mensahe",
                 delivery: "Katayuan ng paghahatid",
             },
             column: {
@@ -5362,27 +5977,38 @@ const tagalogTranslation: TranslationType = {
                 template: "Template ng provider",
                 status: "Katayuan",
                 post: "Post",
-                key: "Para sa mensahe",
+                key: "Uri ng mensahe o template",
                 providerLanguage: "Wika ng provider",
+                voters: "Mga botanteng gumagamit nito",
+                sent24h: "Naipadala, huling 24 oras",
+                sent24hHelp:
+                    "Bawat mensahe na ang huling pagsubok ay nasa nakaraang 24 na oras, anuman ang estado, kasama ang mga nabigo. Binibilang ng mga column ng estado ang lahat ng mensahe ng event.",
             },
             outOfWindow: {
-                label: "Sa labas ng window ng usapan",
-                help: "Ipinapadala lamang ang mga abisong free text habang bukas ang window ng usapan: sa Messenger, sa loob ng 24 na oras mula sa huling mensahe ng botante. Piliin ang Mga utility message para makapagpadala ng mga abiso pagkatapos nito gamit ang aprubadong template. Dapat itong aprubahan ng Meta para sa Page (ang pahintulot na page_utility_messaging at isang aprubadong UTILITY template), at dapat nakaugnay ang template na iyon sa mga abiso sa ilalim ng Mga aprubadong template. Kapag Huwag ipadala, mapupunta ang abisong nasa labas ng window sa susunod na magagamit na channel ng botante.",
-                DISABLED: "Huwag ipadala",
-                UTILITY_MESSAGES: "Mga utility message",
-                noTemplate:
-                    "Wala pang template na nakaugnay sa mga abiso sa channel na ito. Magdagdag ng isa sa ilalim ng Mga aprubadong template; hanggang doon, mapupunta ang mga abisong nasa labas ng window sa susunod na magagamit na channel ng botante.",
+                utility:
+                    "Sa labas ng 24 na oras na window, ipinapadala ng {{channel}} ang mga abiso gamit ang aprubadong utility template na nakaugnay sa mga abiso sa Mga aprubadong template.",
+            },
+            messageTypes: {
+                otp: "Code ng pagpapatunay",
+                otl: "Link sa pag-sign in",
+                enrollmentAccepted: "Tinanggap ang pagpaparehistro",
+                enrollmentAcceptedKiosk: "Tinanggap ang pagpaparehistro (kiosk)",
+                enrollmentPending: "Naghihintay ng pag-apruba ang pagpaparehistro",
+                enrollmentRejected: "Tinanggihan ang pagpaparehistro",
+                passwordReset: "Pag-reset ng password",
+                temporaryPassword: "Pansamantalang password",
+                contactChanged: "Binago ang paraan ng pakikipag-ugnayan",
             },
             templates: {
                 empty: "Pumili ng account na nagpapadala ng mga aprubadong template, gaya ng WhatsApp, Viber o Messenger, para iugnay dito ang mga template nito.",
-                help: "Sinasabi ng bawat hilera kung aling aprubadong template ang ipinapadala ng provider para sa isang mensahe. Ang Para sa mensahe ay ang alias ng isang template sa Templates, para sa isang notification, o ang message key na ipinapadala ng Keycloak, gaya ng otp; iwanang walang laman para sa template na ginagamit bilang default para sa layunin. Ang Wika ay ang wika ng botante. Ang Template ng provider ay ang pangalan o ID ng template sa provider. Ang Wika ng provider ay ang code ng provider para sa template na iyon kapag iba ito sa wika ng botante: kailangan ng WhatsApp ang eksaktong code ng aprubadong template, gaya ng en_US.",
+                help: "Pumili ng uri ng mensahe ng sistema o alias mula sa Mga Template. Iwanang walang laman upang gamitin ang aprubadong template bilang default para sa layuning ito. Ang Wika ay ang wika ng botante. Ang Template ng provider ay ang pangalan o ID ng template sa provider. Ang Wika ng provider ay ang code ng provider para sa template na iyon kapag iba ito sa wika ng botante: kailangan ng WhatsApp ang eksaktong code ng aprubadong template, gaya ng en_US.",
                 order: "Para sa bawat mensahe, ang pinakatiyak na hilera ang nananaig: ang hilera para sa mensahe sa wika ng botante, pagkatapos ang hilera para sa mensahe sa anumang wika, pagkatapos ang default para sa layunin sa wika ng botante, at panghuli ang anumang default para sa layunin.",
                 noneRequired:
                     "Mga aprubadong template lamang ang ipinapadala ng {{channel}}. Magdagdag ng kahit isang default na template para sa bawat layuning ginagamit.",
                 noneOptional:
                     "Walang template na nakaugnay para sa {{channel}}. Kailangan lamang ang mga ito para magpadala ng mga abiso sa labas ng window ng usapan.",
                 row: "Template {{position}} ng {{channel}}",
-                keyDefault: "Default para sa layunin",
+                keyDefault: "Default para sa layuning ito",
                 add: "Magdagdag ng template ng {{channel}}",
                 remove: "Alisin ang template {{position}} ng {{channel}}",
                 incomplete:
@@ -5390,15 +6016,8 @@ const tagalogTranslation: TranslationType = {
                 approval: {
                     APPROVED: "Aprubado",
                     NOT_APPROVED: "Hindi aprubado",
-                    ADMIN_CONFIRMED: "Kinumpirma ng administrator",
                     NOT_CHECKED: "Hindi pa nasusuri ang pag-apruba",
                 },
-            },
-            fallback: {
-                help: "Kapag hindi maabot ng abiso ang botante sa kanyang channel, mapupunta ito sa susunod na channel sa pagkakasunod-sunod na ito na na-verify ng botante at inaalok ng kanyang Post. Hindi kailanman muling ipinapadala nang kusa ang mga code: ang botante ang pipili ng ibang paraan.",
-                empty: "I-on ang mga abiso ng isang channel para idagdag ito sa fallback.",
-                earlier: "Ilipat ang {{channel}} nang mas maaga",
-                later: "Ilipat ang {{channel}} nang mas huli",
             },
             posts: {
                 noChannels:
@@ -5413,13 +6032,18 @@ const tagalogTranslation: TranslationType = {
                 showing:
                     "Ipinapakita ang {{shown}} sa {{total}} Post. Maghanap para makita ang iba.",
             },
-            reply: {
-                help: "Ipinapadala kapag sumulat ang botante sa isa sa mga account ng event na ito, hindi hihigit sa isang beses bawat araw bawat botante.",
-                label: "Sagot ({{language}})",
-            },
             delivery: {
+                notConfigured: "Hindi iniaalok ng event na ito",
                 empty: "Walang channel na ginagamit.",
-                help: "Ang Tinanggap ay nangangahulugang tinanggap ng provider ang kahilingan, hindi na natanggap o na-verify ng botante ang code. Ang Hindi alam ay nangangahulugang hindi pa kumpirmado ang paghahatid. Ang provider na walang ulat ng paghahatid ay nagpapakita ng paghahatid bilang hindi available.",
+                help: "Bawat mensahe ang bilang, ayon sa katayuan ng huling pagsubok nito. Ang Tinanggap ay nangangahulugang tinanggap ng provider ang mensahe, hindi na natanggap ito ng botante. Ang Hindi alam ay nangangahulugang hindi pa kumpirmado ang paghahatid; pagkalipas ng 24 na oras, ipinapakita ito bilang Hindi nalutas, hindi kailanman bilang nabigo. Ang account na walang ulat ng paghahatid ay nagpapakita ng paghahatid bilang hindi available.",
+                loadError: "Hindi ma-load ang bilang ng mga mensahe.",
+                noReceipts:
+                    "Walang natatanggap na ulat ng paghahatid ang account na ito, kaya hindi maipapakita ang paghahatid.",
+                showFailed: "Ipakita sa Mga Log ang mga nabigong mensahe sa {{channel}}",
+                noChannelHelp:
+                    "Mga botanteng walang nakatalang channel para makipag-ugnayan. Nabibigo ang kanilang mga abiso at hindi kailanman ibinibilang sa isang channel.",
+                showFailedNoChannel:
+                    "Ipakita sa Mga Log ang mga nabigong mensahe ng mga botanteng walang channel para makipag-ugnayan",
             },
             error: {
                 UNSUPPORTED_VERSION:
@@ -5435,14 +6059,18 @@ const tagalogTranslation: TranslationType = {
                     "Hindi aprubado ng provider ang template ng {{channel}} para sa {{purpose}} sa {{language}}.",
                 OUT_OF_WINDOW_NOT_SUPPORTED:
                     "Hindi makakapagpadala ang {{channel}} sa labas ng window ng usapan gamit ang account na ito: wala itong window ng usapan, o kailangan na ng template ang mga abiso nito.",
-                FALLBACK_CHANNEL_NOT_ENABLED:
-                    "Nasa fallback ang {{channel}} pero hindi ito nagpapadala ng mga abiso.",
-                DUPLICATE_FALLBACK_CHANNEL:
-                    "Higit sa isang beses na nasa fallback ang {{channel}}.",
                 ELECTION_CHANNEL_NOT_ENABLED:
                     "Inaalok ng {{election}} ang {{channel}}, na hindi ginagamit ng event na ito.",
                 UNKNOWN_ELECTION: "Ang {{election}} ay hindi halalan ng event na ito.",
+                UTILITY_TEMPLATE_MISSING:
+                    "Kailangan ng mga abiso ng {{channel}} sa labas ng 24 na oras na window ang aprubadong utility template. Iugnay ito sa mga abiso sa Mga aprubadong template.",
             },
+            noReadPermission:
+                "Kailangan ang pahintulot na messaging-config-read para mabasa ang mga setting na ito.",
+            chooseAccount: "Pumili muna ng account.",
+            needsSavingAgain: "Kailangang i-save muli ang configuration.",
+            needsSavingAgainHelp:
+                "Kinopya ito mula sa dating storage at hindi ito pumasa sa mga pagsusuring ginagawa sa pag-save. Ayusin ang mga problemang ipinapakita, saka i-save itong muli.",
         },
         messaging: {
             channel: {
@@ -5454,13 +6082,13 @@ const tagalogTranslation: TranslationType = {
             },
             provider: {
                 AWS_SES: "Amazon SES",
-                SMTP: "SMTP server",
+                SMTP: "Server ng SMTP",
                 AWS_SNS: "Amazon SNS",
                 WHATSAPP_CLOUD_API: "WhatsApp Cloud API (Meta)",
                 MESSENGER_SEND_API: "Messenger Platform (Meta)",
                 VIBER_INFOBIP: "Viber Business Messages (Infobip)",
-                CONSOLE: "Console (pagsubok lamang, walang ipinapadala)",
-                HTTP_API: "Custom na HTTP API",
+                CONSOLE: "Console (hindi na suportado)",
+                HTTP_API: "Pasadyang HTTP API (hindi na suportado)",
             },
             purpose: {
                 OTP: "Mga code",
@@ -5472,6 +6100,7 @@ const tagalogTranslation: TranslationType = {
                 DELIVERED: "Naihatid",
                 FAILED: "Nabigo",
                 UNKNOWN: "Hindi alam",
+                UNRESOLVED: "Hindi nalutas",
             },
             stateHelp: {
                 QUEUED: "Naghihintay na maipasa sa provider.",
@@ -5480,13 +6109,19 @@ const tagalogTranslation: TranslationType = {
                 DELIVERED: "Iniulat ng provider na naihatid ang mensahe.",
                 FAILED: "Kinumpirma ng provider na hindi naihatid ang mensahe.",
                 UNKNOWN: "Hindi pa kumpirmado ang paghahatid.",
+                UNRESOLVED:
+                    "Hindi nakumpirma ang paghahatid sa loob ng 24 na oras. Hindi ito nangangahulugang nabigo ito.",
             },
             blocker: {
+                UNCHECKED: "Hindi pa nasusuri para sa kasalukuyang numero, Page o sender nito",
                 NOT_CONNECTED: "Hindi nakakonekta",
                 UNSUPPORTED_PURPOSE: "Hindi sinusuportahan ng provider na ito",
                 NEEDS_PROVIDER_APPROVAL: "Kailangan ng pag-apruba ng provider",
                 NEEDS_PRODUCTION_ACCESS: "Kailangan ng production access",
                 NEEDS_APPROVED_TEMPLATE: "Kailangan ng aprubadong template",
+                UNSUPPORTED_PROVIDER: "Hindi suportadong provider: palitan ang account na ito",
+                CALLBACK_NOT_CONFIGURED: "Hindi naka-configure ang callback address",
+                REPORT_CREDENTIALS_MISSING: "Hindi pa nabubuo ang mga kredensyal para sa ulat",
             },
             readiness: {
                 connected: "Nakakonekta",
@@ -5496,25 +6131,21 @@ const tagalogTranslation: TranslationType = {
                 notReady: "Hindi pa handa",
                 lastCheck: "Sinuri {{date}}",
                 neverChecked: "Hindi pa nasusuri",
-                adminConfirmed: "Kinumpirma ng administrator",
-                checkNotUsed: "Hindi ginagamit ang pagsusuri",
             },
             approval: {
                 PENDING: "Hinihintay ang pag-apruba ng provider",
                 CONFIRMED: "Kumpirmado ang pag-apruba ng provider",
             },
             credential: {
-                ACCESS_TOKEN: "Access token",
-                APP_SECRET: "App secret",
-                VERIFY_TOKEN: "Verify token",
-                API_KEY: "API key",
-                SMTP_PASSWORD: "Password",
-                AWS_ACCESS_KEY_ID: "AWS access key ID",
-                AWS_SECRET_ACCESS_KEY: "AWS secret access key",
-                API_SECRET: "API secret",
-                USERNAME: "Username",
-                PASSWORD: "Password",
-                WEBHOOK_SECRET: "Webhook secret",
+                ACCESS_TOKEN: "Token sa pag-access",
+                APP_SECRET: "Lihim ng app",
+                VERIFY_TOKEN: "Token sa pag-verify",
+                API_KEY: "Susi ng API",
+                SMTP_PASSWORD: "Password ng server",
+                AWS_ACCESS_KEY_ID: "ID ng access key ng AWS",
+                AWS_SECRET_ACCESS_KEY: "Lihim na access key ng AWS",
+                REPORT_USERNAME: "Pangalan ng user para sa mga ulat",
+                REPORT_PASSWORD: "Password para sa mga ulat",
             },
             deliveryUnavailable: "Hindi available ang paghahatid",
             templates: {
@@ -5522,12 +6153,12 @@ const tagalogTranslation: TranslationType = {
                 parameters: "Mga parameter ng template",
                 parametersHelp:
                     "Kung ano ang pupuno sa bawat placeholder ng aprubadong template, ayon sa pagkakasunod, gaya ng user.first_name o vote_url. Para sa template na may mga pinangalanang parameter, isulat ang @pangalan=halaga, gaya ng @first_name=user.first_name; positional ang anumang ibang entry.",
-                parameter: "Parameter {{position}}",
+                parameter: "Parametro {{position}}",
                 removeParameter: "Alisin ang parameter {{position}}",
                 addParameter: "Magdagdag ng parameter",
                 noAccount:
                     "Wala pang {{channel}} account. Magdagdag sa Settings > Messaging para makita kung aling mga wika ang aprubado.",
-                account: "Account",
+                account: "Akawnt",
                 approvalTitle: "Mga aprubadong template",
                 language: "Wika",
                 approvalFor: "Aprubado para sa {{purpose}}",
@@ -5539,7 +6170,7 @@ const tagalogTranslation: TranslationType = {
                     "Sa loob ng 24 na oras mula sa huling mensahe ng botante, ipinapadala ng Messenger ang teksto sa ibaba.",
                 messengerMessage: "Mensahe sa loob ng 24 na oras",
                 messengerWindow:
-                    "Ang naka-save na Messenger recipient ay hindi pahintulot na magpadala. Sa labas ng 24 na oras na window, ipinapadala ang abisong ito bilang utility message kapag pinapayagan ito ng election event at may aprubadong template na nakatakda sa ibaba o nakaugnay sa event; kung hindi, mapupunta ito sa susunod na magagamit na channel ng botante. Kailangan ng mga utility message ang pahintulot na page_utility_messaging at isang aprubadong UTILITY template sa Page.",
+                    "Ang naka-save na Messenger recipient ay hindi pahintulot na magpadala. Sa labas ng 24 na oras na window, ipinapadala ang abisong ito gamit ang aprubadong utility template na nakatakda sa ibaba o nakaugnay sa election event; kung wala nito, hindi ito ipinapadala, at ipinapakita ang pagkabigo kasama ang dahilan. Kailangan ng mga utility message ang pahintulot na page_utility_messaging at isang aprubadong UTILITY template sa Page.",
                 intro: {
                     WHATSAPP:
                         "Nagpapadala lamang ang WhatsApp ng mga template na inaprubahan ng Meta para sa WhatsApp Business Account. Dapat tumugma ang mensahe sa aprubadong template; piliin kung ano ang pupuno sa mga parameter nito.",
@@ -5555,46 +6186,112 @@ const tagalogTranslation: TranslationType = {
                 providerLanguage: "Language code ng provider",
                 providerLanguageHelp: {
                     WHATSAPP:
-                        "Ang eksaktong language code ng aprubadong template ng WhatsApp, gaya ng en_US.",
+                        "Gamitin ang eksaktong code ng wika ng aprubadong WhatsApp template, gaya ng en o en_US. Kailangan lang ng code ng rehiyon kung iyon ang ginamit sa pag-apruba ng template.",
                     VIBER: "Ang language code kung saan kilala ng provider ng Viber ang template, kapag kailangan nito.",
                     MESSENGER: "Ang language code ng aprubadong utility template, gaya ng en_US.",
                 },
-                approvalAdminConfirmed:
-                    "Kinumpirma ng isang administrator sa provider na aprubado ang mga template ng account na ito, kaya hindi ginagamit ang mga pag-apruba mula sa pagsusuri ng koneksyon.",
+                noReadPermission:
+                    "Kailangan ang pahintulot na messaging-config-read para mabasa ang mga account.",
             },
             send: {
-                channel: "Channel",
                 eachVoter: "Channel ng bawat botante",
-                only: "{{channel}} lamang",
                 eachVoterHelp:
-                    "Ang mga kumpirmadong pagkabigo ay gagamit ng susunod na available na verified channel. Ang hindi kumpirmadong paghahatid ay ipinapakita bilang Hindi alam.",
-                onlyHelp: "Ipinapadala ang abisong ito sa bawat botante sa {{channel}}.",
+                    "Bawat botante ay tumatanggap ng isang mensahe sa sarili niyang channel. Kung mabigo ang paghahatid, susubukan itong muli sa channel na iyon at makikita ang pagkabigo sa tab na Pagmemensahe ng event. Ang hindi kumpirmadong paghahatid ay ipinapakita bilang Hindi alam.",
                 channelColumn: "Channel",
                 sendsFrom: "Ipinapadala mula sa",
                 noAccount: "Walang account",
                 missingContent: "Walang nilalaman ang abisong ito para sa {{channels}}.",
                 approvedTemplateHelp:
-                    "Ipinapadala gamit ang template na inaprubahan ng provider. I-edit ito sa Templates.",
-                providerTemplate: "Template ng provider ng {{channel}}",
-                providerTemplateHelp:
-                    "Opsyonal. Kapag walang laman, ginagamit ang template ng event na nakaugnay sa alias ng napiling template, o ang default ng event para sa mga abiso.",
-                providerLanguage: "Wika ng provider ng {{channel}}",
-                providerLanguageHelp:
-                    "Ang language code ng provider para sa template na iyon, gaya ng en_US.",
+                    "Dahil aprubado ng provider ang mga template ng {{channel}}, hindi mababago rito ang teksto, template ng provider, at wika. Pumili ng ibang naka-save na template para gumamit ng ibang aprubadong nilalaman.",
+                voters: "Mga botante",
+                environment: "Ang default na nagpapadala ng deployment",
+                noNoticeChannels:
+                    "Walang channel na naka-on para sa mga abiso sa mga setting ng pagmemensahe ng event na ito, kaya walang botanteng makakatanggap ng abisong ito. I-on ang mga abiso ng isang channel sa tab na Pagmemensahe ng event.",
+                noReadPermission:
+                    "Kailangan ang pahintulot na messaging-config-read para maipakita ang channel ng bawat botante. Matatanggap pa rin ng bawat botante ang abiso sa sarili niyang channel.",
+            },
+            audience: {
+                notOfferedRow:
+                    "Walang Post ng mga botanteng ito ang nag-aalok ng channel na ito para sa mga abiso, kaya walang isa man sa kanila ang makakatanggap: {{reason}}.",
+                willSend: "Makakatanggap ng abiso: {{willSend}}",
+                selectedTimedOut:
+                    "Masyadong natagalan ang pagbilang sa mga piniling botante, kaya walang ipinapakitang bilang. Matatanggap pa rin ng bawat botante ang abiso sa sarili niyang channel.",
+                notSent: "Hindi ipinapadala",
+                deletedAccount: "Binurang account",
+                notOffered: "{{notOffered}} sa kanila ang hindi makakatanggap: {{reason}}.",
+                noAccountHelp:
+                    "Walang account na nagpapadala sa channel na ito, kaya pumapalya ang mga abiso sa mga botanteng ito: {{reason}}.",
+                noChannelHelp:
+                    "Walang nakatalang contact channel ang mga botanteng ito. Wala silang natatanggap, at bawat isa ay lumalabas na pumalya: {{reason}}.",
+                total: "Mga botante sa audience na ito: {{total}}",
+                loadError:
+                    "Hindi ma-load ang bilang ng mga botante. Matatanggap pa rin ng bawat botante ang abiso sa sarili nilang channel.",
+            },
+            voterCount: {
+                countedAt: "Binilang: {{time}}.",
+                never: "Hindi pa nabibilang.",
+                pending: "May muling pagbilang na paparating.",
+                timedOut: "Masyadong natagalan ang huling muling pagbilang kaya itinigil ito.",
+                failed: "Pumalya ang huling muling pagbilang.",
+                previous: "Ang mga ipinapakitang bilang ay mula sa naunang pagbilang.",
+                recount: "Bilangin muli",
+                recountAsked:
+                    "Hiniling ang muling pagbilang. Maa-update ang mga bilang kapag natapos ito.",
+                recountAlreadyAsked: "May muling pagbilang na paparating na.",
+                recountError: "Hindi mahiling ang muling pagbilang.",
+                loadError: "Hindi ma-load ang bilang ng mga botante.",
+            },
+            volumes: {
+                title: "Buwanang dami",
+                intro: "Mga pagtatangkang ipinasa sa isang provider bawat buwan, ayon sa channel, account na nagpapadala, bansang pinadalhan at kategorya ng singil, para maitugma ang mga invoice ng mga provider. Binibilang ang bawat pagtatangka sa buwan kung kailan ito ginawa, kaya muling binibilang ang muling pagsubok. Ang kategorya ng singil ay ang inaasahan sa pagpapadala, o ang iniulat ng provider; kung may singil ang isang pagtatangka ay ayon sa iniulat ng provider. Walang ipinapakitang presyo.",
+                month: "Buwan",
+                monthHelp: "Binibilang ang mga buwan sa UTC.",
+                loading: "Nilo-load ang buwanang dami",
+                loadError: "Hindi ma-load ang dami.",
+                empty: "Walang pagtatangkang ipinasa sa isang provider noong {{month}}.",
+                noPermission:
+                    "Kailangan ang pahintulot na messaging-account-read o messaging-config-read para makita ang dami.",
+                notReported: "Hindi iniulat",
+                deploymentOrDeleted: "Nagpapadala ng deployment o binurang account",
+                category: {
+                    AUTHENTICATION: "Pagpapatunay",
+                    UTILITY: "Pang-utility",
+                    SERVICE: "Serbisyo",
+                    TRANSACTIONAL: "Transaksiyonal",
+                    EMAIL: "Pang-email",
+                },
+                billableYes: "May singil",
+                billableNo: "Walang singil",
+                total: "Lahat ng pagtatangka",
+                column: {
+                    account: "Ipinadala mula sa",
+                    country: "Bansang pinadalhan",
+                    category: "Kategorya ng singil",
+                    billable: "May singil?",
+                    messages: "Mga pagtatangka",
+                },
             },
             voter: {
-                title: "Messaging",
-                preferredChannel: "Gustong channel",
-                whatsappNumber: "WhatsApp number",
-                viberNumber: "Viber number",
-                messengerConnected: "Nakakonekta",
-                messengerNotConnected: "Hindi nakakonekta",
-                verifiedChannels: "Mga verified na channel",
-                noneVerified: "Walang verified na channel",
+                listChannel: "Channel ng mensahe",
+                title: "Pagmemensahe",
                 notSet: "Hindi nakatakda",
+                channel: "Channel",
+                destination: "Ipinapadala sa",
+                messengerPage: "Pahina sa Messenger",
+                consent: "Pagsang-ayon",
+                lastFailure: "Huling pagkabigo",
+                noFailure: "Wala",
+                failureNeedsPermission: "Makikita gamit ang pahintulot na messaging-config-read.",
+                noChannel: "Walang nakatalang paraan ng pakikipag-ugnayan",
+                notConfirmed: "Hindi pa kumpirmado ang paghahatid",
+                notConfirmedHelp:
+                    "Ang huling mensaheng hindi pa kumpirmado ang paghahatid. Pagkalipas ng 24 na oras, ipinapakita ito bilang Hindi nalutas, na hindi nangangahulugang nabigo ito.",
             },
             logs: {
                 channel: "Channel",
+                status: "Katayuan",
+                statusAsLogged:
+                    "Ang katayuan noong isinulat ang entry; kailangan ang pahintulot na messaging-config-read para sa kasalukuyang katayuan.",
             },
             stats: {
                 sent: {
@@ -5603,13 +6300,172 @@ const tagalogTranslation: TranslationType = {
                     MESSENGER: "Mga mensahe sa Messenger na naipadala",
                 },
             },
-            readinessPolicy: {
-                PROVIDER_CHECK: "Mula sa pagsusuri ng provider",
-                ADMIN_CONFIRMED: "Kinumpirma ng administrator",
+            reason: {
+                CANDIDATE_REFUSED:
+                    "Hindi nakakonekta ang mga bagong credential: pinanatili ang mga dati",
+                ACCOUNT_IN_USE:
+                    "Ginagamit ng mga setting sa messaging ng isang election event: alisin muna ito roon",
+                NUMBER_CHANGED:
+                    "Nagpalit ng numero sa WhatsApp ang isang botante: hilingin sa kanya na muling i-verify ang kanyang contact",
+                IDENTITY_CHANGED: "Nagbago ang sending identity ng account: muli itong sinusuri",
+                TEMPLATES_NOT_READ: "Hindi mabasa ang mga template ng provider",
+                PARTNER_LOGIN_REFUSED: "Tinanggihan ng Infobip ang API key ng account",
+                NO_PAGES_MESSAGING: "Walang pahintulot na pages_messaging ang token ng Page",
+                NOT_SUBSCRIBED: "Hindi naka-subscribe ang app sa Page",
+                NUMBER_STATUS_NOT_READ: "Hindi mabasa ang status ng numero",
+                CALLBACK_NOT_CONFIGURED: "Hindi naka-configure ang callback address",
+                UNSUPPORTED_PROVIDER: "Hindi suportadong provider: palitan ang account na ito",
+                CREDENTIALS_FOLLOW_ENDPOINT:
+                    "Ilagay muli ang mga kredensyal para sa bagong address",
+                NO_CONTACT_CHANNEL: "Walang channel para makipag-ugnayan",
+                NOT_RETRYABLE_NO_TEMPLATE: "Hindi masusubukang muli: walang naka-save na template",
+                CHANNEL_NOT_OFFERED_FOR_NOTICES: "Hindi inaalok ang channel para sa mga abiso",
+                CHANNEL_NOT_OFFERED_FOR_CODES: "Hindi inaalok ang channel para sa mga code",
+                NO_CONTENT_FOR_CHANNEL: "Walang nilalaman para sa channel",
+                NO_ACCOUNT_FOR_CHANNEL: "Walang account na nagpapadala para sa channel",
+                INVALID_DESTINATION: "Hindi wastong destinasyon para sa channel",
+                NOT_RETRYABLE_PROTECTED_FIELDS:
+                    "Hindi masusubukang muli: may mga protektadong field",
+                REPORTED_TOO_LATE: "Huli na ang ulat para subukang muli",
+                CHANNEL_CHANGED: "Nagbago ang channel ng botante: hindi na sinubukang muli",
+                WORKER_STOPPED_BEFORE_SENDING: "Huminto ang proseso bago magpadala",
+                WORKER_STOPPED_AFTER_SENDING: "Huminto ang proseso bago maitala ang resulta",
+                CODE_EXPIRED_BEFORE_SENDING: "Nag-expire ang code bago ito maipadala",
+                CAPACITY_BUSY:
+                    "Hindi naipadala: masyadong matagal na nasa limitasyon ng pagpapadala ang account",
+                PROVIDER_ANSWER_LATE:
+                    "Hindi sumagot sa oras ang provider: maaaring naipadala ang mensahe",
+                UNRESOLVED: "Hindi makumpirma ang paghahatid",
+                SELECTED_WITHOUT_VOTERS: "Pumili ng kahit isang botante",
+                WRONG_RECIPIENT_KIND:
+                    "Hindi ito ang uri ng destinasyong pinapadalhan ng channel na ito",
+                UNSUPPORTED_PURPOSE: "Hindi nagpapadala ang provider ng ganitong uri ng mensahe",
+                MISSING_APPROVED_TEMPLATE: "Walang aprubadong template para sa mensaheng ito",
+                OUTSIDE_CONVERSATION_WINDOW: "Nasa labas ng window ng usapan",
+                DESTINATION_NOT_ALLOWED:
+                    "Hindi nagpapadala ang account na ito sa bansa ng destinasyon",
+                CODE_EXPIRED: "Nag-expire na ang code",
+                MISSING_CODE: "Walang code na ipapadala",
+                ENDPOINT_NOT_HTTPS: "Dapat magsimula sa https:// ang address ng provider",
+                PROVIDER_CODE: "Error code ng provider: {{code}}",
+                CHECK_DROPPED: "Nagbago ang account habang sinusuri ito: suriin itong muli",
+                ACCOUNT_NOT_READY: "Hindi naipadala: hindi pa handa ang account ({{blocker}})",
+                PROVIDER_UNREACHABLE: "Hindi maabot ang provider",
+                PROVIDER_STATUS: "Sumagot ang provider nang may status na {{status}}",
+                MISSING_CREDENTIAL: "Kulang ang credential: {{credential}}",
+                PROVIDER_CHECK_FAILED: "Pumalya ang pagsusuri ng provider: {{detail}}",
+                NUMBER_STATUS: "Ang status ng numero ay {{status}}",
+                NUMBER_NAME_STATUS: "Ang display name ng numero ay {{status}}",
+                NUMBER_IN_SANDBOX: "Nasa sandbox mode ang numero",
+                NUMBER_NOT_VERIFIED: "Hindi pa beripikado ang code ng numero",
+                SMS_SANDBOX: "Nasa SMS sandbox ang account",
+                SES_SANDBOX: "Nasa SES sandbox ang account",
+                SES_SENDING_DISABLED: "Naka-disable ang pagpapadala para sa account na ito",
+                SMTP_REFUSED: "Hindi maabot ang SMTP server o tinanggihan ang mga credential",
+                TOKEN_INVALID: "Hindi valid o expired na ang access token",
+                TOKEN_CANNOT_SEND: "Walang pahintulot ang access token na magpadala",
+                TOKEN_NOT_CHECKED: "Hindi masuri ang access token",
+                APP_SECRET_REFUSED: "Tinanggihan ng Meta ang lihim ng app",
+                APP_SECRET_NOT_CHECKED: "Hindi masuri ang lihim ng app",
+                RETRY_NOT_PREPARED: "Hindi masusubukang muli: hindi maihanda muli ang mensahe",
+                NOT_THE_VOTERS_CHANNEL: "Hindi ito ang channel ng botante",
+                REPORT_CREDENTIALS_MISSING:
+                    "Bumuo ng mga kredensyal para sa ulat at gumawa ng subscription sa Infobip",
+                CALLBACK_NOT_HTTPS: "Dapat https ang callback address",
+                UNKNOWN_ACCOUNT:
+                    "Wala na ang account na ito: maaaring nabura ito sa ibang tab. I-reload ang listahan.",
+                INTERNAL_ERROR: "Hindi natapos ng server ang kahilingan. Subukang muli mamaya.",
+                VERIFY_TOKEN_GENERATED:
+                    "Ginagawa ng system ang token sa pag-verify; hindi ito inilalagay",
+                CREDENTIAL_GENERATED: "{{credential}}: ginagawa ng system; hindi ito inilalagay",
+                CREDENTIAL_NOT_USED:
+                    "Hindi gumagamit ng {{credential}} ang mga account ng {{provider}}",
+                CREDENTIAL_EMPTY: "Hindi maaaring walang laman ang {{credential}}",
+                NO_REPORT_CREDENTIALS:
+                    "Walang credential para sa mga ulat ang mga account ng {{provider}}",
+                UNKNOWN_AUDIENCE: "Hindi kilalang pagpili ng mga tatanggap",
+                INVALID_MONTH: "Dapat isulat ang buwan bilang YYYY-MM",
+                INVALID_SUPPORT_REFERENCE: "Hindi ito reference para sa suporta",
+                MESSENGER_PAGE_CHANGED:
+                    "Hindi naipadala: nakakonekta ang botante sa ibang Messenger Page",
             },
         },
         messagingAccounts: {
-            tab: "MESSAGING",
+            status: {
+                title: "Status sa provider",
+                daily: "Sinusuri ang mga account isang beses bawat araw at tuwing susuriin mo ang koneksyon.",
+                unchecked:
+                    "Nagbago ang numero, Page o sender mula sa huling pagsusuri. Hangga't hindi muling nasusuri ang account, pumapalya ang mga code at abiso na dumadaan dito dahil hindi pa ito handa; ipinapadala pa rin ang test message.",
+                notReported: "Hindi iniulat",
+                yes: "Oo",
+                no: "Hindi",
+                token: "Token sa pag-access",
+                tokenExpires: "Balido · mag-e-expire sa {{date}}",
+                tokenNoExpiry: "Balido · hindi nag-e-expire",
+                tokenInvalid: "Hindi balido",
+                missingScopes: "Kulang na pahintulot: {{scopes}}",
+                numberStatus: "Status ng numero",
+                nameStatus: "Pangalang ipinapakita: {{status}}",
+                qualityRating: "Marka ng kalidad",
+                quality: {
+                    GREEN: "Mataas",
+                    YELLOW: "Katamtaman",
+                    RED: "Mababa",
+                    UNKNOWN: "Hindi alam",
+                },
+                messagingLimit: "Limitasyon sa mensahe",
+                pagesMessaging: "Pahintulot na magpadala (pages_messaging)",
+                subscribed: "Naka-subscribe ang app sa Page",
+                getStarted: "Button na Magsimula",
+                getStartedMissing:
+                    "Kung walang button, hindi masisimulan ng mga botanteng hindi pa sumulat sa Page ang usapang magdadala ng kanilang code.",
+                partnerLogin: "Pag-login sa partner",
+                appSecret: "Lihim ng app",
+                notChecked: "Hindi masuri",
+                numberQualityWarning:
+                    "Babala sa kalidad mula sa Meta: nagpapadala pa rin ang numero, pero maaaring ibaba ng mababang kalidad ang messaging limit nito.",
+                accepted: "Tinanggap",
+                refused: "Tinanggihan",
+                callback: "Address ng callback",
+                callbackReady: "Naka-configure",
+                approvalFromCheck: "Iniulat ng pagsusuri ng provider",
+                approvalEntered:
+                    "Inilagay ng isang administrator: hindi ito iniulat ng pagsusuri ng provider",
+                approvalEnteredHelp:
+                    "Ginagamit lamang ito hanggang iulat ng pagsusuri ng provider ang pag-apruba.",
+                templates: {
+                    title: "Mga template sa provider",
+                    none: "Walang template",
+                    name: "Pangalan ng template",
+                    language: "Wika",
+                    category: "Kategorya",
+                    status: "Katayuan",
+                    entered:
+                        "Inilalagay ng isang administrator ang mga template ng Viber sa Mga aprubadong template: walang API ang partner para sa pag-apruba ng template.",
+                },
+                templateCategory: {
+                    AUTHENTICATION: "Pagpapatunay",
+                    UTILITY: "Pang-utility",
+                    MARKETING: "Marketing",
+                },
+                templateStatus: {
+                    APPROVED: "Aprubado",
+                    PENDING: "Sinusuri",
+                    REJECTED: "Tinanggihan",
+                    PAUSED: "Naka-pause",
+                    DISABLED: "Naka-disable",
+                },
+                numberChanges: {
+                    title: "Mga botanteng nagpalit ng numero sa WhatsApp",
+                    description:
+                        "Iniulat ng WhatsApp ang mga pagpapalit na ito ng numero. Hilingin sa mga botanteng ito na muling i-verify ang kanilang contact; walang binago nang awtomatiko.",
+                    item: "Napalitan ang {{old}} ng {{new}} noong {{date}}.",
+                    voters: "Mga botante: {{voters}}",
+                    noVoters:
+                        "Walang botanteng nakatanggap ng mensahe mula sa account na ito sa lumang numero.",
+                },
+            },
+            tab: "PAGMEMENSAHE",
             description:
                 "Mga account na nagpapadala sa mga botante ng kanilang mga code at abiso. Pinipili ng bawat election event ang account para sa bawat channel; nagsisimula ang mga bagong event sa default na account.",
             list: {
@@ -5621,10 +6477,10 @@ const tagalogTranslation: TranslationType = {
             },
             column: {
                 channel: "Channel",
-                name: "Account",
+                name: "Akawnt",
                 sender: "Nagpapadala bilang",
-                provider: "Provider",
-                default: "Default",
+                provider: "Tagapagbigay",
+                default: "Pangunahin",
                 isDefault: "Default na account",
                 lastCheck: "Huling pagsusuri",
                 actions: "Mga aksyon",
@@ -5646,6 +6502,7 @@ const tagalogTranslation: TranslationType = {
                 error: "Hindi masuri ang {{name}}.",
             },
             delete: {
+                refused: "Hindi nabura ang account: {{reason}}",
                 title: "Tanggalin ang account",
                 body: "Tanggalin ang {{name}}? Titigil sa pagpapadala sa channel nito ang mga election event na gumagamit nito.",
                 success: "Natanggal ang account",
@@ -5657,7 +6514,7 @@ const tagalogTranslation: TranslationType = {
                 subtitle:
                     "Tumatanggap ang mga botante ng mga code at abiso mula sa account na ito sa mga channel na gumagamit nito.",
                 channel: "Channel",
-                provider: "Provider",
+                provider: "Tagapagbigay",
                 save: "I-save",
                 cancel: "Kanselahin",
                 close: "Isara",
@@ -5667,26 +6524,24 @@ const tagalogTranslation: TranslationType = {
                 name: "Pangalan ng account",
                 from_address: "Address ng nagpadala",
                 from_name: "Pangalan ng nagpadala",
-                region: "AWS region",
+                region: "Rehiyon ng AWS",
                 notification_topic_arn: "Topic ng mga abiso sa paghahatid (SNS ARN)",
                 server_url: "Server at port",
-                sender_id: "Sender ID",
-                origination_number: "Origination number",
-                business_account_id: "WhatsApp Business Account ID",
-                phone_number_id: "Phone number ID",
+                sender_id: "ID ng nagpapadala",
+                origination_number: "Numerong pinagmumulan",
+                business_account_id: "ID ng WhatsApp Business Account",
+                phone_number_id: "ID ng numero ng telepono",
                 display_phone_number: "Numero",
-                display_name: "Display name",
+                display_name: "Pangalang ipinapakita",
                 api_version: "Bersyon ng Graph API",
-                page_id: "Facebook Page ID",
+                page_id: "ID ng Facebook Page",
                 page_name: "Pangalan ng Page",
                 page_username: "Username ng Page",
                 base_url: "Base URL ng API",
                 sender: "Pangalan ng nagpadala",
                 provider_approval: "Pag-apruba ng provider",
                 is_default: "Default na {{channel}} account para sa mga bagong election event",
-                readiness: "Kahandaan",
                 api_base_url: "Base URL ng Graph API",
-                label: "Nagpadalang ipinapakita sa mga botante",
             },
             fieldHelp: {
                 from_address:
@@ -5706,25 +6561,32 @@ const tagalogTranslation: TranslationType = {
                 sender: "Ang aprubadong nagpadala na nakikita ng mga botante.",
                 provider_approval:
                     "Pinapayagan lamang ng Meta ang pagmemensahe ng gobyerno sa WhatsApp sa pamamagitan ng aprubadong kaayusan. Piliin ang Kumpirmado ang pag-apruba ng provider kapag naaprubahan na ito ng Meta para sa account na ito; hanggang doon, hindi mapapagana ang mga OTP at abiso para dito.",
-                readiness:
-                    "Ginagamit ng Mula sa pagsusuri ng provider ang nakikita ng pagsusuri ng koneksyon: kung nakakonekta ang account, kung nasa production ito, at kung aling mga template ang aprubado. Ang Kinumpirma ng administrator ay para sa mga provider na hindi ito matutukoy ng pagsusuri: ito ang iyong pahayag na nakakonekta ang account, nasa production at aprubado ang mga template nito, at ito ang ginagamit sa halip ng pagsusuri.",
                 api_base_url:
                     "Kapag hindi sa Meta mismo ang Graph API lamang, gaya ng endpoint ng isang Solution Provider. Kapag walang laman, ang sa Meta ang ginagamit.",
-                label: "Ang pangalang nakikita ng mga botante bilang nagpadala ng account na ito.",
             },
             error: {
                 REQUIRED: "Kailangan",
                 NOT_A_COUNT: "Maglagay ng buong numero",
+                AT_LEAST_ONE: "Maglagay ng 1 o higit pa",
                 OTP_ABOVE_TOTAL: "Hindi maaaring lumampas sa mga mensahe bawat segundo",
                 INVALID_CALLING_CODE:
                     "Maglagay ng country calling code na 1 hanggang 3 numero, gaya ng 63",
                 DUPLICATE_LANGUAGE: "May template na ang wikang ito para sa layuning ito",
-                NOT_A_URL: "Maglagay ng address na nagsisimula sa https:// o http://",
-                INVALID_HTTP_CONFIG: "Ayusin ang mga ipinakitang problema",
+                NOT_A_URL: "Maglagay ng address na nagsisimula sa https://",
+                UNSUPPORTED_PROVIDER: "Hindi suportadong provider: palitan ang account na ito",
+                CREDENTIALS_FOLLOW_ENDPOINT:
+                    "Ilagay muli ang mga kredensyal para sa bagong address",
             },
             warning: {
+                pageChangeCount:
+                    "Mga botanteng nakakonekta sa {{page}} na kailangang muling kumonekta: {{count}}.",
+                pageChangeCounting: "Binibilang ang mga botanteng nakakonekta sa Page…",
+                pageChangeCountError:
+                    "Hindi mabasa ang bilang ng mga botanteng nakakonekta sa Page.",
+                recheck:
+                    "Sa pag-save, muling sinusuri ang account sa background. Hangga't hindi nagtatagumpay ang pagsusuring iyon, pumapalya ang mga code at abiso na dumadaan dito dahil hindi pa ito handa; ipinapadala pa rin ang test message.",
                 pageChange:
-                    "Ang mga usapan sa Messenger ay pag-aari ng isang Page. Pagkatapos palitan ang Page, makakatanggap lamang ng code ang mga botanteng nakakonekta sa {{page}} kapag muli nilang ikinonekta ang Messenger.",
+                    "Ang mga usapan sa Messenger ay pag-aari ng isang Page. Pagkatapos palitan ang Page, hindi ipinapadala ang mga code at abiso sa mga botanteng nakakonekta sa {{page}} hanggang muli silang kumonekta. Muling kumokonekta ang botante sa susunod niyang pag-sign in, pagkatapos ilagay ang kanyang password: ipinapakita ng pag-sign in ang hakbang sa pagkonekta para sa bagong Page, pinipindot ng botante ang Magsimula sa Messenger, at doon niya natatanggap ang code. Ang botanteng hindi makapag-sign in gamit ang password, halimbawa dahil nakalimutan niya ito, ay kailangang palitan ng staff ang kanyang channel.",
                 numberChange:
                     "Manggagaling sa ibang numero ang mga mensahe. Dapat aprubado ang mga template nito sa business account na iyon bago ito makapagpadala ng mga code, at makakakita ang mga botante ng bagong chat.",
             },
@@ -5741,8 +6603,13 @@ const tagalogTranslation: TranslationType = {
             limits: {
                 title: "Mga limitasyon sa pagpapadala",
                 messagesPerSecond: "Mga mensahe bawat segundo",
+                messagesPerSecondHelp: "Walang laman: hindi nililimitahan ang mga mensahe.",
                 otpReservedPerSecond: "Nakalaan para sa OTP bawat segundo",
-                otpReservedHelp: "Nakalaan para sa mga code habang may maramihang pagpapadala.",
+                otpReservedHelp:
+                    "Isang pinakamababang bahagi sa iisang pinaghahatiang badyet sa pagpapadala ng account: humihinto rito ang mga abiso at nauuna ang mga code. Kung walang ipinapadalang code, magagamit ng maramihang pagpapadala ang buong bilis.",
+                otpConcurrency: "Mga code na sabay-sabay na ipinapadala",
+                otpConcurrencyHelp:
+                    "Walang laman: 8. Bawat code at abiso ng Keycloak (mga link sa pag-reset, pansamantalang password) ay may hawak na isang puwesto habang ipinapadala. Binibilang bawat proseso ng server; naghihintay ng kanilang turno ang iba pang padala.",
                 allowedCallingCodes: "Mga pinapayagang destinasyon (country calling codes)",
                 allowedCallingCodesHelp:
                     "Pinaghihiwalay ng kuwit, halimbawa 63, 971. Kapag walang laman, pinapayagan ang anumang destinasyon.",
@@ -5754,6 +6621,7 @@ const tagalogTranslation: TranslationType = {
                 set: "Naitakda · pinalitan {{date}}. Naka-encrypt itong iniimbak at hindi kailanman ipinapakita.",
                 replace: "Palitan",
                 replaceNamed: "Palitan ang {{name}}",
+                reenter: "Nagbago ang address: ilagay muli ang kredensyal na ito.",
             },
             credentialHelp: {
                 AWS_SES: {
@@ -5781,41 +6649,37 @@ const tagalogTranslation: TranslationType = {
                 VIBER_INFOBIP: {
                     API_KEY: "Ang Infobip API key.",
                 },
-                HTTP_API: {
-                    API_KEY: "Opsyonal. Ginagamit ito ng mga request bilang kredensyal na API_KEY.",
-                    API_SECRET:
-                        "Opsyonal. Pangalawang secret, at ang key na pumipirma sa JWT: PEM private key para sa RS256, ang shared secret para sa HS256.",
-                    ACCESS_TOKEN:
-                        "Opsyonal. Ginagamit ito ng mga request bilang kredensyal na ACCESS_TOKEN.",
-                    USERNAME:
-                        "Opsyonal. Kasama ng password, binubuo nito ang placeholder na basic_auth.",
-                    PASSWORD:
-                        "Opsyonal. Kasama ng username, binubuo nito ang placeholder na basic_auth.",
-                    WEBHOOK_SECRET:
-                        "Opsyonal. Ang shared secret na ginagamit sa pagsusuri ng mga callback ng provider.",
-                },
             },
             webhook: {
-                title: "Mga ulat sa paghahatid at mga sagot",
-                description:
-                    "Ilagay ang callback na ito sa mga setting ng webhook ng provider. Doon dumarating ang mga ulat sa paghahatid at ang mga sagot ng mga botante.",
-                path: "Callback path",
-                pathHelp:
-                    "Idagdag ito sa pampublikong address ng mga messaging webhook ng platform na ito.",
+                title: "Mga ulat sa paghahatid",
+                description: {
+                    WHATSAPP_CLOUD_API:
+                        "Ilagay ang URL ng callback na ito sa mga setting ng webhook ng Meta. Dito dumarating ang mga ulat sa paghahatid at sinusuri ang mga ito gamit ang lihim ng app.",
+                    MESSENGER_SEND_API:
+                        "Ilagay ang URL ng callback na ito sa mga setting ng webhook ng Meta. Dito dumarating ang mga ulat sa paghahatid at ang pag-tap ng botante sa Magsimula, at sinusuri ang mga ito gamit ang lihim ng app.",
+                    VIBER_INFOBIP:
+                        "Ipinapadala ng Infobip ang mga ulat sa paghahatid ng Viber sa URL ng callback na ito sa pamamagitan ng isang subscription na may Basic authentication.",
+                    AWS_SES:
+                        "I-subscribe ang URL ng callback na ito (HTTPS) sa topic ng mga abiso sa paghahatid. Dito dumarating ang mga event ng paghahatid at bounce, at sinusuri ang mga ito gamit ang lagda ng Amazon.",
+                },
                 afterSaving: "Ipinapakita pagkatapos mag-save",
-                copyPath: "Kopyahin ang callback path",
                 tokenSet: "Naitakda · pinalitan {{date}}",
                 tokenMissing: "Hindi pa nabubuo",
                 tokenAfterSaving: "Bubuuin pagkatapos mag-save",
                 generate: "Bumuo ng verify token",
-                tokenTitle: "Verify token",
+                tokenTitle: "Token sa pag-verify",
                 tokenOnce:
                     "Ilagay na ngayon ang token na ito sa mga setting ng webhook ng Meta. Isang beses lamang ito ipinapakita.",
                 copyToken: "Kopyahin ang verify token",
                 tokenDone: "Tapos na",
                 tokenError: "Hindi mabuo ang verify token.",
-                httpHelp:
-                    "Maaaring i-post ng custom na HTTP API ang mga ulat nito bilang JSON, o ipadala ang mga ito bilang GET request; binabasa noon ang mga query parameter nito bilang flat na object, na may mga pointer gaya ng /status.",
+                url: "URL ng callback",
+                copyUrl: "Kopyahin ang URL ng callback",
+                needsWrite:
+                    "Ipinapakita sa mga administrator na maaaring mamahala ng mga messaging account.",
+                loading: "Naglo-load…",
+                unavailable: "Hindi magagamit",
+                loadError: "Hindi ma-load ang URL ng callback.",
             },
             copy: {
                 success: "Nakopya",
@@ -5824,6 +6688,7 @@ const tagalogTranslation: TranslationType = {
             save: {
                 success: "Na-save ang account",
                 error: "Hindi ma-save ang account.",
+                refused: "Hindi na-save ang account: {{reason}}",
             },
             test: {
                 title: "Magpadala ng test message mula sa {{name}}",
@@ -5831,9 +6696,9 @@ const tagalogTranslation: TranslationType = {
                     "Nagpapadala ng totoong mensahe para sa napiling layunin sa destinasyong ito. Ipinapakita ng resulta ang iniulat ng provider.",
                 purpose: "Layunin",
                 destination: {
-                    EMAIL_ADDRESS: "Email address",
+                    EMAIL_ADDRESS: "Address ng email",
                     PHONE_NUMBER: "Numero ng telepono (E.164)",
-                    PAGE_SCOPED_ID: "Page-scoped ID",
+                    PAGE_SCOPED_ID: "ID na saklaw ng Page",
                 },
                 language: "Wika",
                 send: "Magpadala ng test message",
@@ -5847,103 +6712,317 @@ const tagalogTranslation: TranslationType = {
                 languageHelp:
                     "Para sa provider na nagpapadala ng mga aprubadong template, ilagay ang language code ng provider para sa template, gaya ng en_US.",
             },
-            http: {
-                title: "Custom na HTTP API",
-                description:
-                    "Inilalarawan ang isang provider ayon sa mga HTTP request nito: ibang Viber partner, sariling API ng isang WhatsApp Solution Provider, isang SMS gateway. JSON ang mga request; maaaring maglaman ang URL, mga header at body ng mga ito ng mga placeholder mula sa reference sa ibaba.",
-                phoneFormat: "Format ng numero ng telepono",
-                phoneFormatHelp:
-                    "Kung paano isinusulat sa request ang numero ng telepono ng tatanggap.",
-                phoneFormatOption: {
-                    E164: "May plus sign: +639171234567",
-                    DIGITS: "Mga numero lamang: 639171234567",
+            unsupported:
+                "Hindi suportadong provider: palitan ang account na ito. Hindi na suportado ang provider nito, kaya hindi ito makakapagpadala. Magdagdag ng account para sa channel na ito na may suportadong provider, piliin ito sa mga election event na gumagamit nito, saka burahin ang account na ito.",
+            reports: {
+                label: "Mga kredensyal para sa ulat",
+                missing: "Hindi pa nabubuo",
+                generate: "Bumuo ng mga kredensyal para sa ulat",
+                title: "Mga kredensyal para sa ulat",
+                once: "Ilagay na ngayon ang mga ito sa subscription ng Infobip. Isang beses lamang ipinapakita ang mga ito; papalitan ang mga ito kapag bumuo ng bago.",
+                copyUsername: "Kopyahin ang pangalan ng user para sa mga ulat",
+                copyPassword: "Kopyahin ang password para sa mga ulat",
+                error: "Hindi mabuo ang mga kredensyal para sa ulat.",
+                step: {
+                    subscription:
+                        "Sa Infobip, gumawa ng subscription para sa mga ulat sa paghahatid ng Viber.",
+                    url: "Itakda ang URL nito sa URL ng callback ng account na ito.",
+                    auth: "Piliin ang Basic authentication at ilagay ang pangalan ng user at password para sa mga ulat.",
                 },
-                templateRequired: "Mga layuning nangangailangan ng aprubadong template",
-                templateRequiredHelp:
-                    "Ang layuning naka-tsek ay ipinapadala lamang gamit ang template na inaprubahan ng provider, na nakaugnay sa election event. Ipinapadala bilang free text ang iba pang layunin.",
-                approvedLanguages: "Mga wikang may aprubadong template para sa {{purpose}}",
-                approvedLanguagesHelp:
-                    "Ang mga language code na may aprubadong template, ayon sa kinumpirma sa provider, na pinaghihiwalay ng kuwit: en, tl. Iniuulat ang mga ito ng pagsusuri ng koneksyon.",
-                conversationWindow: "Window ng usapan (oras)",
-                conversationWindowHelp:
-                    "Mga oras pagkatapos ng huling mensahe ng tatanggap kung kailan maaaring magpadala ng free text. Walang laman kapag walang ganitong window ang provider.",
-                messageIdPointer: "Message ID sa sagot sa pagpapadala",
-                messageIdPointerHelp:
-                    "JSON pointer sa message ID ng provider sa sagot sa send request, gaya ng /message_id. Dito itinutugma ang mga ulat sa paghahatid.",
-                notConfigured: "Hindi naka-configure.",
-                thisSection: "Ang seksyong ito",
-                add: "Idagdag: {{section}}",
-                remove: "Alisin: {{section}}",
-                section: {
-                    SEND: "Send request",
-                    CHECK: "Request ng pagsusuri ng koneksyon",
-                    TOKEN: "Token request",
-                    JWT: "Pinirmahang token (JWT)",
-                    REPORTS: "Mga ulat sa paghahatid at mga sagot",
-                    RECONCILE: "Request ng paghahanap ng mensahe",
+                confirmTitle: "Palitan ang mga kredensyal para sa ulat?",
+                confirmBody:
+                    "Agad na hindi na gagana ang kasalukuyang pangalan ng user at password para sa mga ulat. Hangga't wala pa sa subscription ng Infobip ang mga bago, tatanggihan ang mga ulat ng paghahatid ng Viber at mananatiling Tinanggap ang mga mensahe.",
+                confirm: "Palitan",
+            },
+        },
+        sentMessages: {
+            showMore: "Ipakita pa",
+            showLess: "Ipakita ang mas kaunti",
+            tab: "Mga naipadalang mensahe",
+            accountsTab: "Mga account",
+            tabsLabel: "Mga seksyon ng pagmemensahe",
+            description:
+                "Mga mensaheng natanggap ng demo provider ng development stack na ito, gaya ng ipapakita ng mga app ng mga botante. Wala sa mga ito ang nakarating sa tunay na botante. Lumalabas lang ang tab na ito kung saan naka-enable ang mga ruta ng demo provider.",
+            modeLabel: "Ipakita ang mga mensahe mula sa",
+            all: "Lahat",
+            refresh: "I-refresh",
+            refreshing: "Nagre-refresh…",
+            refreshError:
+                "Hindi ma-refresh ang mga mensahe. Ang ipinapakitang listahan ay ang huling nabasa.",
+            empty: "Wala pang mensahe.",
+            emptyChannel: "Wala pang mensahe sa {{channel}}.",
+            column: {
+                time: "Oras",
+                channel: "Channel",
+                from: "Mula sa",
+                to: "Para sa",
+                message: "Mensahe",
+                report: "Ulat ng paghahatid",
+            },
+            report: {
+                accepted: "Tinanggap ng webhook component ang ulat (HTTP 200)",
+                refused: "Tinanggihan ang ulat: HTTP {{status}}",
+                pending: "Hindi pa naipapadala ang ulat",
+                notSent: "Hindi naipadala ang ulat: {{reason}}",
+                noAnswer: "Walang sagot sa ulat: {{reason}}",
+                noReason: "walang ibinigay na dahilan",
+                unavailable: "Walang ulat ng paghahatid sa channel na ito",
+            },
+            content: {
+                demoCode:
+                    "{{code}} ang iyong code ng pagpapatunay. Para sa iyong seguridad, huwag itong ibahagi kaninuman.",
+                demoNotice:
+                    "Paalala sa pagboto\n\nKumusta {{name}}, bukas na ang pagboto para sa {{event}}.\n\nMag-sign in sa portal ng pagboto upang suriin ang iyong balota at bumoto:\n{{url}}\n\nHuwag ibahagi ang iyong code sa pag-sign in kaninuman. Kung nakaboto ka na, wala ka nang kailangang gawin.",
+                demoLegacyNotice:
+                    "Paalala sa pagboto\n\nKumusta {{name}}, bukas na ang pagboto. Mag-sign in sa portal ng pagboto upang bumoto:\n{{url}}\n\nHuwag ibahagi ang iyong code sa pag-sign in kaninuman.",
+
+                template: "Template na {{name}} ({{language}})",
+                noText: "(walang teksto)",
+                code: "Code",
+                copyCode: "Kopyahin ang code",
+                copied: "Nakopya ang code",
+                copyFailed: "Hindi makopya ang code",
+                truncated:
+                    "Pinutol: ang unang 64 KiB lang ng bawat field ang itinatago ng demo provider.",
+            },
+            chat: {
+                phone: "{{channel}} sa isang telepono",
+                chats: "Mga chat sa {{channel}}",
+                open: "Buksan ang chat sa {{recipient}} mula sa {{sender}}",
+                back: "Bumalik sa mga chat",
+                from: "Mula sa {{sender}}",
+                messages: "Mga mensahe para sa {{recipient}}",
+            },
+            getStarted: {
+                title: "Magsimula",
+                help: "I-paste ang Messenger link na ipinapakita ng pahina ng pagpapatala, saka pindutin ang Magsimula, gaya ng gagawin ng botante sa Messenger. Pagkatapos, darating ang code sa chat.",
+                link: "Link ng Messenger",
+                submit: "Magsimula",
+                accepted: "Sumagot ng 200 ang webhook component. Darating ang code sa chat.",
+                answered: "Sumagot ng {{status}} ang webhook component.",
+                failed: "Hindi nakapagsimula: {{reason}}",
+            },
+            email: {
+                inbox: "Mga natanggap na email",
+                reading: "Napiling email",
+                noSubject: "(walang paksa)",
+                from: "Mula sa",
+                to: "Para sa",
+                view: "Ipakita ang email bilang",
+                html: "HTML",
+                text: "Payak na teksto",
+                htmlFrame: "Nilalaman ng email",
+                noContent: "Walang nilalaman ang email na ito.",
+                loading: "Nilo-load ang email…",
+                loadError:
+                    "Hindi mabasa ang HTML ng email: maaaring hindi na ito itinatago ng demo provider.",
+            },
+            reason: {
+                SEVERAL_ACCOUNTS: "Maraming account ang gumagamit ng nagpadalang ito",
+                ACCOUNTS_UNREADABLE: "Hindi mabasa ang mga account",
+                UNREACHABLE: "Hindi sumagot ang webhook component",
+                LINK_UNREADABLE: "I-paste ang m.me link mula sa pahina ng pagpapatala",
+                LINK_WITHOUT_REF: "Walang ref ang link: kopyahin ang buong link",
+                NO_PAGE_ACCOUNT:
+                    "Walang Messenger account ng organisasyong ito ang gumagamit ng Page na ito",
+                SEVERAL_PAGE_ACCOUNTS:
+                    "Maraming Messenger account ng organisasyong ito ang gumagamit ng Page na ito",
+            },
+        },
+        electoralLogConsole: {
+            title: "Log ng Halalan",
+            subtitle:
+                "I-browse ang log ng halalan at ballot box ng isang kaganapan ng halalan, o i-query ang database ng log ng halalan nito. Walang binabagong datos ang pahinang ito.",
+            notAllowed:
+                "Kailangan mo ang pahintulot na electoral-log-console-read para buksan ang log ng halalan.",
+            tabs: {
+                tables: "Mga Talahanayan",
+                query: "Query",
+            },
+            electionEvent: "Kaganapan ng Halalan",
+            tenant: "Tenant",
+            table: "Talahanayan",
+            tables: {
+                records: "Mga Record",
+                ballots: "Mga Balota",
+                voters: "Mga Botante",
+                queue: "Pila ng Sequencer",
+            },
+            order: {
+                "label": "Pagkakasunod",
+                "newest-first": "Pinakabago muna",
+                "oldest-first": "Pinakaluma muna",
+            },
+            filters: {
+                statement_kind: "Uri",
+                election_id: "Halalan",
+                area_id: "ID ng Lugar",
+                user_id: "ID ng User o Botante",
+                ballot_id: "ID ng Balota",
+                status: "Katayuan",
+                created_after: "Mula",
+                created_before: "Hanggang",
+                any: "Kahit ano",
+                apply: "Ilapat ang mga Filter",
+                clear: "I-clear",
+                invalid:
+                    "Suriin ang mga minarkahang filter: dapat wasto ang mga petsa at dapat UUID ang mga ID ng lugar ng ballot box.",
+            },
+            statuses: {
+                valid: "Wasto",
+                pending: "Nakabinbin",
+                rejected: "Tinanggihan",
+            },
+            estimatedRows: "Mga {{rows}} hilera sa talahanayang ito bago i-filter.",
+            personalDataHidden:
+                "Nakatago ang mga username, IP address at bansa: kailangan ang pahintulot na electoral-log-personal-data-read para makita ang mga ito.",
+            loadError: "Hindi mabasa ang log ng halalan.",
+            record: {
+                title: "Record {{position}}",
+                view: "Tingnan ang record",
+                message: "Mensahe (na-decode)",
+                copy: "Kopyahin ang JSON",
+                close: "Isara",
+                loadError: "Hindi mabasa ang record.",
+            },
+            query: {
+                help: "Tumatakbo ang mga query sa database ng log ng halalan ng kaganapan ng halalan sa isang read-only na transaksyon. Ang mga talahanayan nito ay electoral_log_messages, ballot_box_ballot, ballot_box_voter, ballot_box_pending at ballot_box_sequencer; inilalarawan ng trellis_logs ang mga Merkle log nito.",
+                scope: "May sariling database ang bawat kaganapan ng halalan, kaya isang kaganapan lang ang binabasa ng isang query.",
+                chooseEvent: "Piliin ang kaganapan ng halalan na iqu-query.",
+                placeholder: "SELECT …",
+                limits: "Read-only · hanggang 1,000 hilera · 30 s na limitasyon · itinatala ang bawat query sa mga log ng server kasama ang iyong user",
+                run: "Patakbuhin ang Query",
+                summary: "Mga hilera: {{rows}} · {{ms}} ms",
+                truncated: "Ang unang {{rows}} hilera lang ang ipinapakita.",
+                error: "Hindi napatakbo ang query.",
+            },
+        },
+        taskQueues: {
+            title: "Mga Task Queue",
+            subtitle:
+                "Ang mga task queue ng environment: kung ano ang naghihintay, kung ano ang naproseso at gaano ito katagal. Hindi kailanman ipinapakita ng mga listahan ng queue ang mga argumento ng mga task.",
+            notAllowed:
+                "Kailangan mo ang pahintulot na task-queues-read ng super-admin tenant para buksan ang mga task queue.",
+            live: "Live",
+            updated: "Na-update noong {{time}}",
+            error: "Hindi ma-load ang mga task queue.",
+            columns: {
+                queue: "Queue",
+                ready: "Handa",
+                runningOrScheduled: "Tumatakbo o naka-iskedyul",
+                oldest: "Pinakaluma",
+                processed: "Naproseso (huling oras)",
+                lastHour: "Mga resulta (huling oras)",
+                sent: "Naipadala (kabuuan)",
+            },
+            outcomes: {
+                succeeded: "Nagtagumpay",
+                failed: "Nabigo",
+                expired: "Nag-expire",
+                rejected: "Tinanggihan",
+                discarded: "Itinapon",
+                unknown: "Hindi alam",
+            },
+            graphs: {
+                title: "Throughput",
+                period: "Panahon",
+                periods: {
+                    hour: "Huling oras",
+                    sixHours: "Huling 6 na oras",
+                    day: "Huling 24 na oras",
+                    week: "Huling 7 araw",
                 },
-                sectionHelp: {
-                    SEND: "Ang request na nagpapadala ng isang mensahe: method (POST kapag hindi inilagay), url, headers at body.",
-                    CHECK: "Opsyonal. Isang request na nagtatagumpay, na may sagot na 2xx, kapag gumagana ang mga kredensyal. Pinapatakbo ito ng pagsusuri ng koneksyon.",
-                    TOKEN: "Opsyonal. Kumukuha ng panandaliang token bago magpadala, gaya ng OAuth client credentials: request, token_pointer (kung nasaan ang token sa sagot) at lifetime_seconds. Ginagamit ito ng mga request sa pamamagitan ng placeholder na token.",
-                    JWT: "Opsyonal. Isang token na pinipirmahan para sa bawat request gamit ang kredensyal na API secret: algorithm (RS256 o HS256), claims (idinadagdag ang iat, exp at jti) at lifetime_seconds. Ginagamit ito ng mga request sa pamamagitan ng placeholder na jwt.",
-                    REPORTS:
-                        "Opsyonal. Kung paano babasahin ang ipinapadala ng provider sa callback: auth, items_pointer (kung nasaan ang listahan ng mga ulat; ang buong payload kapag hindi inilagay), status (message_id_pointer, state_pointer, states na nagtutugma ng bawat value ng provider sa QUEUED, ACCEPTED, DELIVERED, FAILED o UNKNOWN, at error_pointer) at inbound_from_pointer (kung nasaan ang nagpadala ng isang sagot). May kind ang auth: URL_KEY (ang lihim na address lamang ng callback), HEADER_SECRET (isang header na katumbas ng webhook secret), HMAC_SHA256 (isang header na may HMAC ng body gamit ang webhook secret, na may prefix, encoding na HEX o BASE64, at signed kapag higit pa sa body ang pinipirmahan) o JWT_HS256 (isang header na may bearer JWT na pinirmahan gamit ang webhook secret).",
-                    RECONCILE:
-                        "Opsyonal. Nagtatanong sa provider tungkol sa isang mensaheng hindi alam ang kinalabasan: request at status, na binabasa gaya ng status ng mga ulat sa paghahatid.",
+                outcomes: "Mga naprosesong mensahe ayon sa resulta",
+                durations: "Karaniwang tagal ng paghihintay at pagproseso",
+                wait: "Paghihintay",
+                processing: "Pagproseso",
+                seconds: "Segundo",
+                empty: "Walang naprosesong mensahe ng queue na ito sa panahong ito.",
+            },
+            messages: {
+                title: "Mga Mensahe",
+                states: {
+                    queued: "Nasa queue",
+                    archived: "Naka-archive",
                 },
-                problem: {
-                    NOT_AN_OBJECT: "Dapat object ang {{path}}.",
-                    MISSING_URL: "Kailangan ang {{path}}: ang address ng request.",
-                    INVALID_METHOD: "Dapat HTTP method ang {{path}}, gaya ng POST o GET.",
-                    INVALID_HEADERS:
-                        "Dapat text ang {{path}}: ang headers ay object ng mga pangalan ng header at mga text na value.",
-                    UNKNOWN_FIELD: "Hindi field ng seksyong ito ang {{path}}.",
-                    UNKNOWN_PLACEHOLDER:
-                        "Gumagamit ang {{path}} ng placeholder na hindi umiiral. Tingnan ang reference ng mga placeholder.",
-                    INVALID_POINTER:
-                        "Dapat JSON pointer na nagsisimula sa / ang {{path}}, gaya ng /data/id.",
-                    INVALID_STATES:
-                        "Dapat itugma ng {{path}} ang isang status value ng provider sa QUEUED, ACCEPTED, DELIVERED, FAILED o UNKNOWN; kailangan ng kahit isa.",
-                    INVALID_AUTH:
-                        "Hindi wasto ang {{path}}: ang kind ay URL_KEY, HEADER_SECRET, HMAC_SHA256 o JWT_HS256; kailangan ang header maliban sa URL_KEY; ang encoding ay HEX o BASE64.",
-                    INVALID_LIFETIME: "Dapat buong bilang ng segundo na higit sa 0 ang {{path}}.",
-                    INVALID_ALGORITHM: "Dapat RS256 o HS256 ang {{path}}.",
-                    INVALID_CLAIMS: "Dapat object ang {{path}}.",
-                    INVALID_HOURS: "Dapat buong bilang ng oras na higit sa 0 ang {{path}}.",
+                argumentsHidden:
+                    "Hindi kailanman ipinapakita ang mga argumento ng mga task, dahil maaaring naglalaman ang mga ito ng datos ng mga botante.",
+                refresh: "I-refresh",
+                newest: "Pinakabago",
+                newer: "Mas bago",
+                older: "Mas luma",
+                empty: "Walang mensahe",
+                unreadable: "Hindi mabasang mensahe",
+                columns: {
+                    id: "ID",
+                    task: "Task",
+                    outcome: "Resulta",
+                    event: "Event",
+                    error: "Error",
+                    enqueued: "Na-queue",
+                    reads: "Mga pagbasa",
+                    retries: "Mga retry",
+                    archived: "Na-archive",
+                    visible: "Makikita mula",
+                    size: "Laki",
+                    taskId: "Task ID",
                 },
-                placeholders: {
-                    title: "Reference ng mga placeholder",
-                    help: "Isinusulat sa pagitan ng dobleng curly brace sa URL, sa value ng header o sa anumang text ng body. Pinapalitan ang bawat isa kapag ginawa ang request.",
+            },
+            deadLetters: {
+                help: "Hindi naproseso ang mga event na ito ng electoral log. Pumili ng mga event para ipadala muli sa event queue o para itapon; nananatili sa archive ang mga itinapong event.",
+                noWrite:
+                    "Kailangan mo ang pahintulot na task-queues-write para ipadala muli o itapon ang mga event na ito.",
+                replay: "Ipadala muli",
+                discard: "Itapon",
+                cancel: "Kanselahin",
+                confirmTitle: {
+                    replay: "Ipadala muli ang mga event?",
+                    discard: "Itapon ang mga event?",
                 },
-                placeholder: {
-                    to: "Ang tatanggap: numero ng telepono, email address o Page-scoped ID.",
-                    text: "Ang mensahe bilang plain text.",
-                    subject: "Ang paksa, para sa email.",
-                    html: "Ang mensahe bilang HTML, para sa email.",
-                    code: "Ang one-time code, para sa mga OTP.",
-                    template: "Ang template ng provider na nakaugnay sa election event.",
-                    language: "Ang language code ng provider para sa template.",
-                    message_id: "Ang message ID ng provider, sa request ng paghahanap ng mensahe.",
-                    callback_url: "Ang pampublikong address ng callback ng account na ito.",
-                    param: "Isang parameter ng template ayon sa posisyon nito: 1, 2, 3 at iba pa.",
-                    credential:
-                        "Isang kredensyal ng account na ito ayon sa pangalan: API_KEY, API_SECRET, ACCESS_TOKEN, USERNAME, PASSWORD o WEBHOOK_SECRET.",
-                    basic_auth:
-                        "Ang username at password, naka-encode para sa header na Authorization: Basic.",
-                    token: "Ang token na nakuha sa token request.",
-                    jwt: "Ang pinirmahang token na inilarawan sa Pinirmahang token (JWT).",
-                    parameters:
-                        "Kapag mag-isa bilang value sa body, nagiging listahan ito ng lahat ng parameter ng template.",
-                    named_parameters:
-                        "Kapag mag-isa bilang value sa body, nagiging object ito ng mga parameter na isinulat bilang @pangalan=halaga.",
+                confirmBody: {
+                    replay_one:
+                        "Ipapadala muli ang {{count}} na event sa event queue ng electoral log. Babalik ito rito kung mabibigo ulit.",
+                    replay_many:
+                        "Ipapadala muli ang {{count}} na event sa event queue ng electoral log. Babalik dito ang mga event na mabibigo ulit.",
+                    replay_other:
+                        "Ipapadala muli ang {{count}} na event sa event queue ng electoral log. Babalik dito ang mga event na mabibigo ulit.",
+                    discard_one:
+                        "Ililipat sa archive ang {{count}} na event at hindi ito idadagdag sa electoral log.",
+                    discard_many:
+                        "Ililipat sa archive ang {{count}} na event at hindi idadagdag sa electoral log.",
+                    discard_other:
+                        "Ililipat sa archive ang {{count}} na event at hindi idadagdag sa electoral log.",
                 },
-                example: {
-                    title: "Buong halimbawa: isang Viber partner",
-                    description:
-                        "Tumatanggap ang partner ng JSON POST na authenticated gamit ang API key bilang bearer token, sumasagot ng ID ng mensahe sa ilalim ng message_id, at nagpo-post ng mga ulat sa paghahatid na may lihim na header. Gamitin ito bilang panimula at palitan ang address at mga pangalan ng field ng sa provider.",
-                    use: "Gamitin ang halimbawang ito",
+                queued: {
+                    replay_one:
+                        "Na-queue bilang task {{taskId}} ang muling pagpapadala ng {{count}} na event.",
+                    replay_many:
+                        "Na-queue bilang task {{taskId}} ang muling pagpapadala ng {{count}} na event.",
+                    replay_other:
+                        "Na-queue bilang task {{taskId}} ang muling pagpapadala ng {{count}} na event.",
+                    discard_one:
+                        "Na-queue bilang task {{taskId}} ang pagtatapon ng {{count}} na event.",
+                    discard_many:
+                        "Na-queue bilang task {{taskId}} ang pagtatapon ng {{count}} na event.",
+                    discard_other:
+                        "Na-queue bilang task {{taskId}} ang pagtatapon ng {{count}} na event.",
                 },
+                failed: "Hindi ma-queue ang operasyon.",
+            },
+            tabs: {
+                queues: "Mga Queue",
+                query: "Query",
+            },
+            query: {
+                help: "Tumatakbo ang mga query sa task-queue database ng environment sa isang read-only na transaksyon, gamit ang reader role nito. Bawat queue ay may talahanayan ng mga naghihintay na mensahe, pgmq.q_<queue>, at isa ng mga naprosesong mensahe, pgmq.a_<queue>.",
+                arguments:
+                    "Binabasa ng mga query ang mga mensahe kung paano ito nakaimbak, kasama ang mga argumento ng kanilang mga task, na maaaring may data ng mga botante.",
+                placeholder: "SELECT …",
+                limits: "Read-only · hanggang 1,000 hilera · 30 s na limitasyon · itinatala ang bawat query sa mga log ng server kasama ang iyong user",
+                run: "Patakbuhin ang Query",
+                summary: "Mga hilera: {{rows}} · {{ms}} ms",
+                truncated: "Ang unang {{rows}} hilera lang ang ipinapakita.",
+                error: "Hindi napatakbo ang query.",
             },
         },
     },

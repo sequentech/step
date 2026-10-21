@@ -6,6 +6,7 @@ import {Box, Typography} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import type {TFunction} from "i18next"
 import type {IScheduledOutcomeExplanation, IScheduledOutcomeValue} from "@sequentech/ui-core"
+import {readinessCheckLines} from "./readinessLog"
 import {logDetails, outcomeChange, outcomeExplanation, type ILogMessage} from "./logMessage"
 
 /** A check or next-step value: an i18n key with its parameters. */
@@ -126,11 +127,72 @@ const SEAL_RENDERERS: Record<string, Renderer> = {
     },
 }
 
+const TENANT_ACTIVITY_OUTCOMES = ["succeeded", "denied", "failed"]
+
+/** A detail's value as text: strings as they are, anything else as JSON. */
+const detailText = (value: unknown): string =>
+    typeof value === "string" ? value : JSON.stringify(value)
+
+/**
+ * Readable lines for the entries of a tenant's log: what was asked for, how
+ * it ended, who asked and what it was asked on.
+ */
+const TENANT_RENDERERS: Record<string, Renderer> = {
+    TenantAdminAction: (t, details) => {
+        if (!details) return null
+        const outcome = String(details.outcome ?? "")
+        const target = details.details
+        return [
+            String(t("tenantLogs.explanation.action", {action: String(details.action ?? "")})),
+            ...(TENANT_ACTIVITY_OUTCOMES.includes(outcome)
+                ? [
+                      String(
+                          t(`tenantLogs.explanation.outcome.${outcome}`, {
+                              status: String(details.status ?? ""),
+                          })
+                      ),
+                  ]
+                : []),
+            ...(details.username || details.user_id
+                ? [
+                      String(
+                          t("tenantLogs.explanation.by", {
+                              username: String(details.username ?? "-"),
+                              userId: String(details.user_id ?? "-"),
+                          })
+                      ),
+                  ]
+                : []),
+            ...(target && typeof target === "object" && !Array.isArray(target)
+                ? Object.entries(target as Record<string, unknown>)
+                      .filter(([, value]) => value !== null && value !== undefined)
+                      .map(([name, value]) =>
+                          String(
+                              t("tenantLogs.explanation.detail", {
+                                  name,
+                                  value: detailText(value),
+                              })
+                          )
+                      )
+                : []),
+        ]
+    },
+    TenantLogOpened: (t, details) => {
+        if (!details) return null
+        return [
+            String(t("tenantLogs.explanation.board", {board: String(details.board ?? "")})),
+            String(t("tenantLogs.explanation.publicKey", {key: String(details.public_key ?? "")})),
+        ]
+    },
+}
+
 /**
  * Readable lines for the entries whose details explain a scheduled outcome,
  * keyed by statement kind. Other kinds show only their description.
  */
 const RENDERERS: Record<string, Renderer> = {
+    ReadinessVerified: (t, _details, message) => readinessCheckLines(t, message),
+    ...TENANT_RENDERERS,
     ScheduledOutcomeChanged: (t, details) => {
         const change = outcomeChange(details)
         if (!change) return null

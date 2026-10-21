@@ -5,7 +5,11 @@
 //! Messenger Send API: a Page messaging a Page-scoped ID, as a response
 //! within the conversation window.
 
-use super::{exchange, meta_outcome, Account};
+use super::{
+    exchange, meta_app_secret_status, meta_outcome, meta_templates, meta_token_status,
+    missing_credential_reason, provider_status_reason, Account, PROVIDER_UNREACHABLE,
+    TEMPLATES_NOT_READ,
+};
 use crate::parameters::{meta_text_parameter, parse_all};
 use crate::sender::{
     outcome_from_http, ChannelSender, FailureKind, OutboundMessage, ProviderFailure, SendOutcome,
@@ -14,8 +18,8 @@ use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use chrono::{DateTime, Duration, Utc};
 use sequent_core::types::messaging::{
-    AccountCheck, AccountSender, CredentialName, MessageChannel, MessagingProvider,
-    OutOfWindowPolicy, ProviderCapabilities,
+    AccountCheck, AccountCheckDetails, AccountSender, CredentialName, MessageChannel,
+    MessagingProvider, MessengerPageStatus, OutOfWindowPolicy, ProviderCapabilities,
 };
 
 const CONVERSATION_WINDOW_HOURS: i64 = 24;
@@ -133,7 +137,7 @@ impl ChannelSender for MessengerSender {
         let Ok(token) = self.account.credential(CredentialName::ACCESS_TOKEN) else {
             return AccountCheck {
                 checked_at: now,
-                reason: Some("missing Page access token".to_string()),
+                reason: Some(missing_credential_reason(CredentialName::ACCESS_TOKEN)),
                 ..Default::default()
             };
         };
@@ -149,18 +153,20 @@ impl ChannelSender for MessengerSender {
             Ok((status, _)) => {
                 return AccountCheck {
                     checked_at: now,
-                    reason: Some(format!("Page lookup failed with status {status}")),
+                    reason: Some(provider_status_reason(status)),
                     ..Default::default()
                 }
             }
             Err(_) => {
                 return AccountCheck {
                     checked_at: now,
-                    reason: Some("Messenger Platform unreachable".to_string()),
+                    reason: Some(PROVIDER_UNREACHABLE.to_string()),
                     ..Default::default()
                 }
             }
         }
+        let token_status =
+            meta_token_status(&self.http, &self.base_url, token, MESSENGER_SCOPES).await;
         let subscribed = match exchange(
             self.http
                 .get(format!(
@@ -177,15 +183,97 @@ impl ChannelSender for MessengerSender {
                 .unwrap_or(false),
             _ => false,
         };
+        // Codes start with Get Started: without the button, a voter who
+        // never wrote to the Page has nothing to press.
+        let get_started = match exchange(
+            self.http
+                .get(format!(
+                    "{}/{}/messenger_profile",
+                    self.base_url, self.page_id
+                ))
+                .query(&[("fields", "get_started")])
+                .bearer_auth(token),
+        )
+        .await
+        {
+            Ok((200, body)) => serde_json::from_str::<Value>(&body).ok().map(|body| {
+                body["data"]
+                    .as_array()
+                    .is_some_and(|data| data.iter().any(|entry| !entry["get_started"].is_null()))
+            }),
+            _ => None,
+        };
+        // Utility templates send notices outside the 24-hour window.
+        let mut details = AccountCheckDetails::default();
+        let approved_templates = match exchange(
+            self.http
+                .get(format!(
+                    "{}/{}/message_templates",
+                    self.base_url, self.page_id
+                ))
+                .query(&[
+                    ("fields", "name,language,status,category"),
+                    ("limit", "200"),
+                ])
+                .bearer_auth(token),
+        )
+        .await
+        {
+            Ok((200, body)) => {
+                let (templates, approved) = meta_templates(&body);
+                details.templates = templates;
+                approved
+            }
+            _ => {
+                details.templates_reason = Some(TEMPLATES_NOT_READ.to_string());
+                Default::default()
+            }
+        };
+        let pages_messaging = token_status
+            .as_ref()
+            .map(|token| !token.missing_scopes.iter().any(|s| s == PAGES_MESSAGING));
+        details.token = token_status;
+        // Get Started reaches Step only through callbacks signed with the
+        // app secret: a wrong one stops every Messenger code (R5-16).
+        details.app_secret = meta_app_secret_status(
+            &self.http,
+            &self.base_url,
+            &self.page_id,
+            token,
+            self.account.credential(CredentialName::APP_SECRET).ok(),
+        )
+        .await;
+        details.messenger = Some(MessengerPageStatus {
+            pages_messaging,
+            subscribed,
+            get_started,
+        });
+        let reason = if !subscribed {
+            Some(NOT_SUBSCRIBED.to_string())
+        } else if pages_messaging == Some(false) {
+            Some(NO_PAGES_MESSAGING.to_string())
+        } else {
+            None
+        };
         AccountCheck {
             connected: true,
-            production_access: subscribed,
-            approved_templates: Default::default(),
+            production_access: reason.is_none(),
+            approved_templates,
             checked_at: now,
-            reason: (!subscribed).then(|| "the app is not subscribed to the Page".to_string()),
+            reason,
+            details,
         }
     }
 }
+
+/// The permission a Page token needs to send.
+const PAGES_MESSAGING: &str = "pages_messaging";
+const MESSENGER_SCOPES: &[&str] = &[PAGES_MESSAGING];
+
+/// Why a connected Page isn't in production: its webhook subscription.
+pub const NOT_SUBSCRIBED: &str = "the app is not subscribed to the Page";
+/// Why a connected Page isn't in production: its token can't send.
+pub const NO_PAGES_MESSAGING: &str = "the Page token lacks the pages_messaging permission";
 
 #[cfg(test)]
 mod tests {
@@ -348,7 +436,13 @@ mod tests {
     async fn a_page_without_the_webhook_subscription_is_not_ready() {
         let server = TestServer::start(vec![
             Reply::Json(200, json!({"name": "COMELEC"})),
+            Reply::Json(
+                200,
+                json!({"data": {"is_valid": true, "expires_at": 0, "scopes": ["pages_messaging"]}}),
+            ),
             Reply::Json(200, json!({"data": []})),
+            Reply::Json(200, json!({"data": []})),
+            Reply::Json(400, json!({"error": {"code": 100}})),
         ])
         .await;
         let sender =
@@ -360,6 +454,65 @@ mod tests {
         assert_eq!(
             check.reason.as_deref(),
             Some("the app is not subscribed to the Page")
+        );
+        assert_eq!(
+            check.details.messenger,
+            Some(MessengerPageStatus {
+                pages_messaging: Some(true),
+                subscribed: false,
+                get_started: Some(false),
+            })
+        );
+        // A token that doesn't expire has no expiry.
+        assert_eq!(check.details.token.unwrap().expires_at, None);
+        assert_eq!(
+            check.details.templates_reason.as_deref(),
+            Some("The provider's templates couldn't be read")
+        );
+    }
+
+    #[tokio::test]
+    async fn the_check_reports_the_page_permission_get_started_and_templates() {
+        let server = TestServer::start(vec![
+            Reply::Json(200, json!({"name": "Elections"})),
+            Reply::Json(200, json!({"data": {"is_valid": true, "scopes": ["pages_show_list"]}})),
+            Reply::Json(200, json!({"data": [{"id": "app-1"}]})),
+            Reply::Json(200, json!({"data": [{"get_started": {"payload": "START"}}]})),
+            Reply::Json(
+                200,
+                json!({"data": [
+                    {"name": "notice", "language": "en_US", "status": "APPROVED", "category": "UTILITY"}
+                ]}),
+            ),
+        ])
+        .await;
+        let sender =
+            MessengerSender::new(account(), reqwest::Client::new(), server.base_url.clone())
+                .unwrap();
+        let check = sender.check().await;
+        let requests = server.requests();
+        assert_eq!(
+            requests[3].path.split('?').next(),
+            Some("/v23.0/page-1/messenger_profile")
+        );
+        assert!(check.connected);
+        assert!(!check.production_access);
+        assert_eq!(
+            check.reason.as_deref(),
+            Some("the Page token lacks the pages_messaging permission")
+        );
+        assert_eq!(
+            check.details.messenger,
+            Some(MessengerPageStatus {
+                pages_messaging: Some(false),
+                subscribed: true,
+                get_started: Some(true),
+            })
+        );
+        assert_eq!(check.details.templates.len(), 1);
+        assert_eq!(
+            check.approved_templates.get(&MessagePurpose::NOTICE),
+            Some(&vec!["en_US".to_string()])
         );
     }
 }

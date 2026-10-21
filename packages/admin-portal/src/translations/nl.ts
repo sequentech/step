@@ -1,10 +1,249 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {TranslationType} from "./en"
+import englishTranslation, {TranslationType} from "./en"
 
 const dutchTranslation: TranslationType = {
     translations: {
+        readiness: {
+            close: "Sluiten",
+            action: "Gereedheid controleren",
+            title: "Verkiezingsgereedheid",
+            description:
+                "Vergelijk dit officiële evenement met een voltooide repetitie. Een geslaagde controle legt ondertekend bewijs vast in het logboek van het officiële evenement.",
+            testedEvent: "Getest evenement",
+            archived: "Gearchiveerd",
+            noEvents: "Geen andere evenementen beschikbaar",
+            retry: "Opnieuw proberen",
+            eventsError: "Verkiezingsevenementen konden niet worden geladen.",
+            run: "Controle uitvoeren",
+            running: "Gereedheid wordt gecontroleerd…",
+            error: "De controle kon niet worden voltooid. Bekijk het logboek voordat u het opnieuw probeert; het antwoord kan verloren zijn gegaan nadat het bewijs was vastgelegd.",
+            downloadError: "Het rapport kon niet worden gedownload. Probeer het opnieuw.",
+            success:
+                "Gereedheid bevestigd. Ondertekend bewijs is vastgelegd in het logboek van het officiële evenement.",
+            failed: "De controle is mislukt. Verhelp de mislukte controles en voer deze opnieuw uit. Er is geen gereedheidsvermelding vastgelegd.",
+            download: "JSON-rapport downloaden",
+            snapshot:
+                "Dit rapport is een momentopname. Herhaal na relevante wijzigingen; het bevriest het evenement niet en vervangt geen operationele goedkeuring.",
+            results: "Controleresultaten",
+        },
+        plugins: {
+            title: "Plug-ins",
+            description:
+                "Plug-ins zijn meegeleverd met deze release. Een plug-in inschakelen voegt het menu-item en de rechten toe voor deze tenant; uitschakelen verbergt de plug-in en bewaart de gegevens en rechten.",
+            enabled: "Aan",
+            disabled: "Uit",
+            compatible: "Compatibel",
+            incompatible: "Opgeslagen gegevens vereisen een nieuwere release",
+            api: "Plug-in-API {{major}}",
+            permissions: "Rechten",
+            adminGroup: "toegekend aan de groep admin bij inschakelen",
+            enable: "Inschakelen",
+            disable: "Uitschakelen",
+            confirmEnableTitle: "{{name}} inschakelen?",
+            confirmDisableTitle: "{{name}} uitschakelen?",
+            confirmEnable:
+                "{{name}} verschijnt in het menu voor gebruikers met de bijbehorende rechten. De rechten worden in deze tenant aangemaakt en toegekend aan de groep admin.",
+            confirmDisable:
+                "{{name}} wordt verborgen en verzoeken worden geweigerd. De gegevens, geschiedenis en rechten blijven bewaard en verder verandert er niets in de tenant.",
+            confirm: "Bevestigen",
+            noPermission: "Plug-ins wijzigen vereist het recht tenant-write.",
+            retry: "Opnieuw proberen",
+            loading: "Plug-ins laden…",
+            signIn: "Meld je aan bij de geselecteerde tenant om de plug-ins te gebruiken.",
+            unavailable: "Deze plug-in maakt geen deel uit van deze release.",
+            incompatibleRoute:
+                "De opgeslagen gegevens van deze plug-in vereisen een nieuwere release. De gegevens zijn ongewijzigd.",
+            disabledRoute:
+                "{{name}} is niet ingeschakeld voor deze tenant. Een tenantbeheerder kan het inschakelen via Instellingen → Plug-ins.",
+            forbidden: "Je hebt geen recht om {{name}} te gebruiken.",
+        },
+        projects: {
+            title: "Projecten",
+            subtitle:
+                "Plan het werk van de tenant op een tijdlijn. Projecten wijzigen nooit verkiezingsschema's.",
+            cancel: "Annuleren",
+            retry: "Opnieuw proberen",
+            loading: "Laden…",
+            list: {
+                create: "Nieuw project",
+                import: "Importeren",
+                emptyTitle: "Nog geen projecten",
+                emptyHelp:
+                    "Maak een project of importeer een CSV-bestand dat uit een ander project is geëxporteerd.",
+                emptyViewer: "Er zijn geen projecten aangemaakt in deze tenant.",
+                active_one: "Actief ({{count}})",
+                active_other: "Actief ({{count}})",
+                archived_one: "Gearchiveerd ({{count}})",
+                archived_other: "Gearchiveerd ({{count}})",
+                name: "Naam",
+                dates: "Datums",
+                tasks: "Taken",
+                timezone: "Tijdzone",
+                updated: "Laatste wijziging",
+                updatedBy: "{{at}} · {{actor}}",
+                archivedChip: "Gearchiveerd",
+                noneInTab: "Hier zijn geen projecten.",
+            },
+            create: {
+                title: "Nieuw project",
+                name: "Projectnaam",
+                timezone: "Tijdzone",
+                timezoneHelp:
+                    "Alle datums in het project worden in deze IANA-tijdzone ingevoerd en getoond.",
+                submit: "Project maken",
+            },
+            import: {
+                title: "Een project importeren",
+                help: "Importeren maakt altijd een nieuw project. Gebruik een UTF-8-CSV-bestand met de kolommen {{columns}}, zoals geëxporteerd uit een project, met een UTC-afwijking bij elke datum. Er wordt niets opgeslagen tot je het project maakt.",
+                choose: "CSV-bestand kiezen",
+                noFile: "Geen bestand gekozen",
+                fileLimit: "Het bestand mag maximaal 1 MiB zijn.",
+                invalidFile: "Het bestand is geen geldige UTF-8-tekst.",
+                valid_one: "{{count}} taak is klaar om te importeren.",
+                valid_other: "{{count}} taken zijn klaar om te importeren.",
+                invalid_one:
+                    "{{count}} van {{total}} rijen bevat fouten. Corrigeer het bestand en kies het opnieuw.",
+                invalid_other:
+                    "{{count}} van {{total}} rijen bevatten fouten. Corrigeer het bestand en kies het opnieuw.",
+                previewTable: "Voorbeeld van de import",
+                line: "Regel",
+                result: "Controle",
+                rowValid: "Klaar",
+                commit: "Project maken",
+            },
+            detail: {
+                timezone: "Alle datums en tijden zijn in {{timezone}}.",
+                export: "Exporteren",
+                archive: "Archiveren",
+                restore: "Herstellen",
+                addTask: "Taak toevoegen",
+                viewOnly: "Alleen lezen. Taken wijzigen vereist het recht projects-write.",
+                archivedNotice: "Dit project is gearchiveerd. Herstel het om de taken te wijzigen.",
+            },
+            notices: {
+                saved: "“{{title}}” opgeslagen.",
+                moved: "“{{title}}” opgeslagen: {{start}} – {{end}}.",
+                deleted: "“{{title}}” verwijderd.",
+                archived: "Project gearchiveerd.",
+                restored: "Project hersteld.",
+            },
+            panel: {
+                details: "Taakgegevens",
+                edit: "Taak bewerken",
+                add: "Taak toevoegen",
+                close: "Taakgegevens sluiten",
+                hint: "Selecteer een taak op de tijdlijn om de gegevens hier te zien.",
+                noTasks: "Dit project heeft nog geen taken.",
+            },
+            conflict: {
+                body: "Iemand anders heeft deze taak gewijzigd ({{actor}}, {{at}}). Je wijzigingen staan er nog. Bekijk hun versie voordat je opnieuw opslaat.",
+                load: "Hun versie laden",
+            },
+            unsaved: {
+                body: "Je hebt niet-opgeslagen wijzigingen. Sla ze op, of verwerp ze om {{action}}.",
+                keep: "Verder bewerken",
+                discard: "Wijzigingen verwerpen",
+                actions: {
+                    open: "“{{title}}” te openen",
+                    add: "een nieuwe taak toe te voegen",
+                    leave: "terug te gaan naar de projecten",
+                    close: "de taak te sluiten",
+                    state: "het project te wijzigen",
+                },
+            },
+            deleteDialog: {
+                title: "Taak verwijderen?",
+                body: "“{{title}}” wordt uit het project verwijderd. De wijzigingsgeschiedenis blijft bewaard.",
+                confirm: "Verwijderen",
+            },
+            history: {
+                task: "Wijzigingsgeschiedenis",
+                project: "Projectgeschiedenis",
+                empty: "Nog geen wijzigingen vastgelegd.",
+                more: "Oudere wijzigingen tonen",
+                by: "{{actor}} · {{at}}",
+                actions: {
+                    create: "Aangemaakt {{subject}}",
+                    update: "Gewijzigd {{subject}}",
+                    delete: "Verwijderd {{subject}}",
+                    import_one: "{{count}} taak geïmporteerd",
+                    import_other: "{{count}} taken geïmporteerd",
+                    export: "Geëxporteerd als CSV",
+                    other: "{{action}}",
+                },
+            },
+            editor: {
+                title: "Titel",
+                type: "Type",
+                status: "Status",
+                start: "Begin",
+                end: "Einde",
+                at: "Datum en tijd",
+                notes: "Notities",
+                order: "Volgorde",
+                orderHelp: "Taken worden gesorteerd op volgorde en daarna op begin.",
+                timezoneNote: "Tijden zijn in {{timezone}}.",
+                offset: "UTC{{offset}}",
+                localTime: {
+                    invalid: "Voer een datum en tijd in tussen 1900 en 2200.",
+                    skipped:
+                        "Deze tijd bestaat niet in {{timezone}}: de klok slaat hem over. Kies een andere tijd.",
+                    repeated:
+                        "Deze tijd komt twee keer voor in {{timezone}}. Kies welke je bedoelt.",
+                },
+                chooseInstant: "Welke keer",
+                instantChoice: "Op UTC{{offset}}",
+                saving: "Opslaan…",
+                toFix_one: "{{count}} veld te corrigeren",
+                toFix_other: "{{count}} velden te corrigeren",
+                save: "Opslaan",
+                delete: "Verwijderen",
+            },
+            validation: {
+                title: "Voer een titel in van maximaal 200 tekens.",
+                offset: "Voer geldige datums in.",
+                range: "Het einde moet na het begin liggen.",
+                milestone: "Een mijlpaal heeft geen einde.",
+                notes: "Notities mogen maximaal 16.000 tekens bevatten.",
+                order: "De volgorde moet een geheel getal van 0 tot 1.000.000 zijn.",
+            },
+            status: {
+                not_started: "Niet begonnen",
+                in_progress: "Bezig",
+                done: "Klaar",
+            },
+            type: {
+                task: "Taak",
+                milestone: "Mijlpaal",
+            },
+            units: {
+                days_one: "{{count}} dag",
+                days_other: "{{count}} dagen",
+                hours_one: "{{count}} u",
+                hours_other: "{{count}} u",
+                minutes_one: "{{count}} min",
+                minutes_other: "{{count}} min",
+            },
+            timeline: {
+                title: "Tijdlijn",
+                tasks_one: "{{count}} taak",
+                tasks_other: "{{count}} taken",
+                empty: "Nog geen taken.",
+                editHelp:
+                    "Wijs een taak aan of geef die focus voor een samenvatting; selecteer haar om eronder te bewerken. Sleep een balk of gebruik ← → om haar 24 uur te verplaatsen; voeg Shift toe om het einde te wijzigen.",
+                viewHelp:
+                    "Wijs een taak aan of geef die focus voor een samenvatting. Selecteer haar om de gegevens eronder te zien.",
+                touchEditHelp:
+                    "Tik op een taak om haar eronder te bewerken, of sleep een balk om haar hele dagen te verplaatsen.",
+                touchViewHelp: "Tik op een taak om de gegevens eronder te zien.",
+                taskLabel: "{{title}}, van {{start}} tot {{end}}, {{status}}",
+                milestoneLabel: "{{title}}, mijlpaal op {{at}}, {{status}}",
+                previewEdit: "Klik of druk op Enter om te bewerken",
+                previewView: "Klik of druk op Enter voor de gegevens",
+            },
+        },
         philippinePassport: "Filipijns Paspoort",
         seamanBook: "Zeemansboek",
         philSysID: "PhilSys ID",
@@ -203,13 +442,283 @@ const dutchTranslation: TranslationType = {
                 },
             },
         },
+        tenantLogs: {
+            explanation: {
+                action: "Actie: {{action}}",
+                outcome: {
+                    succeeded: "Geaccepteerd (HTTP {{status}})",
+                    denied: "Geweigerd (HTTP {{status}})",
+                    failed: "Mislukt (HTTP {{status}})",
+                },
+                by: "Gevraagd door {{username}} ({{userId}})",
+                detail: "{{name}}: {{value}}",
+                board: "Log: {{board}}",
+                publicKey: "Publieke sleutel van het log: {{key}}",
+            },
+        },
         logsScreen: {
+            configurationPackage: englishTranslation.translations.logsScreen.configurationPackage,
+            readiness: {
+                passed: "Geslaagd",
+                failed: "Mislukt",
+                checkResult: "{{outcome}}: {{description}}",
+                description: {
+                    VotersImported: "Kiezersbestand geïmporteerd.",
+                    ReadinessVerified:
+                        "Gereedheid van het officiële evenement geverifieerd met het geteste evenement.",
+                },
+                checks: {
+                    configuration:
+                        "Beide evenementen hebben dezelfde goedgekeurde inhoud, geverifieerde goedkeurders en gebieden.",
+                    certified_voters:
+                        "Beide evenementen komen overeen met hetzelfde gecertificeerde kiezersbestand en de huidige aantallen per gebied.",
+                    official_zero:
+                        "Het officiële evenement is nooit geopend voor stemmen en bevat geen stembiljetten of telsessies.",
+                    publication:
+                        "De officiële publicatie komt overeen met de ondertekende configuratie.",
+                    tested_finished:
+                        "De stemkanalen van het geteste evenement zijn gesloten en alle verwachte stembussen zijn verzegeld.",
+                },
+                fields: {
+                    report: "Gereedheidsrapport",
+                    passed: "Geslaagd",
+                    checked_at: "Gecontroleerd op",
+                    evidence: "Bewijs",
+                    official: "Officieel evenement",
+                    tested: "Getest evenement",
+                    official_event_id: "ID officieel evenement",
+                    tested_event_id: "ID getest evenement",
+                    event_id: "Evenement-ID",
+                    election_id: "Verkiezings-ID",
+                    configuration: "Configuratie",
+                    external_id: "Externe ID",
+                    revision: "Revisie",
+                    content_sha256: "SHA-256 inhoud",
+                    manifest_sha256: "SHA-256 manifest",
+                    approvers: "Geverifieerde goedkeurders",
+                    areas: "Gebieden",
+                    voters: "Kiezersimport",
+                    import_id: "Import-ID",
+                    document_id: "Document-ID",
+                    file_name: "Bestandsnaam",
+                    sha256: "SHA-256 bestand",
+                    declared_sha256: "Opgegeven SHA-256",
+                    counts_by_area: "Kiezers per gebied",
+                    imported_at: "Geïmporteerd op",
+                    voter_log_delivered: "Ondertekende import vastgelegd",
+                    current_voter_counts: "Huidige kiezers per gebied",
+                    voter_import_in_progress: "Kiezersimport actief",
+                    status: "Status",
+                    elections: "Verkiezingen",
+                    ballot_count: "Opgeslagen stembiljetten",
+                    received_ballot_count: "Ontvangen stembiljetten bij controle",
+                    tally_session_count: "Telsessies",
+                    publication: "Publicatie",
+                    publication_id: "Publicatie-ID",
+                    publication_ids: "Publicatie-ID’s",
+                    matches_manifest: "Komt overeen met ondertekend manifest",
+                    design_count: "Gepubliceerde ontwerpen",
+                    seal_at_close: "Verzegelen bij sluiting",
+                    expected_boxes: "Verwachte stembussen",
+                    sealed_boxes: "Verzegelde stembussen",
+                    all_channels_closed: "Alle stemkanalen gesloten",
+                    locked_down: "Vergrendeld",
+                    log_entry_id: "Logboekvermelding-ID",
+                },
+            },
             noPermissions: "U hebt geen toestemming om toegang te krijgen tot de logs.",
             title: "Logs",
-            subtitle: "Algemene logs van de hoofd- en IAM-databases",
+            subtitle:
+                "Alles wat in dit verkiezingsevenement is gedaan. Aanmeldingen en wijzigingen daarbuiten staan in Instellingen > Logs.",
+            empty: "Geen vermeldingen gevonden.",
+            tenant: {
+                subtitle:
+                    "Aanmeldingen, medewerkersaccounts en rollen, instellingen en verkiezingsevenementen van deze organisatie. Elk verkiezingsevenement houdt zijn eigen log bij in zijn tabblad Logs.",
+                noPermissions: "U hebt geen toestemming om dit log te bekijken.",
+            },
+            entry: {
+                title: "Logvermelding {{id}}",
+                statementKind: "Soort verklaring",
+                eventType: "Eventtype",
+                logType: "Logtype",
+                when: "Wanneer",
+                utc: "{{time}} UTC",
+                who: "Wie",
+                userId: "Gebruikers-ID {{id}}",
+                role: "Rol {{role}}",
+                unknownAccount: "Onbekend account (de getypte naam wordt niet vastgelegd)",
+                madeIn: "Gedaan in",
+                changed: "Gewijzigd",
+                objectId: "ID {{id}}",
+                actionLabel: "Actie",
+                details: "Details",
+                origin: {
+                    "hasura": "Beheerportaal (via Hasura)",
+                    "harvest": "Beheerportaal (via Harvest)",
+                    "windmill": "Beheerportaal (een Windmill-taak)",
+                    "keycloak-console": "Beheerconsole van Keycloak, buiten het beheerportaal",
+                    "service-account":
+                        "Serviceaccount van Step, voor een wijziging in het beheerportaal",
+                },
+                action: {
+                    create: "Aangemaakt",
+                    update: "Bijgewerkt",
+                    delete: "Verwijderd",
+                    import: "Geïmporteerd",
+                    export: "Geëxporteerd",
+                    archive: "Gearchiveerd",
+                    unarchive: "Uit archief gehaald",
+                    enable: "Ingeschakeld",
+                    disable: "Uitgeschakeld",
+                    reset_password: "Wachtwoord opnieuw ingesteld",
+                    grant: "Toegekend",
+                    revoke: "Ingetrokken",
+                },
+                objectType: {
+                    tenant: "Tenantinstellingen",
+                    tenant_log: "Tenantlog",
+                    staff_account: "Medewerkersaccount",
+                    role: "Rol",
+                    template: "Sjabloon",
+                    trustee: "Trustee",
+                    election_type: "Verkiezingstype",
+                    election_event: "Verkiezingsevenement",
+                    election: "Verkiezing",
+                    contest: "Stemming",
+                    candidate: "Kandidaat",
+                    area: "Gebied",
+                },
+                values: {
+                    title: "Oude en nieuwe waarden",
+                    field: "Veld",
+                    old: "Oude waarde",
+                    new: "Nieuwe waarde",
+                    none: "(geen)",
+                    secret: "Gewijzigd. Geheime waarden worden nooit vastgelegd.",
+                    yes: "Ja",
+                    no: "Nee",
+                    sha: "SHA-256 {{hash}}",
+                },
+                field: {
+                    tenant: {
+                        slug: "Korte naam",
+                        isActive: "Actief",
+                        logsTimezone: "Tijdzone voor het tenantlog (Talen)",
+                        languages: "Talen",
+                        enabledLanguages: "Ingeschakelde talen (Talen)",
+                        defaultLanguage: "Standaardtaal (Talen)",
+                        languageDetection: "Taaldetectie (Talen)",
+                        translations: "Vertalingen (Lokalisatie)",
+                        sms: "Sms",
+                        mail: "E-mail",
+                        gapiKey: "Google API-sleutel (Integraties)",
+                        gapiEmail: "Google API-e-mailadres (Integraties)",
+                        helpLinks: "Hulplinks (Uiterlijk)",
+                        displayName: "Naam van de organisatie (Uiterlijk)",
+                        votingCountries: "Landen geblokkeerd voor stemmen (Landen)",
+                        enrollCountries: "Landen geblokkeerd voor inschrijving (Landen)",
+                        logoUrl: "Logo (Uiterlijk)",
+                        css: "Aangepaste CSS (Uiterlijk)",
+                        votingChannels: "Stemkanalen",
+                        onlineVoting: "Online stemmen (Stemkanalen)",
+                        kioskVoting: "Stemmen via kiosk (Stemkanalen)",
+                        telephoneVoting: "Telefonisch stemmen (Stemkanalen)",
+                        earlyVoting: "Vervroegd stemmen (Stemkanalen)",
+                        paperVoting: "Stemmen op papier (Stemkanalen)",
+                    },
+                },
+                signIn: {
+                    title: "Aanmelding en accountbeveiliging",
+                    event: "Keycloak-gebeurtenis",
+                    error: "Fout",
+                    authentication: "Authenticatie",
+                    credential: "Inloggegeven",
+                    failures: "Mislukte pogingen op rij",
+                    client: "Client",
+                    ipAddress: "IP-adres",
+                },
+                keycloak: {
+                    title: "Wijziging in Keycloak",
+                    account: "Account",
+                    operation: "Bewerking",
+                    appliesTo: "Van toepassing op",
+                    resource: "Resource",
+                    newValue: "Nieuwe waarde",
+                    error: "Fout",
+                },
+                importedFile: {
+                    title: "Het geïmporteerde bestand",
+                    declared: "Opgegeven controlesom",
+                    sha256: "SHA-256 van het bestand",
+                    declaredSha256: "Opgegeven SHA-256",
+                    document: "Document",
+                    checksum: {
+                        undeclared: "Niet opgegeven",
+                        matches: "Komt overeen met het bestand",
+                        mismatch: "Komt niet overeen met het bestand",
+                    },
+                    counts: {
+                        count: "Rijen",
+                        elections: "Verkiezingen",
+                        contests: "Kiesrondes",
+                        candidates: "Kandidaten",
+                        areas: "Gebieden",
+                        area_contests: "Gebieden per kiesronde",
+                        sections: "Configuratiesecties",
+                    },
+                },
+                deletedEvent: {
+                    title: "Het log van het verwijderde verkiezingsevenement",
+                    lastEntry: "Laatste vermelding",
+                    stateHash: "Statushash",
+                    logDatabase: "Logdatabase",
+                    status: "Status",
+                    retired: "Ontladen en bewaard totdat het volgens het bewaarbeleid wordt gewist",
+                    task: "Taak",
+                    systemKey: "De systeemsleutel van het log",
+                },
+                exported: {
+                    title: "Export",
+                    entries: "Vermeldingen",
+                    sha256: "SHA-256 van het bestand",
+                    document: "Document",
+                    scope: {
+                        TENANT_LOG: "Het hele tenantlog",
+                        ACCOUNT: "Eén account",
+                        ACCOUNT_WITH_EVENTS:
+                            "Eén account, met zijn vermeldingen in elk verkiezingsevenement",
+                        ALL: "Het hele verkiezingsevenement",
+                        ELECTION: "Eén verkiezing",
+                        AREA: "Eén gebied",
+                    },
+                },
+                writer: {
+                    title: "Logschrijver",
+                    release: "Release",
+                    lastEntry: "Laatst geplaatste vermelding",
+                },
+                signatures: {
+                    title: "Log en handtekeningen",
+                    log: "Log",
+                    tenantLog: "Tenantlog",
+                    eventLog: "Log van het verkiezingsevenement",
+                    signedBy: "Ondertekend door",
+                    adminKey: "Beheersleutel van {{name}}",
+                    systemOnly: "Alleen de systeemsleutel van het log",
+                    systemSignature: "Systeemhandtekening",
+                    publicKey: "Gepubliceerde beheersleutel",
+                },
+            },
             actions: {
                 csv: "Exporteren als CSV",
                 pdf: "Exporteren als PDF",
+                audit: "Controleren",
+            },
+            auditDialog: {
+                title: "Verkiezingslog controleren",
+                confirm: "Controleren",
+                description:
+                    "De controle vergelijkt elke logregel met het Merkle-log en verifieert de gepubliceerde controlepunten. Het resultaat wordt als taak vastgelegd.",
             },
             exportdialog: {
                 description: "Bevestig dat u deze actie wilt uitvoeren. Dit kan even duren.",
@@ -220,6 +729,27 @@ const dutchTranslation: TranslationType = {
                 format: "Formaat",
                 csv: "CSV",
                 pdf: "PDF",
+                sql: "SQL",
+                scope: {
+                    label: "Bereik",
+                    tenant: {
+                        TENANT_LOG: "Het hele tenantlog",
+                        ACCOUNT: "Eén account",
+                    },
+                    event: {
+                        ALL: "Het hele verkiezingsevenement",
+                        ELECTION: "Eén verkiezing",
+                        AREA: "Eén gebied",
+                        ACCOUNT: "Eén account",
+                    },
+                },
+                username: "Gebruikersnaam",
+                election: "Verkiezing",
+                area: "Gebied",
+                withElectionEvents:
+                    "De vermeldingen van dit account in elk verkiezingsevenement opnemen",
+                rowsNameLog: "Rijen uit verkiezingsevenementen vermelden hun log.",
+                recorded: "De export zelf wordt in dit log vastgelegd.",
                 zoneNote:
                     "Elke rij bewaart de tijd in UTC (ISO 8601) en in {{abbr}}, met de naam van de tijdzone. Het datumbereik omvat beide grenzen, in {{abbr}}.",
                 zoneNotePdf:
@@ -326,6 +856,7 @@ const dutchTranslation: TranslationType = {
                 PUBLISH_BALLOT: "Stembiljet publiceren",
                 VOTER_INFORMATION_LETTER: "Kiezersinformatiebrief",
                 EXPORT_MONITORING_DATA: "Monitoringgegevens Exporteren",
+                AUDIT_ELECTORAL_LOG: "Verkiezingslog controleren",
                 EXPORT_ELECTION_EVENT: "Verkiezingsevenement Exporteren",
                 CREATE_ELECTION_EVENT: "Verkiezingsevenement Aanmaken",
                 IMPORT_ELECTION_EVENT: "Verkiezingsevenement Importeren",
@@ -336,6 +867,7 @@ const dutchTranslation: TranslationType = {
                 CREATE_TRANSMISSION_PACKAGE: "Transmissiepakket Aanmaken",
                 EXPORT_BALLOT_PUBLICATION: "Publicatie Stembiljet Exporteren",
                 EXPORT_ACTIVITY_LOGS_REPORT: "Activiteitenlogboek Rapport Exporteren",
+                EXPORT_TENANT_LOGS: "Tenantlog Exporteren",
                 GENERATE_REPORT: "Rapport Genereren",
                 GENERATE_TRANSMISSION_REPORT: "Transmissierapport Genereren",
                 EXPORT_TRUSTEES: "Trustees Exporteren",
@@ -347,7 +879,7 @@ const dutchTranslation: TranslationType = {
                 EXPORT_TEMPLATES: "Sjablonen Exporteren",
                 IMPORT_TEMPLATES: "Sjablonen Importeren",
                 DELETE_ELECTION_EVENT: "Verkiezingsevenement Verwijderen",
-                DELETE_VOTERS: "Delete Voters",
+                DELETE_VOTERS: "Kiezers verwijderen",
                 PREPARE_PUBLICATION_PREVIEW: "De publicatievoorbeeldweergave voorbereiden",
                 EXPORT_TALLY_RESULTS_XLSX: "Exporteer de telresultaten in XLSX-indeling",
                 EXPORT_CERTIFICATE_AUTHORITIES: "Certificaatautoriteiten exporteren",
@@ -386,7 +918,7 @@ const dutchTranslation: TranslationType = {
             createAreaSuccess: "Gebied aangemaakt",
             updateAreaSuccess: "Gebied bijgewerkt",
             createAreaError: "Kon gebied niet aanmaken",
-            sequent_backend_area_contest: "Verkiezingen",
+            sequent_backend_area_contest: "Stemmingen",
             empty: {
                 header: "Nog geen gebieden.",
                 action: "Gebied aanmaken",
@@ -399,15 +931,19 @@ const dutchTranslation: TranslationType = {
             common: {
                 gapiKey: "Google Calendar Service Account Sleutel",
                 gapiEmail: "Google Calendar Authenticatie E-mail",
+                gapiKeyHelper:
+                    "De opgeslagen sleutel wordt niet getoond. Plak een nieuwe sleutel om deze te vervangen.",
+                gapiKeySaved: "Google Calendar Service Account Sleutel opgeslagen",
             },
             errors: {
                 invalidGapiKey: "Ongeldig formaat voor Google Calendar Service Account Sleutel",
+                saveGapiKey: "Kon de Google Calendar Service Account Sleutel niet opslaan",
             },
         },
         lookAndFeelScreen: {
             common: {
-                helpLinks: "Help Links",
-                logoUrl: "Logo URL",
+                helpLinks: "Helplinks",
+                logoUrl: "Logo-URL",
                 css: "Aangepaste CSS",
                 displayName: "Weergavenaam",
                 displayNameHelp:
@@ -447,6 +983,7 @@ const dutchTranslation: TranslationType = {
                 schedules: "GEPLANDE GEBEURTENISSEN",
                 trustees: "TRUSTEES",
                 BackupRestore: "BACK-UP / HERSTELLEN",
+                logs: "LOGS",
             },
         },
         trusteesSettingsScreen: {
@@ -545,7 +1082,7 @@ const dutchTranslation: TranslationType = {
                 },
                 help: {
                     publishing:
-                        "De stembus is vergrendeld. De vermelding op het prikbord wordt opnieuw geplaatst.",
+                        "De stembus is vergrendeld en het zegel staat op het prikbord. Het zegelrecord wordt gepubliceerd.",
                     counted:
                         "Stembiljetten die tellen: het laatste geldige stembiljet van elke stemgerechtigde kiezer. De overige in de stembus zijn vervangen door een later stembiljet van de kiezer, afgekeurd, of uitgebracht door een kiezer die niet stemgerechtigd is.",
                 },
@@ -584,6 +1121,10 @@ const dutchTranslation: TranslationType = {
                         "{{count}} stem is in behandeling in Datafix: de stembus wordt verzegeld zodra deze is afgehandeld.",
                     datafixVotes_other:
                         "{{count}} stemmen zijn in behandeling in Datafix: de stembus wordt verzegeld zodra deze zijn afgehandeld.",
+                    sequencer_one:
+                        "{{count}} stembiljet staat nog niet op het prikbord: de stembus wordt verzegeld zodra de sequencer het heeft toegevoegd.",
+                    sequencer_other:
+                        "{{count}} stembiljetten staan nog niet op het prikbord: de stembus wordt verzegeld zodra de sequencer ze heeft toegevoegd.",
                     stale: "Laatste poging om {{time}}: de verzegelaar draait mogelijk niet. Controleer Beat en de seal-worker.",
                     notTried:
                         "Nog niet geprobeerd: de verzegelaar draait mogelijk niet. Controleer Beat en de seal-worker.",
@@ -611,6 +1152,7 @@ const dutchTranslation: TranslationType = {
                     alreadyOnBoard: "Er staat al een zegel voor deze stembus op het prikbord.",
                     noBoard: "Het verkiezingsevenement heeft geen prikbord.",
                     unknownChannel: "Een stembiljet heeft een onbekend stemkanaal.",
+                    unrecorded: "Een stembiljet heeft geen stemregistratie op het prikbord.",
                 },
                 incident: {
                     title_one: "{{count}} stembus kon niet worden verzegeld",
@@ -630,6 +1172,10 @@ const dutchTranslation: TranslationType = {
             },
         },
         electionEventScreen: {
+            dataUnavailable: "Gegevens zijn niet beschikbaar voor dit verkiezingsevenement.",
+            noAccessibleTabs:
+                "Je hebt geen toegang tot beschikbare tabbladen voor dit verkiezingsevenement.",
+
             common: {
                 subtitle: "Configuratie verkiezingsevenement.",
                 showMore: "Toon meer",
@@ -655,19 +1201,21 @@ const dutchTranslation: TranslationType = {
                 importCandidates: "Kandidaten importeren",
                 custom_filters: "Aangepaste filters",
                 voter_authentication: "Kiezersauthenticatie",
-                realm_attributes: "Keycloak realm attributes",
-                realm_attributes_load_error: "Error loading Keycloak realm attributes",
-                realm_attributes_update_error: "Error updating Keycloak realm attributes",
+                realm_attributes: "Keycloak realm-attributen",
+                realm_attributes_load_error: "Fout bij het laden van Keycloak realm-attributen",
+                realm_attributes_update_error:
+                    "Fout bij het bijwerken van Keycloak realm-attributen",
                 realm_attributes_not_loaded:
-                    "Keycloak realm attributes have not loaded, changes were not saved",
-                password_policy: "Password Policy",
-                password_policy_load_error: "Error loading Keycloak password policy",
-                password_policy_update_error: "Error updating Keycloak password policy",
+                    "Keycloak realm-attributen zijn niet geladen; wijzigingen zijn niet opgeslagen",
+                password_policy: "Wachtwoordbeleid",
+                password_policy_load_error: "Fout bij het laden van het Keycloak-wachtwoordbeleid",
+                password_policy_update_error:
+                    "Fout bij het bijwerken van het Keycloak-wachtwoordbeleid",
                 password_policy_not_loaded:
-                    "Keycloak password policy has not loaded, changes were not saved",
+                    "Het Keycloak-wachtwoordbeleid is niet geladen; wijzigingen zijn niet opgeslagen",
             },
             customUrls: {
-                login: "Login",
+                login: "Inloggen",
                 enrollment: "Inschrijving",
             },
             localization: {
@@ -753,7 +1301,7 @@ const dutchTranslation: TranslationType = {
                 },
                 materialTitle: "Titel",
                 materialSubTitle: "Ondertitel",
-                logoUrl: "Logo URL",
+                logoUrl: "Logo-URL",
                 userVerification:
                     "U kunt een aangepast sjabloon invoeren dat zal worden gebruikt om kiezers handmatig te verifiëren",
                 redirectFinishUrl: "Doorschakel-URL na voltooiing",
@@ -798,6 +1346,11 @@ const dutchTranslation: TranslationType = {
                     },
                 },
                 lockdownState: {
+                    since: "Vergrendeld sinds {{date}}.",
+                    scheduledEnd: "Einde van de vergrendeling gepland voor {{date}}.",
+                    endScheduled: "Er is een einde van de vergrendeling gepland.",
+                    noScheduledEnd: "Er is geen einde van de vergrendeling gepland.",
+                    banner: "Dit verkiezingsevenement is vergrendeld.",
                     policyLabel: "Vergrendelingsstatus",
                     helperText:
                         "Plan het begin of einde van de vergrendelingsperiode om deze status te wijzigen.",
@@ -845,12 +1398,21 @@ const dutchTranslation: TranslationType = {
                     policyLabel: "Gedecodeerde stembiljetten opnemen in de resultaten database",
                     options: {"included": "Opnemen", "not-included": "Niet opnemen"},
                 },
+                fileIntegrityPolicy: {
+                    policyLabel: "Integriteit van het kiezersbestand",
+                    helperText:
+                        "Vereis de onafhankelijk gecertificeerde SHA-256 voordat kiezers worden geïmporteerd.",
+                    options: {
+                        OPTIONAL: "Optionele SHA-256",
+                        REQUIRED_SHA256: "Verplichte SHA-256",
+                    },
+                },
                 contestEncryptionPolicy: {
                     options: {
-                        "single-contest": "Enkele Verkiezing",
-                        "multiple-contests": "Meerdere Verkiezingen",
+                        "single-contest": "Enkele Stemming",
+                        "multiple-contests": "Meerdere Stemmingen",
                     },
-                    policyLabel: "Encryptiebeleid verkiezingen",
+                    policyLabel: "Encryptiebeleid stemmingen",
                 },
                 votingPortalDateTimeFormat: {
                     policyLabel: "Datum- en tijdnotatie van stemportaal",
@@ -858,8 +1420,8 @@ const dutchTranslation: TranslationType = {
                         'Geldt voor het hele evenement. Om per taal te overschrijven, voeg de sleutel "votingPortalDateTimeFormat" toe op het tabblad Localisatie met de tokens yyyy, MM, dd, HH, mm, ss (bijv. dd/MM/yyyy HH:mm). Zie de documentatie voor details.',
                     options: {
                         "legacy-gb-24h": "Legacy GB 24h (dd/MM/yyyy HH:mm, 24u)",
-                        "iso-local": "ISO Local (yyyy-MM-dd HH:mm)",
-                        "us-12h": "US 12h (MM/dd/yyyy h:mm AM/PM)",
+                        "iso-local": "ISO lokaal (yyyy-MM-dd HH:mm)",
+                        "us-12h": "VS 12 u (MM/dd/yyyy h:mm AM/PM)",
                         "locale-medium": "Locale Medium (middellange datum, korte tijd)",
                         "date-only": "Date Only (geen tijd)",
                         "custom": "Aangepast formaat",
@@ -897,7 +1459,7 @@ const dutchTranslation: TranslationType = {
                         "Dit kan niet meer worden gewijzigd nadat het stemmen is begonnen.",
                 },
                 VoterCertificatePolicy: {
-                    policyLabel: "Voter Digital Certificate Policy",
+                    policyLabel: "Beleid voor digitaal kiezerscertificaat",
                     enabled: "Ingeschakeld",
                     disabled: "Uitgeschakeld",
                 },
@@ -946,6 +1508,15 @@ const dutchTranslation: TranslationType = {
                     options: {
                         enabled: "Ingeschakeld",
                         disabled: "Uitgeschakeld",
+                    },
+                },
+                batchAnonymityPolicy: {
+                    policyLabel: "Beleid voor Anonimiteit van Batches",
+                    helperText:
+                        "Weigeren stopt de telling wanneer de stembiljettenbatch van een gebied minder dan vijf kiezers heeft, of verschilt van de batch die een andere telling al voor hetzelfde gebied en dezelfde verkiezing heeft gepubliceerd.",
+                    options: {
+                        warn: "Waarschuwen",
+                        refuse: "Weigeren",
                     },
                 },
                 languageDetectionPolicy: {
@@ -1019,7 +1590,7 @@ const dutchTranslation: TranslationType = {
                     hints: {
                         title: "Tips",
                         publishRequired:
-                            "Wijzigingen aan verkiezingen, verkiezingsonderdelen of kandidaten moeten eerst worden gepubliceerd voordat ze beschikbaar zijn. Alleen de meest recent gepubliceerde stembiljetstijlen voor het overeenkomstige gebied worden in de emulator gebruikt.",
+                            "Wijzigingen aan verkiezingen, stemmingen of kandidaten moeten eerst worden gepubliceerd voordat ze beschikbaar zijn. Alleen de meest recent gepubliceerde stembiljetstijlen voor het overeenkomstige gebied worden in de emulator gebruikt.",
                         eventChangesImmediate:
                             "Wijzigingen aan het verkiezingsevenement, zoals de IVR-configuratie of aangepaste prompts, zijn direct beschikbaar nadat de emulatorsessie opnieuw is gestart.",
                         credentials: 'De geldige kiezer-ID en pincode zijn "123" en "123".',
@@ -1045,7 +1616,7 @@ const dutchTranslation: TranslationType = {
                 elegibleVoters: "Stemgerechtigde Kiezers",
                 voters: "Effectieve Kiezers",
                 elections: "Verkiezingen",
-                contests: "Verkiezingen",
+                contests: "Stemmingen",
                 areas: "Gebieden",
                 sentEmails: "Verzonden e-mails",
                 sentSMS: "Verzonden SMS'en",
@@ -1068,7 +1639,7 @@ const dutchTranslation: TranslationType = {
                     configure: "Configureren",
                     ceremony: "Ceremonie",
                     created: "Voltooid",
-                    start: "Start",
+                    start: "Starten",
                     status: "Status",
                     download: "Downloaden",
                     check: "Controleren",
@@ -1167,6 +1738,8 @@ const dutchTranslation: TranslationType = {
                 importVotersError: "Fout bij importeren van kiezers",
                 importElectionEventSuccess: "Verkiezingsevenement succesvol geïmporteerd",
                 importElectionEventError: "Fout bij importeren verkiezingsevenement",
+                shaRequiredHelp:
+                    "Voer de gecertificeerde hexadecimale SHA-256 van 64 tekens in. Deze is verplicht voor de import.",
                 shaDialog: {
                     ok: "Ja, importeren zonder integriteitscontrole",
                     cancel: "Terug",
@@ -1227,7 +1800,7 @@ const dutchTranslation: TranslationType = {
                 image: "Afbeelding",
                 advanced: "Geavanceerde Configuratie",
                 numAllowedVotes: "Aantal toegestane stemmen",
-                reorder: "Volgorde verkiezingen wijzigen",
+                reorder: "Volgorde stemmingen wijzigen",
                 castVoteConfirm: "Bevestigingsvenster stem uitbrengen",
                 gracePeriodPolicy: "Respijttermijn",
                 allowTallyPolicy: "Telling Toestaan",
@@ -1404,7 +1977,7 @@ const dutchTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "Gestemd",
-                    "support_materials_viewed": "Support Materials Viewed",
+                    "support_materials_viewed": "Ondersteunend materiaal bekeken",
                     "vote-weight": "Stemgewicht",
                     "voted-channel": "Stemkanaal",
                     "disable-comment": "Deactiveringsopmerking",
@@ -1436,11 +2009,12 @@ const dutchTranslation: TranslationType = {
                 delete: {
                     body: "Weet u zeker dat u deze gebruiker wilt verwijderen?",
                     bulkBody: "Weet u zeker dat u de geselecteerde gebruikers wilt verwijderen?",
-                    bulkBodySelected: "Delete the {{count}} selected users? This cannot be undone.",
+                    bulkBodySelected:
+                        "De {{count}} geselecteerde gebruikers verwijderen? Dit kan niet ongedaan worden gemaakt.",
                     bulkBodyChoose:
-                        "{{count}} users are selected. You can instead delete every user matching the current filters, which may be more. This cannot be undone.",
-                    okSelected: "Delete {{count}} selected",
-                    okAllMatching: "Delete all matching",
+                        "Er zijn {{count}} gebruikers geselecteerd. U kunt in plaats daarvan alle gebruikers verwijderen die aan de huidige filters voldoen; dat kunnen er meer zijn. Dit kan niet ongedaan worden gemaakt.",
+                    okSelected: "{{count}} geselecteerde verwijderen",
+                    okAllMatching: "Alle overeenkomende verwijderen",
                 },
                 notifications: {
                     exportError: "Fout bij exporteren gebruikers",
@@ -1535,11 +2109,11 @@ const dutchTranslation: TranslationType = {
                     body: "Weet u zeker dat u deze kiezer wilt verwijderen?",
                     bulkBody: "Weet u zeker dat u de geselecteerde kiezers wilt verwijderen?",
                     bulkBodySelected:
-                        "Delete the {{count}} selected voters? This cannot be undone.",
+                        "De {{count}} geselecteerde kiezers verwijderen? Dit kan niet ongedaan worden gemaakt.",
                     bulkBodyChoose:
-                        "{{count}} voters are selected. You can instead delete every voter matching the current filters, which may be more. This cannot be undone.",
-                    okSelected: "Delete {{count}} selected",
-                    okAllMatching: "Delete all matching",
+                        "Er zijn {{count}} kiezers geselecteerd. U kunt in plaats daarvan alle kiezers verwijderen die aan de huidige filters voldoen; dat kunnen er meer zijn. Dit kan niet ongedaan worden gemaakt.",
+                    okSelected: "{{count}} geselecteerde verwijderen",
+                    okAllMatching: "Alle overeenkomende verwijderen",
                 },
                 notifications: {
                     exportError: "Fout bij exporteren kiezers",
@@ -1616,8 +2190,8 @@ const dutchTranslation: TranslationType = {
                 "election-event-create": "Verkiezingsevenement Aanmaken",
                 "election-event-read": "Verkiezingsevenement Lezen",
                 "election-event-write": "Verkiezingsevenement Bewerken",
-                "keycloak-realm-attributes-read": "Read Keycloak realm attributes",
-                "keycloak-realm-attributes-write": "Edit Keycloak realm attributes",
+                "keycloak-realm-attributes-read": "Keycloak realm-attributen lezen",
+                "keycloak-realm-attributes-write": "Keycloak realm-attributen bewerken",
                 "election-event-delete": "Verkiezingsevenement Verwijderen",
                 "voter-create": "Kiezer Aanmaken",
                 "voter-read": "Kiezer Lezen",
@@ -1660,6 +2234,13 @@ const dutchTranslation: TranslationType = {
                 "publish-results-read": "Resultatenpublicatie Lezen",
                 "publish-results-write": "Resultatenpublicatie Bewerken",
                 "logs-read": "Logs Lezen",
+                "electoral-log-audit": "Verkiezingslog Controleren",
+                "electoral-log-console-read": "Verkiezingslog Bekijken",
+                "electoral-log-console-query": "Verkiezingslog Bevragen",
+                "electoral-log-personal-data-read": "Persoonsgegevens van Verkiezingslog Lezen",
+                "task-queues-read": "Taakwachtrijen Lezen",
+                "task-queues-write": "Taakwachtrijen Beheren",
+                "task-queues-query": "Taakwachtrijen Bevragen",
                 "tasks-read": "Taakuitvoering Lezen",
                 "keys-read": "Sleutels Lezen",
                 "document-upload": "Documenten Uploaden",
@@ -1675,7 +2256,6 @@ const dutchTranslation: TranslationType = {
                 "tally-sheet-view": "Telblad Bekijken",
                 "admin-ceremony": "Beheerdersceremonie",
                 "tally-sheet-delete": "Telblad Verwijderen",
-                "cast-vote-read": "Uitgebrachte Stemmen Lezen",
                 "document-read": "Documenten Lezen",
                 "document-write": "Documenten Bewerken",
                 "support-material-read": "Ondersteunend Materiaal Lezen",
@@ -1684,14 +2264,14 @@ const dutchTranslation: TranslationType = {
                 "miru-download": "Miru Downloaden",
                 "miru-send": "Miru Verzenden",
                 "miru-sign": "Miru Ondertekenen",
-                "contest-write": "Verkiezing Bewerken",
-                "contest-read": "Verkiezing Lezen",
+                "contest-write": "Stemming Bewerken",
+                "contest-read": "Stemming Lezen",
                 "candidate-write": "Kandidaat Bewerken",
                 "candidate-read": "Kandidaat Lezen",
                 "permission-label-write": "Machtigingslabel Bewerken",
                 "scheduled-event-write": "Geplande Gebeurtenissen Bewerken",
-                "contest-create": "Verkiezing Aanmaken",
-                "contest-delete": "Verkiezing Verwijderen",
+                "contest-create": "Stemming Aanmaken",
+                "contest-delete": "Stemming Verwijderen",
                 "candidate-create": "Kandidaat Aanmaken",
                 "candidate-delete": "Kandidaat Verwijderen",
                 "election-create": "Verkiezing Aanmaken",
@@ -1752,7 +2332,10 @@ const dutchTranslation: TranslationType = {
                 "application-read": "Applicatie Lezen",
                 "application-write": "Applicatie Bewerken",
                 "approval-matrix-write": "Goedkeuringsmatrix Bewerken",
+                "readiness-check": "Verkiezingsgereedheid controleren",
                 "logs-export": "Logs Exporteren",
+                "tenant-logs-read": "Tenantlog Lezen",
+                "tenant-logs-export": "Tenantlog Exporteren",
                 "election-event-logs-columns": "Kolommen Logs Verkiezingsevenement",
                 "election-events-logs-filters": "Filters Logs Verkiezingsevenement",
                 "election-event-scheduled-event-columns":
@@ -1840,6 +2423,7 @@ const dutchTranslation: TranslationType = {
                 "messaging-account-read": "Berichtenaccounts bekijken",
                 "messaging-account-write": "Berichtenaccounts beheren",
                 "messaging-config-write": "Berichten van het verkiezingsevenement instellen",
+                "messaging-config-read": "Berichten van het verkiezingsevenement bekijken",
             },
         },
         generalSettingsScreen: {
@@ -2008,7 +2592,7 @@ const dutchTranslation: TranslationType = {
             resources: {
                 electionEvent: "Verkiezingsevenement",
                 election: "Verkiezing",
-                contest: "Verkiezing",
+                contest: "Stemming",
                 candidate: "Kandidaat",
                 noResult: {
                     askCreate: "Wilt u er een aanmaken?",
@@ -2074,13 +2658,13 @@ const dutchTranslation: TranslationType = {
         createResource: {
             electionEvent: "Een Verkiezingsevenement aanmaken",
             election: "Een Verkiezing aanmaken",
-            contest: "Een Verkiezing aanmaken",
+            contest: "Een Stemming aanmaken",
             candidate: "Een Kandidaat aanmaken",
         },
         importResource: {
             electionEvent: "Een Verkiezingsevenement importeren",
             election: "Een Verkiezing importeren",
-            contest: "Een Verkiezing importeren",
+            contest: "Een Stemming importeren",
             candidate: "Een Kandidaat importeren",
             ImportHashMismatch: "Hashes komen niet overeen. Integriteitscontrole mislukt.",
         },
@@ -2088,6 +2672,8 @@ const dutchTranslation: TranslationType = {
             electionEvents: "Verkiezingsevenementen",
             search: "Zoeken",
             usersAndRoles: "Gebruikers en Rollen",
+            electoralLogConsole: "Verkiezingslog",
+            taskQueues: "Taakwachtrijen",
             logs: "Logs",
             settings: "Instellingen",
             help: "Help",
@@ -2097,7 +2683,7 @@ const dutchTranslation: TranslationType = {
             addResource: {
                 electionEvent: "Een Verkiezingsevenement aanmaken",
                 election: "Een Verkiezing aanmaken",
-                contest: "Een Verkiezing aanmaken",
+                contest: "Een Stemming aanmaken",
                 candidate: "Een Kandidaat aanmaken",
             },
             menuActions: {
@@ -2107,13 +2693,13 @@ const dutchTranslation: TranslationType = {
                 unarchive: {
                     electionEvent: "Dit Verkiezingsevenement dearchiveren",
                     election: "Deze verkiezing dearchiveren",
-                    contest: "Deze Verkiezing dearchiveren",
+                    contest: "Deze Stemming dearchiveren",
                     candidate: "Deze Kandidaat dearchiveren",
                 },
                 remove: {
                     electionEvent: "Dit Verkiezingsevenement verwijderen",
                     election: "Deze Verkiezing verwijderen",
-                    contest: "Deze Verkiezing verwijderen",
+                    contest: "Deze Stemming verwijderen",
                     candidate: "Deze Kandidaat verwijderen",
                 },
                 messages: {
@@ -2189,7 +2775,7 @@ const dutchTranslation: TranslationType = {
         },
         contestScreen: {
             common: {
-                subtitle: "Configuratie verkiezing.",
+                subtitle: "Configuratie stemming.",
             },
             edit: {
                 externalId: "Externe ID",
@@ -2304,21 +2890,60 @@ const dutchTranslation: TranslationType = {
                     "Hoogste beschikbare rangpositie voor kiezers (bijv. '5' staat rangen 1–5 toe). Moet minimaal gelijk zijn aan het aantal te rangschikken kandidaten (preferentieel stemmen).",
             },
             error: {},
-            createContestSuccess: "Verkiezing aangemaakt",
-            createContestError: "Fout bij aanmaken verkiezing",
+            createContestSuccess: "Stemming aangemaakt",
+            createContestError: "Fout bij het aanmaken van de stemming",
         },
         keysGeneration: {
+            ...englishTranslation.translations.keysGeneration,
+            downloadStep: {
+                ...englishTranslation.translations.keysGeneration.downloadStep,
+                title: "Bewaringsbestand downloaden",
+                downloadButton: "Bewaringsbestand downloaden",
+                confirmdDialog: {
+                    ...englishTranslation.translations.keysGeneration.downloadStep.confirmdDialog,
+                    title: "Bewaringsbestand opslaan",
+                },
+            },
+            checkStep: {
+                ...englishTranslation.translations.keysGeneration.checkStep,
+                subtitle:
+                    "Upload uw opgeslagen bewaringsbestand of een ondertekend bewijs van bewaring:",
+                required: "Bevestiging van bewaring vereist",
+                reconfirmButton: "Bewaring opnieuw bevestigen (optioneel)",
+                reconfirmDescription:
+                    "Uw bewaring is al bevestigd. Deze aanvullende bevestiging is optioneel.",
+            },
+            serverCustody: {
+                recoveryInstructions:
+                    "Als u deze verkiezing hebt geïmporteerd of het opgeslagen bestand kwijt bent, download dan hier het huidige bewaringsbestand. Sla het op en upload het hieronder.",
+                fileFormat: "Ondersteund formaat: JSON",
+                waiting: "Wachten tot uw trusteeserver een bewijs van sleutelbezit maakt…",
+                unavailable:
+                    "De trusteeserver heeft niet gereageerd. Controleer of deze actief is en upload het bewaringsbestand opnieuw.",
+                failed: "De trusteeserver kon het bewijs niet maken: {{error}}",
+                invalidReply: "De trusteeserver gaf een onvolledig antwoord. Probeer het opnieuw.",
+                cancelled:
+                    "Het verzoek is geannuleerd. Upload het bestand opnieuw om verder te gaan.",
+                downloadInstructions:
+                    "Download en bewaar dit bewaringsbestand. Upload hetzelfde bestand bij de volgende stap en bij toekomstige tellingen. Het is geen back-up van uw privésleutels.",
+                uploadInstructions:
+                    "Upload het gedownloade bewaringsbestand. Uw trusteeserver maakt het bewijs. U kunt ook een bewijs uploaden dat door een offline trustee of browsertrustee is gemaakt.",
+                tallyInstructions:
+                    "Upload het bestand dat u tijdens de sleutelceremonie hebt bewaard. Uw trusteeserver maakt een nieuw bewijs voor deze telling. Bewijzen van offline trustees en browsertrustees worden ook geaccepteerd.",
+            },
             configureStep: {
                 create: "Sleutelceremonie Aanmaken",
                 name: "Naam Sleutelceremonie",
                 allElections: "Alle Verkiezingen",
                 title: "Sleutelceremonie Verkiezingsevenement Aanmaken",
                 subtitle:
-                    "Tijdens de sleutelceremonie genereert en downloadt elke trustee zijn fragment van de privésleutel voor het verkiezingsevenement. Kies de trustees die deelnemen aan de ceremonie en de drempelwaarde (het minimum aantal trustees nodig voor de telling) om door te gaan.",
+                    "Elke beheerder genereert en bewaart de sleutels lokaal en bevestigt de bewaring. Kies de beheerders en het minimumaantal dat nodig is voor de telling.",
                 threshold: "Drempelwaarde",
                 trusteeList: "Trustees",
                 errorMinTrustees_one:
                     "U selecteerde slechts {{selected}} trustee, maar u moet er minstens {{threshold}} selecteren.",
+                errorMinTrustees_many:
+                    "U selecteerde slechts {{selected}} trustees, maar u moet er minstens {{threshold}} selecteren.",
                 errorMinTrustees_other:
                     "U selecteerde slechts {{selected}} trustees, maar u moet er minstens {{threshold}} selecteren.",
                 errorThreshold:
@@ -2334,18 +2959,23 @@ const dutchTranslation: TranslationType = {
                     description:
                         "U staat op het punt een Sleutelceremonie aan te maken. Deze actie zal de Trustees informeren om deel te nemen aan de aanmaak en distributie van de Sleutels van het Verkiezingsevenement.",
                     automaticCeremonyDescription:
-                        "U staat op het punt een automatische sleutelceremonie te creëren. Dit zal de beheerders niet op de hoogte stellen om deel te nemen.",
+                        "Automatische ceremonies slaan handmatige bevestigingen van bewaring over. De uitvoerders van de beheerders moeten de verkiezingssleutels nog steeds genereren en verifiëren.",
                 },
-                filterTrustees: "Filter Trustees",
+                filterTrustees: "Trustees filteren",
                 errorPermisionLabels:
                     "Sleutelceremonie kan niet worden aangemaakt: een of meer toestemmingslabels ontbreken.",
                 automaticCeremonyToggle: "Automatische ceremonie",
             },
+            // Native custody instructions use the English fallback until translated.
             ceremonyStep: {
+                ...englishTranslation.translations.keysGeneration.ceremonyStep,
+                custodyConfirmed: "Bewaring bevestigd",
+                custodyComplete: "Uw deel is voltooid. U hoeft niets meer te doen.",
+                waitingForTrustees:
+                    "Wachten totdat de overige beheerders hun bewaring en eventuele vereiste goedkeuring hebben afgerond.",
+                moreActions: "Meer acties",
                 cancel: "Sleutelceremonie Annuleren",
                 progressHeader: "Voortgang Sleutelceremonie",
-                description:
-                    "Dit scherm toont de voortgang en logs van de Sleutelceremonie van het Verkiezingsevenement. Tijdens de Sleutelceremonie genereert en downloadt elke trustee zijn fragment van de privésleutel voor het Verkiezingsevenement.",
                 executionStatus: "Status: {{status}}",
                 confirmdDialog: {
                     ok: "Ja, Sleutelceremonie Annuleren",
@@ -2355,10 +2985,9 @@ const dutchTranslation: TranslationType = {
                         "U staat op het punt de Sleutelceremonie te annuleren. Na deze actie moet u een nieuwe aanmaken voor een succesvolle Sleutelceremonie.",
                 },
                 header: {
+                    ...englishTranslation.translations.keysGeneration.ceremonyStep.header,
                     trusteeName: "Naam Trustee",
                     fragment: "Sleutelfragment Gegenereerd",
-                    downloaded: "Privésleutelfragment Gedownload",
-                    checked: "Privésleutelfragment Gecontroleerd",
                 },
                 logsHeader: {
                     title: "Logs",
@@ -2366,46 +2995,6 @@ const dutchTranslation: TranslationType = {
                     entry: "Logbericht",
                 },
                 emptyLogs: "Nog geen logs.",
-            },
-            startStep: {
-                title: "Sleutelceremonie Trustee",
-                subtitle:
-                    "U staat op het punt deel te nemen aan de Sleutelceremonie als Trustee (<strong>{{name}}</strong>). Dit omvat de volgende stappen:",
-                one: "<strong>Download</strong> uw Versleutelde Privésleutel.",
-                two: "Maak meerdere <strong>Back-ups</strong> van de Versleutelde Privésleutel.",
-                three: "<strong>Controleer</strong> of de back-ups goed werken.",
-            },
-            downloadStep: {
-                title: "Versleutelde Privésleutel Downloaden",
-                subtitle:
-                    "Om door te gaan, download en bewaar uw Versleutelde Privésleutel op minstens twee verschillende apparaten:",
-                downloadButton: "Download uw Versleutelde Privésleutel",
-                downloaded: "Versleutelde privésleutel succesvol gedownload.",
-                errorEmptyKey: "Downloadfout, leeg bestand",
-                unexpectedError: "De privésleutel kon niet worden gedownload. Probeer het opnieuw.",
-                alreadyVerified: "Uw privésleutel was al gedownload en geverifieerd.",
-                unavailable:
-                    "De privésleutel kan niet meer worden gedownload omdat de ceremonie is gevorderd.",
-                confirmdDialog: {
-                    ok: "Back-ups Bevestigen en Doorgaan",
-                    cancel: "Terug",
-                    title: "Maak een back-up van uw Versleutelde Privésleutel",
-                    description:
-                        "Maak een back-up van uw Versleutelde Privésleutel op minstens twee verschillende veilige locaties en bevestig dit hieronder:",
-                    firstCopy: "Eerste back-up beveiligd",
-                    secondCopy: "Tweede back-up beveiligd",
-                    confirmError:
-                        "Maak de vereiste back-ups en vink de bevestigingsvakjes aan om door te gaan",
-                },
-            },
-            checkStep: {
-                title: "Controleer uw Back-ups van de Versleutelde Privésleutel",
-                verifyButton: "Sleutel verifiëren",
-                subtitle:
-                    "Upload een Back-up van de Versleutelde Privésleutel om te controleren of deze correct is. U kunt het zo vaak als nodig proberen, vanaf uw verschillende back-ups:",
-                errorUploading: "Ongeldige Back-up van Versleutelde Privésleutel, probeer opnieuw",
-                errorEmptyFile: "Bestand leeg of niet gevonden",
-                verified: "Back-up succesvol geverifieerd.",
             },
         },
         miruExport: {
@@ -2422,59 +3011,62 @@ const dutchTranslation: TranslationType = {
             errorUploadingSignature: "Er was een fout bij het uploaden van de handtekening",
             downloadTransmissionPackage: "Transmissiepakket Downloaden",
             resultsPublication: {
-                sectionTitle: "Publish to results website",
-                policyTitle: "Results Website",
-                policyAccess: "Results Website Access",
-                policyVisibility: "Results Website Visibility",
-                enabled: "Enabled",
-                disabled: "Disabled",
-                fullEvent: "Full event",
-                areaBased: "Area based",
-                publishStarted: "Results publication started",
-                publishError: "Could not start results publication",
-                revoked: "Results publication revoked",
-                revokeError: "Could not revoke results publication",
-                waitingForTally: "Results can be published after this tally has completed.",
+                sectionTitle: "Publiceren op de resultatenwebsite",
+                policyTitle: "Resultatenwebsite",
+                policyAccess: "Toegang tot resultatenwebsite",
+                policyVisibility: "Zichtbaarheid van resultatenwebsite",
+                enabled: "Ingeschakeld",
+                disabled: "Uitgeschakeld",
+                fullEvent: "Volledig evenement",
+                areaBased: "Per gebied",
+                publishStarted: "Publicatie van resultaten gestart",
+                publishError: "Kon de publicatie van resultaten niet starten",
+                revoked: "Publicatie van resultaten ingetrokken",
+                revokeError: "Kon de publicatie van resultaten niet intrekken",
+                waitingForTally:
+                    "Resultaten kunnen worden gepubliceerd nadat deze telling is voltooid.",
                 writePermissionRequired:
-                    "You need publish-results-write permission to publish or revoke results.",
+                    "U hebt de permissie publish-results-write nodig om resultaten te publiceren of in te trekken.",
                 readPermissionRequired:
-                    "You need publish-results-read permission to view publication history.",
+                    "U hebt de permissie publish-results-read nodig om de publicatiegeschiedenis te bekijken.",
                 disabledPolicy:
-                    "Results website publishing is disabled for this election event. Enable it in the election event data before publishing results.",
-                loadingElectionContext: "Results publication is loading election context.",
+                    "Publiceren op de resultatenwebsite is uitgeschakeld voor dit verkiezingsevenement. Schakel het in bij de gegevens van het verkiezingsevenement voordat u resultaten publiceert.",
+                loadingElectionContext: "De resultatenpublicatie laadt de verkiezingscontext.",
                 route: "Route",
-                eventResults: "Event results",
-                electionResults: "Election results",
-                election: "Election",
-                access: "Access",
-                publicAccess: "Public access",
-                authenticatedAccess: "Authenticated access",
-                visibility: "Visibility",
-                fullPublishedScope: "Full published scope",
-                personalVisibility: "Personal visibility",
-                contests: "Contests",
-                noTalliedContests: "No tallied contests available.",
-                publishSelectedContests: "Publish selected contests",
-                selectedContestCount: "{{count}} contest selected",
-                selectedContestCount_plural: "{{count}} contests selected",
-                history: "Publication history",
-                version: "Version",
+                eventResults: "Resultaten van het evenement",
+                electionResults: "Verkiezingsuitslagen",
+                election: "Verkiezing",
+                access: "Toegang",
+                publicAccess: "Openbare toegang",
+                authenticatedAccess: "Geverifieerde toegang",
+                visibility: "Zichtbaarheid",
+                fullPublishedScope: "Volledige gepubliceerde reikwijdte",
+                personalVisibility: "Persoonlijke zichtbaarheid",
+                contests: "Stemmingen",
+                noTalliedContests: "Geen getelde stemmingen beschikbaar.",
+                publishSelectedContests: "Geselecteerde stemmingen publiceren",
+                selectedContestCount_one: "{{count}} stemming geselecteerd",
+                selectedContestCount_many: "{{count}} stemmingen geselecteerd",
+                selectedContestCount_other: "{{count}} stemmingen geselecteerd",
+                history: "Publicatiegeschiedenis",
+                version: "Versie",
                 status: "Status",
-                published: "Published",
-                revokedAt: "Revoked",
-                actions: "Actions",
-                open: "Open",
-                revoke: "Revoke",
-                noPublications: "No publications yet.",
-                confirmTitle: "Start publish to results website?",
+                published: "Gepubliceerd",
+                revokedAt: "Ingetrokken",
+                actions: "Acties",
+                open: "Openen",
+                revoke: "Intrekken",
+                noPublications: "Nog geen publicaties.",
+                confirmTitle: "Publiceren op de resultatenwebsite starten?",
                 confirmDescription:
-                    "This will create a new publication from the current tally execution. The existing voter-facing results stay active until this publish task succeeds.",
-                close: "Close",
+                    "Hiermee wordt een nieuwe publicatie gemaakt op basis van de huidige telling. De bestaande resultaten voor kiezers blijven actief totdat deze publicatietaak is geslaagd.",
+                close: "Sluiten",
             },
             transmissionPackage: {
                 title: "Transmissiepakket voor Gebied '{{name}}' en Verkiezing '{{eventName}}'",
                 description:
                     "Hiermee kunt u een Transmissiepakket exporteren naar Bestemmingsservers of downloaden.",
+                erFileSha256: "ER-bestand SHA-256:",
                 actions: {
                     send: {
                         title: "Verzenden",
@@ -2517,6 +3109,10 @@ const dutchTranslation: TranslationType = {
                         emlTitle: "EML Downloaden {{date}}",
                         transmissionPackageTitle: "Transmissiepakket Downloaden {{date}}",
                         transmissionReportTitle: "Transmissierapport Downloaden",
+                        csvTitle: "Resultaten-CSV downloaden {{date}}",
+                        ovcsPublicKeyTitle: "Publieke sleutel van de OVCS downloaden",
+                        recordError:
+                            "De download kon niet worden vastgelegd en is daarom niet gestart. Probeer het opnieuw.",
                         dialog: {
                             title: "Wilt u het Transmissiepakket Downloaden?",
                             description:
@@ -2531,6 +3127,9 @@ const dutchTranslation: TranslationType = {
                     description:
                         "De onderstaande tabel toont de verzendstatus van elk van de Bestemmingsservers.",
                     status: "Verzonden naar {{signed}} van {{total}}",
+                    manualReceipt: "Handmatige ontvangst",
+                    handOver: "Download het pakket en overhandig het",
+                    sealedFor: "Verzegeld voor de sleutel, SHA-256 {{key}}…",
                     table: {
                         serverName: "Servernaam",
                         sendStatus: "Verzendstatus",
@@ -2540,7 +3139,8 @@ const dutchTranslation: TranslationType = {
                     title: "Handtekeningen",
                     description:
                         "Leden kunnen het transmissiepakket ondertekenen. De tabel toont de ondertekeningsstatus van elk lid.",
-                    status: "{{signed}} van {{total}} Ondertekend, {{minimum}} minimum",
+                    status: "{{signed}} van {{total}}, {{minimum}} nodig",
+                    statusNoMinimum: "{{signed}} van {{total}}",
                     table: {
                         trusteeName: "Lid",
                         signed: "Heeft Ondertekend",
@@ -2564,15 +3164,17 @@ const dutchTranslation: TranslationType = {
             logsTitle: "Logs",
             resultsTitle: "Resultaten & Deelname",
             generalInfoTitle: "Algemene Informatie",
+            sessionId: "ID van de telsessie",
+            selectedQuorum: "Geselecteerd quorum",
             trusteeTallyTitle: "Trustees",
-            trusteeTallySubTitle: "Status import sleutelfragment",
+            trusteeTallySubTitle: "Status van bevestigingen van bewaring",
             ballotBoxes: {
                 unavailable: "Zegels niet beschikbaar",
                 sealed: "{{sealed}} van {{total}} verzegeld",
-                publishing: "Verzegeld, {{published}} van {{total}} op het prikbord",
+                publishing: "Verzegeld, {{published}} van {{total}} zegelrecords gepubliceerd",
                 sealing: "Verzegeling om {{time}}",
                 notSealed: "Niet verzegeld",
-                help: "Een verkiezing kan worden geteld zodra elke stembus is verzegeld en het zegel ervan op het prikbord staat.",
+                help: "Een verkiezing kan worden geteld zodra elke stembus is verzegeld en het zegelrecord ervan is gepubliceerd.",
                 failed: "Niet verzegeld: incident",
                 overdue: "Verzegeling achterstallig",
                 blocked: "{{name}}: {{reason}}",
@@ -2582,7 +3184,7 @@ const dutchTranslation: TranslationType = {
                     "sealing": "de stembussen worden verzegeld wanneer de respijttermijn eindigt",
                     "overdue":
                         "de stembussen zijn over hun deadline en nog niet verzegeld (zie het Dashboard)",
-                    "publishing": "sommige zegels worden nog op het prikbord geplaatst",
+                    "publishing": "de zegelrecords van sommige stembussen worden nog gepubliceerd",
                     "failed":
                         "een stembus kon niet worden verzegeld, een incident (zie het Dashboard)",
                     "unavailable": "de zegels van de stembussen konden niet worden gelezen",
@@ -2598,7 +3200,7 @@ const dutchTranslation: TranslationType = {
                 endVoting:
                     "Beëindig het stemmen in elke geselecteerde verkiezing en stop de actieve stemkanalen voordat u de telling aanmaakt.",
                 sealBallotBoxes:
-                    "Een verkiezing kan worden geteld zodra elke stembus is verzegeld en het zegel ervan op het prikbord staat.",
+                    "Een verkiezing kan worden geteld zodra elke stembus is verzegeld en het zegelrecord ervan is gepubliceerd.",
             },
             createTallySuccess: "Telling aangemaakt",
             createTallyError: "Kon telling niet aanmaken",
@@ -2616,12 +3218,13 @@ const dutchTranslation: TranslationType = {
             recountTallyCeremonyError: "Kon hertelling niet starten",
             recountTallyCeremonyOk: "Hertellen",
             trusteeTitle: "Proces Trustees",
-            trusteeSubTitle: "Gelieve uw sleutelfragment te uploaden",
+            trusteeSubTitle:
+                "Upload uw opgeslagen bewaringsbestand of een ondertekend bewijs van bewaring:",
             invited: "U bent uitgenodigd om deel te nemen aan een Telceremonie. Gelieve ",
             click: "op de Telactie te klikken",
             participate: "om deel te nemen.",
             breadcrumbSteps: {
-                start: "Start",
+                start: "Starten",
                 finish: "Voltooien",
                 tally: "Tellen",
                 results: "Resultaten",
@@ -2635,7 +3238,7 @@ const dutchTranslation: TranslationType = {
                 date: "Datum Telling",
                 global: "Globaal",
                 noTrustees: "Nog geen trustees",
-                imported: " trustees hebben de sleutel geïmporteerd",
+                imported: " beheerders hebben bewaring bevestigd",
                 needed: " trustees nodig",
                 start: "Start Telling",
                 ceremony: "Start Telceremonie",
@@ -2650,11 +3253,11 @@ const dutchTranslation: TranslationType = {
                     tallyTitle: "Weet u zeker dat u de telling wilt starten?",
                     cancelTitle: "Weet u zeker dat u de telling wilt annuleren?",
                     message:
-                        "U staat op het punt een telceremonie te starten. Deze actie zal de trustees informeren om hun sleutelfragmenten te importeren.",
+                        "Deze telceremonie vraagt beheerders om openbare bewijzen van bewaring. Houd hun uitvoerders actief met hun lokale protocolgegevens.",
                     cancelMessage:
                         "U staat op het punt de telceremonie te annuleren. Deze actie kan niet ongedaan worden gemaakt.",
                     ceremony:
-                        "Alle vereiste trustees hebben hun sleutelfragmenten geverifieerd. Alles is klaar om resultaten te ontvangen. Wilt u de Telling starten?",
+                        "De benodigde beheerders hebben bewaring bevestigd. De telling starten met hun uitvoerders actief?",
                     startAutomatedTallyMessage:
                         "Selecteer 'Start Tally' om het telproces uit te voeren en de resultaten weer te geven, of 'Close' om te annuleren.",
                 },
@@ -2719,7 +3322,7 @@ const dutchTranslation: TranslationType = {
                 round: "Ronde {{round}}",
                 tieResolutionRequired: "Stemgelijkheid vereist oplossing",
                 tieResolved: "Stemgelijkheid opgelost",
-                globalArea: "Global",
+                globalArea: "Globaal",
                 pendingResolutionsHeader: "Openstaande resoluties",
                 pendingResolutionStatus: "Resolutie in behandeling",
                 resolvedStatus: "Opgelost",
@@ -2734,7 +3337,7 @@ const dutchTranslation: TranslationType = {
                 save: "Opslaan",
                 pendingApplyStatus: "Berekening in afwachting",
                 filterElection: "Verkiezing",
-                filterContest: "Wedstrijd",
+                filterContest: "Stemming",
                 filterArea: "Gebied",
                 filterStatusLabel: "Status",
                 clearFilters: "Filters wissen",
@@ -2932,7 +3535,7 @@ const dutchTranslation: TranslationType = {
             subject: "Onderwerp e-mail",
             tabs: {
                 plaintext: "Platte Tekst Body",
-                richtext: "Rich Text Body",
+                richtext: "Opgemaakte tekst",
             },
         },
         sendCommunication: {
@@ -2948,7 +3551,7 @@ const dutchTranslation: TranslationType = {
             languages: "Talen",
             smsMessage: "SMS-bericht",
             errorSending: "Fout bij verzenden melding: {{error}}",
-            successSending: "Melding succesvol ingepland/verzonden",
+            successSending: "Melding succesvol ingepland",
             method: "Methode Sjabloon",
             type: "Communicatietype",
             alias: "Alias Sjabloon",
@@ -2984,7 +3587,7 @@ const dutchTranslation: TranslationType = {
             createTallySuccess: "Telblad opgeslagen",
             createTallyError: "Fout bij opslaan telblad",
             createTallyErrorSameKindExists:
-                "Telformulier bestaat al voor deze wedstrijd met hetzelfde kanaal en gebied",
+                "Telformulier bestaat al voor deze stemming met hetzelfde kanaal en gebied",
             allFieldsRequired: "Alle velden zijn verplicht",
             header: {
                 change: "Te Publiceren Wijzigingen",
@@ -3001,7 +3604,7 @@ const dutchTranslation: TranslationType = {
             },
             inputError: {
                 totalValidDoesNotMatch:
-                    "Kandidaatstemmen ({{candidateVotesSum}}) moeten tussen {{lowerBound}} en {{upperBound}} liggen volgens de stemregels van deze verkiezing ({{nonBlankValidVotes}} geldige niet-blanco stemmen × maximaal {{maxMarks}} markeringen per stembiljet)",
+                    "Kandidaatstemmen ({{candidateVotesSum}}) moeten tussen {{lowerBound}} en {{upperBound}} liggen volgens de stemregels van deze stemming ({{nonBlankValidVotes}} geldige niet-blanco stemmen × maximaal {{maxMarks}} markeringen per stembiljet)",
                 censusTooSmall:
                     "Het totaal aantal stemmen ({{totalVotes}}) mag niet groter zijn dan de census ({{census}})",
                 totalInvalidDoesNotMatch:
@@ -3009,11 +3612,11 @@ const dutchTranslation: TranslationType = {
                 totalVotesDoesNotMatch:
                     "Het totaal aantal stemmen ({{totalVotes}}) moet gelijk zijn aan het totaal aantal geldige stemmen ({{totalValidVotes}}) plus het totaal aantal ongeldige stemmen ({{totalInvalid}})",
                 unknownCountingAlgorithm:
-                    "Het telalgoritme van deze verkiezing ({{countingAlgorithm}}) wordt niet herkend, waardoor het toegestane aantal kandidaatstemmen niet kan worden bepaald. Controleer de configuratie van de verkiezing.",
+                    "Het telalgoritme van deze stemming ({{countingAlgorithm}}) wordt niet herkend, waardoor het toegestane aantal kandidaatstemmen niet kan worden bepaald. Controleer de configuratie van de stemming.",
                 blankBallotsInconsistent:
                     "Blanco Stembiljetten moeten dezelfde waarde hebben op elk telformulier van deze stembus",
                 blankBallotsOutOfBounds:
-                    "De waarde van Blanco Stembiljetten valt buiten het bereik dat wordt geïmpliceerd door de blanco-stemtellingen per race van deze stembus",
+                    "De waarde van Blanco Stembiljetten valt buiten het bereik dat wordt geïmpliceerd door de blanco-stemtellingen per stemming van deze stembus",
             },
             label: {
                 area: "Gebied",
@@ -3058,14 +3661,14 @@ const dutchTranslation: TranslationType = {
                 add: "Toevoegen",
             },
             breadcrumbSteps: {
-                start: "Start",
+                start: "Starten",
                 edit: "Bewerken",
                 confirm: "Bevestigen",
                 view: "Bekijken",
             },
             table: {
                 area: "Gebied",
-                contest: "Verkiezing",
+                contest: "Stemming",
                 approvedVersion: "Goedgekeurde versie",
                 latestVersion: "Nieuwste versie",
                 labels: "Labels",
@@ -3253,6 +3856,7 @@ const dutchTranslation: TranslationType = {
                 },
             },
             languages: {
+                logsTimezone: "Tijdzone voor het tenantlog",
                 default: "Standaardtaal",
             },
         },
@@ -3317,6 +3921,9 @@ const dutchTranslation: TranslationType = {
                     title: "Hier staat niets",
                     text: "Inschrijvingen met deze status verschijnen hier. Probeer een andere zoekopdracht of status.",
                 },
+                searchHelp:
+                    "Een naam, e-mailadres of identiteitsnummer, of de ondersteuningsreferentie die de kiezer kreeg, zoals Q5KW-8RFX.",
+                referenceError: "De ondersteuningsreferentie kon niet worden opgezocht.",
             },
             flow: {
                 stepsLabel: "Stappen van de beoordeling",
@@ -4815,7 +5422,7 @@ const dutchTranslation: TranslationType = {
                 keys_ceremony_id: "Ceremonie",
                 tally_session_id: "Telsessie",
                 trustee_id: "Trustee",
-                key_share_sha256: "SHA-256 van het sleutelfragment",
+                custody_proof_sha256: "SHA-256 van het bewijs van bewaring",
                 channel: "Kanaal",
                 channels: "Kanalen",
                 publication_id: "Publicatie stembiljet",
@@ -4921,22 +5528,23 @@ const dutchTranslation: TranslationType = {
             notes: {
                 afterApproval: "Na goedkeuring",
                 afterApprovalValue: "De inloggegevens van de kiezer worden uitgegeven en verzonden",
-                keyShare: "Uw sleutelfragment",
-                keyShareChecked: "Gecontroleerd: het is uw sleutelfragment voor deze ceremonie",
+                custodyProof: "Uw bewijs van bewaring",
+                custodyProofChecked:
+                    "Gecontroleerd: het is uw bewijs van bewaring voor deze ceremonie",
                 recordedIn: "Vastgelegd in",
                 recordedInCeremony: "De sleutelceremonie en het bulletinboard",
                 recordedInTally: "De telsessie",
             },
-            keyShare: {
+            custodyProof: {
                 signing:
-                    "Onderteken uw sleutelfragment in het ondertekeningspaneel. Het wordt vastgelegd zodra u het hebt ondertekend.",
-                record: "Mijn sleutelfragment vastleggen",
-                failed: "Uw ondertekende sleutelfragment kon niet worden vastgelegd: {{error}}",
+                    "Onderteken uw bewijs van bewaring in het ondertekeningspaneel. Het wordt vastgelegd zodra u het hebt ondertekend.",
+                record: "Mijn bewijs van bewaring vastleggen",
+                failed: "Uw ondertekende bewijs van bewaring kon niet worden vastgelegd: {{error}}",
                 dropAgain:
-                    "Sleep uw sleutelfragmentbestand opnieuw hierheen om uw ondertekende sleutelfragment vast te leggen.",
-                redo: "Uw sleutelfragment is bijgedragen zonder uw handtekening, die deze verkiezing nu vereist. Draag het opnieuw bij en onderteken het.",
+                    "Sleep uw bewijs van bewaringbestand opnieuw hierheen om uw ondertekende bewijs van bewaring vast te leggen. (signed-custody-proof.json)",
+                redo: "Uw bewijs van bewaring is bijgedragen zonder uw handtekening, die deze verkiezing nu vereist. Draag het opnieuw bij en onderteken het.",
                 notTaken:
-                    "De ceremonie accepteert dit sleutelfragment niet meer. Sleep uw sleutelfragmentbestand opnieuw hierheen.",
+                    "De ceremonie accepteert dit bewijs van bewaring niet meer. Sleep uw bewijs van bewaringbestand opnieuw hierheen. (signed-custody-proof.json)",
             },
         },
         lifecycle: {
@@ -5338,10 +5946,8 @@ const dutchTranslation: TranslationType = {
             sections: {
                 channels: "Kanalen",
                 templates: "Goedgekeurde sjablonen",
-                fallback: "Terugvalvolgorde voor berichten",
                 posts: "Kanalen per Post",
                 postsCount: "Kanalen per Post ({{count}} Posts)",
-                reply: "Antwoord op inkomende berichten",
                 delivery: "Afleverstatus",
             },
             column: {
@@ -5352,27 +5958,38 @@ const dutchTranslation: TranslationType = {
                 template: "Sjabloon van de provider",
                 status: "Status",
                 post: "Post",
-                key: "Voor bericht",
+                key: "Berichttype of sjabloon",
                 providerLanguage: "Taal van de provider",
+                voters: "Kiezers die het gebruiken",
+                sent24h: "Verzonden, laatste 24 u",
+                sent24hHelp:
+                    "Elk bericht waarvan de laatste poging in de afgelopen 24 uur was, in elke status, ook mislukte. De statuskolommen tellen alle berichten van het evenement.",
             },
             outOfWindow: {
-                label: "Buiten het gespreksvenster",
-                help: "Berichten in vrije tekst worden alleen verzonden zolang het gespreksvenster open is: op Messenger binnen 24 uur na het laatste bericht van de kiezer. Kies Hulpprogrammaberichten om daarna berichten te verzenden met een goedgekeurde sjabloon. Meta moet dit voor de pagina goedkeuren (de machtiging page_utility_messaging en een goedgekeurde UTILITY-sjabloon), en die sjabloon moet onder Goedgekeurde sjablonen aan berichten zijn gekoppeld. Met Niet verzenden gaat een bericht buiten het venster naar het volgende beschikbare kanaal van de kiezer.",
-                DISABLED: "Niet verzenden",
-                UTILITY_MESSAGES: "Hulpprogrammaberichten",
-                noTemplate:
-                    "Er is op dit kanaal nog geen sjabloon aan berichten gekoppeld. Voeg er een toe onder Goedgekeurde sjablonen; tot die tijd gaan berichten buiten het venster naar het volgende beschikbare kanaal van de kiezer.",
+                utility:
+                    "Buiten het venster van 24 uur verzendt {{channel}} berichten met de goedgekeurde hulpprogrammasjabloon die onder Goedgekeurde sjablonen aan berichten is gekoppeld.",
+            },
+            messageTypes: {
+                otp: "Verificatiecode",
+                otl: "Aanmeldlink",
+                enrollmentAccepted: "Registratie geaccepteerd",
+                enrollmentAcceptedKiosk: "Registratie geaccepteerd (kiosk)",
+                enrollmentPending: "Registratie wacht op goedkeuring",
+                enrollmentRejected: "Registratie afgewezen",
+                passwordReset: "Wachtwoord herstellen",
+                temporaryPassword: "Tijdelijk wachtwoord",
+                contactChanged: "Contactmethode gewijzigd",
             },
             templates: {
                 empty: "Kies een account dat goedgekeurde sjablonen verzendt, zoals WhatsApp, Viber of Messenger, om de sjablonen hier te koppelen.",
-                help: "Elke rij geeft aan welke goedgekeurde sjabloon de provider voor een bericht verzendt. Voor bericht is de alias van een sjabloon in Sjablonen, voor een melding, of de berichtsleutel die Keycloak verzendt, zoals otp; laat het leeg voor de sjabloon die standaard voor het doel wordt gebruikt. Taal is de taal van de kiezer. Sjabloon van de provider is de naam of ID van de sjabloon bij de provider. Taal van de provider is de code van de provider voor die sjabloon wanneer die afwijkt van de taal van de kiezer: WhatsApp heeft de exacte code van de goedgekeurde sjabloon nodig, zoals en_US.",
+                help: "Kies een systeemberichttype of een alias uit Sjablonen. Laat dit leeg om het goedgekeurde sjabloon standaard voor dit doel te gebruiken. Taal is de taal van de kiezer. Sjabloon van de provider is de naam of ID van de sjabloon bij de provider. Taal van de provider is de code van de provider voor die sjabloon wanneer die afwijkt van de taal van de kiezer: WhatsApp heeft de exacte code van de goedgekeurde sjabloon nodig, zoals en_US.",
                 order: "Voor elk bericht wint de meest specifieke rij: de rij voor het bericht in de taal van de kiezer, dan de rij voor het bericht in een willekeurige taal, dan de standaard voor het doel in de taal van de kiezer, dan een willekeurige standaard voor het doel.",
                 noneRequired:
                     "{{channel}} verzendt alleen goedgekeurde sjablonen. Voeg minstens een standaardsjabloon toe voor elk doel dat in gebruik is.",
                 noneOptional:
                     "Er zijn geen sjablonen gekoppeld voor {{channel}}. Ze zijn alleen nodig om berichten buiten het gespreksvenster te verzenden.",
                 row: "{{channel}}-sjabloon {{position}}",
-                keyDefault: "Standaard voor het doel",
+                keyDefault: "Standaard voor dit doel",
                 add: "{{channel}}-sjabloon toevoegen",
                 remove: "{{channel}}-sjabloon {{position}} verwijderen",
                 incomplete:
@@ -5380,15 +5997,8 @@ const dutchTranslation: TranslationType = {
                 approval: {
                     APPROVED: "Goedgekeurd",
                     NOT_APPROVED: "Niet goedgekeurd",
-                    ADMIN_CONFIRMED: "Bevestigd door een beheerder",
                     NOT_CHECKED: "Goedkeuring niet gecontroleerd",
                 },
-            },
-            fallback: {
-                help: "Als een bericht een kiezer niet via diens kanaal bereikt, gaat het naar het volgende kanaal in deze volgorde dat de kiezer heeft geverifieerd en diens Post aanbiedt. Codes worden nooit vanzelf opnieuw verzonden: de kiezer kiest een andere manier.",
-                empty: "Zet berichten aan voor een kanaal om het aan de terugvalvolgorde toe te voegen.",
-                earlier: "{{channel}} naar voren",
-                later: "{{channel}} naar achteren",
             },
             posts: {
                 noChannels:
@@ -5401,13 +6011,18 @@ const dutchTranslation: TranslationType = {
                 cell: "{{post}}: {{channel}}",
                 showing: "{{shown}} van {{total}} Posts getoond. Zoek om andere te vinden.",
             },
-            reply: {
-                help: "Verzonden wanneer een kiezer naar een van de accounts van dit evenement schrijft, hooguit één keer per dag per kiezer.",
-                label: "Antwoord ({{language}})",
-            },
             delivery: {
+                notConfigured: "Niet aangeboden door dit evenement",
                 empty: "Er wordt geen kanaal gebruikt.",
-                help: "Geaccepteerd betekent dat de provider het verzoek heeft geaccepteerd, niet dat de kiezer de code heeft ontvangen of geverifieerd. Onbekend betekent dat de aflevering nog niet is bevestigd. Een provider zonder afleverrapporten toont de aflevering als niet beschikbaar.",
+                help: "De tellingen zijn per bericht, volgens de status van de laatste poging. Geaccepteerd betekent dat de provider het bericht heeft geaccepteerd, niet dat de kiezer het heeft ontvangen. Onbekend betekent dat de aflevering nog niet is bevestigd; na 24 uur wordt dit getoond als Onopgelost, nooit als mislukt. Een account zonder afleverrapporten toont de aflevering als niet beschikbaar.",
+                loadError: "De berichttellingen konden niet worden geladen.",
+                noReceipts:
+                    "Dit account ontvangt geen afleverrapporten, dus de aflevering kan niet worden getoond.",
+                showFailed: "De mislukte {{channel}}-berichten tonen in Logs",
+                noChannelHelp:
+                    "Kiezers zonder geregistreerd contactkanaal. Hun berichten mislukken en worden nooit onder een kanaal geteld.",
+                showFailedNoChannel:
+                    "Toon in Logs de mislukte berichten van kiezers zonder contactkanaal",
             },
             error: {
                 UNSUPPORTED_VERSION:
@@ -5424,14 +6039,18 @@ const dutchTranslation: TranslationType = {
                     "De {{channel}}-sjabloon voor {{purpose}} in {{language}} is niet goedgekeurd door de provider.",
                 OUT_OF_WINDOW_NOT_SUPPORTED:
                     "{{channel}} kan met dit account niet buiten een gespreksvenster verzenden: het heeft geen gespreksvenster, of de berichten hebben al een sjabloon nodig.",
-                FALLBACK_CHANNEL_NOT_ENABLED:
-                    "{{channel}} staat in de terugvalvolgorde maar verzendt geen berichten.",
-                DUPLICATE_FALLBACK_CHANNEL:
-                    "{{channel}} staat meer dan eens in de terugvalvolgorde.",
                 ELECTION_CHANNEL_NOT_ENABLED:
                     "{{election}} biedt {{channel}} aan, dat dit evenement niet gebruikt.",
                 UNKNOWN_ELECTION: "{{election}} is geen verkiezing van dit evenement.",
+                UTILITY_TEMPLATE_MISSING:
+                    "Berichten via {{channel}} buiten het venster van 24 uur hebben de goedgekeurde hulpprogrammasjabloon nodig. Koppel die onder Goedgekeurde sjablonen aan berichten.",
             },
+            noReadPermission:
+                "Voor het bekijken van deze instellingen is de machtiging messaging-config-read nodig.",
+            chooseAccount: "Kies eerst een account.",
+            needsSavingAgain: "De configuratie moet opnieuw worden opgeslagen.",
+            needsSavingAgainHelp:
+                "Ze is gekopieerd uit de eerdere opslag en doorstond de controles van een opslag niet. Los de getoonde problemen op en sla ze daarna opnieuw op.",
         },
         messaging: {
             channel: {
@@ -5448,8 +6067,8 @@ const dutchTranslation: TranslationType = {
                 WHATSAPP_CLOUD_API: "WhatsApp Cloud API (Meta)",
                 MESSENGER_SEND_API: "Messenger Platform (Meta)",
                 VIBER_INFOBIP: "Viber Business Messages (Infobip)",
-                CONSOLE: "Console (alleen test, er wordt niets verzonden)",
-                HTTP_API: "Aangepaste HTTP-API",
+                CONSOLE: "Console (niet meer ondersteund)",
+                HTTP_API: "Aangepaste HTTP-API (niet meer ondersteund)",
             },
             purpose: {
                 OTP: "Codes",
@@ -5461,6 +6080,7 @@ const dutchTranslation: TranslationType = {
                 DELIVERED: "Afgeleverd",
                 FAILED: "Mislukt",
                 UNKNOWN: "Onbekend",
+                UNRESOLVED: "Onopgelost",
             },
             stateHelp: {
                 QUEUED: "Wacht op overdracht aan de provider.",
@@ -5469,13 +6089,20 @@ const dutchTranslation: TranslationType = {
                 DELIVERED: "De provider meldde het bericht als afgeleverd.",
                 FAILED: "De provider bevestigde dat het bericht niet is afgeleverd.",
                 UNKNOWN: "De aflevering is nog niet bevestigd.",
+                UNRESOLVED:
+                    "De aflevering kon niet binnen 24 uur worden bevestigd. Dat betekent niet dat ze mislukt is.",
             },
             blocker: {
+                UNCHECKED:
+                    "Niet gecontroleerd voor het huidige nummer, de huidige pagina of afzender",
                 NOT_CONNECTED: "Niet verbonden",
                 UNSUPPORTED_PURPOSE: "Niet ondersteund door deze provider",
                 NEEDS_PROVIDER_APPROVAL: "Goedkeuring van de provider nodig",
                 NEEDS_PRODUCTION_ACCESS: "Productietoegang nodig",
                 NEEDS_APPROVED_TEMPLATE: "Goedgekeurde sjabloon nodig",
+                UNSUPPORTED_PROVIDER: "Niet-ondersteunde provider: vervang dit account",
+                CALLBACK_NOT_CONFIGURED: "Callbackadres niet ingesteld",
+                REPORT_CREDENTIALS_MISSING: "Inloggegevens voor rapporten niet gegenereerd",
             },
             readiness: {
                 connected: "Verbonden",
@@ -5485,8 +6112,6 @@ const dutchTranslation: TranslationType = {
                 notReady: "Niet klaar",
                 lastCheck: "Gecontroleerd {{date}}",
                 neverChecked: "Nog niet gecontroleerd",
-                adminConfirmed: "Bevestigd door een beheerder",
-                checkNotUsed: "Controle niet gebruikt",
             },
             approval: {
                 PENDING: "Wacht op goedkeuring van de provider",
@@ -5500,10 +6125,8 @@ const dutchTranslation: TranslationType = {
                 SMTP_PASSWORD: "Wachtwoord",
                 AWS_ACCESS_KEY_ID: "AWS-toegangssleutel-ID",
                 AWS_SECRET_ACCESS_KEY: "Geheime AWS-toegangssleutel",
-                API_SECRET: "API-geheim",
-                USERNAME: "Gebruikersnaam",
-                PASSWORD: "Wachtwoord",
-                WEBHOOK_SECRET: "Webhookgeheim",
+                REPORT_USERNAME: "Gebruikersnaam voor rapporten",
+                REPORT_PASSWORD: "Wachtwoord voor rapporten",
             },
             deliveryUnavailable: "Aflevering niet beschikbaar",
             templates: {
@@ -5528,7 +6151,7 @@ const dutchTranslation: TranslationType = {
                     "Binnen 24 uur na het laatste bericht van de kiezer stuurt Messenger de onderstaande tekst.",
                 messengerMessage: "Bericht binnen 24 uur",
                 messengerWindow:
-                    "Een opgeslagen Messenger-ontvanger is geen toestemming om te verzenden. Buiten het venster van 24 uur wordt dit bericht als hulpprogrammabericht verzonden wanneer het verkiezingsevenement dat toestaat en er hieronder een goedgekeurde sjabloon is ingesteld of in het evenement is gekoppeld; anders gaat het naar het volgende beschikbare kanaal van de kiezer. Hulpprogrammaberichten vereisen de machtiging page_utility_messaging en een goedgekeurde UTILITY-sjabloon op de pagina.",
+                    "Een opgeslagen Messenger-ontvanger is geen toestemming om te verzenden. Buiten het venster van 24 uur wordt dit bericht verzonden met de goedgekeurde hulpprogrammasjabloon die hieronder is ingesteld of in het verkiezingsevenement is gekoppeld; zonder sjabloon wordt het niet verzonden en wordt de mislukking met de reden getoond. Hulpprogrammaberichten vereisen de machtiging page_utility_messaging en een goedgekeurde UTILITY-sjabloon op de pagina.",
                 intro: {
                     WHATSAPP:
                         "WhatsApp verzendt alleen sjablonen die Meta heeft goedgekeurd voor het WhatsApp Business-account. Het bericht moet overeenkomen met de goedgekeurde sjabloon; kies wat de parameters vult.",
@@ -5544,46 +6167,113 @@ const dutchTranslation: TranslationType = {
                 providerLanguage: "Taalcode van de provider",
                 providerLanguageHelp: {
                     WHATSAPP:
-                        "De exacte taalcode van de goedgekeurde WhatsApp-sjabloon, zoals en_US.",
+                        "Gebruik de exacte taalcode van het goedgekeurde WhatsApp-sjabloon, zoals en of en_US. Een regiocode is alleen nodig als het sjabloon daarmee is goedgekeurd.",
                     VIBER: "De taalcode waaronder de Viber-provider de sjabloon kent, wanneer er een nodig is.",
                     MESSENGER:
                         "De taalcode van de goedgekeurde hulpprogrammasjabloon, zoals en_US.",
                 },
-                approvalAdminConfirmed:
-                    "Een beheerder heeft bij de provider bevestigd dat de sjablonen van dit account zijn goedgekeurd; de goedkeuringen uit de verbindingscontrole worden daarom niet gebruikt.",
+                noReadPermission:
+                    "Voor het bekijken van de accounts is de machtiging messaging-config-read nodig.",
             },
             send: {
-                channel: "Kanaal",
                 eachVoter: "Het kanaal van elke kiezer",
-                only: "Alleen {{channel}}",
                 eachVoterHelp:
-                    "Bevestigde mislukkingen gebruiken het volgende beschikbare geverifieerde kanaal. Onbevestigde aflevering wordt getoond als Onbekend.",
-                onlyHelp: "Elke kiezer krijgt deze melding via {{channel}}.",
+                    "Elke kiezer krijgt één bericht via het eigen kanaal. Als de aflevering mislukt, wordt het opnieuw geprobeerd via dat kanaal en verschijnt de mislukking op het tabblad Berichten van het evenement. Onbevestigde aflevering wordt getoond als Onbekend.",
                 channelColumn: "Kanaal",
                 sendsFrom: "Verzonden vanaf",
                 noAccount: "Geen account",
                 missingContent: "Deze melding heeft geen inhoud voor {{channels}}.",
                 approvedTemplateHelp:
-                    "Verzonden met de door de provider goedgekeurde sjabloon. Bewerk deze in Sjablonen.",
-                providerTemplate: "Sjabloon van de provider voor {{channel}}",
-                providerTemplateHelp:
-                    "Optioneel. Indien leeg wordt de sjabloon van het evenement gebruikt die aan de alias van de gekozen sjabloon is gekoppeld, of de standaard van het evenement voor berichten.",
-                providerLanguage: "Taal van de provider voor {{channel}}",
-                providerLanguageHelp: "De taalcode van de provider voor die sjabloon, zoals en_US.",
+                    "Omdat {{channel}}-sjablonen door de provider zijn goedgekeurd, kunnen de tekst, het providersjabloon en de taal hier niet worden gewijzigd. Kies een ander opgeslagen sjabloon om andere goedgekeurde inhoud te gebruiken.",
+                voters: "Kiezers",
+                environment: "De standaardafzender van de installatie",
+                noNoticeChannels:
+                    "De berichteninstellingen van dit evenement zetten berichten voor geen enkel kanaal aan, dus geen kiezer zou deze melding krijgen. Zet berichten aan voor een kanaal op het tabblad Berichten van het evenement.",
+                noReadPermission:
+                    "Voor het tonen van het kanaal van elke kiezer is de machtiging messaging-config-read nodig. Elke kiezer krijgt de melding toch via zijn eigen kanaal.",
+            },
+            audience: {
+                notOfferedRow:
+                    "Geen enkele Post van deze kiezers biedt dit kanaal aan voor berichten, dus niemand van hen ontvangt het: {{reason}}.",
+                willSend: "Ontvangen de melding: {{willSend}}",
+                selectedTimedOut:
+                    "Het tellen van de geselecteerde kiezers duurde te lang, dus er worden geen aantallen getoond. Elke kiezer ontvangt de melding toch via het eigen kanaal.",
+                notSent: "Niet verzonden",
+                deletedAccount: "Verwijderd account",
+                notOffered: "{{notOffered}} van hen ontvangen het niet: {{reason}}.",
+                noAccountHelp:
+                    "Geen account verzendt via dit kanaal, dus de berichten aan deze kiezers mislukken: {{reason}}.",
+                noChannelHelp:
+                    "Deze kiezers hebben geen contactkanaal geregistreerd. Ze ontvangen niets, en elk staat als mislukt: {{reason}}.",
+                total: "Kiezers in dit publiek: {{total}}",
+                loadError:
+                    "Het aantal kiezers kon niet worden geladen. Elke kiezer ontvangt de melding toch via het eigen kanaal.",
+            },
+            voterCount: {
+                countedAt: "Geteld: {{time}}.",
+                never: "Nog niet geteld.",
+                pending: "Er is een nieuwe telling onderweg.",
+                timedOut: "De laatste telling duurde te lang en is gestopt.",
+                failed: "De laatste telling is mislukt.",
+                previous: "De getoonde aantallen zijn van de telling daarvoor.",
+                recount: "Opnieuw tellen",
+                recountAsked:
+                    "Nieuwe telling aangevraagd. De aantallen worden bijgewerkt als die klaar is.",
+                recountAlreadyAsked: "Er is al een nieuwe telling onderweg.",
+                recountError: "De nieuwe telling kon niet worden aangevraagd.",
+                loadError: "De aantallen kiezers konden niet worden geladen.",
+            },
+            volumes: {
+                title: "Maandvolumes",
+                intro: "Pogingen die elke maand aan een provider zijn overgedragen, per kanaal, verzendaccount, land van bestemming en factuurcategorie, om de facturen van de providers te controleren. Elke poging telt in de maand waarin ze is gedaan, dus een nieuwe poging telt opnieuw. De factuurcategorie is die die bij het verzenden werd verwacht, of die die de provider heeft gemeld; of een poging factureerbaar is, is wat de provider heeft gemeld. Er worden geen prijzen getoond.",
+                month: "Maand",
+                monthHelp: "Maanden worden geteld in UTC.",
+                loading: "De maandvolumes worden geladen",
+                loadError: "De volumes konden niet worden geladen.",
+                empty: "In {{month}} is geen poging aan een provider overgedragen.",
+                noPermission:
+                    "Voor het tonen van de volumes is de machtiging messaging-account-read of messaging-config-read nodig.",
+                notReported: "Niet gemeld",
+                deploymentOrDeleted: "Afzender van de installatie of een verwijderd account",
+                category: {
+                    AUTHENTICATION: "Authenticatie",
+                    UTILITY: "Service",
+                    SERVICE: "Servicegesprek",
+                    TRANSACTIONAL: "Transactioneel",
+                    EMAIL: "E-mail",
+                },
+                billableYes: "Factureerbaar",
+                billableNo: "Niet factureerbaar",
+                total: "Alle pogingen",
+                column: {
+                    account: "Verzonden vanaf",
+                    country: "Land van bestemming",
+                    category: "Factuurcategorie",
+                    billable: "Factureerbaar",
+                    messages: "Pogingen",
+                },
             },
             voter: {
+                listChannel: "Berichtenkanaal",
                 title: "Berichten",
-                preferredChannel: "Voorkeurskanaal",
-                whatsappNumber: "WhatsApp-nummer",
-                viberNumber: "Viber-nummer",
-                messengerConnected: "Verbonden",
-                messengerNotConnected: "Niet verbonden",
-                verifiedChannels: "Geverifieerde kanalen",
-                noneVerified: "Geen geverifieerde kanalen",
                 notSet: "Niet ingesteld",
+                channel: "Kanaal",
+                destination: "Verzonden naar",
+                messengerPage: "Messenger-pagina",
+                consent: "Toestemming",
+                lastFailure: "Laatste mislukking",
+                noFailure: "Geen",
+                failureNeedsPermission: "Zichtbaar met de machtiging messaging-config-read.",
+                noChannel: "Geen contact geregistreerd",
+                notConfirmed: "Aflevering niet bevestigd",
+                notConfirmedHelp:
+                    "Het laatste bericht waarvan de aflevering nog niet is bevestigd. Na 24 uur wordt het als Onopgelost getoond; dat betekent niet dat het mislukt is.",
             },
             logs: {
                 channel: "Kanaal",
+                status: "Status",
+                statusAsLogged:
+                    "De status toen de vermelding werd geschreven; voor de huidige status is de machtiging messaging-config-read nodig.",
             },
             stats: {
                 sent: {
@@ -5592,12 +6282,174 @@ const dutchTranslation: TranslationType = {
                     MESSENGER: "Verzonden Messenger-berichten",
                 },
             },
-            readinessPolicy: {
-                PROVIDER_CHECK: "Volgens de controle van de provider",
-                ADMIN_CONFIRMED: "Bevestigd door een beheerder",
+            reason: {
+                CANDIDATE_REFUSED:
+                    "De nieuwe inloggegevens maakten geen verbinding: de vorige blijven in gebruik",
+                ACCOUNT_IN_USE:
+                    "Gebruikt door de berichtinstellingen van een verkiezingsevenement: verwijder het daar eerst",
+                NUMBER_CHANGED:
+                    "Een kiezer heeft een ander WhatsApp-nummer: vraag hem zijn contactgegevens opnieuw te verifiëren",
+                IDENTITY_CHANGED:
+                    "De verzendidentiteit van het account is gewijzigd: het wordt opnieuw gecontroleerd",
+                TEMPLATES_NOT_READ: "De sjablonen van de provider konden niet worden gelezen",
+                PARTNER_LOGIN_REFUSED: "Infobip heeft de API-sleutel van het account geweigerd",
+                NO_PAGES_MESSAGING: "Het paginatoken heeft geen pages_messaging-machtiging",
+                NOT_SUBSCRIBED: "De app is niet geabonneerd op de pagina",
+                NUMBER_STATUS_NOT_READ: "De status van het nummer kon niet worden gelezen",
+                CALLBACK_NOT_CONFIGURED: "Callbackadres niet ingesteld",
+                UNSUPPORTED_PROVIDER: "Niet-ondersteunde provider: vervang dit account",
+                CREDENTIALS_FOLLOW_ENDPOINT:
+                    "Voer de inloggegevens opnieuw in voor het nieuwe adres",
+                NO_CONTACT_CHANNEL: "Geen contactkanaal",
+                NOT_RETRYABLE_NO_TEMPLATE:
+                    "Kan niet opnieuw worden geprobeerd: geen opgeslagen sjabloon",
+                CHANNEL_NOT_OFFERED_FOR_NOTICES: "Kanaal niet aangeboden voor berichten",
+                CHANNEL_NOT_OFFERED_FOR_CODES: "Kanaal niet aangeboden voor codes",
+                NO_CONTENT_FOR_CHANNEL: "Geen inhoud voor het kanaal",
+                NO_ACCOUNT_FOR_CHANNEL: "Geen verzendaccount voor het kanaal",
+                INVALID_DESTINATION: "Ongeldige bestemming voor het kanaal",
+                NOT_RETRYABLE_PROTECTED_FIELDS:
+                    "Kan niet opnieuw worden geprobeerd: bevat beveiligde velden",
+                REPORTED_TOO_LATE: "Te laat gemeld om opnieuw te proberen",
+                CHANNEL_CHANGED: "Het kanaal van de kiezer is gewijzigd: niet opnieuw geprobeerd",
+                WORKER_STOPPED_BEFORE_SENDING: "Het proces stopte vóór het verzenden",
+                WORKER_STOPPED_AFTER_SENDING:
+                    "Het proces stopte voordat de uitkomst was vastgelegd",
+                CODE_EXPIRED_BEFORE_SENDING: "De code verliep voordat hij kon worden verzonden",
+                CAPACITY_BUSY: "Niet verzonden: het account zat te lang aan zijn verzendlimiet",
+                PROVIDER_ANSWER_LATE:
+                    "De provider antwoordde niet op tijd: het bericht is mogelijk verzonden",
+                UNRESOLVED: "Aflevering kon niet worden bevestigd",
+                SELECTED_WITHOUT_VOTERS: "Selecteer ten minste één kiezer",
+                WRONG_RECIPIENT_KIND:
+                    "De bestemming is niet van het soort waarnaar dit kanaal verzendt",
+                UNSUPPORTED_PURPOSE: "De provider verzendt dit soort bericht niet",
+                MISSING_APPROVED_TEMPLATE: "Geen goedgekeurde sjabloon voor dit bericht",
+                OUTSIDE_CONVERSATION_WINDOW: "Buiten het gespreksvenster",
+                DESTINATION_NOT_ALLOWED:
+                    "Dit account verzendt niet naar het land van de bestemming",
+                CODE_EXPIRED: "De code is verlopen",
+                MISSING_CODE: "Geen code om te verzenden",
+                ENDPOINT_NOT_HTTPS: "Het adres van de provider moet beginnen met https://",
+                PROVIDER_CODE: "Foutcode van de provider {{code}}",
+                CHECK_DROPPED:
+                    "Het account is gewijzigd tijdens de controle: controleer het opnieuw",
+                ACCOUNT_NOT_READY: "Niet verzonden: het account is niet klaar ({{blocker}})",
+                PROVIDER_UNREACHABLE: "De provider was niet bereikbaar",
+                PROVIDER_STATUS: "De provider antwoordde met status {{status}}",
+                MISSING_CREDENTIAL: "Ontbrekende referentie: {{credential}}",
+                PROVIDER_CHECK_FAILED: "De controle van de provider is mislukt: {{detail}}",
+                NUMBER_STATUS: "De status van het nummer is {{status}}",
+                NUMBER_NAME_STATUS: "De weergavenaam van het nummer is {{status}}",
+                NUMBER_IN_SANDBOX: "Het nummer staat in sandboxmodus",
+                NUMBER_NOT_VERIFIED: "De code van het nummer is niet geverifieerd",
+                SMS_SANDBOX: "Het account staat in de sms-sandbox",
+                SES_SANDBOX: "Het account staat in de SES-sandbox",
+                SES_SENDING_DISABLED: "Verzenden is uitgeschakeld voor dit account",
+                SMTP_REFUSED: "SMTP-server onbereikbaar of referenties geweigerd",
+                TOKEN_INVALID: "Het toegangstoken is niet geldig of verlopen",
+                TOKEN_CANNOT_SEND: "Het toegangstoken heeft geen toestemming om te verzenden",
+                TOKEN_NOT_CHECKED: "Het toegangstoken kon niet worden gecontroleerd",
+                APP_SECRET_REFUSED: "Meta heeft het app-geheim geweigerd",
+                APP_SECRET_NOT_CHECKED: "Het app-geheim kon niet worden gecontroleerd",
+                RETRY_NOT_PREPARED:
+                    "Kan niet opnieuw worden geprobeerd: het bericht kon niet opnieuw worden voorbereid",
+                NOT_THE_VOTERS_CHANNEL: "Niet het kanaal van de kiezer",
+                REPORT_CREDENTIALS_MISSING:
+                    "Genereer de inloggegevens voor rapporten en maak het Infobip-abonnement aan",
+                CALLBACK_NOT_HTTPS: "Het callbackadres moet https zijn",
+                UNKNOWN_ACCOUNT:
+                    "Dit account bestaat niet meer: het is mogelijk in een ander tabblad verwijderd. Laad de lijst opnieuw.",
+                INTERNAL_ERROR:
+                    "De server kon het verzoek niet voltooien. Probeer het later opnieuw.",
+                VERIFY_TOKEN_GENERATED: "Het verificatietoken wordt gegenereerd, niet ingevoerd",
+                CREDENTIAL_GENERATED: "{{credential}} wordt gegenereerd, niet ingevoerd",
+                CREDENTIAL_NOT_USED: "{{provider}}-accounts gebruiken geen {{credential}}",
+                CREDENTIAL_EMPTY: "{{credential}} mag niet leeg zijn",
+                NO_REPORT_CREDENTIALS:
+                    "{{provider}}-accounts hebben geen referenties voor rapporten",
+                UNKNOWN_AUDIENCE: "Onbekende selectie van ontvangers",
+                INVALID_MONTH: "De maand moet worden geschreven als JJJJ-MM",
+                INVALID_SUPPORT_REFERENCE: "Geen ondersteuningsreferentie",
+                MESSENGER_PAGE_CHANGED:
+                    "Niet verzonden: de kiezer is verbonden met een andere Messenger-pagina",
             },
         },
         messagingAccounts: {
+            status: {
+                title: "Status bij de provider",
+                daily: "Accounts worden één keer per dag gecontroleerd en telkens wanneer u de verbinding controleert.",
+                unchecked:
+                    "Het nummer, de pagina of de afzender is sinds de laatste controle gewijzigd. Tot het account opnieuw is gecontroleerd, mislukken codes en meldingen via dit account omdat het niet klaar is; het testbericht wordt wel verzonden.",
+                notReported: "Niet gemeld",
+                yes: "Ja",
+                no: "Nee",
+                token: "Toegangstoken",
+                tokenExpires: "Geldig · verloopt op {{date}}",
+                tokenNoExpiry: "Geldig · verloopt niet",
+                tokenInvalid: "Niet geldig",
+                missingScopes: "Ontbrekende machtigingen: {{scopes}}",
+                numberStatus: "Status van het nummer",
+                nameStatus: "Weergavenaam: {{status}}",
+                qualityRating: "Kwaliteitsbeoordeling",
+                quality: {
+                    GREEN: "Hoog",
+                    YELLOW: "Gemiddeld",
+                    RED: "Laag",
+                    UNKNOWN: "Onbekend",
+                },
+                messagingLimit: "Berichtenlimiet",
+                pagesMessaging: "Machtiging om te verzenden (pages_messaging)",
+                subscribed: "App geabonneerd op de pagina",
+                getStarted: "Knop Aan de slag",
+                getStartedMissing:
+                    "Zonder de knop kunnen kiezers die de pagina nooit een bericht stuurden het gesprek dat hun code brengt niet starten.",
+                partnerLogin: "Aanmelding bij de partner",
+                appSecret: "App-geheim",
+                notChecked: "Kon niet worden gecontroleerd",
+                numberQualityWarning:
+                    "Een kwaliteitswaarschuwing van Meta: het nummer verzendt nog, maar een lage kwaliteit kan de berichtenlimiet verlagen.",
+                accepted: "Geaccepteerd",
+                refused: "Geweigerd",
+                callback: "Callbackadres",
+                callbackReady: "Ingesteld",
+                approvalFromCheck: "Gemeld door de controle van de provider",
+                approvalEntered:
+                    "Ingevoerd door een beheerder: de controle van de provider meldde het niet",
+                approvalEnteredHelp:
+                    "Wordt alleen gebruikt totdat de controle van de provider de goedkeuring meldt.",
+                templates: {
+                    title: "Sjablonen bij de provider",
+                    none: "Geen sjablonen",
+                    name: "Sjabloon",
+                    language: "Taal",
+                    category: "Categorie",
+                    status: "Toestand",
+                    entered:
+                        "Viber-sjablonen worden door een beheerder ingevoerd onder Goedgekeurde sjablonen: de partner heeft geen API voor sjabloongoedkeuring.",
+                },
+                templateCategory: {
+                    AUTHENTICATION: "Authenticatie",
+                    UTILITY: "Service",
+                    MARKETING: "Marketing",
+                },
+                templateStatus: {
+                    APPROVED: "Goedgekeurd",
+                    PENDING: "In beoordeling",
+                    REJECTED: "Afgewezen",
+                    PAUSED: "Gepauzeerd",
+                    DISABLED: "Uitgeschakeld",
+                },
+                numberChanges: {
+                    title: "Kiezers die hun WhatsApp-nummer hebben gewijzigd",
+                    description:
+                        "WhatsApp heeft deze nummerwijzigingen gemeld. Vraag deze kiezers hun contactgegevens opnieuw te verifiëren; er is niets automatisch gewijzigd.",
+                    item: "{{old}} is gewijzigd in {{new}} op {{date}}.",
+                    voters: "Kiezers: {{voters}}",
+                    noVoters:
+                        "Geen enkele kiezer ontving berichten van dit account op het oude nummer.",
+                },
+            },
             tab: "BERICHTEN",
             description:
                 "Accounts die kiezers hun codes en berichten sturen. Elk verkiezingsevenement kiest het account per kanaal; nieuwe evenementen beginnen met het standaardaccount.",
@@ -5635,6 +6487,7 @@ const dutchTranslation: TranslationType = {
                 error: "{{name}} kon niet worden gecontroleerd.",
             },
             delete: {
+                refused: "Het account is niet verwijderd: {{reason}}",
                 title: "Account verwijderen",
                 body: "{{name}} verwijderen? Verkiezingsevenementen die het gebruiken, versturen dan niets meer via dat kanaal.",
                 success: "Account verwijderd",
@@ -5673,9 +6526,7 @@ const dutchTranslation: TranslationType = {
                 sender: "Afzendernaam",
                 provider_approval: "Goedkeuring van de provider",
                 is_default: "Standaard {{channel}}-account voor nieuwe verkiezingsevenementen",
-                readiness: "Gereedheid",
                 api_base_url: "Basis-URL van de Graph API",
-                label: "Afzender die kiezers zien",
             },
             fieldHelp: {
                 from_address:
@@ -5694,24 +6545,31 @@ const dutchTranslation: TranslationType = {
                 sender: "De goedgekeurde afzender die kiezers zien.",
                 provider_approval:
                     "Meta staat berichten van overheden via WhatsApp alleen toe via een goedgekeurde regeling. Kies Goedkeuring van de provider bevestigd zodra Meta dit voor dit account heeft goedgekeurd; tot die tijd kunnen codes en berichten voor dit account niet worden ingeschakeld.",
-                readiness:
-                    "Volgens de controle van de provider gebruikt wat de verbindingscontrole vindt: of het account verbonden is, in productie is, en welke sjablonen zijn goedgekeurd. Bevestigd door een beheerder is voor providers waarvan de controle dat niet kan vaststellen: het is uw verklaring dat het account verbonden is, in productie is en goedgekeurde sjablonen heeft, en die wordt gebruikt in plaats van de controle.",
                 api_base_url:
                     "Alleen wanneer de Graph API niet die van Meta zelf is, zoals het eindpunt van een Solution Provider. Leeg gebruikt die van Meta.",
-                label: "De naam die kiezers zien als afzender van dit account.",
             },
             error: {
                 REQUIRED: "Verplicht",
                 NOT_A_COUNT: "Voer een geheel getal in",
+                AT_LEAST_ONE: "Voer 1 of meer in",
                 OTP_ABOVE_TOTAL: "Mag niet hoger zijn dan het aantal berichten per seconde",
                 INVALID_CALLING_CODE: "Voer landnummers van 1 tot 3 cijfers in, zoals 63",
                 DUPLICATE_LANGUAGE: "Deze taal heeft al een sjabloon voor dit doel",
-                NOT_A_URL: "Voer een adres in dat begint met https:// of http://",
-                INVALID_HTTP_CONFIG: "Los de getoonde problemen op",
+                NOT_A_URL: "Voer een adres in dat begint met https://",
+                UNSUPPORTED_PROVIDER: "Niet-ondersteunde provider: vervang dit account",
+                CREDENTIALS_FOLLOW_ENDPOINT:
+                    "Voer de inloggegevens opnieuw in voor het nieuwe adres",
             },
             warning: {
+                pageChangeCount:
+                    "Kiezers verbonden met {{page}} die opnieuw moeten verbinden: {{count}}.",
+                pageChangeCounting: "Kiezers verbonden met de pagina worden geteld…",
+                pageChangeCountError:
+                    "Het aantal kiezers verbonden met de pagina kon niet worden gelezen.",
+                recheck:
+                    "Bij opslaan wordt het account op de achtergrond opnieuw gecontroleerd. Tot die controle slaagt, mislukken codes en meldingen via dit account omdat het niet klaar is; het testbericht wordt wel verzonden.",
                 pageChange:
-                    "Messenger-gesprekken horen bij een pagina. Na het wijzigen van de pagina krijgen de kiezers die met {{page}} verbonden zijn pas weer codes nadat ze Messenger opnieuw hebben verbonden.",
+                    "Messenger-gesprekken horen bij een pagina. Na het wijzigen van de pagina worden er geen codes of berichten verzonden aan de kiezers die met {{page}} verbonden zijn, totdat ze opnieuw verbinden. Een kiezer verbindt opnieuw bij de volgende keer aanmelden, na het invoeren van het wachtwoord: het aanmelden toont de verbindingsstap voor de nieuwe pagina, de kiezer tikt in Messenger op Aan de slag en ontvangt daar de code. Een kiezer die zich niet met een wachtwoord kan aanmelden, bijvoorbeeld omdat hij het vergeten is, heeft medewerkers nodig om zijn kanaal te wijzigen.",
                 numberChange:
                     "Berichten komen van een ander nummer. De sjablonen moeten in dat bedrijfsaccount zijn goedgekeurd voordat het codes kan versturen, en kiezers zien een nieuwe chat.",
             },
@@ -5728,8 +6586,13 @@ const dutchTranslation: TranslationType = {
             limits: {
                 title: "Verzendlimieten",
                 messagesPerSecond: "Berichten per seconde",
+                messagesPerSecondHelp: "Leeg: berichten worden niet beperkt.",
                 otpReservedPerSecond: "Gereserveerd voor codes per seconde",
-                otpReservedHelp: "Blijft vrij voor codes tijdens bulkverzendingen.",
+                otpReservedHelp:
+                    "Een ondergrens in het ene gedeelde verzendbudget van het account: meldingen stoppen daar en codes gaan voor. Als er geen codes worden verzonden, kan een bulkverzending het volledige tempo gebruiken.",
+                otpConcurrency: "Codes tegelijk verzonden",
+                otpConcurrencyHelp:
+                    "Leeg: 8. Codes en de berichten van Keycloak (resetlinks, tijdelijke wachtwoorden) bezetten elk een plaats terwijl ze worden verzonden. Geteld per serverproces; verdere verzendingen wachten op hun beurt.",
                 allowedCallingCodes: "Toegestane bestemmingen (landnummers)",
                 allowedCallingCodesHelp:
                     "Gescheiden door komma's, bijvoorbeeld 63, 971. Leeg staat elke bestemming toe.",
@@ -5741,6 +6604,7 @@ const dutchTranslation: TranslationType = {
                 set: "Ingesteld · vervangen {{date}}. Het wordt versleuteld opgeslagen en nooit getoond.",
                 replace: "Vervangen",
                 replaceNamed: "{{name}} vervangen",
+                reenter: "Het adres is gewijzigd: voer dit inloggegeven opnieuw in.",
             },
             credentialHelp: {
                 AWS_SES: {
@@ -5770,29 +6634,20 @@ const dutchTranslation: TranslationType = {
                 VIBER_INFOBIP: {
                     API_KEY: "De Infobip-API-sleutel.",
                 },
-                HTTP_API: {
-                    API_KEY: "Optioneel. Verzoeken gebruiken het als de inloggegevens API_KEY.",
-                    API_SECRET:
-                        "Optioneel. Een tweede geheim, en de sleutel die de JWT ondertekent: een PEM-privésleutel voor RS256, het gedeelde geheim voor HS256.",
-                    ACCESS_TOKEN:
-                        "Optioneel. Verzoeken gebruiken het als de inloggegevens ACCESS_TOKEN.",
-                    USERNAME:
-                        "Optioneel. Vormt samen met het wachtwoord de plaatshouder basic_auth.",
-                    PASSWORD:
-                        "Optioneel. Vormt samen met de gebruikersnaam de plaatshouder basic_auth.",
-                    WEBHOOK_SECRET:
-                        "Optioneel. Het gedeelde geheim waarmee de callbacks van de provider worden gecontroleerd.",
-                },
             },
             webhook: {
-                title: "Afleveringsrapporten en antwoorden",
-                description:
-                    "Voer deze callback in bij de webhookinstellingen van de provider. Afleveringsrapporten en antwoorden van kiezers komen daar binnen.",
-                path: "Callbackpad",
-                pathHelp:
-                    "Voeg het toe aan het openbare adres van de berichtenwebhooks van dit platform.",
+                title: "Afleverrapporten",
+                description: {
+                    WHATSAPP_CLOUD_API:
+                        "Voer deze callback-URL in bij de webhookinstellingen van Meta. Afleverrapporten komen hier binnen en worden gecontroleerd met het app-geheim.",
+                    MESSENGER_SEND_API:
+                        "Voer deze callback-URL in bij de webhookinstellingen van Meta. Afleverrapporten en de tik van de kiezer op Aan de slag komen hier binnen en worden gecontroleerd met het app-geheim.",
+                    VIBER_INFOBIP:
+                        "Infobip verstuurt Viber-afleverrapporten naar deze callback-URL via een abonnement met Basic-authenticatie.",
+                    AWS_SES:
+                        "Abonneer deze callback-URL (HTTPS) op het onderwerp voor afleverberichten. Aflever- en bounce-gebeurtenissen komen hier binnen en worden gecontroleerd met de handtekening van Amazon.",
+                },
                 afterSaving: "Getoond na het opslaan",
-                copyPath: "Callbackpad kopiëren",
                 tokenSet: "Ingesteld · vervangen {{date}}",
                 tokenMissing: "Nog niet gegenereerd",
                 tokenAfterSaving: "Wordt na het opslaan gegenereerd",
@@ -5803,8 +6658,12 @@ const dutchTranslation: TranslationType = {
                 copyToken: "Verificatietoken kopiëren",
                 tokenDone: "Klaar",
                 tokenError: "Het verificatietoken kon niet worden gegenereerd.",
-                httpHelp:
-                    "Een aangepaste HTTP-API kan zijn rapporten als JSON posten, of ze als GET-verzoek sturen; de queryparameters worden dan gelezen als een plat object, met pointers zoals /status.",
+                url: "Callback-URL",
+                copyUrl: "Callback-URL kopiëren",
+                needsWrite: "Zichtbaar voor beheerders die berichtaccounts kunnen beheren.",
+                loading: "Laden…",
+                unavailable: "Niet beschikbaar",
+                loadError: "De callback-URL kon niet worden geladen.",
             },
             copy: {
                 success: "Gekopieerd",
@@ -5813,6 +6672,7 @@ const dutchTranslation: TranslationType = {
             save: {
                 success: "Account opgeslagen",
                 error: "Het account kon niet worden opgeslagen.",
+                refused: "Het account is niet opgeslagen: {{reason}}",
             },
             test: {
                 title: "Een testbericht versturen vanaf {{name}}",
@@ -5836,105 +6696,315 @@ const dutchTranslation: TranslationType = {
                 languageHelp:
                     "Voer voor een provider die goedgekeurde sjablonen verzendt de taalcode van de provider voor de sjabloon in, zoals en_US.",
             },
-            http: {
-                title: "Aangepaste HTTP-API",
-                description:
-                    "Beschrijft een provider aan de hand van zijn HTTP-verzoeken: een andere Viber-partner, de eigen API van een WhatsApp Solution Provider, een sms-gateway. Verzoeken zijn JSON; hun URL, headers en body mogen de plaatshouders uit de onderstaande referentie bevatten.",
-                phoneFormat: "Notatie van het telefoonnummer",
-                phoneFormatHelp:
-                    "Hoe het telefoonnummer van de ontvanger in een verzoek wordt geschreven.",
-                phoneFormatOption: {
-                    E164: "Met het plusteken: +639171234567",
-                    DIGITS: "Alleen cijfers: 639171234567",
+            unsupported:
+                "Niet-ondersteunde provider: vervang dit account. De provider wordt niet meer ondersteund, dus het account kan niet verzenden. Voeg voor dit kanaal een account toe met een ondersteunde provider, kies dat in de verkiezingsevenementen die dit account gebruiken en verwijder daarna dit account.",
+            reports: {
+                label: "Inloggegevens voor rapporten",
+                missing: "Nog niet gegenereerd",
+                generate: "Inloggegevens voor rapporten genereren",
+                title: "Inloggegevens voor rapporten",
+                once: "Voer ze nu in bij het Infobip-abonnement. Ze worden maar één keer getoond; nieuwe genereren vervangt ze.",
+                copyUsername: "Gebruikersnaam voor rapporten kopiëren",
+                copyPassword: "Wachtwoord voor rapporten kopiëren",
+                error: "De inloggegevens voor rapporten konden niet worden gegenereerd.",
+                step: {
+                    subscription: "Maak in Infobip een abonnement aan voor Viber-afleverrapporten.",
+                    url: "Stel de URL in op de callback-URL van dit account.",
+                    auth: "Kies Basic-authenticatie en voer de gebruikersnaam en het wachtwoord voor rapporten in.",
                 },
-                templateRequired: "Doelen die een goedgekeurde sjabloon nodig hebben",
-                templateRequiredHelp:
-                    "Een aangevinkt doel wordt alleen verzonden met een sjabloon die de provider heeft goedgekeurd en die in het verkiezingsevenement is gekoppeld. De andere doelen worden als vrije tekst verzonden.",
-                approvedLanguages: "Talen met een goedgekeurde sjabloon voor {{purpose}}",
-                approvedLanguagesHelp:
-                    "De taalcodes met een goedgekeurde sjabloon, zoals bevestigd bij de provider, gescheiden door komma's: en, tl. De verbindingscontrole meldt ze.",
-                conversationWindow: "Gespreksvenster (uren)",
-                conversationWindowHelp:
-                    "Uren na het laatste bericht van de ontvanger waarin vrije tekst mag worden verzonden. Leeg wanneer de provider geen dergelijk venster heeft.",
-                messageIdPointer: "Bericht-ID in het verzendantwoord",
-                messageIdPointerHelp:
-                    "Een JSON-pointer naar de bericht-ID van de provider in het antwoord op het verzendverzoek, zoals /message_id. Afleveringsrapporten worden ermee gekoppeld.",
-                notConfigured: "Niet geconfigureerd.",
-                thisSection: "Deze sectie",
-                add: "Toevoegen: {{section}}",
-                remove: "Verwijderen: {{section}}",
-                section: {
-                    SEND: "Verzendverzoek",
-                    CHECK: "Verzoek voor de verbindingscontrole",
-                    TOKEN: "Tokenverzoek",
-                    JWT: "Ondertekend token (JWT)",
-                    REPORTS: "Afleveringsrapporten en antwoorden",
-                    RECONCILE: "Verzoek om een bericht op te zoeken",
+                confirmTitle: "Inloggegevens voor rapporten vervangen?",
+                confirmBody:
+                    "De huidige gebruikersnaam en het wachtwoord voor rapporten werken meteen niet meer. Tot het Infobip-abonnement de nieuwe heeft, worden Viber-afleverrapporten geweigerd en blijven berichten op Geaccepteerd staan.",
+                confirm: "Vervangen",
+            },
+        },
+        sentMessages: {
+            showMore: "Meer tonen",
+            showLess: "Minder tonen",
+            tab: "Verzonden berichten",
+            accountsTab: "Verzendaccounts",
+            tabsLabel: "Onderdelen van berichten",
+            description:
+                "Berichten die de demoprovider van deze ontwikkelomgeving ontving, zoals de apps van de kiezers ze zouden tonen. Geen ervan heeft een echte kiezer bereikt. Dit tabblad verschijnt alleen waar de routes van de demoprovider zijn ingeschakeld.",
+            modeLabel: "Berichten tonen van",
+            all: "Alle",
+            refresh: "Vernieuwen",
+            refreshing: "Bezig met vernieuwen…",
+            refreshError:
+                "De berichten konden niet worden vernieuwd. De getoonde lijst is de laatst gelezen lijst.",
+            empty: "Nog geen berichten.",
+            emptyChannel: "Nog geen {{channel}}-berichten.",
+            column: {
+                time: "Tijd",
+                channel: "Kanaal",
+                from: "Van",
+                to: "Aan",
+                message: "Bericht",
+                report: "Afleverrapport",
+            },
+            report: {
+                accepted: "Rapport geaccepteerd door het webhookonderdeel (HTTP 200)",
+                refused: "Rapport geweigerd: HTTP {{status}}",
+                pending: "Rapport nog niet verzonden",
+                notSent: "Rapport niet verzonden: {{reason}}",
+                noAnswer: "Het rapport kreeg geen antwoord: {{reason}}",
+                noReason: "geen reden opgegeven",
+                unavailable: "Geen afleverrapporten op dit kanaal",
+            },
+            content: {
+                demoCode:
+                    "{{code}} is uw verificatiecode. Deel deze code voor uw veiligheid met niemand.",
+                demoNotice:
+                    "Stemherinnering\n\nHallo {{name}}, de stemming voor {{event}} is geopend.\n\nMeld u aan bij het stemportaal om uw stembiljet te bekijken en uw stem uit te brengen:\n{{url}}\n\nDeel uw aanmeldcode met niemand. Als u al hebt gestemd, hoeft u niets meer te doen.",
+                demoLegacyNotice:
+                    "Stemherinnering\n\nHallo {{name}}, de stemming is geopend. Meld u aan bij het stemportaal om uw stem uit te brengen:\n{{url}}\n\nDeel uw aanmeldcode met niemand.",
+
+                template: "Sjabloon {{name}} ({{language}})",
+                noText: "(geen tekst)",
+                code: "Code",
+                copyCode: "Code kopiëren",
+                copied: "Code gekopieerd",
+                copyFailed: "De code kon niet worden gekopieerd",
+                truncated:
+                    "Ingekort: de demoprovider bewaart alleen de eerste 64 KiB van elk veld.",
+            },
+            chat: {
+                phone: "{{channel}} op een telefoon",
+                chats: "{{channel}}-chats",
+                open: "Chat met {{recipient}} vanaf {{sender}} openen",
+                back: "Terug naar de chats",
+                from: "Van {{sender}}",
+                messages: "Berichten aan {{recipient}}",
+            },
+            getStarted: {
+                title: "Aan de slag",
+                help: "Plak de Messenger-link die de inschrijvingspagina toont en druk op Aan de slag, zoals de kiezer in Messenger zou doen. Daarna komt de code in de chat.",
+                link: "Messenger-link",
+                submit: "Aan de slag",
+                accepted: "Het webhookonderdeel antwoordde 200. De code komt in de chat.",
+                answered: "Het webhookonderdeel antwoordde {{status}}.",
+                failed: "Aan de slag is mislukt: {{reason}}",
+            },
+            email: {
+                inbox: "Postvak IN",
+                reading: "Geselecteerde e-mail",
+                noSubject: "(geen onderwerp)",
+                from: "Van",
+                to: "Aan",
+                view: "E-mail tonen als",
+                html: "HTML",
+                text: "Platte tekst",
+                htmlFrame: "Inhoud van de e-mail",
+                noContent: "Deze e-mail heeft geen inhoud.",
+                loading: "E-mail laden…",
+                loadError:
+                    "De HTML van de e-mail kon niet worden gelezen: de demoprovider bewaart hem misschien niet meer.",
+            },
+            reason: {
+                SEVERAL_ACCOUNTS: "Meerdere accounts gebruiken deze afzender",
+                ACCOUNTS_UNREADABLE: "De accounts konden niet worden gelezen",
+                UNREACHABLE: "Het webhookonderdeel antwoordde niet",
+                LINK_UNREADABLE: "Plak de m.me-link van de inschrijvingspagina",
+                LINK_WITHOUT_REF: "De link heeft geen ref: kopieer de hele link",
+                NO_PAGE_ACCOUNT: "Geen Messenger-account van deze organisatie gebruikt deze pagina",
+                SEVERAL_PAGE_ACCOUNTS:
+                    "Meerdere Messenger-accounts van deze organisatie gebruiken deze pagina",
+            },
+        },
+        electoralLogConsole: {
+            title: "Verkiezingslog",
+            subtitle:
+                "Bekijk het verkiezingslog en de stembus van een verkiezingsevenement, of bevraag de database van zijn verkiezingslog. Niets op deze pagina wijzigt gegevens.",
+            notAllowed:
+                "U hebt de machtiging electoral-log-console-read nodig om het verkiezingslog te openen.",
+            tabs: {
+                tables: "Tabellen",
+                query: "Query",
+            },
+            electionEvent: "Verkiezingsevenement",
+            tenant: "Tenant",
+            table: "Tabel",
+            tables: {
+                records: "Records",
+                ballots: "Stembiljetten",
+                voters: "Kiezers",
+                queue: "Wachtrij van de Sequencer",
+            },
+            order: {
+                "label": "Volgorde",
+                "newest-first": "Nieuwste eerst",
+                "oldest-first": "Oudste eerst",
+            },
+            filters: {
+                statement_kind: "Soort",
+                election_id: "Verkiezing",
+                area_id: "Gebieds-ID",
+                user_id: "Gebruikers- of Kiezers-ID",
+                ballot_id: "Stembiljet-ID",
+                status: "Status",
+                created_after: "Vanaf",
+                created_before: "Tot",
+                any: "Alle",
+                apply: "Filters Toepassen",
+                clear: "Wissen",
+                invalid:
+                    "Controleer de gemarkeerde filters: datums moeten geldig zijn en gebieds-ID's van de stembus moeten UUID's zijn.",
+            },
+            statuses: {
+                valid: "Geldig",
+                pending: "In behandeling",
+                rejected: "Afgewezen",
+            },
+            estimatedRows: "Ongeveer {{rows}} rijen in deze tabel vóór filtering.",
+            personalDataHidden:
+                "Gebruikersnamen, IP-adressen en landen zijn verborgen: om ze te zien is de machtiging electoral-log-personal-data-read nodig.",
+            loadError: "Het verkiezingslog kon niet worden gelezen.",
+            record: {
+                title: "Record {{position}}",
+                view: "Record bekijken",
+                message: "Bericht (gedecodeerd)",
+                copy: "JSON Kopiëren",
+                close: "Sluiten",
+                loadError: "Het record kon niet worden gelezen.",
+            },
+            query: {
+                help: "Query's worden uitgevoerd op de verkiezingslogdatabase van het verkiezingsevenement in een alleen-lezen transactie. De tabellen zijn electoral_log_messages, ballot_box_ballot, ballot_box_voter, ballot_box_pending en ballot_box_sequencer; trellis_logs beschrijft de Merkle-logs.",
+                scope: "Elk verkiezingsevenement heeft een eigen database, dus een query leest één evenement.",
+                chooseEvent: "Kies het verkiezingsevenement dat u wilt bevragen.",
+                placeholder: "SELECT …",
+                limits: "Alleen-lezen · tot 1.000 rijen · limiet van 30 s · elke query wordt met uw gebruiker vastgelegd in de serverlogs",
+                run: "Query Uitvoeren",
+                summary: "Rijen: {{rows}} · {{ms}} ms",
+                truncated: "Alleen de eerste {{rows}} rijen worden getoond.",
+                error: "De query kon niet worden uitgevoerd.",
+            },
+        },
+        taskQueues: {
+            title: "Taakwachtrijen",
+            subtitle:
+                "De taakwachtrijen van de omgeving: wat wacht, wat is verwerkt en hoe lang dat duurde. De wachtrijlijsten tonen nooit taakargumenten.",
+            notAllowed:
+                "U hebt de machtiging task-queues-read van de superbeheerder-tenant nodig om de taakwachtrijen te openen.",
+            live: "Live",
+            updated: "Bijgewerkt om {{time}}",
+            error: "De taakwachtrijen konden niet worden geladen.",
+            columns: {
+                queue: "Wachtrij",
+                ready: "Klaar",
+                runningOrScheduled: "Bezig of gepland",
+                oldest: "Oudste",
+                processed: "Verwerkt (laatste uur)",
+                lastHour: "Resultaten (laatste uur)",
+                sent: "Verzonden (totaal)",
+            },
+            outcomes: {
+                succeeded: "Geslaagd",
+                failed: "Mislukt",
+                expired: "Verlopen",
+                rejected: "Geweigerd",
+                discarded: "Verworpen",
+                unknown: "Onbekend",
+            },
+            graphs: {
+                title: "Doorvoer",
+                period: "Periode",
+                periods: {
+                    hour: "Laatste uur",
+                    sixHours: "Laatste 6 uur",
+                    day: "Laatste 24 uur",
+                    week: "Laatste 7 dagen",
                 },
-                sectionHelp: {
-                    SEND: "Het verzoek dat één bericht verzendt: method (POST indien weggelaten), url, headers en body.",
-                    CHECK: "Optioneel. Een verzoek dat slaagt, met een 2xx-antwoord, wanneer de inloggegevens werken. De verbindingscontrole voert het uit.",
-                    TOKEN: "Optioneel. Haalt vóór het verzenden een kortlevend token op, zoals OAuth-clientgegevens: request, token_pointer (waar het token in het antwoord staat) en lifetime_seconds. Verzoeken gebruiken het met de plaatshouder token.",
-                    JWT: "Optioneel. Een token dat voor elk verzoek wordt ondertekend met de inloggegevens API-geheim: algorithm (RS256 of HS256), claims (iat, exp en jti worden toegevoegd) en lifetime_seconds. Verzoeken gebruiken het met de plaatshouder jwt.",
-                    REPORTS:
-                        "Optioneel. Hoe te lezen wat de provider naar de callback stuurt: auth, items_pointer (waar de lijst met rapporten staat; de hele payload indien weggelaten), status (message_id_pointer, state_pointer, states, dat elke waarde van de provider koppelt aan QUEUED, ACCEPTED, DELIVERED, FAILED of UNKNOWN, en error_pointer) en inbound_from_pointer (waar de afzender van een antwoord staat). auth heeft een kind: URL_KEY (alleen het geheime adres van de callback), HEADER_SECRET (een header die gelijk is aan het webhookgeheim), HMAC_SHA256 (een header met de HMAC van de body onder het webhookgeheim, met prefix, encoding HEX of BASE64, en signed wanneer meer dan de body wordt ondertekend) of JWT_HS256 (een header met een bearer-JWT ondertekend met het webhookgeheim).",
-                    RECONCILE:
-                        "Optioneel. Vraagt de provider naar één bericht waarvan de uitkomst onbekend is: request en status, dat wordt gelezen zoals de status van de afleveringsrapporten.",
+                outcomes: "Verwerkte berichten per resultaat",
+                durations: "Gemiddelde wacht- en verwerkingstijd",
+                wait: "Wachten",
+                processing: "Verwerken",
+                seconds: "Seconden",
+                empty: "In deze periode zijn geen berichten van deze wachtrij verwerkt.",
+            },
+            messages: {
+                title: "Berichten",
+                states: {
+                    queued: "In wachtrij",
+                    archived: "Gearchiveerd",
                 },
-                problem: {
-                    NOT_AN_OBJECT: "{{path}} moet een object zijn.",
-                    MISSING_URL: "{{path}} is verplicht: het adres van het verzoek.",
-                    INVALID_METHOD: "{{path}} moet een HTTP-methode zijn, zoals POST of GET.",
-                    INVALID_HEADERS:
-                        "{{path}} moet tekst zijn: headers is een object van headernamen en tekstwaarden.",
-                    UNKNOWN_FIELD: "{{path}} is geen veld van deze sectie.",
-                    UNKNOWN_PLACEHOLDER:
-                        "{{path}} gebruikt een plaatshouder die niet bestaat. Zie de referentie van plaatshouders.",
-                    INVALID_POINTER:
-                        "{{path}} moet een JSON-pointer zijn die begint met /, zoals /data/id.",
-                    INVALID_STATES:
-                        "{{path}} moet een statuswaarde van de provider koppelen aan QUEUED, ACCEPTED, DELIVERED, FAILED of UNKNOWN; er is er minstens één nodig.",
-                    INVALID_AUTH:
-                        "{{path}} is niet geldig: kind is URL_KEY, HEADER_SECRET, HMAC_SHA256 of JWT_HS256; header is verplicht behalve voor URL_KEY; encoding is HEX of BASE64.",
-                    INVALID_LIFETIME: "{{path}} moet een geheel aantal seconden boven 0 zijn.",
-                    INVALID_ALGORITHM: "{{path}} moet RS256 of HS256 zijn.",
-                    INVALID_CLAIMS: "{{path}} moet een object zijn.",
-                    INVALID_HOURS: "{{path}} moet een geheel aantal uren boven 0 zijn.",
+                argumentsHidden:
+                    "Taakargumenten worden nooit getoond, omdat ze gegevens van kiezers kunnen bevatten.",
+                refresh: "Vernieuwen",
+                newest: "Nieuwste",
+                newer: "Nieuwer",
+                older: "Ouder",
+                empty: "Geen berichten",
+                unreadable: "Onleesbaar bericht",
+                columns: {
+                    id: "ID",
+                    task: "Taak",
+                    outcome: "Resultaat",
+                    event: "Gebeurtenis",
+                    error: "Fout",
+                    enqueued: "In wachtrij gezet",
+                    reads: "Keren gelezen",
+                    retries: "Herhalingen",
+                    archived: "Gearchiveerd",
+                    visible: "Zichtbaar vanaf",
+                    size: "Grootte",
+                    taskId: "Taak-ID",
                 },
-                placeholders: {
-                    title: "Referentie van plaatshouders",
-                    help: "Geschreven tussen dubbele accolades in de URL, in een headerwaarde of in een tekst van de body. Elke plaatshouder wordt vervangen wanneer het verzoek wordt gedaan.",
+            },
+            deadLetters: {
+                help: "Deze gebeurtenissen van het verkiezingslog konden niet worden verwerkt. Selecteer gebeurtenissen om ze opnieuw naar de gebeurteniswachtrij te sturen of om ze te verwerpen; verworpen gebeurtenissen blijven in het archief.",
+                noWrite:
+                    "U hebt de machtiging task-queues-write nodig om deze gebeurtenissen opnieuw te sturen of te verwerpen.",
+                replay: "Opnieuw sturen",
+                discard: "Verwerpen",
+                cancel: "Annuleren",
+                confirmTitle: {
+                    replay: "Gebeurtenissen opnieuw sturen?",
+                    discard: "Gebeurtenissen verwerpen?",
                 },
-                placeholder: {
-                    to: "De ontvanger: telefoonnummer, e-mailadres of paginagebonden ID.",
-                    text: "Het bericht als platte tekst.",
-                    subject: "Het onderwerp, voor e-mail.",
-                    html: "Het bericht als HTML, voor e-mail.",
-                    code: "De eenmalige code, voor codes.",
-                    template:
-                        "De sjabloon van de provider die in het verkiezingsevenement is gekoppeld.",
-                    language: "De taalcode van de provider voor de sjabloon.",
-                    message_id:
-                        "De bericht-ID van de provider, in een verzoek om een bericht op te zoeken.",
-                    callback_url: "Het openbare adres van de callback van dit account.",
-                    param: "Eén sjabloonparameter op basis van zijn positie: 1, 2, 3 enzovoort.",
-                    credential:
-                        "Inloggegevens van dit account op naam: API_KEY, API_SECRET, ACCESS_TOKEN, USERNAME, PASSWORD of WEBHOOK_SECRET.",
-                    basic_auth:
-                        "De gebruikersnaam en het wachtwoord, gecodeerd voor een header Authorization: Basic.",
-                    token: "Het token dat met het tokenverzoek is verkregen.",
-                    jwt: "Het ondertekende token dat is beschreven onder Ondertekend token (JWT).",
-                    parameters:
-                        "Alleen, als waarde in de body, wordt het de lijst van alle sjabloonparameters.",
-                    named_parameters:
-                        "Alleen, als waarde in de body, wordt het een object van de parameters die als @naam=waarde zijn geschreven.",
+                confirmBody: {
+                    replay_one:
+                        "{{count}} gebeurtenis wordt opnieuw naar de gebeurteniswachtrij van het verkiezingslog gestuurd. Als die opnieuw mislukt, komt die hier terug.",
+                    replay_many:
+                        "{{count}} gebeurtenissen worden opnieuw naar de gebeurteniswachtrij van het verkiezingslog gestuurd. Gebeurtenissen die opnieuw mislukken, komen hier terug.",
+                    replay_other:
+                        "{{count}} gebeurtenissen worden opnieuw naar de gebeurteniswachtrij van het verkiezingslog gestuurd. Gebeurtenissen die opnieuw mislukken, komen hier terug.",
+                    discard_one:
+                        "{{count}} gebeurtenis wordt naar het archief verplaatst en niet aan het verkiezingslog toegevoegd.",
+                    discard_many:
+                        "{{count}} gebeurtenissen worden naar het archief verplaatst en niet aan het verkiezingslog toegevoegd.",
+                    discard_other:
+                        "{{count}} gebeurtenissen worden naar het archief verplaatst en niet aan het verkiezingslog toegevoegd.",
                 },
-                example: {
-                    title: "Uitgewerkt voorbeeld: een Viber-partner",
-                    description:
-                        "De partner ontvangt een JSON-POST die met de API-sleutel als bearer-token is geauthenticeerd, antwoordt met de ID van het bericht onder message_id en post afleveringsrapporten met een geheime header. Gebruik het als uitgangspunt en pas het adres en de veldnamen aan die van de provider aan.",
-                    use: "Dit voorbeeld gebruiken",
+                queued: {
+                    replay_one:
+                        "Opnieuw sturen van {{count}} gebeurtenis in de wachtrij gezet als taak {{taskId}}.",
+                    replay_many:
+                        "Opnieuw sturen van {{count}} gebeurtenissen in de wachtrij gezet als taak {{taskId}}.",
+                    replay_other:
+                        "Opnieuw sturen van {{count}} gebeurtenissen in de wachtrij gezet als taak {{taskId}}.",
+                    discard_one:
+                        "Verwerpen van {{count}} gebeurtenis in de wachtrij gezet als taak {{taskId}}.",
+                    discard_many:
+                        "Verwerpen van {{count}} gebeurtenissen in de wachtrij gezet als taak {{taskId}}.",
+                    discard_other:
+                        "Verwerpen van {{count}} gebeurtenissen in de wachtrij gezet als taak {{taskId}}.",
                 },
+                failed: "De bewerking kon niet in de wachtrij worden gezet.",
+            },
+            tabs: {
+                queues: "Wachtrijen",
+                query: "Query",
+            },
+            query: {
+                help: "Query's worden uitgevoerd op de taakwachtrijdatabase van de omgeving in een alleen-lezen transactie, met haar leesrol. Elke wachtrij heeft een tabel met wachtende berichten, pgmq.q_<wachtrij>, en een met verwerkte berichten, pgmq.a_<wachtrij>.",
+                arguments:
+                    "Query's lezen de berichten zoals ze zijn opgeslagen, met de argumenten van hun taken, die gegevens van kiezers kunnen bevatten.",
+                placeholder: "SELECT …",
+                limits: "Alleen-lezen · tot 1.000 rijen · limiet van 30 s · elke query wordt met uw gebruiker vastgelegd in de serverlogs",
+                run: "Query Uitvoeren",
+                summary: "Rijen: {{rows}} · {{ms}} ms",
+                truncated: "Alleen de eerste {{rows}} rijen worden getoond.",
+                error: "De query kon niet worden uitgevoerd.",
             },
         },
     },

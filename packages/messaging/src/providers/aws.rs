@@ -5,7 +5,10 @@
 //! Amazon SES (email) and SNS (SMS). Without account keys the service's own
 //! AWS role is used, as before.
 
-use super::{Account, Endpoints, PROVIDER_TIMEOUT};
+use super::{
+    check_failed_reason, Account, Endpoints, PROVIDER_TIMEOUT, PROVIDER_UNREACHABLE, SES_SANDBOX,
+    SES_SENDING_DISABLED, SMS_SANDBOX,
+};
 use crate::sender::{ChannelSender, FailureKind, OutboundMessage, ProviderFailure, SendOutcome};
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
@@ -189,18 +192,18 @@ impl ChannelSender for SnsSender {
                 production_access: !status.is_in_sandbox(),
                 approved_templates: Default::default(),
                 checked_at: Some(Utc::now().to_rfc3339()),
-                reason: status
-                    .is_in_sandbox()
-                    .then(|| "the account is in the SMS sandbox".to_string()),
+                reason: status.is_in_sandbox().then(|| SMS_SANDBOX.to_string()),
+                details: Default::default(),
             },
-            Err(error) => not_connected(&format!(
-                "SNS check failed{}",
-                error
+            // The service's error code, never its message; no code: AWS
+            // wasn't reached.
+            Err(error) => not_connected(
+                &error
                     .as_service_error()
                     .and_then(|e| e.code())
-                    .map(|code| format!(": {code}"))
-                    .unwrap_or_default()
-            )),
+                    .map(check_failed_reason)
+                    .unwrap_or_else(|| PROVIDER_UNREACHABLE.to_string()),
+            ),
         }
     }
 }
@@ -208,6 +211,8 @@ impl ChannelSender for SnsSender {
 pub struct SesSender {
     client: aws_sdk_sesv2::Client,
     from: String,
+    /// Receipts only with a notification topic.
+    capabilities: ProviderCapabilities,
 }
 
 impl SesSender {
@@ -221,7 +226,12 @@ impl SesSender {
         else {
             return Err(anyhow!("not an SES account"));
         };
+        let capabilities = account
+            .sender
+            .capabilities(MessageChannel::EMAIL)
+            .ok_or_else(|| anyhow!("not an SES account"))?;
         Ok(SesSender {
+            capabilities,
             client: aws_sdk_sesv2::Client::new(
                 &sdk_config(account, region.as_ref(), endpoints).await,
             ),
@@ -261,9 +271,7 @@ impl SesSender {
 #[async_trait]
 impl ChannelSender for SesSender {
     fn capabilities(&self) -> ProviderCapabilities {
-        MessagingProvider::AWS_SES
-            .capabilities(MessageChannel::EMAIL)
-            .unwrap_or_else(|| unreachable!("SES declares its own channel"))
+        self.capabilities.clone()
     }
 
     async fn send(&self, message: &OutboundMessage) -> SendOutcome {
@@ -308,21 +316,23 @@ impl ChannelSender for SesSender {
                 approved_templates: Default::default(),
                 checked_at: Some(Utc::now().to_rfc3339()),
                 reason: if !account.sending_enabled() {
-                    Some("sending is disabled for this account".to_string())
+                    Some(SES_SENDING_DISABLED.to_string())
                 } else if !account.production_access_enabled() {
-                    Some("the account is in the SES sandbox".to_string())
+                    Some(SES_SANDBOX.to_string())
                 } else {
                     None
                 },
+                details: Default::default(),
             },
-            Err(error) => not_connected(&format!(
-                "SES check failed{}",
-                error
+            // The service's error code, never its message; no code: AWS
+            // wasn't reached.
+            Err(error) => not_connected(
+                &error
                     .as_service_error()
                     .and_then(|e| e.code())
-                    .map(|code| format!(": {code}"))
-                    .unwrap_or_default()
-            )),
+                    .map(check_failed_reason)
+                    .unwrap_or_else(|| PROVIDER_UNREACHABLE.to_string()),
+            ),
         }
     }
 }
@@ -380,6 +390,68 @@ mod tests {
         Endpoints {
             aws: Some(server.base_url.clone()),
             ..Default::default()
+        }
+    }
+
+    /// What the fake provider's check (R7-19) takes: the SDK's own
+    /// signature verifies with the account's secret, and only with it.
+    #[tokio::test]
+    async fn the_sdks_signature_verifies_with_the_accounts_secret() {
+        use crate::sigv4::{verify, ReceivedRequest, SigV4Refusal};
+        let server = TestServer::start(vec![
+            Reply::Raw(
+                200,
+                "text/xml",
+                r#"<PublishResponse xmlns="http://sns.amazonaws.com/doc/2010-03-31/"><PublishResult><MessageId>sns-1</MessageId></PublishResult><ResponseMetadata><RequestId>r</RequestId></ResponseMetadata></PublishResponse>"#.to_string(),
+            ),
+            Reply::Json(200, json!({"MessageId": "ses-1"})),
+        ])
+        .await;
+        let sns = SnsSender::new(
+            &account(AccountSender::AWS_SNS {
+                sender_id: Some("Elections".to_string()),
+                origination_number: None,
+                region: Some("eu-west-1".to_string()),
+            }),
+            &endpoints(&server),
+        )
+        .await
+        .unwrap();
+        sns.send(&message(MessageChannel::SMS, "+639171234567"))
+            .await;
+        let ses = SesSender::new(
+            &account(AccountSender::AWS_SES {
+                from_address: "noreply@example.org".to_string(),
+                from_name: None,
+                region: Some("eu-west-1".to_string()),
+                notification_topic_arn: None,
+            }),
+            &endpoints(&server),
+        )
+        .await
+        .unwrap();
+        ses.send(&message(MessageChannel::EMAIL, "voter@example.org"))
+            .await;
+        let requests = server.requests();
+        assert_eq!(requests.len(), 2);
+        for recorded in &requests {
+            let (path, query) = recorded
+                .path
+                .split_once('?')
+                .unwrap_or((recorded.path.as_str(), ""));
+            let request = ReceivedRequest {
+                method: &recorded.method,
+                path,
+                query,
+                headers: &recorded.headers,
+                body: recorded.body.as_bytes(),
+            };
+            assert_eq!(verify(&request, "secret", Utc::now()), Ok(()), "{path}");
+            assert_eq!(
+                verify(&request, "another secret", Utc::now()),
+                Err(SigV4Refusal::MISMATCH),
+                "{path}"
+            );
         }
     }
 

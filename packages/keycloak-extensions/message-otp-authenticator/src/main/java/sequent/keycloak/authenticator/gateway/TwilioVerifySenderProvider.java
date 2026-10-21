@@ -18,6 +18,9 @@ import org.keycloak.models.UserModel;
 import org.keycloak.sessions.AuthenticationSessionModel;
 import org.keycloak.theme.Theme;
 import sequent.keycloak.authenticator.Utils;
+import sequent.keycloak.authenticator.messaging.MessageChannel;
+import sequent.keycloak.authenticator.messaging.MessageReason;
+import sequent.keycloak.authenticator.messaging.VoterChannels;
 
 @JBossLog
 public class TwilioVerifySenderProvider implements SmsSenderProvider {
@@ -52,8 +55,12 @@ public class TwilioVerifySenderProvider implements SmsSenderProvider {
             .format(attributes.toArray());
 
     if (!messageKey.equals(Utils.SEND_CODE_SMS_I18N_KEY)) {
-      log.infov("Skipping non-OTP Twilio Verify SMS to {0}", phoneNumber);
-      return formattedMessage;
+      // Twilio Verify sends only its own code messages: anything else is not sent, and the caller
+      // must not count it as sent (R7-08).
+      log.warnv(
+          "Not sending {0} by Twilio Verify to {1}: {2}",
+          messageKey, masked(phoneNumber), MessageReason.SMS_PROVIDER_SENDS_ONLY_CODES.reason());
+      throw new IOException(MessageReason.SMS_PROVIDER_SENDS_ONLY_CODES.reason());
     }
 
     AuthenticationSessionModel authSession = session.getContext().getAuthenticationSession();
@@ -63,13 +70,13 @@ public class TwilioVerifySenderProvider implements SmsSenderProvider {
     }
 
     String otpCode = attributes.get(1);
-    log.infov("Sending Twilio Verify SMS to {0}", phoneNumber);
+    log.infov("Sending Twilio Verify SMS to {0}", masked(phoneNumber));
 
     Verification verification =
         Verification.creator(SERVICE_SID, phoneNumber, "sms").setCustomCode(otpCode).create();
     String sid = verification.getSid();
     authSession.setAuthNote(SID_AUTH_NOTE, sid);
-    log.infov("Sent Twilio Verify SMS to {0}, sid={1}", phoneNumber, sid);
+    log.infov("Sent Twilio Verify SMS to {0}, sid={1}", masked(phoneNumber), sid);
 
     return formattedMessage;
   }
@@ -89,9 +96,7 @@ public class TwilioVerifySenderProvider implements SmsSenderProvider {
     }
     String sid = authSession.getAuthNote(SID_AUTH_NOTE);
 
-    log.infov(
-        "**Sending Twilio Verify SMS**:\n\t- phoneNumber={0}\n\t- success={1}",
-        phoneNumber, success);
+    log.infov("Sending Twilio Verify feedback for {0}: success={1}", masked(phoneNumber), success);
     Verification verification =
         Verification.updater(
                 SERVICE_SID,
@@ -100,8 +105,18 @@ public class TwilioVerifySenderProvider implements SmsSenderProvider {
             .update();
 
     log.infov(
-        "**SENT Twilio Verify SMS**:\n\t- phoneNumber={0}\n\t- success={1}\n\t- resultSid={2}",
-        phoneNumber, success, verification.getSid());
+        "Sent Twilio Verify feedback for {0}: success={1}, sid={2}",
+        masked(phoneNumber), success, verification.getSid());
+  }
+
+  /** Twilio Verify sends only its own code messages (R7-08). */
+  @Override
+  public boolean sendsOnlyCodes() {
+    return true;
+  }
+
+  private static String masked(String phoneNumber) {
+    return VoterChannels.mask(MessageChannel.SMS, phoneNumber);
   }
 
   @Override

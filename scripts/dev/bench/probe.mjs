@@ -124,7 +124,7 @@ const setups = {
                         },
                     ],
                 },
-                sequent_backend_cast_vote: [],
+                cast_votes: [],
             },
         }))
         return {

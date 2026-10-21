@@ -63,7 +63,7 @@ fn write_to_memory(cfg: &VotersConfig, num_users: usize) -> String {
     let mut writer = Writer::from_writer(Vec::new());
     write_voters(
         &mut writer,
-        &ElectionIndex::from_event(&event()),
+        &ElectionIndex::from_event(&event()).unwrap(),
         cfg,
         num_users,
         &mut StdRng::seed_from_u64(1),
@@ -187,7 +187,7 @@ fn a_failed_write_is_returned_with_its_io_error() {
     let mut writer = Writer::from_writer(FullDisk);
     let error = write_voters(
         &mut writer,
-        &ElectionIndex::from_event(&event()),
+        &ElectionIndex::from_event(&event()).unwrap(),
         &cfg,
         2,
         &mut StdRng::seed_from_u64(1),

@@ -93,6 +93,7 @@ Incrementality is mandatory both locally and in GitHub Actions, not merely optio
 
 **7. One-command repeatable scenarios.**
 - Reuse existing E2E seed/helpers to expose named synthetic scenarios: `kiosk-voter`, `completed-ceremony`, and `published-results` (names illustrative; follow existing command conventions).
+- Messaging adds `messaging` and `messaging-second-organization` (a second tenant), with accounts on the fake provider routes; see the messaging development page.
 - A command creates or reuses its own isolated resources, waits on actual readiness, prints direct URLs and fixture credentials where appropriate, and offers a targeted reset. Avoid fixed startup sleeps.
 - Support repeated invocation and actionable errors. Never reset a shared database, import production data, or delete another task's resources. Use real backend scenarios only when stories cannot answer the development question.
 
@@ -195,7 +196,9 @@ The earlier 59.045 s warm baseline uses a weaker condition than strict backend
 readiness and cannot serve as its before value. Its preceding strict series
 failed all ten starts. Retained logs correlate those failures and all five
 optional-rule Windmill exits with AMQP connection refusal before RabbitMQ's
-listener opened. The final configuration waits for the RabbitMQ healthcheck.
+listener opened. The final configuration waited for the RabbitMQ healthcheck;
+since the task queues moved to PostgreSQL (PGMQ), Windmill and Beat run in a
+restart loop until the task-queue database is set up.
 
 The final UI-only warm series uses the same frozen source and original Nix
 volume, with competing task previews stopped. CLI completion takes 1.213 s

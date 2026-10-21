@@ -5,8 +5,8 @@ title: Backend E2E journeys
 <!-- SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io> -->
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
-The backend journeys use real PostgreSQL, Hasura, Keycloak, RabbitMQ, ImmuDB,
-MinIO, B4 and two trustees. They exercise administrator commands and the voting
+The backend journeys use real PostgreSQL (with the electoral log's databases
+and the task queues), Hasura, Keycloak, MinIO, B4 and two trustees. They exercise administrator commands and the voting
 portal's GraphQL protocol, including ballot encryption and tallying.
 
 From the repository root, with Python 3, `flock`, Docker Engine and Compose 2.24.4 or newer:
@@ -51,6 +51,10 @@ prepares services and the administrator without executing voting journeys.
 
 Results are written to `.cache/backend-e2e/<project>/journeys.json`, with CLI output and
 service logs beside it. Override this directory with `STEP_E2E_OUTPUT_DIR`.
+The Compose overlays also work with `.env.development` alone: binaries default
+to `.cache/backend-e2e/bin` and output to `.cache/backend-e2e/default` within
+the checkout. The runner writes its per-run paths to `compose.env` and passes
+that file to Compose, so Compose does not require shell exports for these paths.
 The `Backend E2E journeys` workflow runs the same command on affected pull
 requests and uploads those artifacts, including after failures.
 The job summary (`scripts/e2e/summary.py <output>` writes it to `summary.md`) lists each
@@ -67,7 +71,28 @@ code (143: stopped by SIGTERM, counters kept by continuous mode); a missing prof
 The ordered tests in `scripts/e2e/journeys/test_journeys.py` cover tenant bootstrap,
 event import and invalid bundles, voter import, automatic key generation,
 private ballot publication, cast/revote/closing rules and results matching the
-last accepted ballot. Fixtures live in `fixtures.py`; clients use Python's
+last accepted ballot. A combined-contest voting journey casts one native
+ciphertext covering two contests, checks malformed ciphertext and foreign-domain
+proof rejection before storage, then verifies voter weight batches through the
+native trustees and independently calculated Velvet totals. Native archive
+journeys cover configuration-only, publication-only and activity-log-only exports,
+including older selective bundles with unused native keys. They reject missing
+manager keys and tally exports without protocol boards. They also export a
+completed election with its protocol boards, publications, voters and tally, then recover it through the
+CLI and the authenticated encrypted-import API. They check preserved canonical
+protocol messages, remapped board relationships, immutable signed configuration
+domains and the same independently calculated vote totals. Archives also
+retain publication metadata and ballot styles, rebuilding their immutable
+storage objects under the recovered event's identifiers. Historical archives
+without publication metadata recover their styles as generated, unpublished
+publications. Encrypted archives contain manager identities; decrypted server
+files belong to the import request
+and are removed when it finishes, including on decryption failure.
+The manual ceremony journey imports a completed event, rejects the original
+public ceremony file, downloads a file scoped to the copy, and completes a new
+tally over a fresh accepted vote. The server custody browser runner exercises
+that recovery download and upload through the production administration portal.
+Fixtures live in `fixtures.py`; clients use Python's
 standard library. Add assertions against observable responses and persisted
 results, with valid controls for rejection cases.
 The same fixture and clients build the development stack's

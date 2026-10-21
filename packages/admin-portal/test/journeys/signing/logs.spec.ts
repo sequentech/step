@@ -100,6 +100,8 @@ function entries() {
 
 test.use({
     roles: ["election-event-read", "election-read", "election-event-logs-tab", "logs-read"],
+    // Wide enough for the table: a list under 1,000 px shows two lines per entry.
+    viewport: {width: 1920, height: 1080},
 })
 
 test("Election Event > Logs lists each signing step as a USER and a SYSTEM entry", async ({
@@ -124,8 +126,8 @@ test("Election Event > Logs lists each signing step as a USER and a SYSTEM entry
         const row = rows.nth(index)
         await expect(row).toContainText(item.statement_kind)
         await expect(row).toContainText(`${head.event_type}${head.log_type}`)
-        // Long descriptions are shortened in the list; their start is shown.
-        await expect(row).toContainText(head.description.slice(0, 40))
+        // The description stays on one line; the entry's popup shows it whole.
+        await expect(row).toContainText(head.description)
         const username = JSON.parse(item.message).username
         await expect(row.getByRole("cell").nth(1)).toHaveText(username ?? "-")
     }

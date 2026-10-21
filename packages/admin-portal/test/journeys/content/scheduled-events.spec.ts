@@ -264,6 +264,8 @@ test.describe("schedule administrator", () => {
             .filter({hasText: "Are you sure you want delete this Scheduled Event?"})
         await confirm.getByRole("button", {name: "Delete", exact: true}).click()
         await expect(page.getByRole("cell", {name: "Allow Tally", exact: true})).not.toBeVisible()
+        // The row can leave the list before the mock has recorded the archive request.
+        await expect.poll(() => portal.graphql.callsTo("ManageElectionDates").length).toBe(2)
         expect(portal.graphql.callsTo("ManageElectionDates")[1].variables).toEqual({
             electionEventId: IDS.event,
             electionId: IDS.election,

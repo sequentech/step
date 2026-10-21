@@ -11,11 +11,12 @@
 #   docker compose --env-file .env.development -p step-e2e \
 #     -f docker-compose.yml -f docker-compose-ci.yml up -d --wait <services>
 #
-# STEP_E2E_BIN_DIR must point at the directory scripts/e2e/build.sh filled.
+# Binary and output paths default to this checkout's .cache/backend-e2e.
+# scripts/e2e/run.sh writes per-run overrides into its compose.env file.
 
 x-e2e-binaries: &e2e-binaries
   type: bind
-  source: ${STEP_E2E_BIN_DIR:?set STEP_E2E_BIN_DIR to the scripts/e2e/build.sh output}
+  source: ${STEP_E2E_BIN_DIR:-../.cache/backend-e2e/bin}
   target: /opt/step-e2e/bin
   read_only: true
 
@@ -55,8 +56,15 @@ services:
       postgres-volume-init:
         condition: service_completed_successfully
 
-  postgres-b4:
-    image: step-backend-e2e-postgresql-b4:local
+  localstack:
+    container_name: !reset null
+    ports: !reset []
+
+  configure-localstack:
+    container_name: !reset null
+
+  postgres-b4v6:
+    image: step-backend-e2e-postgresql-b4v6:local
     container_name: !reset null
     depends_on:
       postgres-volume-init:
@@ -81,52 +89,13 @@ services:
       dockerfile: ../../scripts/e2e/docker/configure-minio.Dockerfile
     container_name: !reset null
 
-  rabbitmq:
-    container_name: !reset null
-    ports: !reset []
-    healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_port_listener", "5672"]
-      interval: 5s
-      timeout: 10s
-      retries: 60
-      start_period: 10s
-
-  immudb:
-    image: codenotary/immudb:1.9.6
-    build: !reset null
-    container_name: !reset null
-    ports: !reset []
-    depends_on: !reset []
-    healthcheck:
-      test: ["CMD", "/usr/local/bin/immuadmin", "status"]
-      interval: 2s
-      timeout: 10s
-      retries: 60
-      start_period: 5s
-
-  immudb-init:
+  # Windmill, Beat and Harvest wait until it has finished, as after a deployment's setup job.
+  task-queues-setup:
     image: ${STEP_E2E_RUNTIME_IMAGE:-step-backend-e2e-cargo-packages:local}
     container_name: !reset null
-    restart: on-failure
-    env_file: !reset []
+    command: ["/opt/step-e2e/bin/windmill", "setup-queue-database"]
     volumes:
       - *e2e-binaries
-    entrypoint:
-      - /opt/step-e2e/bin/bb_helper
-      - --server-url
-      - ${IMMUDB_SERVER_URL}
-      - --username
-      - ${IMMUDB_USER}
-      - --password
-      - ${IMMUDB_PASSWORD}
-      - --board-dbname
-      - ${IMMUDB_BOARD_DB_NAME}
-      - --cache-dir
-      - /tmp/immu-board
-      - upsert-board-db
-    depends_on: !override
-      immudb:
-        condition: service_healthy
 
   data-connector-agent:
     container_name: !reset null
@@ -182,10 +151,27 @@ services:
         condition: service_healthy
       postgres-keycloak:
         condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
+      task-queues-setup:
+        condition: service_completed_successfully
       configure-minio:
         condition: service_completed_successfully
+
+  messaging-webhooks:
+    image: ${STEP_E2E_RUNTIME_IMAGE:-step-backend-e2e-cargo-packages:local}
+    container_name: !reset null
+    ports: !reset []
+    command: ["/opt/step-e2e/bin/messaging-webhooks"]
+    volumes:
+      - *e2e-binaries
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:${MESSAGING_WEBHOOKS_PORT}/healthz || exit 1"]
+      interval: 3s
+      timeout: 5s
+      retries: 100
+      start_period: 10s
+    depends_on: !override
+      harvest:
+        condition: service_healthy
 
   monitoring-renderer:
     container_name: !reset null
@@ -218,11 +204,9 @@ services:
         condition: service_healthy
       postgres-keycloak:
         condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-      immudb-init:
+      task-queues-setup:
         condition: service_completed_successfully
-      postgres-b4:
+      postgres-b4v6:
         condition: service_healthy
 
   beat:
@@ -240,64 +224,59 @@ services:
       AWS_S3_PUBLIC_BUCKET: ${AWS_S3_PUBLIC_BUCKET}
     healthcheck: *e2e-probe
     depends_on:
-      rabbitmq:
-        condition: service_healthy
+      task-queues-setup:
+        condition: service_completed_successfully
       configure-minio:
         condition: service_completed_successfully
 
-  b4:
+  b4v6:
     image: ${STEP_E2E_RUNTIME_IMAGE:-step-backend-e2e-cargo-packages:local}
     container_name: !reset null
     ports: !reset []
     volumes:
       - *e2e-binaries
-    entrypoint:
-      - /opt/step-e2e/bin/b4
-      - --host
-      - ${B4_PG_HOST}
-      - --port
-      - ${B4_PG_PORT}
-      - --username
-      - ${B4_PG_USER}
-      - --password
-      - ${B4_PG_PASSWORD}
-      - --database
-      - ${B4_PG_DATABASE}
-      - --bind
-      - ${B4_BIND}
+    entrypoint: ["/opt/step-e2e/bin/b4v6"]
+    environment:
+      AWS_ENDPOINT_URL: http://localstack:4566
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:50051/boards"]
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:3005/boards"]
       interval: 2s
       timeout: 5s
       retries: 60
       start_period: 5s
     depends_on: !override
-      postgres-b4:
+      postgres-b4v6:
         condition: service_healthy
+      configure-localstack:
+        condition: service_completed_successfully
 
   trustee1:
     image: ${STEP_E2E_RUNTIME_IMAGE:-step-backend-e2e-cargo-packages:local}
     build: !reset null
     container_name: !reset null
-    working_dir: /opt/braid
-    volumes:
+    working_dir: /opt/trustee
+    volumes: !override
       - *e2e-binaries
-      - ./trustees-data/trustee1/trustee1.toml:/etc/step-e2e/trustee.toml:ro
-    entrypoint: ["/opt/step-e2e/bin/trustee", "--b4-url", "${B4_URL}", "--trustee-config", "/etc/step-e2e/trustee.toml"]
+      - ../packages/trustee/dev/trustee1.toml:/etc/step-e2e/trustee.toml:ro
+      - trustee1_data:/opt/trustee/message_store
+    command: !reset []
+    entrypoint: ["/opt/step-e2e/bin/trustee", "start", "--b4-url", "http://b4v6:3005", "--trustee-config", "/etc/step-e2e/trustee.toml"]
     depends_on: !override
-      b4:
+      b4v6:
         condition: service_healthy
 
   trustee2:
     image: ${STEP_E2E_RUNTIME_IMAGE:-step-backend-e2e-cargo-packages:local}
     container_name: !reset null
-    working_dir: /opt/braid
-    volumes:
+    working_dir: /opt/trustee
+    volumes: !override
       - *e2e-binaries
-      - ./trustees-data/trustee2/trustee2.toml:/etc/step-e2e/trustee.toml:ro
-    entrypoint: ["/opt/step-e2e/bin/trustee", "--b4-url", "${B4_URL}", "--trustee-config", "/etc/step-e2e/trustee.toml"]
+      - ../packages/trustee/dev/trustee2.toml:/etc/step-e2e/trustee.toml:ro
+      - trustee2_data:/opt/trustee/message_store
+    command: !reset []
+    entrypoint: ["/opt/step-e2e/bin/trustee", "start", "--b4-url", "http://b4v6:3005", "--trustee-config", "/etc/step-e2e/trustee.toml"]
     depends_on: !override
-      b4:
+      b4v6:
         condition: service_healthy
 
   # Runs the journeys from inside the compose network; see scripts/e2e/run.sh.
@@ -311,7 +290,7 @@ services:
       - ..:/workspaces/step:ro
       - *e2e-binaries
       - type: bind
-        source: ${STEP_E2E_OUTPUT_DIR:?set STEP_E2E_OUTPUT_DIR to a writable directory}
+        source: ${STEP_E2E_OUTPUT_DIR:-../.cache/backend-e2e/default}
         target: /out
     environment:
       HOME: /tmp
@@ -327,6 +306,10 @@ services:
       ADMIN_USERNAME: ${ADMIN_PORTAL_TEST_USERNAME}
       ADMIN_PASSWORD: ${ADMIN_PORTAL_TEST_PASSWORD}
       API_KEY_CLIENT_SECRET: ${API_KEY_CLIENT_SECRET}
+      TRUSTEE1_PASSWORD: ${TRUSTEE1_PASSWORD}
+      TRUSTEE2_PASSWORD: ${TRUSTEE2_PASSWORD}
+      TRUSTEE_KEYCLOAK_CLIENT_ID: ${TRUSTEE_KEYCLOAK_CLIENT_ID}
+      TRUSTEE_KEYCLOAK_CLIENT_SECRET: ${TRUSTEE_KEYCLOAK_CLIENT_SECRET}
       AWS_S3_PRIVATE_URI: ${AWS_S3_PRIVATE_URI}
       AWS_S3_PUBLIC_BUCKET: ${AWS_S3_PUBLIC_BUCKET}
       AWS_S3_BUCKET: ${AWS_S3_BUCKET}
@@ -334,7 +317,8 @@ services:
       AWS_S3_JWKS_CACHE_POLICY: ${AWS_S3_JWKS_CACHE_POLICY}
       KEYCLOAK_VOTER_GROUP_NAME: ${KEYCLOAK_VOTER_GROUP_NAME}
       VOTING_PORTAL_URL: ${VOTING_PORTAL_URL}
-      B4_URL: ${B4_URL}
+      B4_URL: http://b4v6:3005
+      TRUSTEE_PLATFORM_URL: ${TRUSTEE_PLATFORM_URL:-${HASURA_ENDPOINT}}
       PYTHONDONTWRITEBYTECODE: "1"
       PYTHONUNBUFFERED: "1"
     entrypoint: ["python3", "-m", "scripts.e2e.journeys"]

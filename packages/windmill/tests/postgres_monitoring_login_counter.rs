@@ -30,6 +30,7 @@ fn at(hour: u32, minute: u32, second: u32, milli: u32) -> DateTime<Utc> {
 
 fn keycloak(event_type: &str, user_id: Option<&str>, event_time_ms: Option<i64>) -> LogEventInput {
     LogEventInput {
+        delivery_id: None,
         election_event_id: EVENT.to_string(),
         message_type: LogMessageType::KeycloakEvent(event_type.to_string()),
         user_id: user_id.map(str::to_string),
@@ -37,6 +38,8 @@ fn keycloak(event_type: &str, user_id: Option<&str>, event_time_ms: Option<i64>)
         tenant_id: TENANT.to_string(),
         body: LogEventBody::Plain("null".to_string()),
         event_time_ms,
+        details: None,
+        admin_event: None,
     }
 }
 
@@ -160,17 +163,15 @@ fn only_keycloak_events_of_a_real_event_are_counted() {
 }
 
 #[test]
-fn the_event_time_is_optional_on_the_wire_and_leaves_older_messages_as_they_were() {
+fn the_event_time_is_optional_on_the_wire() {
     let legacy = r#"{"tenant_id":"t","election_event_id":"e","message_type":"LOGIN","user_id":"null","username":"u","body":"null"}"#;
     let input: LogEventInput = serde_json::from_str(legacy).unwrap();
     assert_eq!(input.event_time_ms, None);
     let written = serde_json::to_value(&input).unwrap();
     assert!(
         written.get("event_time_ms").is_none(),
-        "a message without a time is written, and so hashed, as before: {written}"
+        "a message without a time is written without one: {written}"
     );
-    let legacy_value: serde_json::Value = serde_json::from_str(legacy).unwrap();
-    assert_eq!(written, legacy_value);
 
     let timed = r#"{"tenant_id":"t","election_event_id":"e","message_type":"LOGIN","user_id":"u1","username":"u","body":"null","event_time_ms":1778511600123}"#;
     let input: LogEventInput = serde_json::from_str(timed).unwrap();

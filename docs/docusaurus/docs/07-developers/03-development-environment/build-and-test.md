@@ -7,7 +7,7 @@ title: Build, test and lint
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 `packages/` is both a Cargo workspace and a Yarn workspace: Rust code such as
-`sequent-core` and `braid` also compiles to WebAssembly for the portals. The
+`sequent-core` also compiles to WebAssembly for the portals. The
 [software architecture reference](../../05-reference/03-software-architecture/intro.md)
 describes the components. For the edit, preview and focused-test loop use
 [Fast feedback loops](./fast-feedback.md); this page lists the underlying
@@ -18,23 +18,24 @@ block below states its own working directory.
 
 | Kind | Packages |
 | --- | --- |
-| Rust libraries | `strand` (cryptographic primitives), `braid` (verifiable mixnet), `sequent-core` (ballots, crypto, reports, Keycloak client; also WASM) |
-| Rust services and tools | `windmill` (Celery task workers), `harvest` (REST API), `immu-board` (bulletin board), `velvet` (tally and report pipes), `step-cli`, `e2e` |
+| Rust libraries | `voting-crypto` (wbraid cryptography), `protocol-board` (native ceremony integration), `sequent-core` (ballots, crypto, reports, Keycloak client; also WASM) |
+| Rust services and tools | `windmill` (Celery task workers), `harvest` (REST API), `trustee` (native protocol runner), `velvet` (tally and report pipes), `step-cli`, `e2e` |
 | Frontends | `voting-portal`, `admin-portal`, `ballot-verifier`, `results-portal`, `workbench` |
 | Shared frontend | `ui-essentials` (components, Storybook), `ui-core` (utilities, i18n) |
 | Java | `keycloak-extensions` (Keycloak providers and themes) |
 
 Hasura exposes PostgreSQL over GraphQL; Keycloak has one realm per tenant and
-one per election event; RabbitMQ feeds the Celery workers; ImmuDB stores
-tamper-evident logs; MinIO provides S3 storage.
+one per election event; the Celery workers take their tasks from
+[PGMQ queues](./task-queues-pgmq.md) in the environment's task-queue database;
+each election event has a PostgreSQL database for its tamper-evident electoral
+log and ballot box; MinIO provides S3 storage.
 
 ## Toolchain
 
 The devenv shell (`devenv shell` from the repository root, or the devcontainer)
 provides the pinned tools: Rust from `rust-toolchain.toml` with the
 `wasm32-unknown-unknown` target, Node.js 20 with Yarn, and JDK 17 for the
-Keycloak extensions. `wasm-bindgen` is pinned to `=0.2.128` in `strand`,
-`braid`, `sequent-core` and `wbraid`; the CLI pins in `devenv.nix` and the
+Keycloak extensions. `wasm-bindgen` is pinned to `=0.2.128` in `sequent-core` and the supplied `wbraid` crates; the CLI pins in `devenv.nix` and the
 `flake.nix` files move with it. `celery` comes from a fork pinned in
 `packages/Cargo.toml`. Check a crate's `[features]` before building it: most
 crates compile different code per feature set.
@@ -51,7 +52,7 @@ cd packages
 export CARGO_TARGET_DIR="$PWD/rust-local-target"
 cargo build -p <crate>
 cargo test -p <crate> [<test-name>]
-cargo test --release -p braid          # braid tests need an optimized build
+cargo test --release -p protocol-board -p trustee  # native protocol tests need optimization
 cargo fmt -- --check
 cargo clippy -p <crate>
 ```
@@ -131,9 +132,7 @@ hold comments, and run `reuse lint` from the repository root.
 | Hasura | http://127.0.0.1:8080 | admin secret `admin` |
 | Voting portal | http://127.0.0.1:3000 | |
 | Admin portal | http://127.0.0.1:3002 | |
-| ImmuDB | http://127.0.0.1:3325 | `immudb` / `immudb` |
 | MinIO console | http://127.0.0.1:9001 | |
-| RabbitMQ | http://127.0.0.1:15672 | |
 
 Which services run depends on the
 [devcontainer mode](./fast-feedback.md#devcontainer-modes).

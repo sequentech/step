@@ -159,8 +159,8 @@ pub(crate) async fn enqueue_datafix_cast_vote(
     cast_vote: &InsertCastVoteOutput,
 ) {
     let cast_vote_id = &cast_vote.id;
-    let celery_app = services.tasks.connect().await;
-    match celery_app
+    match services
+        .tasks
         .send_task(process_cast_vote::process_cast_vote::new(
             cast_vote.tenant_id.clone(),
             cast_vote.election_event_id.clone(),
@@ -342,6 +342,11 @@ pub(crate) fn cast_vote_error_response(
             Status::BadRequest,
             &msg,
             ErrorCode::BallotIdMismatch,
+        ),
+        CastVoteError::GetBallotStyleFailed(_) => ErrorResponse::new(
+            Status::InternalServerError,
+            ErrorCode::InternalServerError.to_string().as_str(),
+            ErrorCode::InternalServerError,
         ),
     }
 }

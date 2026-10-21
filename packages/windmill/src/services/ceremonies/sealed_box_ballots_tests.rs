@@ -334,7 +334,7 @@ fn log_row(id: i64, message: &Message) -> ElectoralLogMessage {
     row
 }
 
-fn seal_message(eligible_voters: u64, key: &StrandSignatureSk) -> Message {
+fn seal_message(eligible_voters: u64, key: &SigningKey) -> Message {
     let (mut manifest, _) = sealed(&BALLOTS, &VOTERS, Census::Plain);
     manifest.eligible_voters = eligible_voters;
     let built = electoral_log::seal::build(manifest).unwrap();
@@ -350,15 +350,15 @@ fn seal_message(eligible_voters: u64, key: &StrandSignatureSk) -> Message {
 
 #[test]
 fn only_distinct_entries_signed_by_the_event_key_are_seals() {
-    let key = StrandSignatureSk::generate().unwrap();
-    let pk = StrandSignaturePk::from_sk(&key).unwrap();
-    let other = StrandSignatureSk::generate().unwrap();
+    let key = SigningKey::generate().unwrap();
+    let pk = VerificationKey::from_sk(&key).unwrap();
+    let other = SigningKey::generate().unwrap();
     let genuine = seal_message(4, &key);
     let mut undecodable = log_row(4, &genuine);
     undecodable.message = vec![1, 2, 3];
     // Signed by the event key as system but sent by another key.
     let mut foreign_sender = seal_message(4, &key);
-    foreign_sender.sender.pk = StrandSignaturePk::from_sk(&other).unwrap();
+    foreign_sender.sender.pk = VerificationKey::from_sk(&other).unwrap();
     let rows = vec![
         log_row(1, &genuine),
         // A copy of the same bytes.
@@ -370,7 +370,7 @@ fn only_distinct_entries_signed_by_the_event_key_are_seals() {
     let signed = signed_seal_entries(&rows, &pk).unwrap();
     assert_eq!(signed.len(), 1);
     assert_eq!(
-        strand::serialization::StrandSerialize::strand_serialize(&signed[0]).unwrap(),
+        voting_crypto::RecordSerialize::record_serialize(&signed[0]).unwrap(),
         rows[0].message
     );
     // A second, different seal signed by the key is a seal too.

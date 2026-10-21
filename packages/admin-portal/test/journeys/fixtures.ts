@@ -17,11 +17,12 @@ export const TENANT_ID = IDS.tenant
 export const SECOND_TENANT_ID = "10000000-0000-4000-8000-000000000002"
 export interface AdminPortal extends PortalServices {
     now: number
+    trustee?: string
     /** Whom the identity provider signs in; changing it before a sign-in hands the laptop over. */
     user: Omit<OidcUser, "attributes">
 }
 export const test = base.extend<
-    {portal: AdminPortal; roles: string[]},
+    {portal: AdminPortal; roles: string[]; trustee: string | undefined},
     {dist: Awaited<ReturnType<typeof serveDist>>}
 >({
     roles: [
@@ -34,6 +35,8 @@ export const test = base.extend<
         ],
         {option: true},
     ],
+    /** The `trustee` claim Keycloak adds for a user with the trustee attribute. */
+    trustee: [undefined, {option: true}],
     dist: [
         // Playwright requires an object pattern for a fixture without dependencies.
         // eslint-disable-next-line no-empty-pattern
@@ -47,7 +50,7 @@ export const test = base.extend<
         },
         {scope: "worker"},
     ],
-    portal: async ({context, page, dist, roles}, use) => {
+    portal: async ({context, page, dist, roles, trustee}, use) => {
         const {origin} = dist
         const violations = new ViolationLog()
         const s3 = new S3Mock({origin, violations})
@@ -66,12 +69,14 @@ export const test = base.extend<
                     return {...portal.user, attributes: {"tenant-id": [tenantId]}}
                 },
                 claims: ({user}) => ({
+                    "trustee": portal.trustee ?? "",
                     "https://hasura.io/jwt/claims": {
                         "x-hasura-default-role": "admin-user",
                         "x-hasura-allowed-roles": roles,
                         "x-hasura-tenant-id": tenantId,
                         "x-hasura-user-id": user.id,
                     },
+                    ...(trustee === undefined ? {} : {trustee}),
                 }),
             })),
         })
@@ -98,6 +103,7 @@ export const test = base.extend<
             },
         }
         graphql.on("IntrospectionQuery", () => ({data: {}}))
+        graphql.on("ListTrusteeBoards", () => ({data: {list_trustee_boards: {boards: []}}}))
         // Synthetic events are unpublished unless a journey supplies a signed snapshot.
         graphql.on("GetLifecycleSnapshots", () => ({
             data: {get_lifecycle_snapshots: {snapshots: []}},
@@ -167,6 +173,35 @@ export const test = base.extend<
                 },
             }
         })
+        // The portal loads the tenant's plugins for its menu; this tenant never turned any on.
+        graphql.on("TenantPlugins", () => ({
+            data: {
+                tenant_plugins: {
+                    data: {
+                        plugins: [
+                            {
+                                manifest: {
+                                    id: "projects",
+                                    version: "1.0.0",
+                                    api_major: 1,
+                                    label_key: "projects.title",
+                                    route: "/plugins/projects",
+                                    read_permission: "projects-read",
+                                    permissions: [
+                                        "projects-read",
+                                        "projects-write",
+                                        "projects-manage",
+                                    ],
+                                },
+                                state: "disabled",
+                                version: 0,
+                                compatibility: "compatible",
+                            },
+                        ],
+                    },
+                },
+            },
+        }))
         graphql.on("election_events_tree", () => ({data: {sequent_backend_election_event: []}}))
         graphql.on("sequent_backend_election_event", () => ({
             data: {

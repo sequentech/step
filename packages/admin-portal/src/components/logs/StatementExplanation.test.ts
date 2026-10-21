@@ -160,3 +160,77 @@ describe("Seal at close reasons of a scheduled outcome", () => {
         expect(explanationLines(t, record.statement_kind, logMessage(record))).toBeNull()
     })
 })
+
+describe("entries of a tenant's log", () => {
+    const tenantRow = (kind: string, details: unknown) => ({
+        statement_kind: kind,
+        message: JSON.stringify({
+            statement: {
+                head: {kind, description: "Request to delete an election event denied."},
+                body: {TenantActivity: {kind, details_json: JSON.stringify(details)}},
+            },
+        }),
+    })
+    const explained = (record: {statement_kind: string; message: string}) =>
+        explanationLines(t, record.statement_kind, logMessage(record))
+
+    it("says what was asked for, how it ended, who asked and on what", () => {
+        const record = tenantRow("TenantAdminAction", {
+            action: "delete-election-event",
+            outcome: "denied",
+            status: 401,
+            user_id: "admin-id",
+            username: "ada.admin",
+            details: {election_event_id: "event-1", check_only: false, sha256: null},
+        })
+        expect(explained(record)).toEqual([
+            "tenantLogs.explanation.action(action=delete-election-event)",
+            "tenantLogs.explanation.outcome.denied(status=401)",
+            "tenantLogs.explanation.by(username=ada.admin, userId=admin-id)",
+            "tenantLogs.explanation.detail(name=election_event_id, value=event-1)",
+            "tenantLogs.explanation.detail(name=check_only, value=false)",
+        ])
+    })
+
+    it("leaves out what the entry doesn't say", () => {
+        const record = tenantRow("TenantAdminAction", {
+            action: "create-role",
+            outcome: "unheard-of",
+            status: 200,
+            user_id: null,
+            username: null,
+            details: ["not", "an", "object"],
+        })
+        expect(explained(record)).toEqual(["tenantLogs.explanation.action(action=create-role)"])
+        expect(
+            explained(
+                tenantRow("TenantAdminAction", {
+                    action: "create-role",
+                    outcome: "succeeded",
+                    status: 200,
+                    user_id: "admin-id",
+                })
+            )
+        ).toEqual([
+            "tenantLogs.explanation.action(action=create-role)",
+            "tenantLogs.explanation.outcome.succeeded(status=200)",
+            "tenantLogs.explanation.by(username=-, userId=admin-id)",
+        ])
+    })
+
+    it("names the log and its key in the first entry", () => {
+        const record = tenantRow("TenantLogOpened", {board: "devtenant1", public_key: "key"})
+        expect(explained(record)).toEqual([
+            "tenantLogs.explanation.board(board=devtenant1)",
+            "tenantLogs.explanation.publicKey(key=key)",
+        ])
+    })
+
+    it("shows nothing for an entry without readable details", () => {
+        for (const kind of ["TenantAdminAction", "TenantLogOpened"]) {
+            expect(explanationLines(t, kind, logMessage({message: JSON.stringify({})}))).toBeNull()
+        }
+        // A sign-in has only its description.
+        expect(explanationLines(t, "KeycloakUserEvent", logMessage({message: "{}"}))).toBeNull()
+    })
+})

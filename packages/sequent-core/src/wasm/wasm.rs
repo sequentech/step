@@ -35,8 +35,8 @@ use crate::util::locale::{
     iso_639_2t_to_bcp47, locale_to_internal_language_code,
 };
 use crate::util::normalize_vote::*;
-use strand::backend::ristretto::RistrettoCtx;
-use strand::signature::StrandSignatureSk;
+use voting_crypto::signing::SigningKey;
+use voting_crypto::RistrettoCtx;
 use wasm_bindgen::prelude::*;
 extern crate console_error_panic_hook;
 use crate::util::voting_screen::{
@@ -130,9 +130,8 @@ pub fn to_hashable_ballot_js(
             .into_json()?;
 
     // Test deserializing auditable ballot contests
-    let _auditable_ballot_contests = auditable_ballot
-        .deserialize_contests::<RistrettoCtx>()
-        .map_err(|err| {
+    let _auditable_ballot_contests =
+        auditable_ballot.deserialize_contests().map_err(|err| {
             JsValue::from(ErrorStatus {
                 error_type: BallotError::DESERIALIZE_AUDITABLE_ERROR,
                 error_msg: format!(
@@ -155,9 +154,8 @@ pub fn to_hashable_ballot_js(
         })?;
 
     // Test deserializing hashable ballot contests
-    let _hashable_ballot_contests = deserialized_ballot
-        .deserialize_contests::<RistrettoCtx>()
-        .map_err(|err| {
+    let _hashable_ballot_contests =
+        deserialized_ballot.deserialize_contests().map_err(|err| {
             JsValue::from(ErrorStatus {
                 error_type: BallotError::DESERIALIZE_HASHABLE_ERROR,
                 error_msg: format!(
@@ -198,7 +196,7 @@ pub fn to_hashable_multi_ballot_js(
 
     // Test deserializing auditable ballot contests
     let _auditable_ballot_contests = auditable_multi_ballot
-        .deserialize_contests::<RistrettoCtx>()
+        .deserialize_contests()
         .map_err(|err| {
             JsValue::from(ErrorStatus {
                 error_type: BallotError::DESERIALIZE_AUDITABLE_ERROR,
@@ -224,9 +222,8 @@ pub fn to_hashable_multi_ballot_js(
         )?;
 
     // Test deserializing hashable ballot contests
-    let _hashable_ballot_contests = deserialized_ballot
-        .deserialize_contests::<RistrettoCtx>()
-        .map_err(|err| {
+    let _hashable_ballot_contests =
+        deserialized_ballot.deserialize_contests().map_err(|err| {
             JsValue::from(ErrorStatus {
                 error_type: BallotError::DESERIALIZE_HASHABLE_ERROR,
                 error_msg: format!(
@@ -349,13 +346,12 @@ pub fn encrypt_decoded_contest_js(
     let ctx = RistrettoCtx;
 
     // encrypt ballot
-    let auditable_ballot = encrypt_decoded_contest::<RistrettoCtx>(
-        &ctx,
-        &decoded_contests,
-        &election,
-    )
-    .map_err(|err| format!("Error encrypting decoded contests {:?}", err))
-    .into_json()?;
+    let auditable_ballot =
+        encrypt_decoded_contest(&ctx, &decoded_contests, &election)
+            .map_err(|err| {
+                format!("Error encrypting decoded contests {:?}", err)
+            })
+            .into_json()?;
 
     // convert to json output
     let serializer = Serializer::json_compatible();
@@ -392,13 +388,12 @@ pub fn encrypt_decoded_multi_contest_js(
     let ctx = RistrettoCtx;
 
     // encrypt ballot
-    let auditable_multi_ballot = encrypt_decoded_multi_contest::<RistrettoCtx>(
-        &ctx,
-        &decoded_multi_contests,
-        &election,
-    )
-    .map_err(|err| format!("Error encrypting decoded contests {:?}", err))
-    .into_json()?;
+    let auditable_multi_ballot =
+        encrypt_decoded_multi_contest(&ctx, &decoded_multi_contests, &election)
+            .map_err(|err| {
+                format!("Error encrypting decoded contests {:?}", err)
+            })
+            .into_json()?;
 
     // convert to json output
     let serializer = Serializer::json_compatible();
@@ -434,8 +429,7 @@ pub fn decode_auditable_ballot_js(
                 )
             })
             .into_json()?;
-    let plaintext = map_to_decoded_contest::<RistrettoCtx>(&auditable_ballot)
-        .into_json()?;
+    let plaintext = map_to_decoded_contest(&auditable_ballot).into_json()?;
     // https://crates.io/crates/serde-wasm-bindgen
     let serializer = Serializer::json_compatible();
     plaintext
@@ -472,8 +466,7 @@ pub fn decode_auditable_multi_ballot_js(
             .into_json()?;
 
     let plaintext =
-        map_to_decoded_multi_contest::<RistrettoCtx>(&auditable_multi_ballot)
-            .into_json()?;
+        map_to_decoded_multi_contest(&auditable_multi_ballot).into_json()?;
     // https://crates.io/crates/serde-wasm-bindgen
     let serializer = Serializer::json_compatible();
     plaintext
@@ -928,7 +921,7 @@ pub fn generate_sample_auditable_ballot_js() -> Result<JsValue, JsValue> {
     let ctx = RistrettoCtx;
     let ballot_style = get_writein_ballot_style();
     let decoded_contest = get_writein_plaintext();
-    let auditable_ballot = encrypt::encrypt_decoded_contest::<RistrettoCtx>(
+    let auditable_ballot = encrypt::encrypt_decoded_contest(
         &ctx,
         &vec![decoded_contest.clone()],
         &ballot_style,
@@ -1084,7 +1077,7 @@ pub fn sign_hashable_ballot_with_ephemeral_voter_signing_key_js(
         })?;
 
     // Generates ephemeral voter signing key and signs the ballot
-    let voter_sk = StrandSignatureSk::generate()
+    let voter_sk = SigningKey::generate()
         .map_err(|err| format!("Error generating secret key: {err}"))?;
     let signed_content = sign_hashable_ballot_with_voter_signing_key(
         &voter_sk,
@@ -1137,7 +1130,7 @@ pub fn sign_hashable_multi_ballot_with_ephemeral_voter_signing_key_js(
         .into_json()?;
 
     // Generates ephemeral voter signing key and signs the ballot
-    let voter_sk = StrandSignatureSk::generate()
+    let voter_sk = SigningKey::generate()
         .map_err(|err| format!("Error generating secret key: {err}"))
         .into_json()?;
     let signed_content = sign_hashable_multi_ballot_with_voter_signing_key(
@@ -1219,6 +1212,83 @@ pub fn verify_ballot_signature_js(
     serde_wasm_bindgen::to_value(&result.is_some())
         .map_err(|err| format!("Error writing javascript string: {err}",))
         .into_json()
+}
+
+/// Returns `true` when every ciphertext in the auditable ballot is the
+/// encryption of the plaintext and randomness the ballot carries. Returns
+/// `false` on a mismatch and fails on any ballot that cannot be checked, so
+/// callers fail closed either way.
+#[wasm_bindgen]
+pub fn verify_auditable_ballot_ciphertext_js(
+    auditable_ballot_json: JsValue,
+) -> Result<JsValue, JsValue> {
+    let auditable_ballot_js: Value =
+        serde_wasm_bindgen::from_value(auditable_ballot_json)
+            .map_err(|err| {
+                format!(
+                    "Error parsing auditable ballot javascript string: {}",
+                    err
+                )
+            })
+            .into_json()?;
+    let auditable_ballot: AuditableBallot =
+        deserialize_value(auditable_ballot_js)
+            .map_err(|err| {
+                format!("Error deserializing auditable ballot: {err}")
+            })
+            .into_json()?;
+
+    let is_consistent = ciphertext_check_result(
+        verify_auditable_ballot_ciphertexts(&RistrettoCtx, &auditable_ballot),
+    )?;
+
+    serde_wasm_bindgen::to_value(&is_consistent)
+        .map_err(|err| format!("Error writing javascript string: {err}"))
+        .into_json()
+}
+
+/// Multi-contest counterpart of [`verify_auditable_ballot_ciphertext_js`].
+#[wasm_bindgen]
+pub fn verify_auditable_multi_ballot_ciphertext_js(
+    auditable_multi_ballot_json: JsValue,
+) -> Result<JsValue, JsValue> {
+    let auditable_multi_ballot_js: Value =
+        serde_wasm_bindgen::from_value(auditable_multi_ballot_json)
+            .map_err(|err| {
+                format!("Error parsing auditable multi ballot: {}", err)
+            })
+            .into_json()?;
+    let auditable_multi_ballot: AuditableMultiBallot =
+        deserialize_value(auditable_multi_ballot_js)
+            .map_err(|err| {
+                format!("Error deserializing auditable multi ballot: {err}")
+            })
+            .into_json()?;
+
+    let is_consistent =
+        ciphertext_check_result(verify_auditable_multi_ballot_ciphertext(
+            &RistrettoCtx,
+            &auditable_multi_ballot,
+        ))?;
+
+    serde_wasm_bindgen::to_value(&is_consistent)
+        .map_err(|err| format!("Error writing javascript string: {err}"))
+        .into_json()
+}
+
+/// A ciphertext mismatch is a verification verdict (`false`); anything else
+/// means the ballot could not be checked at all and is reported as an error.
+fn ciphertext_check_result(
+    result: Result<(), crate::error::BallotError>,
+) -> Result<bool, JsValue> {
+    match result {
+        Ok(()) => Ok(true),
+        Err(crate::error::BallotError::CryptographicCheck(_)) => Ok(false),
+        Err(err) => {
+            Err::<bool, String>(format!("Error checking the ballot: {err}"))
+                .into_json()
+        }
+    }
 }
 
 #[wasm_bindgen]

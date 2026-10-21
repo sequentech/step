@@ -224,7 +224,7 @@ async fn a_permission_change_without_rules_logs_nothing() {
         &tx,
         &SigningPermissionChange {
             tenant_id: id(3, 1),
-            action: SigningAction::ContributeKeyShare,
+            action: SigningAction::ContributeCustodyProof,
             role_id: "group-trustee".into(),
             role_name: "trustee".into(),
             change: RolePermissionChange::Added,

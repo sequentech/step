@@ -68,6 +68,10 @@ describe("sealText and sealErrorText", () => {
             "dashboard.ballotBoxes.failure.unknownChannel",
         ],
         [
+            "2 ballot(s) of the ballot box have no cast-vote record on the bulletin board",
+            "dashboard.ballotBoxes.failure.unrecorded",
+        ],
+        [
             "Voting can't start again: with the Ballot Box Seal Policy set to Seal at close, …",
             "publish.sealRefusals.startAgain",
         ],

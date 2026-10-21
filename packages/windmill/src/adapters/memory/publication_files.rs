@@ -2,11 +2,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::domain::publication_files::{PublishedBallotStyle, FILES_ANNOTATION};
-use crate::ports::publication_files::{PublicationObjects, PublicationRows, PublicationStorage};
+use crate::domain::publication_files::PublishedBallotStyle;
+use crate::ports::publication_files::{
+    GeneratedStyles, PublicationObjects, PublicationRows, PublicationStorage,
+};
 use anyhow::{anyhow, bail, Result};
 use futures::Stream;
-use serde_json::{Map, Value};
+use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Duration;
@@ -77,18 +79,6 @@ impl MemoryPublicationRows {
         self
     }
 
-    pub fn stored_annotations(
-        &self,
-        tenant: Uuid,
-        event: Uuid,
-        publication: Uuid,
-    ) -> Option<Value> {
-        self.tables()
-            .publications
-            .get(&(tenant, event, publication))
-            .and_then(|record| record.annotations.clone())
-    }
-
     fn tables(&self) -> MutexGuard<'_, Tables> {
         self.0.lock().expect("publication rows lock")
     }
@@ -145,28 +135,6 @@ impl PublicationRows for MemoryPublicationRows {
         Ok(futures::stream::iter(rows))
     }
 
-    async fn set_files_root(
-        &self,
-        tenant: Uuid,
-        event: Uuid,
-        publication: Uuid,
-        root: &str,
-    ) -> Result<()> {
-        if let Some(record) = self
-            .tables()
-            .publications
-            .get_mut(&(tenant, event, publication))
-        {
-            let mut annotations = match record.annotations.take() {
-                Some(Value::Object(annotations)) => annotations,
-                _ => Map::new(),
-            };
-            annotations.insert(FILES_ANNOTATION.to_owned(), Value::String(root.to_owned()));
-            record.annotations = Some(Value::Object(annotations));
-        }
-        Ok(())
-    }
-
     async fn published_styles(
         &self,
         tenant: Uuid,
@@ -194,6 +162,60 @@ impl PublicationRows for MemoryPublicationRows {
             .events
             .get(&(tenant, event))
             .map(|(_, status)| status.clone()))
+    }
+}
+
+/// The styles a generation task committed, by id.
+#[derive(Debug, Default)]
+pub struct MemoryGeneratedStyles {
+    styles: Vec<(Uuid, Value)>,
+    fail_after: Option<usize>,
+    lease_lost: bool,
+}
+
+impl MemoryGeneratedStyles {
+    pub fn new(mut styles: Vec<(Uuid, Value)>) -> Self {
+        styles.sort_by_key(|(id, _)| *id);
+        Self {
+            styles,
+            ..Self::default()
+        }
+    }
+
+    /// Reading fails once this many styles were read.
+    pub fn failing_after(mut self, styles: usize) -> Self {
+        self.fail_after = Some(styles);
+        self
+    }
+
+    /// Another task took the lease over.
+    pub fn lease_lost(mut self) -> Self {
+        self.lease_lost = true;
+        self
+    }
+}
+
+impl GeneratedStyles for MemoryGeneratedStyles {
+    async fn keep_alive(&self) -> Result<()> {
+        if self.lease_lost {
+            bail!("Ballot generation lease expired or was replaced");
+        }
+        Ok(())
+    }
+
+    async fn page(&self, after: Option<Uuid>, limit: i64) -> Result<Vec<(Uuid, Value)>> {
+        let start = self
+            .styles
+            .iter()
+            .position(|(id, _)| after.is_none_or(|after| *id > after))
+            .unwrap_or(self.styles.len());
+        if self.fail_after.is_some_and(|count| start >= count) {
+            bail!("style page read failed");
+        }
+        let end = start
+            .saturating_add(usize::try_from(limit)?)
+            .min(self.styles.len());
+        Ok(self.styles[start..end].to_vec())
     }
 }
 

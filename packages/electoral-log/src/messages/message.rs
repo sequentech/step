@@ -7,12 +7,12 @@ use anyhow::Result;
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
 
-use strand::hash::STRAND_HASH_LENGTH_BYTES;
-use strand::serialization::StrandSerialize;
-use strand::signature::StrandSignature;
-use strand::signature::StrandSignaturePk;
-use strand::signature::StrandSignatureSk;
 use tracing::instrument;
+use voting_crypto::hash::HASH_LENGTH_BYTES;
+use voting_crypto::signing::Signature;
+use voting_crypto::signing::SigningKey;
+use voting_crypto::signing::VerificationKey;
+use voting_crypto::RecordSerialize;
 
 use crate::messages::statement::Statement;
 use crate::messages::statement::StatementBody;
@@ -23,7 +23,7 @@ use crate::messages::statement::{
     tally_ballot_box_rejected_description, tally_ballot_box_verified_description,
 };
 use crate::seal::BallotBoxSealManifest;
-use strand::hash::Hash;
+use voting_crypto::hash::Hash;
 
 use super::newtypes::*;
 use crate::messages::newtypes::{
@@ -39,8 +39,8 @@ pub const GENERIC_EVENT: &'static str = "Generic Event";
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, std::fmt::Debug)]
 pub struct Message {
     pub sender: Sender,
-    pub sender_signature: StrandSignature,
-    pub system_signature: StrandSignature,
+    pub sender_signature: Signature,
+    pub system_signature: Signature,
     pub statement: Statement,
     pub artifact: Option<Vec<u8>>,
     pub user_id: Option<String>,
@@ -213,7 +213,7 @@ impl Message {
             .0
             .into_inner()
             .iter()
-            .take(STRAND_HASH_LENGTH_BYTES / 2)
+            .take(HASH_LENGTH_BYTES / 2)
             .map(|b| format!("{:02x}", b))
             .collect();
 
@@ -363,6 +363,38 @@ impl Message {
         Self::from_body(event, body, sd, user_id, username, None, area_id, None)
     }
 
+    /// A Keycloak event stamped with when Keycloak saw it, not with when the
+    /// entry is posted.
+    #[allow(clippy::too_many_arguments)]
+    pub fn keycloak_user_event_at(
+        event: EventIdString,
+        event_type: KeycloakEventTypeString,
+        error: ErrorMessageString,
+        timestamp: Timestamp,
+        user_id: Option<String>,
+        username: Option<String>,
+        sd: &SigningData,
+        area_id: Option<String>,
+    ) -> Result<Self> {
+        let body = StatementBody::KeycloakUserEvent(error, event_type);
+        let head = StatementHead {
+            timestamp,
+            ..StatementHead::from_body(event, &body)
+        };
+        Message::sign(
+            Statement::new(head, body),
+            None,
+            &sd.sender_sk,
+            &sd.sender_name,
+            &sd.system_sk,
+            user_id,
+            username,
+            None,
+            area_id,
+            None,
+        )
+    }
+
     pub fn keygen_message(
         event: EventIdString,
         sd: &SigningData,
@@ -481,6 +513,17 @@ impl Message {
         Self::from_body(event, body, sd, user_id, username, None, None, None)
     }
 
+    pub fn configuration_package_with_content_hash_message(
+        event: EventIdString,
+        details: ConfigurationPackageImportDetails,
+        sd: &SigningData,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<Self> {
+        let body = StatementBody::ConfigurationPackageWithContentHash(event.clone(), details);
+        Self::from_body(event, body, sd, user_id, username, None, None, None)
+    }
+
     /// The hash manifest of a generated report. The entry is the user's
     /// when one asked for the report, and the system's otherwise.
     pub fn report_generated_message(
@@ -523,6 +566,39 @@ impl Message {
     ) -> Result<Self> {
         let body = StatementBody::ApprovalMatrixUpdated(event.clone(), version, digest);
         Self::from_body(event, body, sd, user_id, username, None, None, None)
+    }
+
+    /// One audit entry, in the log of `event` (a tenant or an election
+    /// event). `timestamp` is when the action happened (the outbox row's
+    /// `occurred_at`), not when the entry is posted.
+    #[allow(clippy::too_many_arguments)]
+    pub fn audit_message(
+        event: EventIdString,
+        entry: AuditLogEntry,
+        timestamp: Timestamp,
+        sd: &SigningData,
+        user_id: Option<String>,
+        username: Option<String>,
+        election_id: Option<String>,
+        area_id: Option<String>,
+    ) -> Result<Self> {
+        let body = StatementBody::Audit(entry);
+        let head = StatementHead {
+            timestamp,
+            ..StatementHead::from_body(event, &body)
+        };
+        Message::sign(
+            Statement::new(head, body),
+            None,
+            &sd.sender_sk,
+            &sd.sender_name,
+            &sd.system_sk,
+            user_id,
+            username,
+            election_id,
+            area_id,
+            None,
+        )
     }
 
     /// One entry of a signing step. The worker that posts the outbox calls
@@ -570,6 +646,58 @@ impl Message {
         let election_id = details.route_election_id.0.clone();
         let body = StatementBody::ResultsPublicationAction(details);
         Self::from_body(event, body, sd, user_id, username, election_id, None, None)
+    }
+
+    pub fn ballot_publication_failure_message(
+        event: EventIdString,
+        details: BallotPublicationFailure,
+        sd: &SigningData,
+        username: Option<String>,
+    ) -> Result<Self> {
+        Self::from_body(
+            event,
+            StatementBody::BallotPublicationFailure(details),
+            sd,
+            None,
+            username,
+            None,
+            None,
+            None,
+        )
+    }
+
+    pub fn electoral_log_checkpoint_message(
+        event: EventIdString,
+        details: ElectoralLogCheckpointV2,
+        sd: &SigningData,
+    ) -> Result<Self> {
+        Self::from_body(
+            event,
+            StatementBody::ElectoralLogCheckpointV2(details),
+            sd,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+    }
+
+    pub fn electoral_log_continuation_message(
+        event: EventIdString,
+        details: ElectoralLogContinuation,
+        sd: &SigningData,
+    ) -> Result<Self> {
+        Self::from_body(
+            event,
+            StatementBody::ElectoralLogContinuation(details),
+            sd,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
     }
 
     pub fn send_template(
@@ -819,6 +947,35 @@ impl Message {
         )
     }
 
+    /// One entry of a tenant's log. It belongs to no election event, so its
+    /// head names `GENERIC_EVENT`. `timestamp` is when the activity happened,
+    /// not when the entry is posted.
+    pub fn tenant_activity_message(
+        entry: TenantActivityEntry,
+        timestamp: Timestamp,
+        sd: &SigningData,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<Self> {
+        let body = StatementBody::TenantActivity(entry);
+        let head = StatementHead {
+            timestamp,
+            ..StatementHead::from_body(EventIdString(GENERIC_EVENT.to_string()), &body)
+        };
+        Message::sign(
+            Statement::new(head, body),
+            None,
+            &sd.sender_sk,
+            &sd.sender_name,
+            &sd.system_sk,
+            user_id,
+            username,
+            None,
+            None,
+            None,
+        )
+    }
+
     fn from_body(
         event: EventIdString,
         body: StatementBody,
@@ -849,19 +1006,19 @@ impl Message {
     pub fn sign(
         statement: Statement,
         artifact: Option<Vec<u8>>,
-        sender_sk: &StrandSignatureSk,
+        sender_sk: &SigningKey,
         sender_name: &str,
-        system_sk: &StrandSignatureSk,
+        system_sk: &SigningKey,
         user_id: Option<String>,
         username: Option<String>,
         election_id: Option<String>,
         area_id: Option<String>,
         ballot_id: Option<String>,
     ) -> Result<Message> {
-        let bytes = statement.strand_serialize()?;
-        let sender_signature: StrandSignature = sender_sk.sign(&bytes)?;
-        let system_signature: StrandSignature = system_sk.sign(&bytes)?;
-        let sender_pk = StrandSignaturePk::from_sk(&sender_sk)?;
+        let bytes = statement.record_serialize()?;
+        let sender_signature: Signature = sender_sk.sign(&bytes)?;
+        let system_signature: Signature = system_sk.sign(&bytes)?;
+        let sender_pk = VerificationKey::from_sk(&sender_sk)?;
         let sender = Sender::new(sender_name.to_string(), sender_pk);
 
         Ok(Message {
@@ -878,8 +1035,8 @@ impl Message {
         })
     }
 
-    pub fn verify(&self, system_pk: &StrandSignaturePk) -> Result<()> {
-        let bytes = self.statement.strand_serialize()?;
+    pub fn verify(&self, system_pk: &VerificationKey) -> Result<()> {
+        let bytes = self.statement.record_serialize()?;
         self.sender.pk.verify(&self.sender_signature, &bytes)?;
         system_pk.verify(&self.system_signature, &bytes)?;
 
@@ -903,8 +1060,8 @@ impl TryFrom<&Message> for ElectoralLogMessage {
             created: crate::timestamp() as i64,
             statement_timestamp: message.statement.head.timestamp as i64,
             statement_kind: message.statement.head.kind.to_string(),
-            message: message.strand_serialize()?,
-            sender_pk: message.sender.pk.to_der_b64_string()?,
+            message: message.record_serialize()?,
+            sender_pk: message.sender.pk.to_b64_string()?,
             version,
             user_id: message.user_id.clone(),
             username: message.username.clone(),
@@ -918,25 +1075,28 @@ impl TryFrom<&Message> for ElectoralLogMessage {
 #[derive(BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, std::fmt::Debug)]
 pub struct Sender {
     pub name: String,
-    pub pk: StrandSignaturePk,
+    pub pk: VerificationKey,
 }
 impl Sender {
-    pub fn new(name: String, pk: StrandSignaturePk) -> Sender {
+    pub fn new(name: String, pk: VerificationKey) -> Sender {
         Sender { name, pk }
     }
 }
 
 pub struct SigningData {
-    sender_sk: StrandSignatureSk,
+    sender_sk: SigningKey,
     sender_name: String,
-    system_sk: StrandSignatureSk,
+    system_sk: SigningKey,
 }
 impl SigningData {
-    pub fn new(
-        sender_sk: StrandSignatureSk,
-        sender_name: &str,
-        system_sk: StrandSignatureSk,
-    ) -> SigningData {
+    pub fn system_public_key(&self) -> Result<VerificationKey> {
+        VerificationKey::from_sk(&self.system_sk)
+    }
+    /// Sign arbitrary bytes with the event system key.
+    pub fn system_sign(&self, msg: &[u8]) -> Result<Signature> {
+        self.system_sk.sign(msg)
+    }
+    pub fn new(sender_sk: SigningKey, sender_name: &str, system_sk: SigningKey) -> SigningData {
         SigningData {
             sender_sk,
             sender_name: sender_name.to_string(),

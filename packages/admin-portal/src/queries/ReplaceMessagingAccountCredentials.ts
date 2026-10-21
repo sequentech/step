@@ -8,14 +8,18 @@ export const REPLACE_MESSAGING_ACCOUNT_CREDENTIALS = gql`
         $id: uuid!
         $credentials: jsonb!
         $generateVerifyToken: Boolean
+        $generateReportCredentials: Boolean
     ) {
         replace_messaging_account_credentials(
             id: $id
             credentials: $credentials
             generate_verify_token: $generateVerifyToken
+            generate_report_credentials: $generateReportCredentials
         ) {
             replaced
             verify_token
+            report_username
+            report_password
         }
     }
 `

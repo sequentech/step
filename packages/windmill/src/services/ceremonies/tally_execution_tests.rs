@@ -19,7 +19,7 @@ fn status() -> TallyCeremonyStatus {
         trustees: vec![
             TallyTrustee {
                 name: "a".into(),
-                status: TallyTrusteeStatus::KEY_RESTORED,
+                status: TallyTrusteeStatus::CUSTODY_CONFIRMED,
             },
             TallyTrustee {
                 name: "b".into(),
@@ -27,7 +27,7 @@ fn status() -> TallyCeremonyStatus {
             },
             TallyTrustee {
                 name: "c".into(),
-                status: TallyTrusteeStatus::KEY_RESTORED,
+                status: TallyTrusteeStatus::CUSTODY_CONFIRMED,
             },
         ],
         ..Default::default()

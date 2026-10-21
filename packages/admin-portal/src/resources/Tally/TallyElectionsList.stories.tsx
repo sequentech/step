@@ -118,7 +118,7 @@ export const Empty: Story = {
 
 /**
  * Tally 1 (VOTE-FREEZE): with the seal at close, a Post whose ballot boxes
- * are not all sealed and on the bulletin board cannot be selected.
+ * are not all sealed with their seal records published cannot be selected.
  */
 export const OnePostNotSealed: Story = {
     args: {
@@ -140,7 +140,7 @@ export const OnePostNotSealed: Story = {
     play: async ({canvasElement, args}) => {
         const canvas = within(canvasElement)
         await expect(await canvas.findByText("1 of 1 sealed")).toBeVisible()
-        await expect(canvas.getByText("Sealed, 1 of 2 on the bulletin board")).toBeVisible()
+        await expect(canvas.getByText("Sealed, 1 of 2 seal records published")).toBeVisible()
         await expect(await selection(canvasElement, "Council")).toBeChecked()
         const deputy = await selection(canvasElement, "Deputy")
         await expect(deputy).not.toBeChecked()

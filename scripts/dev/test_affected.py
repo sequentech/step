@@ -946,6 +946,33 @@ class RepositoryModelTest(unittest.TestCase):
             for action in check.actions:
                 self.assertTrue((ROOT / ".github/actions" / action).is_dir(), check.id)
 
+    def test_rust_dependency_patch_selects_native_consumers(self):
+        selection, chosen = self.select("packages/patches/dependency.patch")
+        self.assertFalse(selection.fallback)
+        self.assertTrue(
+            {
+                "cargo-test:protocol-board",
+                "cargo-test:sequent-core",
+                "cargo-test:windmill",
+            }
+            <= chosen
+        )
+        self.assertNotIn("jest:voting-portal", chosen)
+
+    def test_wbraid_benchmark_tools_select_workspace_checks_without_fallback(self):
+        for path in (
+            "packages/wbraid/bench-ec2/breakdown.patch",
+            "packages/wbraid/bench-ec2/forkpoint/tally.rs",
+            "packages/wbraid/bench-ec2/forkpoint/targets.rs",
+            "packages/wbraid/bench-ec2/remote-bench.sh",
+            "packages/wbraid/bench-ec2/summarize.sh",
+        ):
+            with self.subTest(path=path):
+                selection, chosen = self.select(path)
+                self.assertFalse(selection.fallback)
+                self.assertTrue({"cargo-test:wbraid", "lint:wbraid"} <= chosen)
+                self.assertNotIn("jest:voting-portal", chosen)
+
     def test_documentation_only_change(self):
         selection, chosen = self.select(
             "docs/docusaurus/docs/07-developers/03-development-environment/fast-feedback.md"
@@ -1018,6 +1045,23 @@ class RepositoryModelTest(unittest.TestCase):
             }
             <= chosen
         )
+
+    def test_task_queue_changes_select_the_pgmq_contracts(self):
+        for path in (
+            "packages/pgmq-broker/src/lib.rs",
+            "packages/windmill/src/services/celery_app.rs",
+        ):
+            with self.subTest(path=path):
+                _, chosen = self.select(path)
+                self.assertIn("cargo-test-db:pgmq-broker", chosen)
+        _, chosen = self.select("packages/harvest/src/main.rs")
+        self.assertNotIn("cargo-test-db:pgmq-broker", chosen)
+
+    def test_worker_restart_script_selects_its_test(self):
+        _, chosen = self.select(".devcontainer/restart-worker.sh")
+        self.assertIn("python:scripts-dev", chosen)
+        check = next(c for c in self.model.checks if c.id == "python:scripts-dev")
+        self.assertIn("python3 .devcontainer/test-restart-worker.py", check.command)
 
     def test_selection_model_change_selects_every_check(self):
         selection, chosen = self.select("scripts/dev/affected.toml")

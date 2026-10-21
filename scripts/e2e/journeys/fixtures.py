@@ -177,7 +177,7 @@ def census(tag, counts):
     ]
 
 
-def write_census(path, voters, authorization):
+def write_census(path, voters, authorization, *, weights=None):
     """Write the voter CSV `step-cli step import-voters` takes.
 
     `authorization` maps an area key to its `authorized-election-ids` value.
@@ -193,6 +193,7 @@ def write_census(path, voters, authorization):
                 "password",
                 "authorized-election-ids",
             ]
+            + (["vote-weight"] if weights is not None else [])
         )
         for voter in voters:
             writer.writerow(
@@ -204,4 +205,5 @@ def write_census(path, voters, authorization):
                     VOTER_PASSWORD,
                     authorization[voter.area],
                 ]
+                + ([weights[voter.username]] if weights is not None else [])
             )

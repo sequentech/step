@@ -6,6 +6,7 @@ use super::*;
 use serde_json::Value;
 use std::collections::BTreeSet;
 use std::str::FromStr;
+use strum::IntoEnumIterator;
 
 /// The realms administrators log in to: the template every new tenant
 /// realm is made from, and the one the janitor writes for a deployment.
@@ -560,6 +561,7 @@ fn messaging_permissions_have_stable_names() {
             "messaging-config-write",
             Permissions::MESSAGING_CONFIG_WRITE,
         ),
+        ("messaging-config-read", Permissions::MESSAGING_CONFIG_READ),
     ] {
         assert_eq!(Permissions::from_str(name), Ok(permission.clone()));
         assert_eq!(permission.to_string(), name);
@@ -567,7 +569,7 @@ fn messaging_permissions_have_stable_names() {
 }
 
 /// Administrators manage sending accounts and event messaging; a light
-/// administrator may only see the accounts.
+/// administrator may only see the accounts and the event's messaging.
 #[test]
 fn every_realm_grants_messaging_to_its_administrators_only() {
     let names = |groups: &[&str]| -> BTreeSet<String> {
@@ -589,6 +591,10 @@ fn every_realm_grants_messaging_to_its_administrators_only() {
             ),
             (Permissions::MESSAGING_ACCOUNT_WRITE, names(&["admin"])),
             (Permissions::MESSAGING_CONFIG_WRITE, names(&["admin"])),
+            (
+                Permissions::MESSAGING_CONFIG_READ,
+                names(&["admin", "admin-light"]),
+            ),
         ] {
             let permission = permission.to_string();
             assert!(
@@ -601,5 +607,209 @@ fn every_realm_grants_messaging_to_its_administrators_only() {
                 "{name}: {permission}"
             );
         }
+    }
+}
+
+const RESERVED_NAMES: [&str; 5] = [
+    "admin",
+    "service-account",
+    "datafix-account",
+    "super-admin-user",
+    "cli-account-admin",
+];
+
+/// Every realm role the realm defines or grants to one of its groups.
+fn realm_role_names(realm: &Value) -> Vec<&str> {
+    let mut names: Vec<&str> = realm["roles"]["realm"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|role| role["name"].as_str())
+        .collect();
+    let mut groups: Vec<&Value> =
+        realm["groups"].as_array().into_iter().flatten().collect();
+    while let Some(group) = groups.pop() {
+        names.extend(
+            group["realmRoles"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter_map(Value::as_str),
+        );
+        groups.extend(group["subGroups"].as_array().into_iter().flatten());
+    }
+    names
+}
+
+#[test]
+fn reserved_roles_are_the_platform_managed_names() {
+    let names: Vec<String> = ReservedHasuraRole::iter()
+        .map(|role| role.to_string())
+        .collect();
+
+    assert_eq!(names, RESERVED_NAMES);
+}
+
+#[test]
+fn reserved_names_are_rejected_in_any_case_with_surrounding_whitespace() {
+    for name in RESERVED_NAMES {
+        for spelling in
+            [name.to_string(), name.to_uppercase(), format!(" {name}\n")]
+        {
+            assert!(
+                matches!(
+                    RealmRolePolicy::classify(&spelling),
+                    RealmRolePolicy::Reserved(_)
+                ),
+                "{spelling:?}"
+            );
+            let error =
+                RealmRolePolicy::require_ordinary(&spelling).unwrap_err();
+            assert!(error.to_string().contains(name), "{error}");
+        }
+    }
+}
+
+#[test]
+fn platform_account_permissions_are_reserved() {
+    for permission in
+        [Permissions::SERVICE_ACCOUNT, Permissions::DATAFIX_ACCOUNT]
+    {
+        assert!(
+            RealmRolePolicy::require_ordinary(&permission.to_string()).is_err()
+        );
+    }
+}
+
+#[test]
+fn other_names_are_ordinary() {
+    for name in [
+        "admin-user",
+        "admin-light",
+        "service-account-reader",
+        "super-admin",
+        "cli-account",
+        "election-event-read",
+        "user",
+        "",
+        "  ",
+    ] {
+        assert_eq!(
+            RealmRolePolicy::classify(name),
+            RealmRolePolicy::Ordinary,
+            "{name:?}"
+        );
+        assert!(RealmRolePolicy::require_ordinary(name).is_ok());
+    }
+    assert!(RealmRolePolicy::require_ordinary(
+        &Permissions::ADMIN_USER.to_string()
+    )
+    .is_ok());
+}
+
+#[test]
+fn every_realm_template_only_holds_ordinary_roles() {
+    for (name, text) in REALMS {
+        let realm: Value = serde_json::from_str(text)
+            .unwrap_or_else(|why| panic!("{name}: {why}"));
+        let names = realm_role_names(&realm);
+
+        assert!(names.len() > 100, "{name}");
+        for role in names {
+            assert_eq!(
+                RealmRolePolicy::classify(role),
+                RealmRolePolicy::Ordinary,
+                "{name}: {role}"
+            );
+        }
+    }
+}
+
+/// The tenant's log has its own permissions, apart from an election event's
+/// logs: only administrators read and export it. Every realm sends its
+/// events, admin events included, to the listener that feeds that log;
+/// without it, sign-ins to the Admin Portal are not recorded.
+#[test]
+fn every_realm_grants_the_tenant_log_to_its_administrators_and_feeds_it() {
+    assert_ne!(
+        Permissions::TENANT_LOGS_READ.to_string(),
+        Permissions::LOGS_READ.to_string()
+    );
+    for (permission, role) in [
+        (Permissions::TENANT_LOGS_READ, "tenant-logs-read"),
+        (Permissions::TENANT_LOGS_EXPORT, "tenant-logs-export"),
+    ] {
+        assert_eq!(permission.to_string(), role);
+        assert_eq!(Permissions::from_str(role), Ok(permission));
+        for (name, text) in REALMS {
+            let realm: Value = serde_json::from_str(text)
+                .unwrap_or_else(|why| panic!("{name}: {why}"));
+            let defined = realm["roles"]["realm"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter(|defined| defined["name"] == role)
+                .count();
+            assert_eq!(defined, 1, "{name}: {role} role");
+            assert_eq!(
+                groups_granting(&realm, role),
+                BTreeSet::from(["admin".to_string()]),
+                "{name}: {role}"
+            );
+        }
+    }
+    for (name, text) in REALMS {
+        let realm: Value = serde_json::from_str(text)
+            .unwrap_or_else(|why| panic!("{name}: {why}"));
+        let listeners: Vec<&str> = realm["eventsListeners"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(Value::as_str)
+            .collect();
+        assert!(
+            listeners.contains(&"custom-event-listener"),
+            "{name}: {listeners:?}"
+        );
+        assert_eq!(realm["adminEventsEnabled"], true, "{name}");
+        assert_eq!(realm["adminEventsDetailsEnabled"], true, "{name}");
+    }
+}
+
+const PROJECTS_PERMISSIONS: [(&str, Permissions); 3] = [
+    ("projects-read", Permissions::PROJECTS_READ),
+    ("projects-write", Permissions::PROJECTS_WRITE),
+    ("projects-manage", Permissions::PROJECTS_MANAGE),
+];
+
+#[test]
+fn projects_permissions_have_their_plugin_names() {
+    for (name, permission) in PROJECTS_PERMISSIONS {
+        assert_eq!(Permissions::from_str(name), Ok(permission.clone()));
+        assert_eq!(permission.to_string(), name);
+    }
+}
+
+/// New tenants' administrators get Projects; other tenants receive the roles
+/// when they turn the plugin on, so other realm templates need not define them.
+#[test]
+fn the_tenant_template_grants_projects_to_its_administrators_only() {
+    let (name, text) = REALMS[0];
+    let realm: Value = serde_json::from_str(text)
+        .unwrap_or_else(|why| panic!("{name}: {why}"));
+    for (permission, _) in PROJECTS_PERMISSIONS {
+        assert!(
+            realm["roles"]["realm"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .any(|role| role["name"] == permission),
+            "{name}: no {permission} role"
+        );
+        assert_eq!(
+            groups_granting(&realm, permission),
+            BTreeSet::from(["admin".to_string()]),
+            "{name}: {permission}"
+        );
     }
 }

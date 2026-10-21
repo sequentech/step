@@ -38,7 +38,7 @@ function Fixture({restored, update}: Scenario) {
             trustees: trusteeRecords.map(({name}) => ({
                 name: String(name),
                 status: restored.includes(String(name))
-                    ? ITallyTrusteeStatus.KEY_RESTORED
+                    ? ITallyTrusteeStatus.CUSTODY_CONFIRMED
                     : ITallyTrusteeStatus.WAITING,
             })),
         },

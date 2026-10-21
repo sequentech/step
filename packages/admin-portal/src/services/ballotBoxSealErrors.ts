@@ -41,6 +41,7 @@ const KNOWN_TEXTS: Array<[RegExp, string]> = [
     [/already on the bulletin board/i, "dashboard.ballotBoxes.failure.alreadyOnBoard"],
     [/has no bulletin board/i, "dashboard.ballotBoxes.failure.noBoard"],
     [/has the unknown voting channel/i, "dashboard.ballotBoxes.failure.unknownChannel"],
+    [/have no cast-vote record on the bulletin board/i, "dashboard.ballotBoxes.failure.unrecorded"],
     // refusals of actions
     [/^Voting can't start again/i, "publish.sealRefusals.startAgain"],
     [

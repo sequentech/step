@@ -63,7 +63,7 @@ summary = "Editor, review-bot, release and repository settings that no check rea
 summary = "The devenv toolchain: Node, Yarn, Rust, Java and the tools every check runs with"
 
 [units.rust-toolchain]
-summary = "rust-toolchain.toml and packages/.cargo: compiler and Cargo configuration"
+summary = "Rust toolchain, Cargo configuration and vendored dependency patches"
 consumers = ["cargo:*"]
 
 [units.devcontainer]
@@ -83,8 +83,9 @@ summary = "GitHub workflows and composite actions; a workflow selects the checks
 
 [units.scripts-dev]
 summary = "step-dev developer commands and the selection model"
-# The signing organization and janitor preset tests read these.
-test_inputs = ["packages/windmill/external-bin/janitor/signing_preset.py", "packages/windmill/external-bin/janitor/approval_matrix_preset.py", "packages/windmill/external-bin/janitor/templates/COMELEC/**", "packages/windmill/external-bin/janitor/templates/association/**", "scripts/e2e/journeys/fixtures.py", "packages/voting-load/fixtures/election.json"]
+# The signing organization and janitor preset tests read these, and the
+# air-gap bundle test reads its files.
+test_inputs = ["scripts/airgap-files/**", "packages/windmill/external-bin/janitor/signing_preset.py", "packages/windmill/external-bin/janitor/approval_matrix_preset.py", "packages/windmill/external-bin/janitor/templates/COMELEC/**", "packages/windmill/external-bin/janitor/templates/association/**", "scripts/e2e/journeys/fixtures.py", "packages/voting-load/fixtures/election.json"]
 
 [units.scripts-coverage]
 summary = "Coverage runners and reporters"
@@ -121,19 +122,23 @@ summary = "Nightwatch load-test image"
 [units.monitoring-renderer]
 summary = "Monitoring chart renderer service, tested by monitoring-renderer.yml"
 
-[units.board-messages]
-summary = "Dormant source fragment without a manifest"
-
 [units.beyond]
 summary = "The beyond submodule, validated in its own repository"
+
+[units.messaging]
+summary = "Provider adapters, delivery attempt decisions, webhook verification and the relay envelope"
+
+[units.messaging-webhooks]
+summary = "The public webhook component: relays provider callbacks, signed, to harvest"
 
 [units.harvest]
 test_inputs = ["hasura/migrations/backend-db/**", ".devcontainer/postgresql/init.sh", "hasura/metadata/databases/backend-db/tables/**"]
 
 [units.windmill]
-# The signing configuration tests read the organization fixtures, and the
-# approval matrix tests the janitor presets.
-test_inputs = ["hasura/migrations/backend-db/**", "packages/windmill/external-bin/janitor/templates/*/approvalMatrix.json", ".devcontainer/postgresql/init.sh", "packages/admin-portal/src/translations/en.ts", ".devcontainer/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json", "scripts/dev/scenario/signing-organizations/**"]
+# The signing configuration tests read the organization fixtures, the
+# approval matrix tests the janitor presets, and the report template tests
+# the default templates.
+test_inputs = [".devcontainer/minio/public-assets/**", "hasura/migrations/backend-db/**", "packages/windmill/external-bin/janitor/templates/*/approvalMatrix.json", ".devcontainer/postgresql/init.sh", "packages/admin-portal/src/translations/en.ts", ".devcontainer/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json", "scripts/dev/scenario/signing-organizations/**"]
 
 [units.sequent-core]
 # The permission tests read the realm templates.
@@ -169,7 +174,7 @@ units = ["scripts-dev"]
 broad = "the selection model changed"
 
 [[paths]]
-globs = ["rust-toolchain.toml", "packages/.cargo/**"]
+globs = ["rust-toolchain.toml", "packages/.cargo/**", "packages/patches/**"]
 units = ["rust-toolchain"]
 
 [[paths]]
@@ -223,12 +228,11 @@ globs = [
     "packages/.ackrc",
     "packages/.gitignore",
     "packages/.ignore",
-    "packages/Cargo.lock.copy",
 ]
 units = ["repo-config"]
 
 [[paths]]
-globs = [".github/workflows/**", ".github/actions/**"]
+globs = [".github/workflows/**", ".github/actions/**", ".github/scripts/**"]
 units = ["ci"]
 
 [[paths]]
@@ -251,6 +255,7 @@ globs = [
     "packages/default.conf",
     "packages/init.sh",
     "packages/nginx-entrypoint.sh",
+    "packages/patches/**",
 ]
 units = ["docker-images"]
 
@@ -283,9 +288,20 @@ globs = [
 ]
 units = ["scripts-misc"]
 
+# The webhook component's image is also an image.
+[[paths]]
+globs = ["packages/messaging-webhooks/Dockerfile*"]
+units = ["messaging-webhooks", "docker-images"]
+
 [[paths]]
 globs = ["packages/test-support/**"]
 units = ["test-support"]
+
+# The ER transmission sample configuration and kit: windmill's kit test,
+# step-cli's job runs the loader's tests, and the backend journeys load it.
+[[paths]]
+globs = ["scripts/transmission-sample/**"]
+units = ["windmill", "step-cli", "scripts-e2e"]
 
 # Writes the synthetic signing certificates the admin portal tests read.
 [[paths]]
@@ -314,16 +330,12 @@ globs = ["packages/monitoring-renderer/**"]
 units = ["monitoring-renderer"]
 
 [[paths]]
-globs = ["packages/board-messages/**"]
-units = ["board-messages"]
-
-[[paths]]
 globs = ["beyond"]
 units = ["beyond"]
 
 # Workspace configuration and helper scripts beside the wbraid crates.
 [[paths]]
-globs = ["packages/wbraid/.cargo/**", "packages/wbraid/*"]
+globs = ["packages/wbraid/.cargo/**", "packages/wbraid/*", "packages/wbraid/bench-ec2/**"]
 units = ["cargo:packages/wbraid/Cargo.toml"]
 
 # The theme is both a Maven module and a Yarn workspace; the reactor depends on it.
@@ -563,13 +575,26 @@ workflows = ["wbraid.yml"]
 
 [[checks]]
 id = "cargo-test:{unit}"
-for_each = ["strand", "electoral-log", "wrap-map-err", "step-cli"]
+for_each = ["electoral-log", "pgmq-broker", "wrap-map-err", "step-cli", "messaging", "messaging-webhooks"]
 kind = "test"
 runner = "cargo"
 cost = "fast"
 cwd = "packages"
 command = "cargo test --locked -p {unit}"
 focus = ["cargo", "test", "--locked", "-p", "{unit}"]
+workflows = ["tests.yml"]
+actions = ["setup-rust-tests", "setup-rust-cache"]
+paths = ["scripts/dev/rust_cache.py"]
+
+[[checks]]
+id = "cargo-test:{unit}"
+for_each = ["voting-crypto", "protocol-board", "trustee"]
+kind = "test"
+runner = "cargo"
+cost = "fast"
+cwd = "packages"
+command = "cargo test --release --locked -p {unit}"
+focus = ["cargo", "test", "--release", "--locked", "-p", "{unit}"]
 workflows = ["tests.yml"]
 actions = ["setup-rust-tests", "setup-rust-cache"]
 paths = ["scripts/dev/rust_cache.py"]
@@ -589,22 +614,69 @@ workflows = ["tests.yml"]
 actions = ["setup-rust-tests", "setup-rust-cache"]
 paths = ["scripts/dev/rust_cache.py"]
 
+# The upstream service is behind a feature.
+[[checks]]
+id = "cargo-test:trellis"
+units = ["trellis"]
+kind = "test"
+runner = "cargo"
+cost = "fast"
+cwd = "packages"
+command = "cargo test --locked -p trellis --features upstream-service --lib --example monitor --example post"
+focus = ["cargo", "test", "--locked", "-p", "trellis", "--features", "upstream-service"]
+workflows = ["tests.yml"]
+actions = ["setup-rust-tests", "setup-rust-cache"]
+paths = ["scripts/dev/rust_cache.py"]
+
+# The electoral log and ballot box contract on a PostgreSQL server, with a role
+# that may create roles and databases: the tests create and drop their own.
+[[checks]]
+id = "cargo-test-db:electoral-log"
+units = ["electoral-log"]
+kind = "test"
+runner = "cargo"
+cost = "integration"
+cwd = "packages"
+command = "cargo test --locked -p electoral-log --lib --test postgres --test ballot_box --test events --test provisioning --test console -- --ignored --test-threads=1"
+requires = ["postgres-server"]
+workflows = ["tests.yml"]
+[checks.env]
+ELECTORAL_LOG_TEST_DATABASE_URL = "postgresql://test:test@127.0.0.1:5432/test?sslmode=disable"
+ELECTORAL_LOG_PG_HOST = "127.0.0.1"
+ELECTORAL_LOG_PG_PORT = "5432"
+ELECTORAL_LOG_PG_USER = "test"
+ELECTORAL_LOG_PG_PASSWORD = "test"
+ELECTORAL_LOG_PG_DATABASE = "test"
+ELECTORAL_LOG_PG_SSLMODE = "disable"
+ENV_SLUG = "electoral-log-tests"
+
+# The PGMQ transport, setup and inspection contracts and Windmill's electoral-log
+# queues, on a disposable database where the tests install PGMQ and their queues.
+[[checks]]
+id = "cargo-test-db:pgmq-broker"
+units = ["pgmq-broker", "windmill"]
+kind = "test"
+runner = "cargo"
+cost = "integration"
+cwd = "packages"
+command = "cargo test --locked -p pgmq-broker -- --include-ignored --test-threads=1 && cargo test --locked -p windmill --lib pgmq_tests -- --ignored --test-threads=1"
+requires = ["postgres-server"]
+workflows = ["tests.yml"]
+[checks.env]
+PGMQ_TEST_DATABASE_URL = "postgres://test:test@127.0.0.1:5432/pgmq_test"
+
 [[checks]]
 id = "cargo-test:{unit}"
-for_each = ["immu-board", "immudb-rs", "e2e", "mock_server"]
+for_each = ["e2e", "mock_server"]
 kind = "test"
 runner = "cargo"
 cost = "fast"
 cwd = "packages"
 command = "cargo test --locked -p {unit} --tests"
 focus = ["cargo", "test", "--locked", "-p", "{unit}"]
+workflows = ["additional-unit-tests.yml"]
 actions = ["setup-rust-tests", "setup-rust-cache"]
 paths = ["scripts/dev/rust_cache.py"]
-[checks.also_workflows]
-immu-board = ["tests.yml", "additional-unit-tests.yml"]
-immudb-rs = ["tests.yml"]
-e2e = ["additional-unit-tests.yml"]
-mock_server = ["additional-unit-tests.yml"]
 
 [[checks]]
 id = "cargo-test:sequent-core"
@@ -614,7 +686,7 @@ runner = "cargo"
 cost = "fast"
 cwd = "packages"
 # Every election_config gate and monitoring, or their suites never run.
-command = "cargo test --locked -p sequent-core --features keycloak,default_features,election_config_xlsx,election_config_templates,election_config_archive,monitoring"
+command = "cargo test --locked -p sequent-core --features keycloak,default_features,election_config_xlsx,election_config_templates,election_config_archive,monitoring,areas"
 focus = ["cargo", "test", "--locked", "-p", "sequent-core", "--features", "keycloak,default_features,election_config_xlsx,election_config_templates,election_config_archive,monitoring"]
 workflows = ["tests.yml"]
 actions = ["setup-rust-tests", "setup-rust-cache"]
@@ -646,17 +718,6 @@ cwd = "packages/sequent-core"
 command = "../../.devcontainer/scripts/rebuild-election-config-wasm.sh"
 paths = [".devcontainer/scripts/rebuild-election-config-wasm.sh", ".devcontainer/scripts/wasm32-env-without-nix.sh"]
 workflows = ["build_wasm.yml"]
-
-[[checks]]
-id = "cargo-test:b4"
-units = ["b4"]
-kind = "test"
-runner = "cargo"
-cost = "fast"
-cwd = "packages"
-command = "cargo test --locked -p b4 --features native,client --tests"
-focus = ["cargo", "test", "--locked", "-p", "b4", "--features", "native,client"]
-workflows = ["rust-coverage.yml"]
 
 [[checks]]
 id = "cargo-test:windmill"
@@ -691,6 +752,32 @@ HASURA_DB__HOST = "127.0.0.1"
 LOW_SQL_LIMIT = "1000"
 DEFAULT_SQL_LIMIT = "20"
 DEFAULT_SQL_BATCH_SIZE = "1000"
+# The electoral-log proof routes need a server to mount; no test reaches it.
+ELECTORAL_LOG_PG_HOST = "127.0.0.1"
+ELECTORAL_LOG_PG_PORT = "1"
+ELECTORAL_LOG_PG_USER = "synthetic"
+ELECTORAL_LOG_PG_PASSWORD = "synthetic"
+ELECTORAL_LOG_PG_DATABASE = "synthetic"
+ELECTORAL_LOG_PG_SSLMODE = "disable"
+
+# The acceptance run reads stored ballots from an election event's ballot box.
+[[checks]]
+id = "cargo-test-db:step-cli"
+units = ["step-cli"]
+kind = "test"
+runner = "cargo"
+cost = "integration"
+cwd = "packages"
+command = "cargo test --locked -p step-cli --test acceptance_cli -- --ignored"
+requires = ["postgres-server"]
+workflows = ["tests.yml"]
+[checks.env]
+ELECTORAL_LOG_PG_HOST = "127.0.0.1"
+ELECTORAL_LOG_PG_PORT = "5432"
+ELECTORAL_LOG_PG_USER = "test"
+ELECTORAL_LOG_PG_PASSWORD = "test"
+ELECTORAL_LOG_PG_DATABASE = "test"
+ELECTORAL_LOG_PG_SSLMODE = "disable"
 
 [[checks]]
 id = "cargo-test-db:harvest"
@@ -716,20 +803,12 @@ KEYCLOAK_DB__DBNAME = "test"
 LOW_SQL_LIMIT = "1000"
 DEFAULT_SQL_LIMIT = "20"
 DEFAULT_SQL_BATCH_SIZE = "1000"
-
-[[checks]]
-id = "cargo-test:braid"
-units = ["braid"]
-kind = "test"
-runner = "cargo"
-cost = "slow"
-cwd = "packages"
-command = "cargo test --release --locked -p braid --tests"
-focus = ["cargo", "test", "--release", "--locked", "-p", "braid"]
-workflows = ["rust-coverage.yml"]
-[checks.env]
-RUST_TEST_THREADS = "2"
-RAYON_NUM_THREADS = "2"
+ELECTORAL_LOG_PG_HOST = "127.0.0.1"
+ELECTORAL_LOG_PG_PORT = "5432"
+ELECTORAL_LOG_PG_USER = "test"
+ELECTORAL_LOG_PG_PASSWORD = "test"
+ELECTORAL_LOG_PG_DATABASE = "test"
+ELECTORAL_LOG_PG_SSLMODE = "disable"
 
 [[checks]]
 id = "cargo-test:orare"
@@ -814,7 +893,7 @@ kind = "test"
 runner = "python"
 cost = "fast"
 cwd = "."
-command = "python3 -m unittest discover -s scripts/dev -p 'test_*.py'"
+command = "python3 -m unittest discover -s scripts/dev -p 'test_*.py' && python3 .devcontainer/test-restart-worker.py"
 focus = ["python3", "-m", "unittest"]
 tests = ["scripts/dev/**/test_*.py"]
 
@@ -839,7 +918,7 @@ cwd = "."
 command = "python3 -m unittest discover -s scripts/coverage -p 'test_*.py' && node scripts/coverage/test_frontend.cjs"
 focus = ["python3", "-m", "unittest"]
 tests = ["scripts/coverage/test_*.py"]
-workflows = ["rust-coverage.yml", "frontend-coverage.yml", "core-native-features.yml", "strand-native-backends.yml"]
+workflows = ["rust-coverage.yml", "frontend-coverage.yml", "core-native-features.yml"]
 
 [[checks]]
 id = "python:scripts-e2e"
@@ -951,7 +1030,7 @@ kind = "test"
 runner = "shell"
 cost = "integration"
 cwd = "."
-command = "docker build --tag voting-flow-harness scripts/voting_flow && for suite in test_cast_vote_scalability test_scheduled_voting_channels test_ballot_publication_lifecycle test_voting_window_preflight; do docker run --rm --volume \"$PWD:/step:ro\" --workdir /step voting-flow-harness python3 scripts/$suite.py || exit 1; done && docker run --rm --volume \"$PWD:/step:ro\" --workdir /step voting-flow-harness python3 -m unittest discover -s packages/voting-load"
+command = "docker build --tag voting-flow-harness scripts/voting_flow && for suite in test_voting_flow test_scheduled_voting_channels test_ballot_publication_lifecycle test_voting_window_preflight; do docker run --rm --volume \"$PWD:/step:ro\" --workdir /step voting-flow-harness python3 scripts/$suite.py || exit 1; done && docker run --rm --volume \"$PWD:/step:ro\" --workdir /step voting-flow-harness python3 -m unittest discover -s packages/voting-load"
 requires = ["docker"]
 workflows = ["backend-database-contracts.yml"]
 
@@ -969,7 +1048,7 @@ workflows = ["backend-database-contracts.yml"]
 
 [[checks]]
 id = "backend-e2e"
-units = ["scripts-e2e", "windmill", "harvest", "immu-board", "step-cli", "b4", "braid", "keycloak-extensions", "hasura", "devcontainer", "docker-images"]
+units = ["scripts-e2e", "windmill", "harvest", "step-cli", "protocol-board", "trustee", "voting-crypto", "keycloak-extensions", "hasura", "devcontainer", "docker-images"]
 kind = "test"
 runner = "shell"
 cost = "integration"
@@ -980,7 +1059,7 @@ workflows = ["backend-e2e.yml"]
 
 [[checks]]
 id = "frontend-stack-e2e"
-units = ["ui-e2e", "scripts-e2e", "windmill", "harvest", "immu-board", "step-cli", "b4", "braid", "keycloak-extensions", "hasura", "devcontainer", "docker-images", "voting-portal", "admin-portal", "results-portal", "ballot-verifier"]
+units = ["ui-e2e", "scripts-e2e", "windmill", "harvest", "step-cli", "protocol-board", "trustee", "voting-crypto", "keycloak-extensions", "hasura", "devcontainer", "docker-images", "voting-portal", "admin-portal", "results-portal", "ballot-verifier"]
 kind = "test"
 runner = "shell"
 cost = "integration"
@@ -988,3 +1067,7 @@ cwd = "."
 command = "scripts/e2e/ui/run.sh"
 requires = ["docker"]
 workflows = ["frontend-stack-e2e.yml"]
+
+[[paths]]
+globs = ["packages/patches/**"]
+units = ["cargo:packages/Cargo.toml", "cargo:packages/wbraid/Cargo.toml"]

@@ -14,6 +14,11 @@ b5.db-wal
 browser_trustee_config.json
 demo/
 
+# Benchmark run artifacts (machine-specific; authoritative numbers live in
+# PERFORMANCE.md). See bench.sh.
+bench-results/
+.bench-ec2/
+
 # Rust
 target/
 **/*.rs.bk
@@ -39,3 +44,4 @@ Thumbs.db
 # Environment
 .env
 .env.local
+target-profile/

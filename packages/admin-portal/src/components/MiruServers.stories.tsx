@@ -8,7 +8,7 @@ import {i18n} from "@sequentech/ui-core"
 import {AdminStoryProvider, graphqlBoundary} from "@/__stories__/AdminStoryProvider"
 import {FIXED_TIME} from "@/__stories__/fixtures"
 import {MiruServers} from "./MiruServers"
-import {MIRU_SERVERS} from "./__stories__/MiruFixture"
+import {MANUAL_KEY_SHA256, MANUAL_SERVER, MIRU_SERVERS} from "./__stories__/MiruFixture"
 
 let boundary: ReturnType<typeof graphqlBoundary>
 
@@ -75,5 +75,65 @@ export const Empty: Story = {
             })
         ).toBeVisible()
         expect(canvas.getAllByRole("row")).toHaveLength(1)
+    },
+}
+
+const destinations = (key: string, values?: Record<string, string>) =>
+    i18n.t(`tally.transmissionPackage.destinationServers.${key}`, values)
+const sealedFor = () => destinations("sealedFor", {key: MANUAL_KEY_SHA256.slice(0, 16)})
+
+export const ManualReceipt: Story = {
+    args: {servers: [MANUAL_SERVER], serversSentTo: []},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        const row = within(canvas.getByRole("row", {name: /CCS Manila/}))
+        await expect(row.getByText(destinations("handOver"))).toBeVisible()
+        // The key the package is sealed for: the start of the SHA-256 of its DER encoding.
+        await expect(await row.findByText(sealedFor())).toBeVisible()
+        expect(row.queryByTestId("HourglassEmptyIcon")).toBeNull()
+    },
+}
+
+export const MixedDestinations: Story = {
+    args: {
+        servers: [MANUAL_SERVER, ...MIRU_SERVERS],
+        serversSentTo: [{name: "ccs-north", sent_at: FIXED_TIME, status: "SUCCESS"}],
+    },
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(await canvas.findByText(sealedFor())).toBeVisible()
+        expect(canvas.getAllByText(destinations("handOver"))).toHaveLength(1)
+        expect(sendStatus(canvasElement, "ccs-north")).toBe("sent")
+        expect(sendStatus(canvasElement, "ccs-south")).toBe("pending")
+    },
+}
+
+export const UnreadableKeyShowsNoFingerprint: Story = {
+    args: {
+        servers: [{...MANUAL_SERVER, public_key_pem: "not a key"}],
+        serversSentTo: [],
+    },
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(canvas.getByText(destinations("handOver"))).toBeVisible()
+        expect(canvas.queryByTestId("destination-key")).toBeNull()
+    },
+}
+
+export const PhoneShowsEachDestinationInOneCell: Story = {
+    globals: {viewport: {value: "iphone12", isRotated: false}},
+    args: {servers: [MANUAL_SERVER, ...MIRU_SERVERS], serversSentTo: []},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(await canvas.findByText(sealedFor())).toBeVisible()
+        expect(canvas.queryAllByRole("columnheader")).toHaveLength(0)
+        const rows = canvas.getAllByRole("row")
+        expect(rows).toHaveLength(4)
+        for (const row of rows) {
+            expect(row.querySelectorAll("th, td")).toHaveLength(1)
+        }
+        const table = canvasElement.querySelector<HTMLElement>(".MuiTableContainer-root")
+        if (!table) throw new Error("Missing destinations table")
+        expect(table.scrollWidth).toBeLessThanOrEqual(table.clientWidth)
     },
 }

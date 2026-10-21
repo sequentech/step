@@ -165,12 +165,15 @@ class CoverageSummaryTests(unittest.TestCase):
         )
         # A job that stopped before ci.py ran uploads partial files at most.
         (self.root / "coverage-harvest" / "_temp").mkdir(parents=True)
-        output = self.summarize("coverage-tooling", "strand", "harvest", "harvest")
+        output = self.summarize(
+            "coverage-tooling", "voting-crypto", "harvest", "harvest"
+        )
         rows = table_rows(output)
-        self.assertEqual(list(rows), ["coverage-tooling", "harvest", "strand"])
+        self.assertEqual(list(rows), ["coverage-tooling", "harvest", "voting-crypto"])
         self.assertEqual(rows["harvest"], ["—"] * 4 + ["MISSING"])
         self.assertIn(
-            "- strand (MISSING): No readable verdict.json was downloaded for this job.",
+            "- voting-crypto (MISSING): "
+            "No readable verdict.json was downloaded for this job.",
             output,
         )
 

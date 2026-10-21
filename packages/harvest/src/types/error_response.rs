@@ -43,7 +43,7 @@ pub enum ErrorCode {
     UserProfileValidation,
     DocumentPasswordUnavailable,
     VoterInformationLetterUnavailable,
-    PrivateKeyDownloadUnavailable,
+    CustodyRequestDownloadUnavailable,
     ConfirmPolicyShowCastVoteLogsFailed,
     BallotChecksEnded,
     BallotIdMismatch,
@@ -60,6 +60,13 @@ pub enum ErrorCode {
     InvalidOrderBy,
     /// The document's row, or its stored file, is gone (fetchDocument).
     DocumentNotFound,
+    InvalidCastVoteOrder,
+    InvalidElectoralLogConsoleRequest,
+    ElectoralLogRecordNotFound,
+    InvalidTaskQueuesRequest,
+    InvalidReadinessCheck,
+    InvalidTrusteeAction,
+    TaskQueuesUnavailable,
     // Add any other needed error codes
 }
 

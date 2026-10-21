@@ -2,7 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::authorization::authorize;
+use crate::services::audit;
+use crate::services::authorization::{
+    authorize, authorize_election_permission_labels,
+};
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use anyhow::{anyhow, Result};
 use chrono::Utc;
@@ -23,6 +26,7 @@ use windmill::services::election_dates::{
 };
 use windmill::services::schedule_recompute;
 use windmill::services::signing::log::Actor;
+use windmill::tasks::audit_log_outbox::kick_audit_log_outbox;
 
 #[derive(Deserialize, Debug)]
 pub struct ManageElectionDatesBody {
@@ -100,6 +104,25 @@ pub async fn manage_election_dates(
                 ErrorCode::InternalServerError,
             )
         })?;
+    audit::act_for(&hasura_transaction, &claims)
+        .await
+        .map_err(audit::json_error)?;
+
+    authorize_election_permission_labels(
+        &hasura_transaction,
+        &claims,
+        &input.election_event_id,
+        input.election_id.as_ref().map(std::slice::from_ref),
+    )
+    .await
+    .map_err(|(status, message)| {
+        let code = if status == Status::Forbidden {
+            ErrorCode::Unauthorized
+        } else {
+            ErrorCode::InternalServerError
+        };
+        ErrorResponse::new(status, &message, code)
+    })?;
 
     let actor = actor(&claims);
     let schedule = ScheduleInput {
@@ -154,6 +177,7 @@ pub async fn manage_election_dates(
             ErrorCode::InternalServerError,
         )
     })?;
+    kick_audit_log_outbox();
 
     if refresh_enrollment {
         windmill::services::enrollment_windows::complete_synchronization(
@@ -216,6 +240,9 @@ pub async fn apply_schedule_recompute(
         .transaction()
         .await
         .map_err(|e| internal(&e))?;
+    audit::act_for(&hasura_transaction, &claims)
+        .await
+        .map_err(audit::json_error)?;
     let now = Utc::now();
     let refresh_enrollment = schedule_recompute::enrollment_changes_pending(
         &hasura_transaction,
@@ -247,6 +274,7 @@ pub async fn apply_schedule_recompute(
         .commit()
         .await
         .map_err(|e| internal(&e))?;
+    kick_audit_log_outbox();
     if refresh_enrollment && updated > 0 {
         windmill::services::enrollment_windows::complete_synchronization(
             &claims.hasura_claims.tenant_id,

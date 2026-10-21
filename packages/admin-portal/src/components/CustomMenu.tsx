@@ -15,11 +15,14 @@ import GroupIcon from "@mui/icons-material/Group"
 import SettingsIcon from "@mui/icons-material/Settings"
 import HelpIcon from "@mui/icons-material/Help"
 import MailIcon from "@mui/icons-material/Mail"
+import ReceiptLongIcon from "@mui/icons-material/ReceiptLong"
+import QueueIcon from "@mui/icons-material/Queue"
 import {TenantContext} from "@/providers/TenantContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {useNavigate, useLocation} from "react-router-dom"
+import {PluginMenu} from "@/plugins/PluginRoutes"
 
 const StyledHelpItem = styled(Button)`
     margin-top: -4px;
@@ -138,6 +141,12 @@ export const CustomMenu = () => {
         authContext.tenantId,
         IPermissions.TEMPLATES_MENU
     )
+    const showElectoralLog = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.ELECTORAL_LOG_CONSOLE_READ
+    )
+    const showTaskQueues = authContext.isAuthorized(true, null, IPermissions.TASK_QUEUES_READ)
 
     const openInNewTab = (url: string) => {
         setAnchorEl(null)
@@ -188,6 +197,22 @@ export const CustomMenu = () => {
                             leftIcon={<GroupIcon sx={{color: adminTheme.palette.brandColor}} />}
                         />
                     )}
+                    {tenant && showElectoralLog && (
+                        <StyledItem
+                            to="/electoral-log-console"
+                            primaryText={open ? t("sideMenu.electoralLogConsole") : null}
+                            leftIcon={
+                                <ReceiptLongIcon sx={{color: adminTheme.palette.brandColor}} />
+                            }
+                        />
+                    )}
+                    {tenant && showTaskQueues && (
+                        <StyledItem
+                            to="/task-queues"
+                            primaryText={open ? t("sideMenu.taskQueues") : null}
+                            leftIcon={<QueueIcon sx={{color: adminTheme.palette.brandColor}} />}
+                        />
+                    )}
                     {tenant && showSettings && (
                         <StyledItem
                             to="/settings"
@@ -202,6 +227,7 @@ export const CustomMenu = () => {
                             leftIcon={<MailIcon sx={{color: adminTheme.palette.brandColor}} />}
                         />
                     )}
+                    <PluginMenu />
                     {tenant?.settings?.help_links?.length > 0 && (
                         <StyledHelpItem
                             disableElevation

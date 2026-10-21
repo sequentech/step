@@ -12,12 +12,15 @@ jest.mock("@mui/x-data-grid", () => ({DataGrid: () => null}))
 const mockReveal = jest.fn()
 const mockNotify = jest.fn()
 const mockPermissions = new Set<string>()
-const mockRoles = {list_user_roles: []}
+const mockQueryData = {
+    list_user_roles: [],
+    get_users: {items: [], total: {aggregate: {count: 0}}},
+}
 const mockMutation = jest.fn()
 jest.mock("@apollo/client", () => ({
     gql: jest.fn(),
     useLazyQuery: () => [mockReveal],
-    useQuery: () => ({data: mockRoles}),
+    useQuery: () => ({data: mockQueryData}),
     useMutation: () => [mockMutation],
 }))
 jest.mock("react-i18next", () => ({

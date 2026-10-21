@@ -1,0 +1,8 @@
+mutation AuditElectoralLog($electionEventId: String!) {
+    audit_electoral_log(election_event_id: $electionEventId) {
+        task_execution {
+            id
+            execution_status
+        }
+    }
+}

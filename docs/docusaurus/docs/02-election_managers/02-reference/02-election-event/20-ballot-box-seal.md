@@ -9,14 +9,15 @@ title: Ballot box seal
 When voting closes, Step can seal each ballot box. A **ballot box** is the cast
 ballots of one election in one area. Sealing does three things:
 
-1. It locks the ballot box in the database. From then on no ballot can be added,
-   changed or deleted, by any application path.
-2. It computes one SHA-512 hash, the **seal hash**, over a manifest that lists
+1. It computes one SHA-512 hash, the **seal hash**, over a manifest that lists
    every ballot in the box and says how each one counts.
-3. It posts a signed, time-stamped `BallotBoxSealed` entry with that hash to the
-   election event's electoral log (the bulletin board), and publishes a **seal
-   record** that can be checked offline. By default the record is restricted
-   to administrators, who share it with observers; the
+2. It stores the seal, with a signed, time-stamped `BallotBoxSealed` entry with
+   that hash on the election event's electoral log (the bulletin board), in the
+   event's own electoral-log database, in one transaction. From then on that
+   database refuses to add, change or delete any ballot of the box, by any
+   application path.
+3. It publishes a **seal record** that can be checked offline. By default the
+   record is restricted to administrators, who share it with observers; the
    [Seal Record Publication policy](#the-seal-record-publication-policy) can
    make it public.
 
@@ -39,8 +40,8 @@ Related pages:
 - [Demonstrate the ballot box seal](../../01-tutorials/23-admin_portal_tutorials_ballot-box-seal-demonstration.md):
   close, seal, refuse writes, verify offline and tally, step by step.
 - [Database role for the ballot box seal](../../../05-reference/05-cryptography_security/02-security/03-ballot-box-seal-database-role.md):
-  the deployment prerequisites, the upgrade note and what a database superuser
-  can still do.
+  what each database enforces, what the services' own database role can still
+  do, and the upgrade notes.
 
 ## The Ballot Box Seal Policy
 
@@ -245,7 +246,9 @@ Every way an election closes leads to the seal:
   [Scheduled openings and closings with signatures](./18-signed-scheduled-transitions.md)).
 
 **How fast.** The close creates one pending seal per ballot box in the same
-transaction. Right after it commits, when a box's deadline is at most 5
+transaction. A box is sealed only once every ballot it accepted is on the
+electoral log: the sealer asks the ballot box sequencer for any that aren't
+yet, and waits for them. Right after it commits, when a box's deadline is at most 5
 minutes away, a seal task is scheduled to run at that deadline, so the box is
 sealed within moments of it. A background job also checks every minute for
 boxes that are due: it seals boxes with a later deadline (a long grace period)
@@ -358,7 +361,7 @@ Each row shows its status and, under it, why the box is in that state.
 | **Sealing at** *time* | Closed; waiting for the grace period to end. Eligible late casts are still accepted until then. | No | |
 | **Sealing now** | Past the deadline; the sealer is sealing it. | No new casts | "Being sealed: this takes up to a minute." |
 | **Sealing overdue** | Past the deadline, and something holds the seal. | No new casts | The reason: see below. |
-| **Sealed, publishing** | Sealed and locked. The entry on the bulletin board and the seal record are being posted, and are retried until they exist. | Yes | "The ballot box is locked. Its entry on the bulletin board is being posted again." |
+| **Sealed, publishing** | Sealed, locked and on the bulletin board. The seal record is being published, and is retried until it exists. | Yes | "The ballot box is locked and its seal is on the bulletin board. Its seal record is being published." |
 | **Sealed** | Sealed, on the bulletin board, and the seal record is published (restricted or public, by the Seal Record Publication policy). | Yes | |
 | **Not sealed: incident** | The seal was stopped. | Yes, and it stays locked | The reason, for example "A ballot does not match its Ballot ID." |
 
@@ -371,6 +374,7 @@ isn't sealed yet. The card shows **Sealing overdue** with that reason:
 | A channel the election doesn't enable is open or paused, or ran, and isn't closed | *Channel* isn't closed and isn't enabled for this Post: stop it to seal the ballot box. |
 | The ballot box has ballots of a channel that isn't closed | *Channel* has ballots in this ballot box and isn't closed: stop it to seal the ballot box. A ballot stored without a channel (from before ballots recorded their channel) counts as **Online**, so this may name Online on an election that doesn't enable it: stop Online at that election. |
 | Datafix votes are in progress | *N* votes are in progress in Datafix: the ballot box is sealed once they are resolved. |
+| Ballots of the box aren't on the electoral log yet | *N* ballots aren't on the bulletin board yet: the ballot box is sealed once the sequencer has added them. |
 | The last attempt failed and will be retried | A text for the kind of error, for example "The last attempt couldn't reach the bulletin board; it is retried every minute." The kinds are: the bulletin board, the voter list, the signing key, the database or file storage, the election's settings, a ballot that can't be read yet, the database, and other errors. The details are only in the service log. |
 | The last attempt is more than 3 minutes old | Last tried at *time*: the sealer may not be running. Check Beat and the seal worker. |
 | No attempt yet, more than 3 minutes after the deadline | Not tried yet: the sealer may not be running. Check Beat and the seal worker. |
@@ -411,17 +415,20 @@ be tallied. Follow the runbook for a failed seal." It lists each box as
 
 ## What is refused after the seal
 
-The lock is a database guard on the cast ballots of each sealed ballot box. It
-applies to every application path, including Hasura roles such as admin-user.
+The lock is a guard on the ballots of each sealed ballot box, in the event's
+electoral-log database, where the ballots are. It applies to every application
+path: casting, Datafix, editing voters, and direct SQL by the services. The
+role that owns that database can switch the guard off; see
+[Limits](#limits).
 
 | Action | Result |
 | --- | --- |
 | A voter casts a ballot into a sealed box, or after its seal deadline | The voter gets the usual "voting is closed" error. `CastVoteError` entries are logged (the cast route retries, so there can be more than one). |
 | A Datafix status change on a ballot in a sealed box | Refused: "The ballot box is sealed: voting is closed and no ballot can be added, changed or deleted". |
-| Editing, disabling or releasing a voter who has ballots in sealed boxes | The voter record is saved. The voter's ballots in sealed boxes are kept as sealed; ballots in boxes that are not sealed are discarded as usual. If a ballot is kept, the voter stays marked as voted. A warning in the server log names the sealed boxes. |
+| Editing, disabling or releasing a voter who has ballots in sealed boxes | The voter record is saved. The voter's ballots in sealed boxes are kept as sealed: the ballot box refuses any change to them. If a ballot is kept, the voter stays marked as voted. A warning in the server log names the sealed boxes. |
 | Deleting an election that has seals (in any status) | The Admin Portal checks for seals before it offers the delete, and says "This election has sealed ballot boxes and cannot be deleted. Archive its election event instead." The database refuses the delete through any other path too. |
 | Deleting the election event when it has seals (in any status) | The Admin Portal checks for seals before it offers the delete: "This election event has sealed ballot boxes and cannot be deleted. Archive it instead." If the seals can't be checked, it warns that the delete is refused if there are any. The server refuses it before anything is deleted. Archiving still works. |
-| Any direct insert, update, delete or truncate of cast ballots in a sealed box | Refused by the database (`ballot_box_sealed`, SQLSTATE `42501`). |
+| Any direct insert, update, delete or truncate of the ballots of a sealed box in the event's electoral-log database | Refused by that database (`ballot_box_sealed`, SQLSTATE `42501`). |
 | Starting voting again | Refused, also before the seal (see *Closed is final*). |
 
 Ballot boxes of other areas, and of elections that are still open, keep working.
@@ -434,8 +441,8 @@ the close need the organization's own procedure.
 ## The tally gate
 
 With Seal at close, an election can be tallied only when **every** ballot box
-of the election is **Sealed** (published on the bulletin board), and every seal
-of the selected elections is published. The server enforces this when the tally
+of the election is **Sealed** (on the bulletin board, with its seal record
+published), and every seal of the selected elections is published. The server enforces this when the tally
 is created and again when it starts. Its refusal lists what is not ready, for
 example "Every ballot box must be sealed and its seal on the bulletin board
 before tallying. Not ready: *election*: *area* (not sealed yet)."
@@ -451,7 +458,7 @@ boxes** column:
 | Text | Meaning | Selectable |
 | --- | --- | --- |
 | *sealed* of *total* sealed | All published. | Yes |
-| Sealed, *published* of *total* on the bulletin board | All sealed, some still publishing. | No |
+| Sealed, *published* of *total* seal records published | All sealed, some records still publishing. | No |
 | Sealing at *time* | Waiting for the grace period. | No |
 | Sealing overdue | Past the deadline and not sealed yet. | No |
 | Not sealed: incident | A ballot box could not be sealed. | No |
@@ -468,19 +475,26 @@ voting.
 **What the tally checks.** For the election results tally, for each ballot box,
 the tally:
 
-1. reads the box's `BallotBoxSealed` entries from the event's log. Identical
-   copies count once, and entries not signed by the event's key are ignored
-   (with a warning). There must be exactly one distinct, validly signed entry;
-2. checks its signature, and that the sender is the event's system key;
-3. checks that the stored manifest has the signed hash and counts, and follows
+1. checks, as for any box, that every ballot the box accepted is on the
+   electoral log with its `CastVote` entry;
+2. reads, in one snapshot of the event's electoral-log database, the box's
+   stored seal, the box's `BallotBoxSealed` entries on the event's board (not
+   those of the logs an imported event's board continues) and every stored
+   ballot of the box, in any status. Identical copies of an entry count once,
+   and entries not signed by the event's key are ignored (with a warning).
+   There must be exactly one distinct, validly signed entry;
+3. checks its signature, and that the sender is the event's system key;
+4. checks that the stored manifest has the signed hash and counts, and follows
    the manifest rules (times in order, no more counted ballots than eligible
    voters, a weight of at least 1 on every counted ballot);
-4. recomputes the hash of every stored ballot and checks that the ballots are
+5. recomputes the hash of every stored ballot and checks that the ballots are
    exactly the manifest's entries;
-5. counts the manifest's counted entries, with their weights.
+6. counts the manifest's counted entries, with their weights.
 
-These checks run when the policy is Seal at close, **or** when the event's log
-already holds a `BallotBoxSealed` entry for the election.
+These checks run when the policy is Seal at close, **or** when the event's
+electoral-log database holds a seal, or its board a `BallotBoxSealed` entry,
+for the election. They are what catches a ballot changed after the seal past
+the guard.
 
 If the ballots differ from the seal, that election's tally stops with "The
 ballot box of *election*, *area* does not match its seal", and a
@@ -489,10 +503,11 @@ ballot box of *election*, *area* does not match its seal", and a
 is kept in the tally results' annotations for reports. An operational problem
 (no seal, a seal not yet published, the log unreachable) also stops the tally
 with an error, but logs no `TallyBallotBoxRejected` entry: nothing was found to
-differ.
+differ. A seal row in the Hasura database that says the box is sealed while
+the event's database holds no seal is rejected too.
 
 What the tally checks against (the bulletin board and the key) comes from the
-database. See
+databases. See
 [what a database superuser can still do](../../../05-reference/05-cryptography_security/02-security/03-ballot-box-seal-database-role.md#what-a-superuser-can-still-do).
 
 ## Electoral log entries
@@ -512,8 +527,11 @@ request, the failure reason, the tally session.
 
 All four are system entries, signed by the election event's protocol manager
 key, like every electoral log entry. "Counted" is the number of counted
-ballots, not their total weight. A failed seal's entry is posted once; if the
-post is lost, the sealer posts it again until it is recorded.
+ballots, not their total weight. A `BallotBoxSealed` or `BallotBoxSealFailed`
+entry is stored in the same transaction as the seal it records, after every
+`CastVote` entry of the box, with a delivery ID of its own per box
+(`ballot-box-seal:<event>:<election>:<area>`, or
+`ballot-box-seal-failed:…`), so each box has at most one of each.
 
 ## Every outcome, explained
 
@@ -548,12 +566,15 @@ post is lost, the sealer posts it again until it is recorded.
 | A cast arrives while the box is being sealed | It waits, then is refused. | The seal holds the box's lock. | The voter gets the closed error. |
 | A cast was already being saved when the seal started | It finishes first and is included in the seal. | The seal waits for it. | It is in the counts. |
 | Deadline passed, Datafix votes still in progress | The seal waits and retries every minute. | Sealing an unresolved vote would fix the wrong outcome. | Sealing overdue: "*N* votes are in progress in Datafix …". |
+| Deadline passed, accepted ballots of the box not on the electoral log yet | The sealer asks the sequencer for them and waits up to a minute; if they are still missing, it retries every minute. | The seal must come after every ballot it seals on the log. | Sealing overdue: "*N* ballots aren't on the bulletin board yet …". |
+| A ballot the sequencer finished with has no `CastVote` entry on the board | Seal stopped; the box stays locked; a `BallotBoxSealFailed` ERROR entry is logged. | The log lost an entry or was altered. It is an incident. | Not sealed: incident, "A ballot has no cast-vote record on the bulletin board." |
+| The seal is stored, but the seal row's update is lost (for example the Hasura database is restored to before it) | The next attempt finds the stored seal and copies it into the row. Nothing is sealed twice. | The event's database holds the seal. | Sealed, publishing, then Sealed. |
 | Deadline passed, the attempt fails (for example, the bulletin board or the voter list can't be reached, a ballot can't be read, or a configuration doesn't parse) | Retried every minute; not an incident. | The cause may be temporary. | Sealing overdue, with a text for the kind of error ("The last attempt couldn't …; it is retried every minute."). The details are in the service log. |
 | Deadline passed, no attempt for 3 minutes | Nothing seals the box until the sealer runs. | The Beat scheduler or the seal worker is not running. | Sealing overdue: "Not tried yet" or "Last tried at …: … Check Beat and the seal worker." |
-| Sealed, but posting to the bulletin board or uploading the record fails | The box stays sealed and locked; publication is retried every minute. | Publication is idempotent; the lock does not depend on it. | Sealed, publishing; Seal record "Not yet"; the election cannot be tallied yet. |
+| Sealed, but uploading the record fails | The box stays sealed, locked and on the bulletin board; publication is retried every minute. | Publication is idempotent; the lock does not depend on it. | Sealed, publishing; Seal record "Not yet"; the election cannot be tallied yet. |
 | A stored ballot does not match its Ballot ID, or has no content or Ballot ID | Seal stopped; the box stays locked; a `BallotBoxSealFailed` ERROR entry is logged. | The stored data was altered or corrupted. It is an incident, not a retry. | Not sealed: incident, with the reason; the incident banner. |
-| The event has no bulletin board | Seal stopped; the box stays locked. | There is nowhere to post the seal. | Not sealed: incident, "The election event has no bulletin board." |
-| The bulletin board already has a seal for this box (for example after restoring an older database backup) | Seal stopped; the box stays locked; a `BallotBoxSealFailed` ERROR entry is logged. No second seal is posted. | Exactly one seal per ballot box. | Not sealed: incident, "A seal for this ballot box is already on the bulletin board." |
+| The event has no bulletin board | Seal stopped. Without a board the event takes no ballots, and there is nowhere to post the seal or its failure. | There is nowhere to post the seal. | Not sealed: incident, "The election event has no bulletin board." |
+| The bulletin board already has a seal for this box, but the event's database has no seal (it was removed past the guards) | Seal stopped; the box stays locked; a `BallotBoxSealFailed` ERROR entry is logged. No second seal is posted. | Exactly one seal per ballot box. | Not sealed: incident, "A seal for this ballot box is already on the bulletin board." |
 | Start Voting on a closed election or event | Refused, before or after the seal. | Closed is final with Seal at close. | "Voting can't start again: …"; Start isn't offered for elections with seals. |
 | Start or resume the whole event while some elections are closed | The other elections open; the closed ones stay closed. | Closed is final per election. | The Start warning and the **Some elections stay closed** alert. |
 | Voter edited, disabled, moved or released after the seal | User saved; ballots in sealed boxes kept, others discarded; the sealed count is unchanged. | Eligibility was fixed at the seal. | A warning in the server log. |
@@ -561,10 +582,10 @@ post is lost, the sealer posts it again until it is recorded.
 | A publication after the close adds an area | No seal for the new area; the tally stays refused. | The set of boxes is fixed at the close. | See the runbook. |
 | A sealed box's area loses the election's contests | The tally is refused. | A sealed box must not be dropped from the count. | "The sealed ballot box of … is not in this tally …" |
 | Create a tally while a box is not Sealed | Refused. | The tally counts only published seals. | The election's checkbox is disabled, with the reason under the list. |
-| Tally finds the stored ballots differ from the seal | That election's tally stops; `TallyBallotBoxRejected` is logged. | The ballots were changed after the seal. | "The ballot box of *election*, *area* does not match its seal". |
+| Tally finds the stored ballots differ from the seal | That election's tally stops; `TallyBallotBoxRejected` is logged. | The ballots were changed after the seal, past the guard. | "The ballot box of *election*, *area* does not match its seal". |
 | Tally finds duplicate copies of the seal entry, or entries not signed by the event's key | Copies count once; unsigned entries are ignored with a warning. | Only a validly signed entry can be a seal. | The tally proceeds. |
 | Tally finds a published seal but no validly signed entry on the board, two distinct validly signed entries, or a board entry for a box whose stored seal is missing or not published | That election's tally stops; `TallyBallotBoxRejected` says what differs. | The log and the database disagree, or the key signed a second seal. | "The ballot box of *election*, *area* does not match its seal". |
-| The policy is switched off in the database after a seal | The tally still verifies every box of the election. | A seal on the bulletin board decides, not the setting. | As for Seal at close. |
+| The policy is switched off in the database after a seal | The tally still verifies every box of the election. | A stored seal or a seal on the bulletin board decides, not the setting. | As for Seal at close. |
 | Initialization report | Not gated, no seal check. | It runs before voting. | Unchanged. |
 | Tally finds a match | Counts from the manifest; `TallyBallotBoxVerified` is logged once. | | The tally proceeds. |
 
@@ -576,10 +597,16 @@ post is lost, the sealer posts it again until it is recorded.
   its fingerprint with one obtained from the organization before the close.
   See
   [which key to trust](../../../04-election_auditors/02-tutorials/06-auditor_verify-ballot-box-seal.md#which-key-to-trust).
-- **Database superusers.** The lock is a database guard. A superuser, or the
-  role that owns the tables, can bypass it, and can also change what the tally
-  checks against. See
-  [what a superuser can still do](../../../05-reference/05-cryptography_security/02-security/03-ballot-box-seal-database-role.md#what-a-superuser-can-still-do).
+- **The services' database role can switch the lock off.** The lock is a
+  trigger in the event's electoral-log database. That database is owned by the
+  electoral-log application role, and Harvest and windmill connect to it as
+  that role, so anyone who holds its credentials (or controls those services)
+  can disable the trigger and change a sealed box's ballots. This is not
+  prevented in this release; it is detected: the tally re-verifies every box
+  against its seal, the published electoral-log checkpoints cover the seal
+  entries, and observers can check their copies of the seal records. A
+  superuser can also change what the tally checks against. See
+  [what it cannot stop](../../../05-reference/05-cryptography_security/02-security/03-ballot-box-seal-database-role.md#what-it-cannot-stop).
 - **Before the close.** The seal fixes the box at the close. For evidence
   about the time before the close, compare the seal's Ballot IDs with the
   `CastVote` log entries (`--cast-votes` in the verify command).

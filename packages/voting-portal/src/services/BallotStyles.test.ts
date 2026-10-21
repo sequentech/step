@@ -32,7 +32,7 @@ describe("ballot style validation", () => {
         expect(error?.name).toBe("BallotStyleConfigurationError")
         expect(error?.message).toBe(key)
         expect(error?.translationKey).toBe(key)
-        expect(error?.translationParams).toEqual({count: "2"})
+        expect(error?.translationParams).toEqual({count: 2})
     })
 
     it("accepts a sound slate configuration", () => {

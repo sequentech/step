@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::audit;
 use crate::services::authorization::authorize;
 use crate::services::dependencies::HarvestServices;
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
@@ -12,14 +13,16 @@ use rocket::State;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::services::keycloak::{
     get_realm_attributes, redacted_attributes, update_realm_attributes,
-    validate_realm_attributes,
+    validate_keycloak_scope, validate_realm_attributes,
 };
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tracing::{error, instrument};
 use windmill::postgres::scheduled_event::lock_scheduling_event;
+use windmill::services::audit_log::{stage, AdminAction};
 use windmill::services::enrollment_windows::ENROLLMENT_WINDOWS_ATTRIBUTE;
+use windmill::tasks::audit_log_outbox::kick_audit_log_outbox;
 use windmill::tasks::migrate_registration_flows::REGISTRATION_RESTORE_ATTRIBUTE;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -64,6 +67,12 @@ pub async fn get_realm_attributes_route(
         (Status::Forbidden, "Authorization failed".to_string())
     })?;
 
+    validate_keycloak_scope(
+        &claims.hasura_claims.tenant_id,
+        Some(body.election_event_id.as_str()),
+    )
+    .map_err(|error| (Status::BadRequest, error.to_string()))?;
+
     let attributes = get_realm_attributes(
         &claims.hasura_claims.tenant_id,
         &body.election_event_id,
@@ -106,6 +115,14 @@ pub async fn update_realm_attributes_route(
             Status::Forbidden,
             "Authorization failed",
             ErrorCode::Unauthorized,
+        )
+    })?;
+    validate_keycloak_scope(tenant_id, Some(body.election_event_id.as_str()))
+        .map_err(|error| {
+        ErrorResponse::new(
+            Status::BadRequest,
+            &error.to_string(),
+            ErrorCode::UuidParseFailed,
         )
     })?;
     validate_realm_attributes(&body.attributes).map_err(|error| {
@@ -175,6 +192,7 @@ pub async fn update_realm_attributes_route(
         // the trusted merge. Only enrollment writers own these keys.
         updates.remove(key);
     }
+    let changes = audit::realm_attribute_changes(&current, &updates);
     update_realm_attributes(tenant_id, &body.election_event_id, updates)
         .await
         .map_err(|error| {
@@ -185,6 +203,36 @@ pub async fn update_realm_attributes_route(
                 ErrorCode::InternalServerError,
             )
         })?;
+    // What the edit changed is an entry of the event's log, committed with
+    // the event's lock.
+    let audited = !changes.is_empty();
+    if audited {
+        let staged =
+            match audit::target(tenant_id, Some(&body.election_event_id)) {
+                Ok(target) => stage(
+                    &transaction,
+                    &audit::change(
+                        &claims,
+                        target,
+                        audit::election_event(&body.election_event_id),
+                        AdminAction::Update,
+                    )
+                    .with_changes(changes),
+                )
+                .await
+                .map(|_| ())
+                .map_err(|error| format!("{error:?}")),
+                Err((_, message)) => Err(message),
+            };
+        staged.map_err(|error| {
+            error!("Failed to queue the realm-update audit entry: {error}");
+            ErrorResponse::new(
+                Status::InternalServerError,
+                "Failed to update realm attributes",
+                ErrorCode::InternalServerError,
+            )
+        })?;
+    }
     transaction.commit().await.map_err(|error| {
         error!("Failed to commit realm-update transaction: {:?}", error);
         ErrorResponse::new(
@@ -193,6 +241,9 @@ pub async fn update_realm_attributes_route(
             ErrorCode::InternalServerError,
         )
     })?;
+    if audited {
+        kick_audit_log_outbox();
+    }
     Ok(Json(UpdateRealmAttributesOutput { updated: true }))
 }
 

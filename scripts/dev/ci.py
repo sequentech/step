@@ -17,10 +17,14 @@ from scripts.dev.affected.report import json_report, text_report
 ROOT = Path(__file__).resolve().parents[2]
 RUST = (
     "electoral-log",
+    "trellis",
+    "pgmq-broker",
     "harvest",
-    "strand",
-    "immu-board",
-    "immudb-rs",
+    "voting-crypto",
+    "protocol-board",
+    "trustee",
+    "messaging",
+    "messaging-webhooks",
     "sequent-core",
     "step-cli",
     "velvet",
@@ -44,6 +48,14 @@ SEQUENT_CORE_FEATURES = (
     "keycloak,default_features,election_config_xlsx,"
     "election_config_templates,election_config_archive,monitoring"
 )
+# Test arguments of the packages whose suites need features beyond the default.
+RUST_EXTRA = {
+    "voting-crypto": "--release",
+    "protocol-board": "--release",
+    "trustee": "--release",
+    "sequent-core": f"--features {SEQUENT_CORE_FEATURES}",
+    "trellis": "--features upstream-service --lib --example monitor --example post",
+}
 PYTHON = (
     "python:scripts-dev",
     "python:scripts-coverage",
@@ -73,12 +85,7 @@ def selection_for(
 def matrices(selection: Selection) -> dict[str, object]:
     selected = {decision.check.id: decision.check for decision in selection.selected()}
     rust = [
-        {
-            "service": package,
-            "extra": f"--features {SEQUENT_CORE_FEATURES}"
-            if package == "sequent-core"
-            else "",
-        }
+        {"service": package, "extra": RUST_EXTRA.get(package, "")}
         for package in RUST
         if f"cargo-test:{package}" in selected
     ]
@@ -140,7 +147,16 @@ def matrices(selection: Selection) -> dict[str, object]:
     jobs = {
         "feature-gates": "feature-gates:sequent-core" in selected,
         "run-tests": bool(rust),
-        "run-windmill-tests": "cargo-test:windmill" in selected,
+        # The Windmill job also hosts the PostgreSQL-backed checks of other crates.
+        "run-windmill-tests": any(
+            check in selected
+            for check in (
+                "cargo-test:windmill",
+                "cargo-test-db:electoral-log",
+                "cargo-test-db:pgmq-broker",
+                "cargo-test-db:step-cli",
+            )
+        ),
         "run-frontend-tests": bool(node),
         "tooling": bool(python),
         "docs": bool(docs),

@@ -5,7 +5,10 @@
 # Step-specific docker-compose that includes base services and step's keycloak
 
 include:
-  - docker-compose-base.yml
+  # Supply newly introduced settings when the checkout's .env predates them.
+  # Compose keeps local .env values (including empty ones) as overrides.
+  - path: docker-compose-base.yml
+    env_file: .env.development
 
 # A theme type directory from the checkout. Keycloak prefers folder themes over
 # the same theme in sequent-theme.jar, and start-dev turns theme and template
@@ -30,9 +33,8 @@ services:
         scripts: ../scripts
     restart: always
     ports:
-      - 8090:8090
+      - 127.0.0.1:8090:8090
     environment:
-      AMQP_ADDR: ${AMQP_ADDR}
       # Use the same voter-secret encryption key as Harvest and Windmill.
       MASTER_SECRET: ${MASTER_SECRET}
       KC_HOSTNAME: ${KC_HOSTNAME}
@@ -61,6 +63,13 @@ services:
       TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
       TWILIO_SERVICE_SID: ${TWILIO_SERVICE_SID}
       ENV_SLUG: ${ENV_SLUG}
+      # Electoral-log events go to the task-queue database, as its producer role.
+      QUEUE_DB__HOST: ${QUEUE_DB__HOST}
+      QUEUE_DB__PORT: ${QUEUE_DB__PORT}
+      QUEUE_DB__DBNAME: ${QUEUE_DB__DBNAME}
+      QUEUE_DB__USER: ${QUEUE_DB_PRODUCER_USER}
+      QUEUE_DB__PASSWORD: ${QUEUE_DB_PRODUCER_PASSWORD}
+      ELECTORAL_LOG_PUBLISH_FAILURE_POLICY: ${ELECTORAL_LOG_PUBLISH_FAILURE_POLICY:-fail-request}
       KC_SPI_TRUSTSTORE_PROVIDER: ${KC_SPI_TRUSTSTORE_PROVIDER:-}
       KC_SPI_TRUSTSTORE_URL_REFRESH_INTERVAL_SECONDS: ${KC_SPI_TRUSTSTORE_URL_REFRESH_INTERVAL_SECONDS:-0}
       # Trust X-Forwarded-* headers set by the local nginx mTLS proxy
@@ -108,6 +117,8 @@ services:
       --import-realm
     depends_on:
       postgres-keycloak:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
       harvest:
         condition: service_started

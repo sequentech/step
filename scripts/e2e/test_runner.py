@@ -4,6 +4,7 @@
 """Driver outcome contracts; no containers or external services are required."""
 
 import contextlib
+import csv
 import importlib
 import io
 import json
@@ -11,7 +12,7 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 with patch.dict(
     os.environ,
@@ -24,6 +25,7 @@ with patch.dict(
     },
 ):
     driver = importlib.import_module("scripts.e2e.journeys.__main__")
+    bootstrap = importlib.import_module("scripts.e2e.journeys.bootstrap")
 summary = importlib.import_module("scripts.e2e.summary")
 coverage = importlib.import_module("scripts.e2e.coverage")
 ROOT = Path(__file__).resolve().parents[2]
@@ -47,6 +49,120 @@ class DriverOutput(unittest.TestCase):
 
 
 class RunnerContracts(DriverOutput):
+    def test_browser_run_covers_both_ceremonies_voting_and_tally(self):
+        browser_driver = importlib.import_module("scripts.e2e.journeys.browser_journey")
+        observed = []
+
+        class Journeys(unittest.TestCase):
+            def test_b_manual_key_ceremony_and_tally(self):
+                observed.append("manual")
+
+            def test_4_automatic_key_ceremony(self):
+                observed.append("automatic")
+
+            def test_6_online_voting_rules(self):
+                observed.append("voting")
+
+            def test_7_tally_matches_cast_ballots(self):
+                observed.append("tally")
+
+            def test_a_combined_contest_weighted_voting(self):
+                observed.append("weighted")
+
+            def test_c_trustee_graphql_board_api(self):
+                observed.append("trustee API")
+
+            def test_8_native_archive_preserves_crypto_and_results(self):
+                self.fail("Archive recovery is outside this ceremony run")
+
+        with (
+            patch.object(browser_driver, "BackendJourneys", Journeys),
+            patch.object(browser_driver, "OUTPUT", self.output),
+            patch.dict(
+                browser_driver.ENV,
+                {"STEP_E2E_BROWSER_TRUSTEES_URL": "https://browser.invalid"},
+            ),
+        ):
+            self.assertEqual(browser_driver.main(), 0)
+        self.assertEqual(
+            observed,
+            ["manual", "automatic", "voting", "tally", "weighted", "trustee API"],
+        )
+        records = json.loads((self.output / "browser-journey.json").read_text())
+        self.assertEqual([r["outcome"] for r in records], ["pass"] * 6)
+
+    def test_browser_run_cannot_pass_when_manual_ceremony_is_skipped(self):
+        browser_driver = importlib.import_module("scripts.e2e.journeys.browser_journey")
+
+        class Journeys(unittest.TestCase):
+            @unittest.skip("browser ceremony prerequisite unavailable")
+            def test_b_manual_key_ceremony_and_tally(self):
+                pass
+
+            def test_a_combined_contest_weighted_voting(self):
+                pass
+
+            def test_c_trustee_graphql_board_api(self):
+                pass
+
+        with (
+            patch.object(browser_driver, "BackendJourneys", Journeys),
+            patch.object(browser_driver, "OUTPUT", self.output),
+            patch.dict(
+                browser_driver.ENV,
+                {"STEP_E2E_BROWSER_TRUSTEES_URL": "https://browser.invalid"},
+            ),
+        ):
+            self.assertEqual(browser_driver.main(), 1)
+
+    def test_browser_run_cannot_pass_when_weighted_voting_is_skipped(self):
+        browser_driver = importlib.import_module("scripts.e2e.journeys.browser_journey")
+
+        class Journeys(unittest.TestCase):
+            def test_b_manual_key_ceremony_and_tally(self):
+                pass
+
+            @unittest.skip("weighted voting prerequisite unavailable")
+            def test_a_combined_contest_weighted_voting(self):
+                pass
+
+            def test_c_trustee_graphql_board_api(self):
+                pass
+
+        with (
+            patch.object(browser_driver, "BackendJourneys", Journeys),
+            patch.object(browser_driver, "OUTPUT", self.output),
+            patch.dict(
+                browser_driver.ENV,
+                {"STEP_E2E_BROWSER_TRUSTEES_URL": "https://browser.invalid"},
+            ),
+        ):
+            self.assertEqual(browser_driver.main(), 1)
+
+    def test_browser_run_cannot_pass_when_trustee_api_is_skipped(self):
+        browser_driver = importlib.import_module("scripts.e2e.journeys.browser_journey")
+
+        class Journeys(unittest.TestCase):
+            def test_b_manual_key_ceremony_and_tally(self):
+                pass
+
+            def test_a_combined_contest_weighted_voting(self):
+                pass
+
+            @unittest.skip("public trustee API prerequisite unavailable")
+            def test_c_trustee_graphql_board_api(self):
+                pass
+
+        with (
+            patch.object(browser_driver, "BackendJourneys", Journeys),
+            patch.object(browser_driver, "OUTPUT", self.output),
+            patch.dict(
+                browser_driver.ENV,
+                {"STEP_E2E_BROWSER_TRUSTEES_URL": "https://browser.invalid"},
+            ),
+        ):
+            self.assertEqual(browser_driver.main(), 1)
+
     def test_filter_runs_prerequisites_and_records_only_the_selected_sequence(self):
         observed = []
 
@@ -158,6 +274,176 @@ class SummaryContracts(DriverOutput):
             self.assertIn(f".cache/backend-e2e/run/{name}", upload)
 
 
+class FakeKeycloak:
+    def __init__(self, credentials):
+        self.credentials = credentials
+        self.requests = []
+
+    def user(self, realm, username):
+        return {"id": "admin-id", "username": username}
+
+    def admin(self, method, path, json_body=None, expect=(200,)):
+        self.requests.append((method, path, json_body))
+        return self.credentials if method == "GET" else None
+
+
+class BootstrapAdminContracts(unittest.TestCase):
+    """The tenant template ships its administrator without a password."""
+
+    def setUp(self):
+        self.enterContext(
+            patch.dict(
+                os.environ,
+                {"ADMIN_USERNAME": "admin", "ADMIN_PASSWORD": "synthetic-password"},
+            )
+        )
+        self.reset = (
+            "PUT",
+            f"{bootstrap.TENANT_REALM}/users/admin-id/reset-password",
+            {"type": "password", "value": "synthetic-password", "temporary": False},
+        )
+
+    def test_enrollment_completes_required_names_when_email_already_exists(self):
+        keycloak = MagicMock()
+        keycloak.user.return_value = {
+            "id": "trustee-id",
+            "email": "trustee@example.invalid",
+            "firstName": "Trustee",
+        }
+        credentials = iter(
+            [[{"type": "password"}], [{"type": "password"}, {"type": "message-otp"}]]
+        )
+        keycloak.admin.side_effect = lambda method, *args, **kwargs: (
+            next(credentials) if method == "GET" else None
+        )
+        config = {
+            "id": "otp-id",
+            "config": {"test-mode": "false", "test-mode-code": "123456"},
+        }
+        with patch.object(bootstrap, "email_otp_config", return_value=config):
+            self.assertTrue(
+                bootstrap.enroll_mfa(keycloak, "trustee1", "synthetic-password")
+            )
+        profile = keycloak.admin.call_args_list[1].args[2]
+        self.assertEqual(
+            profile,
+            {
+                "id": "trustee-id",
+                "email": "trustee@example.invalid",
+                "emailVerified": True,
+                "firstName": "Trustee",
+                "lastName": "E2E",
+            },
+        )
+        keycloak.browser_login.assert_called_once_with(
+            bootstrap.TENANT_REALM,
+            "admin-portal",
+            "http://127.0.0.1:3002/",
+            "trustee1",
+            "synthetic-password",
+            otp="123456",
+        )
+        self.assertEqual(config["config"]["test-mode"], "false")
+
+    def test_trustees_complete_enrollment_before_password_grants(self):
+        keycloak = MagicMock()
+        with patch.dict(
+            os.environ,
+            {
+                "TRUSTEE1_PASSWORD": "trustee-one",
+                "TRUSTEE2_PASSWORD": "trustee-two",
+                "TRUSTEE_KEYCLOAK_CLIENT_ID": "trustee-client",
+                "TRUSTEE_KEYCLOAK_CLIENT_SECRET": "synthetic-secret",
+            },
+        ), patch.object(bootstrap, "enroll_mfa") as enroll, patch.object(
+            bootstrap, "set_password"
+        ) as passwords:
+            bootstrap.enroll_trustees(keycloak)
+        self.assertEqual(
+            passwords.call_args_list,
+            [
+                unittest.mock.call(keycloak, "trustee1", "trustee-one"),
+                unittest.mock.call(keycloak, "trustee2", "trustee-two"),
+            ],
+        )
+        self.assertEqual(
+            enroll.call_args_list,
+            [
+                unittest.mock.call(keycloak, "trustee1", "trustee-one"),
+                unittest.mock.call(keycloak, "trustee2", "trustee-two"),
+            ],
+        )
+        self.assertEqual(
+            keycloak.password_grant.call_args_list,
+            [
+                unittest.mock.call(
+                    bootstrap.TENANT_REALM,
+                    "trustee-client",
+                    "trustee1",
+                    "trustee-one",
+                    "synthetic-secret",
+                ),
+                unittest.mock.call(
+                    bootstrap.TENANT_REALM,
+                    "trustee-client",
+                    "trustee2",
+                    "trustee-two",
+                    "synthetic-secret",
+                ),
+            ],
+        )
+
+    def test_an_administrator_without_a_password_gets_the_configured_one(self):
+        keycloak = FakeKeycloak([])
+        bootstrap.set_admin_password(keycloak)
+        self.assertIn(self.reset, keycloak.requests)
+
+    def test_an_existing_password_is_kept(self):
+        keycloak = FakeKeycloak([{"type": "password"}])
+        bootstrap.set_admin_password(keycloak)
+        self.assertNotIn(self.reset, keycloak.requests)
+
+    def test_the_password_is_set_before_the_administrator_first_signs_in(self):
+        calls = []
+        with tempfile.TemporaryDirectory() as directory, patch.multiple(
+            bootstrap,
+            OUTPUT=Path(directory),
+            Keycloak=MagicMock(),
+            wait_until=MagicMock(),
+            StepCli=MagicMock(),
+            configure_step_cli=MagicMock(),
+            seed_trustees=MagicMock(),
+            enroll_trustees=MagicMock(),
+            set_admin_password=MagicMock(
+                side_effect=lambda keycloak: calls.append("password")
+            ),
+            enroll_admin_mfa=MagicMock(
+                side_effect=lambda keycloak: calls.append("enroll")
+            ),
+        ), contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(bootstrap.main(), 0)
+        self.assertEqual(calls, ["password", "enroll"])
+
+
+class CoveragePackageContracts(unittest.TestCase):
+    def test_only_packages_of_the_checkout_are_measured(self):
+        # Generic code of a dependency, compiled into an instrumented binary,
+        # names files in the cargo registry: those are not Step's packages.
+        with tempfile.TemporaryDirectory() as temporary:
+            crate = Path(temporary) / "registry/src/index.crates.io-0/tracing-0.1.44"
+            (crate / "src").mkdir(parents=True)
+            (crate / "Cargo.toml").write_text('[package]\nname = "tracing"\n')
+            (crate / "src/instrument.rs").write_text("")
+            windmill = coverage.ROOT / "packages/windmill"
+            payload = {"data": [{"files": [
+                {"filename": str(crate / "src/instrument.rs")},
+                {"filename": str(windmill / "src/lib.rs")},
+            ]}]}
+            self.assertEqual(
+                coverage.package_directories(payload), {windmill: "windmill"}
+            )
+
+
 class CoverageExitContracts(unittest.TestCase):
     def report(self, codes, *, json_lines=False):
         with tempfile.TemporaryDirectory() as temporary:
@@ -168,12 +454,14 @@ class CoverageExitContracts(unittest.TestCase):
             binary = binaries / "harvest"
             binary.write_text("instrumented binary placeholder")
             binary.chmod(0o700)
-            for name in ("immudb-init", "harvest", "windmill", "beat", "b4",
-                         "trustee1", "trustee2", "step-cli"):
+            for name in ("harvest", "windmill", "beat", "b4v6", "trustee1", "trustee2",
+                         "step-cli", "messaging-webhooks"):
                 (directory / "profiles" / f"{name}-123.profraw").write_bytes(b"profile")
             rows = [{"Service": name, "ExitCode": code} for name, code in codes.items()]
             (directory / "services.json").write_text(
-                "\n".join(json.dumps(row) for row in rows) if json_lines else json.dumps(rows)
+                "\n".join(json.dumps(row) for row in rows)
+                if json_lines
+                else json.dumps(rows)
             )
 
             def llvm(*command):
@@ -184,23 +472,32 @@ class CoverageExitContracts(unittest.TestCase):
                 self.assertEqual(command[1], "merge")
                 return ""
 
-            with patch.object(coverage, "llvm_tool", side_effect=lambda name: name), \
-                    patch.object(coverage, "run", side_effect=llvm), \
-                    patch("sys.argv", ["coverage.py", str(directory), str(binaries)]), \
-                    contextlib.redirect_stdout(io.StringIO()):
+            with patch.object(
+                coverage, "llvm_tool", side_effect=lambda name: name
+            ), patch.object(coverage, "run", side_effect=llvm), patch(
+                "sys.argv", ["coverage.py", str(directory), str(binaries)]
+            ), contextlib.redirect_stdout(
+                io.StringIO()
+            ):
                 status = coverage.main()
-            return status, json.loads((directory / "summary.json").read_text()), \
-                (directory / "summary.md").read_text()
+            return (
+                status,
+                json.loads((directory / "summary.json").read_text()),
+                (directory / "summary.md").read_text(),
+            )
 
     @staticmethod
     def normal_codes():
-        return {"immudb-init": 0, "harvest": 0, "windmill": 0,
-                "beat": 143, "b4": 143, "trustee1": 143, "trustee2": 143}
+        return {"harvest": 0, "windmill": 0,
+                "beat": 143, "b4v6": 143, "trustee1": 143, "trustee2": 143,
+                "messaging-webhooks": 0}
 
     def test_normal_shutdown_and_removed_driver_accept_nonempty_profiles(self):
         for json_lines in (False, True):
             with self.subTest(json_lines=json_lines):
-                status, report, _ = self.report(self.normal_codes(), json_lines=json_lines)
+                status, report, _ = self.report(
+                    self.normal_codes(), json_lines=json_lines
+                )
                 self.assertEqual(status, 0)
                 self.assertEqual(report["failures"], [])
                 self.assertEqual(len(report["profiles"]), 8)
@@ -208,7 +505,7 @@ class CoverageExitContracts(unittest.TestCase):
 
     def test_worker_crash_fails_even_when_its_profile_executed_code(self):
         for service, code in (("windmill", 101), ("harvest", 143), ("beat", 137),
-                              ("b4", 1), ("immudb-init", 143), ("trustee1", 101)):
+                              ("b4v6", 1), ("trustee1", 101)):
             with self.subTest(service=service, code=code):
                 codes = self.normal_codes()
                 codes[service] = code
@@ -231,6 +528,135 @@ class CoverageExitContracts(unittest.TestCase):
                 self.assertEqual(status, 1)
                 self.assertEqual(len(report["failures"]), 1)
                 self.assertIn("windmill", report["failures"][0])
+
+
+class CombinedBallotInputContracts(unittest.TestCase):
+    def test_weighted_census_uses_the_platform_import_column(self):
+        from scripts.e2e.journeys import fixtures
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "voters.csv"
+            voters = fixtures.census("weighted", {"A": 2})
+            fixtures.write_census(
+                path,
+                voters,
+                {"A": "main-election"},
+                weights={voters[0].username: 3, voters[1].username: 5},
+            )
+            with path.open(newline="") as handle:
+                rows = list(csv.DictReader(handle))
+            self.assertEqual(
+                [
+                    (r["username"], r["vote-weight"], r["authorized-election-ids"])
+                    for r in rows
+                ],
+                [
+                    ("e2e-weighted-a1", "3", "main-election"),
+                    ("e2e-weighted-a2", "5", "main-election"),
+                ],
+            )
+
+    def test_each_contest_uses_its_own_selection_in_the_native_encoder(self):
+        from scripts.e2e.journeys.voting import Portal
+
+        with tempfile.TemporaryDirectory() as directory:
+            cli = MagicMock(directory=Path(directory), binary=Path("step-cli"))
+            with patch.dict(
+                os.environ, {"VOTING_PORTAL_URL": "https://voting.invalid"}
+            ):
+                portal = Portal("event", cli)
+            style = {
+                "contests": [
+                    {
+                        "id": "council",
+                        "candidates": [
+                            {"id": "alice", "name": "Alice"},
+                            {"id": "bob", "name": "Bob"},
+                        ],
+                    },
+                    {
+                        "id": "chair",
+                        "candidates": [
+                            {"id": "carol", "name": "Carol"},
+                            {"id": "dave", "name": "Dave"},
+                        ],
+                    },
+                ]
+            }
+            with patch(
+                "scripts.e2e.journeys.voting.subprocess.run",
+                return_value=MagicMock(stdout='{"ballotId":"native"}\n'),
+            ):
+                self.assertEqual(
+                    portal.encrypt(style, {"council": "Bob", "chair": "Carol"}),
+                    {"ballotId": "native"},
+                )
+            choices = json.loads((Path(directory) / "choices.json").read_text())
+            self.assertEqual(
+                [
+                    (c["contest_id"], [(v["id"], v["selected"]) for v in c["choices"]])
+                    for c in choices
+                ],
+                [
+                    ("council", [("alice", -1), ("bob", 0)]),
+                    ("chair", [("carol", 0), ("dave", -1)]),
+                ],
+            )
+
+
+class VoterRealmReadinessContracts(unittest.TestCase):
+    def test_voter_login_waits_for_the_new_realm_key_without_opening_a_ballot(self):
+        from scripts.e2e.journeys import voting
+
+        with patch.dict(
+            os.environ, {"VOTING_PORTAL_URL": "https://voting.invalid"}
+        ), patch.object(voting, "Keycloak") as keycloak, patch.object(
+            voting, "Hasura"
+        ) as hasura, patch(
+            "scripts.e2e.journeys.client.time.sleep"
+        ):
+            keycloak.return_value.browser_login.return_value = {
+                "access_token": "new-realm-token"
+            }
+            hasura.return_value.execute.side_effect = [
+                {
+                    "errors": [
+                        {
+                            "message": "Could not verify JWT",
+                            "extensions": {"code": "invalid-jwt"},
+                        }
+                    ]
+                },
+                {"data": {"__typename": "query_root"}},
+            ]
+            self.assertEqual(
+                voting.Portal("event", MagicMock()).login("voter"), "new-realm-token"
+            )
+            self.assertEqual(
+                hasura.return_value.execute.call_args_list,
+                [
+                    unittest.mock.call("{ __typename }"),
+                    unittest.mock.call("{ __typename }"),
+                ],
+            )
+
+    def test_voter_login_does_not_retry_other_graphql_errors(self):
+        from scripts.e2e.journeys import voting
+
+        with patch.dict(
+            os.environ, {"VOTING_PORTAL_URL": "https://voting.invalid"}
+        ), patch.object(voting, "Keycloak") as keycloak, patch.object(
+            voting, "Hasura"
+        ) as hasura:
+            keycloak.return_value.browser_login.return_value = {"access_token": "token"}
+            hasura.return_value.execute.return_value = {
+                "errors": [
+                    {"message": "unauthorized", "extensions": {"code": "access-denied"}}
+                ]
+            }
+            with self.assertRaisesRegex(AssertionError, "unauthorized"):
+                voting.Portal("event", MagicMock()).login("voter")
+            hasura.return_value.execute.assert_called_once()
 
 
 if __name__ == "__main__":

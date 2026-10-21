@@ -449,12 +449,10 @@ export const GenerateAReport: Story = {
 export const PreviewAnEncryptedReport: Story = {
     parameters: {
         widgets: ["ActionsPopUp"],
-        // The modal password dialog hides the list and the task widget's buttons.
+        // The modal password dialog makes the list and the task widget inert.
         expectedFailure: {
-            reason:
-                "The task widget's success chip has white text below 4.5 contrast; the " +
-                "read-only password and decryption command fields have no label.",
-            a11y: ["color-contrast", "label"],
+            reason: "The read-only password and decryption command fields have no label.",
+            a11y: ["label"],
         },
     },
     play: async ({canvasElement}) => {

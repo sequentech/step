@@ -4,8 +4,12 @@
       "name": "ui-only",
       "summary": "Storybook and screens on fixtures, with no backend service",
       "config": "ui-only/devcontainer.json",
-      "composeFiles": ["docker-compose.yml"],
-      "services": ["devcontainer"],
+      "composeFiles": [
+        "docker-compose.yml"
+      ],
+      "services": [
+        "devcontainer"
+      ],
       "servers": [
         "storybook-ui-essentials",
         "storybook-voting-portal",
@@ -19,14 +23,19 @@
         "results-portal",
         "workbench"
       ],
-      "defaultServers": ["storybook-ui-essentials"],
+      "defaultServers": [
+        "storybook-ui-essentials"
+      ],
       "readyTimeoutSeconds": 300
     },
     {
       "name": "ui-keycloak",
       "summary": "Keycloak and its database for login and account theme work",
       "config": "ui-keycloak/devcontainer.json",
-      "composeFiles": ["docker-compose.yml", "docker-compose-ui-keycloak.yml"],
+      "composeFiles": [
+        "docker-compose.yml",
+        "docker-compose-ui-keycloak.yml"
+      ],
       "services": [
         "devcontainer",
         "postgres-volume-init",
@@ -48,28 +57,33 @@
       "name": "backend",
       "summary": "Databases, queues, storage, Keycloak, Hasura and the Rust services",
       "config": "backend/devcontainer.json",
-      "composeFiles": ["docker-compose.yml"],
+      "composeFiles": [
+        "docker-compose.yml"
+      ],
       "services": [
         "devcontainer",
         "postgres-volume-init",
         "postgres",
         "postgres-keycloak",
-        "postgres-b4",
+        "postgres-b4v6",
         "minio",
         "minio-proxy",
         "configure-minio",
         "data-connector-agent",
         "graphql-engine",
-        "rabbitmq",
-        "immudb",
-        "immudb-init",
+        "task-queues-setup",
         "keycloak",
         "keycloak-nginx",
         "harvest",
+        "messaging-webhooks",
         "monitoring-renderer",
         "windmill",
         "beat",
-        "b4"
+        "b4v6",
+        "trustee1",
+        "trustee2",
+        "localstack",
+        "configure-localstack"
       ],
       "servers": [],
       "defaultServers": [],
@@ -79,28 +93,33 @@
       "name": "full",
       "summary": "The backend plus the portal dev servers",
       "config": "devcontainer.json",
-      "composeFiles": ["docker-compose.yml"],
+      "composeFiles": [
+        "docker-compose.yml"
+      ],
       "services": [
         "devcontainer",
         "postgres-volume-init",
         "postgres",
         "postgres-keycloak",
-        "postgres-b4",
+        "postgres-b4v6",
         "minio",
         "minio-proxy",
         "configure-minio",
         "data-connector-agent",
         "graphql-engine",
-        "rabbitmq",
-        "immudb",
-        "immudb-init",
+        "task-queues-setup",
         "keycloak",
         "keycloak-nginx",
         "harvest",
+        "messaging-webhooks",
         "monitoring-renderer",
         "windmill",
         "beat",
-        "b4"
+        "b4v6",
+        "trustee1",
+        "trustee2",
+        "localstack",
+        "configure-localstack"
       ],
       "servers": [
         "voting-portal",
@@ -115,7 +134,10 @@
         "storybook-keycloak-ui",
         "workbench"
       ],
-      "defaultServers": ["voting-portal", "admin-portal"],
+      "defaultServers": [
+        "voting-portal",
+        "admin-portal"
+      ],
       "readyTimeoutSeconds": 3600
     }
   ],
@@ -123,67 +145,122 @@
     {
       "name": "storybook-keycloak-ui",
       "port": 6011,
-      "command": ["yarn", "--cwd", "packages/keycloak-ui", "storybook"],
+      "command": [
+        "yarn",
+        "--cwd",
+        "packages/keycloak-ui",
+        "storybook"
+      ],
       "readyPath": "/index.json"
     },
     {
       "name": "workbench",
       "port": 5173,
-      "command": ["yarn", "--cwd", "packages/workbench", "dev"],
+      "command": [
+        "yarn",
+        "--cwd",
+        "packages/workbench",
+        "dev"
+      ],
       "readyPath": "/"
     },
     {
       "name": "storybook-ui-essentials",
       "port": 6006,
-      "command": ["yarn", "--cwd", "packages/ui-essentials", "storybook"],
+      "command": [
+        "yarn",
+        "--cwd",
+        "packages/ui-essentials",
+        "storybook"
+      ],
       "readyPath": "/index.json"
     },
     {
       "name": "storybook-voting-portal",
       "port": 6007,
-      "command": ["yarn", "--cwd", "packages/voting-portal", "storybook"],
+      "command": [
+        "yarn",
+        "--cwd",
+        "packages/voting-portal",
+        "storybook"
+      ],
       "readyPath": "/index.json"
     },
     {
       "name": "storybook-admin-portal",
       "port": 6008,
-      "command": ["yarn", "--cwd", "packages/admin-portal", "storybook"],
+      "command": [
+        "yarn",
+        "--cwd",
+        "packages/admin-portal",
+        "storybook"
+      ],
       "readyPath": "/index.json"
     },
     {
       "name": "storybook-results-portal",
       "port": 6009,
-      "command": ["yarn", "--cwd", "packages/results-portal", "storybook"],
+      "command": [
+        "yarn",
+        "--cwd",
+        "packages/results-portal",
+        "storybook"
+      ],
       "readyPath": "/index.json"
     },
     {
       "name": "storybook-ballot-verifier",
       "port": 6010,
-      "command": ["yarn", "--cwd", "packages/ballot-verifier", "storybook"],
+      "command": [
+        "yarn",
+        "--cwd",
+        "packages/ballot-verifier",
+        "storybook"
+      ],
       "readyPath": "/index.json"
     },
     {
       "name": "voting-portal",
       "port": 3000,
-      "command": ["yarn", "--cwd", "packages/voting-portal", "start"],
+      "command": [
+        "yarn",
+        "--cwd",
+        "packages/voting-portal",
+        "start"
+      ],
       "readyPath": "/"
     },
     {
       "name": "ballot-verifier",
       "port": 3001,
-      "command": ["yarn", "--cwd", "packages/ballot-verifier", "start"],
+      "command": [
+        "yarn",
+        "--cwd",
+        "packages/ballot-verifier",
+        "start"
+      ],
       "readyPath": "/"
     },
     {
       "name": "admin-portal",
       "port": 3002,
-      "command": ["yarn", "--cwd", "packages/admin-portal", "start"],
+      "command": [
+        "yarn",
+        "--cwd",
+        "packages/admin-portal",
+        "start"
+      ],
       "readyPath": "/"
     },
     {
       "name": "results-portal",
       "port": 3004,
-      "command": ["yarn", "--cwd", "packages/results-portal", "start"],
+      "command": [
+        "yarn",
+        "--cwd",
+        "packages/results-portal",
+        "start"
+      ],
       "readyPath": "/"
     }
   ],
@@ -197,7 +274,7 @@
       "readyWhen": "exited"
     },
     {
-      "name": "immudb-init",
+      "name": "task-queues-setup",
       "readyWhen": "exited"
     },
     {
@@ -212,27 +289,41 @@
     {
       "name": "graphql-engine",
       "url": "http://127.0.0.1:8080",
-      "probe": ["curl", "-fsS", "-o", "/dev/null", "http://127.0.0.1:8080/healthz"]
+      "probe": [
+        "curl",
+        "-fsS",
+        "-o",
+        "/dev/null",
+        "http://127.0.0.1:8080/healthz"
+      ]
     },
     {
       "name": "minio",
       "url": "http://127.0.0.1:9001"
     },
     {
-      "name": "immudb",
-      "url": "http://127.0.0.1:3325"
-    },
-    {
-      "name": "rabbitmq",
-      "url": "http://127.0.0.1:15672"
-    },
-    {
       "name": "windmill",
-      "probe": ["curl", "-fsS", "-o", "/dev/null", "http://127.0.0.1:3030/ready"]
+      "probe": [
+        "curl",
+        "-fsS",
+        "-o",
+        "/dev/null",
+        "http://127.0.0.1:3030/ready"
+      ]
     },
     {
-      "name": "b4",
-      "probe": ["curl", "-fsS", "-o", "/dev/null", "http://127.0.0.1:50051/boards"]
+      "name": "b4v6",
+      "probe": [
+        "curl",
+        "-fsS",
+        "-o",
+        "/dev/null",
+        "http://127.0.0.1:3005/boards"
+      ]
+    },
+    {
+      "name": "configure-localstack",
+      "readyWhen": "exited"
     }
   ]
 }

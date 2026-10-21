@@ -19,6 +19,17 @@ use std::{
     time::Duration,
 };
 
+/// Give an actionable preflight error; the server still verifies the token and permissions.
+pub(super) fn require_gold(token: &str) -> Result<()> {
+    let claims = sequent_core::services::jwt::decode_jwt(token)
+        .context("Cannot read CLI administrator authentication")?;
+    ensure!(
+        sequent_core::services::jwt::has_gold_permission(&claims),
+        "Fresh gold authentication is required to publish and open a load-test election. Run step-cli config with the tenant's api-key-client credentials, then retry."
+    );
+    Ok(())
+}
+
 /// Resolve operator paths against their YAML file, independently of working directory.
 pub fn resolve(path: &Option<PathBuf>, base: &Path) -> Option<PathBuf> {
     path.as_ref().map(|path| {
@@ -160,6 +171,38 @@ fn import_census(
     Ok(())
 }
 
+/// Read current server identities, including external IDs used by Keycloak eligibility.
+fn export_event(
+    settings: &Settings,
+    event_id: &str,
+    output: &Path,
+    api: &impl Provisioning,
+) -> Result<Value> {
+    let export = output.join("export");
+    files::directory(&export)?;
+    api.export_event(
+        event_id,
+        export.to_str().context("Export path must be UTF-8")?,
+    )?;
+    let mut archive = zip::ZipArchive::new(File::open(export.join("election_event_export.zip"))?)?;
+    let names: Vec<_> = archive
+        .file_names()
+        .filter(|name| name.ends_with(".json"))
+        .map(str::to_owned)
+        .collect();
+    ensure!(
+        names.len() == 1,
+        "Expected exactly one exported event configuration"
+    );
+    let imported: Value = serde_json::from_reader(archive.by_name(&names[0])?)?;
+    ensure!(
+        imported["election_event"]["id"] == event_id
+            && imported["election_event"]["tenant_id"] == settings.target.tenant_id,
+        "Export scope mismatch"
+    );
+    Ok(imported)
+}
+
 /// Provision an event or import a fresh range into an explicitly selected existing event.
 pub fn setup(settings_path: &Path, base: &Path, output: &Path, assets: &Path) -> Result<()> {
     setup_with(
@@ -195,12 +238,23 @@ pub(super) fn setup_with(
             prior["tenant_id"] == settings.target.tenant_id,
             "Existing event belongs to another tenant"
         );
-        let event: Event = serde_json::from_value(prior)?;
+        let mut event: Event = serde_json::from_value(prior)?;
+        let imported = export_event(&settings, &event.election_event_id, output, api)?;
+        event.election_external_id = serde_json::from_value(
+            imported["elections"]
+                .as_array()
+                .context("Export has no elections")?
+                .iter()
+                .find(|election| election["id"] == event.election_id)
+                .context("Existing election is absent from the event")?["external_id"]
+                .clone(),
+        )?;
         let input = input::protocol(&settings, event);
         input.validate()?;
         import_census(&input, &output.join("census"), api, environment)?;
         return input.save(&output.join("config.json"));
     }
+    require_gold(&session.auth_token)?;
     let template = resolve(&settings.preparation.template, base)
         .unwrap_or_else(|| assets.join("packages/voting-load/fixtures/election.json"));
     let fixture = fixture_with(files::read(&template)?, &settings, environment)?;
@@ -216,28 +270,7 @@ pub(super) fn setup_with(
         &output.join("setup-state.json"),
         &json!({"election_event_id":event_id}),
     )?;
-    let export = output.join("export");
-    files::directory(&export)?;
-    api.export_event(
-        &event_id,
-        export.to_str().context("Export path must be UTF-8")?,
-    )?;
-    let mut archive = zip::ZipArchive::new(File::open(export.join("election_event_export.zip"))?)?;
-    let names: Vec<_> = archive
-        .file_names()
-        .filter(|name| name.ends_with(".json"))
-        .map(str::to_owned)
-        .collect();
-    ensure!(
-        names.len() == 1,
-        "Expected exactly one exported event configuration"
-    );
-    let imported: Value = serde_json::from_reader(archive.by_name(&names[0])?)?;
-    ensure!(
-        imported["election_event"]["id"] == event_id
-            && imported["election_event"]["tenant_id"] == settings.target.tenant_id,
-        "Export scope mismatch"
-    );
+    let imported = export_event(&settings, &event_id, output, api)?;
     let event = Event {
         election_event_id: event_id.clone(),
         election_id: imported["elections"][0]["id"]
@@ -284,6 +317,7 @@ pub(super) fn setup_with(
             settings.preparation.poll_interval_seconds,
         ));
     }
+    require_gold(&api.session()?.auth_token)?;
     let publication = api.publish(&event_id)?;
     if let Some(writer) = resolve(&settings.preparation.publication_preparer, base) {
         environment.prepare_publication(
@@ -294,6 +328,7 @@ pub(super) fn setup_with(
             &publication,
         )?;
     }
+    require_gold(&api.session()?.auth_token)?;
     api.open_online_voting(&event_id)?;
     files::save(
         &output.join("setup-state.json"),

@@ -29,6 +29,19 @@ class PlanTests(unittest.TestCase):
         self.assertFalse(any(plan["jobs"].values()))
         self.assertFalse(any(plan["ui_jobs"].values()))
 
+    def test_native_protocol_tests_use_optimized_builds(self):
+        for package in ("voting-crypto", "protocol-board", "trustee"):
+            with self.subTest(package=package):
+                plan = self.plan(f"packages/{package}/src/lib.rs")
+                job = next(row for row in plan["rust"] if row["service"] == package)
+                self.assertIn("--release", job["extra"])
+                check = next(
+                    check
+                    for check in self.model.checks
+                    if check.id == f"cargo-test:{package}"
+                )
+                self.assertIn("--release", check.command)
+
     def test_docs_change_does_not_compile_application_code(self):
         plan = self.plan("docs/docusaurus/docs/07-developers/example.md")
         self.assertTrue(plan["jobs"]["docs"])
@@ -77,10 +90,14 @@ class PlanTests(unittest.TestCase):
                     {row["service"] for row in plan["rust"]},
                     {
                         "electoral-log",
+                        "trellis",
+                        "pgmq-broker",
                         "harvest",
-                        "strand",
-                        "immu-board",
-                        "immudb-rs",
+                        "voting-crypto",
+                        "protocol-board",
+                        "trustee",
+                        "messaging",
+                        "messaging-webhooks",
                         "sequent-core",
                         "step-cli",
                         "velvet",
@@ -131,6 +148,25 @@ class PlanTests(unittest.TestCase):
         rust = {row["service"]: row["extra"] for row in plan["rust"]}
         features = rust["sequent-core"].removeprefix("--features ").split(",")
         self.assertIn("monitoring", features)
+
+    def test_trellis_tests_its_upstream_service_and_postgres_consumers(self):
+        plan = self.plan("packages/trellis/src/tree.rs")
+        rust = {row["service"]: row["extra"] for row in plan["rust"]}
+        self.assertEqual(
+            rust["trellis"],
+            "--features upstream-service --lib --example monitor --example post",
+        )
+        self.assertIn("electoral-log", rust)
+        self.assertTrue(plan["jobs"]["run-windmill-tests"])
+
+    def test_pgmq_broker_tests_its_crate_and_the_windmill_transport(self):
+        plan = self.plan("packages/pgmq-broker/src/lib.rs")
+        self.assertIn("pgmq-broker", [row["service"] for row in plan["rust"]])
+        self.assertTrue(plan["jobs"]["run-windmill-tests"])
+
+    def test_step_cli_acceptance_change_runs_its_database_check(self):
+        plan = self.plan("packages/step-cli/src/acceptance/hasura.rs")
+        self.assertTrue(plan["jobs"]["run-windmill-tests"])
 
     def test_step_cli_builder_does_not_check_core_gates(self):
         plan = self.plan("packages/step-cli/src/commands/build_election_event.rs")

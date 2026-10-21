@@ -101,7 +101,7 @@ fn delete_election_event(election_event_id: &str) -> Result<String, Box<dyn std:
                     Err(Box::from(err))
                 } else if let Some(id) = e.id {
                     // The mutation only enqueues the deletion; Hasura/Postgres
-                    // rows, the Keycloak realm, ImmuDB entries, and document
+                    // rows, the Keycloak realm, electoral log, and document
                     // storage are torn down asynchronously by the matching
                     // celery task. Wait for it so the command doesn't report
                     // success before cleanup has actually finished.

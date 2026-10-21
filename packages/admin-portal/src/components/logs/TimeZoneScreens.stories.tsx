@@ -8,6 +8,7 @@
 // Madrid primary with a Canary Islands office and the logs in each
 // election's zone). Expectations come from the configuration.
 import React from "react"
+import {Box} from "@mui/material"
 import type {StoryObj} from "@storybook/react-vite"
 import {expect, fireEvent, userEvent, waitFor, within} from "storybook/test"
 import {RecordContextProvider} from "react-admin"
@@ -170,7 +171,10 @@ function Fixture({configuration}: Scenario) {
             <MyTimeZoneProvider zone={MY_ZONE}>
                 <RecordContextProvider value={record}>
                     <EventTimeZoneProvider event={record}>
-                        <ElectoralLogList />
+                        {/* Wide enough for every column: Created hides below 1,500 px. */}
+                        <Box sx={{width: 1600}}>
+                            <ElectoralLogList />
+                        </Box>
                     </EventTimeZoneProvider>
                 </RecordContextProvider>
             </MyTimeZoneProvider>
@@ -254,21 +258,21 @@ export const TzLogs: Story = {
         await expectLogTimes(canvasElement, "primary")
         expect(canvas.getByLabelText("Created from")).toBeVisible()
         expect(canvas.getByLabelText("to")).toBeVisible()
-        // The explanation of a scheduled outcome change, as readable lines under Show More.
-        const description = within(canvas.getByText("Scheduled close").closest("td")!)
-        await userEvent.click(
-            description.getByRole("button", {
-                name: i18n.t("electionEventScreen.common.showMore"),
-            })
+        // The explanation of a scheduled outcome change, as readable lines in the entry's popup.
+        await userEvent.click(canvas.getByText("Scheduled close"))
+        const entry = within(await within(document.body).findByRole("dialog"))
+        await waitFor(() =>
+            expect(
+                entry.getByText(
+                    i18n.t("logsScreen.scheduledOutcome.changed", {
+                        after: i18n.t("logsScreen.scheduledOutcome.outcome.refused"),
+                        before: i18n.t("logsScreen.scheduledOutcome.outcome.runs"),
+                    })
+                )
+            ).toBeVisible()
         )
-        expect(
-            canvas.getByText(
-                i18n.t("logsScreen.scheduledOutcome.changed", {
-                    after: i18n.t("logsScreen.scheduledOutcome.outcome.refused"),
-                    before: i18n.t("logsScreen.scheduledOutcome.outcome.runs"),
-                })
-            )
-        ).toBeVisible()
+        await userEvent.keyboard("{Escape}")
+        await waitFor(() => expect(within(document.body).queryByRole("dialog")).toBeNull())
 
         // A datetime-local input takes its value whole, as the browser's picker sets it.
         fireEvent.change(canvas.getByLabelText("Created from"), {
@@ -302,7 +306,7 @@ export const TzLogsByElection: Story = {
     },
 }
 
-/** tz-logs-export: range, zone and CSV or PDF; the range is sent as instants in the zone. */
+/** tz-logs-export: range, zone and format; the range is sent as instants in the zone. */
 export const TzLogsExport: Story = {
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
@@ -313,7 +317,6 @@ export const TzLogsExport: Story = {
         await waitFor(() => expect(dialog.getByText("Export logs")).toBeVisible())
         expect(dialog.getByRole("radio", {name: "CSV"})).toBeChecked()
         expect(dialog.getByRole("radio", {name: "PDF"})).not.toBeChecked()
-        expect(dialog.queryByRole("radio", {name: "SQL"})).toBeNull()
         const abbr = zoneLabel(zone, options, new Date())
         expect(dialog.getByText(i18n.t("logsScreen.exportdialog.zoneNote", {abbr}))).toBeVisible()
 
@@ -327,6 +330,10 @@ export const TzLogsExport: Story = {
                     variables: {
                         electionEventId: EVENT_ID,
                         format: "CSV",
+                        scope: "ALL",
+                        electionId: null,
+                        areaId: null,
+                        username: null,
                         createdFrom: zonedToInstant("2028-04-01T00:00", zone).instant,
                         createdTo: zonedToInstant("2028-04-09T23:59", zone).instant,
                         timeZone: zone,

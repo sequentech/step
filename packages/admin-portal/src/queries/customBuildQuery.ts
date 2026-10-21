@@ -1,10 +1,13 @@
-import {Order_By} from "./../../../voting-portal/src/gql/graphql"
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import {
+    ISupportReferenceMatch,
+    SUPPORT_REFERENCE_FILTER,
+    normalizeSupportReference,
+} from "@/resources/Approvals/supportReference"
 import {buildQuery, buildVariables} from "ra-data-hasura"
-import {getPgauditVariables, getPgAudit} from "./ListPgAudit"
 import {
     getElectoralLogVariables,
     getElectoralLog,
@@ -12,7 +15,15 @@ import {
     ELECTORAL_LOG_RANGE_FILTERS,
     ELECTORAL_LOG_ZONE_FILTER,
     ELECTORAL_LOG_DEFAULT_ZONE_FILTER,
+    LIST_TENANT_LOG,
+    TENANT_LOG_CONTEXT,
 } from "./ListElectoralLog"
+import {
+    ELogScope,
+    LOG_FILTER_EVENT_TYPE,
+    LOG_FILTER_LOG_TYPE,
+    LOG_SCOPE_META,
+} from "@/components/logs/logScope"
 import {LIST_USERS, customBuildGetUsersVariables} from "./GetUsers"
 import {getPermissions} from "./GetPermissions"
 import {getRoles} from "./GetRoles"
@@ -20,6 +31,7 @@ import {isString} from "lodash"
 import {COLUMNS_MAP} from "@/types/query"
 import {GetCastVotesByIp} from "./GetCastVotesByIp"
 import {GET_ELECTIONS_BY_EXTERNAL_ID} from "./GetElectionsByExternalID"
+import {LOG_FILTER_CHANNEL, LOG_FILTER_OUTCOME} from "@/components/logs/messagingLogFilters"
 
 export interface ParamsSort {
     field: string
@@ -98,35 +110,21 @@ export const customBuildQuery =
             }
         }
 
-        if (resourceName.startsWith("pgaudit") && raFetchType === "GET_LIST") {
-            const resource: any = {
-                type: {
-                    fields: [],
-                    name: resourceName,
-                },
-            }
-            return {
-                query: getPgAudit(params, resourceName),
-                variables: getPgauditVariables(
-                    buildVariables(introspectionResults)(resource, raFetchType, params, null)
-                ),
-                parseResponse: (res: any) => {
-                    const response = res.data.listPgaudit
-                    let output = {
-                        data: response.items,
-                        total: response.total.aggregate.count,
-                    }
-                    return output
-                },
-            }
-        } else if (resourceName === "electoral_log" && raFetchType === "GET_LIST") {
+        if (resourceName === "electoral_log" && raFetchType === "GET_LIST") {
+            const tenantLog = params.meta?.[LOG_SCOPE_META] === ELogScope.TENANT
             let validFilters = [
-                "election_event_id",
+                // The tenant log has no election event.
+                ...(tenantLog ? [] : ["election_event_id"]),
                 "user_id",
                 "username",
                 "created",
                 "statement_timestamp",
                 "statement_kind",
+                LOG_FILTER_EVENT_TYPE,
+                LOG_FILTER_LOG_TYPE,
+                // Messages a SendCommunications entry records (the Messaging tab's Failed links).
+                LOG_FILTER_CHANNEL,
+                LOG_FILTER_OUTCOME,
                 ...ELECTORAL_LOG_RANGE_FILTERS,
                 ELECTORAL_LOG_ZONE_FILTER,
                 ELECTORAL_LOG_DEFAULT_ZONE_FILTER,
@@ -144,7 +142,8 @@ export const customBuildQuery =
                 },
             }
             return {
-                query: getElectoralLog(params),
+                query: tenantLog ? LIST_TENANT_LOG : getElectoralLog(params),
+                ...(tenantLog ? {context: TENANT_LOG_CONTEXT} : {}),
                 variables: getElectoralLogVariables(
                     buildVariables(introspectionResults)(resource, raFetchType, params, null)
                 ),
@@ -364,7 +363,13 @@ export const customBuildQuery =
         } else if (resourceName === "sequent_backend_applications" && raFetchType === "GET_LIST") {
             // `q` is the queue's search box: the name, email or ID number the
             // applicant gave, anywhere in the applicant data.
-            const {q: search, ...columnFilters} = params.filter ?? {}
+            // A search that reads as a support reference also matches the
+            // applications whose reference it is, resolved by the queue.
+            const {
+                q: search,
+                [SUPPORT_REFERENCE_FILTER]: referenceMatch,
+                ...columnFilters
+            } = params.filter ?? {}
             let ret = buildQuery(introspectionResults)(raFetchType, resourceName, {
                 ...params,
                 filter: columnFilters,
@@ -405,9 +410,14 @@ export const customBuildQuery =
             })
 
             if (typeof search === "string" && search.trim()) {
-                transformedParams.push({
-                    applicant_data: {_cast: {String: {_ilike: `%${search.trim()}%`}}},
-                })
+                const text = {applicant_data: {_cast: {String: {_ilike: `%${search.trim()}%`}}}}
+                const match = referenceMatch as ISupportReferenceMatch | undefined
+                const reference = normalizeSupportReference(search)
+                transformedParams.push(
+                    reference && match?.reference === reference
+                        ? {_or: [text, {id: {_in: match.ids}}]}
+                        : text
+                )
             }
 
             ret.variables.where = transformedRawParams
@@ -439,6 +449,24 @@ export const customBuildQuery =
                     }
                 },
             }
+        } else if (
+            resourceName === "sequent_backend_tally_session_execution" &&
+            raFetchType === "GET_LIST" &&
+            params?.meta?.latestPerTallySession
+        ) {
+            params.filter = {
+                ...params.filter,
+                distinct_on: ["tally_session_id"],
+            }
+            const ret = buildQuery(introspectionResults)(raFetchType, resourceName, params)
+            if (ret?.variables?.order_by) {
+                ret.variables.order_by = [
+                    {tally_session_id: "asc"},
+                    {created_at: "desc_nulls_last"},
+                    {id: "desc"},
+                ]
+            }
+            return ret
         } else if (resourceName === "sequent_backend_tally_sheet" && raFetchType === "GET_LIST") {
             applyJsonbTextSearchFilter(params.filter, "labels")
             applyJsonbTextSearchFilter(params.filter, "annotations")

@@ -46,6 +46,11 @@ CRUD endpoints for:
 - tally-resolution-submit
 - publish-read|write
 - logs-read
+- tenant-logs-read|export (the tenant log in Settings > Logs)
+- electoral-log-audit
+- electoral-log-console-read|query
+- electoral-log-personal-data-read
+- task-queues-read|write|query (super-admin tenant only)
 - keys-read
 - contest-create|read|write|delete
 - candidate-create|read|write|delete
@@ -55,6 +60,7 @@ CRUD endpoints for:
 - election-event-voter-list-reconciliation
 - monitoring-view|configure
 - approval-matrix-write
+- readiness-check (compare tested and official events and sign successful readiness evidence)
 - signing-rules-read|write
 - signing-certificates-read|register|revoke
 - signing-issuers-write

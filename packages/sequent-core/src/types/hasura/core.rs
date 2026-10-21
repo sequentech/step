@@ -10,20 +10,26 @@ use std::str::FromStr;
 
 use crate::{
     ballot::{
-        ConsolidatedReportPolicy, ContestEncryptionPolicy,
-        DecodedBallotsInclusionPolicy, DelegatedVotingPolicy,
-        ElectionEventMaterials, SupportMaterialsPolicy, WeightedVotingPolicy,
+        BatchAnonymityPolicy, ConsolidatedReportPolicy,
+        ContestEncryptionPolicy, DecodedBallotsInclusionPolicy,
+        DelegatedVotingPolicy, ElectionEventMaterials, SupportMaterialsPolicy,
+        WeightedVotingPolicy,
     },
     serialization::deserialize_with_path::deserialize_value,
     types::{
         ceremonies::{
             AutomaticRecountPolicy, CeremoniesPolicy,
-            KeysCeremonyExecutionStatus, KeysCeremonyStatus, TallyRunReason,
+            KeysCeremonyExecutionStatus, KeysCeremonySettings,
+            KeysCeremonyStatus, TallyRunReason,
         },
         participation::VotesByChannel,
         tally_sheets::{AreaContestResults, TallySheetStatus},
     },
 };
+
+// Defined in an ungated module so that the protocol-board crate, which builds
+// without `default_features`, reads the same rows.
+pub use crate::types::protocol_board::ProtocolBoard;
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct Preview {
@@ -518,15 +524,17 @@ impl KeysCeremony {
             .map_err(|err| anyhow!("{:?}", err))
     }
 
+    /// The ceremony's settings document. Settings that cannot be read fall
+    /// back to the defaults.
+    pub fn settings(&self) -> KeysCeremonySettings {
+        self.settings
+            .clone()
+            .and_then(|value| deserialize_value(value).ok())
+            .unwrap_or_default()
+    }
+
     pub fn policy(&self) -> CeremoniesPolicy {
-        let settings = self.settings.as_ref().unwrap_or(&Value::Null);
-        settings
-            .get("policy")
-            .and_then(|value: &Value| value.as_str())
-            .map(|s| s.to_string())
-            .unwrap_or_else(|| CeremoniesPolicy::MANUAL_CEREMONIES.to_string())
-            .parse::<CeremoniesPolicy>()
-            .unwrap_or(CeremoniesPolicy::MANUAL_CEREMONIES)
+        self.settings().policy
     }
 }
 
@@ -538,6 +546,7 @@ pub struct TallySessionConfiguration {
     pub delegated_voting_policy: Option<DelegatedVotingPolicy>,
     pub consolidated_report_policy: Option<ConsolidatedReportPolicy>,
     pub weighted_voting_policy: Option<WeightedVotingPolicy>,
+    pub batch_anonymity_policy: Option<BatchAnonymityPolicy>,
 }
 
 impl TallySessionConfiguration {
@@ -557,6 +566,9 @@ impl TallySessionConfiguration {
     }
     pub fn get_consolidated_report_policy(&self) -> ConsolidatedReportPolicy {
         self.consolidated_report_policy.clone().unwrap_or_default()
+    }
+    pub fn get_batch_anonymity_policy(&self) -> BatchAnonymityPolicy {
+        self.batch_anonymity_policy.clone().unwrap_or_default()
     }
 }
 
@@ -668,7 +680,12 @@ pub struct TasksExecution {
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct Trustee {
     pub id: String,
+    /// Ed25519 verifying key the trustee signs board messages with, base64 of
+    /// the raw 32 key bytes.
     pub public_key: Option<String>,
+    /// ElGamal public key the other trustees encrypt this trustee's DKG shares
+    /// to, base64 of the canonical group element bytes.
+    pub share_encryption_public_key: Option<String>,
     pub name: Option<String>,
     pub created_at: Option<DateTime<Local>>,
     pub last_updated_at: Option<DateTime<Local>>,
@@ -689,6 +706,36 @@ pub struct Tenant {
     pub voting_channels: Option<Value>,
     pub settings: Option<Value>,
     pub test: Option<i32>,
+}
+
+#[cfg(test)]
+mod tally_session_configuration_tests {
+    use super::*;
+    use crate::ballot::BatchAnonymityPolicy;
+
+    #[test]
+    fn batch_anonymity_policy_defaults_to_warn_for_sessions_without_it() {
+        let configuration: TallySessionConfiguration =
+            serde_json::from_value(serde_json::json!({
+                "contest_encryption_policy": "single-contest"
+            }))
+            .unwrap();
+        assert_eq!(configuration.batch_anonymity_policy, None);
+        assert_eq!(
+            configuration.get_batch_anonymity_policy(),
+            BatchAnonymityPolicy::WARN
+        );
+
+        let configuration: TallySessionConfiguration =
+            serde_json::from_value(serde_json::json!({
+                "batch_anonymity_policy": "refuse"
+            }))
+            .unwrap();
+        assert_eq!(
+            configuration.get_batch_anonymity_policy(),
+            BatchAnonymityPolicy::REFUSE
+        );
+    }
 }
 
 #[cfg(test)]

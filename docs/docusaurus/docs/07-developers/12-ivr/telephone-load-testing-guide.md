@@ -120,7 +120,7 @@ Looking up each one's `api-key-client` secret needs
 `keycloak_admin_user`/`keycloak_admin_password`, same as `new_tenants > 0`.
 
 The keys ceremony defaults to `setup.ceremony_policy: AUTOMATIC`: each
-trustee's `braid` service still does its DKG round the same way, but nothing
+trustee's native wbraid runner still does its DKG round, but nothing
 needs to log in as `trustee1`/`trustee2` to confirm it — the ceremony's
 status flips to done on its own once every trustee's public key is on the
 board, matching the Admin Portal's "automatic ceremony" option. Set it to
@@ -278,7 +278,7 @@ whether that tenant was created fresh or reused via
 
 `delete-election-event` calls the `delete_election_event` GraphQL mutation,
 which queues an async task tearing down the election event's Postgres/Hasura
-rows, its Keycloak realm, and its ImmuDB and document-store data — the
+rows, its Keycloak realm, and its electoral log and document-store data — the
 command blocks and polls until that task finishes (or fails/times out after
 5 minutes), so a `Success!` means cleanup is actually done, not just queued.
 

@@ -1,5 +1,56 @@
 type Query {
+    tenant_plugins: PluginsRouteOutput!
+    trustee_event_updates: jsonb!
+}
+
+type Mutation {
+    set_tenant_plugin_state(
+        plugin_id: String!
+        state: String!
+        expected_version: Int!
+    ): PluginsRouteOutput!
+    execute_plugin_operation(
+        plugin_id: String!
+        operation: String!
+        data: jsonb!
+    ): PluginsRouteOutput!
+    request_server_custody(object: jsonb!): jsonb!
+    submit_trustee_action_result(result: jsonb!): TrusteeReportOutput!
+}
+
+type Query {
+    list_trustee_boards: TrusteeBoardsOutput!
+}
+
+type Mutation {
+    report_trustee_board(report: jsonb!): TrusteeReportOutput!
+}
+
+type TrusteeBoard {
+    name: String!
+    kind: String!
+    parent: String
+}
+
+type TrusteeBoardsOutput {
+    boards: [TrusteeBoard!]!
+}
+
+type TrusteeReportOutput {
+    accepted: Boolean!
+}
+
+type Query {
     get_ballot_files_urls(election_event_id: String!): jsonb!
+}
+
+type Query {
+    get_voter_cast_votes(
+        election_event_id: String!
+        election_id: String
+        ballot_id: String
+        ballot_id_prefix: String
+    ): [VoterCastVote!]!
 }
 
 type Mutation {
@@ -13,11 +64,88 @@ type Mutation {
 }
 
 type Mutation {
+    audit_electoral_log(election_event_id: String!): taskOutput!
+}
+
+type Mutation {
+    readiness_check(
+        official_event_id: String!
+        tested_event_id: String!
+    ): jsonb!
+}
+
+type Query {
+    electoral_log_console_page(
+        tenant_id: String
+        election_event_id: String!
+        table: String!
+        filters: jsonb
+        order: String
+        after: String
+        limit: Int
+    ): jsonb!
+}
+
+type Query {
+    electoral_log_console_record(
+        tenant_id: String
+        election_event_id: String!
+        position: Int!
+    ): jsonb!
+}
+
+type Query {
+    electoral_log_console_query(
+        tenant_id: String!
+        election_event_id: String!
+        sql: String!
+    ): jsonb!
+}
+
+type Query {
+    electoral_log_console_tenants: jsonb!
+}
+
+type Query {
+    task_queues_overview: jsonb!
+}
+
+type Query {
+    task_queues_throughput(
+        queue: String!
+        hours: Int
+        bucket_minutes: Int
+    ): jsonb!
+}
+
+type Query {
+    task_queues_messages(
+        queue: String!
+        state: String!
+        before: String
+        limit: Int
+    ): jsonb!
+}
+
+type Query {
+    task_queues_query(sql: String!): jsonb!
+}
+
+type Mutation {
+    task_queues_dead_letters(
+        operation: String!
+        message_ids: [String!]!
+    ): jsonb!
+}
+
+type Mutation {
     call_plugin_route(path: String!, data: jsonb!): PluginsRouteOutput!
 }
 
 type Mutation {
-    check_private_key(object: CheckPrivateKeyInput!): CheckPrivateKeyOutput
+    confirm_key_custody(
+        object: ConfirmKeyCustodyInput!
+    ): ConfirmKeyCustodyOutput
 }
 
 type Query {
@@ -25,9 +153,9 @@ type Query {
 }
 
 type Query {
-    key_share_signature_status(
-        object: KeyShareSignatureStatusInput!
-    ): KeyShareSignatureStatusOutput
+    custody_proof_signature_status(
+        object: CustodyProofSignatureStatusInput!
+    ): CustodyProofSignatureStatusOutput
 }
 
 type Query {
@@ -138,6 +266,16 @@ type Mutation {
         tally_session_id: uuid!
         force: Boolean!
     ): createTransmissionPackageOutput
+}
+
+type Mutation {
+    record_transmission_download(
+        election_event_id: uuid!
+        election_id: uuid!
+        area_id: uuid!
+        tally_session_id: uuid!
+        document_id: uuid!
+    ): RecordTransmissionDownloadOutput
 }
 
 type Mutation {
@@ -312,6 +450,21 @@ type Mutation {
     export_election_event_logs(
         election_event_id: uuid!
         format: String!
+        created_from: String
+        created_to: String
+        time_zone: String
+        scope: String
+        election_id: String
+        area_id: String
+        username: String
+    ): ExportLogsOutput
+}
+
+type Mutation {
+    export_tenant_logs(
+        format: String!
+        scope: String!
+        username: String
         created_from: String
         created_to: String
         time_zone: String
@@ -493,7 +646,9 @@ type Query {
 }
 
 type Mutation {
-    get_private_key(object: GetPrivateKeyInput!): GetPrivateKeyOutput
+    get_custody_request(
+        object: GetCustodyRequestInput!
+    ): GetCustodyRequestOutput
 }
 
 type Query {
@@ -657,17 +812,9 @@ type Query {
         election_event_id: String
         filter: ElectoralLogFilter
         order_by: ElectoralLogOrderBy
+        election_id: String
+        area_ids: [String!]
     ): DataListElectoralLog
-}
-
-type Query {
-    listPgaudit(
-        limit: Int
-        offset: Int
-        filter: PgAuditFilter
-        order_by: PgAuditOrderBy
-        audit_table: PgAuditTable
-    ): DataListPgAudit
 }
 
 type Query {
@@ -700,15 +847,6 @@ type Query {
         election_id: uuid!
         ballot_id: String!
     ): LocateBallotOutput
-}
-
-type Query {
-    logEvent(
-        election_event_id: uuid!
-        message_type: String!
-        user_id: String
-        body: String!
-    ): LogEventOutput
 }
 
 type Mutation {
@@ -746,9 +884,9 @@ type Mutation {
 }
 
 type Mutation {
-    restore_private_key(
-        object: RestorePrivateKeyInput!
-    ): RestorePrivateKeyOutput
+    authorize_tally_custody(
+        object: AuthorizeTallyCustodyInput!
+    ): AuthorizeTallyCustodyOutput
 }
 
 type Mutation {
@@ -767,6 +905,12 @@ type Mutation {
         election_id: String!
         key: String!
     ): SetCustomUrlsOutput
+}
+
+type Mutation {
+    set_google_service_account_key(
+        service_account_key: jsonb!
+    ): SetGoogleServiceAccountKeyOutput
 }
 
 type Mutation {
@@ -929,11 +1073,6 @@ enum OrderDirection {
     desc
 }
 
-enum PgAuditTable {
-    pgaudit_hasura
-    pgaudit_keycloak
-}
-
 enum VotingStatus {
     NOT_STARTED
     OPEN
@@ -948,32 +1087,15 @@ enum VotingStatusChannel {
     TELEPHONE
 }
 
+enum RestorePrivateKeyOutcome {
+    ALREADY_RESTORED
+    INVALID
+    RESTORED
+}
+
 input TemplateInput {
     template: String!
     format: String!
-}
-
-input PgAuditFilter {
-    id: String
-    audit_type: String
-    class: String
-    command: String
-    dbname: String
-    session_id: String
-    statement: String
-    user: String
-}
-
-input PgAuditOrderBy {
-    id: OrderDirection
-    audit_type: OrderDirection
-    class: OrderDirection
-    command: OrderDirection
-    dbname: OrderDirection
-    server_timestamp: OrderDirection
-    session_id: OrderDirection
-    statement: OrderDirection
-    user: OrderDirection
 }
 
 input ElectoralLogFilter {
@@ -987,6 +1109,10 @@ input ElectoralLogFilter {
     created_to: String
     statement_timestamp_from: String
     statement_timestamp_to: String
+    channel: String
+    outcome: String
+    event_type: String
+    log_type: String
 }
 
 input ElectoralLogOrderBy {
@@ -1075,16 +1201,17 @@ input ElectionStatsInput {
     bucket_count: Int
 }
 
-input GetPrivateKeyInput {
+input GetCustodyRequestInput {
     election_event_id: String!
     keys_ceremony_id: String!
+    tally_session_id: String
 }
 
-input CheckPrivateKeyInput {
+input ConfirmKeyCustodyInput {
     election_event_id: String!
     keys_ceremony_id: String!
-    private_key_base64: String!
-    key_share_sha256: String
+    custody_proof_json: String!
+    custody_proof_sha256: String
     signing_request_id: uuid
 }
 
@@ -1175,17 +1302,17 @@ input KeycloakRole2 {
     client_roles: jsonb
 }
 
-input KeyShareSignatureStatusInput {
+input CustodyProofSignatureStatusInput {
     election_event_id: String!
     keys_ceremony_id: String
     tally_session_id: String
 }
 
-input RestorePrivateKeyInput {
+input AuthorizeTallyCustodyInput {
     election_event_id: String!
-    private_key_base64: String!
+    custody_proof_json: String!
     tally_session_id: String!
-    key_share_sha256: String
+    custody_proof_sha256: String
     signing_request_id: uuid
 }
 
@@ -1289,8 +1416,8 @@ type CreateKeysCeremonyOutput {
     error_message: String
 }
 
-type GetPrivateKeyOutput {
-    private_key_base64: String!
+type GetCustodyRequestOutput {
+    custody_request_json: String!
 }
 
 type CastVotesPerDay {
@@ -1321,7 +1448,7 @@ type ElectionStatsOutput {
     votes_per_day: [CastVotesPerDay]!
 }
 
-type CheckPrivateKeyOutput {
+type ConfirmKeyCustodyOutput {
     is_valid: Boolean!
     signing_request: SigningRequestSummary
 }
@@ -1353,25 +1480,8 @@ type ScheduledEventOutput {
     created_by: String
 }
 
-type PgAuditRow {
-    id: Int!
-    audit_type: String!
-    class: String!
-    command: String!
-    dbname: String!
-    server_timestamp: Int!
-    session_id: String!
-    statement: String!
-    user: String!
-}
-
 type Aggregate {
     count: Int!
-}
-
-type DataListPgAudit {
-    items: [PgAuditRow]!
-    total: TotalAggregate!
 }
 
 type TotalAggregate {
@@ -1387,12 +1497,22 @@ type ElectoralLogRow {
     user_id: String!
 }
 
+type VoterCastVote {
+    id: String!
+    tenant_id: String!
+    election_event_id: String!
+    election_id: String
+    area_id: String
+    ballot_id: String
+    status: String!
+    created_at: String
+    content: String
+}
+
 type CastVoteEntry {
     statement_timestamp: Int!
     statement_kind: String!
     ballot_id: String!
-    username: String
-    message: String
 }
 
 type ListCastVoteMessagesOutput {
@@ -1583,12 +1703,12 @@ type GetBallotPublicationChangesOutput {
     previous: BallotPublicationStyles
 }
 
-type KeyShareSignatureStatusOutput {
+type CustodyProofSignatureStatusOutput {
     signature_needed: Boolean!
     signed: Boolean!
 }
 
-type RestorePrivateKeyOutput {
+type AuthorizeTallyCustodyOutput {
     is_valid: Boolean!
     signing_request: SigningRequestSummary
 }
@@ -1603,7 +1723,7 @@ type InsertCastVoteOutput {
     labels: jsonb
     annotations: jsonb
     content: String
-    cast_ballot_signature: bytea!
+    cast_ballot_signature: bytea
     voter_id_string: String
     election_event_id: uuid!
     ballot_id: String
@@ -1807,10 +1927,6 @@ type documentTaskOutput {
     document_id: String!
 }
 
-type LogEventOutput {
-    electionEventId: String
-}
-
 type SetCustomUrlOutput {
     url: String!
 }
@@ -1840,6 +1956,11 @@ type ExportTasksExecutionOutput {
 type createTransmissionPackageOutput {
     error_msg: String
     task_execution: tasks_execution_type
+}
+
+type RecordTransmissionDownloadOutput {
+    file_name: String!
+    sha256: String!
 }
 
 type GetEventListOutput {
@@ -2041,6 +2162,10 @@ type ExportTallyResultsOutput {
 
 type GenerateGoogleMeetOutput {
     meet_link: String
+}
+
+type SetGoogleServiceAccountKeyOutput {
+    client_email: String!
 }
 
 type GeneratePreviewUrlOutput {
@@ -2862,8 +2987,8 @@ type Mutation {
         sender: jsonb!
         limits: jsonb
         provider_approval: String
-        readiness: String
         is_default: Boolean
+        credentials: jsonb
     ): MessagingAccountOutput
 }
 
@@ -2876,7 +3001,76 @@ type Mutation {
         id: uuid!
         credentials: jsonb!
         generate_verify_token: Boolean
+        generate_report_credentials: Boolean
     ): ReplaceMessagingAccountCredentialsOutput
+}
+
+type Query {
+    messaging_account_callback_url(
+        account_id: uuid!
+    ): MessagingAccountCallbackUrlOutput
+}
+
+type Query {
+    messaging_account_change_impact(
+        account_id: uuid!
+        page_id: String
+    ): MessagingAccountChangeImpactOutput
+}
+
+type Query {
+    messaging_event_stats(election_event_id: uuid!): MessagingEventStatsOutput
+}
+
+type Query {
+    messaging_voter_counts(election_event_id: uuid!): MessagingVoterCountsOutput
+}
+
+type Mutation {
+    messaging_recount_voters(
+        election_event_id: uuid!
+    ): MessagingRecountVotersOutput
+}
+
+type Query {
+    messaging_audience_preview(
+        election_event_id: uuid!
+        audience_selection: String
+        voter_ids: [String!]
+    ): MessagingAudiencePreviewOutput
+}
+
+type Query {
+    messaging_monthly_volumes(
+        month: String!
+        election_event_id: uuid
+    ): MessagingMonthlyVolumesOutput
+}
+
+type Query {
+    find_applications_by_support_reference(
+        election_event_id: uuid!
+        reference: String!
+        permission_label: String
+    ): FindApplicationsBySupportReferenceOutput
+}
+
+type Query {
+    messaging_callback_status: MessagingCallbackStatusOutput
+}
+
+type Query {
+    messaging_fake_provider_messages: MessagingFakeProviderMessagesOutput
+}
+
+type Query {
+    messaging_fake_provider_message(id: String!): MessagingFakeProviderMessage
+}
+
+type Mutation {
+    messaging_fake_provider_get_started(
+        link: String!
+    ): MessagingFakeProviderGetStartedOutput
 }
 
 type Mutation {
@@ -2902,15 +3096,159 @@ type Mutation {
 
 type MessagingAccountOutput {
     id: uuid!
+    callback_url: String
+    callback_reason: String
 }
 
 type ReplaceMessagingAccountCredentialsOutput {
     replaced: [String!]!
     verify_token: String
+    report_username: String
+    report_password: String
 }
 
 type CheckMessagingAccountOutput {
     status: jsonb!
+    callback_url: String
+    callback_reason: String
+}
+
+type MessagingAccountCallbackUrlOutput {
+    callback_url: String
+    reason: String
+}
+
+type MessagingAccountChangeImpactOutput {
+    affected_voters: Int!
+    events: Int!
+}
+
+type MessagingCallbackStatusOutput {
+    accounts: [MessagingAccountCallbackStatus!]!
+}
+
+type MessagingFakeProviderMessagesOutput {
+    messages: [MessagingFakeProviderMessage!]!
+}
+
+type MessagingFakeProviderMessage {
+    id: String!
+    provider_message_id: String!
+    received_at: String!
+    channel: String!
+    provider: String!
+    sender: String!
+    recipient: String!
+    content: MessagingFakeProviderContent!
+    report: MessagingFakeProviderReport!
+}
+
+type MessagingFakeProviderContent {
+    text: String
+    subject: String
+    html: String
+    has_html: Boolean!
+    truncated: Boolean!
+    template_name: String
+    template_language: String
+    parameters: [MessagingFakeProviderParameter!]!
+    code: String
+}
+
+type MessagingFakeProviderParameter {
+    name: String
+    value: String!
+}
+
+type MessagingFakeProviderReport {
+    state: String!
+    status: Int
+    reason: String
+}
+
+type MessagingFakeProviderGetStartedOutput {
+    status: Int
+    reason: String
+}
+
+type MessagingAccountCallbackStatus {
+    account_id: uuid!
+    blockers: [String!]!
+    reasons: [String!]!
+}
+
+type MessagingEventStatsOutput {
+    channels: [MessagingChannelStats!]!
+}
+
+type MessagingChannelStats {
+    channel: String
+    sent_last_24h: Int!
+    queued: Int!
+    accepted: Int!
+    delivered: Int!
+    failed: Int!
+    unknown: Int!
+    unresolved: Int!
+}
+
+type MessagingAudiencePreviewOutput {
+    total: Int!
+    will_send: Int!
+    channels: [MessagingAudienceChannel!]!
+    status: MessagingVoterCountStatus!
+}
+
+type MessagingVoterCountStatus {
+    computed_at: String
+    pending: Boolean!
+    outcome: String
+}
+
+type MessagingVoterCountsOutput {
+    total: Int!
+    channels: [MessagingVoterChannel!]!
+    status: MessagingVoterCountStatus!
+}
+
+type MessagingVoterChannel {
+    channel: String
+    voters: Int!
+    not_offered: Int!
+}
+
+type MessagingRecountVotersOutput {
+    requested: Boolean!
+    status: MessagingVoterCountStatus!
+}
+
+type MessagingAudienceChannel {
+    channel: String
+    voters: Int!
+    not_offered: Int!
+    sends_from: String
+    account_id: uuid
+    account_name: String
+}
+
+type MessagingMonthlyVolumesOutput {
+    month: String!
+    rows: [MessagingMonthlyVolume!]!
+}
+
+type MessagingMonthlyVolume {
+    channel: String!
+    account_id: uuid
+    account_name: String
+    destination_country: String
+    billing_category: String
+    billable: Boolean
+    messages: Int!
+}
+
+type FindApplicationsBySupportReferenceOutput {
+    reference: String!
+    application_ids: [uuid!]!
 }
 
 type TestMessagingAccountOutput {

@@ -27,11 +27,16 @@ import {
     EVoterCertificatePolicy,
     IVotingChannelsConfig,
 } from "@sequentech/ui-core"
-import {Box, CircularProgress} from "@mui/material"
+import {Alert, Box, CircularProgress} from "@mui/material"
 import {Tabs} from "@/components/Tabs"
 import {useNavigate, useLocation} from "react-router-dom"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {monitoringLock} from "@/components/monitoring/useMonitoringPermissions"
+import {LOGS_TAB_ID} from "@/components/logs/messagingLogFilters"
+import {showMessagingTab} from "./messagingTabAccess"
+import {LockdownBanner} from "./LockdownBanner"
+import {ElectionEventDataTab} from "./ElectionEventDataTab"
+import {EEventDataMode, useElectionEventDataMode} from "./useElectionEventDataMode"
 
 // ---------------------------------------------------------------------
 // Lazy load all tab contents
@@ -41,9 +46,6 @@ const MonitoringDashboardTab = lazy(() =>
     import("@/components/monitoring/MonitoringDashboardTab").then((m) => ({
         default: m.MonitoringDashboardTab,
     }))
-)
-const EditElectionEventData = lazy(() =>
-    import("./EditElectionEventData").then((m) => ({default: m.EditElectionEventData}))
 )
 const EditElectionEventTextData = lazy(() =>
     import("./EditElectionEventTextData").then((m) => ({default: m.default}))
@@ -131,12 +133,6 @@ const DashboardTab: React.FC<ITabProps> = ({refreshRef, handleChildMount}) => {
         </Suspense>
     )
 }
-
-const DataTab: React.FC = () => (
-    <Suspense fallback={<div>Loading Data...</div>}>
-        <EditElectionEventData />
-    </Suspense>
-)
 
 const LocalizationTab: React.FC = () => (
     <Suspense fallback={<div>Loading Localization...</div>}>
@@ -271,6 +267,7 @@ const ApprovalsTab: React.FC<{showList: string | undefined}> = ({showList}) => {
 export const ElectionEventTabs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     const authContext = useContext(AuthContext)
+    const dataMode = useElectionEventDataMode(record)
     const {t} = useTranslation()
     const location = useLocation()
     const navigate = useNavigate()
@@ -337,9 +334,7 @@ export const ElectionEventTabs: React.FC = () => {
         authContext.tenantId,
         IPermissions.ADMIN_DASHBOARD_VIEW
     )
-    const showData =
-        !isElectionEventLocked &&
-        authContext.isAuthorized(true, authContext.tenantId, IPermissions.ELECTION_EVENT_DATA_TAB)
+    const showData = dataMode === EEventDataMode.EDIT || dataMode === EEventDataMode.LOCKED_DOWN
     const showTextData =
         !isElectionEventLocked &&
         authContext.isAuthorized(true, authContext.tenantId, IPermissions.ELECTION_EVENT_DATA_TAB)
@@ -348,12 +343,11 @@ export const ElectionEventTabs: React.FC = () => {
         authContext.tenantId,
         IPermissions.ELECTION_EVENT_VOTERS_TAB
     )
-    const showMessaging =
-        !isElectionEventLocked &&
-        authContext.isAuthorized(true, authContext.tenantId, [
-            IPermissions.MESSAGING_CONFIG_WRITE,
-            IPermissions.MESSAGING_ACCOUNT_READ,
-        ])
+    // The tab reads with messaging-config-read; with write only, it says so.
+    const showMessaging = showMessagingTab(
+        (permissions) => authContext.isAuthorized(true, authContext.tenantId, permissions),
+        isElectionEventLocked
+    )
     const showAreas =
         !isElectionEventLocked &&
         authContext.isAuthorized(true, authContext.tenantId, IPermissions.ELECTION_EVENT_AREAS_TAB)
@@ -452,7 +446,11 @@ export const ElectionEventTabs: React.FC = () => {
 
         // Data
         if (showData) {
-            result.push({label: t("electionEventScreen.tabs.data"), component: DataTab})
+            result.push({
+                id: "data",
+                label: t("electionEventScreen.tabs.data"),
+                component: ElectionEventDataTab,
+            })
         }
 
         // IVR
@@ -551,7 +549,11 @@ export const ElectionEventTabs: React.FC = () => {
 
         // Logs
         if (showLogs) {
-            result.push({label: t("electionEventScreen.tabs.logs"), component: LogsTab})
+            result.push({
+                id: LOGS_TAB_ID,
+                label: t("electionEventScreen.tabs.logs"),
+                component: LogsTab,
+            })
         }
 
         // Events
@@ -610,6 +612,21 @@ export const ElectionEventTabs: React.FC = () => {
     ])
 
     const tallySheetImportsTabIndex = tabs.findIndex((tab) => tab.id === "tally-sheet-imports")
+    const dataTabIndex = tabs.findIndex((tab) => tab.id === "data")
+    useEffect(() => {
+        if (new URLSearchParams(location.search).get("tabId") === "data" && dataTabIndex >= 0) {
+            setSelectedTab(dataTabIndex)
+        }
+    }, [location.search, dataTabIndex])
+    const logsTabIndex = tabs.findIndex((tab) => tab.id === LOGS_TAB_ID)
+
+    // The Messaging tab's Failed counts open Logs with `tabId=logs` and a filter.
+    useEffect(() => {
+        const tabId = new URLSearchParams(location.search).get("tabId")
+        if (tabId === LOGS_TAB_ID && logsTabIndex >= 0) {
+            setSelectedTab(logsTabIndex)
+        }
+    }, [location.search, logsTabIndex])
     const publishTabIndex = tabs.findIndex((tab) => tab.id === "publish")
 
     // Publish's re-authentication returns with `tabId=publish`: tab positions depend on permissions.
@@ -655,15 +672,22 @@ export const ElectionEventTabs: React.FC = () => {
                 title={aliasRenderer(record)}
                 subtitle="electionEventScreen.common.subtitle"
             />
+            {isElectionEventLocked && <LockdownBanner event={record} />}
             <Box sx={{bgcolor: "background.paper"}}>
                 <RecordContextProvider value={record}>
                     {/* The event's screens show their times in its zones. */}
                     <EventTimeZoneProvider event={record}>
-                        <Tabs
-                            elements={tabs}
-                            selectedTab={selectedTab}
-                            onSelectedTabChange={setSelectedTab}
-                        />
+                        {tabs.length ? (
+                            <Tabs
+                                elements={tabs}
+                                selectedTab={selectedTab}
+                                onSelectedTabChange={setSelectedTab}
+                            />
+                        ) : (
+                            <Alert severity="info" sx={{m: 2}}>
+                                {t("electionEventScreen.noAccessibleTabs")}
+                            </Alert>
+                        )}
                     </EventTimeZoneProvider>
                 </RecordContextProvider>
             </Box>

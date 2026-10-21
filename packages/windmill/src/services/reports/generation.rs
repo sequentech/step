@@ -11,7 +11,7 @@ use super::report_variables::EXECUTION_ANNOTATIONS;
 use crate::postgres::reports::ReportType;
 use crate::services::documents::upload_and_return_document;
 use crate::services::electoral_log::{ElectoralLog, ElectoralLogAdminContext};
-use crate::services::protocol_manager::get_event_board;
+use crate::services::electoral_log_board::get_event_board;
 use crate::services::serialize_tasks_logs::append_general_log;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;

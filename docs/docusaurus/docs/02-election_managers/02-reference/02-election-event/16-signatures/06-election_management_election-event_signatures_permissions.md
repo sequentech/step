@@ -37,8 +37,8 @@ for these permissions, and how existing tenants get them, are in
 | `sign-transmit-results` | Sign: transmit results | Sign a results package. |
 | `sign-approve-voter` | Sign: approve a voter manually | Sign a manual voter approval. |
 | `sign-approve-configuration` | Sign: approve a configuration version | Sign a configuration version. |
-| `sign-key-ceremony` | Sign: confirm a key share | Sign one's own key share in the key ceremony. |
-| `sign-tally-key` | Sign: contribute a key share | Sign one's own key share contribution in the tally. |
+| `sign-key-ceremony` | Sign: confirm custody | Approve one's own public custody proof in the key ceremony. |
+| `sign-tally-key` | Sign: authorize tally custody | Approve one's own public custody proof bound to the tally session. |
 
 A `sign-<action>` permission is what **Who can sign** shows for the action. Signing also
 needs access to the request's Post through the user's permission labels (an unlabelled

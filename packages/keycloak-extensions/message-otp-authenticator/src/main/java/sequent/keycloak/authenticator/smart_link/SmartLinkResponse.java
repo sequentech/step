@@ -17,4 +17,10 @@ public class SmartLinkResponse {
 
   @JsonProperty("sent")
   private boolean sent;
+
+  /** Why the link was not sent, when it was asked for and not sent (R7-15); absent otherwise. */
+  @JsonProperty("reason")
+  @com.fasterxml.jackson.annotation.JsonInclude(
+      com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
+  private String reason;
 }

@@ -243,6 +243,7 @@ const AuditScreen: React.FC = () => {
                 </Typography>
                 <StyledButton
                     className="download-auditable-ballot-button"
+                    aria-label={t("auditScreen.downloadButton")}
                     sx={{minWidth: "unset", padding: "10px 16px"}}
                     onClick={downloadAuditableBallot}
                     disabled={isUndefined(auditableBallot)}

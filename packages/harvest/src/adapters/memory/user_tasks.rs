@@ -11,6 +11,7 @@ use sequent_core::types::permissions::Permissions;
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::sync::{Mutex, MutexGuard};
+use windmill::services::audit_log::AuditActor;
 use windmill::services::export::export_users::ExportBody;
 use windmill::tasks::import_users::ImportUsersBody;
 
@@ -19,6 +20,7 @@ pub enum UserTaskCall {
     CreateImport,
     CreateExport,
     Fail,
+    Connect,
     SendImport,
     SendExport,
     Audit,
@@ -30,6 +32,8 @@ pub struct UserTasksState {
     pub failed_tasks: Vec<(String, String)>,
     pub import_attempts: Vec<(ImportUsersBody, TasksExecution)>,
     pub export_attempts: Vec<(ExportBody, String, Option<TasksExecution>)>,
+    /// The admin each export attempt was sent for.
+    pub export_actors: Vec<AuditActor>,
     pub audits: Vec<(String, String, String, String)>,
     pub document_count: usize,
     pub connection_count: usize,
@@ -157,8 +161,10 @@ impl UserTaskAuthorization for InMemoryUserTasks {
 
 impl UserTaskDispatch for InMemoryUserTasks {
     type Connection = ();
-    async fn connect(&self) {
-        self.state().connection_count += 1;
+    async fn connect(&self) -> Result<(), UserTaskSendFailure> {
+        let mut state = self.state();
+        state.connection_count += 1;
+        state.check_send(UserTaskCall::Connect)
     }
     async fn import(
         &self,
@@ -176,9 +182,11 @@ impl UserTaskDispatch for InMemoryUserTasks {
         input: ExportBody,
         document_id: String,
         task: Option<TasksExecution>,
+        actor: AuditActor,
     ) -> Result<(), UserTaskSendFailure> {
         let mut state = self.state();
         state.export_attempts.push((input, document_id, task));
+        state.export_actors.push(actor);
         state.check_send(UserTaskCall::SendExport)
     }
 }

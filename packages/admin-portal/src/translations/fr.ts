@@ -1,10 +1,249 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {TranslationType} from "./en"
+import englishTranslation, {TranslationType} from "./en"
 
 const frenchTranslation: TranslationType = {
     translations: {
+        readiness: {
+            close: "Fermer",
+            action: "Vérifier la préparation",
+            title: "Préparation électorale",
+            description:
+                "Comparez cet événement officiel à une répétition terminée. Une vérification réussie inscrit une preuve signée dans le journal de l’événement officiel.",
+            testedEvent: "Événement testé",
+            archived: "Archivé",
+            noEvents: "Aucun autre événement disponible",
+            retry: "Réessayer",
+            eventsError: "Impossible de charger les événements.",
+            run: "Lancer la vérification",
+            running: "Vérification en cours…",
+            error: "La vérification n’a pas pu être terminée. Consultez le journal avant de réessayer ; la réponse peut avoir été perdue après l’enregistrement des preuves.",
+            downloadError: "Impossible de télécharger le rapport. Réessayez.",
+            success:
+                "Préparation vérifiée. Une preuve signée a été inscrite dans le journal de l’événement officiel.",
+            failed: "La vérification a échoué. Corrigez les contrôles en échec et recommencez. Aucune entrée de préparation n’a été inscrite.",
+            download: "Télécharger le rapport JSON",
+            snapshot:
+                "Ce rapport est un instantané. Répétez après toute modification pertinente ; il ne fige pas l’événement et ne remplace pas l’approbation opérationnelle.",
+            results: "Résultats des contrôles",
+        },
+        plugins: {
+            title: "Extensions",
+            description:
+                "Les extensions sont incluses dans cette version. En activer une ajoute son élément de menu et ses autorisations pour ce locataire ; la désactiver la masque et conserve ses données et ses autorisations.",
+            enabled: "Activée",
+            disabled: "Désactivée",
+            compatible: "Compatible",
+            incompatible: "Les données enregistrées nécessitent une version plus récente",
+            api: "API des extensions {{major}}",
+            permissions: "Autorisations",
+            adminGroup: "accordées au groupe admin à l'activation",
+            enable: "Activer",
+            disable: "Désactiver",
+            confirmEnableTitle: "Activer {{name}} ?",
+            confirmDisableTitle: "Désactiver {{name}} ?",
+            confirmEnable:
+                "{{name}} apparaît dans le menu des utilisateurs disposant de ses autorisations. Ses autorisations sont créées dans ce locataire et accordées au groupe admin.",
+            confirmDisable:
+                "{{name}} est masquée et ses requêtes sont refusées. Ses données, son historique et ses autorisations sont conservés, et rien d'autre ne change dans le locataire.",
+            confirm: "Confirmer",
+            noPermission: "Modifier les extensions nécessite l'autorisation tenant-write.",
+            retry: "Réessayer",
+            loading: "Chargement des extensions…",
+            signIn: "Connectez-vous au locataire sélectionné pour utiliser ses extensions.",
+            unavailable: "Cette extension ne fait pas partie de cette version.",
+            incompatibleRoute:
+                "Les données enregistrées de cette extension nécessitent une version plus récente. Ses données sont inchangées.",
+            disabledRoute:
+                "{{name}} n'est pas activée pour ce locataire. Un administrateur du locataire peut l'activer dans Paramètres → Extensions.",
+            forbidden: "Vous n'êtes pas autorisé à utiliser {{name}}.",
+        },
+        projects: {
+            title: "Projets",
+            subtitle:
+                "Planifiez le travail du locataire sur une frise chronologique. Les projets ne modifient jamais les calendriers électoraux.",
+            cancel: "Annuler",
+            retry: "Réessayer",
+            loading: "Chargement…",
+            list: {
+                create: "Nouveau projet",
+                import: "Importer",
+                emptyTitle: "Aucun projet pour l'instant",
+                emptyHelp: "Créez un projet ou importez un fichier CSV exporté d'un autre projet.",
+                emptyViewer: "Aucun projet n'a été créé dans ce locataire.",
+                active_one: "Actif ({{count}})",
+                active_other: "Actifs ({{count}})",
+                archived_one: "Archivé ({{count}})",
+                archived_other: "Archivés ({{count}})",
+                name: "Nom",
+                dates: "Dates",
+                tasks: "Tâches",
+                timezone: "Fuseau horaire",
+                updated: "Dernière modification",
+                updatedBy: "{{at}} · {{actor}}",
+                archivedChip: "Archivé",
+                noneInTab: "Aucun projet ici.",
+            },
+            create: {
+                title: "Nouveau projet",
+                name: "Nom du projet",
+                timezone: "Fuseau horaire",
+                timezoneHelp:
+                    "Toutes les dates du projet sont saisies et affichées dans ce fuseau horaire IANA.",
+                submit: "Créer le projet",
+            },
+            import: {
+                title: "Importer un projet",
+                help: "L'importation crée toujours un nouveau projet. Utilisez un fichier CSV en UTF-8 avec les colonnes {{columns}}, tel qu'exporté d'un projet, avec un décalage UTC sur chaque date. Rien n'est enregistré tant que vous ne créez pas le projet.",
+                choose: "Choisir un fichier CSV",
+                noFile: "Aucun fichier choisi",
+                fileLimit: "Le fichier doit faire au plus 1 Mio.",
+                invalidFile: "Le fichier n'est pas un texte UTF-8 valide.",
+                valid_one: "{{count}} tâche est prête à être importée.",
+                valid_other: "{{count}} tâches sont prêtes à être importées.",
+                invalid_one:
+                    "{{count}} ligne sur {{total}} contient des erreurs. Corrigez le fichier et choisissez-le à nouveau.",
+                invalid_other:
+                    "{{count}} lignes sur {{total}} contiennent des erreurs. Corrigez le fichier et choisissez-le à nouveau.",
+                previewTable: "Aperçu de l'importation",
+                line: "Ligne",
+                result: "Vérification",
+                rowValid: "Prête",
+                commit: "Créer le projet",
+            },
+            detail: {
+                timezone: "Toutes les dates et heures sont en {{timezone}}.",
+                export: "Exporter",
+                archive: "Archiver",
+                restore: "Restaurer",
+                addTask: "Ajouter une tâche",
+                viewOnly:
+                    "Lecture seule. Modifier les tâches nécessite l'autorisation projects-write.",
+                archivedNotice: "Ce projet est archivé. Restaurez-le pour modifier ses tâches.",
+            },
+            notices: {
+                saved: "« {{title}} » enregistrée.",
+                moved: "« {{title}} » enregistrée : {{start}} – {{end}}.",
+                deleted: "« {{title}} » supprimée.",
+                archived: "Projet archivé.",
+                restored: "Projet restauré.",
+            },
+            panel: {
+                details: "Détails de la tâche",
+                edit: "Modifier la tâche",
+                add: "Ajouter une tâche",
+                close: "Fermer les détails de la tâche",
+                hint: "Sélectionnez une tâche sur la frise pour voir ses détails ici.",
+                noTasks: "Ce projet n'a pas encore de tâches.",
+            },
+            conflict: {
+                body: "Quelqu'un d'autre a modifié cette tâche ({{actor}}, {{at}}). Vos modifications sont toujours là. Examinez sa version avant d'enregistrer à nouveau.",
+                load: "Charger sa version",
+            },
+            unsaved: {
+                body: "Vous avez des modifications non enregistrées. Enregistrez-les, ou abandonnez-les pour {{action}}.",
+                keep: "Continuer la modification",
+                discard: "Abandonner les modifications",
+                actions: {
+                    open: "ouvrir « {{title}} »",
+                    add: "ajouter une nouvelle tâche",
+                    leave: "revenir aux projets",
+                    close: "fermer la tâche",
+                    state: "modifier le projet",
+                },
+            },
+            deleteDialog: {
+                title: "Supprimer la tâche ?",
+                body: "« {{title}} » est retirée du projet. Son historique des modifications est conservé.",
+                confirm: "Supprimer",
+            },
+            history: {
+                task: "Historique des modifications",
+                project: "Historique du projet",
+                empty: "Aucune modification enregistrée pour l'instant.",
+                more: "Afficher les modifications plus anciennes",
+                by: "{{actor}} · {{at}}",
+                actions: {
+                    create: "Création {{subject}}",
+                    update: "Modification {{subject}}",
+                    delete: "Suppression {{subject}}",
+                    import_one: "{{count}} tâche importée",
+                    import_other: "{{count}} tâches importées",
+                    export: "Exporté en CSV",
+                    other: "{{action}}",
+                },
+            },
+            editor: {
+                title: "Titre",
+                type: "Type",
+                status: "Statut",
+                start: "Début",
+                end: "Fin",
+                at: "Date et heure",
+                notes: "Notes",
+                order: "Ordre",
+                orderHelp: "Les tâches sont triées par ordre, puis par début.",
+                timezoneNote: "Les heures sont en {{timezone}}.",
+                offset: "UTC{{offset}}",
+                localTime: {
+                    invalid: "Saisissez une date et une heure entre 1900 et 2200.",
+                    skipped:
+                        "Cette heure n'existe pas en {{timezone}} : les horloges la sautent. Choisissez une autre heure.",
+                    repeated:
+                        "Cette heure se produit deux fois en {{timezone}}. Choisissez celle que vous voulez dire.",
+                },
+                chooseInstant: "Quelle occurrence",
+                instantChoice: "À UTC{{offset}}",
+                saving: "Enregistrement…",
+                toFix_one: "{{count}} champ à corriger",
+                toFix_other: "{{count}} champs à corriger",
+                save: "Enregistrer",
+                delete: "Supprimer",
+            },
+            validation: {
+                title: "Saisissez un titre de 200 caractères au plus.",
+                offset: "Saisissez des dates valides.",
+                range: "La fin doit être postérieure au début.",
+                milestone: "Un jalon n'a pas de fin.",
+                notes: "Les notes doivent faire au plus 16 000 caractères.",
+                order: "L'ordre doit être un nombre entier de 0 à 1 000 000.",
+            },
+            status: {
+                not_started: "Non commencée",
+                in_progress: "En cours",
+                done: "Terminée",
+            },
+            type: {
+                task: "Tâche",
+                milestone: "Jalon",
+            },
+            units: {
+                days_one: "{{count}} jour",
+                days_other: "{{count}} jours",
+                hours_one: "{{count}} h",
+                hours_other: "{{count}} h",
+                minutes_one: "{{count}} min",
+                minutes_other: "{{count}} min",
+            },
+            timeline: {
+                title: "Frise chronologique",
+                tasks_one: "{{count}} tâche",
+                tasks_other: "{{count}} tâches",
+                empty: "Aucune tâche pour l'instant.",
+                editHelp:
+                    "Pointez ou ciblez une tâche pour un résumé ; sélectionnez-la pour la modifier en dessous. Faites glisser une barre ou utilisez ← → pour la déplacer de 24 heures ; ajoutez Maj pour changer la fin.",
+                viewHelp:
+                    "Pointez ou ciblez une tâche pour un résumé. Sélectionnez-la pour voir ses détails en dessous.",
+                touchEditHelp:
+                    "Touchez une tâche pour la modifier en dessous, ou faites glisser une barre pour la déplacer de jours entiers.",
+                touchViewHelp: "Touchez une tâche pour voir ses détails en dessous.",
+                taskLabel: "{{title}}, du {{start}} au {{end}}, {{status}}",
+                milestoneLabel: "{{title}}, jalon le {{at}}, {{status}}",
+                previewEdit: "Cliquez ou appuyez sur Entrée pour modifier",
+                previewView: "Cliquez ou appuyez sur Entrée pour voir les détails",
+            },
+        },
         philippinePassport: "Passeport philippin",
         seamanBook: "Livret de marin",
         philSysID: "Carte d'identité PhilSys",
@@ -202,13 +441,284 @@ const frenchTranslation: TranslationType = {
                 },
             },
         },
+        tenantLogs: {
+            explanation: {
+                action: "Action : {{action}}",
+                outcome: {
+                    succeeded: "Acceptée (HTTP {{status}})",
+                    denied: "Refusée (HTTP {{status}})",
+                    failed: "Échouée (HTTP {{status}})",
+                },
+                by: "Demandée par {{username}} ({{userId}})",
+                detail: "{{name}} : {{value}}",
+                board: "Journal : {{board}}",
+                publicKey: "Clé publique du journal : {{key}}",
+            },
+        },
         logsScreen: {
+            configurationPackage: englishTranslation.translations.logsScreen.configurationPackage,
+            readiness: {
+                passed: "Réussi",
+                failed: "Échoué",
+                checkResult: "{{outcome}}: {{description}}",
+                description: {
+                    VotersImported: "Fichier des électeurs importé.",
+                    ReadinessVerified:
+                        "Préparation de l’événement officiel vérifiée par rapport à l’événement testé.",
+                },
+                checks: {
+                    configuration:
+                        "Les deux événements ont le même contenu approuvé, les mêmes approbateurs vérifiés et les mêmes zones.",
+                    certified_voters:
+                        "Les deux événements correspondent au même fichier électoral certifié et aux effectifs actuels par zone.",
+                    official_zero:
+                        "L’événement officiel n’a jamais ouvert le vote et ne contient ni bulletins ni sessions de dépouillement.",
+                    publication: "La publication officielle correspond à sa configuration signée.",
+                    tested_finished:
+                        "Les canaux de vote de l’événement testé sont fermés et toutes les urnes attendues sont scellées.",
+                },
+                fields: {
+                    report: "Rapport de préparation",
+                    passed: "Réussi",
+                    checked_at: "Date de vérification",
+                    evidence: "Preuves",
+                    official: "Événement officiel",
+                    tested: "Événement testé",
+                    official_event_id: "ID de l’événement officiel",
+                    tested_event_id: "ID de l’événement testé",
+                    event_id: "ID de l’événement",
+                    election_id: "ID de l’élection",
+                    configuration: "Configuration",
+                    external_id: "ID externe",
+                    revision: "Révision",
+                    content_sha256: "SHA-256 du contenu",
+                    manifest_sha256: "SHA-256 du manifeste",
+                    approvers: "Approbateurs vérifiés",
+                    areas: "Zones",
+                    voters: "Import des électeurs",
+                    import_id: "ID de l’import",
+                    document_id: "ID du document",
+                    file_name: "Nom du fichier",
+                    sha256: "SHA-256 du fichier",
+                    declared_sha256: "SHA-256 déclaré",
+                    counts_by_area: "Électeurs par zone",
+                    imported_at: "Date d’import",
+                    voter_log_delivered: "Import signé enregistré",
+                    current_voter_counts: "Électeurs actuels par zone",
+                    voter_import_in_progress: "Import des électeurs actif",
+                    status: "État",
+                    elections: "Élections",
+                    ballot_count: "Bulletins stockés",
+                    received_ballot_count: "Bulletins reçus à la vérification",
+                    tally_session_count: "Sessions de dépouillement",
+                    publication: "Publication",
+                    publication_id: "ID de publication",
+                    publication_ids: "ID des publications",
+                    matches_manifest: "Correspond au manifeste signé",
+                    design_count: "Modèles publiés",
+                    seal_at_close: "Sceller à la fermeture",
+                    expected_boxes: "Urnes attendues",
+                    sealed_boxes: "Urnes scellées",
+                    all_channels_closed: "Tous les canaux de vote fermés",
+                    locked_down: "Verrouillé",
+                    log_entry_id: "ID de l’entrée du journal",
+                },
+            },
             noPermissions: "Vous n'avez pas la permission d'accéder aux journaux.",
             title: "Journaux",
-            subtitle: "Journaux généraux des bases de données principale et IAM.",
+            subtitle:
+                "Tout ce qui est fait dans cet événement électoral. Les connexions et les modifications en dehors de celui-ci se trouvent dans Configuration > Journaux.",
+            empty: "Aucune entrée trouvée.",
+            tenant: {
+                subtitle:
+                    "Connexions, comptes du personnel et rôles, paramètres et événements électoraux de cette organisation. Chaque événement électoral conserve son propre journal dans son onglet Journaux.",
+                noPermissions: "Vous n'avez pas la permission de voir ce journal.",
+            },
+            entry: {
+                title: "Entrée de journal {{id}}",
+                statementKind: "Type de déclaration",
+                eventType: "Type d'événement",
+                logType: "Type de journal",
+                when: "Quand",
+                utc: "{{time}} UTC",
+                who: "Qui",
+                userId: "ID utilisateur {{id}}",
+                role: "Rôle {{role}}",
+                unknownAccount: "Compte inconnu (le nom saisi n'est pas enregistré)",
+                madeIn: "Fait dans",
+                changed: "Modifié",
+                objectId: "ID {{id}}",
+                actionLabel: "Action",
+                details: "Détails",
+                origin: {
+                    "hasura": "Portail d'administration (via Hasura)",
+                    "harvest": "Portail d'administration (via Harvest)",
+                    "windmill": "Portail d'administration (une tâche Windmill)",
+                    "keycloak-console":
+                        "Console d'administration de Keycloak, en dehors du portail d'administration",
+                    "service-account":
+                        "Compte de service de Step, pour une modification faite dans le portail d'administration",
+                },
+                action: {
+                    create: "Créé",
+                    update: "Mis à jour",
+                    delete: "Supprimé",
+                    import: "Importé",
+                    export: "Exporté",
+                    archive: "Archivé",
+                    unarchive: "Désarchivé",
+                    enable: "Activé",
+                    disable: "Désactivé",
+                    reset_password: "Mot de passe réinitialisé",
+                    grant: "Accordé",
+                    revoke: "Révoqué",
+                },
+                objectType: {
+                    tenant: "Paramètres du locataire",
+                    tenant_log: "Journal du locataire",
+                    staff_account: "Compte du personnel",
+                    role: "Rôle",
+                    template: "Modèle",
+                    trustee: "Dépositaire",
+                    election_type: "Type d'élection",
+                    election_event: "Événement électoral",
+                    election: "Élection",
+                    contest: "Scrutin",
+                    candidate: "Candidat",
+                    area: "Zone",
+                },
+                values: {
+                    title: "Anciennes et nouvelles valeurs",
+                    field: "Champ",
+                    old: "Ancienne valeur",
+                    new: "Nouvelle valeur",
+                    none: "(aucune)",
+                    secret: "Modifié. Les valeurs secrètes ne sont jamais journalisées.",
+                    yes: "Oui",
+                    no: "Non",
+                    sha: "SHA-256 {{hash}}",
+                },
+                field: {
+                    tenant: {
+                        slug: "Nom court",
+                        isActive: "Actif",
+                        logsTimezone: "Fuseau horaire du journal du locataire (Langues)",
+                        languages: "Langues",
+                        enabledLanguages: "Langues activées (Langues)",
+                        defaultLanguage: "Langue par défaut (Langues)",
+                        languageDetection: "Détection de la langue (Langues)",
+                        translations: "Traductions (Localisation)",
+                        sms: "SMS",
+                        mail: "E-mail",
+                        gapiKey: "Clé de l'API Google (Intégrations)",
+                        gapiEmail: "E-mail de l'API Google (Intégrations)",
+                        helpLinks: "Liens d'aide (Apparence)",
+                        displayName: "Nom de l'organisation (Apparence)",
+                        votingCountries: "Pays bloqués pour le vote (Pays)",
+                        enrollCountries: "Pays bloqués pour l'inscription (Pays)",
+                        logoUrl: "Logo (Apparence)",
+                        css: "CSS personnalisé (Apparence)",
+                        votingChannels: "Canaux de vote",
+                        onlineVoting: "Vote en ligne (Canaux de vote)",
+                        kioskVoting: "Vote sur borne (Canaux de vote)",
+                        telephoneVoting: "Vote par téléphone (Canaux de vote)",
+                        earlyVoting: "Vote anticipé (Canaux de vote)",
+                        paperVoting: "Vote papier (Canaux de vote)",
+                    },
+                },
+                signIn: {
+                    title: "Connexion et sécurité du compte",
+                    event: "Événement Keycloak",
+                    error: "Erreur",
+                    authentication: "Authentification",
+                    credential: "Identifiant",
+                    failures: "Échecs consécutifs",
+                    client: "Client",
+                    ipAddress: "Adresse IP",
+                },
+                keycloak: {
+                    title: "Modification dans Keycloak",
+                    account: "Compte",
+                    operation: "Opération",
+                    appliesTo: "S'applique à",
+                    resource: "Ressource",
+                    newValue: "Nouvelle valeur",
+                    error: "Erreur",
+                },
+                importedFile: {
+                    title: "Le fichier importé",
+                    declared: "Somme de contrôle déclarée",
+                    sha256: "SHA-256 du fichier",
+                    declaredSha256: "SHA-256 déclaré",
+                    document: "Document",
+                    checksum: {
+                        undeclared: "Aucune déclarée",
+                        matches: "Correspond au fichier",
+                        mismatch: "Ne correspond pas au fichier",
+                    },
+                    counts: {
+                        count: "Lignes",
+                        elections: "Élections",
+                        contests: "Scrutins",
+                        candidates: "Candidats",
+                        areas: "Zones",
+                        area_contests: "Zones par scrutin",
+                        sections: "Sections de configuration",
+                    },
+                },
+                deletedEvent: {
+                    title: "Le journal de l'événement électoral supprimé",
+                    lastEntry: "Dernière entrée",
+                    stateHash: "Hachage d'état",
+                    logDatabase: "Base de données du journal",
+                    status: "État",
+                    retired:
+                        "Déchargé et conservé jusqu'à son effacement selon la politique de conservation",
+                    task: "Tâche",
+                    systemKey: "La clé système du journal",
+                },
+                exported: {
+                    title: "Export",
+                    entries: "Entrées",
+                    sha256: "SHA-256 du fichier",
+                    document: "Document",
+                    scope: {
+                        TENANT_LOG: "Tout le journal du locataire",
+                        ACCOUNT: "Un compte",
+                        ACCOUNT_WITH_EVENTS:
+                            "Un compte, avec ses entrées dans chaque événement électoral",
+                        ALL: "Tout l'événement électoral",
+                        ELECTION: "Une élection",
+                        AREA: "Une zone",
+                    },
+                },
+                writer: {
+                    title: "Rédacteur du journal",
+                    release: "Version",
+                    lastEntry: "Dernière entrée publiée",
+                },
+                signatures: {
+                    title: "Journal et signatures",
+                    log: "Journal",
+                    tenantLog: "Journal du locataire",
+                    eventLog: "Journal de l'événement électoral",
+                    signedBy: "Signé par",
+                    adminKey: "Clé d'administration de {{name}}",
+                    systemOnly: "Uniquement la clé système du journal",
+                    systemSignature: "Signature du système",
+                    publicKey: "Clé d'administration publiée",
+                },
+            },
             actions: {
                 csv: "Exporter en CSV",
                 pdf: "Exporter en PDF",
+                audit: "Auditer",
+            },
+            auditDialog: {
+                title: "Auditer le journal électoral",
+                confirm: "Auditer",
+                description:
+                    "L'audit vérifie chaque entrée du journal par rapport à son journal Merkle et contrôle les points de contrôle publiés. Le résultat est enregistré en tant que tâche.",
             },
             exportdialog: {
                 description:
@@ -220,6 +730,27 @@ const frenchTranslation: TranslationType = {
                 format: "Format",
                 csv: "CSV",
                 pdf: "PDF",
+                sql: "SQL",
+                scope: {
+                    label: "Périmètre",
+                    tenant: {
+                        TENANT_LOG: "Tout le journal du locataire",
+                        ACCOUNT: "Un compte",
+                    },
+                    event: {
+                        ALL: "Tout l'événement électoral",
+                        ELECTION: "Une élection",
+                        AREA: "Une zone",
+                        ACCOUNT: "Un compte",
+                    },
+                },
+                username: "Nom d'utilisateur",
+                election: "Élection",
+                area: "Zone",
+                withElectionEvents:
+                    "Inclure les entrées de ce compte dans chaque événement électoral",
+                rowsNameLog: "Les lignes des événements électoraux indiquent leur journal.",
+                recorded: "L'export lui-même est enregistré dans ce journal.",
                 zoneNote:
                     "Chaque ligne conserve son heure en UTC (ISO 8601) et en {{abbr}}, avec le nom du fuseau horaire. La plage de dates inclut les deux bornes, en {{abbr}}.",
                 zoneNotePdf:
@@ -326,6 +857,7 @@ const frenchTranslation: TranslationType = {
                 PUBLISH_BALLOT: "Publier le bulletin",
                 VOTER_INFORMATION_LETTER: "Lettre d'information de l'électeur",
                 EXPORT_MONITORING_DATA: "Exporter les Données de Suivi",
+                AUDIT_ELECTORAL_LOG: "Auditer le journal électoral",
                 EXPORT_ELECTION_EVENT: "Exporter l'événement électoral",
                 CREATE_ELECTION_EVENT: "Créer Événement Électoral",
                 IMPORT_ELECTION_EVENT: "Importer l'événement électoral",
@@ -336,6 +868,7 @@ const frenchTranslation: TranslationType = {
                 CREATE_TRANSMISSION_PACKAGE: "Créer un paquet de transmission",
                 EXPORT_BALLOT_PUBLICATION: "Exporter Publication de Bulletin",
                 EXPORT_ACTIVITY_LOGS_REPORT: "Exporter le Rapport des Journaux d'Activité",
+                EXPORT_TENANT_LOGS: "Exporter le Journal du Locataire",
                 GENERATE_REPORT: "Générer un rapport",
                 GENERATE_TRANSMISSION_REPORT: "Générer un rapport de transmission",
                 EXPORT_TRUSTEES: "Exporter les Autorités",
@@ -347,7 +880,7 @@ const frenchTranslation: TranslationType = {
                 EXPORT_TEMPLATES: "Exporter les Modèles",
                 IMPORT_TEMPLATES: "Importer les Modèles",
                 DELETE_ELECTION_EVENT: "Supprimer l'événement électoral",
-                DELETE_VOTERS: "Delete Voters",
+                DELETE_VOTERS: "Supprimer les électeurs",
                 PREPARE_PUBLICATION_PREVIEW: "Préparer l'aperçu de la publication",
                 EXPORT_TALLY_RESULTS_XLSX: "Exporter les résultats du dépouillement au format XLSX",
                 EXPORT_CERTIFICATE_AUTHORITIES: "Exporter les autorités de certification",
@@ -386,7 +919,7 @@ const frenchTranslation: TranslationType = {
             createAreaSuccess: "Zone créée",
             updateAreaSuccess: "Zone mise à jour",
             createAreaError: "Erreur lors de la création de la zone",
-            sequent_backend_area_contest: "Questions de la Zone",
+            sequent_backend_area_contest: "Scrutins de la Zone",
             empty: {
                 header: "Aucune Zone pour l'instant.",
                 action: "Créer une Zone",
@@ -399,9 +932,13 @@ const frenchTranslation: TranslationType = {
             common: {
                 gapiKey: "Clé de Compte de Service Google Calendar",
                 gapiEmail: "Email d'Authentification Google Calendar",
+                gapiKeyHelper:
+                    "La clé enregistrée n'est pas affichée. Collez une nouvelle clé pour la remplacer.",
+                gapiKeySaved: "Clé de Compte de Service Google Calendar enregistrée",
             },
             errors: {
                 invalidGapiKey: "Format de Clé de Compte de Service Google Calendar invalide",
+                saveGapiKey: "Impossible d'enregistrer la Clé de Compte de Service Google Calendar",
             },
         },
         lookAndFeelScreen: {
@@ -447,6 +984,7 @@ const frenchTranslation: TranslationType = {
                 schedules: "ÉVÉNEMENTS PROGRAMMÉS",
                 trustees: "AUTORITÉS",
                 BackupRestore: "SAUVEGARDE / RESTAURATION",
+                logs: "JOURNAUX",
             },
         },
         trusteesSettingsScreen: {
@@ -545,7 +1083,7 @@ const frenchTranslation: TranslationType = {
                 },
                 help: {
                     publishing:
-                        "L'urne est verrouillée. Son entrée est en cours de republication sur le tableau d'affichage.",
+                        "L'urne est verrouillée et son scellé figure sur le tableau d'affichage. Son procès-verbal de scellement est en cours de publication.",
                     counted:
                         "Bulletins comptés : le dernier bulletin valide de chaque électeur éligible. Les autres bulletins de l'urne ont été remplacés par un bulletin ultérieur de l'électeur, écartés, ou déposés par un électeur non éligible.",
                 },
@@ -586,6 +1124,10 @@ const frenchTranslation: TranslationType = {
                         "{{count}} vote est en cours dans Datafix : l'urne est scellée une fois qu'il est résolu.",
                     datafixVotes_other:
                         "{{count}} votes sont en cours dans Datafix : l'urne est scellée une fois qu'ils sont résolus.",
+                    sequencer_one:
+                        "{{count}} bulletin n'est pas encore sur le tableau d'affichage : l'urne est scellée une fois que le séquenceur l'a ajouté.",
+                    sequencer_other:
+                        "{{count}} bulletins ne sont pas encore sur le tableau d'affichage : l'urne est scellée une fois que le séquenceur les a ajoutés.",
                     stale: "Dernière tentative à {{time}} : le service de scellement n'est peut-être pas en cours d'exécution. Vérifiez Beat et le worker de scellement.",
                     notTried:
                         "Aucune tentative pour l'instant : le service de scellement n'est peut-être pas en cours d'exécution. Vérifiez Beat et le worker de scellement.",
@@ -614,6 +1156,7 @@ const frenchTranslation: TranslationType = {
                         "Un scellé de cette urne figure déjà sur le tableau d'affichage.",
                     noBoard: "L'événement électoral n'a pas de tableau d'affichage.",
                     unknownChannel: "Un bulletin a un canal de vote inconnu.",
+                    unrecorded: "Un bulletin n'a pas d'entrée de vote sur le tableau d'affichage.",
                 },
                 incident: {
                     title_one: "{{count}} urne n'a pas pu être scellée",
@@ -624,7 +1167,7 @@ const frenchTranslation: TranslationType = {
             },
             ipAddress: {
                 emptyState: "Pas encore de votes.",
-                title: "IP Addresses",
+                title: "Adresses IP",
                 ip: "IP",
                 country: "Pays",
                 VoteCount: "Nombre de votes",
@@ -633,12 +1176,17 @@ const frenchTranslation: TranslationType = {
             },
         },
         electionEventScreen: {
+            dataUnavailable: "Les données ne sont pas disponibles pour cet événement électoral.",
+            noAccessibleTabs:
+                "Vous n’avez accès à aucun onglet disponible pour cet événement électoral.",
+
             common: {
                 subtitle: "Configuration de l'Événement Électoral.",
                 showMore: "Afficher plus",
                 showLess: "Afficher moins",
                 adminPortal: "Portail d'administration",
-                allowPublishAfterLockdown: "Only allow election event publishing after lockdown",
+                allowPublishAfterLockdown:
+                    "N'autoriser la publication de l'événement électoral qu'après le verrouillage",
                 reset: "Réinitialiser le filtre personnalisé",
             },
             edit: {
@@ -657,16 +1205,20 @@ const frenchTranslation: TranslationType = {
                 importCandidates: "Importer des Candidats",
                 custom_filters: "Filtres personnalisés",
                 voter_authentication: "Authentification des électeurs",
-                realm_attributes: "Keycloak realm attributes",
-                realm_attributes_load_error: "Error loading Keycloak realm attributes",
-                realm_attributes_update_error: "Error updating Keycloak realm attributes",
+                realm_attributes: "Attributs du realm Keycloak",
+                realm_attributes_load_error:
+                    "Erreur lors du chargement des attributs du realm Keycloak",
+                realm_attributes_update_error:
+                    "Erreur lors de la mise à jour des attributs du realm Keycloak",
                 realm_attributes_not_loaded:
-                    "Keycloak realm attributes have not loaded, changes were not saved",
-                password_policy: "Password Policy",
-                password_policy_load_error: "Error loading Keycloak password policy",
-                password_policy_update_error: "Error updating Keycloak password policy",
+                    "Les attributs du realm Keycloak n'ont pas été chargés ; les modifications n'ont pas été enregistrées",
+                password_policy: "Politique de mots de passe",
+                password_policy_load_error:
+                    "Erreur lors du chargement de la politique de mots de passe Keycloak",
+                password_policy_update_error:
+                    "Erreur lors de la mise à jour de la politique de mots de passe Keycloak",
                 password_policy_not_loaded:
-                    "Keycloak password policy has not loaded, changes were not saved",
+                    "La politique de mots de passe Keycloak n'a pas été chargée ; les modifications n'ont pas été enregistrées",
             },
             customUrls: {
                 login: "Connexion",
@@ -800,6 +1352,11 @@ const frenchTranslation: TranslationType = {
                     },
                 },
                 lockdownState: {
+                    since: "Verrouillé depuis le {{date}}.",
+                    scheduledEnd: "Fin du verrouillage prévue le {{date}}.",
+                    endScheduled: "Une fin du verrouillage est prévue.",
+                    noScheduledEnd: "Aucune fin du verrouillage n’est prévue.",
+                    banner: "Cet événement électoral est verrouillé.",
                     policyLabel: "État de Confinement",
                     helperText:
                         "Programmez le début ou la fin de la période de verrouillage pour modifier cet état.",
@@ -847,21 +1404,30 @@ const frenchTranslation: TranslationType = {
                         "Inclure les bulletins décodés dans la base de données de résultats",
                     options: {"included": "Inclure", "not-included": "Ne pas inclure"},
                 },
+                fileIntegrityPolicy: {
+                    policyLabel: "Intégrité du fichier des électeurs",
+                    helperText:
+                        "Exiger le SHA-256 certifié indépendamment avant d’importer les électeurs.",
+                    options: {
+                        OPTIONAL: "SHA-256 facultatif",
+                        REQUIRED_SHA256: "SHA-256 obligatoire",
+                    },
+                },
                 contestEncryptionPolicy: {
                     options: {
-                        "single-contest": "Concours unique",
-                        "multiple-contests": "Plusieurs concours",
+                        "single-contest": "Scrutin unique",
+                        "multiple-contests": "Plusieurs scrutins",
                     },
-                    policyLabel: "Politique de chiffrement de concours",
+                    policyLabel: "Politique de chiffrement de scrutin",
                 },
                 votingPortalDateTimeFormat: {
                     policyLabel: "Format de date et d'heure du portail de vote",
                     helperText:
                         "S'applique à tout l'événement. Pour le remplacer par langue, ajoutez la clé \"votingPortalDateTimeFormat\" dans l'onglet Localisation avec les jetons yyyy, MM, dd, HH, mm, ss (ex. dd/MM/yyyy HH:mm). Consultez la documentation pour plus de détails.",
                     options: {
-                        "legacy-gb-24h": "Legacy GB 24h (dd/MM/yyyy HH:mm, 24h)",
-                        "iso-local": "ISO Local (yyyy-MM-dd HH:mm)",
-                        "us-12h": "US 12h (MM/dd/yyyy h:mm AM/PM)",
+                        "legacy-gb-24h": "GB hérité 24 h (dd/MM/yyyy HH:mm, 24h)",
+                        "iso-local": "ISO local (yyyy-MM-dd HH:mm)",
+                        "us-12h": "États-Unis 12 h (MM/dd/yyyy h:mm AM/PM)",
                         "locale-medium": "Locale Medium (date moyenne, heure courte)",
                         "date-only": "Date Only (sans heure)",
                         "custom": "Format personnalisé",
@@ -900,7 +1466,7 @@ const frenchTranslation: TranslationType = {
                         "Ce réglage ne peut plus être modifié une fois le vote commencé.",
                 },
                 VoterCertificatePolicy: {
-                    policyLabel: "Voter Digital Certificate Policy",
+                    policyLabel: "Politique de certificat numérique du votant",
                     enabled: "Activé",
                     disabled: "Désactivé",
                 },
@@ -949,6 +1515,15 @@ const frenchTranslation: TranslationType = {
                     options: {
                         enabled: "Activé",
                         disabled: "Désactivé",
+                    },
+                },
+                batchAnonymityPolicy: {
+                    policyLabel: "Politique d'Anonymat des Lots",
+                    helperText:
+                        "Refuser arrête le dépouillement lorsque le lot de bulletins d'une zone compte moins de cinq électeurs, ou diffère du lot qu'un autre dépouillement a déjà publié pour la même zone et la même question.",
+                    options: {
+                        warn: "Avertir",
+                        refuse: "Refuser",
                     },
                 },
                 languageDetectionPolicy: {
@@ -1049,7 +1624,7 @@ const frenchTranslation: TranslationType = {
                 elegibleVoters: "Électeurs",
                 voters: "Votants",
                 elections: "Élections",
-                contests: "Questions",
+                contests: "Scrutins",
                 areas: "Zones",
                 sentEmails: "Emails Envoyés",
                 sentSMS: "SMS Envoyés",
@@ -1100,7 +1675,7 @@ const frenchTranslation: TranslationType = {
                 events: "Événement Planifié",
                 notifications: "Notifications",
                 reports: "Rapport",
-                approvals: "Approvals",
+                approvals: "Approbations",
                 cas: "Certificats",
             },
             tally: {
@@ -1149,7 +1724,7 @@ const frenchTranslation: TranslationType = {
                     "Importer des zones en utilisant un fichier tableur au format Valeurs Séparées par des Virgules (CSV).",
                 importSuccess: "Zones Importées avec Succès",
                 importError: "Erreur lors de l'importation des Zones",
-                upsert: "Upsert Areas",
+                upsert: "Insérer ou mettre à jour les zones",
             },
             import: {
                 eetitle: "Importer un Événement Électoral",
@@ -1171,8 +1746,10 @@ const frenchTranslation: TranslationType = {
                 importVotersSuccess:
                     "Importation des Électeurs lancée en arrière-plan avec succès.",
                 importVotersError: "Erreur lors de l'Importation des Électeurs.",
-                importElectionEventSuccess: "Election event imported Successfully",
-                importElectionEventError: "Error importing election event",
+                importElectionEventSuccess: "Événement électoral importé avec succès",
+                importElectionEventError: "Erreur lors de l'importation de l'événement électoral",
+                shaRequiredHelp:
+                    "Saisissez le SHA-256 hexadécimal certifié de 64 caractères. Il est obligatoire pour importer.",
                 shaDialog: {
                     ok: "Oui, Importer Sans Vérification de l'Intégrité",
                     cancel: "Retour",
@@ -1234,7 +1811,7 @@ const frenchTranslation: TranslationType = {
                 image: "Image",
                 advanced: "Configuration Avancée",
                 numAllowedVotes: "Nombre de votes permis",
-                reorder: "Réorganiser les concours",
+                reorder: "Réorganiser les scrutins",
                 castVoteConfirm: "Modal de Confirmation de Vote",
                 gracePeriodPolicy: "Politique de période de grâce",
                 allowTallyPolicy: "Autoriser le décompte",
@@ -1278,7 +1855,7 @@ const frenchTranslation: TranslationType = {
                 voters: "Électeurs",
                 publish: "Publier",
                 logs: "Journaux",
-                approvals: "Approvals",
+                approvals: "Approbations",
                 tallySheets: "Feuilles de Comptage",
             },
             gracePeriodPolicy: {
@@ -1298,10 +1875,10 @@ const frenchTranslation: TranslationType = {
                 "required": "Requis",
             },
             castVoteGoldLevelPolicy: {
-                label: "Gold level Authentication Policy",
+                label: "Politique d'authentification de niveau or",
                 options: {
-                    "gold-level": "Gold level Authentication",
-                    "no-gold-level": "No Gold level Authentication",
+                    "gold-level": "Authentification de niveau or",
+                    "no-gold-level": "Pas d'authentification de niveau or",
                 },
             },
             slates: {
@@ -1410,7 +1987,7 @@ const frenchTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "A voté",
-                    "support_materials_viewed": "Support Materials Viewed",
+                    "support_materials_viewed": "Matériaux de Support consultés",
                     "vote-weight": "Poids du vote",
                     "voted-channel": "Canal de vote",
                     "disable-comment": "Commentaire de désactivation",
@@ -1442,11 +2019,12 @@ const frenchTranslation: TranslationType = {
                 delete: {
                     body: "Êtes-vous sûr de vouloir supprimer cet utilisateur ?",
                     bulkBody: "Êtes-vous sûr de vouloir supprimer les utilisateurs sélectionnés ?",
-                    bulkBodySelected: "Delete the {{count}} selected users? This cannot be undone.",
+                    bulkBodySelected:
+                        "Supprimer les {{count}} utilisateurs sélectionnés ? Cette action est irréversible.",
                     bulkBodyChoose:
-                        "{{count}} users are selected. You can instead delete every user matching the current filters, which may be more. This cannot be undone.",
-                    okSelected: "Delete {{count}} selected",
-                    okAllMatching: "Delete all matching",
+                        "{{count}} utilisateurs sont sélectionnés. Vous pouvez plutôt supprimer tous les utilisateurs correspondant aux filtres actuels, qui peuvent être plus nombreux. Cette action est irréversible.",
+                    okSelected: "Supprimer les {{count}} sélectionnés",
+                    okAllMatching: "Supprimer tous les résultats correspondants",
                 },
                 notifications: {
                     exportError: "Erreur lors de l'exportation des utilisateurs",
@@ -1542,11 +2120,11 @@ const frenchTranslation: TranslationType = {
                     body: "Êtes-vous sûr de vouloir supprimer cet électeur ?",
                     bulkBody: "Êtes-vous sûr de vouloir supprimer les électeurs sélectionnés ?",
                     bulkBodySelected:
-                        "Delete the {{count}} selected voters? This cannot be undone.",
+                        "Supprimer les {{count}} électeurs sélectionnés ? Cette action est irréversible.",
                     bulkBodyChoose:
-                        "{{count}} voters are selected. You can instead delete every voter matching the current filters, which may be more. This cannot be undone.",
-                    okSelected: "Delete {{count}} selected",
-                    okAllMatching: "Delete all matching",
+                        "{{count}} électeurs sont sélectionnés. Vous pouvez plutôt supprimer tous les électeurs correspondant aux filtres actuels, qui peuvent être plus nombreux. Cette action est irréversible.",
+                    okSelected: "Supprimer les {{count}} sélectionnés",
+                    okAllMatching: "Supprimer tous les résultats correspondants",
                 },
                 notifications: {
                     exportError: "Erreur lors de l'exportation des électeurs",
@@ -1623,8 +2201,8 @@ const frenchTranslation: TranslationType = {
                 "election-event-create": "Créer Événement Électoral",
                 "election-event-read": "Lire Événement Électoral",
                 "election-event-write": "Éditer Événement Électoral",
-                "keycloak-realm-attributes-read": "Read Keycloak realm attributes",
-                "keycloak-realm-attributes-write": "Edit Keycloak realm attributes",
+                "keycloak-realm-attributes-read": "Lire les attributs du realm Keycloak",
+                "keycloak-realm-attributes-write": "Modifier les attributs du realm Keycloak",
                 "election-event-delete": "Supprimer Événement Électoral",
                 "voter-create": "Créer Électeur",
                 "voter-read": "Lire Électeur",
@@ -1667,6 +2245,14 @@ const frenchTranslation: TranslationType = {
                 "publish-results-read": "Lire Publication des Résultats",
                 "publish-results-write": "Éditer Publication des Résultats",
                 "logs-read": "Lire Journaux",
+                "electoral-log-audit": "Auditer le Journal Électoral",
+                "electoral-log-console-read": "Parcourir le Journal Électoral",
+                "electoral-log-console-query": "Interroger le Journal Électoral",
+                "electoral-log-personal-data-read":
+                    "Lire les Données Personnelles du Journal Électoral",
+                "task-queues-read": "Lire les Files de Tâches",
+                "task-queues-write": "Gérer les Files de Tâches",
+                "task-queues-query": "Interroger les Files de Tâches",
                 "tasks-read": "Lire l'Exécution des Tâches",
                 "keys-read": "Lire Clés",
                 "document-upload": "Télécharger Documents",
@@ -1682,30 +2268,29 @@ const frenchTranslation: TranslationType = {
                 "tally-sheet-view": "Voir Acte de Comptage",
                 "admin-ceremony": "Administrer Cérémonie de Clés",
                 "tally-sheet-delete": "Supprimer Acte de Comptage",
-                "cast-vote-read": "Lire Votes Émis",
                 "document-read": "Lire Documents",
                 "document-write": "Éditer Documents",
                 "support-material-read": "Lire Matériaux de Support",
                 "support-material-write": "Éditer Matériaux de Support",
-                "miru-create": "Miru Create",
-                "miru-download": "Miru Download",
-                "miru-send": "Miru Send",
-                "miru-sign": "Miru Sign",
-                "contest-write": "Éditer Concours",
-                "contest-read": "Lire le Concours",
+                "miru-create": "Créer Miru",
+                "miru-download": "Télécharger Miru",
+                "miru-send": "Envoyer Miru",
+                "miru-sign": "Signer Miru",
+                "contest-write": "Éditer le Scrutin",
+                "contest-read": "Lire le Scrutin",
                 "candidate-write": "Éditer le candidats",
                 "candidate-read": "Lire le candidats",
                 "permission-label-write": "Modifier l'étiquette de permission",
                 "scheduled-event-write": "Modifier des Événements Planifiés",
-                "contest-create": "Create Contest",
-                "contest-delete": "Delete Contest",
-                "candidate-create": "Create Candidate",
-                "candidate-delete": "Delete Candidate",
-                "election-create": "Create Election",
-                "election-read": "Read Election",
-                "election-write": "Edit Election",
-                "election-delete": "Delete Election",
-                "election-event-archive": "Archive Election Event",
+                "contest-create": "Créer un Scrutin",
+                "contest-delete": "Supprimer le Scrutin",
+                "candidate-create": "Créer un Candidat",
+                "candidate-delete": "Supprimer le Candidat",
+                "election-create": "Créer une Élection",
+                "election-read": "Lire l'Élection",
+                "election-write": "Modifier l'Élection",
+                "election-delete": "Supprimer l'Élection",
+                "election-event-archive": "Archiver l'Événement Électoral",
                 "election-data-tab": "Voir les Données de l'Élection",
                 "election-event-areas-tab": "Voir les Zones de l'Événement Électoral",
                 "election-event-data-tab": "Voir les Données de l'Événement Électoral",
@@ -1760,7 +2345,10 @@ const frenchTranslation: TranslationType = {
                 "application-read": "Lire l'Application",
                 "application-write": "Modifier l'Application",
                 "approval-matrix-write": "Modifier la Matrice d'Approbation",
+                "readiness-check": "Vérifier la préparation électorale",
                 "logs-export": "Exporter les Journaux",
+                "tenant-logs-read": "Lire le Journal du Locataire",
+                "tenant-logs-export": "Exporter le Journal du Locataire",
                 "election-event-logs-columns": "Colonnes des Journaux de l'Événement Électoral",
                 "election-events-logs-filters": "Filtres des Journaux de l'Événement Électoral",
                 "election-event-scheduled-event-columns":
@@ -1852,6 +2440,7 @@ const frenchTranslation: TranslationType = {
                 "messaging-account-read": "Voir les comptes de messagerie",
                 "messaging-account-write": "Gérer les comptes de messagerie",
                 "messaging-config-write": "Configurer la messagerie de l'événement électoral",
+                "messaging-config-read": "Consulter la messagerie de l'événement électoral",
             },
         },
         generalSettingsScreen: {
@@ -1871,10 +2460,10 @@ const frenchTranslation: TranslationType = {
             },
             eventType: {
                 label: "Type",
-                ALLOW_INIT_REPORT: "Allow Initialization Report",
+                ALLOW_INIT_REPORT: "Autoriser le rapport d'initialisation",
                 START_VOTING_PERIOD: "Début de la Période de Vote",
                 END_VOTING_PERIOD: "Fin de la Période de Vote",
-                ALLOW_VOTING_PERIOD_END: "Allow Voting Period End",
+                ALLOW_VOTING_PERIOD_END: "Autoriser la fin de la période de vote",
                 START_ENROLLMENT_PERIOD: "Début de la période d'inscription",
                 END_ENROLLMENT_PERIOD: "Fin de la période d'inscription",
                 START_LOCKDOWN_PERIOD: "Début de la période de blocage des données du recensement",
@@ -2022,7 +2611,7 @@ const frenchTranslation: TranslationType = {
             resources: {
                 electionEvent: "Événement Électoral",
                 election: "Élection",
-                contest: "Concours",
+                contest: "Scrutin",
                 candidate: "Candidat",
                 noResult: {
                     askCreate: "Voulez-vous en créer un ?",
@@ -2088,20 +2677,23 @@ const frenchTranslation: TranslationType = {
         createResource: {
             electionEvent: "Créer un Événement Électoral",
             election: "Créer une Élection",
-            contest: "Créer un Concours",
+            contest: "Créer un Scrutin",
             candidate: "Créer un Candidat",
         },
         importResource: {
             electionEvent: "Importer un Événement Électoral",
             election: "Importer une Élection",
-            contest: "Importer un Concours",
+            contest: "Importer un Scrutin",
             candidate: "Importer un Candidat",
-            ImportHashMismatch: "Hashes don't match. Integrity check failure.",
+            ImportHashMismatch:
+                "Les empreintes ne correspondent pas. Échec du contrôle d'intégrité.",
         },
         sideMenu: {
             electionEvents: "Processus Électoraux",
             search: "Chercher",
             usersAndRoles: "Utilisateurs et Rôles",
+            electoralLogConsole: "Journal Électoral",
+            taskQueues: "Files de Tâches",
             logs: "Journaux",
             settings: "Configuration",
             help: "Aide",
@@ -2111,7 +2703,7 @@ const frenchTranslation: TranslationType = {
             addResource: {
                 electionEvent: "Créer un Événement Électoral",
                 election: "Créer une Élection",
-                contest: "Créer un Concours",
+                contest: "Créer un Scrutin",
                 candidate: "Créer un Candidat",
             },
             menuActions: {
@@ -2121,13 +2713,13 @@ const frenchTranslation: TranslationType = {
                 unarchive: {
                     electionEvent: "Désarchiver cet Événement Électoral",
                     election: "Désarchiver cette Élection",
-                    contest: "Désarchiver ce Concours",
+                    contest: "Désarchiver ce Scrutin",
                     candidate: "Désarchiver ce Candidat",
                 },
                 remove: {
                     electionEvent: "Supprimer cet Événement Électoral",
                     election: "Supprimer cette Élection",
-                    contest: "Supprimer ce Concours",
+                    contest: "Supprimer ce Scrutin",
                     candidate: "Supprimer ce Candidat",
                 },
                 messages: {
@@ -2203,7 +2795,7 @@ const frenchTranslation: TranslationType = {
         },
         contestScreen: {
             common: {
-                subtitle: "Configuration des questions.",
+                subtitle: "Configuration du scrutin.",
             },
             edit: {
                 externalId: "ID externe",
@@ -2309,7 +2901,7 @@ const frenchTranslation: TranslationType = {
             isAcclaimed: {
                 label: "Acquis par acclamation",
                 helperText:
-                    "Les électeurs voient ce vote mais ne peuvent rien sélectionner, rien n'est enregistré et tous les candidats sont déclarés élus avec zéro voix. À définir avant la publication des bulletins : le modifier ensuite invalide les bulletins déjà déposés.",
+                    "Les électeurs voient ce scrutin mais ne peuvent rien sélectionner, rien n'est enregistré et tous les candidats sont déclarés élus avec zéro voix. À définir avant la publication des bulletins : le modifier ensuite invalide les bulletins déjà déposés.",
             },
             allowWriteins: {
                 label: "Autoriser les candidatures manuscrites",
@@ -2321,21 +2913,60 @@ const frenchTranslation: TranslationType = {
                     "Position de classement la plus haute disponible (ex. '5' signifie positions 1 à 5). Doit être au moins égal au nombre de candidats à classer (vote préférentiel).",
             },
             error: {},
-            createContestSuccess: "Question créée",
-            createContestError: "Erreur lors de la création de la question",
+            createContestSuccess: "Scrutin créé",
+            createContestError: "Erreur lors de la création du scrutin",
         },
         keysGeneration: {
+            ...englishTranslation.translations.keysGeneration,
+            downloadStep: {
+                ...englishTranslation.translations.keysGeneration.downloadStep,
+                title: "Télécharger le fichier de garde",
+                downloadButton: "Télécharger le fichier de garde",
+                confirmdDialog: {
+                    ...englishTranslation.translations.keysGeneration.downloadStep.confirmdDialog,
+                    title: "Enregistrer votre fichier de garde",
+                },
+            },
+            checkStep: {
+                ...englishTranslation.translations.keysGeneration.checkStep,
+                subtitle:
+                    "Importez votre fichier de garde enregistré ou une preuve de garde signée :",
+                required: "Confirmation de garde requise",
+                reconfirmButton: "Confirmer à nouveau la garde (facultatif)",
+                reconfirmDescription:
+                    "Votre garde est déjà confirmée. Cette confirmation supplémentaire est facultative.",
+            },
+            serverCustody: {
+                recoveryInstructions:
+                    "Si vous avez importé cet événement électoral ou perdu le fichier enregistré, téléchargez ici son fichier de garde actuel. Enregistrez-le, puis téléversez-le ci-dessous.",
+                fileFormat: "Format accepté : JSON",
+                waiting: "En attente de la preuve de garde créée par votre serveur dépositaire…",
+                unavailable:
+                    "Le serveur dépositaire n’a pas répondu. Vérifiez qu’il fonctionne, puis importez à nouveau le fichier de garde.",
+                failed: "Le serveur dépositaire n’a pas pu créer la preuve : {{error}}",
+                invalidReply: "Le serveur dépositaire a renvoyé une réponse incomplète. Réessayez.",
+                cancelled:
+                    "La demande a été annulée. Importez à nouveau le fichier pour continuer.",
+                downloadInstructions:
+                    "Téléchargez et conservez ce fichier de garde. Importez le même fichier à l’étape suivante et lors des dépouillements futurs. Il ne constitue pas une sauvegarde de vos clés privées.",
+                uploadInstructions:
+                    "Importez le fichier de garde téléchargé. Votre serveur dépositaire créera la preuve. Vous pouvez aussi importer une preuve créée par un dépositaire hors ligne ou dans le navigateur.",
+                tallyInstructions:
+                    "Importez le fichier conservé lors de la cérémonie des clés. Votre serveur dépositaire créera une nouvelle preuve pour ce dépouillement. Les preuves hors ligne ou du navigateur sont aussi acceptées.",
+            },
             configureStep: {
                 create: "Créer une Cérémonie de Clés",
                 name: "Nom de la Cérémonie des Clés",
                 allElections: "Toutes les Élections",
                 title: "Créer une Cérémonie de Clés de l'Événement Électoral",
                 subtitle:
-                    "Dans cette cérémonie, chaque autorité générera et téléchargera sa part des clés privées pour l'Événement Électoral. Pour continuer, choisissez les autorités qui participeront à la cérémonie et le seuil, qui est le nombre minimum d'autorités nécessaires pour compter.",
+                    "Chaque dépositaire génère et conserve ses clés localement, puis en confirme la garde. Choisissez les dépositaires et le nombre minimum nécessaire au dépouillement.",
                 trusteeList: "Autorités",
                 threshold: "Seuil",
                 errorMinTrustees_one:
                     "Vous avez sélectionné seulement {{selected}} autorité, mais vous devez en sélectionner au moins {{threshold}}.",
+                errorMinTrustees_many:
+                    "Vous avez sélectionné seulement {{selected}} autorités, mais vous devez en sélectionner au moins {{threshold}}.",
                 errorMinTrustees_other:
                     "Vous avez sélectionné seulement {{selected}} autorités, mais vous devez en sélectionner au moins {{threshold}}.",
                 errorThreshold:
@@ -2352,18 +2983,24 @@ const frenchTranslation: TranslationType = {
                     description:
                         "Vous êtes sur le point de Créer une Cérémonie de Clés. Cette action notifiera aux Autorités de participer à la création et distribution des Clés de l'Événement Électoral.",
                     automaticCeremonyDescription:
-                        "Vous êtes sur le point de créer une cérémonie de clés automatique. Cela n'informera pas les fiduciaires de leur participation.",
+                        "Les cérémonies automatiques omettent les confirmations manuelles de garde. Les exécutants des dépositaires doivent générer et vérifier les clés électorales.",
                 },
                 filterTrustees: "Filtre des Autorités",
                 errorPermisionLabels:
                     "Impossible de créer la cérémonie de clés : une ou plusieurs étiquettes d’autorisations sont manquantes.",
                 automaticCeremonyToggle: "Cérémonie automatique",
             },
+            // Native custody instructions use the English fallback until translated.
             ceremonyStep: {
+                ...englishTranslation.translations.keysGeneration.ceremonyStep,
+                custodyConfirmed: "Garde confirmée",
+                custodyComplete:
+                    "Votre participation est terminée. Aucune autre action n’est requise de votre part.",
+                waitingForTrustees:
+                    "En attente de la confirmation de garde et de toute approbation requise des autres autorités.",
+                moreActions: "Autres actions",
                 cancel: "Annuler la Cérémonie de Clés",
                 progressHeader: "Progrès de la Cérémonie de Clés",
-                description:
-                    "Cet écran montre le progrès et les journaux de la Cérémonie de Clés de l'Événement Électoral. Dans la Cérémonie de Clés, chaque autorité générera et téléchargera son fragment de la clé privée pour l'Événement Électoral.",
                 executionStatus: "État : {{status}}",
                 confirmdDialog: {
                     ok: "Oui, Annuler la Création de la Cérémonie de Clés",
@@ -2373,10 +3010,9 @@ const frenchTranslation: TranslationType = {
                         "Vous êtes sur le point d'Annuler la Cérémonie de Clés. Après avoir effectué cette action, pour avoir une Cérémonie de Clés réussie, vous devrez en Créer une nouvelle.",
                 },
                 header: {
+                    ...englishTranslation.translations.keysGeneration.ceremonyStep.header,
                     trusteeName: "Nom de l'Autorité",
                     fragment: "Fragment de Clé Généré",
-                    downloaded: "Fragment Privé de Clé Téléchargé",
-                    checked: "Fragment Privé de Clé Vérifié",
                 },
                 logsHeader: {
                     title: "Journaux",
@@ -2384,47 +3020,6 @@ const frenchTranslation: TranslationType = {
                     entry: "Entrée",
                 },
                 emptyLogs: "Pas de journaux pour l'instant.",
-            },
-            startStep: {
-                title: "Cérémonie de Clés de l'Autorité",
-                subtitle:
-                    "Vous êtes sur le point de participer à la Cérémonie de Clés en tant qu'Autorité (<strong>{{name}}</strong>). Cela implique les étapes suivantes :",
-                one: "<strong>Télécharger</strong> votre Clé Privée Cryptée.",
-                two: "Créer plusieurs <strong>Copies de sauvegarde</strong> de votre Clé Privée Cryptée.",
-                three: "<strong>Vérifier</strong> que les copies de sauvegarde fonctionnent correctement.",
-            },
-            downloadStep: {
-                title: "Télécharger Clé Privée Cryptée",
-                subtitle:
-                    "Pour continuer, veuillez télécharger et sauvegarder votre Clé Privée Cryptée sur au moins deux appareils différents :",
-                downloadButton: "Télécharger votre Clé Privée Cryptée",
-                downloaded: "Clé Privée Cryptée téléchargée avec succès.",
-                errorEmptyKey: "Erreur de téléchargement, fichier vide",
-                unexpectedError: "La clé privée n'a pas pu être téléchargée. Veuillez réessayer.",
-                alreadyVerified: "Votre clé privée a déjà été téléchargée et vérifiée.",
-                unavailable:
-                    "Le téléchargement de la clé privée n'est plus disponible car la cérémonie a progressé.",
-                confirmdDialog: {
-                    ok: "Confirmer les copies de sauvegarde et Continuer",
-                    cancel: "Revenir",
-                    title: "Copie de sauvegarde de votre Clé Privée Cryptée",
-                    description:
-                        "Veuillez effectuer une copie de sauvegarde de votre Clé Privée Cryptée à au moins deux emplacements sécurisés différents et confirmez-le ensuite :",
-                    firstCopy: "Première copie de sauvegarde réalisée",
-                    secondCopy: "Deuxième copie de sauvegarde réalisée",
-                    confirmError:
-                        "Créez les sauvegardes requises et cochez les cases de confirmation pour continuer",
-                },
-            },
-            checkStep: {
-                title: "Vérifiez vos Copies de Sauvegarde de votre Clé Privée Cryptée",
-                verifyButton: "Vérifier la clé",
-                subtitle:
-                    "Chargez la Copie de Sauvegarde de votre Clé Privée Cryptée pour vérifier qu'elle est correcte. Vous pouvez essayer autant de fois que nécessaire, depuis vos différentes copies de sauvegarde :",
-                errorUploading:
-                    "Copa de Sauvegarde de la Clé Privée Cryptée invalide, veuillez réessayer",
-                errorEmptyFile: "Fichier vide ou non trouvé",
-                verified: "Copie de sauvegarde vérifiée avec succès.",
             },
         },
         miruExport: {
@@ -2442,59 +3037,63 @@ const frenchTranslation: TranslationType = {
                 "Une erreur s'est produite lors du téléchargement de la signature",
             downloadTransmissionPackage: "Télécharger le paquet",
             resultsPublication: {
-                sectionTitle: "Publish to results website",
-                policyTitle: "Results Website",
-                policyAccess: "Results Website Access",
-                policyVisibility: "Results Website Visibility",
-                enabled: "Enabled",
-                disabled: "Disabled",
-                fullEvent: "Full event",
-                areaBased: "Area based",
-                publishStarted: "Results publication started",
-                publishError: "Could not start results publication",
-                revoked: "Results publication revoked",
-                revokeError: "Could not revoke results publication",
-                waitingForTally: "Results can be published after this tally has completed.",
+                sectionTitle: "Publier sur le site web des résultats",
+                policyTitle: "Site web des résultats",
+                policyAccess: "Accès au site web des résultats",
+                policyVisibility: "Visibilité du site web des résultats",
+                enabled: "Activé",
+                disabled: "Désactivé",
+                fullEvent: "Événement complet",
+                areaBased: "Par zone",
+                publishStarted: "Publication des résultats démarrée",
+                publishError: "Impossible de démarrer la publication des résultats",
+                revoked: "Publication des résultats révoquée",
+                revokeError: "Impossible de révoquer la publication des résultats",
+                waitingForTally:
+                    "Les résultats pourront être publiés une fois ce dépouillement terminé.",
                 writePermissionRequired:
-                    "You need publish-results-write permission to publish or revoke results.",
+                    "Vous avez besoin de la permission publish-results-write pour publier ou révoquer des résultats.",
                 readPermissionRequired:
-                    "You need publish-results-read permission to view publication history.",
+                    "Vous avez besoin de la permission publish-results-read pour consulter l'historique des publications.",
                 disabledPolicy:
-                    "Results website publishing is disabled for this election event. Enable it in the election event data before publishing results.",
-                loadingElectionContext: "Results publication is loading election context.",
+                    "La publication sur le site web des résultats est désactivée pour cet événement électoral. Activez-la dans les données de l'événement électoral avant de publier les résultats.",
+                loadingElectionContext:
+                    "La publication des résultats charge le contexte de l'élection.",
                 route: "Route",
-                eventResults: "Event results",
-                electionResults: "Election results",
-                election: "Election",
-                access: "Access",
-                publicAccess: "Public access",
-                authenticatedAccess: "Authenticated access",
-                visibility: "Visibility",
-                fullPublishedScope: "Full published scope",
-                personalVisibility: "Personal visibility",
-                contests: "Contests",
-                noTalliedContests: "No tallied contests available.",
-                publishSelectedContests: "Publish selected contests",
-                selectedContestCount: "{{count}} contest selected",
-                selectedContestCount_plural: "{{count}} contests selected",
-                history: "Publication history",
+                eventResults: "Résultats de l'événement",
+                electionResults: "Résultats de l'élection",
+                election: "Élection",
+                access: "Accès",
+                publicAccess: "Accès public",
+                authenticatedAccess: "Accès authentifié",
+                visibility: "Visibilité",
+                fullPublishedScope: "Portée publiée complète",
+                personalVisibility: "Visibilité personnelle",
+                contests: "Scrutins",
+                noTalliedContests: "Aucun scrutin dépouillé disponible.",
+                publishSelectedContests: "Publier les scrutins sélectionnés",
+                selectedContestCount_one: "{{count}} scrutin sélectionné",
+                selectedContestCount_many: "{{count}} scrutins sélectionnés",
+                selectedContestCount_other: "{{count}} scrutins sélectionnés",
+                history: "Historique des publications",
                 version: "Version",
-                status: "Status",
-                published: "Published",
-                revokedAt: "Revoked",
+                status: "Statut",
+                published: "Publié",
+                revokedAt: "Révoqué",
                 actions: "Actions",
-                open: "Open",
-                revoke: "Revoke",
-                noPublications: "No publications yet.",
-                confirmTitle: "Start publish to results website?",
+                open: "Ouvrir",
+                revoke: "Révoquer",
+                noPublications: "Aucune publication pour le moment.",
+                confirmTitle: "Démarrer la publication sur le site web des résultats ?",
                 confirmDescription:
-                    "This will create a new publication from the current tally execution. The existing voter-facing results stay active until this publish task succeeds.",
-                close: "Close",
+                    "Cela créera une nouvelle publication à partir du dépouillement actuel. Les résultats visibles par les électeurs restent actifs jusqu'à la réussite de cette tâche de publication.",
+                close: "Fermer",
             },
             transmissionPackage: {
                 title: "Paquet de Transmission pour la Zone '{{name}}' y Elección '{{eventName}}'",
                 description:
                     "Vous permet d'exporter un Paquet de Transmission vers des Serveurs de Destination ou de le télécharger.",
+                erFileSha256: "Fichier ER SHA-256 :",
                 actions: {
                     sign: {
                         title: "Régénérer",
@@ -2534,9 +3133,13 @@ const frenchTranslation: TranslationType = {
                     },
                     download: {
                         title: "Télécharger",
-                        emlTitle: "Download EML {{date}}",
+                        emlTitle: "Télécharger EML {{date}}",
                         transmissionPackageTitle: "Télécharger le Paquet de Transmission {{date}}",
                         transmissionReportTitle: "Télécharger le rapport de transmission",
+                        csvTitle: "Télécharger le CSV des résultats {{date}}",
+                        ovcsPublicKeyTitle: "Télécharger la clé publique de l'OVCS",
+                        recordError:
+                            "Le téléchargement n'a pas pu être enregistré, il n'a donc pas commencé. Réessayez.",
                         dialog: {
                             title: "Voulez-vous télécharger le Paquet de Transmission?",
                             description:
@@ -2551,6 +3154,9 @@ const frenchTranslation: TranslationType = {
                     description:
                         "Le tableau ci-dessous montre l'état d'envoi de chacun des Serveurs de Destination.",
                     status: "Envoyé à {{signed}} sur {{total}}",
+                    manualReceipt: "Remise manuelle",
+                    handOver: "Téléchargez le paquet et remettez-le en main propre",
+                    sealedFor: "Scellé pour sa clé, SHA-256 {{key}}…",
                     table: {
                         serverName: "Nom du Serveur",
                         sendStatus: "État de l'Envoi",
@@ -2564,7 +3170,8 @@ const frenchTranslation: TranslationType = {
                         trusteeName: "Membre",
                         signed: "A Signé",
                     },
-                    status: "{{signed}} sur {{total}} Ont Signé",
+                    status: "{{signed}} sur {{total}}, {{minimum}} requises",
+                    statusNoMinimum: "{{signed}} sur {{total}}",
                 },
             },
             sendToTransmissionPackageServers:
@@ -2585,15 +3192,18 @@ const frenchTranslation: TranslationType = {
             logsTitle: "Journaux",
             resultsTitle: "Résultats & Participation",
             generalInfoTitle: "Informations Générales",
+            sessionId: "Identifiant de la session de dépouillement",
+            selectedQuorum: "Quorum sélectionné",
             trusteeTallyTitle: "Trustee",
-            trusteeTallySubTitle: "État d'importation du fragment de clé",
+            trusteeTallySubTitle: "État de confirmation de garde",
             ballotBoxes: {
                 unavailable: "Scellés indisponibles",
                 sealed: "{{sealed}} sur {{total}} scellées",
-                publishing: "Scellées, {{published}} sur {{total}} sur le tableau d'affichage",
+                publishing:
+                    "Scellées, {{published}} procès-verbaux de scellement publiés sur {{total}}",
                 sealing: "Scellement à {{time}}",
                 notSealed: "Non scellées",
-                help: "Une élection peut être dépouillée une fois que chaque urne est scellée et que son scellé figure sur le tableau d'affichage.",
+                help: "Une élection peut être dépouillée une fois que chaque urne est scellée et que son procès-verbal de scellement est publié.",
                 failed: "Non scellée : incident",
                 overdue: "Scellement en retard",
                 blocked: "{{name}} : {{reason}}",
@@ -2604,7 +3214,7 @@ const frenchTranslation: TranslationType = {
                     "overdue":
                         "ses urnes ont dépassé leur échéance et ne sont pas encore scellées (voir son Tableau de Bord)",
                     "publishing":
-                        "certains de ses scellés sont encore en cours de publication sur le tableau d'affichage",
+                        "les procès-verbaux de scellement de certaines de ses urnes sont encore en cours de publication",
                     "failed":
                         "une urne n'a pas pu être scellée, c'est un incident (voir son Tableau de Bord)",
                     "unavailable": "les scellés de ses urnes n'ont pas pu être lus",
@@ -2620,7 +3230,7 @@ const frenchTranslation: TranslationType = {
                 endVoting:
                     "Terminez le vote de chaque élection sélectionnée et arrêtez ses canaux actifs avant de créer le dépouillement.",
                 sealBallotBoxes:
-                    "Une élection peut être dépouillée une fois que chaque urne est scellée et que son scellé figure sur le tableau d'affichage.",
+                    "Une élection peut être dépouillée une fois que chaque urne est scellée et que son procès-verbal de scellement est publié.",
             },
             createTallySuccess: "Comptage créé",
             createTallyError: "Erreur lors de la création du comptage",
@@ -2638,7 +3248,8 @@ const frenchTranslation: TranslationType = {
             recountTallyCeremonyError: "Impossible de démarrer le recomptage",
             recountTallyCeremonyOk: "Recompter",
             trusteeTitle: "Processus du trustee",
-            trusteeSubTitle: "Veuillez importer votre fragment de clé",
+            trusteeSubTitle:
+                "Importez votre fichier de garde enregistré ou une preuve de garde signée :",
             invited: "Vous avez été invité à participer à une cérémonie de comptage. Veuillez, ",
             click: "cliquez sur l'action de comptage",
             participate: "pour participer.",
@@ -2657,7 +3268,7 @@ const frenchTranslation: TranslationType = {
                 date: "Date de Comptage",
                 global: "Global",
                 noTrustees: "Aucun trustee pour l'instant",
-                imported: " trustees ont importé leur fragment de clé",
+                imported: " dépositaires ont confirmé la garde",
                 needed: " trustees nécessaires pour le comptage",
                 start: "Commencer Comptage",
                 ceremony: "Commencer Cérémonie de Comptage",
@@ -2672,11 +3283,11 @@ const frenchTranslation: TranslationType = {
                     tallyTitle: "Êtes-vous sûr de vouloir commencer le comptage ?",
                     cancelTitle: "Êtes-vous sûr de vouloir annuler le comptage ?",
                     message:
-                        "Vous êtes sur le point de commencer une cérémonie de comptage. Cette action notifiera aux trustees d'importer leurs fragments de clé.",
+                        "Cette cérémonie demande des preuves publiques de garde aux dépositaires. Gardez leurs exécutants actifs avec leur état local du protocole.",
                     cancelMessage:
                         "Vous êtes sur le point d'annuler la cérémonie de comptage. Cette action ne peut pas être annulée.",
                     ceremony:
-                        "Tous les trustees requis ont vérifié leurs fragments de clé. Tout est prêt pour commencer à recevoir les résultats. Voulez-vous commencer le Comptage ?",
+                        "Les dépositaires nécessaires ont confirmé la garde. Démarrer le dépouillement avec leurs exécutants actifs ?",
                     startAutomatedTallyMessage:
                         "Sélectionnez 'Start Tally' pour lancer le processus de décompte et afficher les résultats, ou 'Close' pour annuler.",
                 },
@@ -2735,7 +3346,7 @@ const frenchTranslation: TranslationType = {
                 channel_postal: "Postal",
                 channel_in_person: "En personne",
                 acclamation_note:
-                    "Élu par acclamation. Ce vote a été acquis sans scrutin : aucune voix n'a été enregistrée.",
+                    "Élu par acclamation. Ce scrutin a été tranché sans vote : aucune voix n'a été enregistrée.",
             },
             pendingResolutions: {
                 round: "Tour {{round}}",
@@ -2756,7 +3367,7 @@ const frenchTranslation: TranslationType = {
                 save: "Enregistrer",
                 pendingApplyStatus: "Calcul en attente",
                 filterElection: "Élection",
-                filterContest: "Concours",
+                filterContest: "Scrutin",
                 filterArea: "Zone",
                 filterStatusLabel: "Statut",
                 clearFilters: "Effacer les filtres",
@@ -2969,7 +3580,7 @@ const frenchTranslation: TranslationType = {
             languages: "Langues",
             smsMessage: "Message SMS",
             errorSending: "Erreur lors de l'envoi de la notification : {{error}}",
-            successSending: "Notification programmée/envoyée avec succès",
+            successSending: "Notification programmée avec succès",
             method: "Méthode de Modèles",
             type: "Type de Communication",
             alias: "Alias de la Modèle",
@@ -2977,7 +3588,7 @@ const frenchTranslation: TranslationType = {
                 ALL_USERS: "Tous",
                 NOT_VOTED: "Ceux qui n'ont pas voté",
                 VOTED: "Ceux qui ont déjà voté",
-                SELECTED: "À {{total}} Électeurs sélectionnés",
+                SELECTED: "À {{total}} {{voters}} sélectionnés",
             },
             path: {
                 users: "utilisateurs",
@@ -3034,7 +3645,7 @@ const frenchTranslation: TranslationType = {
                 blankBallotsInconsistent:
                     "Les Bulletins Blancs doivent avoir la même valeur sur toutes les feuilles de dépouillement de cette urne",
                 blankBallotsOutOfBounds:
-                    "La valeur des Bulletins Blancs est en dehors de la plage impliquée par les décomptes de votes blancs par candidature de cette urne",
+                    "La valeur des Bulletins Blancs est en dehors de la plage impliquée par les décomptes de votes blancs par scrutin de cette urne",
             },
             label: {
                 area: "Zone",
@@ -3087,7 +3698,7 @@ const frenchTranslation: TranslationType = {
             },
             table: {
                 area: "Zone",
-                contest: "Cotienda",
+                contest: "Scrutin",
                 approvedVersion: "Version approuvée",
                 latestVersion: "Dernière version",
                 labels: "Étiquettes",
@@ -3276,6 +3887,7 @@ const frenchTranslation: TranslationType = {
                 },
             },
             languages: {
+                logsTimezone: "Fuseau horaire du journal du locataire",
                 default: "Langue par défaut",
             },
         },
@@ -3339,6 +3951,9 @@ const frenchTranslation: TranslationType = {
                     title: "Rien ici",
                     text: "Les inscriptions ayant ce statut apparaîtront ici. Essayez une autre recherche ou un autre statut.",
                 },
+                searchHelp:
+                    "Un nom, une adresse e-mail ou un numéro d'identité, ou la référence d'assistance donnée à l'électeur, par exemple Q5KW-8RFX.",
+                referenceError: "La référence d'assistance n'a pas pu être recherchée.",
             },
             flow: {
                 stepsLabel: "Étapes de l'examen",
@@ -4833,7 +5448,7 @@ const frenchTranslation: TranslationType = {
                 keys_ceremony_id: "Cérémonie",
                 tally_session_id: "Session de dépouillement",
                 trustee_id: "Autorité",
-                key_share_sha256: "SHA-256 du fragment de clé",
+                custody_proof_sha256: "SHA-256 du preuve de garde",
                 channel: "Canal",
                 channels: "Canaux",
                 publication_id: "Publication des bulletins",
@@ -4938,22 +5553,22 @@ const frenchTranslation: TranslationType = {
                 afterApproval: "Après l'approbation",
                 afterApprovalValue:
                     "Les identifiants de l'électeur sont délivrés et lui sont envoyés",
-                keyShare: "Votre fragment de clé",
-                keyShareChecked: "Vérifié : c'est votre fragment de clé pour cette cérémonie",
+                custodyProof: "Votre preuve de garde",
+                custodyProofChecked: "Vérifié : c'est votre preuve de garde pour cette cérémonie",
                 recordedIn: "Consigné dans",
                 recordedInCeremony: "La cérémonie des clés et le tableau d'affichage",
                 recordedInTally: "La session de dépouillement",
             },
-            keyShare: {
+            custodyProof: {
                 signing:
-                    "Signez votre fragment de clé dans le panneau de signature. Il est consigné une fois signé.",
-                record: "Consigner mon fragment de clé",
-                failed: "Votre fragment de clé signé n'a pas pu être consigné : {{error}}",
+                    "Signez votre preuve de garde dans le panneau de signature. Il est consigné une fois signé.",
+                record: "Consigner mon preuve de garde",
+                failed: "Votre preuve de garde signé n'a pas pu être consigné : {{error}}",
                 dropAgain:
-                    "Déposez à nouveau votre fichier de fragment de clé pour consigner votre fragment de clé signé.",
-                redo: "Votre fragment de clé a été apporté sans votre signature, que cette élection exige désormais. Apportez-le à nouveau et signez-le.",
+                    "Déposez à nouveau votre fichier de preuve de garde pour consigner votre preuve de garde signé. (signed-custody-proof.json)",
+                redo: "Votre preuve de garde a été apporté sans votre signature, que cette élection exige désormais. Apportez-le à nouveau et signez-le.",
                 notTaken:
-                    "La cérémonie n'accepte plus ce fragment de clé. Déposez à nouveau votre fichier de fragment de clé.",
+                    "La cérémonie n'accepte plus ce preuve de garde. Déposez à nouveau votre fichier de preuve de garde. (signed-custody-proof.json)",
             },
         },
         lifecycle: {
@@ -5354,10 +5969,8 @@ const frenchTranslation: TranslationType = {
             sections: {
                 channels: "Canaux",
                 templates: "Modèles approuvés",
-                fallback: "Ordre de repli pour les avis",
                 posts: "Canaux par Post",
                 postsCount: "Canaux par Post ({{count}} Posts)",
-                reply: "Réponse aux messages entrants",
                 delivery: "État de la remise",
             },
             column: {
@@ -5368,27 +5981,38 @@ const frenchTranslation: TranslationType = {
                 template: "Modèle du fournisseur",
                 status: "État",
                 post: "Post",
-                key: "Pour le message",
+                key: "Type de message ou modèle",
                 providerLanguage: "Langue du fournisseur",
+                voters: "Électeurs qui l'utilisent",
+                sent24h: "Envoyés, dernières 24 h",
+                sent24hHelp:
+                    "Chaque message dont la dernière tentative date des dernières 24 heures, quel que soit son état, échecs compris. Les colonnes d'état comptent tous les messages de l'événement.",
             },
             outOfWindow: {
-                label: "Hors de la fenêtre de conversation",
-                help: "Les avis en texte libre ne sont envoyés que tant que la fenêtre de conversation est ouverte : sur Messenger, dans les 24 heures suivant le dernier message de l'électeur. Choisissez Messages utilitaires pour envoyer des avis après ce délai avec un modèle approuvé. Meta doit l'approuver pour la Page (l'autorisation page_utility_messaging et un modèle UTILITY approuvé), et ce modèle doit être lié aux avis dans Modèles approuvés. Avec Ne pas envoyer, un avis hors de la fenêtre passe au canal disponible suivant de l'électeur.",
-                DISABLED: "Ne pas envoyer",
-                UTILITY_MESSAGES: "Messages utilitaires",
-                noTemplate:
-                    "Aucun modèle n'est encore lié aux avis sur ce canal. Ajoutez-en un dans Modèles approuvés ; d'ici là, les avis hors de la fenêtre passent au canal disponible suivant de l'électeur.",
+                utility:
+                    "En dehors de la fenêtre de 24 heures, {{channel}} envoie les avis avec le modèle utilitaire approuvé lié aux avis dans Modèles approuvés.",
+            },
+            messageTypes: {
+                otp: "Code de vérification",
+                otl: "Lien de connexion",
+                enrollmentAccepted: "Inscription acceptée",
+                enrollmentAcceptedKiosk: "Inscription acceptée (kiosque)",
+                enrollmentPending: "Inscription en attente d’approbation",
+                enrollmentRejected: "Inscription rejetée",
+                passwordReset: "Réinitialisation du mot de passe",
+                temporaryPassword: "Mot de passe temporaire",
+                contactChanged: "Méthode de contact modifiée",
             },
             templates: {
                 empty: "Choisissez un compte qui envoie des modèles approuvés, comme WhatsApp, Viber ou Messenger, pour lier ses modèles ici.",
-                help: "Chaque ligne indique quel modèle approuvé le fournisseur envoie pour un message. Pour le message est l'alias d'un modèle de Modèles, pour une notification, ou la clé de message qu'envoie Keycloak, comme otp ; laissez-le vide pour le modèle utilisé par défaut pour l'usage. Langue est la langue de l'électeur. Modèle du fournisseur est le nom ou l'ID du modèle chez le fournisseur. Langue du fournisseur est le code du fournisseur pour ce modèle lorsqu'il diffère de la langue de l'électeur : WhatsApp exige le code exact du modèle approuvé, comme en_US.",
+                help: "Choisissez un type de message du système ou un alias dans Modèles. Laissez ce champ vide pour utiliser le modèle approuvé par défaut pour cet usage. Langue est la langue de l'électeur. Modèle du fournisseur est le nom ou l'ID du modèle chez le fournisseur. Langue du fournisseur est le code du fournisseur pour ce modèle lorsqu'il diffère de la langue de l'électeur : WhatsApp exige le code exact du modèle approuvé, comme en_US.",
                 order: "Pour chaque message, la ligne la plus précise l'emporte : la ligne du message dans la langue de l'électeur, puis la ligne du message dans n'importe quelle langue, puis le modèle par défaut de l'usage dans la langue de l'électeur, puis n'importe quel modèle par défaut de l'usage.",
                 noneRequired:
                     "{{channel}} n'envoie que des modèles approuvés. Ajoutez au moins un modèle par défaut pour chaque usage utilisé.",
                 noneOptional:
                     "Aucun modèle n'est lié pour {{channel}}. Ils ne sont nécessaires que pour envoyer des avis hors de la fenêtre de conversation.",
                 row: "Modèle {{channel}} {{position}}",
-                keyDefault: "Par défaut pour l'usage",
+                keyDefault: "Par défaut pour cet usage",
                 add: "Ajouter un modèle {{channel}}",
                 remove: "Retirer le modèle {{channel}} {{position}}",
                 incomplete:
@@ -5396,15 +6020,8 @@ const frenchTranslation: TranslationType = {
                 approval: {
                     APPROVED: "Approuvé",
                     NOT_APPROVED: "Non approuvé",
-                    ADMIN_CONFIRMED: "Confirmé par un administrateur",
                     NOT_CHECKED: "Approbation non vérifiée",
                 },
-            },
-            fallback: {
-                help: "Lorsqu'un avis ne peut pas atteindre un électeur sur son canal, il passe au canal suivant de cet ordre que l'électeur a vérifié et que son Post propose. Les codes ne sont jamais renvoyés d'eux-mêmes : l'électeur choisit un autre moyen.",
-                empty: "Activez les avis d'un canal pour l'ajouter à l'ordre de repli.",
-                earlier: "Déplacer {{channel}} plus tôt",
-                later: "Déplacer {{channel}} plus tard",
             },
             posts: {
                 noChannels:
@@ -5418,13 +6035,18 @@ const frenchTranslation: TranslationType = {
                 showing:
                     "{{shown}} Posts affichés sur {{total}}. Recherchez pour trouver les autres.",
             },
-            reply: {
-                help: "Envoyée lorsqu'un électeur écrit à l'un des comptes de cet événement, au plus une fois par jour et par électeur.",
-                label: "Réponse ({{language}})",
-            },
             delivery: {
+                notConfigured: "Non proposé par cet événement",
                 empty: "Aucun canal n'est utilisé.",
-                help: "Accepté signifie que le fournisseur a accepté la demande, pas que l'électeur a reçu ou vérifié le code. Inconnu signifie que la remise n'est pas encore confirmée. Un fournisseur sans rapports de remise affiche la remise comme non disponible.",
+                help: "Les comptes sont par message, selon l'état de sa dernière tentative. Accepté signifie que le fournisseur a accepté le message, pas que l'électeur l'a reçu. Inconnu signifie que la remise n'est pas encore confirmée ; après 24 heures, elle est affichée comme Non résolu, jamais comme un échec. Un compte sans rapports de remise affiche la remise comme non disponible.",
+                loadError: "Les comptes de messages n'ont pas pu être chargés.",
+                noReceipts:
+                    "Ce compte ne reçoit pas de rapports de remise : la remise ne peut donc pas être affichée.",
+                showFailed: "Afficher les messages {{channel}} en échec dans Journaux",
+                noChannelHelp:
+                    "Électeurs sans canal de contact enregistré. Leurs avis échouent et ne sont jamais comptés sous un canal.",
+                showFailedNoChannel:
+                    "Afficher dans Journaux les messages en échec des électeurs sans canal de contact",
             },
             error: {
                 UNSUPPORTED_VERSION:
@@ -5440,14 +6062,18 @@ const frenchTranslation: TranslationType = {
                     "Le modèle {{channel}} pour {{purpose}} en {{language}} n'est pas approuvé par le fournisseur.",
                 OUT_OF_WINDOW_NOT_SUPPORTED:
                     "{{channel}} ne peut pas envoyer hors d'une fenêtre de conversation avec ce compte : il n'a pas de fenêtre de conversation, ou ses avis nécessitent déjà un modèle.",
-                FALLBACK_CHANNEL_NOT_ENABLED:
-                    "{{channel}} est dans l'ordre de repli mais n'envoie pas d'avis.",
-                DUPLICATE_FALLBACK_CHANNEL:
-                    "{{channel}} figure plusieurs fois dans l'ordre de repli.",
                 ELECTION_CHANNEL_NOT_ENABLED:
                     "{{election}} propose {{channel}}, que cet événement n'utilise pas.",
                 UNKNOWN_ELECTION: "{{election}} n'est pas une élection de cet événement.",
+                UTILITY_TEMPLATE_MISSING:
+                    "Les avis {{channel}} en dehors de la fenêtre de 24 heures nécessitent le modèle utilitaire approuvé. Liez-le aux avis dans Modèles approuvés.",
             },
+            noReadPermission:
+                "La lecture de ces paramètres nécessite l'autorisation messaging-config-read.",
+            chooseAccount: "Choisissez d'abord un compte.",
+            needsSavingAgain: "La configuration doit être enregistrée à nouveau.",
+            needsSavingAgainHelp:
+                "Elle a été copiée depuis l'ancien stockage et n'a pas passé les vérifications d'un enregistrement. Corrigez les problèmes affichés, puis enregistrez-la à nouveau.",
         },
         messaging: {
             channel: {
@@ -5464,8 +6090,8 @@ const frenchTranslation: TranslationType = {
                 WHATSAPP_CLOUD_API: "WhatsApp Cloud API (Meta)",
                 MESSENGER_SEND_API: "Messenger Platform (Meta)",
                 VIBER_INFOBIP: "Viber Business Messages (Infobip)",
-                CONSOLE: "Console (test uniquement, rien n'est envoyé)",
-                HTTP_API: "API HTTP personnalisée",
+                CONSOLE: "Console (plus prise en charge)",
+                HTTP_API: "API HTTP personnalisée (plus prise en charge)",
             },
             purpose: {
                 OTP: "Codes",
@@ -5477,6 +6103,7 @@ const frenchTranslation: TranslationType = {
                 DELIVERED: "Remis",
                 FAILED: "Échec",
                 UNKNOWN: "Inconnu",
+                UNRESOLVED: "Non résolu",
             },
             stateHelp: {
                 QUEUED: "En attente de transmission au fournisseur.",
@@ -5485,13 +6112,19 @@ const frenchTranslation: TranslationType = {
                 DELIVERED: "Le fournisseur a signalé le message comme remis.",
                 FAILED: "Le fournisseur a confirmé que le message n'a pas été remis.",
                 UNKNOWN: "La remise n'est pas encore confirmée.",
+                UNRESOLVED:
+                    "La remise n'a pas pu être confirmée en 24 heures. Cela ne signifie pas qu'elle a échoué.",
             },
             blocker: {
+                UNCHECKED: "Non vérifié pour son numéro, sa page ou son expéditeur actuels",
                 NOT_CONNECTED: "Non connecté",
                 UNSUPPORTED_PURPOSE: "Non pris en charge par ce fournisseur",
                 NEEDS_PROVIDER_APPROVAL: "Nécessite l'approbation du fournisseur",
                 NEEDS_PRODUCTION_ACCESS: "Nécessite un accès de production",
                 NEEDS_APPROVED_TEMPLATE: "Nécessite un modèle approuvé",
+                UNSUPPORTED_PROVIDER: "Fournisseur non pris en charge : remplacez ce compte",
+                CALLBACK_NOT_CONFIGURED: "Adresse de rappel non configurée",
+                REPORT_CREDENTIALS_MISSING: "Identifiants des rapports non générés",
             },
             readiness: {
                 connected: "Connecté",
@@ -5501,8 +6134,6 @@ const frenchTranslation: TranslationType = {
                 notReady: "Pas prêt",
                 lastCheck: "Vérifié {{date}}",
                 neverChecked: "Pas encore vérifié",
-                adminConfirmed: "Confirmé par un administrateur",
-                checkNotUsed: "Vérification non utilisée",
             },
             approval: {
                 PENDING: "Approbation du fournisseur en attente",
@@ -5516,10 +6147,8 @@ const frenchTranslation: TranslationType = {
                 SMTP_PASSWORD: "Mot de passe",
                 AWS_ACCESS_KEY_ID: "ID de clé d'accès AWS",
                 AWS_SECRET_ACCESS_KEY: "Clé d'accès secrète AWS",
-                API_SECRET: "Secret de l'API",
-                USERNAME: "Nom d'utilisateur",
-                PASSWORD: "Mot de passe",
-                WEBHOOK_SECRET: "Secret du webhook",
+                REPORT_USERNAME: "Nom d'utilisateur des rapports",
+                REPORT_PASSWORD: "Mot de passe des rapports",
             },
             deliveryUnavailable: "Remise non disponible",
             templates: {
@@ -5544,7 +6173,7 @@ const frenchTranslation: TranslationType = {
                     "Dans les 24 heures qui suivent le dernier message de l'électeur, Messenger envoie le texte ci-dessous.",
                 messengerMessage: "Message dans les 24 heures",
                 messengerWindow:
-                    "Un destinataire Messenger enregistré n'est pas une autorisation d'envoi. En dehors de la fenêtre de 24 heures, cet avis est envoyé comme message utilitaire lorsque l'événement électoral le permet et qu'un modèle approuvé est indiqué ci-dessous ou lié dans l'événement ; sinon, il passe au canal disponible suivant de l'électeur. Les messages utilitaires nécessitent l'autorisation page_utility_messaging et un modèle UTILITY approuvé sur la Page.",
+                    "Un destinataire Messenger enregistré n'est pas une autorisation d'envoi. En dehors de la fenêtre de 24 heures, cet avis est envoyé avec le modèle utilitaire approuvé indiqué ci-dessous ou lié dans l'événement électoral ; sans modèle, il n'est pas envoyé et l'échec est affiché avec son motif. Les messages utilitaires nécessitent l'autorisation page_utility_messaging et un modèle UTILITY approuvé sur la page.",
                 intro: {
                     WHATSAPP:
                         "WhatsApp n'envoie que les modèles approuvés par Meta pour le compte WhatsApp Business. Le message doit correspondre au modèle approuvé ; choisissez ce qui remplit ses paramètres.",
@@ -5559,46 +6188,113 @@ const frenchTranslation: TranslationType = {
                 providerTemplate: "Nom ou ID du modèle du fournisseur",
                 providerLanguage: "Code de langue du fournisseur",
                 providerLanguageHelp: {
-                    WHATSAPP: "Le code de langue exact du modèle WhatsApp approuvé, comme en_US.",
+                    WHATSAPP:
+                        "Utilisez le code de langue exact du modèle WhatsApp approuvé, comme en ou en_US. Un code régional est nécessaire uniquement si le modèle a été approuvé avec ce code.",
                     VIBER: "Le code de langue sous lequel le fournisseur Viber connaît le modèle, lorsqu'il en faut un.",
                     MESSENGER: "Le code de langue du modèle utilitaire approuvé, comme en_US.",
                 },
-                approvalAdminConfirmed:
-                    "Un administrateur a confirmé auprès du fournisseur que les modèles de ce compte sont approuvés ; les approbations de la vérification de connexion ne sont donc pas utilisées.",
+                noReadPermission:
+                    "La lecture des comptes nécessite l'autorisation messaging-config-read.",
             },
             send: {
-                channel: "Canal",
                 eachVoter: "Le canal de chaque électeur",
-                only: "{{channel}} uniquement",
                 eachVoterHelp:
-                    "Les échecs confirmés utilisent le canal vérifié disponible suivant. Une remise non confirmée est affichée comme Inconnue.",
-                onlyHelp: "Cette notification est envoyée à chaque électeur par {{channel}}.",
+                    "Chaque électeur reçoit un message sur son propre canal. Si la remise échoue, elle est retentée sur ce canal et l'échec apparaît dans l'onglet Messagerie de l'événement. Une remise non confirmée est affichée comme Inconnue.",
                 channelColumn: "Canal",
                 sendsFrom: "Envoyé depuis",
                 noAccount: "Aucun compte",
                 missingContent: "Cette notification n'a pas de contenu pour {{channels}}.",
                 approvedTemplateHelp:
-                    "Envoyé avec le modèle approuvé par le fournisseur. Modifiez-le dans Modèles.",
-                providerTemplate: "Modèle du fournisseur {{channel}}",
-                providerTemplateHelp:
-                    "Facultatif. S'il est vide, le modèle de l'événement lié à l'alias du modèle choisi est utilisé, ou le modèle par défaut de l'événement pour les avis.",
-                providerLanguage: "Langue du fournisseur {{channel}}",
-                providerLanguageHelp:
-                    "Le code de langue du fournisseur pour ce modèle, comme en_US.",
+                    "Les modèles {{channel}} sont approuvés par le fournisseur : leur texte, le modèle du fournisseur et la langue ne peuvent pas être modifiés ici. Choisissez un autre modèle enregistré pour utiliser un autre contenu approuvé.",
+                voters: "Électeurs",
+                environment: "L'expéditeur par défaut du déploiement",
+                noNoticeChannels:
+                    "Les paramètres de messagerie de cet événement n'activent les avis sur aucun canal : aucun électeur ne recevrait cette notification. Activez les avis d'un canal dans l'onglet Messagerie de l'événement.",
+                noReadPermission:
+                    "Afficher le canal de chaque électeur nécessite l'autorisation messaging-config-read. Chaque électeur reçoit tout de même la notification sur son propre canal.",
+            },
+            audience: {
+                notOfferedRow:
+                    "Aucun Post de ces électeurs ne propose ce canal pour les avis, donc aucun d'entre eux ne le reçoit : {{reason}}.",
+                willSend: "Recevront la notification : {{willSend}}",
+                selectedTimedOut:
+                    "Le décompte des électeurs sélectionnés a pris trop de temps, aucun décompte n'est donc affiché. Chaque électeur reçoit tout de même la notification sur son propre canal.",
+                notSent: "Non envoyé",
+                deletedAccount: "Compte supprimé",
+                notOffered: "{{notOffered}} d'entre eux ne le reçoivent pas : {{reason}}.",
+                noAccountHelp:
+                    "Aucun compte n'envoie sur ce canal : les avis de ces électeurs échouent : {{reason}}.",
+                noChannelHelp:
+                    "Ces électeurs n'ont aucun canal de contact enregistré. Ils ne reçoivent rien, et chacun apparaît en échec : {{reason}}.",
+                total: "Électeurs de cette audience : {{total}}",
+                loadError:
+                    "Le nombre d'électeurs n'a pas pu être chargé. Chaque électeur reçoit quand même la notification sur son propre canal.",
+            },
+            voterCount: {
+                countedAt: "Compté : {{time}}.",
+                never: "Pas encore compté.",
+                pending: "Un nouveau décompte est en cours.",
+                timedOut: "Le dernier décompte a pris trop de temps et a été arrêté.",
+                failed: "Le dernier décompte a échoué.",
+                previous: "Les décomptes affichés sont ceux d'avant.",
+                recount: "Recompter",
+                recountAsked:
+                    "Nouveau décompte demandé. Les décomptes se mettent à jour quand il se termine.",
+                recountAlreadyAsked: "Un nouveau décompte est déjà en cours.",
+                recountError: "Le nouveau décompte n'a pas pu être demandé.",
+                loadError: "Les décomptes d'électeurs n'ont pas pu être chargés.",
+            },
+            volumes: {
+                title: "Volumes mensuels",
+                intro: "Tentatives remises à un fournisseur chaque mois, par canal, compte d'envoi, pays de destination et catégorie de facturation, pour rapprocher les factures des fournisseurs. Chaque tentative compte dans le mois où elle a été faite, donc une nouvelle tentative compte à nouveau. La catégorie de facturation est celle attendue à l'envoi, ou celle indiquée par le fournisseur ; le caractère facturable d'une tentative est celui indiqué par le fournisseur. Aucun prix n'est affiché.",
+                month: "Mois",
+                monthHelp: "Les mois sont comptés en UTC.",
+                loading: "Chargement des volumes mensuels",
+                loadError: "Les volumes n'ont pas pu être chargés.",
+                empty: "Aucune tentative n'a été remise à un fournisseur en {{month}}.",
+                noPermission:
+                    "L'affichage des volumes nécessite la permission messaging-account-read ou messaging-config-read.",
+                notReported: "Non indiqué",
+                deploymentOrDeleted: "Expéditeur du déploiement ou compte supprimé",
+                category: {
+                    AUTHENTICATION: "Authentification",
+                    UTILITY: "Utilitaire",
+                    SERVICE: "Conversation de service",
+                    TRANSACTIONAL: "Transactionnel",
+                    EMAIL: "E-mail",
+                },
+                billableYes: "Facturable",
+                billableNo: "Non facturable",
+                total: "Toutes les tentatives",
+                column: {
+                    account: "Envoyé depuis",
+                    country: "Pays de destination",
+                    category: "Catégorie de facturation",
+                    billable: "Facturable",
+                    messages: "Tentatives",
+                },
             },
             voter: {
+                listChannel: "Canal de messagerie",
                 title: "Messagerie",
-                preferredChannel: "Canal préféré",
-                whatsappNumber: "Numéro WhatsApp",
-                viberNumber: "Numéro Viber",
-                messengerConnected: "Connecté",
-                messengerNotConnected: "Non connecté",
-                verifiedChannels: "Canaux vérifiés",
-                noneVerified: "Aucun canal vérifié",
                 notSet: "Non défini",
+                channel: "Canal",
+                destination: "Envoyé à",
+                messengerPage: "Page Messenger",
+                consent: "Consentement",
+                lastFailure: "Dernier échec",
+                noFailure: "Aucun",
+                failureNeedsPermission: "Affiché avec l'autorisation messaging-config-read.",
+                noChannel: "Aucun contact enregistré",
+                notConfirmed: "Remise non confirmée",
+                notConfirmedHelp:
+                    "Le dernier message dont la remise n'est pas encore confirmée. Après 24 heures, il apparaît comme Non résolu, ce qui ne veut pas dire qu'il a échoué.",
             },
             logs: {
                 channel: "Canal",
+                status: "Statut",
+                statusAsLogged:
+                    "L'état au moment où l'entrée a été écrite ; l'état actuel nécessite l'autorisation messaging-config-read.",
             },
             stats: {
                 sent: {
@@ -5607,12 +6303,169 @@ const frenchTranslation: TranslationType = {
                     MESSENGER: "Messages Messenger envoyés",
                 },
             },
-            readinessPolicy: {
-                PROVIDER_CHECK: "D'après la vérification du fournisseur",
-                ADMIN_CONFIRMED: "Confirmé par un administrateur",
+            reason: {
+                CANDIDATE_REFUSED:
+                    "Les nouveaux identifiants ne se sont pas connectés : les précédents sont conservés",
+                ACCOUNT_IN_USE:
+                    "Utilisé par les paramètres de messagerie d'un événement électoral : retirez-le d'abord de là",
+                NUMBER_CHANGED:
+                    "Un électeur a changé de numéro WhatsApp : demandez-lui de vérifier à nouveau son contact",
+                IDENTITY_CHANGED:
+                    "L'identité d'envoi du compte a changé : il est vérifié à nouveau",
+                TEMPLATES_NOT_READ: "Les modèles du fournisseur n'ont pas pu être lus",
+                PARTNER_LOGIN_REFUSED: "Infobip a refusé la clé d'API du compte",
+                NO_PAGES_MESSAGING: "Le jeton de la page n'a pas l'autorisation pages_messaging",
+                NOT_SUBSCRIBED: "L'application n'est pas abonnée à la page",
+                NUMBER_STATUS_NOT_READ: "L'état du numéro n'a pas pu être lu",
+                CALLBACK_NOT_CONFIGURED: "Adresse de rappel non configurée",
+                UNSUPPORTED_PROVIDER: "Fournisseur non pris en charge : remplacez ce compte",
+                CREDENTIALS_FOLLOW_ENDPOINT:
+                    "Saisissez à nouveau les identifiants pour la nouvelle adresse",
+                NO_CONTACT_CHANNEL: "Aucun canal de contact",
+                NOT_RETRYABLE_NO_TEMPLATE: "Impossible de réessayer : aucun modèle enregistré",
+                CHANNEL_NOT_OFFERED_FOR_NOTICES: "Canal non proposé pour les avis",
+                CHANNEL_NOT_OFFERED_FOR_CODES: "Canal non proposé pour les codes",
+                NO_CONTENT_FOR_CHANNEL: "Aucun contenu pour le canal",
+                NO_ACCOUNT_FOR_CHANNEL: "Aucun compte d'envoi pour le canal",
+                INVALID_DESTINATION: "Destination non valide pour le canal",
+                NOT_RETRYABLE_PROTECTED_FIELDS:
+                    "Impossible de réessayer : contient des champs protégés",
+                REPORTED_TOO_LATE: "Signalé trop tard pour réessayer",
+                CHANNEL_CHANGED: "Le canal de l'électeur a changé : pas de nouvel essai",
+                WORKER_STOPPED_BEFORE_SENDING: "Le processus s'est arrêté avant l'envoi",
+                WORKER_STOPPED_AFTER_SENDING:
+                    "Le processus s'est arrêté avant d'enregistrer le résultat",
+                CODE_EXPIRED_BEFORE_SENDING: "Le code a expiré avant de pouvoir être envoyé",
+                CAPACITY_BUSY:
+                    "Non envoyé : le compte est resté trop longtemps à sa limite d'envoi",
+                PROVIDER_ANSWER_LATE:
+                    "Le fournisseur n'a pas répondu à temps : le message a peut-être été envoyé",
+                UNRESOLVED: "La remise n'a pas pu être confirmée",
+                SELECTED_WITHOUT_VOTERS: "Sélectionnez au moins un électeur",
+                WRONG_RECIPIENT_KIND: "La destination n'est pas du type auquel ce canal envoie",
+                UNSUPPORTED_PURPOSE: "Le fournisseur n'envoie pas ce type de message",
+                MISSING_APPROVED_TEMPLATE: "Aucun modèle approuvé pour ce message",
+                OUTSIDE_CONVERSATION_WINDOW: "En dehors de la fenêtre de conversation",
+                DESTINATION_NOT_ALLOWED: "Ce compte n'envoie pas vers le pays de la destination",
+                CODE_EXPIRED: "Le code a expiré",
+                MISSING_CODE: "Aucun code à envoyer",
+                ENDPOINT_NOT_HTTPS: "L'adresse du fournisseur doit commencer par https://",
+                PROVIDER_CODE: "Code d'erreur du fournisseur {{code}}",
+                CHECK_DROPPED: "Le compte a changé pendant sa vérification : vérifiez-le à nouveau",
+                ACCOUNT_NOT_READY: "Non envoyé : le compte n'est pas prêt ({{blocker}})",
+                PROVIDER_UNREACHABLE: "Le fournisseur n'a pas pu être joint",
+                PROVIDER_STATUS: "Le fournisseur a répondu avec le statut {{status}}",
+                MISSING_CREDENTIAL: "Identifiant manquant : {{credential}}",
+                PROVIDER_CHECK_FAILED: "La vérification du fournisseur a échoué : {{detail}}",
+                NUMBER_STATUS: "Le statut du numéro est {{status}}",
+                NUMBER_NAME_STATUS: "Le nom affiché du numéro est {{status}}",
+                NUMBER_IN_SANDBOX: "Le numéro est en mode sandbox",
+                NUMBER_NOT_VERIFIED: "Le code du numéro n'est pas vérifié",
+                SMS_SANDBOX: "Le compte est dans le sandbox SMS",
+                SES_SANDBOX: "Le compte est dans le sandbox SES",
+                SES_SENDING_DISABLED: "L'envoi est désactivé pour ce compte",
+                SMTP_REFUSED: "Serveur SMTP injoignable ou identifiants refusés",
+                TOKEN_INVALID: "Le jeton d'accès n'est pas valide ou a expiré",
+                TOKEN_CANNOT_SEND: "Le jeton d'accès n'a pas l'autorisation d'envoyer",
+                TOKEN_NOT_CHECKED: "Le jeton d'accès n'a pas pu être vérifié",
+                APP_SECRET_REFUSED: "Meta a refusé le secret de l'application",
+                APP_SECRET_NOT_CHECKED: "Le secret de l'application n'a pas pu être vérifié",
+                RETRY_NOT_PREPARED:
+                    "Impossible de réessayer : le message n'a pas pu être préparé à nouveau",
+                NOT_THE_VOTERS_CHANNEL: "Ce n'est pas le canal de l'électeur",
+                REPORT_CREDENTIALS_MISSING:
+                    "Générez les identifiants des rapports et créez l'abonnement Infobip",
+                CALLBACK_NOT_HTTPS: "L'adresse de rappel doit être en https",
+                UNKNOWN_ACCOUNT:
+                    "Ce compte n'existe plus : il a peut-être été supprimé dans un autre onglet. Rechargez la liste.",
+                INTERNAL_ERROR: "Le serveur n'a pas pu traiter la demande. Réessayez plus tard.",
+                VERIFY_TOKEN_GENERATED: "Le jeton de vérification est généré, pas saisi",
+                CREDENTIAL_GENERATED: "{{credential}} : généré, pas saisi",
+                CREDENTIAL_NOT_USED: "Les comptes {{provider}} n'utilisent pas {{credential}}",
+                CREDENTIAL_EMPTY: "{{credential}} ne peut pas être vide",
+                NO_REPORT_CREDENTIALS:
+                    "Les comptes {{provider}} n'ont pas d'identifiants de rapports",
+                UNKNOWN_AUDIENCE: "Sélection de destinataires inconnue",
+                INVALID_MONTH: "Le mois doit s'écrire sous la forme AAAA-MM",
+                INVALID_SUPPORT_REFERENCE: "Ce n'est pas une référence d'assistance",
+                MESSENGER_PAGE_CHANGED:
+                    "Non envoyé : l'électeur est connecté à une autre page Messenger",
             },
         },
         messagingAccounts: {
+            status: {
+                title: "État chez le fournisseur",
+                daily: "Les comptes sont vérifiés une fois par jour et chaque fois que vous vérifiez la connexion.",
+                unchecked:
+                    "Le numéro, la page ou l'expéditeur a changé depuis la dernière vérification. Tant que le compte n'est pas vérifié à nouveau, les codes et les avis qui passent par lui échouent car il n'est pas prêt ; le message de test est quand même envoyé.",
+                notReported: "Non communiqué",
+                yes: "Oui",
+                no: "Non",
+                token: "Jeton d'accès",
+                tokenExpires: "Valide · expire le {{date}}",
+                tokenNoExpiry: "Valide · n'expire pas",
+                tokenInvalid: "Non valide",
+                missingScopes: "Autorisations manquantes : {{scopes}}",
+                numberStatus: "État du numéro",
+                nameStatus: "Nom d'affichage : {{status}}",
+                qualityRating: "Note de qualité",
+                quality: {
+                    GREEN: "Élevée",
+                    YELLOW: "Moyenne",
+                    RED: "Faible",
+                    UNKNOWN: "Inconnue",
+                },
+                messagingLimit: "Limite de messages",
+                pagesMessaging: "Autorisation d'envoi (pages_messaging)",
+                subscribed: "Application abonnée à la page",
+                getStarted: "Bouton Commencer",
+                getStartedMissing:
+                    "Sans le bouton, les électeurs qui n'ont jamais écrit à la page ne peuvent pas lancer la conversation qui leur apporte leur code.",
+                partnerLogin: "Connexion au partenaire",
+                appSecret: "Secret de l'application",
+                notChecked: "N'a pas pu être vérifié",
+                numberQualityWarning:
+                    "Un avertissement de qualité de Meta : le numéro envoie toujours, mais une qualité faible peut réduire sa limite de messages.",
+                accepted: "Acceptée",
+                refused: "Refusée",
+                callback: "Adresse de rappel",
+                callbackReady: "Configurée",
+                approvalFromCheck: "Communiquée par la vérification du fournisseur",
+                approvalEntered:
+                    "Saisie par un administrateur : la vérification du fournisseur ne l'a pas communiquée",
+                approvalEnteredHelp:
+                    "Elle n'est utilisée que jusqu'à ce que la vérification du fournisseur communique l'approbation.",
+                templates: {
+                    title: "Modèles chez le fournisseur",
+                    none: "Aucun modèle",
+                    name: "Modèle",
+                    language: "Langue",
+                    category: "Catégorie",
+                    status: "État",
+                    entered:
+                        "Les modèles Viber sont saisis par un administrateur dans Modèles approuvés : le partenaire n'a pas d'API pour l'approbation des modèles.",
+                },
+                templateCategory: {
+                    AUTHENTICATION: "Authentification",
+                    UTILITY: "Utilitaire",
+                    MARKETING: "Marketing",
+                },
+                templateStatus: {
+                    APPROVED: "Approuvé",
+                    PENDING: "En cours d'examen",
+                    REJECTED: "Refusé",
+                    PAUSED: "En pause",
+                    DISABLED: "Désactivé",
+                },
+                numberChanges: {
+                    title: "Électeurs qui ont changé de numéro WhatsApp",
+                    description:
+                        "WhatsApp a signalé ces changements de numéro. Demandez à ces électeurs de vérifier à nouveau leur contact ; rien n'a été modifié automatiquement.",
+                    item: "{{old}} est devenu {{new}} le {{date}}.",
+                    voters: "Électeurs : {{voters}}",
+                    noVoters: "Aucun électeur n'a reçu de messages de ce compte à l'ancien numéro.",
+                },
+            },
             tab: "MESSAGERIE",
             description:
                 "Comptes qui envoient aux électeurs leurs codes et avis. Chaque événement électoral choisit le compte de chaque canal ; les nouveaux événements commencent avec le compte par défaut.",
@@ -5650,6 +6503,7 @@ const frenchTranslation: TranslationType = {
                 error: "{{name}} n'a pas pu être vérifié.",
             },
             delete: {
+                refused: "Le compte n'a pas été supprimé : {{reason}}",
                 title: "Supprimer le compte",
                 body: "Supprimer {{name}} ? Les événements électoraux qui l'utilisent cesseront d'envoyer sur son canal.",
                 success: "Compte supprimé",
@@ -5688,9 +6542,7 @@ const frenchTranslation: TranslationType = {
                 sender: "Nom de l'expéditeur",
                 provider_approval: "Approbation du fournisseur",
                 is_default: "Compte {{channel}} par défaut pour les nouveaux événements électoraux",
-                readiness: "Disponibilité",
                 api_base_url: "URL de base de Graph API",
-                label: "Expéditeur affiché aux électeurs",
             },
             fieldHelp: {
                 from_address:
@@ -5710,25 +6562,32 @@ const frenchTranslation: TranslationType = {
                 sender: "L'expéditeur approuvé que voient les électeurs.",
                 provider_approval:
                     "Meta n'autorise les messages WhatsApp des gouvernements que dans le cadre d'un accord approuvé. Choisissez Approbation du fournisseur confirmée une fois que Meta l'a approuvé pour ce compte ; d'ici là, les codes et les avis ne peuvent pas être activés pour ce compte.",
-                readiness:
-                    "D'après la vérification du fournisseur utilise ce que trouve la vérification de connexion : si le compte est connecté, en production, et quels modèles sont approuvés. Confirmé par un administrateur est destiné aux fournisseurs dont la vérification ne peut pas le déterminer : c'est votre déclaration que le compte est connecté, en production et que ses modèles sont approuvés, et elle est utilisée à la place de la vérification.",
                 api_base_url:
                     "Uniquement lorsque Graph API n'est pas celle de Meta, comme le point d'accès d'un fournisseur de solutions. Vide utilise celle de Meta.",
-                label: "Le nom que les électeurs voient comme expéditeur de ce compte.",
             },
             error: {
                 REQUIRED: "Obligatoire",
                 NOT_A_COUNT: "Saisissez un nombre entier",
+                AT_LEAST_ONE: "Saisissez 1 ou plus",
                 OTP_ABOVE_TOTAL: "Ne peut pas dépasser les messages par seconde",
                 INVALID_CALLING_CODE:
                     "Saisissez des indicatifs téléphoniques de pays de 1 à 3 chiffres, comme 63",
                 DUPLICATE_LANGUAGE: "Cette langue a déjà un modèle pour cet usage",
-                NOT_A_URL: "Saisissez une adresse commençant par https:// ou http://",
-                INVALID_HTTP_CONFIG: "Corrigez les problèmes indiqués",
+                NOT_A_URL: "Saisissez une adresse commençant par https://",
+                UNSUPPORTED_PROVIDER: "Fournisseur non pris en charge : remplacez ce compte",
+                CREDENTIALS_FOLLOW_ENDPOINT:
+                    "Saisissez à nouveau les identifiants pour la nouvelle adresse",
             },
             warning: {
+                pageChangeCount:
+                    "Électeurs connectés à {{page}} qui devront se reconnecter : {{count}}.",
+                pageChangeCounting: "Décompte des électeurs connectés à la page…",
+                pageChangeCountError:
+                    "Le nombre d'électeurs connectés à la page n'a pas pu être lu.",
+                recheck:
+                    "L'enregistrement vérifie à nouveau le compte en arrière-plan. Tant que cette vérification n'a pas réussi, les codes et les avis qui passent par lui échouent car il n'est pas prêt ; le message de test est quand même envoyé.",
                 pageChange:
-                    "Les conversations Messenger appartiennent à une page. Après le changement de page, les électeurs connectés à {{page}} ne recevront des codes qu'après avoir reconnecté Messenger.",
+                    "Les conversations Messenger appartiennent à une page. Après le changement de page, aucun code ni avis n'est envoyé aux électeurs connectés à {{page}} tant qu'ils ne se sont pas reconnectés. L'électeur se reconnecte lors de sa prochaine connexion, après avoir saisi son mot de passe : celle-ci affiche l'étape de connexion de la nouvelle page, l'électeur appuie sur Commencer dans Messenger, puis y reçoit le code. Un électeur qui ne peut pas se connecter avec un mot de passe, par exemple parce qu'il l'a oublié, a besoin que le personnel change son canal.",
                 numberChange:
                     "Les messages viendront d'un autre numéro. Ses modèles doivent être approuvés dans ce compte professionnel avant de pouvoir envoyer des codes, et les électeurs verront une nouvelle discussion.",
             },
@@ -5745,8 +6604,13 @@ const frenchTranslation: TranslationType = {
             limits: {
                 title: "Limites d'envoi",
                 messagesPerSecond: "Messages par seconde",
+                messagesPerSecondHelp: "Vide : les messages ne sont pas limités.",
                 otpReservedPerSecond: "Réservés aux codes par seconde",
-                otpReservedHelp: "Gardés libres pour les codes pendant les envois en masse.",
+                otpReservedHelp:
+                    "Un plancher dans l'unique budget d'envoi partagé du compte : les avis s'y arrêtent et les codes passent en premier. Sans codes en cours d'envoi, un envoi en masse peut utiliser tout le débit.",
+                otpConcurrency: "Codes envoyés simultanément",
+                otpConcurrencyHelp:
+                    "Vide : 8. Les codes et les avis de Keycloak (liens de réinitialisation, mots de passe temporaires) occupent chacun une place pendant leur envoi. Compté par processus serveur ; les autres envois attendent leur tour.",
                 allowedCallingCodes: "Destinations autorisées (indicatifs téléphoniques de pays)",
                 allowedCallingCodesHelp:
                     "Séparés par des virgules, par exemple 63, 971. Vide autorise toute destination.",
@@ -5758,6 +6622,7 @@ const frenchTranslation: TranslationType = {
                 set: "Défini · remplacé {{date}}. Il est stocké chiffré et n'est jamais affiché.",
                 replace: "Remplacer",
                 replaceNamed: "Remplacer {{name}}",
+                reenter: "L'adresse a changé : saisissez à nouveau cet identifiant.",
             },
             credentialHelp: {
                 AWS_SES: {
@@ -5785,29 +6650,20 @@ const frenchTranslation: TranslationType = {
                 VIBER_INFOBIP: {
                     API_KEY: "La clé d'API Infobip.",
                 },
-                HTTP_API: {
-                    API_KEY: "Facultatif. Les requêtes l'utilisent comme identifiant API_KEY.",
-                    API_SECRET:
-                        "Facultatif. Un second secret, et la clé qui signe le JWT : une clé privée PEM pour RS256, le secret partagé pour HS256.",
-                    ACCESS_TOKEN:
-                        "Facultatif. Les requêtes l'utilisent comme identifiant ACCESS_TOKEN.",
-                    USERNAME:
-                        "Facultatif. Avec le mot de passe, il forme l'espace réservé basic_auth.",
-                    PASSWORD:
-                        "Facultatif. Avec le nom d'utilisateur, il forme l'espace réservé basic_auth.",
-                    WEBHOOK_SECRET:
-                        "Facultatif. Le secret partagé avec lequel les rappels du fournisseur sont vérifiés.",
-                },
             },
             webhook: {
-                title: "Rapports de remise et réponses",
-                description:
-                    "Saisissez ce rappel dans les paramètres de webhook du fournisseur. Les rapports de remise et les réponses des électeurs y arrivent.",
-                path: "Chemin de rappel",
-                pathHelp:
-                    "Ajoutez-le à l'adresse publique des webhooks de messagerie de cette plateforme.",
+                title: "Rapports de remise",
+                description: {
+                    WHATSAPP_CLOUD_API:
+                        "Saisissez cette URL de rappel dans les paramètres de webhook de Meta. Les rapports de remise y arrivent et sont vérifiés avec le secret de l'application.",
+                    MESSENGER_SEND_API:
+                        "Saisissez cette URL de rappel dans les paramètres de webhook de Meta. Les rapports de remise et l'appui de l'électeur sur Démarrer y arrivent et sont vérifiés avec le secret de l'application.",
+                    VIBER_INFOBIP:
+                        "Infobip envoie les rapports de remise Viber à cette URL de rappel via un abonnement avec authentification Basic.",
+                    AWS_SES:
+                        "Abonnez cette URL de rappel (HTTPS) au sujet des notifications de remise. Les événements de remise et de rebond y arrivent et sont vérifiés avec la signature d'Amazon.",
+                },
                 afterSaving: "Affiché après l'enregistrement",
-                copyPath: "Copier le chemin de rappel",
                 tokenSet: "Défini · remplacé {{date}}",
                 tokenMissing: "Pas encore généré",
                 tokenAfterSaving: "Généré après l'enregistrement",
@@ -5818,8 +6674,13 @@ const frenchTranslation: TranslationType = {
                 copyToken: "Copier le jeton de vérification",
                 tokenDone: "Terminé",
                 tokenError: "Le jeton de vérification n'a pas pu être généré.",
-                httpHelp:
-                    "Une API HTTP personnalisée peut publier ses rapports en JSON, ou les envoyer par une requête GET ; ses paramètres de requête sont alors lus comme un objet plat, avec des pointeurs comme /status.",
+                url: "URL de rappel",
+                copyUrl: "Copier l'URL de rappel",
+                needsWrite:
+                    "Affiché aux administrateurs qui peuvent gérer les comptes de messagerie.",
+                loading: "Chargement…",
+                unavailable: "Non disponible",
+                loadError: "L'URL de rappel n'a pas pu être chargée.",
             },
             copy: {
                 success: "Copié",
@@ -5828,6 +6689,7 @@ const frenchTranslation: TranslationType = {
             save: {
                 success: "Compte enregistré",
                 error: "Le compte n'a pas pu être enregistré.",
+                refused: "Le compte n'a pas été enregistré : {{reason}}",
             },
             test: {
                 title: "Envoyer un message de test depuis {{name}}",
@@ -5851,105 +6713,316 @@ const frenchTranslation: TranslationType = {
                 languageHelp:
                     "Pour un fournisseur qui envoie des modèles approuvés, saisissez le code de langue du fournisseur pour le modèle, comme en_US.",
             },
-            http: {
-                title: "API HTTP personnalisée",
-                description:
-                    "Décrit un fournisseur par ses requêtes HTTP : un autre partenaire Viber, l'API propre d'un fournisseur de solutions WhatsApp, une passerelle SMS. Les requêtes sont en JSON ; leur URL, leurs en-têtes et leur corps peuvent contenir les espaces réservés de la référence ci-dessous.",
-                phoneFormat: "Format du numéro de téléphone",
-                phoneFormatHelp:
-                    "Comment le numéro de téléphone du destinataire est écrit dans une requête.",
-                phoneFormatOption: {
-                    E164: "Avec le signe plus : +639171234567",
-                    DIGITS: "Chiffres uniquement : 639171234567",
+            unsupported:
+                "Fournisseur non pris en charge : remplacez ce compte. Son fournisseur n'est plus pris en charge, il ne peut donc pas envoyer. Ajoutez un compte pour ce canal avec un fournisseur pris en charge, choisissez-le dans les événements électoraux qui utilisent celui-ci, puis supprimez ce compte.",
+            reports: {
+                label: "Identifiants des rapports",
+                missing: "Pas encore générés",
+                generate: "Générer les identifiants des rapports",
+                title: "Identifiants des rapports",
+                once: "Saisissez-les maintenant dans l'abonnement Infobip. Ils ne sont affichés qu'une fois ; en générer de nouveaux les remplace.",
+                copyUsername: "Copier le nom d'utilisateur des rapports",
+                copyPassword: "Copier le mot de passe des rapports",
+                error: "Les identifiants des rapports n'ont pas pu être générés.",
+                step: {
+                    subscription:
+                        "Dans Infobip, créez un abonnement pour les rapports de remise Viber.",
+                    url: "Définissez son URL sur l'URL de rappel de ce compte.",
+                    auth: "Choisissez l'authentification Basic et saisissez le nom d'utilisateur et le mot de passe des rapports.",
                 },
-                templateRequired: "Usages qui nécessitent un modèle approuvé",
-                templateRequiredHelp:
-                    "Un usage coché n'est envoyé qu'avec un modèle approuvé par le fournisseur, lié dans l'événement électoral. Les autres usages sont envoyés en texte libre.",
-                approvedLanguages: "Langues avec un modèle approuvé pour {{purpose}}",
-                approvedLanguagesHelp:
-                    "Les codes de langue ayant un modèle approuvé, tels que confirmés auprès du fournisseur, séparés par des virgules : en, tl. La vérification de connexion les signale.",
-                conversationWindow: "Fenêtre de conversation (heures)",
-                conversationWindowHelp:
-                    "Heures après le dernier message du destinataire pendant lesquelles du texte libre peut être envoyé. Vide lorsque le fournisseur n'a pas de telle fenêtre.",
-                messageIdPointer: "ID du message dans la réponse d'envoi",
-                messageIdPointerHelp:
-                    "Un pointeur JSON vers l'ID de message du fournisseur dans la réponse à la requête d'envoi, comme /message_id. Il sert à associer les rapports de remise.",
-                notConfigured: "Non configuré.",
-                thisSection: "Cette section",
-                add: "Ajouter : {{section}}",
-                remove: "Retirer : {{section}}",
-                section: {
-                    SEND: "Requête d'envoi",
-                    CHECK: "Requête de vérification de connexion",
-                    TOKEN: "Requête de jeton",
-                    JWT: "Jeton signé (JWT)",
-                    REPORTS: "Rapports de remise et réponses",
-                    RECONCILE: "Requête de recherche d'un message",
+                confirmTitle: "Remplacer les identifiants des rapports ?",
+                confirmBody:
+                    "Le nom d'utilisateur et le mot de passe actuels des rapports cessent aussitôt de fonctionner. Tant que l'abonnement Infobip n'a pas les nouveaux, les rapports de remise Viber sont refusés et les messages restent Accepté.",
+                confirm: "Remplacer",
+            },
+        },
+        sentMessages: {
+            showMore: "Afficher plus",
+            showLess: "Afficher moins",
+            tab: "Messages envoyés",
+            accountsTab: "Comptes",
+            tabsLabel: "Sections de la messagerie",
+            description:
+                "Messages reçus par le fournisseur de démonstration de cet environnement de développement, tels que les applications des électeurs les afficheraient. Aucun n'a atteint un électeur réel. Cet onglet n'apparaît que là où les routes du fournisseur de démonstration sont activées.",
+            modeLabel: "Afficher les messages de",
+            all: "Tous",
+            refresh: "Actualiser",
+            refreshing: "Actualisation…",
+            refreshError:
+                "Les messages n'ont pas pu être actualisés. La liste affichée est la dernière lue.",
+            empty: "Aucun message pour l'instant.",
+            emptyChannel: "Aucun message {{channel}} pour l'instant.",
+            column: {
+                time: "Heure",
+                channel: "Canal",
+                from: "De",
+                to: "À",
+                message: "Message",
+                report: "Rapport de remise",
+            },
+            report: {
+                accepted: "Rapport accepté par le composant webhook (HTTP 200)",
+                refused: "Rapport refusé : HTTP {{status}}",
+                pending: "Rapport pas encore envoyé",
+                notSent: "Rapport non envoyé : {{reason}}",
+                noAnswer: "Le rapport n'a reçu aucune réponse : {{reason}}",
+                noReason: "aucune raison donnée",
+                unavailable: "Pas de rapports de remise sur ce canal",
+            },
+            content: {
+                demoCode:
+                    "{{code}} est votre code de vérification. Pour votre sécurité, ne le partagez avec personne.",
+                demoNotice:
+                    "Rappel de vote\n\nBonjour {{name}}, le vote est ouvert pour {{event}}.\n\nConnectez-vous au portail de vote pour vérifier votre bulletin et voter :\n{{url}}\n\nNe partagez votre code de connexion avec personne. Si vous avez déjà voté, aucune autre action n’est nécessaire.",
+                demoLegacyNotice:
+                    "Rappel de vote\n\nBonjour {{name}}, le vote est ouvert. Connectez-vous au portail de vote pour voter :\n{{url}}\n\nNe partagez votre code de connexion avec personne.",
+
+                template: "Modèle {{name}} ({{language}})",
+                noText: "(aucun texte)",
+                code: "Code",
+                copyCode: "Copier le code",
+                copied: "Code copié",
+                copyFailed: "Le code n'a pas pu être copié",
+                truncated:
+                    "Tronqué : le fournisseur de démonstration ne conserve que les 64 premiers Kio de chaque champ.",
+            },
+            chat: {
+                phone: "{{channel}} sur un téléphone",
+                chats: "Discussions {{channel}}",
+                open: "Ouvrir la discussion avec {{recipient}} depuis {{sender}}",
+                back: "Retour aux discussions",
+                from: "De {{sender}}",
+                messages: "Messages à {{recipient}}",
+            },
+            getStarted: {
+                title: "Démarrer",
+                help: "Collez le lien Messenger affiché par la page d'inscription, puis appuyez sur Démarrer, comme le ferait l'électeur dans Messenger. Le code arrive ensuite dans la discussion.",
+                link: "Lien Messenger",
+                submit: "Démarrer",
+                accepted: "Le composant webhook a répondu 200. Le code arrive dans la discussion.",
+                answered: "Le composant webhook a répondu {{status}}.",
+                failed: "Échec du démarrage : {{reason}}",
+            },
+            email: {
+                inbox: "Boîte de réception",
+                reading: "E-mail sélectionné",
+                noSubject: "(sans objet)",
+                from: "De",
+                to: "À",
+                view: "Afficher l'e-mail en",
+                html: "HTML",
+                text: "Texte brut",
+                htmlFrame: "Contenu de l'e-mail",
+                noContent: "Cet e-mail n'a aucun contenu.",
+                loading: "Chargement de l'e-mail…",
+                loadError:
+                    "Le HTML de l'e-mail n'a pas pu être lu : le fournisseur de démonstration ne le conserve peut-être plus.",
+            },
+            reason: {
+                SEVERAL_ACCOUNTS: "Plusieurs comptes utilisent cet expéditeur",
+                ACCOUNTS_UNREADABLE: "Les comptes n'ont pas pu être lus",
+                UNREACHABLE: "Le composant webhook n'a pas répondu",
+                LINK_UNREADABLE: "Collez le lien m.me de la page d'inscription",
+                LINK_WITHOUT_REF: "Le lien n'a pas de ref : copiez le lien entier",
+                NO_PAGE_ACCOUNT:
+                    "Aucun compte Messenger de cette organisation n'utilise cette Page",
+                SEVERAL_PAGE_ACCOUNTS:
+                    "Plusieurs comptes Messenger de cette organisation utilisent cette Page",
+            },
+        },
+        electoralLogConsole: {
+            title: "Journal Électoral",
+            subtitle:
+                "Parcourez le journal électoral et l'urne d'un événement électoral, ou interrogez la base de données de son journal électoral. Rien sur cette page ne modifie les données.",
+            notAllowed:
+                "Vous avez besoin de la permission electoral-log-console-read pour ouvrir le journal électoral.",
+            tabs: {
+                tables: "Tables",
+                query: "Requête",
+            },
+            electionEvent: "Événement Électoral",
+            tenant: "Locataire",
+            table: "Table",
+            tables: {
+                records: "Entrées",
+                ballots: "Bulletins",
+                voters: "Électeurs",
+                queue: "File du Séquenceur",
+            },
+            order: {
+                "label": "Ordre",
+                "newest-first": "Plus récents d'abord",
+                "oldest-first": "Plus anciens d'abord",
+            },
+            filters: {
+                statement_kind: "Type",
+                election_id: "Élection",
+                area_id: "ID de Zone",
+                user_id: "ID d'Utilisateur ou d'Électeur",
+                ballot_id: "ID de Bulletin",
+                status: "Statut",
+                created_after: "Du",
+                created_before: "Au",
+                any: "Tous",
+                apply: "Appliquer les Filtres",
+                clear: "Effacer",
+                invalid:
+                    "Vérifiez les filtres signalés : les dates doivent être valides et les ID de zone de l'urne doivent être des UUID.",
+            },
+            statuses: {
+                valid: "Valide",
+                pending: "En attente",
+                rejected: "Rejeté",
+            },
+            estimatedRows: "Environ {{rows}} lignes dans cette table avant filtrage.",
+            personalDataHidden:
+                "Les noms d'utilisateur, adresses IP et pays sont masqués : les voir nécessite la permission electoral-log-personal-data-read.",
+            loadError: "Le journal électoral n'a pas pu être lu.",
+            record: {
+                title: "Entrée {{position}}",
+                view: "Voir l'entrée",
+                message: "Message (décodé)",
+                copy: "Copier le JSON",
+                close: "Fermer",
+                loadError: "L'entrée n'a pas pu être lue.",
+            },
+            query: {
+                help: "Les requêtes s'exécutent sur la base de données du journal électoral de l'événement électoral dans une transaction en lecture seule. Ses tables sont electoral_log_messages, ballot_box_ballot, ballot_box_voter, ballot_box_pending et ballot_box_sequencer ; trellis_logs décrit ses journaux Merkle.",
+                scope: "Chaque événement électoral a sa propre base de données : une requête lit un seul événement.",
+                chooseEvent: "Choisissez l'événement électoral à interroger.",
+                placeholder: "SELECT …",
+                limits: "Lecture seule · jusqu'à 1 000 lignes · délai de 30 s · chaque requête est consignée dans les journaux du serveur avec votre utilisateur",
+                run: "Exécuter la Requête",
+                summary: "Lignes : {{rows}} · {{ms}} ms",
+                truncated: "Seules les {{rows}} premières lignes sont affichées.",
+                error: "La requête n'a pas pu s'exécuter.",
+            },
+        },
+        taskQueues: {
+            title: "Files de Tâches",
+            subtitle:
+                "Les files de tâches de l'environnement : ce qui attend, ce qui a été traité et en combien de temps. Les listes des files n'affichent jamais les arguments des tâches.",
+            notAllowed:
+                "Vous avez besoin de la permission task-queues-read du tenant de super-administration pour ouvrir les files de tâches.",
+            live: "En direct",
+            updated: "Mis à jour à {{time}}",
+            error: "Impossible de charger les files de tâches.",
+            columns: {
+                queue: "File",
+                ready: "Prêts",
+                runningOrScheduled: "En cours ou planifiés",
+                oldest: "Plus ancien",
+                processed: "Traités (dernière heure)",
+                lastHour: "Résultats (dernière heure)",
+                sent: "Envoyés (total)",
+            },
+            outcomes: {
+                succeeded: "Réussis",
+                failed: "Échoués",
+                expired: "Expirés",
+                rejected: "Rejetés",
+                discarded: "Écartés",
+                unknown: "Inconnu",
+            },
+            graphs: {
+                title: "Débit",
+                period: "Période",
+                periods: {
+                    hour: "Dernière heure",
+                    sixHours: "6 dernières heures",
+                    day: "24 dernières heures",
+                    week: "7 derniers jours",
                 },
-                sectionHelp: {
-                    SEND: "La requête qui envoie un message : method (POST si omis), url, headers et body.",
-                    CHECK: "Facultatif. Une requête qui réussit, avec une réponse 2xx, lorsque les identifiants fonctionnent. La vérification de connexion l'exécute.",
-                    TOKEN: "Facultatif. Obtient un jeton de courte durée avant l'envoi, comme les identifiants client OAuth : request, token_pointer (où se trouve le jeton dans la réponse) et lifetime_seconds. Les requêtes l'utilisent avec l'espace réservé token.",
-                    JWT: "Facultatif. Un jeton signé pour chaque requête avec l'identifiant Secret de l'API : algorithm (RS256 ou HS256), claims (iat, exp et jti sont ajoutés) et lifetime_seconds. Les requêtes l'utilisent avec l'espace réservé jwt.",
-                    REPORTS:
-                        "Facultatif. Comment lire ce que le fournisseur envoie au rappel : auth, items_pointer (où se trouve la liste des rapports ; tout le contenu si omis), status (message_id_pointer, state_pointer, states, qui associe chaque valeur du fournisseur à QUEUED, ACCEPTED, DELIVERED, FAILED ou UNKNOWN, et error_pointer) et inbound_from_pointer (où se trouve l'expéditeur d'une réponse). auth a un kind : URL_KEY (uniquement l'adresse secrète du rappel), HEADER_SECRET (un en-tête égal au secret du webhook), HMAC_SHA256 (un en-tête avec le HMAC du corps calculé avec le secret du webhook, avec prefix, encoding HEX ou BASE64, et signed lorsque la signature couvre plus que le corps) ou JWT_HS256 (un en-tête avec un JWT bearer signé avec le secret du webhook).",
-                    RECONCILE:
-                        "Facultatif. Interroge le fournisseur sur un message dont le résultat est inconnu : request et status, qui se lit comme le status des rapports de remise.",
+                outcomes: "Messages traités par résultat",
+                durations: "Temps moyen d'attente et de traitement",
+                wait: "Attente",
+                processing: "Traitement",
+                seconds: "Secondes",
+                empty: "Aucun message de cette file n'a été traité sur cette période.",
+            },
+            messages: {
+                title: "Messages",
+                states: {
+                    queued: "En file",
+                    archived: "Archivés",
                 },
-                problem: {
-                    NOT_AN_OBJECT: "{{path}} doit être un objet.",
-                    MISSING_URL: "{{path}} est obligatoire : l'adresse de la requête.",
-                    INVALID_METHOD: "{{path}} doit être une méthode HTTP, comme POST ou GET.",
-                    INVALID_HEADERS:
-                        "{{path}} doit être du texte : headers est un objet de noms d'en-tête et de valeurs textuelles.",
-                    UNKNOWN_FIELD: "{{path}} n'est pas un champ de cette section.",
-                    UNKNOWN_PLACEHOLDER:
-                        "{{path}} utilise un espace réservé qui n'existe pas. Consultez la référence des espaces réservés.",
-                    INVALID_POINTER:
-                        "{{path}} doit être un pointeur JSON commençant par /, comme /data/id.",
-                    INVALID_STATES:
-                        "{{path}} doit associer une valeur d'état du fournisseur à QUEUED, ACCEPTED, DELIVERED, FAILED ou UNKNOWN ; il en faut au moins une.",
-                    INVALID_AUTH:
-                        "{{path}} n'est pas valide : kind est URL_KEY, HEADER_SECRET, HMAC_SHA256 ou JWT_HS256 ; header est obligatoire sauf pour URL_KEY ; encoding est HEX ou BASE64.",
-                    INVALID_LIFETIME:
-                        "{{path}} doit être un nombre entier de secondes supérieur à 0.",
-                    INVALID_ALGORITHM: "{{path}} doit être RS256 ou HS256.",
-                    INVALID_CLAIMS: "{{path}} doit être un objet.",
-                    INVALID_HOURS: "{{path}} doit être un nombre entier d'heures supérieur à 0.",
+                argumentsHidden:
+                    "Les arguments des tâches ne sont jamais affichés, car ils peuvent contenir des données d'électeurs.",
+                refresh: "Actualiser",
+                newest: "Les plus récents",
+                newer: "Plus récents",
+                older: "Plus anciens",
+                empty: "Aucun message",
+                unreadable: "Message illisible",
+                columns: {
+                    id: "ID",
+                    task: "Tâche",
+                    outcome: "Résultat",
+                    event: "Événement",
+                    error: "Erreur",
+                    enqueued: "Mis en file",
+                    reads: "Lectures",
+                    retries: "Nouvelles tentatives",
+                    archived: "Archivé",
+                    visible: "Visible à partir de",
+                    size: "Taille",
+                    taskId: "ID de tâche",
                 },
-                placeholders: {
-                    title: "Référence des espaces réservés",
-                    help: "Écrits entre doubles accolades dans l'URL, dans la valeur d'un en-tête ou dans tout texte du corps. Chacun est remplacé au moment de la requête.",
+            },
+            deadLetters: {
+                help: "Ces événements du journal électoral n'ont pas pu être traités. Sélectionnez des événements pour les renvoyer vers la file d'événements ou pour les écarter ; les événements écartés restent dans l'archive.",
+                noWrite:
+                    "Vous avez besoin de la permission task-queues-write pour renvoyer ou écarter ces événements.",
+                replay: "Renvoyer",
+                discard: "Écarter",
+                cancel: "Annuler",
+                confirmTitle: {
+                    replay: "Renvoyer les événements ?",
+                    discard: "Écarter les événements ?",
                 },
-                placeholder: {
-                    to: "Le destinataire : numéro de téléphone, adresse e-mail ou ID spécifique à la Page.",
-                    text: "Le message en texte brut.",
-                    subject: "L'objet, pour l'e-mail.",
-                    html: "Le message en HTML, pour l'e-mail.",
-                    code: "Le code à usage unique, pour les codes.",
-                    template: "Le modèle du fournisseur lié dans l'événement électoral.",
-                    language: "Le code de langue du fournisseur pour le modèle.",
-                    message_id:
-                        "L'ID de message du fournisseur, dans une requête de recherche d'un message.",
-                    callback_url: "L'adresse publique du rappel de ce compte.",
-                    param: "Un paramètre du modèle selon sa position : 1, 2, 3, etc.",
-                    credential:
-                        "Un identifiant de ce compte par son nom : API_KEY, API_SECRET, ACCESS_TOKEN, USERNAME, PASSWORD ou WEBHOOK_SECRET.",
-                    basic_auth:
-                        "Le nom d'utilisateur et le mot de passe, encodés pour un en-tête Authorization: Basic.",
-                    token: "Le jeton obtenu avec la requête de jeton.",
-                    jwt: "Le jeton signé décrit dans Jeton signé (JWT).",
-                    parameters:
-                        "Seul comme valeur du corps, il devient la liste de tous les paramètres du modèle.",
-                    named_parameters:
-                        "Seul comme valeur du corps, il devient un objet des paramètres écrits sous la forme @nom=valeur.",
+                confirmBody: {
+                    replay_one:
+                        "{{count}} événement sera renvoyé vers la file d'événements du journal électoral. S'il échoue à nouveau, il reviendra ici.",
+                    replay_many:
+                        "{{count}} événements seront renvoyés vers la file d'événements du journal électoral. Les événements qui échouent à nouveau reviendront ici.",
+                    replay_other:
+                        "{{count}} événements seront renvoyés vers la file d'événements du journal électoral. Les événements qui échouent à nouveau reviendront ici.",
+                    discard_one:
+                        "{{count}} événement sera déplacé vers l'archive et ne sera pas ajouté au journal électoral.",
+                    discard_many:
+                        "{{count}} événements seront déplacés vers l'archive et ne seront pas ajoutés au journal électoral.",
+                    discard_other:
+                        "{{count}} événements seront déplacés vers l'archive et ne seront pas ajoutés au journal électoral.",
                 },
-                example: {
-                    title: "Exemple complet : un partenaire Viber",
-                    description:
-                        "Le partenaire reçoit un POST JSON authentifié avec la clé d'API comme jeton bearer, répond avec l'ID du message dans message_id et publie les rapports de remise avec un en-tête secret. Utilisez-le comme point de départ et remplacez l'adresse et les noms de champ par ceux du fournisseur.",
-                    use: "Utiliser cet exemple",
+                queued: {
+                    replay_one: "Renvoi de {{count}} événement mis en file comme tâche {{taskId}}.",
+                    replay_many:
+                        "Renvoi de {{count}} événements mis en file comme tâche {{taskId}}.",
+                    replay_other:
+                        "Renvoi de {{count}} événements mis en file comme tâche {{taskId}}.",
+                    discard_one:
+                        "Mise à l'écart de {{count}} événement mise en file comme tâche {{taskId}}.",
+                    discard_many:
+                        "Mise à l'écart de {{count}} événements mise en file comme tâche {{taskId}}.",
+                    discard_other:
+                        "Mise à l'écart de {{count}} événements mise en file comme tâche {{taskId}}.",
                 },
+                failed: "L'opération n'a pas pu être mise en file.",
+            },
+            tabs: {
+                queues: "Files",
+                query: "Requête",
+            },
+            query: {
+                help: "Les requêtes s'exécutent sur la base de données des files de tâches de l'environnement dans une transaction en lecture seule, avec son rôle de lecture. Chaque file a une table des messages en attente, pgmq.q_<file>, et une des messages traités, pgmq.a_<file>.",
+                arguments:
+                    "Les requêtes lisent les messages tels qu'ils sont stockés, avec les arguments de leurs tâches, qui peuvent contenir des données d'électeurs.",
+                placeholder: "SELECT …",
+                limits: "Lecture seule · jusqu'à 1 000 lignes · délai de 30 s · chaque requête est consignée dans les journaux du serveur avec votre utilisateur",
+                run: "Exécuter la Requête",
+                summary: "Lignes : {{rows}} · {{ms}} ms",
+                truncated: "Seules les {{rows}} premières lignes sont affichées.",
+                error: "La requête n'a pas pu s'exécuter.",
             },
         },
     },

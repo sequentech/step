@@ -6,6 +6,7 @@
 
 #![cfg(feature = "default_features")]
 
+use cryptography::utils::serialization::Serializable;
 use sequent_core::ballot::{
     sign_hashable_ballot_with_ephemeral_voter_signing_key,
     verify_ballot_signature, AuditableBallot, BallotStyle, HashableBallot,
@@ -26,7 +27,7 @@ use sequent_core::plaintext::{
     DecodedVoteContest,
 };
 use serde_json::json;
-use strand::backend::ristretto::RistrettoCtx;
+use voting_crypto::RistrettoCtx;
 
 #[path = "support/borsh.rs"]
 mod wire;
@@ -256,30 +257,26 @@ fn cryptographic_ballot_records_reject_truncation_and_propagate_sink_errors() {
     let (style, votes) = ballot_input();
     let single =
         encrypt_decoded_contest(&RistrettoCtx, &votes, &style).unwrap();
-    let audit = single.deserialize_contests::<RistrettoCtx>().unwrap();
+    let audit = single.deserialize_contests().unwrap();
     let signed = SignedHashableBallot::try_from(&single).unwrap();
     let public = HashableBallot::try_from(&signed).unwrap();
     let raw =
-        sequent_core::ballot::RawHashableBallot::<RistrettoCtx>::try_from(
-            &public,
-        )
-        .unwrap();
+        sequent_core::ballot::RawHashableBallot::try_from(&public).unwrap();
 
     // Start with real, valid synthetic ciphertext/proof/scalar records. Cutting
     // every byte exercises failures in each nested cryptographic component, not
     // just the outer Base64 parser. Explicit wire vectors live in the codec tests.
-    wire::assert_stream_contract(&audit[0], &borsh::to_vec(&audit[0]).unwrap());
-    wire::assert_stream_contract(&raw, &borsh::to_vec(&raw).unwrap());
+    wire::assert_canonical_contract(&audit[0], &audit[0].ser());
+    wire::assert_canonical_contract(&raw, &raw.ser());
     wire::assert_writer_contract(&public, &borsh::to_vec(&public).unwrap());
 
     let multi =
         encrypt_decoded_multi_contest(&RistrettoCtx, &votes, &style).unwrap();
-    let audit = multi.deserialize_contests::<RistrettoCtx>().unwrap();
+    let audit = multi.deserialize_contests().unwrap();
     let public = HashableMultiBallot::try_from(&multi).unwrap();
-    let raw =
-        RawHashableMultiBallot::<RistrettoCtx>::try_from(&public).unwrap();
-    wire::assert_stream_contract(&audit, &borsh::to_vec(&audit).unwrap());
-    wire::assert_stream_contract(&raw, &borsh::to_vec(&raw).unwrap());
+    let raw = RawHashableMultiBallot::try_from(&public).unwrap();
+    wire::assert_canonical_contract(&audit, &audit.ser());
+    wire::assert_canonical_contract(&raw, &raw.ser());
     wire::assert_writer_contract(&public, &borsh::to_vec(&public).unwrap());
 }
 
@@ -295,7 +292,7 @@ fn multi_ballot_hashing_rejects_malformed_contests_instead_of_hashing_the_text()
     hash_multi_ballot_sha512(&public).unwrap();
     for malformed in ["!invalid-base64", "AAAA"] {
         public.contests = malformed.into();
-        assert!(public.deserialize_contests::<RistrettoCtx>().is_err());
+        assert!(public.deserialize_contests().is_err());
         assert!(hash_multi_ballot(&public).is_err());
         assert!(hash_multi_ballot_sha512(&public).is_err());
     }
@@ -307,25 +304,20 @@ fn auditable_multi_ballots_preserve_selection_but_strip_private_replication_data
     let (style, votes) = ballot_input();
     let ballot =
         encrypt_decoded_multi_contest(&RistrettoCtx, &votes, &style).unwrap();
-    let decoded =
-        map_to_decoded_multi_contest::<RistrettoCtx>(&ballot).unwrap();
+    let decoded = map_to_decoded_multi_contest(&ballot).unwrap();
     assert_eq!(decoded[0].choices, votes[0].choices);
 
-    let auditable = ballot.deserialize_contests::<RistrettoCtx>().unwrap();
+    let auditable = ballot.deserialize_contests().unwrap();
     let hashable = HashableMultiBallot::try_from(&ballot).unwrap();
-    let public = hashable.deserialize_contests::<RistrettoCtx>().unwrap();
+    let public = hashable.deserialize_contests().unwrap();
     assert_eq!(public.contest_ids, vec![votes[0].contest_id.clone()]);
     assert_eq!(public.ciphertext, auditable.choice.ciphertext);
-    assert_eq!(public.proof, auditable.proof);
-    let raw =
-        RawHashableMultiBallot::<RistrettoCtx>::try_from(&hashable).unwrap();
+    assert_eq!(public.ciphertext, auditable.choice.ciphertext);
+    let raw = RawHashableMultiBallot::try_from(&hashable).unwrap();
     assert_eq!(raw.contests, public);
 
     let signed = SignedHashableMultiBallot::try_from(&ballot).unwrap();
-    assert_eq!(
-        signed.deserialize_contests::<RistrettoCtx>().unwrap(),
-        public
-    );
+    assert_eq!(signed.deserialize_contests().unwrap(), public);
     assert_eq!(
         SignedHashableMultiBallot::serialize_contests(&public).unwrap(),
         hashable.contests
@@ -342,7 +334,7 @@ fn auditable_multi_ballots_preserve_selection_but_strip_private_replication_data
     invalid = ballot;
     invalid.contests = "!invalid".into();
     assert!(HashableMultiBallot::try_from(&invalid).is_err());
-    assert!(map_to_decoded_multi_contest::<RistrettoCtx>(&invalid).is_err());
+    assert!(map_to_decoded_multi_contest(&invalid).is_err());
 }
 
 #[test]
@@ -350,7 +342,7 @@ fn single_contest_audits_reproduce_ciphertext_from_disclosed_randomness() {
     let (style, votes) = ballot_input();
     let ballot =
         encrypt_decoded_contest(&RistrettoCtx, &votes, &style).unwrap();
-    let original = ballot.deserialize_contests::<RistrettoCtx>().unwrap();
+    let original = ballot.deserialize_contests().unwrap();
     let reproduced =
         recreate_encrypt_cyphertext(&RistrettoCtx, &ballot).unwrap();
     assert_eq!(reproduced[0], original[0].choice);
@@ -359,7 +351,7 @@ fn single_contest_audits_reproduce_ciphertext_from_disclosed_randomness() {
     let mut expected_choices = votes[0].choices.clone();
     expected_choices.sort_by(|left, right| left.id.cmp(&right.id));
     assert_eq!(
-        map_to_decoded_contest::<RistrettoCtx>(&ballot).unwrap()[0].choices,
+        map_to_decoded_contest(&ballot).unwrap()[0].choices,
         expected_choices
     );
     assert_eq!(
@@ -385,13 +377,13 @@ fn public_single_ballot_payloads_preserve_proofs_and_reject_malformed_contests()
 
     let (style, votes) = ballot_input();
     let audit = encrypt_decoded_contest(&RistrettoCtx, &votes, &style).unwrap();
-    let original = audit.deserialize_contests::<RistrettoCtx>().unwrap();
+    let original = audit.deserialize_contests().unwrap();
     let signed = SignedHashableBallot::try_from(&audit).unwrap();
     let hashable = HashableBallot::try_from(&signed).unwrap();
-    let public = signed.deserialize_contests::<RistrettoCtx>().unwrap();
-    assert_eq!(public[0].contest_id, votes[0].contest_id);
+    let public = signed.deserialize_contests().unwrap();
+    assert_eq!(public[0].contest_ids, vec![votes[0].contest_id.clone()]);
     assert_eq!(public[0].ciphertext, original[0].choice.ciphertext);
-    assert_eq!(public[0].proof, original[0].proof);
+    assert_eq!(public[0].ciphertext, original[0].choice.ciphertext);
     assert_eq!(
         SignedHashableBallot::serialize_contests(&public).unwrap(),
         hashable.contests
@@ -403,7 +395,7 @@ fn public_single_ballot_payloads_preserve_proofs_and_reject_malformed_contests()
     for malformed in ["!invalid", "AAAA"] {
         let mut invalid = hashable.clone();
         invalid.contests[0] = malformed.into();
-        assert!(invalid.deserialize_contests::<RistrettoCtx>().is_err());
+        assert!(invalid.deserialize_contests().is_err());
         assert!(hash_ballot(&invalid).is_err());
     }
 }
@@ -421,14 +413,14 @@ fn unsupported_versions_cannot_be_converted_from_single_or_multi_audits() {
         .to_string()
         .contains("Unexpected version"));
     public.version = TYPES_VERSION + 1;
-    assert!(public.deserialize_contests::<RistrettoCtx>().is_err());
+    assert!(public.deserialize_contests().is_err());
 
     let multi =
         encrypt_decoded_multi_contest(&RistrettoCtx, &votes, &style).unwrap();
     let mut public = SignedHashableMultiBallot::try_from(&multi).unwrap();
-    assert!(public.deserialize_contests::<RistrettoCtx>().is_ok());
+    assert!(public.deserialize_contests().is_ok());
     public.version = TYPES_VERSION + 1;
-    assert!(public.deserialize_contests::<RistrettoCtx>().is_err());
+    assert!(public.deserialize_contests().is_err());
 }
 
 #[test]
@@ -439,19 +431,19 @@ fn malformed_audit_payloads_are_errors_at_both_publication_and_display_boundarie
         encrypt_decoded_contest(&RistrettoCtx, &votes, &style).unwrap();
     let multi =
         encrypt_decoded_multi_contest(&RistrettoCtx, &votes, &style).unwrap();
-    assert!(map_to_decoded_contest::<RistrettoCtx>(&single).is_ok());
-    assert!(map_to_decoded_multi_contest::<RistrettoCtx>(&multi).is_ok());
+    assert!(map_to_decoded_contest(&single).is_ok());
+    assert!(map_to_decoded_multi_contest(&multi).is_ok());
     for malformed in ["!invalid", "AAAA"] {
         let mut invalid = single.clone();
         invalid.contests[0] = malformed.into();
         assert!(SignedHashableBallot::try_from(&invalid).is_err());
-        assert!(map_to_decoded_contest::<RistrettoCtx>(&invalid)
+        assert!(map_to_decoded_contest(&invalid)
             .unwrap_err()
             .contains("Error deserializing auditable ballot contest"));
         let mut invalid = multi.clone();
         invalid.contests = malformed.into();
         assert!(SignedHashableMultiBallot::try_from(&invalid).is_err());
-        assert!(map_to_decoded_multi_contest::<RistrettoCtx>(&invalid)
+        assert!(map_to_decoded_multi_contest(&invalid)
             .unwrap_err()
             .contains("Error deserializing auditable multi ballot contest"));
     }
@@ -464,21 +456,21 @@ fn audit_plaintext_with_an_invalid_envelope_cannot_be_displayed_as_a_vote() {
         encrypt_decoded_contest(&RistrettoCtx, &votes, &style).unwrap();
     let mut multi =
         encrypt_decoded_multi_contest(&RistrettoCtx, &votes, &style).unwrap();
-    assert!(map_to_decoded_contest::<RistrettoCtx>(&single).is_ok());
-    assert!(map_to_decoded_multi_contest::<RistrettoCtx>(&multi).is_ok());
-    // Keep valid Borsh, contest identities, ciphertext and proofs. Only the
+    assert!(map_to_decoded_contest(&single).is_ok());
+    assert!(map_to_decoded_multi_contest(&multi).is_ok());
+    // Keep valid canonical encoding, contest identities, ciphertext and proofs. Only the
     // disclosed plaintext length is impossible for the 30-byte envelope.
-    let mut contests = single.deserialize_contests::<RistrettoCtx>().unwrap();
+    let mut contests = single.deserialize_contests().unwrap();
     contests[0].choice.plaintext[0] = 30;
     single.contests = AuditableBallot::serialize_contests(&contests).unwrap();
-    assert!(map_to_decoded_contest::<RistrettoCtx>(&single).is_err());
-    let mut contests = multi.deserialize_contests::<RistrettoCtx>().unwrap();
+    assert!(map_to_decoded_contest(&single).is_err());
+    let mut contests = multi.deserialize_contests().unwrap();
     contests.choice.plaintext[0] = 30;
     multi.contests =
         AuditableMultiBallot::serialize_contests(&contests).unwrap();
-    assert!(map_to_decoded_multi_contest::<RistrettoCtx>(&multi)
+    assert!(map_to_decoded_multi_contest(&multi)
         .unwrap_err()
-        .contains("Error decoding multi ballot plaintext"));
+        .contains("Invalid audit opening"));
 }
 
 #[test]

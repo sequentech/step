@@ -2,12 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::domain::keys_ceremony::{
-    KeygenAuditEntry, KeysBoardMessage, KeysBoardMessages, KeysBoardStep, NewKeysCeremony,
-};
+use crate::domain::keys_ceremony::{KeygenAuditEntry, KeysBoardStep, NewKeysCeremony};
 use crate::ports::keys_ceremony::{
-    KeysBoard, KeysCeremonies, KeysCeremonyAudit, KeysCeremonyElectionEvents,
-    KeysCeremonyElections, KeysCeremonyTasks, KeysCeremonyTrustees,
+    KeysCeremonies, KeysCeremonyAudit, KeysCeremonyElectionEvents, KeysCeremonyElections,
+    KeysCeremonyTasks, KeysCeremonyTrustees,
 };
 use anyhow::{anyhow, Result};
 use sequent_core::types::ceremonies::Log;
@@ -43,6 +41,7 @@ pub struct KeysCeremonyTables {
     pub elections: Vec<Election>,
     pub election_events: Vec<ElectionEvent>,
     pub status_updates: Vec<StatusUpdate>,
+    pub native_configurations: Vec<(String, String, String, Vec<u8>)>,
     pub locked: HashSet<String>,
     pub failing: HashSet<StoreCall>,
 }
@@ -163,6 +162,23 @@ impl KeysCeremonies for MemoryKeysCeremonyStore {
             is_default: Some(ceremony.is_default),
             permission_label: Some(ceremony.permission_labels),
         });
+        Ok(())
+    }
+
+    async fn persist_dkg(
+        &self,
+        tenant_id: &str,
+        event_id: &str,
+        ceremony_id: &str,
+        dkg: &protocol_board::DkgBoard,
+        _manager: &protocol_board::BoardManager,
+    ) -> Result<()> {
+        self.tables().native_configurations.push((
+            tenant_id.to_owned(),
+            event_id.to_owned(),
+            ceremony_id.to_owned(),
+            dkg.configuration.to_bytes(),
+        ));
         Ok(())
     }
 
@@ -342,144 +358,6 @@ impl KeysCeremonyElectionEvents for MemoryKeysCeremonyStore {
     }
 }
 
-/// A board call that a test can make fail.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum BoardCall {
-    CreateKeys,
-}
-
-/// A ceremony configuration posted to a board.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct BoardConfiguration {
-    pub board_name: String,
-    pub tenant_id: String,
-    pub election_event_id: String,
-    pub trustee_public_keys: Vec<String>,
-    pub threshold: usize,
-}
-
-/// A key generation message, its log entry and when it was posted, in
-/// seconds since the Unix epoch.
-#[derive(Clone, Debug)]
-pub struct PostedMessage {
-    pub message: KeysBoardMessage<String>,
-    pub log: Log,
-    pub posted_at: u64,
-}
-
-#[derive(Default)]
-pub struct KeysBoards {
-    pub configurations: Vec<BoardConfiguration>,
-    pub public_keys: HashMap<String, String>,
-    pub messages: HashMap<String, Vec<PostedMessage>>,
-    /// Encrypted private keys by board and trustee public key.
-    pub private_keys: HashMap<(String, String), String>,
-    /// Trustee public keys the board can't read.
-    pub invalid_keys: HashSet<String>,
-    pub failing: HashSet<BoardCall>,
-}
-
-/// Bulletin boards whose senders are identified by their public key string.
-#[derive(Default)]
-pub struct MemoryKeysBoard(Mutex<KeysBoards>);
-
-impl MemoryKeysBoard {
-    pub fn boards(&self) -> MutexGuard<'_, KeysBoards> {
-        self.0.lock().expect("keys boards lock")
-    }
-
-    pub fn election_board_name(election_id: &str) -> String {
-        format!("election-board-{election_id}")
-    }
-}
-
-impl KeysBoard for MemoryKeysBoard {
-    type Sender = String;
-
-    fn election_board(&self, _tenant_id: &str, election_id: &str) -> Result<String> {
-        Ok(Self::election_board_name(election_id))
-    }
-
-    async fn configuration_exists(&self, board_name: &str) -> Result<bool> {
-        Ok(self
-            .boards()
-            .configurations
-            .iter()
-            .any(|configuration| configuration.board_name == board_name))
-    }
-
-    async fn create_keys(
-        &self,
-        tenant_id: &str,
-        election_event_id: &str,
-        board_name: &str,
-        trustee_public_keys: Vec<String>,
-        threshold: usize,
-    ) -> Result<()> {
-        let mut boards = self.boards();
-        if boards.failing.contains(&BoardCall::CreateKeys) {
-            return Err(anyhow!("CreateKeys failed"));
-        }
-        boards.configurations.push(BoardConfiguration {
-            board_name: board_name.to_string(),
-            tenant_id: tenant_id.to_string(),
-            election_event_id: election_event_id.to_string(),
-            trustee_public_keys,
-            threshold,
-        });
-        Ok(())
-    }
-
-    async fn public_key(&self, board_name: &str) -> Result<String> {
-        self.boards()
-            .public_keys
-            .get(board_name)
-            .cloned()
-            .ok_or_else(|| anyhow!("Public Key not found on board {board_name}"))
-    }
-
-    async fn public_key_messages(
-        &self,
-        board_name: &str,
-        logs_since: u64,
-    ) -> Result<KeysBoardMessages<String>> {
-        let posted = self
-            .boards()
-            .messages
-            .get(board_name)
-            .cloned()
-            .unwrap_or_default();
-        Ok(KeysBoardMessages {
-            logs: posted
-                .iter()
-                .filter(|posted| posted.posted_at >= logs_since)
-                .map(|posted| posted.log.clone())
-                .collect(),
-            messages: posted.into_iter().map(|posted| posted.message).collect(),
-        })
-    }
-
-    fn trustee_sender(&self, trustee_public_key: &str) -> Result<String> {
-        if self.boards().invalid_keys.contains(trustee_public_key) {
-            return Err(anyhow!("invalid public key {trustee_public_key}"));
-        }
-        Ok(trustee_public_key.to_string())
-    }
-
-    async fn trustee_encrypted_private_key(
-        &self,
-        board_name: &str,
-        trustee_public_key: &str,
-    ) -> Result<String> {
-        self.boards()
-            .private_keys
-            .get(&(board_name.to_string(), trustee_public_key.to_string()))
-            .cloned()
-            .ok_or_else(|| anyhow!("Channel not found on board {board_name}"))
-    }
-}
-
-/// The keygen entries posted to the electoral log.
 #[derive(Default)]
 pub struct MemoryKeysCeremonyAudit {
     entries: Mutex<Vec<KeygenAuditEntry>>,

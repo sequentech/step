@@ -16,7 +16,10 @@ use crate::postgres::reports::get_reports_by_election_event_id;
 use crate::postgres::trustee::get_all_trustees;
 use crate::services::approval_matrix::store::get_latest_approval_matrix;
 use crate::services::database::get_hasura_pool;
-use crate::services::export::export_ballot_publication::{self, export_election_event_config_file};
+use crate::services::electoral_log_transfer::{
+    export_electoral_log, manifest_file_name, records_file_name,
+};
+use crate::services::export::export_ballot_publication::export_election_event_config_file;
 use crate::services::import::import_election_event::ImportElectionEventSchema;
 use crate::services::reports::activity_log::{ActivityLogsTemplate, ReportFormat};
 use crate::services::reports::template_renderer::{
@@ -45,11 +48,11 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
-use strand::hash::hash_sha256_file;
 use tempfile::{NamedTempFile, TempPath};
 use tokio::io::{self, AsyncWriteExt};
 use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
+use voting_crypto::hash::hash_sha256_file;
 use zip::write::FileOptions;
 
 use super::export_bulletin_boards;
@@ -171,6 +174,15 @@ pub async fn read_export_data(
         .map(|saved| serde_json::to_value(saved.matrix))
         .transpose()?;
 
+    // The messaging configuration travels with the event, as stored.
+    let messaging_config = crate::postgres::messaging::get_messaging_event_config(
+        &transaction,
+        &Uuid::parse_str(tenant_id)?,
+        &Uuid::parse_str(election_event_id)?,
+    )
+    .await?
+    .map(|stored| stored.config);
+
     let mut import_election_event_schema = ImportElectionEventSchema {
         // parse_uuid_v4 still runs: the schema now carries a String, but an
         // export must not emit a tenant id that is not a UUID.
@@ -185,11 +197,27 @@ pub async fn read_export_data(
         scheduled_events: None,
         reports: export_reports,
         keys_ceremonies: Some(export_keys_ceremonies),
+        protocol_boards: if export_config.bulletin_board {
+            Some(
+                crate::postgres::protocol_board::get_event_protocol_boards(
+                    transaction,
+                    tenant_id,
+                    election_event_id,
+                )
+                .await?
+                .into_iter()
+                .filter(|row| export_config.tally || row.parent_id.is_none())
+                .collect(),
+            )
+        } else {
+            None
+        },
         applications: Some(export_applications),
         support_materials: Some(export_support_materials),
         signing_rules: None,
         signing_checks: None,
         approval_matrix,
+        messaging_config,
         version,
     };
 
@@ -269,9 +297,9 @@ pub async fn generate_encrypted_zip(
     Ok(())
 }
 
-pub async fn write_export_document(data: ImportElectionEventSchema) -> Result<NamedTempFile> {
+pub async fn write_export_document(data: &ImportElectionEventSchema) -> Result<NamedTempFile> {
     // Serialize the data into JSON string
-    let data_str = serde_json::to_string_pretty(&data)?;
+    let data_str = serde_json::to_string_pretty(data)?;
     let data_bytes = data_str.into_bytes();
 
     // Create and write the data into a temporary file
@@ -439,6 +467,7 @@ pub async fn process_export_zip(
     document_id: &str,
     export_config: ExportOptions,
 ) -> Result<()> {
+    export_config.validate_protocol_archive()?;
     let contains_voter_secrets = export_config.contains_voter_secrets;
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
@@ -475,7 +504,7 @@ pub async fn process_export_zip(
         &export_config,
     )
     .await?;
-    let temp_election_event_file = write_export_document(export_data).await?;
+    let temp_election_event_file = write_export_document(&export_data).await?;
     let election_event_filename = format!(
         "{}-{}.json",
         EDocuments::ELECTION_EVENT.to_file_name(),
@@ -652,6 +681,25 @@ pub async fn process_export_zip(
             .map_err(|e| anyhow!("Error opening temporary activity logs file: {e:?}"))?;
         std::io::copy(&mut activity_logs_file, &mut zip_writer)
             .map_err(|e| anyhow!("Error copying activity logs file to ZIP: {e:?}"))?;
+
+        // The electoral logs with their identities and published checkpoints, which an
+        // import stores with the same roots.
+        let (records, manifest) =
+            export_electoral_log(&hasura_transaction, tenant_id, election_event_id)
+                .await
+                .map_err(|e| anyhow!("Error exporting the electoral log: {e:?}"))?;
+        zip_writer
+            .start_file(records_file_name(election_event_id), options)
+            .map_err(|e| anyhow!("Error starting electoral-log records file in ZIP: {e:?}"))?;
+        let mut records_file = File::open(records.path())
+            .map_err(|e| anyhow!("Error opening electoral-log records file: {e:?}"))?;
+        std::io::copy(&mut records_file, &mut zip_writer)
+            .map_err(|e| anyhow!("Error copying electoral-log records file to ZIP: {e:?}"))?;
+        zip_writer
+            .start_file(manifest_file_name(election_event_id), options)
+            .map_err(|e| anyhow!("Error starting electoral-log manifest file in ZIP: {e:?}"))?;
+        serde_json::to_writer_pretty(&mut zip_writer, &manifest)
+            .map_err(|e| anyhow!("Error writing electoral-log manifest to ZIP: {e:?}"))?;
     }
 
     // Add the S3 files to the ZIP archive
@@ -742,39 +790,42 @@ pub async fn process_export_zip(
             .start_file(&publications_filename, options)
             .map_err(|e| anyhow!("Error starting ballot publications file in ZIP: {e:?}"))?;
 
-        let temp_path = export_ballot_publication::export_ballot_publications(
-            &hasura_transaction,
-            document_id,
-            tenant_id,
-            election_event_id,
-        )
-        .await
-        .map_err(|err| anyhow!("Error exporting ballot publications: {err}"))?;
+        let (publications, files) =
+            crate::services::ballot_styles::publication_archive::export_publication_archive(
+                &hasura_transaction,
+                tenant_id,
+                election_event_id,
+            )
+            .await?;
+        std::io::Write::write_all(&mut zip_writer, &serde_json::to_vec(&publications)?)?;
+        for (name, path) in files {
+            zip_writer.start_file(name, options)?;
+            std::io::copy(&mut File::open(path)?, &mut zip_writer)?;
+        }
 
-        let mut ballot_publication_file = File::open(temp_path)
-            .map_err(|e| anyhow!("Error opening temporary ballot publications file: {e:?}"))?;
-        std::io::copy(&mut ballot_publication_file, &mut zip_writer)
-            .map_err(|e| anyhow!("Error copying ballot publications file to ZIP: {e:?}"))?;
+        if publications.has_generated_publications() {
+            // Handle election event config file (which is created in ballot publication)
+            let election_event_config = format!(
+                "{}-{}.json",
+                EDocuments::ELECTION_EVENT_CONFIG.to_file_name(),
+                election_event_id
+            );
 
-        // Handle election event config file (which is created in ballot publication)
-        let election_event_config = format!(
-            "{}-{}.json",
-            EDocuments::ELECTION_EVENT_CONFIG.to_file_name(),
-            election_event_id
-        );
+            zip_writer
+                .start_file(&election_event_config, options)
+                .map_err(|e| anyhow!("Error starting election event config file in ZIP: {e:?}"))?;
+            let election_event_config_temp_path =
+                export_election_event_config_file(tenant_id, election_event_id)
+                    .await
+                    .map_err(|err| anyhow!("Error exporting election event config file: {err}"))?;
 
-        zip_writer
-            .start_file(&election_event_config, options)
-            .map_err(|e| anyhow!("Error starting election event config file in ZIP: {e:?}"))?;
-        let election_event_config_temp_path =
-            export_election_event_config_file(tenant_id, election_event_id)
-                .await
-                .map_err(|err| anyhow!("Error exporting election event config file: {err}"))?;
-
-        let mut election_event_config_file = File::open(election_event_config_temp_path)
-            .map_err(|e| anyhow!("Error opening temporary election event config file: {e:?}"))?;
-        std::io::copy(&mut election_event_config_file, &mut zip_writer)
-            .map_err(|e| anyhow!("Error copying election event config file to ZIP: {e:?}"))?;
+            let mut election_event_config_file = File::open(election_event_config_temp_path)
+                .map_err(|e| {
+                    anyhow!("Error opening temporary election event config file: {e:?}")
+                })?;
+            std::io::copy(&mut election_event_config_file, &mut zip_writer)
+                .map_err(|e| anyhow!("Error copying election event config file to ZIP: {e:?}"))?;
+        }
     }
 
     // add protocol manager secrets
@@ -790,6 +841,7 @@ pub async fn process_export_zip(
             &hasura_transaction,
             tenant_id,
             election_event_id,
+            export_data.protocol_boards.as_deref().unwrap_or_default(),
         )
         .await
         .map_err(|e| anyhow!("Error reading protocol manager keys data: {e:?}"))?;
@@ -818,6 +870,7 @@ pub async fn process_export_zip(
             &hasura_transaction,
             tenant_id,
             election_event_id,
+            export_config.tally,
         )
         .await
         .map_err(|e| anyhow!("Error reading bulletin boards data: {e:?}"))?;

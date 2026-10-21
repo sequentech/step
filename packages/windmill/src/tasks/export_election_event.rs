@@ -31,6 +31,14 @@ pub struct ExportOptions {
     pub include_certificates: bool,
 }
 
+impl ExportOptions {
+    pub fn validate_protocol_archive(&self) -> anyhow::Result<()> {
+        anyhow::ensure!(!self.tally || self.bulletin_board,
+            "Tally export requires bulletin_board so its native key and protocol history can be restored");
+        Ok(())
+    }
+}
+
 fn validate_voter_secret_export(export_config: &ExportOptions) -> Result<()> {
     if !export_config.contains_voter_secrets {
         return Ok(());
@@ -85,7 +93,7 @@ async fn export_election_event_impl(
     .await
     .context("Failed to lock election-event export task")?;
 
-    // Reload the task from PostgreSQL. Only its opaque id comes from RabbitMQ;
+    // Reload the task from PostgreSQL. Only its opaque id comes from the task queue;
     // task scope and secret authorization come from the durable HTTP-side row.
     let persisted_task = crate::postgres::tasks_execution::get_task_by_id_with_transaction(
         &hasura_transaction,
@@ -260,6 +268,18 @@ pub async fn export_election_event(
 mod tests {
     use super::*;
     use celery::task::Task;
+
+    #[test]
+    fn tally_archives_require_their_protocol_boards() {
+        let mut config = ExportOptions {
+            tally: true,
+            ..ExportOptions::default()
+        };
+        assert!(config.validate_protocol_archive().is_err());
+        config.bulletin_board = true;
+        assert!(config.validate_protocol_archive().is_ok());
+        assert!(ExportOptions::default().validate_protocol_archive().is_ok());
+    }
 
     fn authorized_secret_export() -> ExportOptions {
         ExportOptions {

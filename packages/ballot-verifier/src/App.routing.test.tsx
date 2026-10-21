@@ -304,7 +304,7 @@ describe("the header", () => {
         userEvent.click(within(menu).getByRole("menuitemradio", {name: "Español"}))
 
         expect(
-            await screen.findByRole("heading", {name: /Paso 1: Importa tu papeleta electoral/})
+            await screen.findByRole("heading", {name: /Paso 1: Importe su papeleta electoral/})
         ).toBeVisible()
         expect(document.cookie).toContain("USER_LANGUAGE=es")
     })

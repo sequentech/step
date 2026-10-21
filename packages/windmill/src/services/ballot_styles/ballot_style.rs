@@ -2,11 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use super::publication_files;
 use crate::postgres::area::get_event_areas;
 use crate::postgres::area_contest::export_area_contests;
-use crate::postgres::ballot_publication::{
-    get_ballot_publication_by_id, lock_publication_event, update_ballot_publication_status,
-};
+use crate::postgres::ballot_publication::{get_ballot_publication_by_id, lock_publication_event};
 use crate::postgres::ballot_style::insert_ballot_style;
 use crate::postgres::candidate::export_candidates;
 use crate::postgres::contest::export_contests;
@@ -15,8 +14,10 @@ use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony::get_keys_ceremonies;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::ballot_box_key::ballot_box_key_for_publication;
+use crate::services::ceremonies::keys_ceremony::{
+    verify_keys_ceremony_public_key, CeremonyPublicKeyState,
+};
 use crate::services::database::get_hasura_pool;
-use crate::services::documents::upload_and_return_public_event_document;
 use crate::services::election_dates::get_election_dates;
 use crate::services::external::utils::remove_datafix_annotations;
 use crate::types::error::{Error, Result};
@@ -35,7 +36,7 @@ use sequent_core::types::scheduled_event::ScheduledEvent;
 use serde::{Deserialize, Serialize};
 
 use std::collections::{HashMap, HashSet};
-use std::io::Write;
+use tokio_postgres::IsolationLevel;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
@@ -164,6 +165,20 @@ pub async fn create_ballot_style_postgres(
             // there. A browser does not, which is why the parameter exists.
             None,
         )?;
+        if let Some(published) = election_dto.public_key.as_mut().filter(|key| !key.is_demo) {
+            let ceremony_id = election
+                .keys_ceremony_id
+                .as_deref()
+                .context("Election has a public key without a keys ceremony")?;
+            let dkg = crate::services::protocol_board::load_dkg_board(
+                transaction,
+                tenant_id,
+                &election_event.id,
+                ceremony_id,
+            )
+            .await?;
+            published.configuration_id = Some(dkg.configuration.configuration_id()?.to_string());
+        }
         election_dto.ballot_box_key = ballot_box_key.cloned();
 
         let is_multi_contest = election_dto
@@ -191,7 +206,8 @@ pub async fn create_ballot_style_postgres(
             }
         }
 
-        let election_dto_json_string = serde_json::to_string(&election_dto)?;
+        let election_dto_json_string = publication_files::ordered_json_string(&election_dto)
+            .map_err(|error| Error::String(error.to_string()))?;
         let _created_ballot_style = insert_ballot_style(
             transaction,
             &ballot_style_id.to_string(),
@@ -209,49 +225,6 @@ pub async fn create_ballot_style_postgres(
     Ok(())
 }
 
-/// Creates a JSON file with the election event config with presentation data
-///  and uploads it to S3 public bucket.
-pub async fn create_public_election_event_config_file(
-    hasura_transaction: &Transaction<'_>,
-    tenant_id: &str,
-    election_event: &ElectionEvent,
-) -> AnyhowResult<()> {
-    let event_presentation = election_event.get_presentation()?;
-    if let Some(presentation) = event_presentation {
-        let id = Uuid::new_v4().to_string();
-
-        let config_data = ElectionEventConfig {
-            id: id.clone(),
-            tenant_id: tenant_id.to_string(),
-            election_event_id: election_event.id.clone(),
-            election_event_presentation: presentation,
-        };
-
-        let config_json = serde_json::to_string(&config_data)?;
-        // Write to temp file
-        let mut temp_file = tempfile::NamedTempFile::new()?;
-        temp_file.write_all(config_json.as_bytes())?;
-
-        let temp_file_path = temp_file.path().to_string_lossy().to_string();
-        let file_size = config_json.len() as u64;
-
-        // Upload to S3 public bucket with election_event_id in path
-        let _document = upload_and_return_public_event_document(
-            hasura_transaction,
-            &temp_file_path,
-            file_size,
-            "application/json",
-            tenant_id,
-            election_event.id.as_str(),
-            EVENT_CONFIG_FILE_NAME,
-            Some(id),
-        )
-        .await?;
-    }
-
-    Ok(())
-}
-
 #[instrument(err)]
 pub async fn update_election_event_ballot_styles(
     tenant_id: &str,
@@ -259,15 +232,35 @@ pub async fn update_election_event_ballot_styles(
     ballot_publication_id: &str,
 ) -> AnyhowResult<()> {
     let lock = PgLock::acquire(
-        format!("create_ballot_style-{}-{}", tenant_id, election_event_id),
+        format!("create_ballot_style-{tenant_id}-{election_event_id}-{ballot_publication_id}"),
         Uuid::new_v4().to_string(),
-        ISO8601::now() + Duration::seconds(60),
+        ISO8601::now() + Duration::seconds(publication_files::GENERATION_LEASE_SECONDS),
     )
     .await?;
 
-    let result =
-        generate_election_event_ballot_styles(tenant_id, election_event_id, ballot_publication_id)
-            .await;
+    let result = async {
+        let Some(data) = generate_election_event_ballot_styles(
+            tenant_id,
+            election_event_id,
+            ballot_publication_id,
+            &lock,
+        )
+        .await?
+        else {
+            return Ok(());
+        };
+        let pool = get_hasura_pool().await;
+        publication_files::prepare_publication_files(
+            &pool,
+            tenant_id,
+            election_event_id,
+            ballot_publication_id,
+            &lock,
+            data,
+        )
+        .await
+    }
+    .await;
 
     // Release on both paths so the lock does not leak until expiry on error.
     // A failed release must not mask the outcome of the work itself: the lock
@@ -288,19 +281,34 @@ async fn generate_election_event_ballot_styles(
     tenant_id: &str,
     election_event_id: &str,
     ballot_publication_id: &str,
-) -> AnyhowResult<()> {
+    lease: &PgLock,
+) -> AnyhowResult<Option<publication_files::PublicationData>> {
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
         .get()
         .await
         .with_context(|| "Error getting hasura db pool")?;
 
-    let transaction = hasura_db_client
+    // The producer enqueues this task before committing the publication and
+    // holds the event lock until then. Wait for it before taking the snapshot.
+    let barrier = hasura_db_client
         .transaction()
         .await
         .with_context(|| "Error starting hasura transaction")?;
+    lock_publication_event(&barrier, tenant_id, election_event_id).await?;
+    barrier
+        .rollback()
+        .await
+        .with_context(|| "Error releasing the publication event lock")?;
 
-    lock_publication_event(&transaction, tenant_id, election_event_id).await?;
+    let transaction = hasura_db_client
+        .build_transaction()
+        .isolation_level(IsolationLevel::RepeatableRead)
+        .start()
+        .await
+        .with_context(|| "Error starting hasura transaction")?;
+
+    publication_files::lock_generation(&transaction, lease).await?;
 
     let Some(ballot_publication) = get_ballot_publication_by_id(
         &transaction,
@@ -313,7 +321,14 @@ async fn generate_election_event_ballot_styles(
         return Err(anyhow!("can't find ballot publication"));
     };
     if !publication_needs_generation(&ballot_publication)? {
-        return Ok(());
+        publication_files::require_publication_files(&ballot_publication)?;
+        return Ok(None);
+    }
+    if transaction.query_opt(
+        "SELECT 1 FROM sequent_backend.ballot_style WHERE tenant_id=$1 AND election_event_id=$2 AND ballot_publication_id=$3 LIMIT 1",
+        &[&Uuid::parse_str(tenant_id)?, &Uuid::parse_str(election_event_id)?, &Uuid::parse_str(ballot_publication_id)?],
+    ).await?.is_some() {
+        return Err(anyhow!("Previous ballot generation did not complete; generate a new publication"));
     }
     let (
         election_event,
@@ -366,6 +381,31 @@ async fn generate_election_event_ballot_styles(
         &contests_map.values().cloned().collect::<Vec<Contest>>(),
         &candidates_map.values().cloned().collect::<Vec<Candidate>>(),
     )?;
+    let mut verified_keys_ceremonies = HashSet::new();
+    for election_id in ballot_publication.election_ids.iter().flatten() {
+        let Some(keys_ceremony) = elections_map
+            .get(election_id)
+            .and_then(|election| election.keys_ceremony_id.as_ref())
+            .and_then(|keys_ceremony_id| keys_ceremonies_map.get(keys_ceremony_id))
+        else {
+            continue;
+        };
+        if verified_keys_ceremonies.insert(keys_ceremony.id.clone())
+            && verify_keys_ceremony_public_key(
+                &transaction,
+                tenant_id,
+                election_event_id,
+                keys_ceremony,
+            )
+            .await?
+                == CeremonyPublicKeyState::NotOnBoard
+        {
+            return Err(anyhow!(
+                "Keys ceremony {} reports a public key that is not on its board",
+                keys_ceremony.id
+            ));
+        }
+    }
 
     let basic_areas = areas.iter().map(|area| area.into()).collect();
     let areas_tree = TreeNode::from_areas(basic_areas)?;
@@ -389,31 +429,20 @@ async fn generate_election_event_ballot_styles(
         )
         .await?;
     }
-    super::publication_files::prepare_publication_files(
+    let data = publication_files::publication_data(
         &transaction,
         tenant_id,
         election_event_id,
         ballot_publication_id,
     )
     .await?;
-
-    update_ballot_publication_status(
-        &transaction,
-        tenant_id,
-        election_event_id,
-        ballot_publication_id,
-        true,
-        None,
-    )
-    .await?;
-
-    create_public_election_event_config_file(&transaction, tenant_id, &election_event).await?;
+    publication_files::renew_generation(&transaction, lease).await?;
 
     transaction
         .commit()
         .await
         .with_context(|| "Commit failed")?;
-    Ok(())
+    Ok(Some(data))
 }
 
 /// Completed publications are immutable; repeated task delivery is a no-op.

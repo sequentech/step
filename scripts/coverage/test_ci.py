@@ -231,6 +231,7 @@ class RealPythonComparisonTests(unittest.TestCase):
         (source / "test_choose.py").write_text(test)
         for args in (
             ["init", "-q"],
+            ["config", "commit.gpgsign", "false"],
             ["add", "."],
             [
                 "-c",

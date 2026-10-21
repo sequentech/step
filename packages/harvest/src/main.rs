@@ -7,10 +7,10 @@ extern crate rocket;
 
 use dotenv::dotenv;
 use sequent_core::services::connection::LastDatafixAccessToken;
-use sequent_core::util::init_log::init_log;
+use sequent_core::util::init_log::init_log_with_filter;
 use services::dependencies::HarvestServices;
 use windmill::services::{
-    celery_app::set_is_app_active,
+    celery_app::{init_celery_app, set_is_app_active},
     plugins_manager::plugin_manager::init_plugin_manager,
     probe::{setup_probe, AppName},
 };
@@ -24,6 +24,10 @@ mod types;
 #[cfg(test)]
 #[path = "../../sequent-core/tests/support/claims.rs"]
 mod test_claims;
+
+#[cfg(test)]
+#[path = "../tests/support/readiness_routes.rs"]
+mod readiness_routes;
 
 #[cfg(test)]
 #[path = "../tests/support/request_boundaries.rs"]
@@ -48,11 +52,19 @@ mod hasura_signing_permissions;
 #[launch]
 async fn rocket() -> _ {
     dotenv().ok();
-    init_log(true);
+    init_log_with_filter(true, services::request_logging::enabled);
 
     setup_probe(AppName::HARVEST).await;
     set_is_app_active(true);
     init_plugin_manager().await.unwrap();
+    // Build the task-queue client before requests need it, without making Harvest wait for
+    // the task-queue database.
+    tokio::spawn(async {
+        while let Err(error) = init_celery_app().await {
+            tracing::warn!("The task queues are not reachable yet: {error:#}");
+            tokio::time::sleep(std::time::Duration::from_secs(10)).await;
+        }
+    });
 
     build_application()
 }
@@ -66,7 +78,11 @@ fn build_application() -> rocket::Rocket<rocket::Build> {
 fn build_application_with(
     services: HarvestServices,
 ) -> rocket::Rocket<rocket::Build> {
-    rocket::build()
+    let fake_provider_routes = services.messaging_fake_provider_routes;
+    let rocket = rocket::build()
+        .attach(services::request_logging::fairing())
+        .attach(routes::electoral_log_proofs::fairing())
+        .attach(services::tenant_activity::fairing())
         .register(
             "/",
             catchers![
@@ -117,10 +133,23 @@ fn build_application_with(
                 routes::election_event_stats::get_election_event_stats,
                 routes::election_stats::get_election_stats,
                 routes::scheduled_event::create_scheduled_event,
-                routes::immudb_log_audit::list_pgaudit,
                 routes::import_areas::import_areas_route,
                 routes::import_areas::upsert_areas_route,
                 routes::electoral_log::list_electoral_log,
+                routes::electoral_log_proofs::checkpoint,
+                routes::electoral_log_proofs::inclusion,
+                routes::electoral_log_proofs::consistency,
+                routes::electoral_log_audit::audit_electoral_log,
+                routes::electoral_log_console::electoral_log_console_page,
+                routes::electoral_log_console::electoral_log_console_record,
+                routes::electoral_log_console::electoral_log_console_query,
+                routes::electoral_log_console::electoral_log_console_tenants,
+                routes::readiness::readiness_check,
+                routes::task_queues::task_queues_overview,
+                routes::task_queues::task_queues_throughput,
+                routes::task_queues::task_queues_messages,
+                routes::task_queues::task_queues_dead_letters,
+                routes::task_queues::task_queues_query,
                 routes::export_election_event::export_election_event_route,
                 routes::export_election_event_logs::export_election_event_logs_route,
                 routes::insert_election_event::insert_election_event_f,
@@ -130,6 +159,7 @@ fn build_application_with(
                 routes::delete_tenant::delete_tenant_f,
                 routes::import_tenant_config::import_tenant_config_route,
                 routes::export_tenant_config::export_tenant_config_route,
+                routes::export_tenant_logs::export_tenant_logs_route,
                 routes::insert_tenant::insert_tenant,
                 routes::users::create_user,
                 routes::users::import_users_f,
@@ -140,6 +170,7 @@ fn build_application_with(
                 routes::users::get_users,
                 routes::users::count_users,
                 routes::ballot_files::get_ballot_files_urls,
+                routes::voter_cast_votes::get_voter_cast_votes,
                 routes::users::get_user,
                 routes::users::reveal_voter_secret_attribute,
                 routes::users::edit_user,
@@ -165,26 +196,35 @@ fn build_application_with(
                 routes::messaging::create_messenger_link,
                 routes::messaging::messenger_link_status,
                 routes::messaging::confirm_messenger_link,
-                routes::messaging::meta_webhook_subscription,
-                routes::messaging::meta_webhook,
-                routes::messaging::viber_webhook,
-                routes::messaging::aws_webhook,
-                routes::messaging::http_webhook,
-                routes::messaging::http_webhook_query,
+                routes::messaging::messaging_callbacks,
                 routes::messaging::upsert_messaging_account,
                 routes::messaging::delete_messaging_account,
                 routes::messaging::replace_messaging_account_credentials,
                 routes::messaging::check_messaging_account,
+                routes::messaging::messaging_account_callback_url,
+                routes::messaging::messaging_account_change_impact,
+                routes::messaging::messaging_callback_status,
                 routes::messaging::test_messaging_account,
                 routes::messaging::update_event_messaging_config,
+                routes::messaging_insights::messaging_event_stats,
+                routes::messaging_insights::messaging_audience_preview,
+                routes::messaging_insights::messaging_voter_counts,
+                routes::messaging_insights::messaging_recount_voters,
+                routes::messaging_insights::messaging_monthly_volumes,
+                routes::messaging_insights::find_by_support_reference,
                 routes::upload_document::get_upload_url,
                 routes::keys_ceremony::create_keys_ceremony,
-                routes::keys_ceremony::get_private_key,
-                routes::keys_ceremony::check_private_key,
+                routes::keys_ceremony::get_custody_request,
+                routes::keys_ceremony::confirm_key_custody,
                 routes::keys_ceremony::list_keys_ceremonies,
+                routes::trustee_boards::list_trustee_boards,
+                routes::trustee_updates::trustee_event_updates,
+                routes::trustee_updates::request_server_custody,
+                routes::trustee_updates::submit_trustee_action_result,
+                routes::trustee_boards::report_trustee_board,
                 routes::tally_ceremony::create_tally_ceremony,
-                routes::tally_ceremony::restore_private_key,
-                routes::keys_ceremony::key_share_signature_status,
+                routes::tally_ceremony::authorize_tally_custody,
+                routes::keys_ceremony::custody_proof_signature_status,
                 routes::tally_ceremony::submit_tally_resolution,
                 routes::voting_status::update_event_status,
                 routes::voting_status::update_election_status,
@@ -206,6 +246,7 @@ fn build_application_with(
                 routes::miru_plugin::create_transmission_package,
                 routes::miru_plugin::send_transmission_package,
                 routes::miru_plugin::upload_signature,
+                routes::miru_plugin::record_transmission_download,
                 routes::export_tasks_execution::export_tasks_execution_route,
                 routes::limit_access_by_countries::limit_access_by_countries,
                 routes::export_template::export_template,
@@ -226,6 +267,7 @@ fn build_application_with(
                 routes::reports::render_document_pdf,
                 routes::reports::generate_template,
                 routes::reports::generate_report,
+                routes::reports::generate_transmission_report,
                 routes::manual_verification_pdf::get_manual_verification_pdf,
                 routes::reports::encrypt_report_route,
                 routes::results_publication::configure_results_website_policy,
@@ -248,6 +290,7 @@ fn build_application_with(
                 routes::set_voter_authentication::set_voter_authentication,
                 routes::export_tally_results::export_tally_results_route,
                 routes::google_meet::generate_google_meeting,
+                routes::google_meet::set_google_service_account_key,
                 routes::generate_preview_url::generate_preview_url,
                 routes::import_certificate_authority::import_certificate_authority,
                 routes::delete_certificate_authority::delete_certificate_authority_route,
@@ -281,6 +324,14 @@ fn build_application_with(
             ],
         )
         .mount("/", routes![routes::plugins::plugin_routes])
+        .mount("/", routes![
+            routes::plugin_platform::tenant_plugins,
+            routes::plugin_platform::set_tenant_plugin_state,
+            routes::plugin_platform::execute_plugin_operation,
+        ])
+        .attach(routes::plugin_platform::registry_fairing())
         .manage(LastDatafixAccessToken::init())
-        .manage(services)
+        .manage(services);
+    // Only with MESSAGING_FAKE_PROVIDER_ROUTES=ENABLED (development).
+    routes::fake_provider::mount(rocket, fake_provider_routes)
 }

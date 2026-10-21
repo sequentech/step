@@ -23,7 +23,8 @@ The Reports tab allows for the configuration, generation, and scheduling of repo
    - If left blank, a default template designed by Sequent will be used.  
    - Templates control how report data is displayed (HTML code). Templates are associated with Report Types in the Templates tab.
 5. Add the appropriate **Permission Label** for the report.  
-   - This determines which users can see, generate, and preview the report.
+   - This determines which users can see, generate, and preview the report.  
+   - You can only choose a label that your own user carries (see [Assigning a Permission Label](../03-election/03-election_management_election_data.md#assigning-a-permission-label)). Otherwise the report is not saved and the Admin Portal shows **Error submitting Report**.
 6. Select **Save**.
 
 ### Repeatable Reports
@@ -35,6 +36,8 @@ Enabling the **Repeatable** option allows generating and sending reports repeate
    - See “Setting up a Cron Expression” below for guidance.
 3. Set the **Email Recipients** for this report.
 4. Select **Save**.
+
+A repeatable report runs on behalf of the user who last saved it. Before each run, the system checks that this user still exists in the tenant, is enabled and has permission to read reports (`report-read`). If any of these checks fails, the report is not generated or sent, **Repeatable** is turned off and a failed task is recorded. To resume it, an authorized user enables **Repeatable** again and saves the report.
 
 #### Setting up a Cron Expression
 

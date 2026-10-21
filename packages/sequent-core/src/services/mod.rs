@@ -11,6 +11,8 @@ pub mod date;
 #[cfg(feature = "jwt")]
 pub mod jwt;
 #[cfg(feature = "keycloak")]
+pub(super) mod jwt_verification;
+#[cfg(feature = "keycloak")]
 pub mod keycloak;
 #[cfg(feature = "reports")]
 pub mod pdf;

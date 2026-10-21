@@ -6,7 +6,8 @@ use super::*;
 use crate::adapters::memory::clock::SequentialIds;
 use crate::adapters::memory::tally_ceremony::{InMemoryTallyCeremony, TallyAuditEntry, TallyCall};
 use sequent_core::ballot::{
-    Contest as SequentContest, DecodedBallotsInclusionPolicy, DelegatedVotingPolicy,
+    BatchAnonymityPolicy, Contest as SequentContest, DecodedBallotsInclusionPolicy,
+    DelegatedVotingPolicy,
 };
 use sequent_core::types::hasura::core::{Area, TallySessionContest, TallySheet};
 use sequent_core::types::tally_sheets::TallySheetStatus;
@@ -138,9 +139,9 @@ fn keys_ceremony(execution_status: &str, policy: &str) -> KeysCeremony {
         "trustee_ids": [], "threshold": 2, "execution_status": execution_status,
         "settings": {"policy": policy},
         "status": {"stop_date": null, "public_key": "public-key", "logs": [], "trustees": [
-            {"name": "alice", "status": "KEY_CHECKED"},
-            {"name": "bob", "status": "KEY_CHECKED"},
-            {"name": "carol", "status": "KEY_CHECKED"},
+            {"name": "alice", "status": "CUSTODY_CONFIRMED"},
+            {"name": "bob", "status": "CUSTODY_CONFIRMED"},
+            {"name": "carol", "status": "CUSTODY_CONFIRMED"},
         ]},
     }))
     .unwrap()
@@ -339,7 +340,15 @@ async fn a_session_is_stored_with_its_keys_ceremony_areas_and_executer() {
     assert_eq!(tally_session.tally_type.as_deref(), Some(ELECTORAL_RESULTS));
     assert_eq!(
         tally_session.annotations,
-        Some(json!({"executer_username": ADMIN, "executer_user_id": ADMIN_ID}))
+        Some(json!({
+            "executer_username": ADMIN,
+            "executer_user_id": ADMIN_ID,
+            ELECTION_AREAS_ANNOTATION: serde_json::to_string(&election_areas([
+                (ELECTION, "north"),
+                (ELECTION, "south"),
+            ]))
+            .unwrap(),
+        }))
     );
     assert_eq!(tally_session.permission_label, Some(vec![]));
 }
@@ -387,6 +396,7 @@ async fn the_session_configuration_takes_its_policies_from_the_event() {
             delegated_voting_policy: Some(DelegatedVotingPolicy::ENABLED),
             consolidated_report_policy: None,
             weighted_voting_policy: Some(WeightedVotingPolicy::AREAS_WEIGHTED_VOTING),
+            batch_anonymity_policy: Some(BatchAnonymityPolicy::WARN),
         })
     );
 }
@@ -1088,6 +1098,8 @@ async fn a_country_initialization_covers_only_that_country() {
             "executer_username": ADMIN,
             "executer_user_id": ADMIN_ID,
             INITIALIZATION_AREA_IDS_ANNOTATION: ["north"],
+            ELECTION_AREAS_ANNOTATION:
+                serde_json::to_string(&election_areas([(ELECTION, "north")])).unwrap(),
         }))
     );
     let areas: Vec<String> = ceremony

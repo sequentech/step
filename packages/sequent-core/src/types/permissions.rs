@@ -2,13 +2,20 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use serde::{Deserialize, Serialize};
-use strum_macros::{Display, EnumString};
+use std::fmt;
+use strum_macros::{Display, EnumIter, EnumString};
 
 #[allow(non_camel_case_types)]
 #[derive(
     Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString,
 )]
 pub enum Permissions {
+    #[strum(serialize = "projects-read")]
+    PROJECTS_READ,
+    #[strum(serialize = "projects-write")]
+    PROJECTS_WRITE,
+    #[strum(serialize = "projects-manage")]
+    PROJECTS_MANAGE,
     #[strum(serialize = "admin-user")]
     ADMIN_USER,
     #[strum(serialize = "tenant-create")]
@@ -117,6 +124,22 @@ pub enum Permissions {
     PUBLISH_RESULTS_WRITE,
     #[strum(serialize = "logs-read")]
     LOGS_READ,
+    #[strum(serialize = "tenant-logs-read")]
+    TENANT_LOGS_READ,
+    #[strum(serialize = "electoral-log-audit")]
+    ELECTORAL_LOG_AUDIT,
+    #[strum(serialize = "electoral-log-console-read")]
+    ELECTORAL_LOG_CONSOLE_READ,
+    #[strum(serialize = "electoral-log-console-query")]
+    ELECTORAL_LOG_CONSOLE_QUERY,
+    #[strum(serialize = "electoral-log-personal-data-read")]
+    ELECTORAL_LOG_PERSONAL_DATA_READ,
+    #[strum(serialize = "task-queues-read")]
+    TASK_QUEUES_READ,
+    #[strum(serialize = "task-queues-write")]
+    TASK_QUEUES_WRITE,
+    #[strum(serialize = "task-queues-query")]
+    TASK_QUEUES_QUERY,
     #[strum(serialize = "tasks-read")]
     TASKS_READ,
     #[strum(serialize = "keys-read")]
@@ -151,8 +174,6 @@ pub enum Permissions {
     TALLY_SHEET_IMPORT_REVIEW,
     #[strum(serialize = "tally-recount-execute")]
     TALLY_RECOUNT_EXECUTE,
-    #[strum(serialize = "cast-vote-read")]
-    CAST_VOTE_READ,
     #[strum(serialize = "document-read")]
     DOCUMENT_READ,
     #[strum(serialize = "document-write")]
@@ -272,6 +293,8 @@ pub enum Permissions {
     #[strum(serialize = "application-write")]
     APPLICATION_WRITE,
     // save a new version of the enrollment approval matrix
+    #[strum(serialize = "readiness-check")]
+    READINESS_CHECK,
     #[strum(serialize = "approval-matrix-write")]
     APPROVAL_MATRIX_WRITE,
     #[strum(serialize = "ee-voters-columns")]
@@ -324,6 +347,8 @@ pub enum Permissions {
     EE_TASKS_FILTERS,
     #[strum(serialize = "task-export")]
     TASKS_EXPORT,
+    #[strum(serialize = "tenant-logs-export")]
+    TENANT_LOGS_EXPORT,
     #[strum(serialize = "logs-export")]
     LOGS_EXPORT,
     #[strum(serialize = "election-event-logs-columns")]
@@ -426,6 +451,10 @@ pub enum Permissions {
     MESSAGING_ACCOUNT_WRITE,
     #[strum(serialize = "messaging-config-write")]
     MESSAGING_CONFIG_WRITE,
+    /// Reads the event's messaging configuration, the safe account fields
+    /// and the delivery ledger: the event tab, Logs and the voter drawer.
+    #[strum(serialize = "messaging-config-read")]
+    MESSAGING_CONFIG_READ,
     #[strum(serialize = "election-event-voter-list-reconciliation")]
     ELECTION_EVENT_VOTER_LIST_SYNC,
     // show the Election Event > Signatures tab
@@ -494,6 +523,64 @@ pub enum VoterPermissions {
     #[strum(serialize = "ack-support-materials")]
     ACK_SUPPORT_MATERIALS,
 }
+
+/// Hasura roles the platform manages itself: Hasura's built-in `admin` and
+/// the roles held only by platform service accounts and super admins. Realm
+/// roles are never created, assigned or imported under these names.
+#[derive(Display, Debug, PartialEq, Eq, Clone, Copy, EnumString, EnumIter)]
+#[strum(ascii_case_insensitive)]
+pub enum ReservedHasuraRole {
+    #[strum(serialize = "admin")]
+    Admin,
+    #[strum(serialize = "service-account")]
+    ServiceAccount,
+    #[strum(serialize = "datafix-account")]
+    DatafixAccount,
+    #[strum(serialize = "super-admin-user")]
+    SuperAdminUser,
+    #[strum(serialize = "cli-account-admin")]
+    CliAccountAdmin,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum RealmRolePolicy {
+    Ordinary,
+    Reserved(ReservedHasuraRole),
+}
+
+impl RealmRolePolicy {
+    /// Ignores ASCII case and surrounding whitespace in `role_name`.
+    pub fn classify(role_name: &str) -> Self {
+        match role_name.trim().parse::<ReservedHasuraRole>() {
+            Ok(role) => Self::Reserved(role),
+            Err(_) => Self::Ordinary,
+        }
+    }
+
+    pub fn require_ordinary(
+        role_name: &str,
+    ) -> Result<(), ReservedRealmRoleError> {
+        match Self::classify(role_name) {
+            Self::Ordinary => Ok(()),
+            Self::Reserved(role) => Err(ReservedRealmRoleError(role)),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub struct ReservedRealmRoleError(pub ReservedHasuraRole);
+
+impl fmt::Display for ReservedRealmRoleError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "Permission `{}` is reserved and cannot be created or assigned",
+            self.0
+        )
+    }
+}
+
+impl std::error::Error for ReservedRealmRoleError {}
 
 #[cfg(test)]
 #[path = "permissions_tests.rs"]

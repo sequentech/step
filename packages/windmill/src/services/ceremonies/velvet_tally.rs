@@ -63,7 +63,6 @@ use std::collections::HashMap;
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use strand::{backend::ristretto::RistrettoCtx, context::Ctx};
 use tempfile::{NamedTempFile, TempPath};
 use tokio::runtime::Handle;
 use tokio::task;
@@ -82,7 +81,7 @@ use velvet::pipes::pipe_name::PipeName;
 
 #[derive(Debug, Clone)]
 pub struct AreaContestDataType {
-    pub plaintexts: Vec<<RistrettoCtx as Ctx>::P>,
+    pub plaintexts: Vec<[u8; 30]>,
     pub contest: Contest,
     pub ballot_style: BallotStyle,
     pub eligible_voters: u64,
@@ -92,10 +91,7 @@ pub struct AreaContestDataType {
 }
 
 #[instrument(skip_all)]
-fn decode_plaintexts_to_biguints(
-    plaintexts: &Vec<<RistrettoCtx as Ctx>::P>,
-    contest: &Contest,
-) -> Vec<String> {
+fn decode_plaintexts_to_biguints(plaintexts: &[[u8; 30]], contest: &Contest) -> Vec<String> {
     use velvet::pipes::pipe_inputs::MALFORMED_PLAINTEXT_LINE;
 
     let mut malformed_count = 0usize;
@@ -1092,8 +1088,7 @@ mod tests {
         let valid = encode_vec_to_array(&vec![5]).expect("plaintext should encode");
         let oversized_length = [0xFF; 30];
 
-        let lines =
-            decode_plaintexts_to_biguints(&vec![valid, oversized_length], &Contest::default());
+        let lines = decode_plaintexts_to_biguints(&[valid, oversized_length], &Contest::default());
 
         assert_eq!(
             lines,

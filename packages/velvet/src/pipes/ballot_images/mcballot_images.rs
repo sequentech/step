@@ -33,9 +33,9 @@ use std::fs::OpenOptions;
 use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
-use strand::hash::{hash_b64, hash_sha256};
 use tokio::runtime::Runtime;
 use tracing::{info, instrument};
+use voting_crypto::hash::{hash_b64, hash_sha256};
 
 #[cfg(test)]
 #[path = "../../../tests/support/ballot_image_boundaries.rs"]

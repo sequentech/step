@@ -578,6 +578,60 @@ fn a_refused_send_answers_its_code() {
     assert_eq!(unsigned.code.to_string(), "signing-required");
 }
 
+/// A package whose destinations all receive it by hand is not sent: 409,
+/// saying to download it.
+#[test]
+fn a_package_received_by_hand_is_not_sent() {
+    use crate::routes::miru_plugin::send_refusal;
+    use windmill::services::consolidation::send_transmission_package_service::SendRefusal;
+
+    let refused = send_refusal(&SendRefusal::ManualReceiptOnly);
+    assert_eq!(refused.status, Status::Conflict);
+    assert!(
+        refused.message.contains("receives it by hand"),
+        "{}",
+        refused.message
+    );
+    assert_eq!(
+        send_refusal(&SendRefusal::NoTallySession).status,
+        Status::NotFound
+    );
+}
+
+/// A download's record answers the file and its hash; a document that is
+/// not the package's answers 404, and a failure to record it 500.
+#[test]
+fn a_recorded_download_answers_the_file_and_its_hash() {
+    use crate::routes::miru_plugin::recorded_download_reply;
+    use windmill::services::consolidation::download_log::{
+        DownloadRefusal, RecordedDownload,
+    };
+
+    let recorded = recorded_download_reply(Ok(Ok(RecordedDownload {
+        file_name: "all_servers.zip".to_string(),
+        sha256: "E8D67AC4".to_string(),
+    })))
+    .unwrap()
+    .into_inner();
+    assert_eq!(
+        (recorded.file_name.as_str(), recorded.sha256.as_str()),
+        ("all_servers.zip", "E8D67AC4")
+    );
+    let (status, message) =
+        recorded_download_reply(Ok(Err(DownloadRefusal::NotAPackageFile)))
+            .unwrap_err();
+    assert_eq!(status, Status::NotFound);
+    assert_eq!(
+        message,
+        "The document is not a file of this transmission package."
+    );
+    let (status, message) =
+        recorded_download_reply(Err(anyhow::anyhow!("no database")))
+            .unwrap_err();
+    assert_eq!(status, Status::InternalServerError);
+    assert!(message.contains("no database"), "{message}");
+}
+
 /// Rows the key step's transaction wrote, on the connection that holds the
 /// marker table.
 async fn markers(client: &deadpool_postgres::Object) -> i64 {
@@ -588,15 +642,15 @@ async fn markers(client: &deadpool_postgres::Object) -> i64 {
         .get(0)
 }
 
-/// A key step whose key share is not the trustee's records nothing and
+/// A key step whose custody proof is not the trustee's records nothing and
 /// answers `is_valid: false`; a step that ran, or that waits for the
 /// trustee's signature, commits what it recorded and answers the request
 /// to sign, if any.
 #[rocket::async_test]
 async fn a_key_step_commits_its_outcome_and_answers_the_request_to_sign() {
-    use crate::routes::keys_ceremony::finish_key_share_step;
+    use crate::routes::keys_ceremony::finish_custody_proof_step;
+    use windmill::services::signing::custody_proofs::CustodyProofOutcome;
     use windmill::services::signing::guard::SigningRequestSummary;
-    use windmill::services::signing::key_shares::KeyShareOutcome;
 
     let services = Services::on_test_database().await;
     let mut client = services.hasura.get().await.unwrap();
@@ -611,17 +665,17 @@ async fn a_key_step_commits_its_outcome_and_answers_the_request_to_sign() {
         expires_at: Some(Utc::now()),
     };
     for (step, outcome, answer, recorded) in [
-        ("invalid", KeyShareOutcome::Invalid, (false, None), 0),
-        ("done", KeyShareOutcome::Done(None), (true, None), 1),
+        ("invalid", CustodyProofOutcome::Invalid, (false, None), 0),
+        ("done", CustodyProofOutcome::Done(None), (true, None), 1),
         (
             "done with a request",
-            KeyShareOutcome::Done(Some(json!({"request_id": summary.id}))),
+            CustodyProofOutcome::Done(Some(json!({"request_id": summary.id}))),
             (true, None),
             2,
         ),
         (
             "waiting for a signature",
-            KeyShareOutcome::SigningRequired(summary.clone()),
+            CustodyProofOutcome::SigningRequired(summary.clone()),
             (true, Some(summary.clone())),
             3,
         ),
@@ -631,7 +685,7 @@ async fn a_key_step_commits_its_outcome_and_answers_the_request_to_sign() {
             .execute("INSERT INTO key_step_marker VALUES ($1)", &[&step])
             .await
             .unwrap();
-        let answered = finish_key_share_step(transaction, outcome).await;
+        let answered = finish_custody_proof_step(transaction, outcome).await;
         assert_eq!(answered, Ok(answer), "{step}");
         assert_eq!(markers(&client).await, recorded, "{step}");
     }

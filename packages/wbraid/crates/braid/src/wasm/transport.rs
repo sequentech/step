@@ -66,7 +66,7 @@ impl WasmHttpTransport {
 
     /// Fetch every message on the board as raw bytes, enforcing the version
     /// exact-match (§10.1). S3-backed bodies are downloaded via the presigned URL.
-    async fn fetch_raw(&self) -> Result<Vec<Vec<u8>>> {
+    pub async fn fetch_raw(&self) -> Result<Vec<Vec<u8>>> {
         let url = format!("{}/boards/{}/messages", self.base_url, self.board);
         let resp = fetch_with_body("GET", &url, None).await.map_err(js_err)?;
         if !resp.ok() {

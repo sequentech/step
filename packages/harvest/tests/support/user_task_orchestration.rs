@@ -7,6 +7,10 @@ use crate::adapters::memory::user_tasks::{InMemoryUserTasks, UserTaskCall};
 use crate::test_claims::Claims;
 use sequent_core::types::permissions::Permissions::*;
 use serde_json::json;
+use windmill::services::audit_log::AuditActor;
+use windmill::services::import::import_users::{
+    GroupAssignmentPolicy, ImportUsersPrivileges, PermissionLabelPolicy,
+};
 
 fn claims(roles: &[Permissions]) -> JwtClaims {
     Claims::new("tenant-a", "user-a")
@@ -23,7 +27,12 @@ fn import_input(event_id: Option<&str>) -> ImportUsersBody {
         is_admin: false,
         may_write_secret_attributes: false,
         secret_write_initiator: None,
-        sha256: Some("source-sha256".into()),
+        privileges: ImportUsersPrivileges::default(),
+        sha256: Some(
+            "abababababababababababababababababababababababababababababababab"
+                .into(),
+        ),
+        audit_actor: None,
     }
 }
 
@@ -53,26 +62,21 @@ async fn export(
 }
 
 #[tokio::test]
-async fn imports_keep_the_existing_task_row_when_authorization_fails() {
+async fn denied_imports_do_not_leave_a_pending_task_that_blocks_readiness() {
     let tasks = InMemoryUserTasks::default();
     let error = import(&tasks, claims(&[]), import_input(Some("event-a")))
         .await
         .unwrap_err();
     assert_eq!(error.0, Status::Unauthorized);
     let state = tasks.snapshot();
-    assert_eq!(state.tasks.len(), 1);
-    assert_eq!(state.tasks[0].tenant_id, "tenant-a");
-    assert_eq!(state.tasks[0].election_event_id.as_deref(), Some("event-a"));
-    assert_eq!(state.tasks[0].task_type, "IMPORT_USERS");
-    assert_eq!(state.tasks[0].execution_status, "IN_PROGRESS");
+    assert!(state.tasks.is_empty());
     assert_eq!(state.connection_count, 0);
     assert!(state.import_attempts.is_empty());
     assert!(state.failed_tasks.is_empty());
 }
 
 #[tokio::test]
-async fn import_task_rows_use_the_claims_tenant_before_checking_the_body_tenant(
-) {
+async fn a_cross_tenant_import_is_refused_before_creating_its_task() {
     let tasks = InMemoryUserTasks::default();
     let mut input = import_input(Some("event-a"));
     input.tenant_id = "other-tenant".into();
@@ -83,7 +87,7 @@ async fn import_task_rows_use_the_claims_tenant_before_checking_the_body_tenant(
             .0,
         Status::Unauthorized
     );
-    assert_eq!(tasks.snapshot().tasks[0].tenant_id, "tenant-a");
+    assert!(tasks.snapshot().tasks.is_empty());
     assert!(tasks.snapshot().import_attempts.is_empty());
 }
 
@@ -122,7 +126,9 @@ async fn tenant_imports_store_an_empty_event_and_force_the_admin_flag() {
         json!({
             "tenant_id":"tenant-a", "document_id":"source-document", "election_event_id":null,
             "is_admin":true, "may_write_secret_attributes":false, "secret_write_initiator":null,
-            "sha256":"source-sha256"
+            "privileges":{"group_assignment":"DefaultGroupOnly","permission_labels":"Forbidden"},
+            "sha256":"abababababababababababababababababababababababababababababababab",
+            "audit_actor":{"user_id":"user-a", "username":"operator-a", "role":"user"}
         })
     );
     assert_eq!(state.import_attempts[0].1.id, "task-1");
@@ -158,13 +164,34 @@ async fn voter_imports_replace_untrusted_admin_and_secret_write_flags() {
         authorized_election_ids: None,
         area_id: None,
     });
+    input.privileges = ImportUsersPrivileges {
+        group_assignment: GroupAssignmentPolicy::AnyGroup,
+        permission_labels: PermissionLabelPolicy::Allowed,
+    };
+    input.audit_actor = Some(AuditActor {
+        user_id: Some("forged-user".into()),
+        username: Some("forged-name".into()),
+        role: None,
+    });
     import(&tasks, claims(&[VOTER_CREATE]), input)
         .await
         .unwrap();
     let state = tasks.snapshot();
+    assert_eq!(
+        state.import_attempts[0].0.audit_actor,
+        Some(AuditActor {
+            user_id: Some("user-a".into()),
+            username: Some("operator-a".into()),
+            role: Some("user".into()),
+        })
+    );
     assert!(!state.import_attempts[0].0.is_admin);
     assert!(!state.import_attempts[0].0.may_write_secret_attributes);
     assert!(state.import_attempts[0].0.secret_write_initiator.is_none());
+    assert_eq!(
+        state.import_attempts[0].0.privileges,
+        ImportUsersPrivileges::default()
+    );
     assert_eq!(state.tasks[0].executed_by_user, "user-a");
 }
 
@@ -187,8 +214,68 @@ async fn permitted_voter_imports_bind_secret_writes_to_the_authenticated_actor()
     assert_eq!(actor.username.as_deref(), Some("operator-a"));
 }
 
+/// The privileges sent with the import follow the permissions of the caller:
+/// the create permission alone grants neither other groups nor labels.
 #[tokio::test]
-async fn import_broker_failures_still_return_the_in_progress_task() {
+async fn imports_carry_the_privileges_the_callers_permissions_give() {
+    for (roles, event_id, expected) in [
+        (
+            vec![USER_CREATE],
+            None,
+            (
+                GroupAssignmentPolicy::DefaultGroupOnly,
+                PermissionLabelPolicy::Forbidden,
+            ),
+        ),
+        (
+            vec![USER_CREATE, USER_WRITE],
+            None,
+            (
+                GroupAssignmentPolicy::DefaultGroupOnly,
+                PermissionLabelPolicy::Forbidden,
+            ),
+        ),
+        (
+            vec![USER_CREATE, USER_WRITE, ROLE_WRITE],
+            None,
+            (
+                GroupAssignmentPolicy::AnyGroup,
+                PermissionLabelPolicy::Forbidden,
+            ),
+        ),
+        (
+            vec![USER_CREATE, PERMISSION_LABEL_WRITE],
+            None,
+            (
+                GroupAssignmentPolicy::DefaultGroupOnly,
+                PermissionLabelPolicy::Allowed,
+            ),
+        ),
+        (
+            vec![VOTER_CREATE, USER_WRITE, ROLE_WRITE, PERMISSION_LABEL_WRITE],
+            Some("event-a"),
+            (
+                GroupAssignmentPolicy::AnyGroup,
+                PermissionLabelPolicy::Allowed,
+            ),
+        ),
+    ] {
+        let tasks = InMemoryUserTasks::default();
+        import(&tasks, claims(&roles), import_input(event_id))
+            .await
+            .unwrap();
+        let sent = tasks.snapshot().import_attempts[0].0.privileges;
+        assert_eq!(
+            (sent.group_assignment, sent.permission_labels),
+            expected,
+            "{roles:?}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn an_import_that_fails_to_enqueue_is_marked_failed_and_cannot_block_readiness(
+) {
     let tasks = InMemoryUserTasks::default();
     tasks.fail_on(UserTaskCall::SendImport, "broker offline");
     let output = import(
@@ -199,9 +286,55 @@ async fn import_broker_failures_still_return_the_in_progress_task() {
     .await
     .unwrap();
     assert_eq!(output.task_execution.id, "task-1");
-    assert_eq!(output.task_execution.execution_status, "IN_PROGRESS");
+    assert_eq!(output.task_execution.execution_status, "FAILED");
+    assert_eq!(tasks.snapshot().tasks[0].execution_status, "FAILED");
     assert_eq!(tasks.snapshot().import_attempts.len(), 1);
-    assert!(tasks.snapshot().failed_tasks.is_empty());
+    assert_eq!(
+        tasks.snapshot().failed_tasks,
+        vec![(
+            "task-1".into(),
+            "Failed to enqueue user import: BrokerFailure(broker offline)"
+                .into()
+        )]
+    );
+}
+
+#[tokio::test]
+async fn an_import_with_no_broker_connection_is_marked_failed() {
+    let tasks = InMemoryUserTasks::default();
+    tasks.fail_on(UserTaskCall::Connect, "task queues unreachable");
+    let output = import(
+        &tasks,
+        claims(&[VOTER_CREATE]),
+        import_input(Some("event-a")),
+    )
+    .await
+    .unwrap();
+    assert_eq!(output.task_execution.execution_status, "FAILED");
+    let state = tasks.snapshot();
+    assert_eq!(state.connection_count, 1);
+    assert!(state.import_attempts.is_empty());
+    assert_eq!(state.tasks[0].execution_status, "FAILED");
+    assert_eq!(state.failed_tasks, vec![("task-1".into(), "Failed to enqueue user import: BrokerFailure(task queues unreachable)".into())]);
+}
+
+#[tokio::test]
+async fn an_import_enqueue_failure_that_cannot_be_recorded_returns_an_internal_error(
+) {
+    let tasks = InMemoryUserTasks::default();
+    tasks.fail_on(UserTaskCall::SendImport, "broker offline");
+    tasks.fail_on(UserTaskCall::Fail, "ledger offline");
+    let error = import(
+        &tasks,
+        claims(&[VOTER_CREATE]),
+        import_input(Some("event-a")),
+    )
+    .await
+    .unwrap_err();
+    assert_eq!(error.0, Status::InternalServerError);
+    assert!(error.1.contains(
+        "Failed to mark unqueued user import failed: ledger offline"
+    ));
 }
 
 #[tokio::test]
@@ -299,6 +432,14 @@ async fn decrypted_exports_bind_the_audit_grant_and_message_to_the_same_document
     );
     assert_eq!(sent.1, "document-1");
     assert_eq!(sent.2.as_ref().unwrap().id, "task-1");
+    assert_eq!(
+        state.export_actors,
+        vec![AuditActor {
+            user_id: Some("user-a".into()),
+            username: Some("operator-a".into()),
+            role: Some("user".into()),
+        }]
+    );
 }
 
 #[tokio::test]
@@ -392,6 +533,34 @@ async fn voter_export_broker_failures_revoke_the_task_grant_before_returning_the
 }
 
 #[tokio::test]
+async fn a_voter_export_the_task_queues_cannot_take_revokes_its_task_grant() {
+    let tasks = InMemoryUserTasks::default();
+    tasks.fail_on(UserTaskCall::Connect, "task queues unreachable");
+    let output = export(
+        &tasks,
+        claims(&[VOTER_READ]),
+        export_input(Some("event-a"), false),
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        output.error_msg.as_deref(),
+        Some("Error sending Export Users task: $task queues unreachable")
+    );
+    let state = tasks.snapshot();
+    assert_eq!(state.tasks[0].execution_status, "FAILED");
+    assert_eq!(
+        state.failed_tasks,
+        vec![(
+            "task-1".into(),
+            "Failed to enqueue voter export: BrokerFailure(task queues unreachable)"
+                .into()
+        )]
+    );
+    assert!(state.export_attempts.is_empty());
+}
+
+#[tokio::test]
 async fn an_export_grant_revocation_failure_replaces_the_broker_response_with_an_internal_error(
 ) {
     let tasks = InMemoryUserTasks::default();
@@ -456,4 +625,17 @@ async fn consecutive_exports_keep_each_document_bound_to_its_own_task_grant() {
     );
     assert_eq!(state.export_attempts[1].1, "document-2");
     assert_eq!(state.export_attempts[1].2.as_ref().unwrap().id, "task-2");
+}
+
+#[tokio::test]
+async fn a_malformed_import_hash_is_rejected_before_enqueue() {
+    let tasks = InMemoryUserTasks::default();
+    let mut input = import_input(Some("event-a"));
+    input.sha256 = Some("not-a-sha256".into());
+    let error = import(&tasks, claims(&[VOTER_CREATE]), input)
+        .await
+        .unwrap_err();
+    assert_eq!(error.0, Status::BadRequest);
+    assert!(error.1.contains("64 hexadecimal"));
+    assert!(tasks.snapshot().import_attempts.is_empty());
 }

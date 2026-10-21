@@ -54,7 +54,7 @@ impl GenerateVoters {
         let voters_config = config.generate_voters;
         let csv_file_path =
             PathBuf::from(working_dir).join(csv_file_name(&voters_config, num_users));
-        let index = ElectionIndex::from_event(&election_data);
+        let index = ElectionIndex::from_event(&election_data)?;
 
         let mut wtr = Writer::from_path(&csv_file_path)?;
         write_voters(
@@ -179,5 +179,60 @@ mod username_start_regression {
             .unwrap();
         assert_eq!(std::fs::read_to_string(dir.path().join("voters_2.csv")).unwrap(),
             "area_name,authorized-election-ids\nEligible,external-1|db-2|db-3|db-4\nNo elections,Unknown\n");
+    }
+
+    #[test]
+    fn generated_csv_uses_external_ids_with_uuid_fallback() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path();
+        let config = json!({
+            "election_event_json_file":"event.json", "realm_name":"", "tenant_id":"",
+            "election_event_id":"", "area_id":"", "election_id":"",
+            "generate_voters":{
+                "csv_file_name":"voters", "fields":["authorized-election-ids"],
+                "excluded_columns":[], "email_prefix":"load", "domain":"example.invalid",
+                "sequence_email_number":true, "sequence_start_number":0,
+                "voter_password":"synthetic", "password_salt":"", "hashed_password":"",
+                "overseas_reference":"", "min_age":18, "max_age":90,
+                "authorized_elections_count":0, "email_verified":true
+            },
+            "duplicate_votes":{"row_id_to_clone":""},
+            "generate_applications":{"applicant_data":{},"annotations":{}}
+        });
+        std::fs::write(path.join("external_config.json"), config.to_string()).unwrap();
+        let generator = GenerateVoters {
+            working_directory: path.to_str().unwrap().into(),
+            num_users: 1,
+        };
+        for (external, expected) in [
+            (Value::Null, "election"),
+            (json!(""), "election"),
+            (json!("district-a"), "district-a"),
+            (json!("north|south"), ""),
+        ] {
+            let event = json!({
+                "areas":[{"id":"area","name":"Area"}],
+                "area_contests":[{"area_id":"area","contest_id":"contest"}],
+                "contests":[{"id":"contest","election_id":"election"}],
+                "elections":[{"id":"election","external_id":external}]
+            });
+            std::fs::write(path.join("event.json"), event.to_string()).unwrap();
+            let csv_path = path.join("voters_1.csv");
+            if csv_path.exists() {
+                std::fs::remove_file(&csv_path).unwrap();
+            }
+            let result = generator.run_generate_voters(path.to_str().unwrap(), 1);
+            if expected.is_empty() {
+                assert!(result
+                    .unwrap_err()
+                    .to_string()
+                    .contains("multivalue separator"));
+                assert!(!csv_path.exists());
+                continue;
+            }
+            result.unwrap();
+            let mut csv = csv::Reader::from_path(path.join("voters_1.csv")).unwrap();
+            assert_eq!(&csv.records().next().unwrap().unwrap()[0], expected);
+        }
     }
 }

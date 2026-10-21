@@ -205,17 +205,32 @@ impl StatementHead {
             },
             StatementBody::KeycloakUserEvent(error_message_string, error_message_type) => {
                 let mut description = format!("{}", error_message_type.0);
-                let log_type = if error_message_type.0.contains("ERROR") {
+                // A tenant realm's event carries its details as JSON: the error is a field.
+                let details = keycloak_event_details(&error_message_string.0);
+                let detailed_error = details
+                    .as_ref()
+                    .and_then(|details| details["error"].as_str())
+                    .map(str::to_string);
+                let is_error = error_message_type.0.contains("ERROR")
+                    || error_message_type.0.contains("LOCKOUT")
+                    || detailed_error.is_some();
+                let log_type = if is_error {
                     // Leave the first word in error_message_string which should be the error code.
-                    description = format!(
-                        "{} {}",
-                        description,
-                        error_message_string
-                            .0
-                            .split_whitespace()
-                            .next()
-                            .unwrap_or("")
-                    );
+                    description = match (&details, detailed_error) {
+                        (_, Some(error)) => format!("{description} {error}"),
+                        // A lockout says it all in its type.
+                        (Some(_), None) => description,
+                        (None, None) if !error_message_type.0.contains("ERROR") => description,
+                        (None, None) => format!(
+                            "{} {}",
+                            description,
+                            error_message_string
+                                .0
+                                .split_whitespace()
+                                .next()
+                                .unwrap_or("")
+                        ),
+                    };
                     StatementLogType::ERROR
                 } else {
                     // Remove ":" char from description if exists
@@ -317,6 +332,15 @@ impl StatementHead {
                 },
                 ..default_head
             },
+            StatementBody::ConfigurationPackageWithContentHash(_, details) => StatementHead {
+                kind: StatementType::ConfigurationPackageImported,
+                event_type: StatementEventType::USER,
+                description: format!(
+                    "Configuration {} revision {} imported from a signed package.",
+                    details.package.external_id, details.package.revision
+                ),
+                ..default_head
+            },
             StatementBody::ReportGenerated(_, details) => StatementHead {
                 kind: StatementType::ReportGenerated,
                 description: report_generated_description(details),
@@ -331,7 +355,21 @@ impl StatementHead {
                 ),
                 ..default_head
             },
+            StatementBody::TenantActivity(entry) => StatementHead {
+                kind: entry.kind.statement_type(),
+                event_type: entry.event_type.clone(),
+                log_type: entry.log_type.clone(),
+                description: entry.description.clone(),
+                ..default_head
+            },
             StatementBody::Signing(entry) => StatementHead {
+                kind: entry.kind.statement_type(),
+                event_type: entry.event_type.clone(),
+                log_type: entry.log_type.clone(),
+                description: entry.description.clone(),
+                ..default_head
+            },
+            StatementBody::Audit(entry) => StatementHead {
                 kind: entry.kind.statement_type(),
                 event_type: entry.event_type.clone(),
                 log_type: entry.log_type.clone(),
@@ -401,8 +439,63 @@ impl StatementHead {
                     ..default_head
                 }
             }
+            StatementBody::BallotPublicationFailure(details) => {
+                let stage = match details.stage {
+                    BallotPublicationStage::Generate => "generation",
+                    BallotPublicationStage::Publish => "publication",
+                };
+                StatementHead {
+                    kind: StatementType::BallotPublicationFailure,
+                    log_type: StatementLogType::ERROR,
+                    description: format!(
+                        "Ballot {stage} failed (publication {}, task {}): {}",
+                        details.publication_id.0, details.task_id, details.error.0,
+                    ),
+                    ..default_head
+                }
+            }
+            StatementBody::ElectoralLogCheckpoint(details) => {
+                let reason = checkpoint_reason_description(details.reason);
+                StatementHead {
+                    kind: StatementType::ElectoralLogCheckpoint,
+                    description: format!(
+                        "Electoral log checkpoint published ({reason}): {} entries, root {}",
+                        details.tree_size, details.root,
+                    ),
+                    ..default_head
+                }
+            }
+            StatementBody::ElectoralLogCheckpointV2(details) => StatementHead {
+                kind: StatementType::ElectoralLogCheckpoint,
+                description: format!(
+                    "Electoral log checkpoint published ({}): {} entries, root {}",
+                    checkpoint_reason_description(details.reason),
+                    details.tree_size,
+                    details.root,
+                ),
+                ..default_head
+            },
+            StatementBody::ElectoralLogContinuation(details) => StatementHead {
+                kind: StatementType::ElectoralLogContinuation,
+                description: format!(
+                    "Electoral log continues log {} ({}) after its {} entries, root {}",
+                    details.previous_log_name,
+                    details.previous_log_uid,
+                    details.tree_size,
+                    details.root,
+                ),
+                ..default_head
+            },
         }
     }
+}
+
+/// The details of a Keycloak event whose text is a JSON object, as the tenant
+/// realm's events carry them; `None` for the plain error text of other events.
+fn keycloak_event_details(text: &str) -> Option<serde_json::Value> {
+    serde_json::from_str::<serde_json::Value>(text)
+        .ok()
+        .filter(serde_json::Value::is_object)
 }
 
 fn report_generated_description(details: &ReportGeneratedDetails) -> String {
@@ -516,6 +609,16 @@ fn monitoring_config_description(details: &MonitoringConfigChangeDetails) -> Str
     )
 }
 
+/// How a checkpoint's reason reads in its statement's description.
+fn checkpoint_reason_description(reason: ElectoralLogCheckpointReason) -> &'static str {
+    match reason {
+        ElectoralLogCheckpointReason::VotingClosed => "voting closed",
+        ElectoralLogCheckpointReason::TallyCompleted => "tally completed",
+        ElectoralLogCheckpointReason::VotingOpened => "voting opened",
+        ElectoralLogCheckpointReason::Periodic => "periodic",
+    }
+}
+
 #[derive(BorshSerialize, BorshDeserialize, Deserialize, Serialize, Debug)]
 pub enum StatementBody {
     // NOT IMPLEMENTED YET, but please feel free
@@ -558,7 +661,7 @@ pub enum StatementBody {
     // "Creación de llave criptográfica"
     KeyGeneration,
     // /workspaces/step/packages/harvest/src/main.rs
-    // routes::tally_ceremony::restore_private_key
+    // routes::tally_ceremony::authorize_tally_custody
     //
     // "Ingreso de los fragmentos de la llave privada"
     KeyInsertionStart,
@@ -644,6 +747,20 @@ pub enum StatementBody {
         ExternalReconciliationInputHashString,
         ExternalReconciliationOutputHashString,
     ),
+    // Append new variants so existing signed Borsh statements remain decodable.
+    BallotPublicationFailure(BallotPublicationFailure),
+    /// Published checkpoint of this board's Merkle log, in the first log format.
+    /// Only decoded: writers record `ElectoralLogCheckpointV2`.
+    ElectoralLogCheckpoint(ElectoralLogCheckpoint),
+    /// Published checkpoint of this board's Merkle log, naming the log by its
+    /// identity.
+    ///
+    /// Rollout invariant: every electoral-log reader (including released
+    /// `step-cli` and external auditors) must be upgraded before writers emit
+    /// this variant.
+    ElectoralLogCheckpointV2(ElectoralLogCheckpointV2),
+    /// First record of a log that continues another one. Same rollout invariant.
+    ElectoralLogContinuation(ElectoralLogContinuation),
     /// Records a change to an election event's monitoring dashboards
     /// configuration. The digests bind each entry to the stored document.
     MonitoringConfigChanged(EventIdString, MonitoringConfigChangeDetails),
@@ -698,6 +815,21 @@ pub enum StatementBody {
     /// The tally found a ballot box that does not match its seal: what
     /// differs and the tally session id (VOTE-FREEZE).
     TallyBallotBoxRejected(ElectionIdString, AreaIdString, String, String),
+    /// One entry of a tenant's log: activity that belongs to no election
+    /// event. The entry sets the head's kind, event type, log type and
+    /// description.
+    TenantActivity(TenantActivityEntry),
+    /// One audit entry of an administrative action, in a tenant's log or an
+    /// election event's. The entry sets the head's kind, event type, log
+    /// type and description.
+    ///
+    /// Rollout invariant: as for `CastVoteWithChannel`, readers must be
+    /// upgraded before writers emit this variant.
+    Audit(AuditLogEntry),
+    /// A configuration import including the approved content hash. The legacy
+    /// `ConfigurationPackage` body is unchanged so existing signatures verify.
+    /// Upgrade electoral-log readers before writers emit this variant.
+    ConfigurationPackageWithContentHash(EventIdString, ConfigurationPackageImportDetails),
 }
 
 // Note: When creating new variants, consider that the length limit STATEMENT_KIND_VARCHAR_LENGTH is 40.
@@ -732,6 +864,9 @@ pub enum StatementType {
     ResultsPublicationAction,
     ExternalApiRequest,
     ExternalReconciliation,
+    BallotPublicationFailure,
+    ElectoralLogCheckpoint,
+    ElectoralLogContinuation,
     MonitoringConfigChanged,
     SigningRequestCreated,
     SigningCertificateOpenFailed,
@@ -762,6 +897,17 @@ pub enum StatementType {
     BallotBoxSealFailed,
     TallyBallotBoxVerified,
     TallyBallotBoxRejected,
+    TenantLogOpened,
+    TenantAdminAction,
+    AdminChange,
+    KeycloakAdminEvent,
+    LogsExported,
+    LogWriterStarted,
+    LogWriterStopped,
+    TransmissionFileDownloaded,
+    // Append only: signed historical statements encode this variant index.
+    VotersImported,
+    ReadinessVerified,
 }
 
 #[derive(
@@ -821,5 +967,13 @@ mod approval_matrix_tests;
 #[cfg(test)]
 #[path = "../../tests/support/statement_election_initialized_tests.rs"]
 mod election_initialized_tests;
+
+#[cfg(test)]
 #[path = "../../tests/support/statement_lockdown_tests.rs"]
 mod lockdown_tests;
+
+#[path = "../../tests/support/statement_audit_tests.rs"]
+mod audit_tests;
+#[cfg(test)]
+#[path = "../../tests/support/statement_tenant_activity_tests.rs"]
+mod tenant_activity_tests;

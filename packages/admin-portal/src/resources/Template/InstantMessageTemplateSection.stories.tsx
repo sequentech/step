@@ -21,8 +21,10 @@ interface Scenario {
     channel: InstantMessageChannel
     /** Whether the tenant has an account for the channel. */
     withAccount: boolean
-    /** Whether an administrator confirmed the account's readiness. */
+    /** Whether the account was stored as confirmed by an administrator (no longer used). */
     confirmed: boolean
+    /** Replaces the signed-in user's roles. */
+    roles?: string[]
     onSubmit: Mock<(values: Record<string, unknown>) => void>
 }
 
@@ -49,7 +51,6 @@ const whatsappAccount = {
         approved_templates: {[EMessagePurpose.NOTICE]: ["en"]},
         checked_at: FIXED_TIME,
     },
-    webhook_key: "story-key",
     is_default: true,
     created_at: FIXED_TIME,
     updated_at: FIXED_TIME,
@@ -69,7 +70,13 @@ let data: ReturnType<typeof resourceBoundary>
 const meta = {
     title: "Admin/Template/InstantMessageTemplateSection",
     component: InstantMessageTemplateSection,
-    args: {channel: EMessageChannel.WHATSAPP, withAccount: true, confirmed: false, onSubmit: fn()},
+    args: {
+        channel: EMessageChannel.WHATSAPP,
+        withAccount: true,
+        confirmed: false,
+        roles: ["messaging-config-read"],
+        onSubmit: fn(),
+    },
     argTypes: {
         channel: {
             control: "inline-radio",
@@ -78,7 +85,7 @@ const meta = {
     },
     beforeEach: async ({args}) => {
         graphql = graphqlBoundary({
-            GetMessagingAccounts: () => ({
+            GetMessagingAccountSummaries: () => ({
                 data: {
                     sequent_backend_messaging_account: args.withAccount
                         ? [
@@ -108,8 +115,8 @@ const meta = {
         })
         await graphql.ready
     },
-    render: ({channel, onSubmit}) => (
-        <AdminStoryProvider boundary={graphql} dataProvider={data.provider}>
+    render: ({channel, onSubmit, roles}) => (
+        <AdminStoryProvider boundary={graphql} dataProvider={data.provider} roles={roles}>
             <SimpleForm
                 record={record}
                 onSubmit={onSubmit}
@@ -181,15 +188,29 @@ export const ProviderTemplate: Story = {
     },
 }
 
-export const ConfirmedByAnAdministrator: Story = {
+export const StoredAdminConfirmationIsNotUsed: Story = {
     args: {confirmed: true},
-    parameters: {widgets: ["ApprovalStatus"]},
+    parameters: {widgets: ["ApprovalStatus", "ApprovalTable"]},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
+        // Approvals always come from the provider's check.
+        const table = await canvas.findByRole("table", {name: "Approved templates"})
+        const rows = within(table).getAllByRole("row").slice(1)
+        expect(rows.map((row) => row.textContent)).toEqual(["enApproved", "tlNot approved"])
+        expect(canvas.queryByText(/An administrator confirmed/)).toBeNull()
+    },
+}
+
+export const WithoutReadPermission: Story = {
+    args: {roles: []},
+    parameters: {widgets: ["ApprovalStatus"]},
+    play: async ({canvasElement}) => {
         await expect(
-            await canvas.findByText(/An administrator confirmed with the provider/)
+            await within(canvasElement).findByText(
+                "Reading the accounts needs the messaging-config-read permission."
+            )
         ).toBeVisible()
-        expect(canvas.queryByRole("table", {name: "Approved templates"})).toBeNull()
+        expect(graphql.calls).toEqual([])
     },
 }
 
@@ -210,6 +231,8 @@ export const MessengerWindow: Story = {
             record.template.messenger.message
         )
         expect(canvas.getByText(/is not permission to send/)).toBeVisible()
+        // No fallback: without the utility template the notice isn't sent.
+        expect(canvas.queryByText(/next eligible channel/)).toBeNull()
         await expect(canvas.getByText(/page_utility_messaging permission/)).toBeVisible()
         await expect(
             canvas.getByText("The language code of the approved utility template, such as en_US.")

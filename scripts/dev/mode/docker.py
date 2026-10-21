@@ -227,6 +227,11 @@ class Compose:
             "--project-directory",
             str(directory),
         ]
+        # Defaults supply settings introduced since the local .env was created.
+        # Keep explicit local values last, including intentionally empty ones.
+        if (directory / ".env.development").is_file():
+            for name in (".env.development", ".env"):
+                command += ["--env-file", str(directory / name)]
         for name in self.files:
             command += ["--file", str(directory / name)]
         return [*command, *args]

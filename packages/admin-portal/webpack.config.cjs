@@ -44,9 +44,15 @@ class InterpolateHtmlPlugin {
 module.exports = function (env, argv) {
     return withPortalDevelopment(__dirname, {
         mode: argv.mode,
-        entry: path.resolve(__dirname, "src/index.tsx"),
+        entry: {
+            "index": path.resolve(__dirname, "src/index.tsx"),
+            "historical-import-worker": path.resolve(
+                __dirname,
+                "src/services/HistoricalImportWorker.ts"
+            ),
+        },
         output: {
-            filename: "index.js",
+            filename: "[name].js",
             path: path.resolve(__dirname, "dist"),
             publicPath: "/", // Set to empty string to ensure correct base path
             clean: true,
@@ -101,6 +107,7 @@ module.exports = function (env, argv) {
                 PUBLIC_URL: "", // Provide replacements for variables
             }),
             new HtmlWebpackPlugin({
+                chunks: ["index"],
                 template: path.resolve(__dirname, "public/index.html"),
                 favicon: path.resolve(__dirname, "public/favicon.ico"),
                 filename: "./index.html",
@@ -114,12 +121,14 @@ module.exports = function (env, argv) {
             // Configure CopyWebpackPlugin to include a list of files from 'public/' into 'dist/'
             new CopyWebpackPlugin({
                 patterns: [
+                    // Optional converter: deployed locally, fetched only when configured.
                     {
-                        // The rayon helper self-fetches import.meta.url. Preserve
-                        // this no-bundler package as browser-served ES modules.
-                        from: path.dirname(require.resolve("braid-wasm/package.json")),
-                        to: "braid-wasm",
-                        globOptions: {ignore: ["**/*.d.ts", "**/package.json"]},
+                        from: require.resolve("sequent-election-config/index.js"),
+                        to: "wasm/election_event_import_converter.js",
+                    },
+                    {
+                        from: require.resolve("sequent-election-config/index_bg.wasm"),
+                        to: "wasm/election_event_import_converter_bg.wasm",
                     },
                     {
                         from: path.resolve(__dirname, "public"), // Source folder
@@ -169,7 +178,7 @@ module.exports = function (env, argv) {
             historyApiFallback: true,
             headers: {
                 // Required together for SharedArrayBuffer/Atomics support,
-                // needed by braid-wasm's multi-threaded build.
+                // used by browser worker builds.
                 "Cross-Origin-Opener-Policy": "same-origin",
                 "Cross-Origin-Embedder-Policy": "require-corp",
                 "Cross-Origin-Resource-Policy": "cross-origin",

@@ -638,19 +638,19 @@ class ConflictTest(unittest.TestCase):
 
 
 class HealthcheckDriftTest(unittest.TestCase):
-    RABBITMQ = ["CMD", "rabbitmq-diagnostics", "-q", "check_port_listener", "5672"]
+    POSTGRES = ["CMD-SHELL", "pg_isready -U postgres"]
 
     def container(self, test):
         return ContainerState(
-            "i", "rabbitmq", "rabbitmq", "running", None, 0, "no", None, test
+            "i", "postgres", "postgres", "running", None, 0, "no", None, test
         )
 
     def test_container_created_before_the_check(self):
-        service = {"healthcheck": {"test": self.RABBITMQ}}
+        service = {"healthcheck": {"test": self.POSTGRES}}
         self.assertTrue(healthcheck_drifted(service, self.container(None)))
         self.assertTrue(healthcheck_drifted(service, self.container(("CMD", "true"))))
         self.assertFalse(
-            healthcheck_drifted(service, self.container(tuple(self.RABBITMQ)))
+            healthcheck_drifted(service, self.container(tuple(self.POSTGRES)))
         )
 
     def test_image_checks_and_disabled_checks_are_kept(self):

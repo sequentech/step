@@ -67,7 +67,7 @@ elif args[0] == "metadata":
 elif args[0] == "build":
     root = Path(os.environ["FAKE_WASM_ROOT"])
     digest = hashlib.sha256()
-    for crate in ("sequent-core", "strand"):
+    for crate in ("sequent-core", "voting-crypto"):
         for path in sorted((root / "packages" / crate / "src").rglob("*.rs")):
             text = path.read_text()
             if "compile_error!" in text:
@@ -86,7 +86,7 @@ sequent-core v0.1.0 ({root}/packages/sequent-core)|areas,default,default_feature
 wasm,wasmtest
 serde v1.0.228|default,derive,serde_derive,std
 serde_derive v1.0.228 (proc-macro)|default
-strand v0.4.0 ({root}/packages/strand)|num_bigint,wasm,wasmtest
+voting-crypto v0.4.0 ({root}/packages/voting-crypto)|core
 serde v1.0.228|default,derive,serde_derive,std
 wasm-bindgen v0.2.128|default,serde-serialize
 serde v1.0.228|default,derive,serde_derive,std (*)
@@ -154,9 +154,13 @@ def metadata(root: Path) -> dict:
                 readme="README.md",
             ),
             package(
-                "strand",
+                "voting-crypto",
                 "0.4.0",
-                [target("strand", ["cdylib", "rlib"], "strand/src/lib.rs")],
+                [
+                    target(
+                        "voting-crypto", ["cdylib", "rlib"], "voting-crypto/src/lib.rs"
+                    )
+                ],
             ),
         ]
     }
@@ -173,7 +177,7 @@ class Checkout:
         files = {
             "rust-toolchain.toml": '[toolchain]\nchannel = "1.96.0"\n',
             "packages/Cargo.toml": (
-                '[workspace]\nmembers = ["sequent-core", "strand"]\n\n'
+                '[workspace]\nmembers = ["sequent-core", "voting-crypto"]\n\n'
                 "[profile.release]\nopt-level = 3\n"
             ),
             "packages/Cargo.lock": "version = 4\n",
@@ -185,12 +189,12 @@ class Checkout:
             "packages/sequent-core/src/main.rs": "fn main() {}\n",
             "packages/sequent-core/src/util.rs": "pub fn hash() -> u8 { 1 }\n",
             "packages/sequent-core/tests/it.rs": "#[test]\nfn it() {}\n",
-            "packages/strand/Cargo.toml": '[package]\nname = "strand"\n',
-            "packages/strand/README.md": "# strand\n",
-            "packages/strand/src/lib.rs": (
+            "packages/voting-crypto/Cargo.toml": '[package]\nname = "voting-crypto"\n',
+            "packages/voting-crypto/README.md": "# voting-crypto\n",
+            "packages/voting-crypto/src/lib.rs": (
                 '#[cfg(test)]\n#[path = "../tests/support/shape.rs"]\nmod shape;\n'
             ),
-            "packages/strand/tests/support/shape.rs": "fn shape() {}\n",
+            "packages/voting-crypto/tests/support/shape.rs": "fn shape() {}\n",
             "packages/yarn.lock": LOCK.format(hash="0" * 40, other="f" * 40),
         }
         for name, text in files.items():
@@ -283,7 +287,7 @@ class ClosureTests(WasmTestCase):
             local,
             {
                 "packages/sequent-core": "areas,default,default_features,wasm,wasmtest",
-                "packages/strand": "num_bigint,wasm,wasmtest",
+                "packages/voting-crypto": "core",
             },
         )
         # Duplicates collapse, the proc-macro and repeat markers are not part of
@@ -316,12 +320,16 @@ class ClosureTests(WasmTestCase):
             {
                 "name": "build-script-build",
                 "kind": ["custom-build"],
-                "src_path": str(self.checkout.packages / "strand" / "build.rs"),
+                "src_path": str(self.checkout.packages / "voting-crypto" / "build.rs"),
             }
         )
         self.assertEqual(
             wasm.package_sources(package, self.checkout.layout),
-            ("packages/strand", "packages/strand/build.rs", "strand"),
+            (
+                "packages/voting-crypto",
+                "packages/voting-crypto/build.rs",
+                "voting-crypto",
+            ),
         )
 
     def test_closure_is_reused_until_a_resolution_input_changes(self):
@@ -329,7 +337,8 @@ class ClosureTests(WasmTestCase):
         self.checkout.source_fingerprint()
         self.assertEqual(len(self.checkout.calls("cargo", "tree")), 1)
         self.checkout.write(
-            "packages/strand/Cargo.toml", '[package]\nname = "strand"\n#\n'
+            "packages/voting-crypto/Cargo.toml",
+            '[package]\nname = "voting-crypto"\n#\n',
         )
         self.checkout.source_fingerprint()
         self.assertEqual(len(self.checkout.calls("cargo", "tree")), 2)
@@ -350,12 +359,31 @@ class FingerprintTests(WasmTestCase):
         )
         self.checkout.write("packages/sequent-core/src/.util.rs.swp", "swap")
         self.checkout.write("packages/sequent-core/src/util.rs~", "backup")
-        self.checkout.write("packages/strand/README.md", "# strand, edited\n")
+        self.checkout.write(
+            "packages/voting-crypto/README.md", "# voting-crypto, edited\n"
+        )
         self.assertEqual(self.checkout.source_fingerprint(), before)
+
+    def test_generated_converter_package_is_not_a_build_script_input(self):
+        data = metadata(self.checkout.root)
+        data["packages"][0]["targets"].append({
+            "name": "build-script-build", "kind": ["custom-build"],
+            "src_path": str(self.checkout.packages / "sequent-core/build.rs"),
+        })
+        (self.checkout.fixtures / "metadata.json").write_text(json.dumps(data))
+        self.checkout.write("packages/sequent-core/build.rs", "fn main() {}\n")
+        before = self.checkout.source_fingerprint()
+        for name in ("index.js", "index_bg.wasm", "README.md", "package.json"):
+            self.checkout.write("packages/sequent-core/pkg-election-config/" + name, "generated")
+        self.assertEqual(self.checkout.source_fingerprint(), before)
+        self.checkout.write("packages/sequent-core/src/lib.rs", "pub fn changed() {}\n")
+        self.assertNotEqual(self.checkout.source_fingerprint(), before)
 
     def test_files_named_by_path_attributes_are_inputs(self):
         before = self.checkout.source_fingerprint()
-        self.checkout.write("packages/strand/tests/support/shape.rs", "fn other() {}\n")
+        self.checkout.write(
+            "packages/voting-crypto/tests/support/shape.rs", "fn other() {}\n"
+        )
         self.assertNotEqual(self.checkout.source_fingerprint(), before)
 
     def test_packaged_readme_is_an_input(self):
@@ -367,7 +395,7 @@ class FingerprintTests(WasmTestCase):
         before = self.checkout.source_fingerprint()
         self.checkout.write(
             "packages/Cargo.toml",
-            '[workspace]\nmembers = ["sequent-core", "strand"]\n\n'
+            '[workspace]\nmembers = ["sequent-core", "voting-crypto"]\n\n'
             "[profile.release]\nopt-level = 2\n",
         )
         profile = self.checkout.source_fingerprint()
@@ -379,7 +407,7 @@ class FingerprintTests(WasmTestCase):
         before = self.checkout.source_fingerprint()
         self.checkout.write(
             "packages/Cargo.toml",
-            '[workspace]\nmembers = ["sequent-core", "strand", "windmill"]\n\n'
+            '[workspace]\nmembers = ["sequent-core", "voting-crypto", "windmill"]\n\n'
             "[profile.release]\nopt-level = 3\n",
         )
         self.checkout.write("packages/Cargo.lock", "version = 4\n# windmill bumped\n")
@@ -690,10 +718,10 @@ class CheckPackageTests(WasmTestCase):
         self.assertIn("--release-package", err)
 
     def test_a_new_source_file_is_reported(self):
-        self.checkout.write("packages/strand/src/extra.rs", "fn extra() {}\n")
+        self.checkout.write("packages/voting-crypto/src/extra.rs", "fn extra() {}\n")
         code, _, err = self.check()
         self.assertEqual(code, 1)
-        self.assertIn("added file packages/strand/src/extra.rs", err)
+        self.assertIn("added file packages/voting-crypto/src/extra.rs", err)
 
     def test_copies_that_differ_fail(self):
         archive = self.checkout.layout.archive(

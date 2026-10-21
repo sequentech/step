@@ -34,8 +34,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use std::collections::{HashMap, HashSet};
 use std::env;
-use strand::hash::hash_b64;
 use tracing::instrument;
+use voting_crypto::hash::hash_b64;
 // re-export for easy refactor:
 pub use crate::services::users::{VALIDATE_ID_ATTR_NAME, VALIDATE_ID_REGISTERED_VOTER};
 pub use sequent_core::util::date_time::get_date_and_time;
@@ -338,7 +338,7 @@ pub async fn extract_election_event_annotations(
     })
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct InspectorData {
     pub role: String,
     pub name: String,
@@ -371,7 +371,7 @@ pub async fn extract_area_data(
                         && seen_ids.insert(user.miru_id.clone())
                     {
                         Some(InspectorData {
-                            role: user.miru_name.clone(),
+                            role: user.miru_role,
                             name: user.miru_name,
                         })
                     } else {
@@ -602,5 +602,84 @@ mod configuration_stamp_tests {
         let mut map = data(json!({"execution_annotations": null}));
         stamp_template_data(&mut map, &stamp());
         assert_eq!(map[EXECUTION_ANNOTATIONS][CONFIGURATION_REVISION], "3");
+    }
+}
+
+#[cfg(test)]
+mod area_data_tests {
+    use super::*;
+    use serde_json::json;
+
+    fn area(sbei_ids: &[&str]) -> Area {
+        Area {
+            id: "area".to_string(),
+            tenant_id: "tenant".to_string(),
+            election_event_id: "event".to_string(),
+            created_at: None,
+            last_updated_at: None,
+            labels: None,
+            annotations: Some(json!({
+                "miru:area-ccs-servers": "[]",
+                "miru:area-station-id": "90010001",
+                "miru:area-station-name": "SPAIN",
+                "miru:area-threshold": "2",
+                "miru:area-trustee-users": serde_json::to_string(sbei_ids).unwrap(),
+                "miru:area-country": "Spain",
+                "miru:registered-voters": "1250",
+            })),
+            name: Some("Spain".to_string()),
+            description: None,
+            r#type: None,
+            parent_id: None,
+            presentation: None,
+        }
+    }
+
+    fn sbei(miru_id: &str, role: &str, name: &str) -> MiruSbeiUser {
+        MiruSbeiUser {
+            username: miru_id.to_lowercase(),
+            miru_id: miru_id.to_string(),
+            miru_role: role.to_string(),
+            miru_name: name.to_string(),
+            miru_election_id: "9001".to_string(),
+            certificate_fingerprint: None,
+        }
+    }
+
+    #[tokio::test]
+    async fn an_areas_inspectors_are_its_sbei_members_with_their_roles_once_each() {
+        let users = vec![
+            sbei("SBEI-01", "Chairperson", "Maria L. Santos"),
+            sbei("SBEI-01", "Chairperson", "Maria L. Santos"),
+            sbei("SBEI-02", "Poll Clerk", "Jose R. Dela Cruz"),
+            sbei("SBEI-09", "Third Member", "Of another area"),
+        ];
+        let data = extract_area_data(&area(&["SBEI-01", "SBEI-02"]), users)
+            .await
+            .unwrap();
+        assert_eq!(
+            data.inspectors,
+            vec![
+                InspectorData {
+                    role: "Chairperson".to_string(),
+                    name: "Maria L. Santos".to_string(),
+                },
+                InspectorData {
+                    role: "Poll Clerk".to_string(),
+                    name: "Jose R. Dela Cruz".to_string(),
+                },
+            ]
+        );
+        assert_eq!(data.registered_voters, 1250);
+    }
+
+    #[tokio::test]
+    async fn an_area_without_sbei_members_lists_the_three_default_roles() {
+        let data = extract_area_data(&area(&[]), vec![]).await.unwrap();
+        let names: Vec<&str> = data.inspectors.iter().map(|i| i.name.as_str()).collect();
+        assert_eq!(
+            names,
+            [DEFULT_CHAIRPERSON, DEFULT_POLL_CLERK, DEFULT_THIRD_MEMBER]
+        );
     }
 }

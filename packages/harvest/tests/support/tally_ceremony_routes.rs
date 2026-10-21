@@ -102,6 +102,26 @@ async fn a_recount_whose_task_cannot_be_sent_is_accepted_for_later_delivery() {
 }
 
 #[rocket::async_test]
+async fn a_recount_is_accepted_for_later_delivery_when_the_task_queues_are_unreachable(
+) {
+    let services = Services::on_test_database()
+        .await
+        .with_tasks(MemoryTaskQueue::unreachable());
+    let client = services.client().await;
+    let (event, _, tally_session_id) = tallied(&services, "SUCCESS").await;
+
+    let (status, _) =
+        json(recount(&client, &event, &tally_session_id).await).await;
+    assert_eq!(status, Status::Ok);
+    assert_eq!(
+        event
+            .tally_session_executions(&services.hasura, &tally_session_id)
+            .await,
+        2
+    );
+}
+
+#[rocket::async_test]
 async fn only_a_completed_tally_can_be_recounted() {
     let services = Services::on_test_database().await;
     let client = services.client().await;
@@ -328,12 +348,12 @@ async fn restoring_a_key_for_an_unknown_tally_session_is_a_bad_request() {
 
     let response = post(
         &client,
-        "/restore-private-key",
+        "/authorize-tally-custody",
         &admin(&event, Permissions::TRUSTEE_CEREMONY),
         &json!({
             "election_event_id": event.election_event_id,
             "tally_session_id": uuid::Uuid::new_v4().to_string(),
-            "private_key_base64": "not-a-key",
+            "custody_proof_json": "not-a-key",
         }),
     )
     .await;
@@ -385,10 +405,10 @@ async fn tally_ceremony_routes_answer_500_when_the_database_is_unreachable() {
                 "tally_session_id": session}),
         ),
         (
-            "/restore-private-key",
+            "/authorize-tally-custody",
             Permissions::TRUSTEE_CEREMONY,
             json!({"election_event_id": event.election_event_id,
-                "tally_session_id": session, "private_key_base64": "key"}),
+                "tally_session_id": session, "custody_proof_json": "key"}),
         ),
         (
             "/submit-tally-resolution",
@@ -415,15 +435,15 @@ fn trustee_header(
     event: &Event,
     trustee: &str,
 ) -> rocket::http::Header<'static> {
-    use base64::Engine;
     let mut claims = admin(event, Permissions::TRUSTEE_CEREMONY).build();
     claims.trustee = Some(trustee.to_owned());
-    let payload = serde_json::to_vec(&claims).unwrap();
     rocket::http::Header::new(
         "Authorization",
         format!(
-            "Bearer fixture.{}.fixture",
-            base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(payload)
+            "Bearer {}",
+            crate::test_claims::signing::token(
+                &serde_json::to_value(&claims).unwrap()
+            )
         ),
     )
 }
@@ -431,13 +451,13 @@ fn trustee_header(
 /// The two trustee key steps: the route and the field naming its ceremony.
 const KEY_STEPS: [(SigningAction, &str, &str); 2] = [
     (
-        SigningAction::ConfirmKeyShare,
-        "/check-private-key",
+        SigningAction::ConfirmCustodyProof,
+        "/confirm-key-custody",
         "keys_ceremony_id",
     ),
     (
-        SigningAction::ContributeKeyShare,
-        "/restore-private-key",
+        SigningAction::ContributeCustodyProof,
+        "/authorize-tally-custody",
         "tally_session_id",
     ),
 ];
@@ -503,7 +523,8 @@ async fn key_step<'c>(
 }
 
 #[rocket::async_test]
-async fn a_gated_key_step_refuses_a_hash_of_another_file_than_the_key_share() {
+async fn a_gated_key_step_refuses_a_hash_of_another_file_than_the_custody_proof(
+) {
     for (action, path, field) in KEY_STEPS {
         let services = Services::on_test_database().await;
         let client = services.client().await;
@@ -515,7 +536,7 @@ async fn a_gated_key_step_refuses_a_hash_of_another_file_than_the_key_share() {
                 &event,
                 (path, field),
                 "trustee-1",
-                json!({"private_key_base64": "key", "key_share_sha256": "00"}),
+                json!({"custody_proof_json": "key", "custody_proof_sha256": "00"}),
             )
             .await,
         )
@@ -524,8 +545,8 @@ async fn a_gated_key_step_refuses_a_hash_of_another_file_than_the_key_share() {
         assert_eq!(
             body,
             json!({
-                "message": "The key share's SHA-256 is not the uploaded key share's.",
-                "extensions": {"code": "invalid", "reason": "key-share-hash"},
+                "message": "The custody proof's SHA-256 is not the uploaded custody proof's.",
+                "extensions": {"code": "invalid", "reason": "custody-proof-hash"},
             })
         );
     }
@@ -546,7 +567,7 @@ async fn a_gated_key_step_with_a_request_checks_the_trustee_and_the_request() {
                 &event,
                 (path, field),
                 "nobody",
-                json!({"private_key_base64": "key", "signing_request_id": request_id}),
+                json!({"custody_proof_json": "key", "signing_request_id": request_id}),
             )
             .await,
         )
@@ -560,7 +581,7 @@ async fn a_gated_key_step_with_a_request_checks_the_trustee_and_the_request() {
                 &event,
                 (path, field),
                 "trustee-1",
-                json!({"private_key_base64": "key", "signing_request_id": request_id}),
+                json!({"custody_proof_json": "key", "signing_request_id": request_id}),
             )
             .await,
         )
@@ -587,9 +608,9 @@ async fn an_ungated_key_check_answers_the_ceremonys_refusal_as_before() {
         key_step(
             &client,
             &event,
-            ("/check-private-key", "keys_ceremony_id"),
+            ("/confirm-key-custody", "keys_ceremony_id"),
             "trustee-1",
-            json!({"private_key_base64": "key"}),
+            json!({"custody_proof_json": "key"}),
         )
         .await,
     )
@@ -600,20 +621,20 @@ async fn an_ungated_key_check_answers_the_ceremonys_refusal_as_before() {
 #[test]
 fn a_key_step_answers_ceremony_refusals_as_before_and_signing_refusals_by_contract(
 ) {
-    use crate::routes::keys_ceremony::key_share_failure;
+    use crate::routes::keys_ceremony::custody_proof_failure;
     use crate::services::signing_gate::Guarded;
-    use windmill::services::signing::key_shares::KeyShareError;
+    use windmill::services::signing::custody_proofs::CustodyProofError;
     use windmill::services::signing::SigningError;
-    match key_share_failure(KeyShareError::Signing(SigningError::Internal(
-        anyhow::anyhow!("private database details"),
-    ))) {
+    match custody_proof_failure(CustodyProofError::Signing(
+        SigningError::Internal(anyhow::anyhow!("private database details")),
+    )) {
         Guarded::Signing(failure) => {
             assert_eq!(failure.status, Status::InternalServerError);
             assert_eq!(failure.message, "Internal error");
         }
         other => panic!("{other:?}"),
     }
-    match key_share_failure(KeyShareError::Step(anyhow::anyhow!(
+    match custody_proof_failure(CustodyProofError::Step(anyhow::anyhow!(
         "Unexpected status IN_PROGRESS"
     ))) {
         Guarded::Route((status, message)) => {

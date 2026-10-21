@@ -32,6 +32,10 @@ describe("ChannelIcon", () => {
         expect(new Set(drawings).size).toBe(CHANNEL_ICON_NAMES.length)
     })
 
+    it("lists the channels in the order every screen shows them", () => {
+        expect(CHANNEL_ICON_NAMES).toEqual(["WHATSAPP", "VIBER", "MESSENGER", "SMS", "EMAIL"])
+    })
+
     it("is decorative unless titled", () => {
         const {container, rerender} = render(<ChannelIcon channel="VIBER" />)
         expect(container.querySelector("svg")).toHaveAttribute("aria-hidden", "true")

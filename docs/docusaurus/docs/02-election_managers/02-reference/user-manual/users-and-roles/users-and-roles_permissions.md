@@ -13,6 +13,16 @@ permissions of the roles assigned to them. Use the narrowest role that covers th
 having access to an election event does not automatically grant access to every action or field in
 it.
 
+## Trustee and Admin Lockdown Roles
+
+The `trustee` and `admin-lockdown` roles of a new tenant do not include the `admin-user`
+permission. Trustees work with the key and tally ceremony permissions, and admin lockdown users
+with the publication permissions; the admin portal runs their requests with those permissions.
+
+Tenants created before this change keep the roles they were created with. After upgrading, open
+**Users and Roles** > **Roles**, edit the `trustee` and `admin-lockdown` roles of each tenant, and
+remove the `admin-user` permission from them. Users must log in again for the change to apply.
+
 ## Secret Voter Field Permissions
 
 Secret voter fields have independent read and write permissions so an operator can manage a value
@@ -40,6 +50,27 @@ omitted. A decrypted voter-export document remains restricted: downloading it ch
 Assign read and write independently where duties require it. For example, an import operator can
 receive secret-write without secret-read, while a support operator who must inspect a value can
 receive secret-read without permission to change it.
+
+## User Creation and Import Permissions
+
+Creating a tenant user or importing a file of tenant users needs `user-create`; creating a voter or
+importing a file of voters into an election event needs `voter-create`. Some fields determine what a
+user can access, so setting them needs the same permissions as changing them on an existing user:
+
+| Operation | Required permissions |
+|---|---|
+| Assign roles while creating a user | The create permission, `user-write` and `role-write` |
+| Import a CSV whose `group_name` column names a group other than `voter` | The create permission, `user-write` and `role-write` |
+| Import a CSV with a non-empty `permission_labels` value | The create permission and `permission-label-write` |
+
+If a row needs a permission the importing user lacks, the whole import is rejected and the error
+names the row and the column. Empty `group_name` and `permission_labels` cells need no extra
+permission. The voters file inside an election event import follows the same rules, according to the
+permissions of the user who imports the event.
+
+Users always belong to the tenant they are created or imported into. Creating a user with a
+`tenant-id` attribute is rejected. A `tenant-id` column in an import CSV is not used: it must be
+empty or hold the id of that tenant, and the import is rejected for any other value.
 
 ## Monitoring Dashboard Permissions
 
@@ -143,3 +174,47 @@ are added: no role receives them. Assign them to roles in **Users and Roles** > 
 lists each of these permissions with its label in Users and Roles, and the sample preset's
 groups and rules; [Signatures](../../02-election-event/16-signatures/01-election_management_election-event_signatures.md)
 describes the tab.
+
+## Tenant Log Permissions
+
+The tenant log records what happens outside election events; **Settings** > **Logs** shows it.
+
+| Permission | Allows |
+|---|---|
+| `tenant-logs-read` | See the **Logs** tab in Settings and read the tenant log. Opening Settings also needs `settings-menu`. |
+| `tenant-logs-export` | Export the tenant log from that tab as CSV, SQL or PDF. Also needs `tenant-logs-read`, to reach the tab. |
+
+They are independent of `tenant-write`, which shows the other Settings tabs: a role with
+`settings-menu` and `tenant-logs-read` but without `tenant-write` sees only **Logs**, and a role with
+`tenant-write` but without `tenant-logs-read` sees every tab except **Logs**. The server refuses to
+list or export the tenant log without them, whatever the user's other permissions.
+
+`logs-read` and `logs-export` are the equivalent permissions for the **Logs** tab of an election
+event. Exporting an election event's logs needs `logs-export`; earlier releases checked
+`report-write`.
+
+New tenant realms grant both tenant log permissions to the `admin` group, in the default tenant realm
+template and in the janitor's client template. Existing tenant realms get both permissions, and their
+`admin` group gets them too, when Windmill's scheduler (beat) starts after an upgrade;
+`step-cli step migrate-realm-permissions` does the same by hand. Grant them to any other role in
+**Users and Roles** > **Roles**. Users must log in again for the change to apply.
+
+See [Settings > Logs](../settings/settings_logs.md) for the tab.
+
+## Electoral Log Permissions
+
+| Permission | Allows |
+|---|---|
+| `electoral-log-console-read` | Open the **Electoral Log** page and browse the records, ballots, voters and sequencer queue of the tenant's election events, or, in the super-admin tenant, of any tenant's. Usernames, IP addresses and countries show as `hidden`. |
+| `electoral-log-personal-data-read` | See usernames, IP addresses and countries on the **Electoral Log** page. |
+| `electoral-log-console-query` | Run read-only SQL queries on the **Electoral Log** page, in the super-admin tenant. A query reads the database of one election event, of any tenant, and also needs `electoral-log-personal-data-read`, because it reads personal data as it is stored. |
+
+## Task Queue Permissions
+
+These apply to users of the super-admin tenant only; in other tenants they grant nothing.
+
+| Permission | Allows |
+|---|---|
+| `task-queues-read` | Open the **Task Queues** page: the environment's queues, their recent outcomes and throughput, and the messages in them, without their tasks' arguments. |
+| `task-queues-write` | Replay or discard dead-lettered electoral-log events on the **Task Queues** page. Also needs `task-queues-read`. |
+| `task-queues-query` | Run read-only SQL queries on the task-queue database from the **Task Queues** page. Queries read messages as they are stored, with their tasks' arguments, which can include voters' data. Also needs `task-queues-read`. |

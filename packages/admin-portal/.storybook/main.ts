@@ -3,8 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import type {StorybookConfig} from "@storybook/react-vite"
 import {readFileSync, readdirSync} from "node:fs"
-import {createRequire} from "node:module"
-import {dirname, join} from "node:path"
+import {join} from "node:path"
 import {fileURLToPath} from "node:url"
 import config from "../../ui-essentials/.storybook/main.ts"
 import postcssPresetEnv from "postcss-preset-env"
@@ -29,9 +28,6 @@ const adminGraphqlSchema = (): Plugin => ({
             : undefined,
 })
 
-// As webpack.config.cjs does: braid's threaded WASM loads its unbundled modules
-// from /braid-wasm and needs a cross-origin isolated page for shared memory.
-const braidWasm = dirname(createRequire(import.meta.url).resolve("braid-wasm/package.json"))
 const CROSS_ORIGIN_ISOLATION = {
     "Cross-Origin-Opener-Policy": "same-origin",
     "Cross-Origin-Embedder-Policy": "require-corp",
@@ -57,7 +53,7 @@ const muiDeepImports = [
 
 const adminConfig = {
     ...config,
-    staticDirs: ["../public", {from: braidWasm, to: "/braid-wasm"}],
+    staticDirs: ["../public"],
     // The portal's font, linked as its page links it (public/index.html). Without it
     // every story is drawn in whatever sans-serif the machine has: DejaVu Sans on Linux.
     previewHead: (head = "") => `${head}<link rel="stylesheet" href="roboto.css" />`,
@@ -87,7 +83,6 @@ const adminConfig = {
                     "moment-timezone",
                     "@apollo/client/link/context",
                     "react-use",
-                    "braid-wasm",
                     "uuid",
                     "react-hook-form",
                     "json-edit-react",

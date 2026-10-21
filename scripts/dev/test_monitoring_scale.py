@@ -231,7 +231,7 @@ class Cleanup(unittest.TestCase):
         ):
             self.assertFalse(scale.is_seeded_user(user), user)
 
-    def test_marked_rows_are_the_events_annotated_ones(self):
+    def test_marked_rows_are_the_events_annotated_applications(self):
         self.assertEqual(
             scale.marked_rows(TENANT, EVENT),
             {
@@ -320,41 +320,56 @@ class Votes(unittest.TestCase):
             LIMITS,
             VotePlan(turnout, revote_share, 5, NOW),
             random.Random(11),
-            TENANT,
             EVENT,
             "tag",
         )
 
-    def test_revotes_follow_the_trigger(self):
+    def test_revotes_follow_the_ballot_box_limit(self):
         self.assertFalse(scale.allows_revote(None))
         self.assertFalse(scale.allows_revote(1))
         self.assertTrue(scale.allows_revote(0))
         self.assertTrue(scale.allows_revote(2))
 
-    def test_votes_are_marked_valid_and_in_the_voters_elections(self):
+    def test_votes_are_in_the_voters_elections_in_the_order_cast(self):
         votes = self.plan()
         areas = {area.id: area for area in AREAS}
         owner = {account.user_id: account for account in accounts(6000)}
         start = NOW - timedelta(days=5)
         for vote in votes:
-            self.assertEqual(vote["annotations"], {scale.MARKER: "tag"})
-            self.assertEqual(vote["status"], "valid")
-            self.assertEqual(vote["tenant_id"], TENANT)
             self.assertEqual(vote["election_event_id"], EVENT)
             area = areas[vote["area_id"]]
-            self.assertEqual(owner[vote["voter_id_string"]].area_id, area.id)
+            self.assertEqual(owner[vote["voter_id"]].area_id, area.id)
             self.assertIn(vote["election_id"], area.elections)
-            at = datetime.fromisoformat(vote["created_at"])
+            at = datetime.fromisoformat(vote["accepted_at"])
             self.assertTrue(start <= at < NOW, at)
-        days = {datetime.fromisoformat(vote["created_at"]).date() for vote in votes}
-        self.assertGreaterEqual(len(days), 5)
+        times = [datetime.fromisoformat(vote["accepted_at"]) for vote in votes]
+        self.assertEqual(times, sorted(times))
+        self.assertGreaterEqual(len({at.date() for at in times}), 5)
+
+    def test_each_ballot_has_its_own_ballot_id(self):
+        votes = self.plan()
+        ballot_ids = [vote["ballot_id"] for vote in votes]
+        self.assertEqual(len(set(ballot_ids)), len(votes))
+        self.assertEqual(ballot_ids[0], scale.seeded_ballot_id("tag", 0))
+        self.assertNotEqual(scale.seeded_ballot_id("other", 0), ballot_ids[0])
+
+    def test_a_ballot_row_is_a_marked_valid_ballot_with_hashes(self):
+        vote = self.plan()[0]
+        row = scale.ballot_row(vote)
+        self.assertEqual(row[0], EVENT)
+        self.assertEqual(row[1], vote["ballot_id"])
+        self.assertEqual(row[4], vote["voter_id"])
+        self.assertEqual(row[5], scale.MARKER)
+        self.assertEqual((len(row[6]), len(row[7])), (64, 64))
+        self.assertEqual(row[8], vote["accepted_at"])
+        self.assertIn("'valid'", scale.INSERT_BALLOT)
 
     def test_turnout_and_revotes(self):
         votes = self.plan()
-        voters = {vote["voter_id_string"] for vote in votes}
+        voters = {vote["voter_id"] for vote in votes}
         self.assertAlmostEqual(len(voters) / 6000, 0.6, delta=0.03)
         per_election = Counter(
-            (vote["voter_id_string"], vote["election_id"]) for vote in votes
+            (vote["voter_id"], vote["election_id"]) for vote in votes
         )
         self.assertLessEqual(max(per_election.values()), 2)
         revoted = {election for (_, election), n in per_election.items() if n > 1}
@@ -371,7 +386,6 @@ class Votes(unittest.TestCase):
             LIMITS,
             VotePlan(1.0, 1.0, 5, NOW),
             random.Random(1),
-            TENANT,
             EVENT,
             "tag",
         )

@@ -3,24 +3,26 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 //! The ballot box receives a ballot at review: it runs the cast checks, stores
-//! the ballot and signs that it has it. It answers only after the commit, so
-//! the Ballot ID a voter sees is proof of storage.
+//! the ballot in the event's ballot box and signs that it has it. It answers
+//! only once the ballot is stored, so the Ballot ID a voter sees is proof of
+//! storage.
 
 use crate::postgres::area::get_area_by_id;
+use crate::postgres::ballot_style::get_published_ballot_eml;
 use crate::postgres::election_event::get_election_event_by_id;
-use crate::postgres::received_ballot::{
-    format_received_at, get_published_ballot_eml, get_received_ballot, insert_received_ballot,
-    ReceivedBallotScope,
-};
 use crate::services::ballot_box_key::{get_ballot_box_signing_key, published_key};
 use crate::services::database::get_hasura_pool;
+use crate::services::electoral_log_board::get_event_store;
 use crate::services::insert_cast_vote::{
-    check_status, deserialize_and_check_ballot, deserialize_and_check_multi_ballot, CastVoteError,
-    InsertCastVoteInput,
+    ballot_tracker_context, check_status, deserialize_and_check_ballot,
+    deserialize_and_check_multi_ballot, CastVoteError, InsertCastVoteInput,
 };
-use chrono::{DateTime, Duration, TimeZone, Utc};
+use chrono::{DateTime, TimeZone, Utc};
 use dashmap::DashMap;
 use deadpool_postgres::{Client as DbClient, Transaction};
+use electoral_log::adapters::ballot_box_received::{
+    ReceiveBallot, ReceiveOutcome, ReceivedBallot as StoredReceivedBallot, ReceivedSignature,
+};
 use once_cell::sync::Lazy;
 use sequent_core::ballot::{
     AreaPresentation, BallotStyle, ContestEncryptionPolicy, ReceiptsPolicy, VotingStatusChannel,
@@ -30,19 +32,32 @@ use sequent_core::encrypt::hash_ballot_style;
 use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use serde::Deserialize;
-use strand::signature::StrandSignatureSk;
 use tracing::instrument;
 use uuid::Uuid;
+use voting_crypto::signing::SigningKey;
 
 pub type ReceiveBallotInput = InsertCastVoteInput;
 pub type ReceiveBallotOutput = ReceivedBallot;
 
-/// A taken Ballot ID is about one in a million at 1.7 million ballots; each
-/// attempt signs one millisecond later.
-const MAX_BALLOT_ID_ATTEMPTS: i64 = 8;
+/// The format of the times the ballot box signs: `ReceivedStatement::received_at`
+/// and `CastReceiptStatement::cast_at`.
+const SIGNED_TIME_FORMAT: &str = "%Y-%m-%dT%H:%M:%S%.3fZ";
+
+pub fn format_signed_time(time: &DateTime<Utc>) -> String {
+    time.format(SIGNED_TIME_FORMAT).to_string()
+}
+
+/// The election a ballot is received in, and the ballot's hash as the voter
+/// sent it.
+pub struct ReceivedBallotScope<'a> {
+    pub tenant_id: &'a Uuid,
+    pub election_event_id: &'a Uuid,
+    pub election_id: &'a Uuid,
+    pub ballot_hash: &'a str,
+}
 
 /// The hash of a ballot style never changes once it is published.
-static BALLOT_STYLE_HASHES: Lazy<DashMap<Uuid, String>> = Lazy::new(DashMap::new);
+static BALLOT_STYLE_HASHES: Lazy<DashMap<Uuid, (String, BallotStyle)>> = Lazy::new(DashMap::new);
 
 /// What a ballot says about the ballot style it was made with and about its
 /// voter's key. Single and multi-contest ballots share these fields.
@@ -103,7 +118,7 @@ async fn check_ballot_style(
     scope: &ReceivedBallotScope<'_>,
     area_id: &Uuid,
     envelope: &BallotEnvelope,
-) -> Result<(), CastVoteError> {
+) -> Result<BallotStyle, CastVoteError> {
     let unknown_style = || {
         CastVoteError::BallotStyleMismatch(format!(
             "Ballot style {} is not published for the voter",
@@ -128,16 +143,63 @@ async fn check_ballot_style(
     .map_err(|err| CastVoteError::CheckStatusInternalFailed(err.to_string()))?
     .ok_or_else(unknown_style)?;
 
-    let published_hash = match (cached_hash, published) {
-        (Some(hash), _) => hash,
+    let (published_hash, style) = match (cached_hash, published) {
+        (Some(cached), _) => cached,
         (None, Some(ballot_eml)) => {
             let hash = hash_published_ballot_eml(&ballot_eml)?;
-            BALLOT_STYLE_HASHES.insert(ballot_style_id, hash.clone());
-            hash
+            let style: BallotStyle = deserialize_str(&ballot_eml)
+                .map_err(|err| CastVoteError::CheckStatusInternalFailed(err.to_string()))?;
+            BALLOT_STYLE_HASHES.insert(ballot_style_id, (hash.clone(), style.clone()));
+            (hash, style)
         }
         (None, None) => return Err(unknown_style()),
     };
-    check_ballot_style_hash(envelope, &published_hash)
+    check_ballot_style_hash(envelope, &published_hash)?;
+    Ok(style)
+}
+
+/// Shared by receive and cast, including casting without signed receipts.
+#[instrument(skip_all, err)]
+pub(crate) async fn check_published_ballot(
+    transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    area_id: &str,
+    input: &InsertCastVoteInput,
+    policy: ContestEncryptionPolicy,
+) -> Result<(), CastVoteError> {
+    let envelope: BallotEnvelope = deserialize_str(&input.content)
+        .map_err(|error| CastVoteError::DeserializeBallotFailed(error.to_string()))?;
+    let tenant = parse_uuid_field(tenant_id, "tenant_id")?;
+    let event = parse_uuid_field(election_event_id, "election_event_id")?;
+    let area = parse_uuid_field(area_id, "area_id")?;
+    let scope = ReceivedBallotScope {
+        tenant_id: &tenant,
+        election_event_id: &event,
+        election_id: &input.election_id,
+        ballot_hash: &input.ballot_id,
+    };
+    let style = check_ballot_style(transaction, &scope, &area, &envelope).await?;
+    let entries = match policy {
+        ContestEncryptionPolicy::SINGLE_CONTEST => {
+            let ballot: sequent_core::ballot::SignedHashableBallot =
+                deserialize_str(&input.content)
+                    .map_err(|error| CastVoteError::DeserializeBallotFailed(error.to_string()))?;
+            ballot
+                .deserialize_contests()
+                .map_err(|error| CastVoteError::DeserializeContestsFailed(error.to_string()))?
+        }
+        ContestEncryptionPolicy::MULTIPLE_CONTESTS => {
+            let ballot: sequent_core::multi_ballot::SignedHashableMultiBallot =
+                deserialize_str(&input.content)
+                    .map_err(|error| CastVoteError::DeserializeBallotFailed(error.to_string()))?;
+            vec![ballot
+                .deserialize_contests()
+                .map_err(|error| CastVoteError::DeserializeContestsFailed(error.to_string()))?]
+        }
+    };
+    sequent_core::encrypt::verify_ballot_ciphertexts(&entries, &style, policy)
+        .map_err(|error| CastVoteError::PokValidationFailed(error.to_string()))
 }
 
 fn parse_uuid_field(value: &str, field: &str) -> Result<Uuid, CastVoteError> {
@@ -154,7 +216,7 @@ pub(crate) fn truncate_to_milliseconds(
 }
 
 fn sign_received(
-    signing_key: &StrandSignatureSk,
+    signing_key: &SigningKey,
     scope: &ReceivedBallotScope<'_>,
     voter_signing_pk: &str,
     voter_ballot_signature: &str,
@@ -172,11 +234,29 @@ fn sign_received(
             ballot_hash: scope.ballot_hash.to_string(),
             voter_signing_pk: voter_signing_pk.to_string(),
             voter_ballot_signature: voter_ballot_signature.to_string(),
-            received_at: format_received_at(received_at),
+            received_at: format_signed_time(received_at),
             key_id,
         },
     )
     .map_err(|err| CastVoteError::BallotSignFailed(err.to_string()))
+}
+
+/// The receipt the ballot box signed for a stored received ballot.
+fn stored_receipt(tenant_id: &Uuid, stored: StoredReceivedBallot) -> ReceivedBallot {
+    ReceivedBallot {
+        statement: ReceivedStatement {
+            tenant_id: tenant_id.to_string(),
+            election_event_id: stored.election_event_id,
+            election_id: stored.election_id,
+            ballot_hash: stored.ballot_hash,
+            voter_signing_pk: stored.voter_signing_pk,
+            voter_ballot_signature: stored.voter_ballot_signature,
+            received_at: format_signed_time(&stored.received_at),
+            key_id: stored.key_id,
+        },
+        received_signature: stored.received_signature,
+        ballot_id: stored.ballot_id,
+    }
 }
 
 #[instrument(skip(input), err)]
@@ -218,10 +298,29 @@ pub async fn try_receive_ballot(
 
     let is_multi_contest =
         presentation.contest_encryption_policy == Some(ContestEncryptionPolicy::MULTIPLE_CONTESTS);
+    let (ballot_tracker_policy, published_ballot_styles) = ballot_tracker_context(
+        &hasura_transaction,
+        Some(&presentation),
+        tenant_id,
+        &area.election_event_id,
+        area_id,
+        &input.election_id.to_string(),
+    )
+    .await?;
     if is_multi_contest {
-        deserialize_and_check_multi_ballot(&input, voter_id)?;
+        deserialize_and_check_multi_ballot(
+            &input,
+            voter_id,
+            &ballot_tracker_policy,
+            &published_ballot_styles,
+        )?;
     } else {
-        deserialize_and_check_ballot(&input, voter_id)?;
+        deserialize_and_check_ballot(
+            &input,
+            voter_id,
+            &ballot_tracker_policy,
+            &published_ballot_styles,
+        )?;
     }
     let envelope: BallotEnvelope = deserialize_str(&input.content)
         .map_err(|e| CastVoteError::DeserializeBallotFailed(e.to_string()))?;
@@ -235,11 +334,21 @@ pub async fn try_receive_ballot(
         tenant_id: &tenant_uuid,
         election_event_id: &election_event_uuid,
         election_id: &input.election_id,
-        voter_id,
         ballot_hash: &input.ballot_id,
     };
 
-    check_ballot_style(&hasura_transaction, &scope, &area_uuid, &envelope).await?;
+    check_published_ballot(
+        &hasura_transaction,
+        tenant_id,
+        &election_event.id,
+        area_id,
+        &input,
+        presentation
+            .contest_encryption_policy
+            .clone()
+            .unwrap_or_default(),
+    )
+    .await?;
 
     let area_presentation: AreaPresentation = match area.presentation {
         Some(presentation) => deserialize_value(presentation)
@@ -259,14 +368,6 @@ pub async fn try_receive_ballot(
     )
     .await?;
 
-    let database_error = |error: anyhow::Error| CastVoteError::InsertFailed(format!("{error:#}"));
-    if let Some(stored) = get_received_ballot(&hasura_transaction, &scope)
-        .await
-        .map_err(database_error)?
-    {
-        return Ok(stored.received);
-    }
-
     let signing_key = get_ballot_box_signing_key(&hasura_transaction, &election_event)
         .await
         .map_err(|e| CastVoteError::BallotSignFailed(e.to_string()))?
@@ -275,48 +376,59 @@ pub async fn try_receive_ballot(
                 "The election event has no ballot box key; publish its ballots".to_string(),
             )
         })?;
-    let first_received_at = truncate_to_milliseconds(Utc::now())?;
+    hasura_transaction
+        .commit()
+        .await
+        .map_err(|e| CastVoteError::CommitFailed(e.to_string()))?;
+    drop(hasura_db_client);
 
-    for attempt in 0..MAX_BALLOT_ID_ATTEMPTS {
-        let received_at = first_received_at + Duration::milliseconds(attempt);
-        let received = sign_received(
-            &signing_key,
-            &scope,
-            &voter_signing_pk,
-            &voter_ballot_signature,
-            &received_at,
-        )?;
-        let inserted = insert_received_ballot(
-            &hasura_transaction,
-            &scope,
-            &area_uuid,
-            &input.content,
-            &received_at,
-            &received,
+    let store = get_event_store(&election_event.id)
+        .await
+        .map_err(|e| CastVoteError::InsertFailed(format!("{e:#}")))?;
+    let first_received_at = truncate_to_milliseconds(Utc::now())?;
+    let outcome = store
+        .receive_ballot(
+            &ReceiveBallot {
+                election_event_id: &election_event.id,
+                election_id: &election_id,
+                area_id,
+                voter_id,
+                ballot_hash: &input.ballot_id,
+                content: &input.content,
+                voter_signing_pk: &voter_signing_pk,
+                voter_ballot_signature: &voter_ballot_signature,
+            },
+            first_received_at,
+            |received_at| {
+                let received = sign_received(
+                    &signing_key,
+                    &scope,
+                    &voter_signing_pk,
+                    &voter_ballot_signature,
+                    &received_at,
+                )
+                .map_err(anyhow::Error::msg)?;
+                Ok(ReceivedSignature {
+                    ballot_id: received.ballot_id,
+                    key_id: received.statement.key_id,
+                    received_signature: received.received_signature,
+                })
+            },
         )
         .await
-        .map_err(database_error)?;
+        .map_err(|error| match error.downcast::<CastVoteError>() {
+            Ok(error) => error,
+            Err(error) => CastVoteError::InsertFailed(format!("{error:#}")),
+        })?;
 
-        if inserted.is_some() {
-            hasura_transaction
-                .commit()
-                .await
-                .map_err(|e| CastVoteError::CommitFailed(e.to_string()))?;
-            return Ok(received);
+    match outcome {
+        ReceiveOutcome::Received(stored) | ReceiveOutcome::AlreadyReceived(stored) => {
+            Ok(stored_receipt(&tenant_uuid, stored))
         }
-        // Either this voter's same ballot arrived on another request, or the
-        // Ballot ID is taken in the election event.
-        if let Some(stored) = get_received_ballot(&hasura_transaction, &scope)
-            .await
-            .map_err(database_error)?
-        {
-            return Ok(stored.received);
-        }
+        ReceiveOutcome::NoFreeBallotId => Err(CastVoteError::InsertFailed(
+            "No free Ballot ID for the received ballot".to_string(),
+        )),
     }
-
-    Err(CastVoteError::InsertFailed(
-        "No free Ballot ID for the received ballot".to_string(),
-    ))
 }
 
 #[cfg(test)]

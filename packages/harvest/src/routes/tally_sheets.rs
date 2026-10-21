@@ -2,7 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::authorization::authorize;
+use crate::services::audit;
+use crate::services::authorization::{
+    authorize, authorize_election_permission_labels,
+};
 use crate::services::dependencies::HarvestServices;
 use anyhow::{Context, Result};
 use deadpool_postgres::Client as DbClient;
@@ -54,6 +57,7 @@ use windmill::services::{
         validation::contest_max_marks_per_ballot,
     },
 };
+use windmill::tasks::audit_log_outbox::kick_audit_log_outbox;
 use windmill::tasks::execute_tally_session::execute_tally_session;
 
 /// Maps a tally sheet import service error to its HTTP status, downcasting
@@ -111,6 +115,7 @@ pub async fn create_new_tally_sheet(
         .transaction()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    audit::act_for(&hasura_transaction, &claims).await?;
 
     let contest_opt = get_contest_by_id(
         &hasura_transaction,
@@ -127,6 +132,14 @@ pub async fn create_new_tally_sheet(
             format!("Contest {} not found ", input.contest_id),
         ));
     };
+
+    authorize_election_permission_labels(
+        &hasura_transaction,
+        &claims,
+        &input.election_event_id,
+        Some(std::slice::from_ref(&contest.election_id)),
+    )
+    .await?;
 
     let is_acclaimed = contest.is_acclaimed.unwrap_or(false);
     if is_acclaimed {
@@ -203,6 +216,7 @@ pub async fn create_new_tally_sheet(
         .await
         .with_context(|| "error committing transaction")
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    kick_audit_log_outbox();
 
     Ok(Json(new_tally_sheet.clone()))
 }
@@ -275,6 +289,7 @@ pub async fn review_tally_sheet(
         .transaction()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    audit::act_for(&hasura_transaction, &claims).await?;
 
     let review_outcome = tally_sheet::review_tally_sheet_status(
         &hasura_transaction,
@@ -286,6 +301,19 @@ pub async fn review_tally_sheet(
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+
+    if let tally_sheet::ReviewTallySheetOutcome::Reviewed(sheet)
+    | tally_sheet::ReviewTallySheetOutcome::NotPending(sheet) =
+        &review_outcome
+    {
+        authorize_election_permission_labels(
+            &hasura_transaction,
+            &claims,
+            &input.election_event_id,
+            Some(std::slice::from_ref(&sheet.election_id)),
+        )
+        .await?;
+    }
 
     let tally_sheet = match review_outcome {
         tally_sheet::ReviewTallySheetOutcome::Reviewed(t) => t,
@@ -320,6 +348,7 @@ pub async fn review_tally_sheet(
         .await
         .with_context(|| "error committing transaction")
         .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+    kick_audit_log_outbox();
 
     Ok(Json(tally_sheet.clone()))
 }
@@ -383,6 +412,19 @@ pub async fn preview_tally_sheet_import(
     .await
     .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
+    let election_ids: Vec<String> = preview
+        .items
+        .iter()
+        .map(|item| item.election_id.clone())
+        .collect();
+    authorize_election_permission_labels(
+        &hasura_transaction,
+        &claims,
+        &input.election_event_id,
+        Some(&election_ids),
+    )
+    .await?;
+
     hasura_transaction
         .commit()
         .await
@@ -420,6 +462,7 @@ pub async fn create_tally_sheet_import(
         .transaction()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    audit::act_for(&hasura_transaction, &claims).await?;
     let (document, source_bytes) = read_import_document(
         services,
         &hasura_transaction,
@@ -461,11 +504,20 @@ pub async fn create_tally_sheet_import(
     .await
     .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
+    authorize_import_permission_labels(
+        &hasura_transaction,
+        &claims,
+        &input.election_event_id,
+        &import.id,
+    )
+    .await?;
+
     hasura_transaction
         .commit()
         .await
         .with_context(|| "error committing transaction")
         .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+    kick_audit_log_outbox();
 
     Ok(Json(TallySheetImportOutput {
         import: serde_json::to_value(import)
@@ -504,6 +556,15 @@ pub async fn review_tally_sheet_import(
         .transaction()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    audit::act_for(&hasura_transaction, &claims).await?;
+
+    authorize_import_permission_labels(
+        &hasura_transaction,
+        &claims,
+        &election_event_id,
+        &import_id,
+    )
+    .await?;
 
     let import = review_tally_sheet_import_service(
         &hasura_transaction,
@@ -521,6 +582,7 @@ pub async fn review_tally_sheet_import(
         .await
         .with_context(|| "error committing transaction")
         .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+    kick_audit_log_outbox();
 
     if should_trigger_recount
         && import.status == TallySheetImportStatus::APPROVED
@@ -531,6 +593,7 @@ pub async fn review_tally_sheet_import(
         // APPROVED"). Log it instead so it can be triaged/retried out of band.
         match maybe_trigger_automatic_recount_for_import(
             services,
+            &claims,
             &claims.hasura_claims.tenant_id,
             &election_event_id,
             &import_id,
@@ -561,8 +624,35 @@ pub async fn review_tally_sheet_import(
     }))
 }
 
+async fn authorize_import_permission_labels(
+    hasura_transaction: &deadpool_postgres::Transaction<'_>,
+    claims: &JwtClaims,
+    election_event_id: &str,
+    import_id: &str,
+) -> Result<(), (Status, String)> {
+    let election_ids: Vec<String> = get_tally_sheet_import_items_for_review(
+        hasura_transaction,
+        &claims.hasura_claims.tenant_id,
+        election_event_id,
+        import_id,
+    )
+    .await
+    .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?
+    .into_iter()
+    .map(|item| item.election_id)
+    .collect();
+    authorize_election_permission_labels(
+        hasura_transaction,
+        claims,
+        election_event_id,
+        Some(&election_ids),
+    )
+    .await
+}
+
 async fn maybe_trigger_automatic_recount_for_import(
     services: &HarvestServices,
+    claims: &JwtClaims,
     tenant_id: &str,
     election_event_id: &str,
     import_id: &str,
@@ -659,6 +749,7 @@ async fn maybe_trigger_automatic_recount_for_import(
         let tally_session_id = tally_session.id.clone();
         match request_automatic_recount_tally_session(
             services,
+            claims,
             tenant_id,
             election_event_id,
             &tally_session,
@@ -686,6 +777,7 @@ async fn maybe_trigger_automatic_recount_for_import(
 /// execution history to recount.
 async fn request_automatic_recount_tally_session(
     services: &HarvestServices,
+    claims: &JwtClaims,
     tenant_id: &str,
     election_event_id: &str,
     tally_session: &TallySession,
@@ -705,6 +797,11 @@ async fn request_automatic_recount_tally_session(
         hasura_db_client.transaction().await.with_context(|| {
             "error starting automatic recount status transaction"
         })?;
+    // The recount follows the admin's approval of the import: its changes
+    // are that admin's.
+    audit::act_for(&hasura_transaction, claims)
+        .await
+        .map_err(|(_, message)| anyhow::anyhow!(message))?;
 
     let recount_started = begin_tally_session_recount(
         &hasura_transaction,
@@ -729,9 +826,10 @@ async fn request_automatic_recount_tally_session(
         .commit()
         .await
         .with_context(|| "error committing automatic recount status update")?;
+    kick_audit_log_outbox();
 
-    let celery_app = services.tasks.connect().await;
-    let task = celery_app
+    let task = services
+        .tasks
         .send_task(execute_tally_session::new(
             tenant_id.to_string(),
             election_event_id.to_string(),

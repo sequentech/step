@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {ComponentType, useCallback, useContext, useEffect, useRef, useState} from "react"
-import {Box} from "@mui/material"
+import {Alert, AlertTitle, Box} from "@mui/material"
 import {useMutation, useQuery} from "@apollo/client"
 import {useTranslation} from "react-i18next"
 import {useGetOne, useNotify, useRecordContext, Identifier, useRefresh} from "react-admin"
@@ -93,7 +93,14 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         // Elections the last event-wide change left as they were, with why.
         const [skippedElections, setSkippedElections] = useState<ISkippedElection[]>([])
         const [publishStatus, setPublishStatus] = useState<PublishStatus>(PublishStatus.Void)
+        const [publicationStatus, setPublicationStatus] = useState<PublishStatus>(
+            PublishStatus.Void
+        )
         const [open, setOpen] = React.useState(false)
+        const [previewPublicationId, setPreviewPublicationId] = useState<
+            string | Identifier | null
+        >(null)
+        const requestEpoch = useRef(0)
         const [ballotPublicationId, setBallotPublicationId] = useState<string | Identifier | null>(
             null
         )
@@ -191,6 +198,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         })
 
         const onPublish = async () => {
+            const epoch = requestEpoch.current
             try {
                 if (!ballotPublicationId) {
                     await onGenerate()
@@ -198,7 +206,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                 }
 
                 setPublishError(null)
-                handleSetPublishStatus(PublishStatus.PublishedLoading)
+                setPublicationStatus(PublishStatus.PublishedLoading)
 
                 const {data} = await publishBallot({
                     variables: {
@@ -207,8 +215,9 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                     },
                 })
 
+                if (epoch !== requestEpoch.current) return
                 if (openSigning(data?.publish_ballot, {onChange: () => refetch()})) {
-                    handleSetPublishStatus(PublishStatus.Generated)
+                    setPublicationStatus(PublishStatus.Generated)
                     return
                 }
 
@@ -224,8 +233,9 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                 })
 
                 setPublishError(null)
-                handleSetPublishStatus(PublishStatus.Void)
+                setPublicationStatus(PublishStatus.Void)
             } catch (e) {
+                if (epoch !== requestEpoch.current) return
                 setPublishError(
                     getGraphQLActionErrorMessage(e) ?? t("publish.dialog.error_publish")
                 )
@@ -233,7 +243,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                     type: "error",
                 })
                 refresh()
-                handleSetPublishStatus(PublishStatus.Void)
+                setPublicationStatus(generateData ? PublishStatus.Generated : PublishStatus.Void)
             }
         }
 
@@ -285,10 +295,14 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         }
 
         const onGenerate = async () => {
+            const epoch = ++requestEpoch.current
             try {
+                setBallotPublicationId(null)
                 setPublishError(null)
+                setGenerateData(null)
+                setTaskId(null)
                 setViewMode(ViewMode.Edit)
-                handleSetPublishStatus(PublishStatus.GeneratedLoading)
+                setPublicationStatus(PublishStatus.GeneratedLoading)
 
                 const {data} = await generateBallotPublication({
                     variables: {
@@ -296,7 +310,8 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                         electionEventId,
                     },
                 })
-                handleSetPublishStatus(PublishStatus.GeneratedLoading)
+                if (epoch !== requestEpoch.current) return
+                setPublicationStatus(PublishStatus.GeneratedLoading)
 
                 if (data?.generate_ballot_publication?.ballot_publication_id) {
                     setBallotPublicationId(data?.generate_ballot_publication?.ballot_publication_id)
@@ -305,11 +320,14 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                     throw "Publication Generation Error"
                 }
             } catch (e) {
+                if (epoch !== requestEpoch.current) return
+                setPublishError(getGraphQLActionErrorMessage(e) ?? t("publish.dialog.error"))
+                setBallotPublicationId(null)
                 notify(t("publish.dialog.error"), {
                     type: "error",
                 })
-                handleSetPublishStatus(PublishStatus.Void)
-                setViewMode(ViewMode.List)
+                setPublicationStatus(PublishStatus.Void)
+                setViewMode(ViewMode.Edit)
             }
         }
 
@@ -492,6 +510,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         }
 
         const fetchAllPublishChanges = useCallback(async () => {
+            const epoch = requestEpoch.current
             try {
                 const {
                     data: {get_ballot_publication_changes: data},
@@ -501,11 +520,13 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                         ballotPublicationId,
                     },
                 })) as any
+                if (epoch !== requestEpoch.current) return
                 setGenerateData(data)
             } catch (error) {
+                if (epoch !== requestEpoch.current) return
                 setViewMode(ViewMode.List)
                 setGenerateData(null)
-                handleSetPublishStatus(PublishStatus.Void)
+                setPublicationStatus(PublishStatus.Void)
                 notify(t("publish.dialog.error"), {
                     type: "error",
                 })
@@ -513,6 +534,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         }, [ballotPublicationId, electionEventId, getBallotPublicationChanges])
 
         const getPublishChanges = useCallback(async () => {
+            const epoch = requestEpoch.current
             try {
                 const {
                     data: {get_ballot_publication_changes: data},
@@ -523,11 +545,13 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                         limit: MAX_DIFF_LINES / 10,
                     },
                 })) as any
+                if (epoch !== requestEpoch.current) return
                 setGenerateData(data)
             } catch (error) {
+                if (epoch !== requestEpoch.current) return
                 setViewMode(ViewMode.List)
                 setGenerateData(null)
-                handleSetPublishStatus(PublishStatus.Void)
+                setPublicationStatus(PublishStatus.Void)
                 notify(t("publish.dialog.error"), {
                     type: "error",
                 })
@@ -544,7 +568,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         )
 
         const onPreview = (id: string | Identifier) => {
-            setBallotPublicationId(id)
+            setPreviewPublicationId(id)
             setOpen(true)
         }
 
@@ -581,18 +605,26 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
 
         useEffect(() => {
             if (showList) {
+                requestEpoch.current++
+                setTaskId(null)
                 setViewMode(ViewMode.List)
                 setBallotPublicationId(null)
             }
         }, [showList])
 
         useEffect(() => {
-            if (electionEventId && ballotPublicationId && ballotPublication?.is_generated) {
+            if (
+                electionEventId &&
+                ballotPublicationId &&
+                ballotPublication?.id === ballotPublicationId &&
+                ballotPublication?.is_generated
+            ) {
                 getPublishChanges()
             }
         }, [
             ballotPublicationId,
             ballotPublication?.is_generated,
+            ballotPublication?.id,
             electionEventId,
             getPublishChanges,
         ])
@@ -601,11 +633,10 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         // sequent_backend.tasks_execution) instead of polling
         // ballot_publication.is_generated forever - on SUCCESS it refetches
         // the publication once (which then flows into the effect above), on
-        // FAILED it surfaces the task's last log line (e.g. exceeding the
-        // ballot size limit) and resets back to the list.
+        // FAILED it keeps the task's error visible on the publication details.
         const generationTask = generationTaskData?.sequent_backend_tasks_execution?.[0]
         useEffect(() => {
-            if (!taskId || !generationTask) {
+            if (!taskId || !generationTask || generationTask.id !== taskId) {
                 return
             }
 
@@ -617,14 +648,17 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                 const message = logs[logs.length - 1]?.log_text
 
                 setTaskId(null)
+                setPublishError(
+                    getGraphQLActionErrorMessage({message}) ?? t("publish.dialog.error")
+                )
+                setGenerateData(null)
                 notify(t("publish.dialog.error_capacity", {message}), {
                     type: "error",
                 })
-                handleSetPublishStatus(PublishStatus.Void)
-                setViewMode(ViewMode.List)
-                setBallotPublicationId(null)
+                setPublicationStatus(PublishStatus.Void)
+                setViewMode(ViewMode.Edit)
             }
-        }, [taskId, generationTask, notify, t, handleSetPublishStatus, refetch])
+        }, [taskId, generationTask, notify, t, refetch])
 
         useEffect(() => {
             if (ballotPublicationId) {
@@ -634,7 +668,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
 
         useEffect(() => {
             if (generateData) {
-                handleSetPublishStatus(PublishStatus.Generated)
+                setPublicationStatus(PublishStatus.Generated)
 
                 if (!viewMode) {
                     notify(t("publish.notifications.generated"), {
@@ -642,7 +676,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                     })
                 }
             }
-        }, [t, notify, viewMode, handleSetPublishStatus, generateData])
+        }, [t, notify, viewMode, generateData])
 
         useEffect(() => {
             const status = record?.status as IElectionEventStatus | undefined
@@ -685,6 +719,12 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                 {viewMode === ViewMode.List && type === EPublishType.Election && electionId ? (
                     <FiredTransitions electionEventId={electionEventId} electionId={electionId} />
                 ) : null}
+                {viewMode !== ViewMode.List && publishError ? (
+                    <Alert severity="error" onClose={() => setPublishError(null)} sx={{mb: 2}}>
+                        <AlertTitle>{t("publish.dialog.error_publish")}</AlertTitle>
+                        <Box sx={{whiteSpace: "pre-line"}}>{publishError}</Box>
+                    </Alert>
+                ) : null}
                 {viewMode === ViewMode.List && (
                     <PublishList
                         status={publishStatus}
@@ -711,7 +751,12 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                         initializationReportPolicy={initializationReportPolicy}
                         electionEventId={electionEventId}
                         setBallotPublicationId={(id: Identifier) => {
+                            requestEpoch.current++
+                            setTaskId(null)
                             setViewMode(ViewMode.View)
+                            setPublicationStatus(PublishStatus.GeneratedLoading)
+                            setGenerateData(null)
+                            setPublishError(null)
                             setBallotPublicationId(id)
                         }}
                         onPreview={onPreview}
@@ -720,21 +765,21 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                 {(viewMode === ViewMode.Edit || viewMode === ViewMode.View) && (
                     <PublishGenerate
                         ballotPublicationId={ballotPublicationId}
-                        status={publishStatus}
+                        status={publicationStatus}
                         changingStatus={changingStatus}
                         readOnly={viewMode === ViewMode.View}
                         data={generateData}
-                        publishError={publishError}
-                        onDismissPublishError={() => setPublishError(null)}
                         publishType={type}
                         onPublish={onPublish}
                         electionId={electionId}
                         onGenerate={onGenerate}
                         onBack={() => {
+                            requestEpoch.current++
+                            setTaskId(null)
                             setPublishError(null)
                             refetch()
                             setViewMode(ViewMode.List)
-                            handleSetPublishStatus(PublishStatus.Generated)
+                            setPublicationStatus(PublishStatus.Generated)
                             setGenerateData(null)
                             setBallotPublicationId(null)
                         }}
@@ -752,12 +797,14 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                     onClose={handleCloseEditDrawer}
                     title={String(t("publish.dialog.title"))}
                 >
-                    <EditPreview
-                        publicationId={ballotPublicationId}
-                        electionEventId={electionEventId}
-                        close={handleCloseEditDrawer}
-                        ballotData={generateData}
-                    />
+                    {open && (
+                        <EditPreview
+                            key={`${tenantId}/${electionEventId}/${previewPublicationId}`}
+                            publicationId={previewPublicationId}
+                            electionEventId={electionEventId}
+                            close={handleCloseEditDrawer}
+                        />
+                    )}
                 </FormDialog>
             </Box>
         )

@@ -16,7 +16,6 @@ path = [
 	"packages/yarn.lock",
 	"packages/devenv.lock",
 	"packages/Cargo.lock",
-	"packages/Cargo.lock.copy",
 	".envrc",
 	".release-it.json",
 	".release-commit",
@@ -28,10 +27,8 @@ path = [
 	"packages/admin-portal/.ignore",
 	"packages/step-cli/.ignore",
 	"packages/ballot-verifier/.ignore",
-	"packages/braid/.ignore",
 	"packages/sequent-core/.ignore",
 	"packages/step-cli/src/graphql/**",
-	"packages/strand/.ignore",
 	"packages/ui-essentials/.ignore",
 	"packages/voting-portal/.ignore",
 	"packages/windmill/.ignore",
@@ -47,7 +44,6 @@ path = [
 	"packages/results-portal/graphql.schema.json",
 	"packages/results-portal/src/gql/**",
 	"packages/windmill/src/graphql/**",
-	"packages/immudb-rs/proto/immudb/**",
 	"packages/keycloak-extensions/message-otp-authenticator/src/main/resources/theme-resources/templates/**",
 	"packages/keycloak-extensions/conditional-authenticators/src/main/resources/META-INF/services/org.keycloak.protocol.ProtocolMapper",
 	"docs/assets/**",
@@ -56,7 +52,6 @@ path = [
 	".devcontainer/minio/certs.json",
 	"packages/orare/doc_renderer/assets/**",
 	"packages/windmill/external-bin/janitor/**.xlsx",
-	"packages/strand/browserstack/package-lock.json"
 ]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2025 Sequent Tech <legal@sequentech.io>"
@@ -122,6 +117,8 @@ SPDX-License-Identifier = "AGPL-3.0-only"
 [[annotations]]
 path = [
 	"packages/wbraid/Cargo.lock",
+	"packages/wbraid/crates/vsc/fuzz/Cargo.lock",
+	"packages/wbraid/crates/braid/fuzz/Cargo.lock",
 	"packages/id-capture/Cargo.lock",
 	"packages/wbraid/s3-cors.json",
 	"packages/wbraid/crates/braid/LICENSE",
@@ -174,3 +171,45 @@ path = ["packages/admin-portal/src/lib/signing/__fixtures__/**"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 Sequent Tech Inc <legal@sequentech.io>"
 SPDX-License-Identifier = "AGPL-3.0-only"
+
+# The ER transmission sample kit's synthetic keys and certificates, written by
+# scripts/transmission-sample/generate_kit.sh, and its JSON configuration.
+[[annotations]]
+path = [
+    "scripts/transmission-sample/kit/**",
+    "scripts/transmission-sample/transmission-sample-config.json",
+]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Sequent Tech Inc <legal@sequentech.io>"
+SPDX-License-Identifier = "AGPL-3.0-only"
+[[annotations]]
+path = [
+    "packages/trellis/.gitignore",
+    "packages/trellis/Cargo.toml",
+    "packages/trellis/README.md",
+    "packages/trellis/TODO.md",
+    "packages/trellis/examples/monitor.rs",
+    "packages/trellis/examples/post.rs",
+    "packages/trellis/reset.ps1",
+    "packages/trellis/src/bin/dashboard.rs",
+    "packages/trellis/src/bin/load.rs",
+    "packages/trellis/src/bin/main.rs",
+    "packages/trellis/src/bin/setup.rs",
+    "packages/trellis/src/lib.rs",
+    "packages/trellis/src/scripts/database.sql",
+    "packages/trellis/src/service/client.rs",
+    "packages/trellis/src/service/metrics.rs",
+    "packages/trellis/src/service/mod.rs",
+    "packages/trellis/src/service/processor.rs",
+    "packages/trellis/src/service/responses.rs",
+    "packages/trellis/src/service/routes.rs",
+    "packages/trellis/src/service/server.rs",
+    "packages/trellis/src/service/state.rs",
+    "packages/trellis/src/service/validation.rs",
+    "packages/trellis/src/tree.rs",
+    "packages/trellis/tests/basic.rs",
+    "packages/trellis/tests/test_client.rs",
+]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "ruescasd <david@sequentech.io>"
+SPDX-License-Identifier = "LicenseRef-Trellis-Upstream"

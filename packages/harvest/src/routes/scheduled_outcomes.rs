@@ -6,6 +6,7 @@
 //! §5c): the outcome of each, what a pending change would do to them, and
 //! saving the lifecycle policies.
 
+use crate::services::audit;
 use crate::services::authorization::authorize;
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use deadpool_postgres::Client as DbClient;
@@ -27,6 +28,7 @@ use windmill::services::signing::actions::voting::{
     retained_signed_closes, RetainedSignedClose,
 };
 use windmill::services::signing::log::Actor;
+use windmill::tasks::audit_log_outbox::kick_audit_log_outbox;
 use windmill::tasks::signing_log_outbox::kick_signing_log_outbox;
 
 fn internal(error: impl std::fmt::Debug) -> JsonError {
@@ -194,6 +196,9 @@ pub async fn save_lifecycle_policies_route(
     };
     let mut client = client().await?;
     let transaction = client.transaction().await.map_err(internal)?;
+    audit::act_for(&transaction, &claims)
+        .await
+        .map_err(audit::json_error)?;
     let saved = save_lifecycle_policies(
         &transaction,
         tenant_id,
@@ -212,6 +217,7 @@ pub async fn save_lifecycle_policies_route(
     })?;
     transaction.commit().await.map_err(internal)?;
     kick_signing_log_outbox();
+    kick_audit_log_outbox();
     Ok(Json(SaveLifecyclePoliciesOutput {
         policies: saved.policies,
         applies: saved.applies,

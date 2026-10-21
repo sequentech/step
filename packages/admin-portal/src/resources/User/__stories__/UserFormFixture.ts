@@ -36,20 +36,30 @@ export function userServices(outcome: UserServiceOutcome, activeRoleIds: string[
                     throw new Error("Synthetic user service failure")
                 return {data: {edit_user: {user: null, task_execution: null}}}
             },
+            GetVoterUnsettledMessages: () => ({
+                data: {sequent_backend_message: []},
+            }),
             ListUserRoles: () => ({
                 data: {list_user_roles: activeRoleIds.map((id) => ({id}))},
             }),
+            // The voter has not voted.
+            getUsers: ({variables}) => {
+                const items = ((variables.userIds as string[] | undefined) ?? []).map((id) => ({
+                    id,
+                    votes_info: [],
+                }))
+                return {data: {get_users: {items, total: {aggregate: {count: items.length}}}}}
+            },
             SetUserRole: () => ({data: {set_user_role: {id: STORY_IDS.user}}}),
             DeleteUserRole: () => ({data: {delete_user_role: {id: STORY_IDS.user}}}),
         },
-        {schema: true}
+        {schema: true, unvalidated: ["GetVoterUnsettledMessages"]}
     )
 }
 
-/** The voter's areas, elections and cast votes; the voter has not voted. */
+/** The voter's areas and elections. */
 export const userRecords = () =>
     resourceBoundary({
         sequent_backend_area: areaRecords(),
         sequent_backend_election: [electionRecord()],
-        sequent_backend_cast_vote: [],
     })

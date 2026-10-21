@@ -78,7 +78,7 @@
       {
         "id": "89f2e054-8f27-480a-80fc-b5ed6b0af2da",
         "name": "messaging-account-read",
-        "description": "",
+        "description": "Read messaging accounts",
         "composite": false,
         "clientRole": false,
         "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
@@ -87,7 +87,7 @@
       {
         "id": "3e155ea9-0f8a-48b5-b9a7-79d21607933f",
         "name": "messaging-account-write",
-        "description": "",
+        "description": "Manage messaging accounts",
         "composite": false,
         "clientRole": false,
         "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
@@ -96,7 +96,16 @@
       {
         "id": "cec178ea-90e7-468c-b18b-d12a76a87851",
         "name": "messaging-config-write",
-        "description": "",
+        "description": "Configure election event messaging",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "6d0f3b52-8e4a-4c71-9a2e-5b7c1d9e3f80",
+        "name": "messaging-config-read",
+        "description": "Read election event messaging",
         "composite": false,
         "clientRole": false,
         "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
@@ -106,6 +115,15 @@
         "id": "a8e41b93-2f6c-4d0a-8b57-3c9d1e7f5a24",
         "name": "monitoring-configure",
         "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "7ef827ec-e625-4199-a8c0-c964b853ad72",
+        "name": "readiness-check",
+        "description": "Verify election readiness",
         "composite": false,
         "clientRole": false,
         "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
@@ -258,15 +276,6 @@
       {
         "id": "ae3ea5fe-44f7-4062-b41b-54f27280c746",
         "name": "candidate-write",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "a6d94c05-f0e6-4ad8-b7e0-3257ea9cffc3",
-        "name": "cast-vote-read",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -953,6 +962,87 @@
       {
         "id": "f26aa3b9-40b6-4745-8b95-e961995ddd62",
         "name": "logs-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "5d0c7e0b-6a57-4f3e-9a1e-2c4b8f6d3a91",
+        "name": "tenant-logs-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "b132f94a-7507-4e18-81c2-078fb6323088",
+        "name": "tenant-logs-export",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "14d7e770-5841-4de9-949b-54597f986c2b",
+        "name": "electoral-log-audit",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "bcd8a36e-b783-4fdc-a286-3a130636aca6",
+        "name": "electoral-log-console-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "3d735445-d493-4f23-84fd-456745e3583f",
+        "name": "electoral-log-console-query",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "5c496aba-443d-4763-a01a-58d9b78d7e4b",
+        "name": "electoral-log-personal-data-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "58db9f19-b766-47c1-8f6f-c55844fc4d92",
+        "name": "task-queues-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "82816b30-68f6-4c66-aea9-2e791724c47f",
+        "name": "task-queues-write",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "8070ad19-fabb-424f-994d-747ea887a1c3",
+        "name": "task-queues-query",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -2105,7 +2195,7 @@
       {
         "id": "cf8c266f-056b-45e9-a395-56c1a3fafce0",
         "name": "sign-key-ceremony",
-        "description": "Sign: confirm a key share",
+        "description": "Sign: confirm custody",
         "composite": false,
         "clientRole": false,
         "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
@@ -2114,7 +2204,7 @@
       {
         "id": "9f64321f-820e-4d9f-8de3-098cab9ae196",
         "name": "sign-tally-key",
-        "description": "Sign: contribute a key share",
+        "description": "Sign: authorize tally custody",
         "composite": false,
         "clientRole": false,
         "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
@@ -2577,9 +2667,11 @@
         "monitoring-view",
         "monitoring-configure",
         "approval-matrix-write",
+        "readiness-check",
         "messaging-account-read",
         "messaging-account-write",
         "messaging-config-write",
+        "messaging-config-read",
         "tally-write",
         "trustee-write",
         "notification-send",
@@ -2588,6 +2680,14 @@
         "election-event-approvals-tab",
         "candidate-delete",
         "logs-read",
+        "tenant-logs-export",
+        "electoral-log-audit",
+        "electoral-log-console-read",
+        "electoral-log-console-query",
+        "electoral-log-personal-data-read",
+        "task-queues-read",
+        "task-queues-write",
+        "task-queues-query",
         "election-state-write",
         "candidate-write",
         "role-create",
@@ -2597,6 +2697,7 @@
         "election-event-publish-tab",
         "voter-write",
         "settings-menu",
+        "tenant-logs-read",
         "role-assign",
         "voting-channel-read",
         "tally-sheet-review",
@@ -2621,7 +2722,6 @@
         "election-write",
         "report-write",
         "communication-template-write",
-        "cast-vote-read",
         "tally-results-read",
         "google-meet-link",
         "settings-voting-channels-tab",
@@ -2754,7 +2854,6 @@
       "attributes": {},
       "realmRoles": [
         "election-event-publish-tab",
-        "admin-user",
         "publish-write",
         "publish-results-write",
         "election-event-read",
@@ -2775,7 +2874,6 @@
         "communication-template-write",
         "miru-download",
         "miru-send",
-        "cast-vote-read",
         "notification-send",
         "tally-sheet-create",
         "tally-results-read",
@@ -2847,6 +2945,7 @@
         "admin-dashboard-view",
         "monitoring-view",
         "messaging-account-read",
+        "messaging-config-read",
         "support-material-write",
         "tally-write",
         "user-write",
@@ -2889,7 +2988,6 @@
         "offline_access",
         "user-permission-create",
         "communication-template-write",
-        "cast-vote-read",
         "tally-results-read",
         "tally-sheet-view",
         "voting-channel-write",
@@ -2932,7 +3030,6 @@
         "trustee-read",
         "keys-read",
         "logs-read",
-        "admin-user",
         "election-event-read",
         "election-event-keys-tab",
         "election-event-tally-tab",
@@ -3089,9 +3186,6 @@
       "email": "edu@sequentech.io",
       "emailVerified": true,
       "attributes": {
-        "sequent.read-only.otp-method": [
-          "email-or-sms"
-        ],
         "sequent.read-only.mobile-number": [
           "+34666000222"
         ],
@@ -3130,9 +3224,6 @@
       "email": "edu+api_user@sequentech.io",
       "emailVerified": true,
       "attributes": {
-        "sequent.read-only.otp-method": [
-          "email-or-sms"
-        ],
         "sequent.read-only.mobile-number": [
           "+34666000222"
         ],
@@ -3171,9 +3262,6 @@
       "username": "felix",
       "emailVerified": true,
       "attributes": {
-        "sequent.read-only.otp-method": [
-          "email-or-sms"
-        ],
         "sequent.read-only.email-address": [
           "edu@sequentech.io"
         ],
@@ -3329,9 +3417,6 @@
       "email": "edu+trustee1@sequentech.io",
       "emailVerified": true,
       "attributes": {
-        "sequent.read-only.otp-method": [
-          "email-or-sms"
-        ],
         "sequent.read-only.mobile-number": [
           "+34666000222"
         ],
@@ -5035,6 +5120,7 @@
   "eventsEnabled": true,
   "eventsExpiration": 15552000,
   "eventsListeners": [
+    "custom-event-listener",
     "jboss-logging"
   ],
   "enabledEventTypes": [
@@ -5118,8 +5204,8 @@
     "GRANT_CONSENT_ERROR",
     "IDENTITY_PROVIDER_FIRST_LOGIN_ERROR"
   ],
-  "adminEventsEnabled": false,
-  "adminEventsDetailsEnabled": false,
+  "adminEventsEnabled": true,
+  "adminEventsDetailsEnabled": true,
   "identityProviders": [],
   "identityProviderMappers": [],
   "components": {
@@ -5237,7 +5323,7 @@
         "subComponents": {},
         "config": {
           "kc.user.profile.config": [
-            "{\"attributes\":[{\"name\":\"username\",\"displayName\":\"${username}\",\"validations\":{\"length\":{\"min\":3,\"max\":255},\"username-prohibited-characters\":{},\"up-username-not-idn-homograph\":{}},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"email\",\"displayName\":\"${email}\",\"validations\":{\"email\":{},\"length\":{\"max\":255}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"firstName\",\"displayName\":\"${firstName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"lastName\",\"displayName\":\"${lastName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"tenant-id\",\"displayName\":\"Tenant Id\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.otp-method\",\"displayName\":\"OTP Method\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.mobile-number\",\"displayName\":\"Phone Number\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"trustee\",\"displayName\":\"trustee\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"permission_labels\",\"displayName\":\"Permission Labels\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":true},{\"name\":\"title\",\"displayName\":\"Title\",\"validations\":{\"length\":{\"max\":255}},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false}],\"groups\":[]}"
+            "{\"attributes\":[{\"name\":\"username\",\"displayName\":\"${username}\",\"validations\":{\"length\":{\"min\":3,\"max\":255},\"username-prohibited-characters\":{},\"up-username-not-idn-homograph\":{}},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"email\",\"displayName\":\"${email}\",\"validations\":{\"email\":{},\"length\":{\"max\":255}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"firstName\",\"displayName\":\"${firstName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"lastName\",\"displayName\":\"${lastName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"tenant-id\",\"displayName\":\"Tenant Id\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.mobile-number\",\"displayName\":\"Phone Number\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"trustee\",\"displayName\":\"trustee\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"permission_labels\",\"displayName\":\"Permission Labels\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":true},{\"name\":\"title\",\"displayName\":\"Title\",\"validations\":{\"length\":{\"max\":255}},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false}],\"groups\":[]}"
           ]
         }
       }
@@ -6286,14 +6372,6 @@
     }
   ],
   "authenticatorConfig": [
-    {
-      "id": "a96a1258-b1bb-4468-9254-ff8bc3e28bce",
-      "alias": "Has email-or-sms otp-method",
-      "config": {
-        "attribute_expected_value": "email-or-sms",
-        "attribute_name": "sequent.read-only.otp-method"
-      }
-    },
     {
       "id": "959c7fad-9092-499a-ac3a-dd27cfdafc48",
       "alias": "SMS Auth Config",

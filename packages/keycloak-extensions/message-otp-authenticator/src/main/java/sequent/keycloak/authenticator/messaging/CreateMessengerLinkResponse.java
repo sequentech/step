@@ -7,13 +7,23 @@ package sequent.keycloak.authenticator.messaging;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-/** The one-time reference, its m.me link and the word the voter can send instead. */
+/**
+ * The one-time reference, its m.me link, the word the voter can send instead (no longer offered),
+ * and the Page the link opens: the event's Messenger account's Page now ({@code page_id}, absent
+ * from older harvests).
+ */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record CreateMessengerLinkResponse(
     @JsonProperty("reference") String reference,
     @JsonProperty("link") String link,
     @JsonProperty("link_word") String linkWord,
-    @JsonProperty("expires_at") String expiresAt) {
+    @JsonProperty("expires_at") String expiresAt,
+    @JsonProperty("page_id") String pageId) {
+
+  public CreateMessengerLinkResponse(
+      String reference, String link, String linkWord, String expiresAt) {
+    this(reference, link, linkWord, expiresAt, null);
+  }
 
   @Override
   public String toString() {

@@ -1,0 +1,5 @@
+[
+  {"plaintext": "a", "ciphertext": "BCgcExgSicRMUI5CnIuWuMKHjNIjpu3QVXT0eRbQsLVN4OkJcJ42Lwggwi98Q+X/2STJhN6jvkGrLJSxiP8s4eftvDUKC9xjH45nh/7uUXucgMOKLsM="},
+  {"plaintext": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", "ciphertext": "BEhhWH97m3/H1or0rFJSMKx3mdpsTJpti2CfpB/Od9w8m6/VP809d/NKdZJw1ak0AK+R+r+jaQtD7g3+K2qp4Ry2QOJ1g9DGXumKiFR3dP4cPYnFjdBb4i5fx9QEPrUNjzN0yy6d5M6shvo6X7QNdMYw5QkjCJ1gz0Z9FYn7x4tSevolcnNcAX0zoZDE38/hcQXS/CM="},
+  {"plaintext": "The quick brown fox jumps over the lazy dog, again and again, until the stream of the key runs past one SHA-1 block of twenty bytes.", "ciphertext": "BFNt1xTboL1x2KEhMYulymV8zDPoDhCsbRszFliB9C1GCxGi6aBnwNRFozQ5+JYS7JUcCHA7FIcg8A4BbzQCMhTEpwUdTgk9NjXRxT04wq4wRwzHB5O5jgWfQ0k3u5ESJdWEg4N5Vuk4ss7yLsx7O227fATct6ctSnvALUs1agcN5augJQM+I5o3vpJBCnzi8bHOrQPBFL+PFnokwfEmQjMEGPDc/dzgfPLb1sv5gPR4h2PMAeUIVFhJw9GdTYq8cDpZ9jqmbsCkWH9tP1sUlQllOzNoYQpiRQ=="}
+]

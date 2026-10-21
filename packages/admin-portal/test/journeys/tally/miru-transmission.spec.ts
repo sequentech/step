@@ -4,6 +4,7 @@ import {createServer} from "node:http"
 import {readFile} from "node:fs/promises"
 import type {Page} from "@playwright/test"
 import type {GraphQLReply} from "@sequentech/ui-test-kit/mocks/graphql"
+import type {IMiruTransmissionPackageData} from "../../../src/types/miru"
 import {test as base, expect, TENANT_ID, type AdminPortal} from "../fixtures"
 import {
     AREA_ID,
@@ -109,7 +110,30 @@ function task(type: string) {
     }
 }
 
-async function transmissionWorld(portal: AdminPortal, signed = true, existing = true) {
+/** A synthetic P-256 key of a destination that receives the package by hand. */
+const MANUAL_KEY_PEM = [
+    "-----BEGIN PUBLIC KEY-----",
+    "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEMP8nkUSnx3UqYsrG0S7ESrQDj3Te",
+    "Xq2LhhZnUwg2l6GrOl5aOwY/FYw7Lqfnjkdhx4OMX39f48eSH7JA7tFtEQ==",
+    "-----END PUBLIC KEY-----",
+    "",
+].join("\n")
+/** The start of the SHA-256 of that key's DER SubjectPublicKeyInfo. */
+const MANUAL_KEY_FINGERPRINT = "66BA07DD9888E2E7"
+const ER_FILE_SHA256 = "E8D67AC48A1D3EE87515E146E2FD157F7FFAF9150A82EABE4884BAC373CD9254"
+const CSV_SHA256 = "0A82EABE".repeat(8)
+const CSV_DOCUMENT_ID = "67000000-0000-4000-8000-000000000004"
+const CSV_BYTES = Buffer.from(
+    "transaction_id,station_id,post,country\ntransaction-1,1,Post,Spain\n"
+)
+
+async function transmissionWorld(
+    portal: AdminPortal,
+    signed = true,
+    existing = true,
+    /** `manual`: the only destination has no address, so the package is handed over. */
+    {manual = false}: {manual?: boolean} = {}
+) {
     portal.settings.ACTIVATE_MIRU_EXPORT = true
     portal.settings.QUERY_FAST_POLL_INTERVAL_MS = 1000
     const world = tallyWorld(portal)
@@ -121,25 +145,45 @@ async function transmissionWorld(portal: AdminPortal, signed = true, existing = 
     world.execution.status.elections_status = [
         {election_id: ELECTION_ID, status: "SUCCESS", progress: 100},
     ]
-    const pack = {
+    const pack: IMiruTransmissionPackageData = {
         election_id: ELECTION_ID,
         area_id: AREA_ID,
         threshold: 1,
-        servers: [
-            {
-                name: "Counting server",
-                tag: "main",
-                address: "https://counting.example.test/",
-                public_key_pem: "synthetic-server-key",
-            },
-        ],
+        servers: manual
+            ? [
+                  {
+                      name: "CCS Manila (SBOC)",
+                      tag: "sboc",
+                      address: "",
+                      public_key_pem: MANUAL_KEY_PEM,
+                  },
+              ]
+            : [
+                  {
+                      name: "Counting server",
+                      tag: "main",
+                      address: "https://counting.example.test/",
+                      public_key_pem: "synthetic-server-key",
+                  },
+              ],
+        ...(manual ? {ovcs_public_key: MANUAL_KEY_PEM} : {}),
         documents: [
             {
                 document_ids: {
                     eml: REPORT_DOCUMENT_ID,
                     xz: REPORT_DOCUMENT_ID,
                     all_servers: REPORT_DOCUMENT_ID,
+                    ...(manual ? {csv: CSV_DOCUMENT_ID} : {}),
                 },
+                ...(manual
+                    ? {
+                          sha256: {
+                              eml: ER_FILE_SHA256,
+                              csv: CSV_SHA256,
+                              all_servers: "4884BAC3".repeat(8),
+                          },
+                      }
+                    : {}),
                 transaction_id: "transaction-1",
                 created_at: FIXED_TIME,
                 signatures: signed
@@ -216,6 +260,21 @@ async function transmissionWorld(portal: AdminPortal, signed = true, existing = 
     )
     const reportUrl = portal.s3.presign(reportKey, "transmission-report")
     world.documentUrls.set(REPORT_DOCUMENT_ID, reportUrl)
+    const csvKey = `${TENANT_ID}/${EVENT_ID}/er_transaction-1.csv`
+    portal.s3.putBytes("private", csvKey, CSV_BYTES, "text/csv")
+    world.documentUrls.set(CSV_DOCUMENT_ID, portal.s3.presign(csvKey, "results-csv"))
+    // The backend logs each download in the package before the file is fetched.
+    portal.graphql.on("RecordTransmissionDownload", ({variables}) => {
+        const csv = variables.documentId === CSV_DOCUMENT_ID
+        const file = csv ? "er_transaction-1.csv" : "er_transaction-1.xml"
+        const sha256 = csv ? CSV_SHA256 : ER_FILE_SHA256
+        pack.logs.push({
+            created_date: FIXED_TIME,
+            log_text: `Downloaded ${file} (SHA-256 ${sha256}) by synthetic-admin`,
+        })
+        persist()
+        return {data: {record_transmission_download: {file_name: file, sha256}}}
+    })
     portal.graphql.on("GetDocument", () => ({
         data: {
             sequent_backend_document: [
@@ -252,8 +311,11 @@ async function openTransmission(page: Page, portal: AdminPortal) {
             .getByRole("row", {name: /Alice Example/})
             .getByRole("gridcell", {name: "37", exact: true})
     ).toBeVisible()
-    // Export controls are rendered in event, election, then contest order.
-    await page.getByLabel("export election data", {exact: true}).nth(1).click()
+    // Export controls are rendered in event, election, then contest order. The
+    // event's waits for its results event, which can arrive after the results.
+    const exports = page.getByLabel("export election data", {exact: true})
+    await expect(exports).toHaveCount(3)
+    await exports.nth(1).click()
     await page
         .getByRole("menuitem", {
             name: "Generate Transmission Package for Area 'North precinct'",
@@ -374,12 +436,15 @@ test("confirms transmission send and regeneration, then downloads its generated 
     expect(portal.graphql.callsTo("generate_transmission_report")[0].headers["x-hasura-role"]).toBe(
         "transmission-report-generate"
     )
-    expect(
-        portal.graphql
-            .callsTo("FetchDocument")
-            .filter((call) => call.variables.documentId === REPORT_DOCUMENT_ID)
-            .map(({variables}) => variables)
-    ).toEqual([{electionEventId: EVENT_ID, documentId: REPORT_DOCUMENT_ID}])
+    // Reading the document metadata can refresh its presigned URL. Every read
+    // must retain the selected scope; the report fixture requires one download.
+    const documentFetches = portal.graphql
+        .callsTo("FetchDocument")
+        .filter((call) => call.variables.documentId === REPORT_DOCUMENT_ID)
+    expect(documentFetches.length).toBeGreaterThan(0)
+    for (const {variables} of documentFetches) {
+        expect(variables).toEqual({electionEventId: EVENT_ID, documentId: REPORT_DOCUMENT_ID})
+    }
 })
 
 test("uploads signature bytes and signs the selected area with the entered password", async ({
@@ -563,6 +628,160 @@ test("shows a failed task when transmission report generation is rejected", asyn
     ).toBeVisible({timeout: 2000})
 })
 
+const ORANGE = "rgb(237, 108, 2)"
+const GREEN = "rgb(67, 227, 161)"
+const signaturesChip = (page: Page) => page.getByTestId("signatures-status")
+
+test("a package for manual receipt has no Send and names the key it is sealed for", async ({
+    page,
+    portal,
+}) => {
+    await transmissionWorld(portal, false, true, {manual: true})
+    await openTransmission(page, portal)
+    await expect(page.getByTestId("er-file-sha256")).toHaveText(
+        "ER file SHA-256: E8D67AC4 8A1D3EE8 7515E146 E2FD157F 7FFAF915 0A82EABE 4884BAC3 73CD9254"
+    )
+    await expect(page.getByText("Manual receipt", {exact: true})).toBeVisible()
+    await expect(page.getByText("Sent to 0 out of 0", {exact: true})).toHaveCount(0)
+    await expect(
+        page.getByRole("button", {name: "send transmission package", exact: true})
+    ).toHaveCount(0)
+    // Nothing signed yet and one signature needed: the chip is orange.
+    await expect(signaturesChip(page)).toHaveText("0 of 1, 1 needed")
+    await expect(signaturesChip(page)).toHaveCSS("background-color", ORANGE)
+    await page.getByText("Destination Servers", {exact: true}).click()
+    const destination = page.getByRole("row", {name: /CCS Manila \(SBOC\)/})
+    await expect(destination).toContainText("Download the package and hand it over")
+    await expect(destination).toContainText(
+        `Sealed for its key, SHA-256 ${MANUAL_KEY_FINGERPRINT}…`
+    )
+    expect(portal.graphql.callsTo("SendTransmissionPackage")).toEqual([])
+})
+
+test("the signatures chip turns green once the signatures needed are in", async ({
+    page,
+    portal,
+}) => {
+    await transmissionWorld(portal, true, true, {manual: true})
+    await openTransmission(page, portal)
+    await expect(signaturesChip(page)).toHaveText("1 of 1, 1 needed")
+    await expect(signaturesChip(page)).toHaveCSS("background-color", GREEN)
+})
+
+test("downloads the results CSV after logging the download", async ({page, portal}) => {
+    await transmissionWorld(portal, true, true, {manual: true})
+    await openTransmission(page, portal)
+    await page.getByLabel("export election data", {exact: true}).click()
+    await expect(
+        page.getByRole("menuitem", {name: "Download OVCS public key", exact: true})
+    ).toBeVisible()
+    await page.getByRole("menuitem", {name: /^Download Results CSV /}).click()
+    const download = page.waitForEvent("download")
+    await page
+        .getByRole("dialog")
+        .getByRole("button", {name: "Download Transmission Package", exact: true})
+        .click()
+    const file = await download
+    expect(file.suggestedFilename()).toMatch(/\.csv$/)
+    expect(
+        portal.graphql.callsTo("RecordTransmissionDownload").map(({variables}) => variables)
+    ).toEqual([
+        {
+            electionEventId: EVENT_ID,
+            electionId: ELECTION_ID,
+            areaId: AREA_ID,
+            tallySessionId: TALLY_ID,
+            documentId: CSV_DOCUMENT_ID,
+        },
+    ])
+    expect(portal.graphql.callsTo("RecordTransmissionDownload")[0].headers["x-hasura-role"]).toBe(
+        "miru-download"
+    )
+    // The record comes first: the file is looked up only once it is logged.
+    const operations = portal.graphql.calls.map(({operationName}) => operationName)
+    const recordedAt = operations.indexOf("RecordTransmissionDownload")
+    const fetchedAt = portal.graphql.calls.findIndex(
+        (call) =>
+            call.operationName === "FetchDocument" && call.variables.documentId === CSV_DOCUMENT_ID
+    )
+    expect(recordedAt).toBeGreaterThanOrEqual(0)
+    expect(fetchedAt).toBeGreaterThan(recordedAt)
+    // The page's log shows the line the backend appended.
+    await expect(
+        page.getByText(
+            `Downloaded er_transaction-1.csv (SHA-256 ${CSV_SHA256}) by synthetic-admin`,
+            {
+                exact: true,
+            }
+        )
+    ).toBeVisible()
+})
+
+test("a download that cannot be logged does not start", async ({page, portal}) => {
+    await transmissionWorld(portal, true, true, {manual: true})
+    portal.graphql.on("RecordTransmissionDownload", () => ({
+        errors: [{message: "download log unavailable"}],
+    }))
+    await openTransmission(page, portal)
+    await page.getByLabel("export election data", {exact: true}).click()
+    await page.getByRole("menuitem", {name: /^Download EML /}).click()
+    await page
+        .getByRole("dialog")
+        .getByRole("button", {name: "Download Transmission Package", exact: true})
+        .click()
+    await expect(
+        notification(
+            page,
+            "The download could not be recorded, so it was not started. Please try again."
+        )
+    ).toBeVisible()
+    expect(portal.graphql.callsTo("RecordTransmissionDownload")).toHaveLength(1)
+    expect(
+        portal.graphql
+            .callsTo("FetchDocument")
+            .filter((call) => call.variables.documentId === REPORT_DOCUMENT_ID)
+    ).toEqual([])
+})
+
+test.describe("on a phone", () => {
+    test.use({viewport: {width: 390, height: 844}})
+    test("keeps Download on screen and shows each destination in one cell", async ({
+        page,
+        portal,
+    }) => {
+        await transmissionWorld(portal, true, true, {manual: true})
+        await openTransmission(page, portal)
+        const download = page.getByLabel("export election data", {exact: true})
+        await download.scrollIntoViewIfNeeded()
+        await expect(download).toBeInViewport({ratio: 1})
+        const box = await download.boundingBox()
+        expect(box && box.x + box.width).toBeLessThanOrEqual(390)
+        await page.getByText("Destination Servers", {exact: true}).click()
+        const destination = page.getByRole("row", {name: /CCS Manila \(SBOC\)/})
+        await expect(destination.locator("th, td")).toHaveCount(1)
+        const logLine = page.getByRole("row", {name: /Transmission package ready/})
+        await expect(logLine.locator("th, td")).toHaveCount(1)
+        await destination.scrollIntoViewIfNeeded()
+        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+            390
+        )
+    })
+})
+
+test.describe("on a tablet", () => {
+    test.use({viewport: {width: 820, height: 1180}})
+    test("keeps Download on screen", async ({page, portal}) => {
+        await transmissionWorld(portal, true, true, {manual: true})
+        await openTransmission(page, portal)
+        const download = page.getByLabel("export election data", {exact: true})
+        await download.scrollIntoViewIfNeeded()
+        await expect(download).toBeInViewport({ratio: 1})
+        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+            820
+        )
+    })
+})
+
 test.describe("an assigned trustee without action privileges", () => {
     test.use({roles: [...TALLY_ROLES, "area-read"]})
     test("sees package status without send, regenerate, download or signature controls", async ({
@@ -573,7 +792,7 @@ test.describe("an assigned trustee without action privileges", () => {
         await openTransmission(page, portal)
         await expect(
             page.getByRole("button", {
-                name: "Signatures 1 out of 2 Signed, 1 minimum",
+                name: "Signatures 1 of 1, 1 needed",
                 exact: true,
             })
         ).toBeVisible()

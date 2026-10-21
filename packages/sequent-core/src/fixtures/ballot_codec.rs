@@ -378,6 +378,10 @@ pub fn get_writein_ballot_style() -> BallotStyle {
         public_key: Some(PublicKeyConfig {
             public_key: "ajR/I9RqyOwbpsVRucSNOgXVLCvLpfQxCgPoXGQ2RF4".into(),
             is_demo: false,
+            keys_ceremony_id: Some(
+                "12345678-1234-4234-9234-123456789abc".into(),
+            ),
+            configuration_id: None,
         }),
         area_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
         area_presentation: None,

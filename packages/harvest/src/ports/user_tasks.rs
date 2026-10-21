@@ -8,6 +8,7 @@ use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::permissions::Permissions;
 use serde_json::Value;
 use std::future::Future;
+use windmill::services::audit_log::AuditActor;
 use windmill::services::export::export_users::ExportBody;
 use windmill::tasks::import_users::ImportUsersBody;
 
@@ -51,7 +52,9 @@ pub struct UserTaskSendFailure {
 
 pub trait UserTaskDispatch: Sync {
     type Connection: Send + Sync;
-    fn connect(&self) -> impl Future<Output = Self::Connection> + Send;
+    fn connect(
+        &self,
+    ) -> impl Future<Output = Result<Self::Connection, UserTaskSendFailure>> + Send;
     fn import(
         &self,
         connection: &Self::Connection,
@@ -64,6 +67,7 @@ pub trait UserTaskDispatch: Sync {
         input: ExportBody,
         document_id: String,
         task: Option<TasksExecution>,
+        actor: AuditActor,
     ) -> impl Future<Output = Result<(), UserTaskSendFailure>> + Send;
 }
 

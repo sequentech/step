@@ -12,6 +12,11 @@ use strum_macros::{Display, EnumString};
 /// Via Datafix delete-voter end point.
 ///
 /// A call to Datafix mark-voted.
+///
+/// Reconciliation, which writes the same two reasons for a file row that is
+/// deleted or voted through another channel.
+///
+/// An administrator in the admin portal, who can write any comment.
 pub const DISABLE_COMMENT: &str = "disable-comment";
 pub const DISABLE_REASON_DELETE_CALL: &str =
     "Disable reason: datafix call to delete-voter endpoint";
@@ -21,8 +26,12 @@ pub const DISABLE_REASON_MARKVOTED_CALL: &str =
 /// If there is a call to Datafix mark-voted, we disable the voter and set this
 /// value to signal the channel e.g "PHONE", "POST"... whatsoever
 ///
-/// If there is a call to Datafix unmark-voted, we enable the voter and reset
-/// this attribute to NONE.
+/// If there is a call to Datafix unmark-voted, we reset this attribute to NONE
+/// and re-enable the voter only when mark-voted was what disabled it.
+///
+/// An online vote that VoterView accepts sets it to
+/// `VOTED_CHANNEL_INTERNET_VALUE`, and disabling the voter from the admin
+/// portal resets it.
 ///
 /// In addition the voter list, when setting the has_voted flag will check if
 /// this attribute is set, then set has_voted true.
@@ -73,13 +82,13 @@ pub const MAX_TOTAL_VOTE_WEIGHT: u64 = 1_000_000;
 pub const VOTE_WEIGHT_BATCHES: u32 =
     u64::BITS - MAX_VOTE_WEIGHT.leading_zeros();
 
-/// Below this many ballots, a weight batch is small enough that mixing it
-/// protects little: its plaintexts are published, so a batch holding one ballot
-/// publishes that voter's choice. Which batches are small depends on the spread
-/// of weights, not on the bit -- 999 voters at weight 2 and one at weight 3
-/// leave the *lowest* batch holding a single ballot. Warned about rather than
-/// refused, and it does not detect every way a voter can be isolated -- see the
-/// note on this policy in the election event documentation.
+/// Below this many voters, a batch is small enough that mixing it protects
+/// little: its plaintexts are published, so a batch holding one ballot
+/// publishes that voter's choice. Under voter-weighted voting, which batches
+/// are small depends on the spread of weights, not on the bit -- 999 voters at
+/// weight 2 and one at weight 3 leave the *lowest* batch holding a single
+/// ballot. `BatchAnonymityPolicy` decides whether a smaller batch is warned
+/// about or refused.
 pub const MIN_WEIGHT_BATCH_ANONYMITY: usize = 5;
 
 /// Bit `bit` of `weight` decides whether that voter's ciphertext goes into the
@@ -106,8 +115,10 @@ pub const AUTHORIZED_ELECTION_IDS_NAME: &str = "authorized-election-ids";
 pub const TENANT_ID_ATTR_NAME: &str = "tenant-id";
 pub const PERMISSION_TO_EDIT: &str = "admin";
 pub const MOBILE_PHONE_ATTR_NAME: &str = "sequent.read-only.mobile-number";
-/// The voter's preferred channel for notices (a `MessageChannel`).
+/// The voter's one channel (a `MessageChannel`); see `voter_channel`.
 pub const MESSAGE_CHANNEL_ATTR_NAME: &str = "sequent.read-only.message-channel";
+/// E.164 number of the voter's WhatsApp, Viber or SMS channel.
+pub const MESSAGE_NUMBER_ATTR_NAME: &str = "sequent.read-only.message-number";
 pub const WHATSAPP_NUMBER_ATTR_NAME: &str = "sequent.read-only.whatsapp-number";
 pub const VIBER_NUMBER_ATTR_NAME: &str = "sequent.read-only.viber-number";
 /// Page-scoped ID, valid only for `MESSENGER_PAGE_ATTR_NAME`.

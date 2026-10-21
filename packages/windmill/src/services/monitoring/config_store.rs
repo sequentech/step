@@ -37,6 +37,7 @@ use crate::postgres::monitoring_config::{
     get_revision, get_revisions, insert_revision, lock_election_event, raise_generation,
     update_mode_and_preset, MonitoringEvent, NewRevision,
 };
+use crate::services::audit_log::{self, AuditActor, AuditOrigin};
 use anyhow::{anyhow, Context};
 use async_trait::async_trait;
 use deadpool_postgres::{Client, Transaction};
@@ -412,13 +413,24 @@ pub async fn get_document(
     }
 }
 
-async fn begin(client: &mut Client) -> anyhow::Result<Transaction<'_>> {
-    client
+/// Starts a change's transaction. With an `actor`, the admin a Harvest
+/// request makes the change for, the rows it writes in the audited tables
+/// are logged as theirs (SW-F-0364).
+async fn begin<'a>(
+    client: &'a mut Client,
+    event: EventRef,
+    actor: Option<&AuditActor>,
+) -> anyhow::Result<Transaction<'a>> {
+    let transaction = client
         .build_transaction()
         .isolation_level(IsolationLevel::ReadCommitted)
         .start()
         .await
-        .context("Failed to start the monitoring configuration transaction")
+        .context("Failed to start the monitoring configuration transaction")?;
+    if let Some(actor) = actor {
+        audit_log::act_for(&transaction, actor, AuditOrigin::Harvest, event.tenant_id).await?;
+    }
+    Ok(transaction)
 }
 
 /// Whether a change's transaction is to be kept.
@@ -493,11 +505,6 @@ enum Checked {
 }
 
 /// Saves or removes one document.
-#[instrument(
-    err(Debug, level = "warn"),
-    skip(client, checks, audit, author, edit),
-    fields(author = %author.id, kind = %edit.kind, key = edit.key, expected = ?edit.expected)
-)]
 pub async fn save(
     client: &mut Client,
     checks: &dyn MonitoringConfigChecks,
@@ -505,6 +512,24 @@ pub async fn save(
     event: EventRef,
     author: &Author,
     edit: DocumentEdit<'_>,
+) -> Result<SaveOutcome, SaveError> {
+    save_as(client, checks, audit, event, author, edit, None).await
+}
+
+/// [`save`], with the rows it writes logged as `actor`'s.
+#[instrument(
+    err(Debug, level = "warn"),
+    skip(client, checks, audit, author, edit, actor),
+    fields(author = %author.id, kind = %edit.kind, key = edit.key, expected = ?edit.expected)
+)]
+pub async fn save_as(
+    client: &mut Client,
+    checks: &dyn MonitoringConfigChecks,
+    audit: &dyn MonitoringConfigAudit,
+    event: EventRef,
+    author: &Author,
+    edit: DocumentEdit<'_>,
+    actor: Option<&AuditActor>,
 ) -> Result<SaveOutcome, SaveError> {
     check_author(author).map_err(SaveError::Invalid)?;
     check_target(edit.kind, edit.key).map_err(SaveError::Invalid)?;
@@ -521,7 +546,7 @@ pub async fn save(
                 .context("Failed to prepare the electoral log for the change")?;
             prepared = true;
         }
-        let transaction = begin(client).await?;
+        let transaction = begin(client, event, actor).await?;
         let result = write_save(&transaction, audit, event, author, edit, checked).await;
         if let Some(outcome) = finish(transaction, result).await? {
             return Ok(outcome);
@@ -719,7 +744,6 @@ async fn write_save(
 /// Leaves the event with exactly the preset's documents, and the Dashboard
 /// tab in `mode`. An event without monitoring configuration gets it: this is
 /// how an event is first configured.
-#[instrument(err(Debug, level = "warn"), skip(client, audit, author), fields(author = %author.id))]
 pub async fn reset_to_preset(
     client: &mut Client,
     audit: &dyn MonitoringConfigAudit,
@@ -727,6 +751,24 @@ pub async fn reset_to_preset(
     author: &Author,
     preset_id: &str,
     mode: DashboardMode,
+) -> Result<ResetOutcome, ResetError> {
+    reset_to_preset_as(client, audit, event, author, preset_id, mode, None).await
+}
+
+/// [`reset_to_preset`], with the rows it writes logged as `actor`'s.
+#[instrument(
+    err(Debug, level = "warn"),
+    skip(client, audit, author, actor),
+    fields(author = %author.id)
+)]
+pub async fn reset_to_preset_as(
+    client: &mut Client,
+    audit: &dyn MonitoringConfigAudit,
+    event: EventRef,
+    author: &Author,
+    preset_id: &str,
+    mode: DashboardMode,
+    actor: Option<&AuditActor>,
 ) -> Result<ResetOutcome, ResetError> {
     check_author(author).map_err(ResetError::Invalid)?;
     let preset = match presets::load(preset_id) {
@@ -760,7 +802,7 @@ pub async fn reset_to_preset(
         .prepare(client, event, author)
         .await
         .context("Failed to prepare the electoral log for the reset")?;
-    let transaction = begin(client).await?;
+    let transaction = begin(client, event, actor).await?;
     let result = reset_in(&transaction, audit, event, author, &preset, version, mode).await;
     finish(transaction, result).await
 }
@@ -858,13 +900,29 @@ async fn reset_in(
 
 /// Switches the Dashboard tab between the standard dashboard and the
 /// configured ones. The configuration is kept either way.
-#[instrument(err(Debug, level = "warn"), skip(client, audit, author), fields(author = %author.id))]
 pub async fn set_mode(
     client: &mut Client,
     audit: &dyn MonitoringConfigAudit,
     event: EventRef,
     author: &Author,
     mode: DashboardMode,
+) -> Result<ModeOutcome, ModeError> {
+    set_mode_as(client, audit, event, author, mode, None).await
+}
+
+/// [`set_mode`], with the rows it writes logged as `actor`'s.
+#[instrument(
+    err(Debug, level = "warn"),
+    skip(client, audit, author, actor),
+    fields(author = %author.id)
+)]
+pub async fn set_mode_as(
+    client: &mut Client,
+    audit: &dyn MonitoringConfigAudit,
+    event: EventRef,
+    author: &Author,
+    mode: DashboardMode,
+    actor: Option<&AuditActor>,
 ) -> Result<ModeOutcome, ModeError> {
     check_author(author).map_err(ModeError::Invalid)?;
     match read(client, event).await? {
@@ -876,7 +934,7 @@ pub async fn set_mode(
         .prepare(client, event, author)
         .await
         .context("Failed to prepare the electoral log for the switch")?;
-    let transaction = begin(client).await?;
+    let transaction = begin(client, event, actor).await?;
     let result = set_mode_in(&transaction, audit, event, author, mode).await;
     finish(transaction, result).await
 }

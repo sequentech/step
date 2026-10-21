@@ -12,7 +12,9 @@ runs:
         sudo apt-get install -y libgbm1 libnss3 libatk-bridge2.0-0 libxkbcommon0 libasound2t64 unzip
         browser_dir="$RUNNER_TEMP/pdf-test-browser"
         mkdir -p "$browser_dir/bin"
-        curl --fail --location --silent --show-error --output "$browser_dir/browser.zip" \
+        curl --fail --location --silent --show-error \
+          --retry 3 --retry-all-errors --retry-delay 2 --connect-timeout 30 --max-time 180 \
+          --output "$browser_dir/browser.zip" \
           https://storage.googleapis.com/chrome-for-testing-public/153.0.8010.36/linux64/chrome-headless-shell-linux64.zip
         echo "a0079df5617da34bcd1debad18196568b072ec3d8ec57944008972a4fc970580  $browser_dir/browser.zip" | sha256sum --check
         unzip -q "$browser_dir/browser.zip" -d "$browser_dir"

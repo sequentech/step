@@ -364,6 +364,52 @@ pub async fn insert_ballot_publication(
         .map(|element: &BallotPublication| element.clone()))
 }
 
+#[instrument(skip(transaction, publication), err)]
+pub async fn restore_ballot_publication(
+    transaction: &Transaction<'_>,
+    publication: &BallotPublication,
+) -> Result<()> {
+    super::trusted_write::trusted_write(transaction).await?;
+    let election_ids = publication
+        .election_ids
+        .as_ref()
+        .map(|ids| {
+            ids.iter()
+                .map(|id| parse_uuid_v4(id))
+                .collect::<Result<Vec<_>>>()
+        })
+        .transpose()?;
+    let election_id = publication
+        .election_id
+        .as_deref()
+        .map(parse_uuid_v4)
+        .transpose()?;
+    transaction
+        .execute(
+            r#"INSERT INTO sequent_backend.ballot_publication
+            (id, tenant_id, election_event_id, labels, annotations, created_at, deleted_at,
+             created_by_user_id, is_generated, election_ids, published_at, election_id)
+           VALUES ($1, $2, $3, $4, $5, COALESCE($6, NOW()), $7, $8, $9, $10, $11, $12)"#,
+            &[
+                &parse_uuid_v4(&publication.id)?,
+                &parse_uuid_v4(&publication.tenant_id)?,
+                &parse_uuid_v4(&publication.election_event_id)?,
+                &publication.labels,
+                &publication.annotations,
+                &publication.created_at,
+                &publication.deleted_at,
+                &publication.created_by_user_id,
+                &publication.is_generated,
+                &election_ids,
+                &publication.published_at,
+                &election_id,
+            ],
+        )
+        .await
+        .context("restoring archived ballot publication")?;
+    Ok(())
+}
+
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_previous_publication_election(
     hasura_transaction: &Transaction<'_>,
