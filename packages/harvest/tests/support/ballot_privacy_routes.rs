@@ -570,6 +570,56 @@ fn authorized_resolution_is_private_durable_and_unavailable_after_purge() {
         assert_eq!(retained.status(), Status::Ok);
         let retained: Value = retained.into_json().await.unwrap();
         assert_eq!(retained["payload"], entry["payload"]);
+        for (path, operation, username) in [
+            ("/forensic-network-summary", "list", Some("audit.reader")),
+            (
+                "/forensic-network-summary",
+                "export",
+                Some("audit.exporter"),
+            ),
+            ("/forensic-network-detail", "detail", Some("audit.reviewer")),
+            ("/forensic-network-summary", "list", None),
+        ] {
+            let mut reader =
+                Claims::new(&event.tenant_id, "forensic-reader-id")
+                    .roles([Permissions::FORENSIC_READ]);
+            if let Some(username) = username {
+                reader = reader.username(username);
+            }
+            let body = json!({"election_event_id":event.election_event_id,
+                "operation":operation,"ip":"198.51.100.7","username":"untrusted-input"});
+            assert_eq!(
+                post(&client, path, &reader, &body).await.status(),
+                Status::Ok
+            );
+            let pending = store
+                .pending_privacy_messages(&event.election_event_id, 10)
+                .await
+                .unwrap();
+            assert_eq!(pending.len(), 1);
+            let message =
+                Message::record_deserialize(&pending[0].message).unwrap();
+            message
+                .verify(&VerificationKey::from_sk(&key).unwrap())
+                .unwrap();
+            assert_eq!(message.user_id.as_deref(), Some("forensic-reader-id"));
+            assert_eq!(message.username.as_deref(), username);
+            let row: electoral_log::ElectoralLogMessage =
+                (&message).try_into().unwrap();
+            assert_eq!(row.username.as_deref(), username);
+            let json = serde_json::to_value(&message).unwrap();
+            assert_eq!(
+                json["statement"]["body"]["ForensicRead"]["actor_id"],
+                "forensic-reader-id"
+            );
+            store
+                .remove_pending_privacy_messages(
+                    &event.election_event_id,
+                    &[pending[0].id],
+                )
+                .await
+                .unwrap();
+        }
         let mut db = services.hasura.get().await.unwrap();
         let tx = db.transaction().await.unwrap();
         for path in [

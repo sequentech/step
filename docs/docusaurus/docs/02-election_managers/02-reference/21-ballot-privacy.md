@@ -59,6 +59,8 @@ Open **Dashboard > IP Addresses** on the election event or an individual electio
 
 No preset role grants **Forensic Read** or **Resolve a pseudonym**. Privacy settings show the role assignments returned by the service and link to **Users and Roles**. A failed permissions lookup is shown as an error rather than as an empty assignment list.
 
+Each new `ForensicRead` log entry records the reader's user ID and, when supplied by their authenticated token, username. These identify the operator who accessed the forensic store. Older entries and tokens without a username retain the user ID.
+
 ## Authorized resolution
 
 There is no portal screen for resolving a pseudonym. An explicitly authorized operator can use the CLI with its configured endpoint and authentication token:

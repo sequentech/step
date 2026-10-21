@@ -890,7 +890,7 @@ async fn forensic_scope(
     drop(client);
     let signing = audit_signing(services, claims, &event).await?;
     let scope_id = uuid::Uuid::new_v4().to_string();
-    let message = Message::forensic_read_message(
+    let mut message = Message::forensic_read_message(
         &event.id,
         ForensicRead {
             tenant_id: event.tenant_id.clone(),
@@ -901,6 +901,7 @@ async fn forensic_scope(
         &signing,
     )
     .map_err(unavailable)?;
+    message.username = claims.preferred_username.clone();
     windmill::services::vote_privacy::queue_message(
         &event.id,
         &format!("forensic-read:{scope_id}"),
