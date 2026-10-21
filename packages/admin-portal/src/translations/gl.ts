@@ -88,7 +88,8 @@ const galegoTranslation: TranslationType = {
                 publication_missing: "O evento {{event}} non ten ningunha publicación activa.",
                 publication_mismatch:
                     "Os {{design_count}} deseños de papeleta publicados do evento {{event}} non coinciden con todos os deseños da súa configuración asinada.",
-                publication_empty: "A publicación do evento {{event}} non ten deseños de papeleta.",
+                publication_empty:
+                    "Os deseños de papeleta publicados do evento {{event}} non se puideron comprobar cunha configuración asinada.",
                 channels_open: "O evento de proba aínda ten canles de votación sen pechar.",
                 seal_at_close_off: "O evento de proba non sela as urnas ao peche.",
                 no_expected_boxes: "A publicación do evento de proba non espera ningunha urna.",

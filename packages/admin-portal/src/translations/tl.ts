@@ -90,7 +90,7 @@ const tagalogTranslation: TranslationType = {
                 publication_mismatch:
                     "Hindi tumutugma ang {{design_count}} nailathalang disenyo ng balota ng {{event}} na event sa lahat ng disenyo ng pinirmahang configuration nito.",
                 publication_empty:
-                    "Walang disenyo ng balota ang publikasyon ng {{event}} na event.",
+                    "Hindi masuri ang mga nailathalang disenyo ng balota ng {{event}} na event laban sa isang pinirmahang configuration.",
                 channels_open:
                     "May mga channel pa ng pagboto ang sinubukang event na hindi pa sarado.",
                 seal_at_close_off:

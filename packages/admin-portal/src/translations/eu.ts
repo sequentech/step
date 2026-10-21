@@ -89,7 +89,7 @@ const basqueTranslation: TranslationType = {
                 publication_mismatch:
                     "Gertaeraren ({{event}}) argitaratutako {{design_count}} boto-paper diseinuak ez datoz bat bere konfigurazio sinatuko diseinu guztiekin.",
                 publication_empty:
-                    "Gertaeraren ({{event}}) argitalpenak ez du boto-paper diseinurik.",
+                    "Ezin izan dira gertaeraren ({{event}}) argitaratutako boto-paper diseinuak konfigurazio sinatu batekin egiaztatu.",
                 channels_open: "Probako gertaerak oraindik itxi gabeko bozketa-kanalak ditu.",
                 seal_at_close_off: "Probako gertaerak ez ditu hautestontziak zigilatzen ixtean.",
                 no_expected_boxes: "Probako gertaeraren argitalpenak ez du hautestontzirik espero.",

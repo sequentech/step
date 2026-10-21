@@ -91,7 +91,7 @@ const frenchTranslation: TranslationType = {
                 publication_mismatch:
                     "Les {{design_count}} modèles de bulletin publiés de l’événement {{event}} ne correspondent pas à tous les modèles de sa configuration signée.",
                 publication_empty:
-                    "La publication de l’événement {{event}} n’a aucun modèle de bulletin.",
+                    "Les modèles de bulletin publiés de l’événement {{event}} n’ont pas pu être vérifiés par rapport à une configuration signée.",
                 channels_open: "L’événement de test a encore des canaux de vote non fermés.",
                 seal_at_close_off: "L’événement de test ne scelle pas les urnes à la clôture.",
                 no_expected_boxes: "La publication de l’événement de test n’attend aucune urne.",

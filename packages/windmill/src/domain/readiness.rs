@@ -614,6 +614,18 @@ fn publication_findings(event: &EventEvidence, role: EventRole) -> Vec<Readiness
             format!("The {name} event has no active publication"),
         )];
     };
+    // The design count only counts designs checked against the signed
+    // manifest: none means they could not be checked at all.
+    if publication.design_count == 0 {
+        return vec![ReadinessFinding::new(
+            PublicationEmpty,
+            role,
+            format!(
+                "The {name} event's published ballot designs could not be checked against a signed manifest"
+            ),
+        )
+        .value("publication_id", &publication.publication_id)];
+    }
     let mut findings = Vec::new();
     if !publication.matches_manifest {
         findings.push(
@@ -627,16 +639,6 @@ fn publication_findings(event: &EventEvidence, role: EventRole) -> Vec<Readiness
             )
             .value("publication_id", &publication.publication_id)
             .value("design_count", publication.design_count),
-        );
-    }
-    if publication.design_count == 0 {
-        findings.push(
-            ReadinessFinding::new(
-                PublicationEmpty,
-                role,
-                format!("The {name} event's publication has no ballot designs"),
-            )
-            .value("publication_id", &publication.publication_id),
         );
     }
     findings

@@ -85,7 +85,8 @@ const englishTranslation = {
                 publication_missing: "The {{event}} event has no active publication.",
                 publication_mismatch:
                     "The {{event}} event’s {{design_count}} published ballot designs do not match every design of its signed configuration.",
-                publication_empty: "The {{event}} event’s publication has no ballot designs.",
+                publication_empty:
+                    "The {{event}} event’s published ballot designs could not be checked against a signed configuration.",
                 channels_open: "The tested event still has voting channels that have not closed.",
                 seal_at_close_off: "The tested event does not seal ballot boxes at close.",
                 no_expected_boxes: "The tested event’s publication expects no ballot boxes.",

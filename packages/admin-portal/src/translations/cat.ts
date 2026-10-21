@@ -90,7 +90,7 @@ const catalanTranslation: TranslationType = {
                 publication_mismatch:
                     "Els {{design_count}} dissenys de papereta publicats de l'esdeveniment {{event}} no coincideixen amb tots els dissenys de la seva configuració signada.",
                 publication_empty:
-                    "La publicació de l'esdeveniment {{event}} no té dissenys de papereta.",
+                    "Els dissenys de papereta publicats de l'esdeveniment {{event}} no s'han pogut comprovar amb una configuració signada.",
                 channels_open: "L'esdeveniment de prova encara té canals de votació sense tancar.",
                 seal_at_close_off: "L'esdeveniment de prova no segella les urnes en tancar.",
                 no_expected_boxes: "La publicació de l'esdeveniment de prova no espera cap urna.",

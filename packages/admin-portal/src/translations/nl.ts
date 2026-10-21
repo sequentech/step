@@ -91,7 +91,7 @@ const dutchTranslation: TranslationType = {
                 publication_mismatch:
                     "De {{design_count}} gepubliceerde stembiljetontwerpen van het {{event}} evenement komen niet overeen met alle ontwerpen van de ondertekende configuratie.",
                 publication_empty:
-                    "De publicatie van het {{event}} evenement heeft geen stembiljetontwerpen.",
+                    "De gepubliceerde stembiljetontwerpen van het {{event}} evenement konden niet worden gecontroleerd aan de hand van een ondertekende configuratie.",
                 channels_open:
                     "Het geteste evenement heeft nog stemkanalen die niet gesloten zijn.",
                 seal_at_close_off:

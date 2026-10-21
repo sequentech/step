@@ -89,7 +89,7 @@ const spanishTranslation: TranslationType = {
                 publication_mismatch:
                     "Los {{design_count}} diseños de papeleta publicados del evento {{event}} no coinciden con todos los diseños de su configuración firmada.",
                 publication_empty:
-                    "La publicación del evento {{event}} no tiene diseños de papeleta.",
+                    "Los diseños de papeleta publicados del evento {{event}} no se pudieron comprobar con una configuración firmada.",
                 channels_open: "El evento de prueba todavía tiene canales de votación sin cerrar.",
                 seal_at_close_off: "El evento de prueba no sella las urnas al cierre.",
                 no_expected_boxes: "La publicación del evento de prueba no espera ninguna urna.",
