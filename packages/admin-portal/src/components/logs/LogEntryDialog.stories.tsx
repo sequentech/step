@@ -773,6 +773,7 @@ export const PseudonymResolved: Story = {
     },
     play: async () => {
         const view = await dialog()
+        expect(view.getByText("Who").parentElement).toHaveTextContent("election-reviewer")
         expect(view.getByText("7QKM-2HXD")).toBeVisible()
         expect(view.getByText("Authorized election protest review")).toBeVisible()
         expect(view.getByText(/The answer went only to the person who asked/)).toBeVisible()

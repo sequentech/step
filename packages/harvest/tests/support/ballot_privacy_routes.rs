@@ -451,7 +451,7 @@ fn authorized_resolution_is_private_durable_and_unavailable_after_purge() {
         };
         verify();
         let reason = "Election protest EP-2028-014, order of 19 May 2028";
-        let body = json!({"election_event_id":event.election_event_id,"pseudonym":displayed,"reason":format!("  {reason}  ")});
+        let body = json!({"election_event_id":event.election_event_id,"pseudonym":displayed,"reason":format!("  {reason}  "),"username":"untrusted-requester"});
         let reader = Claims::new(&event.tenant_id, "viewer")
             .roles([Permissions::LOGS_READ]);
         assert_eq!(
@@ -467,6 +467,7 @@ fn authorized_resolution_is_private_durable_and_unavailable_after_purge() {
             .is_empty());
         let investigator =
             Claims::new(&event.tenant_id, "synthetic-investigator")
+                .username("resolution.reviewer")
                 .roles([Permissions::VOTER_PSEUDONYM_RESOLVE]);
         for unsafe_reason in [
             "".to_owned(),
@@ -520,6 +521,8 @@ fn authorized_resolution_is_private_durable_and_unavailable_after_purge() {
             .unwrap();
         let json = serde_json::to_value(&message).unwrap();
         let body_json = &json["statement"]["body"]["PseudonymResolved"];
+        assert_eq!(message.user_id.as_deref(), Some("synthetic-investigator"));
+        assert_eq!(message.username.as_deref(), Some("resolution.reviewer"));
         assert_eq!(body_json["pseudonym"], code);
         assert_eq!(body_json["actor_id"], "synthetic-investigator");
         assert_eq!(body_json["reason"], reason);
@@ -552,6 +555,11 @@ fn authorized_resolution_is_private_durable_and_unavailable_after_purge() {
             .iter()
             .find(|row| row.statement_kind == "PseudonymResolved")
             .unwrap();
+        assert_eq!(
+            resolution.user_id.as_deref(),
+            Some("synthetic-investigator")
+        );
+        assert_eq!(resolution.username.as_deref(), Some("resolution.reviewer"));
         let checkpoint = store.journal().checkpoint(&board).await.unwrap();
         let proof = store
             .record_proof(

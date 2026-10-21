@@ -842,7 +842,7 @@ pub async fn resolve_voter_pseudonym(
             )
         })?;
     let signing = audit_signing(services, &claims, &event).await?;
-    let message = Message::pseudonym_resolved_message(
+    let mut message = Message::pseudonym_resolved_message(
         &event.id,
         PseudonymResolution {
             tenant_id: event.tenant_id.clone(),
@@ -853,6 +853,7 @@ pub async fn resolve_voter_pseudonym(
         &signing,
     )
     .map_err(unavailable)?;
+    message.username = claims.preferred_username.clone();
     windmill::services::vote_privacy::queue_message(
         &event.id,
         &format!("pseudonym-resolution:{}", uuid::Uuid::new_v4()),
