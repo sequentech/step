@@ -529,6 +529,7 @@ async fn insert_scheduled_event_returns_and_stores_the_schedule() {
             "event_payload": {"template_id": "template-1"},
             "created_by": null,
             "task_id": "send-template-1",
+            "participation_authorization": null,
             "cron_config": {"cron": null, "scheduled_date": "2026-02-01T10:00:00Z"},
         })
     );
@@ -602,6 +603,7 @@ async fn insert_new_scheduled_event_keeps_every_supplied_column() {
             "event_payload": {"election_id": w.id(20)},
             "created_by": null,
             "task_id": "allow-tally-1",
+            "participation_authorization": null,
             "cron_config": {"cron": null, "scheduled_date": "2026-02-01T10:00:00Z"},
         })
     );
