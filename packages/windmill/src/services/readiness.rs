@@ -600,6 +600,24 @@ mod tests {
         assert!(recorder.entries.lock().unwrap().is_empty());
     }
 
+    #[test]
+    fn each_stage_names_where_an_incomplete_check_stopped() {
+        let stages = [
+            ReadinessStage::Locks,
+            ReadinessStage::OfficialEvidence,
+            ReadinessStage::TestedEvidence,
+            ReadinessStage::SignedAppend,
+        ];
+        let texts: BTreeSet<String> = stages.iter().map(ToString::to_string).collect();
+        assert_eq!(texts.len(), stages.len());
+        let error = anyhow::anyhow!("internal detail").context(ReadinessStage::SignedAppend);
+        assert_eq!(
+            error.downcast_ref::<ReadinessStage>(),
+            Some(&ReadinessStage::SignedAppend)
+        );
+        assert!(!error.to_string().contains("internal detail"));
+    }
+
     #[tokio::test]
     async fn a_retried_pass_is_a_new_entry_never_a_replay_of_a_lost_response() {
         let recorder = Recorder {
