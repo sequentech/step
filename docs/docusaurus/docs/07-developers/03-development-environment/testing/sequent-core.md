@@ -59,7 +59,7 @@ dependencies explicitly.
 | `ballot_wire_streams.rs` | Pin independent byte layouts for small records; reject every truncated prefix and propagate sink failures through nested ballot, presentation and tally-resolution records. |
 | `presentation_contracts.rs` | Check translated-name fallbacks, languages and presentation policies. |
 | `bearer_verification.rs` | Refuse tokens that miss a valid signature, key, expiry, issuer realm or tenant/event binding, and key sets that cannot be used; accept a valid signed token, with managed or environment issuer settings. |
-| `request_guards.rs` | Dispatch local Rocket requests with valid, absent and malformed headers; the claims guard accepts only unexpired claims signed by a trusted issuer. |
+| `request_guards.rs` | Dispatch local Rocket requests with valid, absent and malformed headers; accept only unexpired claims signed by a trusted issuer, bound ASCII and Unicode user agents to 1,024 characters, and redact every network field from debug logging. |
 | `scheduled_dates.rs` | Filter by tenant, event, election and task; preserve missing dates and reject malformed payloads. |
 | `utility_contracts.rs` | Check time, authentication URLs, numeric ordering, external configuration and file-integrity errors. |
 | `voting_state.rs` | Check channel transitions, first-transition dates and early-voting closure. |

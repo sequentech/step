@@ -38,6 +38,18 @@ fn location(location: UserLocation) -> String {
         location.country_code.unwrap_or_default()
     )
 }
+#[get("/location-evidence")]
+fn location_evidence(
+    location: UserLocation,
+) -> rocket::serde::json::Json<Value> {
+    let redacted = format!("{location:?}");
+    rocket::serde::json::Json(json!({
+        "agent": location.user_agent,
+        "ip": location.ip.map(|ip| ip.to_string()),
+        "country": location.country_code,
+        "debug": redacted,
+    }))
+}
 #[get("/datafix")]
 fn datafix(claims: DatafixClaims) -> String {
     claims.tenant_id
@@ -195,6 +207,55 @@ async fn location_headers_are_optional_and_cloudflare_takes_precedence() {
             .unwrap(),
         "|"
     );
+}
+
+#[rocket::async_test]
+async fn location_guard_bounds_user_agents_and_redacts_all_network_fields_from_debug(
+) {
+    let client =
+        Client::tracked(rocket::build().mount("/", routes![location_evidence]))
+            .await
+            .unwrap();
+    let absent: Value = client
+        .get("/location-evidence")
+        .dispatch()
+        .await
+        .into_json()
+        .await
+        .unwrap();
+    assert_eq!(
+        absent,
+        json!({"agent": null, "ip": null, "country": null, "debug": "UserLocation(<redacted>)"})
+    );
+    for agent in [
+        "Synthetic browser".to_owned(),
+        "a".repeat(1025),
+        "é".repeat(1025),
+    ] {
+        let result: Value = client
+            .get("/location-evidence")
+            .header(Header::new("User-Agent", agent.clone()))
+            .header(Header::new("CF-Connecting-IP", "192.0.2.1"))
+            .header(Header::new("CF-IPCountry", "CA"))
+            .dispatch()
+            .await
+            .into_json()
+            .await
+            .unwrap();
+        let expected = if agent == "Synthetic browser" {
+            agent
+        } else if agent.starts_with('a') {
+            "a".repeat(1024)
+        } else {
+            "é".repeat(1024)
+        };
+        assert_eq!(result["agent"], expected);
+        assert_eq!(result["ip"], "192.0.2.1");
+        assert_eq!(result["country"], "CA");
+        // Debug output is a real logging boundary; none of the forensic fields
+        // may escape even when they were supplied to the request guard.
+        assert_eq!(result["debug"], "UserLocation(<redacted>)");
+    }
 }
 
 #[rocket::async_test]
