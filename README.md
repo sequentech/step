@@ -99,6 +99,12 @@ The `packages/` directory is both a [Cargo workspace] and a [Yarn workspace], en
 
 We welcome contributions! Please see our [Contributing Guide](https://docs.sequentech.io/docusaurus/main/docs/developers/contributing) for details.
 
+## Security
+
+Please report security vulnerabilities privately, not in public issues. See
+[SECURITY.md](SECURITY.md) and our
+[Vulnerability Disclosure Policy](https://docs.sequentech.io/docusaurus/main/docs/technology/vulnerability-disclosure-policy).
+
 ## License
 
 This project is licensed under the AGPL-3.0-only license. See [LICENSE](LICENSE) for details.
