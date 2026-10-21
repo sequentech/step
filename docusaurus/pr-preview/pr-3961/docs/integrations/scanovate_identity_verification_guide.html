@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Scanovate Identity Verification | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3961/docs/integrations/scanovate_identity_verification_guide"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Scanovate Identity Verification | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3961/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3961/docs/integrations/scanovate_identity_verification_guide"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3961/docs/integrations/scanovate_identity_verification_guide" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3961/docs/integrations/scanovate_identity_verification_guide" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Scanovate Identity Verification","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3961/docs/integrations/scanovate_identity_verification_guide"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3961/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3961/assets/js/runtime~main.ed909639.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3961/assets/js/runtime~main.1720e3d5.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3961/assets/js/main.7118c96f.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -95,7 +95,10 @@ action (<code>confirm</code> or <code>retry</code>) in a field of its own.</li>
 validation rules or without an OCR type, and missing service settings reject
 the verification instead of skipping checks.</li>
 <li class=""><strong>Confirmation is guarded.</strong> The confirmation page only completes the step if
-a verification succeeded in the same authentication session.</li>
+this step completed a verification in the same authentication session and is
+waiting for its confirmation (auth note <code>scanovate-confirmation-case</code>, which
+no form can set). A <code>user-status</code> note alone doesn&#x27;t confirm: it is a profile
+attribute, which a form could submit.</li>
 <li class=""><strong>Attempts.</strong> A failed liveness check, a face that doesn&#x27;t match or can&#x27;t be
 found, an unreadable document and a failed rule each use up an attempt. Once
 the attempts of the authentication session reach <code>max-attempts</code>, no new
@@ -141,6 +144,13 @@ face similarities (<code>scanovate_case_id</code>, <code>scanovate_face_match_do
 (<code>sequent.read-only.id-card-number-validated</code> by default) is set to <code>VERIFIED</code>.
 Later flow steps rely on it, e.g. the <code>already-validated</code> conditional and
 <code>lookup-and-update-user</code>, which copies it into the user.</p>
+<p>Once the voter confirms (or right away, when nothing is stored to confirm), the
+step also sets the <code>identity-method</code> auth note to <code>VERIFIED</code>, which
+<code>lookup-and-update-user</code> forwards to the <a class="" href="/docusaurus/pr-preview/pr-3961/docs/developers/windmill/windmill_approval_matrix#identity-method">approval
+matrix</a>.
+Starting the step over, a retry, a failed check, a service error or reaching
+<code>max-attempts</code> removes it. A voter skipped as already verified (by the
+<code>user-status</code> attribute) gets no <code>identity-method</code>.</p>
 <p>The capture page receives a <code>scanovate</code> attribute with <code>documentType</code>, <code>sides</code>
 (<code>FRONT</code>, and <code>BACK</code> if the document has one), <code>videoSeconds</code> (how long the
 voter holds the document before its photo), <code>attemptsLeft</code>, <code>maxAttempts</code>,

@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Enrollment approval matrix | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3961/docs/developers/windmill/windmill_approval_matrix"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Enrollment approval matrix | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3961/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3961/docs/developers/windmill/windmill_approval_matrix"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3961/docs/developers/windmill/windmill_approval_matrix" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3961/docs/developers/windmill/windmill_approval_matrix" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Enrollment approval matrix","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3961/docs/developers/windmill/windmill_approval_matrix"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3961/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3961/assets/js/runtime~main.ed909639.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3961/assets/js/runtime~main.1720e3d5.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3961/assets/js/main.7118c96f.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -51,6 +51,21 @@ the registry lookup and for the comparison. Without a saved matrix, <code>search
 <p>An identity verification step reports how it established the identity by setting the
 <code>identity-method</code> auth note to <code>VERIFIED</code> or <code>MANUAL_ENTRY</code>. <code>LookupAndUpdateUser</code> forwards it in the
 annotations of the application. When no step sets it, <code>identity</code> conditions don&#x27;t apply.</p>
+<p>Only Keycloak sets the note:</p>
+<ul>
+<li class="">The registration form can&#x27;t: <code>identity-method</code> is a reserved note, and submitting the form again
+removes the note an earlier verification set.</li>
+<li class="">The Scanovate step sets <code>VERIFIED</code> only when it completes a verification: after the voter confirms
+the attributes it read, or right away when it stores none. Starting the step over (a reload, a
+retry, the attempt limit), a failed check or a service error removes it, so a verification never
+carries over to a later failed attempt.</li>
+<li class="">A voter whose status attribute says they were verified before skips the Scanovate step without a
+method: the attribute is not proof of a verification in this session.</li>
+<li class=""><code>LookupAndUpdateUser</code> forwards only <code>VERIFIED</code> or <code>MANUAL_ENTRY</code>; it ignores any other value with a
+warning, and windmill refuses an application whose annotations carry one.</li>
+</ul>
+<p>No step of the platform sets <code>MANUAL_ENTRY</code> yet: an enrollment without a verification step carries
+no method.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="versions">Versions<a href="#versions" class="hash-link" aria-label="Direct link to Versions" title="Direct link to Versions" translate="no">​</a></h2>
 <p>Table <code>sequent_backend.approval_matrix</code> (<code>tenant_id</code>, <code>election_event_id</code>, <code>version</code>,
 <code>compared_fields</code>, <code>rules</code>, <code>otherwise</code>, <code>sha256</code>, <code>created_at</code>, <code>created_by</code>,
