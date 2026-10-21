@@ -176,6 +176,25 @@ issue = "https://github.com/sequentech/meta/issues/13292"
         self.assertEqual(code, 2)
         self.assertIn("privacy", summary["error"])
 
+    def test_invalid_database_targets_fail_before_invoking_cargo(self):
+        original = self.config.read_text()
+        for invalid in ['"privacy"', "[1]", '["../privacy"]']:
+            self.config.write_text(
+                original.replace(
+                    'package = "sequent-core"',
+                    f'package = "sequent-core"\ndatabase_tests = {invalid}',
+                )
+            )
+            before = set(self.root.glob("coverage/sequent-core/*/summary.json"))
+            with self.subTest(invalid=invalid), patch.object(run, "execute") as execute:
+                self.assertEqual(run.measure("sequent-core", True, True), 2)
+                execute.assert_not_called()
+            created = (
+                set(self.root.glob("coverage/sequent-core/*/summary.json")) - before
+            )
+            summary = json.loads(created.pop().read_text())
+            self.assertEqual(summary["error"], "Invalid database test targets")
+
     def test_empty_or_failed_database_suite_cannot_export_a_successful_measurement(
         self,
     ):
