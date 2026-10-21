@@ -49,3 +49,29 @@ it("requires a selection and publication and honors explicit policy", () => {
         )
     ).toBe("tallyDisallowed")
 })
+it("requires one completed keys ceremony across the selected elections", () => {
+    const withKeys = (id: string, keys_ceremony_id?: string) => ({
+        ...election(id),
+        keys_ceremony_id,
+    })
+    const done = [{id: "k1", execution_status: "SUCCESS"}]
+    expect(getTallyDisabledReason([withKeys("a", "k1")], ["a"], done)).toBeUndefined()
+    expect(getTallyDisabledReason([withKeys("a", "k1")], ["a"])).toBeUndefined()
+    expect(getTallyDisabledReason([withKeys("a")], ["a"], done)).toBe("keysCeremonyMissing")
+    expect(
+        getTallyDisabledReason([withKeys("a", "k1"), withKeys("b", "k2")], ["a", "b"], done)
+    ).toBe("keysCeremonyMismatch")
+    expect(
+        getTallyDisabledReason(
+            [withKeys("a", "k1"), withKeys("b", "k2"), withKeys("c")],
+            ["a", "b", "c"],
+            done
+        )
+    ).toBe("keysCeremonyMismatch")
+    for (const execution_status of ["IN_PROGRESS", "CANCELLED", null]) {
+        expect(
+            getTallyDisabledReason([withKeys("a", "k1")], ["a"], [{id: "k1", execution_status}])
+        ).toBe("keysCeremonyIncomplete")
+    }
+    expect(getTallyDisabledReason([withKeys("a", "k1")], ["a"], [])).toBe("keysCeremonyIncomplete")
+})
