@@ -2,16 +2,75 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::*;
-use crate::services::test_support::{
-    claims, clear_optional_issuer_settings, in_child_process, keys,
-    one_shot_server, token, ISSUER,
-};
 use base64::Engine;
 use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
 use serde_json::{json, Value};
 
+const ISSUER: &str =
+    "https://keycloak.example/realms/tenant-one-event-election";
+
+fn claims() -> Value {
+    json!({"iss": ISSUER, "exp": 4102444800_u64, "sub": "voter", "iat": 1,
+        "jti": "test", "typ": "Bearer", "azp": "voting-portal", "acr": "1",
+        "allowed-origins": [], "scope": "openid", "email_verified": true,
+        "https://hasura.io/jwt/claims": {
+            "x-hasura-tenant-id": "one", "x-hasura-election-event-id": "election",
+            "x-hasura-default-role": "user", "x-hasura-user-id": "voter",
+            "x-hasura-allowed-roles": ["user"]}})
+}
+
+fn keys() -> JwkSet {
+    serde_json::from_str(include_str!("fixtures/test-jwks.json")).unwrap()
+}
+
+fn token(claims: &Value) -> String {
+    let mut header = Header::new(Algorithm::RS256);
+    header.kid = Some("test-key".into());
+    encode(
+        &header,
+        claims,
+        &EncodingKey::from_rsa_pem(include_bytes!("fixtures/test-key.pem"))
+            .unwrap(),
+    )
+    .unwrap()
+}
+
+async fn key_server(
+    status: &str,
+    body: String,
+    extra_headers: &str,
+) -> (String, tokio::task::JoinHandle<String>) {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    let response = format!("HTTP/1.1 {status}\r\nContent-Length: {}\r\nConnection: close\r\n{extra_headers}\r\n{body}", body.len());
+    let task = tokio::spawn(async move {
+        let (mut socket, _) = listener.accept().await.unwrap();
+        let mut request = vec![0; 4096];
+        let length = socket.read(&mut request).await.unwrap();
+        socket.write_all(response.as_bytes()).await.unwrap();
+        String::from_utf8(request[..length].to_vec()).unwrap()
+    });
+    (base, task)
+}
+
+fn base(url: &str) -> Url {
+    configured_base(url).unwrap()
+}
+
+fn issuers_with(internal: &str, trusted: &[&str]) -> BearerIssuers {
+    BearerIssuers::new(internal, trusted).unwrap()
+}
+
+/// Reads the issuer settings from `values` instead of the environment.
+fn from_settings(values: &[(&str, &str)]) -> Result<BearerIssuers> {
+    let values: HashMap<_, _> = values.iter().copied().collect();
+    BearerIssuers::from_vars(|name| values.get(name).map(|v| v.to_string()))
+}
+
 fn realm_of(claims: &Value, bases: &[&str]) -> Result<String> {
-    trusted_realm(&serde_json::from_value(claims.clone())?, bases)
+    let bases: Vec<_> = bases.iter().map(|url| base(url)).collect();
+    trusted_realm(&serde_json::from_value(claims.clone())?, &bases)
 }
 
 #[test]
@@ -70,6 +129,27 @@ fn wrong_issuer_and_unknown_keys_are_rejected() {
     assert!(
         verify_with_jwks::<Value>(&token(&claims()), ISSUER, &no_key).is_err()
     );
+}
+
+#[test]
+fn malformed_tokens_and_unusable_keys_are_rejected() {
+    assert!(verify_with_jwks::<Value>("not-a-token", ISSUER, &keys()).is_err());
+    let without_key_id = encode(
+        &Header::new(Algorithm::RS256),
+        &claims(),
+        &EncodingKey::from_rsa_pem(include_bytes!("fixtures/test-key.pem"))
+            .unwrap(),
+    )
+    .unwrap();
+    let error = verify_with_jwks::<Value>(&without_key_id, ISSUER, &keys())
+        .unwrap_err();
+    assert_eq!(error.to_string(), "Missing signing key ID");
+    let mut unusable = serde_json::to_value(keys()).unwrap();
+    unusable["keys"][0]["n"] = json!("!");
+    let unusable: JwkSet = serde_json::from_value(unusable).unwrap();
+    let error = verify_with_jwks::<Value>(&token(&claims()), ISSUER, &unusable)
+        .unwrap_err();
+    assert_ne!(error.to_string(), "Unknown signing key");
 }
 
 #[test]
@@ -152,49 +232,38 @@ fn invalid_configured_bases_report_distinct_reasons_without_echoing_them() {
 async fn signed_public_and_kiosk_tokens_use_internal_keys_and_cached_requests()
 {
     let (internal, served) =
-        one_shot_server("200 OK", serde_json::to_string(&keys()).unwrap(), "")
-            .await;
-    let bases = ["https://keycloak.example", "https://kiosk-id.example/auth"];
-    let valid = token(&claims());
-    assert_eq!(
-        verify_bearer_with_config(&valid, &bases, &internal)
-            .await
-            .unwrap()
-            .sub,
-        "voter"
+        key_server("200 OK", serde_json::to_string(&keys()).unwrap(), "").await;
+    let issuers = issuers_with(
+        &internal,
+        &["https://keycloak.example", "https://kiosk-id.example/auth"],
     );
+    let valid = token(&claims());
+    assert_eq!(verify_bearer(&valid, &issuers).await.unwrap().sub, "voter");
     let request = served.await.unwrap();
     assert!(request.starts_with("GET /realms/tenant-one-event-election/protocol/openid-connect/certs HTTP/1.1"));
     // The one-shot key server has stopped; the next valid tokens must use cache.
     let mut kiosk = claims();
     kiosk["iss"] =
         json!("https://kiosk-id.example/auth/realms/tenant-one-event-election");
-    assert!(verify_bearer_with_config(&token(&kiosk), &bases, &internal)
-        .await
-        .is_ok());
+    assert!(verify_bearer(&token(&kiosk), &issuers).await.is_ok());
     let mut legacy = claims();
     legacy["https://hasura.io/jwt/claims"]
         .as_object_mut()
         .unwrap()
         .remove("x-hasura-election-event-id");
-    assert!(
-        verify_bearer_with_config(&token(&legacy), &bases, &internal)
-            .await
-            .is_ok()
-    );
+    assert!(verify_bearer(&token(&legacy), &issuers).await.is_ok());
     let parts: Vec<_> = valid.split('.').collect();
     let forged = format!("{}.{}.forged", parts[0], parts[1]);
-    assert!(verify_bearer_with_config(&forged, &bases, &internal)
-        .await
-        .is_err());
+    assert!(verify_bearer(&forged, &issuers).await.is_err());
 }
 
 #[tokio::test]
 async fn failed_key_refresh_preserves_only_unexpired_keys() {
     let (internal, served) =
-        one_shot_server("503 Service Unavailable", String::new(), "").await;
+        key_server("503 Service Unavailable", String::new(), "").await;
+    let issuers = issuers_with(&internal, &["https://keycloak.example"]);
     let realm = "tenant-one-event-election";
-    let cache_key = format!("{internal}/realms/{realm}");
+    let cache_key = realm_url(&issuers.internal_base, realm);
     let entry = Arc::new(Mutex::new(CachedKeys {
         keys: Some(Arc::new(keys())),
         fetched: Some(
@@ -206,36 +275,28 @@ async fn failed_key_refresh_preserves_only_unexpired_keys() {
         .lock()
         .await
         .insert(cache_key, (Instant::now(), Arc::clone(&entry)));
-    assert!(realm_keys(&DOWNLOADS, &internal, realm, "rotated-key")
-        .await
-        .is_err());
-    served.await.unwrap();
-    let valid = token(&claims());
-    assert!(verify_bearer_with_config(
-        &valid,
-        &["https://keycloak.example"],
-        &internal
-    )
-    .await
-    .is_ok());
-    // A failed refresh must never extend the lifetime of the previous keys.
-    entry.lock().await.fetched =
-        Some(Instant::now() - CACHE_TTL - Duration::from_secs(1));
-    assert!(verify_bearer_with_config(
-        &valid,
-        &["https://keycloak.example"],
-        &internal
+    assert!(realm_keys(
+        &DOWNLOADS,
+        &issuers.internal_base,
+        realm,
+        "rotated-key"
     )
     .await
     .is_err());
+    served.await.unwrap();
+    let valid = token(&claims());
+    assert!(verify_bearer(&valid, &issuers).await.is_ok());
+    // A failed refresh must never extend the lifetime of the previous keys.
+    entry.lock().await.fetched =
+        Some(Instant::now() - CACHE_TTL - Duration::from_secs(1));
+    assert!(verify_bearer(&valid, &issuers).await.is_err());
 }
 
 #[tokio::test]
 async fn key_downloads_need_a_free_slot_and_refusals_do_not_delay_retries() {
     let (internal, served) =
-        one_shot_server("200 OK", serde_json::to_string(&keys()).unwrap(), "")
-            .await;
-    let realm = "tenant-one";
+        key_server("200 OK", serde_json::to_string(&keys()).unwrap(), "").await;
+    let (internal, realm) = (base(&internal), "tenant-one");
     assert!(realm_keys(&Semaphore::new(0), &internal, realm, "test-key")
         .await
         .is_err());
@@ -283,41 +344,85 @@ fn unverified_realms_are_evicted_first_and_realms_in_use_are_kept() {
 
 #[tokio::test]
 async fn key_fetch_redirects_and_oversized_bodies_are_rejected() {
-    let (internal, served) = one_shot_server(
+    let (internal, served) = key_server(
         "302 Found",
         serde_json::to_string(&keys()).unwrap(),
         "Location: http://127.0.0.1:1/keys\r\n",
     )
     .await;
-    assert!(download_keys(&internal, "tenant-one").await.is_err());
+    assert!(download_keys(&base(&internal), "tenant-one").await.is_err());
     served.await.unwrap();
     let (internal, served) =
-        one_shot_server("200 OK", "x".repeat(MAX_JWKS_BYTES + 1), "").await;
-    assert!(download_keys(&internal, "tenant-one").await.is_err());
+        key_server("200 OK", "x".repeat(MAX_JWKS_BYTES + 1), "").await;
+    assert!(download_keys(&base(&internal), "tenant-one").await.is_err());
     served.await.unwrap();
 }
 
-#[tokio::test]
-async fn empty_optional_issuer_settings_are_ignored_and_invalid_ones_reported()
-{
-    if !in_child_process(
-        module_path!(),
-        "empty_optional_issuer_settings_are_ignored_and_invalid_ones_reported",
-    ) {
-        return;
+#[test]
+fn settings_trust_every_configured_base_and_ignore_empty_entries() {
+    let issuers = from_settings(&[
+        (KEYCLOAK_URL, "http://keycloak:8090"),
+        (KEYCLOAK_PUBLIC_URL, "https://keycloak.example"),
+        (KIOSK_KEYCLOAK_URL, ""),
+        (
+            HARVEST_JWT_ISSUER_URLS,
+            " , https://alias.example/auth ,https://other.example,",
+        ),
+    ])
+    .unwrap();
+    assert_eq!(issuers.internal_base, base("http://keycloak:8090"));
+    assert_eq!(
+        issuers.trusted_bases,
+        [
+            "http://keycloak:8090",
+            "https://keycloak.example",
+            "https://alias.example/auth",
+            "https://other.example",
+        ]
+        .map(base)
+    );
+    let only_required =
+        from_settings(&[(KEYCLOAK_URL, "http://keycloak:8090")]).unwrap();
+    assert_eq!(only_required.trusted_bases, [base("http://keycloak:8090")]);
+}
+
+#[test]
+fn missing_and_invalid_settings_are_named_without_echoing_values() {
+    let error =
+        from_settings(&[(KEYCLOAK_PUBLIC_URL, "https://keycloak.example")])
+            .unwrap_err();
+    assert!(format!("{error:#}").contains(KEYCLOAK_URL), "{error:#}");
+    for (setting, value) in [
+        (KEYCLOAK_URL, "https://user:private@keycloak.example"),
+        (
+            KEYCLOAK_PUBLIC_URL,
+            "https://keycloak.example,ftp://private.example",
+        ),
+        (KIOSK_KEYCLOAK_URL, "private.example"),
+        (
+            HARVEST_JWT_ISSUER_URLS,
+            "https://alias.example, https://private.example/?realm=x",
+        ),
+    ] {
+        let error = from_settings(&[
+            (KEYCLOAK_URL, "http://keycloak:8090"),
+            (setting, value),
+        ])
+        .unwrap_err();
+        let message = format!("{error:#}");
+        assert!(message.contains(setting), "{message}");
+        assert!(!message.contains("private"), "{message}");
     }
-    clear_optional_issuer_settings();
-    let (internal, served) =
-        one_shot_server("200 OK", serde_json::to_string(&keys()).unwrap(), "")
-            .await;
-    std::env::set_var(KEYCLOAK_URL, &internal);
-    std::env::set_var(KEYCLOAK_PUBLIC_URL, "https://keycloak.example");
-    std::env::set_var(KIOSK_KEYCLOAK_URL, "");
-    std::env::set_var(HARVEST_JWT_ISSUER_URLS, " , ");
-    let valid = token(&claims());
-    assert!(verify_bearer(&valid).await.is_ok());
-    served.await.unwrap();
-    std::env::set_var(KIOSK_KEYCLOAK_URL, "not-a-url");
-    let error = verify_bearer(&valid).await.unwrap_err();
-    assert!(format!("{error:#}").contains(KIOSK_KEYCLOAK_URL));
+}
+
+#[test]
+fn issuers_built_directly_reject_invalid_bases() {
+    assert!(
+        BearerIssuers::new("not-a-url", &["https://keycloak.example"]).is_err()
+    );
+    assert!(BearerIssuers::new(
+        "http://keycloak:8090",
+        &["https://keycloak.example", "not-a-url"]
+    )
+    .is_err());
 }

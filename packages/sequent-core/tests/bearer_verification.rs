@@ -22,18 +22,11 @@ use rocket::{
     local::asynchronous::Client,
     routes,
 };
-use sequent_core::services::connection::BearerIssuers;
 use sequent_core::services::jwt::JwtClaims;
+use sequent_core::services::keycloak::BearerIssuers;
 use serde_json::{json, Value};
 
 const KEY_PATH: &str = "/realms/tenant-north/protocol/openid-connect/certs";
-const ALIAS: &str = "https://alias.example/auth";
-const SETTINGS: [&str; 4] = [
-    "KEYCLOAK_URL",
-    "KEYCLOAK_PUBLIC_URL",
-    "KIOSK_KEYCLOAK_URL",
-    "HARVEST_JWT_ISSUER_URLS",
-];
 
 #[get("/claims")]
 fn claims(claims: JwtClaims) -> String {
@@ -223,43 +216,20 @@ async fn unusable_key_servers_refuse_the_token_and_a_usable_one_accepts_it() {
         ),
     ] {
         let server = HttpServer::start(vec![exchange]);
-        let client = client_trusting(BearerIssuers {
-            internal_base: server.url.clone(),
-            trusted_bases: vec![signing::ISSUER.into()],
-        })
+        let client = client_trusting(
+            BearerIssuers::new(&server.url, &[signing::ISSUER]).unwrap(),
+        )
         .await;
         let (status, _) = answer(&client, &valid).await;
         assert_eq!(status, expected, "{reason}");
         assert_eq!(server.finish().len(), 1, "{reason}");
     }
-    for (reason, internal_base) in [
-        ("key server that is not a URL", "not-a-url"),
-        ("key server nobody listens on", "http://127.0.0.1:1"),
-    ] {
-        let client = client_trusting(BearerIssuers {
-            internal_base: internal_base.into(),
-            trusted_bases: vec![signing::ISSUER.into()],
-        })
-        .await;
-        let (status, _) = answer(&client, &valid).await;
-        assert_eq!(status, Status::Unauthorized, "{reason}");
-    }
-}
-
-#[rocket::async_test]
-async fn misconfigured_trusted_issuers_are_skipped_not_trusted() {
-    let mut issuers = signing::issuers();
-    issuers.trusted_bases.insert(0, "not-a-url".into());
-    let client = client_trusting(issuers).await;
-    let (status, tenant) =
-        answer(&client, &signing::token(&voter(&tenant_issuer()))).await;
-    assert_eq!((status, tenant.as_str()), (Status::Ok, "north"));
-    let (status, _) = answer(
-        &client,
-        &signing::token(&voter("not-a-url/realms/tenant-north")),
+    let client = client_trusting(
+        BearerIssuers::new("http://127.0.0.1:1", &[signing::ISSUER]).unwrap(),
     )
     .await;
-    assert_eq!(status, Status::Unauthorized);
+    let (status, _) = answer(&client, &valid).await;
+    assert_eq!(status, Status::Unauthorized, "key server nobody listens on");
 }
 
 #[rocket::async_test]
@@ -275,61 +245,12 @@ async fn realms_keep_being_served_past_the_bound_of_cached_realms() {
     }
 }
 
-struct Settings(Vec<(&'static str, Option<std::ffi::OsString>)>);
-
-impl Settings {
-    fn clear() -> Self {
-        Self(
-            SETTINGS
-                .iter()
-                .map(|name| {
-                    let previous = std::env::var_os(name);
-                    std::env::remove_var(name);
-                    (*name, previous)
-                })
-                .collect(),
-        )
-    }
-
-    fn set(&self, name: &str, value: &str) {
-        std::env::set_var(name, value);
-    }
-}
-
-impl Drop for Settings {
-    fn drop(&mut self) {
-        for (name, previous) in &self.0 {
-            match previous {
-                Some(value) => std::env::set_var(name, value),
-                None => std::env::remove_var(name),
-            }
-        }
-    }
-}
-
-// The only test of this binary that reads or changes the Keycloak settings;
-// the others register their issuers with the application instead.
 #[rocket::async_test]
-async fn without_managed_issuers_the_guard_trusts_the_configured_ones() {
+async fn without_managed_issuers_tokens_are_a_server_error() {
     let client = Client::tracked(rocket::build().mount("/", routes![claims]))
         .await
         .unwrap();
-    let public = signing::token(&voter(&tenant_issuer()));
-    let alias = signing::token(&voter(&format!("{ALIAS}/realms/tenant-north")));
-    let settings = Settings::clear();
-    assert_eq!(answer(&client, &public).await.0, Status::Unauthorized);
-    settings.set("KEYCLOAK_URL", "not-a-url");
-    assert_eq!(answer(&client, &public).await.0, Status::Unauthorized);
-    settings.set("KEYCLOAK_URL", &signing::issuers().internal_base);
-    assert_eq!(answer(&client, &public).await.0, Status::Unauthorized);
-    settings.set("KEYCLOAK_PUBLIC_URL", signing::ISSUER);
-    assert_eq!(answer(&client, &public).await.0, Status::Ok);
-    settings.set("KIOSK_KEYCLOAK_URL", "");
-    settings.set("HARVEST_JWT_ISSUER_URLS", " , ");
-    assert_eq!(answer(&client, &public).await.0, Status::Ok);
-    assert_eq!(answer(&client, &alias).await.0, Status::Unauthorized);
-    settings.set("HARVEST_JWT_ISSUER_URLS", &format!(" , {ALIAS} ,"));
-    assert_eq!(answer(&client, &alias).await.0, Status::Ok);
-    settings.set("HARVEST_JWT_ISSUER_URLS", "ftp://alias.example");
-    assert_eq!(answer(&client, &public).await.0, Status::Unauthorized);
+    let (status, _) =
+        answer(&client, &signing::token(&voter(&tenant_issuer()))).await;
+    assert_eq!(status, Status::InternalServerError);
 }

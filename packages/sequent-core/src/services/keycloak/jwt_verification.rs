@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use super::{get_event_realm, get_tenant_realm};
 use crate::services::jwt::JwtClaims;
-use crate::services::keycloak::{get_event_realm, get_tenant_realm};
 use anyhow::{anyhow, ensure, Context, Result};
 use base64::Engine;
 use jsonwebtoken::jwk::JwkSet;
@@ -14,10 +14,16 @@ use std::sync::{Arc, OnceLock};
 use std::time::{Duration, Instant};
 use tokio::sync::{Mutex, Semaphore};
 
-pub(super) const KEYCLOAK_URL: &str = "KEYCLOAK_URL";
-pub(super) const KEYCLOAK_PUBLIC_URL: &str = "KEYCLOAK_PUBLIC_URL";
-pub(super) const KIOSK_KEYCLOAK_URL: &str = "KIOSK_KEYCLOAK_URL";
-pub(super) const HARVEST_JWT_ISSUER_URLS: &str = "HARVEST_JWT_ISSUER_URLS";
+const KEYCLOAK_URL: &str = "KEYCLOAK_URL";
+const KEYCLOAK_PUBLIC_URL: &str = "KEYCLOAK_PUBLIC_URL";
+const KIOSK_KEYCLOAK_URL: &str = "KIOSK_KEYCLOAK_URL";
+const HARVEST_JWT_ISSUER_URLS: &str = "HARVEST_JWT_ISSUER_URLS";
+/// Optional settings, each a comma-separated list of further issuer bases.
+const OPTIONAL_ISSUER_SETTINGS: [&str; 3] = [
+    KEYCLOAK_PUBLIC_URL,
+    KIOSK_KEYCLOAK_URL,
+    HARVEST_JWT_ISSUER_URLS,
+];
 
 const CACHE_TTL: Duration = Duration::from_secs(300);
 const REFRESH_INTERVAL: Duration = Duration::from_secs(30);
@@ -61,18 +67,69 @@ fn configured_base(base: &str) -> Result<Url> {
     Ok(url)
 }
 
+/// Issuers whose bearer tokens are accepted, and the server their signing keys
+/// are downloaded from. Every URL is validated once, when the value is built,
+/// and applications register it as Rocket managed state for the guards.
+#[derive(Debug)]
+pub struct BearerIssuers {
+    internal_base: Url,
+    trusted_bases: Vec<Url>,
+}
+
+impl BearerIssuers {
+    /// Trusts `trusted_bases` and downloads signing keys from
+    /// `internal_base`, which is trusted as an issuer only if also listed.
+    pub fn new(internal_base: &str, trusted_bases: &[&str]) -> Result<Self> {
+        Ok(Self {
+            internal_base: configured_base(internal_base)?,
+            trusted_bases: trusted_bases
+                .iter()
+                .map(|base| configured_base(base))
+                .collect::<Result<_>>()?,
+        })
+    }
+
+    /// Reads the issuer settings through `var`: `KEYCLOAK_URL`, which is
+    /// required, trusted and used for key downloads, and the optional
+    /// comma-separated `KEYCLOAK_PUBLIC_URL`, `KIOSK_KEYCLOAK_URL` and
+    /// `HARVEST_JWT_ISSUER_URLS`. Errors name the setting, never its value.
+    pub fn from_vars(var: impl Fn(&str) -> Option<String>) -> Result<Self> {
+        let internal = var(KEYCLOAK_URL)
+            .with_context(|| format!("{KEYCLOAK_URL} must be set"))?;
+        let internal_base = setting_base(KEYCLOAK_URL, &internal)?;
+        let mut trusted_bases = vec![internal_base.clone()];
+        for name in OPTIONAL_ISSUER_SETTINGS {
+            for base in var(name)
+                .unwrap_or_default()
+                .split(',')
+                .map(str::trim)
+                .filter(|base| !base.is_empty())
+            {
+                trusted_bases.push(setting_base(name, base)?);
+            }
+        }
+        Ok(Self {
+            internal_base,
+            trusted_bases,
+        })
+    }
+}
+
+fn setting_base(name: &str, base: &str) -> Result<Url> {
+    configured_base(base)
+        .with_context(|| format!("Invalid {name} issuer configuration"))
+}
+
+fn realm_url(base: &Url, realm: &str) -> String {
+    format!("{}/realms/{realm}", base.as_str().trim_end_matches('/'))
+}
+
 /// The payload is only a routing hint until signature verification completes.
 /// It can select a realm below a configured origin, never a new key server.
-fn trusted_realm(claims: &JwtClaims, trusted_bases: &[&str]) -> Result<String> {
+fn trusted_realm(claims: &JwtClaims, trusted_bases: &[Url]) -> Result<String> {
     let realm = trusted_bases
         .iter()
-        .find_map(|base| {
-            let base = configured_base(base).ok()?;
-            claims.iss.strip_prefix(&format!(
-                "{}/realms/",
-                base.as_str().trim_end_matches('/')
-            ))
-        })
+        .find_map(|base| claims.iss.strip_prefix(&realm_url(base, "")))
         .context("Untrusted issuer")?;
     ensure!(
         !realm.is_empty()
@@ -134,18 +191,13 @@ fn jwks_client() -> Result<&'static Client> {
             .build()
     }) {
         Ok(client) => Ok(client),
-        Err(error) => {
-            Err(anyhow!("Cannot initialize signing-key client: {error}"))
-        }
+        Err(error) => Err(anyhow!("Cannot build signing-key client: {error}")),
     }
 }
 
-async fn download_keys(base: &str, realm: &str) -> Result<JwkSet> {
-    let base = configured_base(base)?;
-    let endpoint = format!(
-        "{}/realms/{realm}/protocol/openid-connect/certs",
-        base.as_str().trim_end_matches('/')
-    );
+async fn download_keys(base: &Url, realm: &str) -> Result<JwkSet> {
+    let endpoint =
+        format!("{}/protocol/openid-connect/certs", realm_url(base, realm));
     let mut response = jwks_client()?.get(endpoint).send().await?;
     ensure!(
         response.status().is_success(),
@@ -184,11 +236,11 @@ fn make_room(entries: &mut RealmCache) -> Result<()> {
 
 async fn realm_keys(
     downloads: &Semaphore,
-    base: &str,
+    base: &Url,
     realm: &str,
     kid: &str,
 ) -> Result<Arc<JwkSet>> {
-    let cache_key = format!("{base}/realms/{realm}");
+    let cache_key = realm_url(base, realm);
     let entry = {
         let mut entries = cache().lock().await;
         if !entries.contains_key(&cache_key)
@@ -233,46 +285,10 @@ async fn realm_keys(
     Ok(keys)
 }
 
-pub(super) async fn verify_bearer(token: &str) -> Result<JwtClaims> {
-    let internal_base = std::env::var(KEYCLOAK_URL)
-        .with_context(|| format!("{KEYCLOAK_URL} must be set"))?;
-    validate_configured_base(KEYCLOAK_URL, &internal_base)?;
-    let mut bases = vec![internal_base.clone()];
-    for variable in [
-        KEYCLOAK_PUBLIC_URL,
-        KIOSK_KEYCLOAK_URL,
-        HARVEST_JWT_ISSUER_URLS,
-    ] {
-        if let Ok(value) = std::env::var(variable) {
-            for base in value
-                .split(',')
-                .map(str::trim)
-                .filter(|base| !base.is_empty())
-            {
-                validate_configured_base(variable, base)?;
-                bases.push(base.to_owned());
-            }
-        }
-    }
-    let trusted_bases: Vec<_> = bases.iter().map(String::as_str).collect();
-    verify_bearer_with_config(token, &trusted_bases, &internal_base).await
-}
-
-fn validate_configured_base(variable: &str, base: &str) -> Result<()> {
-    configured_base(base).map(|_| ()).map_err(|error| {
-        // Report the setting name without logging a potentially sensitive value.
-        tracing::warn!(
-            setting = variable,
-            "Invalid Keycloak issuer configuration"
-        );
-        error.context(format!("Invalid {variable} issuer configuration"))
-    })
-}
-
-pub(super) async fn verify_bearer_with_config(
+/// Verifies the signature, expiry and issuer of `token` and returns its claims.
+pub(crate) async fn verify_bearer(
     token: &str,
-    trusted_bases: &[&str],
-    internal_base: &str,
+    issuers: &BearerIssuers,
 ) -> Result<JwtClaims> {
     ensure!(token.len() <= MAX_TOKEN_BYTES, "Token is too large");
     let header = decode_header(token)?;
@@ -285,12 +301,16 @@ pub(super) async fn verify_bearer_with_config(
     let payload: JwtClaims = serde_json::from_slice(
         &base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(payload)?,
     )?;
-    let realm = trusted_realm(&payload, trusted_bases)?;
-    let keys = realm_keys(&DOWNLOADS, internal_base, &realm, &kid).await?;
+    let realm = trusted_realm(&payload, &issuers.trusted_bases)?;
+    let keys =
+        realm_keys(&DOWNLOADS, &issuers.internal_base, &realm, &kid).await?;
     let verified: JwtClaims = verify_with_jwks(token, &payload.iss, &keys)?;
-    trusted_realm(&verified, trusted_bases)?;
+    trusted_realm(&verified, &issuers.trusted_bases)?;
     Ok(verified)
 }
 
+// The tests and fixtures keep their path from before the move here: the
+// coverage gate measures both compared revisions with one exclusion list.
 #[cfg(test)]
+#[path = "../jwt_verification/tests.rs"]
 mod tests;

@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 mod admin_client;
+mod jwt_verification;
 mod path_segment;
 mod permission;
 mod realm;
@@ -15,6 +16,8 @@ mod user;
 mod path_segment_tests;
 
 pub use self::admin_client::*;
+pub(crate) use self::jwt_verification::verify_bearer;
+pub use self::jwt_verification::BearerIssuers;
 pub use self::path_segment::*;
 pub use self::permission::*;
 pub use self::realm::*;

@@ -15,6 +15,9 @@ use std::sync::{Arc, Mutex, Once};
 use tracing::instrument::WithSubscriber;
 use tracing_subscriber::fmt::format::FmtSpan;
 
+#[path = "support/signing.rs"]
+mod signing;
+
 const CLIENT_ID: &str = "datafix-client";
 const CLIENT_SECRET: &str = "ClientSecretValue6d1e";
 const ACCESS_TOKEN: &str = "AccessTokenValue3b7a";
@@ -137,6 +140,7 @@ async fn datafix_guard_keeps_client_secret_out_of_logs() {
     let client = Client::untracked(
         rocket::build()
             .manage(LastDatafixAccessToken::init())
+            .manage(signing::issuers())
             .mount("/", rocket::routes![datafix_route]),
     )
     .await

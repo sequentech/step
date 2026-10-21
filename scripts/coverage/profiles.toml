@@ -70,7 +70,6 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 "src/signing/code_tests.rs" = "Standalone unit-test module under cfg(test); the signing code remains measured."
 "src/signing/types_tests.rs" = "Standalone unit-test module under cfg(test); the signing types remain measured."
 "src/services/jwt_verification/tests.rs" = "Standalone unit-test module under cfg(test); the bearer verification remains measured."
-"src/services/test_support.rs" = "Helpers for the unit tests under cfg(test); the bearer verification and the Keycloak client remain measured."
 
 # These files have no measured executable bodies. If one gains executable code,
 # the reporter rejects the exception instead of hiding its new implementation.
@@ -156,7 +155,6 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 "src/signing/code_tests.rs" = "Standalone unit-test module under cfg(test); the signing code remains measured."
 "src/signing/types_tests.rs" = "Standalone unit-test module under cfg(test); the signing types remain measured."
 "src/services/jwt_verification/tests.rs" = "Standalone unit-test module under cfg(test); the bearer verification remains measured."
-"src/services/test_support.rs" = "Helpers for the unit tests under cfg(test); the bearer verification and the Keycloak client remain measured."
 
 # These files have no measured executable bodies. If one gains executable code,
 # the reporter rejects the exception instead of hiding its new implementation.

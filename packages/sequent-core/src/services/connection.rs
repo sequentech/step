@@ -2,12 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::jwt::*;
-use crate::services::jwt_verification::{
-    verify_bearer, verify_bearer_with_config,
-};
 use crate::services::keycloak::{
-    get_third_party_client_access_token, KeycloakAdminClient,
-    PubKeycloakAdminToken,
+    get_third_party_client_access_token, verify_bearer, BearerIssuers,
+    KeycloakAdminClient, PubKeycloakAdminToken,
 };
 use anyhow::{anyhow, Result as AnyhowResult};
 use keycloak::{KeycloakAdmin, KeycloakAdminToken};
@@ -60,28 +57,6 @@ impl<'r> FromRequest<'r> for AuthHeaders {
     }
 }
 
-/// Issuers the bearer guards trust, and the server their signing keys come
-/// from. Applications that manage none use the Keycloak environment settings.
-pub struct BearerIssuers {
-    pub internal_base: String,
-    pub trusted_bases: Vec<String>,
-}
-
-async fn verified_claims(
-    request: &Request<'_>,
-    token: &str,
-) -> AnyhowResult<JwtClaims> {
-    match request.rocket().state::<BearerIssuers>() {
-        Some(issuers) => {
-            let trusted: Vec<&str> =
-                issuers.trusted_bases.iter().map(String::as_str).collect();
-            verify_bearer_with_config(token, &trusted, &issuers.internal_base)
-                .await
-        }
-        None => verify_bearer(token).await,
-    }
-}
-
 #[rocket::async_trait]
 impl<'r> FromRequest<'r> for JwtClaims {
     type Error = ();
@@ -93,15 +68,23 @@ impl<'r> FromRequest<'r> for JwtClaims {
         match headers.get_one("authorization") {
             Some(authorization) => {
                 match authorization.strip_prefix("Bearer ") {
-                    Some(token) => match verified_claims(request, token).await {
-                        Ok(jwt) => Outcome::Success(jwt),
-                        Err(err) => {
-                            warn!(
-                                "JwtClaims guard: invalid bearer token: {err:#}"
-                            );
-                            Outcome::Error((Status::Unauthorized, ()))
+                    Some(token) => {
+                        // Unmanaged issuers are a server misconfiguration:
+                        // 500, not 401.
+                        let issuers = try_outcome!(
+                            request.guard::<&State<BearerIssuers>>().await
+                        );
+                        match verify_bearer(token, issuers).await {
+                            Ok(jwt) => Outcome::Success(jwt),
+                            Err(err) => {
+                                warn!(
+                                    "JwtClaims guard: invalid bearer token: \
+                                     {err:#}"
+                                );
+                                Outcome::Error((Status::Unauthorized, ()))
+                            }
                         }
-                    },
+                    }
                     None => {
                         warn!(
                             "JwtClaims guard: unsupported authorization scheme"
@@ -356,6 +339,10 @@ impl<'r> FromRequest<'r> for DatafixClaims {
         let lst_acc_tkn = try_outcome!(
             request.guard::<&State<LastDatafixAccessToken>>().await
         );
+        // Without issuers no token can be verified, so fail before requesting
+        // one from Keycloak.
+        let issuers =
+            try_outcome!(request.guard::<&State<BearerIssuers>>().await);
         let token_resp = match read_access_token(
             &authorization.client_id,
             &authorization.client_secret,
@@ -383,7 +370,7 @@ impl<'r> FromRequest<'r> for DatafixClaims {
             }
         };
 
-        match verified_claims(request, &token_resp.access_token).await {
+        match verify_bearer(&token_resp.access_token, issuers).await {
             Ok(jwt_claims) => Outcome::Success(DatafixClaims {
                 jwt_claims,
                 tenant_id,
@@ -443,76 +430,5 @@ mod redaction_tests {
         assert!(debug.contains("tenant"), "{debug}");
         assert!(!debug.contains(CLIENT_SECRET), "{debug}");
         assert!(!debug.contains(ACCESS_TOKEN), "{debug}");
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::services::jwt::JwtClaims;
-    use crate::services::jwt_verification::{
-        KEYCLOAK_PUBLIC_URL, KEYCLOAK_URL,
-    };
-    use crate::services::test_support::{
-        claims, clear_optional_issuer_settings, in_child_process, keys,
-        one_shot_server, token,
-    };
-    use rocket::http::{Header, Status};
-
-    #[rocket::get("/authenticated")]
-    fn authenticated(_claims: JwtClaims) -> &'static str {
-        "authenticated"
-    }
-
-    #[tokio::test]
-    async fn request_guard_rejects_forged_tokens_and_accepts_signed_tokens() {
-        if !in_child_process(
-            module_path!(),
-            "request_guard_rejects_forged_tokens_and_accepts_signed_tokens",
-        ) {
-            return;
-        }
-        clear_optional_issuer_settings();
-        let (internal, served) = one_shot_server(
-            "200 OK",
-            serde_json::to_string(&keys()).unwrap(),
-            "",
-        )
-        .await;
-        std::env::set_var(KEYCLOAK_URL, &internal);
-        std::env::set_var(KEYCLOAK_PUBLIC_URL, "https://keycloak.example");
-        let client = rocket::local::asynchronous::Client::tracked(
-            rocket::build().mount("/", rocket::routes![authenticated]),
-        )
-        .await
-        .unwrap();
-        assert_eq!(
-            client.get("/authenticated").dispatch().await.status(),
-            Status::Unauthorized
-        );
-        let valid = token(&claims());
-        let parts: Vec<_> = valid.split('.').collect();
-        let forged = format!("{}.{}.forged", parts[0], parts[1]);
-        assert_eq!(
-            client
-                .get("/authenticated")
-                .header(Header::new(
-                    "Authorization",
-                    format!("Bearer {forged}")
-                ))
-                .dispatch()
-                .await
-                .status(),
-            Status::Unauthorized
-        );
-        served.await.unwrap();
-        assert_eq!(
-            client
-                .get("/authenticated")
-                .header(Header::new("Authorization", format!("Bearer {valid}")))
-                .dispatch()
-                .await
-                .status(),
-            Status::Ok
-        );
     }
 }

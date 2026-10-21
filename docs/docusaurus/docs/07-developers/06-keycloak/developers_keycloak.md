@@ -339,6 +339,15 @@ setting, including any `/auth` prefix. These URLs select accepted issuers;
 key downloads always use the internal `KEYCLOAK_URL`. The checked-in local and
 air-gapped configurations explicitly include their localhost issuer aliases.
 
+Harvest reads and checks these settings once, at startup, so changing one needs
+a restart. When `KEYCLOAK_URL` is missing, or a configured URL is not an
+HTTP(S) URL with a host or contains credentials, a query or a fragment, Harvest
+stops with an error that names the setting, never its value. Any application
+that mounts routes behind the `JwtClaims` or `DatafixClaims` request guards
+registers the settings as Rocket managed state (`BearerIssuers` in
+`sequent_core::services::keycloak`); without them those guards answer 500, not
+401.
+
 Before restarting Harvest with this change, verify that every normal and kiosk
 login issuer is configured and that Harvest can reach each realm's internal
 `protocol/openid-connect/certs` endpoint. Existing Keycloak RS256 access tokens

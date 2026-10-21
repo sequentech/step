@@ -11,8 +11,6 @@ pub mod date;
 #[cfg(feature = "jwt")]
 pub mod jwt;
 #[cfg(feature = "keycloak")]
-mod jwt_verification;
-#[cfg(feature = "keycloak")]
 pub mod keycloak;
 #[cfg(feature = "reports")]
 pub mod pdf;
@@ -38,6 +36,3 @@ pub mod authorization;
 
 #[cfg(feature = "keycloak")]
 pub mod uuid_validation;
-
-#[cfg(all(test, feature = "keycloak"))]
-mod test_support;

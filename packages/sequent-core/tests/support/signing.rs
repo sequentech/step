@@ -9,7 +9,7 @@
 #![allow(dead_code)]
 
 use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
-use sequent_core::services::connection::BearerIssuers;
+use sequent_core::services::keycloak::BearerIssuers;
 use serde_json::Value;
 use std::io::{BufRead, BufReader, Write};
 use std::net::{TcpListener, TcpStream};
@@ -49,10 +49,7 @@ pub fn key_set() -> Value {
 
 /// Trusts [`ISSUER`] and downloads its keys from the local server.
 pub fn issuers() -> BearerIssuers {
-    BearerIssuers {
-        internal_base: key_server().into(),
-        trusted_bases: vec![ISSUER.into()],
-    }
+    BearerIssuers::new(key_server(), &[ISSUER]).unwrap()
 }
 
 fn key_server() -> &'static str {
