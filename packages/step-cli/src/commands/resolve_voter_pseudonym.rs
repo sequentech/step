@@ -46,8 +46,28 @@ struct Resolution {
 }
 
 fn resolved_voter(response: Response<Value>) -> Result<Resolution, Box<dyn Error>> {
-    if response.errors.is_some_and(|errors| !errors.is_empty()) {
-        return Err("Pseudonym resolution was refused or could not complete".into());
+    if let Some(errors) = response.errors.filter(|errors| !errors.is_empty()) {
+        let hint = errors.iter().find_map(|error| {
+            let code = error.extensions.as_ref()?.get("code")?.as_str()?;
+            match code {
+                "invalid-jwt" => Some(
+                    "Pseudonym resolution authentication failed: the access token is invalid or expired. Copy a fresh Authorization value from the browser and store only its token in auth_token.",
+                ),
+                "invalid-headers" => Some(
+                    "Malformed Authorization header. Store only the raw access token in auth_token, without the Bearer prefix.",
+                ),
+                "access-denied" => Some(
+                    "Pseudonym resolution requires the voter-pseudonym-resolve permission.",
+                ),
+                "validation-failed" => Some(
+                    "Pseudonym resolution is unavailable for this session. Check the voter-pseudonym-resolve permission and the server action configuration.",
+                ),
+                _ => None,
+            }
+        });
+        return Err(hint
+            .unwrap_or("Pseudonym resolution was refused or could not complete")
+            .into());
     }
     let payload = response
         .data
@@ -166,6 +186,53 @@ mod tests {
             json!({"data": {"resolve_voter_pseudonym": {"payload": {"other": "value"}}}}),
         ] {
             assert!(resolved_voter(response(value)).is_err());
+        }
+    }
+
+    #[test]
+    fn jwt_failures_explain_how_to_recover_without_exposing_the_response() {
+        let error = resolved_voter(response(json!({
+            "data": {"resolve_voter_pseudonym": {"payload": {"voter_id": "private-voter"}}},
+            "errors": [{
+                "message": "sensitive server diagnostic",
+                "extensions": {"code": "invalid-jwt"}
+            }]
+        })))
+        .err()
+        .unwrap()
+        .to_string();
+        assert!(
+            error.contains("access token is invalid or expired"),
+            "{error}"
+        );
+        assert!(error.contains("fresh Authorization"), "{error}");
+        assert!(!error.contains("sensitive server diagnostic"));
+        assert!(!error.contains("private-voter"));
+    }
+
+    #[test]
+    fn malformed_authorization_headers_explain_the_raw_token_format() {
+        let error = resolved_voter(response(json!({
+            "errors": [{"message": "private diagnostic", "extensions": {"code": "invalid-headers"}}]
+        })))
+        .err()
+        .unwrap()
+        .to_string();
+        assert!(error.contains("without the Bearer prefix"), "{error}");
+        assert!(!error.contains("private diagnostic"));
+    }
+
+    #[test]
+    fn permission_failures_name_the_required_permission() {
+        for code in ["access-denied", "validation-failed"] {
+            let error = resolved_voter(response(json!({
+                "errors": [{"message": "private diagnostic", "extensions": {"code": code}}]
+            })))
+            .err()
+            .unwrap()
+            .to_string();
+            assert!(error.contains("voter-pseudonym-resolve"), "{error}");
+            assert!(!error.contains("private diagnostic"));
         }
     }
 

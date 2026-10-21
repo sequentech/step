@@ -57,6 +57,8 @@ This is a known-value regression detector. It does not prove the absence of arbi
      --reason "Privacy validation of synthetic ballot"
    ```
 
+   The CLI reads `auth_token` from `config/configuration.json` beside its executable. Use the complete raw browser access token without the `Bearer ` prefix; shortened display values are not valid tokens. Authentication errors distinguish invalid or expired tokens, malformed headers, and missing resolver permission without exposing server diagnostics or a partial resolution answer.
+
    Keep the returned voter ID in the private acceptance record. Confirm it matches the synthetic census account. Ordinary Logs and proof actions must never return this resolution.
 
 7. Wait for the signed `PseudonymResolved` audit entry. Verify its authority signature through the electoral-log audit and inspect its actor, pseudonym, and reason. Confirm the reason matches the supplied free text after trimming surrounding whitespace, and the resolved voter ID is absent from the public statement. Repeat the ballot artifact scan and retain its output.
