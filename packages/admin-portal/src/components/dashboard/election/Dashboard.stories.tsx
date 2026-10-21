@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+import {atViewport} from "../../../../../test-support/storybook/viewport"
+import {expectDashboardChartLayout} from "../__stories__/chartLayout"
 import React from "react"
 import type {StoryObj} from "@storybook/react-vite"
 import {expect, userEvent, waitFor, within} from "storybook/test"
@@ -179,3 +181,12 @@ export const ChangeTheTimeRange: Story = {
         )
     },
 }
+
+export const ResponsiveCharts: Story = {
+    ...atViewport(1440),
+    play: async ({canvasElement}) => {
+        await expectDashboardChartLayout(canvasElement)
+    },
+}
+export const ResponsiveChartsTablet: Story = {...ResponsiveCharts, ...atViewport(820)}
+export const ResponsiveChartsPhone: Story = {...ResponsiveCharts, ...atViewport(390)}

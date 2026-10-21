@@ -10,3 +10,12 @@ export const StandardDashboardContent = styled(Box)({
     minWidth: 0,
     marginInline: "auto",
 })
+
+/** Charts share the available width and stack with a gap in narrower containers. */
+export const StandardDashboardCharts = styled(Box)({
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 420px), 1fr))",
+    gap: 16,
+    minWidth: 0,
+    marginTop: 16,
+})

@@ -4,10 +4,9 @@
 
 import React, {useCallback, useContext, useEffect, useMemo, useState} from "react"
 import {Box, CircularProgress} from "@mui/material"
-import {StandardDashboardContent} from "../DashboardContent"
+import {StandardDashboardContent, StandardDashboardCharts} from "../DashboardContent"
 import {useQuery} from "@apollo/client"
 import {BreadCrumbSteps, BreadCrumbStepsVariant} from "@sequentech/ui-essentials"
-import {styled} from "@mui/material/styles"
 import {Stats} from "./Stats"
 import {useTranslation} from "react-i18next"
 import {daysBefore, formatDate, getToday} from "../charts/Charts"
@@ -38,12 +37,6 @@ import {LIST_KEYS_CEREMONY} from "@/queries/ListKeysCeremonies"
 import {IKeysCeremonyExecutionStatus} from "@/services/KeyCeremony"
 import {ETallyType} from "@/types/ceremonies"
 
-const Container = styled(Box)`
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-`
-
 interface DashboardElectionEventProps {
     refreshRef: any
     onMount?: () => void
@@ -60,7 +53,6 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
         DEFAULT_VOTES_TIME_SELECTION
     )
 
-    const cardWidth = 470
     const cardHeight = 300
     const endDate = getToday()
     const startDate = daysBefore(endDate, 6)
@@ -252,21 +244,19 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
 
                     <Stats metrics={metrics} />
 
-                    <Container className="dashboard-container">
+                    <StandardDashboardCharts className="dashboard-container">
                         <VotesPerDay
                             data={(dataStats?.stats?.votes_per_day as CastVotesPerDay[]) ?? null}
                             unavailable={!!error}
-                            width={cardWidth}
                             height={cardHeight}
                             selection={votesTimeSelection}
                             onSelectionChange={setVotesTimeSelection}
                         />
                         <VotersByChannel
                             data={toVotersByChannelRows(dataStats?.stats?.voters_by_channel)}
-                            width={cardWidth}
                             height={cardHeight}
                         />
-                    </Container>
+                    </StandardDashboardCharts>
                 </Box>
                 <Box
                     sx={{
