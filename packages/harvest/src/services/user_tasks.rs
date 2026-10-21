@@ -142,6 +142,24 @@ pub async fn export_users_with(
         vec![required_perm],
     )?;
 
+    let may_read_secret_attributes = if body.include_secret_attributes {
+        if body.election_event_id.is_none() {
+            return Err((
+                Status::BadRequest,
+                "Secret attributes can only be included in an election-event voter export"
+                    .to_string(),
+            ));
+        }
+        authorization.authorize(
+            &claims,
+            body.tenant_id.clone(),
+            vec![Permissions::VOTER_SECRET_ATTRIBUTE_READ],
+        )?;
+        true
+    } else {
+        false
+    };
+
     let permitted_elections = match body.election_event_id.as_deref() {
         Some(event_id) => {
             let ids = authorization
@@ -163,24 +181,6 @@ pub async fn export_users_with(
             })
         }
         None => None,
-    };
-
-    let may_read_secret_attributes = if body.include_secret_attributes {
-        if body.election_event_id.is_none() {
-            return Err((
-                Status::BadRequest,
-                "Secret attributes can only be included in an election-event voter export"
-                    .to_string(),
-            ));
-        }
-        authorization.authorize(
-            &claims,
-            body.tenant_id.clone(),
-            vec![Permissions::VOTER_SECRET_ATTRIBUTE_READ],
-        )?;
-        true
-    } else {
-        false
     };
 
     let document_id = documents.new_document_id();
