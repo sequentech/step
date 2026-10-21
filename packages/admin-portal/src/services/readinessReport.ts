@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+import {validFindings, type IReadinessFinding} from "./readinessFindings"
+
 export const READINESS_CHECK_KINDS = [
     "configuration",
     "certified_voters",
@@ -12,7 +14,12 @@ export const READINESS_CHECK_KINDS = [
 export interface IReadinessReport extends Record<string, unknown> {
     passed: boolean
     checked_at: string
-    checks: Array<{kind: string; passed: boolean; message: string}>
+    checks: Array<{
+        kind: string
+        passed: boolean
+        message: string
+        findings?: IReadinessFinding[]
+    }>
     evidence: {
         official: Record<string, unknown> & {event_id: string}
         tested: Record<string, unknown> & {event_id: string}
@@ -45,7 +52,10 @@ export function readinessReport(
                 isObject(check) &&
                 typeof check.kind === "string" &&
                 typeof check.passed === "boolean" &&
-                typeof check.message === "string"
+                typeof check.message === "string" &&
+                validFindings(check.findings) &&
+                // A finding is a failed predicate: a passed check has none.
+                !(check.passed && Array.isArray(check.findings) && check.findings.length)
         )
     )
         return null
