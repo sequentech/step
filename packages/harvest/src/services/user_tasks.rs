@@ -15,6 +15,10 @@ use sequent_core::types::voter_import::FileIntegrityPolicy;
 use tracing::info;
 use windmill::services::electoral_log::ElectoralLogAdminContext;
 use windmill::services::export::export_users::{ExportBody, ExportUsersBody};
+use windmill::services::participation_authorization::{
+    ParticipationAuthorization, ParticipationCommand,
+    PARTICIPATION_AUTHORIZATION,
+};
 use windmill::tasks::export_users::ExportUsersOutput;
 use windmill::tasks::import_users::{ImportUsersBody, ImportUsersOutput};
 
@@ -156,6 +160,29 @@ pub async fn export_users_with(
         false
     };
 
+    let permitted_elections = match body.election_event_id.as_deref() {
+        Some(event_id) => {
+            let ids = authorization
+                .participation_elections(&claims, event_id)
+                .await?;
+            if body
+                .election_id
+                .as_ref()
+                .is_some_and(|id| !ids.contains(id))
+            {
+                return Err((
+                    Status::Forbidden,
+                    "Election outside the user's permission labels".into(),
+                ));
+            }
+            Some(match body.election_id.as_ref() {
+                Some(id) => vec![id.clone()],
+                None => ids,
+            })
+        }
+        None => None,
+    };
+
     let document_id = documents.new_document_id();
     if let (true, Some(election_event_id)) = (
         may_read_secret_attributes,
@@ -173,32 +200,44 @@ pub async fn export_users_with(
 
     // Authorize before creating the task row, then persist a task-bound grant.
     // The worker reloads this row and never trusts a broker-supplied boolean.
-    let task_execution =
-        if let Some(ref election_event_id) = body.election_event_id {
-            Some(
-                ledger
-                    .create_export(
-                        &tenant_id,
-                        election_event_id,
-                        &executer_name,
-                        documents.grant_annotations(
-                            &document_id,
-                            may_read_secret_attributes,
-                        ),
-                    )
-                    .await
-                    .map_err(|error| {
-                        (
-                            Status::InternalServerError,
-                            format!(
+    let task_execution = if let Some(ref election_event_id) =
+        body.election_event_id
+    {
+        let mut annotations = documents
+            .grant_annotations(&document_id, may_read_secret_attributes);
+        annotations[PARTICIPATION_AUTHORIZATION] =
+            serde_json::to_value(ParticipationAuthorization {
+                tenant_id: tenant_id.clone(),
+                election_event_id: election_event_id.clone(),
+                actor_id: claims.hasura_claims.user_id.clone(),
+                command: ParticipationCommand::VoterExport,
+                command_id: document_id.clone(),
+                election_ids: permitted_elections.clone().unwrap_or_default(),
+            })
+            .map_err(|error| {
+                (Status::InternalServerError, error.to_string())
+            })?;
+        Some(
+            ledger
+                .create_export(
+                    &tenant_id,
+                    election_event_id,
+                    &executer_name,
+                    annotations,
+                )
+                .await
+                .map_err(|error| {
+                    (
+                        Status::InternalServerError,
+                        format!(
                             "Failed to insert task execution record: {error:?}"
                         ),
-                        )
-                    })?,
-            )
-        } else {
-            None
-        };
+                    )
+                })?,
+        )
+    } else {
+        None
+    };
 
     let sent = match dispatch.connect().await {
         Ok(connection) => {

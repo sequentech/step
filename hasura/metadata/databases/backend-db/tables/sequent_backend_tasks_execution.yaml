@@ -50,6 +50,8 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+              type:
+                  _neq: CREATE_BALLOT_RECEIPT
       role: admin-user
     - comment: ""
       permission:
@@ -89,6 +91,8 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+              type:
+                  _neq: CREATE_BALLOT_RECEIPT
       role: tasks-export
     - comment: ""
       permission:
@@ -110,6 +114,8 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+              type:
+                  _neq: CREATE_BALLOT_RECEIPT
       role: tasks-read
 update_permissions:
     - comment: ""

@@ -17,7 +17,9 @@ import {
 } from "@sequentech/ui-essentials"
 import {
     stringToHtml,
+    zoneName,
     EShowCastVoteLogsPolicy,
+    EBallotIdentity,
     formatVotingPortalDateTime,
     translateHtml,
     stringToText,
@@ -54,6 +56,7 @@ import TablePagination from "@mui/material/TablePagination"
 import TableHead from "@mui/material/TableHead"
 import TableRow from "@mui/material/TableRow"
 import Paper from "@mui/material/Paper"
+import {BallotBoxLog} from "../components/BallotBoxLog"
 import {ICastVoteEntry} from "../types/castVoteLogEntry"
 import {selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 import {ballotTimeZones, formatBallotTime} from "../services/ElectionTimeZones"
@@ -184,6 +187,8 @@ const BallotLocator: React.FC = () => {
             ?.presentation,
         ballotStyle?.ballot_eml
     )
+    const pseudonymous =
+        logsElectionEvent?.presentation?.ballot_identity === EBallotIdentity.PSEUDONYM
     const formatLogTime = (timestamp: number) =>
         formatBallotTime(new Date(timestamp), {
             event: logsElectionEvent,
@@ -212,6 +217,7 @@ const BallotLocator: React.FC = () => {
     let fetchTimeout: any = useRef(undefined)
 
     const requestCVMsgs = async (headerName?: string, newOrder?: string) => {
+        if (pseudonymous) return
         let duration = lastCVRequestTimestamp.current
             ? Date.now() - lastCVRequestTimestamp.current
             : undefined
@@ -270,7 +276,12 @@ const BallotLocator: React.FC = () => {
             getChecksPeriod(presentation, new Date()).status === EChecksPeriodStatus.ENDED
         setShowCVLogsPolicy(showLogs === EShowCastVoteLogsPolicy.SHOW_LOGS_TAB && !checksEnded)
         // the length must be an even number of characters
-        if (showLogs && !checksEnded && allowSendRequest.current) {
+        if (
+            showLogs === EShowCastVoteLogsPolicy.SHOW_LOGS_TAB &&
+            !pseudonymous &&
+            !checksEnded &&
+            allowSendRequest.current
+        ) {
             allowSendRequest.current = false
             requestCVMsgs()
         }
@@ -348,27 +359,45 @@ const BallotLocator: React.FC = () => {
                     />
                 </CustomTabPanel>
                 <CustomTabPanel className="cast-vote-logs-panel" value={value} index={1}>
-                    <Box className="cast-vote-logs-filter" marginTop="48px">
-                        <BallotIdInput
-                            inputBallotId={inputBallotId}
-                            setInputBallotId={setInputBallotId}
-                            validatedBallotId={validatedBallotId}
-                            ballotIdNotFoundErr={ballotIdNotFoundErr}
-                            captureEnter={captureEnter}
-                            placeholderLabel="ballotLocator.filterByBallotId"
+                    {pseudonymous && showCVLogsPolicy && eventId ? (
+                        <BallotBoxLog
+                            electionEventId={eventId}
+                            electionId={electionId}
+                            timeZoneLabel={
+                                zones
+                                    ? zoneName(zones.timeZone, {
+                                          t,
+                                          lang: i18n.resolvedLanguage || i18n.language,
+                                      })
+                                    : undefined
+                            }
+                            formatTime={(timestamp) => formatLogTime(new Date(timestamp).getTime())}
                         />
-                    </Box>
-                    <LogsTable
-                        rows={rows}
-                        total={total}
-                        onOrderBy={onClickHeader}
-                        rowsPerPage={rowsPerPage}
-                        handleChangeRowsPerPage={handleChangeRowsPerPage}
-                        page={page}
-                        handleChangePage={handleChangePage}
-                        somethingWentWrongErr={somethingWentWrongErr}
-                        formatDateTime={formatLogTime}
-                    />
+                    ) : (
+                        <>
+                            <Box className="cast-vote-logs-filter" marginTop="48px">
+                                <BallotIdInput
+                                    inputBallotId={inputBallotId}
+                                    setInputBallotId={setInputBallotId}
+                                    validatedBallotId={validatedBallotId}
+                                    ballotIdNotFoundErr={ballotIdNotFoundErr}
+                                    captureEnter={captureEnter}
+                                    placeholderLabel="ballotLocator.filterByBallotId"
+                                />
+                            </Box>
+                            <LogsTable
+                                rows={rows}
+                                total={total}
+                                onOrderBy={onClickHeader}
+                                rowsPerPage={rowsPerPage}
+                                handleChangeRowsPerPage={handleChangeRowsPerPage}
+                                page={page}
+                                handleChangePage={handleChangePage}
+                                somethingWentWrongErr={somethingWentWrongErr}
+                                formatDateTime={formatLogTime}
+                            />
+                        </>
+                    )}
                 </CustomTabPanel>
                 <Box
                     className="ballot-locator-actions"

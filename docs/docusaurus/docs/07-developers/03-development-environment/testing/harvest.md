@@ -49,6 +49,7 @@ From `packages`, run the focused suites with locked cached dependencies:
 ```sh
 # Synthetic configuration for SQL generation; these tests do not contact a database.
 export KEYCLOAK_DB__HOST=127.0.0.1 HASURA_DB__HOST=127.0.0.1
+export KEYCLOAK_VOTER_GROUP_NAME=voter
 export LOW_SQL_LIMIT=1000 DEFAULT_SQL_LIMIT=20 DEFAULT_SQL_BATCH_SIZE=1000
 cargo test -p harvest --locked --offline --bin harvest -- request_boundaries
 cargo test -p harvest --locked --offline --bin harvest -- error_contracts
@@ -57,14 +58,21 @@ cargo test -p harvest --locked --offline --bin harvest -- boundary_tests
 cargo test -p harvest --locked --offline --bin harvest -- services::access
 ```
 
-For a complete native report, from the repository root:
+For a complete native report, start a disposable PostgreSQL server on port
+`3322` with the `test` user, password and database. The role must be able to
+create databases for isolated event logs. From the repository root:
 
 ```sh
 python3 scripts/coverage/run.py harvest --baseline --offline
 ```
 
-The package profile supplies public local SQL configuration. Complete route
-tests also need the PostgreSQL fixture described below. Each run
+The package profile supplies public local SQL and synthetic vault configuration.
+It includes the otherwise ignored PostgreSQL privacy and audit contracts:
+signed public proofs, private receipt polling, operator resolution and forensic
+reads, durable audit entries, and retention after mapping purge. Receipt checks
+use the same managed database pool as ownership and document lookup. The two
+tests requiring a live renderer stay separate; their production code remains
+in the coverage inventory. Each run
 clears old LLVM counters and workspace binaries, so compile-time macro counters
 are collected again; external dependencies stay cached. Never store deployment
 secrets in `test_environment`.
@@ -121,6 +129,7 @@ export HASURA_DB__HOST=127.0.0.1 HASURA_DB__PORT=5432
 export HASURA_DB__USER=test HASURA_DB__PASSWORD=test HASURA_DB__DBNAME=test
 export KEYCLOAK_DB__HOST=127.0.0.1 KEYCLOAK_DB__PORT=5432
 export KEYCLOAK_DB__USER=test KEYCLOAK_DB__PASSWORD=test KEYCLOAK_DB__DBNAME=test
+export KEYCLOAK_VOTER_GROUP_NAME=voter
 export LOW_SQL_LIMIT=1000 DEFAULT_SQL_LIMIT=20 DEFAULT_SQL_BATCH_SIZE=1000
 cargo test -p harvest --locked
 ```

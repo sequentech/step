@@ -5,6 +5,7 @@ import englishTranslation, {TranslationType} from "./en"
 
 const spanishTranslation: TranslationType = {
     translations: {
+        ballotPrivacy: englishTranslation.translations.ballotPrivacy,
         readiness: {
             close: "Cerrar",
             action: "Verificar preparación",
@@ -2332,6 +2333,9 @@ const spanishTranslation: TranslationType = {
                 "application-write": "Editar Aplicación",
                 "approval-matrix-write": "Editar la Matriz de Aprobación",
                 "readiness-check": "Verificar la preparación electoral",
+                "forensic-read": "Leer datos forenses de red aislados",
+                "voter-pseudonym-resolve":
+                    "Resolver un seudónimo de votante con un motivo auditado",
                 "logs-export": "Exportar Registros",
                 "tenant-logs-read": "Leer Bitácora del Inquilino",
                 "tenant-logs-export": "Exportar Bitácora del Inquilino",

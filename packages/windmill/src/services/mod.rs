@@ -69,6 +69,7 @@ pub mod plugins_manager;
 pub mod probe;
 pub mod protocol_board;
 pub mod providers;
+pub mod public_ballot_keys;
 pub mod readiness;
 pub mod realm_localization;
 pub mod receive_ballot;
@@ -98,6 +99,10 @@ pub mod trustee_boards;
 pub mod trustee_updates;
 pub mod users;
 pub mod vault;
+pub mod vote_privacy;
 pub mod voter_secret_attributes;
 pub mod voting_status;
 pub mod weight_batches;
+
+pub mod participation_authorization;
+pub mod privacy_signin;

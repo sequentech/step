@@ -5,11 +5,12 @@
 //! event's electoral-log database on the server `ELECTORAL_LOG_PG_*` names.
 //! Administrators' GraphQL access never returns ballot contents.
 use super::voting::StoredBallot;
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, ensure, Context, Result};
 use electoral_log::adapters::ballot_box::BallotStatus;
 use electoral_log::adapters::ballot_box_reads::BallotIdMatch;
 use electoral_log::adapters::ballot_box_received::ReceivedStatus;
 use electoral_log::adapters::postgres::PostgresStore;
+use electoral_log::adapters::privacy::BallotIdentity;
 use std::time::{Duration, Instant};
 use windmill::services::ballot_box_reads::ballot_box_time;
 use windmill::services::electoral_log_board::get_event_store;
@@ -38,12 +39,21 @@ pub async fn wait_until_recorded(
     }
 }
 
+/// Identity-based acceptance cannot inspect private ballots or silently report
+/// an empty ballot box. Public proof validation is the supported alternative.
+async fn require_identity_acceptance(store: &PostgresStore, event: &str) -> Result<()> {
+    ensure!(store.ballot_identity(event).await? == BallotIdentity::VoterId,
+        "Identity-based acceptance is unsupported for pseudonym events; use the public ballot proof demonstration");
+    Ok(())
+}
+
 /// The voters' valid ballots, in the order they were cast.
 pub async fn valid_ballots(
     store: &PostgresStore,
     election_event_id: &str,
     voter_ids: &[String],
 ) -> Result<Vec<StoredBallot>> {
+    require_identity_acceptance(store, election_event_id).await?;
     let mut stored = Vec::new();
     for voter_id in voter_ids {
         for ballot in store.voter_ballots(election_event_id, voter_id).await? {
@@ -94,7 +104,37 @@ pub fn stored_ballots(election_event_id: &str, voter_ids: &[String]) -> Result<V
             let store = get_event_store(election_event_id)
                 .await
                 .context("Cannot open the election event's ballot box (ELECTORAL_LOG_PG_*)")?;
+            require_identity_acceptance(&store, election_event_id).await?;
             wait_until_recorded(&store, election_event_id, RECORDED_WAIT).await?;
             valid_ballots(&store, election_event_id, voter_ids).await
         })
+}
+
+#[cfg(test)]
+mod privacy_tests {
+    use super::*;
+    use electoral_log::adapters::privacy::BallotIdentity;
+    use windmill::services::electoral_log_board::get_event_databases;
+
+    #[tokio::test]
+    #[ignore = "requires disposable ELECTORAL_LOG_PG_* and ENV_SLUG"]
+    async fn identity_based_acceptance_refuses_privacy_events_before_returning_empty_ballots() {
+        let databases = get_event_databases().await.unwrap();
+        let tenant = uuid::Uuid::new_v4().to_string();
+        let event = uuid::Uuid::new_v4().to_string();
+        let store = databases.create_event(&tenant, &event).await.unwrap();
+        store.create_ballot_box(&event).await.unwrap();
+        assert!(valid_ballots(&store, &event, &["synthetic-voter".into()])
+            .await
+            .unwrap()
+            .is_empty());
+        store
+            .set_ballot_identity(&event, BallotIdentity::Pseudonym)
+            .await
+            .unwrap();
+        let result = valid_ballots(&store, &event, &["synthetic-voter".into()]).await;
+        databases.drop_event(&tenant, &event).await.unwrap();
+        let error = result.unwrap_err();
+        assert!(error.to_string().contains("public ballot proof"));
+    }
 }

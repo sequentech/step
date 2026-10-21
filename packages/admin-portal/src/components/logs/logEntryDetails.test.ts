@@ -65,6 +65,22 @@ const audit = (kind: string, details: unknown, options: IOptions = {}) =>
     )
 
 describe("the head and who of any entry", () => {
+    it.each(["ForensicRead", "PseudonymResolved"])(
+        "uses a backfilled display name for historical %s without changing its message",
+        (kind) => {
+            const original = row(kind, {}, {username: null})
+            const record = {...original, username: "election-reviewer"}
+            expect(logEntryView(record).who.username).toBe("election-reviewer")
+            expect(record.message).toBe(original.message)
+            expect(JSON.parse(record.message).username).toBeNull()
+        }
+    )
+
+    it("prefers the recorded username over a later display-name projection", () => {
+        const record = {...row("PseudonymResolved", {}), username: "renamed-reviewer"}
+        expect(logEntryView(record).who.username).toBe("rosa.marin")
+    })
+
     it("reads the description, the types and who from the message", () => {
         const view = logEntryView(row("CastVote", {CastVote: []}, {sender: "Rosa Marin"}))
         expect(view).toMatchObject({

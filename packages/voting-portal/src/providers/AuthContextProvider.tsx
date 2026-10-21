@@ -2,6 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {StartupError} from "../components/StartupError"
+import {
+    clearSessionStorageBallotData,
+    discardForeignSessionBallotLocator,
+} from "../store/castVotes/sessionBallotData"
 import React, {useContext} from "react"
 
 import Keycloak, {KeycloakConfig, KeycloakInitOptions} from "keycloak-js"
@@ -247,9 +251,12 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
 
     // Local state that will contain the users name once it is loaded
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
-
     const [tenantId, setTenantId] = useState<string | null>(null)
     const [eventId, setEventId] = useState<string | null>(null)
+    useEffect(() => {
+        if (userProfile?.userId && tenantId && eventId)
+            discardForeignSessionBallotLocator({tenantId, eventId, userId: userProfile.userId})
+    }, [userProfile?.userId, tenantId, eventId])
     const [authType, setAuthType] = useState<"register" | "login" | null>(null)
     const [defaultLocale, setDefaultLocale] = useState<string | undefined>(undefined)
     const [loginHints, setLoginHints] = useState<LoginHints>({})
@@ -322,6 +329,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 } else {
                     newKeycloak.logout()
                 }*/
+                clearSessionStorageBallotData()
                 newKeycloak.logout({
                     redirectUri: getLogoutRedirectUrl({
                         origin: window.location.origin,
@@ -477,15 +485,13 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     }
 
     const reauthWithGold = async (redirectUri: string): Promise<void> => {
-        try {
-            await keycloak?.login({
-                acr: {essential: true, values: [IPermissions.GOLD_PERMISSION]},
-                redirectUri: redirectUri || window.location.href, // Use the passed URL or fallback to current URL
-                locale: toBCP47(i18n.language),
-            })
-        } catch (error) {
-            console.error("Re-authentication failed:", error)
-        }
+        if (!keycloak) throw new Error("Authentication is not initialized")
+        await keycloak.login({
+            acr: {essential: true, values: [IPermissions.GOLD_PERMISSION]},
+            maxAge: 0,
+            redirectUri: redirectUri || window.location.href,
+            locale: toBCP47(i18n.language),
+        })
     }
 
     const changeContactChannel = async (): Promise<void> => {
@@ -585,6 +591,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     }
 
     const logout = (redirectUrl?: string) => {
+        clearSessionStorageBallotData()
         if (!keycloak) {
             // If no keycloak object initailized manually clear cookies and redirect user
             clearAllCookies()

@@ -36,6 +36,12 @@ pub trait UserTaskLedger: Sync {
 }
 
 pub trait UserTaskAuthorization: Sync {
+    fn participation_elections(
+        &self,
+        claims: &JwtClaims,
+        event_id: &str,
+    ) -> impl Future<Output = UserTaskResult<Vec<String>>> + Send;
+
     fn authorize(
         &self,
         claims: &JwtClaims,

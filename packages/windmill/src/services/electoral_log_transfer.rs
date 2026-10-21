@@ -148,6 +148,12 @@ pub async fn export_electoral_log(
         format: EXPORT_FORMAT_V2.to_string(),
         election_event_id: election_event_id.to_string(),
         board_log_uid: None,
+        ballot_verification_keys: super::public_ballot_keys::list(
+            hasura_transaction,
+            tenant_id,
+            election_event_id,
+        )
+        .await?,
         logs,
     };
     manifest.board_log_uid = Some(main_board_uid(&manifest)?);
@@ -259,8 +265,31 @@ pub async fn import_electoral_log(
         })
     });
     let anchors = anchors_of(hasura_transaction, &manifest).await?;
+    for key in &manifest.ballot_verification_keys {
+        super::public_ballot_keys::validate(key)?;
+        let source = manifest
+            .logs
+            .iter()
+            .find(|log| {
+                log.checkpoint.log_uid == key.board_log_uid
+                    && log.checkpoint.log_name == key.board_name
+            })
+            .context("Verification key names a log outside the archive")?;
+        ensure!(
+            source
+                .published
+                .iter()
+                .all(|checkpoint| checkpoint.signer_pk == key.system_public_key),
+            "Verification key conflicts with a published authority anchor"
+        );
+    }
     let store = get_event_store(election_event_id).await?;
     let logs = store.import_logs(&manifest, &mut lines, &anchors).await?;
+    for key in &manifest.ballot_verification_keys {
+        // Preserve original signing identity; this never becomes a clone's current key.
+        super::public_ballot_keys::retain(hasura_transaction, tenant_id, election_event_id, key)
+            .await?;
+    }
     for log in &manifest.logs {
         for signed in &log.published {
             let published = published_checkpoint(signed)?;

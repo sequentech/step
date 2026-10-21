@@ -214,6 +214,11 @@ pub struct Candidate {
 
 #[derive(PartialEq, Eq, Debug, Clone, Default, Serialize, Deserialize)]
 pub struct DocumentAnnotations {
+    /// Election participation included in an export. Downloads recheck this scope.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub participation_scope: Option<DocumentParticipationScope>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub purpose: Option<DocumentPurpose>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub access: Option<DocumentAccess>,
     /// For a report generated from a signed configuration: its
@@ -224,6 +229,19 @@ pub struct DocumentAnnotations {
     /// The document that stores that `report-manifest.json` as a file.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub report_manifest_file: Option<ReportManifestFile>,
+}
+
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+pub struct DocumentParticipationScope {
+    pub election_event_id: String,
+    pub election_ids: Vec<String>,
+}
+
+/// Immutable classification for private generated documents.
+#[derive(PartialEq, Eq, Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum DocumentPurpose {
+    BallotReceipt,
 }
 
 /// A report's `report-manifest.json`, stored as a document of its own.
@@ -295,10 +313,48 @@ pub struct Document {
     pub is_public: Option<bool>,
 }
 
+impl Document {
+    /// Legacy names remain protected; new documents carry an immutable purpose.
+    pub fn is_ballot_receipt(&self) -> bool {
+        self.name.as_deref().is_some_and(|name| {
+            name.to_ascii_lowercase().starts_with("ballot_receipt_")
+        }) || self
+            .annotations
+            .as_ref()
+            .and_then(|value| value.get("purpose"))
+            .and_then(Value::as_str)
+            == Some("ballot-receipt")
+    }
+}
+
 #[cfg(test)]
 mod document_annotations_tests {
-    use super::{DocumentAnnotations, ReportManifestFile};
+    use super::{
+        Document, DocumentAnnotations, DocumentPurpose, ReportManifestFile,
+    };
     use serde_json::json;
+
+    #[test]
+    fn receipt_purpose_and_legacy_name_both_protect_a_document() {
+        let annotations = DocumentAnnotations {
+            purpose: Some(DocumentPurpose::BallotReceipt),
+            ..Default::default()
+        };
+        assert_eq!(
+            serde_json::to_value(&annotations).unwrap(),
+            json!({"purpose":"ballot-receipt"})
+        );
+        let mut document: Document =
+            serde_json::from_value(json!({"id":"document"})).unwrap();
+        assert!(!document.is_ballot_receipt());
+        document.annotations = Some(serde_json::to_value(annotations).unwrap());
+        assert!(document.is_ballot_receipt());
+        document.annotations = None;
+        document.name = Some("Ballot_Receipt_event.pdf".to_owned());
+        assert!(document.is_ballot_receipt());
+        document.name = Some("ordinary.pdf".to_owned());
+        assert!(!document.is_ballot_receipt());
+    }
 
     #[test]
     fn serializes_password_access_with_the_document() {

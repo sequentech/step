@@ -59,7 +59,6 @@ export const LIST_USERS = gql`
                 votes_info {
                     election_id
                     num_votes
-                    last_voted_at
                 }
             }
             total {

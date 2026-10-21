@@ -733,6 +733,10 @@ shows how an auditor loads the SQL file and checks its signatures.
 
 ### 9.3 Admin Portal
 
+The Description column uses the remaining table width. Text wraps within the
+timestamp's existing one- or two-line height and ends with an ellipsis when it
+does not fit. Hover over the description or open the entry to read its full text.
+
 | File | Role |
 | --- | --- |
 | `screens/SettingsScreen.tsx`, `services/settingsAccess.ts` | Which Settings tabs someone sees (`ESettingsAccess`): `settings-menu` opens Settings, `tenant-write` shows the configuration tabs, `tenant-logs-read` shows Logs |

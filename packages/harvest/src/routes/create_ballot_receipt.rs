@@ -41,10 +41,7 @@ pub async fn create_ballot_receipt(
 ) -> Result<Json<CreateBallotReceiptOutput>, (Status, String)> {
     let input = body.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
-    let executer_name = claims
-        .name
-        .clone()
-        .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
+    let executer_name = String::new();
 
     let area_id = voter_check_scope(
         &claims,
@@ -53,12 +50,73 @@ pub async fn create_ballot_receipt(
     )?;
     ensure_checks_open(&tenant_id, &input.election_event_id).await?;
 
-    let voter_id = claims.hasura_claims.user_id.clone();
+    // Resolve before enqueueing: a durable task must not pair a real voter
+    // identifier with the ballot or its receipt document.
+    let voter_id = {
+        let mut client = windmill::services::database::get_hasura_pool()
+            .await
+            .get()
+            .await
+            .map_err(|_| {
+                (
+                    Status::InternalServerError,
+                    "Receipt unavailable".to_string(),
+                )
+            })?;
+        let tx = client.transaction().await.map_err(|_| {
+            (
+                Status::InternalServerError,
+                "Receipt unavailable".to_string(),
+            )
+        })?;
+        let event =
+            windmill::postgres::election_event::get_election_event_by_id(
+                &tx,
+                &tenant_id,
+                &input.election_event_id,
+            )
+            .await
+            .map_err(|_| {
+                (
+                    Status::InternalServerError,
+                    "Receipt unavailable".to_string(),
+                )
+            })?;
+        windmill::services::vote_privacy::ballot_identity(
+            &event,
+            &claims.hasura_claims.user_id,
+        )
+        .await
+        .map_err(|_| (Status::Forbidden, "Receipt unavailable".to_string()))?
+    };
     let document_id: String = Uuid::new_v4().to_string();
     let celery_app = try_get_celery_app().await.map_err(|error| {
         (
             Status::InternalServerError,
             format!("The task queues are not available: {error:#}"),
+        )
+    })?;
+
+    windmill::services::electoral_log_board::get_event_store(
+        &input.election_event_id,
+    )
+    .await
+    .map_err(|_| {
+        (
+            Status::InternalServerError,
+            "Receipt unavailable".to_string(),
+        )
+    })?
+    .register_receipt_document(
+        &input.election_event_id,
+        &document_id,
+        &voter_id,
+    )
+    .await
+    .map_err(|_| {
+        (
+            Status::InternalServerError,
+            "Receipt unavailable".to_string(),
         )
     })?;
 
@@ -103,7 +161,7 @@ pub async fn create_ballot_receipt(
         }
     };
 
-    info!("Sent task {:?} successfully", task);
+    let _ = task;
 
     Ok(Json(CreateBallotReceiptOutput {
         id: document_id,

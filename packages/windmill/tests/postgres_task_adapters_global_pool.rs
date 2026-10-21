@@ -319,6 +319,7 @@ fn insert_tasks_execution_commits_the_task_with_its_columns() {
                 "labels": {"origin": "admin"},
                 "logs": logs(),
                 "executed_by_user": "admin-user",
+                "participation_authorization": null,
             })
         );
         tenant.delete().await;
