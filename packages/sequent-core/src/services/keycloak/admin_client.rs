@@ -103,7 +103,7 @@ fn get_keycloak_login_admin_config() -> KeycloakLoginConfig {
     KeycloakLoginConfig::new(client_id, client_secret, tenant_id)
 }
 
-#[instrument(err)]
+#[instrument(err, skip_all)]
 pub async fn get_credentials_inner(
     login_config: KeycloakLoginConfig,
 ) -> Result<String> {
@@ -127,9 +127,8 @@ pub async fn get_credentials_inner(
         .build();
     event!(
         Level::INFO,
-        "Acquiring credentials to {} with {:?}",
-        keycloak_endpoint,
-        body_string
+        "Acquiring credentials from {}",
+        keycloak_endpoint
     );
 
     let res = async {
@@ -187,7 +186,7 @@ pub async fn get_auth_credentials() -> Result<KeycloakAdminToken> {
 
 /// Authenticate a party client in keycloak with specific client credentials and
 /// tenant_id
-#[instrument(err)]
+#[instrument(err, skip(client_secret))]
 pub async fn get_third_party_client_access_token(
     client_id: String,
     client_secret: String,
@@ -369,5 +368,90 @@ impl KeycloakAdminClient {
             client: client,
             token_supplier: admin_token,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::get_third_party_client_access_token;
+    use crate::services::jwt_verification::KEYCLOAK_URL;
+    use crate::services::test_support::{in_child_process, one_shot_server};
+    use serde_json::json;
+    use std::sync::{Arc, Mutex};
+    use tracing::instrument::WithSubscriber;
+
+    struct Sink<'a>(&'a Mutex<String>);
+
+    impl tracing::field::Visit for Sink<'_> {
+        fn record_debug(
+            &mut self,
+            field: &tracing::field::Field,
+            value: &dyn std::fmt::Debug,
+        ) {
+            use std::fmt::Write;
+            let _ =
+                write!(self.0.lock().unwrap(), "{}={value:?};", field.name());
+        }
+    }
+
+    struct Capture(Arc<Mutex<String>>);
+
+    impl tracing::Subscriber for Capture {
+        fn enabled(&self, _: &tracing::Metadata<'_>) -> bool {
+            true
+        }
+        fn new_span(
+            &self,
+            attributes: &tracing::span::Attributes<'_>,
+        ) -> tracing::span::Id {
+            attributes.record(&mut Sink(&self.0));
+            tracing::span::Id::from_u64(1)
+        }
+        fn record(
+            &self,
+            _: &tracing::span::Id,
+            values: &tracing::span::Record<'_>,
+        ) {
+            values.record(&mut Sink(&self.0));
+        }
+        fn record_follows_from(
+            &self,
+            _: &tracing::span::Id,
+            _: &tracing::span::Id,
+        ) {
+        }
+        fn event(&self, event: &tracing::Event<'_>) {
+            event.record(&mut Sink(&self.0));
+        }
+        fn enter(&self, _: &tracing::span::Id) {}
+        fn exit(&self, _: &tracing::span::Id) {}
+    }
+
+    #[tokio::test]
+    async fn datafix_client_secrets_are_not_traced() {
+        if !in_child_process(
+            module_path!(),
+            "datafix_client_secrets_are_not_traced",
+        ) {
+            return;
+        }
+        let token = json!({"access_token": "token", "expires_in": 300,
+            "scope": "openid", "token_type": "Bearer"});
+        let (internal, served) =
+            one_shot_server("200 OK", token.to_string(), "").await;
+        std::env::set_var(KEYCLOAK_URL, &internal);
+        let traced = Arc::new(Mutex::new(String::new()));
+        get_third_party_client_access_token(
+            "party".into(),
+            "client-secret".into(),
+            "one".into(),
+        )
+        .with_subscriber(Capture(Arc::clone(&traced)))
+        .await
+        .unwrap();
+        served.await.unwrap();
+        let traced = traced.lock().unwrap();
+        assert!(traced.contains("party"), "nothing was traced: {traced}");
+        assert!(!traced.contains("client-secret"), "secret traced: {traced}");
     }
 }
