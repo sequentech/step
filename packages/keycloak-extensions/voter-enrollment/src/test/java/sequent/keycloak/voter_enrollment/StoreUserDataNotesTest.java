@@ -4,6 +4,7 @@
 package sequent.keycloak.voter_enrollment;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -98,6 +99,26 @@ class StoreUserDataNotesTest {
     verify(authSession).removeAuthNote("userId");
     AUTHENTICATOR_NOTES.forEach(
         note -> verify(authSession, never()).setAuthNote(eq(note), anyString()));
+  }
+
+  /**
+   * Only an identity verification step sets how the identity was established: the browser can't
+   * claim it, and data typed again drops what an earlier verification established.
+   */
+  @Test
+  void theFormCanNotSetTheIdentityMethodAndDropsAnEarlierOne() {
+    MultivaluedMap<String, String> formData = new MultivaluedHashMap<>();
+    formData.add(UserModel.FIRST_NAME, "Ana");
+    formData.add(LookupAndUpdateUser.IDENTITY_METHOD, "VERIFIED");
+
+    AuthenticationSessionModel authSession = storeNotes(formData);
+
+    verify(authSession, never()).setAuthNote(eq(LookupAndUpdateUser.IDENTITY_METHOD), anyString());
+    verify(authSession).removeAuthNote(LookupAndUpdateUser.IDENTITY_METHOD);
+    verify(authSession).setAuthNote("keyUserdata", UserModel.FIRST_NAME);
+    assertFalse(
+        Utils.isFormNote(
+            LookupAndUpdateUser.IDENTITY_METHOD, Set.of(LookupAndUpdateUser.IDENTITY_METHOD)));
   }
 
   /** An empty stored field list reads back as no fields, not as one field with an empty name. */

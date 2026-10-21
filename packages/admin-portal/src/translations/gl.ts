@@ -5,6 +5,7 @@ import englishTranslation, {TranslationType} from "./en"
 
 const galegoTranslation: TranslationType = {
     translations: {
+        ballotPrivacy: englishTranslation.translations.ballotPrivacy,
         readiness: {
             close: "Pechar",
             action: "Verificar preparación",
@@ -27,6 +28,75 @@ const galegoTranslation: TranslationType = {
             snapshot:
                 "Este informe é unha instantánea. Repita tras cambios relevantes; non bloquea o evento nin substitúe a aprobación operativa.",
             results: "Resultados da verificación",
+            condition: "Condición comprobada polo servidor",
+            noDetail: "O servidor non deu máis detalle sobre esta comprobación.",
+            reasons: "Por que fallou",
+            noArea: "ningunha área ou unha área descoñecida",
+            eventRoles: {
+                official: "oficial",
+                tested: "de proba",
+                both: "ambos",
+            },
+            scope: {
+                event: "O evento {{event}}",
+                election: "A elección {{election}}",
+            },
+            certification: {
+                declared_sha256_missing: "non se indicou o SHA-256",
+                declared_sha256_mismatch: "o SHA-256 indicado non coincide co do ficheiro",
+                no_counts: "non ten votantes por área",
+                blank_area: "hai votantes sen área",
+                invalid_sha256: "o seu SHA-256 non é válido",
+            },
+            findings: {
+                same_event: "O evento oficial e o de proba son o mesmo evento.",
+                configuration_missing:
+                    "O evento {{event}} non se importou desde un paquete de configuración asinado.",
+                configuration_incomplete:
+                    "A configuración asinada do evento oficial non ten un valor válido para «{{field}}».",
+                external_id_mismatch:
+                    "Os eventos proceden de configuracións distintas: {{official}} (oficial) e {{tested}} (de proba).",
+                content_mismatch:
+                    "O contido asinado é distinto: SHA-256 {{official}} (oficial) e {{tested}} (de proba).",
+                approvers_mismatch:
+                    "Os aprobadores verificados son distintos: {{only_official}} só no evento oficial e {{only_tested}} só no de proba.",
+                areas_mismatch: "{{area}} só está no contido asinado do evento {{event}}.",
+                voter_import_missing:
+                    "O evento {{event}} non ten unha importación certificada de votantes.",
+                voter_import_in_progress:
+                    "Aínda hai unha importación de votantes en curso no evento {{event}}.",
+                voter_file_not_certified:
+                    "A última importación de votantes do evento {{event}} non está certificada: {{reason}}.",
+                voter_receipt_not_signed:
+                    "O rexistro do evento {{event}} non ten unha entrada asinada que corresponda á importación de votantes {{import_id}}.",
+                registry_count_changed:
+                    "O evento {{event}} ten agora {{current}} votantes en {{area}}, pero a súa importación certificada ten {{imported}}.",
+                voter_area_not_configured:
+                    "Os votantes certificados do evento {{event}} inclúen {{area}}, que non está no seu contido asinado.",
+                voter_file_mismatch:
+                    "Os ficheiros certificados de votantes son distintos: SHA-256 {{official}} (oficial) e {{tested}} (de proba).",
+                voter_count_mismatch:
+                    "Os ficheiros certificados difiren en {{area}}: {{official}} votantes (oficial) e {{tested}} (de proba).",
+                ballots_present: "O evento oficial ten {{count}} papeletas almacenadas.",
+                received_ballots_present:
+                    "O evento oficial ten {{count}} papeletas recibidas para revisión.",
+                tally_sessions_present: "O evento oficial ten {{count}} sesións de reconto.",
+                status_missing: "{{scope}} non ten estado de votación.",
+                voting_started: "{{scope}}: a canle {{channel}} está en {{status}}.",
+                voting_dates_recorded:
+                    "{{scope}}: a canle {{channel}} ten datas de votación rexistradas.",
+                no_elections: "O evento {{event}} non ten eleccións.",
+                publication_missing: "O evento {{event}} non ten ningunha publicación activa.",
+                publication_mismatch:
+                    "Os {{design_count}} deseños de papeleta publicados do evento {{event}} non coinciden con todos os deseños da súa configuración asinada.",
+                publication_empty:
+                    "Os deseños de papeleta publicados do evento {{event}} non se puideron comprobar cunha configuración asinada.",
+                channels_open: "O evento de proba aínda ten canles de votación sen pechar.",
+                seal_at_close_off: "O evento de proba non sela as urnas ao peche.",
+                no_expected_boxes: "A publicación do evento de proba non espera ningunha urna.",
+                boxes_unsealed:
+                    "A elección {{election}} do evento de proba ten {{unsealed}} urnas sen selar.",
+            },
         },
         plugins: {
             title: "Complementos",
@@ -460,6 +530,8 @@ const galegoTranslation: TranslationType = {
                 passed: "Superado",
                 failed: "Fallido",
                 checkResult: "{{outcome}}: {{description}}",
+                checkResultWithMessage:
+                    "{{outcome}}: {{description}} Condición rexistrada: «{{message}}»",
                 description: {
                     VotersImported: "Ficheiro de votantes importado.",
                     ReadinessVerified:
@@ -2331,6 +2403,8 @@ const galegoTranslation: TranslationType = {
                 "application-write": "Editar Aplicación",
                 "approval-matrix-write": "Editar a Matriz de Aprobación",
                 "readiness-check": "Verificar a preparación electoral",
+                "forensic-read": "Ler datos forenses de rede illados",
+                "voter-pseudonym-resolve": "Resolver un pseudónimo de votante cun motivo auditado",
                 "logs-export": "Exportar Registros",
                 "tenant-logs-read": "Ler Rexistro do Inquilino",
                 "tenant-logs-export": "Exportar Rexistro do Inquilino",

@@ -77,8 +77,36 @@ the signed record cannot be confirmed. Inspect the exit status before accepting
 the report as a pass.
 
 The report contains `passed`, `checked_at`, named `checks` with their verdicts
-and explanations, `evidence` for both events and `log_entry_id` on success. It
-compares approved package content and approvers, certified voter hashes and area
+and explanations, `evidence` for both events and `log_entry_id` on success. Each
+check's `message` is the condition it checks. A failed check also has
+`findings`, one per failed condition, each with a stable `code`, the `event`
+it was observed on (`official`, `tested` or `both`), the affected `area` or
+`election_id` when there is one, the observed `values` and an English
+`message`. For example:
+
+```json
+{
+  "kind": "certified_voters",
+  "passed": false,
+  "message": "Both events have the same certified file, full current registry counts per area and signed import evidence",
+  "findings": [
+    {
+      "code": "registry_count_changed",
+      "event": "official",
+      "area": "Area A",
+      "values": {"current": "4", "imported": "3"},
+      "message": "The official event's registry has 4 voters in area Area A but the certified import has 3"
+    }
+  ]
+}
+```
+
+Passing checks have no `findings`, so a signed report keeps its shape, and
+reports written before findings existed still read. Findings carry area names,
+election IDs, counts and digests, never voter data. When the check cannot be
+completed, the error names the step that stopped it without internal detail.
+
+The report compares approved package content and approvers, certified voter hashes and area
 counts, official zero state, official publication designs and tested close/seal
 completeness. Each event's evidence includes `current_voter_counts`,
 `voter_import_in_progress` and `received_ballot_count`. Current voter counts must
@@ -96,8 +124,8 @@ readiness, even when every published design is approved. The tested event's
 required seals come from these publications; generated but unpublished drafts
 and retired styles do not add required boxes.
 
-A successful invocation appends `ReadinessVerified` to the official event log;
-a failed check does not. In the existing **Logs** tab, filter statement kind to
+A successful invocation appends `ReadinessVerified` to the official event log
+as a `USER` event under the authenticated account; a failed check does not. In the existing **Logs** tab, filter statement kind to
 `ReadinessVerified`, open the entry and correlate its report with the returned
 reference. Export CSV/PDF logs through the existing export action. Keep the
 complete JSON alongside the exports.

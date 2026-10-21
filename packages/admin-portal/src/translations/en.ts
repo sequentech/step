@@ -4,6 +4,162 @@
 
 const englishTranslation = {
     translations: {
+        ballotPrivacy: {
+            title: "Ballot box log",
+            subtitle:
+                "Every ballot cast in this election, listed under a pseudonym instead of the voter's name.",
+            private: "Voters appear only as pseudonyms",
+            signed: "Signed by the election authority and the ballot box",
+            device: "Checked on your device",
+            own: "Your ballot is in the ballot box",
+            listedAs: "Listed as",
+            check: "Check my ballot",
+            copy: "Copy Ballot ID",
+            copied: "Ballot ID copied",
+            copyFailed: "Could not copy the Ballot ID. Select the code to copy it.",
+            search: "Find a Ballot ID or pseudonym",
+            placeholder: "Ballot ID or pseudonym",
+            clear: "Clear search",
+            ballots: "{{count}} ballots",
+            matches: "{{count}} of {{total}} ballots match",
+            capped: "More than {{count}} of {{total}} ballots match; type more of the code",
+            ballotId: "Ballot ID",
+            pseudonym: "Pseudonym",
+            castAt: "Cast",
+            channel: "Channel",
+            yours: "Yours",
+            channels: {
+                online: "Online",
+                kiosk: "Kiosk",
+                telephone: "Telephone",
+            },
+            previous: "Previous",
+            next: "Next",
+            rows: "Rows per page",
+            noMatch: "No Ballot ID or pseudonym starts with {{prefix}}",
+            noBallots: "No ballots have been cast yet.",
+            invalidPrefix:
+                "The codes use the digits 0 to 9 and capital letters, without I, L, O and U. Enter up to eight characters.",
+            loadError: "The ballot box log could not be loaded. Please try again.",
+            retry: "Try again",
+            help: "About the ballot box log",
+            helpText:
+                "Each voter is listed under a pseudonym, a code such as 7QKM-2HXD. The log never says who the voter is. The election authority signs which voter key each pseudonym uses. Open a ballot to check its signatures in this browser.",
+            detailTitle: "Ballot {{ballotId}}",
+            checking: "Checking the signatures…",
+            passed: "All four checks passed",
+            verified: "Checked on this device with the published keys.",
+            failed: "A check failed",
+            failedHelp: "Do not rely on this entry.",
+            pending: "Still being added to the log",
+            pendingHelp: "The signed entries may appear after a ballot is cast. Check again later.",
+            proofError: "The signed entries or published keys could not be loaded. Try again.",
+            checkLabels: {
+                binding: "Voter key registered",
+                received: "Ballot received",
+                ballotId: "Ballot ID",
+                cast: "Ballot cast",
+            },
+            checkDescriptions: {
+                binding: "The election authority signed which voter key this pseudonym uses.",
+                received: "The ballot box received a ballot signed with that voter key.",
+                ballotId: "The Ballot ID is computed from that signed ballot.",
+                cast: "The same key cast the ballot, and the ballot box confirmed the cast.",
+            },
+            states: {
+                passed: "Passed",
+                failed: "Does not match.",
+                pending: "Not in the log yet.",
+            },
+            neverPublished:
+                "Never published: the voter's name, username, IP address, country or device.",
+            download: "Download signed log entries",
+            downloadAction: "Download",
+            signedEntries: "Signed log entries ({{count}})",
+            close: "Close",
+            systemKey: "Election event log key",
+            boxKey: "Ballot box key",
+            userLogs:
+                "A voter's own entries: sign-ins and messages. Their ballots are in the log under a pseudonym, so they never appear here; only a logged resolution links the two.",
+            ballotSection: "Ballot and pseudonym",
+            admin: {
+                voterKey: "Voter key",
+                entries: "This ballot's entries, checked in this browser",
+                thisEntry: "This entry",
+                entryNumber: "Entry {{id}}",
+                receivedTitle: "Ballot {{ballotId}} received",
+                castTitle: "Ballot {{ballotId}} cast",
+                receivedHelp:
+                    "This log's system key signed that the pseudonym uses this voter key; the ballot box signed that it received a ballot signed with it, and the Ballot ID comes from that ballot.",
+                castHelp: "The same key cast it, and the ballot box confirmed the cast.",
+                pseudonymHelp: "A pseudonym, never the voter",
+                neverPublished:
+                    "No entry about a ballot names the voter or holds their IP address, country or device. Only a logged resolution links a pseudonym to its voter.",
+                signedBy: "The log's system key and the ballot box key",
+            },
+            resolution: "Pseudonym resolution",
+            resolutionHelp:
+                "The answer went only to the person who asked. The voter is never named in this log.",
+            reason: "Reason given",
+            settings: {
+                legacyNetwork:
+                    "Forensic attribution is available for new events that use voter pseudonyms. Historical and Datafix events keep their existing ballot identity mode.",
+                authority:
+                    "The election event log key {{fingerprint}} signs which voter key each pseudonym uses.",
+                loading: "Loading privacy permissions",
+                loadError: "The current privacy permissions could not be loaded.",
+                noRoles: "No role yet",
+                title: "Privacy",
+                identity: "Voter pseudonyms",
+                example: "A pseudonym looks like",
+                on: "On: ballots, the log and its exports name a pseudonym for each voter, never the voter.",
+                legacy: "This event uses the historical voter identity mode.",
+                immutable:
+                    "The identity mode is set when the event is created and cannot be changed.",
+                network: "Network data",
+                description:
+                    "The IP address, country and browser of each ballot sent. They are never kept with ballots, voter records or log entries.",
+                forensic: "Keep for forensic review",
+                forensicHelp:
+                    "Kept apart in the forensic store. Only people with Forensic Read see it, and every view is logged.",
+                none: "Do not store",
+                noneHelp:
+                    "Nothing new is kept, and the dashboard's IP Addresses list is not shown. Previously retained forensic data follows its retention policy.",
+                permissions: "Who can see or link it",
+                permissionHelp:
+                    "No preset role holds these permissions. Give them in Users and Roles to the few people who need them.",
+                forensicPermission: "Forensic Read",
+                forensicPermissionHelp: "Sees the network data in the forensic store",
+                resolvePermission: "Resolve a pseudonym",
+                resolvePermissionHelp:
+                    "Links one pseudonym to its voter, with a reason. Each use is logged.",
+                roles: "Manage in Users and Roles",
+            },
+            forensic: {
+                address: "IP address",
+                allElections: "All permitted elections",
+                exportError: "The forensic records could not be exported.",
+                subtitle:
+                    "Where ballots were sent from, by pseudonym. Only people with Forensic Read see this list, and each view is logged.",
+                store: "Forensic store",
+                ballots: "Ballots",
+                pseudonyms: "Pseudonyms",
+                first: "First ballot",
+                last: "Last ballot",
+                shared: "Shared",
+                sharedHelp:
+                    "Ballots of several pseudonyms came from this address, as from a hotel or office network.",
+                more: "+{{count}} more",
+                view: "View ballots",
+                copy: "Copy IP address",
+                detailTitle: "IP address {{ip}}",
+                detailHelp:
+                    "Opening this address was written to the election event’s log. Nobody is named here: each ballot is listed by its pseudonym.",
+                error: "The forensic records could not be loaded.",
+                empty: "No forensic ballot records for this address.",
+                emptyList: "No ballot network records yet.",
+            },
+        },
         readiness: {
             close: "Close",
             action: "Check readiness",
@@ -26,6 +182,73 @@ const englishTranslation = {
             snapshot:
                 "This report is a snapshot. Repeat after relevant changes; it does not freeze the event or replace operational approval.",
             results: "Check results",
+            condition: "Condition checked by the server",
+            noDetail: "The server reported no further detail for this check.",
+            reasons: "Why it failed",
+            noArea: "no or an unknown area",
+            eventRoles: {
+                official: "official",
+                tested: "tested",
+                both: "both",
+            },
+            scope: {
+                event: "The {{event}} event",
+                election: "Election {{election}}",
+            },
+            certification: {
+                declared_sha256_missing: "no declared SHA-256 was given",
+                declared_sha256_mismatch: "the declared SHA-256 differs from the file",
+                no_counts: "it has no voters by area",
+                blank_area: "some voters have no area",
+                invalid_sha256: "its SHA-256 is invalid",
+            },
+            findings: {
+                same_event: "The official and tested events are the same event.",
+                configuration_missing:
+                    "The {{event}} event was not imported from a signed configuration package.",
+                configuration_incomplete:
+                    "The official event’s signed configuration has no valid value for “{{field}}”.",
+                external_id_mismatch:
+                    "The events come from different configurations: {{official}} (official) and {{tested}} (tested).",
+                content_mismatch:
+                    "The signed content differs: SHA-256 {{official}} (official) and {{tested}} (tested).",
+                approvers_mismatch:
+                    "The verified approvers differ: {{only_official}} only on the official event and {{only_tested}} only on the tested event.",
+                areas_mismatch: "{{area}} is only in the {{event}} event’s signed content.",
+                voter_import_missing: "The {{event}} event has no certified voter import.",
+                voter_import_in_progress: "A voter import is still running on the {{event}} event.",
+                voter_file_not_certified:
+                    "The {{event}} event’s last voter import is not certified: {{reason}}.",
+                voter_receipt_not_signed:
+                    "The {{event}} event’s log has no matching signed record of voter import {{import_id}}.",
+                registry_count_changed:
+                    "The {{event}} event now has {{current}} voters in {{area}}, but its certified import has {{imported}}.",
+                voter_area_not_configured:
+                    "The {{event}} event’s certified voters include {{area}}, which is not in its signed content.",
+                voter_file_mismatch:
+                    "The certified voter files differ: SHA-256 {{official}} (official) and {{tested}} (tested).",
+                voter_count_mismatch:
+                    "The certified files differ in {{area}}: {{official}} voters (official) and {{tested}} (tested).",
+                ballots_present: "The official event has {{count}} stored ballots.",
+                received_ballots_present:
+                    "The official event has {{count}} ballots received for review.",
+                tally_sessions_present: "The official event has {{count}} tally sessions.",
+                status_missing: "{{scope}} has no voting status.",
+                voting_started: "{{scope}}: the {{channel}} channel is {{status}}.",
+                voting_dates_recorded:
+                    "{{scope}}: the {{channel}} channel has recorded voting dates.",
+                no_elections: "The {{event}} event has no elections.",
+                publication_missing: "The {{event}} event has no active publication.",
+                publication_mismatch:
+                    "The {{event}} event’s {{design_count}} published ballot designs do not match every design of its signed configuration.",
+                publication_empty:
+                    "The {{event}} event’s published ballot designs could not be checked against a signed configuration.",
+                channels_open: "The tested event still has voting channels that have not closed.",
+                seal_at_close_off: "The tested event does not seal ballot boxes at close.",
+                no_expected_boxes: "The tested event’s publication expects no ballot boxes.",
+                boxes_unsealed:
+                    "Election {{election}} of the tested event has {{unsealed}} unsealed ballot boxes.",
+            },
         },
         plugins: {
             title: "Plugins",
@@ -466,6 +689,8 @@ const englishTranslation = {
                 passed: "Passed",
                 failed: "Failed",
                 checkResult: "{{outcome}}: {{description}}",
+                checkResultWithMessage:
+                    "{{outcome}}: {{description}} Recorded condition: “{{message}}”",
                 description: {
                     VotersImported: "Voter file imported.",
                     ReadinessVerified:
@@ -2315,6 +2540,8 @@ const englishTranslation = {
                 "application-write": "Edit Application",
                 "approval-matrix-write": "Edit Approval Matrix",
                 "readiness-check": "Verify election readiness",
+                "forensic-read": "Read isolated forensic network data",
+                "voter-pseudonym-resolve": "Resolve a voter pseudonym with an audited reason",
                 "logs-export": "Export Logs",
                 "tenant-logs-read": "Read Tenant Logs",
                 "tenant-logs-export": "Export Tenant Logs",

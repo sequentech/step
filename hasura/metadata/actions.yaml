@@ -1,4 +1,129 @@
 actions:
+    - name: receipt_document
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/receipt-document
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: cast-vote
+          - role: user
+    - name: ballot_box_log
+      definition:
+          type: query
+          handler: http://{{HARVEST_BALLOT_LOG_DOMAIN}}/ballot-box-log
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: user
+          - role: cast-vote
+    - name: ballot_box_own
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/ballot-box-own
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: user
+          - role: cast-vote
+    - name: ballot_box_entry
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/ballot-box-entry
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: user
+          - role: cast-vote
+          - role: logs-read
+    - name: ballot_box_keys
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/ballot-box-keys
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: user
+          - role: cast-vote
+          - role: logs-read
+    - name: ballot_privacy_settings
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/ballot-privacy-settings
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: election-event-read
+    - name: forensic_network_summary
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/forensic-network-summary
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: forensic-read
+    - name: forensic_network_detail
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/forensic-network-detail
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: forensic-read
+    - name: resolve_voter_pseudonym
+      definition:
+          kind: synchronous
+          type: mutation
+          handler: http://{{HARVEST_DOMAIN}}/resolve-voter-pseudonym
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: voter-pseudonym-resolve
     - name: readiness_check
       definition:
           kind: synchronous
@@ -1898,6 +2023,20 @@ actions:
       permissions:
           - role: user
       comment: receive_ballot
+    - name: audit_ballot
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/audit-ballot
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: user
+          - role: cast-vote
     - name: cast_ballot
       definition:
           kind: synchronous
@@ -3165,6 +3304,7 @@ custom_types:
         - name: CountUsersInput
         - name: SigningRoleChangesInput
     objects:
+        - name: BallotPrivacyPayload
         - name: TrusteeBoard
         - name: TrusteeBoardsOutput
         - name: TrusteeReportOutput
@@ -3252,6 +3392,7 @@ custom_types:
         - name: CustodyProofSignatureStatusOutput
         - name: InsertCastVoteOutput
         - name: ReceiveBallotOutput
+        - name: AuditBallotOutput
         - name: CastBallotOutput
         - name: createBallotReceiptOutput
         - name: OptionalImportEvent

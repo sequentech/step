@@ -5,6 +5,7 @@ use crate::postgres::document::insert_document_with_annotations;
 use crate::services::audit_log::{stage, AdminAction, AdminChange, AuditActor};
 use crate::services::database::get_hasura_pool;
 use crate::services::export::export_users::{export_users_file, ExportBody};
+use crate::services::participation_authorization::{export_authorization, ParticipationCommand};
 use crate::services::task_audit;
 use crate::services::tasks_execution::{
     is_matching_completed_export_task, update_export_complete, update_export_fail,
@@ -16,7 +17,9 @@ use anyhow::Context;
 use celery::error::TaskError;
 use deadpool_postgres::{Client as DbClient, Transaction as _};
 use sequent_core::services::s3;
-use sequent_core::types::hasura::core::{DocumentAnnotations, TasksExecution};
+use sequent_core::types::hasura::core::{
+    DocumentAnnotations, DocumentParticipationScope, TasksExecution,
+};
 use sequent_core::util;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -109,6 +112,7 @@ async fn export_users_impl(
     };
 
     let mut coordination_transaction = Some(hasura_transaction);
+    let mut participation = None;
 
     // Reload the task by its id while holding a crash-released advisory lock.
     // The serialized task and body are untrusted; all scope and authorization
@@ -150,6 +154,34 @@ async fn export_users_impl(
                     .await
                     .context("Failed to release completed voter export task lock")?;
                 return Ok(());
+            }
+
+            let authorization = async {
+                let grant =
+                    export_authorization(coordination, &tenant_id, &persisted_task.id).await?;
+                grant.validate(
+                    &tenant_id,
+                    &election_event_id,
+                    audit_actor
+                        .as_ref()
+                        .and_then(|actor| actor.user_id.as_deref())
+                        .context("Export is missing its authorized actor")?,
+                    ParticipationCommand::VoterExport,
+                    &document_id,
+                )?;
+                if let ExportBody::Users { election_id, .. } = &body {
+                    grant.validate_election(election_id.as_deref())?;
+                }
+                Ok::<_, anyhow::Error>(grant)
+            }
+            .await;
+            match authorization {
+                Ok(grant) => participation = Some(grant),
+                Err(error) => {
+                    drop(coordination_transaction.take());
+                    update_export_fail(&persisted_task, &error.to_string()).await?;
+                    return Err(Error::String(error.to_string()));
+                }
             }
 
             let authorization_result = validate_secret_export_task_for_recovery(
@@ -267,9 +299,15 @@ async fn export_users_impl(
     };
 
     let export_result: Result<()> = async {
-        let temp_path = export_users_file(&hasura_transaction, body.clone())
-            .await
-            .map_err(|err| Error::String(format!("Error listing users: {err:?}")))?;
+        let temp_path = export_users_file(
+            &hasura_transaction,
+            body.clone(),
+            participation
+                .as_ref()
+                .map(|grant| grant.election_ids.as_slice()),
+        )
+        .await
+        .map_err(|err| Error::String(format!("Error listing users: {err:?}")))?;
         let size = temp_path.metadata()?.len();
 
         let (tenant_id, election_event_id) = match &body {
@@ -301,7 +339,7 @@ async fn export_users_impl(
         .await
         .map_err(|err| Error::String(format!("Error uploading file to s3: {err}")))?;
 
-        let document_annotations = matches!(
+        let mut document_annotations = matches!(
             &body,
             ExportBody::Users {
                 include_secret_attributes: true,
@@ -309,6 +347,14 @@ async fn export_users_impl(
             }
         )
         .then(DocumentAnnotations::voter_secret_export);
+        if let Some(grant) = &participation {
+            document_annotations
+                .get_or_insert_with(Default::default)
+                .participation_scope = Some(DocumentParticipationScope {
+                election_event_id: grant.election_event_id.clone(),
+                election_ids: grant.election_ids.clone(),
+            });
+        }
         insert_document_with_annotations(
             &hasura_transaction,
             &tenant_id,

@@ -92,6 +92,7 @@ export const getElectoralLog = (fields: any) => {
                     statement_kind
                     message
                     user_id
+                    username
                 }
                 total {
                     aggregate {
@@ -119,6 +120,7 @@ export const LIST_TENANT_LOG = gql`
                 statement_kind
                 message
                 user_id
+                username
             }
             total {
                 aggregate {

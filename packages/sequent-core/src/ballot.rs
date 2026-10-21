@@ -1278,6 +1278,15 @@ pub fn checks_period_from_presentation(
     Default,
 )]
 pub struct ElectionEventPresentation {
+    /// Internal immutable identity mode. Missing values retain historical behavior.
+    #[borsh(skip)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ballot_identity: Option<crate::types::vote_privacy::BallotIdentity>,
+    /// Network data is never part of a privacy ballot or its signed log entry.
+    #[borsh(skip)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub network_data_policy:
+        Option<crate::types::vote_privacy::NetworkDataPolicy>,
     pub i18n: Option<I18nContent<I18nContent<Option<String>>>>,
     pub materials: Option<ElectionEventMaterials>,
     pub language_conf: Option<ElectionEventLanguageConf>,

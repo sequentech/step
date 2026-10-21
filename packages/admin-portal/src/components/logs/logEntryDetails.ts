@@ -446,7 +446,12 @@ const emptyView = (description: string, statementKind: string | null): ILogEntry
 /** The popup's view of a log row. A message that isn't JSON keeps only its text. */
 export const logEntryView = (
     record:
-        | {message?: string | null; statement_kind?: string | null; user_id?: string | null}
+        | {
+              message?: string | null
+              statement_kind?: string | null
+              user_id?: string | null
+              username?: string | null
+          }
         | null
         | undefined
 ): ILogEntryView => {
@@ -467,7 +472,7 @@ export const logEntryView = (
         eventType: text(head.event_type),
         logType: text(head.log_type),
         who: {
-            username: text(message.username),
+            username: text(message.username) ?? text(record?.username),
             userId: text(message.user_id) ?? text(record?.user_id),
             role: null,
             unknownAccount: unknownAccount(body),

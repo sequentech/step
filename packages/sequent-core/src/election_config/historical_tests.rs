@@ -169,15 +169,182 @@ fn refuses_a_dangling_precinct_reference_before_building() {
 }
 #[test]
 fn outside_seat_candidates_require_explicit_scope_review() {
-    let (mut sql, xlsx) = fixture();
-    sql.extend_from_slice(
-        b"INSERT INTO `candidate` VALUES ('0008','Another Example','C01','S02',NULL);",
-    );
-    let mut options = reviewed();
+    let sql = with_second_seat(fixture().0, "('S02','Second Seat',1,'G01')")
+        + "INSERT INTO `candidate` VALUES ('0008','Another Example','C02','S02',NULL);";
+    let xlsx = fixture().1;
+    let mut options = first_seat_only(sql.as_bytes(), &xlsx);
     options.scope = ScopePolicy::RequireCompleteCoverage;
-    let refused = adapt(&sql, &xlsx, &options).unwrap_err();
+    let refused = adapt(sql.as_bytes(), &xlsx, &options).unwrap_err();
     assert_eq!(refused.report.problems[0].code, Code::NotApproved);
     assert_eq!(refused.summary.outside_scope_candidates, 1);
+}
+/// A second, valid contest `C02` with seat `S02`, so a candidate can be valid and
+/// still outside the seats an election selects.
+fn with_second_seat(sql: Vec<u8>, seat: &str) -> String {
+    String::from_utf8(sql).unwrap()
+        + &format!(
+            "INSERT INTO `seat` VALUES {seat};\nINSERT INTO `contest` VALUES ('C02','Second Seat',2);\n"
+        )
+}
+/// The workbook's only election takes seat row 1 (`S01`) and leaves `S02` out.
+fn first_seat_only(sql: &[u8], xlsx: &[u8]) -> HistoricalOptions {
+    HistoricalOptions {
+        election_mappings: vec![ElectionMapping {
+            workbook_row: 2,
+            seat_rows: vec![1],
+        }],
+        ..bound_options(sql, xlsx)
+    }
+}
+#[test]
+fn a_valid_unselected_contest_is_excluded_and_counted_under_configured_seats_only(
+) {
+    let sql = with_second_seat(fixture().0, "('S02','Second Seat',1,'G01')")
+        + "INSERT INTO `candidate` VALUES ('0008','Outside Example','C02','S02',NULL);";
+    let xlsx = fixture().1;
+    let adapted = adapt(
+        sql.as_bytes(),
+        &xlsx,
+        &first_seat_only(sql.as_bytes(), &xlsx),
+    )
+    .unwrap();
+    assert_eq!(adapted.summary.selected_candidates, 1);
+    assert_eq!(adapted.summary.outside_scope_candidates, 1);
+    let candidates = adapted.workbook.rows("candidates");
+    assert_eq!(candidates.len(), 1);
+    assert_eq!(
+        candidates[0].text("annotations.miru:candidate-id"),
+        Some("0007")
+    );
+    assert_eq!(adapted.summary.generated_rows["Contests"], 1);
+}
+#[test]
+fn every_candidate_reference_is_checked_against_the_whole_source_before_scope_filtering(
+) {
+    struct Case {
+        name: &'static str,
+        candidate: &'static str,
+        second_seat: &'static str,
+        code: Code,
+        column: &'static str,
+        offending: &'static str,
+    }
+    let cases = [
+        Case {
+            name: "missing contest",
+            candidate: "('0008','Dangling Example','C99','S01',NULL)",
+            second_seat: "('S02','Second Seat',1,'G01')",
+            code: Code::DanglingReference,
+            column: "candidate row 2 column POST_CODE",
+            offending: "C99",
+        },
+        Case {
+            name: "missing seat",
+            candidate: "('0008','Dangling Example','C01','S99',NULL)",
+            second_seat: "('S02','Second Seat',1,'G01')",
+            code: Code::DanglingReference,
+            column: "candidate row 2 column DISTRICTCODE",
+            offending: "S99",
+        },
+        Case {
+            name: "seat of another contest",
+            candidate: "('0008','Mismatched Example','C01','S02',NULL)",
+            second_seat: "('S02','Second Seat',1,'G01')",
+            code: Code::ConflictingColumns,
+            column: "candidate row 2 column DISTRICTCODE",
+            offending: "S02",
+        },
+        Case {
+            name: "contest of another seat",
+            candidate: "('0008','Mismatched Example','C02','S01',NULL)",
+            second_seat: "('S02','Second Seat',1,'G01')",
+            code: Code::ConflictingColumns,
+            column: "candidate row 2 column DISTRICTCODE",
+            offending: "S01",
+        },
+        Case {
+            name: "seat naming no contest",
+            candidate: "('0008','Unresolved Example','C02','S02',NULL)",
+            second_seat: "('S02','Unknown Seat',1,'G01')",
+            code: Code::DanglingReference,
+            column: "seat row 2 column CONTEST",
+            offending: "Unknown Seat",
+        },
+    ];
+    for case in cases {
+        let sql = with_second_seat(fixture().0, case.second_seat)
+            + &format!("INSERT INTO `candidate` VALUES {};", case.candidate);
+        let xlsx = fixture().1;
+        // Every scope: the narrowest selection, every seat, and complete coverage.
+        let mut complete = reviewed();
+        complete.scope = ScopePolicy::RequireCompleteCoverage;
+        for options in
+            [first_seat_only(sql.as_bytes(), &xlsx), reviewed(), complete]
+        {
+            let rejected = adapt(sql.as_bytes(), &xlsx, &options).unwrap_err();
+            let problem = &rejected.report.problems[0];
+            assert_eq!(problem.code, case.code, "{}", case.name);
+            assert!(
+                problem.path.ends_with(case.column),
+                "{}: {}",
+                case.name,
+                problem.path
+            );
+            assert!(
+                problem.message.contains(case.offending),
+                "{}: {}",
+                case.name,
+                problem.message
+            );
+            assert_eq!(
+                problem.details.get("reference").map(String::as_str),
+                Some(case.offending),
+                "{}",
+                case.name
+            );
+            assert_eq!(rejected.summary.outside_scope_candidates, 0);
+            assert!(rejected.summary.generated_rows.is_empty());
+            assert!(!format!("{:?}", rejected.report).contains("Example"));
+        }
+    }
+}
+#[test]
+fn a_null_code_on_either_side_of_a_candidate_reference_is_refused_where_it_is()
+{
+    let (source, xlsx) = fixture();
+    let source = String::from_utf8(source).unwrap();
+    for (from, to, path) in [
+        (
+            "('C01','Example Seat',1)",
+            "(NULL,'Example Seat',1)",
+            "contest row 1 column POSTCODE",
+        ),
+        (
+            "'Example Candidate','C01','S01'",
+            "'Example Candidate',NULL,'S01'",
+            "candidate row 1 column POST_CODE",
+        ),
+        (
+            "'Example Candidate','C01','S01'",
+            "'Example Candidate','C01',NULL",
+            "candidate row 1 column DISTRICTCODE",
+        ),
+        (
+            "('S01','Example Seat',1,'G01')",
+            "('S01',NULL,1,'G01')",
+            "seat row 1 column CONTEST",
+        ),
+    ] {
+        assert!(source.contains(from), "fixture replacement {from}");
+        let modified = source.replace(from, to);
+        let problem = refused_code(
+            modified.as_bytes(),
+            &xlsx,
+            &reviewed(),
+            Code::MissingField,
+        );
+        assert!(problem.path.ends_with(path), "{path}: {}", problem.path);
+    }
 }
 #[test]
 fn malformed_sql_reports_hashes_and_location_without_any_workbook_read() {
@@ -1134,18 +1301,20 @@ fn review_binding_checks_workbook_bytes_even_when_sql_is_unchanged() {
 fn explicit_candidate_scope_records_exclusions_without_inventing_affiliations()
 {
     let (sql, xlsx) = fixture();
-    let mut sql = String::from_utf8(sql)
+    let sql = String::from_utf8(sql)
         .unwrap()
         .replace("'S01','PR01'", "'S01',''");
-    sql.push_str("INSERT INTO candidate VALUES ('0008','Outside example','C01','S02',NULL);");
-    let adapted = adapt(sql.as_bytes(), &xlsx, &reviewed()).unwrap();
+    let sql = with_second_seat(sql.into_bytes(), "('S02','Second Seat',1,'G01')")
+        + "INSERT INTO candidate VALUES ('0008','Outside example','C02','S02',NULL);";
+    let options = first_seat_only(sql.as_bytes(), &xlsx);
+    let adapted = adapt(sql.as_bytes(), &xlsx, &options).unwrap();
     assert_eq!(adapted.summary.selected_candidates, 1);
     assert_eq!(adapted.summary.outside_scope_candidates, 1);
     assert_eq!(adapted.summary.unresolved_affiliations, 0);
     assert!(adapted.workbook.rows("candidates")[0]
         .get("annotations.miru:candidate-affiliation-id")
         .is_none());
-    let mut strict = reviewed();
+    let mut strict = options;
     strict.scope = ScopePolicy::RequireCompleteCoverage;
     refused_code(sql.as_bytes(), &xlsx, &strict, Code::NotApproved);
 }

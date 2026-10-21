@@ -142,6 +142,21 @@ class MetadataCleanup(unittest.TestCase):
         self.assertCountEqual(targets, ["owned-hasura", "owned-postgres"])
         self.assertIn(["network", "rm", "owned-network"], self.calls())
 
+    def test_ballot_log_action_has_its_privacy_edge_domain(self):
+        self.assert_valid_control()
+        create = next(
+            call
+            for call in self.calls()
+            if call[0] == "create"
+            and "owned-network" in call
+            and call[-1] == "hasura/graphql-engine:v2.33.1.cli-migrations-v3"
+        )
+        environment = [
+            create[index + 1] for index, value in enumerate(create) if value == "--env"
+        ]
+        self.assertIn("HARVEST_DOMAIN=harvest:8400", environment)
+        self.assertIn("HARVEST_BALLOT_LOG_DOMAIN=harvest-edge:8080", environment)
+
     def test_collisions_preserve_every_existing_resource(self):
         self.assert_valid_control()
         for service, code, count in (

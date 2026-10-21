@@ -29,7 +29,7 @@ import {getPermissions} from "./GetPermissions"
 import {getRoles} from "./GetRoles"
 import {isString} from "lodash"
 import {COLUMNS_MAP} from "@/types/query"
-import {GetCastVotesByIp} from "./GetCastVotesByIp"
+import {FORENSIC_NETWORK_SUMMARY} from "./ForensicNetwork"
 import {GET_ELECTIONS_BY_EXTERNAL_ID} from "./GetElectionsByExternalID"
 import {LOG_FILTER_CHANNEL, LOG_FILTER_OUTCOME} from "@/components/logs/messagingLogFilters"
 
@@ -336,28 +336,22 @@ export const customBuildQuery =
                 },
             }
         } else if (resourceName === "ip_address" && raFetchType === "GET_LIST") {
-            const resource: any = {
-                type: {
-                    fields: [],
-                    name: "ip_address",
-                },
-            }
-
             return {
-                query: GetCastVotesByIp(params),
-                variables: buildVariables(introspectionResults)(
-                    resource,
-                    raFetchType,
-                    params,
-                    null
-                ),
-                parseResponse: (res: any) => {
-                    const response = res.data.get_top_votes_by_ip
-                    let output = {
-                        data: response.items,
-                        total: response.total.aggregate.count,
+                query: FORENSIC_NETWORK_SUMMARY,
+                variables: {
+                    electionEventId: params.filter.election_event_id,
+                    electionId: params.filter.election_id || null,
+                    ip: params.filter.ip || null,
+                    country: params.filter.country || null,
+                    limit: params.pagination?.perPage ?? 25,
+                    offset:
+                        ((params.pagination?.page ?? 1) - 1) * (params.pagination?.perPage ?? 25),
+                },
+                parseResponse: (res: {data: Record<string, unknown>}) => {
+                    const response = res.data.forensic_network_summary as {
+                        payload: {items: unknown[]; total: number}
                     }
-                    return output
+                    return {data: response.payload.items, total: response.payload.total}
                 },
             }
         } else if (resourceName === "sequent_backend_applications" && raFetchType === "GET_LIST") {

@@ -1,10 +1,11 @@
 // SPDX-FileCopyrightText: 2025 Enric Badia <enric@xtremis.com>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {TranslationType} from "./en"
+import englishTranslation, {TranslationType} from "./en"
 
 const basqueTranslation: TranslationType = {
     translations: {
+        ballotPrivacy: englishTranslation.translations.ballotPrivacy,
         startup: {
             error: "Ezin izan da bozketa-ataria abiarazi. Saiatu berriro.",
             retry: "Saiatu berriro",
@@ -141,6 +142,11 @@ const basqueTranslation: TranslationType = {
                 "Eman zure bozketa erregistratzeko, edo zifraketa zuzen egin dela egiaztatu.",
         },
         reviewScreen: {
+            castRecovery: {
+                uncertain:
+                    "Botoaren emaitza ez da baieztatu. Eskaera bera berriro bidal dezakezu edo boto-paperaren IDa egiaztatu berriro hasi aurretik.",
+                checkBallot: "Egiaztatu boto-papera",
+            },
             acclamation: {
                 title: "Aklamazioz erabakia",
                 helpDialog: {
@@ -363,6 +369,9 @@ const basqueTranslation: TranslationType = {
             demoQRText: "Bozketa jarraitzailea desgaituta dago demo moduan",
         },
         auditScreen: {
+            confirmingAudit: "Boto-paper hau bidali ezin dela berresten…",
+            auditUnavailable:
+                "Ezin izan da boto-papera egiaztatu. Ez da haren edukia erakutsi. Saiatu berriro.",
             printButton: "Inprimatu",
             restartButton: "Hasi Bozketa",
             title: "Egiaztatu zure Bozketa",

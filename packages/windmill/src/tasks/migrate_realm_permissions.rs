@@ -35,7 +35,15 @@ use tracing::{error, info, instrument};
 
 /// The permissions the migration adds, with the English label Users and
 /// Roles shows for each, which becomes the role's description.
-pub const MIGRATED_PERMISSIONS: [(Permissions, &str); 26] = [
+pub const MIGRATED_PERMISSIONS: [(Permissions, &str); 28] = [
+    (
+        Permissions::FORENSIC_READ,
+        "Read isolated forensic network data",
+    ),
+    (
+        Permissions::VOTER_PSEUDONYM_RESOLVE,
+        "Resolve a voter pseudonym with an audited reason",
+    ),
     (
         Permissions::ELECTION_EVENT_SIGNATURES_TAB,
         "Election Event Signatures Tab",

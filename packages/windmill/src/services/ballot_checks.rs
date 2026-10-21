@@ -147,7 +147,7 @@ pub async fn get_checks_period(
 }
 
 /// Looks up one of the voter's own cast ballots, while checks are open.
-#[instrument(skip(hasura_transaction), err)]
+#[instrument(skip_all, err)]
 pub async fn locate_ballot(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -183,12 +183,15 @@ pub async fn locate_ballot(
     };
     let matches = match &ballot_id_match {
         BallotIdMatch::Received(_) => {
+            let event =
+                get_election_event_by_id(hasura_transaction, tenant_id, election_event_id).await?;
+            let identity = crate::services::vote_privacy::ballot_identity(&event, voter_id).await?;
             get_event_ballot_box(hasura_transaction, tenant_id, election_event_id)
                 .await?
                 .store
                 .received_cast_ballots(
                     election_event_id,
-                    voter_id,
+                    &identity,
                     election_id,
                     ballot_id_match.ballot_box_match(),
                 )
