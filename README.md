@@ -109,6 +109,14 @@ This project is licensed under the AGPL-3.0-only license. See [LICENSE](LICENSE)
 - **Discord**: Join our [Discord community][discord-link]
 - **Issues**: Report bugs on [GitHub Issues](https://github.com/sequentech/step/issues)
 
+## Security
+
+Please do not report security vulnerabilities through public GitHub issues.
+Follow our [Security Policy](SECURITY.md) and the
+[Vulnerability Disclosure Policy](https://docs.sequentech.io/docusaurus/main/docs/technology/vulnerability-disclosure-policy)
+instead: email [security@sequentech.io](mailto:security@sequentech.io),
+optionally encrypted to our OpenPGP key.
+
 ---
 
 ## Developer Reference
