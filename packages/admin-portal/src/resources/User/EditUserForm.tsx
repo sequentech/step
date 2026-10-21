@@ -74,6 +74,7 @@ import {InputContainerStyle, InputLabelStyle, PasswordInputStyle} from "./EditPa
 import IconTooltip from "@/components/IconTooltip"
 import {faInfoCircle} from "@fortawesome/free-solid-svg-icons"
 import {useUsersPermissions} from "./useUsersPermissions"
+import {canEditVoterField, VoterFieldAccess} from "./voterFieldAccess"
 import {CustomAutocompleteArrayInput, ReviewChangesTable} from "@sequentech/ui-essentials"
 import {useCustomNotify} from "@/hooks/useCustomNotify"
 import {getSaveUserErrorMessage} from "./saveUserError"
@@ -333,6 +334,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         canEditVotersEmailTlf,
         canReadVoterSecretAttributes,
         canWriteVoterSecretAttributes,
+        canWritePermissionLabels,
     } = useUsersPermissions()
     const [tenantId] = useTenantStore()
     const refresh = useRefresh()
@@ -544,17 +546,33 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         }
     )
 
-    // true if not affected by canEditVotersWhoVoted
-    // which happens if the voter has not voted
-    // or if current admin user has the permission canEditVotersWhoVoted
-
     const hasVoted = useMemo(() => {
         return voterCastVotes ? voterCastVotes?.length > 0 : false
     }, [voterCastVotes])
 
-    const enabledByVoteNum = useMemo(() => {
-        return canEditVotersWhoVoted || (canEditVoters && !hasVoted)
-    }, [canEditVotersWhoVoted, hasVoted])
+    // Mirrors harvest's edit_user: voter-voted-edit only lifts the "already
+    // voted" lock, and without voter-write only email and mobile can change.
+    const canEditField = useCallback(
+        (field: string) => {
+            const access: VoterFieldAccess = {
+                createMode: Boolean(createMode),
+                electionEventId,
+                hasVoted,
+                canEditVoters,
+                canEditVotersEmailTlf,
+                canEditVotersWhoVoted,
+            }
+            return canEditVoterField(access, field)
+        },
+        [
+            createMode,
+            electionEventId,
+            hasVoted,
+            canEditVoters,
+            canEditVotersEmailTlf,
+            canEditVotersWhoVoted,
+        ]
+    )
 
     const handleSelectedRolesOnCreate = useCallback(
         (id: string) => {
@@ -1151,6 +1169,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                 const displayName = attr.display_name ?? ""
                 const isRequired = isFieldRequired(attr)
                 const optionLabels = getInputOptionLabels(attr)
+                const fieldEditable = canEditField(attr.name)
                 if (isSecretAttribute(attr)) {
                     const name = attr.name
                     const stored = Boolean(user?.attributes?.[name]?.length)
@@ -1160,11 +1179,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                             label={getTranslationLabel(name, attr.display_name, t)}
                             values={secretAttributeValues[name] ?? []}
                             stored={stored}
-                            editable={
-                                canWriteVoterSecretAttributes &&
-                                (createMode || canEditVoters) &&
-                                !saving
-                            }
+                            editable={canWriteVoterSecretAttributes && fieldEditable && !saving}
                             multivalued={Boolean(attr.multivalued)}
                             canReveal={
                                 dirtySecretAttributes.has(name) ||
@@ -1223,14 +1238,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                                     required: isRequired,
                                                     name: displayName,
                                                 }}
-                                                disabled={
-                                                    !(
-                                                        createMode ||
-                                                        !electionEventId ||
-                                                        canEditVoters ||
-                                                        enabledByVoteNum
-                                                    )
-                                                }
+                                                disabled={!fieldEditable}
                                                 fullWidth
                                                 style={{
                                                     display: "block",
@@ -1238,14 +1246,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                                 }}
                                             />
                                         )}
-                                        disabled={
-                                            !(
-                                                createMode ||
-                                                !electionEventId ||
-                                                canEditVoters ||
-                                                enabledByVoteNum
-                                            )
-                                        }
+                                        disabled={!fieldEditable}
                                     />
                                 </FormControl>
                             </Grid>
@@ -1270,17 +1271,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                             key={choice.id}
                                             control={
                                                 <Checkbox
-                                                    disabled={
-                                                        !(
-                                                            createMode ||
-                                                            !electionEventId ||
-                                                            canEditVoters ||
-                                                            enabledByVoteNum ||
-                                                            (!hasVoted &&
-                                                                attr.name === "emailAndOrMobile" &&
-                                                                canEditVotersEmailTlf)
-                                                        )
-                                                    }
+                                                    disabled={!fieldEditable}
                                                     checked={value && value.includes(choice.id)}
                                                     onChange={() =>
                                                         handleCheckboxChange(attr.name ?? "")(
@@ -1305,14 +1296,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                             value={value}
                             onCommit={handleDateChange(attr.name)}
                             required={isRequired}
-                            disabled={
-                                !(
-                                    createMode ||
-                                    !electionEventId ||
-                                    canEditVoters ||
-                                    enabledByVoteNum
-                                )
-                            }
+                            disabled={!fieldEditable}
                         />
                     )
                 } else if (attr.name.toLowerCase().includes("area")) {
@@ -1325,15 +1309,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                             label={getTranslationLabel(attr.name, attr.display_name, t)}
                             fullWidth
                             initialValue={value}
-                            disabled={
-                                !(
-                                    createMode ||
-                                    !electionEventId ||
-                                    canEditVoters ||
-                                    enabledByVoteNum ||
-                                    (!hasVoted && canEditVotersEmailTlf)
-                                )
-                            }
+                            disabled={!fieldEditable}
                         />
                     )
                 } else if (attr.name.toLowerCase().includes("trustee")) {
@@ -1363,14 +1339,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                 optionValue={"external_id"}
                                 optionText={"name"}
                                 onChange={handleArraySelectChange}
-                                disabled={
-                                    !(
-                                        createMode ||
-                                        !electionEventId ||
-                                        canEditVoters ||
-                                        enabledByVoteNum
-                                    )
-                                }
+                                disabled={!fieldEditable}
                             />
                         </>
                     )
@@ -1383,10 +1352,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                             onChange={handlePermissionLabelChanged}
                             choices={choices}
                             disabled={
-                                !createMode &&
-                                !electionEventId &&
-                                !canEditVoters &&
-                                !enabledByVoteNum
+                                !fieldEditable || (!electionEventId && !canWritePermissionLabels)
                             }
                         />
                     )
@@ -1413,17 +1379,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                     }))
                                 }}
                                 required={isRequired}
-                                disabled={
-                                    !(
-                                        createMode ||
-                                        !electionEventId ||
-                                        canEditVoters ||
-                                        enabledByVoteNum ||
-                                        (!hasVoted &&
-                                            attr.name === "email" &&
-                                            canEditVotersEmailTlf)
-                                    )
-                                }
+                                disabled={!fieldEditable}
                             />
                         ) : (
                             <FormStyles.TextInput
@@ -1454,16 +1410,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                 }
                                 required={isFieldRequired(attr)}
                                 disabled={
-                                    (attr.name === "username" && !createMode) ||
-                                    !(
-                                        createMode ||
-                                        !electionEventId ||
-                                        canEditVoters ||
-                                        enabledByVoteNum ||
-                                        (!hasVoted &&
-                                            attr.name === "email" &&
-                                            canEditVotersEmailTlf)
-                                    )
+                                    (attr.name === "username" && !createMode) || !fieldEditable
                                 }
                             />
                         )}
@@ -1486,8 +1433,10 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
             commitSecretAttribute,
             canReadVoterSecretAttributes,
             canWriteVoterSecretAttributes,
-            canEditVoters,
+            canWritePermissionLabels,
             createMode,
+            electionEventId,
+            canEditField,
         ]
     )
 
@@ -1626,14 +1575,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                 label={`${t("usersAndRolesScreen.users.fields.enabled")} *`}
                                 control={
                                     <Checkbox
-                                        disabled={
-                                            !(
-                                                createMode ||
-                                                !electionEventId ||
-                                                canEditVoters ||
-                                                enabledByVoteNum
-                                            )
-                                        }
+                                        disabled={!canEditField("enabled")}
                                         checked={user?.enabled || false}
                                         onChange={(event: any) => {
                                             setUser({...user, enabled: event.target.checked})
@@ -1660,14 +1602,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                         onSelectArea={handleAreaSelection}
                                         label=""
                                         isRequired={true}
-                                        disabled={
-                                            !(
-                                                createMode ||
-                                                !electionEventId ||
-                                                canEditVoters ||
-                                                enabledByVoteNum
-                                            )
-                                        }
+                                        disabled={!canEditField("area-id")}
                                         customStyle={{
                                             "& legend": {
                                                 display: "none",
@@ -1693,14 +1628,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                             source="password"
                                             onChange={handleChange}
                                             error={!!errorText}
-                                            disabled={
-                                                !(
-                                                    createMode ||
-                                                    !electionEventId ||
-                                                    canEditVoters ||
-                                                    enabledByVoteNum
-                                                )
-                                            }
+                                            disabled={!canEditField("password")}
                                         />
                                     </FormControl>
                                 </VoterField>
@@ -1719,14 +1647,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                             onChange={handleChange}
                                             helperText={errorText}
                                             error={!!errorText}
-                                            disabled={
-                                                !(
-                                                    createMode ||
-                                                    !electionEventId ||
-                                                    canEditVoters ||
-                                                    enabledByVoteNum
-                                                )
-                                            }
+                                            disabled={!canEditField("password")}
                                         />
                                     </FormControl>
                                 </VoterField>
@@ -1756,14 +1677,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                             label={false}
                                             onChange={(e) => setTemportay(!temporary)}
                                             checked={temporary}
-                                            disabled={
-                                                !(
-                                                    createMode ||
-                                                    !electionEventId ||
-                                                    canEditVoters ||
-                                                    enabledByVoteNum
-                                                )
-                                            }
+                                            disabled={!canEditField("password")}
                                         />
                                     </InputContainerStyle>
                                 </VoterField>
