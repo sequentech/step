@@ -375,9 +375,6 @@ class StackBackend:
             "the tenant realm keys in the published JWKS", keys_published, "tenant"
         )
         self._restore_otp_test_mode()
-        bootstrap.enable_test_api_key_client(
-            self.keycloak, fixture_secret=bootstrap.ENV["API_KEY_CLIENT_SECRET"]
-        )
         bootstrap.set_admin_password(self.keycloak)
         try:
             bootstrap.admin_token(self.keycloak)
@@ -451,7 +448,6 @@ class StackBackend:
             keys_published,
             "tenant",
         )
-        bootstrap.enable_test_api_key_client(self.keycloak, realm)
         try:
             token = self._admin_token()
         except LoginError as error:

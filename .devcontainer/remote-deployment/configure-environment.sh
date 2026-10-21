@@ -96,15 +96,6 @@ if ! jq "$STRIP_USER_CREDENTIALS_JQ" "$KEYCLOAK_JSON_FILE" > "$KEYCLOAK_JSON_FIL
 fi
 mv "$KEYCLOAK_JSON_FILE.tmp" "$KEYCLOAK_JSON_FILE" || exit 1
 
-# This prepares a fresh import template, never an existing Keycloak realm.
-# A legacy enabled flag is not opt-in; Keycloak generates the missing secret.
-if ! jq '.adminEventsEnabled = true | .adminEventsDetailsEnabled = false | (.clients[]? | select(.clientId == "api-key-client")) |= (.enabled = false | del(.secret))' "$KEYCLOAK_JSON_FILE" > "$KEYCLOAK_JSON_FILE.tmp"; then
-  rm -f "$KEYCLOAK_JSON_FILE.tmp"
-  echo "Unable to set api-key-client defaults in $KEYCLOAK_JSON_FILE" >&2
-  exit 1
-fi
-mv "$KEYCLOAK_JSON_FILE.tmp" "$KEYCLOAK_JSON_FILE" || exit 1
-
 KEYCLOAK_CLIENT_SECRET=$(generate_base64 32)
 KEYCLOAK_CLI_CLIENT_SECRET=$(generate_base64 32)
 HASURA_GRAPHQL_ADMIN_SECRET=$(generate_base64 32)

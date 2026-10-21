@@ -294,8 +294,7 @@ class BootstrapAdminContracts(unittest.TestCase):
         self.enterContext(
             patch.dict(
                 os.environ,
-                {"ADMIN_USERNAME": "admin", "ADMIN_PASSWORD": "synthetic-password",
-                 "API_KEY_CLIENT_SECRET": "synthetic-fixture-secret"},
+                {"ADMIN_USERNAME": "admin", "ADMIN_PASSWORD": "synthetic-password"},
             )
         )
         self.reset = (
@@ -394,24 +393,6 @@ class BootstrapAdminContracts(unittest.TestCase):
             ],
         )
 
-    def test_explicit_fixture_opt_in_keeps_generated_secret_by_default(self):
-        keycloak = MagicMock()
-        keycloak.admin.side_effect = [[{"id": "api-id", "enabled": False}], None]
-        self.assertTrue(bootstrap.enable_test_api_key_client(keycloak, "tenant-fixture"))
-        keycloak.admin.assert_called_with("PUT", "tenant-fixture/clients/api-id", {"enabled": True}, expect=(204,))
-
-    def test_super_tenant_fixture_can_set_its_explicit_synthetic_secret(self):
-        keycloak = MagicMock()
-        keycloak.admin.side_effect = [[{"id": "api-id", "enabled": False}], None]
-        bootstrap.enable_test_api_key_client(keycloak, "tenant-fixture", fixture_secret="synthetic")
-        keycloak.admin.assert_called_with("PUT", "tenant-fixture/clients/api-id", {"enabled": True, "secret": "synthetic"}, expect=(204,))
-
-    def test_repeated_fixture_opt_in_never_resets_an_enabled_client(self):
-        keycloak = MagicMock()
-        keycloak.admin.return_value = [{"id": "api-id", "enabled": True}]
-        self.assertFalse(bootstrap.enable_test_api_key_client(keycloak, fixture_secret="synthetic"))
-        self.assertEqual(keycloak.admin.call_count, 1)
-
     def test_an_administrator_without_a_password_gets_the_configured_one(self):
         keycloak = FakeKeycloak([])
         bootstrap.set_admin_password(keycloak)
@@ -433,7 +414,6 @@ class BootstrapAdminContracts(unittest.TestCase):
             configure_step_cli=MagicMock(),
             seed_trustees=MagicMock(),
             enroll_trustees=MagicMock(),
-            enable_test_api_key_client=MagicMock(),
             set_admin_password=MagicMock(
                 side_effect=lambda keycloak: calls.append("password")
             ),
