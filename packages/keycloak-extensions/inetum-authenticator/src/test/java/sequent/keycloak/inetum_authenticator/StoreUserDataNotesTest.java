@@ -93,7 +93,7 @@ class StoreUserDataNotesTest {
     AuthenticationSessionModel authSession = storeNotes(formData);
 
     verify(authSession).setAuthNote("keyUserdata", "");
-    verify(authSession).setAuthNote("userId", "voter-id");
+    verify(authSession).removeAuthNote("userId");
     AUTHENTICATOR_NOTES.forEach(
         note -> verify(authSession, never()).setAuthNote(eq(note), anyString()));
   }
