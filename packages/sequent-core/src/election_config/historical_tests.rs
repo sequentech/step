@@ -309,6 +309,44 @@ fn every_candidate_reference_is_checked_against_the_whole_source_before_scope_fi
     }
 }
 #[test]
+fn a_null_code_on_either_side_of_a_candidate_reference_is_refused_where_it_is()
+{
+    let (source, xlsx) = fixture();
+    let source = String::from_utf8(source).unwrap();
+    for (from, to, path) in [
+        (
+            "('C01','Example Seat',1)",
+            "(NULL,'Example Seat',1)",
+            "contest row 1 column POSTCODE",
+        ),
+        (
+            "'Example Candidate','C01','S01'",
+            "'Example Candidate',NULL,'S01'",
+            "candidate row 1 column POST_CODE",
+        ),
+        (
+            "'Example Candidate','C01','S01'",
+            "'Example Candidate','C01',NULL",
+            "candidate row 1 column DISTRICTCODE",
+        ),
+        (
+            "('S01','Example Seat',1,'G01')",
+            "('S01',NULL,1,'G01')",
+            "seat row 1 column CONTEST",
+        ),
+    ] {
+        assert!(source.contains(from), "fixture replacement {from}");
+        let modified = source.replace(from, to);
+        let problem = refused_code(
+            modified.as_bytes(),
+            &xlsx,
+            &reviewed(),
+            Code::MissingField,
+        );
+        assert!(problem.path.ends_with(path), "{path}: {}", problem.path);
+    }
+}
+#[test]
 fn malformed_sql_reports_hashes_and_location_without_any_workbook_read() {
     let refused = adapt(
         b"SELECT 'private-record' INTO OUTFILE '/tmp/data';",

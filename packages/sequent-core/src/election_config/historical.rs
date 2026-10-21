@@ -557,6 +557,7 @@ fn sheet_row<'a>(
 fn check_candidate_references(
     candidates: &Data,
     seats: &Data,
+    seats_by_district: &BTreeMap<String, usize>,
     contests: &Data,
     contests_by_name: &BTreeMap<String, usize>,
 ) -> Result<(), Problem> {
@@ -566,10 +567,10 @@ fn check_candidate_references(
                 .detail("reference", value)
                 .detail("target", target)
         };
+    // By contest row, so a seat's contest is read once and cannot fail later.
     let postcodes = (0..contests.table.rows.len())
         .map(|i| contests.text(i, "POSTCODE"))
-        .collect::<Result<BTreeSet<_>, _>>()?;
-    let seats_by_district = seats.index("DISTRICTCODE")?;
+        .collect::<Result<Vec<_>, _>>()?;
     for candidate in 0..candidates.table.rows.len() {
         let postcode = candidates.text(candidate, "POST_CODE")?;
         if !postcodes.contains(&postcode) {
@@ -605,8 +606,8 @@ fn check_candidate_references(
             .detail("reference", &name)
             .detail("target", "contest.POSTNAME")
         })?;
-        let seat_postcode = contests.text(contest, "POSTCODE")?;
-        if seat_postcode != postcode {
+        let seat_postcode = &postcodes[contest];
+        if *seat_postcode != postcode {
             return Err(problem(
                 "candidate",
                 candidate,
@@ -806,9 +807,9 @@ fn map(
     let ti = contests.index("POSTNAME")?;
     let pi = parties.index("CODE_PARTY")?;
     let gi = geography.index("GEOCODE")?;
-    seats.index("DISTRICTCODE")?;
+    let si = seats.index("DISTRICTCODE")?;
     candidates.index("CAND_CODE")?;
-    check_candidate_references(&candidates, &seats, &contests, &ti)?;
+    check_candidate_references(&candidates, &seats, &si, &contests, &ti)?;
     let erows = workbook.rows("elections");
     workbook_index(erows, "alias")?;
     let mut ei: BTreeMap<String, Vec<usize>> = BTreeMap::new();
