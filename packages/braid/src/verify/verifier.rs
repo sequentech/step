@@ -250,7 +250,7 @@ impl<C: Ctx> Verifier<C> {
 
         info!("{}", vr);
 
-        Ok(())
+        vr.ensure_complete()
     }
 }
 
@@ -398,6 +398,16 @@ impl VerificationResult {
         self.children.insert(child.name.clone(), child);
     }
 
+    fn ensure_complete(&self) -> Result<()> {
+        let (_, not_ok, _) = self.totals();
+        anyhow::ensure!(
+            not_ok == 0,
+            "Verification failed: {} required checks failed or were incomplete",
+            not_ok
+        );
+        Ok(())
+    }
+
     fn totals(&self) -> (u64, u64, usize) {
         let mut ok = 0;
         let mut not_ok = 0;
@@ -449,5 +459,75 @@ impl std::fmt::Display for VerificationResult {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Check, VerificationResult};
+
+    fn result_with_check(name: &str, check: Check, result: Option<bool>) -> VerificationResult {
+        let mut verification = VerificationResult::new(name);
+        verification.add_target(check);
+        if let Some(result) = result {
+            let item = verification.targets.values_mut().next().unwrap();
+            item.result = result;
+        }
+        verification
+    }
+
+    #[test]
+    fn complete_root_and_children_succeed() {
+        let mut root = result_with_check("board", Check::CONFIGURATION_VALID, Some(true));
+        let mut child = result_with_check("batch", Check::MIX_VALID, Some(true));
+        child.add_child(result_with_check(
+            "nested",
+            Check::PLAINTEXTS_VALID,
+            Some(true),
+        ));
+        root.add_child(child);
+
+        assert!(root.ensure_complete().is_ok());
+        assert_eq!(root.totals(), (3, 0, 1));
+    }
+
+    #[test]
+    fn failed_root_check_is_rejected() {
+        let root = result_with_check("board", Check::CONFIGURATION_VALID, Some(false));
+
+        assert!(root.ensure_complete().is_err());
+    }
+
+    #[test]
+    fn missing_root_check_is_rejected() {
+        let root = result_with_check("board", Check::PK_VALID, None);
+
+        assert!(root.ensure_complete().is_err());
+    }
+
+    #[test]
+    fn failed_child_check_is_rejected() {
+        let mut root = result_with_check("board", Check::PK_VALID, Some(true));
+        root.add_child(result_with_check("batch", Check::MIX_VALID, Some(false)));
+
+        assert!(root.ensure_complete().is_err());
+    }
+
+    #[test]
+    fn missing_child_check_is_rejected() {
+        let mut root = result_with_check("board", Check::PK_VALID, Some(true));
+        root.add_child(result_with_check("batch", Check::PLAINTEXTS_VALID, None));
+
+        assert!(root.ensure_complete().is_err());
+    }
+
+    #[test]
+    fn incomplete_nested_child_is_rejected() {
+        let mut root = result_with_check("board", Check::PK_VALID, Some(true));
+        let mut child = result_with_check("batch", Check::MIX_VALID, Some(true));
+        child.add_child(result_with_check("nested", Check::PLAINTEXTS_VALID, None));
+        root.add_child(child);
+
+        assert!(root.ensure_complete().is_err());
     }
 }

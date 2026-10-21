@@ -1259,6 +1259,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "ballot-audit"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "b3",
+ "base64 0.22.1",
+ "chrono",
+ "clap",
+ "electoral-log",
+ "hex",
+ "immudb-rs",
+ "sequent-core",
+ "serde",
+ "serde_json",
+ "strand",
+ "tokio",
+ "tokio-postgres",
+ "tokio-stream",
+ "uuid",
+]
+
+[[package]]
 name = "base16ct"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -12568,8 +12590,3 @@ checksum = "29ce2c8a9384ad323cf564b67da86e21d3cfdff87908bc1223ed5c99bc792713"
 dependencies = [
  "zune-core",
 ]
-
-[[patch.unused]]
-name = "auto_generate_cdp"
-version = "0.4.4"
-source = "git+https://github.com/mdrokz/auto_generate_cdp?rev=634e636fd8edbe032d7191326527c721a2b51106#634e636fd8edbe032d7191326527c721a2b51106"
