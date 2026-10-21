@@ -279,6 +279,9 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 
 # Public disposable SQL and vault fixtures; no deployment settings are inherited.
 [profiles.harvest.test_environment]
+ELECTORAL_LOG_PG_PROVISIONING_USER = ""
+ELECTORAL_LOG_PG_READER_USER = ""
+ELECTORAL_LOG_PG_BACKUP_USER = ""
 KEYCLOAK_VOTER_GROUP_NAME = "voter"
 ENV_SLUG = "electoral-log-tests"
 SECRETS_BACKEND = "EnvVarMasterSecret"
