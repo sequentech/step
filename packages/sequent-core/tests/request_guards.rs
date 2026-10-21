@@ -223,3 +223,24 @@ async fn incomplete_datafix_headers_fail_before_requesting_a_token() {
         assert_eq!(request.dispatch().await.status(), Status::BadRequest);
     }
 }
+
+#[rocket::async_test]
+async fn datafix_guard_without_managed_issuers_fails_before_requesting_a_token()
+{
+    let client = Client::tracked(
+        rocket::build()
+            .manage(LastDatafixAccessToken::init())
+            .mount("/", routes![datafix]),
+    )
+    .await
+    .unwrap();
+    let response = client
+        .get("/datafix")
+        .header(Header::new("tenant-id", "north"))
+        .header(Header::new("event-id", "mayor"))
+        .header(Header::new("authorization", "datafix-client:synthetic"))
+        .dispatch()
+        .await;
+    // A token request could only fail with 401: none is configured here.
+    assert_eq!(response.status(), Status::InternalServerError);
+}

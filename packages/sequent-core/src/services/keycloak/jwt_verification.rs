@@ -1,22 +1,39 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use super::{get_event_realm, get_tenant_realm};
+use crate::services::jwt::JwtClaims;
 use anyhow::{anyhow, ensure, Context, Result};
 use base64::Engine;
 use jsonwebtoken::jwk::JwkSet;
 use jsonwebtoken::{decode, decode_header, Algorithm, DecodingKey, Validation};
 use reqwest::{redirect::Policy, Client, Url};
-use serde_json::Value;
+use serde::de::DeserializeOwned;
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock};
 use std::time::{Duration, Instant};
 use tokio::sync::{Mutex, Semaphore};
 
+const KEYCLOAK_URL: &str = "KEYCLOAK_URL";
+const KEYCLOAK_PUBLIC_URL: &str = "KEYCLOAK_PUBLIC_URL";
+const KIOSK_KEYCLOAK_URL: &str = "KIOSK_KEYCLOAK_URL";
+const HARVEST_JWT_ISSUER_URLS: &str = "HARVEST_JWT_ISSUER_URLS";
+/// Optional settings, each a comma-separated list of further issuer bases.
+const OPTIONAL_ISSUER_SETTINGS: [&str; 3] = [
+    KEYCLOAK_PUBLIC_URL,
+    KIOSK_KEYCLOAK_URL,
+    HARVEST_JWT_ISSUER_URLS,
+];
+
 const CACHE_TTL: Duration = Duration::from_secs(300);
 const REFRESH_INTERVAL: Duration = Duration::from_secs(30);
+const DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(5);
 const MAX_CACHED_REALMS: usize = 256;
 const MAX_JWKS_BYTES: usize = 1024 * 1024;
+const MAX_JWKS_KEYS: usize = 128;
 const MAX_CONCURRENT_DOWNLOADS: usize = 32;
+const MAX_TOKEN_BYTES: usize = 64 * 1024;
+const MAX_REALM_NAME_LEN: usize = 255;
 
 static DOWNLOADS: Semaphore = Semaphore::const_new(MAX_CONCURRENT_DOWNLOADS);
 
@@ -50,50 +67,99 @@ fn configured_base(base: &str) -> Result<Url> {
     Ok(url)
 }
 
+/// Issuers whose bearer tokens are accepted, and the server their signing keys
+/// are downloaded from. Every URL is validated once, when the value is built,
+/// and applications register it as Rocket managed state for the guards.
+#[derive(Debug)]
+pub struct BearerIssuers {
+    internal_base: Url,
+    trusted_bases: Vec<Url>,
+}
+
+impl BearerIssuers {
+    /// Trusts `trusted_bases` and downloads signing keys from
+    /// `internal_base`, which is trusted as an issuer only if also listed.
+    pub fn new(internal_base: &str, trusted_bases: &[&str]) -> Result<Self> {
+        Ok(Self {
+            internal_base: configured_base(internal_base)?,
+            trusted_bases: trusted_bases
+                .iter()
+                .map(|base| configured_base(base))
+                .collect::<Result<_>>()?,
+        })
+    }
+
+    /// Reads the issuer settings through `var`: `KEYCLOAK_URL`, which is
+    /// required, trusted and used for key downloads, and the optional
+    /// comma-separated `KEYCLOAK_PUBLIC_URL`, `KIOSK_KEYCLOAK_URL` and
+    /// `HARVEST_JWT_ISSUER_URLS`. Errors name the setting, never its value.
+    pub fn from_vars(var: impl Fn(&str) -> Option<String>) -> Result<Self> {
+        let internal = var(KEYCLOAK_URL)
+            .with_context(|| format!("{KEYCLOAK_URL} must be set"))?;
+        let internal_base = setting_base(KEYCLOAK_URL, &internal)?;
+        let mut trusted_bases = vec![internal_base.clone()];
+        for name in OPTIONAL_ISSUER_SETTINGS {
+            for base in var(name)
+                .unwrap_or_default()
+                .split(',')
+                .map(str::trim)
+                .filter(|base| !base.is_empty())
+            {
+                trusted_bases.push(setting_base(name, base)?);
+            }
+        }
+        Ok(Self {
+            internal_base,
+            trusted_bases,
+        })
+    }
+}
+
+fn setting_base(name: &str, base: &str) -> Result<Url> {
+    configured_base(base)
+        .with_context(|| format!("Invalid {name} issuer configuration"))
+}
+
+fn realm_url(base: &Url, realm: &str) -> String {
+    format!("{}/realms/{realm}", base.as_str().trim_end_matches('/'))
+}
+
 /// The payload is only a routing hint until signature verification completes.
 /// It can select a realm below a configured origin, never a new key server.
-fn trusted_realm(payload: &Value, trusted_bases: &[&str]) -> Result<String> {
-    let issuer = payload["iss"].as_str().context("Missing issuer")?;
+fn trusted_realm(claims: &JwtClaims, trusted_bases: &[Url]) -> Result<String> {
     let realm = trusted_bases
         .iter()
-        .find_map(|base| {
-            let base = configured_base(base).ok()?;
-            issuer.strip_prefix(&format!(
-                "{}/realms/",
-                base.as_str().trim_end_matches('/')
-            ))
-        })
+        .find_map(|base| claims.iss.strip_prefix(&realm_url(base, "")))
         .context("Untrusted issuer")?;
     ensure!(
         !realm.is_empty()
-            && realm.len() <= 255
+            && realm.len() <= MAX_REALM_NAME_LEN
             && realm
                 .bytes()
                 .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_'),
         "Invalid realm"
     );
-    let claims = &payload["https://hasura.io/jwt/claims"];
-    let tenant = claims["x-hasura-tenant-id"]
-        .as_str()
-        .context("Missing tenant")?;
-    let tenant_realm = format!("tenant-{tenant}");
-    let event_prefix = format!("{tenant_realm}-event-");
-    let event_matches = match claims["x-hasura-election-event-id"].as_str() {
-        Some(event) => realm == format!("{event_prefix}{event}"),
+    let tenant = &claims.hasura_claims.tenant_id;
+    let event_matches = match &claims.hasura_claims.election_event_id {
+        Some(event) => realm == get_event_realm(tenant, event),
         // Existing event templates omit this optional claim. Their signature
         // still has to verify with keys from this exact tenant/event realm.
         None => realm
-            .strip_prefix(&event_prefix)
+            .strip_prefix(&get_event_realm(tenant, ""))
             .is_some_and(|event| !event.is_empty()),
     };
     ensure!(
-        realm == tenant_realm || event_matches,
+        realm == get_tenant_realm(tenant) || event_matches,
         "Issuer does not match tenant/event"
     );
     Ok(realm.to_owned())
 }
 
-fn verify_with_jwks(token: &str, issuer: &str, keys: &JwkSet) -> Result<Value> {
+fn verify_with_jwks<T: DeserializeOwned>(
+    token: &str,
+    issuer: &str,
+    keys: &JwkSet,
+) -> Result<T> {
     let header = decode_header(token)?;
     // Keycloak's default realm signing algorithm. Symmetric keys must never be
     // accepted as an alternative to the public realm signing key.
@@ -112,7 +178,7 @@ fn verify_with_jwks(token: &str, issuer: &str, keys: &JwkSet) -> Result<Value> {
     // Existing Keycloak voter/service tokens can omit aud or use "account";
     // these APIs have always authorized the verified realm's Hasura claims.
     validation.validate_aud = false;
-    Ok(decode::<Value>(token, &key, &validation)?.claims)
+    Ok(decode::<T>(token, &key, &validation)?.claims)
 }
 
 fn jwks_client() -> Result<&'static Client> {
@@ -121,22 +187,17 @@ fn jwks_client() -> Result<&'static Client> {
     match CLIENT.get_or_init(|| {
         Client::builder()
             .redirect(Policy::none())
-            .timeout(Duration::from_secs(5))
+            .timeout(DOWNLOAD_TIMEOUT)
             .build()
     }) {
         Ok(client) => Ok(client),
-        Err(error) => {
-            Err(anyhow!("Cannot initialize signing-key client: {error}"))
-        }
+        Err(error) => Err(anyhow!("Cannot build signing-key client: {error}")),
     }
 }
 
-async fn download_keys(base: &str, realm: &str) -> Result<JwkSet> {
-    let base = configured_base(base)?;
-    let endpoint = format!(
-        "{}/realms/{realm}/protocol/openid-connect/certs",
-        base.as_str().trim_end_matches('/')
-    );
+async fn download_keys(base: &Url, realm: &str) -> Result<JwkSet> {
+    let endpoint =
+        format!("{}/protocol/openid-connect/certs", realm_url(base, realm));
     let mut response = jwks_client()?.get(endpoint).send().await?;
     ensure!(
         response.status().is_success(),
@@ -152,7 +213,7 @@ async fn download_keys(base: &str, realm: &str) -> Result<JwkSet> {
         bytes.extend_from_slice(&chunk);
     }
     let keys: JwkSet = serde_json::from_slice(&bytes)?;
-    ensure!(keys.keys.len() <= 128, "Too many signing keys");
+    ensure!(keys.keys.len() <= MAX_JWKS_KEYS, "Too many signing keys");
     Ok(keys)
 }
 
@@ -175,11 +236,11 @@ fn make_room(entries: &mut RealmCache) -> Result<()> {
 
 async fn realm_keys(
     downloads: &Semaphore,
-    base: &str,
+    base: &Url,
     realm: &str,
     kid: &str,
 ) -> Result<Arc<JwkSet>> {
-    let cache_key = format!("{base}/realms/{realm}");
+    let cache_key = realm_url(base, realm);
     let entry = {
         let mut entries = cache().lock().await;
         if !entries.contains_key(&cache_key)
@@ -224,48 +285,12 @@ async fn realm_keys(
     Ok(keys)
 }
 
-pub(super) async fn verify_bearer(token: &str) -> Result<Value> {
-    let internal_base =
-        std::env::var("KEYCLOAK_URL").context("KEYCLOAK_URL must be set")?;
-    validate_configured_base("KEYCLOAK_URL", &internal_base)?;
-    let mut bases = vec![internal_base.clone()];
-    for variable in [
-        "KEYCLOAK_PUBLIC_URL",
-        "KIOSK_KEYCLOAK_URL",
-        "HARVEST_JWT_ISSUER_URLS",
-    ] {
-        if let Ok(value) = std::env::var(variable) {
-            for base in value
-                .split(',')
-                .map(str::trim)
-                .filter(|base| !base.is_empty())
-            {
-                validate_configured_base(variable, base)?;
-                bases.push(base.to_owned());
-            }
-        }
-    }
-    let trusted_bases: Vec<_> = bases.iter().map(String::as_str).collect();
-    verify_bearer_with_config(token, &trusted_bases, &internal_base).await
-}
-
-fn validate_configured_base(variable: &str, base: &str) -> Result<()> {
-    configured_base(base).map(|_| ()).map_err(|error| {
-        // Report the setting name without logging a potentially sensitive value.
-        tracing::warn!(
-            setting = variable,
-            "Invalid Keycloak issuer configuration"
-        );
-        error.context(format!("Invalid {variable} issuer configuration"))
-    })
-}
-
-pub(super) async fn verify_bearer_with_config(
+/// Verifies the signature, expiry and issuer of `token` and returns its claims.
+pub(crate) async fn verify_bearer(
     token: &str,
-    trusted_bases: &[&str],
-    internal_base: &str,
-) -> Result<Value> {
-    ensure!(token.len() <= 64 * 1024, "Token is too large");
+    issuers: &BearerIssuers,
+) -> Result<JwtClaims> {
+    ensure!(token.len() <= MAX_TOKEN_BYTES, "Token is too large");
     let header = decode_header(token)?;
     ensure!(
         header.alg == Algorithm::RS256,
@@ -273,17 +298,19 @@ pub(super) async fn verify_bearer_with_config(
     );
     let kid = header.kid.context("Missing signing key ID")?;
     let payload = token.split('.').nth(1).unwrap_or_default();
-    let payload: Value = serde_json::from_slice(
+    let payload: JwtClaims = serde_json::from_slice(
         &base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(payload)?,
     )?;
-    let realm = trusted_realm(&payload, trusted_bases)?;
-    let keys = realm_keys(&DOWNLOADS, internal_base, &realm, &kid).await?;
-    let issuer = payload["iss"].as_str().unwrap_or_default();
-    let verified = verify_with_jwks(token, issuer, &keys)?;
-    trusted_realm(&verified, trusted_bases)?;
+    let realm = trusted_realm(&payload, &issuers.trusted_bases)?;
+    let keys =
+        realm_keys(&DOWNLOADS, &issuers.internal_base, &realm, &kid).await?;
+    let verified: JwtClaims = verify_with_jwks(token, &payload.iss, &keys)?;
+    trusted_realm(&verified, &issuers.trusted_bases)?;
     Ok(verified)
 }
 
+// The tests and fixtures keep their path from before the move here: the
+// coverage gate measures both compared revisions with one exclusion list.
 #[cfg(test)]
-#[path = "jwt_verification/tests.rs"]
+#[path = "../jwt_verification/tests.rs"]
 mod tests;

@@ -274,14 +274,16 @@ async fn client() -> Client {
         ..crate::services::dependencies::HarvestServices::production()
     };
     Client::tracked(
-        crate::build_application_with(services)
-            .manage(crate::test_claims::signing::issuers())
-            .configure(rocket::Config {
-                log_level: rocket::config::LogLevel::Off,
-                ..Default::default()
-            })
-            .mount("/", routes![accepted_claims, status_failure])
-            .mount("/api/datafix", routes![status_failure]),
+        crate::build_application_with(
+            services,
+            crate::test_claims::signing::issuers(),
+        )
+        .configure(rocket::Config {
+            log_level: rocket::config::LogLevel::Off,
+            ..Default::default()
+        })
+        .mount("/", routes![accepted_claims, status_failure])
+        .mount("/api/datafix", routes![status_failure]),
     )
     .await
     .expect("the production routes must mount without starting workers")

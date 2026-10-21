@@ -2,12 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::jwt::*;
-use crate::services::jwt_verification::{
-    verify_bearer, verify_bearer_with_config,
-};
 use crate::services::keycloak::{
-    get_third_party_client_access_token, KeycloakAdminClient,
-    PubKeycloakAdminToken,
+    get_third_party_client_access_token, verify_bearer, BearerIssuers,
+    KeycloakAdminClient, PubKeycloakAdminToken,
 };
 use anyhow::{anyhow, Result as AnyhowResult};
 use keycloak::{KeycloakAdmin, KeycloakAdminToken};
@@ -60,29 +57,6 @@ impl<'r> FromRequest<'r> for AuthHeaders {
     }
 }
 
-/// Issuers the bearer guards trust, and the server their signing keys come
-/// from. Applications that manage none use the Keycloak environment settings.
-pub struct BearerIssuers {
-    pub internal_base: String,
-    pub trusted_bases: Vec<String>,
-}
-
-async fn verified_claims(
-    request: &Request<'_>,
-    token: &str,
-) -> AnyhowResult<JwtClaims> {
-    let verified = match request.rocket().state::<BearerIssuers>() {
-        Some(issuers) => {
-            let trusted: Vec<&str> =
-                issuers.trusted_bases.iter().map(String::as_str).collect();
-            verify_bearer_with_config(token, &trusted, &issuers.internal_base)
-                .await?
-        }
-        None => verify_bearer(token).await?,
-    };
-    Ok(serde_json::from_value(verified)?)
-}
-
 #[rocket::async_trait]
 impl<'r> FromRequest<'r> for JwtClaims {
     type Error = ();
@@ -95,10 +69,18 @@ impl<'r> FromRequest<'r> for JwtClaims {
             Some(authorization) => {
                 match authorization.strip_prefix("Bearer ") {
                     Some(token) => {
-                        match verified_claims(request, token).await {
+                        // Unmanaged issuers are a server misconfiguration:
+                        // 500, not 401.
+                        let issuers = try_outcome!(
+                            request.guard::<&State<BearerIssuers>>().await
+                        );
+                        match verify_bearer(token, issuers).await {
                             Ok(jwt) => Outcome::Success(jwt),
-                            Err(_) => {
-                                warn!("JwtClaims guard: invalid bearer token");
+                            Err(err) => {
+                                warn!(
+                                    "JwtClaims guard: invalid bearer token: \
+                                     {err:#}"
+                                );
                                 Outcome::Error((Status::Unauthorized, ()))
                             }
                         }
@@ -357,6 +339,10 @@ impl<'r> FromRequest<'r> for DatafixClaims {
         let lst_acc_tkn = try_outcome!(
             request.guard::<&State<LastDatafixAccessToken>>().await
         );
+        // Without issuers no token can be verified, so fail before requesting
+        // one from Keycloak.
+        let issuers =
+            try_outcome!(request.guard::<&State<BearerIssuers>>().await);
         let token_resp = match read_access_token(
             &authorization.client_id,
             &authorization.client_secret,
@@ -384,14 +370,14 @@ impl<'r> FromRequest<'r> for DatafixClaims {
             }
         };
 
-        match verified_claims(request, &token_resp.access_token).await {
+        match verify_bearer(&token_resp.access_token, issuers).await {
             Ok(jwt_claims) => Outcome::Success(DatafixClaims {
                 jwt_claims,
                 tenant_id,
                 datafix_event_id,
             }),
-            Err(_) => {
-                warn!("DatafixClaims guard: invalid bearer token");
+            Err(err) => {
+                warn!("DatafixClaims guard: invalid bearer token: {err:#}");
                 Outcome::Error((Status::Unauthorized, ()))
             }
         }

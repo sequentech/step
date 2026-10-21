@@ -255,13 +255,15 @@ impl Services {
         log_level: rocket::config::LogLevel,
     ) -> Client {
         Client::tracked(
-            crate::build_application_with(self.harvest_services())
-                .manage(crate::test_claims::signing::issuers())
-                .configure(rocket::Config {
-                    log_level,
-                    cli_colors: false,
-                    ..Default::default()
-                }),
+            crate::build_application_with(
+                self.harvest_services(),
+                crate::test_claims::signing::issuers(),
+            )
+            .configure(rocket::Config {
+                log_level,
+                cli_colors: false,
+                ..Default::default()
+            }),
         )
         .await
         .expect("the routes mount with test services")

@@ -7,6 +7,7 @@ extern crate rocket;
 
 use dotenv::dotenv;
 use sequent_core::services::connection::LastDatafixAccessToken;
+use sequent_core::services::keycloak::BearerIssuers;
 use sequent_core::util::init_log::init_log_with_filter;
 use services::dependencies::HarvestServices;
 use windmill::services::{
@@ -53,6 +54,9 @@ mod hasura_signing_permissions;
 async fn rocket() -> _ {
     dotenv().ok();
     init_log_with_filter(true, services::request_logging::enabled);
+    // A bad issuer setting would otherwise reject every request with 401.
+    let issuers = BearerIssuers::from_vars(|name| std::env::var(name).ok())
+        .expect("Keycloak issuer settings");
 
     setup_probe(AppName::HARVEST).await;
     set_is_app_active(true);
@@ -66,17 +70,14 @@ async fn rocket() -> _ {
         }
     });
 
-    build_application()
+    build_application_with(HarvestServices::production(), issuers)
 }
 
 /// Register the same routes and managed state for production and local HTTP
 /// tests. Starting probes, plugins and worker processes remains a startup step.
-fn build_application() -> rocket::Rocket<rocket::Build> {
-    build_application_with(HarvestServices::production())
-}
-
 fn build_application_with(
     services: HarvestServices,
+    issuers: BearerIssuers,
 ) -> rocket::Rocket<rocket::Build> {
     let fake_provider_routes = services.messaging_fake_provider_routes;
     let rocket = rocket::build()
@@ -331,6 +332,7 @@ fn build_application_with(
         ])
         .attach(routes::plugin_platform::registry_fairing())
         .manage(LastDatafixAccessToken::init())
+        .manage(issuers)
         .manage(services);
     // Only with MESSAGING_FAKE_PROVIDER_ROUTES=ENABLED (development).
     routes::fake_provider::mount(rocket, fake_provider_routes)
