@@ -166,20 +166,39 @@ pub struct GetTopCastVotesByIp {
     election_id: Option<String>,
 }
 
+/// The list shows voter IPs and ids, so the dashboard permission is not
+/// enough. The event-wide list needs ADMIN_IP_ADDRESS_VIEW; a list filtered to
+/// one election also accepts ELECTION_IP_ADDRESS_VIEW, as the election
+/// dashboard does.
+fn authorize_top_votes_by_ip(
+    claims: &JwtClaims,
+    election_id: Option<&str>,
+) -> Result<(), (Status, String)> {
+    let ip_view = |permission| {
+        authorize(
+            claims,
+            true,
+            Some(claims.hasura_claims.tenant_id.clone()),
+            vec![Permissions::ADMIN_DASHBOARD_VIEW, permission],
+        )
+    };
+    ip_view(Permissions::ADMIN_IP_ADDRESS_VIEW).or_else(|error| {
+        match election_id {
+            Some(_) => ip_view(Permissions::ELECTION_IP_ADDRESS_VIEW),
+            None => Err(error),
+        }
+    })
+}
+
 #[instrument(skip(claims))]
 #[post("/election-event/top-votes-by-ip", format = "json", data = "<body>")]
 pub async fn get_election_event_top_votes_by_ip(
     claims: JwtClaims,
     body: Json<GetTopCastVotesByIp>,
 ) -> Result<Json<DataList<CastVoteCountByIp>>, (Status, String)> {
-    authorize(
-        &claims,
-        true,
-        Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::ADMIN_DASHBOARD_VIEW],
-    )?;
-
     let input = body.into_inner();
+    authorize_top_votes_by_ip(&claims, input.election_id.as_deref())?;
+
     let tenant_id: String = claims.hasura_claims.tenant_id.clone();
 
     let mut hasura_db_client: DbClient =
@@ -226,4 +245,55 @@ pub async fn get_election_event_top_votes_by_ip(
             },
         },
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::services::authorization::test_claims::{
+        admin_claims, CALLER_TENANT_ID,
+    };
+
+    const ELECTION_ID: Option<&str> = Some("election");
+
+    #[test]
+    fn dashboard_view_alone_does_not_list_voter_ips() {
+        let claims = admin_claims(CALLER_TENANT_ID, &["admin-dashboard-view"]);
+        for election_id in [None, ELECTION_ID] {
+            let error =
+                authorize_top_votes_by_ip(&claims, election_id).unwrap_err();
+            assert_eq!(error.0, Status::Unauthorized, "{election_id:?}");
+        }
+    }
+
+    #[test]
+    fn admin_ip_view_lists_the_event_and_each_election() {
+        let claims = admin_claims(
+            CALLER_TENANT_ID,
+            &["admin-dashboard-view", "admin-ip-address-view"],
+        );
+        for election_id in [None, ELECTION_ID] {
+            assert!(
+                authorize_top_votes_by_ip(&claims, election_id).is_ok(),
+                "{election_id:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn election_ip_view_lists_only_one_election() {
+        let claims = admin_claims(
+            CALLER_TENANT_ID,
+            &["admin-dashboard-view", "election-ip-address-view"],
+        );
+        assert!(authorize_top_votes_by_ip(&claims, ELECTION_ID).is_ok());
+        let error = authorize_top_votes_by_ip(&claims, None).unwrap_err();
+        assert_eq!(error.0, Status::Unauthorized);
+    }
+
+    #[test]
+    fn ip_view_still_needs_the_dashboard() {
+        let claims = admin_claims(CALLER_TENANT_ID, &["admin-ip-address-view"]);
+        assert!(authorize_top_votes_by_ip(&claims, None).is_err());
+    }
 }
