@@ -175,6 +175,57 @@ pub async fn update_task_execution_status(
     Ok(())
 }
 
+/// Fails a task only while it is still in progress, in one statement, so a
+/// worker's final status, logs and annotations are never overwritten.
+/// Returns whether the task was updated.
+pub async fn fail_task_execution_if_in_progress(
+    tenant_id: &str,
+    task_execution_id: &str,
+    new_logs: Value,
+) -> Result<bool> {
+    let db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .context("Failed to get database client from pool")?;
+    let task_execution_uuid =
+        parse_uuid_v4(task_execution_id).context("Failed to parse task_execution_id as UUID")?;
+    let tenant_uuid = parse_uuid_v4(tenant_id).context("Failed to parse tenant_id as UUID")?;
+
+    let statement = db_client
+        .prepare(
+            r#"
+            UPDATE sequent_backend.tasks_execution
+            SET
+                execution_status = $1,
+                logs = $2,
+                end_at = now()
+            WHERE
+                id = $3 AND
+                tenant_id = $4 AND
+                execution_status = $5;
+            "#,
+        )
+        .await
+        .context("Failed to prepare conditional task failure update")?;
+
+    let updated_rows = db_client
+        .execute(
+            &statement,
+            &[
+                &TasksExecutionStatus::FAILED.to_string(),
+                &new_logs,
+                &task_execution_uuid,
+                &tenant_uuid,
+                &TasksExecutionStatus::IN_PROGRESS.to_string(),
+            ],
+        )
+        .await
+        .context("Failed to conditionally fail task execution")?;
+
+    Ok(updated_rows == 1)
+}
+
 #[instrument(skip(), err)]
 pub async fn get_task_by_id(task_id: &str) -> Result<TasksExecution> {
     let db_client: DbClient = get_hasura_pool()
