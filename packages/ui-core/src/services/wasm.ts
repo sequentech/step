@@ -676,7 +676,6 @@ export const getVotingScreenBackPolicyValues = (): IVotingScreenBackPolicy[] => 
     }
 }
 
-
 export interface BallotPrivacyTrust {
     tenant_id: string
     election_event_id: string
