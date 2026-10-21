@@ -466,13 +466,33 @@ export const ReadinessEvidence: Story = {
         await expect(view.getByText(/tested-event/)).toBeVisible()
         await expect(view.getByText(/Areas: Area A, Area B/)).toBeVisible()
         await expect(view.getByText(/Voters by area: Area A: 12; Area B: 0/)).toBeVisible()
+        // The translated label leads; the signed condition stays visible as recorded.
         await expect(
             view.getByText(
-                "Passed: Both events match the same certified voter file and current counts by area."
+                "Passed: Both events match the same certified voter file and current counts by area. Recorded condition: “Legacy registry wording”"
             )
         ).toBeVisible()
-        await expect(view.queryByText(/Legacy registry wording/)).toBeNull()
         await expect(view.getByText("readiness.operator")).toBeVisible()
+        // A person ran the check: the signed entry is theirs.
+        expect(view.getByLabelText("Event Type: USER")).toBeVisible()
+    },
+}
+
+// Entries recorded before the USER classification stay as signed, SYSTEM,
+// and still name the operator in their details.
+const SYSTEM_READINESS_ENTRY: ILogRow = {
+    ...READINESS_ENTRY,
+    message: READINESS_ENTRY.message?.replace('"event_type":"USER"', '"event_type":"SYSTEM"'),
+}
+
+export const ReadinessRecordedAsSystem: Story = {
+    args: {entry: SYSTEM_READINESS_ENTRY, log: {kind: ELogScope.EVENT, electionEventId: EVENT_ID}},
+    play: async () => {
+        expect(SYSTEM_READINESS_ENTRY.message).toContain('"event_type":"SYSTEM"')
+        const view = await dialog()
+        expect(view.getByLabelText("Event Type: SYSTEM")).toBeVisible()
+        await expect(view.getAllByText(/readiness\.operator/).length).toBeGreaterThan(0)
+        await expect(view.getByText(/Recorded condition: “Legacy registry wording”/)).toBeVisible()
     },
 }
 
@@ -496,9 +516,10 @@ export const ReadinessDistrictTerminology: Story = {
         await expect(view.getByText(/Districts: Area A, Area B/)).toBeVisible()
         await expect(view.getByText(/Voters by district: Area A: 12; Area B: 0/)).toBeVisible()
         await expect(
-            view.getByText("Passed: Both events match the certified district registry.")
+            view.getByText(
+                "Passed: Both events match the certified district registry. Recorded condition: “Legacy registry wording”"
+            )
         ).toBeVisible()
-        await expect(view.queryByText(/Legacy registry wording/)).toBeNull()
         await expect(view.queryByText(/counts_by_post/)).toBeNull()
         expect(LEGACY_READINESS_ENTRY.message).toBe(original)
         expect(LEGACY_READINESS_ENTRY.message).toContain("counts_by_post")

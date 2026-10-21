@@ -26,6 +26,72 @@ const englishTranslation = {
             snapshot:
                 "This report is a snapshot. Repeat after relevant changes; it does not freeze the event or replace operational approval.",
             results: "Check results",
+            condition: "Condition checked by the server",
+            noDetail: "The server reported no further detail for this check.",
+            reasons: "Why it failed",
+            noArea: "no or an unknown area",
+            eventRoles: {
+                official: "official",
+                tested: "tested",
+                both: "both",
+            },
+            scope: {
+                event: "The {{event}} event",
+                election: "Election {{election}}",
+            },
+            certification: {
+                declared_sha256_missing: "no declared SHA-256 was given",
+                declared_sha256_mismatch: "the declared SHA-256 differs from the file",
+                no_counts: "it has no voters by area",
+                blank_area: "some voters have no area",
+                invalid_sha256: "its SHA-256 is invalid",
+            },
+            findings: {
+                same_event: "The official and tested events are the same event.",
+                configuration_missing:
+                    "The {{event}} event was not imported from a signed configuration package.",
+                configuration_incomplete:
+                    "The official event’s signed configuration has no valid value for “{{field}}”.",
+                external_id_mismatch:
+                    "The events come from different configurations: {{official}} (official) and {{tested}} (tested).",
+                content_mismatch:
+                    "The signed content differs: SHA-256 {{official}} (official) and {{tested}} (tested).",
+                approvers_mismatch:
+                    "The verified approvers differ: {{only_official}} only on the official event and {{only_tested}} only on the tested event.",
+                areas_mismatch: "{{area}} is only in the {{event}} event’s signed content.",
+                voter_import_missing: "The {{event}} event has no certified voter import.",
+                voter_import_in_progress: "A voter import is still running on the {{event}} event.",
+                voter_file_not_certified:
+                    "The {{event}} event’s last voter import is not certified: {{reason}}.",
+                voter_receipt_not_signed:
+                    "The {{event}} event’s log has no matching signed record of voter import {{import_id}}.",
+                registry_count_changed:
+                    "The {{event}} event now has {{current}} voters in {{area}}, but its certified import has {{imported}}.",
+                voter_area_not_configured:
+                    "The {{event}} event’s certified voters include {{area}}, which is not in its signed content.",
+                voter_file_mismatch:
+                    "The certified voter files differ: SHA-256 {{official}} (official) and {{tested}} (tested).",
+                voter_count_mismatch:
+                    "The certified files differ in {{area}}: {{official}} voters (official) and {{tested}} (tested).",
+                ballots_present: "The official event has {{count}} stored ballots.",
+                received_ballots_present:
+                    "The official event has {{count}} ballots received for review.",
+                tally_sessions_present: "The official event has {{count}} tally sessions.",
+                status_missing: "{{scope}} has no voting status.",
+                voting_started: "{{scope}}: the {{channel}} channel is {{status}}.",
+                voting_dates_recorded:
+                    "{{scope}}: the {{channel}} channel has recorded voting dates.",
+                no_elections: "The {{event}} event has no elections.",
+                publication_missing: "The {{event}} event has no active publication.",
+                publication_mismatch:
+                    "The {{event}} event’s {{design_count}} published ballot designs do not match every design of its signed configuration.",
+                publication_empty: "The {{event}} event’s publication has no ballot designs.",
+                channels_open: "The tested event still has voting channels that have not closed.",
+                seal_at_close_off: "The tested event does not seal ballot boxes at close.",
+                no_expected_boxes: "The tested event’s publication expects no ballot boxes.",
+                boxes_unsealed:
+                    "Election {{election}} of the tested event has {{unsealed}} unsealed ballot boxes.",
+            },
         },
         plugins: {
             title: "Plugins",
@@ -466,6 +532,8 @@ const englishTranslation = {
                 passed: "Passed",
                 failed: "Failed",
                 checkResult: "{{outcome}}: {{description}}",
+                checkResultWithMessage:
+                    "{{outcome}}: {{description}} Recorded condition: “{{message}}”",
                 description: {
                     VotersImported: "Voter file imported.",
                     ReadinessVerified:

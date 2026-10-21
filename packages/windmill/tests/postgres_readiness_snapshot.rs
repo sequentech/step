@@ -340,6 +340,16 @@ async fn assert_signed_report(
     let details: serde_json::Value = serde_json::from_str(&entry.details_json).unwrap();
     assert_eq!(details["report"], serde_json::to_value(report).unwrap());
     assert_eq!(details["actor"]["user_id"], "admin-id");
+    // The operator ran it: a USER entry under their identity, still signed.
+    assert_eq!(
+        message.statement.head.event_type,
+        electoral_log::messages::statement::StatementEventType::USER
+    );
+    assert_eq!(
+        entry.event_type,
+        electoral_log::messages::statement::StatementEventType::USER
+    );
+    assert_eq!(message.user_id.as_deref(), Some("admin-id"));
 }
 
 #[test]

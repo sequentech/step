@@ -27,6 +27,75 @@ const spanishTranslation: TranslationType = {
             snapshot:
                 "Este informe es una instantánea. Repita tras cambios relevantes; no bloquea el evento ni sustituye la aprobación operativa.",
             results: "Resultados de la verificación",
+            condition: "Condición comprobada por el servidor",
+            noDetail: "El servidor no dio más detalle sobre esta comprobación.",
+            reasons: "Por qué falló",
+            noArea: "ninguna área o un área desconocida",
+            eventRoles: {
+                official: "oficial",
+                tested: "de prueba",
+                both: "ambos",
+            },
+            scope: {
+                event: "El evento {{event}}",
+                election: "La elección {{election}}",
+            },
+            certification: {
+                declared_sha256_missing: "no se indicó el SHA-256",
+                declared_sha256_mismatch: "el SHA-256 indicado no coincide con el del archivo",
+                no_counts: "no tiene votantes por área",
+                blank_area: "hay votantes sin área",
+                invalid_sha256: "su SHA-256 no es válido",
+            },
+            findings: {
+                same_event: "El evento oficial y el de prueba son el mismo evento.",
+                configuration_missing:
+                    "El evento {{event}} no se importó desde un paquete de configuración firmado.",
+                configuration_incomplete:
+                    "La configuración firmada del evento oficial no tiene un valor válido para «{{field}}».",
+                external_id_mismatch:
+                    "Los eventos proceden de configuraciones distintas: {{official}} (oficial) y {{tested}} (de prueba).",
+                content_mismatch:
+                    "El contenido firmado es distinto: SHA-256 {{official}} (oficial) y {{tested}} (de prueba).",
+                approvers_mismatch:
+                    "Los aprobadores verificados son distintos: {{only_official}} solo en el evento oficial y {{only_tested}} solo en el de prueba.",
+                areas_mismatch: "{{area}} solo está en el contenido firmado del evento {{event}}.",
+                voter_import_missing:
+                    "El evento {{event}} no tiene una importación certificada de votantes.",
+                voter_import_in_progress:
+                    "Todavía hay una importación de votantes en curso en el evento {{event}}.",
+                voter_file_not_certified:
+                    "La última importación de votantes del evento {{event}} no está certificada: {{reason}}.",
+                voter_receipt_not_signed:
+                    "El registro del evento {{event}} no tiene una entrada firmada que corresponda a la importación de votantes {{import_id}}.",
+                registry_count_changed:
+                    "El evento {{event}} tiene ahora {{current}} votantes en {{area}}, pero su importación certificada tiene {{imported}}.",
+                voter_area_not_configured:
+                    "Los votantes certificados del evento {{event}} incluyen {{area}}, que no está en su contenido firmado.",
+                voter_file_mismatch:
+                    "Los archivos certificados de votantes son distintos: SHA-256 {{official}} (oficial) y {{tested}} (de prueba).",
+                voter_count_mismatch:
+                    "Los archivos certificados difieren en {{area}}: {{official}} votantes (oficial) y {{tested}} (de prueba).",
+                ballots_present: "El evento oficial tiene {{count}} papeletas almacenadas.",
+                received_ballots_present:
+                    "El evento oficial tiene {{count}} papeletas recibidas para revisión.",
+                tally_sessions_present: "El evento oficial tiene {{count}} sesiones de recuento.",
+                status_missing: "{{scope}} no tiene estado de votación.",
+                voting_started: "{{scope}}: el canal {{channel}} está en {{status}}.",
+                voting_dates_recorded:
+                    "{{scope}}: el canal {{channel}} tiene fechas de votación registradas.",
+                no_elections: "El evento {{event}} no tiene elecciones.",
+                publication_missing: "El evento {{event}} no tiene ninguna publicación activa.",
+                publication_mismatch:
+                    "Los {{design_count}} diseños de papeleta publicados del evento {{event}} no coinciden con todos los diseños de su configuración firmada.",
+                publication_empty:
+                    "La publicación del evento {{event}} no tiene diseños de papeleta.",
+                channels_open: "El evento de prueba todavía tiene canales de votación sin cerrar.",
+                seal_at_close_off: "El evento de prueba no sella las urnas al cierre.",
+                no_expected_boxes: "La publicación del evento de prueba no espera ninguna urna.",
+                boxes_unsealed:
+                    "La elección {{election}} del evento de prueba tiene {{unsealed}} urnas sin sellar.",
+            },
         },
         plugins: {
             title: "Complementos",
@@ -459,6 +528,8 @@ const spanishTranslation: TranslationType = {
                 passed: "Superado",
                 failed: "Fallido",
                 checkResult: "{{outcome}}: {{description}}",
+                checkResultWithMessage:
+                    "{{outcome}}: {{description}} Condición registrada: «{{message}}»",
                 description: {
                     VotersImported: "Archivo de votantes importado.",
                     ReadinessVerified:

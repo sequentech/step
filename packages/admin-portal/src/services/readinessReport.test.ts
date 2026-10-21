@@ -31,6 +31,30 @@ it("accepts an unsigned failed comparison with every check's outcome", () => {
     }
     expect(read(failed)).toBe(failed)
 })
+it("accepts failures explained by findings, and older failures without them", () => {
+    const explained = {
+        ...valid,
+        passed: false,
+        log_entry_id: null,
+        checks: valid.checks.map((check) =>
+            check.kind === "official_zero"
+                ? {
+                      ...check,
+                      passed: false,
+                      findings: [
+                          {
+                              code: "ballots_present",
+                              event: "official",
+                              values: {count: "1"},
+                              message: "The official event has 1 stored ballots",
+                          },
+                      ],
+                  }
+                : check
+        ),
+    }
+    expect(read(explained)).toBe(explained)
+})
 it.each([
     ["absent", null],
     ["empty", {}],
@@ -52,6 +76,43 @@ it.each([
     ["absent signature", {...valid, log_entry_id: null}],
     ["empty signature", {...valid, log_entry_id: " "}],
     ["inconsistent verdict", {...valid, passed: false}],
+    [
+        "passed check with a failure finding",
+        {
+            ...valid,
+            checks: [
+                {
+                    ...valid.checks[0],
+                    findings: [{code: "content_mismatch", event: "both", message: "differs"}],
+                },
+                ...valid.checks.slice(1),
+            ],
+        },
+    ],
+    [
+        "malformed findings",
+        {
+            ...valid,
+            passed: false,
+            log_entry_id: null,
+            checks: [
+                {...valid.checks[0], passed: false, findings: [{code: 1, message: "x"}]},
+                ...valid.checks.slice(1),
+            ],
+        },
+    ],
+    [
+        "findings that are not a list",
+        {
+            ...valid,
+            passed: false,
+            log_entry_id: null,
+            checks: [
+                {...valid.checks[0], passed: false, findings: "differs"},
+                ...valid.checks.slice(1),
+            ],
+        },
+    ],
 ])("rejects %s reports instead of displaying a passing result", (_name, value) => {
     expect(read(value)).toBeNull()
 })
