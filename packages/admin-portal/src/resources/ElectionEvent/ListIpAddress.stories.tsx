@@ -324,6 +324,7 @@ export const WithoutForensicPermission: Story = {
 
 export const AddressDetails: Story = {
     ...atViewport(1440),
+    parameters: {...atViewport(1440).parameters, widgets: ["SelectedForensicAddress"]},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await userEvent.click(await canvas.findByRole("button", {name: "192.0.2.10"}))
@@ -334,6 +335,26 @@ export const AddressDetails: Story = {
         await expect(await within(dialog).findByText(/FTBE-MHRX/)).toBeVisible()
         expect(dialog.scrollWidth).toBeLessThanOrEqual(dialog.clientWidth + 1)
         await userEvent.click(within(dialog).getByRole("button", {name: "Close"}))
+    },
+}
+
+export const AddressMenu: Story = {
+    ...atViewport(1440),
+    parameters: {
+        ...atViewport(1440).parameters,
+        expectedFailure: null,
+        widgets: ["AddressActions"],
+    },
+    play: async ({canvasElement}) => {
+        const row = await voteRow(canvasElement, "192.0.2.10")
+        await userEvent.click(within(row).getByRole("button", {name: "Actions"}))
+        await userEvent.click(
+            await within(document.body).findByRole("menuitem", {name: "View ballots"})
+        )
+        const dialog = await within(document.body).findByRole("dialog", {
+            name: "IP address 192.0.2.10",
+        })
+        await expect(await within(dialog).findByText("FTBE-MHRX")).toBeVisible()
     },
 }
 

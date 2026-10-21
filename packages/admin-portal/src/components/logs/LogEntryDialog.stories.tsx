@@ -610,6 +610,7 @@ export const ConfigurationPackageImport: Story = {
 /** The dialog independently fetches keys and canonical proof bytes, then verifies in real WASM. */
 export const PseudonymousReceived: Story = {
     ...atViewport(1440),
+    parameters: {...atViewport(1440).parameters, widgets: ["PseudonymChip"]},
     args: {
         log: {kind: ELogScope.EVENT, electionEventId: ballotFixture.trusted.election_event_id},
         entry: {

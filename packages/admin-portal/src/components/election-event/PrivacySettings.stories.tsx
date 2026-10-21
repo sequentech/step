@@ -19,7 +19,7 @@ interface Scenario {
 }
 let boundary: ReturnType<typeof graphqlBoundary>
 const meta = {
-    title: "Admin/Election event/Privacy settings",
+    title: "Admin/Election event/PrivacySettings",
     component: PrivacySettings,
     args: {canEdit: true, network: ENetworkDataPolicy.FORENSIC_STORE, legacy: false, failed: false},
     beforeEach: async ({args}) => {
@@ -72,6 +72,7 @@ type Story = StoryObj<Scenario>
 
 export const ForensicStore: Story = {
     ...atViewport(1440),
+    parameters: {...atViewport(1440).parameters, widgets: ["NetworkPolicyCards"]},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(await canvas.findByText("Election reviewers")).toBeVisible()

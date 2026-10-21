@@ -16,6 +16,7 @@ import {STORY_IDS, type StoryRecord, eventRecord} from "@/__stories__/fixtures"
 import type {ElectoralLogRow} from "@/gql/graphql"
 import {WidgetsContextProvider} from "@/providers/WidgetsContextProvider"
 import {startedTask, taskHandler} from "@/components/tally/__stories__/DownloadFixture"
+import {widgetDefects} from "@/components/__stories__/WidgetFixture"
 import {ElectoralLogFilters, ElectoralLogList} from "./ElectoralLogList"
 import {useStoryGlobals} from "../../../ui-essentials/.storybook/globals"
 
@@ -388,7 +389,7 @@ const exported = (electionEventId: string, format: string) => [
 
 export const Populated: Story = {
     ...atViewport(1440),
-    parameters: {...atViewport(1440).parameters, widgets: ["LogRowTime"]},
+    parameters: {...atViewport(1440).parameters, widgets: ["LogRowTime", "LogRowDescription"]},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(await canvas.findByText("alice")).toBeVisible()
@@ -808,7 +809,7 @@ async function openAudit(canvasElement: HTMLElement) {
 
 export const AuditTheLog: Story = {
     args: {taskWidgets: true},
-    parameters: {widgets: ["AuditDialog"]},
+    parameters: {...widgetDefects("color-contrast"), widgets: ["AuditDialog"]},
     play: async ({canvasElement}) => {
         const dialog = await openAudit(canvasElement)
         await userEvent.click(dialog.getByRole("button", {name: "Audit"}))
