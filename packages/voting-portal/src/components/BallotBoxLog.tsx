@@ -124,6 +124,7 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
     }
     const yours = (
         <Chip
+            className="ballot-box-log-yours"
             size="small"
             label={t("ballotPrivacy.yours")}
             sx={{
@@ -148,7 +149,12 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
             }}
         >
             <Box className="ballot-box-log-heading">
-                <Stack direction="row" alignItems="center" gap={1}>
+                <Stack
+                    className="ballot-box-log-heading-row"
+                    direction="row"
+                    alignItems="center"
+                    gap={1}
+                >
                     <Typography
                         className="ballot-box-log-title"
                         variant="h5"
@@ -157,14 +163,21 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
                     >
                         {t("ballotPrivacy.title")}
                     </Typography>
-                    <Tooltip title={t("ballotPrivacy.help")}>
+                    <Tooltip
+                        className="ballot-box-log-help-tooltip"
+                        title={t("ballotPrivacy.help")}
+                    >
                         <IconButton
                             className="ballot-box-log-help-button"
                             size="small"
                             aria-label={t("ballotPrivacy.help")}
                             onClick={() => setHelp(true)}
                         >
-                            <FontAwesomeIcon icon={faCircleQuestion} style={{fontSize: 18}} />
+                            <FontAwesomeIcon
+                                className="ballot-box-log-help-icon"
+                                icon={faCircleQuestion}
+                                style={{fontSize: 18}}
+                            />
                         </IconButton>
                     </Tooltip>
                 </Stack>
@@ -191,7 +204,12 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
                         <Chip
                             className="ballot-box-log-badge"
                             key={key}
-                            icon={<FontAwesomeIcon icon={icon} />}
+                            icon={
+                                <FontAwesomeIcon
+                                    className="ballot-box-log-badge-icon"
+                                    icon={icon}
+                                />
+                            }
                             label={t(`ballotPrivacy.${key}`)}
                             sx={{
                                 "height": "auto",
@@ -225,6 +243,7 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
                     }}
                 >
                     <Box
+                        className="ballot-box-log-own-status-icon-container"
                         sx={{
                             width: 48,
                             height: 48,
@@ -237,11 +256,12 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
                         }}
                     >
                         <FontAwesomeIcon
+                            className="ballot-box-log-own-status-icon"
                             icon={faCircleCheck}
                             style={{fontSize: 24, color: "#047857"}}
                         />
                     </Box>
-                    <Box sx={{flex: 1, minWidth: 0}}>
+                    <Box className="ballot-box-log-own-content" sx={{flex: 1, minWidth: 0}}>
                         <Typography
                             className="ballot-box-log-own-title"
                             sx={{
@@ -255,6 +275,7 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
                             {t("ballotPrivacy.own")}
                         </Typography>
                         <Stack
+                            className="ballot-box-log-own-id-row"
                             direction="row"
                             alignItems="center"
                             useFlexGap
@@ -274,23 +295,35 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
                             >
                                 {ballot.ballot_id}
                             </Typography>
-                            <Tooltip title={t("ballotPrivacy.copy")}>
+                            <Tooltip
+                                className="ballot-box-log-copy-tooltip"
+                                title={t("ballotPrivacy.copy")}
+                            >
                                 <IconButton
                                     className="ballot-box-log-copy-button"
                                     size="small"
                                     aria-label={t("ballotPrivacy.copy")}
                                     onClick={() => void copy(ballot.ballot_id)}
                                 >
-                                    <FontAwesomeIcon icon={faCopy} style={{fontSize: 16}} />
+                                    <FontAwesomeIcon
+                                        className="ballot-box-log-copy-icon"
+                                        icon={faCopy}
+                                        style={{fontSize: 16}}
+                                    />
                                 </IconButton>
                             </Tooltip>
-                            <Tooltip title={t("ballotPrivacy.ballotIdHelp")}>
+                            <Tooltip
+                                className="ballot-box-log-ballot-id-help-tooltip"
+                                title={t("ballotPrivacy.ballotIdHelp")}
+                            >
                                 <IconButton
+                                    className="ballot-box-log-ballot-id-help-button"
                                     size="small"
                                     aria-label={t("ballotPrivacy.ballotIdHelp")}
                                     onClick={() => setBallotHelp(true)}
                                 >
                                     <FontAwesomeIcon
+                                        className="ballot-box-log-ballot-id-help-icon"
                                         icon={faCircleQuestion}
                                         style={{fontSize: 16}}
                                     />
@@ -298,6 +331,7 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
                             </Tooltip>
                         </Stack>
                         <Stack
+                            className="ballot-box-log-own-metadata"
                             direction="row"
                             useFlexGap
                             flexWrap="wrap"
@@ -319,7 +353,11 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
                                 alignItems="center"
                                 gap={1}
                             >
-                                <Typography variant="body2" sx={{m: 0}}>
+                                <Typography
+                                    className="ballot-box-log-own-pseudonym-text"
+                                    variant="body2"
+                                    sx={{m: 0}}
+                                >
                                     {t("ballotPrivacy.listedAs")}
                                 </Typography>
                                 <PseudonymChip className="ballot-box-log-own-pseudonym">
@@ -331,7 +369,12 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
                     <Button
                         className="ballot-box-log-own-check-button"
                         variant="contained"
-                        startIcon={<FontAwesomeIcon icon={faShieldHalved} />}
+                        startIcon={
+                            <FontAwesomeIcon
+                                className="ballot-box-log-own-check-icon"
+                                icon={faShieldHalved}
+                            />
+                        }
                         onClick={() => onOpen(ballot)}
                         sx={{
                             flexShrink: 0,
@@ -390,8 +433,14 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
                             },
                             input: {
                                 startAdornment: (
-                                    <InputAdornment position="start">
-                                        <FontAwesomeIcon icon={faSearch} />
+                                    <InputAdornment
+                                        className="ballot-box-log-search-adornment"
+                                        position="start"
+                                    >
+                                        <FontAwesomeIcon
+                                            className="ballot-box-log-search-icon"
+                                            icon={faSearch}
+                                        />
                                     </InputAdornment>
                                 ),
                             },
@@ -438,7 +487,10 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
                     </Alert>
                 )}
                 {loading && (
-                    <Box sx={{p: 3, textAlign: "center"}}>
+                    <Box
+                        className="ballot-box-log-loading-container"
+                        sx={{p: 3, textAlign: "center"}}
+                    >
                         <CircularProgress
                             className="ballot-box-log-loading"
                             size={24}
@@ -449,13 +501,20 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
                 {validPage && (
                     <>
                         {!page.ballots.length ? (
-                            <Box sx={{p: 2.5, borderTop: "1px solid #DFE6EF"}}>
+                            <Box
+                                className="ballot-box-log-empty-container"
+                                sx={{p: 2.5, borderTop: "1px solid #DFE6EF"}}
+                            >
                                 <Alert className="ballot-box-log-empty" severity="info">
                                     {prefix
                                         ? t("ballotPrivacy.noMatch", {prefix: search})
                                         : t("ballotPrivacy.noBallots")}
                                     {prefix && (
-                                        <Typography variant="body2" sx={{m: 0, mt: 1}}>
+                                        <Typography
+                                            className="ballot-box-log-no-match-help"
+                                            variant="body2"
+                                            sx={{m: 0, mt: 1}}
+                                        >
                                             {t("ballotPrivacy.noMatchHelp")}
                                         </Typography>
                                     )}
@@ -482,10 +541,11 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
                                     aria-label={t("ballotPrivacy.title")}
                                 >
                                     <TableHead className="ballot-box-log-table-head">
-                                        <TableRow>
+                                        <TableRow className="ballot-box-log-table-header-row">
                                             {["ballotId", "pseudonym", "castAt", "channel"].map(
                                                 (key) => (
                                                     <TableCell
+                                                        className="ballot-box-log-table-header-cell"
                                                         key={key}
                                                         sx={{
                                                             width:
@@ -515,8 +575,9 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
                                                         : "3px solid transparent",
                                                 }}
                                             >
-                                                <TableCell>
+                                                <TableCell className="ballot-box-log-ballot-cell">
                                                     <Stack
+                                                        className="ballot-box-log-ballot-id-content"
                                                         direction="row"
                                                         alignItems="center"
                                                         useFlexGap
@@ -543,33 +604,44 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
                                                         {ownIds.has(ballot.ballot_id) && yours}
                                                     </Stack>
                                                 </TableCell>
-                                                <TableCell>
+                                                <TableCell className="ballot-box-log-pseudonym-cell">
                                                     <PseudonymChip className="ballot-box-log-pseudonym">
                                                         {code(ballot.pseudonym)}
                                                     </PseudonymChip>
                                                 </TableCell>
                                                 <TableCell
+                                                    className="ballot-box-log-timestamp-cell"
                                                     sx={{overflowWrap: "anywhere", fontSize: 14}}
                                                 >
                                                     {formatTime(ballot.cast_at)}
                                                 </TableCell>
-                                                <TableCell>
+                                                <TableCell className="ballot-box-log-channel-cell">
                                                     <Stack
+                                                        className="ballot-box-log-channel-content"
                                                         direction="row"
                                                         alignItems="center"
                                                         gap={1}
                                                     >
                                                         <FontAwesomeIcon
+                                                            className="ballot-box-log-channel-icon"
                                                             icon={channelIcon(
                                                                 ballot.voting_channel
                                                             )}
                                                             style={{color: "#64748B", fontSize: 12}}
                                                         />
-                                                        <Typography variant="body2" sx={{m: 0}}>
+                                                        <Typography
+                                                            className="ballot-box-log-channel-label"
+                                                            variant="body2"
+                                                            sx={{m: 0}}
+                                                        >
                                                             {channel(ballot.voting_channel)}
                                                         </Typography>
-                                                        <Box sx={{ml: "auto", color: "#64748B"}}>
+                                                        <Box
+                                                            className="ballot-box-log-row-arrow-container"
+                                                            sx={{ml: "auto", color: "#64748B"}}
+                                                        >
                                                             <FontAwesomeIcon
+                                                                className="ballot-box-log-row-arrow-icon"
                                                                 icon={faChevronRight}
                                                                 style={{fontSize: 12}}
                                                             />
@@ -607,7 +679,12 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
                                                     : undefined,
                                             }}
                                         >
-                                            <Stack direction="row" alignItems="center" gap={1}>
+                                            <Stack
+                                                className="ballot-box-log-mobile-heading"
+                                                direction="row"
+                                                alignItems="center"
+                                                gap={1}
+                                            >
                                                 <ButtonBase
                                                     className="ballot-box-log-mobile-check-button"
                                                     onClick={() => onOpen(ballot)}
@@ -621,8 +698,12 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
                                                     {code(ballot.ballot_id)}
                                                 </ButtonBase>
                                                 {ownIds.has(ballot.ballot_id) && yours}
-                                                <Box sx={{ml: "auto"}}>
+                                                <Box
+                                                    className="ballot-box-log-mobile-arrow-container"
+                                                    sx={{ml: "auto"}}
+                                                >
                                                     <FontAwesomeIcon
+                                                        className="ballot-box-log-mobile-arrow-icon"
                                                         icon={faChevronRight}
                                                         style={{fontSize: 12, color: "#64748B"}}
                                                     />
@@ -666,6 +747,7 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
                         >
                             {timeZoneLabel && (
                                 <Typography
+                                    className="ballot-box-log-timezone"
                                     variant="caption"
                                     color="text.secondary"
                                     sx={{m: 0, mr: "auto"}}
@@ -683,13 +765,20 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
                                 sx={{minWidth: 130, width: 140, ml: {sm: "auto"}}}
                             >
                                 {[10, 25, 50].map((size) => (
-                                    <MenuItem key={size} value={size}>
+                                    <MenuItem
+                                        className="ballot-box-log-page-size-option"
+                                        key={size}
+                                        value={size}
+                                    >
                                         {size}
                                     </MenuItem>
                                 ))}
                             </TextField>
-                            <Tooltip title={t("ballotPrivacy.previous")}>
-                                <span>
+                            <Tooltip
+                                className="ballot-box-log-previous-tooltip"
+                                title={t("ballotPrivacy.previous")}
+                            >
+                                <span className="ballot-box-log-previous-wrapper">
                                     <IconButton
                                         className="ballot-box-log-previous-button"
                                         aria-label={t("ballotPrivacy.previous")}
@@ -697,14 +786,18 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
                                         onClick={onPrevious}
                                     >
                                         <FontAwesomeIcon
+                                            className="ballot-box-log-previous-icon"
                                             icon={faChevronLeft}
                                             style={{fontSize: 14}}
                                         />
                                     </IconButton>
                                 </span>
                             </Tooltip>
-                            <Tooltip title={t("ballotPrivacy.next")}>
-                                <span>
+                            <Tooltip
+                                className="ballot-box-log-next-tooltip"
+                                title={t("ballotPrivacy.next")}
+                            >
+                                <span className="ballot-box-log-next-wrapper">
                                     <IconButton
                                         className="ballot-box-log-next-button"
                                         aria-label={t("ballotPrivacy.next")}
@@ -712,6 +805,7 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
                                         onClick={onNext}
                                     >
                                         <FontAwesomeIcon
+                                            className="ballot-box-log-next-icon"
                                             icon={faChevronRight}
                                             style={{fontSize: 14}}
                                         />
@@ -730,22 +824,33 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
                 maxWidth="sm"
                 aria-labelledby="ballot-log-help"
             >
-                <DialogTitle id="ballot-log-help">{t("ballotPrivacy.help")}</DialogTitle>
-                <DialogContent>
-                    <Stack spacing={2}>
+                <DialogTitle className="ballot-box-log-help-title" id="ballot-log-help">
+                    {t("ballotPrivacy.help")}
+                </DialogTitle>
+                <DialogContent className="ballot-box-log-help-content">
+                    <Stack className="ballot-box-log-help-sections" spacing={2}>
                         {["pseudonyms", "signatures", "checks"].map((key) => (
-                            <Box key={key}>
-                                <Typography fontWeight={700} sx={{m: 0}}>
+                            <Box className="ballot-box-log-help-section" key={key}>
+                                <Typography
+                                    className="ballot-box-log-help-section-title"
+                                    fontWeight={700}
+                                    sx={{m: 0}}
+                                >
                                     {t(`ballotPrivacy.helpSections.${key}.title`)}
                                 </Typography>
-                                <Typography variant="body2" color="text.secondary" sx={{m: 0}}>
+                                <Typography
+                                    className="ballot-box-log-help-section-text"
+                                    variant="body2"
+                                    color="text.secondary"
+                                    sx={{m: 0}}
+                                >
                                     {t(`ballotPrivacy.helpSections.${key}.text`)}
                                 </Typography>
                             </Box>
                         ))}
                     </Stack>
                 </DialogContent>
-                <DialogActions>
+                <DialogActions className="ballot-box-log-help-actions">
                     <Button
                         className="ballot-box-log-help-close-button"
                         onClick={() => setHelp(false)}
@@ -755,20 +860,29 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
                 </DialogActions>
             </Dialog>
             <Dialog
+                className="ballot-box-log-ballot-id-help-dialog"
                 open={ballotHelp}
                 onClose={() => setBallotHelp(false)}
                 fullWidth
                 maxWidth="sm"
                 aria-labelledby="log-ballot-id-help"
             >
-                <DialogTitle id="log-ballot-id-help">
+                <DialogTitle
+                    className="ballot-box-log-ballot-id-help-title"
+                    id="log-ballot-id-help"
+                >
                     {t("confirmationScreen.ballotIdHelpDialog.title")}
                 </DialogTitle>
-                <DialogContent>
+                <DialogContent className="ballot-box-log-ballot-id-help-content">
                     {stringToHtml(t("confirmationScreen.ballotIdHelpDialog.content"))}
                 </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setBallotHelp(false)}>{t("ballotPrivacy.close")}</Button>
+                <DialogActions className="ballot-box-log-ballot-id-help-actions">
+                    <Button
+                        className="ballot-box-log-ballot-id-help-close-button"
+                        onClick={() => setBallotHelp(false)}
+                    >
+                        {t("ballotPrivacy.close")}
+                    </Button>
                 </DialogActions>
             </Dialog>
         </Stack>
