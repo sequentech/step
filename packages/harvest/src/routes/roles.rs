@@ -22,6 +22,18 @@ pub struct CreateRoleBody {
     role: Role,
 }
 
+fn authorize_create_role(
+    claims: &jwt::JwtClaims,
+    tenant_id: &str,
+) -> Result<(), (Status, String)> {
+    authorize(
+        claims,
+        true,
+        Some(tenant_id.to_string()),
+        vec![Permissions::ROLE_CREATE],
+    )
+}
+
 #[instrument(skip(claims))]
 #[post("/create-role", format = "json", data = "<body>")]
 pub async fn create_role(
@@ -29,12 +41,7 @@ pub async fn create_role(
     body: Json<CreateRoleBody>,
 ) -> Result<Json<Role>, (Status, String)> {
     let input = body.into_inner();
-    authorize(
-        &claims,
-        true,
-        Some(input.tenant_id.clone()),
-        vec![Permissions::ROLE_READ],
-    )?;
+    authorize_create_role(&claims, &input.tenant_id)?;
     let realm = get_tenant_realm(&input.tenant_id);
     let client = KeycloakAdminClient::new()
         .await
@@ -235,4 +242,22 @@ pub async fn delete_role(
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
     Ok(Json(Default::default()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::services::authorization::test_claims::{
+        admin_claims, CALLER_TENANT_ID,
+    };
+
+    #[test]
+    fn creating_a_role_needs_role_create_not_role_read() {
+        let reader = admin_claims(CALLER_TENANT_ID, &["role-read"]);
+        let error =
+            authorize_create_role(&reader, CALLER_TENANT_ID).unwrap_err();
+        assert_eq!(error.0, Status::Unauthorized);
+        let creator = admin_claims(CALLER_TENANT_ID, &["role-create"]);
+        assert!(authorize_create_role(&creator, CALLER_TENANT_ID).is_ok());
+    }
 }
