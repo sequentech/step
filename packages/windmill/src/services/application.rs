@@ -353,6 +353,7 @@ fn get_filter_from_applicant_data(
         enabled: Some(true),
         sort: None,
         has_voted: None,
+        permitted_election_ids: None,
         authorized_to_election_alias: None,
     })
 }

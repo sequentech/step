@@ -26,7 +26,7 @@ use crate::postgres::messaging_insights::{
     replace_voter_counts, set_statement_timeout, start_recount, voter_counts, CachedVoterCount,
     MonthlyVolume, RecountOutcome, RecountRun, VoterChannelCount, VoterCountScope, Votes,
 };
-use crate::services::ballot_box::get_voter_ballot_states;
+use crate::services::ballot_box::get_voters_who_participated;
 use crate::services::external::utils::is_datafix_election_event_by_id;
 use crate::services::messaging::config::get_event_messaging_config;
 use crate::services::messaging::dispatch::{
@@ -349,10 +349,10 @@ pub async fn count_event_voters(
         .context("listing elections by area")?;
     let area_ids = event_area_ids(hasura_tx, tenant_id, election_event_id).await?;
     let votes = Votes {
-        voter_ids: get_voter_ballot_states(hasura_tx, &tenant, &event)
+        voter_ids: get_voters_who_participated(hasura_tx, &tenant, &event)
             .await
-            .context("reading who voted from the event's ballot box")?
-            .into_keys()
+            .context("reading who voted from the event's private participation")?
+            .into_iter()
             .collect(),
         datafix: is_datafix_election_event_by_id(hasura_tx, &tenant, &event).await?,
     };

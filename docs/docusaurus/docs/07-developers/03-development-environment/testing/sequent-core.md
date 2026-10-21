@@ -42,6 +42,7 @@ dependencies explicitly.
 | `ballot_style_construction.rs` | Preserve candidate/election identity, ordering, translations and encoding capacity; reject malformed presentation and annotations. |
 | `ballot_signatures.rs` | Reject altered signed fields, either incomplete key/signature pair and replay into another ballot/election; preserve valid signed and fully unsigned controls, reproduce ciphertext from disclosed audit randomness and preserve serialized selections. |
 | `ballot_receipts.rs` | Reproduce the shared vector for the ballot box key ID, Received signature and Ballot ID; reject every altered signed field, another key, a mislabelled key and a Ballot ID that does not follow from the receipt; reproduce the shared vector for the voter's Cast signature and the ballot box's Cast receipt, and reject a cast signed by another key, for another ballot or election, and every altered field of the cast receipt; sign the cast only with the key kept for the ballot under review; read typed Ballot IDs; keep the ballot style hash unchanged by the receipts setting and the published key. |
+| `ballot_privacy.rs` | Verify signed log evidence against published scope and keys for single and multi-contest ballots; distinguish unpublished evidence from malformed or oversized evidence; preserve the browser JSON contract, required trust fields, optional entries, camel-case `ballotId` check and explicit check states. |
 | `serialization_boundaries.rs` | Check independent Borsh/Base64 vectors, nested configuration errors, attribute conversion and file integrity. |
 | `identity_inputs.rs` | Reject malformed claims and unrepresentable timestamps; check authentication freshness, calendar boundaries and consistent identifier replacement. |
 | `tally_arithmetic_boundaries.rs` | Reject wrapped vote totals, accept valid multi-mark totals above u64, and preserve exact blank-ballot intersection bounds. |
@@ -58,7 +59,7 @@ dependencies explicitly.
 | `ballot_wire_streams.rs` | Pin independent byte layouts for small records; reject every truncated prefix and propagate sink failures through nested ballot, presentation and tally-resolution records. |
 | `presentation_contracts.rs` | Check translated-name fallbacks, languages and presentation policies. |
 | `bearer_verification.rs` | Refuse tokens that miss a valid signature, key, expiry, issuer realm or tenant/event binding, and key sets that cannot be used; accept a valid signed token, with managed or environment issuer settings. |
-| `request_guards.rs` | Dispatch local Rocket requests with valid, absent and malformed headers; the claims guard accepts only unexpired claims signed by a trusted issuer. |
+| `request_guards.rs` | Dispatch local Rocket requests with valid, absent and malformed headers; accept only unexpired claims signed by a trusted issuer, bound ASCII and Unicode user agents to 1,024 characters, and redact every network field from debug logging. |
 | `scheduled_dates.rs` | Filter by tenant, event, election and task; preserve missing dates and reject malformed payloads. |
 | `utility_contracts.rs` | Check time, authentication URLs, numeric ordering, external configuration and file-integrity errors. |
 | `voting_state.rs` | Check channel transitions, first-transition dates and early-voting closure. |

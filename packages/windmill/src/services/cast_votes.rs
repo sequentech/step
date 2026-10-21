@@ -332,8 +332,33 @@ pub async fn get_users_with_vote_info(
     tenant_id: &str,
     election_event_id: &str,
     election_id: Option<String>,
-    mut users: Vec<User>,
+    users: Vec<User>,
     filter_by_has_voted: Option<bool>,
+) -> Result<Vec<User>> {
+    get_users_with_vote_info_in_elections(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        election_id,
+        users,
+        filter_by_has_voted,
+        None,
+    )
+    .await
+}
+
+/// Permission labels constrain participation before selection/counting, not
+/// only the rows eventually serialized in an administrative response.
+#[allow(clippy::too_many_arguments)]
+#[instrument(skip_all)]
+pub async fn get_users_with_vote_info_in_elections(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: Option<String>,
+    mut users: Vec<User>,
+    _filter_by_has_voted: Option<bool>,
+    permitted_election_ids: Option<&[String]>,
 ) -> Result<Vec<User>> {
     let election_uuid = match election_id {
         Some(ref election_id_s) => Some(
@@ -363,31 +388,64 @@ pub async fn get_users_with_vote_info(
     if user_ids.is_empty() {
         return Ok(vec![]);
     }
-    let votes = get_event_ballot_box(hasura_transaction, tenant_id, election_event_id)
+    let store = get_event_ballot_box(hasura_transaction, tenant_id, election_event_id)
         .await?
-        .store
-        .votes_of_voters(
-            election_event_id,
-            &user_ids,
-            election_uuid.map(|id| id.to_string()).as_deref(),
-        )
-        .await?
-        .into_iter()
-        .map(|votes| {
-            Ok((
-                votes.voter_id,
-                VotesInfo {
-                    election_id: votes.election_id,
-                    num_votes: usize::try_from(votes.votes)?,
-                    last_voted_at: ballot_box_time(votes.last_voted_at)?.to_string(),
-                },
-            ))
-        })
-        .collect::<Result<Vec<_>>>()?;
+        .store;
+    let votes: Vec<(String, VotesInfo)> = if store.ballot_identity(election_event_id).await?
+        == electoral_log::adapters::privacy::BallotIdentity::Pseudonym
+    {
+        store
+            .participation_for_voters(
+                election_event_id,
+                &user_ids,
+                election_uuid.map(|id| id.to_string()).as_deref(),
+            )
+            .await?
+            .into_iter()
+            .map(|participation| {
+                (
+                    participation.voter_id,
+                    VotesInfo {
+                        election_id: participation.election_id,
+                        num_votes: 1,
+                        last_voted_at: String::new(),
+                    },
+                )
+            })
+            .collect()
+    } else {
+        store
+            .votes_of_voters(
+                election_event_id,
+                &user_ids,
+                election_uuid.map(|id| id.to_string()).as_deref(),
+            )
+            .await?
+            .into_iter()
+            .map(|votes| {
+                Ok((
+                    votes.voter_id,
+                    VotesInfo {
+                        election_id: votes.election_id,
+                        num_votes: usize::try_from(votes.votes)?,
+                        last_voted_at: String::new(),
+                    },
+                ))
+            })
+            .collect::<Result<Vec<_>>>()?
+    };
     let mut user_votes_map = HashMap::<String, Vec<VotesInfo>>::new();
     for (voter_id, votes_info) in votes {
-        user_votes_map.entry(voter_id).or_default().push(votes_info);
+        if permitted_election_ids.is_none_or(|ids| ids.contains(&votes_info.election_id)) {
+            user_votes_map.entry(voter_id).or_default().push(votes_info);
+        }
     }
+    // Datafix's external channel applies to the selected visible election(s).
+    let external_channel_visible = permitted_election_ids.is_none_or(|ids| {
+        election_id
+            .as_ref()
+            .map_or(!ids.is_empty(), |id| ids.contains(id))
+    });
 
     // Attach votes_info to each user in-place. Then do datafix logic if needed.
     // keep the same user order by iterating in place.
@@ -401,7 +459,7 @@ pub async fn get_users_with_vote_info(
         let mut votes_info = user_votes_map.remove(user_id).unwrap_or_default();
 
         // If this is a "datafix" event, adjust the votes_info by checking the user's attributes
-        if is_datafix_event {
+        if is_datafix_event && external_channel_visible {
             if let Some(attributes) = &user.attributes {
                 if voted_via_not_internet_channel(&attributes) {
                     votes_info = vec![VotesInfo {

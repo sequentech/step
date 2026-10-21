@@ -30,6 +30,10 @@ Borsh interchange, fixed wire tags, malformed encodings, every truncated message
 prefix and writers that fail at each payload boundary. The existing protocol
 signs the statement; search metadata and the separate artifact are not
 authenticated by `Message::verify`, and these tests make no broader claim.
+Privacy message cases pin appended wire tags, persisted occurrence times,
+operator audit scope and the absence of a real voter identity from public
+receipt entries. Their JSON and Borsh readers reconstruct signed bytes and
+reject truncated streams and failed writes.
 
 ## Against PostgreSQL
 
@@ -45,7 +49,7 @@ export ELECTORAL_LOG_PG_HOST=127.0.0.1 ELECTORAL_LOG_PG_PORT=5432 \
   ELECTORAL_LOG_PG_USER=test ELECTORAL_LOG_PG_PASSWORD=test \
   ELECTORAL_LOG_PG_DATABASE=test ELECTORAL_LOG_PG_SSLMODE=disable \
   ENV_SLUG=electoral-log-tests
-cargo test --locked -p electoral-log --lib --test postgres --test ballot_box --test events --test provisioning --test console -- --ignored --test-threads=1
+cargo test --locked -p electoral-log --lib --test postgres --test ballot_box --test events --test provisioning --test console --test privacy --test privacy_receipts -- --ignored --skip matched_receipt_and_cast_storage_cost --test-threads=1
 cargo test --locked -p windmill postgres_wiring_tests --lib -- --ignored --test-threads=1
 ```
 
@@ -67,7 +71,20 @@ selected when Windmill, the electoral log or Trellis change.
 
 ## Coverage
 
-The `electoral-log-native` coverage profile measures the default features. The
-ignored PostgreSQL tests do not run in it, so the store, ballot box and event
-database adapters are measured only by the tests that need no database. Native
-branch coverage and doctests are not measured.
+The `electoral-log-native` coverage profile measures the default features and
+the PostgreSQL contracts above, including atomic privacy storage, authenticated
+receipts and retention. Start a disposable PostgreSQL server on port `3322` with
+the `test` user, password and database before running, from the repository root:
+
+```bash
+python3 scripts/coverage/run.py electoral-log-native --baseline
+```
+
+The profile supplies local fixture settings and runs database tests serially
+after the ordinary tests, retaining counters from both. The paired CI comparison
+runs each revision's own contracts under the same profile; database suites that
+did not exist at the base are recorded as absent. Storage-cost and scale
+benchmarks stay opt-in. Native branch coverage and doctests are not measured.
+The privacy contracts also check event-scoped recipient and receipt batches,
+delivery retries that retain the original signed bytes, and acknowledgements
+that cannot remove another event's pending evidence.

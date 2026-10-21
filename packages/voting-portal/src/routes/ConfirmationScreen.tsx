@@ -38,25 +38,20 @@ import {
     selectFirstBallotStyle,
 } from "../store/ballotStyles/ballotStylesSlice"
 import {AuthContext} from "../providers/AuthContextProvider"
-import {useMutation, useQuery} from "@apollo/client/react"
+import {useMutation} from "@apollo/client/react"
 import {CREATE_BALLOT_RECEIPT} from "../queries/CreateBallotReceipt"
-import {useGetPublicDocumentUrl} from "../hooks/public-document-url"
+import {useReceiptDocument} from "../hooks/useReceiptDocument"
 import Stepper from "../components/Stepper"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {provideBallotService} from "../services/BallotService"
 import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
-import {
-    CreateBallotReceiptMutation,
-    CreateBallotReceiptMutationVariables,
-    GetDocumentQuery,
-} from "../gql/graphql"
+import {CreateBallotReceiptMutation, CreateBallotReceiptMutationVariables} from "../gql/graphql"
 import {downloadUrl} from "@sequentech/ui-core"
 import {
     ConfirmationScreenData,
     selectConfirmationScreenData,
 } from "../store/castVotes/confirmationScreenDataSlice"
 import {selectReceivedBallot} from "../store/receivedBallots/receivedBallotsSlice"
-import {GET_DOCUMENT} from "../queries/GetDocument"
 
 /*
  * The spinner and the printer were here, with the row they belonged to.
@@ -95,7 +90,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
         CreateBallotReceiptMutationVariables
     >(CREATE_BALLOT_RECEIPT)
     const [documentId, setDocumentId] = useState<string | null>(null)
-    const {getDocumentUrl} = useGetPublicDocumentUrl()
     const {globalSettings} = useContext(SettingsContext)
     const [errorDialog, setErrorDialog] = useState<boolean>(false)
     const [openPrintDemoModal, setOpenPrintDemoModal] = useState<boolean>(false)
@@ -113,15 +107,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
         error: receiptError,
         startPolling,
         stopPolling,
-    } = useQuery<GetDocumentQuery>(GET_DOCUMENT, {
-        variables: {
-            ids: documentId ? [documentId] : [],
-            electionEventId: eventId,
-            tenantId: tenantId || "",
-        },
-        fetchPolicy: "network-only",
-        skip: !documentId, // Skip query if no documentId
-    })
+    } = useReceiptDocument(eventId, documentId)
 
     const canVote = voterContext.data?.sequent_backend_election.some((election) => {
         // Bootstrap includes earlier votes, while Redux also has the cast that
@@ -254,10 +240,10 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
         if (
             documentId &&
             !receiptError &&
-            ballotReceiptDocuments?.sequent_backend_document?.[0]?.id === documentId
+            ballotReceiptDocuments?.receipt_document.payload.document?.id === documentId
         ) {
             const fileName = `ballot_receipt_${eventId}.pdf`
-            const documentUrl = getDocumentUrl(documentId!, fileName)
+            const documentUrl = ballotReceiptDocuments.receipt_document.payload.document.url
             downloadFileWithRetry(documentUrl, fileName)
             setIsDownloadingReport(false)
             setIsHitPrint(false)
@@ -265,7 +251,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
             setDocumentId(null)
             stopPolling()
         }
-    }, [ballotReceiptDocuments?.sequent_backend_document?.[0]?.id, documentId, receiptError])
+    }, [ballotReceiptDocuments?.receipt_document.payload.document?.id, documentId, receiptError])
 
     useEffect(() => {
         if (!isPolling && documentId && !receiptError) {

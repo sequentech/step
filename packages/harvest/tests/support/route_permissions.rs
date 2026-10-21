@@ -67,6 +67,8 @@ enum Identity {
     UuidTenant,
     /// A voter of the fixture election, signed in to the voting portal.
     Voter,
+    /// A voter whose event id is a UUID, as the privacy routes require.
+    PrivacyVoter,
 }
 
 impl Identity {
@@ -81,10 +83,14 @@ impl Identity {
             Self::Gold => claims
                 .acr(&Permissions::GOLD.to_string())
                 .auth_time(Utc::now().timestamp()),
-            Self::Voter => claims
+            Self::Voter | Self::PrivacyVoter => claims
                 .azp(VOTING_PORTAL_CLIENT)
                 .area(AREA_ID)
-                .election_event(EVENT_ID)
+                .election_event(if matches!(self, Self::PrivacyVoter) {
+                    UUID_EVENT_ID
+                } else {
+                    EVENT_ID
+                })
                 .authorized_elections(&[ELECTION_ID]),
             _ => claims,
         }
@@ -168,6 +174,19 @@ fn cases() -> Vec<Case> {
     use Permissions::*;
     use VoterPermissions::{ACK_SUPPORT_MATERIALS, CAST_VOTE};
     vec![
+        case!(PrivacyVoter, "/audit-ballot", {"election_id": ELECTION_ID, "ballot_id": "FTBE-MHRX"}, [CAST_VOTE], BACKEND, UNAUTHORIZED),
+        case!(PrivacyVoter, "/ballot-box-log", {"election_event_id": UUID_EVENT_ID}, [CAST_VOTE], BACKEND, FORBIDDEN),
+        case!(PrivacyVoter, "/ballot-box-own", {"election_event_id": UUID_EVENT_ID}, [CAST_VOTE], BACKEND, FORBIDDEN),
+        case!(PrivacyVoter, "/ballot-box-entry", {"election_event_id": UUID_EVENT_ID, "election_id": ELECTION_ID, "ballot_id": "FTBE-MHRX"}, [CAST_VOTE], BACKEND, FORBIDDEN),
+        case!(PrivacyVoter, "/ballot-box-keys", {"election_event_id": UUID_EVENT_ID, "election_id": ELECTION_ID}, [CAST_VOTE], BACKEND, FORBIDDEN),
+        case!(Admin, "/ballot-box-entry", {"election_event_id": UUID_EVENT_ID, "election_id": ELECTION_ID, "ballot_id": "FTBE-MHRX"}, [LOGS_READ], BACKEND, UNAUTHORIZED),
+        case!(Admin, "/ballot-box-keys", {"election_event_id": UUID_EVENT_ID, "election_id": ELECTION_ID}, [LOGS_READ], BACKEND, UNAUTHORIZED),
+        case!(Admin, "/ballot-privacy-settings", {"election_event_id": UUID_EVENT_ID}, [ELECTION_EVENT_READ], BACKEND, UNAUTHORIZED),
+        case!(Admin, "/forensic-network-summary", {"election_event_id": UUID_EVENT_ID}, [FORENSIC_READ], BACKEND, UNAUTHORIZED),
+        case!(Admin, "/forensic-network-detail", {"election_event_id": UUID_EVENT_ID, "ip": "192.0.2.10"}, [FORENSIC_READ], BACKEND, UNAUTHORIZED),
+        case!(UuidTenant, "/privacy/sign-in-network", {"tenant_id": UUID_TENANT_ID, "election_event_id": UUID_EVENT_ID, "voter_id": USER_ID, "delivery_id": "test-signin", "occurred_at_ms": 1_800_000_000_000_i64}, [], UNAUTHORIZED_JSON),
+        case!(PrivacyVoter, "/receipt-document", {"election_event_id": UUID_EVENT_ID, "document_id": ELECTION_ID}, [CAST_VOTE], BACKEND, FORBIDDEN),
+        case!(Admin, "/resolve-voter-pseudonym", {"election_event_id": UUID_EVENT_ID, "pseudonym": "7QKM-2HXD", "reason": "investigation"}, [VOTER_PSEUDONYM_RESOLVE], BACKEND, UNAUTHORIZED),
         case!(Voter, "/acknowledge-support-materials", {"election_event_id": EVENT_ID, "document_ids": []}, [ACK_SUPPORT_MATERIALS], BACKEND, UNAUTHORIZED),
         case!(UuidTenant, "/readiness-check", {"official_event_id": UUID_V4_EVENT_ID, "tested_event_id": "00000000-0000-4000-8000-00000000000f"}, [READINESS_CHECK], BACKEND, UNAUTHORIZED_JSON),
         case!(UuidTenant, "/apply-schedule-recompute", {"election_event_id": UUID_EVENT_ID}, [SCHEDULED_EVENT_WRITE], BACKEND, UNAUTHORIZED_JSON),
@@ -228,7 +247,7 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/edit-user", {"tenant_id": TENANT_ID, "election_event_id": UUID_EVENT_ID, "user_id": USER_ID, "password": "test-password", "first_name": "Ada"}, [VOTER_WRITE, VOTER_CHANGE_PASSWORD], BACKEND, UNAUTHORIZED_JSON),
         case!(Admin, "/edit-user", {"tenant_id": TENANT_ID, "election_event_id": UUID_EVENT_ID, "user_id": USER_ID, "secret_attributes": {"test-secret": ["value"]}}, [VOTER_WRITE, VOTER_SECRET_ATTRIBUTE_WRITE], BACKEND, UNAUTHORIZED_JSON),
         case!(Admin, "/election-event/stats", {"election_event_id": EVENT_ID, "start_date": "2026-01-01", "end_date": "2026-01-02", "user_timezone": "UTC"}, [ADMIN_DASHBOARD_VIEW], BACKEND, UNAUTHORIZED),
-        case!(Admin, "/election-event/top-votes-by-ip", {"election_event_id": EVENT_ID}, [ADMIN_DASHBOARD_VIEW], BACKEND, UNAUTHORIZED),
+        case!(Admin, "/election-event/top-votes-by-ip", {"election_event_id": EVENT_ID}, [FORENSIC_READ], Reply::Text(Status::Gone), UNAUTHORIZED),
         case!(Admin, "/election/stats", {"election_event_id": EVENT_ID, "election_id": "test-election", "start_date": "2026-01-01", "end_date": "2026-01-02", "user_timezone": "UTC"}, [ADMIN_DASHBOARD_VIEW], BACKEND, UNAUTHORIZED),
         case!(Admin, "/electoral-log", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID}, [LOGS_READ], BACKEND, UNAUTHORIZED),
         // Without an election event it is the tenant log, which refuses its non-readers.

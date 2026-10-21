@@ -5,6 +5,7 @@ import englishTranslation, {TranslationType} from "./en"
 
 const galegoTranslation: TranslationType = {
     translations: {
+        ballotPrivacy: englishTranslation.translations.ballotPrivacy,
         readiness: {
             close: "Pechar",
             action: "Verificar preparación",
@@ -2402,6 +2403,8 @@ const galegoTranslation: TranslationType = {
                 "application-write": "Editar Aplicación",
                 "approval-matrix-write": "Editar a Matriz de Aprobación",
                 "readiness-check": "Verificar a preparación electoral",
+                "forensic-read": "Ler datos forenses de rede illados",
+                "voter-pseudonym-resolve": "Resolver un pseudónimo de votante cun motivo auditado",
                 "logs-export": "Exportar Registros",
                 "tenant-logs-read": "Ler Rexistro do Inquilino",
                 "tenant-logs-export": "Exportar Rexistro do Inquilino",

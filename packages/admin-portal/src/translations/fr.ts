@@ -5,6 +5,7 @@ import englishTranslation, {TranslationType} from "./en"
 
 const frenchTranslation: TranslationType = {
     translations: {
+        ballotPrivacy: englishTranslation.translations.ballotPrivacy,
         readiness: {
             close: "Fermer",
             action: "Vérifier la préparation",
@@ -2419,6 +2420,8 @@ const frenchTranslation: TranslationType = {
                 "application-write": "Modifier l'Application",
                 "approval-matrix-write": "Modifier la Matrice d'Approbation",
                 "readiness-check": "Vérifier la préparation électorale",
+                "forensic-read": "Lire les données réseau forensiques isolées",
+                "voter-pseudonym-resolve": "Résoudre un pseudonyme d’électeur avec un motif audité",
                 "logs-export": "Exporter les Journaux",
                 "tenant-logs-read": "Lire le Journal du Locataire",
                 "tenant-logs-export": "Exporter le Journal du Locataire",

@@ -35,6 +35,49 @@ final class AdminRepresentation {
 
   private AdminRepresentation() {}
 
+  /** Event-realm audit keeps the change, but no network attribution or unstructured fallback. */
+  static Object forEventRealmLog(String representation) {
+    if (representation == null) return null;
+    try {
+      JsonNode json = MAPPER.readTree(representation);
+      if (json == null || (!json.isObject() && !json.isArray())) return REDACTED;
+      redactNetwork(json);
+      return forLog(MAPPER.writeValueAsString(json));
+    } catch (JsonProcessingException invalidJson) {
+      return REDACTED;
+    }
+  }
+
+  private static void redactNetwork(JsonNode node) {
+    if (node instanceof ObjectNode object) {
+      object
+          .fields()
+          .forEachRemaining(
+              field -> {
+                if (UserEventDetails.maySayNetwork(field.getKey())) {
+                  field.setValue(MAPPER.getNodeFactory().textNode(REDACTED));
+                } else if (field.getValue().isTextual()) {
+                  field.setValue(
+                      MAPPER
+                          .getNodeFactory()
+                          .textNode(
+                              UserEventDetails.safeDetailValue(field.getValue().textValue())));
+                } else {
+                  redactNetwork(field.getValue());
+                }
+              });
+    } else if (node instanceof ArrayNode array) {
+      for (int index = 0; index < array.size(); index++) {
+        JsonNode item = array.get(index);
+        if (item.isTextual()) {
+          array.set(index, UserEventDetails.safeDetailValue(item.textValue()));
+        } else {
+          redactNetwork(item);
+        }
+      }
+    }
+  }
+
   /**
    * The JSON of {@code representation} with its secrets redacted, or its text when it is not JSON.
    * Over {@link #MAX_BYTES} it is replaced by the SHA-256 of what would have been logged.

@@ -260,3 +260,13 @@ describe("getOperationRole", () => {
         expect(roleFor("sequent_backend_contest", roles)).toBe(IPermissions.TRUSTEE_CEREMONY)
     })
 })
+
+test("forensic actions never fall back to the broad administrator role", () => {
+    expect(getOperationRole(operation("ForensicNetworkSummary"), () => true)).toBe(
+        IPermissions.FORENSIC_READ
+    )
+    expect(getOperationRole(operation("ForensicNetworkDetail"), () => true)).toBe(
+        IPermissions.FORENSIC_READ
+    )
+    expect(getOperationRole(operation("BallotBoxEntry"), () => true)).toBe(IPermissions.LOGS_READ)
+})

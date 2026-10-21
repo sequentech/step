@@ -86,6 +86,9 @@ pub async fn get_document_password(
             internal_error("Failed to read document")
         })?
         .ok_or_else(unavailable)?;
+    if document.is_ballot_receipt() {
+        return Err(unavailable());
+    }
     let annotations = document
         .annotations
         .map(serde_json::from_value::<DocumentAnnotations>)

@@ -21,6 +21,7 @@ pub struct CastVoter<'a> {
     pub voter_ip: &'a Option<String>,
     pub voter_country: &'a Option<String>,
     pub username: &'a Option<String>,
+    pub user_agent: &'a Option<String>,
 }
 
 /// Where a voter's ballot is checked and stored.

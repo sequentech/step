@@ -286,6 +286,17 @@ async fn run_import_users(
     )
     .await?;
 
+    // Complete privacy registration before certifying a changed published census.
+    if let Some(event) = event_id {
+        let published: bool = tx.query_one(
+            "SELECT EXISTS (SELECT 1 FROM sequent_backend.ballot_publication WHERE tenant_id=$1::text::uuid AND election_event_id=$2::text::uuid AND published_at IS NOT NULL AND deleted_at IS NULL)",
+            &[&body.tenant_id, &event],
+        ).await?.try_get(0)?;
+        if published {
+            crate::services::vote_privacy::allocate_registry(&tx, &body.tenant_id, event).await?;
+        }
+    }
+
     // Keycloak has now committed. The receipt, completion status and delivery
     // request share this Hasura transaction. A crash before this commit leaves
     // an incomplete task, so readiness cannot accept stale census evidence.

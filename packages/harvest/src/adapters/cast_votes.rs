@@ -4,14 +4,14 @@
 
 use crate::ports::cast_votes::{CastVoter, CastVotes};
 use windmill::services::cast_ballot::{
-    try_cast_ballot, CastBallotInput, CastBallotResult,
+    try_cast_ballot_with_network, CastBallotInput, CastBallotResult,
 };
 use windmill::services::insert_cast_vote::{
     try_insert_cast_vote, CastVoteError, InsertCastVoteInput,
     InsertCastVoteResult,
 };
 use windmill::services::receive_ballot::{
-    try_receive_ballot, ReceiveBallotInput, ReceiveBallotOutput,
+    try_receive_ballot_with_network, ReceiveBallotInput, ReceiveBallotOutput,
 };
 
 /// Windmill's cast vote insertion, on its process-wide pools.
@@ -43,13 +43,20 @@ impl CastVotes for WindmillCastVotes {
         input: ReceiveBallotInput,
         voter: CastVoter<'_>,
     ) -> Result<ReceiveBallotOutput, CastVoteError> {
-        try_receive_ballot(
+        try_receive_ballot_with_network(
             input,
             voter.tenant_id,
             voter.voter_id,
             voter.area_id,
             voter.voting_channel,
             voter.auth_time,
+            voter.voter_ip.as_deref().map(|ip| {
+                (
+                    ip,
+                    voter.voter_country.as_deref(),
+                    voter.user_agent.as_deref(),
+                )
+            }),
         )
         .await
     }
@@ -59,7 +66,7 @@ impl CastVotes for WindmillCastVotes {
         input: CastBallotInput,
         voter: CastVoter<'_>,
     ) -> Result<CastBallotResult, CastVoteError> {
-        try_cast_ballot(
+        try_cast_ballot_with_network(
             input,
             voter.tenant_id,
             voter.voter_id,
@@ -69,6 +76,7 @@ impl CastVotes for WindmillCastVotes {
             voter.voter_ip,
             voter.voter_country,
             voter.username,
+            voter.user_agent,
         )
         .await
     }

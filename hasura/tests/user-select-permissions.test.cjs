@@ -32,6 +32,23 @@ const documentSelect = (role) => {
     return entry.permission
 }
 
+const excludeBallotReceipts = {
+    _and: [
+        {
+            _or: [
+                {name: {_is_null: true}},
+                {name: {_nilike: "ballot\\_receipt\\_%"}},
+            ],
+        },
+        {
+            _or: [
+                {annotations: {_is_null: true}},
+                {_not: {annotations: {_contains: {purpose: "ballot-receipt"}}}},
+            ],
+        },
+    ],
+}
+
 // Column lists on tracked table permissions identify tenant-bearing tables.
 const hasTenantColumn = (metadata) =>
     Object.entries(metadata)
@@ -64,22 +81,38 @@ test("user selects on tenant tables cannot have an empty row filter", () => {
     )
 })
 
-test("user role can select only public documents in its own tenant", () => {
+test("user role can select only public non-receipt documents in its own tenant", () => {
     const permission = documentSelect("user")
     assert.deepEqual(permission.filter, {
-        tenant_id: {_eq: "X-Hasura-Tenant-Id"},
-        is_public: {_eq: true},
+        _and: [
+            {
+                tenant_id: {_eq: "X-Hasura-Tenant-Id"},
+                is_public: {_eq: true},
+            },
+            excludeBallotReceipts,
+        ],
     })
     assert.equal(permission.allow_aggregations, false)
     // Keep public tenant-level documents available: no mandatory event filter.
-    assert.equal(Object.hasOwn(permission.filter, "election_event_id"), false)
+    assert.equal(
+        JSON.stringify(permission.filter).includes('"election_event_id"'),
+        false
+    )
 })
 
-test("existing administrative document access remains tenant scoped", () => {
-    for (const role of ["admin-user", "document-read", "document-write"]) {
+test("administrative document access remains tenant scoped and excludes receipts", () => {
+    for (const role of [
+        "admin-user",
+        "document-read",
+        "document-write",
+        "trustee-ceremony",
+    ]) {
         const permission = documentSelect(role)
         assert.deepEqual(permission.filter, {
-            tenant_id: {_eq: "X-Hasura-Tenant-Id"},
+            _and: [
+                {tenant_id: {_eq: "X-Hasura-Tenant-Id"}},
+                excludeBallotReceipts,
+            ],
         })
     }
     assert.deepEqual(documentSelect("service-account").filter, {})

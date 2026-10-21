@@ -933,7 +933,7 @@ impl ElectoralLog {
         ret
     }
 
-    #[instrument(skip(self, pseudonym_h))]
+    #[instrument(skip_all)]
     pub async fn post_cast_vote_error(
         &self,
         tenant_id: String,
@@ -1305,7 +1305,7 @@ impl ElectoralLog {
         self.post(&message).await
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip_all)]
     pub async fn post_keycloak_event(
         &self,
         event_id: String,
@@ -1315,7 +1315,9 @@ impl ElectoralLog {
         username: Option<String>,
     ) -> Result<()> {
         let event = EventIdString(event_id);
-        let error_message = ErrorMessageString(error_message);
+        let error_message = ErrorMessageString(crate::services::privacy_signin::safe_error_text(
+            &error_message,
+        ));
         let event_type = KeycloakEventTypeString(event_type);
         let message = Message::keycloak_user_event(
             event,
@@ -1697,7 +1699,9 @@ impl ElectoralLog {
         area_id: Option<String>,
     ) -> Result<ElectoralLogMessage> {
         let event = EventIdString(event_id);
-        let error_message = ErrorMessageString(error_message);
+        let error_message = ErrorMessageString(crate::services::privacy_signin::safe_error_text(
+            &error_message,
+        ));
         let event_type = KeycloakEventTypeString(event_type);
         let message = &Message::keycloak_user_event(
             event,
@@ -2345,7 +2349,7 @@ async fn list_communications(
     })
 }
 
-#[instrument(err)]
+#[instrument(skip_all)]
 pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<ElectoralLogRow>> {
     if let Some(filter) = input.communications_filter() {
         return list_communications(input, filter).await;
@@ -2368,7 +2372,7 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
     })
 }
 
-#[instrument]
+#[instrument(skip_all)]
 pub fn get_cols_match_count_and_select(
     election_id: &str,
     user_id: &str,
@@ -2403,7 +2407,7 @@ pub fn get_cols_match_count_and_select(
 /// Returns the entries for statement_kind = "CastVote" which ballot_id matches the input
 /// ballot_id_filter is restricted to be an even number of characters, so that can be converted
 /// to a byte array
-#[instrument(err)]
+#[instrument(skip_all)]
 pub async fn list_cast_vote_messages(
     input: GetElectoralLogBody,
     ballot_id_filter: &str,
@@ -2473,7 +2477,7 @@ pub async fn list_cast_vote_messages(
     Ok(CastVoteMessagesOutput { list, total })
 }
 
-#[instrument(err)]
+#[instrument(skip_all)]
 pub async fn count_electoral_log(input: GetElectoralLogBody) -> Result<i64> {
     let slug = std::env::var("ENV_SLUG").context("missing env var ENV_SLUG")?;
     let board = get_event_board(&input.tenant_id, &input.election_event_id, &slug);

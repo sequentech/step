@@ -25,8 +25,8 @@ use crate::postgres::messaging::{mark_logged, MessageRecord};
 use crate::services::application::application_retry;
 use crate::services::messaging::audit::{AttemptOutcome, MessageKind};
 use crate::services::messaging::dispatch::{
-    bulk_send_body, deliver, record_without_channel, retry_refusal, Delivery, DeliveryResult,
-    Dispatcher, ProviderTemplate, Recipient,
+    deliver, record_without_channel, retry_refusal, Delivery, DeliveryResult, Dispatcher,
+    ProviderTemplate, Recipient,
 };
 use crate::services::messaging::reconcile::{RetryContent, RetryRenderer};
 use anyhow::{anyhow, Context};
@@ -241,6 +241,21 @@ fn audience_user_ids(
             )),
         },
         _ => Ok(None),
+    }
+}
+
+/// Membership is evaluated only after vote info has been scoped to the stored grant.
+pub fn retain_participation_audience(users: &mut Vec<User>, audience: &AudienceSelection) {
+    match audience {
+        AudienceSelection::NOT_VOTED => {
+            users.retain(|user| user.votes_info.as_ref().is_some_and(Vec::is_empty))
+        }
+        AudienceSelection::VOTED => users.retain(|user| {
+            user.votes_info
+                .as_ref()
+                .is_some_and(|votes| !votes.is_empty())
+        }),
+        _ => {}
     }
 }
 
@@ -605,6 +620,7 @@ pub async fn find_voter(
             email_verified: None,
             sort: None,
             has_voted: None,
+            permitted_election_ids: None,
             authorized_to_election_alias: None,
         },
     )
@@ -678,10 +694,22 @@ impl<D: RetryDirectory> RetryByOrigin<D> {
         logical_key: &str,
     ) -> anyhow::Result<RetryContent> {
         let refused = |reason| Ok(RetryContent::Refused(reason));
-        let Some(body) = bulk_send_body(hasura_transaction, &record.tenant_id, logical_key).await?
+        let Some(send_id) = crate::services::messaging::dispatch::bulk_send_id(logical_key) else {
+            return refused(MessageReason::NO_STORED_TEMPLATE);
+        };
+        let Some(command) = crate::services::participation_authorization::authorized_bulk_send(
+            hasura_transaction,
+            &record.tenant_id,
+            &send_id,
+        )
+        .await?
         else {
             return refused(MessageReason::NO_STORED_TEMPLATE);
         };
+        if command.election_event_id != record.election_event_id {
+            return refused(MessageReason::PARTICIPATION_REAUTHORIZATION_REQUIRED);
+        }
+        let body = command.body;
         let Some(voter_id) = record.voter_id.as_deref() else {
             return refused(MessageReason::NO_CONTACT_CHANNEL);
         };
@@ -833,6 +861,7 @@ pub async fn send_template(
     admin_id: String,
     election_event_id: Option<String>,
 ) -> Result<()> {
+    let mut body = body;
     let send_id = body
         .send_id
         .clone()
@@ -864,6 +893,39 @@ pub async fn send_template(
         .transaction()
         .await
         .map_err(|err| format!("Error starting hasura transaction: {err}"))?;
+
+    let mut permitted_election_ids = None;
+    if let Some(recorded_id) = body.send_id.as_deref() {
+        let recorded_id = Uuid::parse_str(recorded_id).map_err(anyhow::Error::from)?;
+        if let Some(command) = crate::services::participation_authorization::authorized_bulk_send(
+            &hasura_transaction,
+            &tenant_uuid,
+            &recorded_id,
+        )
+        .await?
+        {
+            if command.election_event_id != event_uuid
+                || command.actor_id.as_deref() != Some(admin_id.as_str())
+            {
+                return Err(Error::String(
+                    "Stored send scope does not match the queued command".into(),
+                ));
+            }
+            permitted_election_ids = command.participation.map(|grant| grant.election_ids);
+            body = command.body;
+        } else if crate::services::participation_authorization::needs_participation(&body) {
+            return Err(Error::String(
+                crate::services::participation_authorization::REAUTHORIZE_PARTICIPATION.into(),
+            ));
+        }
+    }
+    if crate::services::participation_authorization::needs_participation(&body)
+        && permitted_election_ids.is_none()
+    {
+        return Err(Error::String(
+            crate::services::participation_authorization::REAUTHORIZE_PARTICIPATION.into(),
+        ));
+    }
 
     let election_event = match election_event_id.clone() {
         None => None,
@@ -985,6 +1047,7 @@ pub async fn send_template(
             email_verified: None,
             sort: None,
             has_voted: None,
+            permitted_election_ids: permitted_election_ids.clone(),
             authorized_to_election_alias: None,
         };
 
@@ -1001,19 +1064,7 @@ pub async fn send_template(
 
         let mut filtered_users = users.clone();
 
-        match audience_selection {
-            AudienceSelection::NOT_VOTED => filtered_users.retain(|user| {
-                user.votes_info
-                    .as_ref()
-                    .map_or(false, |vote_info| vote_info.is_empty())
-            }),
-            AudienceSelection::VOTED => filtered_users.retain(|user| {
-                user.votes_info
-                    .as_ref()
-                    .map_or(false, |vote_info| !vote_info.is_empty())
-            }),
-            _ => {}
-        };
+        retain_participation_audience(&mut filtered_users, &audience_selection);
 
         let mut metrics = Metrics::default();
 

@@ -16,6 +16,7 @@ import {v4 as uuidv4} from "uuid"
 
 import {AuthContext} from "@/providers/AuthContextProvider"
 import ElectionHeader from "@/components/ElectionHeader"
+import {ListIpAddress} from "@/resources/ElectionEvent/ListIpAddress"
 import DashboardElection from "@/components/dashboard/election/Dashboard"
 import {BallotBoxesCard} from "@/components/dashboard/election/BallotBoxesCard"
 import {BallotBoxesSection} from "@/components/dashboard/election/BallotBoxesSection"
@@ -60,18 +61,21 @@ const DashboardTab: React.FC = () => {
     }
     return (
         <Suspense fallback={<div>Loading Dashboard...</div>}>
-            <MonitoringDashboardTab
-                electionEventId={record?.election_event_id}
-                electionId={record?.id}
-                lock={lock}
-                legacy={
-                    <>
-                        <DashboardElection />
-                        <BallotBoxesCard {...ballotBoxes} />
-                    </>
-                }
-                below={<BallotBoxesSection {...ballotBoxes} />}
-            />
+            <Box sx={{width: "100%", minWidth: 0}}>
+                <MonitoringDashboardTab
+                    electionEventId={record?.election_event_id}
+                    electionId={record?.id}
+                    lock={lock}
+                    legacy={
+                        <>
+                            <DashboardElection />
+                            <BallotBoxesCard {...ballotBoxes} />
+                        </>
+                    }
+                    below={<BallotBoxesSection {...ballotBoxes} />}
+                    footer={<ListIpAddress />}
+                />
+            </Box>
         </Suspense>
     )
 }

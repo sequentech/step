@@ -5,6 +5,7 @@ import englishTranslation, {TranslationType} from "./en"
 
 const catalanTranslation: TranslationType = {
     translations: {
+        ballotPrivacy: englishTranslation.translations.ballotPrivacy,
         readiness: {
             close: "Tanca",
             action: "Verificar preparació",
@@ -2415,6 +2416,8 @@ const catalanTranslation: TranslationType = {
                 "application-write": "Editar Aplicació",
                 "approval-matrix-write": "Editar la Matriu d'Aprovació",
                 "readiness-check": "Verificar la preparació electoral",
+                "forensic-read": "Llegir dades forenses de xarxa aïllades",
+                "voter-pseudonym-resolve": "Resoldre un pseudònim de votant amb un motiu auditat",
                 "logs-export": "Exportar Registres",
                 "tenant-logs-read": "Llegir Bitàcola de l'Inquilí",
                 "tenant-logs-export": "Exportar Bitàcola de l'Inquilí",

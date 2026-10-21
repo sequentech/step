@@ -189,6 +189,7 @@ jobs:
           KEYCLOAK_DB__PORT: "3322"
           KEYCLOAK_DB__DBNAME: "test"
           KEYCLOAK_DB__MANAGER__RECYCLING_METHOD: "Verified"
+          KEYCLOAK_VOTER_GROUP_NAME: "voter"
           HASURA_DB__USER: "test"
           HASURA_DB__PASSWORD: "test"
           HASURA_DB__HOST: "127.0.0.1"

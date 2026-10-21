@@ -31,8 +31,8 @@ use windmill::tasks::migrate_realm_permissions::{
 };
 
 /// The English labels Users and Roles shows for the migrated permissions
-/// (signing, messaging and readiness), read from the admin portal's translations: the
-/// migration gives each role its label as its description.
+/// (signing, messaging, readiness and privacy), read from the admin portal's
+/// translations: the migration gives each role its label as its description.
 fn migrated_labels_in_the_portal() -> BTreeMap<String, String> {
     include_str!("../../admin-portal/src/translations/en.ts")
         .lines()
@@ -46,7 +46,9 @@ fn migrated_labels_in_the_portal() -> BTreeMap<String, String> {
                     || key.starts_with("signing-")
                     || key.starts_with("sign-")
                     || key.starts_with("messaging-")
-                    || key == "readiness-check");
+                    || key == "readiness-check"
+                    || key == "forensic-read"
+                    || key == "voter-pseudonym-resolve");
             let value = value.trim_end_matches(',');
             (migrated && value.starts_with('"'))
                 .then(|| (key.to_string(), value.trim_matches('"').to_string()))
@@ -57,7 +59,7 @@ fn migrated_labels_in_the_portal() -> BTreeMap<String, String> {
 #[test]
 fn the_migration_adds_release_permissions_with_their_labels() {
     let expected = migrated_labels_in_the_portal();
-    assert_eq!(expected.len(), 26, "{expected:?}");
+    assert_eq!(expected.len(), 28, "{expected:?}");
     let roles: BTreeMap<String, String> = migrated_roles()
         .into_iter()
         .map(|role| (role.name.unwrap(), role.description.unwrap()))
@@ -145,8 +147,8 @@ fn groups_already_granted(realm: &str) -> Vec<Exchange> {
 async fn every_tenant_realm_gets_the_roles_it_lacks() {
     let tenants = ["tenant-one".to_string(), "tenant-two".to_string()];
     let mut exchanges = vec![
-        import("tenant-tenant-one", 200, json!({"added": 26, "skipped": 0})),
-        import("tenant-tenant-two", 200, json!({"added": 0, "skipped": 26})),
+        import("tenant-tenant-one", 200, json!({"added": 28, "skipped": 0})),
+        import("tenant-tenant-two", 200, json!({"added": 0, "skipped": 28})),
     ];
     exchanges.extend(groups_already_granted("tenant-tenant-one"));
     exchanges.extend(groups_already_granted("tenant-tenant-two"));
@@ -160,7 +162,7 @@ async fn every_tenant_realm_gets_the_roles_it_lacks() {
             RealmMigration {
                 realm: "tenant-tenant-one".to_string(),
                 roles: PartialImportSummary {
-                    added: 26,
+                    added: 28,
                     ..Default::default()
                 },
                 granted: vec![],
@@ -168,7 +170,7 @@ async fn every_tenant_realm_gets_the_roles_it_lacks() {
             RealmMigration {
                 realm: "tenant-tenant-two".to_string(),
                 roles: PartialImportSummary {
-                    skipped: 26,
+                    skipped: 28,
                     ..Default::default()
                 },
                 granted: vec![],
@@ -393,7 +395,7 @@ async fn a_realm_that_fails_does_not_stop_the_others_and_fails_the_run() {
     let tenants = ["missing".to_string(), "present".to_string()];
     let mut exchanges = vec![
         import("tenant-missing", 404, json!({"error": "Realm not found."})),
-        import("tenant-present", 200, json!({"added": 26})),
+        import("tenant-present", 200, json!({"added": 28})),
     ];
     exchanges.extend(groups_already_granted("tenant-present"));
     let peer = HttpServer::start(exchanges);
@@ -450,7 +452,7 @@ async fn the_realm_of_every_tenant_in_the_database_is_migrated() {
             .iter()
             .flat_map(|tenant| {
                 let realm = format!("tenant-{tenant}");
-                let mut exchanges = vec![import(&realm, 200, json!({"added": 26}))];
+                let mut exchanges = vec![import(&realm, 200, json!({"added": 28}))];
                 exchanges.extend(groups_already_granted(&realm));
                 exchanges
             })
