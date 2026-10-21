@@ -119,10 +119,8 @@ Import advanced settings for this Election and define vote limits, confirmations
 
 - **Permission Label**:  
   - Assign a permission label to this Election, controlling which Admin Portal users can access/manage this Election.  
-  - Example workflow:  
-    1. Create or select a permission label (e.g., “Election A Manager”).  
-    2. Associate one or more admin users with this label.  
-    3. Only users with this permission label see or modify this Election in the Admin Portal.
+  - Only users who carry the label see or modify this Election and its contests, candidates, ballot styles, publications, results and tally data. Elections without a label are visible to every admin user of the tenant.  
+  - You can only assign a label that your own user carries. Admin users have no permission labels by default, so add the label to your user first (see [Assigning a Permission Label](#assigning-a-permission-label)).
   - Actions that apply to the whole Election Event, such as changing the event voting status or dates, publishing the event ballot, exporting the event logs, browsing the event on the Electoral Log page or requesting its electoral-log checkpoints and proofs, require a user whose permission labels cover every labelled Election of the event. The electoral log shows such a user only the entries of the Elections they can access and the entries that belong to no Election.
 
 - **Upload Advanced Configuration** (Optional):  
@@ -158,6 +156,20 @@ Import advanced settings for this Election and define vote limits, confirmations
   - Set to **Go to the election selection screen** (default) to keep the previous behavior.
   - Set to **Go to the election start screen** to return the voter to the Election's Start Screen, where the ballot is reset to its initial state. Recommended when [Decline to Vote](../07-decline-to-vote.md) is enabled, so the decline option remains reachable from the voting screen.
 ---
+
+### Assigning a Permission Label
+
+An admin user can only give an Election a permission label that their own user carries. Admin users have no permission labels by default, so the first time a label is used:
+
+1. Go to **Users and Roles** → **Users**, edit your own user, add the label in **Permission Label** and save. This requires the `user-write` and `permission-label-write` permissions. When you edit your own user, the Admin Portal refreshes your session, so the new label applies right away.
+2. Open the Election's **Data** tab, expand **Advanced Configuration**, enter the same label in **Permission Label** and select **Save**.
+3. Add the label to every other admin user who must keep access to this Election.
+
+:::warning
+If you save a label that your own user does not carry, the Admin Portal first shows **Element updated** with an **Undo** option and, a few seconds later, the error **check constraint of an insert/update permission has failed**. The label is not saved. Add the label to your own user (step 1) and save the Election again.
+:::
+
+Once an Election carries a label, admin users without that label no longer see it, or its contests, candidates and results, in the Admin Portal. This includes admin users with no labels at all, so make sure at least one admin user carries every label in use.
 
 ### Notes & Best Practices
 

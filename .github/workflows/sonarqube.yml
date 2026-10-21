@@ -132,6 +132,7 @@ jobs:
           args: >
             -Dsonar.organization=sequentech
             -Dsonar.projectKey=step-frontend
+            -Dsonar.javascript.node.maxspace=8192
             -Dsonar.sources=.
             -Dsonar.inclusions=**/*.js,**/*.ts,**/*.jsx,**/*.tsx
             -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/rust/**,**/.storybook/**,**/nightwatch/**,**/storybook-static/**,**/test-results/**,**/coverage/**
@@ -152,6 +153,7 @@ jobs:
           args: >
             -Dsonar.organization=sequentech
             -Dsonar.projectKey=step-frontend
+            -Dsonar.javascript.node.maxspace=8192
             -Dsonar.sources=.
             -Dsonar.inclusions=**/*.js,**/*.ts,**/*.jsx,**/*.tsx
             -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/rust/**,**/.storybook/**,**/nightwatch/**,**/storybook-static/**,**/test-results/**,**/coverage/**
