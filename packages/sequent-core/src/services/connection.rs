@@ -71,16 +71,15 @@ async fn verified_claims(
     request: &Request<'_>,
     token: &str,
 ) -> AnyhowResult<JwtClaims> {
-    let verified = match request.rocket().state::<BearerIssuers>() {
+    match request.rocket().state::<BearerIssuers>() {
         Some(issuers) => {
             let trusted: Vec<&str> =
                 issuers.trusted_bases.iter().map(String::as_str).collect();
             verify_bearer_with_config(token, &trusted, &issuers.internal_base)
-                .await?
+                .await
         }
-        None => verify_bearer(token).await?,
-    };
-    Ok(serde_json::from_value(verified)?)
+        None => verify_bearer(token).await,
+    }
 }
 
 #[rocket::async_trait]
@@ -94,15 +93,15 @@ impl<'r> FromRequest<'r> for JwtClaims {
         match headers.get_one("authorization") {
             Some(authorization) => {
                 match authorization.strip_prefix("Bearer ") {
-                    Some(token) => {
-                        match verified_claims(request, token).await {
-                            Ok(jwt) => Outcome::Success(jwt),
-                            Err(_) => {
-                                warn!("JwtClaims guard: invalid bearer token");
-                                Outcome::Error((Status::Unauthorized, ()))
-                            }
+                    Some(token) => match verified_claims(request, token).await {
+                        Ok(jwt) => Outcome::Success(jwt),
+                        Err(err) => {
+                            warn!(
+                                "JwtClaims guard: invalid bearer token: {err:#}"
+                            );
+                            Outcome::Error((Status::Unauthorized, ()))
                         }
-                    }
+                    },
                     None => {
                         warn!(
                             "JwtClaims guard: unsupported authorization scheme"
@@ -390,8 +389,8 @@ impl<'r> FromRequest<'r> for DatafixClaims {
                 tenant_id,
                 datafix_event_id,
             }),
-            Err(_) => {
-                warn!("DatafixClaims guard: invalid bearer token");
+            Err(err) => {
+                warn!("DatafixClaims guard: invalid bearer token: {err:#}");
                 Outcome::Error((Status::Unauthorized, ()))
             }
         }
@@ -444,5 +443,76 @@ mod redaction_tests {
         assert!(debug.contains("tenant"), "{debug}");
         assert!(!debug.contains(CLIENT_SECRET), "{debug}");
         assert!(!debug.contains(ACCESS_TOKEN), "{debug}");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::services::jwt::JwtClaims;
+    use crate::services::jwt_verification::{
+        KEYCLOAK_PUBLIC_URL, KEYCLOAK_URL,
+    };
+    use crate::services::test_support::{
+        claims, clear_optional_issuer_settings, in_child_process, keys,
+        one_shot_server, token,
+    };
+    use rocket::http::{Header, Status};
+
+    #[rocket::get("/authenticated")]
+    fn authenticated(_claims: JwtClaims) -> &'static str {
+        "authenticated"
+    }
+
+    #[tokio::test]
+    async fn request_guard_rejects_forged_tokens_and_accepts_signed_tokens() {
+        if !in_child_process(
+            module_path!(),
+            "request_guard_rejects_forged_tokens_and_accepts_signed_tokens",
+        ) {
+            return;
+        }
+        clear_optional_issuer_settings();
+        let (internal, served) = one_shot_server(
+            "200 OK",
+            serde_json::to_string(&keys()).unwrap(),
+            "",
+        )
+        .await;
+        std::env::set_var(KEYCLOAK_URL, &internal);
+        std::env::set_var(KEYCLOAK_PUBLIC_URL, "https://keycloak.example");
+        let client = rocket::local::asynchronous::Client::tracked(
+            rocket::build().mount("/", rocket::routes![authenticated]),
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            client.get("/authenticated").dispatch().await.status(),
+            Status::Unauthorized
+        );
+        let valid = token(&claims());
+        let parts: Vec<_> = valid.split('.').collect();
+        let forged = format!("{}.{}.forged", parts[0], parts[1]);
+        assert_eq!(
+            client
+                .get("/authenticated")
+                .header(Header::new(
+                    "Authorization",
+                    format!("Bearer {forged}")
+                ))
+                .dispatch()
+                .await
+                .status(),
+            Status::Unauthorized
+        );
+        served.await.unwrap();
+        assert_eq!(
+            client
+                .get("/authenticated")
+                .header(Header::new("Authorization", format!("Bearer {valid}")))
+                .dispatch()
+                .await
+                .status(),
+            Status::Ok
+        );
     }
 }
