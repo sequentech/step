@@ -126,6 +126,7 @@ const DashboardTab: React.FC<ITabProps> = ({refreshRef, handleChildMount}) => {
                 <MonitoringDashboardTab
                     electionEventId={record?.id}
                     lock={lock}
+                    footer={<ListIpAddress />}
                     legacy={
                         <Box sx={{overflowX: "auto"}}>
                             <DashboardElectionEvent
@@ -135,7 +136,6 @@ const DashboardTab: React.FC<ITabProps> = ({refreshRef, handleChildMount}) => {
                         </Box>
                     }
                 />
-                <ListIpAddress />
             </Box>
         </Suspense>
     )

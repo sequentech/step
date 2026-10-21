@@ -4,6 +4,7 @@
 
 import React, {useContext, useState} from "react"
 import {Box, CircularProgress} from "@mui/material"
+import {StandardDashboardContent} from "../DashboardContent"
 import {styled} from "@mui/material/styles"
 import {Stats} from "./Stats"
 import {VotesPerDay} from "../charts/VotesPerDay"
@@ -92,7 +93,7 @@ export default function DashboardElection() {
     const cardHeight = 250
 
     return (
-        <Box sx={{width: 1024, marginX: "auto"}} className="dashboard">
+        <StandardDashboardContent className="dashboard">
             <Box>
                 <Stats metrics={metrics} />
 
@@ -112,6 +113,6 @@ export default function DashboardElection() {
                     />
                 </Container>
             </Box>
-        </Box>
+        </StandardDashboardContent>
     )
 }

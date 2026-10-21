@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
+import {atViewport} from "../../../../test-support/storybook/viewport"
 import type {StoryObj} from "@storybook/react-vite"
 import {expect, userEvent, waitFor, within} from "storybook/test"
 import {RecordContextProvider, ResourceContextProvider, ShowBase} from "react-admin"
@@ -62,6 +63,7 @@ import "./EditElectionEventApprovals"
 import "../Reports/EditReportsTab"
 
 interface Scenario {
+    dashboard?: "records"
     networkPolicy?: ENetworkDataPolicy
     monitoring?: EMonitoringListScenario
     /** Whether the event is locked down, which hides its editing tabs. */
@@ -152,6 +154,7 @@ const meta = {
                           tabsEvent(args.lockedDown, args.networkPolicy),
                       ],
                       ip_address: [],
+                      ...(args.dashboard ? {sequent_backend_tally_session: []} : {}),
                       ...(args.lockdownTiming
                           ? {
                                 electoral_log: [
@@ -232,6 +235,30 @@ const meta = {
         graphql = graphqlBoundary(
             answerOrPending({
                 ...monitoringHandlers({list: args.monitoring ?? EMonitoringListScenario.LEGACY}),
+                ...(args.dashboard
+                    ? {
+                          GetElectionEventStats: () => ({
+                              data: {
+                                  stats: {
+                                      total_eligible_voters: 1204,
+                                      total_distinct_voters: 38,
+                                      total_areas: 2,
+                                      total_elections: 1,
+                                      voters_by_channel: [],
+                                      votes_per_day: [],
+                                  },
+                                  election_event: [
+                                      {statistics: {num_emails_sent: 12, num_sms_sent: 3}},
+                                  ],
+                              },
+                          }),
+                          ListKeysCeremony: () => ({
+                              data: {
+                                  list_keys_ceremony: {items: [], total: {aggregate: {count: 0}}},
+                              },
+                          }),
+                      }
+                    : {}),
                 ...(args.readinessResult
                     ? {
                           GetReadinessEvents: () => ({
@@ -951,6 +978,34 @@ export const ForensicReviewWhileDashboardLoads: Story = {
 
 export const ForensicReviewOnStandardDashboard: Story = {
     ...ForensicReviewWhileDashboardLoads,
-    args: {...ForensicReviewWhileDashboardLoads.args, monitoring: EMonitoringListScenario.LEGACY},
-    parameters: spinnerDefects("The election event dashboard"),
+    args: {
+        ...ForensicReviewWhileDashboardLoads.args,
+        monitoring: EMonitoringListScenario.LEGACY,
+        dashboard: "records",
+    },
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(await canvas.findByText("Eligible Voters")).toBeVisible()
+        const dashboard = canvasElement.querySelector<HTMLElement>(".dashboard")
+        if (!dashboard) throw new Error("The normal dashboard must be loaded")
+        const panel = await canvas.findByRole("region", {name: "IP Addresses"})
+        expect(panel.getBoundingClientRect().width).toBeCloseTo(
+            dashboard.getBoundingClientRect().width,
+            0
+        )
+        expect(panel.getBoundingClientRect().left).toBeCloseTo(
+            dashboard.getBoundingClientRect().left,
+            0
+        )
+    },
+}
+
+export const ForensicReviewOnStandardDashboardWide: Story = {
+    ...ForensicReviewOnStandardDashboard,
+    ...atViewport(1440),
+}
+
+export const ForensicReviewOnStandardDashboardTablet: Story = {
+    ...ForensicReviewOnStandardDashboard,
+    ...atViewport(820),
 }

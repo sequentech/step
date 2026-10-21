@@ -73,8 +73,8 @@ const DashboardTab: React.FC = () => {
                         </>
                     }
                     below={<BallotBoxesSection {...ballotBoxes} />}
+                    footer={<ListIpAddress />}
                 />
-                <ListIpAddress />
             </Box>
         </Suspense>
     )

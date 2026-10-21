@@ -4,6 +4,7 @@
 
 import React, {useCallback, useContext, useEffect, useMemo, useState} from "react"
 import {Box, CircularProgress} from "@mui/material"
+import {StandardDashboardContent} from "../DashboardContent"
 import {useQuery} from "@apollo/client"
 import {BreadCrumbSteps, BreadCrumbStepsVariant} from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
@@ -225,7 +226,7 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
 
     return (
         <>
-            <Box sx={{width: 1024, marginX: "auto"}} className="dashboard">
+            <StandardDashboardContent className="dashboard">
                 <BreadCrumbSteps
                     labels={[
                         "electionEventBreadcrumbSteps.created", // 0
@@ -294,7 +295,7 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
                         </>
                     )}
                 </Box>
-            </Box>
+            </StandardDashboardContent>
         </>
     )
 }
