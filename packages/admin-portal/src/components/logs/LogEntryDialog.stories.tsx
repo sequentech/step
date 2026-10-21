@@ -607,6 +607,7 @@ export const PseudonymousReceived: Story = {
         const view = await dialog()
         await expect(await view.findByText("All four checks passed")).toBeVisible()
         expect(view.getAllByText("Passed")).toHaveLength(4)
+        expect(view.queryByRole("button", {name: "Try again"})).toBeNull()
         expect(view.getByRole("button", {name: "Download signed log entries"})).toBeVisible()
         expect(graphql.calls.map(({name}) => name).sort()).toEqual([
             "BallotBoxEntry",
@@ -673,6 +674,10 @@ export const ReceivedBeforeCast: Story = {
         await expect(await view.findByText("Still being added to the log")).toBeVisible()
         expect(view.getAllByText("Passed")).toHaveLength(3)
         expect(view.getByText("Not in the log yet.")).toBeVisible()
+        await userEvent.click(view.getByRole("button", {name: "Try again"}))
+        await waitFor(() => expect(graphql.calls).toHaveLength(4))
+        expect(graphql.calls.filter(({name}) => name === "BallotBoxEntry")).toHaveLength(2)
+        expect(graphql.calls.filter(({name}) => name === "BallotBoxKeys")).toHaveLength(2)
         expect(view.queryByText("A check failed")).toBeNull()
         const element = within(document.body).getByRole("dialog")
         expect(element.scrollWidth).toBeLessThanOrEqual(element.clientWidth + 1)

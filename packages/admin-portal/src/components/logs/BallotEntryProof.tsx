@@ -32,6 +32,10 @@ export const BallotEntryProof: React.FC<{
     const proof = entry.data?.ballot_box_entry.payload
     const trust = keys.data?.ballot_box_keys.payload
     const loading = entry.loading || keys.loading
+    const retry = () => {
+        void entry.refetch().catch(() => undefined)
+        void keys.refetch().catch(() => undefined)
+    }
     const contextMatches =
         proof?.ballot_id === ballotId &&
         trust?.election_id === electionId &&
@@ -41,19 +45,13 @@ export const BallotEntryProof: React.FC<{
             {loading ? (
                 <CircularProgress aria-label={t("ballotPrivacy.checking")} />
             ) : entry.error || keys.error || !proof || !trust || !contextMatches ? (
-                <Alert severity="error">{t("ballotPrivacy.proofError")}</Alert>
+                <>
+                    <Alert severity="error">{t("ballotPrivacy.proofError")}</Alert>
+                    <Button onClick={retry}>{t("ballotPrivacy.retry")}</Button>
+                </>
             ) : (
-                <BallotLogProof trust={trust} proof={proof} />
+                <BallotLogProof trust={trust} proof={proof} onRetry={retry} />
             )}
-            <Button
-                disabled={loading}
-                onClick={() => {
-                    void entry.refetch().catch(() => undefined)
-                    void keys.refetch().catch(() => undefined)
-                }}
-            >
-                {t("ballotPrivacy.retry")}
-            </Button>
         </Stack>
     )
 }

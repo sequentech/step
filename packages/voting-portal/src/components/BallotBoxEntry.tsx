@@ -47,6 +47,7 @@ export const BallotBoxEntry: React.FC<BallotBoxEntryProps> = ({
     })
     const proof = entry.data?.ballot_box_entry.payload
     const trust = keys.data?.ballot_box_keys.payload
+    const loading = entry.loading || keys.loading
     const retry = () => {
         void entry.refetch().catch(() => undefined)
         void keys.refetch().catch(() => undefined)
@@ -55,6 +56,7 @@ export const BallotBoxEntry: React.FC<BallotBoxEntryProps> = ({
         proof?.ballot_id === ballotId &&
         trust?.election_id === electionId &&
         trust?.election_event_id === electionEventId
+    const loadError = entry.error || keys.error || !proof || !trust || !contextMatches
     return (
         <Dialog
             className="ballot-proof-dialog"
@@ -69,27 +71,25 @@ export const BallotBoxEntry: React.FC<BallotBoxEntryProps> = ({
                 {t("ballotPrivacy.detailTitle", {ballotId})}
             </DialogTitle>
             <DialogContent className="ballot-proof-content">
-                {entry.loading || keys.loading ? (
+                {loading ? (
                     <CircularProgress
                         className="ballot-proof-loading"
                         aria-label={t("ballotPrivacy.checking")}
                     />
-                ) : entry.error || keys.error || !proof || !trust || !contextMatches ? (
+                ) : loadError ? (
                     <Alert className="ballot-proof-error" severity="error">
                         {t("ballotPrivacy.proofError")}
                     </Alert>
                 ) : (
-                    <BallotLogProof proof={proof} trust={trust} />
+                    <BallotLogProof proof={proof} trust={trust} onRetry={retry} />
                 )}
             </DialogContent>
             <DialogActions className="ballot-proof-actions" sx={{flexWrap: "wrap"}}>
-                <Button
-                    className="ballot-proof-retry-button"
-                    onClick={retry}
-                    disabled={entry.loading || keys.loading}
-                >
-                    {t("ballotPrivacy.retry")}
-                </Button>
+                {!loading && loadError ? (
+                    <Button className="ballot-proof-retry-button" onClick={retry}>
+                        {t("ballotPrivacy.retry")}
+                    </Button>
+                ) : null}
                 <Button className="ballot-proof-close-button" onClick={onClose}>
                     {t("ballotPrivacy.close")}
                 </Button>

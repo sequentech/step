@@ -11,10 +11,11 @@ export type BallotLogEvidence = Parameters<typeof verifyBallotLogProof>[1]
 export interface BallotLogProofProps {
     trust: BallotLogTrust
     proof: BallotLogEvidence
+    onRetry?: () => void
 }
 
 /** Both portals run the same WASM verifier over the signed bytes with published keys. */
-export const BallotLogProof: React.FC<BallotLogProofProps> = ({trust, proof}) => {
+export const BallotLogProof: React.FC<BallotLogProofProps> = ({trust, proof, onRetry}) => {
     const {t} = useTranslation()
     const checked = useMemo(() => {
         try {
@@ -93,6 +94,11 @@ export const BallotLogProof: React.FC<BallotLogProofProps> = ({trust, proof}) =>
                 {t("ballotPrivacy.neverPublished")}
             </Typography>
             <Button onClick={download}>{t("ballotPrivacy.download")}</Button>
+            {pending && onRetry ? (
+                <Button className="ballot-proof-retry-button" onClick={onRetry}>
+                    {t("ballotPrivacy.retry")}
+                </Button>
+            ) : null}
         </Stack>
     )
 }

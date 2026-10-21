@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {atViewport} from "../../../test-support/storybook/viewport"
 import type {Meta, StoryObj} from "@storybook/react-vite"
-import {expect, within} from "storybook/test"
+import {expect, fn, userEvent, within} from "storybook/test"
 import initCore from "sequent-core"
 import {BallotLogProof} from "@sequentech/ui-essentials"
 import fixture from "./__stories__/ballotProof.json"
@@ -10,7 +10,7 @@ import fixture from "./__stories__/ballotProof.json"
 const meta = {
     title: "Voting/Ballot signatures",
     component: BallotLogProof,
-    args: {trust: fixture.trusted, proof: fixture.proof},
+    args: {trust: fixture.trusted, proof: fixture.proof, onRetry: fn()},
     beforeEach: async () => {
         await initCore()
     },
@@ -24,17 +24,20 @@ export const Verified: Story = {
         const canvas = within(canvasElement)
         await expect(canvas.getByText("All four checks passed")).toBeVisible()
         expect(canvas.getAllByText("Passed")).toHaveLength(4)
+        expect(canvas.queryByRole("button", {name: "Try again"})).toBeNull()
         expect(canvasElement.scrollWidth).toBeLessThanOrEqual(canvasElement.clientWidth + 1)
     },
 }
 export const Pending: Story = {
     ...atViewport(1440),
     args: {proof: {...fixture.proof, cast_entry: null}},
-    play: async ({canvasElement}) => {
+    play: async ({canvasElement, args}) => {
         const canvas = within(canvasElement)
         await expect(canvas.getByText("Still being added to the log")).toBeVisible()
         expect(canvas.getAllByText("Passed")).toHaveLength(3)
         expect(canvas.getByText("Not in the log yet.")).toBeVisible()
+        await userEvent.click(canvas.getByRole("button", {name: "Try again"}))
+        expect(args.onRetry).toHaveBeenCalledTimes(1)
     },
 }
 export const Tampered: Story = {
@@ -45,6 +48,7 @@ export const Tampered: Story = {
         await expect(canvas.getByText("A check failed")).toBeVisible()
         expect(canvas.getByText("Do not rely on this entry.")).toBeVisible()
         expect(canvas.queryByText("All four checks passed")).toBeNull()
+        expect(canvas.queryByRole("button", {name: "Try again"})).toBeNull()
     },
 }
 
