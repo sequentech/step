@@ -28,6 +28,75 @@ const basqueTranslation: TranslationType = {
             snapshot:
                 "Txosten hau une bateko egoera da. Errepikatu aldaketa garrantzitsuen ondoren; ez du ekitaldia izozten, eta ez du baimen operatiboa ordezkatzen.",
             results: "Egiaztapenen emaitzak",
+            condition: "Zerbitzariak egiaztatutako baldintza",
+            noDetail: "Zerbitzariak ez du egiaztapen honi buruzko xehetasun gehiagorik eman.",
+            reasons: "Zergatik huts egin duen",
+            noArea: "eremurik gabe edo eremu ezezagun batean",
+            eventRoles: {
+                official: "ofiziala",
+                tested: "probakoa",
+                both: "biak",
+            },
+            scope: {
+                event: "Gertaera ({{event}})",
+                election: "{{election}} hauteskundea",
+            },
+            certification: {
+                declared_sha256_missing: "ez da SHA-256rik adierazi",
+                declared_sha256_mismatch: "adierazitako SHA-256a ez dator bat fitxategiarenarekin",
+                no_counts: "ez du hautesleik eremuka",
+                blank_area: "hautesle batzuek ez dute eremurik",
+                invalid_sha256: "bere SHA-256a ez da baliozkoa",
+            },
+            findings: {
+                same_event: "Gertaera ofiziala eta probakoa gertaera bera dira.",
+                configuration_missing:
+                    "Gertaera ({{event}}) ez da konfigurazio-pakete sinatu batetik inportatu.",
+                configuration_incomplete:
+                    "Gertaera ofizialaren konfigurazio sinatuak ez du baliozko baliorik «{{field}}» eremurako.",
+                external_id_mismatch:
+                    "Gertaerak konfigurazio desberdinetatik datoz: {{official}} (ofiziala) eta {{tested}} (probakoa).",
+                content_mismatch:
+                    "Eduki sinatua desberdina da: SHA-256 {{official}} (ofiziala) eta {{tested}} (probakoa).",
+                approvers_mismatch:
+                    "Onartzaile egiaztatuak desberdinak dira: {{only_official}} gertaera ofizialean bakarrik eta {{only_tested}} probakoan bakarrik.",
+                areas_mismatch: "{{area}} gertaeraren ({{event}}) eduki sinatuan bakarrik dago.",
+                voter_import_missing:
+                    "Gertaerak ({{event}}) ez du hautesleen inportazio ziurtaturik.",
+                voter_import_in_progress:
+                    "Hautesleen inportazio bat abian dago oraindik gertaeran ({{event}}).",
+                voter_file_not_certified:
+                    "Gertaeraren ({{event}}) hautesleen azken inportazioa ez dago ziurtatuta: {{reason}}.",
+                voter_receipt_not_signed:
+                    "Gertaeraren ({{event}}) erregistroak ez du {{import_id}} hautesle-inportazioari dagokion sarrera sinaturik.",
+                registry_count_changed:
+                    "Gertaerak ({{event}}) {{current}} hautesle ditu orain {{area}} eremuan, baina inportazio ziurtatuak {{imported}} ditu.",
+                voter_area_not_configured:
+                    "Gertaeraren ({{event}}) hautesle ziurtatuen artean {{area}} dago, eta hori ez dago bere eduki sinatuan.",
+                voter_file_mismatch:
+                    "Hautesleen fitxategi ziurtatuak desberdinak dira: SHA-256 {{official}} (ofiziala) eta {{tested}} (probakoa).",
+                voter_count_mismatch:
+                    "Fitxategi ziurtatuak desberdinak dira {{area}} eremuan: {{official}} hautesle (ofiziala) eta {{tested}} (probakoa).",
+                ballots_present: "Gertaera ofizialak {{count}} boto-paper gordeta ditu.",
+                received_ballots_present:
+                    "Gertaera ofizialak {{count}} boto-paper jaso ditu berrikusteko.",
+                tally_sessions_present: "Gertaera ofizialak {{count}} zenbaketa-saio ditu.",
+                status_missing: "{{scope}}: ez du bozketa-egoerarik.",
+                voting_started: "{{scope}}: {{channel}} kanala {{status}} egoeran dago.",
+                voting_dates_recorded:
+                    "{{scope}}: {{channel}} kanalak bozketa-datak erregistratuta ditu.",
+                no_elections: "Gertaerak ({{event}}) ez du hauteskunderik.",
+                publication_missing: "Gertaerak ({{event}}) ez du argitalpen aktiborik.",
+                publication_mismatch:
+                    "Gertaeraren ({{event}}) argitaratutako {{design_count}} boto-paper diseinuak ez datoz bat bere konfigurazio sinatuko diseinu guztiekin.",
+                publication_empty:
+                    "Ezin izan dira gertaeraren ({{event}}) argitaratutako boto-paper diseinuak konfigurazio sinatu batekin egiaztatu.",
+                channels_open: "Probako gertaerak oraindik itxi gabeko bozketa-kanalak ditu.",
+                seal_at_close_off: "Probako gertaerak ez ditu hautestontziak zigilatzen ixtean.",
+                no_expected_boxes: "Probako gertaeraren argitalpenak ez du hautestontzirik espero.",
+                boxes_unsealed:
+                    "Probako gertaeraren {{election}} hauteskundeak zigilatu gabeko {{unsealed}} hautestontzi ditu.",
+            },
         },
         plugins: {
             title: "Pluginak",
@@ -465,6 +534,8 @@ const basqueTranslation: TranslationType = {
                 passed: "Gainditua",
                 failed: "Huts eginda",
                 checkResult: "{{outcome}}: {{description}}",
+                checkResultWithMessage:
+                    "{{outcome}}: {{description}} Erregistratutako baldintza: «{{message}}»",
                 description: {
                     VotersImported: "Hautesle-fitxategia inportatu da.",
                     ReadinessVerified:

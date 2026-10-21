@@ -28,6 +28,80 @@ const dutchTranslation: TranslationType = {
             snapshot:
                 "Dit rapport is een momentopname. Herhaal na relevante wijzigingen; het bevriest het evenement niet en vervangt geen operationele goedkeuring.",
             results: "Controleresultaten",
+            condition: "Voorwaarde die de server heeft gecontroleerd",
+            noDetail: "De server gaf geen verdere details voor deze controle.",
+            reasons: "Waarom het mislukte",
+            noArea: "geen of een onbekend gebied",
+            eventRoles: {
+                official: "officiële",
+                tested: "geteste",
+                both: "beide",
+            },
+            scope: {
+                event: "Het {{event}} evenement",
+                election: "Verkiezing {{election}}",
+            },
+            certification: {
+                declared_sha256_missing: "er is geen SHA-256 opgegeven",
+                declared_sha256_mismatch: "de opgegeven SHA-256 verschilt van die van het bestand",
+                no_counts: "het heeft geen kiezers per gebied",
+                blank_area: "sommige kiezers hebben geen gebied",
+                invalid_sha256: "de SHA-256 is ongeldig",
+            },
+            findings: {
+                same_event: "Het officiële en het geteste evenement zijn hetzelfde evenement.",
+                configuration_missing:
+                    "Het {{event}} evenement is niet geïmporteerd uit een ondertekend configuratiepakket.",
+                configuration_incomplete:
+                    "De ondertekende configuratie van het officiële evenement heeft geen geldige waarde voor ‘{{field}}’.",
+                external_id_mismatch:
+                    "De evenementen komen uit verschillende configuraties: {{official}} (officieel) en {{tested}} (getest).",
+                content_mismatch:
+                    "De ondertekende inhoud verschilt: SHA-256 {{official}} (officieel) en {{tested}} (getest).",
+                approvers_mismatch:
+                    "De geverifieerde goedkeurders verschillen: {{only_official}} alleen bij het officiële evenement en {{only_tested}} alleen bij het geteste evenement.",
+                areas_mismatch:
+                    "{{area}} staat alleen in de ondertekende inhoud van het {{event}} evenement.",
+                voter_import_missing:
+                    "Het {{event}} evenement heeft geen gecertificeerde kiezersimport.",
+                voter_import_in_progress:
+                    "Er loopt nog een kiezersimport bij het {{event}} evenement.",
+                voter_file_not_certified:
+                    "De laatste kiezersimport van het {{event}} evenement is niet gecertificeerd: {{reason}}.",
+                voter_receipt_not_signed:
+                    "Het logboek van het {{event}} evenement heeft geen overeenkomende ondertekende vermelding van kiezersimport {{import_id}}.",
+                registry_count_changed:
+                    "Het {{event}} evenement heeft nu {{current}} kiezers in {{area}}, maar de gecertificeerde import heeft er {{imported}}.",
+                voter_area_not_configured:
+                    "De gecertificeerde kiezers van het {{event}} evenement bevatten {{area}}, dat niet in de ondertekende inhoud staat.",
+                voter_file_mismatch:
+                    "De gecertificeerde kiezersbestanden verschillen: SHA-256 {{official}} (officieel) en {{tested}} (getest).",
+                voter_count_mismatch:
+                    "De gecertificeerde bestanden verschillen in {{area}}: {{official}} kiezers (officieel) en {{tested}} (getest).",
+                ballots_present:
+                    "Het officiële evenement heeft {{count}} opgeslagen stembiljetten.",
+                received_ballots_present:
+                    "Het officiële evenement heeft {{count}} stembiljetten ontvangen ter controle.",
+                tally_sessions_present: "Het officiële evenement heeft {{count}} telsessies.",
+                status_missing: "{{scope}} heeft geen stemstatus.",
+                voting_started: "{{scope}}: het kanaal {{channel}} is {{status}}.",
+                voting_dates_recorded:
+                    "{{scope}}: het kanaal {{channel}} heeft vastgelegde stemdatums.",
+                no_elections: "Het {{event}} evenement heeft geen verkiezingen.",
+                publication_missing: "Het {{event}} evenement heeft geen actieve publicatie.",
+                publication_mismatch:
+                    "De {{design_count}} gepubliceerde stembiljetontwerpen van het {{event}} evenement komen niet overeen met alle ontwerpen van de ondertekende configuratie.",
+                publication_empty:
+                    "De gepubliceerde stembiljetontwerpen van het {{event}} evenement konden niet worden gecontroleerd aan de hand van een ondertekende configuratie.",
+                channels_open:
+                    "Het geteste evenement heeft nog stemkanalen die niet gesloten zijn.",
+                seal_at_close_off:
+                    "Het geteste evenement verzegelt de stembussen niet bij sluiting.",
+                no_expected_boxes:
+                    "De publicatie van het geteste evenement verwacht geen stembussen.",
+                boxes_unsealed:
+                    "Verkiezing {{election}} van het geteste evenement heeft {{unsealed}} onverzegelde stembussen.",
+            },
         },
         plugins: {
             title: "Plug-ins",
@@ -463,6 +537,8 @@ const dutchTranslation: TranslationType = {
                 passed: "Geslaagd",
                 failed: "Mislukt",
                 checkResult: "{{outcome}}: {{description}}",
+                checkResultWithMessage:
+                    "{{outcome}}: {{description}} Vastgelegde voorwaarde: ‘{{message}}’",
                 description: {
                     VotersImported: "Kiezersbestand geïmporteerd.",
                     ReadinessVerified:

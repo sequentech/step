@@ -28,6 +28,76 @@ const catalanTranslation: TranslationType = {
             snapshot:
                 "Aquest informe és una instantània. Repetiu després de canvis rellevants; no bloqueja l’esdeveniment ni substitueix l’aprovació operativa.",
             results: "Resultats de la verificació",
+            condition: "Condició comprovada pel servidor",
+            noDetail: "El servidor no ha donat més detalls sobre aquesta comprovació.",
+            reasons: "Per què ha fallat",
+            noArea: "cap àrea o una àrea desconeguda",
+            eventRoles: {
+                official: "oficial",
+                tested: "de prova",
+                both: "tots dos",
+            },
+            scope: {
+                event: "L'esdeveniment {{event}}",
+                election: "L'elecció {{election}}",
+            },
+            certification: {
+                declared_sha256_missing: "no s'ha indicat el SHA-256",
+                declared_sha256_mismatch: "el SHA-256 indicat no coincideix amb el del fitxer",
+                no_counts: "no té votants per àrea",
+                blank_area: "hi ha votants sense àrea",
+                invalid_sha256: "el seu SHA-256 no és vàlid",
+            },
+            findings: {
+                same_event: "L'esdeveniment oficial i el de prova són el mateix esdeveniment.",
+                configuration_missing:
+                    "L'esdeveniment {{event}} no es va importar d'un paquet de configuració signat.",
+                configuration_incomplete:
+                    "La configuració signada de l'esdeveniment oficial no té un valor vàlid per a «{{field}}».",
+                external_id_mismatch:
+                    "Els esdeveniments provenen de configuracions diferents: {{official}} (oficial) i {{tested}} (de prova).",
+                content_mismatch:
+                    "El contingut signat és diferent: SHA-256 {{official}} (oficial) i {{tested}} (de prova).",
+                approvers_mismatch:
+                    "Els aprovadors verificats són diferents: {{only_official}} només a l'esdeveniment oficial i {{only_tested}} només al de prova.",
+                areas_mismatch:
+                    "{{area}} només és al contingut signat de l'esdeveniment {{event}}.",
+                voter_import_missing:
+                    "L'esdeveniment {{event}} no té cap importació certificada de votants.",
+                voter_import_in_progress:
+                    "Encara hi ha una importació de votants en curs a l'esdeveniment {{event}}.",
+                voter_file_not_certified:
+                    "L'última importació de votants de l'esdeveniment {{event}} no està certificada: {{reason}}.",
+                voter_receipt_not_signed:
+                    "El registre de l'esdeveniment {{event}} no té cap entrada signada que correspongui a la importació de votants {{import_id}}.",
+                registry_count_changed:
+                    "L'esdeveniment {{event}} té ara {{current}} votants a {{area}}, però la seva importació certificada en té {{imported}}.",
+                voter_area_not_configured:
+                    "Els votants certificats de l'esdeveniment {{event}} inclouen {{area}}, que no és al seu contingut signat.",
+                voter_file_mismatch:
+                    "Els fitxers certificats de votants són diferents: SHA-256 {{official}} (oficial) i {{tested}} (de prova).",
+                voter_count_mismatch:
+                    "Els fitxers certificats difereixen a {{area}}: {{official}} votants (oficial) i {{tested}} (de prova).",
+                ballots_present: "L'esdeveniment oficial té {{count}} paperetes emmagatzemades.",
+                received_ballots_present:
+                    "L'esdeveniment oficial té {{count}} paperetes rebudes per revisar.",
+                tally_sessions_present: "L'esdeveniment oficial té {{count}} sessions de recompte.",
+                status_missing: "{{scope}} no té estat de votació.",
+                voting_started: "{{scope}}: el canal {{channel}} és {{status}}.",
+                voting_dates_recorded:
+                    "{{scope}}: el canal {{channel}} té dates de votació registrades.",
+                no_elections: "L'esdeveniment {{event}} no té eleccions.",
+                publication_missing: "L'esdeveniment {{event}} no té cap publicació activa.",
+                publication_mismatch:
+                    "Els {{design_count}} dissenys de papereta publicats de l'esdeveniment {{event}} no coincideixen amb tots els dissenys de la seva configuració signada.",
+                publication_empty:
+                    "Els dissenys de papereta publicats de l'esdeveniment {{event}} no s'han pogut comprovar amb una configuració signada.",
+                channels_open: "L'esdeveniment de prova encara té canals de votació sense tancar.",
+                seal_at_close_off: "L'esdeveniment de prova no segella les urnes en tancar.",
+                no_expected_boxes: "La publicació de l'esdeveniment de prova no espera cap urna.",
+                boxes_unsealed:
+                    "L'elecció {{election}} de l'esdeveniment de prova té {{unsealed}} urnes sense segellar.",
+            },
         },
         plugins: {
             title: "Complements",
@@ -540,6 +610,8 @@ const catalanTranslation: TranslationType = {
                 passed: "Superat",
                 failed: "Fallat",
                 checkResult: "{{outcome}}: {{description}}",
+                checkResultWithMessage:
+                    "{{outcome}}: {{description}} Condició registrada: «{{message}}»",
                 description: {
                     VotersImported: "Fitxer de votants importat.",
                     ReadinessVerified:
