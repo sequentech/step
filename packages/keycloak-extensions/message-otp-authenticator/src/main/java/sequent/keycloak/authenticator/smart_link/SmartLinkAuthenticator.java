@@ -63,7 +63,10 @@ public class SmartLinkAuthenticator extends UsernamePasswordForm {
       // - first check for email from previous authenticator
       email = getAttemptedUsername(context);
     }
-    log.infof("email in action is %s", email);
+    log.infof(
+        "email in action is %s",
+        sequent.keycloak.authenticator.messaging.VoterChannels.mask(
+            sequent.keycloak.authenticator.messaging.MessageChannel.EMAIL, email));
 
     // - throw error if still empty
     if (email == null) {
@@ -111,7 +114,11 @@ public class SmartLinkAuthenticator extends UsernamePasswordForm {
             getMarkEmailVerified(context, true));
     String link = LoginBridge.linkFromActionToken(context.getSession(), context.getRealm(), token);
     boolean sent = SmartLink.sendSmartLinkNotification(context.getSession(), user, link);
-    log.infof("sent notification to %s? %b", user.getEmail(), sent);
+    log.infof(
+        "sent notification to %s? %b",
+        sequent.keycloak.authenticator.messaging.VoterChannels.mask(
+            sequent.keycloak.authenticator.messaging.MessageChannel.EMAIL, user.getEmail()),
+        sent);
 
     context
         .getAuthenticationSession()

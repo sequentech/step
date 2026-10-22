@@ -34,6 +34,7 @@ import VisibilityIcon from "@mui/icons-material/Visibility"
 import {Dialog, DropFile} from "@sequentech/ui-essentials"
 import {Action, ActionsColumn} from "@/components/ActionButons"
 import {useTranslation} from "react-i18next"
+import {useEventZonedFormat} from "@/hooks/useZonedFormat"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import {Sequent_Backend_Election_Event} from "@/gql/graphql"
@@ -67,8 +68,6 @@ const expiryChipColor = (status: "expired" | "expiringSoon" | "valid") => {
     return "success"
 }
 
-const formatDate = (iso: string) => new Date(iso).toLocaleDateString()
-
 const LabelValue: React.FC<{label: string; value?: string | null; mono?: boolean}> = ({
     label,
     value,
@@ -90,6 +89,8 @@ const LabelValue: React.FC<{label: string; value?: string | null; mono?: boolean
 const ViewCAContent: React.FC<{id: Identifier; onClose: () => void}> = ({id, onClose}) => {
     const {t} = useTranslation()
     const {data: ca, isLoading} = useGetOne(RESOURCE, {id})
+    // Validity times with their zone label, in the event's primary zone.
+    const formatDate = useEventZonedFormat(ca?.election_event_id).format
 
     if (isLoading) {
         return (
@@ -204,6 +205,7 @@ const ViewCAContent: React.FC<{id: Identifier; onClose: () => void}> = ({id, onC
 
 export const EditElectionEventCAs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
+    const formatDate = useEventZonedFormat(record).format
     const authContext = useContext(AuthContext)
     const [tenantId] = useTenantStore()
     const {t} = useTranslation()

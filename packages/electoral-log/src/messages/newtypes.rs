@@ -4,8 +4,10 @@
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
-use strand::hash::{Hash, HashWrapper};
 use strum_macros::Display;
+use voting_crypto::hash::{Hash, HashWrapper};
+
+use crate::messages::statement::{StatementEventType, StatementLogType, StatementType};
 
 #[derive(
     BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
@@ -86,6 +88,49 @@ impl CastVoteHash {
     // Provide methods to work with HashWrapper as needed
     pub fn new(hash: Hash) -> Self {
         CastVoteHash(HashWrapper::new(hash))
+    }
+}
+
+/// An area id, the area half of a ballot box (VOTE-FREEZE).
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub struct AreaIdString(pub String);
+
+/// SHA-512 of a ballot box seal manifest (VOTE-FREEZE). Borsh is the raw 64
+/// bytes, like every other hash newtype; JSON is lowercase hex, so the
+/// readable message in a seal record shows the hash people compare.
+#[derive(BorshSerialize, BorshDeserialize, Clone, PartialEq, Eq, Hash, Debug)]
+pub struct SealHash(pub HashWrapper);
+
+impl SealHash {
+    pub fn new(hash: Hash) -> Self {
+        SealHash(HashWrapper::new(hash))
+    }
+
+    pub fn to_inner(&self) -> Hash {
+        self.0.clone().into_inner()
+    }
+
+    pub fn to_hex(&self) -> String {
+        hex::encode(self.to_inner())
+    }
+}
+
+impl Serialize for SealHash {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(&self.to_hex())
+    }
+}
+
+impl<'de> Deserialize<'de> for SealHash {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let text = <String as Deserialize>::deserialize(deserializer)?;
+        let bytes = hex::decode(&text).map_err(serde::de::Error::custom)?;
+        let hash: Hash = bytes
+            .try_into()
+            .map_err(|_| serde::de::Error::custom("a seal hash is 64 bytes"))?;
+        Ok(SealHash::new(hash))
     }
 }
 
@@ -303,6 +348,19 @@ pub struct ResultsPublicationDetails {
     pub contest_ids: Vec<ContestIdString>,
 }
 
+/// The version of an election event's enrollment approval matrix.
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub struct ApprovalMatrixVersion(pub u32);
+
+/// Lowercase hex SHA-256 of an approval matrix's JSON, which binds the
+/// entry to the saved version.
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub struct ApprovalMatrixDigestString(pub String);
+
 /// A monitoring configuration document's kind, as sequent-core names it:
 /// `widget`, `dashboard`, `theme` or `settings`.
 #[derive(
@@ -408,6 +466,78 @@ pub struct MonitoringConfigRevisionRef {
     pub digest: Option<MonitoringConfigDigestString>,
 }
 
+/// What happened to a signed configuration package.
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub enum ConfigurationPackageAction {
+    /// Verified and imported into the election event.
+    Imported,
+}
+
+/// One ballot design a configuration package approved.
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub struct ConfigurationDesignDigest {
+    pub area: String,
+    pub election: String,
+    pub sha256: String,
+}
+
+/// A signed configuration package's revision and manifest digest, and the
+/// digest of each design it approved.
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub struct ConfigurationPackageDetails {
+    pub action: ConfigurationPackageAction,
+    pub external_id: String,
+    pub revision: u64,
+    pub manifest_sha256: String,
+    pub design_digests: Vec<ConfigurationDesignDigest>,
+}
+
+/// An import's approved content hash, alongside the original package details.
+/// Kept in a separate body variant so historical signed Borsh records stay intact.
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub struct ConfigurationPackageImportDetails {
+    #[serde(flatten)]
+    pub package: ConfigurationPackageDetails,
+    /// The verified manifest's `content_sha256`: what the approvers signed.
+    pub content_hash: String,
+}
+
+/// The hash manifest a report's generation wrote, and the signed
+/// configuration it names.
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub struct ReportGeneratedDetails {
+    pub report_type: String,
+    /// The stored `report-manifest.json`. A tally keeps the manifests of
+    /// its folders beside their files instead, and names none.
+    pub document_id: Option<String>,
+    pub report_manifest_sha256: String,
+    pub external_id: String,
+    pub revision: u64,
+    pub manifest_sha256: String,
+}
+
+/// The signed configuration whose ballots a publication published: its
+/// revision and manifest digest, and the digest of each design published.
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub struct PublishedConfiguration {
+    pub external_id: String,
+    pub revision: u64,
+    pub manifest_sha256: String,
+    pub design_digests: Vec<ConfigurationDesignDigest>,
+}
+
 /// One change to an election event's monitoring configuration: a save, a
 /// reset to a preset, or a switch of the Dashboard tab's mode.
 #[derive(
@@ -424,4 +554,325 @@ pub struct MonitoringConfigChangeDetails {
     pub generation: u64,
     /// The revisions written, in the order they were stored.
     pub revisions: Vec<MonitoringConfigRevisionRef>,
+}
+
+/// The step of signing a protected action that an entry records. Each kind
+/// is also a [`StatementType`] of the same name.
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Deserialize,
+    Serialize,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    Debug,
+    Display,
+)]
+pub enum SigningStatementKind {
+    SigningRequestCreated,
+    SigningCertificateOpenFailed,
+    SigningRequestSigned,
+    SigningSignatureRefused,
+    SigningCertificateRegistered,
+    SigningHandover,
+    SigningRequestCancelled,
+    SigningRequestExpired,
+    SigningRequestCompleted,
+    SigningActionExecuted,
+    SigningRuleChanged,
+    SigningPermissionChanged,
+    SigningIssuerChanged,
+    SigningChecksChanged,
+    SigningCertificateRevoked,
+    SigningRequestsExported,
+    /// A scheduled lifecycle window (readiness test, final testing, test
+    /// voting) opened or closed for a Post (VOTE-LIFECYCLE). Not a signing
+    /// step: it uses the same transactional outbox.
+    LifecycleWindowChanged,
+    /// Scheduled instants recomputed after a tz database update were
+    /// applied (VOTE-LIFECYCLE).
+    ScheduleRecomputeApplied,
+    /// An admin imported the schedule from a CSV file (VOTE-LIFECYCLE).
+    /// Not a signing step, but staged through the same outbox so the entry
+    /// commits with the import.
+    ScheduleImported,
+    /// A write changed what a scheduled opening or closing of voting will do
+    /// (VOTE-LIFECYCLE): before and after, each with its explanation.
+    ScheduledOutcomeChanged,
+    /// A country of a Post (or a Post without countries) was initialized
+    /// (VOTE-LIFECYCLE). Staged through the same outbox as the signing
+    /// steps, so it is posted once, in order.
+    ElectionInitialized,
+    /// An election event was locked down, or its lockdown lifted
+    /// (VOTE-LIFECYCLE). Staged through the same outbox as the signing
+    /// steps, so it is posted once, in order.
+    LockdownChanged,
+}
+
+impl SigningStatementKind {
+    pub fn statement_type(&self) -> StatementType {
+        match self {
+            Self::SigningRequestCreated => StatementType::SigningRequestCreated,
+            Self::SigningCertificateOpenFailed => StatementType::SigningCertificateOpenFailed,
+            Self::SigningRequestSigned => StatementType::SigningRequestSigned,
+            Self::SigningSignatureRefused => StatementType::SigningSignatureRefused,
+            Self::SigningCertificateRegistered => StatementType::SigningCertificateRegistered,
+            Self::SigningHandover => StatementType::SigningHandover,
+            Self::SigningRequestCancelled => StatementType::SigningRequestCancelled,
+            Self::SigningRequestExpired => StatementType::SigningRequestExpired,
+            Self::SigningRequestCompleted => StatementType::SigningRequestCompleted,
+            Self::SigningActionExecuted => StatementType::SigningActionExecuted,
+            Self::SigningRuleChanged => StatementType::SigningRuleChanged,
+            Self::SigningPermissionChanged => StatementType::SigningPermissionChanged,
+            Self::SigningIssuerChanged => StatementType::SigningIssuerChanged,
+            Self::SigningChecksChanged => StatementType::SigningChecksChanged,
+            Self::SigningCertificateRevoked => StatementType::SigningCertificateRevoked,
+            Self::SigningRequestsExported => StatementType::SigningRequestsExported,
+            Self::LifecycleWindowChanged => StatementType::LifecycleWindowChanged,
+            Self::ScheduleRecomputeApplied => StatementType::ScheduleRecomputeApplied,
+            Self::ScheduleImported => StatementType::ScheduleImported,
+            Self::ScheduledOutcomeChanged => StatementType::ScheduledOutcomeChanged,
+            Self::ElectionInitialized => StatementType::ElectionInitialized,
+            Self::LockdownChanged => StatementType::LockdownChanged,
+        }
+    }
+}
+
+/// One entry of a signing step. Every step writes two entries of the same
+/// kind: USER, attributed to the person who took it, and SYSTEM (ERROR for
+/// a failure or a refusal), with what the system checked or did. Unlike
+/// every other body, the caller sets the head's event type, log type and
+/// description.
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub struct SigningLogEntry {
+    pub kind: SigningStatementKind,
+    pub event_type: StatementEventType,
+    pub log_type: StatementLogType,
+    /// A short English sentence for the Logs tab's Description column, such
+    /// as "Started signing request 7F3A-91C2".
+    pub description: String,
+    /// The step's details as JSON: the Post and country, the action, the
+    /// request and its code, and for signatures the certificate and the
+    /// signature.
+    pub details_json: String,
+    /// The step's id (`signing_log_outbox.step_id`, a lowercase hyphenated
+    /// UUID), shared by its USER and SYSTEM entries. It links the pair on the
+    /// board, and the worker dedupes on (step_id, event_type) before posting,
+    /// so a retry never posts an entry twice.
+    pub step_id: String,
+}
+
+/// What an entry of a tenant's log records. Each kind has its own statement
+/// type.
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Deserialize,
+    Serialize,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    Debug,
+    Display,
+)]
+pub enum TenantActivityKind {
+    /// First entry of a tenant's log.
+    TenantLogOpened,
+    /// A request to the platform's API that belongs to no election event, such
+    /// as creating an election event or changing a staff account.
+    TenantAdminAction,
+    // New kinds go last: signed entries store the variant's index.
+}
+
+impl TenantActivityKind {
+    pub fn statement_type(&self) -> StatementType {
+        match self {
+            Self::TenantLogOpened => StatementType::TenantLogOpened,
+            Self::TenantAdminAction => StatementType::TenantAdminAction,
+        }
+    }
+}
+
+/// One entry of a tenant's log: activity that belongs to no election event.
+/// As for `SigningLogEntry`, the caller sets the head's event type, log type
+/// and description. The actor is in `details_json`, so it is signed.
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub struct TenantActivityEntry {
+    pub tenant_id: TenantIdString,
+    pub kind: TenantActivityKind,
+    pub event_type: StatementEventType,
+    pub log_type: StatementLogType,
+    /// A short English sentence for the Logs tab's Description column, such
+    /// as "Deleted an election event".
+    pub description: String,
+    /// What happened as JSON: the action, who made it, its outcome and what
+    /// it was made on.
+    pub details_json: String,
+}
+
+/// What an audit entry records. Each kind is also a [`StatementType`] of the
+/// same name.
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Deserialize,
+    Serialize,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    Debug,
+    Display,
+    strum_macros::EnumString,
+)]
+pub enum AuditStatementKind {
+    /// A change made through Hasura, Harvest or Windmill: the object, the
+    /// action, the actor and each changed field with its old and new value.
+    AdminChange,
+    /// A Keycloak admin event on a realm, made by Step's service account or
+    /// by anyone else in Keycloak's console or API.
+    KeycloakAdminEvent,
+    /// An export of the log the entry is in.
+    LogsExported,
+    /// The writer of audit entries started.
+    LogWriterStarted,
+    /// The writer of audit entries stopped.
+    LogWriterStopped,
+    /// A file of an ER transmission package was downloaded for manual
+    /// receipt: which file, its SHA-256 and who downloaded it.
+    TransmissionFileDownloaded,
+    /// Completed certified voter registry import and its counts per area.
+    VotersImported,
+    /// A successful comparison of a tested event against the official event.
+    ReadinessVerified,
+}
+
+impl AuditStatementKind {
+    pub fn statement_type(&self) -> StatementType {
+        match self {
+            Self::AdminChange => StatementType::AdminChange,
+            Self::KeycloakAdminEvent => StatementType::KeycloakAdminEvent,
+            Self::LogsExported => StatementType::LogsExported,
+            Self::LogWriterStarted => StatementType::LogWriterStarted,
+            Self::LogWriterStopped => StatementType::LogWriterStopped,
+            Self::TransmissionFileDownloaded => StatementType::TransmissionFileDownloaded,
+            Self::VotersImported => StatementType::VotersImported,
+            Self::ReadinessVerified => StatementType::ReadinessVerified,
+        }
+    }
+}
+
+/// One audit entry, in a tenant's log or an election event's. As for a
+/// signing entry, the caller sets the head's event type, log type and
+/// description, so who acted and what changed are inside the signed
+/// statement.
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub struct AuditLogEntry {
+    pub kind: AuditStatementKind,
+    pub event_type: StatementEventType,
+    pub log_type: StatementLogType,
+    /// A short English sentence for the Logs tab's Description column, such
+    /// as `Updated tenant "acme": settings.logs_timezone`.
+    pub description: String,
+    /// The entry's details as JSON: for a change, the object, the action, the
+    /// actor, where it was made and each changed field's old and new value.
+    /// Secret values are never in it.
+    pub details_json: String,
+    /// The entry's id (`audit_log_outbox.id`, a lowercase hyphenated UUID).
+    /// The writer dedupes on it before posting, so a retry never posts an
+    /// entry twice.
+    pub entry_id: String,
+}
+
+#[derive(BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, Debug, PartialEq, Eq)]
+pub enum BallotPublicationStage {
+    Generate,
+    Publish,
+}
+
+#[derive(BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, Debug)]
+pub struct BallotPublicationFailure {
+    pub publication_id: BallotPublicationIdString,
+    pub task_id: String,
+    pub stage: BallotPublicationStage,
+    pub error: ErrorMessageString,
+}
+
+/// Why an electoral-log checkpoint was published. Its name is part of the signed
+/// checkpoint and of the stored publication.
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Deserialize,
+    Serialize,
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Eq,
+    Display,
+    strum_macros::EnumString,
+)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
+pub enum ElectoralLogCheckpointReason {
+    VotingClosed,
+    TallyCompleted,
+    // New reasons go last: signed checkpoint messages store the variant's index.
+    VotingOpened,
+    /// Published at a fixed interval while voting is open.
+    Periodic,
+}
+
+/// A published checkpoint of the board's Merkle log, recorded in the log itself, as
+/// the first log format named the log: by its key in one database. Readers still
+/// decode it; writers record `ElectoralLogCheckpointV2`.
+#[derive(BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, Debug, PartialEq, Eq)]
+pub struct ElectoralLogCheckpoint {
+    /// Key of the Trellis log in the database that stored it.
+    pub log_id: i64,
+    /// Entries covered by the root.
+    pub tree_size: u64,
+    /// Hex-encoded SHA-256 root.
+    pub root: String,
+    pub reason: ElectoralLogCheckpointReason,
+}
+
+/// A published checkpoint of the board's Merkle log, recorded in the log itself.
+#[derive(BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, Debug, PartialEq, Eq)]
+pub struct ElectoralLogCheckpointV2 {
+    /// Identity of the Trellis log, as a hyphenated UUID.
+    pub log_uid: String,
+    /// Entries covered by the root.
+    pub tree_size: u64,
+    /// Hex-encoded SHA-256 root.
+    pub root: String,
+    pub reason: ElectoralLogCheckpointReason,
+}
+
+/// The first record of a log that continues another one, as an imported election
+/// event's log continues the log of the event it was exported from. It commits to the
+/// last checkpoint of the previous log, which is kept, sealed, in the same database.
+#[derive(BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, Debug, PartialEq, Eq)]
+pub struct ElectoralLogContinuation {
+    /// Board name of the previous log.
+    pub previous_log_name: String,
+    /// Identity of the previous log, as a hyphenated UUID.
+    pub previous_log_uid: String,
+    /// Entries of the previous log.
+    pub tree_size: u64,
+    /// Hex-encoded SHA-256 root of the previous log.
+    pub root: String,
 }

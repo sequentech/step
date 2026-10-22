@@ -849,6 +849,15 @@ fn shape_of_a_plan() -> Value {
         String::from("en"),
         BTreeMap::from([(String::from("key"), String::new())]),
     );
+    // `reports` and its `election`, `formats` and `template` all skip
+    // serialising while empty.
+    plan.reports.push(super::architect::PlannedReport {
+        report_type: super::report::ReportType::ELECTORAL_RESULTS,
+        election: Some(String::new()),
+        formats: vec![super::report::ReportFormat::Pdf],
+        copies: 1,
+        template: Some(String::new()),
+    });
 
     // Filled rather than defaulted, because `Overrides` and `Option<Overrides>`
     // both carry `skip_serializing_if`. Left empty they vanish from the shape,

@@ -138,14 +138,22 @@ let breakpoints: BreakpointsOptions = {
     },
 }
 
+// A two-tone ring stays visible on light and dark tenant backgrounds.
+const keyboardFocusStyle = {
+    outline: `2px solid ${palette.black}`,
+    outlineOffset: "2px",
+    boxShadow: `0 0 0 2px ${palette.white}`,
+}
+
 let MuiButton: Components["MuiButton"] = {
     styleOverrides: {
         root: {
+            "&&.Mui-focusVisible": keyboardFocusStyle,
             "padding": "6px 12px",
             "display": "flex",
             "flexDirection": "row",
             "gap": "4px",
-            "fontSize": "16px",
+            "fontSize": "1rem",
             "textTransform": "unset",
             "backgroundColor": palette.brandColor,
             "border": `1px solid ${palette.brandColor}`,
@@ -386,7 +394,7 @@ let MuiButton: Components["MuiButton"] = {
                 "border": `1px solid ${palette.brandColor}`,
                 "borderRadius": "0",
                 "fontWeight": "500",
-                "fontSize": "14px",
+                "fontSize": "0.875rem",
                 "fontStyle": "normal",
                 "textTransform": "uppercase",
                 "padding": "6px 12px",
@@ -457,12 +465,30 @@ let MuiLink: Components["MuiLink"] = {
 }
 
 let MuiButtonBase: Components["MuiButtonBase"] = {
+    styleOverrides: {
+        root: {
+            "&.Mui-focusVisible": {
+                ...keyboardFocusStyle,
+                // Keep the ring inside tabs and menus with clipped overflow.
+                outlineOffset: "-4px",
+                boxShadow: `inset 0 0 0 2px ${palette.white}`,
+            },
+        },
+    },
     defaultProps: {
         LinkComponent: LinkBehavior,
     },
 }
 
 let MuiMenu: Components["MuiMenu"] = {
+    styleOverrides: {
+        root: {
+            // Menus dismiss on Tab; their empty modal focus guards are redundant.
+            '& > [data-testid="sentinelStart"], & > [data-testid="sentinelEnd"]': {
+                display: "none",
+            },
+        },
+    },
     defaultProps: {
         PaperProps: {
             style: {
@@ -563,7 +589,7 @@ let MuiDialogTitle: Components["MuiDialogTitle"] = {
             gap: "11px",
             alignItems: "center",
             backgroundColor: palette.lightBackground,
-            fontSize: "16px",
+            fontSize: "1rem",
             color: palette.customGrey.contrastText,
         },
     },
@@ -602,13 +628,6 @@ let MuiDialog: Components["MuiDialog"] = {
     },
 }
 
-// A two-tone ring stays visible on light and dark tenant backgrounds.
-const keyboardFocusStyle = {
-    outline: `2px solid ${palette.black}`,
-    outlineOffset: "2px",
-    boxShadow: `0 0 0 2px ${palette.white}`,
-}
-
 let MuiIconButton: Components["MuiIconButton"] = {
     styleOverrides: {
         root: {
@@ -635,7 +654,7 @@ let MuiTextField: Components["MuiTextField"] = {
             "margin": 0,
             "width": "100%",
             "& .MuiInputBase-input": {
-                fontSize: "14px",
+                fontSize: "0.875rem",
                 padding: "6px 12px",
             },
         },

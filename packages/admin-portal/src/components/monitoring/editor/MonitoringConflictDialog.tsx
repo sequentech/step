@@ -15,6 +15,7 @@ import {
     DialogContentText,
     DialogTitle,
 } from "@mui/material"
+import {useEventZonedFormat} from "@/hooks/useZonedFormat"
 import {DiffView, EDiffFormat} from "@/components/DiffView"
 import type {IMonitoringAuthor} from "./types"
 
@@ -66,13 +67,10 @@ export const MonitoringConflictDialog: React.FC<MonitoringConflictDialogProps> =
     onKeepEditing,
     copyText = clipboardWrite,
 }) => {
-    const {t, i18n} = useTranslation()
+    const {t} = useTranslation()
+    const zoned = useEventZonedFormat()
     const [clipboard, setClipboard] = useState(EClipboardResult.NONE)
-    const date = time
-        ? new Intl.DateTimeFormat(i18n.language, {dateStyle: "medium", timeStyle: "short"}).format(
-              new Date(time)
-          )
-        : null
+    const date = zoned.format(time)
     const user = author?.name || author?.id
     const copy = async () => {
         try {

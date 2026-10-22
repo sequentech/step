@@ -6,7 +6,6 @@ import {TranslationType} from "./en"
 
 const galegoTranslation: TranslationType = {
     translations: {
-        welcome: "Ola <br/> <strong>Mundo</strong>",
         404: {
             title: "Páxina non atopada",
             subtitle: "A páxina que estás buscando non existe",
@@ -34,6 +33,18 @@ const galegoTranslation: TranslationType = {
                 "Houbo un problema ao importar a papeleta auditábel. Escolléchelo arquivo correcto?",
             importErrorMoreInfo: "Máis información",
             importErrorTitle: "Erro",
+            ciphertextErrorTitle: "A verificación da papeleta fallou",
+            ciphertextErrorDescription:
+                "O texto cifrado desta papeleta auditábel non é o cifrado do texto en claro e a aleatoriedade que contén. Non se pode confiar na papeleta.",
+            verificationErrorTitle: "A verificación da papeleta fallou",
+            unpublishedStyleErrorDescription:
+                "Esta papeleta auditábel non corresponde a ningunha papeleta publicada para este evento electoral, polo que non se pode verificar.",
+            unavailableStyleErrorDescription:
+                "Non se puideron cargar as papeletas publicadas para este evento electoral, polo que esta papeleta auditábel aínda non se pode verificar. Por favor, ténteo de novo.",
+            styleErrorDescription:
+                "O estilo de papeleta desta papeleta auditábel non é o publicado para a elección: a súa chave pública ou os seus concursos e candidaturas difiren, ou non está publicado. Non se pode confiar na papeleta.",
+            legacyBallotWarning:
+                "Esta papeleta auditábel usa un formato anterior cuxo ID de papeleta non cobre o estilo de papeleta. O seu ID non pode confirmar que se cifrou coa chave publicada da elección.",
             useSampleLink: "Usar unha papeleta de exemplo",
             nextButton: "Seguinte",
             ballotIdLabel: "ID de papeleta",
@@ -72,12 +83,14 @@ const galegoTranslation: TranslationType = {
                     "As seguintes seleccións de papeleta foron descifradas da papeleta que importaches. Revísaas e asegúrate de que coinciden coas que fixeches no Portal de Votación. Se as túas seleccións non coinciden, contacta coas autoridades electorais...",
             },
             markedInvalid: "Papeleta marcada explícitamente como inválida",
-            points: "({{points}} Puntos)",
-            contestNotFound: "Concurso non atopado: {{contestId}}",
+            points_one: "({{count}} Punto)",
+            points_many: "({{count}} Puntos)",
+            points_other: "({{count}} Puntos)",
+            contestNotFound: "Pregunta non atopada: {{contestId}}",
             declineToVote: "Decidiu non votar",
             blankBallot: "Papeleta en branco",
             acclamationDescription:
-                "Este concurso resolveuse por aclamación. As súas candidaturas resultan elixidas sen votación, polo que non se pode seleccionar ningunha opción nin se rexistra ningún voto.",
+                "Esta pregunta resolveuse por aclamación. As súas candidaturas resultan elixidas sen votación, polo que non se pode seleccionar ningunha opción nin se rexistra ningún voto.",
         },
         footer: {
             poweredBy: "Impulsado por <1></1>",
@@ -90,12 +103,6 @@ const galegoTranslation: TranslationType = {
                 bytesToUtf8Conversion:
                     "Erro ao converter a opción escrita de bytes a cadea UTF-8: {{errorMessage}}",
                 ballotTooLarge: "A papeleta é máis grande do esperado",
-            },
-            implicit: {
-                selectedMax:
-                    "Número de opcións seleccionadas {{numSelected}} é máis do máximo permitido {{max}}",
-                selectedMin:
-                    "Número de opcións seleccionadas {{numSelected}} é menor do mínimo {{min}}",
             },
             explicit: {
                 notAllowed: "A papeleta está marcada como inválida pero a pregunta non o permite",

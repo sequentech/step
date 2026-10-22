@@ -5,6 +5,7 @@
 package sequent.keycloak.voter_enrollment;
 
 import static java.util.Arrays.asList;
+import static sequent.keycloak.authenticator.Utils.EMAIL_VERIFIED;
 import static sequent.keycloak.authenticator.Utils.PHONE_NUMBER_ATTRIBUTE;
 import static sequent.keycloak.authenticator.Utils.sendConfirmation;
 import static sequent.keycloak.authenticator.Utils.sendConfirmationDiffPost;
@@ -23,6 +24,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -32,7 +34,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
-import java.util.concurrent.CompletableFuture;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import lombok.extern.jbosslog.JBossLog;
@@ -61,39 +62,65 @@ import org.keycloak.protocol.oidc.OIDCLoginProtocol;
 import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.representations.userprofile.config.UPAttribute;
 import org.keycloak.services.resources.LoginActionsService;
+import org.keycloak.sessions.AuthenticationSessionModel;
 import org.keycloak.theme.Theme;
-import org.keycloak.util.JsonSerialization;
 import sequent.keycloak.authenticator.MessageOTPAuthenticator;
 import sequent.keycloak.authenticator.Utils.MessageCourier;
 import sequent.keycloak.authenticator.credential.MessageOTPCredentialModel;
 import sequent.keycloak.authenticator.credential.MessageOTPCredentialProvider;
+import sequent.keycloak.authenticator.harvest.ServiceAccountTokenClient;
+import sequent.keycloak.authenticator.messaging.NoticeRecipient;
+import sequent.keycloak.authenticator.messaging.VoterChannels;
 
 /** Lookups an user using a field */
 @JBossLog
 @AutoService(AuthenticatorFactory.class)
 public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory {
   public static final String MOBILE_NUMBER_FIELD = "sequent.read-only.mobile-number";
-  private static final String EMAIL_VERIFIED = "Email verified";
 
   public static final String PROVIDER_ID = "lookup-and-update-user";
   public static final String SEARCH_ATTRIBUTES = "search-attributes";
   public static final String UNSET_ATTRIBUTES = "unset-attributes";
   public static final String UPDATE_ATTRIBUTES = "update-attributes";
+
+  /**
+   * Auth note an identity verification step sets to say how the applicant's identity was
+   * established, see {@link IdentityMethod}. The approval matrix decides with it. A form can't set
+   * it, see {@link Utils#isFormNote(String, java.util.Set)}.
+   */
+  public static final String IDENTITY_METHOD = "identity-method";
+
   public static final String AUTO_LOGIN = "auto-login";
   private static final String MESSAGE_COURIER_ATTRIBUTE = "messageCourierAttribute";
   private static final String TEL_USER_ATTRIBUTE = "telUserAttribute";
   public static final String AUTO_2FA = "auto-2fa";
+  public static final String NO_MATCHING_VOTER_POLICY = "no-matching-voter-policy";
+
+  /** Hours an election officer has to review a PENDING application; blank shows no reply-by. */
+  public static final String REPLY_BY_HOURS = "reply-by-hours";
+
+  /** The review page's reply-by time (registration-manual-finish.ftl). */
+  public static final String REPLY_BY_PAGE_ATTRIBUTE = "enrollmentReplyBy";
+
+  private static final String ENROLLMENT_REPLY_BY = "enrollmentReplyBy";
 
   public static final String VERIFICATION_COMPLETED = "verificationCompleted";
   public static final String VERIFICATION_STATUS = "verificationStatus";
-  private static final String VERIFICATION_REJECTION_REASON = "verificationRejectionReason";
-  private static final String VERIFICATION_MISSMATCHED_FIELDS = "verificationMismatchedFields";
+  static final String VERIFICATION_REJECTION_REASON = "verificationRejectionReason";
+  static final String VERIFICATION_MISMATCHED_FIELDS = "verificationMismatchedFields";
+  static final String FIELDS_MATCH = "fields_match";
+
+  /** The pending page support reference from the application record. */
+  static final String SUPPORT_REFERENCE_NOTE = "sequent.support-reference";
+
+  static final String SUPPORT_REFERENCE_ATTRIBUTE = "supportReference";
 
   // Enumerate the rejection reasons
   private enum VerificationRejectionReason {
     INSUFFICIENT_INFORMATION,
     NO_VOTER,
     ALREADY_APPROVED,
+    IDENTITY_NOT_VERIFIED,
     OTHER,
     NO_REASON_GIVEN;
 
@@ -116,9 +143,15 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     }
   }
 
-  private String keycloakUrl = System.getenv("KEYCLOAK_URL");
-  private String clientId = System.getenv("KEYCLOAK_CLIENT_ID");
-  private String clientSecret = System.getenv("KEYCLOAK_CLIENT_SECRET");
+  /** Shared, so its token cache serves every request. */
+  private static final ServiceAccountTokenClient tokenClient = ServiceAccountTokenClient.shared();
+
+  /** 5 s to connect; each request has 10 s more. */
+  private static final java.time.Duration CONNECT_TIMEOUT = java.time.Duration.ofSeconds(5);
+
+  private static final java.time.Duration REQUEST_TIMEOUT = java.time.Duration.ofSeconds(10);
+  private static final HttpClient HARVEST_CLIENT =
+      HttpClient.newBuilder().connectTimeout(CONNECT_TIMEOUT).build();
   private String harvestUrl = System.getenv("HARVEST_DOMAIN");
   private String access_token;
 
@@ -139,7 +172,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       String rejectionReason =
           context.getAuthenticationSession().getAuthNote(VERIFICATION_REJECTION_REASON);
       String verificationMismatchedFields =
-          context.getAuthenticationSession().getAuthNote(VERIFICATION_MISSMATCHED_FIELDS);
+          context.getAuthenticationSession().getAuthNote(VERIFICATION_MISMATCHED_FIELDS);
 
       log.infov("authenticate(): verificationStatus {0}", verificationStatus);
       log.infov("authenticate(): rejectionReason {0}", rejectionReason);
@@ -171,11 +204,21 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
           template = "registration-rejected-finish.ftl";
       }
 
+      if ("PENDING".equals(verificationStatus)) {
+        setNoticeChannel(context);
+      }
       Response form =
           context
               .form()
               .setAttribute("rejectReason", rejectionReason)
               .setAttribute("mismatchedFields", mismatchedFields)
+              .setAttribute(
+                  REPLY_BY_PAGE_ATTRIBUTE,
+                  "PENDING".equals(verificationStatus) ? replyByPage(context) : null)
+              .setAttribute(
+                  EnrollmentWindows.DATE_TIME_ZONE_MESSAGE_ATTRIBUTE,
+                  EnrollmentWindows.dateTimeZoneMessageKey(
+                      context.getRealm(), context.getSession().getContext().resolveLocale(null)))
               .createForm(template);
       context.challenge(form);
 
@@ -217,6 +260,10 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     annotationsMap.put(UNSET_ATTRIBUTES, unsetAttributes);
     annotationsMap.put("credentials", credentials);
     annotationsMap.put("sessionId", sessionId);
+    putIdentityMethod(annotationsMap, context.getAuthenticationSession());
+    annotationsMap.put(
+        NO_MATCHING_VOTER_POLICY,
+        NoMatchingVoterPolicy.fromConfig(config.getConfig().get(NO_MATCHING_VOTER_POLICY)).name());
 
     MessageCourier messageCourier =
         MessageCourier.fromString(config.getConfig().get(MESSAGE_COURIER_ATTRIBUTE));
@@ -309,6 +356,17 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
           rejectionMessage);
 
       context.getAuthenticationSession().setAuthNote(VERIFICATION_STATUS, verificationStatus);
+      // The application record's id gives the reference the voter quotes to support. Older harvest
+      // versions don't return it; the page then shows no reference.
+      JsonNode applicationIdNode = verificationResult.get("application_id");
+      SupportReference.of(
+              applicationIdNode == null || applicationIdNode.isNull()
+                  ? null
+                  : applicationIdNode.asText())
+          .ifPresentOrElse(
+              reference ->
+                  context.getAuthenticationSession().setAuthNote(SUPPORT_REFERENCE_NOTE, reference),
+              () -> log.info("verifyApplication(): no application id; no support reference"));
       context
           .getAuthenticationSession()
           .setAuthNote(VERIFICATION_REJECTION_REASON, rejectionReason);
@@ -337,7 +395,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       }
 
       // Store the fields_match in the auth session
-      context.getAuthenticationSession().setAuthNote("fields_match", fieldsMatch);
+      context.getAuthenticationSession().setAuthNote(FIELDS_MATCH, fieldsMatch);
 
       log.infov("Stored fields_match in auth session: {0}", fieldsMatch);
 
@@ -364,7 +422,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       try {
         context
             .getAuthenticationSession()
-            .setAuthNote(VERIFICATION_MISSMATCHED_FIELDS, om.writeValueAsString(mismatchedFields));
+            .setAuthNote(VERIFICATION_MISMATCHED_FIELDS, om.writeValueAsString(mismatchedFields));
       } catch (JsonProcessingException e) {
         e.printStackTrace();
         throw new IllegalStateException(e);
@@ -372,11 +430,18 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
 
       try {
         if ("PENDING".equals(verificationStatus)) {
+          setNoticeChannel(context);
           Response form =
               context
                   .form()
                   .setAttribute("rejectReason", rejectionReason)
                   .setAttribute("mismatchedFields", mismatchedFields)
+                  .setAttribute(REPLY_BY_PAGE_ATTRIBUTE, replyByPage(context))
+                  .setAttribute(
+                      EnrollmentWindows.DATE_TIME_ZONE_MESSAGE_ATTRIBUTE,
+                      EnrollmentWindows.dateTimeZoneMessageKey(
+                          context.getRealm(),
+                          context.getSession().getContext().resolveLocale(null)))
                   .createForm("registration-manual-finish.ftl");
           context.challenge(form);
           context.getEvent().success();
@@ -389,6 +454,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
               mobileNumber,
               rejectionReason,
               mismatchedFields,
+              enrollmentRecipient(context),
               context);
           return;
         }
@@ -424,6 +490,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
               mobileNumber,
               rejectionReason,
               mismatchedFields,
+              enrollmentRecipient(context),
               context);
           return;
         }
@@ -446,11 +513,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     String email = user.getEmail();
     String username = user.getUsername();
 
-    context
-        .getEvent()
-        .detail(Details.USERNAME, username)
-        .detail(Details.REGISTER_METHOD, "form")
-        .detail(Details.EMAIL, email);
+    context.getEvent().detail(Details.USERNAME, username).detail(Details.REGISTER_METHOD, "form");
 
     // Fail if the user does have set any of the specified attributes
     Optional<String> unsetAttributesChecked =
@@ -476,6 +539,12 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     // for other authentication models in the authentication flow
     log.info("authenticate(): updating user attributes..");
     updateUserAttributes(user, context, updateAttributesList);
+    EnrollmentChannels.persist(
+        user,
+        context.getAuthenticationSession(),
+        sequent.keycloak.authenticator.Utils.getRealmName(context.getRealm()),
+        EnrollmentChannels.consentVersion(context.getRealm()),
+        Instant.now());
 
     // Set email to verified if it was validated
     if (context.getAuthenticationSession().getAuthNote(EMAIL_VERIFIED) != null
@@ -597,6 +666,66 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     }
   }
 
+  /** The identity method a verification step established, empty when none did. */
+  public static Optional<IdentityMethod> identityMethod(AuthenticationSessionModel authSession) {
+    String note = authSession.getAuthNote(IDENTITY_METHOD);
+    Optional<IdentityMethod> method = IdentityMethod.fromNote(note);
+    if (note != null && method.isEmpty()) {
+      log.warnv("identityMethod(): ignoring the unknown identity method {0}", note);
+    }
+    return method;
+  }
+
+  /**
+   * Adds the identity method to the application's annotations, only when a verification step
+   * established a known one.
+   */
+  static void putIdentityMethod(
+      Map<String, Object> annotations, AuthenticationSessionModel authSession) {
+    identityMethod(authSession)
+        .ifPresent(method -> annotations.put(IDENTITY_METHOD, method.name()));
+  }
+
+  private static String telUserAttribute(AuthenticationFlowContext context) {
+    AuthenticatorConfigModel config = context.getAuthenticatorConfig();
+    String attribute = config == null ? null : config.getConfig().get(TEL_USER_ATTRIBUTE);
+    return attribute == null || attribute.isBlank()
+        ? MessageOTPAuthenticator.MOBILE_NUMBER_FIELD
+        : attribute;
+  }
+
+  private static NoticeRecipient enrollmentRecipient(AuthenticationFlowContext context) {
+    return NoticeRecipient.fromEnrollment(
+        context.getAuthenticationSession(), telUserAttribute(context));
+  }
+
+  /**
+   * Tells the pending page where the enrollment result will be sent: {@code noticeChannel} (the
+   * voter's one channel) and {@code noticeAddress} (its destination, masked; empty for Messenger).
+   */
+  private static void setNoticeChannel(AuthenticationFlowContext context) {
+    String reference = context.getAuthenticationSession().getAuthNote(SUPPORT_REFERENCE_NOTE);
+    if (reference != null) {
+      context.form().setAttribute(SUPPORT_REFERENCE_ATTRIBUTE, reference);
+    }
+    MessageCourier messageCourier =
+        MessageCourier.fromString(
+            context.getAuthenticatorConfig().getConfig().get(MESSAGE_COURIER_ATTRIBUTE));
+    if (MessageCourier.NONE.equals(messageCourier)) {
+      return;
+    }
+    enrollmentRecipient(context)
+        .channel()
+        .ifPresent(
+            channel ->
+                context
+                    .form()
+                    .setAttribute("noticeChannel", channel.channel().name())
+                    .setAttribute(
+                        "noticeAddress",
+                        VoterChannels.display(channel.channel(), channel.destination())));
+  }
+
   private HashMap<String, String> getMismatchedFields(
       AuthenticationFlowContext context,
       JsonNode fieldsMatchNode,
@@ -708,7 +837,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       if (attributeName.equals("email")) {
         // Only assume email is valid if it's verified
         if (user.isEmailVerified() && user.getEmail() != null && !user.getEmail().isBlank()) {
-          log.info("checkUnsetAttributes(): user has email=" + user.getEmail());
+          log.info("checkUnsetAttributes(): user has an email");
           return Optional.of("User has email attribute set but it should be unset");
         }
       } else {
@@ -734,7 +863,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
   private void updateUserAttributes(
       UserModel user, AuthenticationFlowContext context, List<String> attributes) {
     // Get the fields_match from auth session
-    String fieldsMatchStr = context.getAuthenticationSession().getAuthNote("fields_match");
+    String fieldsMatchStr = context.getAuthenticationSession().getAuthNote(FIELDS_MATCH);
     log.infov("Fields match from auth session: {0}", fieldsMatchStr);
 
     ObjectMapper objectMapper = new ObjectMapper();
@@ -859,6 +988,28 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     return "Looks up and optionally updates a user based on attributes stored in authentication notes.";
   }
 
+  /**
+   * The reply-by time the review page shows for a PENDING application, in the Post's zone
+   * (VOTE-LIFECYCLE §8): computed once per enrollment from {@value #REPLY_BY_HOURS} and kept in the
+   * authentication session. {@code null} when no reply-by time is configured.
+   */
+  private static Map<String, String> replyByPage(AuthenticationFlowContext context) {
+    AuthenticationSessionModel session = context.getAuthenticationSession();
+    AuthenticatorConfigModel config = context.getAuthenticatorConfig();
+    String hours = config == null ? null : config.getConfig().get(REPLY_BY_HOURS);
+    Instant replyBy =
+        EnrollmentWindows.replyBy(session.getAuthNote(ENROLLMENT_REPLY_BY), hours, Instant.now());
+    if (replyBy == null) {
+      return null;
+    }
+    session.setAuthNote(ENROLLMENT_REPLY_BY, replyBy.toString());
+    String post = session.getAuthNote(EnrollmentWindows.POST_FIELD);
+    EnrollmentWindows.Window window =
+        post == null ? null : EnrollmentWindows.read(context.getRealm()).lookup(post);
+    Locale locale = context.getSession().getContext().resolveLocale(null);
+    return EnrollmentWindows.replyByPage(replyBy, window, post, locale);
+  }
+
   @Override
   public List<ProviderConfigProperty> getConfigProperties() {
     ProviderConfigProperty messageCourier =
@@ -873,7 +1024,20 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
             MessageCourier.BOTH.name(),
             MessageCourier.SMS.name(),
             MessageCourier.EMAIL.name(),
-            MessageCourier.NONE.name()));
+            MessageCourier.NONE.name(),
+            MessageCourier.CHOSEN.name()));
+
+    ProviderConfigProperty noMatchingVoterPolicy =
+        new ProviderConfigProperty(
+            NO_MATCHING_VOTER_POLICY,
+            "No matching voter",
+            "What an enrollment whose identity matches no voter of the census becomes: REJECT"
+                + " rejects it, PENDING_APPROVAL leaves it pending in the election event's"
+                + " Approvals, for an election manager to review.",
+            ProviderConfigProperty.LIST_TYPE,
+            NoMatchingVoterPolicy.REJECT.name());
+    noMatchingVoterPolicy.setOptions(
+        Arrays.stream(NoMatchingVoterPolicy.values()).map(Enum::name).toList());
 
     // Define configuration properties
     return List.of(
@@ -913,7 +1077,16 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
             "If enabled will configure the users 2FA to use the Email or SMS provided during registration.",
             ProviderConfigProperty.BOOLEAN_TYPE,
             false),
-        messageCourier);
+        new ProviderConfigProperty(
+            REPLY_BY_HOURS,
+            "Reply-by hours",
+            "Hours an election officer has to review an application that needs manual verification."
+                + " The review page shows the reply-by time in the Post's zone. Leave blank to show"
+                + " none.",
+            ProviderConfigProperty.STRING_TYPE,
+            ""),
+        messageCourier,
+        noMatchingVoterPolicy);
   }
 
   @Override
@@ -961,7 +1134,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       String annotations,
       String labels)
       throws IOException, InterruptedException {
-    HttpClient client = HttpClient.newHttpClient();
+    HttpClient client = HARVEST_CLIENT;
     String url = "http://" + this.harvestUrl + "/verify-application";
     String requestBody =
         String.format(
@@ -978,57 +1151,24 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
             .uri(URI.create(url))
             .header("Content-Type", "application/json")
             .header("Authorization", "Bearer " + this.access_token)
+            .timeout(REQUEST_TIMEOUT)
             .POST(HttpRequest.BodyPublishers.ofString(requestBody))
             .build();
 
     HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-    log.infov("Verification response: {0}", response);
+    log.infov("verifyApplication(): status {0}", response.statusCode());
 
     return response;
   }
 
   public void authenticate(String tenantId) {
-    HttpClient client = HttpClient.newHttpClient();
-    String url =
-        this.keycloakUrl
-            + "/realms/"
-            + getTenantRealmName(tenantId)
-            + "/protocol/openid-connect/token";
-    Map<Object, Object> data = new HashMap<>();
-    data.put("client_id", this.clientId);
-    data.put("scope", "openid");
-    data.put("client_secret", this.clientSecret);
-    data.put("grant_type", "client_credentials");
-
-    String form =
-        data.entrySet().stream()
-            .map(entry -> entry.getKey() + "=" + entry.getValue())
-            .reduce((entry1, entry2) -> entry1 + "&" + entry2)
-            .orElse("");
-    log.info(form);
-    HttpRequest request =
-        HttpRequest.newBuilder()
-            .uri(URI.create(url))
-            .header("Content-Type", "application/x-www-form-urlencoded")
-            .POST(HttpRequest.BodyPublishers.ofString(form))
-            .build();
-
-    CompletableFuture<HttpResponse<String>> responseFuture;
-    responseFuture = client.sendAsync(request, HttpResponse.BodyHandlers.ofString());
-    String responseBody = responseFuture.join().body();
-    Object accessToken;
     try {
-      log.info("responseBody " + responseBody);
-      accessToken = JsonSerialization.readValue(responseBody, Map.class).get("access_token");
-      log.info("authenticate " + accessToken.toString());
-      this.access_token = accessToken.toString();
+      this.access_token =
+          tokenClient.fetchAccessToken(ServiceAccountTokenClient.tenantRealmName(tenantId));
     } catch (IOException e) {
-      e.printStackTrace();
+      log.error("authenticate(): could not obtain a service-account token");
+      this.access_token = null;
     }
-  }
-
-  private String getTenantRealmName(String tenantId) {
-    return "tenant-" + tenantId;
   }
 
   private String getElectionEventId(KeycloakSession session, String realmId) {

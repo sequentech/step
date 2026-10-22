@@ -162,7 +162,7 @@ parameter, and only the options it lists are accepted.
 |---|---|---|
 | `label` | text | Shown beside the control. |
 | `options` | map of value to label | The options, in display order. Exactly one of `options` and `options_from`. |
-| `options_from` | `event_days` | Options taken from the data: the days of the event with activity, in its time zone, as `YYYY-MM-DD`. The default is the latest day. |
+| `options_from` | `event_days` | Options taken from the data: the days of the event with activity, in its primary timezone, as `YYYY-MM-DD`. The default is the latest day. |
 | `default` | option value | Required with `options`, and must be one of them. Not allowed with `options_from`. |
 | `control` | `dropdown` (default) or `toggle` | A toggle switches between exactly two listed options. |
 | `when` | `{selector: <name>, in: [<values>]}` | Show the selector only while another selector, declared earlier, has one of these values. |
@@ -284,14 +284,13 @@ the portal's typeface.
 
 ## Settings
 
-Where the event's voters and Posts keep each fact the data sources count by,
-and the event's time zone. Settings decide who is counted (for example, who
+Where the event's voters and Posts keep each fact the data sources count by.
+Settings decide who is counted (for example, who
 counts as pre-enrolled, a denominator), so the editor cannot change them:
 only resetting the event to a preset writes them.
 
 | Field | Type | Required | Meaning |
 |---|---|---|---|
-| `time_zone` | IANA name, or `UTC` | Yes | Buckets and export ranges are in this zone, such as `Asia/Manila`. |
 | `scope.region` | [dimension mapping](#dimension-mapping) | Yes | Where a voter's or Post's region is read. |
 | `scope.country` | dimension mapping | Yes | Where a voter's country is read. |
 | `pre_enrolled` | `{voter_attribute: <name>, equals: <value>}` | Yes | Which voters count as pre-enrolled. |
@@ -314,10 +313,13 @@ Exactly one of the three origins is given:
 
 Only derived values are stored: an age band, never a date of birth.
 
+Hourly buckets, days and export ranges are in the event's primary timezone,
+set on the election event (`presentation.timezones`), not in these settings.
+Settings that still name a `time_zone` are refused.
+
 Example:
 
 ```yaml
-time_zone: Europe/Madrid
 scope:
   region: {area_annotation: campus}
   country: {voter_attribute: nationality}
@@ -611,8 +613,8 @@ to decide how to count or what to show.
 
 | Preset | Contents |
 |---|---|
-| `comelec` | An overview and a dashboard for each monitoring record of an overseas voting package, grouped by section in the order an election runs: enrollment (decisions, disapproval reasons, voting credentials), test voting, final testing and lockdown, voting (Posts initialized, opened and closed, status by Post), voter turnout (three ratios, by group, by Post, by country), counting and transmission, enrollment and voting rates, access and security (sign-ins, login outcomes, attack detections) and helpdesk. Time zone `Asia/Manila`; dimensions sex, age band and status abroad. |
-| `campus` | Participation and operations dashboards for a university election, with faculty and role dimensions, `Europe/Madrid` time, and its own names for the dashboard selectors. It runs on the same data sources with no code change. |
+| `comelec` | An overview and a dashboard for each monitoring record of an overseas voting package, grouped by section in the order an election runs: enrollment (decisions, disapproval reasons, voting credentials), test voting, final testing and lockdown, voting (Posts initialized, opened and closed, status by Post), voter turnout (three ratios, by group, by Post, by country), counting and transmission, enrollment and voting rates, access and security (sign-ins, login outcomes, attack detections) and helpdesk. Dimensions sex, age band and status abroad. |
+| `campus` | Participation and operations dashboards for a university election, with faculty and role dimensions and its own names for the dashboard selectors. It runs on the same data sources with no code change. |
 
 Presets live in `packages/sequent-core/src/monitoring/presets/<id>/`: a
 `preset.yaml` manifest (`id`, `version`, `title`, `description`, and the

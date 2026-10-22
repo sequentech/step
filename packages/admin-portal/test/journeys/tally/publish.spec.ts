@@ -81,12 +81,21 @@ function generatedPublication(portal: AdminPortal) {
             },
         },
     }))
-    portal.graphql.on("sequent_backend_area", () => ({
+    // The preview offers the areas of the publication's ballot styles, by name.
+    portal.graphql.on("PublicationPreviewAreas", ({variables}) => ({
+        data: {
+            sequent_backend_ballot_style:
+                variables.publicationId === PUBLICATION_ID && variables.offset === 0
+                    ? [{area_id: AREA_ID}]
+                    : [],
+        },
+    }))
+    portal.graphql.on("PublicationPreviewAreaNames", ({variables}) => ({
         data: {
             sequent_backend_area: [
                 {id: AREA_ID, name: "North precinct"},
                 {id: "e1000000-0000-4000-8000-000000000002", name: "Unpublished area"},
-            ],
+            ].filter(({id}) => (variables.ids as string[]).includes(id)),
         },
     }))
 }

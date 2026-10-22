@@ -1,23 +1,50 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {TranslationType} from "./en"
+import englishTranslation, {TranslationType} from "./en"
 
 const dutchTranslation: TranslationType = {
     translations: {
+        ballotPrivacy: englishTranslation.translations.ballotPrivacy,
         startup: {
             error: "Het stemportaal kon niet worden gestart. Probeer het opnieuw.",
             retry: "Opnieuw proberen",
+        },
+        contactChannel: {
+            change: "Contactmethode",
+            updated: "Uw contactgegeven is gewijzigd. Codes en berichten gaan nu daarheen.",
+            cancelled: "Uw contactgegeven is niet gewijzigd.",
+            failed: "We konden niet wijzigen hoe we contact met u opnemen. Probeer het later opnieuw of neem contact op met de ondersteuning.",
+            close: "Sluiten",
         },
         common: {
             goBack: "Ga terug",
             showMore: "Toon meer",
             showLess: "Toon minder",
         },
+        audioInstructions: {
+            screens: {
+                "election-chooser":
+                    "Deze pagina toont de verkiezingen waarin u kunt stemmen. Gebruik de Tab-toets om van de ene verkiezing naar de volgende te gaan. Elke verkiezing heeft een knop om te beginnen met stemmen. Druk op Enter op die knop om het stembiljet te openen.",
+                "start":
+                    "Deze pagina legt uit hoe u stemt. Eerst kiest u uw opties, daarna controleert u ze en ten slotte brengt u uw stem uit. Gebruik de Tab-toets om naar de knop te gaan waarmee het stemmen begint en druk op Enter. Als er een verklaring wordt getoond, vink dan eerst het selectievakje aan met de spatiebalk.",
+                "ballot":
+                    "Dit is uw stembiljet. Elke vraag is een groep opties, en de vraag vermeldt hoeveel opties u kunt kiezen. Gebruik de Tab-toets om tussen de opties te bewegen en de spatiebalk om er een te selecteren of te wissen. Ga als u klaar bent naar de knop om verder te gaan, onderaan de pagina, en druk op Enter om uw keuzes te controleren. Er is ook een knop om al uw keuzes te wissen. Er wordt niets uitgebracht totdat u op de controlepagina bevestigt.",
+                "review":
+                    "Deze pagina toont de keuzes die u hebt gemaakt. Controleer ze zorgvuldig. Gebruik de knop om uw stembiljet te bewerken als u iets wilt wijzigen. Ga naar de knop om uw stem uit te brengen en druk op Enter om te stemmen. Uw stembiljet-ID staat bovenaan de pagina. U kunt het kopiëren om uw stembiljet later terug te vinden.",
+                "confirmation":
+                    "Uw stem is uitgebracht. Deze pagina toont uw stembiljet-ID, waarmee u kunt controleren of uw stembiljet is geregistreerd. U kunt het kopiëren of deze pagina afdrukken. Gebruik als u klaar bent de knop onderaan de pagina om af te sluiten.",
+                "audit":
+                    "Op deze pagina kunt u uw stembiljet controleren in plaats van het uit te brengen. De pagina toont de informatie die u met de stembiljetverificatie kunt nagaan. Een gecontroleerd stembiljet wordt niet uitgebracht; ga daarna dus terug naar uw stembiljet om te stemmen.",
+                "ballot-locator":
+                    "Op deze pagina kunt u nagaan of een stembiljet is geregistreerd. Typ of plak een stembiljet-ID in het tekstveld en druk op Enter. Het resultaat verschijnt onder het veld.",
+                "support-materials":
+                    "Deze pagina toont documenten die u helpen bij het stemmen. Gebruik de Tab-toets om ertussen te bewegen en druk op Enter op de knop van een document om het te openen. Gebruik de knop om terug te gaan naar de lijst met verkiezingen.",
+            },
+        },
         a11y: {
             skipToContent: "Ga naar hoofdinhoud",
             helpAbout: "Hulp over {{topic}}",
-            copyToClipboard: "{{label}} naar klembord kopiëren",
             previewMaterial: "Voorbeeld van {{title}}",
             ballotsTable: "Stembiljetten",
             ballotLocatorTabs: "Onderdelen van de stembiljetzoeker",
@@ -25,8 +52,10 @@ const dutchTranslation: TranslationType = {
             votingProgress: "Voortgang van het stemmen",
             stepOf: "Stap {{current}} van {{total}}",
             selectUpTo_one: "Kies maximaal {{count}} optie",
+            selectUpTo_many: "Kies maximaal {{count}} opties",
             selectUpTo_other: "Kies maximaal {{count}} opties",
             selectExactly_one: "Kies {{count}} optie",
+            selectExactly_many: "Kies {{count}} opties",
             selectExactly_other: "Kies {{count}} opties",
             selectBetween: "Kies tussen {{min}} en {{max}} opties",
         },
@@ -34,8 +63,9 @@ const dutchTranslation: TranslationType = {
             collapseToggle: "Lijst {{listTitle}} in-/uitvouwen",
             showCandidates: "Kandidaten tonen",
             hideCandidates: "Kandidaten verbergen",
-            selectedCandidate: "{{count}} kandidaat geselecteerd",
-            selectedCandidates: "{{count}} kandidaten geselecteerd",
+            selectedCandidates_one: "{{count}} kandidaat geselecteerd",
+            selectedCandidates_many: "{{count}} kandidaten geselecteerd",
+            selectedCandidates_other: "{{count}} kandidaten geselecteerd",
             expandAll: "Alles uitvouwen",
             collapseAll: "Alles inklappen",
         },
@@ -68,7 +98,7 @@ const dutchTranslation: TranslationType = {
             nonVotedDialog: {
                 title: "Ongeldige of blanco stem",
                 content:
-                    "Sommige van uw antwoorden maken het stembiljet voor een of meer vragen ongeldig of blanco.",
+                    "Sommige van uw antwoorden maken het stembiljet voor een of meer stemmingen ongeldig of blanco.",
                 ok: "Terug en controleren",
                 continue: "Doorgaan",
                 cancel: "Annuleren",
@@ -103,7 +133,7 @@ const dutchTranslation: TranslationType = {
             instructionsDescription: "Volg deze stappen om te stemmen:",
             step1Title: "1. Selecteer uw opties",
             step1Description:
-                "Kies uw kandidaten en beantwoord de vragen. Bewerk uw stembiljet totdat u klaar bent.",
+                "Kies uw kandidaten en maak uw keuzes in elke stemming. Bewerk uw stembiljet totdat u klaar bent.",
             step2Title: "2. Controleer uw stembiljet",
             step2Description:
                 "We versleutelen uw stembiljet en tonen een laatste overzicht. U ontvangt een unieke tracker-ID.",
@@ -112,6 +142,11 @@ const dutchTranslation: TranslationType = {
                 "Breng uw stem uit zodat deze correct wordt geregistreerd, of kies voor audit om te bevestigen dat het stembiljet correct is versleuteld.",
         },
         reviewScreen: {
+            castRecovery: {
+                uncertain:
+                    "Het resultaat van het uitbrengen is niet bevestigd. U kunt hetzelfde verzoek opnieuw proberen of uw stembiljet-ID controleren voordat u opnieuw begint.",
+                checkBallot: "Stembiljet controleren",
+            },
             acclamation: {
                 title: "Bij acclamatie beslist",
                 helpDialog: {
@@ -167,6 +202,15 @@ const dutchTranslation: TranslationType = {
                     "U heeft geen kandidaten geselecteerd. Na bevestiging wordt uw stembiljet blanco uitgebracht.",
                 ok: "Ja, ik wil mijn blanco stembiljet uitbrengen",
                 cancel: "Annuleren",
+            },
+            unfilledContestsDialog: {
+                title: "Sommige keuzes zijn niet ingevuld",
+                content:
+                    "U mag een keuze leeg laten of minder opties kiezen dan toegestaan. Controleer het volgende voordat u doorgaat.",
+                selected: "{{selected}} van {{max}} geselecteerd",
+                nothingSelected: "Niets geselecteerd",
+                ok: "Doorgaan met deze keuzes",
+                cancel: "Keuzes controleren",
             },
             error: {
                 NETWORK_ERROR:
@@ -283,6 +327,9 @@ const dutchTranslation: TranslationType = {
             ballotId: "Stembiljet ID",
             printButton: "Afdrukken",
             finishButton: "Voltooien",
+            remainingElectionsError:
+                "We konden niet controleren of u nog aan andere verkiezingen kunt deelnemen. Probeer het opnieuw.",
+            retryButton: "Opnieuw proberen",
             verifyCastTitle: "Verifieer dat uw stembiljet is uitgebracht",
             verifyCastDescription:
                 "U kunt op elk moment verifiëren dat uw stembiljet correct is uitgebracht met behulp van de volgende QR-code:",
@@ -322,6 +369,9 @@ const dutchTranslation: TranslationType = {
             demoQRText: "Stembiljet tracker is uitgeschakeld in demo-modus",
         },
         auditScreen: {
+            confirmingAudit: "Bevestigen dat dit stembiljet niet meer kan worden uitgebracht…",
+            auditUnavailable:
+                "Het stembiljet kon niet worden gecontroleerd. De inhoud is niet onthuld. Probeer het opnieuw.",
             printButton: "Afdrukken",
             restartButton: "Begin met stemmen",
             title: "Controleer uw Stembiljet",
@@ -366,7 +416,8 @@ const dutchTranslation: TranslationType = {
                 ok: "Ik begrijp dat mijn stem niet wordt uitgebracht",
             },
             errors: {
-                noVotingArea: "Kiesgebied niet toegewezen. Probeer het later opnieuw.",
+                noVotingArea:
+                    "U staat niet geregistreerd als kiezer voor deze verkiezing. Neem contact op met de ondersteuning.",
                 networkError:
                     "Er was een netwerkprobleem. Probeer het later opnieuw of neem contact op met ondersteuning voor hulp.",
                 unableToFetchData:
@@ -388,34 +439,21 @@ const dutchTranslation: TranslationType = {
                 instructions:
                     "U moet <MaterialsLink>{{materialsTitle}}</MaterialsLink> lezen voordat u kunt stemmen.",
             },
+            votingClosedAt: "De stemming is gesloten op {{close}} ({{localClose}}).",
+            votingClosedOn: "De stemming is gesloten op {{close}}.",
         },
         errors: {
             encoding: {
                 notEnoughChoices: "Niet genoeg keuzes om te decoderen",
                 writeInChoiceOutOfRange: "Ingevulde keuze buiten bereik: {{index}}",
                 writeInNotEndInZero: "De ingevulde tekst eindigt niet op 0",
-                writeInCharsExceeded:
-                    "De ingevulde tekst overschrijdt de maximale lengte met {{numCharsExceeded}} tekens. Verkorting alstublieft.",
                 bytesToUtf8Conversion:
                     "Fout bij het converteren van de ingevulde tekst van bytes naar UTF-8-tekenreeks: {{errorMessage}}",
                 ballotTooLarge: "Stembiljet groter dan verwacht",
             },
-            implicit: {
-                selectedMax:
-                    "Overstemming: het aantal geselecteerde keuzes {{numSelected}} is groter dan het maximum {{max}}",
-                selectedMin:
-                    "Het aantal geselecteerde keuzes {{numSelected}} is kleiner dan het minimum {{min}}",
-                maxSelectionsPerType:
-                    "Het aantal geselecteerde keuzes {{numSelected}} voor lijst {{type}} is groter dan het maximum {{max}}",
-                underVote:
-                    "Onderstemming: het aantal geselecteerde keuzes {{numSelected}} is kleiner dan het maximum {{max}}",
-                overVoteDisabled:
-                    "Maximum bereikt: u heeft het maximum van {{numSelected}} keuzes geselecteerd. Om uw selectie te wijzigen, deselecteert u eerst een andere optie.",
-                blankVote: "Blanco stem: 0 keuzes geselecteerd",
-            },
             explicit: {
                 notAllowed:
-                    "Stembiljet expliciet als ongeldig gemarkeerd, maar de vraag staat dit niet toe",
+                    "Stembiljet expliciet als ongeldig gemarkeerd, maar de stemming staat dit niet toe",
                 alert: "Deze selectie wordt geteld als een ongeldige stem",
             },
             page: {
@@ -444,6 +482,67 @@ const dutchTranslation: TranslationType = {
                 error: "Er was een probleem bij het registreren van uw bevestiging. Probeer het opnieuw.",
             },
         },
+        slates: {
+            title: "Lijsten",
+            description:
+                "Een lijst is een groep kandidaten die zich samen verkiesbaar stellen. Bij elke kandidaat staat de lijst waartoe die behoort.",
+            independent: "Onafhankelijk",
+            contestMembers: "Kandidaten van {{slate}} voor {{contest}}",
+            noCandidate: "Geen kandidaat",
+            coverage: {
+                full: "Volledige lijst",
+                singleContest: "Alleen {{contest}}",
+                partial: "Gedeeltelijke lijst",
+                candidates_one: "{{count}} kandidaat",
+                candidates_other: "{{count}} kandidaten",
+                offices_one: "{{count}} functie",
+                offices_other: "{{count}} functies",
+            },
+            candidateList: {
+                show: "Kandidaten tonen",
+                hide: "Kandidaten verbergen",
+            },
+            tabs: {
+                label: "Manieren om uw stembiljet in te vullen",
+                slates: "Kies een lijst",
+                candidates: "Individuele kandidaten",
+            },
+            review: {
+                title: "Uw selecties",
+                total: "Geselecteerde kandidaten: {{selected}} van {{seats}}",
+                slate: "{{slate}}: {{status}}",
+                independent: "Geselecteerde onafhankelijke kandidaten: {{count}}",
+                note: "Uw stem wordt geregistreerd voor elke geselecteerde kandidaat. Een lijst is op zichzelf geen stem.",
+                contestCount: "{{selected}} van {{max}} geselecteerd",
+                edit: "Bewerken",
+                editLabel: "{{contest}} bewerken",
+            },
+            selection: {
+                all: "Alle {{total}} geselecteerd",
+                mixed: "Gemengd · {{selected}} van {{total}} geselecteerd",
+                partly: "Gedeeltelijk geselecteerd · {{selected}} van {{total}}",
+                selected: "Geselecteerd",
+                edit: "Selectie bewerken",
+            },
+            apply: {
+                button: "Deze lijst kiezen",
+                buttonLabel: "Lijst {{slate}} kiezen",
+                chosen: "{{slate}} gekozen. Geselecteerde kandidaten: {{candidates}}. Verkiezingen: {{contests}}.",
+                overMaximum:
+                    "{{slate}} kan niet worden gekozen: de lijst heeft {{candidates}} kandidaten voor {{contest}}, waar {{max}} is toegestaan. U kunt nog steeds afzonderlijke kandidaten kiezen.",
+                unavailable:
+                    "{{slate}} kan op dit stembiljet niet worden gekozen. U kunt nog steeds afzonderlijke kandidaten kiezen.",
+                replaceDialog: {
+                    title: "Uw huidige keuzes vervangen?",
+                    content:
+                        "Als u {{slate}} kiest, worden uw keuzes in de onderstaande verkiezingen vervangen. Uw andere keuzes blijven ongewijzigd.",
+                    removed: "Verwijderd:",
+                    added: "In plaats daarvan geselecteerd:",
+                    ok: "Keuzes vervangen",
+                    cancel: "Mijn keuzes behouden",
+                },
+            },
+        },
         ballotLocator: {
             title: "Zoek uw Stembiljet",
             titleResult: "Resultaat van uw Stembiljet Zoekopdracht",
@@ -460,6 +559,9 @@ const dutchTranslation: TranslationType = {
                 "Niet gevonden, controleer dat uw Stembiljet ID correct is en behoort tot deze gebruiker.",
             filterByBallotId: "Filteren op Stembiljet ID",
             totalBallots: "Aantal stembiljet: {{total}}",
+            checksAvailableUntil: "U kunt uw stembiljet controleren tot {{date}}.",
+            checksEnded: "De controles zijn beëindigd op {{date}}.",
+            castAt: "Uitgebracht op {{date}}",
             steps: {
                 lookup: "Zoek uw Stembiljet",
                 result: "Resultaat",
@@ -477,9 +579,7 @@ const dutchTranslation: TranslationType = {
             column: {
                 statement_kind: "Type",
                 statement_timestamp: "Tijdstip",
-                username: "Gebruikersnaam",
                 ballot_id: "Stembiljet ID",
-                message: "Bericht",
             },
         },
     },

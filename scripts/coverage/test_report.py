@@ -6,6 +6,7 @@
 import copy
 import re
 import tempfile
+import tomllib
 import unittest
 from pathlib import Path
 
@@ -107,6 +108,39 @@ class FunctionExportTests(unittest.TestCase):
                     self.filter()
 
 
+class HarvestPolicyTests(unittest.TestCase):
+    def test_first_signin_fixture_has_the_voter_group_used_by_ordinary_ci(self):
+        root = Path(__file__).resolve().parents[2]
+        policy = tomllib.loads((root / "scripts/coverage/profiles.toml").read_text())
+        self.assertEqual(
+            policy["profiles"]["harvest"]["test_environment"].get(
+                "KEYCLOAK_VOTER_GROUP_NAME"
+            ),
+            "voter",
+        )
+
+    def test_mounted_manual_verification_route_remains_measured(self):
+        root = Path(__file__).resolve().parents[2]
+        package = root / "packages/harvest"
+        policy = tomllib.loads((root / "scripts/coverage/profiles.toml").read_text())[
+            "profiles"
+        ]["harvest"]
+        route = package / "src/routes/manual_verification_pdf.rs"
+        payload = export(
+            *(
+                llvm_file(path, covered=int(path == route), count=int(path == route))
+                for path in (package / "src").rglob("*.rs")
+            )
+        )
+        result = summarize(
+            payload, package, minimum=0, exceptions=policy["scope_exceptions"]
+        )
+        self.assertEqual(
+            result["files"]["src/routes/manual_verification_pdf.rs"]["lines"],
+            {"covered": 1, "count": 1},
+        )
+
+
 class CoverageReportTests(unittest.TestCase):
     """Use real paths so another package cannot accidentally satisfy this gate."""
 
@@ -200,7 +234,7 @@ class CoverageReportTests(unittest.TestCase):
     def test_dependencies_and_integration_test_files_do_not_pad_package_totals(
         self,
     ) -> None:
-        other = self.package.parent / "strand" / "src" / "lib.rs"
+        other = self.package.parent / "voting-crypto" / "src" / "lib.rs"
         test_file = self.package / "tests" / "smoke.rs"
         result = self.summarize(
             export(

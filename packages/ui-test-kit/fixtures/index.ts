@@ -14,6 +14,7 @@ export const IDS = {
     alice: "70000000-0000-4000-8000-000000000001",
     bob: "70000000-0000-4000-8000-000000000002",
     voter: "80000000-0000-4000-8000-000000000001",
+    keysCeremony: "90000000-0000-4000-8000-000000000001",
 } as const
 
 /** Synthetic wire documents: expectations in specs use the literal voter choices, not these builders. */
@@ -52,7 +53,14 @@ export function electionFixture({demo = false, gold = false, finishUrl = ""} = {
         area_id: IDS.area,
         description: "Community Council",
         area_presentation: {allow_early_voting: "no_early_voting"},
-        public_key: {public_key: DEMO_PUBLIC_KEY, is_demo: demo},
+        public_key: {
+            public_key: DEMO_PUBLIC_KEY,
+            is_demo: demo,
+            keys_ceremony_id: demo ? null : IDS.keysCeremony,
+            configuration_id: demo
+                ? "0"
+                : BigInt(`0x${IDS.keysCeremony.replaceAll("-", "")}`).toString(),
+        },
         election_event_presentation: eventPresentation,
         election_presentation: electionPresentation,
         contests: [

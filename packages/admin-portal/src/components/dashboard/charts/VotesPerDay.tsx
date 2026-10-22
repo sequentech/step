@@ -8,6 +8,7 @@ import CardChart from "./Charts"
 import {CastVotesPerDay} from "@/gql/graphql"
 import {useTranslation} from "react-i18next"
 import {CircularProgress, MenuItem, Select, Stack, Tooltip, Typography} from "@mui/material"
+import {withEscapedChartText} from "@sequentech/ui-essentials"
 import {toVotesPerDayChartData} from "./votesPerDayData"
 import {getVotesPerDayChartOptions} from "./votesPerDayOptions"
 import {
@@ -23,7 +24,7 @@ export interface VotersPerDayProps {
     data: CastVotesPerDay[] | null
     /** Whether the votes failed to load, so that no data means no chart rather than loading. */
     unavailable?: boolean
-    width: number
+    width?: number | string
     height: number
     selection: VotesTimeSelection
     onSelectionChange: (selection: VotesTimeSelection) => void
@@ -55,7 +56,7 @@ const compactMenuProps = {
 export const VotesPerDay: React.FC<VotersPerDayProps> = ({
     data,
     unavailable = false,
-    width,
+    width = "100%",
     height,
     selection,
     onSelectionChange,
@@ -127,11 +128,13 @@ export const VotesPerDay: React.FC<VotersPerDayProps> = ({
 
     const chartData = toVotesPerDayChartData(data)
     const state: Props = {
-        options: getVotesPerDayChartOptions({
-            buckets: chartData.buckets,
-            resolution: selection.resolution,
-            locale: i18n.resolvedLanguage ?? i18n.language,
-        }),
+        options: withEscapedChartText(
+            getVotesPerDayChartOptions({
+                buckets: chartData.buckets,
+                resolution: selection.resolution,
+                locale: i18n.resolvedLanguage ?? i18n.language,
+            })
+        ),
         series: chartData.series.map(({channel, data: channelData}) => ({
             name: String(t(`common.channel.${channel.toLowerCase()}`)),
             data: channelData,

@@ -31,6 +31,7 @@ import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf"
 import ImageIcon from "@mui/icons-material/Image"
 import DescriptionIcon from "@mui/icons-material/Description"
 import {Sequent_Backend_Support_Material_Extended} from "./EditSuportMaterial"
+import {AudioInstructionsFields, withAudioInstructions} from "./AudioInstructionsFields"
 
 interface CreateSupportMaterialProps {
     record: any
@@ -209,6 +210,16 @@ export const CreateSupportMaterial: React.FC<CreateSupportMaterialProps> = (prop
                     />
                     <DropFile handleFiles={handleFiles} />
                     <UploadValidationError />
+                    <AudioInstructionsFields
+                        kind={imageType}
+                        languages={Object.keys(record?.enabled_languages ?? {}).filter(
+                            (lang) => record.enabled_languages[lang]
+                        )}
+                        value={valueMaterials.audio_instructions}
+                        onChange={(value) =>
+                            setValueMaterials((prev) => withAudioInstructions(prev, value))
+                        }
+                    />
                     {imageType ? (
                         <Box
                             sx={{

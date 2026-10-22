@@ -6,7 +6,6 @@ import {TranslationType} from "./en"
 const spanishTranslation: TranslationType = {
     translations: {
         language: "Español",
-        welcome: "Let's start: Import auditable ballot..",
         breadcrumbSteps: {
             select: "Seleccionar un Verificador",
             import: "Importar Datos",
@@ -23,6 +22,7 @@ const spanishTranslation: TranslationType = {
         },
         a11y: {
             closeDialog: "Cerrar diálogo",
+            languageSelector: "Idioma: {{language}}",
             dismissMessage: "Descartar mensaje",
             ballotIdHelp: "Acerca de su ID de voto",
             loading: "Cargando",
@@ -35,6 +35,48 @@ const spanishTranslation: TranslationType = {
             selectList: "Seleccionar toda la lista",
             preferenceLabel: "Preferencia",
             writeInFor: "Nombre del candidato por escrito",
+        },
+        accessibility: {
+            button: "Accesibilidad",
+            title: "Ajustes de accesibilidad",
+            description: "Cambie el aspecto de este sitio en este dispositivo.",
+            textSize: {
+                label: "Tamaño del texto",
+                default: "Predeterminado",
+                large: "Grande",
+                larger: "Más grande",
+            },
+            contrast: {
+                label: "Contraste",
+                default: "Predeterminado",
+                high: "Alto contraste",
+            },
+            textSpacing: {
+                label: "Espaciado del texto",
+                default: "Predeterminado",
+                wide: "Amplio",
+            },
+            motion: {
+                label: "Movimiento",
+                default: "Predeterminado",
+                reduced: "Reducido",
+            },
+            reset: "Restablecer ajustes",
+            close: "Cerrar",
+            applied: "{{setting}}: {{value}}",
+            resetDone: "Ajustes restablecidos",
+        },
+        audioInstructions: {
+            label: "Instrucciones en audio",
+            play: "Escuchar las instrucciones",
+            pause: "Pausar las instrucciones",
+            resume: "Reanudar las instrucciones",
+            stop: "Detener las instrucciones",
+            showTranscript: "Leer las instrucciones",
+            hideTranscript: "Ocultar las instrucciones",
+            playing: "Reproduciendo las instrucciones",
+            paused: "Instrucciones en pausa",
+            stopped: "Instrucciones detenidas",
         },
         candidate: {
             moreInformationLink: "Más información",
@@ -54,14 +96,14 @@ const spanishTranslation: TranslationType = {
         homeScreen: {
             title: "Verificador de Voto Sequent",
             description1:
-                "El verificador de voto se usa cuando el votante elige auditar la boleta en la cabina de votación. La verificación debe tomar de 1 a 2 minutos.",
+                "El verificador de voto se usa cuando el votante elige auditar la papeleta en la cabina de votación. La verificación debe tomar de 1 a 2 minutos.",
             description2:
                 "El verificador de voto le permite al votante asegurarse de que el voto cifrado capture correctamente las selecciones realizadas en la cabina de votación. Permitir realizar esta verificación se denomina verificabilidad de transmisión según lo previsto y evita errores y actividades maliciosas durante el cifrado del voto.",
             descriptionMore: "Más información",
-            startButton: "Selecciona fichero",
+            startButton: "Seleccione fichero",
             dragDropOption: "O arrastre el fichero aquí",
             importErrorDescription:
-                "Hubo un problema al importar el voto auditable. ¿Elegiste el archivo correcto?",
+                "Hubo un problema al importar el voto auditable. ¿Eligió el archivo correcto?",
             importErrorMoreInfo: "Más información",
             importErrorTitle: "Error",
             useSampleText: "¿No tiene un voto verificable?",
@@ -85,7 +127,7 @@ const spanishTranslation: TranslationType = {
             statusModal: {
                 title: "Estado",
                 content:
-                    "El panel de estado te da información sobre las verificaciones realizadas.",
+                    "El panel de estado le da información sobre las verificaciones realizadas.",
                 ok: "OK",
             },
         },
@@ -97,24 +139,33 @@ const spanishTranslation: TranslationType = {
                 notEnoughChoices: "No hay suficientes opciones para decodificar",
                 writeInChoiceOutOfRange: "Opción de voto escrita fuera de rango: {{index}}",
                 writeInNotEndInZero: "Opción de voto escrita no finaliza en 0",
-                writeInCharsExceeded:
-                    "Opción de voto escrita excede el número de caracters por {{numCharsExceeded}} caracteres. Requiere arreglo.",
+                writeInCharsExceeded_one: "Acorte la escritura libre en {{count}} carácter.",
+                writeInCharsExceeded_many: "Acorte la escritura libre en {{count}} caracteres.",
+                writeInCharsExceeded_other: "Acorte la escritura libre en {{count}} caracteres.",
                 bytesToUtf8Conversion:
                     "Error convirtiendo bytes de opción de voto escrita a cadena UTF-8: {{errorMessage}}",
                 ballotTooLarge: "Voto más grande de lo esperado",
             },
             implicit: {
-                selectedMax:
-                    "Sobrevoto: El número de opciones seleccionadas {{numSelected}} es mayor que el máximo {{max}}",
-                selectedMin:
-                    "El número de opciones seleccionadas {{numSelected}} es menor que el máximo {{min}}",
-                maxSelectionsPerType:
-                    "El número de opciones seleccionadas {{numSelected}} para la lista {{type}} es mayor que el máximo {{max}}",
-                underVote:
-                    "Subvoto: El número de opciones seleccionadas {{numSelected}} es menor que el máximo permitido de {{max}}",
-                overVoteDisabled:
-                    "Máximo alcanzado: Has seleccionado el máximo de {{numSelected}} opciones. Para cambiar tu selección, por favor, desmarca primero otra opción.",
-                blankVote: "Voto en Blanco: 0 opciones seleccionadas",
+                selectedMax_one: "Desmarque {{count}} candidato.",
+                selectedMax_many: "Desmarque {{count}} candidatos.",
+                selectedMax_other: "Desmarque {{count}} candidatos.",
+                selectedMin_one: "Seleccione {{count}} candidato más.",
+                selectedMin_many: "Seleccione {{count}} candidatos más.",
+                selectedMin_other: "Seleccione {{count}} candidatos más.",
+                maxSelectionsPerType_one: "Desmarque {{count}} candidato de {{type}}.",
+                maxSelectionsPerType_many: "Desmarque {{count}} candidatos de {{type}}.",
+                maxSelectionsPerType_other: "Desmarque {{count}} candidatos de {{type}}.",
+                underVote_one: "Seleccione hasta {{count}} candidato más.",
+                underVote_many: "Seleccione hasta {{count}} candidatos más.",
+                underVote_other: "Seleccione hasta {{count}} candidatos más.",
+                overVoteDisabled_one:
+                    "Ha seleccionado el máximo de {{count}} candidato. Desmárquelo para elegir otro.",
+                overVoteDisabled_many:
+                    "Ha seleccionado el máximo de {{count}} candidatos. Desmarque uno para elegir otro.",
+                overVoteDisabled_other:
+                    "Ha seleccionado el máximo de {{count}} candidatos. Desmarque uno para elegir otro.",
+                blankVote: "No ha seleccionado ningún candidato.",
                 preferenceOrderWithGaps:
                     "¡Voto inválido! El orden de preferencia tiene uno o más huecos.",
                 duplicatedPosition:
@@ -127,9 +178,11 @@ const spanishTranslation: TranslationType = {
             },
             configuration: {
                 multipleExplicitInvalidCandidates:
-                    "Configuración de voto inválida: el concurso define {{count}} candidatos explícitamente inválidos, pero solo se permite uno.",
+                    "Configuración de voto inválida: la pregunta define {{count}} candidatos explícitamente inválidos, pero solo se permite uno.",
                 multipleExplicitBlankCandidates:
-                    "Configuración de voto inválida: el concurso define {{count}} candidatos de voto en blanco explícito, pero solo se permite uno.",
+                    "Configuración de voto inválida: la pregunta define {{count}} candidatos de voto en blanco explícito, pero solo se permite uno.",
+                invalidSlateConfiguration:
+                    "Configuración de voto inválida: las candidaturas conjuntas no son válidas ({{reason}}).",
             },
         },
         ballotHash: "Su Localizador de Voto: {{ballotId}}",
@@ -142,7 +195,7 @@ const spanishTranslation: TranslationType = {
         logout: {
             buttonText: "Cerrar sesión",
             modal: {
-                title: "¿Estás seguro de que quieres cerrar sesión?",
+                title: "¿Está seguro de que quiere cerrar sesión?",
                 content:
                     "Está a punto de cerrar esta aplicación. Esta acción no se puede deshacer.",
                 ok: "OK",
@@ -167,10 +220,10 @@ const spanishTranslation: TranslationType = {
             voted: "Votado",
             notVoted: "No votado",
             resultsButton: "Resultados de Votación",
-            voteButton: "Haga click para Votar",
+            voteButton: "Haga clic para votar",
             openDate: "Abierta: ",
             closeDate: "Cerrada: ",
-            ballotLocator: "Localiza tu voto",
+            ballotLocator: "Localice su voto",
         },
         header: {
             profile: "Perfil",
@@ -464,6 +517,16 @@ const spanishTranslation: TranslationType = {
                         text: "Sin archivo importable — este zip tiene un plan pero no el archivo que importa el Portal de Administración, así que no contiene el censo ni los archivos que nombra.",
                     },
                 },
+                design: {
+                    "no-stable-key": {
+                        lead: "Diseño de papeleta sin clave",
+                        text: "Diseño de papeleta sin clave — {{kind}} {{id}} no tiene nombre ni id externo, así que sus diseños de papeleta no se pueden reconocer tras una importación.",
+                    },
+                    "unreadable-style": {
+                        lead: "Estilo de papeleta ilegible",
+                        text: "Estilo de papeleta ilegible — no se ha podido leer el estilo de papeleta de la plataforma para calcular la huella de su diseño: {{reason}}",
+                    },
+                },
                 election: {
                     "channels-differ": {
                         lead: "Elección y evento no coinciden",
@@ -499,6 +562,10 @@ const spanishTranslation: TranslationType = {
                     },
                 },
                 event: {
+                    "checks-period-invalid": {
+                        lead: "Periodo de comprobación no válido",
+                        text: "Periodo de comprobación no válido — no se pudo leer el periodo en el que los votantes pueden comprobar su voto emitido: {{reason}}",
+                    },
                     "no-identifier": {
                         lead: "Sin identificador",
                         text: "Sin identificador — cada id generado se deriva de él, así que sin uno nada puede construirse dos veces igual.",
@@ -659,6 +726,152 @@ const spanishTranslation: TranslationType = {
                         text: "Contraseñas sin semilla — la semilla es lo que hace que reconstruir produzca las mismas contraseñas y no otras nuevas.",
                     },
                 },
+                package: {
+                    "already-imported": {
+                        lead: "Ya importada",
+                        text: "Ya importada — la revisión {{revision}} de esta configuración ya se importó; importa una revisión más reciente.",
+                    },
+                    "approval-invalid": {
+                        lead: "La aprobación no cuenta",
+                        text: "La aprobación no cuenta — no se ha podido verificar la aprobación de {{name}}: {{reason}}",
+                    },
+                    "approval-repeated": {
+                        lead: "La misma persona aprobó dos veces",
+                        text: "La misma persona aprobó dos veces — {{name}} aprobó más de una vez, y cuenta una sola vez.",
+                    },
+                    "approver-key-usage": {
+                        lead: "El aprobador no puede firmar",
+                        text: "El aprobador no puede firmar — el certificado de un aprobador no está hecho para firmar.",
+                    },
+                    "bad-signature": {
+                        lead: "La firma no coincide",
+                        text: "La firma no coincide — la firma del paquete no se verifica, así que se modificó después de firmarlo o lo firmó otra clave: {{reason}}",
+                    },
+                    "content-digest": {
+                        lead: "La huella del contenido no coincide",
+                        text: "La huella del contenido no coincide — el manifiesto dice {{expected}} y su contenido da {{actual}}.",
+                    },
+                    "duplicate-member": {
+                        lead: "Nombre de archivo repetido",
+                        text: "Nombre de archivo repetido — «{{file}}» aparece dos veces en {{archive}}, así que dos lectores podrían tomar archivos distintos.",
+                    },
+                    "file-changed": {
+                        lead: "Modificado tras la firma",
+                        text: "Modificado tras la firma — {{file}} tiene SHA-256 {{actual}}, y el manifiesto dice {{expected}}. No se ha leído nada del paquete.",
+                    },
+                    "file-extra": {
+                        lead: "Archivo fuera del manifiesto",
+                        text: "Archivo fuera del manifiesto — {{file}} está en el paquete pero no se firmó. No se ha leído nada del paquete.",
+                    },
+                    "file-missing": {
+                        lead: "Falta un archivo firmado",
+                        text: "Falta un archivo firmado — {{file}} está en el manifiesto y no en el paquete. No se ha leído nada del paquete.",
+                    },
+                    "invalid-time": {
+                        lead: "No es una fecha y hora",
+                        text: "No es una fecha y hora — «{{value}}» en el manifiesto no es una fecha y hora.",
+                    },
+                    "member-too-large": {
+                        lead: "Archivo demasiado grande",
+                        text: "Archivo demasiado grande — «{{file}}» en {{archive}} ocupa, descomprimido, más de los {{limit}} bytes que puede ocupar un archivo.",
+                    },
+                    "nested-too-deep": {
+                        lead: "Demasiados zips anidados",
+                        text: "Demasiados zips anidados — «{{file}}» está dentro de más zips de los {{limit}} en que puede estar anidado un archivo.",
+                    },
+                    "no-importable": {
+                        lead: "Nada que importar",
+                        text: "Nada que importar — el paquete no tiene official_election_setup.zip, el archivo comprimido que lee el importador.",
+                    },
+                    "report-template-changed": {
+                        lead: "La plantilla del informe ha cambiado",
+                        text: "La plantilla del informe ha cambiado — la plantilla del informe {{report}} no es la aprobada: su huella es {{actual}}, y la configuración firmada dice {{expected}}.",
+                    },
+                    "report-template-missing": {
+                        lead: "Falta la plantilla del informe",
+                        text: "Falta la plantilla del informe — el informe {{report}} se genera con la plantilla «{{template}}», que no está en la configuración, así que su diseño no se puede firmar.",
+                    },
+                    "report-unreadable": {
+                        lead: "El informe no se puede firmar",
+                        text: "El informe no se puede firmar — {{message}}",
+                    },
+                    "revoked-approver": {
+                        lead: "Certificado de aprobador revocado",
+                        text: "Certificado de aprobador revocado — el certificado de un aprobador ha sido revocado, así que la aprobación no cuenta.",
+                    },
+                    "revoked-signer": {
+                        lead: "Clave de firma revocada",
+                        text: "Clave de firma revocada — la clave que firmó este paquete ha sido revocada, y sus paquetes se rechazan.",
+                    },
+                    "rollback": {
+                        lead: "No es una revisión más reciente",
+                        text: "No es una revisión más reciente — la revisión {{revision}} no es más reciente que la revisión {{last}}, la última importada.",
+                    },
+                    "signed-in-the-future": {
+                        lead: "Firmado en el futuro",
+                        text: "Firmado en el futuro — el paquete indica {{at}} como momento de la firma, y ahora es {{now}}.",
+                    },
+                    "signer-key-usage": {
+                        lead: "La clave de firma no puede firmar",
+                        text: "La clave de firma no puede firmar — el certificado de la clave que firmó este paquete no está hecho para firmar.",
+                    },
+                    "too-few-approvals": {
+                        lead: "Muy pocas aprobaciones",
+                        text: "Muy pocas aprobaciones — {{count}} aprobaciones válidas de personas distintas, y se necesitan {{required}}.",
+                    },
+                    "too-large": {
+                        lead: "Paquete demasiado grande",
+                        text: "Paquete demasiado grande — descomprimido ocupa más de los {{limit}} bytes que puede ocupar un paquete: «{{file}}» en {{archive}} los sobrepasa.",
+                    },
+                    "too-many-members": {
+                        lead: "Demasiados archivos",
+                        text: "Demasiados archivos — {{archive}} contiene más archivos que los {{limit}} que puede contener un paquete.",
+                    },
+                    "unhashable-content": {
+                        lead: "No se puede calcular la huella",
+                        text: "No se puede calcular la huella — no se ha podido escribir el contenido de la configuración para calcular su huella: {{reason}}",
+                    },
+                    "unknown-format": {
+                        lead: "Formato de manifiesto desconocido",
+                        text: "Formato de manifiesto desconocido — el manifiesto está en el formato «{{format}}», que esta versión no puede leer.",
+                    },
+                    "unreadable-chain": {
+                        lead: "Certificados del firmante ilegibles",
+                        text: "Certificados del firmante ilegibles — no se ha podido leer la cadena de certificados del paquete: {{reason}}",
+                    },
+                    "unreadable-manifest": {
+                        lead: "Manifiesto ilegible",
+                        text: "Manifiesto ilegible — no se ha podido leer el manifiesto del paquete: {{reason}}",
+                    },
+                    "unreadable-revocation-list": {
+                        lead: "Lista de revocación ilegible",
+                        text: "Lista de revocación ilegible — no se ha podido leer una lista de revocación, así que no se puede aplicar: {{reason}}",
+                    },
+                    "unreadable-trust": {
+                        lead: "Certificados de confianza ilegibles",
+                        text: "Certificados de confianza ilegibles — no se ha podido leer el ajuste {{setting}}: {{reason}}",
+                    },
+                    "unreadable-zip": {
+                        lead: "Archivo comprimido ilegible",
+                        text: "Archivo comprimido ilegible — no se ha podido leer {{archive}} como zip: {{reason}}",
+                    },
+                    "unsigned": {
+                        lead: "Paquete sin firmar",
+                        text: "Paquete sin firmar — no tiene {{missing}}, y esta instalación solo importa paquetes firmados.",
+                    },
+                    "untrusted-approver": {
+                        lead: "Aprobador no confiable",
+                        text: "Aprobador no confiable — el certificado de un aprobador no es de confianza: {{reason}}",
+                    },
+                    "untrusted-signer": {
+                        lead: "Firmante no confiable",
+                        text: "Firmante no confiable — la clave que firmó este paquete no es una en la que confíe esta instalación: {{reason}}",
+                    },
+                    "unwritable-manifest": {
+                        lead: "No se puede escribir el manifiesto",
+                        text: "No se puede escribir el manifiesto — no se ha podido escribir el manifiesto: {{reason}}",
+                    },
+                },
                 plan: {
                     "not-a-plan": {
                         lead: "Plan no válido",
@@ -671,6 +884,24 @@ const spanishTranslation: TranslationType = {
                     "unreadable": {
                         lead: "Plan ilegible",
                         text: "Plan ilegible — {{error}}",
+                    },
+                },
+                reports: {
+                    "duplicate": {
+                        lead: "Informe configurado dos veces",
+                        text: "Informe configurado dos veces — el informe {{report}} está configurado más de una vez para la misma elección.",
+                    },
+                    "no-copies": {
+                        lead: "Sin copias",
+                        text: "Sin copias — el informe {{report}} está configurado para no imprimir ninguna copia. Indique al menos una.",
+                    },
+                    "unknown-election": {
+                        lead: "Elección desconocida",
+                        text: "Elección desconocida — el informe {{report}} trata de la elección «{{election}}», que este plan no tiene.",
+                    },
+                    "unsupported-format": {
+                        lead: "Formato no disponible",
+                        text: "Formato no disponible — el informe {{report}} no se puede generar en {{format}}.",
                     },
                 },
                 schedule: {
@@ -693,6 +924,20 @@ const spanishTranslation: TranslationType = {
                     "window-incomplete": {
                         lead: "Ventana de votación incompleta",
                         text: "Ventana de votación incompleta — el periodo habrá que abrirlo o cerrarlo a mano en el Portal de Administración.",
+                    },
+                },
+                signing: {
+                    "duplicate-action": {
+                        lead: "Dos reglas para una acción",
+                        text: "Dos reglas para una acción — '{{action}}' tiene más de una regla de firma. Deja solo una.",
+                    },
+                    "signatures-out-of-range": {
+                        lead: "Firmas fuera de rango",
+                        text: "Firmas fuera de rango — la regla de '{{action}}' debe pedir entre {{min}} y {{max}} firmas.",
+                    },
+                    "expiry-out-of-range": {
+                        lead: "Caducidad fuera de rango",
+                        text: "Caducidad fuera de rango — una solicitud de '{{action}}' debe caducar tras 1 a 525.600 minutos (un año), o nunca.",
                     },
                 },
                 threshold: {
@@ -774,6 +1019,24 @@ const spanishTranslation: TranslationType = {
                     },
                 },
             },
+        },
+        timezones: {
+            abbr: {
+                "Asia/Manila": "PhST",
+            },
+            name: {},
+            city: {},
+            offset: "GMT{{sign}}{{hours}}:{{minutes}}",
+            option: "({{offset}}) {{city}}",
+            optionPrimary: "{{option}} · principal",
+            optionDetail: "{{countries}} · {{name}}",
+            dateTimeZone: "{{dateTime}} {{zone}}",
+            myTime: "{{dateTime}} {{zone}} · mi hora",
+            placeTime: "{{dateTime}} {{zone}} · {{place}}",
+            voterDateTimeZone: "{{dateTime}} {{zoneName}}",
+            onThisDevice: "En este dispositivo: {{dateTime}}",
+            gap: "{{dateTime}} no existe en {{city}} porque los relojes se adelantan. Se ejecutará a la hora indicada.",
+            overlap: "{{dateTime}} ocurre dos veces en {{city}}. Se usa la primera.",
         },
     },
 }

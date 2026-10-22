@@ -2,8 +2,16 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useState, useContext, useMemo, useRef} from "react"
-import {CombinedGraphQLErrors} from "@apollo/client/errors"
-import {isApolloTransportError} from "../services/ApolloErrors"
+import {useStore} from "react-redux"
+import type {RootState} from "../store/store"
+import {castVoteErrorMessage} from "../services/CastVoteErrors"
+import {EReceiveBallotStatus, useReceiveBallot} from "../hooks/useReceiveBallot"
+import {
+    IReceivedCast,
+    signReceivedCast,
+    useCastReceivedBallot,
+} from "../hooks/useCastReceivedBallot"
+import {selectReceivedBallot} from "../store/receivedBallots/receivedBallotsSlice"
 import {
     Link as RouterLink,
     useNavigate,
@@ -15,7 +23,9 @@ import {
 import {IBallotStyle, selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {Box, CircularProgress} from "@mui/material"
+import {useBallotStyleSlates} from "../hooks/useBallotStyleSlates"
 import {
+    BallotSlatesProvider,
     Dialog,
     EWarnBoxAnnouncement,
     Icon,
@@ -28,10 +38,6 @@ import {
     escapeTranslationValues,
     IAuditableBallot,
     EVotingPortalAuditButtonCfg,
-    IGraphQLActionError,
-    IExtensionError,
-    EGraphQLInternalErrorMessage,
-    EGraphQLErrorCode,
     IAuditableSingleBallot,
     IAuditableMultiBallot,
     ECastVoteGoldLevelPolicy,
@@ -43,12 +49,18 @@ import {styled} from "@mui/material/styles"
 import {faAngleLeft, faFire} from "@fortawesome/free-solid-svg-icons"
 import {useTranslation} from "react-i18next"
 import Button from "@mui/material/Button"
-import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
+import {
+    clearAuditableBallot,
+    EBallotAuditStatus,
+    selectAuditableBallot,
+    selectBallotAuditStatus,
+} from "../store/auditableBallots/auditableBallotsSlice"
 import {useMutation, useQuery} from "@apollo/client/react"
 import {INSERT_CAST_VOTE} from "../queries/InsertCastVote"
 import {GetElectionEventQuery, InsertCastVoteMutation, GetElectionsQuery} from "../gql/graphql"
 import {GET_ELECTIONS} from "../queries/GetElections"
 import {provideBallotService} from "../services/BallotService"
+import {orderContestsForReview} from "../services/ContestsOrder"
 import {ICastVote, addCastVotes} from "../store/castVotes/castVotesSlice"
 import {TenantEventType} from ".."
 import {useRootBackLink} from "../hooks/root-back-link"
@@ -61,7 +73,6 @@ import {IBallotError} from "../types/errors"
 import Stepper from "../components/Stepper"
 import {selectBallotSelectionByElectionId} from "../store/ballotSelections/ballotSelectionsSlice"
 import {
-    sortContestList,
     hashBallot,
     hashMultiBallot,
     IHashableSingleBallot,
@@ -74,10 +85,21 @@ import {
     clearSessionStorageBallotData,
     BALLOT_DATA_KEY,
     BALLOT_DATA_EXPIRATION_KEY,
+    SessionBallotSnapshot,
+    snapshotSessionBallotData,
+    isCurrentSessionBallotData,
+    readSessionBallotLocator,
+    SessionBallotLocator,
 } from "../store/castVotes/sessionBallotData"
 import {setConfirmationScreenData} from "../store/castVotes/confirmationScreenDataSlice"
 import {selectElectionById} from "../store/elections/electionsSlice"
 import {completeAcclaimedElection, isDeclineToVoteByElectionId} from "../store/extra/extraSlice"
+import {isSameBallotSelection} from "../services/BallotSelectionComparison"
+import {getBallotReviewSummary} from "../services/ReviewSummary"
+import {ReviewContestFooter} from "../components/ReviewSummary/ReviewContestFooter"
+import {ReviewSelectionSummary} from "../components/ReviewSummary/ReviewSelectionSummary"
+import UnfilledContestsDialog from "../components/UnfilledContestsDialog/UnfilledContestsDialog"
+import {getUnfilledContests, IUnfilledContest} from "../services/UnfilledContests"
 
 const StyledButton = styled(Button)`
     display: flex;
@@ -185,13 +207,18 @@ const useTryInsertCastVote = () => {
     const {t} = useTranslation()
     const [insertCastVote] = useMutation<InsertCastVoteMutation>(INSERT_CAST_VOTE)
     const dispatch = useAppDispatch()
+    const store = useStore<RootState>()
 
     return async (
         electionId: string,
         ballotId: string,
         content: string,
-        setErrorMsg: (msg: string) => void
+        reportError: (msg: string) => void,
+        isCurrent: () => boolean = () => true
     ) => {
+        const setErrorMsg = (message: string) => {
+            if (isCurrent()) reportError(message)
+        }
         try {
             let result = await insertCastVote({
                 variables: {
@@ -207,47 +234,26 @@ const useTryInsertCastVote = () => {
                 return false
             }
 
+            if (!isCurrent()) return false
             let newCastVote = result.data?.insert_cast_vote
             if (newCastVote) {
                 dispatch(addCastVotes([newCastVote]))
+                dispatch(
+                    setConfirmationScreenData({
+                        electionId,
+                        confirmationScreenData: {ballotId, isDemo: false},
+                    })
+                )
+                const currentBallot = store.getState().auditableBallots[electionId]?.auditableBallot
+                if (!currentBallot || currentBallot.ballot_hash === ballotId) {
+                    dispatch(clearAuditableBallot(electionId))
+                    provideBallotService().forgetVoterSigningKey(electionId)
+                }
             }
-            return true
+            return !!newCastVote
         } catch (error) {
             console.log(error)
-            let castError = error as IGraphQLActionError
-            let errorExtensions = (
-                CombinedGraphQLErrors.is(error)
-                    ? error.errors[0]?.extensions
-                    : castError?.graphQLErrors?.[0]?.extensions
-            ) as IExtensionError | undefined
-            if (castError?.message?.includes("internal error")) {
-                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.INTERNAL_ERROR}`)) // can happen if the backend panics
-            } else if (errorExtensions?.code) {
-                let errorCode = errorExtensions?.code
-                console.log(castError.name, castError.message)
-                let internalErrMessage = errorExtensions?.internal?.error?.message
-                console.log(errorCode, internalErrMessage)
-                if (
-                    errorCode === EGraphQLErrorCode.UNEXPECTED &&
-                    internalErrMessage === EGraphQLInternalErrorMessage.TIMEOUT_ERROR
-                ) {
-                    setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE_TIMEOUT}`))
-                } else {
-                    setErrorMsg(
-                        t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}_${errorCode}`)
-                    )
-                }
-            } else if (
-                isApolloTransportError(error instanceof Error ? error : undefined) ||
-                (error &&
-                    typeof error === "object" &&
-                    "networkError" in error &&
-                    error.networkError)
-            ) {
-                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.NETWORK_ERROR}`))
-            } else {
-                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}`)) // Generic error
-            }
+            setErrorMsg(castVoteErrorMessage(error, t))
             return false
         }
     }
@@ -278,6 +284,10 @@ interface ActionButtonProps {
     isBlankBallot: boolean
     isFullyAcclaimed: boolean
     hasInconsistentHash: boolean
+    // The ballot box has not yet stored and signed this ballot.
+    isAwaitingReceipt: boolean
+    receivedBallotId?: string
+    unfilledContests: Array<IUnfilledContest>
 }
 
 const ActionButtons: React.FC<ActionButtonProps> = ({
@@ -293,13 +303,18 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     isBlankBallot,
     isFullyAcclaimed,
     hasInconsistentHash,
+    isAwaitingReceipt,
+    receivedBallotId,
+    unfilledContests,
 }) => {
+    const castRefused = hasInconsistentHash || isAwaitingReceipt
     const {t} = useTranslation()
     const navigate = useNavigate()
     const location = useLocation()
     const [auditBallotHelp, setAuditBallotHelp] = useState<boolean>(false)
     const {castingRef, isCasting, setCasting} = useCastingState()
     const [isConfirmCastVoteModal, setConfirmCastVoteModal] = React.useState<boolean>(false)
+    const [isUnfilledContestsModal, setUnfilledContestsModal] = useState<boolean>(false)
     const {tenantId, eventId} = useParams<TenantEventType>()
     const {toHashableBallot, toHashableMultiBallot} = provideBallotService()
     const submit = useSubmit()
@@ -309,6 +324,12 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     const {isGoldUser, reauthWithGold} = authContext
     const addFakeCastVote = useAddFakeCastVote(tenantId, eventId)
     const tryInsertCastVote = useTryInsertCastVote()
+    const tryCastReceivedBallot = useCastReceivedBallot()
+    const storedReceivedBallot = useAppSelector(selectReceivedBallot(ballotStyle.election_id))
+    const receivedBallot =
+        receivedBallotId && storedReceivedBallot?.ballot_id === receivedBallotId
+            ? storedReceivedBallot
+            : undefined
     const dispatch = useAppDispatch()
 
     const handleClose = (value: boolean) => {
@@ -327,17 +348,58 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
         }
     }
 
+    const handleCloseUnfilledContestsDialog = (value: boolean) => {
+        setUnfilledContestsModal(false)
+        if (value) {
+            castBallotAction()
+        }
+    }
+
+    // Asked again on every cast: the answer is not kept, so a voter who goes
+    // back to edit and returns with unfilled positions confirms them anew.
+    const onCast = () => {
+        if (unfilledContests.length > 0) {
+            setUnfilledContestsModal(true)
+        } else if (castVoteConfirmModal && !isFullyAcclaimed) {
+            setConfirmCastVoteModal(true)
+        } else {
+            castBallotAction()
+        }
+    }
+
     const storeBallotDataAndReauth = async (ballotData: SessionBallotData) => {
         const errorType = VotingPortalErrorType.UNABLE_TO_CAST_BALLOT
         try {
             // Set a 5-minute expiration for security
             const FIVE_MINUTES = 5 * 60 * 1000
             // Store the data with expiration info
-            sessionStorage.setItem(BALLOT_DATA_KEY, JSON.stringify(ballotData))
-            sessionStorage.setItem(
-                BALLOT_DATA_EXPIRATION_KEY,
-                (Date.now() + FIVE_MINUTES).toString()
-            )
+            const owner = {
+                tenantId: tenantId ?? "",
+                eventId: eventId ?? "",
+                userId: authContext.userId,
+            }
+            const previous = snapshotSessionBallotData()
+            let reuse = false
+            try {
+                const saved = JSON.parse(previous.serialized ?? "null") as SessionBallotData | null
+                reuse =
+                    !!saved &&
+                    saved.ballotId === ballotData.ballotId &&
+                    saved.electionId === ballotData.electionId &&
+                    saved.ballot === ballotData.ballot &&
+                    JSON.stringify(saved.owner) === JSON.stringify(owner) &&
+                    Number(previous.expiry) > Date.now() &&
+                    Number(previous.expiry) <= Date.now() + FIVE_MINUTES
+            } catch {
+                /* A malformed request cannot be retried. */
+            }
+            if (!reuse) {
+                sessionStorage.setItem(BALLOT_DATA_KEY, JSON.stringify({...ballotData, owner}))
+                sessionStorage.setItem(
+                    BALLOT_DATA_EXPIRATION_KEY,
+                    (Date.now() + FIVE_MINUTES).toString()
+                )
+            }
         } catch (e) {
             console.error("Error saving ballotData to sessionStorage", e)
             clearSessionStorageBallotData()
@@ -347,17 +409,20 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
         try {
             const baseUrl = new URL(window.location.href)
             await reauthWithGold(baseUrl.toString())
-            return submit(null, {method: "post"})
+            setCasting(false)
         } catch (error) {
-            console.error("Re-authentication failed:", error)
-            clearSessionStorageBallotData()
+            console.error("Re-authentication failed")
+            setCasting(false)
             setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.REAUTH_FAILED}`))
-            return submit({error: errorType}, {method: "post"})
         }
     }
 
+    const backNavigateTo = isDeclineToVote
+        ? `/tenant/${tenantId}/event/${eventId}/election/${ballotStyle.election_id}/start${location.search}`
+        : `/tenant/${tenantId}/event/${eventId}/election/${ballotStyle.election_id}/vote${location.search}`
+
     const castBallotAction = async () => {
-        if (castingRef.current || hasInconsistentHash) {
+        if (castingRef.current || castRefused) {
             return
         }
         // A fully acclaimed election produces no ballot, so there is nothing
@@ -369,6 +434,31 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
         }
         const errorType = VotingPortalErrorType.UNABLE_TO_CAST_BALLOT
         setCasting(true)
+        if (isGoldenPolicy) {
+            // Authentication can fail before leaving this page. Reuse the signed
+            // request and its original deadline rather than signing it again.
+            const saved = snapshotSessionBallotData()
+            try {
+                const pending = JSON.parse(saved.serialized ?? "null") as SessionBallotData | null
+                const owner = {
+                    tenantId: tenantId ?? "",
+                    eventId: eventId ?? "",
+                    userId: authContext.userId,
+                }
+                if (
+                    pending?.ballotId === ballotId &&
+                    pending.electionId === ballotStyle.election_id &&
+                    pending.isDemo === isDemo &&
+                    JSON.stringify(pending.owner) === JSON.stringify(owner) &&
+                    Number(saved.expiry) > Date.now() &&
+                    Number(saved.expiry) <= Date.now() + 300_000
+                ) {
+                    return await storeBallotDataAndReauth(pending)
+                }
+            } catch {
+                /* A malformed request is replaced by the current ballot. */
+            }
+        }
         if (isDemo || globalSettings.DISABLE_AUTH) {
             if (isGoldenPolicy) {
                 // Save contests to session storage and perform reauthentication
@@ -383,6 +473,14 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 return await storeBallotDataAndReauth(ballotData)
             } else {
                 addFakeCastVote()
+                dispatch(
+                    setConfirmationScreenData({
+                        electionId: ballotStyle.election_id,
+                        confirmationScreenData: {ballotId, isDemo: true, auditButtonCfg},
+                    })
+                )
+                dispatch(clearAuditableBallot(ballotStyle.election_id))
+                provideBallotService().forgetVoterSigningKey(ballotStyle.election_id)
                 return submit(null, {method: "post"})
             }
         }
@@ -407,6 +505,21 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
             return submit({error: errorType}, {method: "post"})
         }
 
+        // With receipts on, the voter casts by signing the Ballot ID with the
+        // key that signed the ballot. A page that no longer holds that key
+        // goes back to the ballot, which signs and sends a new one.
+        let receivedCast: IReceivedCast | undefined
+        const ballotBoxKey = ballotStyle.ballot_eml.ballot_box_key
+        if (receivedBallot && ballotBoxKey) {
+            try {
+                receivedCast = signReceivedCast(receivedBallot, ballotBoxKey)
+            } catch (error) {
+                console.error("The key that signed the ballot is gone:", error)
+                setCasting(false)
+                return navigate(backNavigateTo)
+            }
+        }
+
         /**
          * For high-security elections (golden policy):
          * 1. Save ballot information to browser session storage
@@ -417,6 +530,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
             // Save contests to session storage and perform reauthentication
             const ballotData: SessionBallotData = {
                 ballotId,
+                receivedCast,
                 auditButtonCfg,
                 electionId: ballotStyle.election_id,
                 isDemo,
@@ -426,23 +540,21 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
             return await storeBallotDataAndReauth(ballotData)
         }
 
-        if (
-            !(await tryInsertCastVote(
-                ballotStyle.election_id,
-                ballotId,
-                JSON.stringify(hashableBallot),
-                setErrorMsg
-            ))
-        ) {
+        const cast = receivedCast
+            ? await tryCastReceivedBallot(receivedCast, setErrorMsg)
+            : await tryInsertCastVote(
+                  ballotStyle.election_id,
+                  ballotId,
+                  JSON.stringify(hashableBallot),
+                  setErrorMsg
+              )
+        if (!cast) {
             setCasting(false)
             return submit({error: errorType}, {method: "post"})
         }
         return submit(null, {method: "post"})
     }
 
-    const backNavigateTo = isDeclineToVote
-        ? `/tenant/${tenantId}/event/${eventId}/election/${ballotStyle.election_id}/start${location.search}`
-        : `/tenant/${tenantId}/event/${eventId}/election/${ballotStyle.election_id}/vote${location.search}`
     return (
         <>
             {auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW ? (
@@ -462,16 +574,15 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 backComponent={RouterLink}
                 backTo={backNavigateTo}
                 onAudit={() => setAuditBallotHelp(true)}
-                // A detected hash mismatch refuses the cast; leaving the handler
-                // out is what disables the button.
-                onCast={
-                    hasInconsistentHash
-                        ? undefined
-                        : () =>
-                              castVoteConfirmModal && !isFullyAcclaimed
-                                  ? setConfirmCastVoteModal(true)
-                                  : castBallotAction()
-                }
+                // A detected hash mismatch refuses the cast, and so does a ballot
+                // the ballot box has not received; leaving the handler out is
+                // what disables the button.
+                onCast={castRefused ? undefined : onCast}
+            />
+            <UnfilledContestsDialog
+                open={isUnfilledContestsModal}
+                unfilledContests={unfilledContests}
+                handleClose={handleCloseUnfilledContestsDialog}
             />
             <Dialog
                 className="confirm-cast-ballot-dialog"
@@ -506,6 +617,13 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     )
 }
 
+enum ECastRecovery {
+    READY = "ready",
+    CASTING = "casting",
+    RETRY = "retry",
+    EXPIRED = "expired",
+}
+
 export const ReviewScreen: React.FC = () => {
     const {electionId} = useParams<{electionId?: string}>()
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
@@ -514,23 +632,56 @@ export const ReviewScreen: React.FC = () => {
     const isFullyAcclaimed = areAllContestsAcclaimed(ballotStyle?.ballot_eml.contests)
     const location = useLocation()
     const auditableBallot = useAppSelector(selectAuditableBallot(String(electionId)))
+    const auditStatus = useAppSelector(selectBallotAuditStatus(String(electionId)))
     const [auditBallotHelp, setAuditBallotHelp] = useState<boolean>(false)
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
     const [openReviewScreenHelp, setReviewScreenHelp] = useState(false)
-    const {interpretContestSelection, interpretMultiContestSelection} = provideBallotService()
+    const {
+        interpretContestSelection,
+        interpretMultiContestSelection,
+        decodeAuditableBallot,
+        decodeAuditableMultiBallot,
+    } = provideBallotService()
     const {t} = useTranslation()
     const backLink = useRootBackLink()
     const navigate = useNavigate()
     const submit = useSubmit()
     const {tenantId, eventId} = useParams<TenantEventType>()
+    useEffect(() => {
+        if (auditStatus === EBallotAuditStatus.AUDITED)
+            navigate(
+                `/tenant/${tenantId}/event/${eventId}/election/${electionId}/vote${location.search}`
+            )
+    }, [auditStatus, tenantId, eventId, electionId, navigate, location.search])
     const [errorMsg, setErrorMsg] = useState<string>()
     const authContext = useContext(AuthContext)
+    const [recovery, setRecovery] = useState(ECastRecovery.READY)
+    const recoveryAttempt = useRef(0)
+    const recoveryMounted = useRef(true)
+    const recoveryOwner = JSON.stringify([tenantId, eventId, electionId, authContext.userId])
+    const currentRecoveryOwner = useRef(recoveryOwner)
+    currentRecoveryOwner.current = recoveryOwner
+    useEffect(() => {
+        recoveryMounted.current = true
+        return () => {
+            recoveryMounted.current = false
+            recoveryAttempt.current += 1
+        }
+    }, [])
     const {isGoldUser, reauthWithGold} = authContext
     const {castingRef, isCasting, setCasting} = useCastingState()
     const {globalSettings} = useContext(SettingsContext)
+    useEffect(() => {
+        recoveryAttempt.current += 1
+        setCasting(false)
+        setRecovery(ECastRecovery.READY)
+        setErrorMsg(undefined)
+    }, [recoveryOwner])
+    const slates = useBallotStyleSlates(ballotStyle)
     const dispatch = useAppDispatch()
     const addFakeCastVote = useAddFakeCastVote(tenantId, eventId)
     const tryInsertCastVote = useTryInsertCastVote()
+    const tryCastReceivedBallot = useCastReceivedBallot()
     const electionFromRedux = useAppSelector(selectElectionById(String(electionId)))
     const isDeclineToVote = useAppSelector(isDeclineToVoteByElectionId(String(electionId)))
     const {data: dataElections, error: errorElections} = useQuery<GetElectionsQuery>(
@@ -599,14 +750,54 @@ export const ReviewScreen: React.FC = () => {
         selectionState?.length && selectionState.every((contest) => contest.is_blank_ballot)
     )
 
+    // The review shows the selections in the store and casts the encrypted
+    // ballot. They differ when the selections changed after encrypting, for
+    // example through the browser history.
+    const hasStaleBallot = useMemo(() => {
+        if (!auditableBallot || !selectionState) {
+            return false
+        }
+        try {
+            const encryptedSelection = isMultiContest
+                ? decodeAuditableMultiBallot(auditableBallot as IAuditableMultiBallot)
+                : decodeAuditableBallot(auditableBallot as IAuditableSingleBallot)
+            return (
+                !!encryptedSelection && !isSameBallotSelection(encryptedSelection, selectionState)
+            )
+        } catch (error) {
+            console.log(`Error decoding the ballot under review: ${error}`)
+            return false
+        }
+    }, [auditableBallot, selectionState, isMultiContest])
+
+    const votePath = `/tenant/${tenantId}/event/${eventId}/election/${electionId}/vote${location.search}`
+
+    useEffect(() => {
+        if (hasStaleBallot) {
+            navigate(votePath, {replace: true})
+        }
+    }, [hasStaleBallot, navigate, votePath])
+
     const errorSelectionState = useMemo(() => {
-        if (!selectionState || !ballotStyle || isFullyAcclaimed) {
+        if (!selectionState || !ballotStyle || isFullyAcclaimed || hasStaleBallot) {
             return []
         }
         return isMultiContest
             ? interpretMultiContestSelection(selectionState, ballotStyle.ballot_eml)
             : interpretContestSelection(selectionState, ballotStyle.ballot_eml)
-    }, [selectionState, isMultiContest, ballotStyle?.ballot_eml])
+    }, [selectionState, isMultiContest, ballotStyle?.ballot_eml, hasStaleBallot])
+
+    const reviewSummary = useMemo(
+        () =>
+            ballotStyle && slates.resolved?.slates.length && !isDeclineToVote && !isFullyAcclaimed
+                ? getBallotReviewSummary(
+                      ballotStyle.ballot_eml.contests,
+                      slates.resolved,
+                      selectionState
+                  )
+                : undefined,
+        [ballotStyle, slates.resolved, selectionState, isDeclineToVote, isFullyAcclaimed]
+    )
 
     const hasInconsistentHash = Boolean(
         ballotId && auditableBallot?.ballot_hash && ballotId !== auditableBallot.ballot_hash
@@ -620,7 +811,23 @@ export const ReviewScreen: React.FC = () => {
               })
           )
         : undefined
-    const displayedErrorMsg = hashErrorMsg ?? errorMsg
+    const receipt = useReceiveBallot({
+        ballotStyle,
+        auditableBallot,
+        ballotHash: ballotId,
+        isMultiContest,
+        skip:
+            !!ballotStyle?.ballot_eml?.public_key?.is_demo ||
+            globalSettings.DISABLE_AUTH ||
+            isFullyAcclaimed ||
+            hasInconsistentHash,
+    })
+    const isReceiptRequired = receipt.status !== EReceiveBallotStatus.NOT_REQUIRED
+    const isAwaitingReceipt = isReceiptRequired && receipt.status !== EReceiveBallotStatus.RECEIVED
+    // With receipts on, the Ballot ID is the ballot box's: there is none to
+    // show until the ballot box has stored and signed the ballot.
+    const shownBallotId = isReceiptRequired ? receipt.ballotId : ballotId || ""
+    const displayedErrorMsg = hashErrorMsg ?? receipt.errorMsg ?? errorMsg
 
     const handleCloseDialogAuditHelp = (value: boolean) => {
         setAuditBallotHelp(false)
@@ -639,116 +846,230 @@ export const ReviewScreen: React.FC = () => {
         setOpenBallotIdHelp(false)
     }
 
-    const getBallotDataFromSessionStorage = () => {
-        let ballotData: SessionBallotData | undefined
-        let expirationTime: number | undefined
-        const storedExpirationTime = sessionStorage.getItem(BALLOT_DATA_EXPIRATION_KEY)
-        const storedData = sessionStorage.getItem(BALLOT_DATA_KEY)
-
-        if (!storedExpirationTime || !storedData) {
-            setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.SESSION_STORAGE_ERROR}`))
+    const getBallotDataFromSessionStorage = (snapshot: SessionBallotSnapshot) => {
+        const owner = {tenantId: tenantId ?? "", eventId: eventId ?? "", userId: authContext.userId}
+        const fail = (
+            error: CastBallotsErrorType,
+            expired = false,
+            locator?: SessionBallotLocator
+        ) => {
+            clearSessionStorageBallotData(snapshot, locator)
+            setErrorMsg(t(`reviewScreen.error.${error}`))
+            setRecovery(expired ? ECastRecovery.EXPIRED : ECastRecovery.RETRY)
             return undefined
         }
-
-        expirationTime = parseInt(storedExpirationTime, 10)
-        if (expirationTime && Date.now() > expirationTime) {
-            // Data has expired, clean up and return error
-            console.error("Re-authentication failed: EXPIRED")
-            setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.SESSION_EXPIRED}`))
-            return undefined
+        if (!snapshot.serialized && !snapshot.expiry) {
+            const locator = readSessionBallotLocator(owner, electionId ?? "")
+            if (locator) return fail(CastBallotsErrorType.SESSION_EXPIRED, true, locator)
         }
-
+        if (!snapshot.serialized || !snapshot.expiry)
+            return fail(CastBallotsErrorType.SESSION_STORAGE_ERROR)
+        const expiresAt = Number(snapshot.expiry)
+        if (!Number.isFinite(expiresAt) || expiresAt > Date.now() + 5 * 60 * 1000)
+            return fail(CastBallotsErrorType.NOT_VALID_BALLOT_DATA_ERROR)
         try {
-            ballotData = JSON.parse(storedData) as SessionBallotData
-        } catch (error) {
-            setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.PARSE_BALLOT_DATA_ERROR}`))
-            return undefined
+            const data = JSON.parse(snapshot.serialized) as SessionBallotData
+            if (
+                !data ||
+                typeof data.ballotId !== "string" ||
+                !data.ballotId ||
+                data.electionId !== electionId ||
+                typeof data.ballot !== "string" ||
+                !data.ballot
+            )
+                return fail(CastBallotsErrorType.NOT_VALID_BALLOT_DATA_ERROR)
+            if (
+                !data.owner ||
+                data.owner.tenantId !== tenantId ||
+                data.owner.eventId !== eventId ||
+                data.owner.userId !== authContext.userId
+            )
+                return fail(CastBallotsErrorType.NOT_VALID_BALLOT_DATA_ERROR)
+            const receipt = data.receivedCast?.receivedBallot
+            if (
+                data.receivedCast &&
+                (!receipt ||
+                    receipt.tenant_id !== tenantId ||
+                    receipt.election_event_id !== eventId ||
+                    receipt.election_id !== electionId ||
+                    receipt.ballot_hash !== data.ballotId ||
+                    !data.receivedCast.castSignature ||
+                    !/^[0-9A-HJKMNP-TV-Z]{4}-[0-9A-HJKMNP-TV-Z]{4}$/.test(receipt.ballot_id))
+            )
+                return fail(CastBallotsErrorType.NOT_VALID_BALLOT_DATA_ERROR)
+            if (Date.now() >= expiresAt)
+                return fail(CastBallotsErrorType.SESSION_EXPIRED, true, {
+                    owner,
+                    electionId: data.electionId,
+                    ballotId: receipt?.ballot_id ?? data.ballotId,
+                })
+            return data
+        } catch {
+            return fail(CastBallotsErrorType.PARSE_BALLOT_DATA_ERROR)
         }
-
-        if (!ballotData || !ballotData.ballotId || !ballotData.electionId || !ballotData.ballot) {
-            setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.NOT_VALID_BALLOT_DATA_ERROR}`))
-            return undefined
-        }
-
-        return ballotData
     }
 
-    // Cast the ballot automatically after reauth with golden user
     const goldenUserCastBallotAction = async () => {
-        if (castingRef.current || hasInconsistentHash) {
+        if (
+            castingRef.current ||
+            hasInconsistentHash ||
+            (!globalSettings.DISABLE_AUTH && !authContext.userId)
+        )
+            return
+        const snapshot = snapshotSessionBallotData()
+        const ballotData = getBallotDataFromSessionStorage(snapshot)
+        if (!ballotData) return
+        const attempt = ++recoveryAttempt.current
+        const owner = recoveryOwner
+        const isCurrent = () =>
+            recoveryMounted.current &&
+            recoveryAttempt.current === attempt &&
+            currentRecoveryOwner.current === owner &&
+            isCurrentSessionBallotData(snapshot)
+        setCasting(true)
+        setRecovery(ECastRecovery.CASTING)
+        setErrorMsg(undefined)
+        if (!isGoldUser()) {
+            try {
+                await reauthWithGold(window.location.href)
+                if (isCurrent()) {
+                    setRecovery(ECastRecovery.RETRY)
+                    setCasting(false)
+                }
+            } catch {
+                if (isCurrent()) {
+                    setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.REAUTH_FAILED}`))
+                    setRecovery(ECastRecovery.RETRY)
+                    setCasting(false)
+                }
+            }
             return
         }
-        setCasting(true)
-        const errorType = VotingPortalErrorType.UNABLE_TO_CAST_BALLOT
-        const ballotData = getBallotDataFromSessionStorage()
-
-        if (!ballotData) {
-            setCasting(false)
-            clearSessionStorageBallotData()
-            return submit({error: errorType}, {method: "post"})
+        const setCurrentError = (message: string) => {
+            if (isCurrent()) setErrorMsg(message)
         }
-
-        if (ballotData?.isDemo) {
+        const cast = ballotData.isDemo
+            ? true
+            : ballotData.receivedCast
+              ? await tryCastReceivedBallot(ballotData.receivedCast, setCurrentError, isCurrent)
+              : await tryInsertCastVote(
+                    ballotData.electionId,
+                    ballotData.ballotId,
+                    ballotData.ballot,
+                    setCurrentError,
+                    isCurrent
+                )
+        if (!isCurrent()) return
+        if (!cast) {
+            setCasting(false)
+            setRecovery(ECastRecovery.RETRY)
+            return
+        }
+        if (ballotData.isDemo) {
             addFakeCastVote()
-            clearSessionStorageBallotData()
-            setCasting(false)
-            return submit(null, {method: "post"})
+            dispatch(clearAuditableBallot(ballotData.electionId))
+            provideBallotService().forgetVoterSigningKey(ballotData.electionId)
         }
-
-        if (
-            !(await tryInsertCastVote(
-                ballotData.electionId,
-                ballotData.ballotId,
-                ballotData.ballot,
-                setErrorMsg
-            ))
-        ) {
-            setCasting(false)
-            return submit({error: errorType}, {method: "post"})
-        }
-
-        // Restore confirmation data after the reauthentication reload.
         dispatch(
             setConfirmationScreenData({
                 electionId: ballotData.electionId,
                 confirmationScreenData: {
-                    ballotId: ballotData.ballotId,
+                    ballotId:
+                        ballotData.receivedCast?.receivedBallot.ballot_id ?? ballotData.ballotId,
                     isDemo: ballotData.isDemo,
                     auditButtonCfg: ballotData.auditButtonCfg,
                 },
             })
         )
-        clearSessionStorageBallotData()
+        clearSessionStorageBallotData(snapshot)
         return submit(null, {method: "post"})
     }
 
-    // Selectively clear ballot-related session data when component mounts
+    const needsRecovery =
+        (!ballotStyle || !auditableBallot || !selectionState) && isGoldenPolicy && !isFullyAcclaimed
     useEffect(() => {
-        // Only clear session data if we're not in the middle of a golden policy flow
-        if (!isGoldUser() && !ballotStyle && !auditableBallot && !selectionState) {
-            clearSessionStorageBallotData()
-        }
-    }, [])
+        if (needsRecovery && recovery === ECastRecovery.READY && !castingRef.current)
+            void goldenUserCastBallotAction()
+    }, [needsRecovery, recovery, recoveryOwner])
 
-    useEffect(() => {
-        if (
-            (!ballotStyle || !auditableBallot || !selectionState) &&
-            isGoldenPolicy &&
-            !isFullyAcclaimed
-        ) {
-            if (isGoldUser()) {
-                if (!castingRef.current) {
-                    goldenUserCastBallotAction()
-                    clearSessionStorageBallotData()
-                }
-            } else {
-                // If not a gold user but golden policy is required, redirect to election chooser
-                navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser`)
-            }
-        } else {
-            console.log("Normal flow")
+    if (needsRecovery && !hasInconsistentHash) {
+        const saved = snapshotSessionBallotData()
+        const canRetry = recovery === ECastRecovery.RETRY && !!saved.serialized && !!saved.expiry
+        let savedBallotId =
+            readSessionBallotLocator(
+                {tenantId: tenantId ?? "", eventId: eventId ?? "", userId: authContext.userId},
+                electionId ?? ""
+            )?.ballotId ?? ""
+        try {
+            const data = JSON.parse(saved.serialized ?? "null") as SessionBallotData | null
+            if (
+                data &&
+                data.owner &&
+                data.owner.tenantId === tenantId &&
+                data.owner.eventId === eventId &&
+                data.owner.userId === authContext.userId &&
+                data.electionId === electionId
+            )
+                savedBallotId =
+                    data.receivedCast?.receivedBallot.ballot_id ?? data.ballotId ?? savedBallotId
+        } catch {
+            /* Invalid data is already rejected by recovery. */
         }
-    }, [ballotStyle, selectionState, auditableBallot, isGoldenPolicy, isFullyAcclaimed])
+        return (
+            <Box className="review-cast-recovery" sx={{margin: "auto 0", textAlign: "center"}}>
+                {recovery === ECastRecovery.CASTING || recovery === ECastRecovery.READY ? (
+                    <CircularProgress
+                        className="review-cast-recovery-loading"
+                        aria-label={t("a11y.loading")}
+                    />
+                ) : (
+                    <>
+                        <WarnBox
+                            className="review-cast-recovery-error"
+                            variant="error"
+                            announcement={EWarnBoxAnnouncement.ASSERTIVE}
+                        >
+                            {errorMsg && stringToHtml(errorMsg)}
+                            {t("reviewScreen.castRecovery.uncertain")}
+                        </WarnBox>
+                        {canRetry && (
+                            <StyledButton
+                                className="review-cast-recovery-retry-button"
+                                onClick={() => void goldenUserCastBallotAction()}
+                            >
+                                {t("ballotPrivacy.retry")}
+                            </StyledButton>
+                        )}
+                        <StyledButton
+                            className="review-cast-recovery-back-button"
+                            onClick={() => {
+                                recoveryAttempt.current += 1
+                                clearSessionStorageBallotData(saved)
+                                navigate(backLink)
+                            }}
+                        >
+                            {t("reviewScreen.backButton")}
+                        </StyledButton>
+                        <StyledButton
+                            className="review-cast-recovery-check-button"
+                            component={RouterLink}
+                            to={`/tenant/${tenantId}/event/${eventId}/election/${electionId}/ballot-locator/${encodeURIComponent(savedBallotId)}${location.search}`}
+                        >
+                            {t(
+                                savedBallotId
+                                    ? "reviewScreen.castRecovery.checkBallot"
+                                    : "ballotLocator.locate"
+                            )}
+                        </StyledButton>
+                    </>
+                )}
+            </Box>
+        )
+    }
+
+    if (hasStaleBallot) {
+        return <CircularProgress className="review-progress" aria-label={t("a11y.loading")} />
+    }
 
     if (!ballotStyle || (!auditableBallot && !isFullyAcclaimed)) {
         return errorMsg ? (
@@ -787,8 +1108,14 @@ export const ReviewScreen: React.FC = () => {
         )
     }
 
-    const contestsOrderType = ballotStyle?.ballot_eml.election_presentation?.contests_order
-    const contests = sortContestList(ballotStyle.ballot_eml.contests, contestsOrderType)
+    const contests = orderContestsForReview(ballotStyle)
+    const defaultLanguageCode =
+        ballotStyle.ballot_eml.election_presentation?.language_conf?.default_language_code ??
+        ballotStyle.ballot_eml.election_event_presentation?.language_conf?.default_language_code
+    // A voter who declined to vote already confirmed leaving the ballot empty.
+    const unfilledContests = isDeclineToVote
+        ? []
+        : getUnfilledContests(contests, errorSelectionState)
 
     return (
         // The arrangement is `ReviewLayout`, in `ui-essentials`, so that the
@@ -797,107 +1124,127 @@ export const ReviewScreen: React.FC = () => {
         // store, the mutation or this screen's own state: the dialogs, the
         // breadcrumb that knows whether an election list counts as a step, and
         // the actions that cast.
-        <ReviewLayout
-            ballotId={
-                auditButtonCfg === EVotingPortalAuditButtonCfg.NOT_SHOW || isFullyAcclaimed
-                    ? undefined
-                    : ballotId || ""
-            }
-            onBallotIdHelp={() => setOpenBallotIdHelp(true)}
-            steps={<Stepper selected={2} />}
-            onTitleHelp={() => setReviewScreenHelp(true)}
-            error={displayedErrorMsg ? stringToHtml(displayedErrorMsg) : undefined}
-            // The layout says `reviewScreen.*` for itself now. What it cannot know is
-            // whether this event offers *Audit ballot*, which is what chooses between the
-            // two descriptions — one of them mentions a button the other event lacks.
-            withAudit={
-                auditButtonCfg !== EVotingPortalAuditButtonCfg.NOT_SHOW &&
-                auditButtonCfg !== EVotingPortalAuditButtonCfg.SHOW_IN_HELP
-            }
-            isFullyAcclaimed={isFullyAcclaimed}
-            ballotStyle={ballotStyle}
-            contests={contests}
-            errorSelectionState={errorSelectionState}
-            isDeclineToVote={isDeclineToVote}
-            isBlankBallot={isBlankBallot}
-            actions={
-                isCasting ? undefined : (
-                    <ActionButtons
-                        ballotStyle={ballotStyle}
-                        auditableBallot={auditableBallot}
-                        auditButtonCfg={auditButtonCfg}
-                        castVoteConfirmModal={castVoteConfirmModal}
-                        ballotId={ballotId ?? ""}
-                        setErrorMsg={setErrorMsg}
-                        hasInconsistentHash={hasInconsistentHash}
-                        isGoldenPolicy={isGoldenPolicy ?? false}
-                        isMultiContest={isMultiContest}
-                        isDeclineToVote={isDeclineToVote}
-                        isBlankBallot={isBlankBallot}
-                        isFullyAcclaimed={isFullyAcclaimed}
-                    />
-                )
-            }
-        >
-            <BallotIdHelpDialog
-                className="review-ballot-id-help-dialog"
-                handleClose={handleCloseDialogIdHelp}
-                open={openBallotIdHelp}
-                title={t("reviewScreen.ballotIdHelpDialog.title")}
-                maxWidth="md"
-                middleActions={
-                    auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW_IN_HELP
-                        ? [
-                              <AuditButton
-                                  key={"audit-button"}
-                                  onClick={() => {
-                                      setOpenBallotIdHelp(false)
-                                      setAuditBallotHelp(true)
-                                  }}
-                              />,
-                          ]
-                        : []
+        <BallotSlatesProvider slates={slates.config}>
+            <ReviewLayout
+                ballotId={
+                    auditButtonCfg === EVotingPortalAuditButtonCfg.NOT_SHOW || isFullyAcclaimed
+                        ? undefined
+                        : shownBallotId
                 }
-                cancel={t("reviewScreen.ballotIdHelpDialog.cancel")}
-                variant="info"
+                onBallotIdHelp={() => setOpenBallotIdHelp(true)}
+                steps={<Stepper selected={2} />}
+                onTitleHelp={() => setReviewScreenHelp(true)}
+                error={displayedErrorMsg ? stringToHtml(displayedErrorMsg) : undefined}
+                // The layout says `reviewScreen.*` for itself now. What it cannot know is
+                // whether this event offers *Audit ballot*, which is what chooses between the
+                // two descriptions — one of them mentions a button the other event lacks.
+                withAudit={
+                    auditButtonCfg !== EVotingPortalAuditButtonCfg.NOT_SHOW &&
+                    auditButtonCfg !== EVotingPortalAuditButtonCfg.SHOW_IN_HELP
+                }
+                isFullyAcclaimed={isFullyAcclaimed}
+                ballotStyle={ballotStyle}
+                contests={contests}
+                errorSelectionState={errorSelectionState}
+                isDeclineToVote={isDeclineToVote}
+                isBlankBallot={isBlankBallot}
+                summary={
+                    reviewSummary ? (
+                        <ReviewSelectionSummary
+                            summary={reviewSummary}
+                            defaultLanguage={defaultLanguageCode}
+                        />
+                    ) : undefined
+                }
+                renderContestFooter={(contest) => {
+                    const count = reviewSummary?.contests[contest.id]
+                    return count ? (
+                        <ReviewContestFooter contest={contest} count={count} to={votePath} />
+                    ) : null
+                }}
+                actions={
+                    isCasting ? undefined : (
+                        <ActionButtons
+                            ballotStyle={ballotStyle}
+                            auditableBallot={auditableBallot}
+                            auditButtonCfg={auditButtonCfg}
+                            castVoteConfirmModal={castVoteConfirmModal}
+                            ballotId={ballotId ?? ""}
+                            setErrorMsg={setErrorMsg}
+                            hasInconsistentHash={hasInconsistentHash}
+                            isAwaitingReceipt={isAwaitingReceipt}
+                            receivedBallotId={receipt.ballotId}
+                            isGoldenPolicy={isGoldenPolicy ?? false}
+                            isMultiContest={isMultiContest}
+                            isDeclineToVote={isDeclineToVote}
+                            isBlankBallot={isBlankBallot}
+                            isFullyAcclaimed={isFullyAcclaimed}
+                            unfilledContests={unfilledContests}
+                        />
+                    )
+                }
             >
-                {stringToHtml(t("reviewScreen.ballotIdHelpDialog.content"))}
-            </BallotIdHelpDialog>
-            {auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW_IN_HELP && !isFullyAcclaimed ? (
-                <AuditBallotHelpDialog
-                    auditBallotHelp={auditBallotHelp}
-                    handleClose={handleCloseDialogAuditHelp}
-                />
-            ) : null}
-            {/* The title's own help dialog. It sat inside the heading before,
+                <BallotIdHelpDialog
+                    className="review-ballot-id-help-dialog"
+                    handleClose={handleCloseDialogIdHelp}
+                    open={openBallotIdHelp}
+                    title={t("reviewScreen.ballotIdHelpDialog.title")}
+                    maxWidth="md"
+                    middleActions={
+                        auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW_IN_HELP
+                            ? [
+                                  <AuditButton
+                                      key={"audit-button"}
+                                      onClick={() => {
+                                          setOpenBallotIdHelp(false)
+                                          setAuditBallotHelp(true)
+                                      }}
+                                  />,
+                              ]
+                            : []
+                    }
+                    cancel={t("reviewScreen.ballotIdHelpDialog.cancel")}
+                    variant="info"
+                >
+                    {stringToHtml(t("reviewScreen.ballotIdHelpDialog.content"))}
+                </BallotIdHelpDialog>
+                {auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW_IN_HELP &&
+                !isFullyAcclaimed ? (
+                    <AuditBallotHelpDialog
+                        auditBallotHelp={auditBallotHelp}
+                        handleClose={handleCloseDialogAuditHelp}
+                    />
+                ) : null}
+                {/* The title's own help dialog. It sat inside the heading before,
                 which made no difference to a reader — MUI renders a dialog into
                 a portal wherever it is declared — and made the heading harder to
                 lift out. */}
-            <Dialog
-                className="screen-help-dialog review-help-dialog"
-                handleClose={() => setReviewScreenHelp(false)}
-                open={openReviewScreenHelp}
-                title={t(
-                    isFullyAcclaimed
-                        ? "reviewScreen.acclamation.helpDialog.title"
-                        : "reviewScreen.reviewScreenHelpDialog.title"
-                )}
-                ok={t(
-                    isFullyAcclaimed
-                        ? "reviewScreen.acclamation.helpDialog.ok"
-                        : "reviewScreen.reviewScreenHelpDialog.ok"
-                )}
-                variant="info"
-            >
-                {stringToHtml(
-                    t(
+                <Dialog
+                    className="screen-help-dialog review-help-dialog"
+                    handleClose={() => setReviewScreenHelp(false)}
+                    open={openReviewScreenHelp}
+                    title={t(
                         isFullyAcclaimed
-                            ? "reviewScreen.acclamation.helpDialog.content"
-                            : "reviewScreen.reviewScreenHelpDialog.content"
-                    )
-                )}
-            </Dialog>
-        </ReviewLayout>
+                            ? "reviewScreen.acclamation.helpDialog.title"
+                            : "reviewScreen.reviewScreenHelpDialog.title"
+                    )}
+                    ok={t(
+                        isFullyAcclaimed
+                            ? "reviewScreen.acclamation.helpDialog.ok"
+                            : "reviewScreen.reviewScreenHelpDialog.ok"
+                    )}
+                    variant="info"
+                >
+                    {stringToHtml(
+                        t(
+                            isFullyAcclaimed
+                                ? "reviewScreen.acclamation.helpDialog.content"
+                                : "reviewScreen.reviewScreenHelpDialog.content"
+                        )
+                    )}
+                </Dialog>
+            </ReviewLayout>
+        </BallotSlatesProvider>
     )
 }
 

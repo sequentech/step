@@ -9,6 +9,7 @@ use crate::ballot::{
     TieBreakingPolicy, WeightedVotingPolicy,
 };
 
+use crate::election_config::slates;
 use crate::serialization::deserialize_with_path::deserialize_value;
 #[cfg(feature = "areas")]
 use crate::services::area_tree::TreeNode;
@@ -151,7 +152,8 @@ pub fn create_ballot_style(
         .transpose()?
         .unwrap_or_default();
 
-    Ok(ballot::BallotStyle {
+    let keys_ceremony_id = election.keys_ceremony_id.clone();
+    let ballot_style = ballot::BallotStyle {
         id,
         tenant_id: election.tenant_id,
         election_event_id: election.election_event_id,
@@ -162,6 +164,8 @@ pub fn create_ballot_style(
             Some(key) => ballot::PublicKeyConfig {
                 public_key: key,
                 is_demo: false,
+                keys_ceremony_id,
+                configuration_id: None,
             },
             None => ballot::PublicKeyConfig {
                 public_key: match demo_public_key {
@@ -169,6 +173,8 @@ pub fn create_ballot_style(
                     None => demo_public_key_from_env()?,
                 },
                 is_demo: true,
+                keys_ceremony_id: None,
+                configuration_id: None,
             },
         }),
         area_id: area.id,
@@ -181,7 +187,22 @@ pub fn create_ballot_style(
         election_annotations: Some(election_annotations),
         area_annotations,
         multi_contest_encoding_mode: Some(multi_contest_encoding_mode),
-    })
+        ballot_box_key: None,
+    };
+
+    let problems = slates::check_ballot_style(
+        &ballot_style,
+        &format!(
+            "election {}: {}",
+            ballot_style.election_id,
+            slates::SLATES_ANNOTATION
+        ),
+    );
+    if !problems.is_empty() {
+        return Err(slates::InvalidSlates { problems }.into());
+    }
+
+    Ok(ballot_style)
 }
 
 /// `EXPANDED_CAPACITY` if any contest in the election allows over-voting,
@@ -212,7 +233,7 @@ fn resolve_multi_contest_encoding_mode(
     Ok(ballot::MultiContestEncodingMode::LEGACY)
 }
 
-fn create_contest(
+pub(crate) fn create_contest(
     contest: hasura_types::Contest,
     candidates: Vec<hasura_types::Candidate>,
     default_language: String,

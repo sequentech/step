@@ -4,7 +4,7 @@
 
 import SelectElection from "@/components/election/SelectElection"
 import {EReportElectionPolicy, EReportType, ReportActions, reportTypeConfig} from "@/types/reports"
-import {Typography, Autocomplete, Chip, TextField, Box, InputLabel} from "@mui/material"
+import {Typography, Autocomplete, Chip, TextField, Box, InputLabel, Alert} from "@mui/material"
 import React, {useContext, useEffect, useMemo, useState} from "react"
 import {
     BooleanInput,
@@ -20,6 +20,7 @@ import {
     InputProps,
     AutocompleteArrayInput,
     choices,
+    required,
 } from "react-admin"
 import SelectTemplate from "../Template/SelectTemplate"
 import {useTranslation} from "react-i18next"
@@ -36,7 +37,10 @@ import {IPermissions} from "@/types/keycloak"
 import {CustomAutocompleteArrayInput, Dialog} from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
 import {AuthContext} from "@/providers/AuthContextProvider"
+import {heldByReports, useReportSignatures} from "./ReportSigning"
 import {FormStyles} from "@/components/styles/FormStyles"
+import {useTimeZoneContext} from "@/components/timezones/useTimeZoneContext"
+import {useTimeZoneService} from "@/components/timezones/timeZoneService"
 
 type Choice = {
     id: string
@@ -571,6 +575,9 @@ const FormContent: React.FC<CreateReportProps> = ({
     const [electionId, setElectionId] = useState<string | null | undefined>(undefined)
     const [templateAlias, setTemplateAlias] = useState<string | null | undefined>(undefined)
     const [isCronActive, setIsCronActive] = useState<boolean>(false)
+    // Scheduled reports run in the event's primary zone (design §7).
+    const zones = useTimeZoneContext(electionEventId)
+    const timeZones = useTimeZoneService()
 
     const {setValue, register} = useFormContext()
 
@@ -605,12 +612,17 @@ const FormContent: React.FC<CreateReportProps> = ({
             name: t(`template.type.${reportType}`),
         }))
 
+    const signatures = useReportSignatures(String(electionEventId ?? ""))
+    const requiresSigningPost =
+        !!reportType && heldByReports(reportType) && (signatures.needs(reportType) ?? 0) > 0
+
     const electionPolicy = useMemo((): EReportElectionPolicy => {
+        if (requiresSigningPost) return EReportElectionPolicy.ELECTION_REQUIRED
         if (!reportType) {
             return EReportElectionPolicy.ELECTION_ALLOWED
         }
         return reportTypeConfig[reportType].electionPolicy ?? EReportElectionPolicy.ELECTION_ALLOWED
-    }, [reportType])
+    }, [reportType, requiresSigningPost])
 
     const isTemplateRequired = useMemo((): boolean => {
         if (!reportType) {
@@ -705,6 +717,9 @@ const FormContent: React.FC<CreateReportProps> = ({
                 isRequired={true}
                 onChange={handleReportTypeChange}
             />
+            {requiresSigningPost && (
+                <Alert severity="info">{t("signing.reports.postRequired")}</Alert>
+            )}
             <SelectElection
                 tenantId={tenantId}
                 electionEventId={electionEventId}
@@ -713,6 +728,7 @@ const FormContent: React.FC<CreateReportProps> = ({
                 source="election_id"
                 value={electionId}
                 isRequired={electionPolicy === EReportElectionPolicy.ELECTION_REQUIRED}
+                validate={requiresSigningPost ? required() : undefined}
                 disabled={electionPolicy === EReportElectionPolicy.ELECTION_NOT_ALLOWED}
             />
             <SelectTemplate
@@ -760,6 +776,11 @@ const FormContent: React.FC<CreateReportProps> = ({
                             }
                         }}
                     />
+                    <Typography variant="body2" color="text.secondary" data-testid="cron-zone">
+                        {t("lifecycle.input.cronZone", {
+                            zone: timeZones.timeZoneOption(zones.primary, timeZones.text).label,
+                        })}
+                    </Typography>
                     <EmailRecipientsInput
                         source="cron_config.email_recipients"
                         label={String(t("reportsScreen.fields.emailRecipients"))}

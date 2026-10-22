@@ -31,12 +31,14 @@ const TAB_ROLES = [
     "election-event-approvals-tab",
     "election-event-ivr-tab",
     "election-event-cas-tab",
+    "messaging-config-write",
 ]
 const ALL_TABS = [
     "Data",
     "IVR",
     "Localization",
     "Voters",
+    "Messaging",
     "Areas",
     "Keys",
     "Certificates",
@@ -179,7 +181,7 @@ test.describe("operational tabs", () => {
             order_by: [{id: "asc"}, {id: "asc"}],
         })
         await page.getByRole("tab", {name: "Approvals", exact: true}).click()
-        await expect(page.getByText(/No Sequent backend applications/)).toBeVisible()
+        await expect(page.getByText("Nothing here", {exact: true})).toBeVisible()
         expect(await firstCall(portal, "sequent_backend_applications")).toEqual({
             where: {
                 _and: [{status: {_ilike: "%pending%"}}, {election_event_id: {_eq: EVENT_ID}}],

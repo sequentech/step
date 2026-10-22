@@ -13,15 +13,14 @@ sys.path.insert(0, str(Path(__file__).parent / "voting_flow"))
 import psycopg
 from psycopg.types.json import Jsonb
 from database import (
+    CHANNELS_MIGRATION,
     CONFIGURATION_QUERY,
-    MIGRATIONS,
     ONLINE_WINDOW_MIGRATION,
+    SCHEDULE_MIGRATION,
     WINDOW_MIGRATION,
     local_database,
 )
 from fixtures import Election
-
-CHANNELS_MIGRATION = MIGRATIONS / "1789420000000_scheduled_voting_channels"
 
 
 class ScheduledChannelTests(unittest.TestCase):
@@ -70,6 +69,7 @@ class ScheduledChannelTests(unittest.TestCase):
 
 if __name__ == "__main__":
     with local_database() as database:
+        database.apply(SCHEDULE_MIGRATION)
         database.apply(WINDOW_MIGRATION)
         election = Election()
         election.create(database.connection)
@@ -90,8 +90,8 @@ if __name__ == "__main__":
         database.apply(ONLINE_WINDOW_MIGRATION, "down")
         database.apply(CHANNELS_MIGRATION, "down")
         assert database.connection.execute(CONFIGURATION_QUERY, election.scope).fetchone() == original
-        # Rolled-back schedules return to the legacy payload. The main baseline
-        # has no payload constraint, and Windmill can still update schedules.
+        # Rolled-back schedules return to the legacy payload, so the restored
+        # constraint still accepts the updates Windmill makes when they run.
         assert database.connection.execute(
             "SELECT event_payload FROM sequent_backend.scheduled_event WHERE id = %s", (explicit_schedule,),
         ).fetchone()[0] == {"election_id": str(explicit.election)}
@@ -100,7 +100,7 @@ if __name__ == "__main__":
         )
         assert database.connection.execute(
             "SELECT convalidated FROM pg_constraint WHERE conname = 'scheduled_event_voting_period_valid'"
-        ).fetchone() is None
+        ).fetchone()[0]
         database.apply(CHANNELS_MIGRATION)
         database.apply(ONLINE_WINDOW_MIGRATION)
         if not result.wasSuccessful():

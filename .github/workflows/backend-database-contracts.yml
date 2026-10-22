@@ -80,7 +80,7 @@ jobs:
       - name: Voting-flow regressions
         run: >-
           docker run --rm --volume "$PWD:/step:ro" --workdir /step voting-flow-harness
-          python3 scripts/test_cast_vote_scalability.py
+          python3 scripts/test_voting_flow.py
       - name: Scheduled voting channels
         run: >-
           docker run --rm --volume "$PWD:/step:ro" --workdir /step voting-flow-harness

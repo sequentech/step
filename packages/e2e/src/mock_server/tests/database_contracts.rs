@@ -1,15 +1,11 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
-#[macro_use]
-extern crate rocket;
-#[path = "../src/routes/inetum.rs"]
-mod inetum;
 #[path = "../src/services/mod.rs"]
 mod services;
 #[path = "../src/types/mod.rs"]
 mod types;
 
-use services::user::{get_users_from_db, load_users, random_user_by_country};
+use services::user::{get_users_from_db, load_users};
 use std::sync::Mutex;
 static DATABASE: Mutex<()> = Mutex::new(());
 struct WorkingDirectory(std::path::PathBuf);
@@ -29,8 +25,8 @@ fn csv() {
     std::fs::write("synthetic.csv", "first,last,x,y,middle,birth,embassy,country,a,b,c,d,number,type\n Ada , Lovelace ,x,y, M ,2000-02-29, Madrid , XX ,a,b,c,d, SYN-17 , TestCard \n").unwrap();
 }
 
-#[tokio::test]
-async fn csv_mapping_and_http_results_preserve_the_selected_synthetic_identity() {
+#[test]
+fn csv_mapping_preserves_the_synthetic_identity() {
     let _lock = DATABASE.lock().unwrap_or_else(|error| error.into_inner());
     let (_temp, _cwd) = database();
     csv();
@@ -47,63 +43,6 @@ async fn csv_mapping_and_http_results_preserve_the_selected_synthetic_identity()
             "idCardNumber":"SYN-17", "idCardType":"TestCard"
         })
     );
-    assert_eq!(random_user_by_country("XX").unwrap().unwrap().id, row.id);
-    assert!(random_user_by_country("' OR 1=1 --").unwrap().is_none());
-    let client = rocket::local::asynchronous::Client::tracked(rocket::build().mount(
-        "/",
-        routes![
-            inetum::transaction_new,
-            inetum::transaction_status_simple,
-            inetum::transaction_results
-        ],
-    ))
-    .await
-    .unwrap();
-    let created: serde_json::Value = client
-        .post("/transaction/new")
-        .dispatch()
-        .await
-        .into_json()
-        .await
-        .unwrap();
-    let user = created["response"]["user_id"].as_str().unwrap();
-    let token = created["response"]["token_dob"].as_str().unwrap();
-    assert!(uuid::Uuid::parse_str(user).is_ok());
-    assert!(uuid::Uuid::parse_str(token).is_ok());
-    assert_ne!(user, token);
-    let status: serde_json::Value = client
-        .get("/status")
-        .dispatch()
-        .await
-        .into_json()
-        .await
-        .unwrap();
-    assert_eq!(
-        status,
-        serde_json::json!({"code":0,"response":{"idStatus":"verificationOK"}})
-    );
-    let result: serde_json::Value = client
-        .get("/results?country=XX")
-        .dispatch()
-        .await
-        .into_json()
-        .await
-        .unwrap();
-    // Keycloak's Inetum flow also reads the MRZ copy, the document type and
-    // both scores, so compare the whole deterministic response.
-    assert_eq!(
-        result,
-        serde_json::json!({"code":0, "response":{
-            "docVerification":{"documentIdentification":[{"type":"Identity Card"}]},
-            "ocr":{"issuing_state_code":"PHL", "given_names":"Ada", "middle_name":"M", "surname":"Lovelace", "personal_number":"SYN-17", "date_of_birth":"29/02/2000"},
-            "mrz":{"issuing_state_code":"PHL", "given_names":"Ada", "surname":"Lovelace", "personal_number":"SYN-17", "document_number":"SYN-17", "date_of_birth":"29/02/2000"},
-            "resultData":{"scoreDocumental":75, "scoreFacial":80, "scoreValCamposCriticos":60},
-            "idStatus":"verificationOK"
-        }})
-    );
-    let absent = client.get("/results?country=missing").dispatch().await;
-    assert_eq!(absent.status(), rocket::http::Status::InternalServerError);
-    assert_eq!(absent.into_string().await.unwrap(), "User not found");
     // Reload replaces the prior collection rather than appending new UUID rows.
     assert_eq!(load_users("synthetic.csv").unwrap(), 1);
     assert_eq!(get_users_from_db().unwrap().len(), 1);
@@ -115,12 +54,11 @@ fn malformed_database_rows_are_errors_not_an_apparently_empty_country() {
     let (_temp, _cwd) = database();
     csv();
     load_users("synthetic.csv").unwrap();
-    assert!(random_user_by_country("XX").unwrap().is_some());
+    assert_eq!(get_users_from_db().unwrap().len(), 1);
     let conn = rusqlite::Connection::open("voters.db").unwrap();
     conn.execute("UPDATE voters SET first_name = NULL", [])
         .unwrap();
-    assert!(get_users_from_db().is_err());
-    let error = random_user_by_country("XX").unwrap_err();
+    let error = get_users_from_db().unwrap_err();
     assert!(
         error.to_string().contains("Invalid column type Null"),
         "{error}"

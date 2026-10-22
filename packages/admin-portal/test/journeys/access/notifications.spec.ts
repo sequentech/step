@@ -43,6 +43,9 @@ for (const method of ["EMAIL", "SMS"] as const) {
                 sequent_backend_template_aggregate: {aggregate: {count: 1}},
             },
         }))
+        portal.graphql.on("GetMessagingAccounts", () => ({
+            data: {sequent_backend_messaging_account: []},
+        }))
         portal.graphql.once("CreateScheduledEvent", () => ({
             errors: [{message: "Synthetic notification refused", extensions: {code: "Conflict"}}],
         }))
@@ -53,15 +56,16 @@ for (const method of ["EMAIL", "SMS"] as const) {
         await page.getByRole("button", {name: "Send", exact: true}).first().click()
         const drawer = page.getByRole("dialog")
         await expect(drawer.getByText("Everyone", {exact: true})).toBeVisible()
-        // These three selectors have visual captions but no accessible names.
-        await drawer.getByRole("combobox").nth(0).click()
+        // The timezone picker is an input combobox; these native selects keep their order.
+        const selects = drawer.locator('[role="combobox"]:not(input)')
+        await selects.nth(0).click()
         await page.getByRole("option", {name: "Those who didn't vote yet", exact: true}).click()
-        if (method === "SMS") {
-            await drawer.getByRole("combobox").nth(1).click()
-            await page.getByRole("option", {name: "SMS", exact: true}).click()
-        }
-        await drawer.getByRole("combobox").nth(2).click()
+        // There's no channel choice: each voter is reached on their own channel.
+        await selects.nth(1).click()
         await page.getByRole("option", {name: "Council reminder", exact: true}).click()
+        await drawer
+            .getByRole("button", {name: method === "SMS" ? "SMS" : "Email", exact: true})
+            .click()
         if (method === "SMS") {
             await expect(drawer.getByRole("textbox", {name: "SMS Message"})).toHaveValue(
                 "Please vote today"
@@ -90,7 +94,7 @@ for (const method of ["EMAIL", "SMS"] as const) {
         ).toBeVisible()
         await drawer.getByRole("button", {name: "Send Notification", exact: true}).click()
         await expect(
-            page.getByText("Notification programmed/sent successfully", {exact: true})
+            page.getByText("Notification scheduled successfully", {exact: true})
         ).toBeVisible()
         await expect(drawer).toHaveCount(0)
         const expected = {
@@ -100,24 +104,15 @@ for (const method of ["EMAIL", "SMS"] as const) {
             eventPayload: {
                 audience_selection: "NOT_VOTED",
                 audience_voter_ids: [],
-                communication_method: method,
+                alias: "Council reminder",
                 schedule_now: false,
-                schedule_date: "2026-01-16T10:30:00.000Z",
-                email:
-                    method === "EMAIL"
-                        ? EMAIL
-                        : {
-                              subject: "Participate in {{election_event.name}}",
-                              plaintext_body:
-                                  "Hello {{user.first_name}},\n\nEnter in {{vote_url}} to vote",
-                              html_body:
-                                  "<p>Hello {{user.first_name}},<br><br>Enter in {{vote_url}} to vote</p>",
-                          },
+                schedule_date: "2026-01-16T10:30:00Z",
+                schedule_local: "2026-01-16T10:30",
+                schedule_timezone: "UTC",
+                email: EMAIL,
                 sms: {
                     message:
-                        method === "SMS"
-                            ? "Council polls close at 18:00"
-                            : "Enter in {{vote_url}} to vote",
+                        method === "SMS" ? "Council polls close at 18:00" : "Please vote today",
                 },
                 secret_attribute_names: [],
             },

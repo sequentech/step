@@ -34,7 +34,6 @@ describe("selectorWords", () => {
 
     it("uses the settings' words", () => {
         const settings = {
-            time_zone: "UTC",
             selectors: {region: {label: "Faculty", all: "All faculties"}},
         }
         expect(selectorWords(EScopeSelector.REGION, settings, t, false)).toEqual({
@@ -48,7 +47,7 @@ describe("selectorWords", () => {
         expect(selectorWords(EScopeSelector.POST, undefined, t, true).all).toBe(
             "All authorized Posts"
         )
-        const settings = {time_zone: "UTC", selectors: {post: {label: "Ward", all: "All wards"}}}
+        const settings = {selectors: {post: {label: "Ward", all: "All wards"}}}
         expect(selectorWords(EScopeSelector.POST, settings, t, true).all).toBe(
             "All wards (authorized)"
         )

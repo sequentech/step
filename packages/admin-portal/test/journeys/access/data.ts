@@ -19,7 +19,6 @@ export const VOTER_TAB_ROLES = [
     "election-event-voters-tab",
     "voter-read",
     "area-read",
-    "cast-vote-read",
 ]
 
 export interface ProfileAttribute {
@@ -138,7 +137,6 @@ export interface VotersOptions {
     event?: Record<string, unknown>
     attributes?: ProfileAttribute[]
     users?: Record<string, unknown>[]
-    castVotes?: Record<string, unknown>[]
     total?: number
 }
 
@@ -194,14 +192,6 @@ export function mockVoters(portal: PortalServices, options: VotersOptions = {}) 
         data: {
             sequent_backend_election: [],
             sequent_backend_election_aggregate: {aggregate: {count: 0}},
-        },
-    }))
-    portal.graphql.on("sequent_backend_cast_vote", () => ({
-        data: {
-            sequent_backend_cast_vote: options.castVotes ?? [],
-            sequent_backend_cast_vote_aggregate: {
-                aggregate: {count: options.castVotes?.length ?? 0},
-            },
         },
     }))
     return state
@@ -309,8 +299,8 @@ export const PENDING_APPLICATION_ID = "99999999-9999-4999-8999-999999999901"
 export const REJECTED_APPLICATION_ID = "99999999-9999-4999-8999-999999999902"
 
 export const APPLICANT_ATTRIBUTES = [
-    attribute("first_name", {display_name: "First name"}),
-    attribute("last_name", {display_name: "Last name"}),
+    attribute("firstName", {display_name: "First name"}),
+    attribute("lastName", {display_name: "Last name"}),
     attribute("email", {display_name: "Email"}),
     attribute("dateOfBirth", {display_name: "Birth date", annotations: {inputType: "html5-date"}}),
 ]
@@ -328,7 +318,7 @@ export function application(id: string, status: string, overrides: Record<string
             email: "carol@example.test",
             dateOfBirth: "1990-05-01",
         },
-        annotations: {"search-attributes": "first_name,last_name,email"},
+        annotations: {"search-attributes": "firstName,lastName,email"},
         labels: {},
         verification_type: "MANUAL",
         status,

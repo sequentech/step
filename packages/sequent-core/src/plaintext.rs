@@ -13,7 +13,6 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::collections::HashSet;
-use strand::context::Ctx;
 
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub enum InvalidPlaintextErrorType {
@@ -36,6 +35,24 @@ pub struct InvalidPlaintextError {
     pub message_map: HashMap<String, String>,
 }
 
+/// Message key of the encoding error for a plaintext that holds more than
+/// its ballot layout can.
+pub const BALLOT_TOO_LARGE_ERROR_MESSAGE: &str =
+    "errors.encoding.ballotTooLarge";
+
+impl InvalidPlaintextError {
+    /// Encoding error for a plaintext that holds more than its ballot layout
+    /// can.
+    pub fn ballot_too_large() -> Self {
+        InvalidPlaintextError {
+            error_type: InvalidPlaintextErrorType::EncodingError,
+            candidate_id: None,
+            message: Some(BALLOT_TOO_LARGE_ERROR_MESSAGE.to_string()),
+            message_map: HashMap::new(),
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct DecodedVoteContest {
     pub contest_id: String,
@@ -54,6 +71,28 @@ pub struct DecodedVoteContest {
 }
 
 impl DecodedVoteContest {
+    /// A contest plaintext that does not decode under the contest's ballot
+    /// layout. It has no selections and counts as an implicitly invalid vote.
+    pub fn undecodable(contest: &Contest) -> Self {
+        DecodedVoteContest {
+            contest_id: contest.id.clone(),
+            is_explicit_invalid: false,
+            is_decline_to_vote: false,
+            is_blank_ballot: false,
+            invalid_errors: vec![InvalidPlaintextError::ballot_too_large()],
+            invalid_alerts: vec![],
+            choices: contest
+                .candidates
+                .iter()
+                .map(|candidate| DecodedVoteChoice {
+                    id: candidate.id.clone(),
+                    selected: -1,
+                    write_in_text: None,
+                })
+                .collect(),
+        }
+    }
+
     pub fn is_invalid(&self) -> bool {
         self.is_explicit_invalid || !self.invalid_errors.is_empty()
     }
@@ -172,7 +211,30 @@ fn sorted_ids<'a>(ids: &HashSet<&'a str>) -> Vec<&'a str> {
     ids
 }
 
-pub fn map_to_decoded_contest<C: Ctx<P = [u8; 30]>>(
+fn verify_audit_openings<'a>(
+    config: &BallotStyle,
+    choices: impl Iterator<Item = &'a ReplicationChoice>,
+) -> Result<(), String> {
+    let mut choices = choices.peekable();
+    if choices.peek().is_none() {
+        return Ok(());
+    }
+    let public_key = crate::encrypt::parse_public_key(config)
+        .map_err(|err| format!("Invalid audit public key: {err}"))?;
+    let configuration_id = crate::encrypt::ballot_configuration_id(config)
+        .map_err(|err| format!("Invalid audit configuration: {err}"))?;
+    for choice in choices {
+        crate::encrypt::recreate_encrypt_candidate(
+            &public_key,
+            configuration_id,
+            choice,
+        )
+        .map_err(|err| format!("Invalid audit opening: {err}"))?;
+    }
+    Ok(())
+}
+
+pub fn map_to_decoded_contest(
     ballot: &AuditableBallot,
 ) -> Result<Vec<DecodedVoteContest>, String> {
     let mut decoded_contests = vec![];
@@ -185,6 +247,10 @@ pub fn map_to_decoded_contest<C: Ctx<P = [u8; 30]>>(
         .map(|contest| contest.contest_id.as_str())
         .collect();
     check_ballot_contests_match_style(&ballot_contest_ids, &ballot.config)?;
+    verify_audit_openings(
+        &ballot.config,
+        ballot_contests.iter().map(|contest| &contest.choice),
+    )?;
 
     for contest in &ballot_contests {
         let found_contest = ballot
@@ -198,7 +264,7 @@ pub fn map_to_decoded_contest<C: Ctx<P = [u8; 30]>>(
                     contest.contest_id
                 )
             })?;
-        let replication_choice: &ReplicationChoice<C> = &contest.choice;
+        let replication_choice: &ReplicationChoice = &contest.choice;
         let decoded_plaintext = found_contest
             .decode_plaintext_contest(&replication_choice.plaintext)?;
         decoded_contests.push(decoded_plaintext);
@@ -267,10 +333,10 @@ pub fn map_decoded_ballot_choices_to_decoded_contests(
     Ok(decoded_contests)
 }
 
-pub fn map_to_decoded_multi_contest<C: Ctx<P = [u8; 30]>>(
+pub fn map_to_decoded_multi_contest(
     ballot: &AuditableMultiBallot,
 ) -> Result<Vec<DecodedVoteContest>, String> {
-    let ballot_contests: AuditableMultiBallotContests<C> =
+    let ballot_contests: AuditableMultiBallotContests =
         ballot.deserialize_contests().map_err(|err| {
             format!(
                 "Error deserializing auditable multi ballot contest {:?}",
@@ -284,6 +350,10 @@ pub fn map_to_decoded_multi_contest<C: Ctx<P = [u8; 30]>>(
         .map(|contest_id| contest_id.as_str())
         .collect();
     check_ballot_contests_match_style(&ballot_contest_ids, &ballot.config)?;
+    verify_audit_openings(
+        &ballot.config,
+        std::iter::once(&ballot_contests.choice),
+    )?;
 
     let decoded_ballot_choices = BallotChoices::decode_from_30_bytes(
         &ballot_contests.choice.plaintext,
@@ -293,7 +363,7 @@ pub fn map_to_decoded_multi_contest<C: Ctx<P = [u8; 30]>>(
         format!("Error decoding multi ballot plaintext {:?}", err)
     })?;
 
-    let ballot_contests: AuditableMultiBallotContests<C> =
+    let ballot_contests: AuditableMultiBallotContests =
         ballot.deserialize_contests().map_err(|err| {
             format!("Error deserializing auditable ballot contest {:?}", err)
         })?;
@@ -321,6 +391,151 @@ pub fn map_to_decoded_multi_contest<C: Ctx<P = [u8; 30]>>(
         decoded_ballot_choices,
         &mapped_contests,
     )
+}
+
+#[cfg(test)]
+mod audit_opening_tests {
+    use super::*;
+    use crate::encrypt::{
+        encrypt_decoded_contest, encrypt_decoded_multi_contest,
+    };
+    use crate::fixtures::ballot_codec::{
+        get_test_contest, get_test_decoded_vote_contest,
+        get_writein_ballot_style,
+    };
+    use cryptography::context::{Context, RistrettoCtx};
+
+    #[derive(Clone)]
+    enum Audit {
+        Single(AuditableBallot),
+        Combined(AuditableMultiBallot),
+    }
+
+    impl Audit {
+        fn decode(&self) -> Result<Vec<DecodedVoteContest>, String> {
+            match self {
+                Self::Single(ballot) => map_to_decoded_contest(ballot),
+                Self::Combined(ballot) => map_to_decoded_multi_contest(ballot),
+            }
+        }
+
+        fn style(&mut self) -> &mut BallotStyle {
+            match self {
+                Self::Single(ballot) => &mut ballot.config,
+                Self::Combined(ballot) => &mut ballot.config,
+            }
+        }
+
+        fn change_opening(
+            &mut self,
+            change: impl FnOnce(&mut ReplicationChoice),
+        ) {
+            match self {
+                Self::Single(ballot) => {
+                    let mut contests = ballot.deserialize_contests().unwrap();
+                    change(&mut contests[0].choice);
+                    ballot.contests =
+                        AuditableBallot::serialize_contests(&contests).unwrap();
+                }
+                Self::Combined(ballot) => {
+                    let mut contests = ballot.deserialize_contests().unwrap();
+                    change(&mut contests.choice);
+                    ballot.contests =
+                        AuditableMultiBallot::serialize_contests(&contests)
+                            .unwrap();
+                }
+            }
+        }
+    }
+
+    fn audits() -> [Audit; 2] {
+        let mut style = get_writein_ballot_style();
+        let first = get_test_contest();
+        let mut second = first.clone();
+        second.id = "22345678-1234-4234-9234-123456789abc".into();
+        for candidate in &mut second.candidates {
+            candidate.contest_id = second.id.clone();
+        }
+        let first_vote = get_test_decoded_vote_contest();
+        let mut second_vote = first_vote.clone();
+        second_vote.contest_id = second.id.clone();
+        style.contests = vec![first, second];
+        let votes = vec![first_vote, second_vote];
+        [
+            Audit::Single(
+                encrypt_decoded_contest(&RistrettoCtx, &votes, &style).unwrap(),
+            ),
+            Audit::Combined(
+                encrypt_decoded_multi_contest(&RistrettoCtx, &votes, &style)
+                    .unwrap(),
+            ),
+        ]
+    }
+
+    #[test]
+    fn audit_openings_accept_valid_single_and_combined_ballots() {
+        for audit in audits() {
+            assert_eq!(audit.decode().unwrap().len(), 2);
+        }
+    }
+
+    #[test]
+    fn audit_openings_reject_configuration_substitution() {
+        for mut audit in audits() {
+            audit.style().public_key.as_mut().unwrap().configuration_id =
+                Some("18446744073709551616".into());
+            assert!(
+                audit.decode().is_err(),
+                "a different encryption context must fail"
+            );
+        }
+    }
+
+    #[test]
+    fn audit_openings_reject_randomness_substitution() {
+        for mut audit in audits() {
+            audit.change_opening(|choice| {
+                choice.randomness = RistrettoCtx::random_scalar()
+            });
+            assert!(
+                audit.decode().is_err(),
+                "different revealed randomness must fail"
+            );
+        }
+    }
+
+    #[test]
+    fn audit_openings_reject_plaintext_substitution() {
+        for mut audit in audits() {
+            audit.change_opening(|choice| choice.plaintext = [0; 30]);
+            assert!(
+                audit.decode().is_err(),
+                "different revealed selections must fail"
+            );
+        }
+    }
+
+    #[test]
+    fn audit_openings_reject_valid_ciphertext_with_another_opening() {
+        for mut audit in audits() {
+            let style = audit.style().clone();
+            let key = crate::encrypt::parse_public_key(&style).unwrap();
+            let id = crate::encrypt::ballot_configuration_id(&style).unwrap();
+            audit.change_opening(|choice| {
+                let (other, _) = voting_crypto::ballot::encrypt_payload(
+                    id,
+                    &key,
+                    &choice.plaintext,
+                )
+                .unwrap();
+                choice.ciphertext = other;
+            });
+            assert!(
+                audit.decode().is_err(),
+                "a valid proof cannot authenticate a different opening"
+            );
+        }
+    }
 }
 
 #[cfg(test)]
@@ -355,6 +570,7 @@ mod acclaimed_contest_set_tests {
             election_annotations: None,
             area_annotations: None,
             multi_contest_encoding_mode: None,
+            ballot_box_key: None,
         }
     }
 
@@ -426,5 +642,56 @@ mod acclaimed_contest_set_tests {
             check_ballot_contests_match_style(&["a", "a"], &one_contest_style)
                 .expect_err("a repeated contest must be rejected");
         assert!(error.contains("more than once"), "got: {error}");
+    }
+}
+
+#[cfg(test)]
+mod undecodable_contest_tests {
+    use super::*;
+    use crate::ballot_codec::BigUIntCodec;
+    use crate::fixtures::ballot_codec::get_fixtures;
+
+    /// For every contest layout of the codec fixtures, the placeholder for a
+    /// plaintext that does not decode is an implicitly invalid vote without
+    /// selections, and it still encodes like any other vote.
+    #[test]
+    fn undecodable_contest_is_implicitly_invalid_and_encodes() {
+        for fixture in get_fixtures() {
+            let contest = &fixture.contest;
+            if contest
+                .encode_plaintext_contest_bigint(&fixture.plaintext)
+                .is_err()
+            {
+                continue;
+            }
+
+            let decoded = DecodedVoteContest::undecodable(contest);
+
+            assert_eq!(decoded.contest_id, contest.id, "{}", fixture.title);
+            assert!(decoded.is_invalid(), "{}", fixture.title);
+            assert!(!decoded.is_explicit_invalid, "{}", fixture.title);
+            assert_eq!(
+                decoded.invalid_errors,
+                vec![InvalidPlaintextError::ballot_too_large()],
+                "{}",
+                fixture.title
+            );
+            assert_eq!(
+                decoded.choices.len(),
+                contest.candidates.len(),
+                "{}",
+                fixture.title
+            );
+            assert!(
+                decoded.choices.iter().all(|choice| !choice.is_selected()),
+                "{}",
+                fixture.title
+            );
+            assert!(
+                contest.encode_plaintext_contest_bigint(&decoded).is_ok(),
+                "{}",
+                fixture.title
+            );
+        }
     }
 }

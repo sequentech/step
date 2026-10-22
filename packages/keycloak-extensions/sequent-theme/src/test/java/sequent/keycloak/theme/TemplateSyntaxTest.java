@@ -22,8 +22,10 @@ import java.io.Reader;
 import java.io.StringWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.text.MessageFormat;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 import java.util.regex.Matcher;
@@ -1119,6 +1121,178 @@ class TemplateSyntaxTest {
     // The first anchor in profile order wins.
     assertTrue(html.indexOf("id=\"dateOfBirth\"") < html.indexOf("id=\"password\""));
     assertTrue(html.indexOf("id=\"password\"") < html.indexOf("id=\"nationalId\""));
+  }
+
+  @Test
+  void registerShowsEachPostEnrollmentWindowFromTheMessageKeys()
+      throws IOException, TemplateException {
+    Properties messages = englishMessages();
+    String html = renderRegister(enrollmentModel(messages));
+    String normalized = html.replaceAll("\\s+", " ");
+
+    // Before the window: the opening and the close, each with the zone's name in words.
+    assertTrue(
+        normalized.contains(
+            "data-enrollment-embassy=\"Dubai PCG\" data-enrollment-state=\"before\" hidden>"
+                + "Enrollment for the Dubai PCG opens on Feb 9, 2028, 12:00 AM Gulf Standard Time."
+                + " You can enroll from then until May 8, 2028, 6:00 PM Philippine Standard Time."
+                + "</div>"),
+        normalized);
+    // While open: the common close, in the event's primary zone.
+    assertTrue(
+        normalized.contains(
+            "data-enrollment-embassy=\"Canary office\" data-enrollment-state=\"open\" hidden>"
+                + "Enrollment is open until Mar 31, 2028, 8:00 PM (Central European Summer Time)."
+                + "</div>"),
+        normalized);
+    // A Post windmill couldn't map to one election is refused.
+    assertTrue(
+        normalized.contains(
+            "data-enrollment-embassy=\"Ambiguous PE\" data-enrollment-state=\"not-configured\""
+                + " hidden>Enrollment for the Ambiguous PE can&#39;t be checked right now"),
+        normalized);
+    // After the close; the Post name is escaped.
+    assertTrue(
+        normalized.contains(
+            "data-enrollment-state=\"closed\" hidden>"
+                + "Enrollment for the Rome &lt;PE&gt; is not open now.</div>"),
+        normalized);
+    // The notices follow the embassy select, and the script that holds Continue back is loaded.
+    assertTrue(html.indexOf("id=\"embassy\"") < html.indexOf("data-enrollment-embassy"));
+    assertTrue(html.contains("src=\"/resources/js/enrollment-window.js\""));
+  }
+
+  @Test
+  void enrollmentZoneNamesFollowTheTimezoneNameOverride() throws IOException, TemplateException {
+    Properties messages = englishMessages();
+    messages.setProperty("timezones.name.Asia/Dubai", "Dubai time");
+    messages.setProperty("timezones.name.Asia/Manila", "Philippine Time");
+    messages.setProperty("enrollment.openUntil", "Open until {0}, {1}");
+    String normalized = renderRegister(enrollmentModel(messages)).replaceAll("\\s+", " ");
+
+    assertTrue(normalized.contains("opens on Feb 9, 2028, 12:00 AM Dubai time."), normalized);
+    assertTrue(normalized.contains("until May 8, 2028, 6:00 PM Philippine Time."), normalized);
+    assertTrue(
+        normalized.contains("Open until Mar 31, 2028, 8:00 PM, Central European Summer Time"),
+        normalized);
+  }
+
+  @Test
+  void registerWithoutEnrollmentWindowsRendersNoNotice() throws IOException, TemplateException {
+    Map<String, Object> model = enrollmentModel(englishMessages());
+    model.remove("enrollmentWindows");
+    String html = renderRegister(model);
+
+    assertTrue(html.contains("id=\"embassy\""));
+    assertFalse(html.contains("data-enrollment-embassy"));
+    assertFalse(html.contains("enrollment-window.js"));
+  }
+
+  @Test
+  void aStartOnlyEnrollmentWindowStillNamesItsOpening() throws Exception {
+    Map<String, Object> model = enrollmentModel(englishMessages());
+    model.put(
+        "enrollmentWindows",
+        List.of(
+            Map.of(
+                "embassy",
+                "Dubai PCG",
+                "state",
+                "before",
+                "zone",
+                "Asia/Dubai",
+                "opens",
+                "Feb 9, 2028, 12:00 AM",
+                "opensZoneName",
+                "Gulf Standard Time")));
+    String html = renderRegister(model).replaceAll("\\s+", " ");
+    assertTrue(
+        html.contains(
+            "Enrollment for the Dubai PCG opens on Feb 9, 2028, 12:00 AM Gulf Standard Time."),
+        html);
+  }
+
+  @Test
+  void brokenCombinedRealmTextCannotHideTheOpeningTimeOrZone() throws Exception {
+    for (String text : List.of("{0}", "{1}", "Hidden")) {
+      Properties messages = englishMessages();
+      messages.setProperty("timezones.voterDateTimeZone", text);
+      String html = renderRegister(enrollmentModel(messages)).replaceAll("\\s+", " ");
+      assertTrue(html.contains("opens on Feb 9, 2028, 12:00 AM Gulf Standard Time."), html);
+    }
+  }
+
+  private static Properties englishMessages() throws IOException {
+    Properties messages = new Properties();
+    try (Reader reader =
+        Files.newBufferedReader(
+            THEME_ROOT.resolve("sequent.admin-portal/login/messages/messages_en.properties"))) {
+      messages.load(reader);
+    }
+    return messages;
+  }
+
+  /**
+   * A registration form with the embassy select and the windows the enrollment-window-check form
+   * action hands the page; {@code msg} formats like Keycloak's (the key itself when missing).
+   */
+  private static Map<String, Object> enrollmentModel(Properties messages) {
+    TemplateMethodModelEx message =
+        arguments -> {
+          String key = arguments.get(0).toString();
+          String text = messages.getProperty(key);
+          if (text == null) {
+            return key;
+          }
+          Object[] parameters =
+              arguments.subList(1, arguments.size()).stream().map(Object::toString).toArray();
+          return new MessageFormat(text, Locale.ENGLISH).format(parameters);
+        };
+    Map<String, Object> model = baseModel("standard");
+    model.put("msg", message);
+    model.put("formMode", "REGISTRATION");
+    model.put("passwordRequired", false);
+    model.put(
+        "profile",
+        Map.of(
+            "attributes",
+            List.of(
+                mockAttributeWithOptions(
+                    "embassy",
+                    Map.of("inputType", "select"),
+                    List.of("Dubai PCG", "Canary office", "Ambiguous PE", "Rome <PE>"))),
+            "html5DataAnnotations",
+            Map.of()));
+    model.put(
+        "enrollmentWindows",
+        List.of(
+            Map.of(
+                "embassy", "Dubai PCG",
+                "state", "before",
+                "zone", "Asia/Dubai",
+                "opens", "Feb 9, 2028, 12:00 AM",
+                "opensZoneName", "Gulf Standard Time",
+                "closeZone", "Asia/Manila",
+                "closes", "May 8, 2028, 6:00 PM",
+                "closesZoneName", "Philippine Standard Time"),
+            Map.of(
+                "embassy", "Canary office",
+                "state", "open",
+                "zone", "Atlantic/Canary",
+                "opens", "Mar 1, 2028, 9:00 AM",
+                "opensZoneName", "Western European Standard Time",
+                "closeZone", "Europe/Madrid",
+                "closes", "Mar 31, 2028, 8:00 PM",
+                "closesZoneName", "Central European Summer Time"),
+            Map.of("embassy", "Ambiguous PE", "state", "not-configured"),
+            Map.of(
+                "embassy", "Rome <PE>",
+                "state", "closed",
+                "zone", "Europe/Rome",
+                "closeZone", "Europe/Rome",
+                "closes", "Mar 31, 2028, 8:00 PM",
+                "closesZoneName", "Central European Summer Time")));
+    return model;
   }
 
   private static String renderVotingPortalLogin(Map<String, Object> model)

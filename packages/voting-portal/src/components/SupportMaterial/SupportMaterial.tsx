@@ -204,7 +204,7 @@ export const SupportMaterial: React.FC<SupportMaterialProps> = ({
                             >
                                 <DescriptionIcon
                                     className="support-material-document-icon"
-                                    sx={{fontSize: "80px"}}
+                                    sx={{fontSize: "5rem"}}
                                 />
                                 <Button
                                     className="support-material-download-button"

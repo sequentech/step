@@ -7,3 +7,5 @@
 /storybook-static/
 /public/keycloakify-dev-resources/
 /test-results/
+.vitest-attachments/
+__screenshots__/

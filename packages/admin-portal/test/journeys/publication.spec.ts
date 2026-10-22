@@ -180,7 +180,9 @@ test("generates and publishes after gold login, then starts, pauses and closes o
     })
     await page.getByRole("button", {name: "Publish Changes", exact: true}).last().click()
     await expect(page.getByRole("cell", {name: PUBLICATION_ID, exact: true})).toBeVisible()
-    await expect(page.getByRole("cell", {name: FIXED_TIME, exact: true})).toBeVisible()
+    await expect(
+        page.getByRole("cell", {name: "Jan 15, 2026, 12:00:00 PM UTC", exact: true})
+    ).toBeVisible()
     expect(portal.graphql.callsTo("PublishBallot").map(({variables}) => variables)).toEqual([
         {electionEventId: IDS.event, ballotPublicationId: PUBLICATION_ID},
     ])

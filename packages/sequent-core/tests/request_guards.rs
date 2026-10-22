@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! Exercise guards through Rocket dispatch. JwtClaims only parses a token;
-//! signature verification and trusted-proxy enforcement belong upstream.
+//! Exercise guards through Rocket dispatch. JwtClaims verifies the signature,
+//! expiry and issuer of a token; trusted-proxy enforcement belongs upstream.
 
 #![cfg(all(feature = "keycloak", feature = "default_features"))]
 
@@ -17,7 +17,10 @@ use sequent_core::services::connection::{
     AuthHeaders, DatafixClaims, LastDatafixAccessToken, UserLocation,
 };
 use sequent_core::services::jwt::JwtClaims;
-use serde_json::json;
+use serde_json::{json, Value};
+
+#[path = "support/signing.rs"]
+mod signing;
 
 #[get("/headers")]
 fn headers(auth: AuthHeaders) -> String {
@@ -34,6 +37,18 @@ fn location(location: UserLocation) -> String {
         location.ip.map(|ip| ip.to_string()).unwrap_or_default(),
         location.country_code.unwrap_or_default()
     )
+}
+#[get("/location-evidence")]
+fn location_evidence(
+    location: UserLocation,
+) -> rocket::serde::json::Json<Value> {
+    let redacted = format!("{location:?}");
+    rocket::serde::json::Json(json!({
+        "agent": location.user_agent,
+        "ip": location.ip.map(|ip| ip.to_string()),
+        "country": location.country_code,
+        "debug": redacted,
+    }))
 }
 #[get("/datafix")]
 fn datafix(claims: DatafixClaims) -> String {
@@ -76,44 +91,63 @@ async fn missing_credentials_are_rejected_and_admin_headers_have_explicit_preced
     );
 }
 
+fn voter_claims(issuer: &str) -> Value {
+    json!({"exp": signing::EXPIRY, "iat": 0, "jti": "test", "iss": issuer, "sub": "voter",
+        "typ": "Bearer", "azp": "voting-portal", "acr": "1", "allowed-origins": [], "scope": "openid", "email_verified": false,
+        "https://hasura.io/jwt/claims": {"x-hasura-default-role": "user", "x-hasura-tenant-id": "north",
+            "x-hasura-user-id": "voter", "x-hasura-allowed-roles": ["user"]}})
+}
+
 #[rocket::async_test]
-async fn claims_guard_requires_bearer_syntax_and_parseable_claims() {
-    let client = Client::tracked(rocket::build().mount("/", routes![claims]))
-        .await
-        .unwrap();
+async fn claims_guard_requires_bearer_syntax_and_verified_claims() {
+    let client = Client::tracked(
+        rocket::build()
+            .manage(signing::issuers())
+            .mount("/", routes![claims]),
+    )
+    .await
+    .unwrap();
     assert_eq!(
         client.get("/claims").dispatch().await.status(),
         Status::Unauthorized
     );
+    let claims = voter_claims(&signing::issuer_of("north"));
+    let unsigned = format!(
+        "fixture.{}.unsigned",
+        URL_SAFE_NO_PAD.encode(serde_json::to_vec(&claims).unwrap())
+    );
+    let untrusted = signing::token(&voter_claims(
+        "https://untrusted.example/realms/tenant-north",
+    ));
+    let mut stale = claims.clone();
+    stale["exp"] = json!(1);
     for authorization in [
-        "Basic synthetic",
-        "Bearer",
-        "Bearer malformed",
-        "Bearer h.!.s",
+        "Basic synthetic".to_string(),
+        "Bearer".to_string(),
+        "Bearer malformed".to_string(),
+        "Bearer h.!.s".to_string(),
+        format!("Bearer {unsigned}"),
+        format!("Bearer {untrusted}"),
+        format!("Bearer {}", signing::token(&stale)),
     ] {
         assert_eq!(
             client
                 .get("/claims")
-                .header(Header::new("Authorization", authorization))
+                .header(Header::new("Authorization", authorization.clone()))
                 .dispatch()
                 .await
                 .status(),
-            Status::Unauthorized
+            Status::Unauthorized,
+            "{authorization}"
         );
     }
-    // An unsigned fixture deliberately proves parsing only, not authentication.
-    let claims = json!({"exp": 2000000000, "iat": 0, "jti": "test", "iss": "test", "sub": "voter",
-        "typ": "Bearer", "azp": "voting-portal", "acr": "1", "allowed-origins": [], "scope": "openid", "email_verified": false,
-        "https://hasura.io/jwt/claims": {"x-hasura-default-role": "user", "x-hasura-tenant-id": "north",
-            "x-hasura-user-id": "voter", "x-hasura-allowed-roles": ["user"]}});
-    let token = format!(
-        "Bearer fixture.{}.unsigned",
-        URL_SAFE_NO_PAD.encode(serde_json::to_vec(&claims).unwrap())
-    );
     assert_eq!(
         client
             .get("/claims")
-            .header(Header::new("Authorization", token))
+            .header(Header::new(
+                "Authorization",
+                format!("Bearer {}", signing::token(&claims))
+            ))
             .dispatch()
             .await
             .into_string()
@@ -173,6 +207,55 @@ async fn location_headers_are_optional_and_cloudflare_takes_precedence() {
             .unwrap(),
         "|"
     );
+}
+
+#[rocket::async_test]
+async fn location_guard_bounds_user_agents_and_redacts_all_network_fields_from_debug(
+) {
+    let client =
+        Client::tracked(rocket::build().mount("/", routes![location_evidence]))
+            .await
+            .unwrap();
+    let absent: Value = client
+        .get("/location-evidence")
+        .dispatch()
+        .await
+        .into_json()
+        .await
+        .unwrap();
+    assert_eq!(
+        absent,
+        json!({"agent": null, "ip": null, "country": null, "debug": "UserLocation(<redacted>)"})
+    );
+    for agent in [
+        "Synthetic browser".to_owned(),
+        "a".repeat(1025),
+        "é".repeat(1025),
+    ] {
+        let result: Value = client
+            .get("/location-evidence")
+            .header(Header::new("User-Agent", agent.clone()))
+            .header(Header::new("CF-Connecting-IP", "192.0.2.1"))
+            .header(Header::new("CF-IPCountry", "CA"))
+            .dispatch()
+            .await
+            .into_json()
+            .await
+            .unwrap();
+        let expected = if agent == "Synthetic browser" {
+            agent
+        } else if agent.starts_with('a') {
+            "a".repeat(1024)
+        } else {
+            "é".repeat(1024)
+        };
+        assert_eq!(result["agent"], expected);
+        assert_eq!(result["ip"], "192.0.2.1");
+        assert_eq!(result["country"], "CA");
+        // Debug output is a real logging boundary; none of the forensic fields
+        // may escape even when they were supplied to the request guard.
+        assert_eq!(result["debug"], "UserLocation(<redacted>)");
+    }
 }
 
 #[rocket::async_test]

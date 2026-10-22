@@ -70,6 +70,8 @@ function fixture(name, cases, support = {}) {
     ["add", "."],
     [
       "-c",
+      "commit.gpgsign=false",
+      "-c",
       "user.name=Fixture",
       "-c",
       "user.email=fixture@example.invalid",

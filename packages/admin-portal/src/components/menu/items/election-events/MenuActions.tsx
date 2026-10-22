@@ -17,7 +17,7 @@ import {useActionPermissions, useTreeMenuData} from "../use-tree-menu-hook"
 import {useTranslation} from "react-i18next"
 import {styled} from "@mui/material/styles"
 import {divContainer} from "@/components/styles/Menu"
-import {useMutation} from "@apollo/client"
+import {useApolloClient, useMutation} from "@apollo/client"
 import {DeleteElectionEvent, DeleteElectionEventMutation} from "@/gql/graphql"
 import {DELETE_ELECTION_EVENT} from "@/queries/DeleteElectionEvent"
 import {IPermissions} from "@/types/keycloak"
@@ -26,6 +26,25 @@ import {useCreateElectionEventStore} from "@/providers/CreateElectionEventContex
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {WidgetProps} from "@/components/Widget"
 import {ETasksExecution} from "@/types/tasksExecution"
+import {isBallotBoxSealedError, sealText} from "@/services/ballotBoxSealErrors"
+import {GET_BALLOT_BOX_SEALS, GET_EVENT_BALLOT_BOX_SEALS} from "@/queries/GetBallotBoxSeals"
+import type {
+    GetBallotBoxSealsQuery,
+    GetBallotBoxSealsQueryVariables,
+    GetEventBallotBoxSealsQuery,
+} from "@/types/ballotBoxSeal"
+import {useSealReadRole} from "@/hooks/useSealReadRole"
+import {isSealAtClose} from "@/services/ballotBoxSealPolicy"
+
+/** What the pre-check of a delete found about ballot box seals (VOTE-FREEZE). */
+enum ESealCheck {
+    /** No seals, or not an election or event. */
+    NONE = "none",
+    /** It has seals: it can't be deleted. */
+    SEALED = "sealed",
+    /** The seals could not be read. */
+    UNKNOWN = "unknown",
+}
 
 const mapRemoveResource: Record<ResourceName, string> = {
     sequent_backend_election_event: "sideMenu.menuActions.remove.electionEvent",
@@ -108,10 +127,63 @@ export default function MenuAction({
 
     const notify = useNotify()
 
-    const {refetch} = useTreeMenuData(isArchivedTab)
+    const {data: treeData, refetch} = useTreeMenuData(isArchivedTab)
 
     const [openArchiveModal, setOpenArchiveModal] = React.useState(false)
     const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
+    // What the pre-check found about the ballot box seals of the election or
+    // event to remove (VOTE-FREEZE): sealed ones can't be deleted.
+    const [sealCheck, setSealCheck] = React.useState<ESealCheck>(ESealCheck.NONE)
+    const apollo = useApolloClient()
+    const sealRole = useSealReadRole()
+
+    /**
+     * Whether the election or event has ballot box seals. The database (or
+     * the delete task) refuses to delete it then, and outside Hasura's dev
+     * mode its error doesn't say why, so the dialog says it before. The seals
+     * are read with a role the user has; when none can read them, the dialog
+     * says they could not be checked.
+     */
+    const checkSeals = async (payload: ActionPayload): Promise<ESealCheck> => {
+        const isElection = payload.type === "sequent_backend_election"
+        if (!isElection && payload.type !== "sequent_backend_election_event") {
+            return ESealCheck.NONE
+        }
+        // Only an event that seals at close has seals: any other is deleted
+        // as before, without reading them.
+        const eventId = String(isElection ? parentData.id : payload.id)
+        const event = (
+            treeData?.sequent_backend_election_event as
+                | Array<{id: string; presentation?: unknown}>
+                | undefined
+        )?.find((item) => String(item.id) === eventId)
+        if (event && !isSealAtClose(event.presentation)) return ESealCheck.NONE
+        if (!sealRole) return ESealCheck.UNKNOWN
+        try {
+            const context = {headers: {"x-hasura-role": sealRole}}
+            const {data} = isElection
+                ? await apollo.query<GetBallotBoxSealsQuery, GetBallotBoxSealsQueryVariables>({
+                      query: GET_BALLOT_BOX_SEALS,
+                      variables: {
+                          electionEventId: parentData.id,
+                          electionIds: [String(payload.id)],
+                      },
+                      fetchPolicy: "network-only",
+                      context,
+                  })
+                : await apollo.query<GetEventBallotBoxSealsQuery>({
+                      query: GET_EVENT_BALLOT_BOX_SEALS,
+                      variables: {electionEventId: String(payload.id)},
+                      fetchPolicy: "network-only",
+                      context,
+                  })
+            return data?.sequent_backend_ballot_box_seal?.length
+                ? ESealCheck.SEALED
+                : ESealCheck.NONE
+        } catch {
+            return ESealCheck.UNKNOWN
+        }
+    }
     const [selectedActionModal, setSelectedActionModal] = React.useState<{
         action: Action
         payload: ActionPayload
@@ -138,6 +210,7 @@ export default function MenuAction({
             setSelectedActionModal({action, payload})
             setOpenArchiveModal(true)
         } else if (action === Action.Remove) {
+            setSealCheck(await checkSeals(payload))
             setSelectedActionModal({action, payload})
             setOpenDeleteModal(true)
         }
@@ -211,8 +284,17 @@ export default function MenuAction({
                 },
             })
 
-            if (data?.delete_election_event?.error_msg || errors) {
-                updateWidgetFail(currWidget.identifier)
+            const errorMessage = data?.delete_election_event?.error_msg
+            if (errorMessage || errors) {
+                // Say why (e.g. the event has sealed ballot boxes), and let the
+                // widget show the task's log when there is a task.
+                if (errorMessage) notify(sealText(t, errorMessage), {type: "error"})
+                const failedTask = data?.delete_election_event?.task_execution?.id
+                if (failedTask) {
+                    setWidgetTaskId(currWidget.identifier, failedTask)
+                } else {
+                    updateWidgetFail(currWidget.identifier)
+                }
                 return
             }
             const taskId = data?.delete_election_event?.task_execution?.id
@@ -265,11 +347,19 @@ export default function MenuAction({
                             navigate("/sequent_backend_contest/" + parentData.id)
                         }
                     },
-                    onError: () => {
+                    onError: (error: unknown) => {
                         setOpenDeleteModal(false)
-                        notify(t("sideMenu.menuActions.messages.notification.error.delete"), {
-                            type: "error",
-                        })
+                        // A sealed election can't be deleted (VOTE-FREEZE): say why.
+                        notify(
+                            t(
+                                isBallotBoxSealedError(error)
+                                    ? "sideMenu.menuActions.messages.notification.error.deleteSealedElection"
+                                    : sealCheck === ESealCheck.UNKNOWN
+                                      ? "sideMenu.menuActions.messages.notification.error.deleteMaybeSealed"
+                                      : "sideMenu.menuActions.messages.notification.error.delete"
+                            ),
+                            {type: "error"}
+                        )
                     },
                     onSettled: () => {
                         setSelectedActionModal(null)
@@ -487,17 +577,27 @@ export default function MenuAction({
             <Dialog
                 variant="warning"
                 open={openDeleteModal}
-                ok={String(t("common.label.delete"))}
+                ok={sealCheck === ESealCheck.SEALED ? undefined : String(t("common.label.delete"))}
                 cancel={String(t("common.label.cancel"))}
                 title={String(t("common.label.warning"))}
                 handleClose={(result: boolean) => {
-                    if (result) {
+                    if (result && sealCheck !== ESealCheck.SEALED) {
                         confirmDeleteAction()
                     }
                     setOpenDeleteModal(false)
                 }}
             >
-                {t("sideMenu.menuActions.messages.confirm.delete")}
+                {sealCheck === ESealCheck.SEALED
+                    ? t(
+                          selectedActionModal?.payload.type === "sequent_backend_election_event"
+                              ? "sideMenu.menuActions.messages.notification.error.deleteSealedEvent"
+                              : "sideMenu.menuActions.messages.notification.error.deleteSealedElection"
+                      )
+                    : sealCheck === ESealCheck.UNKNOWN
+                      ? `${t("sideMenu.menuActions.messages.confirm.delete")} ${t(
+                            "sideMenu.menuActions.messages.confirm.sealsUnknown"
+                        )}`
+                      : t("sideMenu.menuActions.messages.confirm.delete")}
             </Dialog>
         </>
     )

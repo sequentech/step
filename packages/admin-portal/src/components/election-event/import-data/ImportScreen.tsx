@@ -2,7 +2,18 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {Box, styled, Button, TextField, InputLabel} from "@mui/material"
+import {
+    Box,
+    styled,
+    Button,
+    TextField,
+    InputLabel,
+    Typography,
+    IconButton,
+    Menu,
+    MenuItem,
+} from "@mui/material"
+import MoreHorizIcon from "@mui/icons-material/MoreHoriz"
 import {DropFile, Dialog, ProblemList, type Problem} from "@sequentech/ui-essentials"
 import {FormStyles} from "@/components/styles/FormStyles"
 import React, {useEffect, useRef, memo, useState} from "react"
@@ -11,11 +22,18 @@ import {GetUploadUrlMutation} from "@/gql/graphql"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 import {useMutation} from "@apollo/client"
 import {SimpleForm, useNotify} from "react-admin"
+import {EFileIntegrityPolicy} from "@sequentech/ui-core"
+import {selectImportFiles} from "@/services/ImportFileSelection"
+import {ImportRequestError} from "@/services/ImportRequestError"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
+
+const DOWNLOAD_URL_LIFETIME_MS = 1000
 
 interface ImportScreenProps {
     doImport: (documentId: string, sha256: string, password?: string) => Promise<void>
     uploadCallback?: (documentId: string, password?: string, shaField?: string) => Promise<void>
     doCancel: () => void
+    onSourceChange?: () => void
     errors: string | null
     /**
      * Why the file was refused, one named problem each, when the backend could
@@ -23,9 +41,37 @@ interface ImportScreenProps {
      * paragraph.
      */
     problems?: Problem[] | null
+    fileIntegrityPolicy?: EFileIntegrityPolicy
+    allowHistoricalSource?: boolean
     disableImport?: boolean
     refresh?: string
 }
+
+const stageLabels = {
+    "select": "Select a native file to import.",
+    "local-ready":
+        "Local validation passed. Create uploads the generated ZIP, validates it with the backend and requests creation.",
+    "local":
+        "2. Local conversion and validation. No backend request has been made for these sources.",
+    "uploading": "3. Upload transport: sending the accepted native package to the backend.",
+    "validating": "3. Backend dry-run validation: checkOnly. The event has not been created.",
+    "ready":
+        "3. Backend dry-run passed. Final Import/Create submits a separate creation task and can still fail.",
+    "uploaded": "File upload completed. Import has not started.",
+    "creating": "4. Backend creation request in progress.",
+    "submitted":
+        "4. Backend creation task submitted. Follow the import task for final success or errors.",
+    "transport-error":
+        "Upload transport failed. No backend dry-run or creation was completed. Retry the upload.",
+    "validation-transport-error":
+        "Backend dry-run request failed. Validation was not confirmed; retry the upload and check the backend connection.",
+    "validation-error":
+        "Backend dry-run validation refused this package. Review the backend diagnostics below; no event was created.",
+    "creation-transport-error":
+        "Backend creation request failed. Its outcome is unconfirmed; check the import task and event list before retrying.",
+    "creation-error":
+        "Backend creation failed after dry-run validation. Review the import task and backend diagnostics below.",
+} as const
 
 export const ImportStyles = {
     CancelButton: styled(Button)`
@@ -46,7 +92,22 @@ const PasswordInputStyle = styled(FormStyles.PasswordInput)`
 
 export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenProps>> = memo(
     (props: ImportScreenProps): React.JSX.Element => {
-        const {doCancel, uploadCallback, doImport, disableImport, refresh, errors, problems} = props
+        const {
+            doCancel,
+            onSourceChange,
+            uploadCallback,
+            doImport,
+            disableImport,
+            refresh,
+            errors,
+            problems,
+            allowHistoricalSource,
+        } = props
+        const requiresSha = props.fileIntegrityPolicy === EFileIntegrityPolicy.REQUIRED_SHA256
+        const {globalSettings} = React.useContext(SettingsContext)
+        const configuredUrl = globalSettings.ELECTION_EVENT_IMPORT_CONVERTER_BASE_URL
+        const converterUrl = typeof configuredUrl === "string" ? configuredUrl.trim() : undefined
+        const historicalEnabled = !!allowHistoricalSource && !!converterUrl
         const {t} = useTranslation()
         const notify = useNotify()
         const [loading, setLoading] = useState<boolean>(false)
@@ -59,11 +120,61 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
         const passwordInputRef = useRef<HTMLInputElement>(null)
         const [password, setPassword] = useState<string>("")
         const [theFile, setTheFile] = useState<File | undefined>()
+        const [generatedHash, setGeneratedHash] = useState<string | null>(null)
+        const [selectionError, setSelectionError] = useState("")
+        const [downloadAnchor, setDownloadAnchor] = useState<HTMLElement | null>(null)
+        const [downloadError, setDownloadError] = useState("")
+        const [HistoricalImportPlugin, setHistoricalImportPlugin] =
+            useState<typeof import("./HistoricalImportPlugin").HistoricalImportPlugin>()
+        const [pluginLoadError, setPluginLoadError] = useState("")
+        const [historicalFiles, setHistoricalFiles] = useState<File[]>([])
+        const previousConverterUrl = useRef(converterUrl)
+        const [stage, setStage] = useState<keyof typeof stageLabels>("select")
 
         useEffect(() => {
             setShaField("")
             setDocumentId(null)
         }, [refresh])
+
+        useEffect(() => {
+            const changed = previousConverterUrl.current !== converterUrl
+            previousConverterUrl.current = converterUrl
+            if ((!changed && historicalEnabled) || (!historicalFiles.length && !generatedHash))
+                return
+            setHistoricalFiles([])
+            setGeneratedHash(null)
+            setTheFile(undefined)
+            setShaField("")
+            setDocumentId(null)
+            setStage("select")
+            setDownloadAnchor(null)
+            setDownloadError("")
+        }, [converterUrl, historicalEnabled, historicalFiles.length, generatedHash])
+
+        useEffect(() => {
+            if (!historicalEnabled || !historicalFiles.length || HistoricalImportPlugin) return
+            let active = true
+            setPluginLoadError("")
+            void import("./HistoricalImportPlugin").then(
+                (module) => {
+                    if (active) setHistoricalImportPlugin(() => module.HistoricalImportPlugin)
+                },
+                () => {
+                    if (active)
+                        setPluginLoadError(
+                            String(
+                                t("electionEventScreen.import.pluginLoadError", {
+                                    defaultValue:
+                                        "Could not load the local converter. Reload the page and try again, or use a native ZIP. No files were uploaded.",
+                                })
+                            )
+                        )
+                }
+            )
+            return () => {
+                active = false
+            }
+        }, [historicalEnabled, historicalFiles, HistoricalImportPlugin, t])
 
         // Used to autofocus the password input field in the modal dialog. Just
         // using the autofocus property in PasswordInputStyle's inputProps
@@ -87,11 +198,17 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
             }
         }
 
-        const uploadFileToS3 = async (theFile: File, uploadPassword: string) => {
+        const uploadFileToS3 = async (
+            theFile: File,
+            uploadPassword: string,
+            packageHash = shaField
+        ) => {
             setIsUploading(true)
+            setStage("uploading")
+            setDocumentId(null)
+            let uploadedId: string
             try {
-                // Get the Upload URL
-                let {data} = await getUploadUrl({
+                const {data} = await getUploadUrl({
                     variables: {
                         name: theFile.name,
                         media_type: theFile.name.endsWith(".ezip")
@@ -101,25 +218,30 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                         is_public: false,
                     },
                 })
-
-                if (!data?.get_upload_url?.url) {
-                    notify(t("electionEventScreen.import.fileUploadError"), {type: "error"})
-                    return
-                }
-
+                if (!data?.get_upload_url?.url) throw new Error("missing upload URL")
                 await uploadFile(data.get_upload_url.url, theFile)
-                setDocumentId(data.get_upload_url.document_id)
+                uploadedId = data.get_upload_url.document_id
+            } catch {
+                setStage("transport-error")
+                setIsUploading(false)
+                notify(t("electionEventScreen.import.fileUploadError"), {type: "error"})
+                return
+            }
+            try {
                 if (uploadCallback) {
-                    console.log("uploadCallback call")
-                    await uploadCallback?.(
-                        data.get_upload_url.document_id,
-                        uploadPassword,
-                        shaField
-                    )
+                    setStage("validating")
+                    await uploadCallback(uploadedId, uploadPassword, packageHash)
                 }
+                setDocumentId(uploadedId)
+                setStage(allowHistoricalSource && uploadCallback ? "ready" : "uploaded")
                 notify(t("electionEventScreen.import.fileUploadSuccess"), {type: "success"})
-            } catch (_error) {
-                setDocumentId(null)
+                return uploadedId
+            } catch (error) {
+                setStage(
+                    error instanceof ImportRequestError && error.stage === "transport"
+                        ? "validation-transport-error"
+                        : "validation-error"
+                )
                 notify(t("electionEventScreen.import.fileUploadError"), {type: "error"})
             } finally {
                 setIsUploading(false)
@@ -129,9 +251,39 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
         const handleFiles = async (files: FileList | null) => {
             if (loading || isUploading || passwordDialogOpen) return
             setDocumentId(null)
+            if (generatedHash && shaField === generatedHash) setShaField("")
+            setGeneratedHash(null)
             // https://fullstackdojo.medium.com/s3-upload-with-presigned-url-react-and-nodejs-b77f348d54cc
             setPassword("")
-            const theFile = files?.[0]
+            const selected = Array.from(files ?? [])
+            if (!selected.length) return
+            setDownloadAnchor(null)
+            setDownloadError("")
+            onSourceChange?.()
+            setSelectionError("")
+            setTheFile(undefined)
+            if (
+                allowHistoricalSource ||
+                selected.some((file) => /\.(sql|xlsx)$/i.test(file.name))
+            ) {
+                const selection = selectImportFiles(selected, historicalFiles, historicalEnabled)
+                if (selection.kind === "error") {
+                    setHistoricalFiles([])
+                    setStage("select")
+                    setSelectionError(selection.message)
+                    return
+                }
+                if (selection.kind === "historical") {
+                    setStage("local")
+                    setHistoricalFiles(selection.files)
+                    return
+                }
+            } else if (selected.length !== 1) {
+                setSelectionError("Drop one native file at a time.")
+                return
+            }
+            setHistoricalFiles([])
+            const theFile = selected[0]
             setTheFile(theFile)
             const isEncrypted = theFile?.name.endsWith(".ezip") || false
             if (isEncrypted) {
@@ -155,23 +307,83 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
             await uploadFileToS3(theFile, password)
         }
 
+        const validSha = /^[a-fA-F0-9]{64}$/.test(shaField)
+
+        const submitImport = async (id = documentId) => {
+            if (!id || (requiresSha && !validSha)) return
+            setLoading(true)
+            setStage("creating")
+            try {
+                await doImport(id, shaField, password)
+                setStage("submitted")
+            } catch (error) {
+                setStage(
+                    error instanceof ImportRequestError && error.stage === "transport"
+                        ? "creation-transport-error"
+                        : "creation-error"
+                )
+            } finally {
+                setLoading(false)
+            }
+        }
         const onImportButtonClick = async () => {
+            if (requiresSha && !validSha) return
+            if (generatedHash && !historicalEnabled) return
+            if (generatedHash && theFile && !documentId) {
+                const id = await uploadFileToS3(theFile, "", generatedHash)
+                if (id) await submitImport(id)
+                return
+            }
             if (!shaField) {
                 setShowShaDialog(true)
                 return
             }
-
-            setLoading(true)
-            await doImport(documentId as string, shaField, password)
-            setLoading(false)
+            await submitImport()
         }
 
         const isWorking = () => loading || isUploading
+        const downloadConvertedZip = () => {
+            setDownloadAnchor(null)
+            setDownloadError("")
+            if (!historicalEnabled || !generatedHash || !theFile || isWorking()) return
+            let url: string | undefined
+            let link: HTMLAnchorElement | undefined
+            try {
+                // Reuse the accepted File itself: download and upload share identical bytes/name/type.
+                url = URL.createObjectURL(theFile)
+                link = document.createElement("a")
+                link.href = url
+                link.download = theFile.name
+                document.body.appendChild(link)
+                link.click()
+            } catch {
+                setDownloadError(
+                    String(
+                        t("electionEventScreen.import.downloadError", {
+                            defaultValue:
+                                "Could not start the ZIP download. Try Download ZIP again. This action does not upload or import the package.",
+                        })
+                    )
+                )
+            } finally {
+                link?.remove()
+                if (url) {
+                    const objectUrl = url
+                    // Let the browser begin consuming the download before releasing its URL.
+                    setTimeout(() => URL.revokeObjectURL(objectUrl), DOWNLOAD_URL_LIFETIME_MS)
+                }
+            }
+        }
 
         return (
             <Box sx={{padding: "0"}}>
                 <TextField
-                    disabled={isWorking()}
+                    disabled={isWorking() || !!generatedHash}
+                    required={requiresSha}
+                    helperText={
+                        requiresSha ? t("electionEventScreen.import.shaRequiredHelp") : undefined
+                    }
+                    error={requiresSha && shaField.length > 0 && !validSha}
                     label={String(t("electionEventScreen.import.sha"))}
                     size="small"
                     value={shaField}
@@ -181,13 +393,87 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                 />
 
                 <Box component="fieldset" disabled={isWorking()} sx={{border: 0, m: 0, p: 0}}>
-                    <DropFile handleFiles={async (files) => handleFiles(files)} />
+                    <DropFile
+                        multiple={historicalEnabled}
+                        formatLabel={allowHistoricalSource ? "ZIP / JSON / EZIP" : undefined}
+                        handleFiles={async (files) => handleFiles(files)}
+                    />
                 </Box>
 
+                {selectionError && (
+                    <Typography role="alert" color="error">
+                        {selectionError}
+                    </Typography>
+                )}
+                {historicalEnabled &&
+                    historicalFiles.length > 0 &&
+                    (HistoricalImportPlugin ? (
+                        <HistoricalImportPlugin
+                            baseUrl={converterUrl}
+                            disabled={isWorking()}
+                            droppedFiles={historicalFiles}
+                            onPrepare={() => {
+                                setDownloadAnchor(null)
+                                setDownloadError("")
+                                setStage("local")
+                                setDocumentId(null)
+                                setShaField("")
+                                setGeneratedHash(null)
+                                setTheFile(undefined)
+                            }}
+                            onAccepted={async (file, hash) => {
+                                setPassword("")
+                                setTheFile(file)
+                                setShaField(hash)
+                                setGeneratedHash(hash)
+                                setStage("local-ready")
+                            }}
+                        />
+                    ) : (
+                        <Typography
+                            role={pluginLoadError ? "alert" : "status"}
+                            color={pluginLoadError ? "error" : undefined}
+                        >
+                            {pluginLoadError ||
+                                String(
+                                    t("electionEventScreen.import.loadingConverter", {
+                                        defaultValue: "Loading local converter…",
+                                    })
+                                )}
+                        </Typography>
+                    ))}
+
+                {stage !== "select" && (
+                    <Typography
+                        role="status"
+                        data-testid="import-stage"
+                        color={stage.endsWith("error") ? "error" : undefined}
+                        sx={{mt: 2}}
+                    >
+                        {String(
+                            t(`electionEventScreen.import.stage.${stage}`, {
+                                defaultValue: stageLabels[stage],
+                            })
+                        )}
+                    </Typography>
+                )}
+                {downloadError && (
+                    <Typography role="alert" color="error">
+                        {downloadError}
+                    </Typography>
+                )}
                 <FormStyles.StatusBox>
                     {isWorking() ? <FormStyles.ShowProgress /> : null}
                     {problems && problems.length > 0 ? (
                         <Box sx={{width: "100%"}} data-testid="import-problems">
+                            <Typography variant="body2">
+                                {String(
+                                    t("electionEventScreen.import.backendDiagnostics", {
+                                        defaultValue:
+                                            "Backend diagnostics from the latest validation or creation request",
+                                    })
+                                )}
+                            </Typography>
                             <ProblemList report={{problems}} />
                         </Box>
                     ) : errors ? (
@@ -207,23 +493,68 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                     <ImportStyles.CancelButton disabled={isWorking()} onClick={() => doCancel()}>
                         {t("electionEventScreen.import.cancel")}
                     </ImportStyles.CancelButton>
+                    {historicalEnabled && generatedHash && theFile && (
+                        <>
+                            <IconButton
+                                aria-label={String(
+                                    t("electionEventScreen.import.downloadOptions", {
+                                        defaultValue: "Converted ZIP options",
+                                    })
+                                )}
+                                aria-haspopup="menu"
+                                aria-expanded={!!downloadAnchor}
+                                disabled={isWorking()}
+                                onClick={(event) => setDownloadAnchor(event.currentTarget)}
+                            >
+                                <MoreHorizIcon />
+                            </IconButton>
+                            <Menu
+                                anchorEl={downloadAnchor}
+                                open={!!downloadAnchor}
+                                onClose={() => setDownloadAnchor(null)}
+                            >
+                                <MenuItem onClick={downloadConvertedZip} disabled={isWorking()}>
+                                    {String(
+                                        t("electionEventScreen.import.downloadZip", {
+                                            defaultValue: "Download ZIP",
+                                        })
+                                    )}
+                                </MenuItem>
+                            </Menu>
+                        </>
+                    )}
                     <ImportStyles.ImportButton
-                        disabled={!documentId || isWorking() || disableImport || showShaDialog}
+                        sx={{marginLeft: generatedHash ? 1 : "auto"}}
+                        disabled={
+                            (!documentId && !generatedHash) ||
+                            (!!generatedHash && !historicalEnabled) ||
+                            isWorking() ||
+                            disableImport ||
+                            stage === "validation-error" ||
+                            !!errors ||
+                            problems?.some((p) => p.severity === "error") ||
+                            showShaDialog ||
+                            (requiresSha && !validSha)
+                        }
                         onClick={onImportButtonClick}
                     >
-                        {t("electionEventScreen.import.import")}
+                        {generatedHash
+                            ? String(
+                                  t("electionEventScreen.import.create", {defaultValue: "Create"})
+                              )
+                            : t("electionEventScreen.import.import")}
                     </ImportStyles.ImportButton>
                 </Box>
 
                 <Dialog
                     variant="warning"
-                    open={showShaDialog}
+                    open={!requiresSha && showShaDialog}
                     ok={String(t("electionEventScreen.import.shaDialog.ok"))}
                     cancel={String(t("electionEventScreen.import.shaDialog.cancel"))}
                     title={String(t("electionEventScreen.import.shaDialog.title"))}
                     handleClose={(result: boolean) => {
-                        if (result) {
-                            doImport(documentId as string, shaField, password)
+                        if (result && !requiresSha) {
+                            void submitImport()
                         }
 
                         setShowShaDialog(false)

@@ -4,6 +4,7 @@
 
 use crate::ports::documents::DocumentStorage;
 use anyhow::anyhow;
+use deadpool_postgres::Transaction;
 use sequent_core::types::hasura::core::Document;
 use std::collections::HashMap;
 use std::io::Write;
@@ -11,7 +12,8 @@ use std::sync::Mutex;
 use tempfile::NamedTempFile;
 
 /// Object contents by document id. Downloading any other document fails
-/// the way a missing S3 object does.
+/// the way a missing S3 object does. A document's URL is
+/// `https://documents.test/<document id>`.
 #[derive(Default)]
 pub struct MemoryDocumentStorage(Mutex<HashMap<String, Vec<u8>>>);
 
@@ -41,5 +43,15 @@ impl DocumentStorage for MemoryDocumentStorage {
         let mut file = NamedTempFile::new()?;
         file.write_all(&contents)?;
         Ok(file)
+    }
+
+    async fn url(
+        &self,
+        _hasura_transaction: &Transaction<'_>,
+        _tenant_id: &str,
+        _election_event_id: Option<&str>,
+        document_id: &str,
+    ) -> anyhow::Result<Option<String>> {
+        Ok(Some(format!("https://documents.test/{document_id}")))
     }
 }

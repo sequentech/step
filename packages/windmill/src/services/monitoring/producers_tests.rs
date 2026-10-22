@@ -44,6 +44,7 @@ fn voter(voter_id: &str, election: u128, region: &str, country: Option<&str>) ->
         dims: [("sex".to_string(), "F".to_string())].into(),
         pre_enrolled_at: None,
         first_voted_at: None,
+        has_voted: false,
         enrollment: None,
         enrollment_reason: None,
         enrollment_decided_at: None,
@@ -812,4 +813,19 @@ fn an_empty_scope_has_every_group_and_the_cube() {
         empty_payload(DataSourceId::AccessSecurity, &settings).notices,
         vec![Notice::UnregisteredAttemptsExcluded]
     );
+}
+
+#[test]
+fn private_participation_counts_without_creating_a_voter_vote_time() {
+    let mut row = voter("private-voter", 1, "Europe", None);
+    row.has_voted = true;
+    let facts = facts_of(&[&row]);
+    for source in [
+        DataSourceId::VoterTurnout,
+        DataSourceId::VotingEnrollmentActivity,
+    ] {
+        let (counts, events) = voter_counts(source, &facts);
+        assert_eq!(counts.get(&Measure::Voted), Some(&1));
+        assert!(events.iter().all(|(measure, _)| *measure != Measure::Voted));
+    }
 }

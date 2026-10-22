@@ -22,7 +22,7 @@ for (const scenario of [
     },
     {
         name: "early voter",
-        online: "CLOSED",
+        online: "NOT_STARTED",
         early: "OPEN",
         kiosk: false,
         allowEarly: true,
@@ -30,10 +30,18 @@ for (const scenario of [
     },
     {
         name: "early channel outside eligible area",
-        online: "CLOSED",
+        online: "NOT_STARTED",
         early: "OPEN",
         kiosk: false,
         allowEarly: false,
+        active: false,
+    },
+    {
+        name: "early channel after online voting closed",
+        online: "CLOSED",
+        early: "OPEN",
+        kiosk: false,
+        allowEarly: true,
         active: false,
     },
     {
@@ -127,7 +135,7 @@ test("no eligible elections explains the empty chooser", async ({page, portal}) 
                 status: portal.data.event.status,
                 files: [],
             },
-            sequent_backend_cast_vote: [],
+            cast_votes: [],
         },
     }))
     await page.goto(`${portal.origin}${eventPath}?lang=en`)
@@ -182,7 +190,7 @@ for (const finalStatus of ["valid", "discarded"]) {
         }
         portal.castVotes = [vote]
         portal.graphql.on("GetCastVotes", () => ({
-            data: {sequent_backend_cast_vote: portal.castVotes},
+            data: {cast_votes: portal.castVotes},
         }))
         portal.publish()
         await page.goto(`${portal.origin}${eventPath}?lang=en`)

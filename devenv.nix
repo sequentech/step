@@ -77,9 +77,6 @@ in
     postgresql_18
     openssh
 
-    # immudb
-    go
-
     # To be able to use vim in the terminal
     vim
 
@@ -98,8 +95,8 @@ in
 
     # For frontend
     yarn
-    nodejs_20
-    nodePackages.graphqurl
+    nodejs_22
+    graphqurl
 
     # For protocol buffers
     protobuf
@@ -108,14 +105,14 @@ in
     firefox
     k6 # HTTP cast load generator, pinned by devenv.lock.
 
-    # to build the rug backend in strand/braid
+    # to build native cryptographic arithmetic
     gcc
     m4
 
     # count line numbers
     scc
 
-    # for development of immudb local store
+    # SQLite utilities
     sqlite
 
     # rust dependencies
@@ -135,8 +132,8 @@ in
 
     minio-client
 
-    # AI. Note, requires allowUnfree: true in devenv.yaml
-    claude-code
+    # AI
+    inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.claude-code
 
     # for plugins
     cargo-component

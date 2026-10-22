@@ -1628,3 +1628,83 @@ fn the_plan_only_sheets_are_read_from_a_bare_workbook() {
     assert_eq!(read.plan.notes, "Book the hall.");
     assert!(read.sources.census.is_none(), "no Voters sheet, no census");
 }
+
+#[test]
+fn reports_rows_the_plan_can_hold_become_its_reports_and_the_rest_are_carried()
+{
+    use serde_json::json;
+    let read = plan_from_workbook(&minimal(vec![sheet_of(
+        "Reports",
+        vec![
+            vec![
+                ("report_type", json!("ELECTORAL_RESULTS")),
+                ("election.external_id", json!("officers")),
+                ("template.alias", json!(" comelec-er ")),
+                ("copies", json!(7)),
+                ("output_formats", json!("PDF | xml")),
+            ],
+            vec![("report_type", json!("ACTIVITY_LOGS"))],
+            // A column the plan's reports have no field for.
+            vec![
+                ("report_type", json!("ACTIVITY_LOGS")),
+                ("encryption_policy", json!("unencrypted")),
+            ],
+            // A type the plan doesn't know, and no type at all.
+            vec![("report_type", json!("tally"))],
+            vec![("copies", json!(2))],
+            vec![("report_type", json!(true))],
+            vec![
+                ("report_type", json!("ACTIVITY_LOGS")),
+                ("copies", json!("many")),
+            ],
+            vec![
+                ("report_type", json!("ACTIVITY_LOGS")),
+                ("copies", json!(0)),
+            ],
+            vec![
+                ("report_type", json!("ACTIVITY_LOGS")),
+                ("output_formats", json!("pdf | papyrus")),
+            ],
+        ],
+    )]))
+    .expect("reads");
+
+    assert_eq!(
+        read.plan.reports,
+        vec![
+            PlannedReport {
+                report_type: ReportType::ELECTORAL_RESULTS,
+                election: Some("officers".to_string()),
+                formats: vec![ReportFormat::Pdf, ReportFormat::Xml],
+                copies: 7,
+                template: Some("comelec-er".to_string()),
+            },
+            PlannedReport {
+                report_type: ReportType::ACTIVITY_LOGS,
+                election: None,
+                formats: Vec::new(),
+                copies: 1,
+                template: None,
+            },
+        ]
+    );
+    assert_eq!(read.plan.platform.len(), 1);
+    let carried: Vec<usize> = read.plan.platform[0]
+        .rows
+        .iter()
+        .map(|row| row.number)
+        .collect();
+    assert_eq!(carried, vec![4, 5, 6, 7, 8, 9, 10]);
+}
+
+#[test]
+fn a_reports_sheet_the_plan_holds_whole_is_not_carried_as_well() {
+    use serde_json::json;
+    let read = plan_from_workbook(&minimal(vec![sheet_of(
+        "Reports",
+        vec![vec![("report_type", json!("ACTIVITY_LOGS"))]],
+    )]))
+    .expect("reads");
+    assert_eq!(read.plan.reports.len(), 1);
+    assert!(read.plan.platform.is_empty());
+}

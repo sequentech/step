@@ -60,6 +60,47 @@ it("does not add expansion controls for text that already fits", () => {
     expect(screen.queryByRole("button")).toBeNull()
 })
 
+it("keeps details behind the toggle, even when the text already fits", async () => {
+    const user = userEvent.setup()
+    render(
+        withTheme(
+            <ExpandableText
+                text="Brief"
+                initialLength={5}
+                showMoreLabel="More"
+                showLessLabel="Less"
+                details={<p>Seal hash: ef18</p>}
+            />
+        )
+    )
+    expect(screen.getByText("Brief")).toBeVisible()
+    expect(screen.queryByText("...")).toBeNull()
+    expect(screen.queryByText("Seal hash: ef18")).toBeNull()
+    await user.click(screen.getByRole("button", {name: "More"}))
+    expect(screen.getByText("Seal hash: ef18")).toBeVisible()
+    await user.click(screen.getByRole("button", {name: "Less"}))
+    expect(screen.queryByText("Seal hash: ef18")).toBeNull()
+})
+
+it("shows the full text and its details together when expanded", async () => {
+    const user = userEvent.setup()
+    render(
+        withTheme(
+            <ExpandableText
+                text="Ballot box sealed: 1,340 of 1,342 ballots counted."
+                initialLength={10}
+                showMoreLabel="More"
+                showLessLabel="Less"
+                details={<p>Seal hash: ef18</p>}
+            />
+        )
+    )
+    expect(screen.getByText("Ballot box")).toBeVisible()
+    await user.click(screen.getByRole("button", {name: "More"}))
+    expect(screen.getByText("Ballot box sealed: 1,340 of 1,342 ballots counted.")).toBeVisible()
+    expect(screen.getByText("Seal hash: ef18")).toBeVisible()
+})
+
 it("keeps category expansion separate from checking the whole list", async () => {
     const user = userEvent.setup()
     const setChecked = jest.fn()

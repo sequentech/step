@@ -110,6 +110,7 @@ class RunSafety(unittest.TestCase):
             "STEP_E2E_CARGO_TARGET",
             "STEP_E2E_CARGO_HOME",
             "STEP_E2E_COVERAGE",
+            "STEP_E2E_COMPOSE_OVERLAY",
         ):
             self.env.pop(name, None)
         self.env.update(
@@ -141,10 +142,126 @@ class RunSafety(unittest.TestCase):
     def compose_calls(self, verb):
         return [args for args in self.calls() if args[0] == "compose" and verb in args]
 
+    def run_browser_script(self, **environment):
+        script = self.root / "scripts/e2e/run-browser-trustees.sh"
+        shutil.copyfile(ROOT / "scripts/e2e/run-browser-trustees.sh", script)
+        script.chmod(0o755)
+        return subprocess.run(
+            [str(script), "--skip-images", "--skip-build"],
+            env={**self.env, **environment},
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+
+    def run_server_custody_script(self, **environment):
+        script = self.root / "scripts/e2e/run-server-custody.sh"
+        shutil.copyfile(ROOT / "scripts/e2e/run-server-custody.sh", script)
+        script.chmod(0o755)
+        module = self.root / "scripts/dev/mode/checkout.py"
+        module.parent.mkdir(parents=True)
+        shutil.copyfile(ROOT / "scripts/dev/mode/checkout.py", module)
+        (self.root / ".devcontainer/.env").write_text("# synthetic checkout\n")
+        dist = self.root / "packages/admin-portal/dist"
+        (dist / "wbraid-trustee").mkdir(parents=True)
+        (dist / "index.html").touch()
+        (dist / "wbraid-trustee/index_bg.wasm").touch()
+        return subprocess.run(
+            [str(script), "--skip-images", "--skip-build", "--skip-ui-build"],
+            env={**self.env, **environment},
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+
+    def test_server_custody_collision_preserves_existing_project(self):
+        result = self.run_server_custody_script(
+            STEP_E2E_PROJECT="custody-collision-" + self.root.name.lower(),
+            FAKE_DOCKER_MODE="collision-container",
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("already", result.stderr)
+        self.assertEqual(self.compose_calls("up"), [])
+        self.assertEqual(self.compose_calls("down"), [])
+
+    def test_server_custody_failed_journey_cleans_owned_controller_and_backend(self):
+        result = self.run_server_custody_script(
+            STEP_E2E_PROJECT="custody-failure-" + self.root.name.lower(),
+            FAKE_DOCKER_MODE="journeys-failure",
+        )
+        self.assertEqual(result.returncode, 7, result.stderr)
+        self.assertEqual(len(self.compose_calls("down")), 1)
+        stops = [call for call in self.calls() if call[0] == "stop"]
+        self.assertEqual(len(stops), 1)
+        self.assertTrue(stops[0][1].endswith("-server-custody"))
+        self.assertFalse(list((self.root / ".cache/backend-e2e").glob("*/.owned-*")))
+
+    def test_browser_collision_and_stale_marker_preserve_existing_project(self):
+        output = self.root / "prior-browser-output"
+        output.mkdir()
+        (output / ".owned-old-run").write_text("other-persons-stack\n")
+        for kind in ("container", "network", "volume"):
+            with self.subTest(kind=kind):
+                self.log.unlink(missing_ok=True)
+                result = self.run_browser_script(
+                    STEP_E2E_PROJECT="other-persons-stack",
+                    STEP_E2E_OUTPUT_DIR=str(output),
+                    STEP_E2E_RUN_TOKEN="old-run",
+                    FAKE_DOCKER_MODE="collision-" + kind,
+                )
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("already", result.stderr)
+                self.assertEqual(self.compose_calls("up"), [])
+                self.assertEqual(self.compose_calls("down"), [])
+                self.assertEqual(
+                    (output / ".owned-old-run").read_text(), "other-persons-stack\n"
+                )
+
+    def test_browser_partial_backend_start_is_owned_and_cleaned_up(self):
+        result = self.run_browser_script(
+            STEP_E2E_PROJECT="partial-browser-" + self.root.name.lower(),
+            FAKE_DOCKER_MODE="partial-start",
+        )
+        self.assertEqual(result.returncode, 19, result.stderr)
+        self.assertEqual(len(self.compose_calls("up")), 1)
+        self.assertEqual(len(self.compose_calls("down")), 1)
+        self.assertFalse(list((self.root / ".cache/backend-e2e").glob("*/.owned-*")))
+
+    def test_optional_overlay_is_last_for_startup_and_cleanup(self):
+        overlay = self.root / "manual override.yml"
+        overlay.write_text("services: {}\n")
+        result = self.run_script(
+            "--skip-images", "--skip-build", STEP_E2E_COMPOSE_OVERLAY=str(overlay)
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        for call in self.compose_calls("up") + self.compose_calls("down"):
+            files = [call[i + 1] for i, arg in enumerate(call) if arg == "-f"]
+            self.assertEqual(files[-1], str(overlay))
+
+    def test_missing_optional_overlay_fails_before_docker(self):
+        result = self.run_script(
+            "--skip-images",
+            "--skip-build",
+            STEP_E2E_COMPOSE_OVERLAY=str(self.root / "missing.yml"),
+        )
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertIn("STEP_E2E_COMPOSE_OVERLAY", result.stderr)
+        self.assertEqual(self.calls(), [])
+
     def test_bash_invocation_from_the_script_directory_retains_arguments(self):
         script_directory = self.root / "scripts/e2e"
         result = subprocess.run(
-            ["bash", "run.sh", "--keep", "--skip-images", "--skip-build", "-k", "cast vote"],
+            [
+                "bash",
+                "run.sh",
+                "--keep",
+                "--skip-images",
+                "--skip-build",
+                "-k",
+                "cast vote",
+            ],
             cwd=script_directory,
             env=self.env,
             capture_output=True,
@@ -179,13 +296,16 @@ class RunSafety(unittest.TestCase):
         output = caller / "logs/run"
         self.assertTrue((caller / "binaries here").is_dir())
         values = dict(
-            line.split("=", 1) for line in (output / "compose.env").read_text().splitlines()
+            line.split("=", 1)
+            for line in (output / "compose.env").read_text().splitlines()
         )
         self.assertEqual(values["STEP_E2E_BIN_DIR"], str(caller / "binaries here"))
         self.assertEqual(values["STEP_E2E_OUTPUT_DIR"], str(output))
         for call in self.compose_calls("up") + self.compose_calls("down"):
             env_files = [
-                call[index + 1] for index, value in enumerate(call) if value == "--env-file"
+                call[index + 1]
+                for index, value in enumerate(call)
+                if value == "--env-file"
             ]
             self.assertEqual(env_files[-1], str(output / "compose.env"))
         self.assertFalse(list(output.glob(".owned-*")))

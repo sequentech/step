@@ -80,7 +80,7 @@ export const CreateAndOpenTheEvent: Story = {
             id: expect.stringMatching(UUID),
             name: "Council event",
             description: "Annual election",
-            encryption_protocol: "RSA256",
+            encryption_protocol: "WBRAID",
             tenant_id: TENANT_ID,
             is_archived: false,
             presentation: {

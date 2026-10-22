@@ -18,6 +18,8 @@ interface Scenario {
     reads: ReadState
     /** The signed-in user's roles. */
     roles: string[]
+    /** The tenant's saved display name, if any. */
+    displayName?: string
 }
 
 const Tab = settingsTab(SettingsLookAndFeel)
@@ -31,7 +33,8 @@ const meta = {
     args: {reads: "records", roles: [IPermissions.TENANT_WRITE]},
     argTypes: {reads: {control: "inline-radio", options: ["records", "loading", "error"]}},
     beforeEach: async ({args}) => {
-        data = resourceBoundary({[TENANT_RESOURCE]: [settingsTenant()]}, {reads: args.reads})
+        const saved = args.displayName === undefined ? {} : {display_name: args.displayName}
+        data = resourceBoundary({[TENANT_RESOURCE]: [settingsTenant(saved)]}, {reads: args.reads})
         graphql = graphqlBoundary({}, {schema: true})
         await graphql.ready
     },
@@ -129,5 +132,51 @@ export const Loading: Story = {
     play: async ({canvasElement}) => {
         await waitFor(() => expect(data.calls.map(({method}) => method)).toContain("getOne"))
         expect(within(canvasElement).queryByRole("textbox")).toBeNull()
+    },
+}
+
+/** Saves the tenant's settings once the undo notice closes, and returns them. */
+const savedSettings = async (canvasElement: HTMLElement) => {
+    await userEvent.click(within(canvasElement).getByRole("button", {name: "Save"}))
+    await within(document.body).findByText("Element updated")
+    await userEvent.keyboard("{Escape}")
+    await waitFor(() => expect(data.writes).toHaveLength(1))
+    return (data.writes[0].params as {data: {settings: Record<string, unknown>}}).data.settings
+}
+
+export const SaveTheDisplayName: Story = {
+    play: async ({canvasElement}) => {
+        const name = "Riverside Students' Union"
+        await userEvent.type(await input(canvasElement, "displayName"), `  ${name} `)
+        await userEvent.tab()
+        const settings = await savedSettings(canvasElement)
+        // Trimmed, beside the settings that were there.
+        expect(settings).toEqual(
+            expect.objectContaining({display_name: name, voting_countries: ["ES"]})
+        )
+    },
+}
+
+export const ClearTheDisplayName: Story = {
+    args: {displayName: "Elections Office"},
+    play: async ({canvasElement}) => {
+        const field = await input(canvasElement, "displayName")
+        await expect(field).toHaveValue("Elections Office")
+        await userEvent.clear(field)
+        await userEvent.tab()
+        const settings = await savedSettings(canvasElement)
+        // Removed, so messages fall back to the tenant's short name.
+        expect(settings).not.toHaveProperty("display_name")
+        expect(settings).toEqual(expect.objectContaining({voting_countries: ["ES"]}))
+    },
+}
+
+export const KeepTheDisplayNameWhenSavingOtherFields: Story = {
+    args: {displayName: "Elections Office"},
+    play: async ({canvasElement}) => {
+        await userEvent.type(await input(canvasElement, "css"), "body {{}")
+        await userEvent.tab()
+        const settings = await savedSettings(canvasElement)
+        expect(settings).toEqual(expect.objectContaining({display_name: "Elections Office"}))
     },
 }

@@ -4,7 +4,7 @@ import http from "k6/http";
 import exec from "k6/execution";
 import { SharedArray } from "k6/data";
 import { Counter, Rate, Trend } from "k6/metrics";
-import { replayJourney } from "./replay.k6.js";
+import { approvedUrl, replayJourney } from "./replay.k6.js";
 
 const config = JSON.parse(open(__ENV.LOAD_CONFIG));
 const shard = Number(__ENV.LOAD_SHARD);
@@ -78,13 +78,13 @@ export default function () {
     },
   };
   const start = Date.now();
+  const timings = {};
   let reason = null;
   let passed = false,
     receipt = null,
-    castMs = null,
-    statusMs = null;
+    castMs = null;
   try {
-    const result = replayJourney(
+    replayJourney(
       config.profile,
       ballot,
       index,
@@ -92,7 +92,7 @@ export default function () {
       (authorization) => {
         const before = Date.now();
         const response = http.post(
-          config.graphql_url,
+          approvedUrl(config.graphql_url, config.allowed_origins),
           JSON.stringify(ballot.payload),
           {
             headers: {
@@ -118,8 +118,8 @@ export default function () {
         else receipt = null;
         return ok;
       },
+      timings,
     );
-    statusMs = result.timings.GetVoterStatus;
     passed = true;
   } catch (error) {
     // Only adapter-owned messages are safe; runtime errors can contain signed URLs.
@@ -155,7 +155,8 @@ export default function () {
         start,
         end: Date.now(),
         cast_ms: castMs,
-        status_ms: statusMs,
+        status_ms: timings.GetVoterStatus ?? null,
+        timings,
         receipt: receipt?.id || null,
       }),
   );

@@ -9,6 +9,13 @@ import {AdminStoryProvider, graphqlBoundary} from "@/__stories__/AdminStoryProvi
 import {storyClipboard} from "../export-data/__stories__/ClipboardFixture"
 import {GoogleMeetLinkGenerator} from "./GoogleMeetLinkGenerator"
 import {pending} from "../../../../../ui-essentials/.storybook/screens"
+import {zonedToInstant} from "@sequentech/ui-core"
+import {MyTimeZoneProvider} from "@/components/timezones/timeZoneService"
+import {MY_TIME_ZONE, madridConfiguration} from "@/components/timezones/__fixtures__/configurations"
+
+// The meeting starts in the event's primary zone (the Madrid association's).
+const ZONES = madridConfiguration().presentation.timezones!
+const START_LOCAL = "2026-02-01T10:00"
 
 type Props = React.ComponentProps<typeof GoogleMeetLinkGenerator> & {
     /** What the Google Meet action answers. */
@@ -29,6 +36,7 @@ const meta = {
         open: true,
         onClose: fn(),
         electionEventName: "Council event",
+        timeZones: ZONES,
         outcome: "link",
         clipboard: "copied",
     },
@@ -60,7 +68,9 @@ const meta = {
     },
     render: ({outcome: _outcome, clipboard: _clipboard, ...props}) => (
         <AdminStoryProvider boundary={boundary}>
-            <GoogleMeetLinkGenerator {...props} />
+            <MyTimeZoneProvider zone={MY_TIME_ZONE}>
+                <GoogleMeetLinkGenerator {...props} />
+            </MyTimeZoneProvider>
         </AdminStoryProvider>
     ),
 } satisfies Meta<Props>
@@ -75,11 +85,10 @@ const openDialog = async () => {
     return within(dialog)
 }
 
-/** Schedules the meeting on 1 February 2026 at 10:00 local time, for 90 minutes. */
+/** Schedules the meeting on 1 February 2026 at 10:00 in the primary zone, for 90 minutes. */
 async function schedule(dialog: ReturnType<typeof within>) {
-    // As the browser's date and time pickers do, each input changes to a complete value.
-    fireEvent.change(dialog.getByLabelText(/Start Date/), {target: {value: "2026-02-01"}})
-    fireEvent.change(dialog.getByLabelText(/Start Time/), {target: {value: "10:00"}})
+    // As the browser's date and time picker does, the input changes to a complete value.
+    fireEvent.change(dialog.getByLabelText(/Meeting start/), {target: {value: START_LOCAL}})
     const duration = dialog.getByRole("spinbutton", {name: /Duration/})
     await userEvent.clear(duration)
     await userEvent.type(duration, "90")
@@ -110,7 +119,10 @@ export const Populated: Story = {
             "participant@example.com"
         )
         await expect(dialog.getByRole("spinbutton", {name: /Duration/})).toHaveValue(60)
-        await expect(dialog.getByLabelText(/Start Date/)).not.toHaveValue("")
+        await expect(dialog.getByLabelText(/Meeting start/)).not.toHaveValue("")
+        expect(
+            (dialog.getByRole("combobox", {name: "Timezone"}) as HTMLInputElement).value
+        ).toContain("Madrid")
         await expect(dialog.getByRole("button", {name: "Generate Meet Link"})).toBeEnabled()
         expect(boundary.calls).toEqual([])
         expect(args.onClose).not.toHaveBeenCalled()
@@ -132,10 +144,14 @@ export const GenerateAndCopyLink: Story = {
                 variables: {
                     summary: "Council event - Meeting",
                     description: "Count review",
-                    // The date and time are read in the browser's time zone, which it sends too.
-                    startDateTime: new Date("2026-02-01T10:00").toISOString(),
-                    endDateTime: new Date("2026-02-01T11:30").toISOString(),
-                    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                    // The wall time is read in the event's primary zone, which it sends too.
+                    startDateTime: new Date(
+                        zonedToInstant(START_LOCAL, ZONES.primary).instant
+                    ).toISOString(),
+                    endDateTime: new Date(
+                        Date.parse(zonedToInstant(START_LOCAL, ZONES.primary).instant) + 90 * 60_000
+                    ).toISOString(),
+                    timeZone: ZONES.primary,
                     attendeeEmails: ["alice@example.com", "bob@example.com"],
                 },
                 headers: {"x-hasura-role": "google-meet-link"},

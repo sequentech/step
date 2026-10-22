@@ -28,9 +28,15 @@ own transaction; the unsafe-string-mode test uses a separate connection option.
 It never changes shared database defaults. The coverage profile provides these
 public fixture settings; it must run in the isolated worker, not on production.
 
-The existing ignored voter-channel PostgreSQL regression is run explicitly as
-separate evidence. The other ignored activity-log test requires a fuller
-service fixture and must remain visible in the report. Native default-feature
+The coverage profile includes the isolated PostgreSQL contracts that are
+otherwise ignored: signed privacy sequencing and crash recovery, authenticated
+receive/cast and revote ownership, public-key recovery without private secrets,
+delegation and dead-letter replay. It supplies a synthetic vault key and clears
+optional deployment database roles. Standalone test modules are excluded from
+the source inventory; their production services remain measured.
+
+Live renderer, Java and S3 contracts, scale benchmarks, and scheduling tests
+requiring the complete devenv schema stay separate. Native default-feature
 coverage does not certify cloud transports, full election services, optional
 features or branches. Keep untested workers in the measured source scope.
 
@@ -40,15 +46,12 @@ With PostgreSQL running, measure from the repository root:
 python3 scripts/coverage/run.py windmill --baseline --offline
 ```
 
-Run the existing voter-channel regression explicitly from `packages/`:
+To focus on signed privacy sequencing, supply the same public fixture settings
+from `profiles.windmill.test_environment` and run from `packages/`:
 
 ```bash
-KEYCLOAK_DB__HOST=127.0.0.1 \
-HASURA_DB__HOST=127.0.0.1 HASURA_DB__PORT=3322 \
-HASURA_DB__USER=test HASURA_DB__PASSWORD=test HASURA_DB__DBNAME=test \
-LOW_SQL_LIMIT=1000 DEFAULT_SQL_LIMIT=20 DEFAULT_SQL_BATCH_SIZE=1000 \
 cargo test -p windmill --locked --offline --lib -- \
-  services::cast_votes::tests::voters_by_channel_defaults_legacy_votes_and_uses_latest_valid_revote \
+  services::ballot_box::privacy_tests::privacy_sequencer_orders_bindings_and_deduplicates_recovery \
   --ignored --exact
 ```
 
@@ -58,11 +61,22 @@ Service fixtures are needed for cloud transports and complete authenticated
 election workflows; these need dedicated service fixtures, not production
 rewrites or tests that only exercise derives.
 
+`postgres_scheduling.rs` checks that stopped schedules accept only future
+re-arming, archived events cannot execute queued lifecycle tasks, and workers
+re-read a schedule after a concurrent editor commits. The concurrency fixture
+observes PostgreSQL's row-lock wait before committing the edit.
+
+`postgres_initialization_recovery.rs` uses its own migrated fixture database
+because the periodic sweep visits all events. It injects an outbox failure,
+checks that another event still stages its entries, then removes the failure
+and verifies retry and idempotence without another tally. The signing execution
+sweep runs this recovery every minute before retrying signing executions.
+
 ## Ports and adapters
 
 Windmill separates business rules from the systems it talks to, so the rules
-can be unit-tested without PostgreSQL, Keycloak, the bulletin board, ImmuDB or
-S3.
+can be unit-tested without PostgreSQL, Keycloak, the bulletin board, the
+electoral log or S3.
 
 | Module | Contains | May depend on |
 | --- | --- | --- |

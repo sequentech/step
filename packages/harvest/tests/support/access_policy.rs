@@ -98,11 +98,112 @@ fn creating_a_user_adds_the_secret_and_label_permissions_its_body_needs() {
         ),
     ] {
         assert_eq!(
-            create_user_permissions(scope, secret_attributes, attributes),
+            create_user_permissions(scope, secret_attributes, attributes, None),
             Ok(expected),
             "{scope:?} {secret_attributes:?} {attributes:?}"
         );
     }
+}
+
+/// Setting roles on a new user needs the permissions of the set-user-role
+/// route in both scopes, after the ones for permission labels, and an empty
+/// list sets nothing.
+#[test]
+fn creating_a_user_with_roles_adds_the_set_user_role_permissions() {
+    let labels = labels();
+    let role_ids = vec!["group-a".to_string()];
+    let no_role_ids: Vec<String> = Vec::new();
+    for (scope, attributes, user_roles_ids, expected) in [
+        (UserScope::Tenant, None, None, vec![USER_CREATE]),
+        (
+            UserScope::Tenant,
+            None,
+            Some(&no_role_ids),
+            vec![USER_CREATE],
+        ),
+        (
+            UserScope::Tenant,
+            None,
+            Some(&role_ids),
+            vec![USER_CREATE, USER_WRITE, ROLE_WRITE],
+        ),
+        (
+            UserScope::Tenant,
+            Some(&labels),
+            Some(&role_ids),
+            vec![USER_CREATE, PERMISSION_LABEL_WRITE, USER_WRITE, ROLE_WRITE],
+        ),
+        (
+            UserScope::Voters,
+            None,
+            Some(&no_role_ids),
+            vec![VOTER_CREATE],
+        ),
+        (
+            UserScope::Voters,
+            None,
+            Some(&role_ids),
+            vec![VOTER_CREATE, USER_WRITE, ROLE_WRITE],
+        ),
+    ] {
+        assert_eq!(
+            create_user_permissions(
+                scope,
+                None,
+                attributes,
+                user_roles_ids.map(Vec::as_slice),
+            ),
+            Ok(expected),
+            "{scope:?} {attributes:?} {user_roles_ids:?}"
+        );
+    }
+}
+
+/// What an import may set follows the permissions the caller holds: any group
+/// needs both permissions of the set-user-role route, and permission labels
+/// need permission-label-write; the create permissions grant neither.
+#[test]
+fn an_import_may_set_what_the_callers_permissions_allow() {
+    let privileges = |held: &[Permissions]| {
+        import_users_privileges(|needed| {
+            needed.iter().all(|permission| held.contains(permission))
+        })
+    };
+    let restricted = ImportUsersPrivileges {
+        group_assignment: GroupAssignmentPolicy::DefaultGroupOnly,
+        permission_labels: PermissionLabelPolicy::Forbidden,
+    };
+    assert_eq!(restricted, ImportUsersPrivileges::default());
+    for held in [
+        vec![],
+        vec![USER_CREATE],
+        vec![VOTER_CREATE],
+        vec![USER_WRITE],
+        vec![ROLE_WRITE],
+    ] {
+        assert_eq!(privileges(&held), restricted, "{held:?}");
+    }
+    assert_eq!(
+        privileges(&[USER_CREATE, USER_WRITE, ROLE_WRITE]),
+        ImportUsersPrivileges {
+            group_assignment: GroupAssignmentPolicy::AnyGroup,
+            permission_labels: PermissionLabelPolicy::Forbidden,
+        }
+    );
+    assert_eq!(
+        privileges(&[USER_CREATE, PERMISSION_LABEL_WRITE]),
+        ImportUsersPrivileges {
+            group_assignment: GroupAssignmentPolicy::DefaultGroupOnly,
+            permission_labels: PermissionLabelPolicy::Allowed,
+        }
+    );
+    assert_eq!(
+        privileges(&[USER_WRITE, ROLE_WRITE, PERMISSION_LABEL_WRITE]),
+        ImportUsersPrivileges {
+            group_assignment: GroupAssignmentPolicy::AnyGroup,
+            permission_labels: PermissionLabelPolicy::Allowed,
+        }
+    );
 }
 
 #[test]
@@ -114,6 +215,7 @@ fn tenant_users_cannot_be_created_or_edited_with_encrypted_attributes() {
                 UserScope::Tenant,
                 Some(&secret_attributes),
                 Some(&labels()),
+                None,
             ),
             Err(SecretAttributesOutsideElectionEvent)
         );
@@ -348,7 +450,7 @@ fn denials_list_the_permissions_in_the_order_the_routes_request_them() {
     let set = secrets(Some(vec!["value".into()]));
     assert_eq!(
         denial(
-            create_user_permissions(UserScope::Voters, Some(&set), None)
+            create_user_permissions(UserScope::Voters, Some(&set), None, None)
                 .unwrap()
         ),
         r#"Unathorized: ["voter-create", "voter-secret-attribute-write"] not in {}"#
@@ -416,4 +518,68 @@ fn keys_ceremonies_are_listed_for_admins_or_trustees() {
             r#"Unathorized: ["trustee-ceremony"] not in {}"#.to_string()
         ))
     );
+}
+
+#[test]
+fn role_write_alone_edits_only_sign_permissions() {
+    for (permission, holds_user_permission_write, edit, required) in [
+        (
+            "sign-close-voting",
+            false,
+            RolePermissionEdit::SignPermission,
+            vec![ROLE_WRITE],
+        ),
+        (
+            "sign-tally-key",
+            false,
+            RolePermissionEdit::SignPermission,
+            vec![ROLE_WRITE],
+        ),
+        // Someone with both edits any permission, sign permissions included.
+        (
+            "sign-close-voting",
+            true,
+            RolePermissionEdit::AnyPermission,
+            vec![USER_PERMISSION_WRITE, ROLE_WRITE],
+        ),
+        (
+            "signing-rules-write",
+            false,
+            RolePermissionEdit::AnyPermission,
+            vec![USER_PERMISSION_WRITE, ROLE_WRITE],
+        ),
+        (
+            "role-write",
+            false,
+            RolePermissionEdit::AnyPermission,
+            vec![USER_PERMISSION_WRITE, ROLE_WRITE],
+        ),
+        (
+            "sign-",
+            false,
+            RolePermissionEdit::AnyPermission,
+            vec![USER_PERMISSION_WRITE, ROLE_WRITE],
+        ),
+    ] {
+        let actual =
+            RolePermissionEdit::of(permission, holds_user_permission_write);
+        assert_eq!(actual, edit, "{permission}");
+        assert_eq!(actual.required(), required, "{permission}");
+    }
+}
+
+#[test]
+fn only_permissions_the_platform_does_not_define_can_be_deleted() {
+    for built_in in [
+        "sign-close-voting",
+        "signing-requests-read",
+        "role-write",
+        "admin-user",
+    ] {
+        assert_eq!(
+            deletable_permission(built_in),
+            Err(BuiltInPermission(built_in.to_string()))
+        );
+    }
+    assert_eq!(deletable_permission("test-permission"), Ok(()));
 }

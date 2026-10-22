@@ -14,6 +14,7 @@ use crate::adapters::memory::identity::LocalIdentityAdmin;
 use crate::adapters::memory::monitoring_audit::MemoryConfigAudit;
 use crate::adapters::memory::monitoring_renderer::MemoryRenderer;
 use crate::adapters::memory::monitoring_snapshots::MemorySnapshots;
+use crate::adapters::memory::service_keys::StaticServiceKeys;
 use crate::adapters::memory::task_ledger::MemoryTaskLedger;
 use crate::adapters::memory::task_queue::MemoryTaskQueue;
 use crate::adapters::memory::vault::MemoryVault;
@@ -21,8 +22,12 @@ use crate::adapters::monitoring_snapshots::WindmillMonitoringSnapshots;
 use crate::ports::database::DatabasePools;
 use crate::ports::monitoring_renderer::MonitoringRenderer;
 use crate::ports::monitoring_snapshots::MonitoringSnapshots;
+use crate::routes::b4::{BoardService, ReadOrigins};
+use crate::routes::fake_provider::FakeProviderRoutes;
+use crate::routes::messaging::MessagingRelay;
 use crate::services::dependencies::{HarvestServices, MonitoringCache};
 use crate::services::monitoring_config_cache::MonitoringConfigs;
+use crate::services::service_auth::ServiceKeys;
 use crate::test_claims::Claims;
 use deadpool_postgres::{Pool, Runtime};
 use rocket::http::{ContentType, Header, Status};
@@ -31,6 +36,14 @@ use sequent_core::monitoring::cadence::Cadence;
 use serde_json::Value;
 use std::sync::Arc;
 use tokio_postgres::NoTls;
+use windmill::services::signing::approve::SigningServices;
+use windmill::services::signing::certificates::OpensslCertificateVerifier;
+use windmill::services::signing::executors::SigningExecutorRegistry;
+use windmill::services::signing::pdf::{PdfDocumentSigner, S3RevisionStore};
+use windmill::services::signing::requests::{SigningExportStore, StoredExport};
+use windmill::services::signing::rules::{
+    KeycloakSigningRoleAdmin, SigningRoleAdmin,
+};
 
 #[path = "schema.rs"]
 mod schema;
@@ -38,12 +51,32 @@ mod schema;
 #[path = "rows.rs"]
 pub mod rows;
 
+#[path = "service_tokens.rs"]
+pub mod service_tokens;
+
 /// Core's bounded HTTP peer, standing in for Keycloak.
 #[path = "../../../sequent-core/tests/support/http.rs"]
 #[allow(dead_code)]
 pub mod http;
 
+/// The relay secret route tests sign relayed callbacks with.
+pub const RELAY_SECRET: &[u8] = b"synthetic-relay-secret";
+
+/// The super-admin tenant of the tests that need one. They all set
+/// `SUPER_ADMIN_TENANT_ID` to it, so they agree while running at once.
+pub const SUPER_ADMIN_TENANT_ID: &str = "90505c8a-23a9-4cdf-a2b1-0123456789ab";
+
+/// Make [`SUPER_ADMIN_TENANT_ID`] the super-admin tenant.
+pub fn configure_super_admin_tenant() {
+    std::env::set_var("SUPER_ADMIN_TENANT_ID", SUPER_ADMIN_TENANT_ID);
+}
+
 pub struct Services {
+    /// The board service's address; none (answered 502) unless a test sets
+    /// it.
+    pub b4_url: Option<String>,
+    /// Which other origins may read boards from a page; none by default.
+    pub b4_read_origins: ReadOrigins,
     pub cast_votes: Arc<ScriptedCastVotes>,
     pub hasura: Arc<Pool>,
     pub keycloak: Arc<Pool>,
@@ -61,8 +94,18 @@ pub struct Services {
     /// Windmill's snapshot tables instead of the fake.
     pub live_snapshots: bool,
     pub ledger: Arc<MemoryTaskLedger>,
+    /// The realm keys service tokens are verified with.
+    pub service_keys: Arc<StaticServiceKeys>,
     pub tasks: MemoryTaskQueue,
     pub vault: Arc<MemoryVault>,
+    /// Relayed callbacks are signed with [`RELAY_SECRET`] unless replaced.
+    pub messaging_relay: MessagingRelay,
+    /// The webhook component's public address; none unless a test sets it.
+    pub messaging_webhooks_url: Option<String>,
+    /// Off unless a test mounts them.
+    pub messaging_fake_provider_routes: FakeProviderRoutes,
+    pub signing: SigningServices,
+    pub signing_roles: Arc<dyn SigningRoleAdmin>,
 }
 
 impl Services {
@@ -78,6 +121,8 @@ impl Services {
 
     fn with_pool(pool: Arc<Pool>) -> Self {
         Self {
+            b4_url: None,
+            b4_read_origins: ReadOrigins::SameOrigin,
             cast_votes: Default::default(),
             hasura: pool.clone(),
             keycloak: pool,
@@ -93,9 +138,37 @@ impl Services {
             monitoring_snapshots: Default::default(),
             live_snapshots: false,
             ledger: Default::default(),
+            service_keys: Default::default(),
             tasks: Default::default(),
             vault: Default::default(),
+            messaging_relay: MessagingRelay::new(
+                Some(RELAY_SECRET),
+                messaging::relay::DEFAULT_MAX_BODY_BYTES,
+            ),
+            messaging_webhooks_url: None,
+            messaging_fake_provider_routes: FakeProviderRoutes::DISABLED,
+            signing: SigningServices {
+                verifier: Arc::new(OpensslCertificateVerifier::default()),
+                executors: SigningExecutorRegistry::default(),
+                documents: Arc::new(PdfDocumentSigner::new(Arc::new(
+                    S3RevisionStore,
+                ))),
+                exports: Arc::new(RowOnlyExports),
+            },
+            signing_roles: Arc::new(KeycloakSigningRoleAdmin),
         }
+    }
+
+    /// Trusts tokens `signer` signs for `tenant_id`'s realm, as Keycloak
+    /// would publish its key.
+    pub fn trust(&self, tenant_id: &str, signer: &service_tokens::RealmSigner) {
+        self.service_keys
+            .publish(&service_tokens::realm(tenant_id), signer.jwks());
+    }
+
+    pub fn with_signing(mut self, signing: SigningServices) -> Self {
+        self.signing = signing;
+        self
     }
 
     pub fn with_monitoring_renderer(
@@ -158,6 +231,34 @@ impl Services {
         self
     }
 
+    /// Forwards board requests to `url`, e.g. a [`http::HttpServer`] as b4.
+    pub fn with_b4_url(mut self, url: &str) -> Self {
+        self.b4_url = Some(url.to_string());
+        self
+    }
+
+    pub fn with_b4_read_origins(mut self, origins: ReadOrigins) -> Self {
+        self.b4_read_origins = origins;
+        self
+    }
+
+    pub fn with_messaging_webhooks_url(mut self, url: &str) -> Self {
+        self.messaging_webhooks_url = Some(url.to_string());
+        self
+    }
+
+    /// Mounts the fake provider routes, as
+    /// `MESSAGING_FAKE_PROVIDER_ROUTES=ENABLED` does.
+    pub fn with_fake_provider_routes(mut self) -> Self {
+        self.messaging_fake_provider_routes = FakeProviderRoutes::ENABLED;
+        self
+    }
+
+    pub fn with_messaging_relay(mut self, relay: MessagingRelay) -> Self {
+        self.messaging_relay = relay;
+        self
+    }
+
     pub fn with_vault(mut self, vault: MemoryVault) -> Self {
         self.vault = Arc::new(vault);
         self
@@ -172,6 +273,21 @@ impl Services {
         &self,
         log_level: rocket::config::LogLevel,
     ) -> Client {
+        Client::tracked(
+            crate::build_application_with(self.harvest_services())
+                .manage(crate::test_claims::signing::issuers())
+                .configure(rocket::Config {
+                    log_level,
+                    cli_colors: false,
+                    ..Default::default()
+                }),
+        )
+        .await
+        .expect("the routes mount with test services")
+    }
+
+    /// The managed state the routes get, for a client or a served instance.
+    pub fn harvest_services(&self) -> HarvestServices {
         let databases: Arc<dyn DatabasePools> = Arc::new(FixedDatabasePools {
             hasura: self.hasura.clone(),
             keycloak: self.keycloak.clone(),
@@ -184,12 +300,18 @@ impl Services {
             } else {
                 self.monitoring_snapshots.clone()
             };
-        let services = HarvestServices {
+        HarvestServices {
+            b4: BoardService::new(self.b4_url.as_deref())
+                .with_read_origins(self.b4_read_origins.clone()),
             cast_votes: self.cast_votes.clone(),
             databases,
             documents: self.documents.clone(),
             electoral_log: self.electoral_log.clone(),
             identity: self.identity.clone(),
+            messaging_relay: self.messaging_relay.clone(),
+            messaging_webhooks_url: self.messaging_webhooks_url.clone(),
+            messaging_fake_provider_routes: self.messaging_fake_provider_routes,
+            otp_capacity: Default::default(),
             monitoring_audit: self.monitoring_audit.clone(),
             monitoring_cache: self.monitoring_cache.clone(),
             monitoring_configs: self.monitoring_configs.clone(),
@@ -200,19 +322,53 @@ impl Services {
             },
             monitoring_snapshots,
             ledger: self.ledger.clone(),
+            service_keys: Arc::new(ServiceKeys::new(self.service_keys.clone())),
             tasks: Arc::new(self.tasks.clone()),
             vault: self.vault.clone(),
-        };
-        Client::tracked(crate::build_application_with(services).configure(
-            rocket::Config {
-                log_level,
-                cli_colors: false,
-                ..Default::default()
-            },
-        ))
-        .await
-        .expect("the routes mount with test services")
+            signing: self.signing.clone(),
+            signing_roles: self.signing_roles.clone(),
+        }
     }
+}
+
+/// Keeps a signing export as a document row, without object storage.
+pub struct RowOnlyExports;
+
+#[rocket::async_trait]
+impl SigningExportStore for RowOnlyExports {
+    async fn store(
+        &self,
+        tx: &deadpool_postgres::Transaction<'_>,
+        tenant_id: uuid::Uuid,
+        election_event_id: uuid::Uuid,
+        file_name: &str,
+        content: &[u8],
+    ) -> anyhow::Result<StoredExport> {
+        let id = uuid::Uuid::new_v4();
+        tx.execute(
+            "INSERT INTO sequent_backend.document
+                 (id, tenant_id, election_event_id, name, media_type, size)
+             VALUES ($1, $2, $3, $4, 'text/csv', $5)",
+            &[
+                &id,
+                &tenant_id,
+                &election_event_id,
+                &file_name,
+                &(content.len() as i64),
+            ],
+        )
+        .await?;
+        Ok(StoredExport {
+            document_id: id.to_string(),
+            url: Some(export_url(&id.to_string())),
+        })
+    }
+}
+
+/// The download link [`RowOnlyExports`] gives the export it keeps as
+/// `document_id`.
+pub fn export_url(document_id: &str) -> String {
+    format!("https://exports.test/{document_id}.csv?signature=short-lived")
 }
 
 /// Nothing listens on port 1, so every connection attempt is refused.
@@ -230,6 +386,22 @@ fn unreachable_pool() -> Pool {
 
 pub fn bearer(claims: &Claims) -> Header<'static> {
     Header::new("Authorization", claims.bearer())
+}
+
+/// POST a JSON body with this `Authorization` value.
+pub async fn post_as<'c>(
+    client: &'c Client,
+    path: &'static str,
+    authorization: &str,
+    body: &Value,
+) -> LocalResponse<'c> {
+    client
+        .post(path)
+        .header(ContentType::JSON)
+        .header(Header::new("Authorization", authorization.to_string()))
+        .body(body.to_string())
+        .dispatch()
+        .await
 }
 
 /// POST a JSON body as the given caller.

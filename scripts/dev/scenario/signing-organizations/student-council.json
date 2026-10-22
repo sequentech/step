@@ -1,0 +1,144 @@
+{
+    "name": "student-council",
+    "summary": "A second organization: a university student council whose Posts are faculties, with its own roles, trusted issuer, rules and labels",
+    "tenant": {
+        "display_name": "Riverside Students' Union",
+        "i18n": {
+            "en": {
+                "adminPortal:signing.terms.post": "Faculty",
+                "adminPortal:signing.terms.posts": "Faculties",
+                "adminPortal:signing.actions.generate-election-returns.label": "Certify faculty results",
+                "adminPortal:signing.actions.generate-election-returns.short": "Faculty results",
+                "adminPortal:signing.actions.approve-voter.label": "Approve a student manually",
+                "adminPortal:signing.actions.approve-voter.appliesTo": "The student's faculty"
+            }
+        }
+    },
+    "event_name": "Student Council 2028",
+    "groups": [
+        {
+            "name": "Returning Officer",
+            "permissions": [
+                "sign-open-voting",
+                "sign-close-voting",
+                "sign-generate-election-returns"
+            ]
+        },
+        {
+            "name": "Electoral Commission",
+            "permissions": [
+                "sign-approve-voter",
+                "sign-approve-configuration"
+            ]
+        }
+    ],
+    "posts": [
+        {
+            "key": "engineering",
+            "name": "Faculty of Engineering"
+        },
+        {
+            "key": "law",
+            "name": "Faculty of Law"
+        },
+        {
+            "key": "medicine",
+            "name": "Faculty of Medicine"
+        }
+    ],
+    "signers": [
+        {
+            "group": "Returning Officer",
+            "username": "returning-officer-{post}-{n}",
+            "per_post": [
+                "Returning Officer",
+                "Deputy Returning Officer"
+            ]
+        },
+        {
+            "group": "Electoral Commission",
+            "username": "electoral-commission-{n}",
+            "event_wide": [
+                "Chair of the Electoral Commission",
+                "Commissioner",
+                "Commissioner"
+            ]
+        }
+    ],
+    "password": "Demo-2028-account",
+    "issuer": "student-council-issuer.pem",
+    "issuer_key": "student-council-issuer.key",
+    "signing_rules": [
+        {
+            "action": "initialize-voting",
+            "requirement": "not-required",
+            "signatures": 1,
+            "requester_signing": "not-allowed"
+        },
+        {
+            "action": "open-voting",
+            "requirement": "required",
+            "signatures": 2,
+            "requester_signing": "allowed",
+            "expires_minutes": 30
+        },
+        {
+            "action": "close-voting",
+            "requirement": "required",
+            "signatures": 2,
+            "requester_signing": "allowed",
+            "expires_minutes": 30
+        },
+        {
+            "action": "generate-election-returns",
+            "requirement": "required",
+            "signatures": 2,
+            "requester_signing": "allowed",
+            "expires_minutes": 120
+        },
+        {
+            "action": "generate-reports",
+            "requirement": "not-required",
+            "signatures": 1,
+            "requester_signing": "not-allowed"
+        },
+        {
+            "action": "transmit-results",
+            "requirement": "not-required",
+            "signatures": 1,
+            "requester_signing": "not-allowed"
+        },
+        {
+            "action": "approve-voter",
+            "requirement": "required",
+            "signatures": 1,
+            "requester_signing": "allowed",
+            "expires_minutes": null
+        },
+        {
+            "action": "approve-configuration",
+            "requirement": "required",
+            "signatures": 1,
+            "requester_signing": "not-allowed",
+            "expires_minutes": 1440
+        },
+        {
+            "action": "key-ceremony",
+            "requirement": "not-required",
+            "signatures": 1,
+            "requester_signing": "allowed"
+        },
+        {
+            "action": "tally-key",
+            "requirement": "not-required",
+            "signatures": 1,
+            "requester_signing": "allowed"
+        }
+    ],
+    "signing_checks": {
+        "revocation_check": "dont-check",
+        "crl_unavailable": "accept-unchecked",
+        "registration": "security-officer-only",
+        "post_binding": "any-post"
+    }
+}

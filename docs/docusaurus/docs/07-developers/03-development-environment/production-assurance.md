@@ -38,6 +38,12 @@ can inherit it with `[lints] workspace = true` after its existing violations are
 fixed. `--no-deps` limits the check to the selected crate; inspect module attributes
 and crate lint inheritance to determine the rules applied to a specific file.
 
+Native coverage measurements use `packages/rust-local-target/package-coverage`
+inside each checkout. The runner disables incremental artifacts and DWARF debug
+symbols to keep the complete test suite within hosted disk limits. LLVM coverage
+mappings remain enabled, and both revisions use the same build settings, recorded
+in each report's `build_environment`.
+
 ## TypeScript
 
 From `packages/`, run UI Core's `lint` command. The existing frontend lint

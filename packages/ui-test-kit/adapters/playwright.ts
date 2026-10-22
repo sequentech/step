@@ -59,7 +59,13 @@ export async function routePortal(context: BrowserContext, services: PortalServi
                 request.method() === "GET" &&
                 (request.isNavigationRequest() ||
                     ["script", "stylesheet", "image", "font"].includes(request.resourceType()) ||
-                    /\.wasm$/.test(url.pathname))
+                    /\.wasm$/.test(url.pathname) ||
+                    /^\/wbraid-trustee\/snippets\/wasm-bindgen-rayon-[a-f0-9]+\/src\/workerHelpers\.no-bundler\.js$/.test(
+                        url.pathname
+                    ) ||
+                    ["/favicon.ico", "/favicon.svg", "/favicon-96x96.png", "/sequent.png"].includes(
+                        url.pathname
+                    ))
             ) {
                 await route.continue()
             } else {

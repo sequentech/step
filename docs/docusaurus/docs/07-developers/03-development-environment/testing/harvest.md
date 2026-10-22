@@ -19,9 +19,23 @@ at a deployment.
 checking missing/malformed credentials, document permissions, role mutation
 permissions, tenant separation and Datafix error responses. Datafix requests
 carry valid bodies, so only the missing credentials can produce their error.
-Synthetic JWTs model claims already verified by the identity gateway. They are
-not a test of JWT signature verification or a substitute for deployment access
-controls.
+Synthetic JWTs are signed with the public test key of Core's verification
+fixtures, and the tests register matching issuer settings backed by a local key
+server, so the request guards verify them as they do real tokens. They are not
+a substitute for deployment access controls.
+
+`support/readiness_routes.rs` checks distinct UUID-v4 event IDs, tenant and
+permission-label boundaries, redacted snapshot failures and release of observation
+locks. A completed request for events without readiness evidence returns a failed
+report without recording a success. That control runs in an isolated child so
+Windmill's global voter-registry pool can use the private fixture database; its
+event ballot boxes live on the synthetic electoral-log PostgreSQL server.
+
+`support/request_logging.rs` checks that routine `GET /trustee/boards` polls and
+successful `GET /b4/boards/<board>/messages` reads, including Rocket request logs
+and shared helper spans, are visible only with `LOG_LEVEL=debug` or `trace`. Warnings, errors and failed polls remain visible;
+other endpoints, including trustee reports, retain their existing logging.
+The test dispatches concurrent requests and isolates the process-global logger.
 
 `support/error_contracts.rs` checks the error JSON consumed by the portals,
 including password-policy counts and truncated profile-validation totals.
@@ -35,21 +49,30 @@ From `packages`, run the focused suites with locked cached dependencies:
 ```sh
 # Synthetic configuration for SQL generation; these tests do not contact a database.
 export KEYCLOAK_DB__HOST=127.0.0.1 HASURA_DB__HOST=127.0.0.1
+export KEYCLOAK_VOTER_GROUP_NAME=voter
 export LOW_SQL_LIMIT=1000 DEFAULT_SQL_LIMIT=20 DEFAULT_SQL_BATCH_SIZE=1000
 cargo test -p harvest --locked --offline --bin harvest -- request_boundaries
 cargo test -p harvest --locked --offline --bin harvest -- error_contracts
+cargo test -p harvest --locked --offline --bin harvest -- services::request_logging
 cargo test -p harvest --locked --offline --bin harvest -- boundary_tests
 cargo test -p harvest --locked --offline --bin harvest -- services::access
 ```
 
-For a complete native report, from the repository root:
+For a complete native report, start a disposable PostgreSQL server on port
+`3322` with the `test` user, password and database. The role must be able to
+create databases for isolated event logs. From the repository root:
 
 ```sh
 python3 scripts/coverage/run.py harvest --baseline --offline
 ```
 
-The package profile supplies public local SQL configuration. Complete route
-tests also need the PostgreSQL fixture described below. Each run
+The package profile supplies public local SQL and synthetic vault configuration.
+It includes the otherwise ignored PostgreSQL privacy and audit contracts:
+signed public proofs, private receipt polling, operator resolution and forensic
+reads, durable audit entries, and retention after mapping purge. Receipt checks
+use the same managed database pool as ownership and document lookup. The two
+tests requiring a live renderer stay separate; their production code remains
+in the coverage inventory. Each run
 clears old LLVM counters and workspace binaries, so compile-time macro counters
 are collected again; external dependencies stay cached. Never store deployment
 secrets in `test_environment`.
@@ -106,6 +129,7 @@ export HASURA_DB__HOST=127.0.0.1 HASURA_DB__PORT=5432
 export HASURA_DB__USER=test HASURA_DB__PASSWORD=test HASURA_DB__DBNAME=test
 export KEYCLOAK_DB__HOST=127.0.0.1 KEYCLOAK_DB__PORT=5432
 export KEYCLOAK_DB__USER=test KEYCLOAK_DB__PASSWORD=test KEYCLOAK_DB__DBNAME=test
+export KEYCLOAK_VOTER_GROUP_NAME=voter
 export LOW_SQL_LIMIT=1000 DEFAULT_SQL_LIMIT=20 DEFAULT_SQL_BATCH_SIZE=1000
 cargo test -p harvest --locked
 ```
@@ -133,8 +157,8 @@ while initializing clients, and tracing's log fallback stops after a subscriber
 has been installed. The child preserves LLVM instrumentation and checks the
 actual error message and elapsed milliseconds; a zero duration is valid.
 
-Deployed workers, identity-provider signatures, RabbitMQ, S3 and ImmuDB remain
-outside this profile. Functions include generated routing and error closures;
+Deployed workers, a deployed identity provider, the task-queue database, S3 and
+the electoral-log databases remain outside this profile. Functions include generated routing and error closures;
 keep these and uncovered service modules in the source inventory. Actual
 branches and optional feature/target configurations remain separate obligations.
 

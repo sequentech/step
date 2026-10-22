@@ -26,9 +26,20 @@
 import {combineReducers, configureStore} from "@reduxjs/toolkit"
 import {ThemeProvider} from "@mui/material/styles"
 import {render, RenderResult} from "@testing-library/react"
-import {BallotEngineProvider, BallotSelectionProvider, theme} from "@sequentech/ui-essentials"
+import {
+    BallotEngineProvider,
+    BallotSelectionProvider,
+    BallotSlatesProvider,
+    theme,
+} from "@sequentech/ui-essentials"
 import type {BallotEngine, BallotSelectionPort} from "@sequentech/ui-essentials"
-import type {BallotSelection, ICandidate, IContest, IDecodedVoteContest} from "@sequentech/ui-core"
+import type {
+    BallotSelection,
+    ICandidate,
+    IContest,
+    IDecodedVoteContest,
+    ISlatesConfig,
+} from "@sequentech/ui-core"
 import i18next from "i18next"
 import {I18nextProvider} from "react-i18next"
 import {Provider} from "react-redux"
@@ -40,7 +51,7 @@ import extraReducer from "../store/extra/extraSlice"
 import englishTranslation from "../translations/en"
 // The other half of what a ballot reads. Imported by source path rather than
 // through the package barrel, which would pull `TallyResults` and a data grid.
-import essentialsTranslation from "../../../ui-essentials/src/translations/en"
+import uiCoreTranslation from "../../../ui-core/src/translations/en"
 
 const harnessReducer = combineReducers({
     ballotSelections: ballotSelectionsReducer,
@@ -62,7 +73,7 @@ export const CONTEST_ID = "contest-1"
  * **Both** bundles, because a ballot reads from two: `candidatesList.*` and
  * `votingScreen.*` come from `voting-portal`, while `candidate.*` — the write-in
  * placeholder, the ordinals, the "more information" link — comes from
- * `ui-essentials`, whose components draw the rows. The running app merges them in
+ * `ui-core`'s catalogue, for the rows `ui-essentials` draws. The running app merges them in
  * `ui-core`'s `initializeLanguages`; this mirrors that, portal last so it wins,
  * which is the same precedence.
  *
@@ -89,14 +100,14 @@ const deepMerge = (base: Record<string, unknown>, over: Record<string, unknown>)
     return out
 }
 
-const i18n = i18next.createInstance()
+export const i18n = i18next.createInstance()
 void i18n.init({
     lng: "en",
     fallbackLng: "en",
     resources: {
         en: {
             translation: deepMerge(
-                essentialsTranslation.translations as Record<string, unknown>,
+                uiCoreTranslation.translations as Record<string, unknown>,
                 englishTranslation.translations as Record<string, unknown>
             ),
         },
@@ -296,10 +307,11 @@ export const mountErrors = (
         isVoted = false,
     }: MountErrorsOptions = {}
 ): RenderResult => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const {InvalidErrorsList} = require("@sequentech/ui-essentials") as {
         InvalidErrorsList: React.FC<Record<string, unknown>>
     }
-
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const {MemoryRouter, Route, Routes} = require("react-router-dom") as {
         MemoryRouter: React.FC<Record<string, unknown>>
         Route: React.FC<Record<string, unknown>>
@@ -371,6 +383,8 @@ export interface MountOptions {
     isDeclineToVote?: boolean
     /** Errors the encoder reported, which the screen injects rather than derives. */
     errors?: BallotSelection
+    /** The slates of the ballot. Defaults to an election without slates. */
+    slates?: ISlatesConfig
 }
 
 export interface Mounted extends RenderResult {
@@ -392,8 +406,9 @@ export interface Mounted extends RenderResult {
  */
 export const mountContest = (
     contest: IContest,
-    {selection, isReview = false, isDeclineToVote, errors = []}: MountOptions = {}
+    {selection, isReview = false, isDeclineToVote, errors = [], slates}: MountOptions = {}
 ): Mounted => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const {Question} = require("@sequentech/ui-essentials") as {
         Question: React.FC<Record<string, unknown>>
     }
@@ -422,19 +437,21 @@ export const mountContest = (
                 <Provider store={store}>
                     <BallotEngineProvider engine={ENGINE}>
                         <BallotSelectionProvider port={portOver(held)}>
-                            <Question
-                                ballotStyle={ballotStyle}
-                                question={contest}
-                                isReview={isReview}
-                                isDeclineToVote={isDeclineToVote}
-                                errorSelectionState={errors}
-                                setDecodedContests={(next: IDecodedVoteContest) => {
-                                    handedUp = next
-                                }}
-                                setDisableNext={(value: boolean) => {
-                                    disabled = value
-                                }}
-                            />
+                            <BallotSlatesProvider slates={slates ?? null}>
+                                <Question
+                                    ballotStyle={ballotStyle}
+                                    question={contest}
+                                    isReview={isReview}
+                                    isDeclineToVote={isDeclineToVote}
+                                    errorSelectionState={errors}
+                                    setDecodedContests={(next: IDecodedVoteContest) => {
+                                        handedUp = next
+                                    }}
+                                    setDisableNext={(value: boolean) => {
+                                        disabled = value
+                                    }}
+                                />
+                            </BallotSlatesProvider>
                         </BallotSelectionProvider>
                     </BallotEngineProvider>
                 </Provider>

@@ -6,7 +6,7 @@
 # overview and one section for each part of the election, in the order it
 # runs, each answering the monitoring records of that part.
 id: comelec
-version: 5
+version: 6
 title: COMELEC overseas voting
 description: An overview and a section for each part of the overseas vote, from enrollment to transmission, answering every monitoring record of the package.
 export_requirements: [SW-F-0270]

@@ -16,7 +16,10 @@ import {authTheme} from "./theme"
 import {getAuthCopy} from "./authCopy"
 import {buildDetail} from "./buildDetail"
 import {messageLanguage, type I18n} from "./i18n"
-import type {KcContext} from "./KcContext"
+import {EVoterAccessibilitySettingsPolicy, type KcContext} from "./KcContext"
+import {AccessibilitySettings} from "./accessibility/AccessibilitySettings"
+import {AudioInstructions} from "./accessibility/AudioInstructions"
+import {getAccessibilityCopy, isInstructionsPage} from "./accessibility/copy"
 import "./auth.css"
 
 const MESSAGE_SEVERITY: Record<string, AlertColor> = {
@@ -26,8 +29,40 @@ const MESSAGE_SEVERITY: Record<string, AlertColor> = {
     info: "info",
 }
 
-export default function Template(props: TemplateProps<KcContext, I18n>) {
+export enum TemplateLayout {
+    Card = "CARD",
+    // Desktop capture: the page brings its own panel.
+    Wide = "WIDE",
+    // Phone capture: the camera takes the whole screen.
+    Fullscreen = "FULLSCREEN",
+}
+
+export enum SymbolTone {
+    Default = "DEFAULT",
+    Warning = "WARNING",
+}
+
+export type TemplateLabel = {text: string; lang: string}
+
+export type TemplateExtras = {
+    layout?: TemplateLayout
+    symbol?: ReactNode
+    symbolTone?: SymbolTone
+    eyebrow?: TemplateLabel
+    titleLang?: string
+    progress?: {step: number; total: number; label: TemplateLabel}
+}
+
+export type SequentTemplateProps = TemplateProps<KcContext, I18n> & TemplateExtras
+
+export default function Template(props: SequentTemplateProps) {
     const {
+        layout = TemplateLayout.Card,
+        symbol,
+        symbolTone = SymbolTone.Default,
+        eyebrow,
+        titleLang,
+        progress,
         displayInfo = false,
         displayMessage = true,
         headerNode,
@@ -49,6 +84,7 @@ export default function Template(props: TemplateProps<KcContext, I18n>) {
     const direction =
         (kcContext.locale?.rtl ?? document.documentElement.dir === "rtl") ? "rtl" : "ltr"
     const copy = getAuthCopy(currentLanguage.languageTag)
+    const accessibilityCopy = getAccessibilityCopy(currentLanguage.languageTag)
 
     useEffect(() => {
         document.title = documentTitle ?? msgStr("loginTitle", realm.displayName || realm.name)
@@ -70,11 +106,47 @@ export default function Template(props: TemplateProps<KcContext, I18n>) {
         message !== undefined &&
         (message.type !== "warning" || !isAppInitiatedAction)
 
+    const feedback = showMessage && (
+        <Alert
+            id="kc-feedback"
+            className="auth-feedback"
+            severity={MESSAGE_SEVERITY[message.type]}
+            role={message.type === "error" ? "alert" : "status"}
+        >
+            <span
+                dangerouslySetInnerHTML={{
+                    __html: kcSanitize(message.summary),
+                }}
+            />
+        </Alert>
+    )
+
+    if (layout === TemplateLayout.Fullscreen) {
+        return (
+            <ThemeProvider theme={authTheme}>
+                <CssBaseline />
+                <Box className="sequent-auth" lang={currentLanguage.languageTag} dir={direction}>
+                    <Box
+                        component="main"
+                        className="auth-fullscreen"
+                        aria-labelledby="kc-page-title"
+                    >
+                        {children}
+                    </Box>
+                </Box>
+            </ThemeProvider>
+        )
+    }
+
     return (
         <ThemeProvider theme={authTheme}>
             <CssBaseline />
             <Box className="sequent-auth" lang={currentLanguage.languageTag} dir={direction}>
-                <Box className="auth-layout">
+                <Box
+                    className={
+                        layout === TemplateLayout.Wide ? "auth-layout auth-wide" : "auth-layout"
+                    }
+                >
                     <Box component="header" className="auth-header">
                         <Box className="auth-brand">
                             <img src={logo} alt="Sequent" width={170} height={32} />
@@ -121,6 +193,10 @@ export default function Template(props: TemplateProps<KcContext, I18n>) {
                                     )}
                                 </dl>
                             )}
+                            {kcContext.sequent.voterAccessibilitySettingsPolicy ===
+                                EVoterAccessibilitySettingsPolicy.ENABLED && (
+                                <AccessibilitySettings copy={accessibilityCopy} />
+                            )}
                             {enabledLanguages.length > 1 && (
                                 <LanguageSelect
                                     label={msgStr("languages")}
@@ -131,48 +207,89 @@ export default function Template(props: TemplateProps<KcContext, I18n>) {
                         </Box>
                     </Box>
                     <Box component="main" aria-labelledby="kc-page-title">
-                        <Paper className="auth-card" elevation={0}>
-                            <Box className="auth-symbol" aria-hidden="true">
-                                {kcContext.pageId === "message-otp.login.ftl" ? (
-                                    <MessageIcon />
-                                ) : (
-                                    <ShieldIcon />
+                        {layout === TemplateLayout.Card ? (
+                            <Paper className="auth-card" elevation={0}>
+                                {progress && (
+                                    <Box
+                                        className="auth-progress"
+                                        role="progressbar"
+                                        aria-label={progress.label.text}
+                                        lang={progress.label.lang}
+                                        aria-valuemin={1}
+                                        aria-valuemax={progress.total}
+                                        aria-valuenow={Math.min(progress.step, progress.total)}
+                                        aria-valuetext={eyebrow?.text}
+                                    >
+                                        {Array.from({length: progress.total}, (_, index) => (
+                                            <span
+                                                key={index}
+                                                className={
+                                                    index + 1 < progress.step
+                                                        ? "done"
+                                                        : index + 1 === progress.step
+                                                          ? "current"
+                                                          : undefined
+                                                }
+                                            />
+                                        ))}
+                                    </Box>
                                 )}
-                            </Box>
-                            <Typography className="auth-eyebrow" lang={copy.languageTag}>
-                                {voting ? copy.votingEyebrow : copy.adminEyebrow}
-                            </Typography>
-                            <Typography
-                                id="kc-page-title"
-                                className="auth-title"
-                                component="h1"
-                                lang={messageLanguage(
-                                    kcContext,
-                                    i18n,
-                                    kcContext.pageId === "message-otp.login.ftl"
-                                        ? `messageOtp.${kcContext.isOtl ? "otl" : "auth"}.title`
-                                        : "loginAccountTitle"
-                                )}
-                            >
-                                {headerNode}
-                            </Typography>
-                            {showMessage && (
-                                <Alert
-                                    id="kc-feedback"
-                                    className="auth-feedback"
-                                    severity={MESSAGE_SEVERITY[message.type]}
-                                    role={message.type === "error" ? "alert" : "status"}
+                                <Box
+                                    className={
+                                        symbolTone === SymbolTone.Warning
+                                            ? "auth-symbol warning"
+                                            : "auth-symbol"
+                                    }
+                                    aria-hidden="true"
                                 >
-                                    <span
-                                        dangerouslySetInnerHTML={{
-                                            __html: kcSanitize(message.summary),
-                                        }}
+                                    {symbol ??
+                                        (kcContext.pageId === "message-otp.login.ftl" ? (
+                                            <MessageIcon />
+                                        ) : (
+                                            <ShieldIcon />
+                                        ))}
+                                </Box>
+                                <Typography
+                                    className="auth-eyebrow"
+                                    lang={eyebrow?.lang ?? copy.languageTag}
+                                >
+                                    {eyebrow?.text ??
+                                        (voting ? copy.votingEyebrow : copy.adminEyebrow)}
+                                </Typography>
+                                <Typography
+                                    id="kc-page-title"
+                                    className="auth-title"
+                                    component="h1"
+                                    lang={
+                                        titleLang ??
+                                        messageLanguage(
+                                            kcContext,
+                                            i18n,
+                                            kcContext.pageId === "message-otp.login.ftl"
+                                                ? `messageOtp.${kcContext.isOtl ? "otl" : "auth"}.title`
+                                                : "loginAccountTitle"
+                                        )
+                                    }
+                                >
+                                    {headerNode}
+                                </Typography>
+                                {feedback}
+                                {isInstructionsPage(kcContext.pageId) && (
+                                    <AudioInstructions
+                                        policy={kcContext.sequent.audioInstructionsPolicy}
+                                        text={accessibilityCopy.instructions[kcContext.pageId]}
+                                        copy={accessibilityCopy}
                                     />
-                                </Alert>
-                            )}
-                            {children}
-                            {displayInfo && <Box className="auth-info">{infoNode}</Box>}
-                        </Paper>
+                                )}
+                                {children}
+                                {displayInfo && <Box className="auth-info">{infoNode}</Box>}
+                            </Paper>
+                        ) : (
+                            <>
+                                {feedback}
+                                {children}
+                            </>
+                        )}
                     </Box>
                     <Box component="footer" className="auth-footer">
                         <span lang={copy.languageTag}>{copy.poweredBy}</span>

@@ -8,9 +8,9 @@ minimum_lines = 95
 
 [profiles.sequent-core]
 package = "sequent-core"
-features = ["default_features", "keycloak", "areas", "election_config_xlsx", "election_config_templates", "election_config_archive", "monitoring"]
+features = ["default_features", "keycloak", "areas", "reports", "election_config_xlsx", "election_config_templates", "election_config_archive", "election_config_signing", "monitoring"]
 limitations = [
-    "Native library and integration tests; matches the existing Rust CI feature selection, including the election_config workbook, template and archive gates and the monitoring gate.",
+    "Native library and integration tests; matches the existing Rust CI feature selection, including reports and timezone rendering, the election_config workbook, template and archive gates and the monitoring gate.",
     "Native application features are exercised by sequent-core-native; the browser test job executes WASM exports separately.",
     "Standalone test files and fixture builders are excluded; inline unit-test code remains in mixed source files, so this is not yet production-only coverage.",
     "Native stable coverage does not measure branch coverage or doctests.",
@@ -20,12 +20,21 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 # Exact filenames prevent a future production file from disappearing behind
 # a fixtures/** wildcard. Each exclusion is visible in every run's summary.
 [profiles.sequent-core.excluded_files]
+"src/election_config/historical_tests.rs" = "Standalone unit-test module under cfg(test); historical SQL/workbook mapping and package construction remain measured."
+"src/election_config/sql_dump_tests.rs" = "Standalone unit-test module under cfg(test); the data-only SQL parser remains measured."
+"src/time_zones_tests.rs" = "Standalone unit-test module under cfg(test); timezone selection, lifecycle defaults and public policy wire contracts remain measured."
+"src/services/reports_time_zones_tests.rs" = "Standalone unit-test module under cfg(test); report timezone rendering remains measured."
+"src/services/keycloak/realm_scope_tests.rs" = "Standalone unit-test module under cfg(test); the Keycloak admin request path checks remain measured."
+"src/services/keycloak/path_segment_tests.rs" = "Standalone unit-test module under cfg(test); the Keycloak path segment checks remain measured."
 "src/fixtures/ballot_codec.rs" = "Synthetic ballots, expected vectors and test builders shared with test consumers; no ballot validation or cryptography implementations."
 "src/fixtures/encrypt.rs" = "Sample election data compiled only under cfg(test); no active test callers."
 "src/election_config/architect_tests.rs" = "Standalone unit-test module under cfg(test); the election blueprint planner remains measured."
 "src/election_config/build_tests.rs" = "Standalone unit-test module under cfg(test); the bundle builder remains measured."
+"src/election_config/design_tests.rs" = "Standalone unit-test module under cfg(test); the ballot design digest remains measured."
 "src/election_config/ivr_tests.rs" = "Standalone unit-test module under cfg(test); the telephone prompt rule remains measured."
+"src/election_config/manifest_tests.rs" = "Standalone unit-test module under cfg(test); the configuration manifest remains measured."
 "src/election_config/open_tests.rs" = "Standalone unit-test module under cfg(test); the bundle reader remains measured."
+"src/election_config/package_verify_tests.rs" = "Standalone unit-test module under cfg(test); the package verification remains measured."
 "src/election_config/password_tests.rs" = "Standalone unit-test module under cfg(test); the password policy remains measured."
 "src/election_config/plan_from_event_tests.rs" = "Standalone unit-test module under cfg(test); the event-to-plan conversion remains measured."
 "src/election_config/plan_from_workbook_tests.rs" = "Standalone unit-test module under cfg(test); the workbook-to-plan conversion remains measured."
@@ -33,6 +42,10 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 "src/election_config/preset_doc_tests.rs" = "Standalone unit-test module under cfg(test); the preset documentation remains measured."
 "src/election_config/preview_tests.rs" = "Standalone unit-test module under cfg(test); the ballot preview remains measured."
 "src/election_config/profile_tests.rs" = "Standalone unit-test module under cfg(test); the client profile remains measured."
+"src/election_config/slates/coverage_tests.rs" = "Standalone unit-test module under cfg(test); the slate coverage remains measured."
+"src/election_config/slates/election_tests.rs" = "Standalone unit-test module under cfg(test); the election slate checks remain measured."
+"src/election_config/slates/selection_tests.rs" = "Standalone unit-test module under cfg(test); the slate selection remains measured."
+"src/election_config/slates/tests.rs" = "Standalone unit-test module under cfg(test); the slate parser and validator remain measured."
 "src/election_config/time_tests.rs" = "Standalone unit-test module under cfg(test); the schedule time checker remains measured."
 "src/election_config/validate_tests.rs" = "Standalone unit-test module under cfg(test); the election configuration validator remains measured."
 "src/election_config/xlsx_write_tests.rs" = "Standalone unit-test module under cfg(test); the workbook writer remains measured."
@@ -52,10 +65,16 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 "src/monitoring/sources_tests.rs" = "Standalone unit-test module under cfg(test); the data source catalogue remains measured."
 "src/monitoring/voter_tests.rs" = "Standalone unit-test module under cfg(test); the voter-facing view remains measured."
 "src/types/permissions_tests.rs" = "Standalone unit-test module under cfg(test); the permission names remain measured."
+"src/types/voter_channel_tests.rs" = "Standalone unit-test module under cfg(test); the channel rule remains measured."
+"src/signing/canonical_tests.rs" = "Standalone unit-test module under cfg(test); the canonical payload remains measured."
+"src/signing/code_tests.rs" = "Standalone unit-test module under cfg(test); the signing code remains measured."
+"src/signing/types_tests.rs" = "Standalone unit-test module under cfg(test); the signing types remain measured."
+"src/services/jwt_verification/tests.rs" = "Standalone unit-test module under cfg(test); the bearer verification remains measured."
 
 # These files have no measured executable bodies. If one gains executable code,
 # the reporter rejects the exception instead of hiding its new implementation.
 [profiles.sequent-core.scope_exceptions]
+"src/types/scheduled_outcome.rs" = "Data declarations and derive-generated API traits only; JSON compatibility is tested in time_zones_tests. No explicit executable bodies; the reporter rejects this exception if measured code appears."
 "src/ballot_codec/mod.rs" = "Module declarations, re-exports and a marker trait without methods."
 "src/ballot_verifier.rs" = "Imports only; no executable implementation."
 "src/election_config/mod.rs" = "Module declarations and re-exports."
@@ -67,13 +86,14 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 "src/serialization/mod.rs" = "Serialization module declarations only."
 "src/services/mod.rs" = "Service module declarations only."
 "src/services/keycloak/mod.rs" = "Keycloak module declarations and re-exports."
+"src/signing/mod.rs" = "Module declarations and re-exports."
 "src/types/mod.rs" = "Type module declarations only."
 "src/types/hasura/mod.rs" = "Hasura module declarations only."
 "src/util/mod.rs" = "Utility module declarations only."
 
 [profiles.sequent-core-native]
 package = "sequent-core"
-features = ["default_features", "keycloak", "areas", "reports", "reports_sync", "s3", "probe", "log", "signatures", "sqlite", "plugins_wit", "election_config_xlsx", "election_config_templates", "election_config_archive", "monitoring"]
+features = ["default_features", "keycloak", "areas", "reports", "reports_sync", "s3", "probe", "log", "signatures", "sqlite", "plugins_wit", "election_config_xlsx", "election_config_templates", "election_config_archive", "election_config_signing", "monitoring"]
 limitations = [
     "Enabled native application features, including SQLite, reports, S3, health probes, logging, signature adapters, generated plugin bindings and monitoring.",
     "Synthetic in-memory SQLite and owned HTTP/PostgreSQL fixtures; native inline test code remains counted.",
@@ -85,12 +105,21 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 # Exact filenames prevent a future production file from disappearing behind
 # a fixtures/** wildcard. Each exclusion is visible in every run's summary.
 [profiles.sequent-core-native.excluded_files]
+"src/election_config/historical_tests.rs" = "Standalone unit-test module under cfg(test); historical SQL/workbook mapping and package construction remain measured."
+"src/election_config/sql_dump_tests.rs" = "Standalone unit-test module under cfg(test); the data-only SQL parser remains measured."
+"src/time_zones_tests.rs" = "Standalone unit-test module under cfg(test); timezone selection, lifecycle defaults and public policy wire contracts remain measured."
+"src/services/reports_time_zones_tests.rs" = "Standalone unit-test module under cfg(test); report timezone rendering remains measured."
+"src/services/keycloak/realm_scope_tests.rs" = "Standalone unit-test module under cfg(test); the Keycloak admin request path checks remain measured."
+"src/services/keycloak/path_segment_tests.rs" = "Standalone unit-test module under cfg(test); the Keycloak path segment checks remain measured."
 "src/fixtures/ballot_codec.rs" = "Synthetic ballots, expected vectors and test builders shared with test consumers; no ballot validation or cryptography implementations."
 "src/fixtures/encrypt.rs" = "Sample election data compiled only under cfg(test); no active test callers."
 "src/election_config/architect_tests.rs" = "Standalone unit-test module under cfg(test); the election blueprint planner remains measured."
 "src/election_config/build_tests.rs" = "Standalone unit-test module under cfg(test); the bundle builder remains measured."
+"src/election_config/design_tests.rs" = "Standalone unit-test module under cfg(test); the ballot design digest remains measured."
 "src/election_config/ivr_tests.rs" = "Standalone unit-test module under cfg(test); the telephone prompt rule remains measured."
+"src/election_config/manifest_tests.rs" = "Standalone unit-test module under cfg(test); the configuration manifest remains measured."
 "src/election_config/open_tests.rs" = "Standalone unit-test module under cfg(test); the bundle reader remains measured."
+"src/election_config/package_verify_tests.rs" = "Standalone unit-test module under cfg(test); the package verification remains measured."
 "src/election_config/password_tests.rs" = "Standalone unit-test module under cfg(test); the password policy remains measured."
 "src/election_config/plan_from_event_tests.rs" = "Standalone unit-test module under cfg(test); the event-to-plan conversion remains measured."
 "src/election_config/plan_from_workbook_tests.rs" = "Standalone unit-test module under cfg(test); the workbook-to-plan conversion remains measured."
@@ -98,6 +127,10 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 "src/election_config/preset_doc_tests.rs" = "Standalone unit-test module under cfg(test); the preset documentation remains measured."
 "src/election_config/preview_tests.rs" = "Standalone unit-test module under cfg(test); the ballot preview remains measured."
 "src/election_config/profile_tests.rs" = "Standalone unit-test module under cfg(test); the client profile remains measured."
+"src/election_config/slates/coverage_tests.rs" = "Standalone unit-test module under cfg(test); the slate coverage remains measured."
+"src/election_config/slates/election_tests.rs" = "Standalone unit-test module under cfg(test); the election slate checks remain measured."
+"src/election_config/slates/selection_tests.rs" = "Standalone unit-test module under cfg(test); the slate selection remains measured."
+"src/election_config/slates/tests.rs" = "Standalone unit-test module under cfg(test); the slate parser and validator remain measured."
 "src/election_config/time_tests.rs" = "Standalone unit-test module under cfg(test); the schedule time checker remains measured."
 "src/election_config/validate_tests.rs" = "Standalone unit-test module under cfg(test); the election configuration validator remains measured."
 "src/election_config/xlsx_write_tests.rs" = "Standalone unit-test module under cfg(test); the workbook writer remains measured."
@@ -117,10 +150,16 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 "src/monitoring/sources_tests.rs" = "Standalone unit-test module under cfg(test); the data source catalogue remains measured."
 "src/monitoring/voter_tests.rs" = "Standalone unit-test module under cfg(test); the voter-facing view remains measured."
 "src/types/permissions_tests.rs" = "Standalone unit-test module under cfg(test); the permission names remain measured."
+"src/types/voter_channel_tests.rs" = "Standalone unit-test module under cfg(test); the channel rule remains measured."
+"src/signing/canonical_tests.rs" = "Standalone unit-test module under cfg(test); the canonical payload remains measured."
+"src/signing/code_tests.rs" = "Standalone unit-test module under cfg(test); the signing code remains measured."
+"src/signing/types_tests.rs" = "Standalone unit-test module under cfg(test); the signing types remain measured."
+"src/services/jwt_verification/tests.rs" = "Standalone unit-test module under cfg(test); the bearer verification remains measured."
 
 # These files have no measured executable bodies. If one gains executable code,
 # the reporter rejects the exception instead of hiding its new implementation.
 [profiles.sequent-core-native.scope_exceptions]
+"src/types/scheduled_outcome.rs" = "Data declarations and derive-generated API traits only; JSON compatibility is tested in time_zones_tests. No explicit executable bodies; the reporter rejects this exception if measured code appears."
 "src/ballot_codec/mod.rs" = "Module declarations, re-exports and a marker trait without methods."
 "src/ballot_verifier.rs" = "Imports only; no executable implementation."
 "src/election_config/mod.rs" = "Module declarations and re-exports."
@@ -132,6 +171,7 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 "src/serialization/mod.rs" = "Serialization module declarations only."
 "src/services/mod.rs" = "Service module declarations only."
 "src/services/keycloak/mod.rs" = "Keycloak module declarations and re-exports."
+"src/signing/mod.rs" = "Module declarations and re-exports."
 "src/types/mod.rs" = "Type module declarations only."
 "src/types/hasura/mod.rs" = "Hasura module declarations only."
 "src/util/mod.rs" = "Utility module declarations only."
@@ -141,26 +181,6 @@ RUST_TEST_THREADS = "2"
 RAYON_NUM_THREADS = "2"
 DOC_RENDERER_BACKEND = "inplace"
 LOG_LEVEL = "info"
-
-[profiles.strand]
-package = "strand"
-features = []
-limitations = [
-    "Ristretto default backend; strand-native exercises NumBigInt/Rayon and strand-backends also exercises Rug/Malachite. WASM is separate.",
-    "Stable LLVM includes inline unit-test code and does not measure branches or doctests.",
-]
-issue = "https://github.com/sequentech/meta/issues/13302"
-
-[profiles.strand.scope_exceptions]
-"src/context.rs" = "Trait declarations without executable default methods; implementations are measured in the selected backend."
-"src/hashing/mod.rs" = "Module declaration only; the RustCrypto implementation is measured."
-"src/random/mod.rs" = "Module declaration only; the rand implementation is measured."
-"src/signatures/mod.rs" = "Module declaration only; the Dalek implementation is measured."
-"src/symmetric/mod.rs" = "Module declaration only; the RustCrypto implementation is measured."
-"src/wasm/test.rs" = "Browser-only test module compiled for browser testing; no native application implementation."
-"src/wasm/test/bench.rs" = "Browser benchmark harness compiled for browser testing; no native application implementation."
-"src/wasm/test/demo.rs" = "Browser demonstration compiled for browser testing; no native application implementation."
-"src/wasm/test/test.rs" = "Browser test harness compiled for browser testing; no native application implementation."
 
 [profiles.velvet]
 package = "velvet"
@@ -208,14 +228,32 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 
 [profiles.wrap-map-err.scope_exceptions]
 
+[profiles.messaging-webhooks]
+package = "messaging-webhooks"
+features = []
+limitations = [
+    "Library tests drive the component through Rocket's local client against a loopback stand-in for harvest; the relay envelope and signature are measured in the messaging crate.",
+    "Process startup (environment and launch) is excluded; the configuration it reads and the Rocket it launches are measured through the library.",
+    "Branch coverage and a deployed harvest are separate scopes.",
+]
+issue = "https://github.com/sequentech/meta/issues/13755"
+
+[profiles.messaging-webhooks.excluded_files]
+"src/main.rs" = "Process startup only: reads the environment and launches the library's Rocket; Config::from_vars and build are measured."
+"src/tests.rs" = "Standalone unit-test module under cfg(test); the routes, relay and configuration remain measured."
+
+# Every measured file contains executable code; no scope exceptions.
+[profiles.messaging-webhooks.scope_exceptions]
+
 [profiles.harvest]
 package = "harvest"
 features = []
+test_arguments = ["--include-ignored", "--skip", "a_widget_checks_saves_and_draws_through_the_real_renderer", "--skip", "every_preset_widget_passes_the_real_engine_and_the_sanitizer"]
 limitations = [
     "Native tests with declared default dependencies, including Windmill's default FIPS feature selection.",
-    "Request-boundary tests use Rocket's local client; they do not start service workers or verify identity-provider signatures.",
+    "Request-boundary tests use Rocket's local client; they do not start service workers. Claims are signed with a public test key and verified against a local key server, not a deployed identity provider.",
     "Route tests run against a private migrated database on the PostgreSQL server HASURA_DB__* names, with in-memory task ledger, broker and storage and a local Keycloak stand-in.",
-    "Deployed Keycloak, RabbitMQ, S3, ImmuDB and complete worker-side workflows remain outside this profile.",
+    "Includes isolated electoral-log storage, signed proof, resolution-audit and receipt contracts; the two live-renderer tests remain separate. Deployed Keycloak, S3 and complete worker-side workflows remain outside this profile.",
     "Existing inline unit tests contribute to LLVM source counters; branch and deployment coverage are separate scopes.",
 ]
 issue = "https://github.com/sequentech/meta/issues/13302"
@@ -230,37 +268,25 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 "src/ports/identity.rs" = "Identity admin trait declaration only; implementations are measured in adapters."
 "src/ports/mod.rs" = "Module declarations only."
 "src/ports/monitoring_snapshots.rs" = "Monitoring snapshot trait declaration and Windmill re-exports only; implementations are measured in adapters."
+"src/ports/service_keys.rs" = "Service key source trait declaration only; implementations are measured in adapters."
 "src/ports/task_ledger.rs" = "Task ledger trait declaration only; implementations are measured in adapters."
 "src/ports/user_tasks.rs" = "User task trait and data declarations only; implementations are measured in adapters."
 "src/ports/vault.rs" = "Secret vault trait declaration only; implementations are measured in adapters."
 "src/routes/mod.rs" = "Module declarations only; registered route implementations are inventoried separately."
 "src/services/mod.rs" = "Module declarations only."
-"src/services/authorization.rs" = "Imports and re-exports of Sequent Core authorization; no handwritten executable methods."
 "src/types/mod.rs" = "Module declarations only."
 "src/types/optional.rs" = "Struct and derives only; no handwritten executable methods or LLVM line regions."
-"src/routes/manual_verification_pdf.rs" = "Not declared in routes/mod.rs or mounted in main.rs, so this source is not part of the native binary. No runtime coverage claim is made for it."
+"src/types/resources.rs" = "Resource payload structs and derived enum traits only; no handwritten executable methods or LLVM line regions in this profile."
 
-# The route tests' database server comes from the ambient HASURA_DB__* and
-# KEYCLOAK_DB__* settings, as in the ordinary test job; only the host is fixed.
+# Public disposable SQL and vault fixtures; no deployment settings are inherited.
 [profiles.harvest.test_environment]
-KEYCLOAK_DB__HOST = "127.0.0.1"
-HASURA_DB__HOST = "127.0.0.1"
-LOW_SQL_LIMIT = "1000"
-DEFAULT_SQL_LIMIT = "20"
-DEFAULT_SQL_BATCH_SIZE = "1000"
-
-[profiles.windmill]
-package = "windmill"
-features = []
-limitations = [
-    "Native default FIPS profile with local synthetic PostgreSQL 16 on port 3322, matching the Rust CI service fixture.",
-    "The ignored voter-channel PostgreSQL regression is run separately; ignored full-service activity-log coverage remains open.",
-    "Cloud transports, complete election workflows, optional features and branch coverage require separate evidence.",
-    "Existing inline tests contribute to LLVM source counters; this aggregate is not production-only coverage.",
-]
-issue = "https://github.com/sequentech/meta/issues/13302"
-
-[profiles.windmill.test_environment]
+ELECTORAL_LOG_PG_PROVISIONING_USER = ""
+ELECTORAL_LOG_PG_READER_USER = ""
+ELECTORAL_LOG_PG_BACKUP_USER = ""
+KEYCLOAK_VOTER_GROUP_NAME = "voter"
+ENV_SLUG = "electoral-log-tests"
+SECRETS_BACKEND = "EnvVarMasterSecret"
+MASTER_SECRET = "0101010101010101010101010101010101010101010101010101010101010101"
 KEYCLOAK_DB__HOST = "127.0.0.1"
 KEYCLOAK_DB__PORT = "3322"
 KEYCLOAK_DB__USER = "test"
@@ -274,19 +300,103 @@ HASURA_DB__DBNAME = "test"
 LOW_SQL_LIMIT = "1000"
 DEFAULT_SQL_LIMIT = "20"
 DEFAULT_SQL_BATCH_SIZE = "1000"
+ELECTORAL_LOG_PG_HOST = "127.0.0.1"
+ELECTORAL_LOG_PG_PORT = "3322"
+ELECTORAL_LOG_PG_USER = "test"
+ELECTORAL_LOG_PG_PASSWORD = "test"
+ELECTORAL_LOG_PG_DATABASE = "test"
+ELECTORAL_LOG_PG_SSLMODE = "disable"
+
+[profiles.windmill]
+package = "windmill"
+features = []
+test_arguments = [
+    "--include-ignored",
+    "--skip", "test_generate_export_csv_data_120k_memory",
+    "--skip", "the_pdf_holds_the_copies_one_after_another",
+    "--skip", "copies_are_write_once_and_tampering_is_reported",
+    "--skip", "publication_objects_and_authorized_references",
+    "--skip", "the_jar_opens_what_is_sealed_natively",
+    "--skip", "seal_130_boxes_the_largest_with_50k_ballots",
+    "--skip", "materialized_dates_match_schedule_contract_and_remain_tenant_scoped",
+    "--skip", "materialized_dates_follow_the_online_voting_channel",
+    "--skip", "channel_enablement_and_pause_are_rechecked_from_the_writer",
+]
+limitations = [
+    "Native default FIPS profile with local synthetic PostgreSQL 16 on port 3322, which also hosts the electoral log, matching the Rust CI service fixtures.",
+    "Includes isolated PostgreSQL sequencer, receive/cast, public-key recovery, delegation and dead-letter contracts. Live renderer, Java, S3, scale benchmarks and scheduling tests requiring the full devenv schema remain separate; their production code remains measured.",
+    "Cloud transports, complete election workflows, optional features and branch coverage require separate evidence.",
+    "Existing inline tests contribute to LLVM source counters; this aggregate is not production-only coverage.",
+]
+issue = "https://github.com/sequentech/meta/issues/13302"
+
+[profiles.windmill.test_environment]
+ELECTORAL_LOG_PG_PROVISIONING_USER = ""
+ELECTORAL_LOG_PG_READER_USER = ""
+ELECTORAL_LOG_PG_BACKUP_USER = ""
+SECRETS_BACKEND = "EnvVarMasterSecret"
+MASTER_SECRET = "1111111111111111111111111111111111111111111111111111111111111111"
+PGMQ_TEST_DATABASE_URL = "postgres://test:test@127.0.0.1:3322/test"
+KEYCLOAK_DB__HOST = "127.0.0.1"
+KEYCLOAK_DB__PORT = "3322"
+KEYCLOAK_DB__USER = "test"
+KEYCLOAK_DB__PASSWORD = "test"
+KEYCLOAK_DB__DBNAME = "test"
+HASURA_DB__HOST = "127.0.0.1"
+HASURA_DB__PORT = "3322"
+HASURA_DB__USER = "test"
+HASURA_DB__PASSWORD = "test"
+HASURA_DB__DBNAME = "test"
+LOW_SQL_LIMIT = "1000"
+DEFAULT_SQL_LIMIT = "20"
+DEFAULT_SQL_BATCH_SIZE = "1000"
+ELECTORAL_LOG_TEST_DATABASE_URL = "postgresql://test:test@127.0.0.1:3322/test?sslmode=disable"
+ELECTORAL_LOG_PG_HOST = "127.0.0.1"
+ELECTORAL_LOG_PG_PORT = "3322"
+ELECTORAL_LOG_PG_USER = "test"
+ELECTORAL_LOG_PG_PASSWORD = "test"
+ELECTORAL_LOG_PG_DATABASE = "test"
+ELECTORAL_LOG_PG_SSLMODE = "disable"
+ENV_SLUG = "electoral-log-tests"
+WBRAID_BOARD_DATABASE_URL = "postgres://test:test@127.0.0.1:3322/test"
+WBRAID_B4_PG_PASSWORD = "test"
 
 [profiles.windmill.excluded_files]
+"src/services/ballot_box_privacy_tests.rs" = "Standalone unit-test module under cfg(test); signed sequencing, receive/cast and retention remain measured in production services."
+"src/services/messaging/insights_tests.rs" = "Standalone unit-test module under cfg(test); the messaging audience preview and stats remain measured."
 "src/services/ceremonies/keys_ceremony_tests.rs" = "Standalone unit-test module under cfg(test); the keys ceremony use cases remain measured."
 "src/services/ceremonies/tally_ceremony_creation_tests.rs" = "Standalone unit-test module under cfg(test); the tally creation use case remains measured."
 "src/services/ceremonies/tally_ceremony_state_tests.rs" = "Standalone unit-test module under cfg(test); the tally ceremony use case remains measured."
+"src/services/ceremonies/tally_ceremony_seal_tests.rs" = "Standalone unit-test module under cfg(test); the tally ceremony's ballot box seal checks remain measured."
+"src/services/ceremonies/sealed_box_ballots_tests.rs" = "Standalone unit-test module under cfg(test); the sealed ballot box tally input remains measured."
 "src/services/ceremonies/tally_execution_tests.rs" = "Standalone tally execution planner and orchestration unit tests; production remains measured."
 "src/services/external/datafix_cast_vote_tests.rs" = "Standalone unit-test module under cfg(test); the Datafix vote use case remains measured."
 "src/services/insert_cast_vote_database_tests.rs" = "Standalone PostgreSQL test module under cfg(test); the cast-vote service and its queries remain measured."
+"src/services/cast_ballot_tests.rs" = "Standalone unit-test module under cfg(test); casting a received ballot remains measured."
 "src/services/insert_cast_vote_tests.rs" = "Standalone unit-test module under cfg(test); the cast-vote service remains measured."
+"src/services/receive_ballot_tests.rs" = "Standalone unit-test module under cfg(test); receiving a ballot at review remains measured."
 "src/services/monitoring/export_tests.rs" = "Standalone unit-test module under cfg(test); the monitoring export remains measured."
 "src/services/monitoring/producers_tests.rs" = "Standalone unit-test module under cfg(test); the monitoring snapshot producers remain measured."
 "src/services/results_publication_lifecycle_tests.rs" = "Standalone results publication lifecycle test module; no production code."
+"src/services/realm_localization_tests.rs" = "Standalone unit-test module under cfg(test); realm localization and translation loading remain measured."
+"src/services/time_zones_tests.rs" = "Standalone unit-test module under cfg(test); timezone validation and deadline resolution remain measured."
+"src/services/election_dates_tests.rs" = "Standalone unit-test module under cfg(test); voting dates and common-close resolution remain measured."
+"src/services/enrollment_windows_tests.rs" = "Standalone unit-test module under cfg(test); enrollment window resolution remains measured."
+"src/services/initialization_record_tests.rs" = "Standalone unit-test module under cfg(test); initialization recording remains measured."
+"src/services/initialization_schedule_tests.rs" = "Standalone unit-test module under cfg(test); initialization schedule resolution remains measured."
+"src/services/initialization_scope_tests.rs" = "Standalone unit-test module under cfg(test); initialization scope and refusal checks remain measured."
+"src/services/schedule_csv_tests.rs" = "Standalone unit-test module under cfg(test); schedule calendar parsing remains measured."
+"src/tasks/scheduled_events_tests.rs" = "Standalone unit-test module under cfg(test); scheduled-event dispatch remains measured."
 "src/tasks/refresh_monitoring_snapshot_tests.rs" = "Standalone unit-test module under cfg(test); the snapshot refresh task remains measured."
+"src/services/signing/log_tests.rs" = "Standalone unit-test module under cfg(test); the signing log outbox worker remains measured."
+"src/tasks/signing_log_outbox_tests.rs" = "Standalone unit-test module under cfg(test); the signing log outbox task remains measured."
+"src/services/audit_log_tests.rs" = "Standalone unit-test module under cfg(test); the audit entries and their redaction remain measured."
+"src/services/audit_log_export_tests.rs" = "Standalone unit-test module under cfg(test); the audit log export remains measured."
+"src/services/signing/actions/actions_tests.rs" = "Standalone unit-test module under cfg(test); the protected actions' integrations remain measured."
+"src/services/scheduled_outcome_tests.rs" = "Standalone unit-test module under cfg(test); the scheduled outcomes remain measured."
+"src/services/application_matrix_tests.rs" = "Standalone unit-test module under cfg(test); the enrollment decision remains measured."
+"src/services/approval_matrix/evaluate_tests.rs" = "Standalone unit-test module under cfg(test); the approval matrix evaluation remains measured."
+"src/services/approval_matrix/model_tests.rs" = "Standalone unit-test module under cfg(test); the approval matrix model and its validation remain measured."
 
 [profiles.windmill.scope_exceptions]
 "src/adapters/memory/mod.rs" = "Module declarations only; the in-memory adapters remain in the source inventory."
@@ -298,9 +408,9 @@ DEFAULT_SQL_BATCH_SIZE = "1000"
 "src/ports/keys_ceremony.rs" = "Trait declarations only; their implementations are measured in src/adapters."
 "src/ports/mod.rs" = "Module declarations only; the port traits carry no executable code."
 "src/ports/publication_files.rs" = "Trait declarations only; their implementations are measured in src/adapters."
+"src/ports/readiness.rs" = "Readiness recorder trait declaration only; the signed append adapter and orchestration remain measured in src/services/readiness.rs."
 "src/ports/results_publication.rs" = "Trait declarations only; their implementations are measured in src/adapters."
 "src/ports/results_publication_lifecycle.rs" = "Trait declarations for results publication lifecycle ports."
-"src/ports/tally_ceremony.rs" = "Trait, plain struct and type alias declarations only; the trait implementations are measured in src/adapters."
 "src/ports/tally_execution.rs" = "Tally execution ports and value declarations only; production adapters and orchestration remain measured."
 "src/postgres/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
 "src/services/ballot_styles/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
@@ -312,11 +422,13 @@ DEFAULT_SQL_BATCH_SIZE = "1000"
 "src/services/external/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
 "src/services/external/reconciliation/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
 "src/services/import/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
+"src/services/messaging/mod.rs" = "Module declarations only; the messaging services remain in the source inventory."
 "src/services/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
 "src/services/monitoring/mod.rs" = "Module declarations only; the monitoring services remain in the source inventory."
 "src/services/plugins_manager/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
 "src/services/providers/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
 "src/services/reports/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
+"src/services/signing/mod.rs" = "Module declarations and re-exports only; the signing services remain in the source inventory."
 "src/services/tally_sheet_import/errors.rs" = "Struct/enum declarations and derives without handwritten executable methods; this native LLVM export attributes no line regions to the file."
 "src/services/tally_sheet_import/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
 "src/services/tally_sheets/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
@@ -325,7 +437,6 @@ DEFAULT_SQL_BATCH_SIZE = "1000"
 "src/tasks/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
 "src/types/application.rs" = "Struct/enum declarations and derives without handwritten executable methods; this native LLVM export attributes no line regions to the file."
 "src/types/hasura_types.rs" = "Type aliases only; no executable function bodies."
-"src/types/miru_plugin.rs" = "Struct/enum declarations and derives without handwritten executable methods; this native LLVM export attributes no line regions to the file."
 "src/types/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
 
 [profiles.step-cli]
@@ -340,6 +451,7 @@ limitations = [
 issue = "https://github.com/sequentech/meta/issues/13302"
 
 [profiles.step-cli.excluded_files]
+"src/acceptance/tests.rs" = "Standalone unit-test module under cfg(test); the acceptance command modules remain measured."
 "src/load/setup_tests.rs" = "Standalone load setup unit tests; the setup use case and production adapters remain measured."
 "src/load/tests.rs" = "Standalone unit-test module under cfg(test); the load command modules remain measured."
 
@@ -366,7 +478,6 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 "src/utils/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
 "src/utils/publication/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
 "src/utils/tally/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
-"src/utils/trustees/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
 
 # These public settings prevent accidental inheritance of deployment endpoints.
 # The current file/input tests do not require a running database.
@@ -385,37 +496,48 @@ LOW_SQL_LIMIT = "1000"
 DEFAULT_SQL_LIMIT = "20"
 DEFAULT_SQL_BATCH_SIZE = "1000"
 
-[profiles.electoral-log]
-package = "electoral-log"
-features = ["immudb-tests"]
-limitations = [
-    "Native library, CLI subprocesses and ImmuDB 1.9.6 integration; each test owns its local database process and files.",
-    "Set ELECTORAL_LOG_TEST_IMMUDB_BINARY or install immudb on PATH; no production endpoint or credentials are accepted by the integration fixture.",
-    "Unit tests live outside src so test bodies do not count as production coverage. Native branch coverage and doctests are not measured.",
-    "The legacy ignored fixed-port test remains preserved; its behavior is covered by the owned-process integration suite.",
-]
-issue = "https://github.com/sequentech/meta/issues/13302"
-
-[profiles.electoral-log.scope_exceptions]
-"src/client/mod.rs" = "Module declaration only."
-"src/messages/mod.rs" = "Module declarations only."
-"src/messages/artifact.rs" = "Empty source file with license header only."
-
-# Compare like-for-like defaults; keep opt-in database counters separate.
 [profiles.electoral-log-native]
 package = "electoral-log"
 features = []
+database_tests = ["postgres", "ballot_box", "events", "provisioning", "console", "privacy", "privacy_receipts"]
+database_test_skips = ["matched_receipt_and_cast_storage_cost"]
 limitations = [
-    "Comparable default-feature profile; actual PR base lacks the opt-in database-test feature.",
-    "Database integration is measured separately by electoral-log; inline tests on the historical base remain counted.",
-    "The legacy fixed-port integration test remains ignored; native branches and optional features require separate evidence.",
+    "Default-feature profile; inline tests remain counted.",
+    "Includes PostgreSQL storage, ballot box, event database, provisioning, console and privacy contracts on a disposable local server; storage-cost and scale benchmarks are not coverage tests.",
+    "Native branches and optional features require separate evidence.",
 ]
 issue = "https://github.com/sequentech/meta/issues/13302"
 
 [profiles.electoral-log-native.scope_exceptions]
-"src/client/mod.rs" = "Module declaration only."
 "src/messages/mod.rs" = "Module declarations only."
+"src/adapters/mod.rs" = "Module declarations only."
 "src/messages/artifact.rs" = "Empty source file with license header only."
+"src/ports.rs" = "Store trait declaration only; its implementations are measured in src/adapters/postgres.rs and src/adapters/events.rs."
+
+[profiles.electoral-log-native.test_environment]
+ELECTORAL_LOG_TEST_DATABASE_URL = "postgresql://test:test@127.0.0.1:3322/test?sslmode=disable"
+ELECTORAL_LOG_PG_HOST = "127.0.0.1"
+ELECTORAL_LOG_PG_PORT = "3322"
+ELECTORAL_LOG_PG_USER = "test"
+ELECTORAL_LOG_PG_PASSWORD = "test"
+ELECTORAL_LOG_PG_DATABASE = "test"
+ELECTORAL_LOG_PG_SSLMODE = "disable"
+ENV_SLUG = "electoral-log-tests"
+
+[profiles.pgmq-broker]
+package = "pgmq-broker"
+features = []
+limitations = [
+    "Default-feature profile; inline tests remain counted.",
+    "The setup, delivery, retry, lease, archive and inspection tests need a disposable PostgreSQL database and are ignored here; they run against PostgreSQL in the Rust CI test job.",
+    "Branch coverage requires separate evidence.",
+]
+issue = "https://github.com/sequentech/meta/issues/13302"
+
+[profiles.pgmq-broker.excluded_files]
+"src/tests.rs" = "Standalone unit-test module under cfg(test); the broker, its setup and its inspection remain measured."
+
+[profiles.pgmq-broker.scope_exceptions]
 
 [profiles.wrap-map-err.test_environment]
 KEYCLOAK_DB__HOST = "127.0.0.1"
@@ -431,107 +553,37 @@ HASURA_DB__DBNAME = "test"
 LOW_SQL_LIMIT = "1000"
 DEFAULT_SQL_LIMIT = "20"
 DEFAULT_SQL_BATCH_SIZE = "1000"
-[profiles.strand-native]
-package = "strand"
-features = ["num_bigint", "rayon"]
-issue = "https://github.com/sequentech/meta/issues/13302"
-limitations = [
-    "Enabled native backends; inline test code remains counted. WASM and actual branch coverage are separate.",
-    "Do not substitute zero for a base revision that cannot build this feature configuration.",
-]
-[profiles.strand-native.test_environment]
-RUST_TEST_THREADS = "2"
-RAYON_NUM_THREADS = "2"
-[profiles.strand-native.scope_exceptions]
-"src/context.rs" = "Trait declarations without executable default methods; implementations are measured in the selected backend."
-"src/hashing/mod.rs" = "Module declarations only."
-"src/random/mod.rs" = "Module declarations only."
-"src/signatures/mod.rs" = "Module declarations only."
-"src/symmetric/mod.rs" = "Module declarations only."
-"src/wasm/test.rs" = "Browser-only test module compiled for browser testing; no native application implementation."
-"src/wasm/test/bench.rs" = "Browser benchmark harness compiled for browser testing; no native application implementation."
-"src/wasm/test/demo.rs" = "Browser demonstration compiled for browser testing; no native application implementation."
-"src/wasm/test/test.rs" = "Browser test harness compiled for browser testing; no native application implementation."
+ELECTORAL_LOG_TEST_DATABASE_URL = "postgresql://test:test@127.0.0.1:3322/test?sslmode=disable"
+ELECTORAL_LOG_PG_HOST = "127.0.0.1"
+ELECTORAL_LOG_PG_PORT = "3322"
+ELECTORAL_LOG_PG_USER = "test"
+ELECTORAL_LOG_PG_PASSWORD = "test"
+ELECTORAL_LOG_PG_DATABASE = "test"
+ELECTORAL_LOG_PG_SSLMODE = "disable"
+ENV_SLUG = "electoral-log-tests"
+WBRAID_BOARD_DATABASE_URL = "postgres://test:test@127.0.0.1:3322/test"
+WBRAID_B4_PG_PASSWORD = "test"
 
-[profiles.strand-backends]
-package = "strand"
-features = ["num_bigint", "rayon", "rug", "malachite"]
-issue = "https://github.com/sequentech/meta/issues/13302"
-limitations = [
-    "Enabled native backends; inline test code remains counted. WASM and actual branch coverage are separate.",
-    "Do not substitute zero for a base revision that cannot build this feature configuration.",
-]
-[profiles.strand-backends.test_environment]
-RUST_TEST_THREADS = "2"
-RAYON_NUM_THREADS = "2"
-[profiles.strand-backends.scope_exceptions]
-"src/context.rs" = "Trait declarations without executable default methods; implementations are measured in the selected backend."
-"src/hashing/mod.rs" = "Module declarations only."
-"src/random/mod.rs" = "Module declarations only."
-"src/signatures/mod.rs" = "Module declarations only."
-"src/symmetric/mod.rs" = "Module declarations only."
-"src/wasm/test.rs" = "Browser-only test module compiled for browser testing; no native application implementation."
-"src/wasm/test/bench.rs" = "Browser benchmark harness compiled for browser testing; no native application implementation."
-"src/wasm/test/demo.rs" = "Browser demonstration compiled for browser testing; no native application implementation."
-"src/wasm/test/test.rs" = "Browser test harness compiled for browser testing; no native application implementation."
+[profiles.voting-crypto]
+package = "voting-crypto"
+features = []
+limitations = ["Application signing and ballot boundary contracts against wbraid's crypto implementation."]
+issue = "https://github.com/sequentech/meta/issues/12886"
 
-[profiles.b4]
-package = "b4"
-features = ["native"]
-issue = "https://github.com/sequentech/meta/issues/13302"
-limitations = [
-    "Native HTTP server, protocol messages and owned Unix-socket PostgreSQL fixtures; no production database or cloud credentials.",
-    "Client-feature tests run separately: the original client test target lacks its serial_test dependency, so it has no buildable comparable baseline.",
-    "The monitor feature currently fails to build: monitor.rs imports undeclared sqlx and still queries the retired SQLite schema. It needs a separate compatibility decision, not a coverage exclusion from an enabled target.",
-    "WASM and actual Rust branches are separate scopes. Inline tests and generated serialization remain counted.",
-]
-[profiles.b4.test_environment]
-RUST_TEST_THREADS = "2"
-RAYON_NUM_THREADS = "2"
-[profiles.b4.scope_exceptions]
-"src/messages/mod.rs" = "Module declarations only."
-"src/client/mod.rs" = "Module declarations for the separately tested client feature."
-"src/client/pgsql.rs" = "Client feature is separately tested, including owned database fixtures; the original feature test target cannot build without its missing serial_test dependency."
-"src/monitor.rs" = "Separate monitor binary is currently unbuildable: undeclared sqlx dependency and legacy SQLite queries. The native server profile does not compile this binary."
+[profiles.voting-crypto.scope_exceptions]
 
-[profiles.braid]
-package = "braid"
-features = ["native"]
-issue = "https://github.com/sequentech/meta/issues/13302"
-limitations = [
-    "Native protocol, SQLite persistence and transient storage. The existing in-memory protocol test remains included.",
-    "HTTP/cloud protocol tests require their own synthetic service environment. Browser IndexedDB/OPFS and actual Rust branches are separate scopes.",
-    "Inline tests and generated protocol logic remain counted; no source exclusions."
-]
-[profiles.braid.test_environment]
-CARGO_PROFILE_TEST_OPT_LEVEL = "2"
-RUST_TEST_THREADS = "2"
-RAYON_NUM_THREADS = "2"
-[profiles.braid.scope_exceptions]
-"src/native/board/mod.rs" = "Module declarations only."
-"src/native/mod.rs" = "Module declarations only."
-"src/native/session/mod.rs" = "Module declarations only."
-"src/native/test/mod.rs" = "Module declarations only."
-"src/native/verify/mod.rs" = "Module declarations only."
-"src/wasm/board/http.rs" = "Browser-only implementation; requires separate WASM execution and measurement."
-"src/wasm/board/mod.rs" = "Browser-only implementation; requires separate WASM execution and measurement."
-"src/wasm/board/storage_indexeddb.rs" = "Browser-only implementation; requires separate WASM execution and measurement."
-"src/wasm/mod.rs" = "Browser-only implementation; requires separate WASM execution and measurement."
-"src/wasm/session.rs" = "Browser-only implementation; requires separate WASM execution and measurement."
-"src/wasm/verify.rs" = "Browser-only implementation; requires separate WASM execution and measurement."
+[profiles.protocol-board]
+package = "protocol-board"
+features = []
+limitations = ["Native in-memory DKG, mixing, decryption and custody protocols."]
+issue = "https://github.com/sequentech/meta/issues/12886"
 
-[profiles.immudb-rs]
-package = "immudb-rs"
-consumer_packages = ["electoral-log"]
-features = ["electoral-log/immudb-tests"]
-issue = "https://github.com/sequentech/meta/issues/13302"
-limitations = [
-    "Bounded local gRPC fixtures test client request mapping and error propagation; electoral-log supplies real owned ImmuDB consumer tests on both revisions.",
-    "Only immudb-rs source counters are reported; consumer tests do not inflate its denominator. Generated protocol transport is exercised through the client.",
-    "Actual Rust branches remain separately unmeasured."
-]
-[profiles.immudb-rs.test_environment]
-RUST_TEST_THREADS = "2"
-[profiles.immudb-rs.scope_exceptions]
-"src/lib.rs" = "Module declarations and re-exports only."
-"src/schema.rs" = "Includes generated protocol definitions from OUT_DIR; no handwritten executable source in this file."
+[profiles.protocol-board.scope_exceptions]
+
+[profiles.trustee]
+package = "trustee"
+features = []
+limitations = ["Native trustee sessions, persistence and custody tooling."]
+issue = "https://github.com/sequentech/meta/issues/12886"
+
+[profiles.trustee.scope_exceptions]

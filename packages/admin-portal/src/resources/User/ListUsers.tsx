@@ -45,7 +45,7 @@ import {
     Stack,
     Typography,
 } from "@mui/material"
-import {Dialog, theme} from "@sequentech/ui-essentials"
+import {ChannelLabel, Dialog, theme} from "@sequentech/ui-essentials"
 import {useTranslation} from "react-i18next"
 import {Action} from "@/components/ActionButons"
 import EditIcon from "@mui/icons-material/Edit"
@@ -96,6 +96,8 @@ import {EXPORT_USERS} from "@/queries/ExportUsers"
 import {EXPORT_TENANT_USERS} from "@/queries/ExportTenantUsers"
 import {DownloadDocument} from "./DownloadDocument"
 import {IMPORT_USERS} from "@/queries/ImportUsers"
+import {EBallotIdentity} from "@sequentech/ui-core"
+import {useEventPresentation} from "@/hooks/useZonedFormat"
 import {ElectoralLogFilters, ElectoralLogList} from "@/components/ElectoralLogList"
 import {USER_PROFILE_CONFIGURATION} from "@/queries/GetUserProfileConfiguration"
 import {
@@ -119,6 +121,8 @@ import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import SelectArea from "@/components/area/SelectArea"
 import {WidgetProps} from "@/components/Widget"
 import {ResetFilters} from "@/components/ResetFilters"
+import {VOTER_ATTR_MESSAGE_CHANNEL} from "@/types/messaging"
+import {voterChannel} from "./voterMessaging"
 import {ThreeStateDatagridHeader} from "@/components/ThreeStateDatagridHeader"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {UserActionTypes} from "@/components/types"
@@ -162,6 +166,16 @@ const StyledNull = styled("div")`
     padding-left: 18px;
 `
 
+const SelectionAwareListActions: React.FC<React.ComponentProps<typeof ListActions>> = (props) => {
+    const {selectedIds} = useListContext()
+    // Keep the toolbar space and mounted dialogs while bulk actions replace it.
+    return (
+        <Box sx={{visibility: selectedIds.length ? "hidden" : "visible"}}>
+            <ListActions {...props} />
+        </Box>
+    )
+}
+
 export interface ListUsersProps {
     aside?: ReactElement
     electionEventId?: string
@@ -169,6 +183,7 @@ export interface ListUsersProps {
 }
 
 export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, electionId}) => {
+    const privacyPresentation = useEventPresentation(electionEventId)
     const {t, i18n} = useTranslation()
     const parentTheme = useTheme()
     // React-admin still labels the checkbox root; MUI 7 needs the input slot.
@@ -353,7 +368,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                         !isSecretAttribute(attr) && attr.name !== SUPPORT_MATERIALS_ACKNOWLEDGED
                 )
                 .map((attr) => {
-                    //covert to valid source string (if attr name is for example sequent.read-only.otp-method)
+                    //covert to valid source string (if attr name is for example sequent.read-only.mobile-number)
                     const source = attr.name?.replaceAll(".", "%")
                     if (attr.annotations?.inputType === "html5-date") {
                         return (
@@ -1213,21 +1228,23 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const listFields = useMemo(() => {
         const basicInfoFields: UserProfileAttribute[] = []
         const attributesFields: UserProfileAttribute[] = []
-        const omitFields = ["id", "email_verified", "email"]
+        const omitFields = ["id", "email_verified", "email", "messaging_channel"]
 
         visibleUserAttributes?.forEach((attr) => {
             if (attr.name && userBasicInfo.includes(attr.name)) {
                 basicInfoFields.push(attr)
-            } else if (attr.name === SUPPORT_MATERIALS_ACKNOWLEDGED) {
-                // Has its own dedicated boolean column below; must not be
-                // auto-omitted like other Keycloak-attribute-derived columns.
+            } else if (
+                attr.name === SUPPORT_MATERIALS_ACKNOWLEDGED ||
+                (electionEventId && attr.name === VOTER_ATTR_MESSAGE_CHANNEL)
+            ) {
+                // These have dedicated columns instead of generic attribute fields.
             } else {
                 omitFields.push(`attributes['${attr.name}']`)
                 attributesFields.push(attr)
             }
         })
         return {basicInfoFields, attributesFields, omitFields}
-    }, [visibleUserAttributes])
+    }, [electionEventId, visibleUserAttributes])
 
     const renderFields = (fields: UserProfileAttribute[]) => {
         const allFields = fields.map((attr) => {
@@ -1525,6 +1542,27 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                                     <ListActionsMenu actions={actions} />
                                 </WrapperField>
                             )}
+                            {electionEventId && (
+                                <FunctionField<IUser>
+                                    source="messaging_channel"
+                                    label={String(t("messaging.voter.listChannel"))}
+                                    sortable={false}
+                                    render={(record) => {
+                                        const channel = voterChannel(
+                                            record.email,
+                                            record.attributes
+                                        )
+                                        return channel ? (
+                                            <ChannelLabel
+                                                channel={channel.channel}
+                                                label={t(`messaging.channel.${channel.channel}`)}
+                                            />
+                                        ) : (
+                                            "-"
+                                        )
+                                    }}
+                                />
+                            )}
                         </DataGridContainerStyle>
                     </ThemeProvider>
                 )}
@@ -1559,7 +1597,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     }}
                     empty={hasCustomFilter ? false : <Empty />}
                     actions={
-                        <ListActions
+                        <SelectionAwareListActions
                             withColumns={showVotersColumns}
                             preferenceKey={getPreferenceKey(location.pathname, "voters")}
                             withFilter={showVotersFilters}
@@ -1723,6 +1761,11 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 title="electionEventScreen.import.title"
                 subtitle="electionEventScreen.import.subtitle"
                 paragraph="electionEventScreen.import.votersParagraph"
+                fileIntegrityPolicy={
+                    (electionEventRecord?.presentation as IElectionEventPresentation | undefined)
+                        ?.file_integrity_policy
+                }
+                disableImport={Boolean(electionEventId && !electionEventRecord)}
                 doImport={handleImportVoters}
                 errors={null}
             />
@@ -1856,6 +1899,11 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 <>
                     {/* The conditional below prevents re-rendering and data
                 refetching when closing the dialog with no id */}
+                    {privacyPresentation?.ballot_identity === EBallotIdentity.PSEUDONYM && (
+                        <Typography variant="body2" sx={{mb: 2}}>
+                            {t("ballotPrivacy.userLogs")}
+                        </Typography>
+                    )}
                     {recordIds && recordIds.length > 0 && (
                         <ElectoralLogList
                             electionEventId={electionEventId}

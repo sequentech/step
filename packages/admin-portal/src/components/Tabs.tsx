@@ -21,6 +21,7 @@ const TabStyles = {
         }
     `,
     Content: styled("div")`
+        box-sizing: border-box;
         width: 100%;
         padding: 2rem var(--2, 16px);
     `,
@@ -28,6 +29,8 @@ const TabStyles = {
 
 export const Tabs: React.FC<{
     elements: Array<{
+        /** Selects the tab from a link's `tabId`, whatever its position. */
+        id?: string
         label: string
         component: React.ComponentType<any>
         action?: (index: number) => void
@@ -38,10 +41,16 @@ export const Tabs: React.FC<{
 }> = ({elements, selectedTab, onSelectedTabChange, ...props}) => {
     const {t} = useTranslation()
     const baseUrl = new URL(window.location.href)
-    const [internalSelectedTab, setInternalSelectedTab] = React.useState(
-        Number.parseInt(baseUrl?.searchParams?.get("tabIndex") ?? "0")
-    )
-    const activeTab = selectedTab ?? internalSelectedTab
+    const [internalSelectedTab, setInternalSelectedTab] = React.useState(() => {
+        const tabId = baseUrl?.searchParams?.get("tabId")
+        const linked = tabId ? elements.findIndex((element) => element.id === tabId) : -1
+        return linked >= 0 ? linked : Number.parseInt(baseUrl?.searchParams?.get("tabIndex") ?? "0")
+    })
+    const requestedTab = selectedTab ?? internalSelectedTab
+    const validSelection =
+        Number.isInteger(requestedTab) && requestedTab >= 0 && requestedTab < elements.length
+    // Render the fallback immediately, including while a controlled parent updates.
+    const activeTab = validSelection ? requestedTab : 0
     const selectedElement = elements[activeTab]
 
     const handleChange = (event: SyntheticEvent<Element, Event>, newValue: number) => {
@@ -50,11 +59,11 @@ export const Tabs: React.FC<{
     }
 
     React.useEffect(() => {
-        if (elements.length > 0 && activeTab >= elements.length) {
+        if (elements.length > 0 && !validSelection) {
             setInternalSelectedTab(0)
             onSelectedTabChange?.(0)
         }
-    }, [activeTab, elements.length, onSelectedTabChange])
+    }, [validSelection, elements.length, onSelectedTabChange])
 
     const SelectedComponent = selectedElement?.component
 
@@ -62,6 +71,7 @@ export const Tabs: React.FC<{
         <TabStyles.Wrapper>
             <Box
                 sx={{
+                    width: "100%",
                     bgcolor: "background.paper",
                     borderBottom: 1,
                     borderColor: "divider",

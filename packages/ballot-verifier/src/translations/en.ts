@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 const englishTranslation = {
     translations: {
-        welcome: "Hello <br/> <strong>World</strong>",
         404: {
             title: "Page not found",
             subtitle: "The page you are looking for does not exist",
@@ -31,6 +30,18 @@ const englishTranslation = {
                 "There was a problem importing the auditable ballot. Did you choose  the right file?",
             importErrorMoreInfo: "More info",
             importErrorTitle: "Error",
+            ciphertextErrorTitle: "Ballot verification failed",
+            ciphertextErrorDescription:
+                "The ciphertext in this auditable ballot is not the encryption of the plaintext and randomness it contains. The ballot cannot be trusted.",
+            verificationErrorTitle: "Ballot verification failed",
+            unpublishedStyleErrorDescription:
+                "This auditable ballot does not match any ballot published for this election event, so it cannot be verified.",
+            unavailableStyleErrorDescription:
+                "The ballots published for this election event could not be loaded, so this auditable ballot cannot be verified yet. Please try again.",
+            styleErrorDescription:
+                "The ballot style in this auditable ballot is not the one published for the election: its public key or its contests and candidates differ, or it is not published. The ballot cannot be trusted.",
+            legacyBallotWarning:
+                "This auditable ballot uses an older ballot format whose Ballot ID does not cover the ballot style. Its Ballot ID cannot confirm that the ballot was encrypted with the published election key.",
             useSampleLink: "Use a sample ballot",
             nextButton: "Next",
             ballotIdLabel: "Ballot ID",
@@ -69,7 +80,12 @@ const englishTranslation = {
                     "The following ballot selections have been decoded from the ballot you imported. Please review them and ensure that they match the selections you made in the Voting Portal.  If your selections don't match, please contact the election authorities...",
             },
             markedInvalid: "Ballot explicitly marked invalid",
-            points: "({{points}} Points)",
+            points_one: "({{count}} Point)",
+            // `_many` is selected only in es/cat/fr, for exact multiples of a million. English never
+            // selects it, but the other bundles are typed `TranslationType = typeof englishTranslation`,
+            // so the key has to be declared here before they can carry it.
+            points_many: "({{count}} Points)",
+            points_other: "({{count}} Points)",
             contestNotFound: "Contest not found: {{contestId}}",
             declineToVote: "Declined to vote",
             blankBallot: "Blank ballot",
@@ -88,14 +104,8 @@ const englishTranslation = {
                     "Error converting write-in from bytes to UTF-8 string: {{errorMessage}}",
                 ballotTooLarge: "Ballot larger than expected",
             },
-            implicit: {
-                selectedMax:
-                    "Number of selected choices {{numSelected}} is more than the maximum {{max}}",
-                selectedMin:
-                    "Number of selected choices {{numSelected}} is less than the minimum {{min}}",
-            },
             explicit: {
-                notAllowed: "Ballot marked explicitly invalid but question doesn't allow it",
+                notAllowed: "Ballot marked explicitly invalid but the contest doesn't allow it",
             },
         },
     },

@@ -13,30 +13,45 @@ import org.keycloak.models.KeycloakSessionFactory;
 @AutoService(EventListenerProviderFactory.class)
 public class CustomEventListenerProviderFactory implements EventListenerProviderFactory {
 
-  private final RabbitMqEventPublisher rabbitMqEventPublisher;
+  private PgmqEventPublisher pgmqEventPublisher;
+  private SigninNetworkDispatcher signinNetworkDispatcher;
 
-  public CustomEventListenerProviderFactory() {
-    this(RabbitMqEventPublisher.fromEnvironment());
-  }
+  // Quarkus instantiates factories during image augmentation without runtime configuration.
+  public CustomEventListenerProviderFactory() {}
 
-  CustomEventListenerProviderFactory(RabbitMqEventPublisher rabbitMqEventPublisher) {
-    this.rabbitMqEventPublisher = rabbitMqEventPublisher;
+  CustomEventListenerProviderFactory(PgmqEventPublisher pgmqEventPublisher) {
+    this.pgmqEventPublisher = pgmqEventPublisher;
   }
 
   @Override
   public EventListenerProvider create(KeycloakSession session) {
-    return new CustomEventListenerProvider(session, rabbitMqEventPublisher);
+    return new CustomEventListenerProvider(session, pgmqEventPublisher, signinNetworkDispatcher);
   }
 
   @Override
   public void init(Scope config) {}
 
   @Override
-  public void postInit(KeycloakSessionFactory factory) {}
+  public void postInit(KeycloakSessionFactory factory) {
+    // Exclusive provider settings can prevent either privacy factory from being loaded.
+    // Enforce activation from this existing SPI as well, before any authentication is served.
+    PrivacyEventStoreProviderFactory.requireSelected(factory);
+    PrivacyUserSessionProviderFactory.requireSelected(factory);
+    if (pgmqEventPublisher == null) {
+      pgmqEventPublisher = PgmqEventPublisher.fromEnvironment();
+    }
+    pgmqEventPublisher.checkQueueDatabase();
+    signinNetworkDispatcher = new SigninNetworkDispatcher(SigninNetworkSender.fromEnvironment());
+  }
 
   @Override
   public void close() {
-    rabbitMqEventPublisher.close();
+    if (signinNetworkDispatcher != null) {
+      signinNetworkDispatcher.close();
+    }
+    if (pgmqEventPublisher != null) {
+      pgmqEventPublisher.close();
+    }
   }
 
   @Override

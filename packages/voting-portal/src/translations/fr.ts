@@ -1,23 +1,50 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {TranslationType} from "./en"
+import englishTranslation, {TranslationType} from "./en"
 
 const frenchTranslation: TranslationType = {
     translations: {
+        ballotPrivacy: englishTranslation.translations.ballotPrivacy,
         startup: {
             error: "Le portail de vote n’a pas pu démarrer. Veuillez réessayer.",
             retry: "Réessayer",
+        },
+        contactChannel: {
+            change: "Mode de contact",
+            updated: "Votre contact a été modifié. Les codes et les avis y sont désormais envoyés.",
+            cancelled: "Votre contact n’a pas été modifié.",
+            failed: "Nous n’avons pas pu modifier la façon dont nous vous contactons. Réessayez plus tard ou contactez l’assistance.",
+            close: "Fermer",
         },
         common: {
             goBack: "Retour",
             showMore: "Afficher plus",
             showLess: "Afficher moins",
         },
+        audioInstructions: {
+            screens: {
+                "election-chooser":
+                    "Cette page présente les élections auxquelles vous pouvez voter. Utilisez la touche Tabulation pour passer d'une élection à la suivante. Chaque élection a un bouton pour commencer à voter. Appuyez sur Entrée sur ce bouton pour ouvrir son bulletin.",
+                "start":
+                    "Cette page explique comment voter. Vous choisissez d'abord vos options, puis vous les vérifiez, et enfin vous déposez votre bulletin. Utilisez la touche Tabulation pour atteindre le bouton qui lance le vote et appuyez sur Entrée. Si une déclaration est affichée, cochez d'abord sa case avec la barre d'espace.",
+                "ballot":
+                    "Voici votre bulletin. Chaque question est un groupe d'options, et la question indique combien vous pouvez en choisir. Utilisez la touche Tabulation pour passer d'une option à l'autre et la barre d'espace pour en cocher ou décocher une. Quand vous avez terminé, allez au bouton pour continuer, à la fin de la page, et appuyez sur Entrée pour vérifier vos choix. Il y a aussi un bouton pour effacer tous vos choix. Rien n'est déposé tant que vous n'avez pas confirmé sur la page de vérification.",
+                "review":
+                    "Cette page montre les choix que vous avez faits. Vérifiez-les attentivement. Pour modifier quelque chose, utilisez le bouton pour modifier votre bulletin. Pour voter, allez au bouton pour déposer votre bulletin et appuyez sur Entrée. L'identifiant de votre bulletin se trouve en haut de la page. Vous pouvez le copier pour retrouver votre bulletin plus tard.",
+                "confirmation":
+                    "Votre vote a été déposé. Cette page affiche l'identifiant de votre bulletin, qui vous permet de vérifier qu'il a été enregistré. Vous pouvez le copier ou imprimer cette page. Quand vous avez terminé, utilisez le bouton à la fin de la page pour terminer.",
+                "audit":
+                    "Cette page vous permet d'auditer votre bulletin au lieu de le déposer. Elle affiche les informations que vous pouvez contrôler avec le vérificateur de bulletins. Un bulletin audité n'est pas déposé : revenez ensuite à votre bulletin pour voter.",
+                "ballot-locator":
+                    "Cette page vous permet de vérifier qu'un bulletin a été enregistré. Saisissez ou collez un identifiant de bulletin dans le champ de texte et appuyez sur Entrée. Le résultat s'affiche sous le champ.",
+                "support-materials":
+                    "Cette page présente des documents qui vous aident à voter. Utilisez la touche Tabulation pour passer de l'un à l'autre et appuyez sur Entrée sur le bouton d'un document pour l'ouvrir. Utilisez le bouton de retour pour revenir à la liste des élections.",
+            },
+        },
         a11y: {
             skipToContent: "Aller au contenu principal",
             helpAbout: "Aide à propos de {{topic}}",
-            copyToClipboard: "Copier {{label}} dans le presse-papiers",
             previewMaterial: "Aperçu de {{title}}",
             ballotsTable: "Bulletins",
             ballotLocatorTabs: "Sections du localisateur de bulletin",
@@ -25,8 +52,10 @@ const frenchTranslation: TranslationType = {
             votingProgress: "Progression du vote",
             stepOf: "Étape {{current}} sur {{total}}",
             selectUpTo_one: "Sélectionnez jusqu'à {{count}} option",
+            selectUpTo_many: "Sélectionnez jusqu'à {{count}} options",
             selectUpTo_other: "Sélectionnez jusqu'à {{count}} options",
             selectExactly_one: "Sélectionnez {{count}} option",
+            selectExactly_many: "Sélectionnez {{count}} options",
             selectExactly_other: "Sélectionnez {{count}} options",
             selectBetween: "Sélectionnez entre {{min}} et {{max}} options",
         },
@@ -34,8 +63,9 @@ const frenchTranslation: TranslationType = {
             collapseToggle: "Masquer la liste {{listTitle}}",
             showCandidates: "Afficher les candidats",
             hideCandidates: "Masquer les candidats",
-            selectedCandidate: "{{count}} candidat sélectionné",
-            selectedCandidates: "{{count}} candidats sélectionnés",
+            selectedCandidates_one: "{{count}} candidat sélectionné",
+            selectedCandidates_many: "{{count}} candidats sélectionnés",
+            selectedCandidates_other: "{{count}} candidats sélectionnés",
             expandAll: "Tout afficher",
             collapseAll: "Tout réduire",
         },
@@ -52,7 +82,7 @@ const frenchTranslation: TranslationType = {
         contest: {
             acclamation: {
                 description:
-                    "Ce vote a été acquis par acclamation. Ses candidat(e)s sont élu(e)s sans scrutin : aucune option ne peut être sélectionnée et aucune voix n'est enregistrée.",
+                    "Ce scrutin a été tranché par acclamation. Ses candidat(e)s sont élu(e)s sans vote : aucune option ne peut être sélectionnée et aucune voix n'est enregistrée.",
             },
         },
         votingScreen: {
@@ -62,13 +92,13 @@ const frenchTranslation: TranslationType = {
             ballotHelpDialog: {
                 title: "À propos de l'écran de vote",
                 content:
-                    "Cet écran affiche le vote auquel vous êtes éligible. Cochez la case à droite pour sélectionner un(e) Candidat(e). Pour réinitialiser, cliquez sur “<b>Effacer la sélection</b>”, pour continuer, cliquez sur “<b>Suivant</b>”.",
+                    "Cet écran affiche les scrutins auxquels vous êtes éligible. Cochez la case à droite pour sélectionner un(e) Candidat(e). Pour réinitialiser, cliquez sur “<b>Effacer la sélection</b>”, pour continuer, cliquez sur “<b>Suivant</b>”.",
                 ok: "OK",
             },
             nonVotedDialog: {
                 title: "Vote invalide ou blanc",
                 content:
-                    "Certaines de vos réponses pourraient rendre le bulletin invalide ou blanc dans une ou plusieurs sélections.",
+                    "Certaines de vos réponses pourraient rendre le bulletin invalide ou blanc dans un ou plusieurs scrutins.",
                 ok: "Réviser mes réponses",
                 continue: "Continuer",
                 cancel: "Annuler",
@@ -103,7 +133,7 @@ const frenchTranslation: TranslationType = {
             instructionsDescription: "Suivez les étapes suivantes pour voter:",
             step1Title: "1. Sélectionnez votre option de vote",
             step1Description:
-                "Sélectionnez vos candidats et répondez aux questions. Vous pourrez modifier votre bulletin jusqu'au moment de le soumettre.",
+                "Sélectionnez vos candidats et faites vos choix dans chaque scrutin. Vous pourrez modifier votre bulletin jusqu'au moment de le soumettre.",
             step2Title: "2. Révisez votre bulletin",
             step2Description:
                 "Votre bulletin sera chiffré, puis une dernière vérification vous sera présentée. Vous recevrez un identifiant de suivi unique.",
@@ -112,6 +142,11 @@ const frenchTranslation: TranslationType = {
                 "Soumettez votre bulletin pour qu'il soit enregistré, ou lancez un audit afin de vérifier qu'il a été correctement chiffré.",
         },
         reviewScreen: {
+            castRecovery: {
+                uncertain:
+                    "Le résultat du vote n’a pas été confirmé. Vous pouvez réessayer la même demande ou vérifier votre identifiant de bulletin avant de recommencer.",
+                checkBallot: "Vérifier le bulletin",
+            },
             acclamation: {
                 title: "Acquis par acclamation",
                 helpDialog: {
@@ -166,6 +201,15 @@ const frenchTranslation: TranslationType = {
                     "Vous n'avez sélectionné aucun candidat. Après confirmation, votre bulletin sera déposé blanc.",
                 ok: "Oui, je veux déposer mon bulletin blanc",
                 cancel: "Annuler",
+            },
+            unfilledContestsDialog: {
+                title: "Certaines sélections sont incomplètes",
+                content:
+                    "Vous pouvez laisser une sélection vide ou choisir moins d'options que le maximum autorisé. Vérifiez les éléments suivants avant de continuer.",
+                selected: "{{selected}} sur {{max}} sélectionnées",
+                nothingSelected: "Aucune sélection",
+                ok: "Continuer avec ces sélections",
+                cancel: "Revoir les sélections",
             },
             error: {
                 NETWORK_ERROR:
@@ -265,11 +309,11 @@ const frenchTranslation: TranslationType = {
             acclamation: {
                 title: "Acquis par acclamation",
                 description:
-                    "Tous les votes de cette élection ont été acquis par acclamation : aucun bulletin n'a été déposé et il n'y a pas d'identifiant de bulletin à suivre.",
+                    "Tous les scrutins de cette élection ont été tranchés par acclamation : aucun bulletin n'a été déposé et il n'y a pas d'identifiant de bulletin à suivre.",
                 helpDialog: {
                     title: "Information : Acclamation",
                     content:
-                        "Tous les votes de cette élection ont été acquis par acclamation : leurs candidat(e)s sont élu(e)s sans scrutin. Comme aucun bulletin n'a été déposé, il n'y a ni identifiant de bulletin, ni reçu, ni code QR à vérifier.",
+                        "Tous les scrutins de cette élection ont été tranchés par acclamation : leurs candidat(e)s sont élu(e)s sans vote. Comme aucun bulletin n'a été déposé, il n'y a ni identifiant de bulletin, ni reçu, ni code QR à vérifier.",
                     ok: "OK",
                 },
             },
@@ -282,6 +326,9 @@ const frenchTranslation: TranslationType = {
             ballotId: "Localisateur de Vote",
             printButton: "Imprimer",
             finishButton: "Terminer",
+            remainingElectionsError:
+                "Nous n’avons pas pu vérifier s’il vous reste des élections auxquelles voter. Veuillez réessayer.",
+            retryButton: "Réessayer",
             verifyCastTitle: "Vérifiez que votre vote a été émis",
             verifyCastDescription:
                 "Vous pouvez vérifier à tout moment que votre bulletin a été émis correctement en utilisant le code QR ci-dessous:",
@@ -321,6 +368,9 @@ const frenchTranslation: TranslationType = {
             demoQRText: "Le suivi des bulletins est désactivé en mode démo",
         },
         auditScreen: {
+            confirmingAudit: "Confirmation que ce bulletin ne peut plus être déposé…",
+            auditUnavailable:
+                "Le bulletin n’a pas pu être audité. Son contenu n’a pas été révélé. Veuillez réessayer.",
             printButton: "Imprimer",
             restartButton: "Démarrer le vote",
             title: "Vérifiez votre Bulletin",
@@ -365,7 +415,8 @@ const frenchTranslation: TranslationType = {
                 ok: "Je comprends que mon vote ne sera pas comptabilisé",
             },
             errors: {
-                noVotingArea: "Zone de vote non assignée. Veuillez réessayer ultérieurement.",
+                noVotingArea:
+                    "Vous n'êtes pas inscrit comme votant pour cette élection. Veuillez contacter le support.",
                 networkError:
                     "Il y a eu un problème de réseau. Veuillez réessayer ultérieurement ou contacter le support pour obtenir de l'aide.",
                 unableToFetchData:
@@ -379,7 +430,7 @@ const frenchTranslation: TranslationType = {
             },
             alerts: {
                 noElections:
-                    "Il n'y a pas d'élections pour lesquelles vous pouvez voter. Cela pourrait être parce que la zone n'a aucun concours associé. Veuillez réessayer ultérieurement ou contacter le support pour obtenir de l'aide.",
+                    "Il n'y a pas d'élections pour lesquelles vous pouvez voter. Cela pourrait être parce que la zone n'a aucun scrutin associé. Veuillez réessayer ultérieurement ou contacter le support pour obtenir de l'aide.",
                 electionEventNotPublished:
                     "L'événement électoral n'a pas encore été publié. Veuillez réessayer ultérieurement ou contacter le support pour obtenir de l'aide.",
             },
@@ -387,33 +438,20 @@ const frenchTranslation: TranslationType = {
                 instructions:
                     "Vous devez lire <MaterialsLink>{{materialsTitle}}</MaterialsLink> avant de pouvoir voter.",
             },
+            votingClosedAt: "Le vote a été clôturé le {{close}} ({{localClose}}).",
+            votingClosedOn: "Le vote a été clôturé le {{close}}.",
         },
         errors: {
             encoding: {
                 notEnoughChoices: "Nombre d'options insuffisant pour le déchiffrement",
                 writeInChoiceOutOfRange: "Entrée de saisie libre hors limites : {{index}}",
                 writeInNotEndInZero: "Le texte saisi ne se termine pas par 0",
-                writeInCharsExceeded:
-                    "Le texte saisi dépasse la longueur maximale de {{numCharsExceeded}} caractères. Veuillez le raccourcir.",
                 bytesToUtf8Conversion:
                     "Erreur lors de la conversion du texte de bytes en chaîne UTF-8 : {{errorMessage}}",
                 ballotTooLarge: "La taille du bulletin dépasse la limite prévue",
             },
-            implicit: {
-                selectedMax:
-                    "Surcote : le nombre de choix sélectionnés {{numSelected}} est supérieur au maximum {{max}}",
-                selectedMin:
-                    "Le nombre de choix sélectionnés {{numSelected}} est inférieur au minimum {{min}}",
-                maxSelectionsPerType:
-                    "Le nombre de choix sélectionnés {{numSelected}} pour la liste {{type}} est supérieur au maximum {{max}}",
-                underVote:
-                    "Sous-vote : le nombre de choix sélectionnés {{numSelected}} est inférieur au maximum {{max}}",
-                overVoteDisabled:
-                    "Maximum atteint : vous avez sélectionné le maximum de {{numSelected}} choix. Pour modifier votre sélection, veuillez d'abord désélectionner une autre option.",
-                blankVote: "Vote blanc : 0 choix sélectionnés",
-            },
             explicit: {
-                notAllowed: "Bulletin marqué comme invalide, mais cette question ne l'autorise pas",
+                notAllowed: "Bulletin marqué comme invalide, mais ce scrutin ne l'autorise pas",
                 alert: "Cette sélection sera comptée comme un vote invalide",
             },
             page: {
@@ -442,6 +480,67 @@ const frenchTranslation: TranslationType = {
                 error: "Un problème est survenu lors de l'enregistrement de votre confirmation. Veuillez réessayer.",
             },
         },
+        slates: {
+            title: "Listes",
+            description:
+                "Une liste est un groupe de candidats qui se présentent ensemble. Chaque candidat indique la liste à laquelle il appartient.",
+            independent: "Indépendant",
+            contestMembers: "Candidats de {{slate}} pour {{contest}}",
+            noCandidate: "Aucun candidat",
+            coverage: {
+                full: "Liste complète",
+                singleContest: "{{contest}} uniquement",
+                partial: "Liste partielle",
+                candidates_one: "{{count}} candidat",
+                candidates_other: "{{count}} candidats",
+                offices_one: "{{count}} poste",
+                offices_other: "{{count}} postes",
+            },
+            candidateList: {
+                show: "Afficher les candidatures",
+                hide: "Masquer les candidatures",
+            },
+            tabs: {
+                label: "Façons de remplir votre bulletin",
+                slates: "Choisir une liste",
+                candidates: "Candidatures individuelles",
+            },
+            review: {
+                title: "Vos sélections",
+                total: "Candidatures sélectionnées : {{selected}} sur {{seats}}",
+                slate: "{{slate}} : {{status}}",
+                independent: "Candidatures indépendantes sélectionnées : {{count}}",
+                note: "Votre vote est enregistré pour chaque candidature sélectionnée. Une liste n'est pas un vote en soi.",
+                contestCount: "{{selected}} sur {{max}} sélectionnées",
+                edit: "Modifier",
+                editLabel: "Modifier {{contest}}",
+            },
+            selection: {
+                all: "Les {{total}} sélectionnées",
+                mixed: "Mixte · {{selected}} sur {{total}} sélectionnées",
+                partly: "Sélection partielle · {{selected}} sur {{total}}",
+                selected: "Sélectionnée",
+                edit: "Modifier la sélection",
+            },
+            apply: {
+                button: "Choisir cette liste",
+                buttonLabel: "Choisir la liste {{slate}}",
+                chosen: "{{slate}} choisie. Candidats sélectionnés : {{candidates}}. Scrutins : {{contests}}.",
+                overMaximum:
+                    "{{slate}} ne peut pas être choisie : elle compte {{candidates}} candidats pour {{contest}}, qui en autorise {{max}}. Vous pouvez toujours choisir des candidats individuellement.",
+                unavailable:
+                    "{{slate}} ne peut pas être choisie sur ce bulletin. Vous pouvez toujours choisir des candidats individuellement.",
+                replaceDialog: {
+                    title: "Remplacer vos choix actuels ?",
+                    content:
+                        "Choisir {{slate}} remplace vos choix dans les scrutins ci-dessous. Vos autres choix ne changent pas.",
+                    removed: "Retiré :",
+                    added: "Sélectionné à la place :",
+                    ok: "Remplacer les choix",
+                    cancel: "Conserver mes choix",
+                },
+            },
+        },
         ballotLocator: {
             title: "Localisez votre bulletin de vote",
             titleResult: "Résultat de la recherche de votre Bulletin",
@@ -458,6 +557,9 @@ const frenchTranslation: TranslationType = {
                 "Non trouvé, veuillez vérifier que le numéro d'identification du bulletin soit correct et appartenir à cet utilisateur.",
             filterByBallotId: "Filtrez par numéro d'identification du bulletin",
             totalBallots: "Total: {{total}}",
+            checksAvailableUntil: "Vous pouvez vérifier votre bulletin jusqu'au {{date}}.",
+            checksEnded: "Les vérifications ont pris fin le {{date}}.",
+            castAt: "Déposé le {{date}}",
             steps: {
                 lookup: "Trouvez votre bulletin de vote",
                 result: "Résultat",
@@ -475,9 +577,7 @@ const frenchTranslation: TranslationType = {
             column: {
                 statement_kind: "Type",
                 statement_timestamp: "Marque de temps",
-                username: "Nom d'utilisateur",
                 ballot_id: "Numéro d'identification du bulletin",
-                message: "Message",
             },
         },
     },

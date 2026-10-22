@@ -138,9 +138,12 @@ test.describe("voter list reconciliation operator", () => {
         expect(put.postDataBuffer()).toEqual(FILE)
         expect(put.headers()["content-type"]).toBe("text/csv")
         await expect(
-            drawer.getByText("reconciliation.csv - Sequence 7, generated 1/15/2026, 12:00:00 PM", {
-                exact: true,
-            })
+            drawer.getByText(
+                "reconciliation.csv - Sequence 7, generated Jan 15, 2026, 12:00:00 PM UTC",
+                {
+                    exact: true,
+                }
+            )
         ).toBeVisible()
         await expect(
             drawer.getByText(

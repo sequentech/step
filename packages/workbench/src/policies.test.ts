@@ -24,7 +24,7 @@ test("the fields cover each policy enum and mark the ranking-only ones", () => {
         ["invalid_vote_policy", "all", 5],
         ["blank_vote_policy", "all", 4],
         ["over_vote_policy", "all", 5],
-        ["under_vote_policy", "all", 4],
+        ["under_vote_policy", "all", 5],
         ["duplicated_rank_policy", "preferential", 2],
         ["preference_gaps_policy", "preferential", 2],
         ["candidates_order", "all", 3],

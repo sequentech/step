@@ -2,16 +2,17 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::ports::electoral_log::{
-    ElectoralLogs, PhoneBlacklistChange, PhoneBlacklistEntryLog,
-};
+use crate::ports::electoral_log::{ApprovalMatrixLog, ElectoralLogs};
 use anyhow::anyhow;
 use deadpool_postgres::Transaction;
+use electoral_log::messages::newtypes::BallotPublicationStage;
+use sequent_core::types::hasura::core::TasksExecution;
 use windmill::postgres::election_event::get_election_event_by_id;
 use windmill::services::election_event_board::get_election_event_board;
 use windmill::services::electoral_log::{
-    post_voter_secret_attribute_audit, ElectoralLog, ElectoralLogAdminContext,
-    VoterSecretAttributeAction, VoterSecretAttributeAudit,
+    log_ballot_publication_failure, post_voter_secret_attribute_audit,
+    ElectoralLog, ElectoralLogAdminContext, VoterSecretAttributeAction,
+    VoterSecretAttributeAudit,
 };
 
 /// The election event's electoral log on its bulletin board.
@@ -37,10 +38,10 @@ impl ElectoralLogs for BoardElectoralLogs {
         .await
     }
 
-    async fn phone_blacklist_entry(
+    async fn approval_matrix_updated(
         &self,
         transaction: &Transaction<'_>,
-        entry: PhoneBlacklistEntryLog<'_>,
+        entry: ApprovalMatrixLog<'_>,
     ) -> anyhow::Result<()> {
         let event = get_election_event_by_id(
             transaction,
@@ -60,30 +61,25 @@ impl ElectoralLogs for BoardElectoralLogs {
             None,
         )
         .await?;
-        let event_id = entry.election_event_id.to_string();
-        let user_id = Some(entry.user_id.to_string());
-        match entry.change {
-            PhoneBlacklistChange::Created => {
-                electoral_log
-                    .post_phone_blacklist_entry_created(
-                        event_id,
-                        entry.phone_e164,
-                        user_id,
-                        entry.username,
-                    )
-                    .await?
-            }
-            PhoneBlacklistChange::Deleted => {
-                electoral_log
-                    .post_phone_blacklist_entry_deleted(
-                        event_id,
-                        entry.phone_e164,
-                        user_id,
-                        entry.username,
-                    )
-                    .await?
-            }
-        }
-        Ok(())
+        electoral_log
+            .post_approval_matrix_updated(
+                entry.election_event_id.to_string(),
+                entry.version,
+                entry.sha256,
+                Some(entry.user_id.to_string()),
+                entry.username,
+            )
+            .await
+    }
+
+    async fn ballot_publication_failure(
+        &self,
+        task: &TasksExecution,
+        publication_id: &str,
+        stage: BallotPublicationStage,
+        message: &str,
+    ) -> anyhow::Result<()> {
+        log_ballot_publication_failure(task, publication_id, stage, message)
+            .await
     }
 }

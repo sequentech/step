@@ -13,7 +13,6 @@ import React, {useContext, useEffect, useState} from "react"
 import {ElectionEventBaseTabs} from "./resources/ElectionEvent/ElectionEventBaseTabs"
 
 import {CreateAreaContest} from "./resources/AreaContest/CreateAreaContest"
-import {CreateBallotStyle} from "./resources/BallotStyle/CreateBallotStyle"
 import {CreateCandidate} from "./resources/Candidate/CreateCandidate"
 import {CreateContest} from "./resources/Contest/CreateContest"
 import {CreateDocument} from "./resources/Document/CreateDocument"
@@ -34,9 +33,11 @@ import buildHasuraProvider from "ra-data-hasura"
 import {customBuildQuery} from "./queries/customBuildQuery"
 import {fullAdminTheme} from "./services/AdminTheme"
 import {SettingsScreen} from "./screens/SettingsScreen"
+import {ElectoralLogConsole} from "./screens/ElectoralLogConsole"
+import {TaskQueues} from "./screens/TaskQueues"
 import {ListUsers} from "./resources/User/ListUsers"
 import {CustomLayout} from "./components/CustomLayout"
-import {EditBallotStyle} from "./resources/BallotStyle/EditBallotStyle"
+import {PluginRoute} from "./plugins/PluginRoutes"
 import {EditAreaContest} from "./resources/AreaContest/EditAreaContest"
 import {EditTenant} from "./resources/Tenant/EditTenant"
 import {CreateTenant} from "./resources/Tenant/CreateTenant"
@@ -60,6 +61,7 @@ import {AuthContext} from "./providers/AuthContextProvider"
 import {customSortData} from "./lib/helpers"
 import {UpsertArea} from "./resources/Area/UpsertArea"
 import {TrusteeDashboard} from "./screens/TrusteeDashboard"
+import {rethrowTrustedWriteError} from "./services/trustedWriteError"
 
 interface AppProps {}
 
@@ -78,6 +80,12 @@ export const buildWrappedHasuraProvider = async (apolloClient: any): Promise<Dat
     // Override the getList method to apply custom sort logic.
     const wrappedDataProvider: DataProvider = {
         ...dataProviderHasura,
+        create: (resource, params) =>
+            dataProviderHasura.create(resource, params).catch(rethrowTrustedWriteError),
+        update: (resource, params) =>
+            dataProviderHasura.update(resource, params).catch(rethrowTrustedWriteError),
+        updateMany: (resource, params) =>
+            dataProviderHasura.updateMany(resource, params).catch(rethrowTrustedWriteError),
         getList: (resource: string, params: GetListParams): Promise<GetListResult> =>
             dataProviderHasura.getList(resource, params).then((response: GetListResult) => {
                 // Create a new sort object ensuring proper literal types for order.
@@ -132,12 +140,14 @@ const App: React.FC<AppProps> = () => {
                         element={<Navigate to="/sequent_backend_election_event" replace />}
                         index
                     />
-                    {/* <Route path="/logs" element={<Logs />} /> */}
                     <Route path="/tenant" element={<SelectTenant />} />
                     <Route path="/user-roles" element={<UserAndRoles />} />
                     <Route path="/trustee" element={<TrusteeDashboard />} />
                     <Route path="/messages" element={<Messages />} />
+                    <Route path="/electoral-log-console" element={<ElectoralLogConsole />} />
+                    <Route path="/task-queues" element={<TaskQueues />} />
                     <Route path="/settings/*" element={<SettingsScreen />} />
+                    <Route path="/plugins/:id/*" element={<PluginRoute />} />
                 </CustomRoutes>
 
                 <Resource
@@ -195,9 +205,7 @@ const App: React.FC<AppProps> = () => {
                 />
                 <Resource
                     name="sequent_backend_ballot_style"
-                    edit={EditBallotStyle}
                     list={ListBallotStyle}
-                    create={CreateBallotStyle}
                     options={{label: "Ballot Styles"}}
                 />
                 <Resource name="sequent_backend_certificate_authority" />

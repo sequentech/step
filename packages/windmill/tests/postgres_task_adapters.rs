@@ -23,7 +23,7 @@ use serde_json::{json, Map, Value};
 use std::collections::HashSet;
 use tokio_postgres::error::SqlState;
 use uuid::Uuid;
-use windmill::postgres::reports::{Report, ReportCronConfig, ReportType};
+use windmill::postgres::reports::{Report, ReportCronConfig, ReportFormat, ReportType};
 use windmill::postgres::{
     document, lock, render_report, reports, scheduled_event, tasks_execution,
 };
@@ -394,6 +394,10 @@ async fn get_tasks_by_election_event_id_returns_the_event_tasks_of_the_tenant() 
     task_row(&tx, &w.tenant, Some(&w.event), &w.id(11)).await;
     task_row(&tx, &w.tenant, Some(&w.other_event), &w.id(12)).await;
     task_row(&tx, &w.tenant, None, &w.id(13)).await;
+    // Historical receipt tasks contain the voter and generated receipt link;
+    // they must never be included in the administrative task export.
+    task_row(&tx, &w.tenant, Some(&w.event), &w.id(15)).await;
+    tx.execute("UPDATE sequent_backend.tasks_execution SET type = 'CREATE_BALLOT_RECEIPT' WHERE id = $1::text::uuid", &[&w.id(15)]).await.unwrap();
     // No foreign key ties a task's event to its tenant.
     task_row(&tx, &w.other_tenant, Some(&w.event), &w.id(14)).await;
 
@@ -452,6 +456,7 @@ fn cron(scheduled_date: &str) -> CronConfig {
     CronConfig {
         cron: None,
         scheduled_date: Some(scheduled_date.into()),
+        ..Default::default()
     }
 }
 
@@ -524,6 +529,7 @@ async fn insert_scheduled_event_returns_and_stores_the_schedule() {
             "event_payload": {"template_id": "template-1"},
             "created_by": null,
             "task_id": "send-template-1",
+            "participation_authorization": null,
             "cron_config": {"cron": null, "scheduled_date": "2026-02-01T10:00:00Z"},
         })
     );
@@ -597,6 +603,7 @@ async fn insert_new_scheduled_event_keeps_every_supplied_column() {
             "event_payload": {"election_id": w.id(20)},
             "created_by": null,
             "task_id": "allow-tally-1",
+            "participation_authorization": null,
             "cron_config": {"cron": null, "scheduled_date": "2026-02-01T10:00:00Z"},
         })
     );
@@ -1044,6 +1051,7 @@ async fn update_scheduled_event_replaces_the_cron_config_and_keeps_the_payload()
         CronConfig {
             cron: Some("0 10 * * *".into()),
             scheduled_date: None,
+            ..Default::default()
         },
         None,
     )
@@ -1098,39 +1106,77 @@ async fn update_scheduled_event_adds_the_voting_channels_to_the_payload() {
     tx.rollback().await.unwrap();
 }
 
+/// Editing a schedule that already ran to a future time arms it again
+/// (VOTE-LIFECYCLE); a past edit leaves the stopped row unchanged. An
+/// archived one is left alone; a successful edit clears pending recompute.
 #[tokio::test]
-async fn update_scheduled_event_leaves_a_stopped_schedule_unchanged() {
+async fn update_scheduled_event_rearms_a_stopped_schedule_edited_to_a_future_time() {
     let mut client = schema::pool().await.get().await.unwrap();
     let tx = client.transaction().await.unwrap();
     let w = World::new(&tx, ids!()).await;
-    schedule_row(&tx, Some(&w.tenant), Some(&w.event), &w.id(10), "task-10").await;
+    for (n, task) in [(10, "task-10"), (11, "task-11"), (12, "task-12")] {
+        schedule_row(&tx, Some(&w.tenant), Some(&w.event), &w.id(n), task).await;
+        set(
+            &tx,
+            "scheduled_event",
+            &w.id(n),
+            &format!(
+                "stopped_at = '{H10}', annotations = '{{\"schedule_recompute\": {{}}, \"note\": 1}}'"
+            ),
+        )
+        .await;
+    }
     set(
         &tx,
         "scheduled_event",
-        &w.id(10),
-        &format!("stopped_at = '{H10}'"),
+        &w.id(12),
+        &format!("archived_at = '{H10}'"),
     )
     .await;
 
-    scheduled_event::update_scheduled_event(
-        &tx,
-        &w.tenant,
-        &w.id(10),
-        cron("2026-03-01T10:00:00Z"),
-        Some(&vec![VotingStatusChannel::ONLINE]),
-    )
-    .await
-    .unwrap();
+    let original_past = stored(&tx, "scheduled_event", &w.id(11), &["created_at"]).await;
+    for (n, date, expected) in [
+        (10, "2099-03-01T10:00:00Z", 1),
+        (11, "2000-03-01T10:00:00Z", 0),
+        (12, "2099-03-01T10:00:00Z", 0),
+    ] {
+        let updated = scheduled_event::update_scheduled_event(
+            &tx,
+            &w.tenant,
+            &w.id(n),
+            cron(date),
+            Some(&vec![VotingStatusChannel::ONLINE]),
+        )
+        .await
+        .unwrap();
+        assert_eq!(updated, expected, "schedule {n}");
+    }
 
-    let row = stored(
+    let future = stored(&tx, "scheduled_event", &w.id(10), &["created_at"]).await;
+    assert_eq!(
+        (
+            &future["cron_config"],
+            &future["stopped_at"],
+            &future["annotations"]
+        ),
+        (
+            &json!({"cron": null, "scheduled_date": "2099-03-01T10:00:00Z"}),
+            &Value::Null,
+            &json!({"note": 1})
+        )
+    );
+    let past = stored(&tx, "scheduled_event", &w.id(11), &["created_at"]).await;
+    assert_eq!(past, original_past);
+    assert_ne!(past["stopped_at"], Value::Null);
+    let archived = stored(
         &tx,
         "scheduled_event",
-        &w.id(10),
-        &["created_at", "stopped_at"],
+        &w.id(12),
+        &["created_at", "stopped_at", "archived_at"],
     )
     .await;
     assert_eq!(
-        (&row["cron_config"], &row["event_payload"]),
+        (&archived["cron_config"], &archived["event_payload"]),
         (
             &json!({"cron": null, "scheduled_date": "2026-02-01T10:00:00Z"}),
             &json!({"report_id": "report-1"})
@@ -1263,6 +1309,19 @@ async fn report_row(tx: &Transaction<'_>, tenant: &str, event: &str, id: &str, r
     .unwrap();
 }
 
+/// Elections of the world's first event, which reports may refer to.
+async fn elections(tx: &Transaction<'_>, w: &World, numbers: &[u32]) {
+    for n in numbers {
+        tx.execute(
+            "INSERT INTO sequent_backend.election (id, tenant_id, election_event_id)
+             VALUES ($1::text::uuid, $2::text::uuid, $3::text::uuid)",
+            &[&w.id(*n), &w.tenant, &w.event],
+        )
+        .await
+        .unwrap();
+    }
+}
+
 fn report(w: &World, n: u32) -> Report {
     Report {
         id: w.id(n),
@@ -1281,6 +1340,8 @@ fn report(w: &World, n: u32) -> Report {
         }),
         created_at: utc(H10),
         permission_label: Some(vec!["north".into()]),
+        copies: Some(7),
+        output_formats: Some(vec![ReportFormat::Pdf, ReportFormat::Xml]),
     }
 }
 
@@ -1299,6 +1360,7 @@ async fn insert_reports_stores_every_report_with_its_columns() {
     let mut client = schema::pool().await.get().await.unwrap();
     let tx = client.transaction().await.unwrap();
     let w = World::new(&tx, ids!()).await;
+    elections(&tx, &w, &[20, 21]).await;
 
     reports::insert_reports(&tx, &w.tenant, &w.event, &[report(&w, 10), report(&w, 11)])
         .await
@@ -1322,6 +1384,8 @@ async fn insert_reports_stores_every_report_with_its_columns() {
             "encryption_policy": "configured_password",
             "template_alias": "results-template",
             "permission_label": ["north"],
+            "copies": 7,
+            "output_formats": ["pdf", "xml"],
         })
     );
     let found = reports::get_report_by_id(&tx, &w.tenant, &w.id(11))
@@ -1338,6 +1402,7 @@ async fn insert_reports_files_reports_under_the_given_tenant_and_event() {
     let mut client = schema::pool().await.get().await.unwrap();
     let tx = client.transaction().await.unwrap();
     let w = World::new(&tx, ids!()).await;
+    elections(&tx, &w, &[20, 21]).await;
     let foreign = Report {
         tenant_id: w.other_tenant.clone(),
         election_event_id: w.other_tenant_event.clone(),
@@ -1362,6 +1427,7 @@ async fn insert_reports_reads_back_a_missing_cron_config_as_the_default() {
     let mut client = schema::pool().await.get().await.unwrap();
     let tx = client.transaction().await.unwrap();
     let w = World::new(&tx, ids!()).await;
+    elections(&tx, &w, &[20, 21]).await;
     let without_cron = Report {
         cron_config: None,
         ..report(&w, 10)
@@ -1583,6 +1649,7 @@ async fn get_template_alias_for_report_returns_the_alias_of_the_election_report(
     let mut client = schema::pool().await.get().await.unwrap();
     let tx = client.transaction().await.unwrap();
     let w = World::new(&tx, ids!()).await;
+    elections(&tx, &w, &[20, 21]).await;
     report_row(&tx, &w.tenant, &w.event, &w.id(10), "ELECTORAL_RESULTS").await;
     set(
         &tx,
@@ -1614,6 +1681,7 @@ async fn get_template_alias_for_report_uses_only_event_templates_as_fallback() {
     let mut client = schema::pool().await.get().await.unwrap();
     let tx = client.transaction().await.unwrap();
     let w = World::new(&tx, ids!()).await;
+    elections(&tx, &w, &[20, 21]).await;
     report_row(&tx, &w.tenant, &w.event, &w.id(10), "ELECTORAL_RESULTS").await;
     set(
         &tx,
@@ -1682,7 +1750,7 @@ async fn get_template_alias_for_report_is_none_without_a_report_of_the_type_in_t
     report_row(
         &tx,
         &w.other_tenant,
-        &w.event,
+        &w.other_tenant_event,
         &w.id(12),
         "ELECTORAL_RESULTS",
     )
@@ -1724,7 +1792,7 @@ async fn get_reports_by_election_event_id_returns_the_event_reports_of_the_tenan
     report_row(
         &tx,
         &w.other_tenant,
-        &w.event,
+        &w.other_tenant_event,
         &w.id(13),
         "ELECTORAL_RESULTS",
     )
@@ -1743,12 +1811,20 @@ async fn get_reports_by_election_id_returns_the_election_reports_of_the_tenant()
     let mut client = schema::pool().await.get().await.unwrap();
     let tx = client.transaction().await.unwrap();
     let w = World::new(&tx, ids!()).await;
-    for (n, tenant, election) in [
-        (10, &w.tenant, w.id(20)),
-        (11, &w.tenant, w.id(21)),
-        (12, &w.other_tenant, w.id(20)),
+    elections(&tx, &w, &[20, 21]).await;
+    tx.execute(
+        "INSERT INTO sequent_backend.election (id, tenant_id, election_event_id)
+         VALUES ($1::text::uuid, $2::text::uuid, $3::text::uuid)",
+        &[&w.id(22), &w.other_tenant, &w.other_tenant_event],
+    )
+    .await
+    .unwrap();
+    for (n, tenant, event, election) in [
+        (10, &w.tenant, &w.event, w.id(20)),
+        (11, &w.tenant, &w.event, w.id(21)),
+        (12, &w.other_tenant, &w.other_tenant_event, w.id(22)),
     ] {
-        report_row(&tx, tenant, &w.event, &w.id(n), "ELECTORAL_RESULTS").await;
+        report_row(&tx, tenant, event, &w.id(n), "ELECTORAL_RESULTS").await;
         set(
             &tx,
             "report",
@@ -1764,6 +1840,10 @@ async fn get_reports_by_election_id_returns_the_election_reports_of_the_tenant()
         .unwrap();
 
     assert_eq!(report_ids(found), [w.id(10)]);
+    let of_another_tenant = reports::get_reports_by_election_id(&tx, &w.tenant, &w.id(22))
+        .await
+        .unwrap();
+    assert!(of_another_tenant.is_empty());
     tx.rollback().await.unwrap();
 }
 
@@ -1786,6 +1866,7 @@ async fn get_report_by_type_only_returns_a_report_of_the_requested_election() {
     let mut client = schema::pool().await.get().await.unwrap();
     let tx = client.transaction().await.unwrap();
     let w = World::new(&tx, ids!()).await;
+    elections(&tx, &w, &[20, 21]).await;
     report_row(&tx, &w.tenant, &w.event, &w.id(10), "ELECTORAL_RESULTS").await;
     set(
         &tx,
@@ -1836,6 +1917,7 @@ async fn get_report_by_type_drops_the_election_filter_for_an_invalid_election_id
     let mut client = schema::pool().await.get().await.unwrap();
     let tx = client.transaction().await.unwrap();
     let w = World::new(&tx, ids!()).await;
+    elections(&tx, &w, &[20, 21]).await;
     report_row(&tx, &w.tenant, &w.event, &w.id(10), "ELECTORAL_RESULTS").await;
     set(
         &tx,
@@ -2686,5 +2768,49 @@ async fn render_report_task_fails_on_an_invalid_template_before_writing_a_docume
         .to_string()
         .starts_with("Failed to parse template Template error: invalid handlebars syntax"));
     assert_eq!(documents_named(&tx, &name).await, 0);
+    tx.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn receipt_document_classification_cannot_be_changed_to_expose_it() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let w = World::new(&tx, ids!()).await;
+    for (id, name, annotations) in [
+        (
+            w.id(10),
+            "receipt.pdf",
+            serde_json::json!({"purpose":"ballot-receipt"}),
+        ),
+        (w.id(11), "ballot_receipt_legacy.pdf", serde_json::json!({})),
+    ] {
+        tx.execute("INSERT INTO sequent_backend.document (id,tenant_id,election_event_id,name,annotations,is_public) VALUES ($1::text::uuid,$2::text::uuid,$3::text::uuid,$4,$5,false)", &[&id,&w.tenant,&w.event,&name,&annotations]).await.unwrap();
+        for assignment in [
+            "name='ordinary.pdf'",
+            "annotations='{\"purpose\":\"ordinary\"}'::jsonb",
+            "is_public=true",
+        ] {
+            tx.batch_execute("SAVEPOINT receipt_update").await.unwrap();
+            let error = tx
+                .execute(
+                    &format!(
+                        "UPDATE sequent_backend.document SET {assignment} WHERE id=$1::text::uuid"
+                    ),
+                    &[&id],
+                )
+                .await
+                .unwrap_err();
+            assert_eq!(
+                error.as_db_error().unwrap().message(),
+                "Receipt document classification is immutable"
+            );
+            tx.batch_execute("ROLLBACK TO SAVEPOINT receipt_update")
+                .await
+                .unwrap();
+        }
+    }
+    let ordinary = w.id(12);
+    tx.execute("INSERT INTO sequent_backend.document (id,tenant_id,election_event_id) VALUES ($1::text::uuid,$2::text::uuid,$3::text::uuid)", &[&ordinary,&w.tenant,&w.event]).await.unwrap();
+    assert_eq!(tx.execute("UPDATE sequent_backend.document SET name='ordinary.pdf',is_public=true WHERE id=$1::text::uuid", &[&ordinary]).await.unwrap(),1);
     tx.rollback().await.unwrap();
 }

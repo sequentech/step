@@ -113,6 +113,40 @@ export const Populated: Story = {
     },
 }
 
+/** Draft tz-localization: timezone texts are ordinary overrides, per scope. */
+export const TimezoneOverrides: Story = {
+    args: {
+        overrides: {
+            en: {
+                "global:timezones.abbr.Asia/Manila": "PHT",
+                "votingPortal:timezones.name.Asia/Dubai": "Dubai time",
+                "votingPortal:timezones.voterDateTimeZone": "{{dateTime}} ({{zoneName}})",
+                "templates:timezones.dateTimeZone": "{{dateTime}} {{zone}}",
+            },
+        },
+    },
+    parameters: {
+        expectedFailure: {
+            reason: "The row actions are unnamed icon buttons.",
+            a11y: ["button-name"],
+        },
+    },
+    play: async ({canvasElement}) => {
+        await expect(
+            await row(
+                canvasElement,
+                new RegExp(`timezones.abbr.Asia/Manila.*${localization("scopes.global")}.*PHT`)
+            )
+        ).toBeVisible()
+        await expect(
+            await row(
+                canvasElement,
+                new RegExp(`timezones.dateTimeZone.*${localization("scopes.templates")}`)
+            )
+        ).toBeVisible()
+    },
+}
+
 export const SpanishOverrides: Story = {
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
@@ -210,6 +244,65 @@ export const InvalidDateTimeFormat: Story = {
         await addOverride(canvasElement, "votingPortalDateTimeFormat", "YYYY-MM-DD")
         await notified(localization("notify.invalidDateTimeFormat"))
         expect(data.writes).toEqual([])
+    },
+}
+
+/** user-event reads `{` and `[` as key names; doubled, they type themselves. */
+const literally = (text: string) => text.replace(/[{[]/g, "$&$&")
+
+export const RejectACombinedTimezoneTextWithoutItsZone: Story = {
+    parameters: {
+        expectedFailure: {
+            reason: "The open drawer is a modal dialog without an accessible name.",
+            a11y: ["aria-dialog-name"],
+        },
+    },
+    play: async ({canvasElement}) => {
+        await row(canvasElement, /welcome/)
+        await addOverride(
+            canvasElement,
+            "timezones.voterDateTimeZone",
+            literally("{{dateTime}} (local time)")
+        )
+        await notified(
+            i18n.t("electionEventScreen.localization.notify.invalidTimeZoneText", {
+                placeholders: "{{zoneName}}",
+                interpolation: {escapeValue: false},
+            })
+        )
+        expect(data.writes).toEqual([])
+    },
+}
+
+export const AddAReportsAndMessagesOverride: Story = {
+    parameters: {
+        expectedFailure: {
+            reason: "The row actions are unnamed icon buttons.",
+            a11y: ["button-name"],
+        },
+    },
+    play: async ({canvasElement}) => {
+        await row(canvasElement, /welcome/)
+        await userEvent.click(
+            within(canvasElement).getByRole("button", {name: i18n.t("common.label.add")})
+        )
+        const form = await drawer()
+        await userEvent.type(
+            form.getByRole("textbox", {name: label("key")}),
+            "timezones.abbr.Asia/Manila"
+        )
+        await userEvent.type(form.getByRole("textbox", {name: label("value")}), "PHT")
+        await userEvent.click(form.getByRole("combobox", {name: new RegExp(label("scope"))}))
+        await userEvent.click(
+            await within(document.body).findByRole("option", {
+                name: localization("scopes.templates"),
+            })
+        )
+        await userEvent.click(form.getByRole("button", {name: "Save"}))
+        await notified(localization("notify.success"))
+        expect(written()).toEqual([
+            {...OVERRIDES, en: {...OVERRIDES.en, "templates:timezones.abbr.Asia/Manila": "PHT"}},
+        ])
     },
 }
 

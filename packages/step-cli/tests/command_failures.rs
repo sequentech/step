@@ -33,7 +33,7 @@ fn failed_http_commands_exit_nonzero() {
     )
     .unwrap();
     let handler = thread::spawn(move || {
-        for _ in 0..2 {
+        for index in 0..4 {
             let (mut stream, _) = server.accept().unwrap();
             let mut reader = BufReader::new(&mut stream);
             let mut request_line = String::new();
@@ -52,12 +52,31 @@ fn failed_http_commands_exit_nonzero() {
             }
             let mut body = vec![0; content_length];
             reader.read_exact(&mut body).unwrap();
+            if index >= 2 {
+                let request: serde_json::Value = serde_json::from_slice(&body).unwrap();
+                assert_eq!(request["variables"]["is_local"], index == 3);
+            }
             stream.write_all(b"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").unwrap();
         }
     });
+    let upload = temporary.path().join("upload.json");
+    fs::write(&upload, "{}").unwrap();
     for arguments in [
-        ["step", "create-tenant", "--slug", "synthetic"],
-        ["step", "delete-tenant", "--tenant-id", "synthetic"],
+        vec!["step", "create-tenant", "--slug", "synthetic"],
+        vec!["step", "delete-tenant", "--tenant-id", "synthetic"],
+        vec![
+            "step",
+            "upload-document",
+            "--file-path",
+            upload.to_str().unwrap(),
+        ],
+        vec![
+            "step",
+            "upload-document",
+            "--file-path",
+            upload.to_str().unwrap(),
+            "--is-local",
+        ],
     ] {
         let output = Command::new(&binary).args(arguments).output().unwrap();
         assert_eq!(output.status.code(), Some(1));
@@ -83,4 +102,120 @@ fn a_failed_voter_generation_reports_the_error_but_exits_zero() {
     );
     assert!(output.stdout.is_empty());
     assert_eq!(fs::read_dir(working_directory.path()).unwrap().count(), 0);
+}
+
+/// The realm permission migration fails, naming the database it can't reach,
+/// and exits non-zero, so a deployment script notices.
+#[test]
+fn an_unreachable_database_fails_the_realm_permission_migration() {
+    // A port nothing listens on: bind it, read it, close it.
+    let port = TcpListener::bind("127.0.0.1:0")
+        .unwrap()
+        .local_addr()
+        .unwrap()
+        .port();
+    let output = Command::new(env!("CARGO_BIN_EXE_step-cli"))
+        .args(["step", "migrate-realm-permissions"])
+        .env("HASURA_DB__HOST", "127.0.0.1")
+        .env("HASURA_DB__PORT", port.to_string())
+        .env("HASURA_DB__USER", "synthetic")
+        .env("HASURA_DB__PASSWORD", "synthetic")
+        .env("HASURA_DB__DBNAME", "synthetic")
+        .env_remove("KEYCLOAK_URL")
+        .output()
+        .unwrap();
+    // Pinned as found: Windmill's database pool panics on an unreachable
+    // server instead of returning an error, so the exit code is a panic's.
+    assert_eq!(output.status.code(), Some(101));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("Hasura DB"), "{stderr}");
+    assert!(stderr.contains("error connecting to server"), "{stderr}");
+}
+
+#[test]
+fn invalid_database_configuration_refuses_the_registration_flow_migration() {
+    let database_peer = TcpListener::bind("127.0.0.1:0").unwrap();
+    database_peer.set_nonblocking(true).unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_step-cli"))
+        .args(["step", "migrate-registration-flows"])
+        .env("HASURA_DB__HOST", "127.0.0.1")
+        .env("HASURA_DB__PORT", "not-a-port")
+        .env("HASURA_DB__USER", "synthetic")
+        .env("HASURA_DB__PASSWORD", "synthetic")
+        .env("HASURA_DB__DBNAME", "synthetic")
+        .env("KEYCLOAK_DB__HOST", "127.0.0.1")
+        .env(
+            "KEYCLOAK_DB__PORT",
+            database_peer.local_addr().unwrap().port().to_string(),
+        )
+        .env("KEYCLOAK_DB__USER", "synthetic")
+        .env("KEYCLOAK_DB__PASSWORD", "synthetic")
+        .env("KEYCLOAK_DB__DBNAME", "synthetic")
+        .env("LOW_SQL_LIMIT", "1000")
+        .env("DEFAULT_SQL_LIMIT", "20")
+        .env("DEFAULT_SQL_BATCH_SIZE", "1000")
+        .env_remove("KEYCLOAK_URL")
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(1));
+    assert!(output.stdout.is_empty());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("Invalid migration database configuration"),
+        "{stderr}"
+    );
+    assert!(stderr.contains("hasura_db.port"), "{stderr}");
+    assert!(!stderr.contains("panicked"), "{stderr}");
+    assert_eq!(
+        database_peer.accept().unwrap_err().kind(),
+        std::io::ErrorKind::WouldBlock
+    );
+}
+
+#[test]
+fn worker_image_context_includes_the_local_url_parser() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path();
+    let docker = root.join("docker");
+    // Inspect the real CLI's build context without building or publishing an image.
+    fs::write(
+        &docker,
+        r#"#!/bin/sh
+set -eu
+[ "$1" != "buildx" ] || exit 1
+[ "$1" = "build" ]
+tar -xf - -C "$MOCK_IMAGE_CONTEXT"
+"#,
+    )
+    .unwrap();
+    fs::set_permissions(&docker, fs::Permissions::from_mode(0o700)).unwrap();
+    let context = root.join("context");
+    fs::create_dir(&context).unwrap();
+    // The bundled files are unpacked into a cache of this test's own, under
+    // its home directory, then found there by the second build: a cache
+    // shared with other runs would decide which of the two paths a run takes.
+    for _ in 0..2 {
+        let output = Command::new(env!("CARGO_BIN_EXE_step-cli"))
+            .args(["load", "image", "--engine", "k6", "--tag", "synthetic:test"])
+            .env(
+                "PATH",
+                format!("{}:{}", root.display(), std::env::var("PATH").unwrap()),
+            )
+            .env_remove("XDG_CACHE_HOME")
+            .env("HOME", root)
+            .env("MOCK_IMAGE_CONTEXT", &context)
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+    let replay = fs::read_to_string(context.join("packages/voting-load/replay.k6.js")).unwrap();
+    assert!(replay.contains(r#"from "./url-1.0.0.js""#));
+    let parser = fs::read(context.join("packages/voting-load/url-1.0.0.js")).unwrap();
+    assert_eq!(parser, include_bytes!("../../voting-load/url-1.0.0.js"));
 }

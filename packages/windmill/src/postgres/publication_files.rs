@@ -6,7 +6,7 @@
 
 use crate::domain::publication_files::PublishedBallotStyle;
 use anyhow::Result;
-use deadpool_postgres::Transaction;
+use deadpool_postgres::{GenericClient, Transaction};
 use futures::{Stream, TryStreamExt};
 use serde_json::Value;
 use uuid::Uuid;
@@ -66,7 +66,9 @@ pub async fn get_publication_elections(
               AND id = ANY(SELECT unnest(election_ids)
             FROM sequent_backend.ballot_publication
             WHERE id=$3
-              AND tenant_id=$1)
+              AND tenant_id=$1
+              AND election_event_id=$2)
+            ORDER BY id
         "#,
             &[&tenant, &event, &publication],
         )
@@ -110,28 +112,45 @@ pub async fn stream_publication_styles(
         .map_err(anyhow::Error::from))
 }
 
-/// Adds or replaces one text annotation, keeping the others.
-pub async fn merge_ballot_publication_annotation(
+/// Up to `limit` full styles after `after`, by id: memory does not grow with
+/// the number of areas, and no connection is held between pages.
+pub async fn get_publication_style_page(
+    client: &impl GenericClient,
+    tenant: Uuid,
+    event: Uuid,
+    publication: Uuid,
+    after: Option<Uuid>,
+    limit: i64,
+) -> Result<Vec<(Uuid, Value)>> {
+    let rows = client
+        .query(
+            include_str!("sql/publication_file_styles.sql"),
+            &[&tenant, &event, &publication, &after, &limit],
+        )
+        .await?;
+    rows.iter()
+        .map(|row| Ok((row.try_get("id")?, row.try_get("data")?)))
+        .collect()
+}
+
+/// Records the verified object root of a generated publication and marks it
+/// generated. `false` when it was deleted, published or already generated.
+pub async fn complete_ballot_publication_files(
     hasura_transaction: &Transaction<'_>,
     tenant: Uuid,
     event: Uuid,
     publication: Uuid,
-    key: &str,
-    value: &str,
-) -> Result<()> {
-    hasura_transaction
-        .execute(
-            r#"
-            UPDATE sequent_backend.ballot_publication
-            SET annotations=COALESCE(annotations,'{}'::jsonb) || jsonb_build_object($4::text,$5::text)
-            WHERE tenant_id=$1
-              AND election_event_id=$2
-              AND id=$3
-        "#,
-            &[&tenant, &event, &publication, &key, &value],
+    root_annotation: &str,
+    root: &str,
+) -> Result<bool> {
+    super::trusted_write::trusted_write(hasura_transaction).await?;
+    let completed = hasura_transaction
+        .query_opt(
+            include_str!("sql/complete_ballot_publication_files.sql"),
+            &[&tenant, &event, &publication, &root, &root_annotation],
         )
         .await?;
-    Ok(())
+    Ok(completed.is_some())
 }
 
 /// Newest publication first. `root_annotation` names the annotation that holds
@@ -160,6 +179,7 @@ pub async fn get_published_ballot_styles(
               AND s.area_id=$3
               AND s.election_id=ANY($4)
               AND s.deleted_at IS NULL
+              AND p.is_generated IS TRUE
               AND p.published_at IS NOT NULL
               AND p.deleted_at IS NULL
             ORDER BY p.published_at DESC, s.election_id

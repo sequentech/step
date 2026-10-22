@@ -181,6 +181,37 @@ async fn a_configured_event_lists_its_dashboards_and_draws_a_widget_once() {
         Some(7),
         "{body}"
     );
+    // The figures are in the event's primary zone: UTC until it names one.
+    assert_eq!(body["time_zone"], "UTC", "{body}");
+    assert!(body["settings"].get("time_zone").is_none(), "{body}");
+    for zone in ["Asia/Manila", "Europe/Madrid"] {
+        rows::execute(
+            &services.hasura,
+            "UPDATE sequent_backend.election_event
+             SET presentation = jsonb_build_object('timezones', $2::jsonb)
+             WHERE id = $1",
+            &[
+                &Uuid::parse_str(&event.election_event_id).unwrap(),
+                &json!({"configured": [zone], "primary": zone, "logs": "election"}),
+            ],
+        )
+        .await;
+        let (status, body) = json(
+            post(
+                &client,
+                "/monitoring/get-dashboard",
+                &viewer(&event),
+                &json!({
+                    "election_event_id": event.election_event_id,
+                    "dashboard_id": "overview",
+                }),
+            )
+            .await,
+        )
+        .await;
+        assert_eq!(status, Status::Ok, "{body}");
+        assert_eq!(body["time_zone"], zone, "{body}");
+    }
 
     for _ in 0..2 {
         let (status, body) = render(

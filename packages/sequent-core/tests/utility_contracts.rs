@@ -156,6 +156,7 @@ fn current_timestamp_can_be_parsed_and_system_timezone_matches_the_local_clock()
     match get_system_timezone() {
         TimeZone::UTC => assert_eq!(hours, 0),
         TimeZone::Offset(offset) => assert_eq!(offset, hours),
+        TimeZone::OffsetMinutes(minutes) => panic!("unexpected {minutes}"),
     }
 }
 

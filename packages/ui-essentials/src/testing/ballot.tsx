@@ -25,13 +25,13 @@ import {Question} from "../ballot/Question"
 import {BallotSelectionProvider, type BallotSelectionPort} from "../ballot/selection"
 import type {IBallotStyle} from "../ballot/types"
 import {theme} from "../services/theme"
-import essentials from "../translations/en"
+import english from "../../../ui-core/src/translations/en"
 
 export const ELECTION_ID = "election-1"
 export const CONTEST_ID = "contest-1"
 
 /**
- * This package's English plus the host strings the ballot reads.
+ * ui-core's English, which the portals load, plus the host strings the ballot reads.
  *
  * `candidatesList.*`, `reviewScreen.*` and `a11y.*` are resolved by the ballot but
  * shipped by its host (the portal's catalogue); the few assertions on them use the
@@ -44,8 +44,9 @@ void i18n.init({
     resources: {
         en: {
             translation: {
-                ...essentials.translations,
+                ...english.translations,
                 a11y: {
+                    ...english.translations.a11y,
                     selectUpTo_one: "Select up to {{count}} option",
                     selectUpTo_other: "Select up to {{count}} options",
                     selectExactly_one: "Select {{count}} option",
@@ -56,8 +57,8 @@ void i18n.init({
                     collapseToggle: "Toggle list {{listTitle}}",
                     showCandidates: "Show candidates",
                     hideCandidates: "Hide candidates",
-                    selectedCandidate: "{{count}} candidate selected",
-                    selectedCandidates: "{{count}} candidates selected",
+                    selectedCandidates_one: "{{count}} candidate selected",
+                    selectedCandidates_other: "{{count}} candidates selected",
                     expandAll: "Expand all",
                     collapseAll: "Collapse all",
                 },
@@ -243,8 +244,8 @@ const Providers: React.FC<{
 )
 
 export interface MountErrorsOptions {
-    alerts?: Array<{message: string}>
-    errors?: Array<{message: string}>
+    alerts?: Array<{message: string; message_map?: Record<string, string>}>
+    errors?: Array<{message: string; message_map?: Record<string, string>}>
     isReview?: boolean
     isTouched?: boolean
     isVoted?: boolean

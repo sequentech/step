@@ -18,10 +18,50 @@ import {styled} from "@mui/material/styles"
 import Icon from "../Icon/Icon"
 import IconButton from "../IconButton/IconButton"
 import {useTranslation} from "react-i18next"
+import {useInertBackground} from "../../services/useInertBackground"
 
 const StyledBackdrop = styled(Backdrop)`
     opacity: 0.5 !important;
 `
+
+const getDialogTabStops = (root: HTMLElement): HTMLElement[] => {
+    const candidates = Array.from(
+        root.querySelectorAll<HTMLElement>(
+            'a[href], button, input, select, textarea, [tabindex], [contenteditable="true"], audio[controls], video[controls], summary'
+        )
+    ).filter(
+        (element) =>
+            element.tabIndex >= 0 &&
+            !element.matches(":disabled") &&
+            !element.closest("[inert]") &&
+            element.getClientRects().length > 0 &&
+            getComputedStyle(element).visibility === "visible"
+    )
+
+    return candidates
+        .filter((element) => {
+            if (
+                !(element instanceof HTMLInputElement) ||
+                element.type !== "radio" ||
+                !element.name
+            ) {
+                return true
+            }
+            const group = candidates.filter(
+                (candidate): candidate is HTMLInputElement =>
+                    candidate instanceof HTMLInputElement &&
+                    candidate.type === "radio" &&
+                    candidate.name === element.name &&
+                    candidate.form === element.form
+            )
+            return element === (group.find((radio) => radio.checked) ?? group[0])
+        })
+        .sort(
+            (left, right) =>
+                (left.tabIndex || Number.MAX_SAFE_INTEGER) -
+                (right.tabIndex || Number.MAX_SAFE_INTEGER)
+        )
+}
 
 const StyledDialogActions = styled(DialogActions)`
     @media (max-width: 600px) {
@@ -93,6 +133,37 @@ const Dialog: React.FC<DialogProps> = ({
     const titleId = `${generatedId}-title`
     const errorId = `${generatedId}-error`
     const [isFullScreen, setIsFullScreen] = React.useState<boolean>(false)
+    const paperRef = useRef<HTMLDivElement>(null)
+    const setModalRoot = useInertBackground(open)
+
+    const handleTabKey = (event: React.KeyboardEvent<HTMLDivElement>) => {
+        const paper = paperRef.current
+        if (
+            event.key !== "Tab" ||
+            event.defaultPrevented ||
+            !paper ||
+            !event.currentTarget.contains(event.target as Node)
+        ) {
+            return
+        }
+
+        const tabStops = getDialogTabStops(paper)
+        const first = tabStops[0]
+        const last = tabStops[tabStops.length - 1]
+        const active = paper.ownerDocument.activeElement
+        if (!first) {
+            event.preventDefault()
+            paper.focus()
+        } else if (
+            active === paper ||
+            active === event.currentTarget ||
+            (event.shiftKey ? active === first : active === last)
+        ) {
+            event.preventDefault()
+            const target = event.shiftKey ? last : first
+            target.focus()
+        }
+    }
 
     useEffect(() => {
         okButtonRef.current = false
@@ -103,12 +174,20 @@ const Dialog: React.FC<DialogProps> = ({
 
     return (
         <MaterialDialog
+            ref={setModalRoot}
             onClose={closeDialog}
             open={open}
             slots={{backdrop: StyledBackdrop}}
             slotProps={{
                 backdrop: {className: "dialog-backdrop"},
-                paper: {className: "dialog-paper"},
+                paper: {className: "dialog-paper", ref: paperRef, tabIndex: -1},
+                container: {onKeyDown: handleTabKey},
+            }}
+            // Keyboard wrapping above replaces MUI's empty tabbable focus guards.
+            sx={{
+                '& > [data-testid="sentinelStart"], & > [data-testid="sentinelEnd"]': {
+                    display: "none",
+                },
             }}
             classes={{container: "dialog-container"}}
             fullWidth={fullWidth}
@@ -122,7 +201,7 @@ const Dialog: React.FC<DialogProps> = ({
                 <Icon
                     variant={infoVariant}
                     icon={faIcon}
-                    fontSize="24px"
+                    fontSize="1.5rem"
                     className="dialog-icon-info"
                 />
                 <Box

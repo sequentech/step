@@ -18,7 +18,7 @@ use sequent_core::monitoring::sources::{DataSourceId, Measure, PendingProducer};
 use serde_json::json;
 use uuid::Uuid;
 use windmill::postgres::monitoring_config::EventRef;
-use windmill::services::monitoring::projection::refresh_voter_activity;
+use windmill::services::monitoring::projection::{refresh_voter_activity, FirstVotes};
 use windmill::services::monitoring::snapshot::{
     complete_snapshot, count_event, count_run, live_snapshot, prune_snapshots, read_scope,
     request_election_set, scope_catalogue, start_run, PassOutcome, Recount, ScopeRead,
@@ -65,6 +65,14 @@ async fn seed(client: &mut Client) -> Event {
         "INSERT INTO sequent_backend.monitoring_event (tenant_id, election_event_id)
          VALUES ($1, $2)",
         &[&event.tenant_id, &event.election_event_id],
+    )
+    .await
+    .unwrap();
+    // Seed the already opened and closed Posts in the setup transaction.
+    // Counting and refreshes use their ordinary, separate transactions.
+    tx.execute(
+        "SELECT set_config('sequent.trusted_write', 'on', true)",
+        &[],
     )
     .await
     .unwrap();
@@ -947,10 +955,19 @@ async fn change(client: &Client, event: &Event, statement: &str) {
 }
 
 /// Brings the voters' enrollment and first votes up to date, as a pass
-/// does before it counts.
-async fn project_activity(client: &mut Client, event: &Event) {
+/// does before it counts, with the valid votes `voted` (by election and
+/// voter) cast since the last pass.
+async fn project_activity(client: &mut Client, event: &Event, voted: &[(Uuid, &str)]) {
+    let since = FirstVotes::Since(
+        voted
+            .iter()
+            .map(|(election, voter)| ((*election, voter.to_string()), chrono::Utc::now()))
+            .collect(),
+    );
     let tx = client.transaction().await.unwrap();
-    refresh_voter_activity(&tx, event.event).await.unwrap();
+    refresh_voter_activity(&tx, event.event, &since)
+        .await
+        .unwrap();
     tx.commit().await.unwrap();
 }
 
@@ -999,19 +1016,7 @@ async fn a_pass_counts_again_whenever_what_it_counts_from_moved() {
     );
     let mut shown = revision;
 
-    change(
-        &client,
-        &event,
-        &format!(
-            "INSERT INTO sequent_backend.cast_vote
-                 (tenant_id, election_event_id, election_id, area_id, voter_id_string, status,
-                  created_at)
-             VALUES ($1, $2, '{}', '{area}', 'ana', 'valid', now())",
-            event.madrid
-        ),
-    )
-    .await;
-    project_activity(&mut client, &event).await;
+    project_activity(&mut client, &event, &[(event.madrid, "ana")]).await;
     shown = counted_again(&mut client, &event, &settings, shown, "a vote").await;
 
     change(
@@ -1026,7 +1031,7 @@ async fn a_pass_counts_again_whenever_what_it_counts_from_moved() {
         ),
     )
     .await;
-    project_activity(&mut client, &event).await;
+    project_activity(&mut client, &event, &[]).await;
     shown = counted_again(&mut client, &event, &settings, shown, "an application").await;
 
     change(
@@ -1078,7 +1083,7 @@ async fn a_pass_counts_again_whenever_what_it_counts_from_moved() {
         &event,
         &format!(
             "UPDATE sequent_backend.election SET status = '{{\"voting_status\": \"CLOSED\"}}'
-             WHERE tenant_id = $1 AND election_event_id = $2 AND id = '{}'",
+             WHERE tenant_id = $1 AND election_event_id = $2 AND id = '{}' AND set_config('sequent.trusted_write', 'on', true) = 'on'",
             event.madrid
         ),
     )
@@ -1320,6 +1325,91 @@ async fn a_voter_who_votes_without_pre_enrolling_counts_as_voted_only() {
             turnout.totals[&Measure::VotedPreEnrolled],
             1,
             "{scope}: ana only"
+        );
+    }
+}
+
+/// The event's primary zone, as its presentation names it.
+async fn set_primary_zone(client: &Client, event: &Event, zone: &str) {
+    client
+        .execute(
+            "UPDATE sequent_backend.election_event
+             SET presentation = jsonb_build_object('timezones', $3::jsonb)
+             WHERE tenant_id = $1 AND id = $2",
+            &[
+                &event.event.tenant_id,
+                &event.event.election_event_id,
+                &json!({"configured": [zone], "primary": zone, "logs": "election"}),
+            ],
+        )
+        .await
+        .unwrap();
+}
+
+/// Hours are bucketed in the event's primary zone, and changing that zone in
+/// the presentation counts again.
+#[tokio::test]
+async fn hours_are_in_the_presentation_zone_and_a_new_zone_counts_again() {
+    use chrono::{DateTime, Offset, Utc};
+    let pool = schema::pool().await;
+    let mut client = client(&pool).await;
+    let settings = settings();
+    let event = seed(&mut client).await;
+    voter(&client, &event, "ana", event.madrid, "Europe", true).await;
+    let voted: DateTime<Utc> = client
+        .query_one(
+            "SELECT first_voted_at FROM sequent_backend.monitoring_voter
+             WHERE tenant_id = $1 AND election_event_id = $2 AND voter_id = 'ana'",
+            &[&event.event.tenant_id, &event.event.election_event_id],
+        )
+        .await
+        .unwrap()
+        .get(0);
+    let set = full_set(&mut client, &event).await;
+    let mut shown = 0;
+    for zone in ["Asia/Manila", "Europe/Madrid"] {
+        set_primary_zone(&client, &event, zone).await;
+        let PassOutcome::Completed { revision, .. } = pass(&mut client, &event, &settings).await
+        else {
+            panic!("{zone}: a new zone counts again");
+        };
+        assert!(revision > shown);
+        shown = revision;
+        let turnout = payload(
+            read(
+                &mut client,
+                &event,
+                revision,
+                DataSourceId::VoterTurnout,
+                &set,
+                "event",
+            )
+            .await,
+        );
+        let tz: chrono_tz::Tz = zone.parse().unwrap();
+        let local = voted.with_timezone(&tz);
+        let offset = local.offset().fix().local_minus_utc();
+        let bucket = turnout.series.first().expect("ana's vote is in a bucket");
+        assert_eq!(
+            bucket.start,
+            local.format("%Y-%m-%dT%H:00:00").to_string(),
+            "{zone}"
+        );
+        assert_eq!(bucket.day, local.format("%Y-%m-%d").to_string(), "{zone}");
+        assert_eq!(
+            bucket.utc_offset,
+            format!(
+                "{}{:02}:{:02}",
+                if offset < 0 { '-' } else { '+' },
+                offset.abs() / 3600,
+                offset.abs() % 3600 / 60
+            ),
+            "{zone}"
+        );
+        assert_eq!(
+            pass(&mut client, &event, &settings).await,
+            unchanged(revision, Recount::Skipped),
+            "{zone}: then nothing moved"
         );
     }
 }

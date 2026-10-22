@@ -10,20 +10,31 @@ import {i18n} from "@sequentech/ui-core"
 import {AdminStoryProvider, TENANT_ID, graphqlBoundary} from "@/__stories__/AdminStoryProvider"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {EditRole} from "./EditRole"
-import {AUDITOR_ROLE_ID, permissionRecords, roleRecords} from "./__stories__/RolesFixture"
+import {IPermissions} from "@/types/keycloak"
+import {
+    AUDITOR_ROLE_ID,
+    permissionRecords,
+    roleRecords,
+    signPermissionRecord,
+    signingPermissionRecords,
+} from "./__stories__/RolesFixture"
 
 interface Scenario {
     /** Whether the role service rejects permission changes. */
     failure: boolean
     /** Whether the list of roles is still loading. */
     loading: boolean
+    /** The signed-in user's permissions. */
+    roles: string[]
+    /** Whether the realm also has signing permissions. */
+    withSigning?: boolean
     close: () => void
 }
 
 let boundary: ReturnType<typeof graphqlBoundary>
 
 /** The roles list the editor reads its role from, as ListRoles provides it. */
-function RoleList({loading, close}: Omit<Scenario, "failure">) {
+function RoleList({loading, close, withSigning}: Omit<Scenario, "failure" | "roles">) {
     const list = useList({
         data: loading ? undefined : roleRecords(),
         isPending: loading,
@@ -31,7 +42,14 @@ function RoleList({loading, close}: Omit<Scenario, "failure">) {
     })
     return (
         <ListContextProvider value={list}>
-            <EditRole id={AUDITOR_ROLE_ID} close={close} permissions={permissionRecords()} />
+            <EditRole
+                id={AUDITOR_ROLE_ID}
+                close={close}
+                permissions={[
+                    ...permissionRecords(),
+                    ...(withSigning ? signingPermissionRecords() : [signPermissionRecord()]),
+                ]}
+            />
         </ListContextProvider>
     )
 }
@@ -41,7 +59,12 @@ const changed = {id: AUDITOR_ROLE_ID}
 const meta = {
     title: "Admin/Roles/EditRole",
     component: EditRole,
-    args: {failure: false, loading: false, close: fn()},
+    args: {
+        failure: false,
+        loading: false,
+        roles: [IPermissions.ROLE_WRITE, IPermissions.USER_PERMISSION_WRITE],
+        close: fn(),
+    },
     parameters: {
         expectedFailure: {
             reason: "The permission checkboxes of the grid have no accessible name.",
@@ -62,8 +85,8 @@ const meta = {
         )
         await boundary.ready
     },
-    render: ({failure: _failure, ...args}) => (
-        <AdminStoryProvider boundary={boundary}>
+    render: ({failure: _failure, roles, ...args}) => (
+        <AdminStoryProvider boundary={boundary} roles={roles}>
             <RoleList {...args} />
         </AdminStoryProvider>
     ),
@@ -72,6 +95,26 @@ export default meta
 type Story = StoryObj<Scenario>
 
 const permissionName = (name: string) => i18n.t(`usersAndRolesScreen.permissions.${name}`)
+
+/** The permissions the grid lists, in order. */
+const listedPermissions = (canvasElement: HTMLElement) =>
+    within(canvasElement)
+        .getAllByRole("row")
+        .slice(1)
+        .map((row) => within(row).getAllByRole("gridcell")[0].textContent)
+
+/** Types in the grid's quick filter, which its toolbar shows. */
+async function search(canvasElement: HTMLElement, text: string) {
+    const field = await within(canvasElement).findByRole("searchbox")
+    await userEvent.clear(field)
+    await userEvent.type(field, text)
+}
+
+/** The labels of the signing permissions whose label contains the text. */
+const signingLabels = (text: string) =>
+    signingPermissionRecords()
+        .map(({name}) => permissionName(name as string))
+        .filter((name) => name.includes(text))
 
 async function permissionCheckbox(canvasElement: HTMLElement, name: string) {
     const row = await within(canvasElement).findByRole("row", {
@@ -158,5 +201,54 @@ export const WaitingForTheRoles: Story = {
     play: async ({canvasElement}) => {
         expect(within(canvasElement).queryByRole("textbox")).not.toBeInTheDocument()
         expect(within(canvasElement).queryByRole("grid")).not.toBeInTheDocument()
+    },
+}
+
+/** Role-write without user-permission-write changes only who can sign. */
+export const SignPermissionsOnly: Story = {
+    args: {roles: [IPermissions.ROLE_WRITE]},
+    play: async ({canvasElement}) => {
+        await expect(await permissionCheckbox(canvasElement, "role-write")).toBeDisabled()
+        await expect(await permissionCheckbox(canvasElement, "role-read")).toBeDisabled()
+        const sign = await permissionCheckbox(canvasElement, IPermissions.SIGN_CLOSE_VOTING)
+        await expect(sign).toBeEnabled()
+        await userEvent.click(sign)
+        await waitFor(() =>
+            expect(boundary.calls.map(({name, variables}) => [name, variables])).toEqual([
+                [
+                    "SetRolePermission",
+                    {
+                        tenantId: TENANT_ID,
+                        roleId: AUDITOR_ROLE_ID,
+                        permissionName: IPermissions.SIGN_CLOSE_VOTING,
+                    },
+                ],
+            ])
+        )
+    },
+}
+
+/** Without role-write the grid only shows the role's permissions. */
+export const ReadOnly: Story = {
+    args: {roles: [IPermissions.ROLE_READ, IPermissions.USER_PERMISSION_READ]},
+    play: async ({canvasElement}) => {
+        for (const name of ["role-read", "role-write", IPermissions.SIGN_CLOSE_VOTING]) {
+            await expect(await permissionCheckbox(canvasElement, name)).toBeDisabled()
+        }
+    },
+}
+
+export const SearchFindsSigningPermissions: Story = {
+    args: {withSigning: true},
+    play: async ({canvasElement}) => {
+        await search(canvasElement, "Sign:")
+        await waitFor(() =>
+            expect(listedPermissions(canvasElement)).toEqual(signingLabels("Sign:"))
+        )
+        expect(signingLabels("Sign:")).toHaveLength(2)
+        await search(canvasElement, "Signatures")
+        await waitFor(() =>
+            expect(listedPermissions(canvasElement)).toEqual(signingLabels("Signatures"))
+        )
     },
 }

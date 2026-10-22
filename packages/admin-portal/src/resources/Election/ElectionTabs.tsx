@@ -4,6 +4,7 @@
 
 import React, {Suspense, useContext, useMemo, useState} from "react"
 import {useTranslation} from "react-i18next"
+import {EventTimeZoneProvider} from "@/providers/EventTimeZoneProvider"
 import {
     useGetOne,
     useRecordContext,
@@ -15,7 +16,10 @@ import {v4 as uuidv4} from "uuid"
 
 import {AuthContext} from "@/providers/AuthContextProvider"
 import ElectionHeader from "@/components/ElectionHeader"
+import {ListIpAddress} from "@/resources/ElectionEvent/ListIpAddress"
 import DashboardElection from "@/components/dashboard/election/Dashboard"
+import {BallotBoxesCard} from "@/components/dashboard/election/BallotBoxesCard"
+import {BallotBoxesSection} from "@/components/dashboard/election/BallotBoxesSection"
 import {MonitoringDashboardTab} from "@/components/monitoring/MonitoringDashboardTab"
 import {monitoringLock} from "@/components/monitoring/useMonitoringPermissions"
 import {Sequent_Backend_Election, Sequent_Backend_Election_Event} from "@/gql/graphql"
@@ -48,14 +52,30 @@ const DashboardTab: React.FC = () => {
     )
     // Unknown until the event has loaded, so configure actions do not flash.
     const lock = monitoringLock(electionEvent)
+    // Always shown under the standard dashboard; under the monitoring
+    // dashboards, the viewer may hide it.
+    const ballotBoxes = {
+        electionEventId: record?.election_event_id,
+        electionId: record?.id,
+        election: record,
+    }
     return (
         <Suspense fallback={<div>Loading Dashboard...</div>}>
-            <MonitoringDashboardTab
-                electionEventId={record?.election_event_id}
-                electionId={record?.id}
-                lock={lock}
-                legacy={<DashboardElection />}
-            />
+            <Box sx={{width: "100%", minWidth: 0}}>
+                <MonitoringDashboardTab
+                    electionEventId={record?.election_event_id}
+                    electionId={record?.id}
+                    lock={lock}
+                    legacy={
+                        <>
+                            <DashboardElection />
+                            <BallotBoxesCard {...ballotBoxes} />
+                        </>
+                    }
+                    below={<BallotBoxesSection {...ballotBoxes} />}
+                    footer={<ListIpAddress />}
+                />
+            </Box>
         </Suspense>
     )
 }
@@ -225,6 +245,7 @@ export const ElectionTabs: React.FC = () => {
     // Build tabs with stable references
     const tabs = useMemo(() => {
         const result: Array<{
+            id?: string
             label: string
             component: React.FC
             action?: (index: number) => void
@@ -253,11 +274,9 @@ export const ElectionTabs: React.FC = () => {
 
         if (showPublish) {
             result.push({
+                id: "publish",
                 label: t("electionScreen.tabs.publish"),
                 component: PublishTab,
-                action: (index: number) => {
-                    localStorage.setItem("electionPublishTabIndex", index.toString())
-                },
             })
         }
 
@@ -310,7 +329,10 @@ export const ElectionTabs: React.FC = () => {
             />
             <Box sx={{bgcolor: "background.paper"}}>
                 <RecordContextProvider value={electionRecord}>
-                    <Tabs elements={tabs} />
+                    {/* The election's screens show their times in its zone. */}
+                    <EventTimeZoneProvider event={electionEvent} election={electionRecord}>
+                        <Tabs elements={tabs} />
+                    </EventTimeZoneProvider>
                 </RecordContextProvider>
             </Box>
         </Box>

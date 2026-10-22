@@ -13,6 +13,7 @@ import {
 } from "@/__stories__/AdminStoryProvider"
 import {storyFetch} from "@/__stories__/storyNetwork"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
+import SequentLogo from "@sequentech/ui-essentials/public/Sequent_logo.svg"
 import {SelectTenant} from "./SelectTenant"
 import {
     DEFAULT_TENANT_CSS,
@@ -26,6 +27,7 @@ import {
 interface Scenario {
     /** Whether a tenant has the council slug. */
     tenantExists: boolean
+    discovery: "normal" | "unavailable"
     /** Whether the tenant's Keycloak realm exists. */
     realmExists: boolean
     /** Whether five failed attempts locked the screen a minute ago. */
@@ -45,6 +47,7 @@ const meta = {
     component: SelectTenant,
     args: {
         tenantExists: true,
+        discovery: "normal",
         realmExists: true,
         locked: false,
         authenticated: false,
@@ -54,7 +57,13 @@ const meta = {
     beforeEach: async ({args}) => {
         graphql = graphqlBoundary({})
         network = storyFetch({
-            [HASURA_URL]: tenantLookup(args.tenantExists),
+            [HASURA_URL]: (request) => {
+                const body = JSON.parse(request.body ?? "{}") as {variables?: {id?: string}}
+                if (args.discovery === "unavailable" && body.variables?.id) {
+                    throw new TypeError("Default tenant discovery cancelled")
+                }
+                return tenantLookup(args.tenantExists)(request)
+            },
             [REALM_CONFIGURATION_URL]: realmConfiguration(args.realmExists),
         })
         const previous = localStorage.getItem(ATTEMPT_KEY)
@@ -198,5 +207,24 @@ export const Loading: Story = {
     play: async ({canvasElement}) => {
         await expect(within(canvasElement).getByRole("progressbar")).toBeVisible()
         expect(within(canvasElement).queryByRole("textbox")).toBeNull()
+    },
+}
+
+export const DefaultTenantDiscoveryUnavailable: Story = {
+    args: {discovery: "unavailable"},
+    play: async ({canvasElement, args}) => {
+        const canvas = within(canvasElement)
+        await nameField(canvasElement)
+        await waitFor(() =>
+            expect(canvas.getByRole("img", {name: "Logo Image"})).toHaveAttribute(
+                "src",
+                SequentLogo
+            )
+        )
+        // Branding discovery never authorizes a login; normal lookup and realm checks still run.
+        expect(args.initKeycloak).not.toHaveBeenCalled()
+        await selectTenant(canvasElement, TENANT_SLUG)
+        await waitFor(() => expect(args.initKeycloak).toHaveBeenCalledWith(TENANT_ID))
+        expect(queries().at(-1)).toEqual({slug: TENANT_SLUG})
     },
 }

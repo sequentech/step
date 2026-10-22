@@ -26,14 +26,16 @@
 
 use super::config_store::get_live_config;
 use super::producers::{
-    poll_state, produce, voting_status, zone_of, ElectionSet, Enrollment, EventFacts, LoginRow,
-    Post, SourceFigures, SourceStatus, VoterRow,
+    poll_state, produce, voting_status, ElectionSet, Enrollment, EventFacts, LoginRow, Post,
+    SourceFigures, SourceStatus, VoterRow,
 };
-use super::projection::{load_event_places, refresh_voter_projection};
+use super::projection::{load_event_places, refresh_voter_projection, FirstVoteSource};
 use crate::postgres::monitoring_config::EventRef;
+use crate::services::time_zones::event_time_zone;
 use crate::types::miru_plugin::{MiruServerDocumentStatus, MiruTallySessionData};
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Duration, NaiveDate, Utc};
+use chrono_tz::Tz;
 use deadpool_postgres::{Client, Transaction};
 use futures::TryStreamExt;
 use sequent_core::monitoring::config::{ConfigKind, Settings};
@@ -83,7 +85,8 @@ pub struct CountedInputs {
     pub version: String,
     pub settings_revision: i32,
     pub config_generation: i64,
-    /// Of the settings as the pass had them, whatever their revision says.
+    /// Of the settings and the event's primary zone as the pass had them,
+    /// whatever the settings' revision says.
     pub settings: String,
     /// The day ages are counted on.
     pub day: NaiveDate,
@@ -453,6 +456,8 @@ pub struct PassOptions<'a> {
     pub voter_group: &'a str,
     pub full_pass_every: Duration,
     pub now: DateTime<Utc>,
+    /// Where the voters' first votes are read.
+    pub ballot_box: &'a dyn FirstVoteSource,
 }
 
 /// One pass of `event`. The caller holds the event's lock.
@@ -498,6 +503,7 @@ pub async fn refresh_event_snapshot(
             options.voter_group,
             options.now,
             options.full_pass_every,
+            options.ballot_box,
         )
         .await
         {
@@ -809,6 +815,7 @@ async fn counted_inputs(
     transaction: &Transaction<'_>,
     event: EventRef,
     settings: &Settings,
+    zone: Tz,
     settings_revision: i32,
     config_generation: i64,
     now: DateTime<Utc>,
@@ -821,7 +828,10 @@ async fn counted_inputs(
         )
         .await
         .context("Failed to read what the pass counts from")?;
-    let settings = format!("{:x}", Sha256::digest(serde_json::to_vec(settings)?));
+    let settings = format!(
+        "{:x}",
+        Sha256::digest(serde_json::to_vec(&(settings, zone.name()))?)
+    );
     Ok(CountedInputs {
         version: INPUTS_READER.to_string(),
         settings_revision,
@@ -897,10 +907,12 @@ async fn count(
     }
 
     let now = Utc::now();
+    let zone = event_time_zone(transaction, event.tenant_id, event.election_event_id).await?;
     let inputs = counted_inputs(
         transaction,
         event,
         settings,
+        zone,
         settings_revision,
         config_generation,
         now,
@@ -929,7 +941,7 @@ async fn count(
         }
     }
 
-    let facts = load_facts(transaction, event, settings, inputs.day).await?;
+    let facts = load_facts(transaction, event, settings, zone, inputs.day).await?;
     let all: Vec<Uuid> = facts.posts.iter().map(|post| post.id).collect();
     let full_key =
         election_set_key(all.iter().map(Uuid::to_string)).map_err(|error| anyhow!("{error}"))?;
@@ -1194,7 +1206,7 @@ async fn load_sets(transaction: &Transaction<'_>, event: EventRef) -> Result<Vec
 
 /// The name the portal shows for an election: its English alias or name,
 /// else any language's, else its external id, else its id.
-fn post_name(presentation: Option<Value>, external_id: Option<String>, id: Uuid) -> String {
+pub fn post_name(presentation: Option<Value>, external_id: Option<String>, id: Uuid) -> String {
     let i18n = presentation
         .as_ref()
         .and_then(|presentation| presentation.get("i18n"))
@@ -1228,13 +1240,15 @@ fn enrollment(state: Option<&str>) -> Option<Enrollment> {
     }
 }
 
-/// Reads everything a pass counts from, with ages counted on `today`. The
-/// voters are streamed, so the rows read and the facts kept are never both
-/// in memory. What it reads is what [`CountedInputs`] digests.
+/// Reads everything a pass counts from, with ages counted on `today` and
+/// hours bucketed in the event's primary `zone`. The voters are streamed,
+/// so the rows read and the facts kept are never both in memory. What it
+/// reads is what [`CountedInputs`] digests.
 pub async fn load_facts(
     transaction: &Transaction<'_>,
     event: EventRef,
     settings: &Settings,
+    zone: Tz,
     today: NaiveDate,
 ) -> Result<EventFacts> {
     let params: [&(dyn tokio_postgres::types::ToSql + Sync); 2] =
@@ -1249,7 +1263,7 @@ pub async fn load_facts(
     let stream = transaction
         .query_raw(
             "SELECT voter_id, election_id, region, country, dims, pre_enrolled_at,
-                    first_voted_at, enrollment_state, enrollment_reason, enrollment_decided_at,
+                    first_voted_at, has_voted, enrollment_state, enrollment_reason, enrollment_decided_at,
                     credentials_at
              FROM sequent_backend.monitoring_voter
              WHERE tenant_id = $1 AND election_event_id = $2
@@ -1274,6 +1288,7 @@ pub async fn load_facts(
             dims: serde_json::from_value(dims).unwrap_or_default(),
             pre_enrolled_at: row.get("pre_enrolled_at"),
             first_voted_at: row.get("first_voted_at"),
+            has_voted: row.get("has_voted"),
             enrollment: enrollment(state),
             enrollment_reason: row.get("enrollment_reason"),
             enrollment_decided_at: row.get("enrollment_decided_at"),
@@ -1377,7 +1392,7 @@ pub async fn load_facts(
         .collect();
     Ok(EventFacts {
         settings: settings.clone(),
-        zone: zone_of(settings),
+        zone,
         posts,
         voters,
         area_elections,

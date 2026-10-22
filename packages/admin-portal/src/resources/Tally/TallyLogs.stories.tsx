@@ -4,7 +4,7 @@
 import React from "react"
 import type {StoryObj} from "@storybook/react-vite"
 import {expect, userEvent, waitFor, within} from "storybook/test"
-import {i18n} from "@sequentech/ui-core"
+import {i18n, browserTimeZone} from "@sequentech/ui-core"
 import {AdminStoryProvider, graphqlBoundary} from "@/__stories__/AdminStoryProvider"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {tallyExecution} from "./__stories__/TallyFixture"
@@ -14,6 +14,11 @@ import {
     readStoryGlobals,
     useStoryGlobals,
 } from "../../../../ui-essentials/.storybook/globals"
+import {formatZoned} from "@/lib/timezones/zonedFormat"
+
+/** A time as the screen shows it outside an event's screens: labelled, in the viewer's zone. */
+const shownTime = (value: string, seconds = true) =>
+    formatZoned(value, browserTimeZone(), {t: i18n.t.bind(i18n), lang: i18n.language, seconds})
 
 interface Scenario {
     /** Whether the tally has an execution whose status carries the logs. */
@@ -58,9 +63,9 @@ export const Populated: Story = {
             canvas.getByText(i18n.t("keysGeneration.ceremonyStep.logsHeader.title"))
         ).toBeVisible()
         expect(logRows(canvasElement)).toEqual([
-            "1/15/2026, 12:00:00 PMTally session created",
+            `${shownTime("2026-01-15T12:00:00Z")}Tally session created`,
             ...(workflow === EStoryWorkflow.RESULTS
-                ? ["1/15/2026, 12:30:00 PMTally completed"]
+                ? [`${shownTime("2026-01-15T12:30:00Z")}Tally completed`]
                 : []),
         ])
     },

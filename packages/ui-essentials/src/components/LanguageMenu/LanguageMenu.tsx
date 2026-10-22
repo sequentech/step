@@ -10,6 +10,8 @@ import {FontAwesomeIcon} from "@fortawesome/react-fontawesome"
 import {faLanguage, faCaretDown} from "@fortawesome/free-solid-svg-icons"
 import {styled} from "@mui/material/styles"
 import {Box} from "@mui/material"
+import {toBCP47} from "@sequentech/ui-core"
+import {useInertBackground} from "../../services/useInertBackground"
 
 interface ButtonProps {
     isactive?: string
@@ -32,6 +34,7 @@ const LanguageMenu: React.FC<{
     const {t, i18n} = useTranslation()
     const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null)
     const open = Boolean(anchorEl)
+    const setModalRoot = useInertBackground(open)
 
     const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
         setAnchorEl(event.currentTarget)
@@ -76,7 +79,7 @@ const LanguageMenu: React.FC<{
                 data-testid="lang-button-test"
                 aria-controls={open ? "lang-menu" : undefined}
                 aria-haspopup="true"
-                aria-label={t("language")}
+                aria-label={t("a11y.languageSelector", {language: t("language")})}
                 aria-expanded={open ? "true" : undefined}
                 onClick={handleClick}
                 isactive={String(open)}
@@ -92,6 +95,9 @@ const LanguageMenu: React.FC<{
                 <FontAwesomeIcon className="language-selector-caret" icon={faCaretDown} size="lg" />
             </StyledButton>
             <Menu
+                ref={setModalRoot}
+                role="region"
+                aria-label={t("language")}
                 className="language-selector-menu"
                 classes={{paper: "language-selector-paper", list: "language-selector-options"}}
                 id="lang-menu"
@@ -107,6 +113,10 @@ const LanguageMenu: React.FC<{
                 {languagesList.map((language) => (
                     <MenuItem
                         className="language-option"
+                        role="menuitemradio"
+                        aria-checked={language === i18n.language}
+                        selected={language === i18n.language}
+                        lang={toBCP47(language)}
                         onClick={() => changeLanguage(language)}
                         key={`menu-language-${language}`}
                     >

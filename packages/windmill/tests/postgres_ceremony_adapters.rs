@@ -22,11 +22,14 @@ use sequent_core::types::hasura::core::{
 };
 use sequent_core::types::keycloak::VOTE_WEIGHT_BATCHES;
 use serde_json::{json, Value};
+use std::collections::HashMap;
 use tokio_postgres::error::SqlState;
 use uuid::Uuid;
+use windmill::postgres::election as election_postgres;
 use windmill::postgres::{
     keys_ceremony, tally_session, tally_session_contest, tally_session_execution, trustee,
 };
+use windmill::services::import::import_election_event;
 
 /// Row identifiers of one test. The test's line keeps them apart from the rows
 /// of tests running concurrently; `n` tells its own rows apart.
@@ -650,6 +653,217 @@ async fn update_keys_ceremony_status_fails_for_a_ceremony_of_another_tenant() {
 }
 
 #[tokio::test]
+async fn delete_keys_ceremony_removes_only_the_ceremony_of_the_event() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let w = World::new(&tx, ids!()).await;
+    keys_ceremony_row(&tx, &w.tenant, &w.event, &w.id(10)).await;
+    keys_ceremony_row(&tx, &w.tenant, &w.event, &w.id(11)).await;
+    keys_ceremony_row(&tx, &w.tenant, &w.other_event, &w.id(10)).await;
+
+    keys_ceremony::delete_keys_ceremony(&tx, &w.tenant, &w.event, &w.id(10))
+        .await
+        .unwrap();
+
+    let remaining: Vec<(String, String)> = tx
+        .query(
+            "SELECT id::text, election_event_id::text FROM sequent_backend.keys_ceremony
+                 WHERE tenant_id = $1::text::uuid ORDER BY id, election_event_id",
+            &[&w.tenant],
+        )
+        .await
+        .unwrap()
+        .iter()
+        .map(|row| (row.get(0), row.get(1)))
+        .collect();
+    assert_eq!(
+        remaining,
+        vec![
+            (w.id(10), w.other_event.clone()),
+            (w.id(11), w.event.clone())
+        ]
+    );
+    tx.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn delete_keys_ceremony_rejects_an_id_that_is_not_a_v4_uuid() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let w = World::new(&tx, ids!()).await;
+
+    let error = keys_ceremony::delete_keys_ceremony(&tx, &w.tenant, &w.event, "not-a-uuid")
+        .await
+        .unwrap_err();
+
+    assert!(!error.to_string().is_empty());
+    tx.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn clear_election_keys_ceremony_unlinks_only_the_elections_of_that_ceremony() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let w = World::new(&tx, ids!()).await;
+    keys_ceremony_row(&tx, &w.tenant, &w.event, &w.id(10)).await;
+    keys_ceremony_row(&tx, &w.tenant, &w.event, &w.id(11)).await;
+    keys_ceremony_row(&tx, &w.tenant, &w.other_event, &w.id(10)).await;
+    for (election_id, event, ceremony) in [
+        (w.id(20), &w.event, w.id(10)),
+        (w.id(21), &w.event, w.id(11)),
+        (w.id(22), &w.other_event, w.id(10)),
+    ] {
+        election(&tx, &w.tenant, event, &election_id).await;
+        tx.execute(
+            "UPDATE sequent_backend.election SET keys_ceremony_id = $1::text::uuid
+                 WHERE id = $2::text::uuid",
+            &[&ceremony, &election_id],
+        )
+        .await
+        .unwrap();
+    }
+
+    election_postgres::clear_election_keys_ceremony(&tx, &w.tenant, &w.event, &w.id(10))
+        .await
+        .unwrap();
+
+    let linked: Vec<(String, Option<String>)> = tx
+        .query(
+            "SELECT id::text, keys_ceremony_id::text FROM sequent_backend.election
+                 WHERE tenant_id = $1::text::uuid ORDER BY id",
+            &[&w.tenant],
+        )
+        .await
+        .unwrap()
+        .iter()
+        .map(|row| (row.get(0), row.get(1)))
+        .collect();
+    assert_eq!(
+        linked,
+        vec![
+            (w.id(20), None),
+            (w.id(21), Some(w.id(11))),
+            (w.id(22), Some(w.id(10)))
+        ]
+    );
+    tx.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn clear_election_keys_ceremony_rejects_an_id_that_is_not_a_v4_uuid() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let w = World::new(&tx, ids!()).await;
+
+    let error =
+        election_postgres::clear_election_keys_ceremony(&tx, &w.tenant, &w.event, "not-a-uuid")
+            .await
+            .unwrap_err();
+
+    assert!(!error.to_string().is_empty());
+    tx.rollback().await.unwrap();
+}
+
+/// Marks the keys ceremony as not the default one, which has no board of its
+/// own to compare with, and gives it the public key `public_key`, if any.
+async fn imported_ceremony(tx: &Transaction<'_>, event: &str, id: &str, public_key: Option<&str>) {
+    let status = public_key.map(|public_key| json!({"public_key": public_key}));
+    tx.execute(
+        "UPDATE sequent_backend.keys_ceremony SET is_default = false, status = $3
+             WHERE id = $1::text::uuid AND election_event_id = $2::text::uuid",
+        &[&id, &event, &status],
+    )
+    .await
+    .unwrap();
+}
+
+async fn ceremony_ids(tx: &Transaction<'_>, event: &str) -> Vec<String> {
+    tx.query(
+        "SELECT id::text FROM sequent_backend.keys_ceremony
+             WHERE election_event_id = $1::text::uuid ORDER BY id",
+        &[&event],
+    )
+    .await
+    .unwrap()
+    .iter()
+    .map(|row| row.get(0))
+    .collect()
+}
+
+#[tokio::test]
+async fn an_import_leaves_out_the_keys_ceremony_whose_public_key_is_not_on_its_board() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let w = World::new(&tx, ids!()).await;
+    for n in [10, 11, 12] {
+        keys_ceremony_row(&tx, &w.tenant, &w.event, &w.id(n)).await;
+    }
+    keys_ceremony_row(&tx, &w.tenant, &w.other_event, &w.id(13)).await;
+    imported_ceremony(&tx, &w.event, &w.id(10), Some("unknown-public-key")).await;
+    imported_ceremony(&tx, &w.event, &w.id(11), None).await;
+    imported_ceremony(&tx, &w.event, &w.id(12), None).await;
+    imported_ceremony(&tx, &w.other_event, &w.id(13), Some("unknown-public-key")).await;
+    election(&tx, &w.tenant, &w.event, &w.id(20)).await;
+    tx.execute(
+        "UPDATE sequent_backend.election SET keys_ceremony_id = $1::text::uuid
+             WHERE id = $2::text::uuid",
+        &[&w.id(10), &w.id(20)],
+    )
+    .await
+    .unwrap();
+
+    // Ceremony 11 has no public key, so its board is never read.
+    let (keyless_election, keyless_ceremony) = (w.id(21), w.id(11));
+    let election_keys_ceremonies =
+        HashMap::from([(keyless_election.as_str(), keyless_ceremony.as_str())]);
+
+    let election_public_keys = import_election_event::verify_imported_keys_ceremonies(
+        &tx,
+        &w.tenant,
+        &w.event,
+        &election_keys_ceremonies,
+    )
+    .await
+    .unwrap();
+
+    assert!(election_public_keys.is_empty());
+    assert_eq!(ceremony_ids(&tx, &w.event).await, vec![w.id(11), w.id(12)]);
+    assert_eq!(ceremony_ids(&tx, &w.other_event).await, vec![w.id(13)]);
+    let election = stored(&tx, "election", &w.id(20)).await;
+    assert_eq!(election["keys_ceremony_id"], Value::Null);
+    tx.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn an_import_is_rejected_when_a_tally_session_uses_a_keys_ceremony_that_is_not_on_its_board()
+{
+    let mut client = schema::pool().await.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let w = World::new(&tx, ids!()).await;
+    tally_session_row(&tx, &w.tenant, &w.event, &w.id(10), "2026-01-01T00:00:00Z").await;
+    imported_ceremony(&tx, &w.event, &w.id(10), Some("unknown-public-key")).await;
+
+    let error = import_election_event::verify_imported_keys_ceremonies(
+        &tx,
+        &w.tenant,
+        &w.event,
+        &HashMap::new(),
+    )
+    .await
+    .unwrap_err();
+
+    assert_eq!(
+        error.to_string(),
+        format!(
+            "Keys ceremony {} reports a public key that is not on its board and is used by an imported tally session",
+            w.id(10)
+        )
+    );
+    assert_eq!(ceremony_ids(&tx, &w.event).await, vec![w.id(10)]);
+    tx.rollback().await.unwrap();
+}
+
+#[tokio::test]
 async fn list_keys_ceremony_without_permission_labels_returns_every_ceremony_of_the_event() {
     let mut client = schema::pool().await.get().await.unwrap();
     let tx = client.transaction().await.unwrap();
@@ -814,6 +1028,7 @@ async fn get_trustee_by_name_returns_the_trustee_with_its_columns() {
         Trustee {
             id: w.id(10),
             public_key: Some("public-key".into()),
+            share_encryption_public_key: None,
             name: Some("trustee-1".into()),
             created_at: Some(at(H10)),
             last_updated_at: Some(at(NEXT_DAY)),
@@ -877,6 +1092,7 @@ fn configuration_json() -> Value {
         "delegated_voting_policy": null,
         "consolidated_report_policy": null,
         "weighted_voting_policy": null,
+        "batch_anonymity_policy": null,
     })
 }
 
@@ -1181,6 +1397,27 @@ async fn get_tally_session_by_id_reports_a_session_of_another_event_as_not_found
         error.to_string(),
         format!("Tally Session {} not found", w.id(10))
     );
+    tx.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn get_tally_session_by_id_if_exist_returns_the_session_or_none() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let w = World::new(&tx, ids!()).await;
+    tally_session_row(&tx, &w.tenant, &w.event, &w.id(10), H10).await;
+    tally_session_row(&tx, &w.tenant, &w.other_event, &w.id(11), H10).await;
+
+    let found =
+        tally_session::get_tally_session_by_id_if_exist(&tx, &w.tenant, &w.event, &w.id(10))
+            .await
+            .unwrap();
+    assert_eq!(found.map(|session| session.id), Some(w.id(10)));
+    let of_another_event =
+        tally_session::get_tally_session_by_id_if_exist(&tx, &w.tenant, &w.event, &w.id(11))
+            .await
+            .unwrap();
+    assert_eq!(of_another_event, None);
     tx.rollback().await.unwrap();
 }
 
@@ -1834,7 +2071,7 @@ async fn insert_tally_session_contest_rejects_a_batch_number_beyond_the_int4_col
         &w.event,
         &area_id,
         None,
-        i32::MAX as u64,
+        i64::from(i32::MAX),
         &session,
         &election_id,
     )
@@ -1925,7 +2162,7 @@ async fn get_tally_session_highest_batch_skips_the_weight_batches_of_the_last_co
         .unwrap();
 
     // Session 40 owns batches 40..40 + VOTE_WEIGHT_BATCHES under weighted voting.
-    assert_eq!(batch, 40 + u64::from(VOTE_WEIGHT_BATCHES));
+    assert_eq!(batch, 40 + i64::from(VOTE_WEIGHT_BATCHES));
     tx.rollback().await.unwrap();
 }
 
@@ -2193,6 +2430,9 @@ async fn insert_many_tally_session_contests_rejects_an_invalid_area_id_before_wr
 
 fn ceremony_status(election_id: &str) -> TallyCeremonyStatus {
     TallyCeremonyStatus {
+        quorum: None,
+        boards: None,
+        failure: None,
         stop_date: None,
         logs: vec![Log {
             created_date: H10.into(),
@@ -2200,7 +2440,7 @@ fn ceremony_status(election_id: &str) -> TallyCeremonyStatus {
         }],
         trustees: vec![TallyTrustee {
             name: "trustee-1".into(),
-            status: TallyTrusteeStatus::KEY_RESTORED,
+            status: TallyTrusteeStatus::CUSTODY_CONFIRMED,
         }],
         elections_status: vec![TallyElection {
             election_id: election_id.into(),
@@ -2213,9 +2453,11 @@ fn ceremony_status(election_id: &str) -> TallyCeremonyStatus {
 /// `ceremony_status(election_id)` as the column stores it.
 fn ceremony_status_json(election_id: &str) -> Value {
     json!({
+        "boards": null,
+        "failure": null,
         "stop_date": null,
         "logs": [{"created_date": H10, "log_text": "Mixing"}],
-        "trustees": [{"name": "trustee-1", "status": "KEY_RESTORED"}],
+        "trustees": [{"name": "trustee-1", "status": "CUSTODY_CONFIRMED"}],
         "elections_status": [
             {"election_id": election_id, "status": "MIXING", "progress": 0.5}
         ],
@@ -2227,6 +2469,72 @@ fn execution_ids(executions: Vec<TallySessionExecution>) -> Vec<String> {
         .into_iter()
         .map(|execution| execution.id)
         .collect()
+}
+
+#[tokio::test]
+async fn an_event_without_protocol_boards_needs_no_native_archive_connection() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let w = World::new(&tx, ids!()).await;
+    windmill::services::delete_election_event::archive_protocol_boards(&tx, &w.tenant, &w.event)
+        .await
+        .unwrap();
+    tx.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn restrictive_protocol_metadata_is_explicitly_deleted_only_for_its_event() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let w = World::new(&tx, ids!()).await;
+    let namespace = Uuid::new_v4().simple().to_string();
+    let board_name = |kind: &str, event: &str| format!("{kind}-{event}-{namespace}");
+    for (index, event) in [&w.event, &w.other_event].into_iter().enumerate() {
+        let ceremony = w.id(10 + index as u32);
+        let session = w.id(20 + index as u32);
+        keys_ceremony_row(&tx, &w.tenant, event, &ceremony).await;
+        tally_session_row(&tx, &w.tenant, event, &session, H10).await;
+        let parent = tx.query_one("INSERT INTO sequent_backend.protocol_board (tenant_id,election_event_id,keys_ceremony_id,name,manager_message) VALUES ($1::text::uuid,$2::text::uuid,$3::text::uuid,$4,''::bytea) RETURNING id", &[&w.tenant,event,&ceremony,&board_name("dkg", event)]).await.unwrap().get::<_,uuid::Uuid>(0);
+        tx.execute("INSERT INTO sequent_backend.protocol_board (tenant_id,election_event_id,keys_ceremony_id,tally_session_id,parent_id,batch,name,manager_message) VALUES ($1::text::uuid,$2::text::uuid,$3::text::uuid,$4::text::uuid,$5,0,$6,''::bytea)", &[&w.tenant,event,&ceremony,&session,&parent,&board_name("tally", event)]).await.unwrap();
+    }
+    let restrictive: bool = tx.query_one("SELECT bool_and(confdeltype='r') FROM pg_constraint WHERE conrelid='sequent_backend.protocol_board'::regclass AND contype='f'", &[]).await.unwrap().get(0);
+    assert!(restrictive);
+    let url = std::env::var("WBRAID_BOARD_DATABASE_URL").expect("isolated native archive database");
+    let pool = sqlx::PgPool::connect(&url).await.unwrap();
+    let native = wbraid_b4::db::BoardDb::from_postgres_pool(pool.clone())
+        .await
+        .unwrap();
+    for event in [&w.event, &w.other_event] {
+        for kind in ["dkg", "tally"] {
+            let name = board_name(kind, event);
+            native.create_board(&name).await.unwrap();
+            native
+                .insert_message(&name, Some(b"retained-signed-record"), None, "test")
+                .await
+                .unwrap();
+        }
+    }
+    windmill::services::delete_election_event::archive_protocol_boards(&tx, &w.tenant, &w.event)
+        .await
+        .unwrap();
+    for (event, status) in [(&w.event, "archived"), (&w.other_event, "active")] {
+        for kind in ["dkg", "tally"] {
+            let name = board_name(kind, event);
+            assert_eq!(
+                native.get_board(&name).await.unwrap().unwrap().status,
+                status
+            );
+            assert_eq!(native.list_messages(&name).await.unwrap().len(), 1);
+        }
+    }
+    windmill::postgres::protocol_board::delete_event_protocol_metadata(&tx, &w.tenant, &w.event)
+        .await
+        .unwrap();
+    for (event, expected) in [(&w.event, 0i64), (&w.other_event, 2)] {
+        let count:i64=tx.query_one("SELECT count(*) FROM sequent_backend.protocol_board WHERE tenant_id=$1::text::uuid AND election_event_id=$2::text::uuid", &[&w.tenant,event]).await.unwrap().get(0);
+        assert_eq!(count, expected);
+    }
+    tx.rollback().await.unwrap();
 }
 
 #[tokio::test]

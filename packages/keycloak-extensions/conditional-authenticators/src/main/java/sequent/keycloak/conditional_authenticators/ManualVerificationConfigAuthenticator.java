@@ -102,7 +102,8 @@ public class ManualVerificationConfigAuthenticator implements Authenticator, Aut
             MessageCourier.BOTH.name(),
             MessageCourier.SMS.name(),
             MessageCourier.EMAIL.name(),
-            MessageCourier.NONE.name()));
+            MessageCourier.NONE.name(),
+            MessageCourier.CHOSEN.name()));
 
     // Define configuration properties
     return List.of(

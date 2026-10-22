@@ -4,19 +4,21 @@
 
 use crate::postgres::area::get_areas;
 use crate::postgres::election_event::get_election_event_by_id;
-use crate::services::cast_votes::{get_users_with_vote_info, CastVoteStatus};
+use crate::services::ballot_box_reads::get_event_ballot_box;
+use crate::services::cast_votes::get_users_with_vote_info_in_elections;
 use crate::services::database::PgConfig;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
+use electoral_log::adapters::ballot_box_status::VoterBallotState;
+use electoral_log::adapters::postgres::PostgresStore;
 use futures::TryStreamExt;
 use keycloak::types::GroupRepresentation;
 use keycloak::KeycloakError;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
-use sequent_core::services::keycloak::{KeycloakAdminClient, PubKeycloakAdmin};
+use sequent_core::services::keycloak::{get_event_realm, KeycloakAdminClient, PubKeycloakAdmin};
 use sequent_core::types::keycloak::*;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
-use std::cmp::min;
 use std::env;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -40,13 +42,16 @@ use uuid::Uuid;
 pub const VALIDATE_ID_ATTR_NAME: &str = "sequent.read-only.id-card-number-validated";
 pub const DELEGATE_TO_ATTR_NAME: &str = "delegate-vote-to";
 pub const VALIDATE_ID_REGISTERED_VOTER: &str = "VERIFIED";
+/// Transaction-local table holding the voters with a valid ballot in the
+/// election and area being tallied.
+const VOTERS_WITH_VALID_BALLOT_TABLE: &str = "tally_voters_with_valid_ballot";
 
 /// A voter's current Sequent-side state, as far as reconciliation cares.
 #[derive(Debug, Clone)]
 pub struct VoterSnapshot {
     pub username: String,
-    /// Keycloak's own internal user id (`user_entity.id`) — same value
-    /// `cast_vote.voter_id_string` carries (as text there), so this is what
+    /// Keycloak's own internal user id (`user_entity.id`) — same value the
+    /// ballot box's `voter_id` carries (as text there), so this is what
     /// actually matches against the event-wide cast-vote state map;
     /// `username` is a separate, mutable-in-theory identifier not safe to key
     /// that lookup on.
@@ -57,8 +62,10 @@ pub struct VoterSnapshot {
     /// doesn't resolve to a known area (or is unset).
     pub area_name: Option<String>,
     pub dob: Option<String>,
-    /// Raw `voted-channel` attribute value; `None` means not voted. File-side
-    /// comparisons normalize this value explicitly at the boundary.
+    /// Raw `voted-channel` attribute value; `None` means no channel is
+    /// recorded, which is not proof the voter has not voted (see
+    /// `has_valid_internet_vote`). File-side comparisons normalize this value
+    /// explicitly at the boundary.
     pub voted_channel: Option<String>,
     pub has_valid_internet_vote: bool,
     pub has_unresolved_internet_vote: bool,
@@ -342,34 +349,244 @@ pub enum VoterMultiplicityColumn {
     VoteWeight,
 }
 
-#[instrument(skip(keycloak_transaction), err)]
-pub async fn list_keycloak_enabled_users_by_area_id_and_authorized_elections(
+/// A voter field the tally census reads when the tally runs. Changing one
+/// can leave a cast ballot out of the tally or change how many times it
+/// counts.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CensusAttribute {
+    Enabled,
+    AreaId,
+    AuthorizedElectionIds,
+    VoteWeight,
+    DelegateVoteTo,
+}
+
+impl CensusAttribute {
+    const KEYCLOAK_ATTRIBUTES: [CensusAttribute; 4] = [
+        CensusAttribute::AreaId,
+        CensusAttribute::AuthorizedElectionIds,
+        CensusAttribute::VoteWeight,
+        CensusAttribute::DelegateVoteTo,
+    ];
+
+    pub fn name(self) -> &'static str {
+        match self {
+            CensusAttribute::Enabled => "enabled",
+            CensusAttribute::AreaId => AREA_ID_ATTR_NAME,
+            CensusAttribute::AuthorizedElectionIds => AUTHORIZED_ELECTION_IDS_NAME,
+            CensusAttribute::VoteWeight => VOTE_WEIGHT_ATTR_NAME,
+            CensusAttribute::DelegateVoteTo => DELEGATE_TO_ATTR_NAME,
+        }
+    }
+}
+
+impl std::fmt::Display for CensusAttribute {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(self.name())
+    }
+}
+
+fn census_values(values: Option<&Vec<String>>) -> Vec<&str> {
+    let mut values: Vec<&str> = values.into_iter().flatten().map(String::as_str).collect();
+    values.sort_unstable();
+    values
+}
+
+/// The census attributes an edit of `current` would change. `enabled` and
+/// `attributes` are what the edit writes; an attribute it leaves out keeps
+/// its value, as `KeycloakAdminClient::edit_user` merges attributes.
+pub fn changed_census_attributes(
+    current: &User,
+    enabled: Option<bool>,
+    attributes: &HashMap<String, Vec<String>>,
+) -> Vec<CensusAttribute> {
+    let mut changed = vec![];
+    if enabled.is_some_and(|enabled| Some(enabled) != current.enabled) {
+        changed.push(CensusAttribute::Enabled);
+    }
+    for attribute in CensusAttribute::KEYCLOAK_ATTRIBUTES {
+        let Some(requested) = attributes.get(attribute.name()) else {
+            continue;
+        };
+        let current_values = current
+            .attributes
+            .as_ref()
+            .and_then(|current| current.get(attribute.name()));
+        if census_values(Some(requested)) != census_values(current_values) {
+            changed.push(attribute);
+        }
+    }
+    changed
+}
+
+/// Why an edit changing `changed` must be refused: the voter has a valid or
+/// in-progress ballot.
+pub fn census_change_refusal(
+    state: &VoterBallotState,
+    changed: &[CensusAttribute],
+) -> Option<String> {
+    if changed.is_empty() || !state.has_active_vote() {
+        return None;
+    }
+    let names: Vec<String> = changed.iter().map(ToString::to_string).collect();
+    Some(format!(
+        "Cannot change {} of a voter who has cast a ballot",
+        names.join(", ")
+    ))
+}
+
+/// The delegates whose delegator count an edit of `current` changes. A
+/// delegate's ballot counts once for each voter delegating to them, so
+/// these are the ballots a delegation change reweights.
+pub fn reweighted_delegates(
+    current: &User,
+    attributes: &HashMap<String, Vec<String>>,
+) -> Vec<String> {
+    let Some(requested) = attributes.get(DELEGATE_TO_ATTR_NAME) else {
+        return vec![];
+    };
+    let current_values = current
+        .attributes
+        .as_ref()
+        .and_then(|current| current.get(DELEGATE_TO_ATTR_NAME));
+    let mut balance: HashMap<&str, i64> = HashMap::new();
+    for username in current_values.into_iter().flatten() {
+        *balance.entry(username.as_str()).or_default() -= 1;
+    }
+    for username in requested {
+        *balance.entry(username.as_str()).or_default() += 1;
+    }
+    let mut delegates: Vec<String> = balance
+        .into_iter()
+        .filter(|(username, count)| *count != 0 && !username.is_empty())
+        .map(|(username, _)| username.to_string())
+        .collect();
+    delegates.sort_unstable();
+    delegates
+}
+
+/// Why an edit of the election event voter `current` must be refused, if it
+/// must: it changes a census attribute that counts a valid or in-progress
+/// ballot. That is the voter's own ballot or, for a delegation change, the
+/// ballot of each delegate the change adds the voter to or removes them
+/// from.
+#[instrument(
+    skip(hasura_transaction, keycloak_transaction, current, attributes),
+    err
+)]
+pub async fn census_edit_refusal(
+    hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
-    realm: &str,
-    area_id: &str,
-    election_alias: &str,
-    output_file: &PathBuf,
+    tenant_id: &str,
+    election_event_id: &str,
+    current: &User,
+    enabled: Option<bool>,
+    attributes: &HashMap<String, Vec<String>>,
+) -> Result<Option<String>> {
+    let changed = changed_census_attributes(current, enabled, attributes);
+    if changed.is_empty() {
+        return Ok(None);
+    }
+    let user_id = current
+        .id
+        .as_deref()
+        .ok_or_else(|| anyhow!("The voter has no id"))?;
+    let state = crate::services::ballot_box::get_voter_ballot_state(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        user_id,
+    )
+    .await?;
+    if let Some(reason) = census_change_refusal(&state, &changed) {
+        return Ok(Some(reason));
+    }
+
+    let realm = get_event_realm(tenant_id, election_event_id);
+    for delegate in reweighted_delegates(current, attributes) {
+        for delegate_id in get_users_by_username(keycloak_transaction, &realm, &delegate).await? {
+            let state = crate::services::ballot_box::get_voter_ballot_state(
+                hasura_transaction,
+                tenant_id,
+                election_event_id,
+                &delegate_id,
+            )
+            .await?;
+            if state.has_active_vote() {
+                return Ok(Some(format!(
+                    "Cannot change {} while the delegate {delegate} has cast a ballot",
+                    CensusAttribute::DelegateVoteTo
+                )));
+            }
+        }
+    }
+    Ok(None)
+}
+
+fn census_group_membership(alias: &str, group: Option<&str>) -> String {
+    group
+        .map(|group| {
+            format!(
+                "AND EXISTS (SELECT 1 FROM user_group_membership gm JOIN keycloak_group g \
+         ON g.id = gm.group_id AND g.realm_id = {alias}.realm_id \
+         WHERE gm.user_id = {alias}.id AND g.name = '{}')",
+                escape_sql_literal(group),
+            )
+        })
+        .unwrap_or_default()
+}
+
+/// The extra column of the voters CSV, if any.
+///
+/// At most one extra column is emitted, always at index 1. Both variants are
+/// correlated scalar subqueries rather than joins so that `GROUP BY u.id`
+/// still holds.
+fn multiplicity_select(
     multiplicity_column: VoterMultiplicityColumn,
-) -> Result<()> {
-    // At most one extra column is emitted, always at index 1. Both variants are
-    // correlated scalar subqueries rather than joins so that `GROUP BY u.id`
-    // still holds.
-    let multiplicity_statement = match multiplicity_column {
+    area_id_escaped: &str,
+    election_alias_escaped: &str,
+    voter_group: Option<&str>,
+) -> String {
+    match multiplicity_column {
         VoterMultiplicityColumn::DelegateCount => {
+            // A delegator must be a voter of this realm, area and election who
+            // names only this delegate and has no valid ballot of their own.
             let no_service_account_delegators = service_account_exclusion("delegator");
+            let delegator_group = census_group_membership("delegator", voter_group);
             format!(
                 r#"
             ,(
                 SELECT
-                    COUNT(delegator.id)
+                    COUNT(DISTINCT delegator.id)
                 FROM
                     user_entity AS delegator
                 JOIN
                     user_attribute AS ua_delegate ON delegator.id = ua_delegate.user_id
+                JOIN
+                    user_attribute AS ua_delegator_area ON delegator.id = ua_delegator_area.user_id AND ua_delegator_area.name = '{AREA_ID_ATTR_NAME}'
+                LEFT JOIN
+                    user_attribute AS ua_delegator_elections ON delegator.id = ua_delegator_elections.user_id AND ua_delegator_elections.name = '{AUTHORIZED_ELECTION_IDS_NAME}'
                 WHERE
-                    {no_service_account_delegators} AND
+                    delegator.realm_id = u.realm_id AND
+                    {no_service_account_delegators} {delegator_group} AND
+                    delegator.enabled IS TRUE AND
                     ua_delegate.name = '{DELEGATE_TO_ATTR_NAME}' AND
-                    ua_delegate.value = u.username
+                    ua_delegate.value = u.username AND
+                    ua_delegator_area.value = '{area_id_escaped}' AND
+                    (ua_delegator_elections.value = '{election_alias_escaped}' OR ua_delegator_elections.value IS NULL) AND
+                    NOT EXISTS (
+                        SELECT 1
+                        FROM user_attribute AS ua_other_delegate
+                        WHERE
+                            ua_other_delegate.user_id = delegator.id AND
+                            ua_other_delegate.name = '{DELEGATE_TO_ATTR_NAME}' AND
+                            ua_other_delegate.value IS DISTINCT FROM u.username
+                    ) AND
+                    NOT EXISTS (
+                        SELECT 1
+                        FROM pg_temp.{VOTERS_WITH_VALID_BALLOT_TABLE} AS voted
+                        WHERE voted.voter_id = delegator.id
+                    )
             ) AS delegate_count
         "#
             )
@@ -397,8 +614,108 @@ pub async fn list_keycloak_enabled_users_by_area_id_and_authorized_elections(
             )
         }
         VoterMultiplicityColumn::None => "".to_string(),
-    };
+    }
+}
 
+#[instrument(skip(keycloak_transaction, voters_with_valid_ballot), err)]
+pub async fn list_keycloak_enabled_users_by_area_id_and_authorized_elections(
+    keycloak_transaction: &Transaction<'_>,
+    realm: &str,
+    area_id: &str,
+    election_alias: &str,
+    output_file: &PathBuf,
+    multiplicity_column: VoterMultiplicityColumn,
+    voters_with_valid_ballot: &[String],
+) -> Result<()> {
+    list_keycloak_enabled_users_with_identity(
+        keycloak_transaction,
+        realm,
+        area_id,
+        election_alias,
+        output_file,
+        multiplicity_column,
+        voters_with_valid_ballot,
+        CensusIdentity::VoterId,
+    )
+    .await
+}
+
+/// Keycloak's delegation lookup needs real IDs in its transaction-local table.
+/// This conversion is internal only; ballot files keep their public pseudonyms.
+pub async fn census_voters_from_ballot_identities(
+    store: &PostgresStore,
+    event: &str,
+    identities: &[String],
+) -> Result<Vec<String>> {
+    if store.ballot_identity(event).await?
+        != electoral_log::adapters::privacy::BallotIdentity::Pseudonym
+    {
+        return Ok(identities.to_vec());
+    }
+    let mut voters = Vec::with_capacity(identities.len());
+    for batch in identities.chunks(5_000) {
+        let mapping = store.voters_for_pseudonyms(event, batch).await?;
+        for identity in batch {
+            voters.push(
+                mapping
+                    .get(identity)
+                    .cloned()
+                    .context("The tally identity mapping is unavailable")?,
+            );
+        }
+    }
+    Ok(voters)
+}
+
+/// Identity column of a census artifact. Privacy mode writes only pseudonyms;
+/// the real census identities are transformed in memory before a file is made.
+pub enum CensusIdentity<'a> {
+    VoterId,
+    Pseudonym {
+        store: &'a PostgresStore,
+        event: &'a str,
+    },
+}
+
+#[derive(Debug, PartialEq, Eq)]
+struct CensusRow {
+    identity: String,
+    multiplicity: Option<i64>,
+}
+
+fn pseudonymous_census_rows(
+    rows: Vec<CensusRow>,
+    mapping: &HashMap<String, String>,
+) -> Result<Vec<CensusRow>> {
+    let mut mapped = rows
+        .into_iter()
+        .map(|row| {
+            Ok(CensusRow {
+                identity: mapping
+                    .get(&row.identity)
+                    .cloned()
+                    .context("The eligible census is missing privacy registrations")?,
+                multiplicity: row.multiplicity,
+            })
+        })
+        .collect::<Result<Vec<_>>>()?;
+    // The merge join requires lexical order of the actual identity column.
+    mapped.sort_unstable_by(|left, right| left.identity.cmp(&right.identity));
+    Ok(mapped)
+}
+
+#[allow(clippy::too_many_arguments)]
+#[instrument(skip_all, err)]
+pub async fn list_keycloak_enabled_users_with_identity(
+    keycloak_transaction: &Transaction<'_>,
+    realm: &str,
+    area_id: &str,
+    election_alias: &str,
+    output_file: &PathBuf,
+    multiplicity_column: VoterMultiplicityColumn,
+    voters_with_valid_ballot: &[String],
+    identity: CensusIdentity<'_>,
+) -> Result<()> {
     // COPY does not support parameters so we have to add them using format.
     // Validate area_id as v4 UUID before interpolating into SQL.
     parse_uuid_v4(area_id)?;
@@ -406,7 +723,44 @@ pub async fn list_keycloak_enabled_users_by_area_id_and_authorized_elections(
     let area_id_escaped = escape_sql_literal(area_id);
     let election_alias_escaped = escape_sql_literal(election_alias);
 
+    let group_name = if matches!(&identity, CensusIdentity::Pseudonym { .. }) {
+        Some(
+            env::var("KEYCLOAK_VOTER_GROUP_NAME")
+                .context("KEYCLOAK_VOTER_GROUP_NAME is required for the private census")?,
+        )
+    } else {
+        None
+    };
+    let multiplicity_statement = multiplicity_select(
+        multiplicity_column,
+        &area_id_escaped,
+        &election_alias_escaped,
+        group_name.as_deref(),
+    );
+
+    if multiplicity_column == VoterMultiplicityColumn::DelegateCount {
+        keycloak_transaction
+            .batch_execute(&format!(
+                "CREATE TEMP TABLE IF NOT EXISTS {VOTERS_WITH_VALID_BALLOT_TABLE} \
+                 (voter_id TEXT PRIMARY KEY) ON COMMIT DROP; \
+                 TRUNCATE pg_temp.{VOTERS_WITH_VALID_BALLOT_TABLE};"
+            ))
+            .await
+            .context("Error creating the table of voters with a valid ballot")?;
+        keycloak_transaction
+            .execute(
+                &format!(
+                    "INSERT INTO pg_temp.{VOTERS_WITH_VALID_BALLOT_TABLE} (voter_id) \
+                     SELECT DISTINCT unnest($1::text[])"
+                ),
+                &[&voters_with_valid_ballot],
+            )
+            .await
+            .context("Error loading the voters with a valid ballot")?;
+    }
+
     let no_service_accounts = service_account_exclusion("u");
+    let voter_group = census_group_membership("u", group_name.as_deref());
 
     let statement = format!(
         r#"
@@ -423,7 +777,7 @@ pub async fn list_keycloak_enabled_users_by_area_id_and_authorized_elections(
             user_attribute ua_elections ON u.id = ua_elections.user_id AND ua_elections.name = '{AUTHORIZED_ELECTION_IDS_NAME}'
         WHERE
             ra.name = '{realm_escaped}' AND
-            {no_service_accounts} AND
+            {no_service_accounts} {voter_group} AND
             u.enabled IS TRUE AND
             ua_area.value = '{area_id_escaped}' AND
             (ua_elections.value = '{election_alias_escaped}' OR ua_elections.value IS NULL)
@@ -434,9 +788,46 @@ pub async fn list_keycloak_enabled_users_by_area_id_and_authorized_elections(
     "#
     );
 
+    if let CensusIdentity::Pseudonym { store, event } = identity {
+        let rows = keycloak_transaction.query(&statement, &[]).await?;
+        let rows = rows
+            .into_iter()
+            .map(|row| {
+                Ok(CensusRow {
+                    identity: row.try_get(0)?,
+                    multiplicity: if multiplicity_column == VoterMultiplicityColumn::None {
+                        None
+                    } else {
+                        Some(row.try_get::<_, i64>(1)?)
+                    },
+                })
+            })
+            .collect::<Result<Vec<_>>>()?;
+        let mut mapping = HashMap::new();
+        for batch in rows.chunks(5_000) {
+            let ids = batch
+                .iter()
+                .map(|row| row.identity.clone())
+                .collect::<Vec<_>>();
+            mapping.extend(store.pseudonyms_for_voters(event, &ids).await?);
+        }
+        let rows = pseudonymous_census_rows(rows, &mapping)?;
+        let mut writer = csv::WriterBuilder::new()
+            .has_headers(false)
+            .from_writer(Vec::new());
+        for row in rows {
+            match row.multiplicity {
+                Some(value) => writer.write_record([row.identity, value.to_string()])?,
+                None => writer.write_record([row.identity])?,
+            }
+        }
+        tokio::fs::write(output_file, writer.into_inner()?).await?;
+        return Ok(());
+    }
+
     let tokio_temp_file = File::create(output_file)
         .await
-        .expect("Could not create/open temporary file for tokio");
+        .context("Could not create the census file")?;
 
     let copy_out_query = format!("COPY ({}) TO STDOUT WITH (FORMAT CSV)", statement);
     let mut writer = BufWriter::new(tokio_temp_file);
@@ -460,6 +851,77 @@ pub async fn list_keycloak_enabled_users_by_area_id_and_authorized_elections(
     writer.flush().await?;
 
     Ok(())
+}
+
+/// The enabled voters of any of `areas` who may vote in the election with
+/// alias `election_alias`, each counted once however many of those areas
+/// they belong to, leaving out every voter who also belongs to one of
+/// `except_areas`.
+///
+/// A voter qualifies exactly as in
+/// [`list_keycloak_enabled_users_by_area_id_and_authorized_elections`]: an
+/// enabled account that is not a service account, in the event's realm, whose
+/// authorized elections are unset or include the election.
+#[instrument(skip(keycloak_transaction), err)]
+pub async fn count_keycloak_enabled_voters_of_areas(
+    keycloak_transaction: &Transaction<'_>,
+    realm: &str,
+    areas: &[String],
+    except_areas: &[String],
+    election_alias: &str,
+) -> Result<u64> {
+    if areas.is_empty() {
+        return Ok(0);
+    }
+    let no_service_accounts = service_account_exclusion("u");
+    let statement = format!(
+        r#"
+        SELECT
+            COUNT(*) AS voters
+        FROM
+            user_entity AS u
+        JOIN
+            realm AS ra ON u.realm_id = ra.id
+        WHERE
+            ra.name = $1 AND
+            {no_service_accounts} AND
+            u.enabled IS TRUE AND
+            EXISTS (
+                SELECT 1 FROM user_attribute AS ua_area
+                WHERE ua_area.user_id = u.id AND
+                    ua_area.name = '{AREA_ID_ATTR_NAME}' AND
+                    ua_area.value = ANY($2)
+            ) AND
+            NOT EXISTS (
+                SELECT 1 FROM user_attribute AS ua_area
+                WHERE ua_area.user_id = u.id AND
+                    ua_area.name = '{AREA_ID_ATTR_NAME}' AND
+                    ua_area.value = ANY($3)
+            ) AND
+            (
+                NOT EXISTS (
+                    SELECT 1 FROM user_attribute AS ua_elections
+                    WHERE ua_elections.user_id = u.id AND
+                        ua_elections.name = '{AUTHORIZED_ELECTION_IDS_NAME}'
+                ) OR
+                EXISTS (
+                    SELECT 1 FROM user_attribute AS ua_elections
+                    WHERE ua_elections.user_id = u.id AND
+                        ua_elections.name = '{AUTHORIZED_ELECTION_IDS_NAME}' AND
+                        (ua_elections.value = $4 OR ua_elections.value IS NULL)
+                )
+            )
+    "#
+    );
+    let row = keycloak_transaction
+        .query_one(
+            statement.as_str(),
+            &[&realm, &areas, &except_areas, &election_alias],
+        )
+        .await
+        .context("Error counting the enabled voters of the areas")?;
+    let voters: i64 = row.try_get("voters")?;
+    Ok(voters.try_into()?)
 }
 
 /// SQL boolean operator used to chain filter clauses in WHERE conditions.
@@ -641,6 +1103,9 @@ pub struct ListUsersFilter {
     pub tenant_id: String,
     pub election_event_id: Option<String>,
     pub election_id: Option<String>,
+    /// Server-derived participation scope; absent on older queued selections.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub permitted_election_ids: Option<Vec<String>>,
     pub area_id: Option<String>,
     pub realm: String,
     pub search: Option<String>,
@@ -735,6 +1200,15 @@ fn get_sort_clause_and_field_param(
     sort: Option<HashMap<String, String>>,
     param_number: i32,
 ) -> (String, Option<String>) {
+    user_sort_for_alias(sort, param_number, "u")
+}
+
+/// Aliases are fixed by the two SELECTs, never supplied by the client.
+fn user_sort_for_alias(
+    sort: Option<HashMap<String, String>>,
+    param_number: i32,
+    alias: &str,
+) -> (String, Option<String>) {
     const ASC: &str = "ASC";
     const DESC: &str = "DESC";
     fn sanitize_string(s: &str) -> String {
@@ -761,17 +1235,37 @@ fn get_sort_clause_and_field_param(
     };
 
     match sort_field.as_str() {
-        "id" | "email" | "first_name" | "last_name" | "username" | "enabled" | "email_verified" => {
-            (format!(r#"ORDER BY {sort_field} {verified_order}"#), None)
-        }
-        "has_voted" | "actions" => ("".to_string(), None),
+        "id" => (format!("ORDER BY {alias}.id {verified_order}"), None),
+        "email" | "first_name" | "last_name" | "username" | "enabled" | "email_verified" => (
+            format!(r#"ORDER BY {alias}.{sort_field} {verified_order}, {alias}.id ASC"#),
+            None,
+        ),
+        "has_voted" | "actions" => (format!("ORDER BY {alias}.id ASC"), None),
         _ => (
             format!(
-                r#"ORDER BY (SELECT value FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${}) {}"#,
-                param_number, verified_order
+                r#"ORDER BY (SELECT min(value) FROM user_attribute ua WHERE ua.user_id = {alias}.id AND ua.name = ${param_number}) {verified_order}, {alias}.id ASC"#,
             ),
             Some(sort_field),
         ),
+    }
+}
+
+#[cfg(test)]
+mod privacy_sort_regressions {
+    use super::*;
+
+    #[test]
+    fn privacy_participation_sort_has_a_unique_tie_breaker_and_safe_fallback() {
+        for field in ["last_name", "enabled", "region", "has_voted", "actions"] {
+            let (order, _) = get_sort_clause_and_field_param(
+                Some(HashMap::from([
+                    ("'field'".into(), field.into()),
+                    ("'order'".into(), "DESC".into()),
+                ])),
+                3,
+            );
+            assert!(order.ends_with("u.id ASC"), "{field}: {order}");
+        }
     }
 }
 
@@ -813,6 +1307,19 @@ pub async fn count_keycloak_users(
     }
     for filt_param in filter_params.iter() {
         params.push(filt_param);
+    }
+    let search_pattern = filter
+        .search
+        .as_deref()
+        .map(str::trim)
+        .filter(|text| !text.is_empty())
+        .map(|text| format!("%{text}%"));
+    if let Some(pattern) = &search_pattern {
+        filters_clause.push_str(&format!(
+            "concat_ws(' ', u.username, u.first_name, u.last_name, u.email) ILIKE ${next_param_number} AND ",
+        ));
+        params.push(pattern);
+        next_param_number += 1;
     }
 
     // Add area-related joins/filters.
@@ -929,6 +1436,17 @@ pub async fn list_users(
     keycloak_transaction: &Transaction<'_>,
     filter: ListUsersFilter,
 ) -> Result<(Vec<User>, i32)> {
+    list_users_page(hasura_transaction, keycloak_transaction, filter, None, true).await
+}
+
+/// Internal keyset scans do not repeatedly recount the entire matching census.
+async fn list_users_page(
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
+    filter: ListUsersFilter,
+    after_user_id: Option<&str>,
+    count_rows: bool,
+) -> Result<(Vec<User>, i32)> {
     info!("filter: {filter:?}");
     let low_sql_limit = PgConfig::from_env()?.low_sql_limit;
     let default_sql_limit = PgConfig::from_env()?.default_sql_limit;
@@ -970,6 +1488,19 @@ pub async fn list_users(
     }
     for filt_param in filter_params.iter() {
         params.push(filt_param);
+    }
+    let search_pattern = filter
+        .search
+        .as_deref()
+        .map(str::trim)
+        .filter(|text| !text.is_empty())
+        .map(|text| format!("%{text}%"));
+    if let Some(pattern) = &search_pattern {
+        filters_clause.push_str(&format!(
+            "concat_ws(' ', u.username, u.first_name, u.last_name, u.email) ILIKE ${next_param_number} AND ",
+        ));
+        params.push(pattern);
+        next_param_number += 1;
     }
 
     let (area_ids, area_ids_join_clause, area_ids_where_clause) = get_area_ids(
@@ -1049,12 +1580,29 @@ pub async fn list_users(
         }
     };
 
+    if after_user_id.is_some() {
+        filters_clause.push_str(&format!("u.id > ${next_param_number} AND "));
+        params.push(&after_user_id);
+        next_param_number += 1;
+    }
+    let keyset_scan = after_user_id.is_some();
+    // A voter may have several matching area attributes. Group by the
+    // user_entity primary key before applying participation pagination.
+    let group_users = if keyset_scan || filter.has_voted.is_some() {
+        "GROUP BY u.id"
+    } else {
+        ""
+    };
+
     // The count query below has no ORDER BY clause, so it must not receive the
     // optional dynamic-attribute sort parameter used by the listing query.
     let count_params_len = params.len();
     let mut sort_params: Vec<Option<String>> = vec![];
+    let requested_sort = if keyset_scan { None } else { filter.sort };
     let (sort_clause, field_param) =
-        get_sort_clause_and_field_param(filter.sort, next_param_number);
+        get_sort_clause_and_field_param(requested_sort.clone(), next_param_number);
+    // Ordering inside a CTE does not order the containing SELECT.
+    let (scan_order, _) = user_sort_for_alias(requested_sort, next_param_number, "lu");
 
     if field_param.is_some() {
         sort_params.push(field_param);
@@ -1093,6 +1641,7 @@ pub async fn list_users(
                 {enabled_condition}
                 {email_verified_condition}
                 {dynamic_attr_clause}
+            {group_users}
             {sort_clause}
             LIMIT {query_limit} OFFSET {query_offset}
         )
@@ -1119,7 +1668,8 @@ pub async fn list_users(
                 WHERE ua.user_id = lu.id
                 GROUP BY ua.name
             ) attr
-        ) attr_json ON TRUE;
+        ) attr_json ON TRUE
+        {scan_order};
         "#
     );
     debug!("statement_str {statement_str:?}");
@@ -1158,15 +1708,19 @@ pub async fn list_users(
     );
     debug!("statement_str {count_statement_str:?}");
 
-    let count_statement = keycloak_transaction
-        .prepare(count_statement_str.as_str())
-        .await?;
-    let count_row: Row = keycloak_transaction
-        .query_one(&count_statement, &params[..count_params_len])
-        .await
-        .map_err(|err| anyhow!("{}", err))?;
+    let count: i32 = if count_rows {
+        let count_statement = keycloak_transaction
+            .prepare(count_statement_str.as_str())
+            .await?;
+        let count_row: Row = keycloak_transaction
+            .query_one(&count_statement, &params[..count_params_len])
+            .await
+            .map_err(|err| anyhow!("{}", err))?;
 
-    let count: i32 = count_row.try_get::<&str, i64>("total_count")?.try_into()?;
+        count_row.try_get::<&str, i64>("total_count")?.try_into()?
+    } else {
+        0
+    };
 
     // Process the users
     let users = rows
@@ -1228,18 +1782,20 @@ pub async fn list_users_with_vote_info(
         .ok_or(anyhow!("Election event id is empty"))?;
     let election_id = filter.election_id.clone();
 
-    let filter_by_has_voted = filter.has_voted.clone();
+    let filter_by_has_voted = filter.has_voted;
+    let permitted_election_ids = filter.permitted_election_ids.clone();
     let (mut users, users_count) = list_users(hasura_transaction, keycloak_transaction, filter)
         .await
         .with_context(|| "Error listing users")?;
 
-    let users: Vec<User> = get_users_with_vote_info(
+    let users: Vec<User> = get_users_with_vote_info_in_elections(
         hasura_transaction,
         tenant_id.as_str(),
         election_event_id.as_str(),
         election_id,
         users,
         filter_by_has_voted,
+        permitted_election_ids.as_deref(),
     )
     .await
     .with_context(|| "Error listing users with vote info")?;
@@ -1754,57 +2310,40 @@ pub async fn get_user_area_id(
     }
 }
 
+/// Voters of the filter's election event, or of one of its elections, with a valid
+/// vote.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn count_have_voted(
     hasura_transaction: &Transaction<'_>,
     filter: &ListUsersFilter,
     tenant_id: &str,
-) -> Result<(i32)> {
-    let tenant_uuid = parse_uuid_v4(tenant_id)?;
-    let mut params: Vec<Box<dyn ToSql + Send + Sync>> = vec![
-        Box::new(tenant_uuid),
-        Box::new(CastVoteStatus::Valid.to_string()),
-    ];
-    let mut filter_clauses: Vec<String> = vec!["status = $2".to_string()];
-    let mut next_param_number = 3;
-
-    if let Some(election_event_id_str) = &filter.election_event_id {
-        let election_event_id_uuid = parse_uuid_v4(election_event_id_str)?;
-        let clause = format!("election_event_id = ${next_param_number}");
-        filter_clauses.push(clause);
-        params.push(Box::new(election_event_id_uuid));
-        next_param_number += 1;
-    }
-    if let Some(election_id_str) = &filter.election_id {
-        let election_id_uuid = parse_uuid_v4(election_id_str)?;
-        let clause = format!("election_id = ${next_param_number}");
-        filter_clauses.push(clause);
-        params.push(Box::new(election_id_uuid));
-        next_param_number += 1;
-    }
-    let filter_clause = filter_clauses.join(" AND\n                    ");
-
-    let statement_str = format!(
-        r#"
-                SELECT COUNT(DISTINCT voter_id_string)
-                as total_count
-                FROM sequent_backend.cast_vote
-                WHERE
-                    tenant_id = $1 AND
-                    {filter_clause}
-                "#
-    );
-
-    let statement = hasura_transaction.prepare(statement_str.as_str()).await?;
-    let params_slice: Vec<&(dyn ToSql + Sync)> = params
-        .iter()
-        .map(|p| p.as_ref() as &(dyn ToSql + Sync))
-        .collect();
-    let count_row = hasura_transaction
-        .query_one(&statement, &params_slice)
-        .await?;
-    let count = count_row.try_get::<&str, i64>("total_count")?.try_into()?;
-    Ok(count)
+) -> Result<i32> {
+    let election_event_id = filter
+        .election_event_id
+        .as_deref()
+        .ok_or_else(|| anyhow!("Counting the voters who voted needs an election event"))?;
+    let election_id = filter
+        .election_id
+        .as_deref()
+        .map(parse_uuid_v4)
+        .transpose()?
+        .map(|id| id.to_string());
+    let ballot_box = get_event_ballot_box(hasura_transaction, tenant_id, election_event_id).await?;
+    let voters = if ballot_box.store.ballot_identity(election_event_id).await?
+        == electoral_log::adapters::privacy::BallotIdentity::Pseudonym
+    {
+        ballot_box
+            .store
+            .privacy_participation_count(election_event_id, election_id.as_deref())
+            .await?
+    } else {
+        ballot_box
+            .store
+            .participation(election_event_id, election_id.as_deref(), None)
+            .await?
+            .voters
+    };
+    Ok(voters.try_into()?)
 }
 
 #[instrument(skip(hasura_transaction, keycloak_transaction), err)]
@@ -1814,111 +2353,192 @@ pub async fn list_users_has_voted(
     filter: ListUsersFilter,
     tenant_id: &str,
 ) -> Result<(Vec<User>, i32)> {
-    let limit = filter.limit.ok_or(anyhow!("Limit not specified."))? as usize;
-    let batch_size = PgConfig::from_env()
-        .map_err(|e| anyhow!("Error getting default_sql_batch_size {e:?}"))?
-        .default_sql_batch_size;
-    info!("batch_size {batch_size}");
-    let real_offset = filter.offset.unwrap_or(0);
-
-    // Get the total number of users who have actually voted.
-    let count_total_voted =
-        count_have_voted(hasura_transaction, &filter, tenant_id).await? as usize;
-    // Get the total voters
-    let count_total_voters =
-        count_keycloak_enabled_users(keycloak_transaction, &filter.realm).await? as usize;
-    info!("count_total_voters: {count_total_voters}, count_total_voted: {count_total_voted}");
-    let count_total_not_voted = if count_total_voted <= count_total_voters {
-        count_total_voters - count_total_voted
-    } else {
-        0usize
-    };
-
-    // This will only store the final page of users.
-    let mut final_users = Vec::with_capacity(limit);
-    // Counter for how many users we still need to skip *after filtering*.
-    let mut users_to_skip = real_offset as usize;
-    // Counter for total users found that match the filter, to respect `count_voted`.
-    let mut matching_users_found = 0;
-
-    let mut fetch_offset = 0; // The offset for the database query.
-    let mut total_users_from_filter = 0;
-
-    // Loop until the page is full or we run out of potential users.
-    while final_users.len() < limit {
-        // If we've already processed all possible voted users, stop.
-        if matching_users_found >= count_total_voted && Some(true) == filter.has_voted {
+    let wanted = filter
+        .has_voted
+        .context("Participation filter not specified")?;
+    let event = filter
+        .election_event_id
+        .as_deref()
+        .context("Participation requires an event")?;
+    let settings = PgConfig::from_env()?;
+    let batch_size = settings
+        .default_sql_batch_size
+        .min(settings.low_sql_limit)
+        .max(1);
+    let mut after = String::new();
+    let mut matching_ids = Vec::new();
+    loop {
+        let mut batch = filter.clone();
+        batch.limit = Some(batch_size);
+        batch.offset = Some(0);
+        batch.sort = None;
+        let (users, _) = list_users_page(
+            hasura_transaction,
+            keycloak_transaction,
+            batch,
+            Some(&after),
+            false,
+        )
+        .await?;
+        if users.is_empty() {
             break;
         }
-
-        // If we've already processed all possible non voted users, stop.
-        if matching_users_found >= count_total_not_voted && Some(false) == filter.has_voted {
-            break;
-        }
-
-        let mut batch_filter = filter.clone();
-        batch_filter.offset = Some(fetch_offset);
-        batch_filter.limit = Some(batch_size as i32);
-
-        let (mut voters, count_voters) =
-            list_users_with_vote_info(hasura_transaction, keycloak_transaction, batch_filter)
-                .await?;
-
-        if total_users_from_filter == 0 {
-            total_users_from_filter = count_voters;
-        }
-
-        let fetched_count = voters.len();
-        if fetched_count == 0 {
-            break; // No more users available from the source.
-        }
-
-        fetch_offset += fetched_count as i32;
-
-        // Filter the batch by the `has_voted` criteria.
-        if let Some(has_voted) = filter.has_voted {
-            voters.retain(|voter| {
-                let info_count = voter.votes_info.as_ref().map(|v| v.len()).unwrap_or(0);
-                if has_voted {
-                    info_count > 0
-                } else {
-                    info_count == 0
-                }
-            });
-        }
-
-        // Process the filtered batch, skipping or collecting each user.
-        for voter in voters {
-            matching_users_found += 1;
-
-            if users_to_skip > 0 {
-                users_to_skip -= 1;
-                continue; // Skip this user and move to the next.
-            }
-
-            // If skipping is done, start collecting.
-            final_users.push(voter);
-
-            // If the page is full, we can stop entirely.
-            if final_users.len() == limit {
-                break;
-            }
-        }
+        let next = users
+            .iter()
+            .filter_map(|user| user.id.as_ref())
+            .max()
+            .context("A listed voter has no identifier")?
+            .clone();
+        anyhow::ensure!(next > after, "Voter scan did not advance");
+        let users = get_users_with_vote_info_in_elections(
+            hasura_transaction,
+            tenant_id,
+            event,
+            filter.election_id.clone(),
+            users,
+            None,
+            filter.permitted_election_ids.as_deref(),
+        )
+        .await?;
+        matching_ids.extend(
+            users
+                .into_iter()
+                .filter(|user| {
+                    let voted = user
+                        .votes_info
+                        .as_ref()
+                        .is_some_and(|votes| !votes.is_empty());
+                    voted == wanted
+                })
+                .filter_map(|user| user.id),
+        );
+        after = next;
+    }
+    matching_ids.sort_unstable();
+    matching_ids.dedup();
+    let total = matching_ids
+        .len()
+        .try_into()
+        .context("Too many matching voters")?;
+    if matching_ids.is_empty() || filter.limit == Some(0) {
+        return Ok((vec![], total));
     }
 
-    // The total count should not exceed the number of users who have actually voted or not voted.
-    let final_total = if let Some(true) = filter.has_voted {
-        min(total_users_from_filter, count_total_voted as i32)
-    } else {
-        min(total_users_from_filter, count_total_not_voted as i32)
-    };
-
-    Ok((final_users, final_total))
+    // The same matching identity set controls both the total and the normal
+    // requested sort/page. Participation lookups never read privacy ballots.
+    let mut page = filter.clone();
+    page.user_ids = Some(matching_ids);
+    let (users, _) =
+        list_users_page(hasura_transaction, keycloak_transaction, page, None, false).await?;
+    let users = get_users_with_vote_info_in_elections(
+        hasura_transaction,
+        tenant_id,
+        event,
+        filter.election_id.clone(),
+        users,
+        None,
+        filter.permitted_election_ids.as_deref(),
+    )
+    .await?;
+    Ok((users, total))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const AREA: &str = "10000000-0000-4000-8000-00000000000a";
+
+    #[test]
+    fn privacy_census_sorts_the_new_identity_and_preserves_multiplicity() {
+        let mapping = HashMap::from([
+            ("real-a".to_owned(), "ZZZZ-ZZZZ".to_owned()),
+            ("real-b".to_owned(), "AAAA-AAAA".to_owned()),
+        ]);
+        // Both weight and delegate-count multiplicities survive the identity swap.
+        for values in [[Some(7), Some(2)], [Some(0), Some(4)], [None, None]] {
+            let rows = pseudonymous_census_rows(
+                vec![
+                    CensusRow {
+                        identity: "real-a".to_owned(),
+                        multiplicity: values[0],
+                    },
+                    CensusRow {
+                        identity: "real-b".to_owned(),
+                        multiplicity: values[1],
+                    },
+                ],
+                &mapping,
+            )
+            .unwrap();
+            assert_eq!(
+                rows,
+                vec![
+                    CensusRow {
+                        identity: "AAAA-AAAA".to_owned(),
+                        multiplicity: values[1]
+                    },
+                    CensusRow {
+                        identity: "ZZZZ-ZZZZ".to_owned(),
+                        multiplicity: values[0]
+                    },
+                ]
+            );
+        }
+    }
+
+    #[test]
+    fn privacy_census_refuses_missing_mapping_without_disclosing_identity() {
+        let result = pseudonymous_census_rows(
+            vec![CensusRow {
+                identity: "unregistered-real-voter".to_owned(),
+                multiplicity: None,
+            }],
+            &HashMap::new(),
+        );
+        let error = result.unwrap_err().to_string();
+        assert!(!error.contains("unregistered-real-voter"));
+        assert!(error.contains("missing privacy registrations"));
+    }
+
+    #[test]
+    fn the_delegate_count_only_counts_eligible_delegators_without_a_ballot() {
+        let select = multiplicity_select(
+            VoterMultiplicityColumn::DelegateCount,
+            AREA,
+            "election-a",
+            None,
+        );
+
+        assert!(select.contains("COUNT(DISTINCT delegator.id)"));
+        assert!(select.contains("delegator.realm_id = u.realm_id"));
+        assert!(select.contains(&format!("ua_delegator_area.value = '{AREA}'")));
+        assert!(select.contains("ua_delegator_elections.value = 'election-a'"));
+        assert!(select.contains(&format!("pg_temp.{VOTERS_WITH_VALID_BALLOT_TABLE}")));
+        assert!(select.contains("AS delegate_count"));
+    }
+
+    #[test]
+    fn the_vote_weight_column_defaults_a_missing_attribute() {
+        let select = multiplicity_select(
+            VoterMultiplicityColumn::VoteWeight,
+            AREA,
+            "election-a",
+            None,
+        );
+
+        assert!(select.contains(&format!("{DEFAULT_VOTE_WEIGHT})")));
+        assert!(select.contains("AS vote_weight"));
+        assert!(!select.contains(VOTERS_WITH_VALID_BALLOT_TABLE));
+    }
+
+    #[test]
+    fn no_multiplicity_adds_no_column() {
+        assert_eq!(
+            multiplicity_select(VoterMultiplicityColumn::None, AREA, "election-a", None),
+            ""
+        );
+    }
 
     #[test]
     fn test_sql_boolean_operator_and_format() {
@@ -1962,5 +2582,386 @@ mod tests {
         assert!(clause.contains("ra.name = $1"));
         assert!(clause.contains(r#"("email" = $3) AND"#));
         assert!(clause.contains("(u.id = ANY($2) OR $2 IS NULL)"));
+    }
+    fn voter(enabled: bool, attributes: &[(&str, &[&str])]) -> User {
+        User {
+            enabled: Some(enabled),
+            attributes: Some(
+                attributes
+                    .iter()
+                    .map(|(name, values)| {
+                        (
+                            name.to_string(),
+                            values.iter().map(|value| value.to_string()).collect(),
+                        )
+                    })
+                    .collect(),
+            ),
+            ..User::default()
+        }
+    }
+
+    fn requested(attributes: &[(&str, &[&str])]) -> HashMap<String, Vec<String>> {
+        voter(true, attributes).attributes.unwrap_or_default()
+    }
+
+    #[test]
+    fn census_changes_detect_every_tally_attribute() {
+        let current = voter(
+            true,
+            &[
+                (AREA_ID_ATTR_NAME, &["area-a"]),
+                (AUTHORIZED_ELECTION_IDS_NAME, &["mayor", "council"]),
+                (VOTE_WEIGHT_ATTR_NAME, &["1"]),
+                (DELEGATE_TO_ATTR_NAME, &["alice"]),
+            ],
+        );
+        let edit = requested(&[
+            (AREA_ID_ATTR_NAME, &["area-b"]),
+            (AUTHORIZED_ELECTION_IDS_NAME, &["mayor"]),
+            (VOTE_WEIGHT_ATTR_NAME, &["5"]),
+            (DELEGATE_TO_ATTR_NAME, &["bob"]),
+        ]);
+
+        assert_eq!(
+            changed_census_attributes(&current, Some(false), &edit),
+            vec![
+                CensusAttribute::Enabled,
+                CensusAttribute::AreaId,
+                CensusAttribute::AuthorizedElectionIds,
+                CensusAttribute::VoteWeight,
+                CensusAttribute::DelegateVoteTo,
+            ]
+        );
+    }
+
+    #[test]
+    fn census_changes_detect_added_and_removed_attributes() {
+        let current = voter(true, &[(AUTHORIZED_ELECTION_IDS_NAME, &["mayor"])]);
+        let edit = requested(&[
+            (AUTHORIZED_ELECTION_IDS_NAME, &[]),
+            (VOTE_WEIGHT_ATTR_NAME, &["3"]),
+        ]);
+
+        assert_eq!(
+            changed_census_attributes(&current, None, &edit),
+            vec![
+                CensusAttribute::AuthorizedElectionIds,
+                CensusAttribute::VoteWeight,
+            ]
+        );
+    }
+
+    #[test]
+    fn echoed_or_unrelated_values_change_no_census_attribute() {
+        let current = voter(
+            true,
+            &[
+                (AREA_ID_ATTR_NAME, &["area-a"]),
+                (AUTHORIZED_ELECTION_IDS_NAME, &["mayor", "council"]),
+                ("first-language", &["en"]),
+            ],
+        );
+        let edit = requested(&[
+            (AREA_ID_ATTR_NAME, &["area-a"]),
+            (AUTHORIZED_ELECTION_IDS_NAME, &["council", "mayor"]),
+            (VOTE_WEIGHT_ATTR_NAME, &[]),
+            ("first-language", &["fr"]),
+        ]);
+
+        assert!(changed_census_attributes(&current, Some(true), &edit).is_empty());
+        assert!(changed_census_attributes(&current, None, &HashMap::new()).is_empty());
+    }
+
+    #[test]
+    fn reweighted_delegates_are_the_delegates_gained_or_lost() {
+        let current = voter(true, &[(DELEGATE_TO_ATTR_NAME, &["alice"])]);
+
+        assert_eq!(
+            reweighted_delegates(&current, &requested(&[(DELEGATE_TO_ATTR_NAME, &["bob"])])),
+            vec!["alice".to_string(), "bob".to_string()]
+        );
+        assert_eq!(
+            reweighted_delegates(&current, &requested(&[(DELEGATE_TO_ATTR_NAME, &[])])),
+            vec!["alice".to_string()]
+        );
+        assert_eq!(
+            reweighted_delegates(
+                &voter(true, &[]),
+                &requested(&[(DELEGATE_TO_ATTR_NAME, &["bob"])])
+            ),
+            vec!["bob".to_string()]
+        );
+    }
+
+    #[test]
+    fn an_unchanged_delegation_reweights_no_delegate() {
+        let current = voter(true, &[(DELEGATE_TO_ATTR_NAME, &["alice"])]);
+
+        assert!(
+            reweighted_delegates(&current, &requested(&[(DELEGATE_TO_ATTR_NAME, &["alice"])]))
+                .is_empty()
+        );
+        assert!(
+            reweighted_delegates(&current, &requested(&[(AREA_ID_ATTR_NAME, &["area-b"])]))
+                .is_empty()
+        );
+    }
+
+    fn cast_vote_state(has_pending: bool, has_valid: bool) -> VoterBallotState {
+        VoterBallotState {
+            has_pending,
+            has_valid,
+        }
+    }
+
+    #[test]
+    fn census_change_is_refused_for_a_voter_with_an_active_ballot() {
+        let changed = [CensusAttribute::AreaId, CensusAttribute::VoteWeight];
+        for state in [cast_vote_state(true, false), cast_vote_state(false, true)] {
+            assert_eq!(
+                census_change_refusal(&state, &changed).as_deref(),
+                Some("Cannot change area-id, vote-weight of a voter who has cast a ballot")
+            );
+        }
+    }
+
+    #[test]
+    fn census_change_is_allowed_without_an_active_ballot_or_without_changes() {
+        assert_eq!(
+            census_change_refusal(&cast_vote_state(false, false), &[CensusAttribute::Enabled]),
+            None
+        );
+        assert_eq!(
+            census_change_refusal(&cast_vote_state(false, true), &[]),
+            None
+        );
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL configured through KEYCLOAK_DB__*"]
+    async fn delegate_count_only_counts_eligible_delegators_without_a_ballot() -> Result<()> {
+        const AREA_ID: &str = "10000000-0000-4000-8000-00000000000a";
+        const OTHER_AREA_ID: &str = "10000000-0000-4000-8000-00000000000b";
+        const ELECTION_ALIAS: &str = "election-a";
+
+        let pool = crate::services::database::generate_keycloak_pool().await?;
+        let mut client = pool.get().await?;
+        let transaction = client.transaction().await?;
+        transaction
+            .batch_execute(&format!(
+                r#"
+                CREATE TEMP TABLE realm (id TEXT PRIMARY KEY, name TEXT) ON COMMIT DROP;
+                CREATE TEMP TABLE user_entity (
+                    id TEXT PRIMARY KEY,
+                    realm_id TEXT,
+                    username TEXT,
+                    enabled BOOLEAN,
+                    service_account_client_link TEXT
+                ) ON COMMIT DROP;
+                CREATE TEMP TABLE user_attribute (
+                    id SERIAL PRIMARY KEY,
+                    user_id TEXT,
+                    name TEXT,
+                    value TEXT
+                ) ON COMMIT DROP;
+                INSERT INTO realm (id, name) VALUES ('realm-a', 'event-a'), ('realm-b', 'event-b');
+                INSERT INTO user_entity (id, realm_id, username, enabled, service_account_client_link)
+                VALUES ('bob', 'realm-a', 'bob', true, NULL),
+                       ('zoe', 'realm-a', 'zoe', true, NULL),
+                       ('voted', 'realm-a', 'voted', true, NULL),
+                       ('disabled', 'realm-a', 'disabled', false, NULL),
+                       ('other-area', 'realm-a', 'other-area', true, NULL),
+                       ('other-election', 'realm-a', 'other-election', true, NULL),
+                       ('this-election', 'realm-a', 'this-election', true, NULL),
+                       ('repeated', 'realm-a', 'repeated', true, NULL),
+                       ('two-delegates', 'realm-a', 'two-delegates', true, NULL),
+                       ('eligible', 'realm-a', 'eligible', true, NULL),
+                       ('service', 'realm-a', 'service', true, 'client'),
+                       ('other-realm', 'realm-b', 'other-realm', true, NULL);
+                INSERT INTO user_attribute (user_id, name, value)
+                SELECT id, '{AREA_ID_ATTR_NAME}', '{AREA_ID}' FROM user_entity WHERE id <> 'other-area';
+                INSERT INTO user_attribute (user_id, name, value)
+                VALUES ('other-area', '{AREA_ID_ATTR_NAME}', '{OTHER_AREA_ID}'),
+                       ('other-election', '{AUTHORIZED_ELECTION_IDS_NAME}', 'election-b'),
+                       ('this-election', '{AUTHORIZED_ELECTION_IDS_NAME}', '{ELECTION_ALIAS}'),
+                       ('voted', '{DELEGATE_TO_ATTR_NAME}', 'bob'),
+                       ('disabled', '{DELEGATE_TO_ATTR_NAME}', 'bob'),
+                       ('other-area', '{DELEGATE_TO_ATTR_NAME}', 'bob'),
+                       ('other-election', '{DELEGATE_TO_ATTR_NAME}', 'bob'),
+                       ('this-election', '{DELEGATE_TO_ATTR_NAME}', 'bob'),
+                       ('repeated', '{DELEGATE_TO_ATTR_NAME}', 'bob'),
+                       ('repeated', '{DELEGATE_TO_ATTR_NAME}', 'bob'),
+                       ('two-delegates', '{DELEGATE_TO_ATTR_NAME}', 'bob'),
+                       ('two-delegates', '{DELEGATE_TO_ATTR_NAME}', 'zoe'),
+                       ('eligible', '{DELEGATE_TO_ATTR_NAME}', 'bob'),
+                       ('service', '{DELEGATE_TO_ATTR_NAME}', 'bob'),
+                       ('other-realm', '{DELEGATE_TO_ATTR_NAME}', 'bob');
+                "#
+            ))
+            .await?;
+
+        let output_file = tempfile::NamedTempFile::new()?;
+        list_keycloak_enabled_users_by_area_id_and_authorized_elections(
+            &transaction,
+            "event-a",
+            AREA_ID,
+            ELECTION_ALIAS,
+            &output_file.path().to_path_buf(),
+            VoterMultiplicityColumn::DelegateCount,
+            &["bob".to_string(), "voted".to_string()],
+        )
+        .await?;
+        transaction.rollback().await?;
+
+        let delegate_counts: HashMap<String, u64> = csv::ReaderBuilder::new()
+            .has_headers(false)
+            .from_reader(output_file.reopen()?)
+            .records()
+            .map(|record| {
+                let record = record?;
+                Ok((record[0].to_string(), record[1].parse()?))
+            })
+            .collect::<Result<_>>()?;
+
+        // Only repeated, this-election and eligible transfer their vote.
+        assert_eq!(delegate_counts.get("bob"), Some(&3));
+        assert_eq!(delegate_counts.get("zoe"), Some(&0));
+        assert_eq!(delegate_counts.get("other-election"), None);
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL configured through KEYCLOAK_DB__*"]
+    async fn the_voters_of_areas_are_the_enabled_ones_each_counted_once() -> Result<()> {
+        const NORTH: &str = "20000000-0000-4000-8000-00000000000a";
+        const SOUTH: &str = "20000000-0000-4000-8000-00000000000b";
+        // An area whose contests are all acclaimed: nothing to tally there.
+        const ACCLAIMED: &str = "20000000-0000-4000-8000-00000000000c";
+        const ELSEWHERE: &str = "20000000-0000-4000-8000-00000000000d";
+        // Every voter of this area is disabled.
+        const DISABLED: &str = "20000000-0000-4000-8000-00000000000e";
+        // Its voter is authorized for an election without an external id,
+        // which Keycloak names by its id.
+        const BY_ID: &str = "20000000-0000-4000-8000-00000000000f";
+        const ELECTION_ID: &str = "30000000-0000-4000-8000-000000000001";
+        const ELECTION_ALIAS: &str = "election-a";
+
+        let pool = crate::services::database::generate_keycloak_pool().await?;
+        let mut client = pool.get().await?;
+        let transaction = client.transaction().await?;
+        transaction
+            .batch_execute(&format!(
+                r#"
+                CREATE TEMP TABLE realm (id TEXT PRIMARY KEY, name TEXT) ON COMMIT DROP;
+                CREATE TEMP TABLE user_entity (
+                    id TEXT PRIMARY KEY,
+                    realm_id TEXT,
+                    username TEXT,
+                    enabled BOOLEAN,
+                    service_account_client_link TEXT
+                ) ON COMMIT DROP;
+                CREATE TEMP TABLE user_attribute (
+                    id SERIAL PRIMARY KEY,
+                    user_id TEXT,
+                    name TEXT,
+                    value TEXT
+                ) ON COMMIT DROP;
+                INSERT INTO realm (id, name) VALUES ('realm-a', 'event-a'), ('realm-b', 'event-b');
+                INSERT INTO user_entity (id, realm_id, username, enabled, service_account_client_link)
+                VALUES ('north-1', 'realm-a', 'north-1', true, NULL),
+                       ('north-2', 'realm-a', 'north-2', true, NULL),
+                       ('north-off', 'realm-a', 'north-off', false, NULL),
+                       ('south-1', 'realm-a', 'south-1', true, NULL),
+                       ('acclaimed-1', 'realm-a', 'acclaimed-1', true, NULL),
+                       ('acclaimed-2', 'realm-a', 'acclaimed-2', true, NULL),
+                       ('acclaimed-off', 'realm-a', 'acclaimed-off', false, NULL),
+                       ('both', 'realm-a', 'both', true, NULL),
+                       ('this-election', 'realm-a', 'this-election', true, NULL),
+                       ('other-election', 'realm-a', 'other-election', true, NULL),
+                       ('elsewhere', 'realm-a', 'elsewhere', true, NULL),
+                       ('disabled-1', 'realm-a', 'disabled-1', false, NULL),
+                       ('disabled-2', 'realm-a', 'disabled-2', false, NULL),
+                       ('by-id', 'realm-a', 'by-id', true, NULL),
+                       ('service', 'realm-a', 'service', true, 'client'),
+                       ('other-realm', 'realm-b', 'other-realm', true, NULL);
+                INSERT INTO user_attribute (user_id, name, value)
+                VALUES ('north-1', '{AREA_ID_ATTR_NAME}', '{NORTH}'),
+                       ('north-2', '{AREA_ID_ATTR_NAME}', '{NORTH}'),
+                       ('north-off', '{AREA_ID_ATTR_NAME}', '{NORTH}'),
+                       ('south-1', '{AREA_ID_ATTR_NAME}', '{SOUTH}'),
+                       ('acclaimed-1', '{AREA_ID_ATTR_NAME}', '{ACCLAIMED}'),
+                       ('acclaimed-2', '{AREA_ID_ATTR_NAME}', '{ACCLAIMED}'),
+                       ('acclaimed-off', '{AREA_ID_ATTR_NAME}', '{ACCLAIMED}'),
+                       ('both', '{AREA_ID_ATTR_NAME}', '{NORTH}'),
+                       ('both', '{AREA_ID_ATTR_NAME}', '{ACCLAIMED}'),
+                       ('this-election', '{AREA_ID_ATTR_NAME}', '{SOUTH}'),
+                       ('this-election', '{AUTHORIZED_ELECTION_IDS_NAME}', 'election-b'),
+                       ('this-election', '{AUTHORIZED_ELECTION_IDS_NAME}', '{ELECTION_ALIAS}'),
+                       ('other-election', '{AREA_ID_ATTR_NAME}', '{SOUTH}'),
+                       ('other-election', '{AUTHORIZED_ELECTION_IDS_NAME}', 'election-b'),
+                       ('elsewhere', '{AREA_ID_ATTR_NAME}', '{ELSEWHERE}'),
+                       ('disabled-1', '{AREA_ID_ATTR_NAME}', '{DISABLED}'),
+                       ('disabled-2', '{AREA_ID_ATTR_NAME}', '{DISABLED}'),
+                       ('by-id', '{AREA_ID_ATTR_NAME}', '{BY_ID}'),
+                       ('by-id', '{AUTHORIZED_ELECTION_IDS_NAME}', '{ELECTION_ID}'),
+                       ('service', '{AREA_ID_ATTR_NAME}', '{NORTH}'),
+                       ('other-realm', '{AREA_ID_ATTR_NAME}', '{NORTH}');
+                "#
+            ))
+            .await?;
+
+        let areas = |ids: &[&str]| ids.iter().map(|id| id.to_string()).collect::<Vec<_>>();
+        let count = |of: Vec<String>, except: Vec<String>| {
+            let transaction = &transaction;
+            async move {
+                count_keycloak_enabled_voters_of_areas(
+                    transaction,
+                    "event-a",
+                    &of,
+                    &except,
+                    ELECTION_ALIAS,
+                )
+                .await
+            }
+        };
+
+        // north-1, north-2, both, south-1, this-election, acclaimed-1 and
+        // acclaimed-2: `both` once although it is in two of the areas, and
+        // nobody disabled, authorized elsewhere, a service account or from
+        // another realm.
+        assert_eq!(count(areas(&[NORTH, SOUTH, ACCLAIMED]), vec![]).await?, 7);
+        // Each area on its own, as the per-area census reads them.
+        assert_eq!(count(areas(&[NORTH]), vec![]).await?, 3);
+        assert_eq!(count(areas(&[SOUTH]), vec![]).await?, 2);
+        assert_eq!(count(areas(&[ACCLAIMED]), vec![]).await?, 3);
+        // The acclaimed area beside two areas counted elsewhere: `both` is
+        // already one of theirs.
+        assert_eq!(count(areas(&[ACCLAIMED]), areas(&[NORTH, SOUTH])).await?, 2);
+        assert_eq!(count(areas(&[DISABLED]), vec![]).await?, 0);
+        assert_eq!(
+            count(areas(&[NORTH, SOUTH, ACCLAIMED, DISABLED]), vec![]).await?,
+            7
+        );
+        assert_eq!(count(vec![], vec![]).await?, 0);
+        // Named by its id, the election has the voter authorized by its id;
+        // named by an empty alias, it does not.
+        let by_id = |alias: &'static str| {
+            let transaction = &transaction;
+            async move {
+                count_keycloak_enabled_voters_of_areas(
+                    transaction,
+                    "event-a",
+                    &[BY_ID.to_string()],
+                    &[],
+                    alias,
+                )
+                .await
+            }
+        };
+        assert_eq!(by_id(ELECTION_ID).await?, 1);
+        assert_eq!(by_id("").await?, 0);
+        transaction.rollback().await?;
+        Ok(())
     }
 }

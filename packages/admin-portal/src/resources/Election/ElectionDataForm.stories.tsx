@@ -141,3 +141,32 @@ export const AdvancedPoliciesSaveAndRestore: Story = {
         })
     },
 }
+
+export const FullWidthDateAndTime: Story = {
+    parameters: {
+        expectedFailure: {
+            reason: "The language selector's default-language radios have no labels.",
+            a11y: ["label"],
+        },
+    },
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByDisplayValue("Council election")
+        await userEvent.click(canvas.getByRole("button", {name: "Language, Date and Time"}))
+        await waitFor(() =>
+            expect(
+                canvas
+                    .getByRole("button", {name: "General"})
+                    .closest(".MuiAccordion-root")
+                    ?.querySelector(".MuiCollapse-root")
+            ).toHaveClass("MuiCollapse-hidden")
+        )
+        const timezone = canvas.getByRole("combobox", {name: "Timezone"})
+        await waitFor(() => expect(timezone).toBeVisible())
+        const details = timezone.closest(".MuiAccordionDetails-root") as HTMLElement
+        const style = getComputedStyle(details)
+        const available =
+            details.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)
+        expect(timezone.getBoundingClientRect().width).toBeGreaterThan(available * 0.9)
+    },
+}

@@ -4,13 +4,13 @@
 
 use crate::domain::tally_ceremony::TallyExecuter;
 use crate::ports::tally_ceremony::{
-    DecryptionSet, ElectionEventReader, ElectionsById, EnvironmentSlug, KeysCeremonyReader,
-    NewTallySession, TallyCeremonyAudit, TallyCreationReader, TallyEventSnapshot, TallySessions,
-    TrusteePrivateKeys,
+    BallotBoxSealState, DecryptionSet, ElectionEventReader, ElectionsById, EnvironmentSlug,
+    KeysCeremonyReader, NewTallySession, TallyCeremonyAudit, TallyCreationReader,
+    TallyEventSnapshot, TallySessions, TrusteeCustody,
 };
 use anyhow::{anyhow, Result};
-use b4::messages::newtypes::BatchNumber;
 use sequent_core::services::jwt::JwtClaims;
+use sequent_core::types::ceremonies::BatchNumber;
 use sequent_core::types::ceremonies::{TallyCeremonyStatus, TallyExecutionStatus, TallyRunReason};
 use sequent_core::types::hasura::core::{
     Area, AreaContest, BallotStyle, Contest, Election, ElectionEvent, KeysCeremony, TallySession,
@@ -37,13 +37,14 @@ pub enum TallyCall {
     EventSnapshot,
     PublishedBallotStyles,
     ApprovedTallySheets,
+    BallotBoxSeals,
     GetKeysCeremony,
-    GetPrivateKey,
+    VerifyCustodyProof,
     GetElections,
     GetElectionEvent,
     EnvSlug,
     TallyOpened,
-    KeyRestored,
+    CustodyAuthorizationd,
     KeyInsertionStarted,
     TallyClosed,
 }
@@ -59,7 +60,7 @@ pub enum TallyAuditEntry {
         user_id: String,
         username: String,
     },
-    KeyRestored {
+    CustodyAuthorizationd {
         board_name: String,
         tenant_id: String,
         election_event_id: String,
@@ -113,9 +114,15 @@ struct State {
     areas: Vec<Area>,
     area_contests: Vec<ScopedAreaContest>,
     ballot_styles: Vec<BallotStyle>,
+    initialization_report_coverage:
+        HashMap<(String, String, String), std::collections::BTreeMap<String, Vec<String>>>,
+    initialization_countries:
+        HashMap<(String, String, uuid::Uuid), std::collections::BTreeSet<String>>,
     tally_sheets: Vec<TallySheet>,
+    /// (tenant, event, seal).
+    ballot_box_seals: Vec<(String, String, BallotBoxSealState)>,
     keys_ceremonies: Vec<KeysCeremony>,
-    private_keys: HashMap<(String, String), String>,
+    custody: HashMap<(String, String), String>,
     elections: Vec<Election>,
     election_events: Vec<ElectionEvent>,
     env_slug: String,
@@ -238,6 +245,46 @@ impl InMemoryTallyCeremony {
         });
     }
 
+    pub fn set_initialization_countries(
+        &self,
+        tenant: &str,
+        event: &str,
+        post: uuid::Uuid,
+        countries: &[&str],
+    ) {
+        self.state().initialization_countries.insert(
+            (tenant.into(), event.into(), post),
+            countries.iter().map(|id| id.to_string()).collect(),
+        );
+    }
+
+    pub fn remove_country_material(&self, tenant: &str, event: &str, post: &str, country: &str) {
+        let mut state = self.state();
+        state.ballot_styles.retain(|style| {
+            !(style.tenant_id == tenant
+                && style.election_event_id == event
+                && style.election_id == post
+                && style.area_id.as_deref() == Some(country))
+        });
+        state.area_contests.retain(|link| {
+            !(link.tenant_id == tenant
+                && link.election_event_id == event
+                && link.link.area_id == country)
+        });
+    }
+
+    pub fn report_coverage(
+        &self,
+        tenant: &str,
+        event: &str,
+        session: &str,
+    ) -> Option<std::collections::BTreeMap<String, Vec<String>>> {
+        self.state()
+            .initialization_report_coverage
+            .get(&(tenant.into(), event.into(), session.into()))
+            .cloned()
+    }
+
     pub fn add_ballot_style(&self, ballot_style: BallotStyle) {
         self.state().ballot_styles.push(ballot_style);
     }
@@ -250,8 +297,8 @@ impl InMemoryTallyCeremony {
         self.state().keys_ceremonies.push(keys_ceremony);
     }
 
-    pub fn add_private_key(&self, keys_ceremony_id: &str, trustee_name: &str, key: &str) {
-        self.state().private_keys.insert(
+    pub fn add_custody_proof(&self, keys_ceremony_id: &str, trustee_name: &str, key: &str) {
+        self.state().custody.insert(
             (keys_ceremony_id.to_string(), trustee_name.to_string()),
             key.to_string(),
         );
@@ -263,6 +310,19 @@ impl InMemoryTallyCeremony {
 
     pub fn add_election_event(&self, election_event: ElectionEvent) {
         self.state().election_events.push(election_event);
+    }
+
+    pub fn add_ballot_box_seal(
+        &self,
+        tenant_id: &str,
+        election_event_id: &str,
+        seal: BallotBoxSealState,
+    ) {
+        self.state().ballot_box_seals.push((
+            tenant_id.to_string(),
+            election_event_id.to_string(),
+            seal,
+        ));
     }
 
     pub fn set_env_slug(&self, slug: &str) {
@@ -471,6 +531,16 @@ impl TallySessions for InMemoryTallyCeremony {
     ) -> Result<()> {
         let mut state = self.state();
         state.check(TallyCall::InsertSession)?;
+        if let Some(coverage) = tally_session.initialization_country_coverage {
+            state.initialization_report_coverage.insert(
+                (
+                    tenant_id.into(),
+                    election_event_id.into(),
+                    tally_session.id.clone(),
+                ),
+                coverage,
+            );
+        }
         state.sessions.push(TallySession {
             id: tally_session.id,
             tenant_id: tenant_id.to_string(),
@@ -544,6 +614,29 @@ impl TallySessions for InMemoryTallyCeremony {
 }
 
 impl TallyCreationReader for InMemoryTallyCeremony {
+    async fn initialization_countries(
+        &self,
+        tenant: &str,
+        event: &str,
+        post: uuid::Uuid,
+    ) -> Result<Option<std::collections::BTreeSet<String>>> {
+        Ok(self
+            .state()
+            .initialization_countries
+            .get(&(tenant.into(), event.into(), post))
+            .cloned())
+    }
+
+    async fn initialization_scopes(
+        &self,
+        tenant_id: &str,
+        election_event_id: &str,
+        _post: uuid::Uuid,
+    ) -> Result<crate::services::initialization_scope::ScopeCopies> {
+        let event = ElectionEventReader::get(self, tenant_id, election_event_id).await?;
+        crate::services::initialization_scope::scope_copies_of(&event)
+    }
+
     async fn event_snapshot(
         &self,
         tenant_id: &str,
@@ -632,6 +725,26 @@ impl TallyCreationReader for InMemoryTallyCeremony {
             .cloned()
             .collect())
     }
+
+    async fn ballot_box_seals(
+        &self,
+        tenant_id: &str,
+        election_event_id: &str,
+        election_ids: &[String],
+    ) -> Result<Vec<BallotBoxSealState>> {
+        let state = self.state();
+        state.check(TallyCall::BallotBoxSeals)?;
+        Ok(state
+            .ballot_box_seals
+            .iter()
+            .filter(|(tenant, event, seal)| {
+                tenant == tenant_id
+                    && event == election_event_id
+                    && election_ids.contains(&seal.election_id)
+            })
+            .map(|(_, _, seal)| seal.clone())
+            .collect())
+    }
 }
 
 impl KeysCeremonyReader for InMemoryTallyCeremony {
@@ -656,21 +769,24 @@ impl KeysCeremonyReader for InMemoryTallyCeremony {
     }
 }
 
-impl TrusteePrivateKeys for InMemoryTallyCeremony {
-    async fn encrypted_private_key(
+impl TrusteeCustody for InMemoryTallyCeremony {
+    async fn verifies(
         &self,
         _tenant_id: &str,
         _election_event_id: &str,
         trustee_name: &str,
         keys_ceremony: &KeysCeremony,
-    ) -> Result<String> {
+        _tally_session_id: &str,
+        proof: &str,
+    ) -> Result<bool> {
         let state = self.state();
-        state.check(TallyCall::GetPrivateKey)?;
-        state
-            .private_keys
+        state.check(TallyCall::VerifyCustodyProof)?;
+        let expected = state
+            .custody
             .get(&(keys_ceremony.id.clone(), trustee_name.to_string()))
             .cloned()
-            .ok_or_else(|| anyhow!("can't get trustee public key"))
+            .ok_or_else(|| anyhow!("can't get trustee public key"))?;
+        Ok(expected == proof)
     }
 }
 
@@ -742,7 +858,7 @@ impl TallyCeremonyAudit for InMemoryTallyCeremony {
         )
     }
 
-    async fn key_restored(
+    async fn custody_authorized(
         &self,
         board_name: &str,
         tenant_id: &str,
@@ -752,8 +868,8 @@ impl TallyCeremonyAudit for InMemoryTallyCeremony {
         claims: &JwtClaims,
     ) -> Result<()> {
         self.record(
-            TallyCall::KeyRestored,
-            TallyAuditEntry::KeyRestored {
+            TallyCall::CustodyAuthorizationd,
+            TallyAuditEntry::CustodyAuthorizationd {
                 board_name: board_name.to_string(),
                 tenant_id: tenant_id.to_string(),
                 election_event_id: election_event_id.to_string(),

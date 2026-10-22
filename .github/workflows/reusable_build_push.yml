@@ -15,10 +15,20 @@ on:
         description: 'Whether to push the images'
         required: true
         type: boolean
+    secrets:
+      PAT:
+        required: false
+      DOCKERHUB_TOKEN:
+        required: false
+      AWS_ACCESS_KEY_ID_GLOBALDOT:
+        required: false
+      AWS_SECRET_ACCESS_KEY_GLOBALDOT:
+        required: false
 
 jobs:
   build-and-push:
     runs-on: ubuntu-24.04
+    environment: release
     timeout-minutes: 360
     strategy:
       max-parallel: 13
@@ -29,6 +39,7 @@ jobs:
             file: packages/Dockerfile.keycloak
             build_contexts: |
               beyond=./beyond
+              scripts=./scripts
 
           - service: voting-portal
             context: packages
@@ -54,13 +65,13 @@ jobs:
             context: packages
             file: packages/harvest/Dockerfile.prod
 
-          - service: b3
-            context: packages
-            file: packages/b3/Dockerfile.prod
+          - service: b4v6
+            context: packages/wbraid
+            file: packages/wbraid/crates/b4/Dockerfile
 
-          - service: braid
+          - service: trustee
             context: packages
-            file: packages/braid/Dockerfile.prod
+            file: packages/trustee/Dockerfile.prod
 
           - service: windmill
             context: packages
@@ -71,14 +82,6 @@ jobs:
             # not repo root — Dockerfile COPYs are relative to this path.
             context: hasura
             file: packages/Dockerfile.hasura
-
-          - service: immudb-init
-            context: packages
-            file: packages/Dockerfile.immudb-init.prod
-
-          - service: immudb
-            context: packages
-            file: packages/Dockerfile.immudb
 
           - service: loadtesting
             context: .
@@ -144,7 +147,7 @@ jobs:
           ${{ vars.AWS_ECR_REGISTRY_GLOBALDOT }}/${{ matrix.service }}:${{ env.SHORT_SHA }}
           ${{ vars.AWS_ECR_REGISTRY_GLOBALDOT }}/${{ matrix.service }}:${{ inputs.tag || github.run_number }}
         cache-from: type=registry,ref=${{ vars.AWS_ECR_REGISTRY_GLOBALDOT }}/${{ matrix.service }}:buildcache
-        cache-to: type=registry,ref=${{ vars.AWS_ECR_REGISTRY_GLOBALDOT }}/${{ matrix.service }}:buildcache,mode=max
+        cache-to: ${{ inputs.push && format('type=registry,ref={0}/{1}:buildcache,mode=max', vars.AWS_ECR_REGISTRY_GLOBALDOT, matrix.service) || '' }}
         build-contexts: ${{ matrix.build_contexts }}
         build-args: |
           SPA_NAME=${{ matrix.spa_name }}

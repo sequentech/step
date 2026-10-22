@@ -50,6 +50,7 @@ class KeycloakThemeTests(unittest.TestCase):
         original = self.root / SOURCE / "sequent.admin-portal/login"
         original.mkdir(parents=True)
         (original / "login.ftl").write_text("Original profile and credential widgets")
+        (original / "register.ftl").write_text("Original registration form")
         (original / "template.ftl").write_text(
             "<head></head><body>Original layout</body>"
         )
@@ -60,7 +61,15 @@ class KeycloakThemeTests(unittest.TestCase):
                 "login.ftl",
                 "login-username.ftl",
                 "message-otp.login.ftl",
+                "scanovate-capture.ftl",
+                "scanovate-confirmation.ftl",
+                "scanovate-error.ftl",
                 "register.ftl",
+                "registration-finish.ftl",
+                "registration-manual-finish.ftl",
+                "registration-rejected-finish.ftl",
+                "message-finish.ftl",
+                "info.ftl",
             ):
                 jar.writestr("theme/sequent-ui-admin/login/" + page, HTML)
             jar.writestr("theme/sequent-ui-admin/login/resources/dist/app.js", "built")
@@ -132,7 +141,7 @@ class KeycloakThemeTests(unittest.TestCase):
             "Updated realm template",
         )
 
-    def test_hot_pages_load_vite_and_inherit_registration(self):
+    def test_hot_pages_load_vite_and_inherit_unported_pages(self):
         prepare(self.root, Runtime.HOT, skip_build=True)
         login = self.root / THEMES / "sequent-ui-admin/login"
         page = (login / "login.ftl").read_text()
@@ -149,7 +158,7 @@ class KeycloakThemeTests(unittest.TestCase):
             (login / "theme.properties").read_text(),
             "parent=sequent.admin-portal\nimport=common/keycloak\n",
         )
-        self.assertFalse((login / "register.ftl").exists())
+        self.assertFalse((login / "info.ftl").exists())
         self.assertIn("/@vite/client", (login / "template.ftl").read_text())
         # The username-first page renders in React, identity providers included:
         # only the password page keeps the FreeMarker fallback.
@@ -157,6 +166,47 @@ class KeycloakThemeTests(unittest.TestCase):
         self.assertIn('src="/src/main.tsx"', username)
         self.assertIn("window.kcContext.sequent", username)
         self.assertNotIn("sequent-login.ftl", username)
+
+    def test_identity_verification_pages_render_in_react(self):
+        # The Scanovate capture only exists in React: its FreeMarker fallback
+        # just says that the step needs this theme.
+        prepare(self.root, Runtime.BUILT, skip_build=True)
+        login = self.root / THEMES / "sequent-ui-admin/login"
+        for page in (
+            "scanovate-capture.ftl",
+            "scanovate-confirmation.ftl",
+            "scanovate-error.ftl",
+        ):
+            text = (login / page).read_text()
+            self.assertIn("/assets/app.js", text, page)
+            self.assertIn("window.kcContext.sequent", text, page)
+            self.assertNotIn("sequent-login.ftl", text, page)
+
+    def test_enrollment_renders_in_react_and_login_mode_keeps_freemarker(self):
+        prepare(self.root, Runtime.BUILT, skip_build=True)
+        login = self.root / THEMES / "sequent-ui-admin/login"
+        register = (login / "register.ftl").read_text()
+        self.assertIn("/assets/app.js", register)
+        self.assertIn("window.kcContext.sequent", register)
+        # The form that signs voters in, CAPTCHA and terms aren't React pages.
+        self.assertIn("(formMode!'REGISTRATION') == 'LOGIN'", register)
+        self.assertIn("recaptchaRequired??", register)
+        self.assertIn("termsAcceptanceRequired??", register)
+        self.assertIn('<#include "sequent-register.ftl">', register)
+        self.assertNotIn("sequent-login.ftl", register)
+        self.assertEqual(
+            (login / "sequent-register.ftl").read_text(), "Original registration form"
+        )
+        for page in (
+            "registration-finish.ftl",
+            "registration-manual-finish.ftl",
+            "registration-rejected-finish.ftl",
+            "message-finish.ftl",
+        ):
+            text = (login / page).read_text()
+            self.assertIn("/assets/app.js", text, page)
+            self.assertIn("window.kcContext.sequent", text, page)
+            self.assertNotIn("<#include", text, page)
 
     def test_built_pages_keep_compiled_entry_and_remove_dev_client(self):
         prepare(self.root, Runtime.HOT, skip_build=True)
@@ -173,7 +223,7 @@ class KeycloakThemeTests(unittest.TestCase):
                 HTML.replace('type="module"', 'type="text/javascript"'),
                 "",
                 Runtime.HOT,
-                login=True,
+                "login.ftl",
             )
 
     def test_voting_layout_follows_source_theme_inheritance(self):

@@ -3,8 +3,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import type {Meta, StoryObj} from "@storybook/react-vite"
 import {expect, userEvent, waitFor, within} from "storybook/test"
-import {i18n} from "@sequentech/ui-core"
+import {i18n, browserTimeZone} from "@sequentech/ui-core"
 import {Logs} from "./Logs"
+import {formatZoned} from "@/lib/timezones/zonedFormat"
+
+/** A time as the screen shows it outside an event's screens: labelled, in the viewer's zone. */
+const shownTime = (value: string, seconds = true) =>
+    formatZoned(value, browserTimeZone(), {t: i18n.t.bind(i18n), lang: i18n.language, seconds})
 
 const logs = [
     {created_date: "2026-01-15T12:00:00Z", log_text: "Keys ceremony created"},
@@ -28,9 +33,9 @@ export const Populated: Story = {
                 name: i18n.t("keysGeneration.ceremonyStep.logsHeader.date"),
             })
         ).toBeVisible()
-        // Browser contexts run in UTC with an English locale.
+        // The time with its zone label, in the viewer's zone.
         const row = canvas.getByRole("row", {name: /trustee1 generated a key fragment/})
-        await expect(within(row).getByText("1/15/2026, 12:05:30 PM")).toBeVisible()
+        await expect(within(row).getByText(shownTime("2026-01-15T12:05:30Z"))).toBeVisible()
         expect(canvas.getAllByRole("row")).toHaveLength(3)
     },
 }

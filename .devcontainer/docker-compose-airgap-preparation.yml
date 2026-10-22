@@ -28,8 +28,28 @@ services:
     platform: linux/amd64
     container_name: postgres
     restart: unless-stopped
+    volumes:
+      - ./postgresql/init-electoral-log.sh:/docker-entrypoint-initdb.d/20-electoral-log.sh:ro
+      - ../packages/electoral-log/catalog.sql:/electoral-log-catalog.sql:ro
+      - ./postgresql/init-task-queues.sh:/docker-entrypoint-initdb.d/30-task-queues.sh:ro
     environment:
       POSTGRES_PASSWORD: ${HASURA_PG_PASSWORD}
+      ELECTORAL_LOG_PG_USER: ${ELECTORAL_LOG_PG_USER}
+      ELECTORAL_LOG_PG_PASSWORD: ${ELECTORAL_LOG_PG_PASSWORD}
+      ELECTORAL_LOG_PG_PROVISIONING_USER: ${ELECTORAL_LOG_PG_PROVISIONING_USER:-electoral_log_provisioner}
+      ELECTORAL_LOG_PG_PROVISIONING_PASSWORD: ${ELECTORAL_LOG_PG_PROVISIONING_PASSWORD:-electoral_log_provisioner_dev}
+      ELECTORAL_LOG_PG_READER_USER: ${ELECTORAL_LOG_PG_READER_USER:-electoral_log_reader}
+      ELECTORAL_LOG_PG_READER_PASSWORD: ${ELECTORAL_LOG_PG_READER_PASSWORD:-electoral_log_reader_dev}
+      ELECTORAL_LOG_PG_DATABASE: ${ELECTORAL_LOG_PG_DATABASE}
+      QUEUE_DB__DBNAME: ${QUEUE_DB__DBNAME}
+      QUEUE_DB_OWNER_USER: ${QUEUE_DB_OWNER_USER}
+      QUEUE_DB_OWNER_PASSWORD: ${QUEUE_DB_OWNER_PASSWORD}
+      QUEUE_DB_WORKER_USER: ${QUEUE_DB_WORKER_USER}
+      QUEUE_DB_WORKER_PASSWORD: ${QUEUE_DB_WORKER_PASSWORD}
+      QUEUE_DB_PRODUCER_USER: ${QUEUE_DB_PRODUCER_USER}
+      QUEUE_DB_PRODUCER_PASSWORD: ${QUEUE_DB_PRODUCER_PASSWORD}
+      QUEUE_DB_READER_USER: ${QUEUE_DB_READER_USER}
+      QUEUE_DB_READER_PASSWORD: ${QUEUE_DB_READER_PASSWORD}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -153,6 +173,7 @@ services:
       HASURA_GRAPHQL_ADMIN_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
       ACTIONS_ADMIN_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
       HARVEST_DOMAIN: ${HARVEST_DOMAIN}
+      HARVEST_BALLOT_LOG_DOMAIN: ${HARVEST_BALLOT_LOG_DOMAIN:-harvest-edge:8080}
     depends_on:
       data-connector-agent:
         condition: service_healthy
@@ -204,6 +225,13 @@ services:
     ports:
       - 8090:8090
     environment:
+      ENV_SLUG: ${ENV_SLUG}
+      QUEUE_DB__HOST: ${QUEUE_DB__HOST}
+      QUEUE_DB__PORT: ${QUEUE_DB__PORT}
+      QUEUE_DB__DBNAME: ${QUEUE_DB__DBNAME}
+      QUEUE_DB__USER: ${QUEUE_DB_PRODUCER_USER}
+      QUEUE_DB__PASSWORD: ${QUEUE_DB_PRODUCER_PASSWORD}
+      ELECTORAL_LOG_PUBLISH_FAILURE_POLICY: ${ELECTORAL_LOG_PUBLISH_FAILURE_POLICY:-fail-request}
       KC_HOSTNAME: ${KC_HOSTNAME}
       MASTER_SECRET: ${MASTER_SECRET}
       KC_HOSTNAME_STRICT: ${KC_HOSTNAME_STRICT}
@@ -235,6 +263,8 @@ services:
       /opt/keycloak/bin/kc.sh start-dev
       --features=preview
       --health-enabled=true
+      --spi-events-store--provider-default=sequent-privacy
+      --spi-user-sessions--provider-default=sequent-privacy
       --spi-user-profile-declarative-user-profile-read-only-attributes=area-id,tenant-id
       --spi-user-profile-declarative-user-profile-admin-read-only-attributes=sequent.admin-read-only.*
       -Dkeycloak.profile.feature.upload_scripts=enabled
@@ -246,6 +276,8 @@ services:
       --spi-sms-sender-aws-enabled=false
       --import-realm
     depends_on:
+      postgres:
+        condition: service_healthy
       postgres-keycloak:
         condition: service_healthy
     healthcheck:
@@ -264,7 +296,11 @@ services:
     ports:
       - 3002:8000
     stdin_open: true
+    # Forwards /b4/ to Harvest (resolved per request).
+    volumes:
+      - ./admin-portal-nginx:/etc/nginx/default.d:ro,z
     environment:
+        WBRAID_BOARD_URL: ${WBRAID_BOARD_PUBLIC_URL:-/b4}
         MAX_DIFF_LINES: ${MAX_DIFF_LINES}
         SECONDS_TO_SHOW_COUNTDOWN: ${SECONDS_TO_SHOW_COUNTDOWN}
         SECONDS_TO_SHOW_ALERT: ${SECONDS_TO_SHOW_ALERT}
@@ -293,36 +329,32 @@ services:
       - 3004:8000
     stdin_open: true
 
-  immudb:
+  harvest-edge:
     profiles: ["full", "base"]
-    container_name: immudb
-    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/immudb:STEP_VERSION
-    platform: linux/amd64
+    image: nginx:latest
     restart: always
     environment:
-      - IMMUDB_PGSQL_SERVER=true
-    ports:
-      - 3322:3322 # immudb service
-      - 3324:9497 # prometheus
-      - 3325:8080 # web console
+      HARVEST_DOMAIN: ${HARVEST_DOMAIN}
+    volumes:
+      - ./harvest-edge/default.conf.template:/etc/nginx/templates/default.conf.template:ro
     depends_on:
-      - immudb-init
-    healthcheck:
-      test: /usr/local/bin/immuadmin status
-      interval: 30s
-      timeout: 30s
-      retries: 3
+      harvest:
+        condition: service_started
 
   harvest:
     profiles: ["full", "base"]
     stdin_open: true
     image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/harvest:STEP_VERSION
     platform: linux/amd64
+    depends_on:
+      task-queues-setup:
+        condition: service_completed_successfully
     environment:
       # Monitoring snapshot cadence, the same on beat, windmill and harvest:
       # seconds between passes (5..3600), and between full voter reads.
       MONITORING_SNAPSHOT_INTERVAL_SECONDS: ${MONITORING_SNAPSHOT_INTERVAL_SECONDS:-30}
       MONITORING_VOTER_FULL_PASS_SECONDS: ${MONITORING_VOTER_FULL_PASS_SECONDS:-300}
+      ENV_SLUG: ${ENV_SLUG}
       RUST_BACKTRACE: ${RUST_BACKTRACE}
       SUPER_ADMIN_TENANT_ID: ${SUPER_ADMIN_TENANT_ID}
       LOG_LEVEL: ${LOG_LEVEL}
@@ -330,9 +362,19 @@ services:
       ROCKET_PORT: ${HARVEST_PORT}
       RUSTFLAGS: ${RUSTFLAGS}
       CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
-      IMMUDB_USER: ${IMMUDB_USER}
-      IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
-      IMMUDB_SERVER_URL: ${IMMUDB_SERVER_URL}
+      ELECTORAL_LOG_PG_HOST: ${ELECTORAL_LOG_PG_HOST}
+      ELECTORAL_LOG_PG_PORT: ${ELECTORAL_LOG_PG_PORT}
+      ELECTORAL_LOG_PG_USER: ${ELECTORAL_LOG_PG_USER}
+      ELECTORAL_LOG_PG_PASSWORD: ${ELECTORAL_LOG_PG_PASSWORD}
+      ELECTORAL_LOG_PG_READER_USER: ${ELECTORAL_LOG_PG_READER_USER:-electoral_log_reader}
+      ELECTORAL_LOG_PG_READER_PASSWORD: ${ELECTORAL_LOG_PG_READER_PASSWORD:-electoral_log_reader_dev}
+      ELECTORAL_LOG_PG_DATABASE: ${ELECTORAL_LOG_PG_DATABASE}
+      ELECTORAL_LOG_PG_EVENT_POOL_SIZE: ${ELECTORAL_LOG_PG_EVENT_POOL_SIZE:-4}
+      ELECTORAL_LOG_PG_OPEN_EVENTS: ${ELECTORAL_LOG_PG_OPEN_EVENTS:-16}
+      # Role of the backups, granted read access to each election event's database.
+      ELECTORAL_LOG_PG_BACKUP_USER: ${ELECTORAL_LOG_PG_BACKUP_USER:-}
+      ELECTORAL_LOG_PG_SSLMODE: ${ELECTORAL_LOG_PG_SSLMODE}
+      ELECTORAL_LOG_PG_SSLROOTCERT: ${ELECTORAL_LOG_PG_SSLROOTCERT:-}
       SMS_TRANSPORT_NAME: ${SMS_TRANSPORT_NAME}
       AWS_SNS_ATTRIBUTES: ${AWS_SNS_ATTRIBUTES}
       EMAIL_TRANSPORT_NAME: ${EMAIL_TRANSPORT_NAME}
@@ -343,8 +385,17 @@ services:
       KEYCLOAK_DB__PORT: ${KEYCLOAK_DB__PORT}
       KEYCLOAK_DB__DBNAME: ${KEYCLOAK_DB__DBNAME}
       KEYCLOAK_DB__MANAGER__RECYCLING_METHOD: ${KEYCLOAK_DB__MANAGER__RECYCLING_METHOD}
-      AMQP_ADDR: ${AMQP_ADDR}
+      QUEUE_DB__HOST: ${QUEUE_DB__HOST}
+      QUEUE_DB__PORT: ${QUEUE_DB__PORT}
+      QUEUE_DB__DBNAME: ${QUEUE_DB__DBNAME}
+      QUEUE_DB__USER: ${QUEUE_DB_PRODUCER_USER}
+      QUEUE_DB__PASSWORD: ${QUEUE_DB_PRODUCER_PASSWORD}
+      QUEUE_DB_READER_USER: ${QUEUE_DB_READER_USER}
+      QUEUE_DB_READER_PASSWORD: ${QUEUE_DB_READER_PASSWORD}
+      QUEUE_DB__MANAGER__RECYCLING_METHOD: ${QUEUE_DB__MANAGER__RECYCLING_METHOD}
       KEYCLOAK_URL: ${KEYCLOAK_URL}
+      KIOSK_KEYCLOAK_URL: ${KIOSK_KEYCLOAK_URL:-}
+      HARVEST_JWT_ISSUER_URLS: ${HARVEST_JWT_ISSUER_URLS:-}
       KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS: ${KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS:-30}
       KEYCLOAK_ADMIN_CLIENT_ID: ${KEYCLOAK_ADMIN_CLIENT_ID}
       KEYCLOAK_ADMIN_CLIENT_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
@@ -391,21 +442,45 @@ services:
       CLOUDFLARE_ZONE: ${CLOUDFLARE_ZONE}
       CLOUDFLARE_API_KEY: ${CLOUDFLARE_API_KEY}
       CUSTOM_URLS_IP_DNS_CONTENT: ${CUSTOM_URLS_IP_DNS_CONTENT}
-      B3_PG_HOST: ${B3_PG_HOST}
-      B3_PG_PORT: ${B3_PG_PORT}
-      B3_PG_USER: ${B3_PG_USER}
-      B3_PG_PASSWORD: ${B3_PG_PASSWORD}
-      B3_PG_DATABASE: ${B3_PG_DATABASE}
+      WBRAID_B4_URL: http://b4v6:3005
+      # Other origins whose pages may read boards (`*` or a comma-separated list); empty: the admin portal only.
+      HARVEST_B4_READ_ORIGINS: ${HARVEST_B4_READ_ORIGINS:-}
+      WBRAID_BOARD_DATABASE_URL: postgres://postgres@postgres-b4v6:5432/wbraid_board
+      WBRAID_B4_PG_PASSWORD: ${WBRAID_B4_PG_PASSWORD}
       # The monitoring renderer, reached on the internal monitoring-renderer
       # network only.
       HARVEST_MONITORING_RENDERER_URL: ${HARVEST_MONITORING_RENDERER_URL:-http://monitoring-renderer:8080}
       HARVEST_MONITORING_RENDERER_TOKEN: ${MONITORING_RENDERER_TOKEN}
       HARVEST_MONITORING_RENDERER_TIMEOUT_MS: ${HARVEST_MONITORING_RENDERER_TIMEOUT_MS:-5000}
+      # Provider callbacks arrive only through messaging-webhooks.
+      MESSAGING_RELAY_SECRET: ${MESSAGING_RELAY_SECRET:?MESSAGING_RELAY_SECRET must be set}
+      MESSAGING_WEBHOOKS_PUBLIC_URL: ${MESSAGING_WEBHOOKS_PUBLIC_URL}
+      MESSAGING_WEBHOOKS_MAX_BODY_BYTES: ${MESSAGING_WEBHOOKS_MAX_BODY_BYTES:-262144}
+      MESSAGING_CALLBACK_CONNECTIONS: ${MESSAGING_CALLBACK_CONNECTIONS:-4}
     networks:
       - default
       - monitoring-renderer
+    # No published port: harvest is internal. Hasura and messaging-webhooks
+    # reach it on the compose network (HARVEST_DOMAIN).
+
+  # The one public entrypoint for messaging provider callbacks; relays each
+  # one, signed, to harvest's internal /messaging/callbacks.
+  messaging-webhooks:
+    profiles: ["full", "base"]
+    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/messaging-webhooks:STEP_VERSION
+    platform: linux/amd64
+    depends_on:
+      - harvest
+    environment:
+      LOG_LEVEL: ${LOG_LEVEL}
+      ROCKET_ADDRESS: ${ROCKET_ADDRESS}
+      ROCKET_PORT: ${MESSAGING_WEBHOOKS_PORT}
+      HARVEST_DOMAIN: ${HARVEST_DOMAIN}
+      MESSAGING_RELAY_SECRET: ${MESSAGING_RELAY_SECRET:?MESSAGING_RELAY_SECRET must be set}
+      MESSAGING_WEBHOOKS_MAX_BODY_BYTES: ${MESSAGING_WEBHOOKS_MAX_BODY_BYTES:-262144}
+      MESSAGING_WEBHOOKS_MAX_IN_FLIGHT: ${MESSAGING_WEBHOOKS_MAX_IN_FLIGHT:-16}
     ports:
-     - ${HARVEST_PORT}:${HARVEST_PORT}
+     - ${MESSAGING_WEBHOOKS_PORT}:${MESSAGING_WEBHOOKS_PORT}
 
   # Draws monitoring widgets with dbt Charts. Internal only: no published
   # ports, on a network with no route out, shared with harvest alone.
@@ -435,121 +510,126 @@ services:
       retries: 10
       start_period: 30s
 
-  b3:
+  postgres-b4v6:
     profiles: ["full", "base"]
-    stdin_open: true
-    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/b3:STEP_VERSION
+    image: postgres:16-bookworm
     platform: linux/amd64
-    container_name: b3
-    restart: always
-    ports:
-      - "50051:50051"
+    restart: unless-stopped
     environment:
-      RUSTFLAGS: ${RUSTFLAGS}
-      RUST_BACKTRACE: ${RUST_BACKTRACE}
-      LOG_LEVEL: ${LOG_LEVEL}
-      CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
-      B3_PG_HOST: ${B3_PG_HOST}
-      B3_PG_PORT: ${B3_PG_PORT}
-      B3_PG_USER: ${B3_PG_USER}
-      B3_PG_PASSWORD: ${B3_PG_PASSWORD}
-      B3_PG_DATABASE: ${B3_PG_DATABASE}
-      B3_BIND: ${B3_BIND}
+      POSTGRES_USER: postgres
+      POSTGRES_DB: wbraid_board
+      POSTGRES_PASSWORD: ${WBRAID_B4_PG_PASSWORD:?set the native board database password}
+    volumes:
+      - wbraid_board_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d wbraid_board"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  b4v6:
+    profiles: ["full", "base"]
+    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/b4v6:STEP_VERSION
+    platform: linux/amd64
+    restart: unless-stopped
+    # Not published: trustees reach the board through Harvest (/b4).
+    depends_on:
+      postgres-b4v6:
+        condition: service_healthy
+    environment:
+      WBRAID_B4_BIND: 0.0.0.0:3005
+      DATABASE_URL: postgres://postgres@postgres-b4v6:5432/wbraid_board
+      WBRAID_B4_PG_PASSWORD: ${WBRAID_B4_PG_PASSWORD}
+      AWS_ENDPOINT_URL: ${AWS_S3_PRIVATE_URI}
+      AWS_ACCESS_KEY_ID: ${AWS_S3_ACCESS_KEY}
+      AWS_SECRET_ACCESS_KEY: ${AWS_S3_ACCESS_SECRET}
+      AWS_REGION: ${AWS_REGION}
+      S3_BUCKET_NAME: ${AWS_S3_BUCKET}
 
   trustee1:
     profiles: ["full"]
     stdin_open: true
     container_name: trustee1
-    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/braid:STEP_VERSION
+    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/trustee:STEP_VERSION
     platform: linux/amd64
+    working_dir: /opt/trustee
+    volumes:
+      - trustee1_data:/opt/trustee
     environment:
-        IMMUDB_USER: ${IMMUDB_USER}
-        IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
-        IMMUDB_URL: ${IMMUDB_SERVER_URL}
-        IMMUDB_INDEX_DB: ${IMMUDB_INDEX_DB}
-        TRUSTEE_NAME: trustee1
-        TRUSTEE_CONFIG: ${TRUSTEE1_CONFIG}
-        IGNORE_BOARDS: ${IGNORE_BOARDS}
-        SECRETS_BACKEND: ${SECRETS_BACKEND}
-        VAULT_SERVER_URL: ${VAULT_SERVER_URL}
-        VAULT_TOKEN: ${VAULT_TOKEN}
-
+      LOG_LEVEL: ${LOG_LEVEL}
+      TRUSTEE_NAME: trustee1
+      TRUSTEE_CONFIG_PATH: ${TRUSTEE1_CONFIG:-/opt/trustee/trustee.toml}
+      TRUSTEE_CONFIG: ${TRUSTEE1_CONFIG_DATA:-}
+      SECRETS_BACKEND: ${SECRETS_BACKEND}
+      AWS_SM_KEY_PREFIX: ${AWS_SM_KEY_PREFIX}
+      AWS_REGION: ${AWS_REGION}
+      VAULT_SERVER_URL: ${VAULT_SERVER_URL}
+      VAULT_TOKEN: ${VAULT_TOKEN}
+      B4_URL: http://${HARVEST_DOMAIN}/b4
+      TRUSTEE_PASSWORD: ${TRUSTEE1_PASSWORD}
+      TRUSTEE_PLATFORM_URL: ${TRUSTEE_PLATFORM_URL:-${HASURA_ENDPOINT}}
+      TRUSTEE_KEYCLOAK_URL: ${KEYCLOAK_URL}
+      TRUSTEE_KEYCLOAK_REALM: tenant-${TENANT_ID}
+      TRUSTEE_KEYCLOAK_CLIENT_ID: ${TRUSTEE_KEYCLOAK_CLIENT_ID}
+      TRUSTEE_KEYCLOAK_CLIENT_SECRET: ${TRUSTEE_KEYCLOAK_CLIENT_SECRET}
     depends_on:
-      immudb:
-        condition: service_healthy
+      harvest:
+        condition: service_started
 
   trustee2:
     profiles: ["full"]
     stdin_open: true
-    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/braid:STEP_VERSION
+    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/trustee:STEP_VERSION
     platform: linux/amd64
     container_name: trustee2
     depends_on:
-      immudb:
+      harvest:
+        condition: service_started
+    working_dir: /opt/trustee
+    volumes:
+      - trustee2_data:/opt/trustee
+    environment:
+      LOG_LEVEL: ${LOG_LEVEL}
+      TRUSTEE_NAME: trustee2
+      TRUSTEE_CONFIG_PATH: ${TRUSTEE2_CONFIG:-/opt/trustee/trustee.toml}
+      TRUSTEE_CONFIG: ${TRUSTEE2_CONFIG_DATA:-}
+      SECRETS_BACKEND: ${SECRETS_BACKEND}
+      AWS_SM_KEY_PREFIX: ${AWS_SM_KEY_PREFIX}
+      AWS_REGION: ${AWS_REGION}
+      VAULT_SERVER_URL: ${VAULT_SERVER_URL}
+      VAULT_TOKEN: ${VAULT_TOKEN}
+      B4_URL: http://${HARVEST_DOMAIN}/b4
+      TRUSTEE_PASSWORD: ${TRUSTEE2_PASSWORD}
+      TRUSTEE_PLATFORM_URL: ${TRUSTEE_PLATFORM_URL:-${HASURA_ENDPOINT}}
+      TRUSTEE_KEYCLOAK_URL: ${KEYCLOAK_URL}
+      TRUSTEE_KEYCLOAK_REALM: tenant-${TENANT_ID}
+      TRUSTEE_KEYCLOAK_CLIENT_ID: ${TRUSTEE_KEYCLOAK_CLIENT_ID}
+      TRUSTEE_KEYCLOAK_CLIENT_SECRET: ${TRUSTEE_KEYCLOAK_CLIENT_SECRET}
+
+
+  # Installs PGMQ and the queues in the task-queue database, as the database owner,
+  # like the setup job of a deployment. It is idempotent.
+  task-queues-setup:
+    profiles: ["full", "base"]
+    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/windmill:STEP_VERSION
+    platform: linux/amd64
+    container_name: task-queues-setup
+    entrypoint: ["./main"]
+    command: ["setup-queue-database"]
+    depends_on:
+      postgres:
         condition: service_healthy
     environment:
-        IMMUDB_USER: ${IMMUDB_USER}
-        IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
-        IMMUDB_URL: ${IMMUDB_SERVER_URL}
-        IMMUDB_INDEX_DB: ${IMMUDB_INDEX_DB}
-        TRUSTEE_NAME: trustee2
-        TRUSTEE_CONFIG: ${TRUSTEE2_CONFIG}
-        IGNORE_BOARDS: ${IGNORE_BOARDS}
-        SECRETS_BACKEND: ${SECRETS_BACKEND}
-        VAULT_SERVER_URL: ${VAULT_SERVER_URL}
-        VAULT_TOKEN: ${VAULT_TOKEN}
-
-  # trustee3:
-  #   profiles: ["full"]
-  #   stdin_open: true
-  #   image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/braid:STEP_VERSION
-  #   container_name: trustee3
-  #   depends_on:
-  #     immudb:
-  #       condition: service_healthy
-  #   environment:
-  #       IMMUDB_USER: ${IMMUDB_USER}
-  #       IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
-  #       IMMUDB_URL: ${IMMUDB_SERVER_URL}
-  #       IMMUDB_INDEX_DB: ${IMMUDB_INDEX_DB}
-  #       TRUSTEE_NAME: trustee3
-  #       TRUSTEE_CONFIG: ${TRUSTEE3_CONFIG}
-  #       IGNORE_BOARDS: ${IGNORE_BOARDS}
-  #       SECRETS_BACKEND: ${SECRETS_BACKEND}
-  #       VAULT_SERVER_URL: ${VAULT_SERVER_URL}
-  #       VAULT_TOKEN: ${VAULT_TOKEN}
-
-  # Create collection in immudb
-  rabbitmq:
-    profiles: ["full", "base"]
-    image: rabbitmq:3.12.11-management
-    platform: linux/amd64
-    container_name: rabbitmq
-    environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
-    ports:
-      - "5672:5672"
-      - "15672:15672"
-    healthcheck:
-      test: rabbitmq-diagnostics -q ping
-      interval: 30s
-      timeout: 30s
-      retries: 3
-
-  immudb-init:
-    profiles: ["full", "base"]
-    stdin_open: true
-    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/immudb-init:STEP_VERSION
-    platform: linux/amd64
-    container_name: immudb-init
-    environment:
-      IMMUDB_SERVER_URL: ${IMMUDB_SERVER_URL}
-      IMMUDB_USER: ${IMMUDB_USER}
-      IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
-      IMMUDB_INDEX_DB: ${IMMUDB_INDEX_DB}
-      IMMUDB_BOARD_DB_NAME: ${IMMUDB_BOARD_DB_NAME}
-    restart: always
+      ENV_SLUG: ${ENV_SLUG}
+      LOG_LEVEL: ${LOG_LEVEL}
+      QUEUE_DB__HOST: ${QUEUE_DB__HOST}
+      QUEUE_DB__PORT: ${QUEUE_DB__PORT}
+      QUEUE_DB__DBNAME: ${QUEUE_DB__DBNAME}
+      QUEUE_DB__USER: ${QUEUE_DB_OWNER_USER}
+      QUEUE_DB__PASSWORD: ${QUEUE_DB_OWNER_PASSWORD}
+      QUEUE_DB_WORKER_ROLE: ${QUEUE_DB_WORKER_USER}
+      QUEUE_DB_PRODUCER_ROLE: ${QUEUE_DB_PRODUCER_USER}
+      QUEUE_DB_READER_ROLE: ${QUEUE_DB_READER_USER}
 
   windmill:
     profiles: ["full", "base"]
@@ -558,6 +638,8 @@ services:
     platform: linux/amd64
     restart: always
     depends_on:
+      task-queues-setup:
+        condition: service_completed_successfully
       configure-minio:
         condition: service_completed_successfully
     environment:
@@ -565,18 +647,30 @@ services:
       # seconds between passes (5..3600), and between full voter reads.
       MONITORING_SNAPSHOT_INTERVAL_SECONDS: ${MONITORING_SNAPSHOT_INTERVAL_SECONDS:-30}
       MONITORING_VOTER_FULL_PASS_SECONDS: ${MONITORING_VOTER_FULL_PASS_SECONDS:-300}
+      ENV_SLUG: ${ENV_SLUG}
       RUSTFLAGS: ${RUSTFLAGS}
       RUST_BACKTRACE: ${RUST_BACKTRACE}
       LOG_LEVEL: ${LOG_LEVEL}
       CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
       HASURA_ENDPOINT: ${HASURA_ENDPOINT}
-      AMQP_ADDR: ${AMQP_ADDR}
       KEYCLOAK_URL: ${KEYCLOAK_URL}
       KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS: ${KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS:-30}
-      IMMUDB_SERVER_URL: ${IMMUDB_SERVER_URL}
-      IMMUDB_USER: ${IMMUDB_USER}
-      IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
-      IMMUDB_INDEX_DB: ${IMMUDB_INDEX_DB}
+      ELECTORAL_LOG_PG_HOST: ${ELECTORAL_LOG_PG_HOST}
+      ELECTORAL_LOG_PG_PORT: ${ELECTORAL_LOG_PG_PORT}
+      ELECTORAL_LOG_PG_USER: ${ELECTORAL_LOG_PG_USER}
+      ELECTORAL_LOG_PG_PASSWORD: ${ELECTORAL_LOG_PG_PASSWORD}
+      # Creates and drops each election event's database, which the role above owns.
+      ELECTORAL_LOG_PG_PROVISIONING_USER: ${ELECTORAL_LOG_PG_PROVISIONING_USER:-electoral_log_provisioner}
+      ELECTORAL_LOG_PG_PROVISIONING_PASSWORD: ${ELECTORAL_LOG_PG_PROVISIONING_PASSWORD:-electoral_log_provisioner_dev}
+      # Granted read access to each election event's database when it is created.
+      ELECTORAL_LOG_PG_READER_USER: ${ELECTORAL_LOG_PG_READER_USER:-electoral_log_reader}
+      ELECTORAL_LOG_PG_DATABASE: ${ELECTORAL_LOG_PG_DATABASE}
+      ELECTORAL_LOG_PG_EVENT_POOL_SIZE: ${ELECTORAL_LOG_PG_EVENT_POOL_SIZE:-4}
+      ELECTORAL_LOG_PG_OPEN_EVENTS: ${ELECTORAL_LOG_PG_OPEN_EVENTS:-16}
+      # Role of the backups, granted read access to each election event's database.
+      ELECTORAL_LOG_PG_BACKUP_USER: ${ELECTORAL_LOG_PG_BACKUP_USER:-}
+      ELECTORAL_LOG_PG_SSLMODE: ${ELECTORAL_LOG_PG_SSLMODE}
+      ELECTORAL_LOG_PG_SSLROOTCERT: ${ELECTORAL_LOG_PG_SSLROOTCERT:-}
       AWS_S3_PRIVATE_URI: ${AWS_S3_PRIVATE_URI}
       AWS_S3_PUBLIC_URI: ${AWS_S3_PUBLIC_URI}
       AWS_S3_BUCKET: ${AWS_S3_BUCKET}
@@ -598,6 +692,7 @@ services:
       SECRETS_BACKEND: ${SECRETS_BACKEND}
       MASTER_SECRET: ${MASTER_SECRET}
       AWS_SM_KEY_PREFIX: ${AWS_SM_KEY_PREFIX}
+      MESSAGING_WEBHOOKS_PUBLIC_URL: ${MESSAGING_WEBHOOKS_PUBLIC_URL}
 
       KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY: ${KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY}
       KEYCLOAK_TENANT_REALM_CONFIG_S3_KEY: ${KEYCLOAK_TENANT_REALM_CONFIG_S3_KEY}
@@ -607,6 +702,8 @@ services:
       KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
       SUPER_ADMIN_TENANT_ID: ${SUPER_ADMIN_TENANT_ID}
       VOTING_PORTAL_URL: ${VOTING_PORTAL_URL}
+      ADMIN_PORTAL_URL: ${ADMIN_PORTAL_URL}
+      KIOSK_VOTING_PORTAL_URL: ${KIOSK_VOTING_PORTAL_URL:-}
       RESULTS_PORTAL_URL: ${RESULTS_PORTAL_URL}
       KEYCLOAK_PUBLIC_URL: ${KEYCLOAK_PUBLIC_URL}
       SMS_TRANSPORT_NAME: ${SMS_TRANSPORT_NAME}
@@ -619,6 +716,12 @@ services:
       KEYCLOAK_DB__PORT: ${KEYCLOAK_DB__PORT}
       KEYCLOAK_DB__DBNAME: ${KEYCLOAK_DB__DBNAME}
       KEYCLOAK_DB__MANAGER__RECYCLING_METHOD: ${KEYCLOAK_DB__MANAGER__RECYCLING_METHOD}
+      QUEUE_DB__HOST: ${QUEUE_DB__HOST}
+      QUEUE_DB__PORT: ${QUEUE_DB__PORT}
+      QUEUE_DB__DBNAME: ${QUEUE_DB__DBNAME}
+      QUEUE_DB__USER: ${QUEUE_DB_WORKER_USER}
+      QUEUE_DB__PASSWORD: ${QUEUE_DB_WORKER_PASSWORD}
+      QUEUE_DB__MANAGER__RECYCLING_METHOD: ${QUEUE_DB__MANAGER__RECYCLING_METHOD}
       HASURA_DB__USER: ${HASURA_DB__USER}
       HASURA_DB__PASSWORD: ${HASURA_DB__PASSWORD}
       HASURA_DB__HOST: ${HASURA_DB__HOST}
@@ -628,6 +731,13 @@ services:
       LOW_SQL_LIMIT: ${LOW_SQL_LIMIT}
       DEFAULT_SQL_LIMIT: ${DEFAULT_SQL_LIMIT}
       DEFAULT_SQL_BATCH_SIZE: ${DEFAULT_SQL_BATCH_SIZE}
+      ELECTORAL_LOG_BATCH_SIZE: ${ELECTORAL_LOG_BATCH_SIZE:-1000}
+      QUEUE_ARCHIVE_RETENTION_HOURS: ${QUEUE_ARCHIVE_RETENTION_HOURS:-168}
+      ELECTORAL_LOG_BATCH_MAX_BYTES: ${ELECTORAL_LOG_BATCH_MAX_BYTES:-16777216}
+      ELECTORAL_LOG_CHECKPOINT_COPY: ${ELECTORAL_LOG_CHECKPOINT_COPY:-off}
+      ELECTORAL_LOG_CHECKPOINT_BUCKET: ${ELECTORAL_LOG_CHECKPOINT_BUCKET:-electoral-log-checkpoints}
+      ELECTORAL_LOG_CHECKPOINT_LOCK_MODE: ${ELECTORAL_LOG_CHECKPOINT_LOCK_MODE:-compliance}
+      ELECTORAL_LOG_CHECKPOINT_RETENTION_DAYS: ${ELECTORAL_LOG_CHECKPOINT_RETENTION_DAYS:-3650}
       WINDMILL_PROBE_ADDR: ${WINDMILL_PROBE_ADDR}
       WINDMILL_PROBE_LIVE_PATH: ${WINDMILL_PROBE_LIVE_PATH}
       WINDMILL_PROBE_READY_PATH: ${WINDMILL_PROBE_READY_PATH}
@@ -638,6 +748,7 @@ services:
       DEMO_PUBLIC_KEY: ${DEMO_PUBLIC_KEY}
 
   beat:
+    restart: unless-stopped
     profiles: ["full"]
     stdin_open: true
     image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/windmill:STEP_VERSION
@@ -645,23 +756,38 @@ services:
     container_name: beat
     entrypoint: ["./beat"]
     depends_on:
-      rabbitmq:
-        condition: service_healthy
+      task-queues-setup:
+        condition: service_completed_successfully
     environment:
       # Monitoring snapshot cadence, the same on beat, windmill and harvest:
       # seconds between passes (5..3600), and between full voter reads.
       MONITORING_SNAPSHOT_INTERVAL_SECONDS: ${MONITORING_SNAPSHOT_INTERVAL_SECONDS:-30}
       MONITORING_VOTER_FULL_PASS_SECONDS: ${MONITORING_VOTER_FULL_PASS_SECONDS:-300}
+      ENV_SLUG: ${ENV_SLUG}
+      QUEUE_DB__HOST: ${QUEUE_DB__HOST}
+      QUEUE_DB__PORT: ${QUEUE_DB__PORT}
+      QUEUE_DB__DBNAME: ${QUEUE_DB__DBNAME}
+      QUEUE_DB__USER: ${QUEUE_DB_WORKER_USER}
+      QUEUE_DB__PASSWORD: ${QUEUE_DB_WORKER_PASSWORD}
+      QUEUE_DB__MANAGER__RECYCLING_METHOD: ${QUEUE_DB__MANAGER__RECYCLING_METHOD}
       RUSTFLAGS: ${RUSTFLAGS}
       LOG_LEVEL: ${LOG_LEVEL}
       CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
       HASURA_ENDPOINT: ${HASURA_ENDPOINT}
-      AMQP_ADDR: ${AMQP_ADDR}
       BEAT_PROBE_ADDR: ${BEAT_PROBE_ADDR}
       BEAT_PROBE_LIVE_PATH: ${BEAT_PROBE_LIVE_PATH}
       BEAT_PROBE_READY_PATH: ${BEAT_PROBE_READY_PATH}
+      ELECTORAL_LOG_CHECKPOINT_INTERVAL_SECS: ${ELECTORAL_LOG_CHECKPOINT_INTERVAL_SECS:-300}
+      QUEUE_ARCHIVE_PURGE_INTERVAL_SECS: ${QUEUE_ARCHIVE_PURGE_INTERVAL_SECS:-3600}
+      # Messaging, the same callback base as harvest and windmill.
+      MESSAGING_WEBHOOKS_PUBLIC_URL: ${MESSAGING_WEBHOOKS_PUBLIC_URL}
 
 networks:
   # Harvest and the monitoring renderer only; no route out.
   monitoring-renderer:
     internal: true
+
+volumes:
+  trustee1_data:
+  trustee2_data:
+  wbraid_board_data:

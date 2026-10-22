@@ -109,6 +109,7 @@ test.describe("event sidebar actions", () => {
 })
 
 const logRoles = [...EVENT_ROLES, "election-event-logs-tab", "logs-read", "logs-export"]
+const LOG_TABLE_VIEWPORT = {width: 1920, height: 1080}
 function mockLogs(portal: AdminPortal) {
     mockEvent(portal)
     portal.graphql.on("listElectoralLog", () => ({
@@ -140,8 +141,9 @@ function mockLogs(portal: AdminPortal) {
 }
 
 test.describe("event activity log exports", () => {
-    test.use({roles: logRoles})
-    for (const format of ["CSV", "PDF"]) {
+    // Wide enough for the table: a list under 1,000 px shows two lines per entry.
+    test.use({roles: logRoles, viewport: LOG_TABLE_VIEWPORT})
+    for (const format of ["CSV", "SQL", "PDF"]) {
         test(`confirms the exact ${format} export and tracks its task`, async ({page, portal}) => {
             mockLogs(portal)
             let done = false
@@ -165,7 +167,10 @@ test.describe("event activity log exports", () => {
             ).toBeVisible()
             for (const confirm of [false, true]) {
                 await page.getByRole("button", {name: "Export", exact: true}).click()
-                await page.getByRole("menuitem", {name: `Export in ${format}`, exact: true}).click()
+                await page
+                    .getByRole("dialog")
+                    .getByRole("radio", {name: format, exact: true})
+                    .check()
                 expect(portal.graphql.callsTo("ExportElectionEventLogs")).toHaveLength(0)
                 await page
                     .getByRole("dialog")
@@ -176,7 +181,17 @@ test.describe("event activity log exports", () => {
             await expect.poll(() => portal.graphql.callsTo("GetTaskById").length).toBeGreaterThan(0)
             const calls = portal.graphql.callsTo("ExportElectionEventLogs")
             expect(calls).toHaveLength(1)
-            expect(calls[0].variables).toEqual({electionEventId: EVENT_ID, format})
+            expect(calls[0].variables).toEqual({
+                electionEventId: EVENT_ID,
+                format,
+                scope: "ALL",
+                electionId: null,
+                areaId: null,
+                username: null,
+                createdFrom: null,
+                createdTo: null,
+                timeZone: "UTC",
+            })
             expect(calls[0].headers["x-hasura-role"]).toBe("logs-export")
             expect(
                 portal.oidc.verifyAccessToken(
@@ -188,10 +203,90 @@ test.describe("event activity log exports", () => {
             await expect(page.getByText("SUCCESS", {exact: true})).toBeVisible()
         })
     }
+
+    test("exports one account of the event", async ({page, portal}) => {
+        mockLogs(portal)
+        mockTask(portal, () => taskExecution("EXPORT_ACTIVITY_LOGS_REPORT"))
+        portal.graphql.on("ExportElectionEventLogs", () => ({
+            data: {
+                export_election_event_logs: {
+                    document_id: "logs-document",
+                    task_execution: taskExecution("EXPORT_ACTIVITY_LOGS_REPORT"),
+                },
+            },
+        }))
+        await openEvent(page, portal, "Logs")
+        await expect(
+            page.getByRole("cell", {name: "synthetic-admin", exact: true}).first()
+        ).toBeVisible()
+        await page.getByRole("button", {name: "Export", exact: true}).click()
+        const dialog = page.getByRole("dialog", {name: "Export logs", exact: true})
+        await dialog.getByRole("combobox", {name: "Scope"}).click()
+        await expect(page.getByRole("option")).toHaveText([
+            "The whole election event",
+            "One election",
+            "One area",
+            "One account",
+        ])
+        await page.getByRole("option", {name: "One account", exact: true}).click()
+        await expect(dialog.getByRole("button", {name: "Export", exact: true})).toBeDisabled()
+        await dialog.getByRole("textbox", {name: "Username"}).fill("synthetic-admin")
+        // Only the tenant log adds an account's entries from every election event.
+        await expect(dialog.getByRole("checkbox")).toHaveCount(0)
+        await dialog.getByRole("button", {name: "Export", exact: true}).click()
+        await expect.poll(() => portal.graphql.callsTo("ExportElectionEventLogs").length).toBe(1)
+        expect(portal.graphql.callsTo("ExportElectionEventLogs")[0].variables).toEqual({
+            electionEventId: EVENT_ID,
+            format: "CSV",
+            scope: "ACCOUNT",
+            electionId: null,
+            areaId: null,
+            username: "synthetic-admin",
+            createdFrom: null,
+            createdTo: null,
+            timeZone: "UTC",
+        })
+        expect(portal.graphql.callsTo("ExportTenantLogs")).toEqual([])
+    })
+})
+
+test.describe("event log entries", () => {
+    test.use({roles: logRoles})
+
+    test("opens an entry's details on a click, and closes them with Escape", async ({
+        page,
+        portal,
+    }) => {
+        mockLogs(portal)
+        await openEvent(page, portal, "Logs")
+        await expect(
+            page.getByText(
+                "Everything done in this election event. Sign-ins and changes outside it are in Settings > Logs.",
+                {exact: true}
+            )
+        ).toBeVisible()
+        await page.getByText("Synthetic event created", {exact: true}).click()
+        const dialog = page.getByRole("dialog", {name: "Log entry 1", exact: true})
+        await expect(dialog.getByText("Synthetic event created", {exact: true})).toBeVisible()
+        await expect(dialog.getByText("synthetic-admin", {exact: true})).toBeVisible()
+        await expect(dialog.getByText("Election event log", {exact: true})).toBeVisible()
+        await expect(dialog.getByText(EVENT_ID, {exact: true})).toBeVisible()
+        await expect(dialog.getByRole("button")).toHaveText(["Close"])
+        await page.keyboard.press("Escape")
+        await expect(page.getByRole("dialog")).toHaveCount(0)
+        // The event's log is read with its event, as the default role.
+        const calls = portal.graphql.callsTo("listElectoralLog")
+        expect(calls[0].variables).toMatchObject({election_event_id: EVENT_ID})
+        expect(calls[0].headers["x-hasura-role"]).not.toBe("tenant-logs-read")
+        expect(portal.graphql.callsTo("listTenantLog")).toEqual([])
+    })
 })
 
 test.describe("action permissions", () => {
-    test.use({roles: logRoles.filter((role) => role !== "logs-export")})
+    test.use({
+        roles: logRoles.filter((role) => role !== "logs-export"),
+        viewport: LOG_TABLE_VIEWPORT,
+    })
     test("shows log rows but no export or destructive sidebar action without those permissions", async ({
         page,
         portal,

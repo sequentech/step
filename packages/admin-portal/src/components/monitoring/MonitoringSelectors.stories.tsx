@@ -61,7 +61,7 @@ export const PinnedPost: Story = {
 
 export const SettingsWords: Story = {
     args: {
-        settings: {time_zone: "UTC", selectors: {region: {label: "Faculty", all: "All faculties"}}},
+        settings: {selectors: {region: {label: "Faculty", all: "All faculties"}}},
     },
     play: async ({canvasElement}) => {
         await expect(combobox(canvasElement, "Faculty")).toHaveTextContent("All faculties")

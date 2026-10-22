@@ -10,6 +10,7 @@ use crate::route_services::{json, post, text, Services};
 use crate::test_claims::Claims;
 use rocket::http::Status;
 use rocket::local::asynchronous::{Client, LocalResponse};
+use sequent_core::signing::SigningAction;
 use sequent_core::types::permissions::Permissions;
 use serde_json::{json, Value};
 
@@ -86,6 +87,26 @@ async fn a_recount_whose_task_cannot_be_sent_is_accepted_for_later_delivery() {
     let services = Services::on_test_database()
         .await
         .with_tasks(MemoryTaskQueue::refusing());
+    let client = services.client().await;
+    let (event, _, tally_session_id) = tallied(&services, "SUCCESS").await;
+
+    let (status, _) =
+        json(recount(&client, &event, &tally_session_id).await).await;
+    assert_eq!(status, Status::Ok);
+    assert_eq!(
+        event
+            .tally_session_executions(&services.hasura, &tally_session_id)
+            .await,
+        2
+    );
+}
+
+#[rocket::async_test]
+async fn a_recount_is_accepted_for_later_delivery_when_the_task_queues_are_unreachable(
+) {
+    let services = Services::on_test_database()
+        .await
+        .with_tasks(MemoryTaskQueue::unreachable());
     let client = services.client().await;
     let (event, _, tally_session_id) = tallied(&services, "SUCCESS").await;
 
@@ -327,12 +348,12 @@ async fn restoring_a_key_for_an_unknown_tally_session_is_a_bad_request() {
 
     let response = post(
         &client,
-        "/restore-private-key",
+        "/authorize-tally-custody",
         &admin(&event, Permissions::TRUSTEE_CEREMONY),
         &json!({
             "election_event_id": event.election_event_id,
             "tally_session_id": uuid::Uuid::new_v4().to_string(),
-            "private_key_base64": "not-a-key",
+            "custody_proof_json": "not-a-key",
         }),
     )
     .await;
@@ -384,10 +405,10 @@ async fn tally_ceremony_routes_answer_500_when_the_database_is_unreachable() {
                 "tally_session_id": session}),
         ),
         (
-            "/restore-private-key",
+            "/authorize-tally-custody",
             Permissions::TRUSTEE_CEREMONY,
             json!({"election_event_id": event.election_event_id,
-                "tally_session_id": session, "private_key_base64": "key"}),
+                "tally_session_id": session, "custody_proof_json": "key"}),
         ),
         (
             "/submit-tally-resolution",
@@ -405,5 +426,221 @@ async fn tally_ceremony_routes_answer_500_when_the_database_is_unreachable() {
             message.starts_with("Error getting hasura db pool: "),
             "{path}: {message}"
         );
+    }
+}
+
+/// A trustee's token: the admin claims plus the `trustee` claim, which the
+/// shared claims builder doesn't set.
+fn trustee_header(
+    event: &Event,
+    trustee: &str,
+) -> rocket::http::Header<'static> {
+    let mut claims = admin(event, Permissions::TRUSTEE_CEREMONY).build();
+    claims.trustee = Some(trustee.to_owned());
+    rocket::http::Header::new(
+        "Authorization",
+        format!(
+            "Bearer {}",
+            crate::test_claims::signing::token(
+                &serde_json::to_value(&claims).unwrap()
+            )
+        ),
+    )
+}
+
+/// The two trustee key steps: the route and the field naming its ceremony.
+const KEY_STEPS: [(SigningAction, &str, &str); 2] = [
+    (
+        SigningAction::ConfirmCustodyProof,
+        "/confirm-key-custody",
+        "keys_ceremony_id",
+    ),
+    (
+        SigningAction::ContributeCustodyProof,
+        "/authorize-tally-custody",
+        "tally_session_id",
+    ),
+];
+
+/// An event whose rule makes `action` wait for the trustee's signature,
+/// with the trustee `trustee-1`.
+async fn gated(services: &Services, action: SigningAction) -> Event {
+    use sequent_core::signing::{
+        RequesterSigning, SigningRequirement, SigningRule,
+    };
+    let event = rows::event(&services.hasura).await;
+    let tenant = uuid::Uuid::parse_str(&event.tenant_id).unwrap();
+    let election_event =
+        uuid::Uuid::parse_str(&event.election_event_id).unwrap();
+    let mut client = services.hasura.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    windmill::postgres::signing::upsert_signing_rule(
+        &tx,
+        tenant,
+        election_event,
+        &SigningRule {
+            action,
+            requirement: SigningRequirement::Required,
+            signatures: 1,
+            requester_signing: RequesterSigning::Allowed,
+            expires_minutes: None,
+            revision: 0,
+        },
+        0,
+        "manager",
+        None,
+    )
+    .await
+    .unwrap()
+    .unwrap();
+    tx.execute(
+        "INSERT INTO sequent_backend.trustee (id, name, tenant_id) VALUES ($1, 'trustee-1', $2)",
+        &[&uuid::Uuid::new_v4(), &tenant],
+    )
+    .await
+    .unwrap();
+    tx.commit().await.unwrap();
+    event
+}
+
+async fn key_step<'c>(
+    client: &'c Client,
+    event: &Event,
+    (path, field): (&'static str, &str),
+    trustee: &str,
+    body: Value,
+) -> LocalResponse<'c> {
+    let mut body = body;
+    body["election_event_id"] = json!(event.election_event_id);
+    body[field] = json!(uuid::Uuid::new_v4().to_string());
+    client
+        .post(path)
+        .header(rocket::http::ContentType::JSON)
+        .header(trustee_header(event, trustee))
+        .body(body.to_string())
+        .dispatch()
+        .await
+}
+
+#[rocket::async_test]
+async fn a_gated_key_step_refuses_a_hash_of_another_file_than_the_custody_proof(
+) {
+    for (action, path, field) in KEY_STEPS {
+        let services = Services::on_test_database().await;
+        let client = services.client().await;
+        let event = gated(&services, action).await;
+
+        let (status, body) = json(
+            key_step(
+                &client,
+                &event,
+                (path, field),
+                "trustee-1",
+                json!({"custody_proof_json": "key", "custody_proof_sha256": "00"}),
+            )
+            .await,
+        )
+        .await;
+        assert_eq!(status, Status::BadRequest, "{path}");
+        assert_eq!(
+            body,
+            json!({
+                "message": "The custody proof's SHA-256 is not the uploaded custody proof's.",
+                "extensions": {"code": "invalid", "reason": "custody-proof-hash"},
+            })
+        );
+    }
+}
+
+#[rocket::async_test]
+async fn a_gated_key_step_with_a_request_checks_the_trustee_and_the_request() {
+    for (action, path, field) in KEY_STEPS {
+        let services = Services::on_test_database().await;
+        let client = services.client().await;
+        let event = gated(&services, action).await;
+        let request_id = uuid::Uuid::new_v4().to_string();
+
+        // A token naming no trustee of the tenant can't use any request.
+        let (status, body) = json(
+            key_step(
+                &client,
+                &event,
+                (path, field),
+                "nobody",
+                json!({"custody_proof_json": "key", "signing_request_id": request_id}),
+            )
+            .await,
+        )
+        .await;
+        assert_eq!(status, Status::Forbidden, "{path}");
+        assert_eq!(body["extensions"]["code"], "forbidden");
+
+        let (status, body) = json(
+            key_step(
+                &client,
+                &event,
+                (path, field),
+                "trustee-1",
+                json!({"custody_proof_json": "key", "signing_request_id": request_id}),
+            )
+            .await,
+        )
+        .await;
+        assert_eq!(status, Status::NotFound, "{path}");
+        assert_eq!(
+            body,
+            json!({
+                "message": "There is no such signing request.",
+                "extensions": {"code": "not-found"},
+            })
+        );
+    }
+}
+
+#[rocket::async_test]
+async fn an_ungated_key_check_answers_the_ceremonys_refusal_as_before() {
+    let services = Services::on_test_database().await;
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+
+    // No rule: an unknown ceremony is the ceremony's 400, as it always was.
+    let (status, _) = text(
+        key_step(
+            &client,
+            &event,
+            ("/confirm-key-custody", "keys_ceremony_id"),
+            "trustee-1",
+            json!({"custody_proof_json": "key"}),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::BadRequest);
+}
+
+#[test]
+fn a_key_step_answers_ceremony_refusals_as_before_and_signing_refusals_by_contract(
+) {
+    use crate::routes::keys_ceremony::custody_proof_failure;
+    use crate::services::signing_gate::Guarded;
+    use windmill::services::signing::custody_proofs::CustodyProofError;
+    use windmill::services::signing::SigningError;
+    match custody_proof_failure(CustodyProofError::Signing(
+        SigningError::Internal(anyhow::anyhow!("private database details")),
+    )) {
+        Guarded::Signing(failure) => {
+            assert_eq!(failure.status, Status::InternalServerError);
+            assert_eq!(failure.message, "Internal error");
+        }
+        other => panic!("{other:?}"),
+    }
+    match custody_proof_failure(CustodyProofError::Step(anyhow::anyhow!(
+        "Unexpected status IN_PROGRESS"
+    ))) {
+        Guarded::Route((status, message)) => {
+            assert_eq!(status, Status::BadRequest);
+            assert!(message.contains("Unexpected status IN_PROGRESS"));
+        }
+        other => panic!("{other:?}"),
     }
 }

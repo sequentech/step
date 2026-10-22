@@ -6,7 +6,6 @@ import {TranslationType} from "./en"
 const catalanTranslation: TranslationType = {
     translations: {
         language: "Valencià",
-        welcome: "Comencem: Importa el vot auditable..",
         breadcrumbSteps: {
             select: "Seleccionar un Verificador",
             import: "Importar Dades",
@@ -23,6 +22,7 @@ const catalanTranslation: TranslationType = {
         },
         a11y: {
             closeDialog: "Tancar el diàleg",
+            languageSelector: "Idioma: {{language}}",
             dismissMessage: "Descartar el missatge",
             ballotIdHelp: "Sobre el vostre ID de vot",
             loading: "Carregant",
@@ -35,6 +35,48 @@ const catalanTranslation: TranslationType = {
             selectList: "Seleccionar tota la llista",
             preferenceLabel: "Preferència",
             writeInFor: "Nom del candidat per escrit",
+        },
+        accessibility: {
+            button: "Accessibilitat",
+            title: "Configuració d'accessibilitat",
+            description: "Canvieu l'aspecte d'aquest lloc en aquest dispositiu.",
+            textSize: {
+                label: "Mida del text",
+                default: "Predeterminada",
+                large: "Gran",
+                larger: "Més gran",
+            },
+            contrast: {
+                label: "Contrast",
+                default: "Predeterminat",
+                high: "Contrast alt",
+            },
+            textSpacing: {
+                label: "Espaiat del text",
+                default: "Predeterminat",
+                wide: "Ampli",
+            },
+            motion: {
+                label: "Moviment",
+                default: "Predeterminat",
+                reduced: "Reduït",
+            },
+            reset: "Restableix la configuració",
+            close: "Tanca",
+            applied: "{{setting}}: {{value}}",
+            resetDone: "Configuració restablerta",
+        },
+        audioInstructions: {
+            label: "Instruccions en àudio",
+            play: "Escolta les instruccions",
+            pause: "Posa en pausa les instruccions",
+            resume: "Reprèn les instruccions",
+            stop: "Atura les instruccions",
+            showTranscript: "Llegeix les instruccions",
+            hideTranscript: "Amaga les instruccions",
+            playing: "S'estan reproduint les instruccions",
+            paused: "Instruccions en pausa",
+            stopped: "Instruccions aturades",
         },
         candidate: {
             moreInformationLink: "Més informació",
@@ -58,24 +100,24 @@ const catalanTranslation: TranslationType = {
             description2:
                 "El verificador de vot permet al votant assegurar-se que el vot xifrat capturi correctament les seleccions fetes a la cabina de votació. Permetre realitzar aquesta verificació es denomina verificabilitat de transmissió segons el previst i evita errors i activitats malicioses durant el xifratge del vot.",
             descriptionMore: "Més informació",
-            startButton: "Selecciona fitxer",
-            dragDropOption: "O arrossega el fitxer aquí",
+            startButton: "Seleccioneu fitxer",
+            dragDropOption: "O arrossegueu el fitxer aquí",
             importErrorDescription:
-                "Hi va haver un problema en importar el vot auditable. Vas triar el fitxer correcte?",
+                "Hi va haver un problema en importar el vot auditable. Vau triar el fitxer correcte?",
             importErrorMoreInfo: "Més informació",
             importErrorTitle: "Error",
-            useSampleText: "No tens un vot verificable?",
-            useSampleLink: "Utilitza un vot verificable d'exemple",
+            useSampleText: "No teniu un vot verificable?",
+            useSampleLink: "Utilitzeu un vot verificable d'exemple",
         },
         confirmationScreen: {
             title: "Verificador de Vot Sequent",
             topDescription1: "Basat en la informació del vot auditable importat, calculem que:",
             topDescription2: "Si aquest ID de vot és mostrat a la Cabina de Votació:",
             bottomDescription1:
-                "El teu vot va ser xifrat correctament. Ara pots tancar aquesta finestra i tornar a la Cabina de Votació.",
+                "El vostre vot va ser xifrat correctament. Ara podeu tancar aquesta finestra i tornar a la Cabina de Votació.",
             bottomDescription2:
-                "Si no coincideixen, fes clic aquí per obtenir més informació sobre els possibles motius i les accions que pots prendre.",
-            ballotChoicesDescription: "I les teves seleccions de vot són:",
+                "Si no coincideixen, feu clic aquí per obtenir més informació sobre els possibles motius i les accions que podeu prendre.",
+            ballotChoicesDescription: "I les vostres seleccions de vot són:",
             helpAndFaq: "Ajuda i Preguntes Freqüents",
             backButton: "Enrere",
             markedInvalid: "Vot explícitament marcat invàlid",
@@ -84,7 +126,7 @@ const catalanTranslation: TranslationType = {
             statusModal: {
                 title: "Estat",
                 content:
-                    "El panell d'estat et dóna informació sobre les verificacions realitzades.",
+                    "El panell d'estat us dóna informació sobre les verificacions realitzades.",
                 ok: "OK",
             },
         },
@@ -96,24 +138,33 @@ const catalanTranslation: TranslationType = {
                 notEnoughChoices: "No hi ha prou opcions per desxifrar",
                 writeInChoiceOutOfRange: "Opció de vot escrita fora de rang: {{index}}",
                 writeInNotEndInZero: "Opció de vot escrita no finalitza en 0",
-                writeInCharsExceeded:
-                    "Opció de vot escrita excedeix el nombre de caràcters per {{numCharsExceeded}} caràcters. Requereix arranjament.",
+                writeInCharsExceeded_one: "Escurceu l'escriptura lliure en {{count}} caràcter.",
+                writeInCharsExceeded_many: "Escurceu l'escriptura lliure en {{count}} caràcters.",
+                writeInCharsExceeded_other: "Escurceu l'escriptura lliure en {{count}} caràcters.",
                 bytesToUtf8Conversion:
                     "Error convertint bytes d'opció de vot escrita a cadena UTF-8: {{errorMessage}}",
                 ballotTooLarge: "Vot més gran de l'esperat",
             },
             implicit: {
-                selectedMax:
-                    "Sobrevot: El nombre d'opcions seleccionades {{numSelected}} és major que el màxim {{max}}",
-                selectedMin:
-                    "El nombre d'opcions seleccionades {{numSelected}} és menor que el mínim {{min}}",
-                maxSelectionsPerType:
-                    "El nombre d'opcions seleccionades {{numSelected}} per a la llista {{type}} és major que el màxim {{max}}",
-                underVote:
-                    "Subvot: El nombre d'opcions seleccionades {{numSelected}} és inferior al màxim permès de {{max}}",
-                overVoteDisabled:
-                    "Màxim assolit: Has seleccionat el màxim de {{numSelected}} opcions. Per canviar la teva selecció, si us plau, desmarca primer una altra opció.",
-                blankVote: "Vot en Blanc: 0 opcions seleccionades",
+                selectedMax_one: "Desmarqueu {{count}} candidat.",
+                selectedMax_many: "Desmarqueu {{count}} candidats.",
+                selectedMax_other: "Desmarqueu {{count}} candidats.",
+                selectedMin_one: "Seleccioneu {{count}} candidat més.",
+                selectedMin_many: "Seleccioneu {{count}} candidats més.",
+                selectedMin_other: "Seleccioneu {{count}} candidats més.",
+                maxSelectionsPerType_one: "Desmarqueu {{count}} candidat de {{type}}.",
+                maxSelectionsPerType_many: "Desmarqueu {{count}} candidats de {{type}}.",
+                maxSelectionsPerType_other: "Desmarqueu {{count}} candidats de {{type}}.",
+                underVote_one: "Seleccioneu fins a {{count}} candidat més.",
+                underVote_many: "Seleccioneu fins a {{count}} candidats més.",
+                underVote_other: "Seleccioneu fins a {{count}} candidats més.",
+                overVoteDisabled_one:
+                    "Heu seleccionat el màxim de {{count}} candidat. Desmarqueu-lo per triar-ne un altre.",
+                overVoteDisabled_many:
+                    "Heu seleccionat el màxim de {{count}} candidats. Desmarqueu-ne un per triar-ne un altre.",
+                overVoteDisabled_other:
+                    "Heu seleccionat el màxim de {{count}} candidats. Desmarqueu-ne un per triar-ne un altre.",
+                blankVote: "No heu seleccionat cap candidat.",
                 preferenceOrderWithGaps: "Vot invàlid! L'ordre de preferència té un o més buits.",
                 duplicatedPosition:
                     "Vot invàlid! La mateixa posició va ser seleccionada per a dos o més candidats.",
@@ -124,12 +175,14 @@ const catalanTranslation: TranslationType = {
             },
             configuration: {
                 multipleExplicitInvalidCandidates:
-                    "Configuració de vot invàlida: el concurs defineix {{count}} candidats explícitament invàlids, però només se'n permet un.",
+                    "Configuració de vot invàlida: la pregunta defineix {{count}} candidats explícitament invàlids, però només se'n permet un.",
                 multipleExplicitBlankCandidates:
-                    "Configuració de vot invàlida: el concurs defineix {{count}} candidats de vot en blanc explícit, però només se'n permet un.",
+                    "Configuració de vot invàlida: la pregunta defineix {{count}} candidats de vot en blanc explícit, però només se'n permet un.",
+                invalidSlateConfiguration:
+                    "Configuració de vot invàlida: les candidatures conjuntes no són vàlides ({{reason}}).",
             },
         },
-        ballotHash: "El teu Localitzador de Vot: {{ballotId}}",
+        ballotHash: "El vostre Localitzador de Vot: {{ballotId}}",
         version: {
             header: "Versió:",
         },
@@ -137,21 +190,21 @@ const catalanTranslation: TranslationType = {
             header: "Hash:",
         },
         logout: {
-            buttonText: "Tanca sessió",
+            buttonText: "Tanqueu la sessió",
             modal: {
-                title: "Estàs segur que vols tancar sessió?",
+                title: "Esteu segur que voleu tancar la sessió?",
                 content:
-                    "Estàs a punt de tancar aquesta aplicació. Aquesta acció no es pot desfer.",
+                    "Esteu a punt de tancar aquesta aplicació. Aquesta acció no es pot desfer.",
                 ok: "OK",
-                close: "Tanca",
+                close: "Tanqueu",
             },
         },
         stories: {
             openDialog: "Obrir Diàleg",
         },
         dragNDrop: {
-            firstLine: "Arrossega i deixa anar fitxers o",
-            browse: "Carrega fitxer",
+            firstLine: "Arrossegueu i deixeu anar fitxers o",
+            browse: "Carregar fitxer",
             format: "Formats suportats: txt",
             importError: "No s’ha pogut importar aquest fitxer. Torneu-ho a provar.",
         },
@@ -164,17 +217,17 @@ const catalanTranslation: TranslationType = {
             voted: "Votat",
             notVoted: "No votat",
             resultsButton: "Resultats de la Votació",
-            voteButton: "Fes clic per Votar",
+            voteButton: "Feu clic per votar",
             openDate: "Oberta: ",
             closeDate: "Tancada: ",
-            ballotLocator: "Localitza el teu vot",
+            ballotLocator: "Localitzeu el vostre vot",
         },
         header: {
             profile: "Perfil",
             welcome: "Benvingut/da,<br><span>{{name}}</span>",
             session: {
-                title: "La seva sessió està a punt d'expirar.",
-                timeLeft: "Li queden {{time}} per emetre el seu vot.",
+                title: "La vostra sessió està a punt d'expirar.",
+                timeLeft: "Us queden {{time}} per emetre el vostre vot.",
                 timeLeftMinutesAndSeconds: "{{timeLeftInMinutes}} minuts i {{time}} segons",
                 timeLeftSeconds: "{{timeLeft}} segons",
             },
@@ -462,6 +515,16 @@ const catalanTranslation: TranslationType = {
                         text: "Sense arxiu importable — aquest zip té un pla però no l'arxiu que importa el Portal d'Administració, així que no conté el cens ni els fitxers que esmenta.",
                     },
                 },
+                design: {
+                    "no-stable-key": {
+                        lead: "Disseny de papereta sense clau",
+                        text: "Disseny de papereta sense clau — {{kind}} {{id}} no té nom ni identificador extern, així que els seus dissenys de papereta no es poden reconèixer després d'una importació.",
+                    },
+                    "unreadable-style": {
+                        lead: "Estil de papereta il·legible",
+                        text: "Estil de papereta il·legible — no s'ha pogut llegir l'estil de papereta de la plataforma per calcular l'empremta del seu disseny: {{reason}}",
+                    },
+                },
                 election: {
                     "channels-differ": {
                         lead: "L'elecció i l'esdeveniment no coincideixen",
@@ -497,6 +560,10 @@ const catalanTranslation: TranslationType = {
                     },
                 },
                 event: {
+                    "checks-period-invalid": {
+                        lead: "Període de comprovació no vàlid",
+                        text: "Període de comprovació no vàlid — no s'ha pogut llegir el període en què els votants poden comprovar el seu vot emès: {{reason}}",
+                    },
                     "no-identifier": {
                         lead: "Sense identificador",
                         text: "Sense identificador — tots els id generats se'n deriven, així que sense un res no es pot construir dues vegades igual.",
@@ -657,6 +724,152 @@ const catalanTranslation: TranslationType = {
                         text: "Contrasenyes sense llavor — la llavor és el que fa que una reconstrucció produeixi les mateixes contrasenyes en lloc de noves.",
                     },
                 },
+                package: {
+                    "already-imported": {
+                        lead: "Ja importada",
+                        text: "Ja importada — la revisió {{revision}} d'aquesta configuració ja s'havia importat; importeu una revisió més recent.",
+                    },
+                    "approval-invalid": {
+                        lead: "L'aprovació no compta",
+                        text: "L'aprovació no compta — no s'ha pogut verificar l'aprovació de {{name}}: {{reason}}",
+                    },
+                    "approval-repeated": {
+                        lead: "La mateixa persona ha aprovat dues vegades",
+                        text: "La mateixa persona ha aprovat dues vegades — {{name}} ha aprovat més d'una vegada, i compta una sola vegada.",
+                    },
+                    "approver-key-usage": {
+                        lead: "L'aprovador no pot signar",
+                        text: "L'aprovador no pot signar — el certificat d'un aprovador no està fet per signar.",
+                    },
+                    "bad-signature": {
+                        lead: "La signatura no coincideix",
+                        text: "La signatura no coincideix — la signatura del paquet no es verifica, així que s'ha modificat després de signar-lo o l'ha signat una altra clau: {{reason}}",
+                    },
+                    "content-digest": {
+                        lead: "L'empremta del contingut no coincideix",
+                        text: "L'empremta del contingut no coincideix — el manifest diu {{expected}} i el seu contingut dona {{actual}}.",
+                    },
+                    "duplicate-member": {
+                        lead: "Nom de fitxer repetit",
+                        text: "Nom de fitxer repetit — «{{file}}» apareix dues vegades a {{archive}}, així que dos lectors podrien agafar fitxers diferents.",
+                    },
+                    "file-changed": {
+                        lead: "Modificat després de signar",
+                        text: "Modificat després de signar — {{file}} té SHA-256 {{actual}}, i el manifest diu {{expected}}. No s'ha llegit res del paquet.",
+                    },
+                    "file-extra": {
+                        lead: "Fitxer fora del manifest",
+                        text: "Fitxer fora del manifest — {{file}} és al paquet però no s'ha signat. No s'ha llegit res del paquet.",
+                    },
+                    "file-missing": {
+                        lead: "Falta un fitxer signat",
+                        text: "Falta un fitxer signat — {{file}} és al manifest i no al paquet. No s'ha llegit res del paquet.",
+                    },
+                    "invalid-time": {
+                        lead: "No és una data i hora",
+                        text: "No és una data i hora — «{{value}}» al manifest no és una data i hora.",
+                    },
+                    "member-too-large": {
+                        lead: "Fitxer massa gran",
+                        text: "Fitxer massa gran — «{{file}}» a {{archive}} ocupa, descomprimit, més dels {{limit}} bytes que pot ocupar un fitxer.",
+                    },
+                    "nested-too-deep": {
+                        lead: "Massa zips imbricats",
+                        text: "Massa zips imbricats — «{{file}}» és dins de més zips dels {{limit}} en què pot estar imbricat un fitxer.",
+                    },
+                    "no-importable": {
+                        lead: "Res a importar",
+                        text: "Res a importar — el paquet no té official_election_setup.zip, l'arxiu que llegeix l'importador.",
+                    },
+                    "report-template-changed": {
+                        lead: "La plantilla de l'informe ha canviat",
+                        text: "La plantilla de l'informe ha canviat — la plantilla de l'informe {{report}} no és l'aprovada: la seva empremta és {{actual}}, i la configuració signada diu {{expected}}.",
+                    },
+                    "report-template-missing": {
+                        lead: "Falta la plantilla de l'informe",
+                        text: "Falta la plantilla de l'informe — l'informe {{report}} es genera amb la plantilla «{{template}}», que no és a la configuració, així que el seu disseny no es pot signar.",
+                    },
+                    "report-unreadable": {
+                        lead: "L'informe no es pot signar",
+                        text: "L'informe no es pot signar — {{message}}",
+                    },
+                    "revoked-approver": {
+                        lead: "Certificat d'aprovador revocat",
+                        text: "Certificat d'aprovador revocat — el certificat d'un aprovador s'ha revocat, així que l'aprovació no compta.",
+                    },
+                    "revoked-signer": {
+                        lead: "Clau de signatura revocada",
+                        text: "Clau de signatura revocada — la clau que ha signat aquest paquet s'ha revocat, i els seus paquets es rebutgen.",
+                    },
+                    "rollback": {
+                        lead: "No és una revisió més recent",
+                        text: "No és una revisió més recent — la revisió {{revision}} no és més recent que la revisió {{last}}, l'última importada.",
+                    },
+                    "signed-in-the-future": {
+                        lead: "Signat en el futur",
+                        text: "Signat en el futur — el paquet indica {{at}} com a moment de la signatura, i ara és {{now}}.",
+                    },
+                    "signer-key-usage": {
+                        lead: "La clau de signatura no pot signar",
+                        text: "La clau de signatura no pot signar — el certificat de la clau que ha signat aquest paquet no està fet per signar.",
+                    },
+                    "too-few-approvals": {
+                        lead: "Massa poques aprovacions",
+                        text: "Massa poques aprovacions — {{count}} aprovacions vàlides de persones diferents, i se'n necessiten {{required}}.",
+                    },
+                    "too-large": {
+                        lead: "Paquet massa gran",
+                        text: "Paquet massa gran — descomprimit ocupa més dels {{limit}} bytes que pot ocupar un paquet: «{{file}}» a {{archive}} els sobrepassa.",
+                    },
+                    "too-many-members": {
+                        lead: "Massa fitxers",
+                        text: "Massa fitxers — {{archive}} conté més fitxers que els {{limit}} que pot contenir un paquet.",
+                    },
+                    "unhashable-content": {
+                        lead: "No es pot calcular l'empremta",
+                        text: "No es pot calcular l'empremta — no s'ha pogut escriure el contingut de la configuració per calcular-ne l'empremta: {{reason}}",
+                    },
+                    "unknown-format": {
+                        lead: "Format de manifest desconegut",
+                        text: "Format de manifest desconegut — el manifest és en el format «{{format}}», que aquesta versió no pot llegir.",
+                    },
+                    "unreadable-chain": {
+                        lead: "Certificats del signant il·legibles",
+                        text: "Certificats del signant il·legibles — no s'ha pogut llegir la cadena de certificats del paquet: {{reason}}",
+                    },
+                    "unreadable-manifest": {
+                        lead: "Manifest il·legible",
+                        text: "Manifest il·legible — no s'ha pogut llegir el manifest del paquet: {{reason}}",
+                    },
+                    "unreadable-revocation-list": {
+                        lead: "Llista de revocació il·legible",
+                        text: "Llista de revocació il·legible — no s'ha pogut llegir una llista de revocació, així que no es pot aplicar: {{reason}}",
+                    },
+                    "unreadable-trust": {
+                        lead: "Certificats de confiança il·legibles",
+                        text: "Certificats de confiança il·legibles — no s'ha pogut llegir el paràmetre {{setting}}: {{reason}}",
+                    },
+                    "unreadable-zip": {
+                        lead: "Arxiu il·legible",
+                        text: "Arxiu il·legible — no s'ha pogut llegir {{archive}} com a zip: {{reason}}",
+                    },
+                    "unsigned": {
+                        lead: "Paquet sense signar",
+                        text: "Paquet sense signar — no té {{missing}}, i aquesta instal·lació només importa paquets signats.",
+                    },
+                    "untrusted-approver": {
+                        lead: "Aprovador no fiable",
+                        text: "Aprovador no fiable — el certificat d'un aprovador no és de confiança: {{reason}}",
+                    },
+                    "untrusted-signer": {
+                        lead: "Signant no fiable",
+                        text: "Signant no fiable — la clau que ha signat aquest paquet no és una de les que aquesta instal·lació considera de confiança: {{reason}}",
+                    },
+                    "unwritable-manifest": {
+                        lead: "No es pot escriure el manifest",
+                        text: "No es pot escriure el manifest — no s'ha pogut escriure el manifest: {{reason}}",
+                    },
+                },
                 plan: {
                     "not-a-plan": {
                         lead: "No és un pla electoral",
@@ -669,6 +882,24 @@ const catalanTranslation: TranslationType = {
                     "unreadable": {
                         lead: "Pla il·legible",
                         text: "Pla il·legible — {{error}}",
+                    },
+                },
+                reports: {
+                    "duplicate": {
+                        lead: "Informe configurat dues vegades",
+                        text: "Informe configurat dues vegades — l'informe {{report}} està configurat més d'una vegada per a la mateixa elecció.",
+                    },
+                    "no-copies": {
+                        lead: "Sense còpies",
+                        text: "Sense còpies — l'informe {{report}} està configurat per no imprimir cap còpia. Indiqueu-ne almenys una.",
+                    },
+                    "unknown-election": {
+                        lead: "Elecció desconeguda",
+                        text: "Elecció desconeguda — l'informe {{report}} tracta de l'elecció «{{election}}», que aquest pla no té.",
+                    },
+                    "unsupported-format": {
+                        lead: "Format no disponible",
+                        text: "Format no disponible — l'informe {{report}} no es pot generar en {{format}}.",
                     },
                 },
                 schedule: {
@@ -691,6 +922,20 @@ const catalanTranslation: TranslationType = {
                     "window-incomplete": {
                         lead: "Finestra de votació incompleta",
                         text: "Finestra de votació incompleta — caldrà obrir o tancar el període a mà al Portal d'Administració.",
+                    },
+                },
+                signing: {
+                    "duplicate-action": {
+                        lead: "Dues regles per a una acció",
+                        text: "Dues regles per a una acció — '{{action}}' té més d'una regla de signatura. Deixa'n només una.",
+                    },
+                    "signatures-out-of-range": {
+                        lead: "Signatures fora de rang",
+                        text: "Signatures fora de rang — la regla de '{{action}}' ha de demanar entre {{min}} i {{max}} signatures.",
+                    },
+                    "expiry-out-of-range": {
+                        lead: "Caducitat fora de rang",
+                        text: "Caducitat fora de rang — una sol·licitud de '{{action}}' ha de caducar després d'1 a 525.600 minuts (un any), o mai.",
                     },
                 },
                 threshold: {
@@ -772,6 +1017,24 @@ const catalanTranslation: TranslationType = {
                     },
                 },
             },
+        },
+        timezones: {
+            abbr: {
+                "Asia/Manila": "PhST",
+            },
+            name: {},
+            city: {},
+            offset: "GMT{{sign}}{{hours}}:{{minutes}}",
+            option: "({{offset}}) {{city}}",
+            optionPrimary: "{{option}} · principal",
+            optionDetail: "{{countries}} · {{name}}",
+            dateTimeZone: "{{dateTime}} {{zone}}",
+            myTime: "{{dateTime}} {{zone}} · la meva hora",
+            placeTime: "{{dateTime}} {{zone}} · {{place}}",
+            voterDateTimeZone: "{{dateTime}} {{zoneName}}",
+            onThisDevice: "En aquest dispositiu: {{dateTime}}",
+            gap: "{{dateTime}} no existeix a {{city}} perquè els rellotges s'avancen. S'executarà a l'hora indicada.",
+            overlap: "{{dateTime}} passa dues vegades a {{city}}. S'utilitza la primera.",
         },
     },
 }

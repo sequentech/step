@@ -17,6 +17,10 @@ concurrency:
   group: feedback-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+# Avoid intermittent HTTP/2 framing errors while fetching crates.io dependencies.
+env:
+  CARGO_HTTP_MULTIPLEXING: "false"
+
 jobs:
   plan:
     name: "CI tooling: affected selection"
@@ -86,6 +90,9 @@ jobs:
           - gate: election_config_archive,election_config_xlsx
             cache: archive-xlsx
             features: election_config_archive,election_config_xlsx
+          - gate: election_config_signing
+            cache: signing
+            features: election_config_signing
           # The frontends' WASM package: `election_config::wasm` without the
           # template features. A native check catches a mis-gated import there.
           - gate: wasmtest,default_features
@@ -159,12 +166,13 @@ jobs:
           cargo-build-path: packages/target
           cargo-lock-path: packages/Cargo.lock
           profile: dev
-          features: ${{ matrix.service == 'sequent-core' && 'default_features,keycloak,election_config_xlsx,election_config_templates,election_config_archive' || 'default' }}
+          features: ${{ matrix.service == 'sequent-core' && 'default_features,keycloak,election_config_xlsx,election_config_templates,election_config_archive,election_config_signing' || 'default' }}
 
       - name: Check CLI automation and voter CSV contracts
         if: matrix.service == 'step-cli'
         run: |
           python3 -m unittest discover -s packages/step-cli/scripts -p 'test_*.py'
+          python3 -m unittest discover -s scripts/transmission-sample -p 'test_*.py'
           python3 -m unittest discover -s packages/voting-load -p 'test_replay_profile.py'
           python3 -m venv "$RUNNER_TEMP/cli-python"
           "$RUNNER_TEMP/cli-python/bin/pip" install Faker==13.3.4 "psycopg[binary]==3.3.3"
@@ -181,6 +189,7 @@ jobs:
           KEYCLOAK_DB__PORT: "3322"
           KEYCLOAK_DB__DBNAME: "test"
           KEYCLOAK_DB__MANAGER__RECYCLING_METHOD: "Verified"
+          KEYCLOAK_VOTER_GROUP_NAME: "voter"
           HASURA_DB__USER: "test"
           HASURA_DB__PASSWORD: "test"
           HASURA_DB__HOST: "127.0.0.1"
@@ -190,6 +199,14 @@ jobs:
           LOW_SQL_LIMIT: "1000"
           DEFAULT_SQL_LIMIT: "20"
           DEFAULT_SQL_BATCH_SIZE: "1000"
+          # Harvest mounts the electoral-log proof routes, and its route tests
+          # create election events' ballot boxes on this server.
+          ELECTORAL_LOG_PG_HOST: "127.0.0.1"
+          ELECTORAL_LOG_PG_PORT: "3322"
+          ELECTORAL_LOG_PG_USER: "test"
+          ELECTORAL_LOG_PG_PASSWORD: "test"
+          ELECTORAL_LOG_PG_DATABASE: "test"
+          ELECTORAL_LOG_PG_SSLMODE: "disable"
           CARGO_BUILD_JOBS: ${{ matrix.build_jobs || 4 }}
         run: cd packages/${{ matrix.service }} && cargo test --locked ${{ matrix.extra }}
 
@@ -200,7 +217,9 @@ jobs:
     if: fromJSON(needs.plan.outputs.selection).jobs.run-windmill-tests
     name: Run Windmill tests
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
+    # Hosts main's PGMQ and electoral-log contracts and ovcs's database checks, each
+    # building its own test targets: together they take 45 to 55 minutes.
+    timeout-minutes: 70
     env:
       RUST_BACKTRACE: "full"
       PROTOC: "/usr/bin/protoc"
@@ -220,6 +239,20 @@ jobs:
       DEFAULT_SQL_LIMIT: "20"
       DEFAULT_SQL_BATCH_SIZE: "1000"
       CARGO_BUILD_JOBS: "2"
+      ELECTORAL_LOG_TEST_DATABASE_URL: "postgresql://test:test@127.0.0.1:3322/test?sslmode=disable"
+      ELECTORAL_LOG_PG_HOST: "127.0.0.1"
+      ELECTORAL_LOG_PG_PORT: "3322"
+      ELECTORAL_LOG_PG_USER: "test"
+      ELECTORAL_LOG_PG_PASSWORD: "test"
+      ELECTORAL_LOG_PG_DATABASE: "test"
+      ELECTORAL_LOG_PG_SSLMODE: "disable"
+      ENV_SLUG: "electoral-log-tests"
+      # Each integration target links the service; full debug symbols exhaust runners.
+      CARGO_PROFILE_DEV_DEBUG: "0"
+      CARGO_PROFILE_TEST_DEBUG: "0"
+      CARGO_INCREMENTAL: "0"
+      WBRAID_BOARD_DATABASE_URL: postgres://test:test@127.0.0.1:3322/test
+      # The ballot box seal tests post to boards of their own on this server.
     services:
       postgres:
         image: postgres:16
@@ -235,6 +268,12 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     steps:
+      # The test binaries of these packages fill the runner's disk.
+      - name: Free runner disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL
+          df -h /
+
       - name: Check out code
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -249,30 +288,43 @@ jobs:
           cargo-build-path: packages/target
           cargo-lock-path: packages/Cargo.lock
           profile: dev
-          features: default,rabbitmq-tests
+          features: default
+
+      - name: Run PGMQ transport contracts
+        env:
+          PGMQ_TEST_DATABASE_URL: postgres://test:test@127.0.0.1:3322/pgmq_test
+        run: |
+          # The tests install PGMQ and their queues themselves, as the setup job does.
+          docker exec "${{ job.services.postgres.id }}" createdb -U test pgmq_test
+          cargo test --locked -p pgmq-broker -- --include-ignored --test-threads=1
+          cargo test --locked -p windmill --lib pgmq_tests -- --ignored --test-threads=1
+        working-directory: packages
 
       - name: Run Windmill tests
         run: cargo test
         working-directory: packages/windmill
 
-      - name: Install the pinned audit database fixture
-        run: |
-          curl --fail --location --silent --show-error --output "$RUNNER_TEMP/immudb" https://github.com/codenotary/immudb/releases/download/v1.9.6/immudb-v1.9.6-linux-amd64
-          echo "26a26b68c02a86b3464e669710bd77fb06ccdbbaca03f481c4706c3526c2c5f8  $RUNNER_TEMP/immudb" | sha256sum --check
-          chmod +x "$RUNNER_TEMP/immudb"
-
-      - name: Audit delivery survives broker redelivery and uncertain commits
-        run: cargo test --locked -p windmill --features rabbitmq-tests --test electoral_log_delivery
+      - name: Test PostgreSQL electoral-log contract
+        run: cargo test --locked -p electoral-log --lib --test postgres --test ballot_box --test events --test provisioning --test console -- --ignored --test-threads=1
         working-directory: packages
-        env:
-          ELECTORAL_LOG_TEST_IMMUDB_BINARY: ${{ runner.temp }}/immudb
 
-      - name: Run PostgreSQL-backed voter-channel regression
-        run: >-
-          cargo test
-          services::cast_votes::tests::voters_by_channel_defaults_legacy_votes_and_uses_latest_valid_revote
-          -- --ignored --exact
-        working-directory: packages/windmill
+      - name: Test electoral-log application wiring
+        run: cargo test --locked -p windmill postgres_wiring_tests --lib -- --ignored --test-threads=1
+        working-directory: packages
+
+      - name: Test the acceptance run against an election event's ballot box
+        run: cargo test --locked -p step-cli --test acceptance_cli -- --ignored
+        working-directory: packages
+
+      - name: Test upstream Trellis security regressions with PostgreSQL
+        env:
+          TRELLIS_TEST_DATABASE_URL: "postgresql://test:test@127.0.0.1:3322/trellis_security?sslmode=disable"
+        run: |
+          docker exec "${{ job.services.postgres.id }}" createdb -U test trellis_security
+          cargo test --locked -p trellis --features upstream-service --lib \
+            service::processor::tests::postgres_source_reconciliation_and_tree_recovery \
+            -- --ignored --exact --test-threads=1
+        working-directory: packages
 
       - name: Start the voting-flow database fixture
         id: castvote-fixture
@@ -293,6 +345,13 @@ jobs:
       - name: Remove the voting-flow database fixture
         if: always() && steps.castvote-fixture.outputs.created == 'true'
         run: docker rm --force --volumes step-castvote-fixture
+
+      - name: Run PostgreSQL-backed delegate-count regression
+        run: >-
+          cargo test
+          services::users::tests::delegate_count_only_counts_eligible_delegators_without_a_ballot
+          -- --ignored --exact
+        working-directory: packages/windmill
 
   run-frontend-tests:
     name: ${{ matrix.package }} focused tests

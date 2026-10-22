@@ -12,11 +12,11 @@ services:
     volumes:
       - ..:/workspaces/step
       - type: bind
-        source: ${STEP_E2E_BIN_DIR:?set STEP_E2E_BIN_DIR}
+        source: ${STEP_E2E_BIN_DIR:-../.cache/backend-e2e/bin}
         target: /opt/step-e2e/bin
         read_only: true
       - type: bind
-        source: ${STEP_E2E_OUTPUT_DIR:?set STEP_E2E_OUTPUT_DIR}
+        source: ${STEP_E2E_OUTPUT_DIR:-../.cache/backend-e2e/default}
         target: /out
     environment:
       HOME: /tmp

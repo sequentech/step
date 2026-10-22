@@ -99,6 +99,17 @@ jobs:
             ../../.devcontainer/scripts/rebuild-election-config-wasm.sh
           '
 
+      - name: Build browser trustee WASM with supplied wbraid tooling
+        working-directory: packages/sequent-core
+        run: nix develop --command bash -c '../protocol-board/scripts/build-browser.sh'
+
+      - name: Upload browser trustee WASM package
+        uses: actions/upload-artifact@v4
+        with:
+          name: wbraid-trustee-wasm
+          path: packages/admin-portal/rust/wbraid-trustee-0.1.0.tgz
+          if-no-files-found: error
+
       - name: Upload the election-config WASM package
         uses: actions/upload-artifact@v4
         with:

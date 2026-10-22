@@ -1,24 +1,51 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 
-import {TranslationType} from "./en"
+import englishTranslation, {TranslationType} from "./en"
 
 // SPDX-License-Identifier: AGPL-3.0-only
 const galegoTranslation: TranslationType = {
     translations: {
+        ballotPrivacy: englishTranslation.translations.ballotPrivacy,
         startup: {
             error: "Non se puido iniciar o portal de votación. Téntao de novo.",
             retry: "Tentar de novo",
+        },
+        contactChannel: {
+            change: "Método de contacto",
+            updated: "Cambiouse o seu contacto. Os códigos e os avisos envíanse agora alí.",
+            cancelled: "O seu contacto non se cambiou.",
+            failed: "Non puidemos cambiar como contactamos con vostede. Ténteo de novo máis tarde ou contacte co soporte.",
+            close: "Pechar",
         },
         common: {
             goBack: "Volver",
             showMore: "Mostrar Máis",
             showLess: "Mostrar Menos",
         },
+        audioInstructions: {
+            screens: {
+                "election-chooser":
+                    "Esta páxina mostra as eleccións nas que pode votar. Use a tecla Tabulador para pasar dunha elección á seguinte. Cada elección ten un botón para comezar a votar. Prema Intro nese botón para abrir a súa papeleta.",
+                "start":
+                    "Esta páxina explica como votar. Primeiro elixe as súas opcións, despois revísaas e por último emite o seu voto. Use a tecla Tabulador para chegar ao botón que inicia a votación e prema Intro. Se se mostra unha declaración, marque antes a súa casa coa barra espazadora.",
+                "ballot":
+                    "Esta é a súa papeleta. Cada pregunta é un grupo de opcións, e a pregunta indica cantas pode elixir. Use a tecla Tabulador para moverse entre as opcións e a barra espazadora para marcar ou desmarcar unha. Cando remate, vaia ao botón para continuar, ao final da páxina, e prema Intro para revisar as súas opcións. Tamén hai un botón para borrar todas as súas opcións. Non se emite nada ata que o confirme na páxina de revisión.",
+                "review":
+                    "Esta páxina mostra as opcións que elixiu. Compróbeas con atención. Para cambiar algo, use o botón para editar a súa papeleta. Para emitir o seu voto, vaia ao botón para emitir a papeleta e prema Intro. O identificador da súa papeleta está ao principio da páxina. Pode copialo para localizar a súa papeleta máis adiante.",
+                "confirmation":
+                    "O seu voto foi emitido. Esta páxina mostra o identificador da súa papeleta, co que pode comprobar que se rexistrou. Pode copialo ou imprimir esta páxina. Cando remate, use o botón do final da páxina para finalizar.",
+                "audit":
+                    "Esta páxina permítelle auditar a súa papeleta en lugar de emitila. Mostra a información que pode comprobar co verificador de papeletas. Unha papeleta auditada non se emite, así que volva despois á súa papeleta para votar.",
+                "ballot-locator":
+                    "Esta páxina permítelle comprobar que unha papeleta se rexistrou. Escriba ou pegue un identificador de papeleta no campo de texto e prema Intro. O resultado aparece debaixo do campo.",
+                "support-materials":
+                    "Esta páxina mostra documentos que lle axudan a votar. Use a tecla Tabulador para moverse entre eles e prema Intro no botón dun documento para abrilo. Use o botón para volver á lista de eleccións.",
+            },
+        },
         a11y: {
             skipToContent: "Ir ao contido principal",
             helpAbout: "Axuda sobre {{topic}}",
-            copyToClipboard: "Copiar {{label}} ao portapapeis",
             previewMaterial: "Vista previa de {{title}}",
             ballotsTable: "Papeletas",
             ballotLocatorTabs: "Seccións do localizador de papeletas",
@@ -26,8 +53,10 @@ const galegoTranslation: TranslationType = {
             votingProgress: "Progreso da votación",
             stepOf: "Paso {{current}} de {{total}}",
             selectUpTo_one: "Seleccione ata {{count}} opción",
+            selectUpTo_many: "Seleccione ata {{count}} opcións",
             selectUpTo_other: "Seleccione ata {{count}} opcións",
             selectExactly_one: "Seleccione {{count}} opción",
+            selectExactly_many: "Seleccione {{count}} opcións",
             selectExactly_other: "Seleccione {{count}} opcións",
             selectBetween: "Seleccione entre {{min}} e {{max}} opcións",
         },
@@ -35,8 +64,9 @@ const galegoTranslation: TranslationType = {
             collapseToggle: "Alternar lista {{listTitle}}",
             showCandidates: "Mostrar candidatos",
             hideCandidates: "Ocultar candidatos",
-            selectedCandidate: "{{count}} candidato seleccionado",
-            selectedCandidates: "{{count}} candidatos seleccionados",
+            selectedCandidates_one: "{{count}} candidato seleccionado",
+            selectedCandidates_many: "{{count}} candidatos seleccionados",
+            selectedCandidates_other: "{{count}} candidatos seleccionados",
             expandAll: "Expandir todo",
             collapseAll: "Contraer todo",
         },
@@ -53,7 +83,7 @@ const galegoTranslation: TranslationType = {
         contest: {
             acclamation: {
                 description:
-                    "Este concurso resolveuse por aclamación. As súas candidaturas resultan elixidas sen votación, polo que non se pode seleccionar ningunha opción nin se rexistra ningún voto.",
+                    "Esta pregunta resolveuse por aclamación. As súas candidaturas resultan elixidas sen votación, polo que non se pode seleccionar ningunha opción nin se rexistra ningún voto.",
             },
         },
         votingScreen: {
@@ -63,7 +93,7 @@ const galegoTranslation: TranslationType = {
             ballotHelpDialog: {
                 title: "Sobre a pantalla da papeleta",
                 content:
-                    "Esta pantalla mostra o concurso no que es elixible para votar. Activa a caixa á dereita para seleccionar un Candidato/Resposta. Para restablecer, fai clic en “<b>Limpar selección</b>”; para continuar, fai clic en “<b>Seguinte</b>”.",
+                    "Esta pantalla mostra a pregunta na que es elixible para votar. Activa a caixa á dereita para seleccionar un Candidato/Resposta. Para restablecer, fai clic en “<b>Limpar selección</b>”; para continuar, fai clic en “<b>Seguinte</b>”.",
                 ok: "Aceptar",
             },
             nonVotedDialog: {
@@ -104,7 +134,7 @@ const galegoTranslation: TranslationType = {
             instructionsDescription: "Siga estes pasos para votar:",
             step1Title: "1. Selecciona as túas opcións",
             step1Description:
-                "Elixe os teus candidatos e responde ás preguntas. Podes editar a túa papeleta ata estar listo.",
+                "Elixe os teus candidatos e responde a cada pregunta. Podes editar a túa papeleta ata estar listo.",
             step2Title: "2. Revisa a túa papeleta",
             step2Description:
                 "Encriptaremos a túa papeleta e mostrarémosche unha revisión final. Recibirás un ID de seguimento único.",
@@ -113,6 +143,11 @@ const galegoTranslation: TranslationType = {
                 "Emite a túa papeleta para que quede rexistrada, ou auditala para confirmar que foi encriptada correctamente.",
         },
         reviewScreen: {
+            castRecovery: {
+                uncertain:
+                    "Non se confirmou o resultado do envío. Pode tentar de novo a mesma solicitude ou comprobar o identificador da papeleta antes de comezar de novo.",
+                checkBallot: "Comprobar papeleta",
+            },
             acclamation: {
                 title: "Resolto por aclamación",
                 helpDialog: {
@@ -168,6 +203,15 @@ const galegoTranslation: TranslationType = {
                     "Non seleccionou ningún candidato. Unha vez confirme, a súa papeleta emitirase en branco.",
                 ok: "Si, quero emitir a miña papeleta en branco",
                 cancel: "Cancelar",
+            },
+            unfilledContestsDialog: {
+                title: "Hai seleccións sen completar",
+                content:
+                    "Pode deixar seleccións en branco ou escoller menos opcións das permitidas. Revise o seguinte antes de continuar.",
+                selected: "{{selected}} de {{max}} seleccionadas",
+                nothingSelected: "Sen selección",
+                ok: "Continuar con estas seleccións",
+                cancel: "Revisar seleccións",
             },
             error: {
                 NETWORK_ERROR:
@@ -265,11 +309,11 @@ const galegoTranslation: TranslationType = {
             acclamation: {
                 title: "Resolto por aclamación",
                 description:
-                    "Todos os concursos desta elección resolvéronse por aclamación, polo que non se emitiu ningunha papeleta e non hai identificador de papeleta que consultar.",
+                    "Todas as preguntas desta elección resolvéronse por aclamación, polo que non se emitiu ningunha papeleta e non hai identificador de papeleta que consultar.",
                 helpDialog: {
                     title: "Información: Aclamación",
                     content:
-                        "Todos os concursos desta elección resolvéronse por aclamación: as súas candidaturas resultan elixidas sen votación. Como non se emitiu ningunha papeleta, non hai identificador de papeleta, comprobante nin código QR que verificar.",
+                        "Todas as preguntas desta elección resolvéronse por aclamación: as súas candidaturas resultan elixidas sen votación. Como non se emitiu ningunha papeleta, non hai identificador de papeleta, comprobante nin código QR que verificar.",
                     ok: "Aceptar",
                 },
             },
@@ -283,6 +327,9 @@ const galegoTranslation: TranslationType = {
             ballotId: "ID da Papeleta",
             printButton: "Imprimir",
             finishButton: "Rematar",
+            remainingElectionsError:
+                "Non puidemos comprobar se tes máis eleccións nas que votar. Téntao de novo.",
+            retryButton: "Tentar de novo",
             verifyCastTitle: "Verifica que o teu voto foi emitido",
             verifyCastDescription:
                 "Podes verificar en calquera momento que o teu voto foi emitido correctamente usando o seguinte código QR:",
@@ -322,6 +369,9 @@ const galegoTranslation: TranslationType = {
             demoQRText: "O rastrexador de papeletas está desactivado en modo de demostración",
         },
         auditScreen: {
+            confirmingAudit: "Confirmando que esta papeleta xa non se pode emitir…",
+            auditUnavailable:
+                "Non se puido auditar a papeleta. Non se revelou o seu contido. Téntao de novo.",
             printButton: "Imprimir",
             restartButton: "Comezar a votar",
             title: "Comproba a túa Papeleta",
@@ -338,7 +388,7 @@ const galegoTranslation: TranslationType = {
             downloadButton: "Descargar",
             step2Title: "2. Verifica a túa papeleta",
             step2Description:
-                '<a class="link" href="{{linkToBallotVerifier}}" target="_blank">Accede ao verificador de papeletas</a>, abrirase unha nova pestana no teu navegador.',
+                "<VerifierLink>Accede ao verificador de papeletas</VerifierLink>, abrirase unha nova pestana no teu navegador.",
             step2HelpDialog: {
                 title: "Tutorial de auditoría da papeleta",
                 content:
@@ -366,7 +416,8 @@ const galegoTranslation: TranslationType = {
                 ok: "Entendo que o meu voto non será emitido",
             },
             errors: {
-                noVotingArea: "Área de votación non asignada. Inténteo de novo máis tarde.",
+                noVotingArea:
+                    "Non estás rexistrado como votante nesta elección. Por favor, contacta co soporte.",
                 networkError:
                     "Houbo un problema de rede. Inténteo de novo máis tarde ou contacte co soporte para obter asistencia.",
                 unableToFetchData:
@@ -380,7 +431,7 @@ const galegoTranslation: TranslationType = {
             },
             alerts: {
                 noElections:
-                    "Non hai eleccións nas que poidas votar. Isto pode deberse a que a área non ten ningún concurso asociado. Inténteo de novo máis tarde ou contacte co soporte para obter asistencia.",
+                    "Non hai eleccións nas que poidas votar. Isto pode deberse a que a área non ten ningunha pregunta asociada. Inténteo de novo máis tarde ou contacte co soporte para obter asistencia.",
                 electionEventNotPublished:
                     "O evento electoral aínda non foi publicado. Inténteo de novo máis tarde ou contacte co soporte para obter asistencia.",
             },
@@ -388,30 +439,17 @@ const galegoTranslation: TranslationType = {
                 instructions:
                     "Debes ler <MaterialsLink>{{materialsTitle}}</MaterialsLink> antes de poder votar.",
             },
+            votingClosedAt: "A votación pechou o {{close}} ({{localClose}}).",
+            votingClosedOn: "A votación pechou o {{close}}.",
         },
         errors: {
             encoding: {
                 notEnoughChoices: "Non hai suficientes opcións para decodificar",
                 writeInChoiceOutOfRange: "Opción de escritura libre fóra de rango: {{index}}",
                 writeInNotEndInZero: "A escritura libre non remata en 0",
-                writeInCharsExceeded:
-                    "A escritura libre supera a lonxitude máxima en {{numCharsExceeded}} caracteres. Por favor, acórtea.",
                 bytesToUtf8Conversion:
                     "Erro ao converter a escritura libre de bytes a cadea UTF-8: {{errorMessage}}",
                 ballotTooLarge: "A papeleta é máis grande do esperado",
-            },
-            implicit: {
-                selectedMax:
-                    "Voto en exceso: o número de opcións seleccionadas {{numSelected}} é maior que o máximo {{max}}",
-                selectedMin:
-                    "O número de opcións seleccionadas {{numSelected}} é inferior ao mínimo {{min}}",
-                maxSelectionsPerType:
-                    "O número de opcións seleccionadas {{numSelected}} para a lista {{type}} é maior que o máximo {{max}}",
-                underVote:
-                    "Voto incompleto: o número de opcións seleccionadas {{numSelected}} é inferior ao máximo {{max}}",
-                overVoteDisabled:
-                    "Máximo alcanzado: seleccionaches o máximo de {{numSelected}} opcións. Para cambiar a túa selección, anula primeiro a selección doutra opción.",
-                blankVote: "Voto en branco: 0 opcións seleccionadas",
             },
             explicit: {
                 notAllowed:
@@ -419,8 +457,8 @@ const galegoTranslation: TranslationType = {
                 alert: "Esta selección contarase como un voto inválido",
             },
             page: {
-                oopsWithStatus: "Oops! {{status}}",
-                oopsWithoutStatus: "Oops! Erro inesperado",
+                oopsWithStatus: "Vaia! {{status}}",
+                oopsWithoutStatus: "Vaia! Erro inesperado",
                 somethingWrong: "Algo saiu mal.",
                 invalidLoginHintParametersTitle: "Ligazón de votación non válida",
                 invalidLoginHintParametersMessage:
@@ -444,6 +482,67 @@ const galegoTranslation: TranslationType = {
                 error: "Houbo un problema ao rexistrar a túa confirmación. Inténtao de novo.",
             },
         },
+        slates: {
+            title: "Candidaturas conxuntas",
+            description:
+                "Unha candidatura conxunta é un grupo de candidatos que se presentan xuntos. Cada candidato mostra a candidatura á que pertence.",
+            independent: "Independente",
+            contestMembers: "Candidatos de {{slate}} para {{contest}}",
+            noCandidate: "Sen candidato",
+            coverage: {
+                full: "Candidatura completa",
+                singleContest: "Só {{contest}}",
+                partial: "Candidatura parcial",
+                candidates_one: "{{count}} candidato",
+                candidates_other: "{{count}} candidatos",
+                offices_one: "{{count}} cargo",
+                offices_other: "{{count}} cargos",
+            },
+            candidateList: {
+                show: "Amosar candidaturas",
+                hide: "Agochar candidaturas",
+            },
+            tabs: {
+                label: "Formas de cubrir a súa papeleta",
+                slates: "Elixir unha lista",
+                candidates: "Candidaturas individuais",
+            },
+            review: {
+                title: "As túas seleccións",
+                total: "Candidaturas seleccionadas: {{selected}} de {{seats}}",
+                slate: "{{slate}}: {{status}}",
+                independent: "Candidaturas independentes seleccionadas: {{count}}",
+                note: "O teu voto rexístrase para cada candidatura seleccionada. Unha lista non é un voto por si mesma.",
+                contestCount: "{{selected}} de {{max}} seleccionadas",
+                edit: "Editar",
+                editLabel: "Editar {{contest}}",
+            },
+            selection: {
+                all: "As {{total}} seleccionadas",
+                mixed: "Mixta · {{selected}} de {{total}} seleccionadas",
+                partly: "Seleccionada en parte · {{selected}} de {{total}}",
+                selected: "Seleccionada",
+                edit: "Editar a selección",
+            },
+            apply: {
+                button: "Elixir esta candidatura",
+                buttonLabel: "Elixir a candidatura {{slate}}",
+                chosen: "{{slate}} elixida. Candidatos seleccionados: {{candidates}}. Contendas: {{contests}}.",
+                overMaximum:
+                    "{{slate}} non se pode elixir: ten {{candidates}} candidaturas para {{contest}}, que permite {{max}}. Pode seguir elixindo candidaturas individualmente.",
+                unavailable:
+                    "{{slate}} non se pode elixir nesta papeleta. Pode seguir elixindo candidaturas individualmente.",
+                replaceDialog: {
+                    title: "Substituír as túas opcións actuais?",
+                    content:
+                        "Elixir {{slate}} substitúe as túas opcións nas contendas seguintes. O resto das túas opcións non cambia.",
+                    removed: "Quítase:",
+                    added: "Selecciónase no seu lugar:",
+                    ok: "Substituír opcións",
+                    cancel: "Manter as miñas opcións",
+                },
+            },
+        },
         ballotLocator: {
             title: "Busca a túa Papeleta",
             titleResult: "Resultado da túa busca de Papeleta",
@@ -460,6 +559,9 @@ const galegoTranslation: TranslationType = {
                 "Non atopado, comprobe que o ID da Papeleta seja correcto e pertenezca a este usuario.",
             filterByBallotId: "Filtrar por ID da Papeleta",
             totalBallots: "Papeletas: {{total}}",
+            checksAvailableUntil: "Podes comprobar a túa papeleta ata o {{date}}.",
+            checksEnded: "As comprobacións remataron o {{date}}.",
+            castAt: "Emitido o {{date}}",
             steps: {
                 lookup: "Busca a túa Papeleta",
                 result: "Resultado",
@@ -477,9 +579,7 @@ const galegoTranslation: TranslationType = {
             column: {
                 statement_kind: "Tipo",
                 statement_timestamp: "Marca de tempo",
-                username: "Nome de usuario",
                 ballot_id: "ID da papeleta",
-                message: "Mensaxe",
             },
         },
     },

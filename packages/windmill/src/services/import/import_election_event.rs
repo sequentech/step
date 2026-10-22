@@ -3,25 +3,36 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::application::insert_applications;
-use crate::postgres::election_event::{get_election_event_by_id_if_exist, update_bulletin_board};
+use crate::postgres::election_event::{
+    election_event_id_exists, get_election_event_by_id_if_exist, lock_election_event_id,
+    update_bulletin_board,
+};
 use crate::postgres::reports::insert_reports;
 use crate::postgres::reports::Report;
+use crate::postgres::trusted_write;
 use crate::postgres::trustee::get_all_trustees;
+use crate::services::approval_matrix::store::import_approval_matrix;
+use crate::services::ceremonies::keys_ceremony::{
+    ceremony_public_key_state, verify_keys_ceremony_public_key, CeremonyPublicKeyState,
+};
 use crate::services::electoral_log::ElectoralLogAdminContext;
+use crate::services::electoral_log_board::get_event_board;
 use crate::services::import::import_publications::{
     import_ballot_publications, import_election_event_config_file,
 };
 use crate::services::import::import_scheduled_events::import_scheduled_events;
 use crate::services::import::import_tally::process_tally_file;
-use crate::services::keycloak::read_realm_config_from_s3;
-use crate::services::protocol_manager::get_event_board;
+use crate::services::keycloak::{read_realm_config_from_s3, require_enrollment_window_checks};
 use crate::services::reports::template_renderer::EReportEncryption;
 use crate::services::reports_vault::get_report_key_pair;
 use crate::services::tasks_execution::update_fail;
 use crate::tasks::insert_election_event::CreateElectionEventInput;
 use crate::types::documents::ETallyDocuments;
-use ::keycloak::types::{ComponentExportRepresentation, RealmRepresentation};
-use anyhow::{anyhow, Context, Result};
+use ::keycloak::types::{
+    ComponentExportRepresentation, GroupRepresentation, IdentityProviderMapperRepresentation,
+    ProtocolMapperRepresentation, RealmRepresentation,
+};
+use anyhow::{anyhow, bail, ensure, Context, Result};
 use chrono::format;
 use chrono::{DateTime, Utc};
 use deadpool_postgres::{Client as DbClient, Transaction};
@@ -57,25 +68,25 @@ use sequent_core::util::version::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::env;
 use std::fs;
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::Cursor;
 use std::io::Seek;
-use std::io::{self, Read, Write};
+use std::io::{self, BufReader, Read, Write};
 use std::path::Path;
 use std::str::FromStr;
 use tempfile::NamedTempFile;
-use tracing::{event, info, instrument, Level};
+use tracing::{event, info, instrument, warn, Level};
 use uuid::Uuid;
 use zip::read::ZipArchive;
 
 const KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY: &str =
     "KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY";
 
-use super::import_users::import_users_file;
+use super::import_users::{import_users_file, ImportUsersPrivileges};
 use crate::postgres;
 use crate::postgres::area::insert_areas;
 use crate::postgres::area_contest::insert_area_contests;
@@ -84,10 +95,11 @@ use crate::postgres::certificate_authority::{
     insert_certificate_authority, CertificateAuthorityRecord,
 };
 use crate::postgres::contest::insert_contest;
-use crate::postgres::election::insert_elections;
+use crate::postgres::election::{clear_election_keys_ceremony, insert_elections};
 use crate::postgres::election_event::insert_election_event;
 use crate::postgres::keys_ceremony;
 use crate::postgres::scheduled_event::insert_scheduled_event;
+use crate::postgres::tally_session::get_tally_sessions_by_election_event_id;
 use crate::services::certificate_authority::{parse_certificate_pem, split_pem_bundle};
 use crate::services::consolidation::aes_256_cbc_encrypt::decrypt_file_aes_256_cbc;
 use crate::services::documents;
@@ -95,15 +107,18 @@ use crate::services::documents::upload_and_return_document;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_board::BoardSerializable;
 use crate::services::electoral_log::ElectoralLog;
+use crate::services::electoral_log_board::{
+    create_protocol_manager_keys, get_election_board, get_event_databases,
+    get_protocol_manager_secret_path,
+};
+use crate::services::electoral_log_transfer::import_electoral_log;
 use crate::services::import::import_bulletin_boards::*;
 use crate::services::jwks::upsert_realm_jwks;
-use crate::services::protocol_manager::get_election_board;
-use crate::services::protocol_manager::get_protocol_manager_secret_path;
-use crate::services::protocol_manager::{
-    create_protocol_manager_keys, get_b3_pgsql_client, get_board_client,
-};
+use crate::services::signing::certificates::parse_chain;
+use crate::services::signing::configuration::{import_bundle_signing, import_bundle_staff_issuers};
 use crate::tasks::import_election_event::ImportElectionEventBody;
 use crate::types::documents::EDocuments;
+use electoral_log::ports::ElectoralLogStore;
 use regex::Regex;
 use sequent_core::types::hasura::core::{Area, Candidate, Contest, Election, ElectionEvent};
 use sequent_core::types::keycloak::{
@@ -124,13 +139,16 @@ use sequent_core::util::temp_path::{generate_temp_file, get_file_size};
 //   keycloak_event_realm serde_json::Value, not RealmRepresentation. That type
 //                        comes from the keycloak crate, which pulls reqwest.
 //                        Deserialized into the typed form where it is used.
+use super::configuration_package;
 use super::rejection::reject;
 use sequent_core::election_config;
+use sequent_core::election_config::package_verify::VerifiedPackage;
+use sequent_core::election_config::report::{parse_copies, parse_output_formats};
 pub use sequent_core::election_config::ImportElectionEventSchema;
 use sequent_core::election_config::{import_problems, Rejected};
 
 #[instrument(err)]
-pub async fn upsert_b3_and_elog(
+pub async fn ensure_election_audit_boards(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
@@ -139,93 +157,486 @@ pub async fn upsert_b3_and_elog(
 ) -> Result<Value> {
     let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
     let board_name = get_event_board(tenant_id, election_event_id, &slug);
-    // FIXME must also create the electoral log board here
-    let mut immudb_client = get_board_client().await?;
-    immudb_client.upsert_electoral_log_db(&board_name).await?;
-
-    let mut board_client = get_b3_pgsql_client().await?;
-
-    // Create board and protocol manager keys for election event (assert)
-    let existing: Option<b4::client::pgsql::B3IndexRow> =
-        board_client.get_board(board_name.as_str()).await?;
-    // insert into the index of boards
-    board_client.create_index_ine().await?;
-    // create board table
-    board_client.create_board_ine(board_name.as_str()).await?;
-
-    if existing.is_none() && !dont_auto_generate_keys {
-        event!(
-            Level::INFO,
-            "creating protocol manager keys for Election event {}",
-            election_event_id
-        );
-        create_protocol_manager_keys(
-            hasura_transaction,
-            &tenant_id,
-            &election_event_id,
-            &board_name,
-        )
-        .await?;
-    }
-
-    // board was created, checking it is now present
-    let board = board_client
-        .get_board(board_name.as_str())
+    let client = get_event_databases()
         .await?
-        .ok_or(anyhow!(
-            "Unexpected error: could not retrieve created board '{}'",
-            &board_name
-        ))?;
-
-    for election_id in election_ids.clone() {
-        // Create board and protocol manager keys for election (insert, not asssert)
-        let board_name = get_election_board(tenant_id, &election_id, &slug);
-
-        let existing: Option<b4::client::pgsql::B3IndexRow> =
-            board_client.get_board(board_name.as_str()).await?;
-
-        // assert board table
-        board_client.create_board_ine(board_name.as_str()).await?;
-        // create board table
-
-        if existing.is_none() && !dont_auto_generate_keys {
-            event!(
-                Level::INFO,
-                "creating protocol manager keys for election {}",
-                election_id
-            );
+        .create_event(tenant_id, election_event_id)
+        .await?;
+    client.create_ballot_box(election_event_id).await?;
+    let mut identities = vec![board_name.clone()];
+    identities.extend(
+        election_ids
+            .iter()
+            .map(|id| get_election_board(tenant_id, id, &slug)),
+    );
+    for identity in identities {
+        let existing = client.has_board(&identity).await?;
+        client.create_board(&identity).await?;
+        if !existing && !dont_auto_generate_keys {
             create_protocol_manager_keys(
                 hasura_transaction,
                 tenant_id,
                 election_event_id,
-                &board_name,
+                &identity,
             )
             .await?;
         }
-        // board was created, checking it is now present
-        board_client
-            .get_board(board_name.as_str())
-            .await?
-            .ok_or(anyhow!(
-                "Unexpected error: could not retrieve created board '{}'",
-                &board_name
-            ))?;
     }
-
-    let board_serializable: BoardSerializable = board.into();
-
-    let board_value = serde_json::to_value(board_serializable.clone())?;
-    Ok(board_value)
+    Ok(serde_json::to_value(BoardSerializable {
+        id: 0,
+        database_name: board_name,
+        is_archived: false,
+    })?)
 }
 
 #[instrument(err)]
 pub async fn read_default_election_event_realm() -> Result<RealmRepresentation> {
-    read_realm_config_from_s3(KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY).await
+    let mut realm = read_realm_config_from_s3(KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY).await?;
+    crate::tasks::migrate_vote_privacy_realms::prepare_event_realm(&mut realm);
+    Ok(realm)
+}
+
+/// Claim namespace that Keycloak protocol mappers use to emit Hasura session
+/// variables (roles and tenant). A mapper writing under this namespace decides
+/// which roles and tenant a token is accepted with, so only the platform
+/// template may define these on an imported event realm.
+const HASURA_CLAIM_NAMESPACE: &str = "https://hasura.io/jwt/claims";
+/// Protocol-mapper config key holding the claim a mapper writes.
+const PROTOCOL_MAPPER_CLAIM_NAME_KEY: &str = "claim.name";
+/// Prefix of the per-realm composite role Keycloak generates for every realm.
+const DEFAULT_REALM_ROLE_PREFIX: &str = "default-roles-";
+/// How an uploaded election-event realm's token-claim authority (realm roles,
+/// Hasura claim mappers and identity-provider mappers) is reconciled against
+/// the platform template before the realm is applied to Keycloak. Modeled as
+/// an enum so further reconciliation modes can be added without touching call
+/// sites.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ImportedRealmReconciliation {
+    /// Keep only the token-claim authority the platform template defines and
+    /// log every element removed from the uploaded realm. Platform exports
+    /// contain only template elements, so they are applied unchanged.
+    #[default]
+    AlignWithTemplate,
+    /// Reject the import when the uploaded realm carries token-claim authority
+    /// the platform template does not define, instead of removing it.
+    RejectForeignClaims,
+}
+
+/// True when a protocol mapper writes a Hasura session variable or runs a
+/// script, i.e. it can set the roles or tenant a token carries.
+fn is_claim_authority_mapper(mapper: &ProtocolMapperRepresentation) -> bool {
+    if mapper
+        .protocol_mapper
+        .as_deref()
+        .is_some_and(|kind| kind.contains("script"))
+    {
+        return true;
+    }
+    mapper
+        .config
+        .as_ref()
+        .and_then(|config| config.get(PROTOCOL_MAPPER_CLAIM_NAME_KEY))
+        // Keycloak stores the namespace with the dot escaped
+        // (`https://hasura\.io/jwt/claims`); compare without backslashes.
+        .is_some_and(|claim_name| {
+            claim_name
+                .replace('\\', "")
+                .starts_with(HASURA_CLAIM_NAMESPACE)
+        })
+}
+
+/// A protocol mapper compared by its effect rather than its per-realm id.
+fn claim_mapper_key(
+    mapper: &ProtocolMapperRepresentation,
+) -> (String, String, BTreeMap<String, String>) {
+    (
+        mapper.name.clone().unwrap_or_default(),
+        mapper.protocol_mapper.clone().unwrap_or_default(),
+        mapper
+            .config
+            .clone()
+            .map(|config| config.into_iter().collect())
+            .unwrap_or_default(),
+    )
+}
+
+/// A realm role is allowed on an imported realm when the platform template
+/// defines it, or it is the realm's own default composite.
+fn realm_role_allowed(name: &str, allowed: &HashSet<String>) -> bool {
+    allowed.contains(name)
+}
+
+/// Client-role assignments of a user or group, keyed by client id.
+type ClientRoleAssignments = HashMap<String, Vec<String>>;
+
+/// Keep only the client-role assignments the template gives the same subject.
+fn retain_template_client_roles(
+    assigned: &mut Option<ClientRoleAssignments>,
+    allowed: Option<&ClientRoleAssignments>,
+    subject: &str,
+    discarded: &mut Vec<String>,
+) {
+    let Some(assigned_roles) = assigned.as_mut() else {
+        return;
+    };
+    for (client_id, roles) in assigned_roles.iter_mut() {
+        let allowed_roles = allowed.and_then(|allowed| allowed.get(client_id));
+        roles.retain(|role| {
+            let keep = allowed_roles.is_some_and(|allowed| allowed.contains(role));
+            if !keep {
+                discarded.push(format!(
+                    "client role '{role}' of client '{client_id}' assigned to {subject}"
+                ));
+            }
+            keep
+        });
+    }
+    assigned_roles.retain(|_, roles| !roles.is_empty());
+}
+
+/// Client-role assignments of the template's groups, keyed by group name.
+fn collect_group_client_roles(
+    groups: &[GroupRepresentation],
+    collected: &mut HashMap<String, ClientRoleAssignments>,
+) {
+    for group in groups {
+        if let (Some(name), Some(client_roles)) = (group.name.clone(), group.client_roles.clone()) {
+            collected.insert(name, client_roles);
+        }
+        if let Some(sub_groups) = group.sub_groups.as_ref() {
+            collect_group_client_roles(sub_groups, collected);
+        }
+    }
+}
+
+/// Drop every realm-role and client-role reference a group (and its
+/// subgroups) makes that the template does not define.
+fn strip_group_roles(
+    group: &mut GroupRepresentation,
+    allowed: &HashSet<String>,
+    template_client_roles: &HashMap<String, ClientRoleAssignments>,
+    discarded: &mut Vec<String>,
+) {
+    let group_name = group
+        .name
+        .clone()
+        .unwrap_or_else(|| "<unknown>".to_string());
+    if let Some(roles) = group.realm_roles.as_mut() {
+        roles.retain(|name| {
+            let keep = realm_role_allowed(name, allowed);
+            if !keep {
+                discarded.push(format!(
+                    "realm role '{name}' assigned to group '{group_name}'"
+                ));
+            }
+            keep
+        });
+    }
+    retain_template_client_roles(
+        &mut group.client_roles,
+        template_client_roles.get(&group_name),
+        &format!("group '{group_name}'"),
+        discarded,
+    );
+    if let Some(sub_groups) = group.sub_groups.as_mut() {
+        for sub_group in sub_groups.iter_mut() {
+            strip_group_roles(sub_group, allowed, template_client_roles, discarded);
+        }
+    }
+}
+
+/// Reconcile the claim-authority protocol mappers of one client or client
+/// scope: keep those the template defines for it, restore the ones missing and
+/// drop every other.
+fn reconcile_claim_mappers(
+    existing: Vec<ProtocolMapperRepresentation>,
+    template_mappers: Option<&Vec<ProtocolMapperRepresentation>>,
+    owner: &str,
+    discarded: &mut Vec<String>,
+) -> Vec<ProtocolMapperRepresentation> {
+    let (claim_mappers, mut kept): (Vec<_>, Vec<_>) = existing
+        .into_iter()
+        .partition(|mapper| is_claim_authority_mapper(mapper));
+    let template_mappers: Vec<&ProtocolMapperRepresentation> = template_mappers
+        .map(Vec::as_slice)
+        .unwrap_or_default()
+        .iter()
+        .filter(|mapper| is_claim_authority_mapper(mapper))
+        .collect();
+    let template_keys: HashSet<_> = template_mappers
+        .iter()
+        .map(|mapper| claim_mapper_key(mapper))
+        .collect();
+    let mut present_keys: HashSet<_> = HashSet::new();
+    for mapper in claim_mappers {
+        let key = claim_mapper_key(&mapper);
+        if template_keys.contains(&key) {
+            present_keys.insert(key);
+            kept.push(mapper);
+        } else {
+            discarded.push(format!(
+                "claim mapper '{}' on {owner}",
+                mapper.name.as_deref().unwrap_or("<unnamed>")
+            ));
+        }
+    }
+    for template_mapper in template_mappers {
+        if !present_keys.contains(&claim_mapper_key(template_mapper)) {
+            let mut restored = (*template_mapper).clone();
+            restored.id = None;
+            kept.push(restored);
+        }
+    }
+    kept
+}
+
+/// Key of an identity-provider mapper compared by its effect, not its id.
+fn idp_mapper_key(
+    mapper: &IdentityProviderMapperRepresentation,
+) -> (String, String, String, BTreeMap<String, String>) {
+    (
+        mapper.identity_provider_alias.clone().unwrap_or_default(),
+        mapper.identity_provider_mapper.clone().unwrap_or_default(),
+        mapper.name.clone().unwrap_or_default(),
+        mapper
+            .config
+            .clone()
+            .map(|config| config.into_iter().collect())
+            .unwrap_or_default(),
+    )
+}
+
+/// Reconcile an uploaded election-event realm against the platform template so
+/// that only the template's realm roles, Hasura claim mappers and
+/// identity-provider mappers survive. This prevents an imported realm from
+/// granting roles (such as `service-account` or `admin-user`) or minting
+/// Hasura claims that the platform never intended an event realm to carry.
+#[instrument(skip(imported, template))]
+fn sanitize_imported_event_realm(
+    imported: &RealmRepresentation,
+    template: &RealmRepresentation,
+    reconciliation: ImportedRealmReconciliation,
+) -> Result<RealmRepresentation> {
+    let mut realm = imported.clone();
+    let mut discarded: Vec<String> = Vec::new();
+
+    let default_role_name = |realm: &RealmRepresentation| -> Option<String> {
+        realm
+            .default_role
+            .as_ref()
+            .and_then(|role| role.name.clone())
+            .filter(|name| name.starts_with(DEFAULT_REALM_ROLE_PREFIX))
+    };
+    let template_default_role = template.default_role.clone();
+    let imported_default_role_name = default_role_name(imported);
+
+    let mut allowed_realm_roles: HashSet<String> = template
+        .roles
+        .as_ref()
+        .and_then(|roles| roles.realm.as_ref())
+        .map(|realm_roles| {
+            realm_roles
+                .iter()
+                .filter_map(|role| role.name.clone())
+                .collect()
+        })
+        .unwrap_or_default();
+    allowed_realm_roles.extend(imported_default_role_name.clone());
+    allowed_realm_roles.extend(default_role_name(template));
+
+    // Role definitions come from the template, so an allowed role cannot carry
+    // composites the template does not give it.
+    let mut template_composites: HashMap<String, Option<_>> = template
+        .roles
+        .as_ref()
+        .and_then(|roles| roles.realm.as_ref())
+        .map(|realm_roles| {
+            realm_roles
+                .iter()
+                .filter_map(|role| Some((role.name.clone()?, role.composites.clone())))
+                .collect()
+        })
+        .unwrap_or_default();
+    if let Some(name) = imported_default_role_name {
+        template_composites.insert(name, template_default_role.and_then(|role| role.composites));
+    }
+
+    // 1. Realm roles: keep only the template's roles and the default composite.
+    if let Some(roles) = realm.roles.as_mut() {
+        if let Some(realm_roles) = roles.realm.as_mut() {
+            realm_roles.retain(|role| {
+                let name = role.name.as_deref().unwrap_or_default();
+                let keep = realm_role_allowed(name, &allowed_realm_roles);
+                if !keep {
+                    discarded.push(format!("realm role '{name}'"));
+                }
+                keep
+            });
+            for role in realm_roles.iter_mut() {
+                let name = role.name.clone().unwrap_or_default();
+                role.composites = template_composites.get(&name).cloned().flatten();
+            }
+        }
+    }
+
+    // 2. Default role composites.
+    if let Some(default_role) = realm.default_role.as_mut() {
+        let name = default_role.name.clone().unwrap_or_default();
+        default_role.composites = template_composites.get(&name).cloned().flatten();
+    }
+
+    let template_user_client_roles: HashMap<String, ClientRoleAssignments> = template
+        .users
+        .iter()
+        .flatten()
+        .filter_map(|user| Some((user.username.clone()?, user.client_roles.clone()?)))
+        .collect();
+    let mut template_group_client_roles = HashMap::new();
+    collect_group_client_roles(
+        template.groups.as_deref().unwrap_or_default(),
+        &mut template_group_client_roles,
+    );
+
+    // 3. Role assignments on users.
+    if let Some(users) = realm.users.as_mut() {
+        for user in users.iter_mut() {
+            let username = user
+                .username
+                .clone()
+                .unwrap_or_else(|| "<unknown>".to_string());
+            retain_template_client_roles(
+                &mut user.client_roles,
+                template_user_client_roles.get(&username),
+                &format!("user '{username}'"),
+                &mut discarded,
+            );
+            if let Some(user_roles) = user.realm_roles.as_mut() {
+                user_roles.retain(|name| {
+                    let keep = realm_role_allowed(name, &allowed_realm_roles);
+                    if !keep {
+                        discarded
+                            .push(format!("realm role '{name}' assigned to user '{username}'"));
+                    }
+                    keep
+                });
+            }
+        }
+    }
+
+    // 4. Role assignments on groups.
+    if let Some(groups) = realm.groups.as_mut() {
+        for group in groups.iter_mut() {
+            strip_group_roles(
+                group,
+                &allowed_realm_roles,
+                &template_group_client_roles,
+                &mut discarded,
+            );
+        }
+    }
+
+    // 5. Scope mappings that reference dropped roles.
+    if let Some(scope_mappings) = realm.scope_mappings.as_mut() {
+        for mapping in scope_mappings.iter_mut() {
+            if let Some(roles) = mapping.roles.as_mut() {
+                roles.retain(|name| realm_role_allowed(name, &allowed_realm_roles));
+            }
+        }
+    }
+
+    // 6. Claim mappers on clients and client scopes: each keeps only the
+    //    template's Hasura mappers for the client or scope of that name.
+    let template_client_claim_mappers: HashMap<String, Vec<ProtocolMapperRepresentation>> =
+        template
+            .clients
+            .iter()
+            .flatten()
+            .filter_map(|client| {
+                Some((client.client_id.clone()?, client.protocol_mappers.clone()?))
+            })
+            .collect();
+    let template_scope_claim_mappers: HashMap<String, Vec<ProtocolMapperRepresentation>> = template
+        .client_scopes
+        .iter()
+        .flatten()
+        .filter_map(|scope| Some((scope.name.clone()?, scope.protocol_mappers.clone()?)))
+        .collect();
+
+    if let Some(clients) = realm.clients.as_mut() {
+        for client in clients.iter_mut() {
+            let client_id = client.client_id.clone().unwrap_or_default();
+            let existing = client.protocol_mappers.take().unwrap_or_default();
+            client.protocol_mappers = Some(reconcile_claim_mappers(
+                existing,
+                template_client_claim_mappers.get(&client_id),
+                &format!("client '{client_id}'"),
+                &mut discarded,
+            ));
+        }
+    }
+    if let Some(client_scopes) = realm.client_scopes.as_mut() {
+        for scope in client_scopes.iter_mut() {
+            let scope_name = scope.name.clone().unwrap_or_default();
+            let existing = scope.protocol_mappers.take().unwrap_or_default();
+            scope.protocol_mappers = Some(reconcile_claim_mappers(
+                existing,
+                template_scope_claim_mappers.get(&scope_name),
+                &format!("client scope '{scope_name}'"),
+                &mut discarded,
+            ));
+        }
+    }
+
+    // 7. Identity-provider mappers: only the ones the template defines survive,
+    //    as any of them can grant roles or set attributes the claims carry.
+    let template_idp_mapper_keys: HashSet<_> = template
+        .identity_provider_mappers
+        .iter()
+        .flatten()
+        .map(idp_mapper_key)
+        .collect();
+    if let Some(idp_mappers) = realm.identity_provider_mappers.as_mut() {
+        idp_mappers.retain(|mapper| {
+            let keep = template_idp_mapper_keys.contains(&idp_mapper_key(mapper));
+            if !keep {
+                discarded.push(format!(
+                    "identity-provider mapper '{}'",
+                    mapper.name.as_deref().unwrap_or("<unnamed>")
+                ));
+            }
+            keep
+        });
+    }
+
+    if !discarded.is_empty() {
+        match reconciliation {
+            ImportedRealmReconciliation::RejectForeignClaims => {
+                return Err(anyhow!(
+                    "Imported election-event realm carries token-claim \
+                     elements not defined by the platform template: {}",
+                    discarded.join(", ")
+                ));
+            }
+            ImportedRealmReconciliation::AlignWithTemplate => {
+                tracing::warn!(
+                    "Removed {} token-claim element(s) from the imported \
+                     election-event realm not defined by the platform \
+                     template: {}",
+                    discarded.len(),
+                    discarded.join(", ")
+                );
+            }
+        }
+    }
+
+    crate::tasks::migrate_vote_privacy_realms::prepare_event_realm(&mut realm);
+    Ok(realm)
 }
 
 #[instrument(skip(realm))]
 pub fn remove_keycloak_realm_secrets(realm: &RealmRepresentation) -> Result<RealmRepresentation> {
     let mut realm_copy = realm.clone();
+    super::realm_user_credentials::remove_user_credentials(&mut realm_copy);
+    super::realm_identity_providers::remove_demo_identity_providers(&mut realm_copy);
 
     // Collect well-known clients and their secrets to set.
     let keycloak_client_id = env::var("KEYCLOAK_CLIENT_ID")
@@ -350,11 +761,11 @@ pub async fn upsert_keycloak_realm(
     keycloak_event_realm: Option<RealmRepresentation>,
     default_locale: Option<String>,
 ) -> Result<()> {
-    let mut realm = if let Some(realm) = keycloak_event_realm.clone() {
-        realm
+    let mut realm = if let Some(uploaded) = keycloak_event_realm.clone() {
+        let template = read_default_election_event_realm().await?;
+        sanitize_imported_event_realm(&uploaded, &template, ImportedRealmReconciliation::default())?
     } else {
-        let realm = read_default_election_event_realm().await?;
-        realm
+        read_default_election_event_realm().await?
     };
 
     if let Some(default_language) = default_locale {
@@ -371,10 +782,35 @@ pub async fn upsert_keycloak_realm(
         realm.attributes = Some(attrs);
     }
 
+    require_enrollment_window_checks(&mut realm)?;
     realm = remove_keycloak_realm_secrets(&realm)?;
-    let realm_config = serde_json::to_string(&realm)?;
     let client = KeycloakAdminClient::new().await?;
     let realm_name = get_event_realm(tenant_id, election_event_id);
+    let registration_allowed = match realm.registration_allowed {
+        Some(allowed) => allowed,
+        None => match client.client.realm_get(&realm_name).await {
+            Ok(existing) => {
+                crate::tasks::migrate_registration_flows::registration_desire(&existing)?
+            }
+            Err(::keycloak::KeycloakError::HttpFailure { status: 404, .. }) => false,
+            Err(error) => return Err(error.into()),
+        },
+    };
+    // Imported partial/builtin flows remain closed until the installed
+    // registration forms have been verified. Failed verification stays closed.
+    realm.registration_allowed = Some(false);
+    // A source realm's unfinished workflow state is not an imported policy,
+    // nor are its messaging channels: they are published from the imported
+    // configuration, once it validates here.
+    if let Some(attributes) = realm.attributes.as_mut() {
+        attributes.remove(crate::tasks::migrate_registration_flows::REGISTRATION_RESTORE_ATTRIBUTE);
+        attributes.remove(sequent_core::types::messaging::REALM_ATTR_MESSAGING);
+    }
+    crate::tasks::migrate_registration_flows::mark_import_registration_pending(
+        &mut realm,
+        registration_allowed,
+    );
+    let realm_config = serde_json::to_string(&realm)?;
     client
         .upsert_realm(
             realm_name.as_str(),
@@ -385,7 +821,39 @@ pub async fn upsert_keycloak_realm(
             Some(election_event_id.to_string()),
         )
         .await?;
+    // upsert_realm consumes its administrator client.
+    let client = KeycloakAdminClient::new().await?;
+    let public_client = KeycloakAdminClient::pub_new().await?;
+    let outcome = crate::tasks::migrate_registration_flows::migrate_realm_for_import(
+        &client,
+        &public_client,
+        &realm_name,
+    )
+    .await?;
+    if outcome == crate::tasks::migrate_registration_flows::FlowOutcome::NoRealm {
+        return Err(anyhow!(
+            "Imported event realm is missing before enrollment verification"
+        ));
+    }
     upsert_realm_jwks(realm_name.as_str()).await?;
+    crate::tasks::migrate_registration_flows::finish_registration_setup(&client, &realm_name)
+        .await?;
+    Ok(())
+}
+
+/// Fails when an election event with this id already exists in any tenant, so
+/// the create and import paths only ever set up new events and their realms.
+/// The id stays locked until the transaction ends, so two attempts with the
+/// same id cannot both pass this check.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn ensure_new_election_event(
+    hasura_transaction: &Transaction<'_>,
+    election_event_id: &str,
+) -> Result<()> {
+    lock_election_event_id(hasura_transaction, election_event_id).await?;
+    if election_event_id_exists(hasura_transaction, election_event_id).await? {
+        return Err(anyhow!("Election event {election_event_id} already exists"));
+    }
     Ok(())
 }
 
@@ -417,7 +885,7 @@ pub async fn insert_election_event_db(
         return Ok(());
     }
 
-    let new_election_input = ElectionEvent {
+    let mut new_election_input = ElectionEvent {
         id: election_event_id.clone(),
         tenant_id: object.tenant_id.clone(),
         description: object.description.clone(),
@@ -435,7 +903,7 @@ pub async fn insert_election_event_db(
         encryption_protocol: object
             .encryption_protocol
             .clone()
-            .unwrap_or("RSA256".to_string()),
+            .unwrap_or("WBRAID".to_string()),
         is_audit: object.is_audit.clone(),
         audit_election_event_id: object.audit_election_event_id.clone(),
         statistics: Some(json!({
@@ -445,6 +913,7 @@ pub async fn insert_election_event_db(
         external_id: None,
     };
 
+    crate::services::vote_privacy::configure_new_event(&mut new_election_input)?;
     insert_election_event(&hasura_transaction, &new_election_input).await?;
     Ok(())
 }
@@ -476,27 +945,168 @@ pub fn replace_ids(
     // Prepare tenant_id replacement - always replace to ensure consistency
     let tenant_id_replacement = Some((original_data.tenant_id.to_string(), tenant_id.clone()));
 
-    // Prepare election_event_id replacement if a specific one was provided
-    let election_event_id_replacement = event_id
-        .as_ref()
-        .map(|new_id| (original_data.election_event.id.clone(), new_id.clone()));
+    let election_event_id = event_id.unwrap_or_else(|| Uuid::new_v4().to_string());
+    let election_event_id_replacement = Some((
+        original_data.election_event.id.clone(),
+        election_event_id.clone(),
+    ));
 
     // Use replace_realm_ids which handles:
     // - Preserving UUIDs in Keycloak authenticator configurations
     // - Preserving tenant_id and election_event_id in the keep list before UUID replacement
     // - Applying explicit tenant_id and election_event_id replacements after UUID replacement
-    let (new_data, replacement_map) = replace_realm_ids(
+    let (mut new_data, mut replacement_map) = replace_realm_ids(
         data_str,
         vec![], // Empty keep list - replace_realm_ids will populate it automatically
         tenant_id_replacement,
         election_event_id_replacement,
     )?;
 
+    // Explicit scope replacements are applied to JSON outside replace_uuids;
+    // auxiliary archive members need those same entries in their shared map.
+    replacement_map.insert(original_data.tenant_id.clone(), tenant_id.clone());
+    replacement_map.insert(
+        original_data.election_event.id.clone(),
+        election_event_id.clone(),
+    );
+
+    // Board names encode compact UUIDs; remap only outer metadata references.
+    // The signed manager-message bytes and cryptographic domain IDs stay intact.
+    if let Some(boards) = &original_data.protocol_boards {
+        for board in boards {
+            let name = if board.parent_id.is_none() {
+                let id = replacement_map
+                    .get(&board.keys_ceremony_id)
+                    .context("missing ceremony ID replacement")?;
+                protocol_board::BoardName::for_dkg(&Uuid::parse_str(id)?)
+            } else {
+                let session = board
+                    .tally_session_id
+                    .as_ref()
+                    .and_then(|id| replacement_map.get(id))
+                    .context("missing tally ID replacement")?;
+                protocol_board::BoardName::for_tally(
+                    &Uuid::parse_str(session)?,
+                    board.batch.context("missing tally batch")?,
+                )
+            };
+            new_data = new_data.replace(
+                &serde_json::to_string(&board.name)?,
+                &serde_json::to_string(&name.to_string())?,
+            );
+            replacement_map.insert(board.name.clone(), name.to_string());
+        }
+    }
+
     // Parse the modified JSON string back into the structured format
-    let data: ImportElectionEventSchema = deserialize_str(&new_data)?;
+    let mut data: ImportElectionEventSchema = deserialize_str(&new_data)?;
+    validate_import_scope(&data, &tenant_id, &election_event_id)?;
+    if let (Some(original_ceremonies), Some(imported_ceremonies), Some(boards)) = (
+        &original_data.keys_ceremonies,
+        &mut data.keys_ceremonies,
+        &original_data.protocol_boards,
+    ) {
+        for original in original_ceremonies {
+            let Some(board) = boards
+                .iter()
+                .find(|board| board.parent_id.is_none() && board.keys_ceremony_id == original.id)
+            else {
+                continue;
+            };
+            let imported_id = replacement_map
+                .get(&original.id)
+                .context("missing ceremony ID replacement")?;
+            let imported = imported_ceremonies
+                .iter_mut()
+                .find(|ceremony| &ceremony.id == imported_id)
+                .context("missing imported keys ceremony")?;
+            crate::services::trustee_updates::preserve_imported_ceremony_origins(
+                original,
+                imported,
+                &protocol_board::SignedConfiguration::parse(&board.manager_message)?,
+            )?;
+        }
+    }
+
+    // Explicit realm replacements are applied to the JSON but omitted from its
+    // map. Publication imports also need these scopes, including identity maps
+    // when importing back into the same tenant or keeping the event ID.
+    replacement_map.insert(
+        original_data.tenant_id.to_string(),
+        data.tenant_id.to_string(),
+    );
+    replacement_map.insert(
+        original_data.election_event.id.clone(),
+        data.election_event.id.clone(),
+    );
 
     // Return both the modified schema and the UUID replacement mapping
     Ok((data, replacement_map))
+}
+
+/// Id, tenant id and election event id of every row an import inserts.
+fn import_row_scopes(data: &ImportElectionEventSchema) -> Vec<(&str, &str, &str)> {
+    macro_rules! scopes {
+        ($rows:expr) => {
+            $rows.iter().map(|row| {
+                (
+                    row.id.as_str(),
+                    row.tenant_id.as_str(),
+                    row.election_event_id.as_str(),
+                )
+            })
+        };
+    }
+    let keys_ceremonies = data.keys_ceremonies.as_deref().unwrap_or_default();
+    let applications = data.applications.as_deref().unwrap_or_default();
+    scopes!(data.elections)
+        .chain(scopes!(data.contests))
+        .chain(scopes!(data.candidates))
+        .chain(scopes!(data.areas))
+        .chain(scopes!(keys_ceremonies))
+        .chain(scopes!(applications))
+        .collect()
+}
+
+/// Checks that the imported election event and every row it carries belong to
+/// the target tenant and election event once the ids have been replaced.
+fn validate_import_scope(
+    data: &ImportElectionEventSchema,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<()> {
+    let tenant =
+        Uuid::parse_str(tenant_id).with_context(|| format!("Invalid tenant id {tenant_id}"))?;
+    let event = Uuid::parse_str(election_event_id)
+        .with_context(|| format!("Invalid election event id {election_event_id}"))?;
+    let in_scope = |row_tenant_id: &str, row_event_id: &str| -> Result<bool> {
+        let row_tenant = Uuid::parse_str(row_tenant_id)
+            .with_context(|| format!("Invalid tenant id {row_tenant_id}"))?;
+        let row_event = Uuid::parse_str(row_event_id)
+            .with_context(|| format!("Invalid election event id {row_event_id}"))?;
+        Ok(row_tenant == tenant && row_event == event)
+    };
+
+    if Uuid::parse_str(&data.tenant_id).map_or(true, |id| id != tenant)
+        || !in_scope(&data.election_event.tenant_id, &data.election_event.id)
+            .context("Invalid imported election event")?
+    {
+        return Err(anyhow!(
+            "Imported election event does not match tenant {tenant} and election event {event}"
+        ));
+    }
+
+    for (id, row_tenant_id, row_event_id) in import_row_scopes(data) {
+        if !in_scope(row_tenant_id, row_event_id)
+            .with_context(|| format!("Invalid imported row {id}"))?
+        {
+            return Err(anyhow!(
+                "Imported row {id} does not belong to tenant {tenant} and election event {event}"
+            ));
+        }
+    }
+
+    Ok(())
 }
 
 #[instrument(err, skip_all)]
@@ -504,7 +1114,12 @@ pub async fn get_document(
     hasura_transaction: &Transaction<'_>,
     object: ImportElectionEventBody,
     election_event_id: Option<String>,
-) -> Result<(NamedTempFile, Document, String)> {
+) -> Result<(
+    NamedTempFile,
+    Document,
+    String,
+    Option<Box<VerifiedPackage>>,
+)> {
     let document = postgres::document::get_document(
         hasura_transaction,
         &object.tenant_id,
@@ -532,34 +1147,41 @@ pub async fn get_document(
         .await
         .with_context(|| format!("error decrypting document {:?}", document.id))?;
 
-    Ok((temp_file, document, document_type))
+    // Before anything in the file is read: a signed configuration package is
+    // verified and replaced by its importable archive.
+    let (temp_file, package) =
+        configuration_package::admit_document(hasura_transaction, &object.tenant_id, temp_file)
+            .await?;
+
+    Ok((temp_file, document, document_type, package))
 }
 
 #[instrument(err, skip_all)]
 pub async fn decrypt_document(
     password: Option<String>,
-    mut temp_file_path: NamedTempFile,
+    temp_file_path: NamedTempFile,
 ) -> Result<NamedTempFile> {
     let password = password.unwrap_or_else(|| "".to_string());
     let is_encrypted = !password.is_empty();
 
     if is_encrypted {
-        let decrypted_path = env::temp_dir().join("election-event.zip");
+        // Native archives contain manager identities. Each request owns its
+        // private plaintext file, including partial output on cipher failure.
+        let directory = temp_file_path
+            .path()
+            .parent()
+            .context("missing archive directory")?;
+        let decrypted = NamedTempFile::new_in(directory)?;
 
         decrypt_file_aes_256_cbc(
             &temp_file_path.path().to_string_lossy().to_string(),
-            &decrypted_path.as_path().to_string_lossy().to_string(),
+            &decrypted.path().to_string_lossy(),
             &password,
         )
         .map_err(|_| reject("election event file", import_problems::cannot_decrypt()))
         .context("Error generating decrypted file")?;
 
-        // Create a new NamedTempFile for the decrypted content
-        let mut temp_file = NamedTempFile::new()?;
-        let content = fs::read(decrypted_path)?;
-        temp_file.write_all(&content)?;
-
-        return Ok(temp_file);
+        return Ok(decrypted);
     }
 
     Ok(temp_file_path)
@@ -649,7 +1271,12 @@ pub async fn process_election_event_file(
     election_event_id: String,
     tenant_id: String,
     is_importing_keys: bool,
-) -> Result<(ImportElectionEventSchema, HashMap<String, String>)> {
+) -> Result<(
+    ImportElectionEventSchema,
+    HashMap<String, String>,
+    Vec<String>,
+)> {
+    let mut notes = vec![];
     let (mut data, replacement_map) = get_election_event_schema(
         file_election_event_schema,
         Some(election_event_id.clone()),
@@ -695,11 +1322,15 @@ pub async fn process_election_event_file(
                 .unwrap_or_default()
                 .unwrap_or_default();
 
+            // An imported election starts with voting not started on every
+            // channel (the database refuses anything else).
             status.voting_status = VotingStatus::default();
             status.kiosk_voting_status = VotingStatus::default();
+            status.early_voting_status = VotingStatus::default();
             status.telephone_voting_status = VotingStatus::default();
             status.voting_period_dates = PeriodDates::default();
             status.kiosk_voting_period_dates = PeriodDates::default();
+            status.early_voting_period_dates = PeriodDates::default();
             status.telephone_voting_period_dates = PeriodDates::default();
 
             clone.status = Some(
@@ -727,6 +1358,15 @@ pub async fn process_election_event_file(
         .transpose()
         .with_context(|| "Error deserializing keycloak_event_realm")?;
 
+    crate::postgres::scheduled_event::lock_scheduling_event(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+    )
+    .await?;
+
+    ensure_new_election_event(hasura_transaction, &election_event_id).await?;
+
     upsert_keycloak_realm(
         tenant_id.as_str(),
         &election_event_id,
@@ -736,6 +1376,8 @@ pub async fn process_election_event_file(
     .await
     .with_context(|| format!("Error upserting Keycloak realm for tenant ID {tenant_id} and election event ID {election_event_id}"))?;
 
+    // The import keeps an exported lockdown, which only the server may set.
+    trusted_write(hasura_transaction).await?;
     insert_election_event(hasura_transaction, &data.election_event)
         .await
         .with_context(|| "Error inserting election event")?;
@@ -745,7 +1387,7 @@ pub async fn process_election_event_file(
         .with_context(|| "Error managing dates")?;
 
     // Upsert immutable board
-    let board = upsert_b3_and_elog(hasura_transaction, tenant_id.as_str(), &election_event_id, &election_ids, is_importing_keys)
+    let board = ensure_election_audit_boards(hasura_transaction, tenant_id.as_str(), &election_event_id, &election_ids, is_importing_keys)
         .await
         .with_context(|| format!("Error upserting b3 board for tenant ID {tenant_id} and election event ID {election_event_id}"))?;
 
@@ -799,6 +1441,21 @@ pub async fn process_election_event_file(
                 .collect::<Vec<_>>(),
         )
         .await?;
+        for ceremony in data.keys_ceremonies.as_deref().unwrap_or_default() {
+            if let Some(annotations) = &ceremony.annotations {
+                hasura_transaction
+                    .execute(
+                        "UPDATE sequent_backend.keys_ceremony SET annotations=$4 WHERE id=$1 AND tenant_id=$2 AND election_event_id=$3",
+                        &[
+                            &Uuid::parse_str(&ceremony.id)?,
+                            &Uuid::parse_str(&ceremony.tenant_id)?,
+                            &Uuid::parse_str(&ceremony.election_event_id)?,
+                            annotations,
+                        ],
+                    )
+                    .await?;
+            }
+        }
     }
 
     insert_elections(hasura_transaction, &data)
@@ -831,6 +1488,62 @@ pub async fn process_election_event_file(
     .await
     .with_context(|| "Error inserting area contests")?;
 
+    // After the areas, whose `miru:area-threshold` may imply the
+    // transmit-results rule.
+    import_bundle_signing(
+        hasura_transaction,
+        Uuid::parse_str(&tenant_id).with_context(|| "Error parsing the tenant id")?,
+        Uuid::parse_str(&election_event_id)
+            .with_context(|| "Error parsing the election event id")?,
+        &data,
+        object.importer.as_ref(),
+    )
+    .await
+    .with_context(|| "Error importing the signing configuration")?;
+
+    if let Some(matrix) = data.approval_matrix.as_ref() {
+        import_approval_matrix(hasura_transaction, &tenant_id, &election_event_id, matrix)
+            .await
+            .with_context(|| "Error importing the approval matrix")?;
+    }
+
+    // Only as `update_event_messaging_config` would store it: with the
+    // importer's messaging-config-write and once it validates against this
+    // tenant's accounts and the new elections. Otherwise the import goes on
+    // without it and its log says why.
+    if let Some(config) = data.messaging_config.as_ref() {
+        use crate::services::messaging::config::{import_event_messaging_config, ImportOutcome};
+        let outcome = import_event_messaging_config(
+            hasura_transaction,
+            &Uuid::parse_str(&tenant_id).with_context(|| "Error parsing the tenant id")?,
+            &Uuid::parse_str(&election_event_id)
+                .with_context(|| "Error parsing the election event id")?,
+            config,
+            &replacement_map,
+            object.messaging_config_permission,
+        )
+        .await
+        .with_context(|| "Error importing the messaging configuration")?;
+        match outcome {
+            ImportOutcome::Imported(projection) => {
+                sequent_core::services::keycloak::update_realm_attributes(
+                    &tenant_id,
+                    &election_event_id,
+                    HashMap::from([(
+                        sequent_core::types::messaging::REALM_ATTR_MESSAGING.to_string(),
+                        serde_json::to_string(&projection)?,
+                    )]),
+                )
+                .await
+                .with_context(|| "Error publishing the messaging channels to the event's realm")?;
+            }
+            ImportOutcome::NotImported(reason) => {
+                warn!(%tenant_id, %election_event_id, "{reason}");
+                notes.push(reason);
+            }
+        }
+    }
+
     if let Some(applications) = data.applications.clone() {
         insert_applications(hasura_transaction, &applications)
             .await
@@ -845,7 +1558,7 @@ pub async fn process_election_event_file(
             .with_context(|| "Error inserting support materials")?;
     }
 
-    Ok((data, replacement_map))
+    Ok((data, replacement_map, notes))
 }
 
 #[instrument(err, skip(hasura_transaction, temp_file))]
@@ -858,6 +1571,7 @@ async fn process_voters_file(
     is_admin: bool,
     may_write_secret_attributes: bool,
     secret_write_initiator: Option<&ElectoralLogAdminContext>,
+    privileges: ImportUsersPrivileges,
 ) -> Result<()> {
     let separator = if file_name.ends_with(".tsv") {
         b'\t'
@@ -874,6 +1588,7 @@ async fn process_voters_file(
         is_admin,
         may_write_secret_attributes,
         secret_write_initiator,
+        privileges,
     )
     .await
     .map_err(|err| anyhow!("Error importing users file: {err}"))?;
@@ -950,6 +1665,9 @@ pub async fn process_reports_file(
                     )
                 }
             }),
+            // Absent from a file written before these columns existed.
+            copies: parse_copies(record.get(8)).map_err(|err| anyhow!(err))?,
+            output_formats: parse_output_formats(record.get(9)).map_err(|err| anyhow!(err))?,
         };
 
         if let Some(password) = record
@@ -1003,6 +1721,41 @@ async fn process_activity_logs_file(
     .await?;
     electoral_log.import_from_csv(temp_file).await?;
 
+    Ok(())
+}
+
+/// Store an exported event's electoral logs, with their roots, in the new event's
+/// database, and start the new event's board with a record that continues them.
+#[instrument(err, skip(hasura_transaction, manifest, records))]
+async fn process_electoral_log_files(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    manifest: &[u8],
+    records: &NamedTempFile,
+) -> Result<()> {
+    let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
+    let board_name = get_event_board(tenant_id, election_event_id, &slug);
+    let imported = import_electoral_log(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        &board_name,
+        manifest,
+        BufReader::new(records.reopen()?),
+    )
+    .await?;
+    for log in &imported.logs {
+        info!(
+            "Imported electoral log {} ({}): {} records, root {}, checked against {} \
+             published checkpoints",
+            log.checkpoint.log_name,
+            log.checkpoint.log_uid,
+            log.checkpoint.tree_size,
+            hex::encode(&log.checkpoint.root),
+            log.verified_checkpoints
+        );
+    }
     Ok(())
 }
 
@@ -1107,15 +1860,29 @@ pub async fn process_s3_file(
     Ok(())
 }
 
+/// Files of an export that grow with the event's electoral log. An import extracts them
+/// to disk instead of reading them into memory.
+const SPOOLED_DOCUMENTS: [EDocuments; 2] =
+    [EDocuments::ELECTORAL_LOG_RECORDS, EDocuments::ACTIVITY_LOGS];
+
+/// What an imported ZIP holds: its files but the election event's JSON, by name and in
+/// import order, listing those extracted to disk without their contents; the files
+/// extracted to disk, by name; and the election event's JSON.
+pub type ZipEntries = (
+    Vec<(String, Vec<u8>)>,
+    HashMap<String, NamedTempFile>,
+    String,
+);
+
 // return zip entries, and the original string of the json schema
 #[instrument(err, skip(temp_file_path))]
 pub async fn get_zip_entries(
     temp_file_path: NamedTempFile,
     document_type: &str,
-) -> Result<(Vec<(String, Vec<u8>)>, String)> {
-    let (mut zip_entries, election_event_schema) =
+) -> Result<ZipEntries> {
+    let (mut zip_entries, spooled, election_event_schema) =
         if document_type == "application/ezip" || matches_mime("zip", document_type) {
-            tokio::task::spawn_blocking(move || -> Result<(Vec<(String, Vec<u8>)>, String)> {
+            tokio::task::spawn_blocking(move || -> Result<ZipEntries> {
                 let file = File::open(&temp_file_path)?;
                 // Any failure reading the archive's members is the archive being
                 // unreadable, and says why.
@@ -1127,6 +1894,7 @@ pub async fn get_zip_entries(
                 };
                 let mut zip = ZipArchive::new(file).map_err(|err| unreadable(&err))?;
                 let mut entries: Vec<(String, Vec<u8>)> = Vec::new();
+                let mut spooled: HashMap<String, NamedTempFile> = HashMap::new();
 
                 let mut election_event_schema: Option<String> = None;
                 for i in 0..zip.len() {
@@ -1141,6 +1909,15 @@ pub async fn get_zip_entries(
                             .map_err(|err| unreadable(&err))
                             .with_context(|| format!("reading {file_name}"))?;
                         election_event_schema = Some(file_str);
+                    } else if SPOOLED_DOCUMENTS
+                        .iter()
+                        .any(|document| file_name.contains(document.to_file_name()))
+                    {
+                        let mut extracted = NamedTempFile::new()?;
+                        io::copy(&mut file, &mut extracted)?;
+                        extracted.as_file_mut().rewind()?;
+                        entries.push((file_name.clone(), Vec::new()));
+                        spooled.insert(file_name, extracted);
                     } else {
                         let mut file_contents = Vec::new();
                         file.read_to_end(&mut file_contents)
@@ -1150,7 +1927,7 @@ pub async fn get_zip_entries(
                     }
                 }
                 if let Some(schema_str) = election_event_schema {
-                    Ok((entries, schema_str))
+                    Ok((entries, spooled, schema_str))
                 } else {
                     Err(reject(
                         "election event file",
@@ -1174,7 +1951,7 @@ pub async fn get_zip_entries(
                     anyhow::Error::new(err)
                 }
             })?;
-            (vec![], data_str)
+            (vec![], HashMap::new(), data_str)
         };
 
     // Sort the ZIP entries by importance:
@@ -1201,17 +1978,81 @@ pub async fn get_zip_entries(
         (rank, file_name.clone()) // rank first, then alphabetically within rank
     });
 
-    Ok((zip_entries, election_event_schema))
+    Ok((zip_entries, spooled, election_event_schema))
 }
 
+/// Include tally UUID references in valid JSON so one replacement map covers
+/// both the event and its CSV members. The temporary field is ignored by the
+/// typed event schema and never becomes stored event data.
+fn schema_with_tally_references(schema: &str, entries: &[(String, Vec<u8>)]) -> Result<String> {
+    let tally_prefix = format!("{}/", EDocuments::TALLY.to_file_name());
+    let references = entries
+        .iter()
+        .filter(|(name, _)| name.starts_with(&tally_prefix) && name.ends_with(".csv"))
+        .map(|(_, bytes)| std::str::from_utf8(bytes))
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+    if references.is_empty() {
+        return Ok(schema.to_owned());
+    }
+    let mut document: Value = serde_json::from_str(schema)
+        .map_err(|err| reject("election event file", import_problems::not_json(&err)))?;
+    document
+        .as_object_mut()
+        .context("archive election event schema must be an object")?
+        .insert(
+            "_tally_archive_references".into(),
+            serde_json::to_value(references)?,
+        );
+    Ok(serde_json::to_string(&document)?)
+}
+
+/// The rows an election event's import created, for its audit entry.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+pub struct ImportedCounts {
+    pub elections: usize,
+    pub contests: usize,
+    pub candidates: usize,
+    pub areas: usize,
+    pub area_contests: usize,
+}
+
+impl ImportedCounts {
+    pub fn of(schema: &ImportElectionEventSchema) -> Self {
+        ImportedCounts {
+            elections: schema.elections.len(),
+            contests: schema.contests.len(),
+            candidates: schema.candidates.len(),
+            areas: schema.areas.len(),
+            area_contests: schema.area_contests.len(),
+        }
+    }
+}
+
+/// What an election event's import read and did.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ImportedElectionEvent {
+    /// What the import left out, each with its reason, for the task's log.
+    pub notes: Vec<String>,
+    /// The SHA-256 of the archive imported: the upload once decrypted, the
+    /// file the importer's checksum is checked against.
+    pub file_sha256: String,
+    /// The checksum the importer declared, where it has something to check:
+    /// a signed configuration package is checked against its manifest.
+    pub declared_sha256: Option<String>,
+    pub counts: ImportedCounts,
+}
+
+/// Imports the document. Returns what the import left out, each with its
+/// reason, for the task's log, and what its audit entry records.
 #[instrument(err, skip_all)]
 pub async fn process_document(
     hasura_transaction: &Transaction<'_>,
     object: ImportElectionEventBody,
     election_event_id: String,
     tenant_id: String,
-) -> Result<()> {
-    let (temp_file_path, document, document_type) = get_document(
+) -> Result<ImportedElectionEvent> {
+    let importer = object.importer.clone();
+    let (mut temp_file_path, document, document_type, package) = get_document(
         hasura_transaction,
         object.clone(),
         Some(election_event_id.clone()),
@@ -1221,8 +2062,11 @@ pub async fn process_document(
         let message = format!("Failed to get document: {err}");
         err.context(message)
     })?;
+    let file_sha256 = crate::services::task_audit::file_sha256(temp_file_path.as_file_mut())?;
+    let declared_sha256 =
+        configuration_package::typed_checksum(object.sha256.clone(), package.as_ref());
 
-    let (zip_entries, file_election_event_schema) =
+    let (zip_entries, spooled_entries, file_election_event_schema) =
         get_zip_entries(temp_file_path, &document_type).await?;
 
     let is_importing_keys = zip_entries.iter().any(|(file_name, _)| {
@@ -1232,36 +2076,27 @@ pub async fn process_document(
         ))
     });
 
+    if !is_importing_keys {
+        let schema: ImportElectionEventSchema = deserialize_str(&file_election_event_schema)?;
+        ensure!(
+            schema
+                .protocol_boards
+                .as_deref()
+                .unwrap_or_default()
+                .is_empty(),
+            "Native protocol board import requires protocol manager keys"
+        );
+    }
+
     let election_event_id_clone = election_event_id.clone();
 
-    let tally_session_file = zip_entries
-        .iter()
-        .find(|(name, _)| name.contains(ETallyDocuments::TALLY_SESSION.to_file_name()));
-    let results_event_file = zip_entries
-        .iter()
-        .find(|(name, _)| name.contains(ETallyDocuments::RESULTS_EVENT.to_file_name()));
-
-    let mut tally_files_content: Option<String> = None;
-    if let (Some(tally_session_file), Some(results_event_file)) =
-        (tally_session_file, results_event_file)
-    {
-        let tally_session_file_content = String::from_utf8(tally_session_file.1.clone())?;
-        let results_event_file_content = String::from_utf8(results_event_file.1.clone())?;
-        tally_files_content = Some(format!(
-            "\n{}\n{}",
-            tally_session_file_content, results_event_file_content
-        ));
-    }
-    let file_election_event_schema = match tally_files_content {
-        Some(tally_files_content) => {
-            format!("{}\n{}", file_election_event_schema, tally_files_content)
-        }
-        None => file_election_event_schema,
-    };
+    let file_election_event_schema =
+        schema_with_tally_references(&file_election_event_schema, &zip_entries)?;
 
     let may_write_secret_attributes = object.may_write_secret_attributes;
     let secret_write_initiator = object.secret_write_initiator.clone();
-    let (election_event_schema, replacement_map) = process_election_event_file(
+    let privileges = object.privileges;
+    let (election_event_schema, replacement_map, notes) = process_election_event_file(
         hasura_transaction,
         &document_type,
         &file_election_event_schema,
@@ -1278,23 +2113,57 @@ pub async fn process_document(
         err.context(message)
     })?;
 
+    // Exports that carry the electoral logs with their identities replace the activity
+    // logs file, which older exports carry alone.
+    let electoral_log_files = (
+        zip_entries
+            .iter()
+            .find(|(name, _)| name.contains(EDocuments::ELECTORAL_LOG_MANIFEST.to_file_name()))
+            .map(|(_, contents)| contents),
+        spooled_entries
+            .iter()
+            .find(|(name, _)| name.contains(EDocuments::ELECTORAL_LOG_RECORDS.to_file_name()))
+            .map(|(_, file)| file),
+    );
+    let imports_electoral_log = match electoral_log_files {
+        (Some(_), Some(_)) => true,
+        (None, None) => false,
+        // Only together do they replace the activity logs, so one alone is incomplete.
+        (Some(_), None) => bail!("The export has the electoral-log manifest but not its records"),
+        (None, Some(_)) => bail!("The export has the electoral-log records but not their manifest"),
+    };
+
+    let mut publication_entries = Vec::new();
     // Zip file processing
     if document_type == "application/ezip" || matches_mime("zip", &document_type) {
-        for (file_name, mut file_contents) in zip_entries {
+        for (file_name, file_contents) in &zip_entries {
             info!("Importing file: {:?}", file_name);
 
-            let mut cursor = Cursor::new(&mut file_contents[..]);
+            let mut cursor = Cursor::new(&file_contents[..]);
 
-            if file_name.contains(&format!("{}", EDocuments::ACTIVITY_LOGS.to_file_name())) {
-                let mut temp_file = NamedTempFile::new()
-                    .context("Failed to create activity logs temporary file")?;
+            if file_name.contains(EDocuments::ELECTORAL_LOG_MANIFEST.to_file_name()) {
+                if let (Some(manifest), Some(records)) = electoral_log_files {
+                    process_electoral_log_files(
+                        hasura_transaction,
+                        &tenant_id,
+                        &election_event_id,
+                        manifest,
+                        records,
+                    )
+                    .await
+                    .context("Failed to import the electoral log")?;
+                }
+            }
 
-                io::copy(&mut cursor, &mut temp_file)
-                    .context("Failed to copy contents of activity logs to temporary file")?;
-                temp_file.as_file_mut().rewind()?;
+            if file_name.contains(&format!("{}", EDocuments::ACTIVITY_LOGS.to_file_name()))
+                && !imports_electoral_log
+            {
+                let temp_file = spooled_entries
+                    .get(file_name)
+                    .with_context(|| format!("The activity logs {file_name} were not extracted"))?;
                 process_activity_logs_file(
                     hasura_transaction,
-                    &temp_file,
+                    temp_file,
                     &election_event_id,
                     &tenant_id,
                 )
@@ -1318,6 +2187,7 @@ pub async fn process_document(
                     false,
                     may_write_secret_attributes,
                     secret_write_initiator.as_ref(),
+                    privileges,
                 )
                 .await
                 .context("Failed to import voters")?;
@@ -1407,6 +2277,10 @@ pub async fn process_document(
                     &election_event_schema.election_event.id,
                     temp_file,
                     replacement_map.clone(),
+                    election_event_schema
+                        .protocol_boards
+                        .as_deref()
+                        .unwrap_or_default(),
                 )
                 .await
                 .context("Failed to import bulletin boards")?;
@@ -1433,23 +2307,7 @@ pub async fn process_document(
             }
 
             if file_name.contains(&format!("{}", EDocuments::PUBLICATIONS.to_file_name())) {
-                let mut temp_file = NamedTempFile::new()
-                    .context("Failed to create ballot publications temporary file")?;
-
-                io::copy(&mut cursor, &mut temp_file).context(
-                    "Failed to copy contents of ballot publications file to temporary file",
-                )?;
-                temp_file.as_file_mut().rewind()?;
-
-                import_ballot_publications(
-                    hasura_transaction,
-                    &election_event_schema.tenant_id.to_string(),
-                    &election_event_schema.election_event.id,
-                    temp_file,
-                    replacement_map.clone(),
-                )
-                .await
-                .with_context(|| "Error importing publications")?;
+                publication_entries.push(file_contents);
             }
             if file_name.contains(&format!(
                 "{}",
@@ -1491,9 +2349,15 @@ pub async fn process_document(
                     &election_event_schema.election_event.id,
                     temp_file,
                     replacement_map.clone(),
+                    election_event_schema
+                        .protocol_boards
+                        .as_deref()
+                        .unwrap_or_default(),
                 )
                 .await
-                .context("Failed to import protocol manager keys")?;
+                // Keep the actionable cause when the import task records a
+                // string error instead of the original anyhow chain.
+                .map_err(|error| anyhow!("Failed to import protocol manager keys: {error:#}"))?;
             }
 
             if file_name.contains(&format!("{}/", EDocuments::TALLY.to_file_name())) {
@@ -1524,7 +2388,8 @@ pub async fn process_document(
                 .context("Failed to import tally_file")?;
             }
 
-            if file_name.contains(EDocuments::CERTIFICATES.to_file_name()) {
+            let staff_issuers = file_name.contains(EDocuments::STAFF_ISSUERS.to_file_name());
+            if staff_issuers || file_name.contains(EDocuments::CERTIFICATES.to_file_name()) {
                 let pem_content = String::from_utf8(file_contents.clone())
                     .context("Failed to decode certificates PEM as UTF-8")?;
                 let tenant_uuid = Uuid::parse_str(&election_event_schema.tenant_id)
@@ -1532,6 +2397,25 @@ pub async fn process_document(
                 let election_event_uuid = Uuid::parse_str(&election_event_schema.election_event.id)
                     .context("Failed to parse election event UUID")?;
                 let pem_chunks = split_pem_bundle(&pem_content);
+                if staff_issuers {
+                    // Checked and logged as the Certificates settings import them.
+                    let certificates =
+                        parse_chain(&pem_chunks).context("Failed to parse the staff issuers")?;
+                    let import = import_bundle_staff_issuers(
+                        hasura_transaction,
+                        tenant_uuid,
+                        election_event_uuid,
+                        &certificates,
+                        importer.as_ref(),
+                        Utc::now(),
+                    )
+                    .await
+                    .context("Failed to import the staff issuers")?;
+                    for error in &import.errors {
+                        warn!("Staff issuer not imported: {error}");
+                    }
+                    continue;
+                }
                 for pem_chunk in pem_chunks {
                     let pem_chunk_owned = pem_chunk.clone();
                     let parsed = tokio::task::spawn_blocking(move || {
@@ -1562,7 +2446,197 @@ pub async fn process_document(
         }
     };
 
-    Ok(())
+    // Parent rows precede children; tally foreign keys have been imported above.
+    if let Some(boards) = &election_event_schema.protocol_boards {
+        for parent in [false, true] {
+            for row in boards
+                .iter()
+                .filter(|row| row.parent_id.is_some() == parent)
+            {
+                if !parent {
+                    protocol_board::SignedConfiguration::parse(&row.manager_message)?;
+                } else {
+                    let cfg = boards
+                        .iter()
+                        .find(|cfg| Some(&cfg.id) == row.parent_id.as_ref())
+                        .context("missing imported DKG parent")?;
+                    protocol_board::SignedBallots::parse(
+                        &row.manager_message,
+                        &protocol_board::SignedConfiguration::parse(&cfg.manager_message)?,
+                    )?;
+                }
+                crate::postgres::protocol_board::insert_protocol_board(
+                    hasura_transaction,
+                    &crate::postgres::protocol_board::NewProtocolBoard {
+                        id: Some(row.id.clone()),
+                        tenant_id: row.tenant_id.clone(),
+                        election_event_id: row.election_event_id.clone(),
+                        parent_id: row.parent_id.clone(),
+                        keys_ceremony_id: row.keys_ceremony_id.clone(),
+                        tally_session_id: row.tally_session_id.clone(),
+                        batch: row.batch,
+                        name: row.name.clone(),
+                        manager_message: row.manager_message.clone(),
+                    },
+                )
+                .await?;
+            }
+        }
+    }
+    let election_keys_ceremonies: HashMap<&str, &str> = election_event_schema
+        .elections
+        .iter()
+        .filter_map(|election| Some((election.id.as_str(), election.keys_ceremony_id.as_deref()?)))
+        .collect();
+    // Runs once the archive's boards are imported, before the publications
+    // that depend on the verified keys.
+    let election_public_keys = verify_imported_keys_ceremonies(
+        hasura_transaction,
+        &election_event_schema.tenant_id.to_string(),
+        &election_event_schema.election_event.id,
+        &election_keys_ceremonies,
+    )
+    .await?;
+
+    for file_contents in publication_entries {
+        let mut temp_file =
+            NamedTempFile::new().context("Failed to create ballot publications temporary file")?;
+
+        io::copy(&mut Cursor::new(&file_contents[..]), &mut temp_file)
+            .context("Failed to copy contents of ballot publications file to temporary file")?;
+        temp_file.as_file_mut().rewind()?;
+
+        import_ballot_publications(
+            hasura_transaction,
+            &election_event_schema.tenant_id.to_string(),
+            &election_event_schema.election_event.id,
+            temp_file,
+            replacement_map.clone(),
+            &zip_entries,
+            &election_public_keys,
+        )
+        .await
+        .with_context(|| "Error importing publications")?;
+    }
+
+    if let Some(package) = package {
+        configuration_package::record(hasura_transaction, &tenant_id, &election_event_id, &package)
+            .await?;
+        configuration_package::log_import(
+            hasura_transaction,
+            &tenant_id,
+            &election_event_id,
+            &package,
+            importer.as_ref(),
+        )
+        .await?;
+    }
+
+    Ok(ImportedElectionEvent {
+        notes,
+        file_sha256,
+        declared_sha256,
+        counts: ImportedCounts::of(&election_event_schema),
+    })
+}
+
+/// Drops each imported keys ceremony whose public key is not the one on its
+/// board, and returns the verified public key of each election of
+/// `election_keys_ceremonies` (election id to keys ceremony id) by election
+/// id. An import whose tally sessions use a dropped ceremony is rejected.
+/// Only the default ceremony and those of `election_keys_ceremonies` have a
+/// board to compare with.
+#[instrument(err, skip_all)]
+pub async fn verify_imported_keys_ceremonies(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_keys_ceremonies: &HashMap<&str, &str>,
+) -> Result<HashMap<String, String>> {
+    let keys_ceremonies =
+        keys_ceremony::get_keys_ceremonies(hasura_transaction, tenant_id, election_event_id)
+            .await?;
+    let election_keys_ceremony_ids: HashSet<&str> =
+        election_keys_ceremonies.values().copied().collect();
+
+    let tally_keys_ceremony_ids: HashSet<String> = get_tally_sessions_by_election_event_id(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        false,
+    )
+    .await?
+    .into_iter()
+    .map(|tally_session| tally_session.keys_ceremony_id)
+    .collect();
+
+    let mut ceremony_public_keys = HashMap::new();
+    for keys_ceremony in &keys_ceremonies {
+        let has_board = keys_ceremony.is_default()
+            || election_keys_ceremony_ids.contains(keys_ceremony.id.as_str());
+        let state = if has_board {
+            verify_keys_ceremony_public_key(
+                hasura_transaction,
+                tenant_id,
+                election_event_id,
+                keys_ceremony,
+            )
+            .await?
+        } else {
+            ceremony_public_key_state(keys_ceremony, None)
+        };
+        match state {
+            CeremonyPublicKeyState::NoPublicKey => {}
+            CeremonyPublicKeyState::OnBoard(public_key) => {
+                ceremony_public_keys.insert(keys_ceremony.id.clone(), public_key);
+            }
+            CeremonyPublicKeyState::NotOnBoard => {
+                ensure!(
+                    !tally_keys_ceremony_ids.contains(&keys_ceremony.id),
+                    "Keys ceremony {} reports a public key that is not on its board and is used by an imported tally session",
+                    keys_ceremony.id
+                );
+                warn!(
+                    keys_ceremony_id = keys_ceremony.id,
+                    "Leaving out the imported keys ceremony: its public key is not on its board"
+                );
+                clear_election_keys_ceremony(
+                    hasura_transaction,
+                    tenant_id,
+                    election_event_id,
+                    &keys_ceremony.id,
+                )
+                .await?;
+                keys_ceremony::delete_keys_ceremony(
+                    hasura_transaction,
+                    tenant_id,
+                    election_event_id,
+                    &keys_ceremony.id,
+                )
+                .await?;
+            }
+        }
+    }
+
+    Ok(election_public_keys(
+        election_keys_ceremonies,
+        &ceremony_public_keys,
+    ))
+}
+
+/// The public key of each election's keys ceremony, by election id, for the
+/// elections whose ceremony has a verified one in `ceremony_public_keys`.
+fn election_public_keys(
+    election_keys_ceremonies: &HashMap<&str, &str>,
+    ceremony_public_keys: &HashMap<String, String>,
+) -> HashMap<String, String> {
+    election_keys_ceremonies
+        .iter()
+        .filter_map(|(election_id, keys_ceremony_id)| {
+            let public_key = ceremony_public_keys.get(*keys_ceremony_id)?;
+            Some((election_id.to_string(), public_key.clone()))
+        })
+        .collect()
 }
 
 #[instrument(err, skip_all)]
@@ -1608,18 +2682,22 @@ pub async fn manage_dates(
         {
             continue;
         }
-        let Some(date) = scheduled_event
+        // The wall time and its zone come along with the instant. A date
+        // without an offset is recomputed from them, or refused.
+        let Some(cron_config) = scheduled_event
             .cron_config
-            .and_then(|config| config.scheduled_date)
+            .filter(|config| config.scheduled_date.is_some())
         else {
             continue;
         };
+        let cron_config = crate::services::schedule_csv::checked_import_cron_config(cron_config)
+            .with_context(|| format!("Scheduled event {}", scheduled_event.id))?;
         maybe_create_scheduled_event(
             hasura_transaction,
             &data.tenant_id.to_string(),
             &data.election_event.id,
             processor,
-            date,
+            cron_config,
             payload.election_id.as_deref(),
             payload.voting_channels,
         )
@@ -1635,7 +2713,7 @@ pub async fn maybe_create_scheduled_event(
     tenant_id: &str,
     election_event_id: &str,
     event_processor: EventProcessors,
-    start_date: String,
+    cron_config: CronConfig,
     election_id: Option<&str>,
     voting_channels: Option<Vec<sequent_core::ballot::VotingStatusChannel>>,
 ) -> Result<()> {
@@ -1647,7 +2725,7 @@ pub async fn maybe_create_scheduled_event(
     };
     let cron_config = CronConfig {
         cron: None,
-        scheduled_date: Some(start_date.to_string()),
+        ..cron_config
     };
     insert_scheduled_event(
         hasura_transaction,
@@ -1667,8 +2745,100 @@ pub async fn maybe_create_scheduled_event(
 mod tests {
     use super::*;
 
+    #[test]
+    fn imported_event_realms_do_not_reenable_raw_network_logging() {
+        let raw = RealmRepresentation {
+            events_listeners: Some(vec!["jboss-logging".into()]),
+            events_enabled: Some(true),
+            admin_events_enabled: Some(true),
+            admin_events_details_enabled: Some(true),
+            ..Default::default()
+        };
+        let clean = sanitize_imported_event_realm(
+            &raw,
+            &RealmRepresentation::default(),
+            ImportedRealmReconciliation::default(),
+        )
+        .unwrap();
+        assert_eq!(
+            clean.events_listeners,
+            Some(vec!["custom-event-listener".into()])
+        );
+        // The confirmed leak is the independent process logger. Preserve
+        // explicitly configured audit-store policy and other realm settings.
+        assert_eq!(clean.events_enabled, Some(true));
+        assert_eq!(clean.admin_events_enabled, Some(true));
+        assert_eq!(clean.admin_events_details_enabled, Some(true));
+    }
+
+    #[test]
+    fn shipped_event_realm_uses_only_private_authentication_capture() {
+        let realm: RealmRepresentation = serde_json::from_str(include_str!(
+            "../../../../../.devcontainer/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-33f18502-a67c-4853-8333-a58630663559.json"
+        )).unwrap();
+        assert_eq!(
+            realm.events_listeners,
+            Some(vec!["custom-event-listener".into()])
+        );
+        assert_eq!(realm.events_enabled, Some(false));
+        assert_eq!(realm.admin_events_enabled, Some(true));
+        assert_eq!(realm.admin_events_details_enabled, Some(false));
+    }
+
     const TENANT: &str = "90505c8a-23a9-4cdf-a26b-4e19f6a097d5";
     const EVENT: &str = "e0000000-0000-5000-8000-000000000000";
+
+    #[tokio::test]
+    async fn files_that_grow_with_the_electoral_log_are_extracted_to_disk() -> Result<()> {
+        let zip_file = NamedTempFile::new()?;
+        let mut writer = zip::ZipWriter::new(zip_file.reopen()?);
+        let options: zip::write::FileOptions<()> = zip::write::FileOptions::default();
+        let records = format!(
+            "{}-{EVENT}.jsonl",
+            EDocuments::ELECTORAL_LOG_RECORDS.to_file_name()
+        );
+        let activity = format!("{}-{EVENT}.csv", EDocuments::ACTIVITY_LOGS.to_file_name());
+        let manifest = format!(
+            "{}-{EVENT}.json",
+            EDocuments::ELECTORAL_LOG_MANIFEST.to_file_name()
+        );
+        for (name, contents) in [
+            (
+                format!("{}-{EVENT}.json", EDocuments::ELECTION_EVENT.to_file_name()),
+                "{}",
+            ),
+            (records.clone(), "{\"line\":1}\n{\"line\":2}\n"),
+            (activity.clone(), "id,data\n"),
+            (manifest.clone(), "{\"logs\":[]}"),
+        ] {
+            writer.start_file(name, options)?;
+            writer.write_all(contents.as_bytes())?;
+        }
+        writer.finish()?;
+
+        let (files, spooled, schema) = get_zip_entries(zip_file, "application/zip").await?;
+        assert_eq!(schema, "{}");
+        let listed = |name: &str| files.iter().find(|(file, _)| file == name).map(|(_, c)| c);
+        assert_eq!(
+            listed(&manifest).map(Vec::as_slice),
+            Some(&b"{\"logs\":[]}"[..])
+        );
+        for (name, contents) in [
+            (&records, "{\"line\":1}\n{\"line\":2}\n"),
+            (&activity, "id,data\n"),
+        ] {
+            assert_eq!(listed(name).map(Vec::len), Some(0), "{name}");
+            let mut read = String::new();
+            spooled
+                .get(name)
+                .with_context(|| format!("{name} was not extracted"))?
+                .reopen()?
+                .read_to_string(&mut read)?;
+            assert_eq!(read, contents);
+        }
+        assert_eq!(spooled.len(), 2);
+        Ok(())
+    }
 
     /// A bundle that deserializes and is fatally invalid: its contest points at an
     /// election that is not in it.
@@ -1851,11 +3021,86 @@ mod tests {
     async fn a_readable_archive_gives_its_event_and_members() {
         let schema = format!("{}.json", EDocuments::ELECTION_EVENT.to_file_name());
         let file = a_zip_of(&[(schema.as_str(), b"{}"), ("notes.txt", b"hello")]);
-        let (entries, event) = get_zip_entries(file, "application/zip")
+        let (entries, spooled, event) = get_zip_entries(file, "application/zip")
             .await
             .expect("a readable archive reads");
         assert_eq!(event, "{}");
         assert_eq!(entries, vec![("notes.txt".to_string(), b"hello".to_vec())]);
+        assert!(spooled.is_empty());
+    }
+
+    #[test]
+    fn tally_csv_references_are_remapped_without_invalidating_event_json() {
+        let event_id = "10101010-1010-4010-8010-101010101010";
+        let result_id = "20202020-2020-4020-8020-202020202020";
+        let row_id = "30303030-3030-4030-8030-303030303030";
+        let schema = serde_json::json!({"id": event_id}).to_string();
+        let members = vec![
+            (
+                format!("{}/results_event.csv", EDocuments::TALLY.to_file_name()),
+                format!("id,event_id\n{result_id},{event_id}\n").into_bytes(),
+            ),
+            (
+                format!("{}/results_contest.csv", EDocuments::TALLY.to_file_name()),
+                format!("id,result_id\n{row_id},{result_id}\n").into_bytes(),
+            ),
+        ];
+        let combined = schema_with_tally_references(&schema, &members).unwrap();
+        let valid: Value = serde_json::from_str(&combined).unwrap();
+        assert_eq!(valid["id"], event_id);
+        let (remapped, replacements) = replace_realm_ids(&combined, vec![], None, None).unwrap();
+        let remapped: Value = serde_json::from_str(&remapped).unwrap();
+        assert_eq!(remapped["id"], replacements[event_id]);
+        for id in [event_id, result_id, row_id] {
+            assert_ne!(replacements[id], id);
+            assert!(Uuid::parse_str(&replacements[id]).is_ok());
+        }
+        assert_eq!(schema_with_tally_references(&schema, &[]).unwrap(), schema);
+    }
+
+    /// Native archives contain manager keys; plaintext must have request-owned storage.
+    #[tokio::test]
+    async fn decrypted_archives_use_private_owned_files_and_leave_no_plaintext() {
+        let directory = tempfile::tempdir().unwrap();
+        let password = "synthetic-native-archive-password";
+        let encrypted = |contents: &[u8]| {
+            let mut plain = NamedTempFile::new_in(directory.path()).unwrap();
+            plain.write_all(contents).unwrap();
+            let cipher = NamedTempFile::new_in(directory.path()).unwrap();
+            crate::services::consolidation::aes_256_cbc_encrypt::encrypt_file_aes_256_cbc(
+                plain.path().to_str().unwrap(),
+                cipher.path().to_str().unwrap(),
+                password,
+            )
+            .unwrap();
+            cipher
+        };
+        let first = decrypt_document(Some(password.into()), encrypted(b"first native manager"))
+            .await
+            .unwrap();
+        assert_eq!(first.path().parent().unwrap(), directory.path());
+        let second = decrypt_document(Some(password.into()), encrypted(b"second native manager"))
+            .await
+            .unwrap();
+        assert_ne!(first.path(), second.path());
+        assert_eq!(fs::read(first.path()).unwrap(), b"first native manager");
+        assert_eq!(fs::read(second.path()).unwrap(), b"second native manager");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            assert_eq!(
+                first.path().metadata().unwrap().permissions().mode() & 0o777,
+                0o600
+            );
+        }
+        drop((first, second));
+        assert_eq!(fs::read_dir(directory.path()).unwrap().count(), 0);
+        // A real encrypted control with a wrong password must clean up partial plaintext too.
+        let error = decrypt_document(Some("wrong password".into()), encrypted(b"native manager"))
+            .await
+            .unwrap_err();
+        assert_eq!(problem_id(&error).as_deref(), Some("file.cannot-decrypt"));
+        assert_eq!(fs::read_dir(directory.path()).unwrap().count(), 0);
     }
 
     /// A file that does not decrypt with the password given names the password.
@@ -1874,5 +3119,738 @@ mod tests {
             .await
             .expect("no password, no decryption");
         assert_eq!(fs::read(file.path()).unwrap(), b"plain");
+    }
+
+    #[test]
+    fn an_election_gets_the_verified_public_key_of_its_keys_ceremony() {
+        let election_keys_ceremonies = HashMap::from([
+            ("verified-election", "verified-ceremony"),
+            ("other-verified-election", "verified-ceremony"),
+            ("left-out-election", "left-out-ceremony"),
+        ]);
+        let ceremony_public_keys =
+            HashMap::from([("verified-ceremony".to_string(), "public-key".to_string())]);
+
+        assert_eq!(
+            election_public_keys(&election_keys_ceremonies, &ceremony_public_keys),
+            HashMap::from([
+                ("verified-election".to_string(), "public-key".to_string()),
+                (
+                    "other-verified-election".to_string(),
+                    "public-key".to_string()
+                ),
+            ])
+        );
+    }
+
+    #[test]
+    fn no_election_gets_a_public_key_without_verified_keys_ceremonies() {
+        let election_keys_ceremonies = HashMap::from([("election", "ceremony")]);
+
+        assert!(election_public_keys(&election_keys_ceremonies, &HashMap::new()).is_empty());
+        assert!(election_public_keys(
+            &HashMap::new(),
+            &HashMap::from([("ceremony".to_string(), "public-key".to_string())])
+        )
+        .is_empty());
+    }
+}
+
+#[cfg(test)]
+mod publication_import_mapping_tests {
+    use super::*;
+
+    #[test]
+    fn includes_scope_mappings_from_the_event_import_path() {
+        let tenant = Uuid::new_v4().to_string();
+        let event = Uuid::new_v4().to_string();
+        let document = Uuid::new_v4().to_string();
+        let input = serde_json::json!({
+            "tenant_id": tenant,
+            "election_event": {
+                "id": event, "tenant_id": tenant, "is_archived": false,
+                "encryption_protocol": "RSA", "annotations": {"document_id": document}
+            },
+            "elections": [], "contests": [], "candidates": [], "areas": [],
+            "area_contests": [], "reports": []
+        });
+        let original: ImportElectionEventSchema = serde_json::from_value(input.clone()).unwrap();
+        for target_tenant in [tenant.clone(), Uuid::new_v4().to_string()] {
+            for target_event in [None, Some(event.clone()), Some(Uuid::new_v4().to_string())] {
+                let (imported, ids) = replace_ids(
+                    &input.to_string(),
+                    &original,
+                    target_event.clone(),
+                    target_tenant.clone(),
+                )
+                .unwrap();
+                assert_eq!(ids.get(&tenant), Some(&target_tenant));
+                assert_eq!(ids.get(&event), Some(&imported.election_event.id));
+                assert_eq!(imported.election_event.tenant_id, target_tenant);
+                if let Some(expected) = target_event {
+                    assert_eq!(imported.election_event.id, expected);
+                } else {
+                    assert_ne!(imported.election_event.id, event);
+                }
+                assert_ne!(ids[&document], document);
+                assert_eq!(
+                    imported.election_event.annotations.unwrap()["document_id"],
+                    ids[&document]
+                );
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod import_scope_tests {
+    use super::*;
+
+    const ROW_KINDS: [&str; 6] = [
+        "elections",
+        "contests",
+        "candidates",
+        "areas",
+        "keys_ceremonies",
+        "applications",
+    ];
+
+    fn new_id() -> String {
+        Uuid::new_v4().to_string()
+    }
+
+    fn bundle(tenant: &str, event: &str) -> Value {
+        let election = new_id();
+        json!({
+            "tenant_id": tenant,
+            "election_event": {
+                "id": event, "tenant_id": tenant, "is_archived": false,
+                "encryption_protocol": "RSA"
+            },
+            "elections": [
+                {"id": election, "tenant_id": tenant, "election_event_id": event}
+            ],
+            "contests": [{
+                "id": new_id(), "tenant_id": tenant, "election_event_id": event,
+                "election_id": election
+            }],
+            "candidates": [
+                {"id": new_id(), "tenant_id": tenant, "election_event_id": event}
+            ],
+            "areas": [
+                {"id": new_id(), "tenant_id": tenant, "election_event_id": event}
+            ],
+            "area_contests": [],
+            "reports": [],
+            "keys_ceremonies": [{
+                "id": new_id(), "tenant_id": tenant, "election_event_id": event,
+                "trustee_ids": [], "threshold": 2
+            }],
+            "applications": [{
+                "id": new_id(), "tenant_id": tenant, "election_event_id": event,
+                "applicant_id": new_id(), "applicant_data": {},
+                "verification_type": "MANUAL", "status": "PENDING"
+            }]
+        })
+    }
+
+    fn import(
+        input: &Value,
+        event_id: Option<String>,
+        tenant_id: &str,
+    ) -> Result<ImportElectionEventSchema> {
+        let original: ImportElectionEventSchema = serde_json::from_value(input.clone())?;
+        replace_ids(
+            &input.to_string(),
+            &original,
+            event_id,
+            tenant_id.to_string(),
+        )
+        .map(|(data, _)| data)
+    }
+
+    #[test]
+    fn accepts_rows_of_the_imported_event() {
+        let tenant = new_id();
+        let event = new_id();
+        let input = bundle(&tenant, &event);
+        for target_tenant in [tenant.clone(), new_id()] {
+            for target_event in [None, Some(new_id())] {
+                let imported = import(&input, target_event.clone(), &target_tenant).unwrap();
+                if let Some(expected) = target_event {
+                    assert_eq!(imported.election_event.id, expected);
+                }
+                assert_eq!(imported.election_event.tenant_id, target_tenant);
+                let scopes = import_row_scopes(&imported);
+                assert_eq!(scopes.len(), ROW_KINDS.len());
+                for (_, row_tenant, row_event) in scopes {
+                    assert_eq!(row_tenant, target_tenant);
+                    assert_eq!(row_event, imported.election_event.id);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn repeated_imports_preserve_ceremony_origins() {
+        use protocol_board::{
+            generate_manager, Committee, DkgBoard, RawTrusteeRecord, TrusteeSecrets,
+        };
+        let tenant = new_id();
+        let event = new_id();
+        let mut input = bundle(&tenant, &event);
+        let keys = input["keys_ceremonies"][0]["id"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        let committee = Committee::new(&["alice", "bob"].map(|name| {
+            let public = TrusteeSecrets::generate().public_keys().unwrap();
+            RawTrusteeRecord {
+                name: name.into(),
+                signing_public_key: Some(public.signing_public_key),
+                share_encryption_public_key: Some(public.share_encryption_public_key),
+            }
+        }))
+        .unwrap();
+        let board = DkgBoard::new(
+            &Uuid::parse_str(&keys).unwrap(),
+            &generate_manager(),
+            &committee,
+            2,
+        )
+        .unwrap();
+        input["protocol_boards"] = json!([{
+            "id": new_id(), "tenant_id": tenant, "election_event_id": event,
+            "keys_ceremony_id": keys, "name": board.name.to_string(),
+            "manager_message": board.configuration.to_bytes()
+        }]);
+        let first = import(&input, None, &new_id()).unwrap();
+        let annotation = &first.keys_ceremonies.as_ref().unwrap()[0].annotations;
+        let history = annotation
+            .as_ref()
+            .unwrap()
+            .get("protocol:imported-ceremony-origins")
+            .unwrap();
+        assert_eq!(
+            history["configuration_hash"],
+            board.configuration.hash().as_str()
+        );
+        assert_eq!(
+            history["scopes"],
+            json!([{"tenant_id": tenant, "election_event_id": event, "keys_ceremony_id": keys}])
+        );
+        let second = import(&serde_json::to_value(&first).unwrap(), None, &new_id()).unwrap();
+        let second_history = &second.keys_ceremonies.as_ref().unwrap()[0]
+            .annotations
+            .as_ref()
+            .unwrap()["protocol:imported-ceremony-origins"];
+        assert_eq!(
+            second_history["configuration_hash"],
+            history["configuration_hash"]
+        );
+        assert_eq!(second_history["scopes"][0], history["scopes"][0]);
+        assert_eq!(
+            second_history["scopes"][1],
+            json!({"tenant_id": first.tenant_id, "election_event_id": first.election_event.id, "keys_ceremony_id": first.keys_ceremonies.as_ref().unwrap()[0].id})
+        );
+        let mut altered = serde_json::to_value(&first).unwrap();
+        altered["keys_ceremonies"][0]["annotations"]["protocol:imported-ceremony-origins"]
+            ["configuration_hash"] = json!("another-configuration");
+        assert!(import(&altered, None, &new_id()).is_err());
+    }
+
+    #[test]
+    fn auxiliary_archive_members_receive_explicit_tenant_and_event_mappings() {
+        let source_tenant = new_id();
+        let source_event = new_id();
+        let input = bundle(&source_tenant, &source_event);
+        let original: ImportElectionEventSchema = serde_json::from_value(input.clone()).unwrap();
+        for target_tenant in [source_tenant.clone(), new_id()] {
+            let target_event = new_id();
+            let (data, replacements) = replace_ids(
+                &input.to_string(),
+                &original,
+                Some(target_event.clone()),
+                target_tenant.clone(),
+            )
+            .unwrap();
+            assert_eq!(replacements[&source_tenant], target_tenant);
+            assert_eq!(replacements[&source_event], target_event);
+            assert_eq!(data.election_event.id, replacements[&source_event]);
+            assert_eq!(data.tenant_id, replacements[&source_tenant]);
+        }
+    }
+
+    #[test]
+    fn picks_a_new_event_id_even_when_the_bundle_lists_it_for_keeping() {
+        let tenant = new_id();
+        let event = new_id();
+        let mut input = bundle(&tenant, &event);
+        input["authenticatorConfig"] = json!([{"alias": "kept", "config": {"id": event}}]);
+        let imported = import(&input, None, &tenant).unwrap();
+        assert_ne!(imported.election_event.id, event);
+        assert!(!serde_json::to_string(&imported).unwrap().contains(&event));
+    }
+
+    #[test]
+    fn rejects_rows_of_another_tenant() {
+        let tenant = new_id();
+        let event = new_id();
+        let other_tenant = Uuid::new_v4().simple().to_string();
+        for kind in ROW_KINDS {
+            let mut input = bundle(&tenant, &event);
+            input[kind][0]["tenant_id"] = json!(other_tenant);
+            assert!(
+                import(&input, Some(new_id()), &tenant).is_err(),
+                "{kind} row of another tenant was accepted"
+            );
+        }
+        let mut input = bundle(&tenant, &event);
+        input["election_event"]["tenant_id"] = json!(other_tenant);
+        assert!(import(&input, Some(new_id()), &tenant).is_err());
+    }
+
+    /// A row whose tenant id is not a UUID is reported with that value, not
+    /// as a row of another tenant.
+    #[test]
+    fn names_a_row_tenant_id_that_is_not_a_uuid() {
+        let tenant = new_id();
+        let mut input = bundle(&tenant, &new_id());
+        input["areas"][0]["tenant_id"] = json!("not-a-uuid");
+        let error = import(&input, Some(new_id()), &tenant).unwrap_err();
+        assert!(
+            format!("{error:#}").contains("Invalid tenant id not-a-uuid"),
+            "{error:#}"
+        );
+    }
+
+    #[test]
+    fn rejects_rows_of_another_event() {
+        let tenant = new_id();
+        let event = new_id();
+        let other_event = new_id();
+        for kind in ROW_KINDS {
+            let mut input = bundle(&tenant, &event);
+            input["authenticatorConfig"] =
+                json!([{"alias": "kept", "config": {"id": other_event}}]);
+            input[kind][0]["election_event_id"] = json!(other_event);
+            assert!(
+                import(&input, Some(new_id()), &tenant).is_err(),
+                "{kind} row of another event was accepted"
+            );
+        }
+    }
+}
+
+#[cfg(test)]
+mod imported_realm_sanitization_tests {
+    use super::*;
+    use ::keycloak::types::{
+        ClientRepresentation, ClientScopeRepresentation, Composites, RoleRepresentation,
+        UserRepresentation,
+    };
+
+    const EVENT_REALM_TEMPLATE: &str = include_str!(
+        "../../../../../.devcontainer/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-33f18502-a67c-4853-8333-a58630663559.json"
+    );
+
+    fn template_realm() -> RealmRepresentation {
+        serde_json::from_str(EVENT_REALM_TEMPLATE).expect("event realm template parses")
+    }
+
+    fn realm_role_names(realm: &RealmRepresentation) -> HashSet<String> {
+        realm
+            .roles
+            .as_ref()
+            .and_then(|roles| roles.realm.as_ref())
+            .map(|realm_roles| {
+                realm_roles
+                    .iter()
+                    .filter_map(|role| role.name.clone())
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    fn hardcoded_hasura_role_mapper(name: &str, role: &str) -> ProtocolMapperRepresentation {
+        let config = HashMap::from([
+            (
+                PROTOCOL_MAPPER_CLAIM_NAME_KEY.to_string(),
+                format!("https://hasura\\.io/jwt/claims.{name}"),
+            ),
+            ("claim.value".to_string(), role.to_string()),
+            ("jsonType.label".to_string(), "String".to_string()),
+        ]);
+        ProtocolMapperRepresentation {
+            name: Some(name.to_string()),
+            protocol: Some("openid-connect".to_string()),
+            protocol_mapper: Some("oidc-hardcoded-claim-mapper".to_string()),
+            config: Some(config),
+            ..Default::default()
+        }
+    }
+
+    /// Build a realm that adds Hasura admin roles, a user holding them and a
+    /// client minting admin claims on top of the platform template.
+    fn realm_with_injected_claims() -> RealmRepresentation {
+        let mut realm = template_realm();
+
+        if let Some(roles) = realm.roles.as_mut() {
+            let realm_roles = roles.realm.get_or_insert_with(Vec::new);
+            for name in ["service-account", "admin-user"] {
+                realm_roles.push(RoleRepresentation {
+                    name: Some(name.to_string()),
+                    ..Default::default()
+                });
+            }
+        }
+
+        realm
+            .users
+            .get_or_insert_with(Vec::new)
+            .push(UserRepresentation {
+                username: Some("imported-user".to_string()),
+                enabled: Some(true),
+                realm_roles: Some(vec![
+                    "service-account".to_string(),
+                    "admin-user".to_string(),
+                ]),
+                ..Default::default()
+            });
+
+        realm
+            .clients
+            .get_or_insert_with(Vec::new)
+            .push(ClientRepresentation {
+                client_id: Some("rogue-client".to_string()),
+                public_client: Some(true),
+                direct_access_grants_enabled: Some(true),
+                protocol: Some("openid-connect".to_string()),
+                protocol_mappers: Some(vec![hardcoded_hasura_role_mapper(
+                    "x-hasura-default-role",
+                    "service-account",
+                )]),
+                ..Default::default()
+            });
+
+        realm
+    }
+
+    fn client<'a>(realm: &'a RealmRepresentation, client_id: &str) -> &'a ClientRepresentation {
+        realm
+            .clients
+            .as_ref()
+            .expect("realm has clients")
+            .iter()
+            .find(|client| client.client_id.as_deref() == Some(client_id))
+            .expect("client present")
+    }
+
+    fn client_claim_mapper_count(realm: &RealmRepresentation, client_id: &str) -> usize {
+        client(realm, client_id)
+            .protocol_mappers
+            .as_deref()
+            .unwrap_or_default()
+            .iter()
+            .filter(|mapper| is_claim_authority_mapper(mapper))
+            .count()
+    }
+
+    #[test]
+    fn aligning_drops_injected_admin_roles_and_claim_mappers() {
+        let template = template_realm();
+        let sanitized = sanitize_imported_event_realm(
+            &realm_with_injected_claims(),
+            &template,
+            ImportedRealmReconciliation::AlignWithTemplate,
+        )
+        .expect("sanitization succeeds");
+
+        let roles = realm_role_names(&sanitized);
+        assert!(!roles.contains("service-account"));
+        assert!(!roles.contains("admin-user"));
+
+        let imported_user = sanitized
+            .users
+            .as_ref()
+            .unwrap()
+            .iter()
+            .find(|user| user.username.as_deref() == Some("imported-user"))
+            .expect("imported user kept");
+        let imported_roles = imported_user.realm_roles.clone().unwrap_or_default();
+        assert!(!imported_roles.contains(&"service-account".to_string()));
+        assert!(!imported_roles.contains(&"admin-user".to_string()));
+
+        assert_eq!(client_claim_mapper_count(&sanitized, "rogue-client"), 0);
+    }
+
+    fn duplicate_mapper_names(realm: &RealmRepresentation) -> Vec<String> {
+        let mut duplicates = Vec::new();
+        let mut check = |owner: String, mappers: &Option<Vec<ProtocolMapperRepresentation>>| {
+            let mut seen = HashSet::new();
+            for mapper in mappers.iter().flatten() {
+                let key = (mapper.name.clone(), mapper.protocol.clone());
+                if !seen.insert(key) {
+                    duplicates.push(format!("{owner}: {:?}", mapper.name));
+                }
+            }
+        };
+        for client in realm.clients.iter().flatten() {
+            check(
+                format!("client {:?}", client.client_id),
+                &client.protocol_mappers,
+            );
+        }
+        for scope in realm.client_scopes.iter().flatten() {
+            check(format!("scope {:?}", scope.name), &scope.protocol_mappers);
+        }
+        duplicates
+    }
+
+    #[test]
+    fn aligning_does_not_duplicate_the_templates_other_protocol_mappers() {
+        let template = template_realm();
+        let sanitized = sanitize_imported_event_realm(
+            &template,
+            &template,
+            ImportedRealmReconciliation::AlignWithTemplate,
+        )
+        .expect("sanitization succeeds");
+
+        assert_eq!(duplicate_mapper_names(&sanitized), Vec::<String>::new());
+    }
+
+    #[test]
+    fn aligning_keeps_platform_template_claim_mappers() {
+        let template = template_realm();
+        let sanitized = sanitize_imported_event_realm(
+            &template,
+            &template,
+            ImportedRealmReconciliation::AlignWithTemplate,
+        )
+        .expect("sanitization succeeds");
+
+        assert_eq!(realm_role_names(&sanitized), realm_role_names(&template));
+        assert_eq!(
+            client_claim_mapper_count(&sanitized, "voting-portal"),
+            client_claim_mapper_count(&template, "voting-portal"),
+        );
+    }
+
+    #[test]
+    fn rejecting_mode_leaves_a_legitimate_template_untouched() {
+        let template = template_realm();
+        assert!(sanitize_imported_event_realm(
+            &template,
+            &template,
+            ImportedRealmReconciliation::RejectForeignClaims,
+        )
+        .is_ok());
+    }
+
+    #[test]
+    fn rejecting_mode_refuses_injected_claims() {
+        let template = template_realm();
+        assert!(sanitize_imported_event_realm(
+            &realm_with_injected_claims(),
+            &template,
+            ImportedRealmReconciliation::RejectForeignClaims,
+        )
+        .is_err());
+    }
+
+    const REALM_ADMIN_CLIENT: &str = "realm-management";
+    const REALM_ADMIN_ROLE: &str = "realm-admin";
+
+    fn sanitize(imported: &RealmRepresentation) -> RealmRepresentation {
+        sanitize_imported_event_realm(
+            imported,
+            &template_realm(),
+            ImportedRealmReconciliation::AlignWithTemplate,
+        )
+        .expect("sanitization succeeds")
+    }
+
+    fn realm_admin_assignment() -> ClientRoleAssignments {
+        HashMap::from([(
+            REALM_ADMIN_CLIENT.to_string(),
+            vec![REALM_ADMIN_ROLE.to_string()],
+        )])
+    }
+
+    #[test]
+    fn aligning_drops_client_roles_assigned_to_users_and_groups() {
+        let mut realm = template_realm();
+        realm
+            .users
+            .get_or_insert_with(Vec::new)
+            .push(UserRepresentation {
+                username: Some("imported-user".to_string()),
+                client_roles: Some(realm_admin_assignment()),
+                ..Default::default()
+            });
+        realm
+            .groups
+            .get_or_insert_with(Vec::new)
+            .push(GroupRepresentation {
+                name: Some("imported-group".to_string()),
+                client_roles: Some(realm_admin_assignment()),
+                sub_groups: Some(vec![GroupRepresentation {
+                    name: Some("imported-subgroup".to_string()),
+                    client_roles: Some(realm_admin_assignment()),
+                    ..Default::default()
+                }]),
+                ..Default::default()
+            });
+
+        let sanitized = sanitize(&realm);
+
+        let user = sanitized
+            .users
+            .iter()
+            .flatten()
+            .find(|user| user.username.as_deref() == Some("imported-user"))
+            .expect("imported user kept");
+        assert!(user.client_roles.clone().unwrap_or_default().is_empty());
+        let group = sanitized
+            .groups
+            .iter()
+            .flatten()
+            .find(|group| group.name.as_deref() == Some("imported-group"))
+            .expect("imported group kept");
+        assert!(group.client_roles.clone().unwrap_or_default().is_empty());
+        let subgroup = &group.sub_groups.as_ref().expect("subgroup kept")[0];
+        assert!(subgroup.client_roles.clone().unwrap_or_default().is_empty());
+    }
+
+    #[test]
+    fn aligning_resets_the_composites_of_allowed_roles() {
+        let mut realm = template_realm();
+        let allowed_role = realm_role_names(&realm)
+            .into_iter()
+            .find(|name| !name.starts_with(DEFAULT_REALM_ROLE_PREFIX))
+            .expect("template has a realm role");
+        for role in realm
+            .roles
+            .as_mut()
+            .and_then(|roles| roles.realm.as_mut())
+            .expect("template has realm roles")
+        {
+            if role.name.as_deref() == Some(allowed_role.as_str()) {
+                role.composites = Some(Composites {
+                    client: Some(HashMap::from([(
+                        REALM_ADMIN_CLIENT.to_string(),
+                        vec![REALM_ADMIN_ROLE.to_string()],
+                    )])),
+                    ..Default::default()
+                });
+            }
+        }
+
+        let sanitized = sanitize(&realm);
+
+        let template = template_realm();
+        let composites_of = |realm: &RealmRepresentation| {
+            realm
+                .roles
+                .iter()
+                .flat_map(|roles| roles.realm.iter().flatten())
+                .find(|role| role.name.as_deref() == Some(allowed_role.as_str()))
+                .and_then(|role| role.composites.clone())
+        };
+        assert_eq!(composites_of(&sanitized), composites_of(&template));
+    }
+
+    #[test]
+    fn aligning_only_allows_the_realms_own_default_role() {
+        let mut realm = template_realm();
+        let fake_default_role = format!("{DEFAULT_REALM_ROLE_PREFIX}attacker");
+        realm
+            .roles
+            .get_or_insert_with(Default::default)
+            .realm
+            .get_or_insert_with(Vec::new)
+            .push(RoleRepresentation {
+                name: Some(fake_default_role.clone()),
+                ..Default::default()
+            });
+        realm
+            .users
+            .get_or_insert_with(Vec::new)
+            .push(UserRepresentation {
+                username: Some("imported-user".to_string()),
+                realm_roles: Some(vec![fake_default_role.clone()]),
+                ..Default::default()
+            });
+
+        let sanitized = sanitize(&realm);
+
+        assert!(!realm_role_names(&sanitized).contains(&fake_default_role));
+        let user = sanitized
+            .users
+            .iter()
+            .flatten()
+            .find(|user| user.username.as_deref() == Some("imported-user"))
+            .expect("imported user kept");
+        assert!(!user
+            .realm_roles
+            .clone()
+            .unwrap_or_default()
+            .contains(&fake_default_role));
+    }
+
+    #[test]
+    fn aligning_drops_identity_provider_mappers_the_template_lacks() {
+        let mut realm = template_realm();
+        realm
+            .identity_provider_mappers
+            .get_or_insert_with(Vec::new)
+            .push(IdentityProviderMapperRepresentation {
+                name: Some("grant-role".to_string()),
+                identity_provider_alias: Some("any-idp".to_string()),
+                identity_provider_mapper: Some("oidc-role-idp-mapper".to_string()),
+                config: Some(HashMap::from([(
+                    "role".to_string(),
+                    "admin-user".to_string(),
+                )])),
+                ..Default::default()
+            });
+
+        let sanitized = sanitize(&realm);
+
+        assert_eq!(
+            sanitized.identity_provider_mappers,
+            template_realm().identity_provider_mappers
+        );
+    }
+
+    #[test]
+    fn aligning_drops_claim_mappers_on_unknown_client_scopes() {
+        let mut realm = template_realm();
+        realm
+            .client_scopes
+            .get_or_insert_with(Vec::new)
+            .push(ClientScopeRepresentation {
+                name: Some("rogue-scope".to_string()),
+                protocol_mappers: Some(vec![hardcoded_hasura_role_mapper(
+                    "x-hasura-default-role",
+                    "service-account",
+                )]),
+                ..Default::default()
+            });
+
+        let sanitized = sanitize(&realm);
+
+        let scope = sanitized
+            .client_scopes
+            .iter()
+            .flatten()
+            .find(|scope| scope.name.as_deref() == Some("rogue-scope"))
+            .expect("scope kept");
+        assert!(scope
+            .protocol_mappers
+            .as_deref()
+            .unwrap_or_default()
+            .is_empty());
     }
 }

@@ -8,18 +8,23 @@
 #[path = "support/schema.rs"]
 mod schema;
 
+use async_trait::async_trait;
 use chrono::{DateTime, Duration, NaiveDate, TimeZone, Utc};
+use chrono_tz::Tz;
 use deadpool_postgres::Transaction;
+use electoral_log::adapters::ballot_box_reads::{FirstValidVote, FirstValidVotes};
 use sequent_core::monitoring::config::Settings;
 use sequent_core::monitoring::presets;
 use serde_json::{json, Value};
 use std::collections::BTreeMap;
+use std::sync::Mutex;
 use uuid::Uuid;
 use windmill::postgres::monitoring_config::EventRef;
 use windmill::services::monitoring::projection::{
-    event_first_day, full_pass_due, load_event_places, project_accounts, refresh_voter_activity,
-    LastPass, ProjectionContext, VoterAccount,
+    event_first_day, full_pass_due, load_event_places, project_accounts, read_first_votes,
+    refresh_voter_activity, FirstVoteSource, FirstVotes, LastPass, ProjectionContext, VoterAccount,
 };
+use windmill::services::time_zones::event_time_zone;
 
 fn comelec_settings() -> Settings {
     presets::load("comelec")
@@ -129,34 +134,6 @@ impl<'t, 'c> Seed<'t, 'c> {
         area
     }
 
-    async fn vote(
-        &self,
-        election: Uuid,
-        area: Uuid,
-        voter: &str,
-        status: &str,
-        when: DateTime<Utc>,
-    ) {
-        self.tx
-            .execute(
-                "INSERT INTO sequent_backend.cast_vote
-                     (tenant_id, election_event_id, election_id, area_id, voter_id_string,
-                      status, created_at)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7)",
-                &[
-                    &self.event.tenant_id,
-                    &self.event.election_event_id,
-                    &election,
-                    &area,
-                    &voter,
-                    &status,
-                    &when,
-                ],
-            )
-            .await
-            .unwrap();
-    }
-
     async fn application(
         &self,
         area: Uuid,
@@ -207,6 +184,15 @@ impl<'t, 'c> Seed<'t, 'c> {
             .into_iter()
             .find(|row| row["voter_id"] == voter && row["election_id"] == election.to_string())
             .unwrap_or_else(|| panic!("no row for {voter}"))
+    }
+}
+
+/// A voter's first valid ballot in an election, as the ballot box reads it.
+fn first_vote(election: Uuid, voter: &str, when: DateTime<Utc>) -> FirstValidVote {
+    FirstValidVote {
+        election_id: election.to_string(),
+        voter_id: voter.to_string(),
+        accepted_at: when.timestamp_micros(),
     }
 }
 
@@ -395,16 +381,8 @@ async fn enrollment_and_the_first_vote_follow_applications_and_votes() {
     seed.application(area, "pending", "PENDING", json!({}), at(3, 9))
         .await;
 
-    seed.vote(election, area, "accepted", "valid", at(5, 12))
-        .await;
-    seed.vote(election, area, "accepted", "valid", at(5, 10))
-        .await;
-    seed.vote(election, area, "accepted", "discarded", at(5, 8))
-        .await;
-    seed.vote(election, area, "rejected", "in-progress", at(5, 8))
-        .await;
-
-    assert!(refresh_voter_activity(&tx, seed.event).await.unwrap() > 0);
+    let all = FirstVotes::from_read(&[first_vote(election, "accepted", at(5, 10))], true).unwrap();
+    assert!(refresh_voter_activity(&tx, seed.event, &all).await.unwrap() > 0);
     let accepted = seed.row(election, "accepted").await;
     assert_eq!(
         accepted["enrollment_state"], "ACCEPTED",
@@ -418,7 +396,7 @@ async fn enrollment_and_the_first_vote_follow_applications_and_votes() {
         serde_json::from_value(accepted["pre_enrolled_at"].clone()).unwrap();
     assert_eq!(pre_enrolled, at(2, 9), "pre-enrolled from the approval on");
     let voted: DateTime<Utc> = serde_json::from_value(accepted["first_voted_at"].clone()).unwrap();
-    assert_eq!(voted, at(5, 10), "the earliest valid vote, over revotes");
+    assert_eq!(voted, at(5, 10), "the voter's first valid vote");
     assert_eq!(
         seed.row(other, "accepted").await["first_voted_at"],
         Value::Null,
@@ -431,7 +409,7 @@ async fn enrollment_and_the_first_vote_follow_applications_and_votes() {
     assert_eq!(
         rejected["first_voted_at"],
         Value::Null,
-        "only valid votes count"
+        "a voter with no valid vote"
     );
     let pending = seed.row(election, "pending").await;
     assert_eq!(pending["enrollment_state"], "PENDING");
@@ -442,9 +420,44 @@ async fn enrollment_and_the_first_vote_follow_applications_and_votes() {
     );
 
     assert_eq!(
-        refresh_voter_activity(&tx, seed.event).await.unwrap(),
+        refresh_voter_activity(&tx, seed.event, &all).await.unwrap(),
         0,
         "nothing changed, nothing is written"
+    );
+
+    // A read of the ballots since: a later valid revote keeps the first
+    // vote, and a voter it leaves out keeps theirs.
+    let since = FirstVotes::from_read(
+        &[
+            first_vote(election, "accepted", at(6, 10)),
+            first_vote(election, "pending", at(6, 11)),
+        ],
+        false,
+    )
+    .unwrap();
+    assert_eq!(
+        refresh_voter_activity(&tx, seed.event, &since)
+            .await
+            .unwrap(),
+        1
+    );
+    assert_eq!(
+        seed.row(election, "accepted").await["first_voted_at"],
+        accepted["first_voted_at"]
+    );
+    let pending_voted: DateTime<Utc> =
+        serde_json::from_value(seed.row(election, "pending").await["first_voted_at"].clone())
+            .unwrap();
+    assert_eq!(pending_voted, at(6, 11));
+    // A read of every ballot without one the voter had (its ballot was
+    // rejected since) takes their first vote away.
+    assert_eq!(
+        refresh_voter_activity(&tx, seed.event, &all).await.unwrap(),
+        1
+    );
+    assert_eq!(
+        seed.row(election, "pending").await["first_voted_at"],
+        Value::Null
     );
 
     // A pass that rewrites the voter keeps what the activity refresh set.
@@ -461,16 +474,8 @@ async fn ages_are_counted_as_of_the_event_first_day_in_its_time_zone() {
     let mut client = pool.get().await.unwrap();
     let tx = client.transaction().await.unwrap();
     let seed = Seed::new(&tx).await;
-    let mut settings = comelec_settings();
-    settings.time_zone = "Asia/Manila".into();
     let now = at(20, 0);
-    assert_eq!(
-        event_first_day(&tx, seed.event, &settings, now)
-            .await
-            .unwrap(),
-        NaiveDate::from_ymd_opt(2026, 5, 20).unwrap(),
-        "no start scheduled: today, in Manila"
-    );
+    let first_start = Utc.with_ymd_and_hms(2026, 5, 11, 16, 30, 0).unwrap();
     for (processor, date, archived) in [
         ("START_VOTING_PERIOD", "2026-05-11T16:30:00Z", false),
         ("START_VOTING_PERIOD", "2026-05-12T16:30:00Z", false),
@@ -492,37 +497,188 @@ async fn ages_are_counted_as_of_the_event_first_day_in_its_time_zone() {
         .await
         .unwrap();
     }
-    assert_eq!(
-        event_first_day(&tx, seed.event, &settings, now)
+    // The two configurations, and an event that names no zone (UTC).
+    for primary in [Some("Asia/Manila"), Some("Europe/Madrid"), None] {
+        let timezones = primary.map(
+            |primary| json!({"configured": [primary], "primary": primary, "logs": "election"}),
+        );
+        tx.execute(
+            "UPDATE sequent_backend.election_event
+             SET presentation = jsonb_set(COALESCE(presentation, '{}'::jsonb),
+                                          '{timezones}', COALESCE($3::jsonb, 'null'))
+             WHERE tenant_id = $1 AND id = $2",
+            &[
+                &seed.event.tenant_id,
+                &seed.event.election_event_id,
+                &timezones,
+            ],
+        )
+        .await
+        .unwrap();
+        let zone = event_time_zone(&tx, seed.event.tenant_id, seed.event.election_event_id)
             .await
-            .unwrap(),
-        NaiveDate::from_ymd_opt(2026, 5, 12).unwrap(),
-        "the first voting start, 16:30 UTC being past midnight in Manila"
-    );
-    settings.time_zone = "UTC".into();
+            .unwrap();
+        let expected: Tz = primary.unwrap_or("UTC").parse().unwrap();
+        assert_eq!(zone, expected);
+        assert_eq!(
+            event_first_day(&tx, seed.event, zone, now).await.unwrap(),
+            first_start.with_timezone(&zone).date_naive(),
+            "the first unarchived voting start, as a day in {zone}"
+        );
+    }
+    tx.execute(
+        "DELETE FROM sequent_backend.scheduled_event
+         WHERE tenant_id = $1 AND election_event_id = $2",
+        &[&seed.event.tenant_id, &seed.event.election_event_id],
+    )
+    .await
+    .unwrap();
+    let manila = chrono_tz::Asia::Manila;
     assert_eq!(
-        event_first_day(&tx, seed.event, &settings, now)
-            .await
-            .unwrap(),
-        NaiveDate::from_ymd_opt(2026, 5, 11).unwrap()
+        event_first_day(&tx, seed.event, manila, now).await.unwrap(),
+        now.with_timezone(&manila).date_naive(),
+        "no start scheduled: today, in the event's zone"
     );
 }
 
 #[test]
-fn a_full_pass_is_due_first_on_new_settings_and_then_every_interval() {
+fn a_full_pass_is_due_first_on_new_settings_or_zone_and_then_every_interval() {
     let every = Duration::minutes(5);
     let now = at(11, 12);
-    assert!(full_pass_due(None, 1, now, every));
+    let (manila, madrid) = (chrono_tz::Asia::Manila, chrono_tz::Europe::Madrid);
+    assert!(full_pass_due(None, 1, manila, now, every));
     let last = LastPass {
         at: now - Duration::minutes(4),
         settings_revision: 1,
+        time_zone: Some(manila),
     };
-    assert!(!full_pass_due(Some(last), 1, now, every));
-    assert!(full_pass_due(Some(last), 2, now, every));
+    assert!(!full_pass_due(Some(last), 1, manila, now, every));
+    assert!(full_pass_due(Some(last), 2, manila, now, every));
+    assert!(
+        full_pass_due(Some(last), 1, madrid, now, every),
+        "the event's zone changed"
+    );
+    let unrecorded = LastPass {
+        time_zone: None,
+        ..last
+    };
+    assert!(full_pass_due(Some(unrecorded), 1, manila, now, every));
     assert!(full_pass_due(
         Some(last),
         1,
+        manila,
         now + Duration::minutes(1),
         every
     ));
+}
+
+/// A ballot box that answers every read with the same votes, and keeps the
+/// sequence number each read started after.
+#[derive(Debug, Default)]
+struct RecordingBallotBox {
+    votes: Vec<FirstValidVote>,
+    next_seq: i64,
+    reads: Mutex<Vec<i64>>,
+}
+
+#[async_trait]
+impl FirstVoteSource for RecordingBallotBox {
+    async fn first_valid_votes(
+        &self,
+        _: EventRef,
+        after_seq: i64,
+    ) -> anyhow::Result<FirstValidVotes> {
+        self.reads.lock().unwrap().push(after_seq);
+        Ok(FirstValidVotes {
+            votes: self.votes.clone(),
+            next_seq: self.next_seq,
+        })
+    }
+}
+
+#[tokio::test]
+async fn first_votes_are_read_since_the_last_read_and_in_full_on_a_full_pass() {
+    let pool = schema::pool().await;
+    let mut client = pool.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let seed = Seed::new(&tx).await;
+    let election = Uuid::new_v4();
+    let ballot_box = RecordingBallotBox {
+        votes: vec![first_vote(election, "voter", at(5, 10))],
+        next_seq: 7,
+        ..Default::default()
+    };
+    let votes = |all: bool| {
+        let read = [((election, "voter".to_string()), at(5, 10))]
+            .into_iter()
+            .collect();
+        if all {
+            FirstVotes::All(read)
+        } else {
+            FirstVotes::Since(read)
+        }
+    };
+
+    assert_eq!(
+        read_first_votes(&tx, seed.event, &ballot_box, false)
+            .await
+            .unwrap(),
+        votes(true),
+        "nothing read yet: every ballot"
+    );
+    assert_eq!(
+        read_first_votes(&tx, seed.event, &ballot_box, false)
+            .await
+            .unwrap(),
+        votes(false),
+        "then the ballots after the last read"
+    );
+    assert_eq!(
+        read_first_votes(&tx, seed.event, &ballot_box, true)
+            .await
+            .unwrap(),
+        votes(true),
+        "a full pass reads every ballot again"
+    );
+    assert_eq!(*ballot_box.reads.lock().unwrap(), vec![0, 7, 0]);
+}
+
+#[tokio::test]
+async fn private_participation_never_retains_a_vote_or_refresh_timestamp() {
+    let pool = schema::pool().await;
+    let mut client = pool.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let seed = Seed::new(&tx).await;
+    let election = seed.election("Europe").await;
+    let area = seed.area(&[election]).await;
+    pass(
+        &seed,
+        &comelec_settings(),
+        1,
+        &[account("private", Some(area), &[])],
+    )
+    .await;
+    // Give the projection a distinct historical update timestamp, so a trigger
+    // setting it to this transaction's now() cannot pass unnoticed.
+    tx.batch_execute("ALTER TABLE sequent_backend.monitoring_voter DISABLE TRIGGER set_sequent_backend_monitoring_voter_updated_at").await.unwrap();
+    tx.execute("UPDATE sequent_backend.monitoring_voter SET updated_at = '2020-01-01 00:00:00+00', first_voted_at = now() WHERE tenant_id=$1", &[&seed.event.tenant_id]).await.unwrap();
+    tx.batch_execute("ALTER TABLE sequent_backend.monitoring_voter ENABLE TRIGGER set_sequent_backend_monitoring_voter_updated_at").await.unwrap();
+    let before = seed.row(election, "private").await;
+    let private = FirstVotes::Private([((election, "private".into()))].into());
+    assert_eq!(
+        refresh_voter_activity(&tx, seed.event, &private)
+            .await
+            .unwrap(),
+        1
+    );
+    let after = seed.row(election, "private").await;
+    assert_eq!(after["has_voted"], true);
+    assert_eq!(after["first_voted_at"], Value::Null);
+    assert_eq!(after["updated_at"], before["updated_at"]);
+    assert_eq!(
+        refresh_voter_activity(&tx, seed.event, &private)
+            .await
+            .unwrap(),
+        0
+    );
 }

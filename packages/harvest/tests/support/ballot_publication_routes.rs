@@ -4,16 +4,71 @@
 //! The ballot publication routes on the migrated test database: gold and
 //! lockdown checks, and the task row a publish attempt completes or fails.
 
+use crate::adapters::memory::electoral_log::LoggedEntry;
 use crate::adapters::memory::task_ledger::MemoryTaskLedger;
 use crate::adapters::memory::task_queue::MemoryTaskQueue;
 use crate::route_services::rows::{self, Event};
 use crate::route_services::{json, post, text, Services};
 use crate::test_claims::Claims;
 use chrono::Utc;
+use electoral_log::messages::newtypes::BallotPublicationStage;
 use rocket::http::Status;
 use rocket::local::asynchronous::{Client, LocalResponse};
 use sequent_core::types::permissions::Permissions;
 use serde_json::{json, Value};
+
+/// Seed one already-authorized server result, then restore the marker before
+/// any route or ordinary fixture write can use this pooled connection.
+async fn trusted_seed(
+    pool: &deadpool_postgres::Pool,
+    sql: &str,
+    params: &[&(dyn tokio_postgres::types::ToSql + Sync)],
+) {
+    let mut client = pool.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let previous: Option<String> = tx
+        .query_one("SELECT current_setting('sequent.trusted_write', true)", &[])
+        .await
+        .unwrap()
+        .get(0);
+    windmill::postgres::trusted_write(&tx).await.unwrap();
+    tx.execute(sql, params).await.unwrap();
+    tx.execute(
+        "SELECT set_config('sequent.trusted_write', $1, true)",
+        &[&previous.unwrap_or_default()],
+    )
+    .await
+    .unwrap();
+    tx.commit().await.unwrap();
+}
+
+/// Generated event-level publication with the same target membership and
+/// immutable root that the normal server completion workflow records.
+async fn generated_publication(
+    pool: &deadpool_postgres::Pool,
+    event: &Event,
+    published: bool,
+) -> String {
+    let tenant = uuid::Uuid::parse_str(&event.tenant_id).unwrap();
+    let election_event =
+        uuid::Uuid::parse_str(&event.election_event_id).unwrap();
+    let id = uuid::Uuid::new_v4();
+    let elections: Vec<uuid::Uuid> = rows::query(pool,
+        "SELECT id FROM sequent_backend.election WHERE tenant_id=$1 AND election_event_id=$2 ORDER BY id",
+        &[&tenant, &election_event],
+    ).await.into_iter().map(|row| row.get(0)).collect();
+    let annotations = published.then(|| serde_json::json!({
+        windmill::domain::publication_files::FILES_ANNOTATION:
+            windmill::domain::publication_files::publication_root(tenant, election_event, id, uuid::Uuid::new_v4())
+    }));
+    trusted_seed(pool,
+        "INSERT INTO sequent_backend.ballot_publication
+        (id,tenant_id,election_event_id,is_generated,election_ids,published_at,annotations)
+        VALUES ($1,$2,$3,true,$4,CASE WHEN $5 THEN now() END,$6)",
+        &[&id,&tenant,&election_event,&elections,&published,&annotations],
+    ).await;
+    id.to_string()
+}
 
 const USER_ID: &str = "publisher";
 
@@ -182,6 +237,24 @@ async fn generation_rejected_by_the_broker_fails_its_task_and_rolls_back() {
 }
 
 #[rocket::async_test]
+async fn generation_stops_before_writing_when_the_task_queues_are_unreachable()
+{
+    let services = Services::on_test_database()
+        .await
+        .with_tasks(MemoryTaskQueue::unreachable());
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    event.election(&services.hasura).await;
+    assert_eq!(
+        json(generate(&client, &event).await).await,
+        failure("Could not generate the ballot publication.")
+    );
+    assert!(services.ledger.tasks().is_empty());
+    assert!(services.tasks.sent().is_empty());
+    assert!(publication_rows(&services, &event).await.is_empty());
+}
+
+#[rocket::async_test]
 async fn generation_failure_still_rolls_back_when_the_task_cannot_be_failed() {
     let services = Services::on_test_database()
         .await
@@ -264,7 +337,7 @@ async fn publishing_an_already_published_ballot_completes_its_task() {
     let client = services.client().await;
     let event = rows::event(&services.hasura).await;
     let publication =
-        event.ballot_publication(&services.hasura, true, true).await;
+        generated_publication(&services.hasura, &event, true).await;
 
     assert_eq!(
         json(publish(&client, &event, &publication).await).await,
@@ -303,6 +376,15 @@ async fn a_publication_that_cannot_be_published_fails_its_task_with_the_reason()
         );
         assert_eq!(task.execution_status, "FAILED");
         assert_eq!(task.logs, Some(json!([format!("Error: {reason}")])));
+        assert_eq!(
+            services.electoral_log.entries().last(),
+            Some(&LoggedEntry::BallotPublicationFailure {
+                task_id: task.id.clone(),
+                publication_id: publication.clone(),
+                stage: BallotPublicationStage::Publish,
+                message: reason.to_string(),
+            })
+        );
     }
 }
 
@@ -331,7 +413,7 @@ async fn a_publish_whose_task_cannot_be_completed_is_reported_as_published() {
     let client = services.client().await;
     let event = rows::event(&services.hasura).await;
     let publication =
-        event.ballot_publication(&services.hasura, true, true).await;
+        generated_publication(&services.hasura, &event, true).await;
 
     assert_eq!(
         json(publish(&client, &event, &publication).await).await,
@@ -346,9 +428,8 @@ async fn a_publish_without_a_task_row_is_not_attempted() {
         .with_ledger(MemoryTaskLedger::refusing());
     let client = services.client().await;
     let event = rows::event(&services.hasura).await;
-    let publication = event
-        .ballot_publication(&services.hasura, true, false)
-        .await;
+    let publication =
+        generated_publication(&services.hasura, &event, false).await;
 
     let (status, body) =
         json(publish(&client, &event, &publication).await).await;
@@ -375,9 +456,8 @@ async fn the_changes_of_a_first_publication_have_nothing_to_compare_with() {
     let services = Services::on_test_database().await;
     let client = services.client().await;
     let event = rows::event(&services.hasura).await;
-    let publication = event
-        .ballot_publication(&services.hasura, true, false)
-        .await;
+    let publication =
+        generated_publication(&services.hasura, &event, false).await;
 
     let (status, body) = json(
         post(

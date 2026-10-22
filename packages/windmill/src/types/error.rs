@@ -8,7 +8,6 @@ use handlebars;
 use keycloak;
 use sequent_core::util::integrity_check::HashFileVerifyError;
 use serde_json;
-use strand::util::StrandError;
 quick_error! {
     #[derive(Debug)]
     pub enum Error {
@@ -80,12 +79,6 @@ impl From<handlebars::RenderError> for Error {
     }
 }
 
-impl From<StrandError> for Error {
-    fn from(err: StrandError) -> Self {
-        Error::String(format!("{:?}", err))
-    }
-}
-
 impl From<std::io::Error> for Error {
     fn from(err: std::io::Error) -> Self {
         Error::String(format!("{:?}", err))
@@ -94,12 +87,6 @@ impl From<std::io::Error> for Error {
 
 impl From<keycloak::KeycloakError> for Error {
     fn from(err: keycloak::KeycloakError) -> Self {
-        Error::String(format!("{:?}", err))
-    }
-}
-
-impl From<lapin::Error> for Error {
-    fn from(err: lapin::Error) -> Self {
         Error::String(format!("{:?}", err))
     }
 }

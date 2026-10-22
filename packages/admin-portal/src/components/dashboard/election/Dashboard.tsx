@@ -4,7 +4,7 @@
 
 import React, {useContext, useState} from "react"
 import {Box, CircularProgress} from "@mui/material"
-import {styled} from "@mui/material/styles"
+import {StandardDashboardContent, StandardDashboardCharts} from "../DashboardContent"
 import {Stats} from "./Stats"
 import {VotesPerDay} from "../charts/VotesPerDay"
 import {
@@ -22,16 +22,7 @@ import {useQuery} from "@apollo/client"
 import {GET_ELECTION_STATS} from "@/queries/GetElectionStats"
 import {IElectionStatistics, translateFromPresentation} from "@sequentech/ui-core"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import {AuthContext} from "@/providers/AuthContextProvider"
-import {IPermissions} from "@/types/keycloak"
-import {ListIpAddress} from "@/resources/ElectionEvent/ListIpAddress"
 import {useTranslation} from "react-i18next"
-
-const Container = styled(Box)`
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-`
 
 export default function DashboardElection() {
     const {i18n} = useTranslation()
@@ -48,13 +39,6 @@ export default function DashboardElection() {
     const endDate = getToday()
     const startDate = daysBefore(endDate, 6)
     const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone
-    const authContext = useContext(AuthContext)
-
-    const showIpAdresses = authContext.isAuthorized(
-        true,
-        authContext.tenantId,
-        IPermissions.ELECTION_IP_ADDRESS_VIEW
-    )
 
     // Ensure required parameters are set before running the query.
     const canQueryStats = Boolean(tenantId && record?.election_event_id && record?.id)
@@ -91,33 +75,34 @@ export default function DashboardElection() {
         areasCount: dataStats?.stats?.total_areas ?? "-",
         emailsSentCount: stats?.num_emails_sent ?? "-",
         smsSentCount: stats?.num_sms_sent ?? "-",
+        messagesSentCount: {
+            WHATSAPP: stats?.num_whatsapp_sent ?? "-",
+            VIBER: stats?.num_viber_sent ?? "-",
+            MESSENGER: stats?.num_messenger_sent ?? "-",
+        },
     }
 
-    const cardWidth = 470
     const cardHeight = 250
 
     return (
-        <Box sx={{width: 1024, marginX: "auto"}} className="dashboard">
+        <StandardDashboardContent className="dashboard">
             <Box>
                 <Stats metrics={metrics} />
 
-                <Container>
+                <StandardDashboardCharts>
                     <VotesPerDay
                         data={(dataStats?.stats?.votes_per_day as CastVotesPerDay[]) ?? null}
                         unavailable={!!error}
-                        width={cardWidth}
                         height={cardHeight}
                         selection={votesTimeSelection}
                         onSelectionChange={setVotesTimeSelection}
                     />
                     <VotersByChannel
                         data={toVotersByChannelRows(dataStats?.stats?.voters_by_channel)}
-                        width={cardWidth}
                         height={cardHeight}
                     />
-                </Container>
-                {showIpAdresses && record?.id && <ListIpAddress />}
+                </StandardDashboardCharts>
             </Box>
-        </Box>
+        </StandardDashboardContent>
     )
 }

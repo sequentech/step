@@ -16,10 +16,13 @@ import runpy
 import subprocess
 import sys
 import tempfile
+import threading
+import time
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+import ci
 import run
 from report import CoverageError
 from test_report import export, llvm_file
@@ -46,7 +49,8 @@ class CoverageRunnerTests(unittest.TestCase):
             '[toolchain]\nchannel = "1.96.0"\n'
         )
         self.config = self.root / "profiles.toml"
-        self.config.write_text("""cargo_llvm_cov_version = "0.9.1"
+        self.config.write_text(
+            """cargo_llvm_cov_version = "0.9.1"
 minimum_lines = 95
 [profiles.sequent-core]
 package = "sequent-core"
@@ -54,7 +58,8 @@ features = ["default_features", "keycloak"]
 limitations = ["Native test profile only"]
 issue = "https://github.com/sequentech/meta/issues/13292"
 [profiles.sequent-core.scope_exceptions]
-""")
+"""
+        )
         for name, value in (
             ("ROOT", self.root),
             ("WORKSPACE", self.workspace),
@@ -119,6 +124,147 @@ issue = "https://github.com/sequentech/meta/issues/13292"
         self.assertEqual(summary["tests_ignored"], 1)
         self.assertEqual(summary["features"], ["default_features", "keycloak"])
 
+    def test_profile_harness_arguments_include_ignored_contracts(self):
+        arguments = ["--include-ignored", "--skip", "live_renderer"]
+        self.config.write_text(
+            self.config.read_text().replace(
+                'package = "sequent-core"',
+                'package = "sequent-core"\n'
+                'test_arguments = ["--include-ignored", "--skip", "live_renderer"]',
+            )
+        )
+        original = self.tool_output
+        observed = []
+
+        def tool_output(command, log, environment):
+            if "--tests" in command:
+                observed.append(command)
+            return original(command, log, environment)
+
+        self.tool_output = tool_output
+        code, summary = self.attempt(True)
+        self.assertEqual(code, 0)
+        self.assertEqual(observed[0][-4:], ["--", *arguments])
+        self.assertLess(observed[0].index("--offline"), observed[0].index("--"))
+        self.assertEqual(summary["test_arguments"], arguments)
+
+    def test_database_suites_run_ignored_tests_before_export_with_serial_fixture_access(
+        self,
+    ):
+        self.config.write_text(
+            self.config.read_text().replace(
+                'package = "sequent-core"',
+                'package = "sequent-core"\ndatabase_tests = ["privacy"]\n'
+                'database_test_skips = ["storage_benchmark"]',
+            )
+        )
+        suite = self.workspace / "sequent-core/tests/privacy.rs"
+        suite.parent.mkdir()
+        suite.write_text("// PostgreSQL contract tests\n")
+        commands = []
+        original = self.tool_output
+
+        def tool_output(command, log, environment):
+            commands.append(command)
+            if "--ignored" in command:
+                self.assertIn("--test-threads=1", command)
+                self.assertIn("--locked", command)
+                self.assertIn("default_features,keycloak", command)
+                self.assertEqual(command[command.index("--test") + 1], "privacy")
+                self.assertEqual(
+                    command[command.index("--skip") + 1], "storage_benchmark"
+                )
+                return "test result: ok. 2 passed; 0 failed; 0 ignored;"
+            return original(command, log, environment)
+
+        with patch.object(run, "execute", side_effect=tool_output):
+            code = run.measure("sequent-core", True, True)
+        self.assertEqual(code, 0)
+        database = next(i for i, cmd in enumerate(commands) if "--ignored" in cmd)
+        export = next(i for i, cmd in enumerate(commands) if "--json" in cmd)
+        self.assertLess(database, export)
+        summary = json.loads(
+            next(self.root.glob("coverage/sequent-core/*/summary.json")).read_text()
+        )
+        self.assertEqual(summary["tests_passed"], 5)
+        self.assertEqual(summary["database_tests"], ["privacy"])
+
+    def test_database_suite_missing_from_head_is_an_error_before_cargo_runs(self):
+        self.config.write_text(
+            self.config.read_text().replace(
+                'package = "sequent-core"',
+                'package = "sequent-core"\ndatabase_tests = ["privacy"]',
+            )
+        )
+        code, summary = self.attempt(True)
+        self.assertEqual(code, 2)
+        self.assertIn("privacy", summary["error"])
+
+    def test_invalid_database_targets_fail_before_invoking_cargo(self):
+        original = self.config.read_text()
+        for invalid in ['"privacy"', "[1]", '["../privacy"]']:
+            self.config.write_text(
+                original.replace(
+                    'package = "sequent-core"',
+                    f'package = "sequent-core"\ndatabase_tests = {invalid}',
+                )
+            )
+            before = set(self.root.glob("coverage/sequent-core/*/summary.json"))
+            with self.subTest(invalid=invalid), patch.object(run, "execute") as execute:
+                self.assertEqual(run.measure("sequent-core", True, True), 2)
+                execute.assert_not_called()
+            created = (
+                set(self.root.glob("coverage/sequent-core/*/summary.json")) - before
+            )
+            summary = json.loads(created.pop().read_text())
+            self.assertEqual(summary["error"], "Invalid database test targets")
+
+    def test_empty_or_failed_database_suite_cannot_export_a_successful_measurement(
+        self,
+    ):
+        self.config.write_text(
+            self.config.read_text().replace(
+                'package = "sequent-core"',
+                'package = "sequent-core"\ndatabase_tests = ["privacy"]',
+            )
+        )
+        suite = self.workspace / "sequent-core/tests/privacy.rs"
+        suite.parent.mkdir()
+        suite.write_text("// PostgreSQL contract tests\n")
+        for failed in [False, True]:
+            commands = []
+            original = self.tool_output
+
+            def tool_output(command, log, environment):
+                commands.append(command)
+                if "--ignored" in command:
+                    if failed:
+                        raise CoverageError("PostgreSQL unavailable")
+                    return "test result: ok. 0 passed; 0 failed; 0 ignored;"
+                return original(command, log, environment)
+
+            with (
+                self.subTest(failed=failed),
+                patch.object(run, "execute", side_effect=tool_output),
+            ):
+                self.assertEqual(run.measure("sequent-core", True, True), 2)
+                self.assertFalse(any("--json" in cmd for cmd in commands))
+
+    def test_comparison_base_records_database_suites_it_predates(self):
+        self.config.write_text(
+            self.config.read_text().replace(
+                'package = "sequent-core"',
+                'package = "sequent-core"\ndatabase_tests = ["privacy"]',
+            )
+        )
+        with patch.object(run, "execute", side_effect=self.tool_output):
+            code = run.measure("sequent-core", True, True, comparison_base=True)
+        self.assertEqual(code, 0)
+        summary = json.loads(
+            next(self.root.glob("coverage/sequent-core/*/summary.json")).read_text()
+        )
+        self.assertEqual(summary["database_tests_absent_from_base"], ["privacy"])
+
     def test_consumers_run_without_contributing_to_package_counters(self):
         self.config.write_text(
             self.config.read_text().replace(
@@ -164,17 +310,30 @@ issue = "https://github.com/sequentech/meta/issues/13292"
             + """
 [profiles.sequent-core.test_environment]
 HASURA_DB__HOST = "127.0.0.1"
+ELECTORAL_LOG_PG_PROVISIONING_USER = ""
 """
         )
         with patch.dict(
-            os.environ, {"HASURA_DB__HOST": "remote.invalid", "LANG": "C.UTF-8"}
+            os.environ,
+            {
+                "HASURA_DB__HOST": "remote.invalid",
+                "ELECTORAL_LOG_PG_PROVISIONING_USER": "deployment-provisioner",
+                "LANG": "C.UTF-8",
+            },
         ):
             code, summary = self.attempt()
         self.assertEqual(code, 0)
         for environment in self.command_environments:
             self.assertEqual(environment["HASURA_DB__HOST"], "127.0.0.1")
+            self.assertEqual(environment["ELECTORAL_LOG_PG_PROVISIONING_USER"], "")
             self.assertEqual(environment["LANG"], "C.UTF-8")
-        self.assertEqual(summary["test_environment"], {"HASURA_DB__HOST": "127.0.0.1"})
+        self.assertEqual(
+            summary["test_environment"],
+            {
+                "HASURA_DB__HOST": "127.0.0.1",
+                "ELECTORAL_LOG_PG_PROVISIONING_USER": "",
+            },
+        )
 
     def test_offline_mode_applies_to_probes_tests_and_report_commands(self) -> None:
         self.attempt()
@@ -342,6 +501,17 @@ HASURA_DB__HOST = "127.0.0.1"
             with patch.object(run, "measure", return_value=0) as measure:
                 self.assertEqual(run.main(), 0)
             measure.assert_called_once_with("sequent-core", True, False, None, True)
+
+    def test_native_measurements_bound_build_storage_per_checkout(self) -> None:
+        self.attempt()
+        for environment in self.command_environments:
+            self.assertEqual(environment["CARGO_PROFILE_DEV_DEBUG"], "0")
+            self.assertEqual(environment["CARGO_PROFILE_TEST_DEBUG"], "0")
+            self.assertEqual(environment["CARGO_INCREMENTAL"], "0")
+            self.assertEqual(
+                environment["CARGO_LLVM_COV_TARGET_DIR"],
+                str(self.workspace / "rust-local-target" / "package-coverage"),
+            )
 
     def test_overlapping_runs_cannot_clear_each_others_counters(self) -> None:
         lock_path = self.root / ".git" / "package-coverage.lock"
@@ -524,9 +694,9 @@ HASURA_DB__HOST = "127.0.0.1"
             + 'serde = "1"\n'
         )
         requested, summary = self.comparison_base_features(
-            '["default_features", "keycloak", "rug", "zip", "strand/rayon", "serde"]'
+            '["default_features", "keycloak", "rug", "zip", "wbraid/core", "serde"]'
         )
-        self.assertEqual(requested, ["default_features,keycloak,rug,zip,strand/rayon"])
+        self.assertEqual(requested, ["default_features,keycloak,rug,zip,wbraid/core"])
         # A required dependency is not a feature Cargo would accept.
         self.assertEqual(summary["features_absent_from_base"], ["serde"])
 
@@ -663,6 +833,318 @@ class CheckoutIdentityTests(unittest.TestCase):
 
 class CommandExecutionTests(unittest.TestCase):
     """Check real process exit handling with tiny, deterministic Python commands."""
+
+    def test_outer_native_timeout_cleans_the_inner_command_session(self) -> None:
+        self.assert_nested_cleanup("timeout")
+
+    def test_outer_keyboard_interrupt_cleans_the_inner_command_session(self) -> None:
+        self.assert_nested_cleanup("interrupt")
+
+    def test_outer_sigterm_cleans_the_inner_command_session(self) -> None:
+        self.assert_nested_cleanup("sigterm")
+
+    def assert_nested_cleanup(self, cancellation: str) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            package = root / "packages/fixture/src"
+            package.mkdir(parents=True)
+            (package / "lib.rs").write_text("pub fn fixture() {}\n")
+            subprocess.run(["git", "init", "-q", str(root)], check=True)
+            config = root / "profiles.toml"
+            config.write_text(
+                '[profiles.fixture]\npackage="fixture"\nfeatures=[]\nscope_exceptions={}\n'
+            )
+            marker = root / "cargo.pid"
+            tools = root / "bin"
+            tools.mkdir()
+            cargo = tools / "cargo"
+            cargo.write_text(
+                f"#!{sys.executable}\nimport os,time\nfrom pathlib import Path\n"
+                f"Path({str(marker)!r}).write_text(str(os.getpid()))\n"
+                "time.sleep(60)\n"
+            )
+            cargo.chmod(0o755)
+            script = (
+                f"import sys; sys.path.insert(0, {str(Path(run.__file__).parent)!r}); "
+                "import run; from pathlib import Path; "
+                f"run.CONFIG=Path({str(config)!r}); "
+                "sys.argv=['run.py','fixture','--baseline','--checkout',"
+                f"{str(root)!r}]; "
+                "raise SystemExit(run.main())"
+            )
+            # The outer guard is deliberately shorter than its inner command.
+            environment = dict(
+                os.environ,
+                PATH=f"{tools}:{os.environ['PATH']}",
+                NATIVE_COVERAGE_TIMEOUT_SECONDS="2",
+            )
+            script = (
+                'import os; os.environ["NATIVE_COVERAGE_TIMEOUT_SECONDS"]="3600"; '
+                + script
+            )
+            pid = None
+            sender = None
+            try:
+                if cancellation != "timeout":
+
+                    def send_when_running():
+                        deadline = time.monotonic() + 1.5
+                        while not marker.exists() and time.monotonic() < deadline:
+                            time.sleep(0.01)
+                        if marker.exists():
+                            os.kill(
+                                os.getpid(),
+                                (
+                                    run.signal.SIGINT
+                                    if cancellation == "interrupt"
+                                    else run.signal.SIGTERM
+                                ),
+                            )
+
+                    sender = threading.Thread(target=send_when_running)
+                    sender.start()
+                expected = (
+                    KeyboardInterrupt if cancellation == "interrupt" else CoverageError
+                )
+                with (
+                    patch.dict(os.environ, environment),
+                    run.native_cancellation(),
+                    self.assertRaises(expected),
+                ):
+                    ci.command(
+                        [sys.executable, "-c", script], root, root, "outer", native=True
+                    )
+                self.assertTrue(marker.exists(), (root / "outer.log").read_text())
+                pid = int(marker.read_text())
+                deadline = time.monotonic() + 2
+                while time.monotonic() < deadline:
+                    try:
+                        os.kill(pid, 0)
+                    except ProcessLookupError:
+                        break
+                    time.sleep(0.02)
+                else:
+                    self.fail("Outer timeout left the native command session running")
+            finally:
+                if sender is not None:
+                    sender.join()
+                if pid is None and marker.exists():
+                    pid = int(marker.read_text())
+                if pid is not None:
+                    try:
+                        os.killpg(pid, run.signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
+
+    def test_pending_interrupt_during_creation_cleans_the_assigned_group(self) -> None:
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            patch.object(run.subprocess, "Popen") as popen,
+            patch.object(run.os, "killpg") as kill,
+        ):
+            child = popen.return_value
+            child.pid = 12345
+            child.wait.return_value = 0
+
+            def create(*_args, **_kwargs):
+                os.kill(os.getpid(), run.signal.SIGINT)
+                return child
+
+            popen.side_effect = create
+            with self.assertRaises(KeyboardInterrupt):
+                run.execute(["cargo"], Path(directory) / "creation.log", {})
+            kill.assert_called_once_with(12345, run.signal.SIGKILL)
+            child.wait.assert_called_once()
+
+    def test_native_budget_reaches_the_actual_process_wait(self) -> None:
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            patch.object(run.subprocess, "Popen") as popen,
+        ):
+            popen.return_value.wait.return_value = 0
+            for budget, expected in (
+                ({}, 1200),
+                ({"NATIVE_COVERAGE_TIMEOUT_SECONDS": "3600"}, 3600),
+            ):
+                run.execute(["cargo"], Path(directory) / "budget.log", budget)
+                popen.return_value.wait.assert_called_with(timeout=expected)
+
+    def test_invalid_native_budgets_never_start_a_command(self) -> None:
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            patch.object(run.subprocess, "Popen") as popen,
+        ):
+            for value in ["0", "-1", "3601", "1.5", "many", "", " 30"]:
+                with (
+                    self.subTest(value=value),
+                    self.assertRaisesRegex(
+                        CoverageError, "NATIVE_COVERAGE_TIMEOUT_SECONDS"
+                    ),
+                ):
+                    run.execute(
+                        ["cargo"],
+                        Path(directory) / "invalid.log",
+                        {"NATIVE_COVERAGE_TIMEOUT_SECONDS": value},
+                    )
+            popen.assert_not_called()
+
+    def test_extended_timeout_still_kills_the_entire_process_group(self) -> None:
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            patch.object(run.subprocess, "Popen") as popen,
+            patch.object(run.os, "killpg") as kill,
+        ):
+            popen.return_value.pid = 12345
+            popen.return_value.wait.side_effect = [
+                subprocess.TimeoutExpired("cargo", 3600),
+                0,
+            ]
+            with self.assertRaisesRegex(CoverageError, "3600 seconds"):
+                run.execute(
+                    ["cargo"],
+                    Path(directory) / "timeout.log",
+                    {"NATIVE_COVERAGE_TIMEOUT_SECONDS": "3600"},
+                )
+            kill.assert_called_once_with(12345, run.signal.SIGKILL)
+            self.assertEqual(
+                popen.return_value.wait.call_args_list[0].kwargs["timeout"], 3600
+            )
+
+    def test_uncooperative_child_is_killed_after_bounded_grace(self) -> None:
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            patch.object(run.subprocess, "Popen") as popen,
+            patch.object(run.os, "killpg") as kill,
+        ):
+            popen.return_value.pid = 12345
+            popen.return_value.wait.side_effect = [
+                subprocess.TimeoutExpired("cargo", 1200),
+                subprocess.TimeoutExpired("cargo", 5),
+                0,
+            ]
+            with self.assertRaises(CoverageError):
+                run.execute(
+                    ["cargo"], Path(directory) / "timeout.log", {}, cooperative=True
+                )
+            self.assertEqual(
+                [c.args for c in kill.call_args_list],
+                [(12345, run.signal.SIGTERM), (12345, run.signal.SIGKILL)],
+            )
+            self.assertEqual(
+                popen.return_value.wait.call_args_list[1].kwargs["timeout"], 5
+            )
+
+    def test_a_group_that_finishes_during_cancellation_is_still_reaped(self) -> None:
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            patch.object(run.subprocess, "Popen") as popen,
+            patch.object(run.os, "killpg", side_effect=ProcessLookupError),
+        ):
+            popen.return_value.pid = 12345
+            popen.return_value.wait.side_effect = [
+                subprocess.TimeoutExpired("cargo", 1200),
+                0,
+            ]
+            with self.assertRaisesRegex(CoverageError, "1200 seconds"):
+                run.execute(["cargo"], Path(directory) / "finished.log", {})
+            self.assertEqual(popen.return_value.wait.call_count, 2)
+
+    def test_native_cancellation_restores_the_importing_process(self) -> None:
+        previous_handler = run.signal.getsignal(run.signal.SIGTERM)
+        previous_mask = run.signal.pthread_sigmask(run.signal.SIG_BLOCK, set())
+        with (
+            self.assertRaisesRegex(CoverageError, "cancelled"),
+            run.native_cancellation(),
+        ):
+            run.cancel_native_run(run.signal.SIGTERM, None)
+        self.assertEqual(run.signal.getsignal(run.signal.SIGTERM), previous_handler)
+        self.assertEqual(
+            run.signal.pthread_sigmask(run.signal.SIG_BLOCK, set()), previous_mask
+        )
+
+    def test_a_failed_launch_restores_the_signal_mask(self) -> None:
+        previous_mask = run.signal.pthread_sigmask(run.signal.SIG_BLOCK, set())
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            patch.object(run.subprocess, "Popen", side_effect=FileNotFoundError),
+        ):
+            with self.assertRaises(FileNotFoundError):
+                run.execute(
+                    [str(Path(directory) / "missing")],
+                    Path(directory) / "failed.log",
+                    {},
+                )
+        self.assertEqual(
+            run.signal.pthread_sigmask(run.signal.SIG_BLOCK, set()), previous_mask
+        )
+
+    def test_normal_child_keeps_the_original_signal_mask(self) -> None:
+        previous_mask = run.signal.pthread_sigmask(run.signal.SIG_BLOCK, set())
+        with tempfile.TemporaryDirectory() as directory:
+            result = run.execute(
+                [
+                    sys.executable,
+                    "-c",
+                    "import signal; print(sorted(int(s) for s in "
+                    "signal.pthread_sigmask(signal.SIG_BLOCK,set())))",
+                ],
+                Path(directory) / "mask.log",
+                dict(os.environ),
+            )
+        self.assertEqual(result.strip(), repr(sorted(int(s) for s in previous_mask)))
+
+    def test_missing_executable_fails_and_retains_exec_error(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / "exec.log"
+            with self.assertRaisesRegex(CoverageError, "Command failed"):
+                run.execute([str(Path(directory) / "missing")], log, dict(os.environ))
+            self.assertIn("FileNotFoundError", log.read_text())
+
+    def test_bootstrap_preserves_minimal_and_c_locale_environments(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            for environment in [{}, {"LANG": "C", "SYNTHETIC": "fixture"}]:
+                result = run.execute(
+                    ["/usr/bin/env", "-0"],
+                    Path(directory) / "environment.log",
+                    environment,
+                )
+                actual = dict(
+                    entry.split("=", 1) for entry in result.split("\0") if entry
+                )
+                self.assertEqual(actual, environment)
+
+    def test_bootstrap_preserves_argument_boundaries_and_working_directory(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            result = run.execute(
+                [
+                    sys.executable,
+                    "-c",
+                    "import json,os,sys; print(json.dumps([os.getcwd(),sys.argv[1:]]))",
+                    "two words",
+                    "$literal",
+                    "",
+                ],
+                root / "arguments.log",
+                dict(os.environ),
+                cwd=root,
+            )
+            self.assertEqual(
+                json.loads(result), [str(root), ["two words", "$literal", ""]]
+            )
+
+    def test_native_target_does_not_load_python_startup_configuration(self) -> None:
+        environment = {"PYTHONHOME": "/missing", "PYTHONPATH": "/synthetic"}
+        with tempfile.TemporaryDirectory() as directory:
+            result = run.execute(
+                ["/usr/bin/env", "-0"], Path(directory) / "isolated.log", environment
+            )
+        self.assertEqual(
+            dict(entry.split("=", 1) for entry in result.split("\0") if entry),
+            environment,
+        )
 
     def test_failed_command_is_an_error_and_keeps_its_log(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

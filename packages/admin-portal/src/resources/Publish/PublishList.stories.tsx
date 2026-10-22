@@ -5,7 +5,8 @@ import React from "react"
 import type {StoryObj} from "@storybook/react-vite"
 import {expect, fn, userEvent, waitFor, within} from "storybook/test"
 import type {Identifier} from "react-admin"
-import {EVotingStatus} from "@sequentech/ui-core"
+import {EVotingStatus, browserTimeZone, i18n} from "@sequentech/ui-core"
+import {formatZoned} from "@/lib/timezones/zonedFormat"
 import {AdminStoryProvider, EVENT_ID, graphqlBoundary} from "@/__stories__/AdminStoryProvider"
 import {resourceBoundary} from "@/__stories__/resourceBoundary"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
@@ -111,7 +112,6 @@ const meta = {
     },
     beforeEach: ({args}) => {
         sessionStorage.removeItem("pendingPublishAction")
-        localStorage.removeItem("electionEventPublishTabIndex")
         data = resourceBoundary({
             sequent_backend_ballot_publication: args.publications ? PUBLICATIONS : [],
         })
@@ -166,11 +166,16 @@ export const Populated: Story = {
         const canvas = within(canvasElement)
         await expect(await canvas.findByText("Publish History")).toBeVisible()
         const latest = await row(canvasElement, PUBLICATION_IDS.latest)
+        // Not yet published; created at, with its zone label (the viewer's, outside the event).
         expect(cells(latest).slice(0, 4)).toEqual([
             PUBLICATION_IDS.latest,
             "",
             "",
-            "2026-01-15T11:00:00Z",
+            formatZoned("2026-01-15T11:00:00Z", browserTimeZone(), {
+                t: i18n.t.bind(i18n),
+                lang: i18n.language,
+                seconds: true,
+            }),
         ])
         // Newest first, across every election of the event.
         const ids = canvas
@@ -256,7 +261,7 @@ export const GenerationAsksForReauthentication: Story = {
         await userEvent.click(await canvas.findByRole("button", {name: "Generate Publication"}))
         await waitFor(() => expect(args.reauthenticate).toHaveBeenCalledOnce())
         // Back to the publish tab of the election event page.
-        expect(args.reauthenticate).toHaveBeenCalledWith(expect.stringContaining("tabIndex=8"))
+        expect(args.reauthenticate).toHaveBeenCalledWith(expect.stringContaining("tabId=publish"))
         expect(sessionStorage.getItem("pendingPublishAction")).toBe("true")
         expect(args.onGenerate).not.toHaveBeenCalled()
     },

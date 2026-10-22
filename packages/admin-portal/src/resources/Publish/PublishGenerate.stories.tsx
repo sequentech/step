@@ -21,12 +21,10 @@ interface Scenario {
     readOnly: boolean
     status: PublishStatus
     ballotPublicationId: string | null
-    publishError: string | null
     onBack: () => void
     onPublish: () => void
     onGenerate: () => void
     onPreview: (id: Identifier) => void
-    onDismissPublishError: () => void
     fetchAllPublishChanges: () => Promise<void>
 }
 
@@ -78,12 +76,10 @@ const meta = {
         readOnly: false,
         status: PublishStatus.Generated,
         ballotPublicationId: PUBLICATION_ID,
-        publishError: null,
         onBack: fn(),
         onPublish: fn(),
         onGenerate: fn(),
         onPreview: fn(),
-        onDismissPublishError: fn(),
         fetchAllPublishChanges: fn(async () => {}),
     },
     argTypes: {
@@ -92,7 +88,6 @@ const meta = {
         onPublish: {table: {disable: true}},
         onGenerate: {table: {disable: true}},
         onPreview: {table: {disable: true}},
-        onDismissPublishError: {table: {disable: true}},
         fetchAllPublishChanges: {table: {disable: true}},
     },
     beforeEach: () => {
@@ -109,8 +104,6 @@ const meta = {
                         ballotPublicationId={args.ballotPublicationId}
                         publishType={EPublishType.Event}
                         data={CHANGES}
-                        publishError={args.publishError}
-                        onDismissPublishError={args.onDismissPublishError}
                         readOnly={args.readOnly}
                         status={args.status}
                         changingStatus={false}
@@ -222,18 +215,6 @@ export const GoBack: Story = {
         await diffShown(canvasElement, "Changes to Publish")
         await userEvent.click(within(canvasElement).getByRole("button", {name: "Back"}))
         expect(args.onBack).toHaveBeenCalledOnce()
-    },
-}
-
-export const PublishFailure: Story = {
-    args: {publishError: "Synthetic publication write failed"},
-    play: async ({canvasElement, args}) => {
-        await diffShown(canvasElement, "Changes to Publish")
-        const alert = within(canvasElement).getByRole("alert")
-        await expect(alert).toHaveTextContent("Error publishing ballot publication")
-        await expect(alert).toHaveTextContent("Synthetic publication write failed")
-        await userEvent.click(within(alert).getByRole("button", {name: "Close"}))
-        expect(args.onDismissPublishError).toHaveBeenCalledOnce()
     },
 }
 

@@ -4,12 +4,13 @@
 
 use crate::domain::tally_ceremony::TallyExecuter;
 use crate::ports::tally_ceremony::{
-    DecryptionSet, ElectionEventReader, ElectionsById, EnvironmentSlug, KeysCeremonyReader,
-    NewTallySession, TallyCeremonyAudit, TallyCreationReader, TallyEventSnapshot, TallySessions,
-    TrusteePrivateKeys,
+    BallotBoxSealState, DecryptionSet, ElectionEventReader, ElectionsById, EnvironmentSlug,
+    KeysCeremonyReader, NewTallySession, TallyCeremonyAudit, TallyCreationReader,
+    TallyEventSnapshot, TallySessions, TrusteeCustody,
 };
 use crate::postgres::area::get_event_areas;
 use crate::postgres::area_contest::export_area_contests;
+use crate::postgres::ballot_box_seal::list_for_elections;
 use crate::postgres::ballot_style::get_ballot_styles_by_elections;
 use crate::postgres::contest::export_contests;
 use crate::postgres::election::{export_elections, get_elections_by_ids};
@@ -26,14 +27,14 @@ use crate::postgres::tally_session_execution::{
     get_last_tally_session_execution, insert_tally_session_execution,
 };
 use crate::postgres::tally_sheet::get_approved_tally_sheets_by_event;
-use crate::services::ceremonies::keys_ceremony::find_trustee_private_key;
+use crate::services::ceremonies::keys_ceremony::custody_request;
 use crate::services::ceremonies::tally_ceremony::find_last_tally_session_execution_and_all_related_data;
 use crate::services::electoral_log::ElectoralLog;
 use anyhow::{Context, Result};
-use b4::messages::newtypes::BatchNumber;
 use deadpool_postgres::Transaction;
 use futures::try_join;
 use sequent_core::services::jwt::JwtClaims;
+use sequent_core::types::ceremonies::BatchNumber;
 use sequent_core::types::ceremonies::{TallyCeremonyStatus, TallyExecutionStatus, TallyRunReason};
 use sequent_core::types::hasura::core::{
     BallotStyle, Election, ElectionEvent, KeysCeremony, TallySession, TallySessionExecution,
@@ -199,11 +200,26 @@ impl TallySessions for PgTallySessions<'_> {
             tally_session.permission_labels,
         )
         .await?;
+        if let Some(coverage) = tally_session.initialization_country_coverage {
+            crate::postgres::election_initialization::insert_initialization_report_coverage(
+                self.transaction,
+                uuid::Uuid::parse_str(tenant_id)?,
+                uuid::Uuid::parse_str(election_event_id)?,
+                uuid::Uuid::parse_str(&tally_session.id)?,
+                &coverage,
+            )
+            .await?;
+        }
         Ok(())
     }
 
     async fn next_batch(&self, tenant_id: &str, election_event_id: &str) -> Result<BatchNumber> {
-        get_tally_session_highest_batch(self.transaction, tenant_id, election_event_id).await
+        Ok(
+            get_tally_session_highest_batch(self.transaction, tenant_id, election_event_id)
+                .await?
+                .try_into()
+                .context("negative tally batch")?,
+        )
     }
 
     async fn insert_contest(
@@ -220,7 +236,9 @@ impl TallySessions for PgTallySessions<'_> {
             election_event_id,
             area_id,
             contest_id.clone(),
-            batch,
+            batch
+                .try_into()
+                .context("tally batch exceeds database range")?,
             tally_session_id,
             election_id,
         )
@@ -240,6 +258,41 @@ impl<'a> PgTallyCreationReader<'a> {
 }
 
 impl TallyCreationReader for PgTallyCreationReader<'_> {
+    async fn initialization_countries(
+        &self,
+        tenant_id: &str,
+        election_event_id: &str,
+        post: uuid::Uuid,
+    ) -> Result<Option<std::collections::BTreeSet<String>>> {
+        let state = crate::services::scheduled_outcome::EventState::read(
+            self.transaction,
+            uuid::Uuid::parse_str(tenant_id)?,
+            uuid::Uuid::parse_str(election_event_id)?,
+        )
+        .await?;
+        Ok(Some(
+            crate::services::initialization_scope::effective_initialization_countries(
+                &state,
+                &post.to_string(),
+            )?,
+        ))
+    }
+
+    async fn initialization_scopes(
+        &self,
+        tenant_id: &str,
+        election_event_id: &str,
+        post: uuid::Uuid,
+    ) -> Result<crate::services::initialization_scope::ScopeCopies> {
+        crate::services::initialization_scope::initialization_scope_for_post(
+            self.transaction,
+            tenant_id,
+            election_event_id,
+            post,
+        )
+        .await
+    }
+
     async fn event_snapshot(
         &self,
         tenant_id: &str,
@@ -267,13 +320,32 @@ impl TallyCreationReader for PgTallyCreationReader<'_> {
         election_event_id: &str,
         election_ids: &[String],
     ) -> Result<Vec<BallotStyle>> {
-        get_ballot_styles_by_elections(
+        let styles = get_ballot_styles_by_elections(
             self.transaction,
             tenant_id,
             election_event_id,
             &election_ids.to_vec(),
         )
-        .await
+        .await?;
+        let generated: std::collections::HashSet<String> = self
+            .transaction
+            .query(
+                "SELECT id::text FROM sequent_backend.ballot_publication
+             WHERE tenant_id = $1 AND election_event_id = $2
+             AND (COALESCE(is_generated, false) OR published_at IS NOT NULL)",
+                &[
+                    &uuid::Uuid::parse_str(tenant_id)?,
+                    &uuid::Uuid::parse_str(election_event_id)?,
+                ],
+            )
+            .await?
+            .into_iter()
+            .map(|row| row.get(0))
+            .collect();
+        Ok(styles
+            .into_iter()
+            .filter(|style| generated.contains(&style.ballot_publication_id))
+            .collect())
     }
 
     async fn approved_tally_sheets(
@@ -282,6 +354,58 @@ impl TallyCreationReader for PgTallyCreationReader<'_> {
         election_event_id: &str,
     ) -> Result<Vec<TallySheet>> {
         get_approved_tally_sheets_by_event(self.transaction, tenant_id, election_event_id).await
+    }
+
+    async fn ballot_box_seals(
+        &self,
+        tenant_id: &str,
+        election_event_id: &str,
+        election_ids: &[String],
+    ) -> Result<Vec<BallotBoxSealState>> {
+        let election_ids = election_ids
+            .iter()
+            .map(|id| uuid::Uuid::parse_str(id))
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(list_for_elections(
+            self.transaction,
+            &uuid::Uuid::parse_str(tenant_id)?,
+            &uuid::Uuid::parse_str(election_event_id)?,
+            &election_ids,
+        )
+        .await?
+        .into_iter()
+        .map(|seal| BallotBoxSealState {
+            election_id: seal.election_id.to_string(),
+            area_id: seal.area_id.to_string(),
+            status: seal.status,
+            ballots_in_box: seal.ballots_in_box,
+        })
+        .collect())
+    }
+}
+
+impl ElectionEventReader for PgTallyCreationReader<'_> {
+    async fn get(&self, tenant_id: &str, election_event_id: &str) -> Result<ElectionEvent> {
+        get_election_event_by_id(self.transaction, tenant_id, election_event_id).await
+    }
+}
+
+/// Starting a tally reads the elections and, for the ballot box seal check,
+/// the event and the same data a tally is created from.
+impl ElectionsById for PgTallyCreationReader<'_> {
+    async fn get(
+        &self,
+        tenant_id: &str,
+        election_event_id: &str,
+        election_ids: &[String],
+    ) -> Result<Vec<Election>> {
+        get_elections_by_ids(
+            self.transaction,
+            tenant_id,
+            election_event_id,
+            &election_ids.to_vec(),
+        )
+        .await
     }
 }
 
@@ -312,60 +436,37 @@ impl KeysCeremonyReader for PgKeysCeremonies<'_> {
     }
 }
 
-/// Reads a trustee's encrypted private key from the keys ceremony board.
-pub struct BoardTrusteePrivateKeys<'a> {
+/// Checks a scoped native custody proof against the immutable DKG committee.
+pub struct NativeTrusteeCustody<'a> {
     transaction: &'a Transaction<'a>,
 }
 
-impl<'a> BoardTrusteePrivateKeys<'a> {
+impl<'a> NativeTrusteeCustody<'a> {
     pub fn new(transaction: &'a Transaction<'a>) -> Self {
         Self { transaction }
     }
 }
 
-impl TrusteePrivateKeys for BoardTrusteePrivateKeys<'_> {
-    async fn encrypted_private_key(
+impl TrusteeCustody for NativeTrusteeCustody<'_> {
+    async fn verifies(
         &self,
         tenant_id: &str,
         election_event_id: &str,
         trustee_name: &str,
         keys_ceremony: &KeysCeremony,
-    ) -> Result<String> {
-        find_trustee_private_key(
+        tally_session_id: &str,
+        proof: &str,
+    ) -> Result<bool> {
+        custody_request(
             self.transaction,
             tenant_id,
             election_event_id,
             trustee_name,
             keys_ceremony,
+            Some(tally_session_id),
         )
-        .await
-    }
-}
-
-pub struct PgElectionsById<'a> {
-    transaction: &'a Transaction<'a>,
-}
-
-impl<'a> PgElectionsById<'a> {
-    pub fn new(transaction: &'a Transaction<'a>) -> Self {
-        Self { transaction }
-    }
-}
-
-impl ElectionsById for PgElectionsById<'_> {
-    async fn get(
-        &self,
-        tenant_id: &str,
-        election_event_id: &str,
-        election_ids: &[String],
-    ) -> Result<Vec<Election>> {
-        get_elections_by_ids(
-            self.transaction,
-            tenant_id,
-            election_event_id,
-            &election_ids.to_vec(),
-        )
-        .await
+        .await?
+        .verifies(proof)
     }
 }
 
@@ -436,7 +537,7 @@ impl TallyCeremonyAudit for ElectoralLogTallyAudit<'_> {
             .with_context(|| ELECTORAL_LOG_POST_FAILED)
     }
 
-    async fn key_restored(
+    async fn custody_authorized(
         &self,
         board_name: &str,
         tenant_id: &str,

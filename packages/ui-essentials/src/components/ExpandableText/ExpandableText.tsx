@@ -20,7 +20,7 @@ const LinkButton = styled(Button)(({theme}) => ({
     "minWidth": "auto",
     "minHeight": "auto",
     "background": "none",
-    "fontSize": "12px",
+    "fontSize": "0.75rem",
     "color": theme.palette.primary.main,
     "border": "none",
     "padding": 0,
@@ -45,7 +45,6 @@ const LinkButton = styled(Button)(({theme}) => ({
         background: "none",
         padding: 0,
         color: theme.palette.primary.main,
-        outline: "none",
         border: "none",
         boxShadow: "none",
     },
@@ -58,7 +57,6 @@ const LinkButton = styled(Button)(({theme}) => ({
         color: theme.palette.primary.main,
         boxShadow: "none",
         border: "none",
-        outline: "none",
     },
 }))
 
@@ -68,6 +66,7 @@ export type ExpandableTextProps = {
     showMoreLabel: string
     showLessLabel: string
     preformatted?: boolean
+    details?: React.ReactNode
 }
 
 /**
@@ -81,6 +80,8 @@ export type ExpandableTextProps = {
  * @param {string} props.showMoreLabel - The label for the "show more" button
  * @param {string} props.showLessLabel - The label for the "show less" button
  * @param {boolean} [props.preformatted=false] - Whether to preserve whitespace and line breaks
+ * @param {ReactNode} [props.details] - Shown below the full text only when expanded; the toggle
+ * is shown whenever there are details, even if the text fits.
  * @returns {ReactElement}
  */
 const ExpandableText: React.FC<ExpandableTextProps> = ({
@@ -89,8 +90,10 @@ const ExpandableText: React.FC<ExpandableTextProps> = ({
     showMoreLabel,
     showLessLabel,
     preformatted = false,
+    details,
 }) => {
     const [expanded, setExpanded] = useState<boolean>(false)
+    const truncated = text.length > initialLength
 
     return (
         <Box className="expandable-text" sx={{width: "100%"}}>
@@ -109,13 +112,12 @@ const ExpandableText: React.FC<ExpandableTextProps> = ({
                         <span className="expandable-text-preview">
                             {text.slice(0, initialLength)}
                         </span>
-                        <span className="expandable-text-ellipsis">
-                            {text.length > initialLength ? "..." : ""}
-                        </span>
+                        <span className="expandable-text-ellipsis">{truncated ? "..." : ""}</span>
                     </>
                 )}
             </Box>
-            {text.length > initialLength && (
+            {expanded && details ? <Box className="expandable-text-details">{details}</Box> : null}
+            {(truncated || Boolean(details)) && (
                 <Box
                     className="expandable-text-actions"
                     sx={{display: "flex", justifyContent: "flex-end"}}

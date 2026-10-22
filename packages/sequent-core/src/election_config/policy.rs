@@ -128,7 +128,13 @@ policy_value! {
     /// platform does not have.
     UnderVote, column = "presentation.under_vote_policy",
     labels = "underVotePolicy", default = WarnOnlyInReview,
-    { Allowed, Warn, WarnOnlyInReview, WarnAndAlert }
+    {
+        Allowed,
+        Warn,
+        WarnOnlyInReview,
+        WarnAndAlert,
+        WarnAndConfirmInReview,
+    }
 }
 
 policy_value! {

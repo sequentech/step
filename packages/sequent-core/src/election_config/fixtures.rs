@@ -197,7 +197,7 @@ mod tests {
         // `Code` does not compile until somebody says which side it belongs on. The
         // old hard-coded list left a new variant neither covered nor reported, which
         // is the opposite of what its comment claimed.
-        const EVERY_CODE: [Code; 14] = [
+        const EVERY_CODE: [Code; 19] = [
             Code::MissingField,
             Code::InvalidValue,
             Code::DanglingReference,
@@ -212,6 +212,11 @@ mod tests {
             Code::Unreadable,
             Code::IncompatibleVersion,
             Code::IntegrityMismatch,
+            Code::Unsigned,
+            Code::BadSignature,
+            Code::UntrustedSigner,
+            Code::NotApproved,
+            Code::Rollback,
         ];
 
         for code in EVERY_CODE {
@@ -235,6 +240,13 @@ mod tests {
                 Code::Unreadable
                 | Code::IncompatibleVersion
                 | Code::IntegrityMismatch => false,
+                // Raised when a signed configuration package is checked, about
+                // the package rather than the bundle inside it.
+                Code::Unsigned
+                | Code::BadSignature
+                | Code::UntrustedSigner
+                | Code::NotApproved
+                | Code::Rollback => false,
             };
             assert_eq!(
                 covered.contains(&code),

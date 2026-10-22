@@ -90,9 +90,16 @@ class MessageOTPAuthenticationFlowTest {
     when(credentials.getStoredCredentialsByTypeStream(MessageOTPCredentialModel.TYPE))
         .thenAnswer(i -> Stream.of(MessageOTPCredentialModel.create(true)));
     when(session.getProvider(SmsSenderProvider.class)).thenReturn(sms);
+    try {
+      when(sms.send(anyString(), anyString(), anyList(), any(), any(), any()))
+          .thenReturn("delivered");
+    } catch (java.io.IOException e) {
+      throw new IllegalStateException(e);
+    }
     configMap.putAll(MessageOTPAuthenticatorFactory.getConfigMap(null));
     configMap.put(Utils.MESSAGE_COURIER_ATTRIBUTE, "SMS");
     configMap.put(Utils.TEL_USER_ATTRIBUTE, MessageOTPAuthenticator.MOBILE_NUMBER_FIELD);
+    configMap.put(Utils.CODE_PAGE_DISCLOSURE, Utils.CodePageDisclosure.NAMED.name());
     AuthenticatorConfigModel config = new AuthenticatorConfigModel();
     config.setConfig(configMap);
     when(context.getAuthenticatorConfig()).thenReturn(config);
@@ -221,6 +228,137 @@ class MessageOTPAuthenticationFlowTest {
     assertEquals(CODE, notes.get(Utils.CODE));
   }
 
+  private void codeIssuedSecondsAgo(long seconds) {
+    long ttlMillis = Long.parseLong(configMap.get(Utils.CODE_TTL)) * 1000L;
+    notes.put(
+        Utils.CODE_TTL, Long.toString(System.currentTimeMillis() + ttlMillis - seconds * 1000L));
+  }
+
+  @Test
+  void resendIsRefusedUntilTheResendTimerInSecondsHasElapsed() throws Exception {
+    codeIssuedSecondsAgo(1);
+    parameters.putSingle("resend", "true");
+    authenticator.action(context);
+    verify(sms, never()).send(anyString(), anyString(), anyList(), any(), any(), any());
+    assertEquals(CODE, notes.get(Utils.CODE));
+  }
+
+  @Test
+  void resendIsAllowedOnceTheResendTimerHasElapsed() throws Exception {
+    codeIssuedSecondsAgo(61);
+    parameters.putSingle("resend", "true");
+    authenticator.action(context);
+    verify(sms)
+        .send(
+            eq(PHONE),
+            eq(Utils.SEND_CODE_SMS_I18N_KEY),
+            anyList(),
+            eq(realm),
+            eq(user),
+            eq(session));
+    assertNotEquals(CODE, notes.get(Utils.CODE));
+  }
+
+  @Test
+  void fifthWrongCodeInvalidatesTheCode() throws Exception {
+    for (int attempt = 0; attempt < 4; attempt++) {
+      parameters.putSingle(Utils.CODE, "000000");
+      authenticator.action(context);
+      assertEquals(CODE, notes.get(Utils.CODE));
+    }
+    parameters.putSingle(Utils.CODE, "000000");
+    authenticator.action(context);
+    assertNull(notes.get(Utils.CODE));
+    verify(event).error(MessageOTPAuthenticator.TOO_MANY_ATTEMPTS);
+
+    parameters.putSingle(Utils.CODE, CODE);
+    authenticator.action(context);
+    verify(context, never()).success();
+  }
+
+  @Test
+  void reloadingAfterExhaustingTheCodeDoesNotBypassTheResendTimer() throws Exception {
+    configMap.put(Utils.MAX_CODE_ATTEMPTS, "1");
+    codeIssuedSecondsAgo(1);
+    parameters.putSingle(Utils.CODE, "000000");
+    authenticator.action(context);
+    assertNull(notes.get(Utils.CODE));
+
+    parameters.clear();
+    authenticator.authenticate(context);
+    verify(sms, never()).send(anyString(), anyString(), anyList(), any(), any(), any());
+    assertNull(notes.get(Utils.CODE));
+  }
+
+  @Test
+  void configuredMaxAttemptsIsHonoured() throws Exception {
+    configMap.put(Utils.MAX_CODE_ATTEMPTS, "2");
+    parameters.putSingle(Utils.CODE, "000000");
+    authenticator.action(context);
+    assertEquals(CODE, notes.get(Utils.CODE));
+    authenticator.action(context);
+    assertNull(notes.get(Utils.CODE));
+  }
+
+  /** KC-R3: a resend never resets the session's attempt count. */
+  @Test
+  void attemptsSurviveAResend() throws Exception {
+    for (int attempt = 0; attempt < 4; attempt++) {
+      parameters.putSingle(Utils.CODE, "000000");
+      authenticator.action(context);
+    }
+    codeIssuedSecondsAgo(61);
+    parameters.clear();
+    parameters.putSingle("resend", "true");
+    authenticator.action(context);
+    String newCode = notes.get(Utils.CODE);
+    assertNotEquals(CODE, newCode);
+
+    parameters.clear();
+    parameters.putSingle(Utils.CODE, newCode.equals("000000") ? "111111" : "000000");
+    authenticator.action(context);
+    assertNull(notes.get(Utils.CODE));
+    verify(event).error(MessageOTPAuthenticator.TOO_MANY_ATTEMPTS);
+  }
+
+  private void fiveWrongCodes() {
+    for (int attempt = 0; attempt < 5; attempt++) {
+      parameters.putSingle(Utils.CODE, "000000");
+      authenticator.action(context);
+    }
+    parameters.clear();
+  }
+
+  /** KC-R9: a sixth code after five wrong ones is "Too many attempts", never a 500. */
+  @Test
+  void aSixthCodeShowsTooManyAttemptsAndNeverAnInternalError() throws Exception {
+    fiveWrongCodes();
+    parameters.putSingle(Utils.CODE, CODE);
+    authenticator.action(context);
+
+    verify(context, never()).success();
+    verify(context, never())
+        .failureChallenge(eq(AuthenticationFlowError.INTERNAL_ERROR), any(Response.class));
+    verify(form, never()).createErrorPage(Response.Status.INTERNAL_SERVER_ERROR);
+    verify(form, atLeastOnce()).setAttribute("attemptsExhausted", true);
+    verify(form, atLeastOnce()).setError(MessageOTPAuthenticator.TOO_MANY_ATTEMPTS_KEY);
+  }
+
+  /** After five wrong codes the session is finished: no new code, only a restart. */
+  @Test
+  void afterFiveWrongCodesNoCodeIsSentAgainInThisSession() throws Exception {
+    fiveWrongCodes();
+    codeIssuedSecondsAgo(61);
+    parameters.putSingle("resend", "true");
+    authenticator.action(context);
+    parameters.clear();
+    authenticator.authenticate(context);
+
+    verify(sms, never()).send(anyString(), anyString(), anyList(), any(), any(), any());
+    assertNull(notes.get(Utils.CODE));
+    verify(form, atLeast(2)).setAttribute("attemptsExhausted", true);
+  }
+
   @Test
   void allowedResendDeliversANewCodeAndKeepsItOutOfEventsAndLogs() throws Exception {
     notes.put(Utils.CODE_TTL, "1");
@@ -234,7 +372,16 @@ class MessageOTPAuthenticationFlowTest {
       assertTrue(generatedCode.matches("[0-9]{6}"));
       assertFalse(logs.text().contains(CODE));
       assertFalse(logs.text().contains(generatedCode));
-      verify(event).detail("msgBody", "Your code is ******");
+      // R2-23: the communications log keeps the channel and the masked number, never the text.
+      verify(event)
+          .detail(
+              eq("msgBody"),
+              argThat(
+                  (String body) ->
+                      body.contains("\"channel\":\"SMS\"")
+                          && !body.contains("Your code")
+                          && !body.contains(generatedCode)
+                          && !body.contains(PHONE)));
     }
     verify(context).challenge(response);
     verify(sms)

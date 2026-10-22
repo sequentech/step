@@ -6,7 +6,15 @@ import type {StoryObj} from "@storybook/react-vite"
 import {expect, fireEvent, fn, userEvent, waitFor, within, type Mock} from "storybook/test"
 import {GraphQLError} from "graphql"
 import {ResourceContextProvider} from "react-admin"
-import {i18n, VotingStatusChannel} from "@sequentech/ui-core"
+import {
+    formatMyTime,
+    formatPlaceTime,
+    i18n,
+    timeZonePrimaryOptionLabel,
+    timeZoneOption,
+    zonedTimeNote,
+    VotingStatusChannel,
+} from "@sequentech/ui-core"
 import {
     AdminStoryProvider,
     EVENT_ID,
@@ -26,6 +34,20 @@ import {
     scheduledElections,
     scheduledEventRecords,
 } from "./__stories__/ScheduledEventsFixture"
+import {
+    EVENT_RESOURCE,
+    instantOf,
+    lifecycleElections,
+    lifecycleEvent,
+    lifecycleSchedule,
+} from "./__stories__/LifecycleScheduleFixture"
+import {eventRecord} from "@/__stories__/fixtures"
+import {MyTimeZoneProvider, adminDateTimeFormat} from "@/components/timezones/timeZoneService"
+import {
+    MY_TIME_ZONE,
+    overseasConfiguration,
+} from "@/components/timezones/__fixtures__/configurations"
+import {refusedEdited, runsAuthorized} from "@/components/timezones/__fixtures__/explanations"
 
 interface Scenario {
     /** Whether the drawer edits the saved voting start instead of creating an event. */
@@ -34,6 +56,10 @@ interface Scenario {
     answer: "scheduled" | "rejected" | "failure"
     setIsOpenDrawer: Mock<(state: boolean) => void>
     getElectionName: Mock<(scheduledEvent: Sequent_Backend_Scheduled_Event) => string>
+    /** The event's timezones: none (UTC) or the overseas preset. */
+    configuration: "none" | "overseas"
+    /** What saving does to the transition's outcome. */
+    outcomeChange: "none" | "refused"
 }
 
 let graphql: ReturnType<typeof graphqlBoundary>
@@ -47,17 +73,45 @@ const meta = {
         answer: "scheduled",
         setIsOpenDrawer: fn(),
         getElectionName: fn(() => "Council"),
+        configuration: "none",
+        outcomeChange: "none",
     },
     argTypes: {
         answer: {control: "inline-radio", options: ["scheduled", "rejected", "failure"]},
+        configuration: {control: "inline-radio", options: ["none", "overseas"]},
+        outcomeChange: {control: "inline-radio", options: ["none", "refused"]},
     },
     beforeEach: async ({args}) => {
+        const overseas = args.configuration === "overseas" ? overseasConfiguration() : null
         data = resourceBoundary({
-            [SCHEDULED_EVENT_RESOURCE]: scheduledEventRecords(),
-            [ELECTION_RESOURCE]: scheduledElections(),
+            [SCHEDULED_EVENT_RESOURCE]: overseas
+                ? lifecycleSchedule(overseas)
+                : scheduledEventRecords(),
+            [ELECTION_RESOURCE]: overseas ? lifecycleElections(overseas) : scheduledElections(),
+            [EVENT_RESOURCE]: [overseas ? lifecycleEvent(overseas) : eventRecord()],
         })
+
         graphql = graphqlBoundary(
             {
+                PreviewScheduledOutcomeChange: () => ({
+                    data: {
+                        preview_scheduled_outcome_change: {
+                            applies: null,
+                            applies_message_key: null,
+                            changes:
+                                args.outcomeChange === "refused"
+                                    ? [
+                                          {
+                                              scheduled_event_id: "new",
+                                              election_id: null,
+                                              before: runsAuthorized(),
+                                              after: refusedEdited(),
+                                          },
+                                      ]
+                                    : [],
+                        },
+                    },
+                }),
                 ManageElectionDates: () =>
                     args.answer === "failure"
                         ? {errors: [new GraphQLError("Synthetic scheduler unavailable")]}
@@ -83,15 +137,17 @@ const meta = {
             auth={{tenantId: TENANT_ID}}
         >
             {/* As the election event's scheduled events tab renders the drawer. */}
-            <ResourceContextProvider value="sequent_backend_election_event">
-                <CreateEvent
-                    electionEventId={EVENT_ID}
-                    setIsOpenDrawer={setIsOpenDrawer}
-                    isEditEvent={editing}
-                    selectedEventId={editing ? VOTING_START_ID : undefined}
-                    getElectionName={getElectionName}
-                />
-            </ResourceContextProvider>
+            <MyTimeZoneProvider zone={MY_TIME_ZONE}>
+                <ResourceContextProvider value="sequent_backend_election_event">
+                    <CreateEvent
+                        electionEventId={EVENT_ID}
+                        setIsOpenDrawer={setIsOpenDrawer}
+                        isEditEvent={editing}
+                        selectedEventId={editing ? VOTING_START_ID : undefined}
+                        getElectionName={getElectionName}
+                    />
+                </ResourceContextProvider>
+            </MyTimeZoneProvider>
         </AdminStoryProvider>
     ),
 } satisfies WidgetMeta<Scenario>
@@ -143,7 +199,7 @@ export const Populated: Story = {
         await expect(channel(canvasElement, "online")).toBeChecked()
         await expect(channel(canvasElement, "kiosk")).toBeChecked()
         await expect(channel(canvasElement, "early_voting")).not.toBeChecked()
-        expect(graphql.calls).toEqual([])
+        expect(scheduled()).toEqual([])
     },
 }
 
@@ -160,7 +216,10 @@ export const ScheduleTheVotingStart: Story = {
                 {
                     electionEventId: EVENT_ID,
                     electionId: null,
-                    scheduledDate: new Date(LOCAL_DATE).toISOString(),
+                    // No zone configured: the event's zone is UTC.
+                    scheduledDate: `${LOCAL_DATE}:00Z`,
+                    localDateTime: LOCAL_DATE,
+                    timeZone: "UTC",
                     eventProcessor: EventProcessors.START_VOTING_PERIOD,
                     votingChannels: [VotingStatusChannel.Online],
                 },
@@ -179,7 +238,7 @@ export const RejectOnlineWithEarlyVoting: Story = {
             within(canvasElement).getByText(i18n.t("eventsScreen.messages.onlineWithEarlyVoting"))
         ).toBeVisible()
         await expect(within(canvasElement).getByRole("button", {name: "Save"})).toBeDisabled()
-        expect(graphql.calls).toEqual([])
+        expect(scheduled()).toEqual([])
     },
 }
 
@@ -204,7 +263,9 @@ export const ScheduleTheTallyOfAnElection: Story = {
                 {
                     electionEventId: EVENT_ID,
                     electionId: STORY_IDS.secondElection,
-                    scheduledDate: new Date(LOCAL_DATE).toISOString(),
+                    scheduledDate: `${LOCAL_DATE}:00Z`,
+                    localDateTime: LOCAL_DATE,
+                    timeZone: "UTC",
                     eventProcessor: EventProcessors.ALLOW_TALLY,
                 },
             ])
@@ -235,7 +296,10 @@ export const EditAnEvent: Story = {
                 {
                     electionEventId: EVENT_ID,
                     electionId: STORY_IDS.election,
+                    // The time wasn't edited: saved as stored, so the row keeps its fingerprint.
                     scheduledDate: VOTING_START_DATE,
+                    localDateTime: null,
+                    timeZone: null,
                     eventProcessor: EventProcessors.START_VOTING_PERIOD,
                     votingChannels: [VotingStatusChannel.Online, VotingStatusChannel.Kiosk],
                 },
@@ -271,5 +335,124 @@ export const SchedulerFailure: Story = {
         expect(scheduled()).toHaveLength(1)
         // The drawer stays open to retry.
         expect(args.setIsOpenDrawer).not.toHaveBeenCalled()
+    },
+}
+
+const TEXT = {t: i18n.t, lang: "en", formatDateTime: adminDateTimeFormat("en")}
+
+async function chooseElection(canvasElement: HTMLElement, name: string) {
+    const election = within(canvasElement).getByRole("combobox", {
+        name: new RegExp(i18n.t("eventsScreen.election.label")),
+    })
+    await userEvent.type(election, name)
+    const option = await within(document.body).findByRole("option", {name})
+    await userEvent.click(option)
+}
+
+const timeZoneField = (canvasElement: HTMLElement) =>
+    within(canvasElement).getByRole("combobox", {name: i18n.t("lifecycle.input.timezone")})
+
+/** tz-schedule-create: the time is entered in the Post's zone, with a preview in my time. */
+export const CreateInThePostsZone: Story = {
+    args: {configuration: "overseas"},
+    play: async ({canvasElement, args}) => {
+        const dubai = overseasConfiguration().elections[0]
+        await typeSelect(canvasElement)
+        await chooseElection(canvasElement, dubai.name)
+        const zone = dubai.timezone!
+        await waitFor(() =>
+            expect(timeZoneField(canvasElement)).toHaveValue(
+                timeZoneOption(zone, TEXT, new Date()).label
+            )
+        )
+        const input = canvasElement.querySelector<HTMLInputElement>('input[type="datetime-local"]')
+        fireEvent.change(input!, {target: {value: "2028-04-09T00:00"}})
+        const instant = instantOf("2028-04-09T00:00", zone)
+        const preview = within(await within(canvasElement).findByTestId("zoned-preview"))
+        await expect(
+            preview.getByText(formatPlaceTime(instant, zone, dubai.name, TEXT))
+        ).toBeVisible()
+        await expect(preview.getByText(formatMyTime(instant, TEXT, MY_TIME_ZONE))).toBeVisible()
+        await save(canvasElement)
+        await waitFor(() =>
+            expect(scheduled()).toEqual([
+                expect.objectContaining({
+                    electionId: dubai.id,
+                    scheduledDate: instant,
+                    localDateTime: "2028-04-09T00:00",
+                    timeZone: zone,
+                }),
+            ])
+        )
+        expect(args.setIsOpenDrawer).toHaveBeenCalledWith(false)
+    },
+}
+
+/** tz-zone-search: typing finds zones by city; the event's primary is marked. */
+export const SearchATimezone: Story = {
+    args: {configuration: "overseas"},
+    play: async ({canvasElement}) => {
+        await typeSelect(canvasElement)
+        const field = timeZoneField(canvasElement)
+        await userEvent.clear(field)
+        await userEvent.type(field, "Manila")
+        const primary = overseasConfiguration().presentation.timezones!.primary
+        const label = timeZonePrimaryOptionLabel(timeZoneOption(primary, TEXT), TEXT)
+        await userEvent.click(
+            await within(document.body).findByRole("option", {
+                name: new RegExp(label.replace(/[()+]/g, "\\$&")),
+            })
+        )
+        await expect(field).toHaveValue(label)
+    },
+}
+
+/** A wall time that doesn't exist (DST gap) is explained and saved as the time shown. */
+export const TimeInADstGap: Story = {
+    args: {configuration: "overseas"},
+    play: async ({canvasElement}) => {
+        const toronto = overseasConfiguration().elections[7]
+        await chooseType(canvasElement, EventProcessors.START_TEST_VOTING)
+        await chooseElection(canvasElement, toronto.name)
+        const input = canvasElement.querySelector<HTMLInputElement>('input[type="datetime-local"]')
+        fireEvent.change(input!, {target: {value: "2028-03-12T02:30"}})
+        await expect(
+            await within(canvasElement).findByText(
+                zonedTimeNote("2028-03-12T02:30", toronto.timezone!, TEXT)!
+            )
+        ).toBeVisible()
+    },
+}
+
+/** Before saving: what the edit does to the opening's outcome. */
+export const OutcomeNoticeBeforeSaving: Story = {
+    args: {configuration: "overseas", outcomeChange: "refused"},
+    play: async ({canvasElement}) => {
+        await typeSelect(canvasElement)
+        const input = canvasElement.querySelector<HTMLInputElement>('input[type="datetime-local"]')
+        fireEvent.change(input!, {target: {value: "2028-04-09T00:00"}})
+        const notice = within(await within(canvasElement).findByTestId("outcome-change-notice"))
+        await expect(
+            notice.getByText(
+                i18n.t("lifecycle.schedule.outcomeChange", {
+                    before: i18n.t("scheduledOutcome.chip.runs"),
+                    after: i18n.t("scheduledOutcome.chip.refused"),
+                })
+            )
+        ).toBeVisible()
+        await expect(notice.getByText(i18n.t("scheduledOutcome.chip.refused"))).toBeVisible()
+    },
+}
+
+/** Enrollment opens per election (optional: empty opens it for every election). */
+export const EnrollmentForOneElection: Story = {
+    args: {configuration: "overseas"},
+    play: async ({canvasElement}) => {
+        await chooseType(canvasElement, EventProcessors.START_ENROLLMENT_PERIOD)
+        const election = within(canvasElement).getByRole("combobox", {
+            name: new RegExp(i18n.t("eventsScreen.election.label")),
+        })
+        await expect(election).not.toBeRequired()
+        expect(within(canvasElement).queryByRole("checkbox")).toBeNull()
     },
 }

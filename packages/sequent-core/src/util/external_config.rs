@@ -69,6 +69,7 @@ pub enum VoterPasswordPolicy {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DuplicateVotes {
+    /// ID of the ballot to copy, in the election event's ballot box.
     pub row_id_to_clone: String,
 }
 

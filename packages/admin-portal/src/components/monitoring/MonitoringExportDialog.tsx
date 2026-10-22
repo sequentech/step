@@ -28,6 +28,8 @@ import {
 import {EExportRange, exportBound, exportRange} from "./lib/exportRange"
 import {EMonitoringErrorCode, monitoringErrorCode} from "./lib/errors"
 import {exportFailure} from "./lib/exportErrors"
+import {TimeZonePicker} from "@/components/timezones/TimeZonePicker"
+import {formatWallTime, useTimeZoneService} from "@/components/timezones/timeZoneService"
 
 /** What is exported: a dashboard, or one of its widgets, at the revision shown. */
 export interface MonitoringExportTarget {
@@ -73,6 +75,8 @@ export function MonitoringExportDialog({
     widgets = [],
 }: MonitoringExportDialogProps) {
     const {t} = useTranslation()
+    const service = useTimeZoneService()
+    const [chosenZone, setChosenZone] = useState(timeZone)
     const [format, setFormat] = useState(initialFormat)
     const [from, setFrom] = useState("")
     const [to, setTo] = useState("")
@@ -87,12 +91,28 @@ export function MonitoringExportDialog({
         if (!open) return
         setFormat(initialFormat)
         setFailure(undefined)
-    }, [open, initialFormat])
+        setChosenZone(timeZone)
+    }, [open, initialFormat, timeZone])
 
-    const range = exportRange(from, to, timeZone)
+    const range = exportRange(from, to, chosenZone)
+    const boundNote = (value: string) => {
+        if (!value) return undefined
+        try {
+            if (service.zonedToInstant(value.slice(0, 16), chosenZone).kind === "gap") {
+                return t("lifecycle.import.error.dstGap", {
+                    dateTime: formatWallTime(value, service.text),
+                    city: service.zoneCity(chosenZone, service.text),
+                })
+            }
+            return service.zonedTimeNote(value.slice(0, 16), chosenZone, service.text)
+        } catch {
+            return t("lifecycle.import.error.invalidDateTime")
+        }
+    }
 
     /** The dialog stays open until the export is started, so a refusal can be told. */
     const start = async () => {
+        if (range !== EExportRange.VALID) return
         setSending(true)
         setFailure(undefined)
         try {
@@ -100,8 +120,8 @@ export function MonitoringExportDialog({
                 variables: {
                     ...target,
                     format,
-                    from: exportBound(from, timeZone),
-                    to: exportBound(to, timeZone),
+                    from: exportBound(from, chosenZone),
+                    to: exportBound(to, chosenZone),
                 },
             })
             const taskId = data?.monitoringExport.task_execution?.id
@@ -172,6 +192,8 @@ export function MonitoringExportDialog({
                         value={from}
                         onChange={(event) => setFrom(event.target.value)}
                         slotProps={{inputLabel: {shrink: true}}}
+                        error={!!from && exportRange(from, "", chosenZone) !== EExportRange.VALID}
+                        helperText={boundNote(from)}
                         fullWidth
                     />
                     <TextField
@@ -183,15 +205,25 @@ export function MonitoringExportDialog({
                         slotProps={{inputLabel: {shrink: true}}}
                         error={range !== EExportRange.VALID}
                         helperText={
-                            range !== EExportRange.VALID
+                            boundNote(to) ??
+                            (range === EExportRange.END_NOT_AFTER_START
                                 ? t("monitoring.export.invalidRange")
-                                : undefined
+                                : undefined)
                         }
                         fullWidth
                     />
                 </Stack>
+                <TimeZonePicker
+                    label={t("lifecycle.input.timezone")}
+                    value={chosenZone}
+                    onChange={(zone) => {
+                        if (zone) setChosenZone(zone)
+                    }}
+                />
                 <Typography variant="body2" color="text.secondary">
-                    {t("monitoring.export.timeZoneHelp", {timeZone})}
+                    {t("monitoring.export.timeZoneHelp", {
+                        timeZone: service.zoneLabel(timeZone, service.text),
+                    })}
                 </Typography>
             </Stack>
         </Dialog>

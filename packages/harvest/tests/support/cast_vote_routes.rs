@@ -158,6 +158,22 @@ async fn a_pending_vote_is_accepted_when_its_processing_cannot_be_enqueued() {
 }
 
 #[rocket::async_test]
+async fn a_pending_vote_is_accepted_when_the_task_queues_are_unreachable() {
+    let services = Services::without_database()
+        .with_tasks(MemoryTaskQueue::unreachable())
+        .with_cast_votes(ScriptedCastVotes::answering([Ok(
+            InsertCastVoteResult::PendingDatafix(cast_vote(
+                CastVoteStatus::InProgress,
+            )),
+        )]));
+    let client = services.client().await;
+
+    let (status, _) = json(cast(&client, &voter()).await).await;
+    assert_eq!(status, Status::Ok);
+    assert!(services.tasks.sent().is_empty());
+}
+
+#[rocket::async_test]
 async fn a_failed_attempt_is_retried() {
     let services = Services::without_database().with_cast_votes(
         ScriptedCastVotes::answering([
@@ -350,9 +366,51 @@ fn error_answers() -> Vec<(CastVoteError, Status, &'static str, &'static str)> {
         ),
         (
             BallotVoterSignatureFailed(detail()),
-            Status::InternalServerError,
-            "InternalServerError",
-            "InternalServerError",
+            Status::BadRequest,
+            "PokValidationFailed",
+            "PokValidationFailed",
+        ),
+        (
+            BallotVoterSignatureRequired,
+            Status::BadRequest,
+            "PokValidationFailed",
+            "PokValidationFailed",
+        ),
+        (
+            BallotStyleMismatch(detail()),
+            Status::BadRequest,
+            "PokValidationFailed",
+            "PokValidationFailed",
+        ),
+        (
+            BallotNotReceived,
+            Status::BadRequest,
+            "PokValidationFailed",
+            "PokValidationFailed",
+        ),
+        (
+            BallotCastSignatureRequired,
+            Status::BadRequest,
+            "PokValidationFailed",
+            "PokValidationFailed",
+        ),
+        (
+            BallotCastSignatureFailed(detail()),
+            Status::BadRequest,
+            "PokValidationFailed",
+            "PokValidationFailed",
+        ),
+        (
+            BallotAlreadyCast,
+            Status::BadRequest,
+            "PokValidationFailed",
+            "PokValidationFailed",
+        ),
+        (
+            BallotAudited,
+            Status::BadRequest,
+            "PokValidationFailed",
+            "PokValidationFailed",
         ),
         (
             UuidParseFailed(detail(), detail()),
@@ -400,19 +458,19 @@ async fn each_insertion_error_has_its_own_answer() {
 }
 
 #[rocket::async_test]
-async fn a_failed_cast_logs_its_error_and_elapsed_time() {
+async fn a_failed_cast_logs_elapsed_time_without_error_details() {
     use crate::request_boundaries::{is_isolated_child, run_isolated};
     if !is_isolated_child() {
         let log = run_isolated(
-            "routes::insert_cast_vote::route_tests::a_failed_cast_logs_its_error_and_elapsed_time",
+            "routes::insert_cast_vote::route_tests::a_failed_cast_logs_elapsed_time_without_error_details",
             "http://127.0.0.1:1",
         );
         let elapsed: Vec<_> = log
             .lines()
             .filter_map(|line| {
-                line.split_once("insert-cast-vote took ")?.1.strip_suffix(
-                    " ms to complete but failed with error=AreaNotFound",
-                )
+                line.split_once("insert-cast-vote took ")?
+                    .1
+                    .strip_suffix(" ms to complete but was refused")
             })
             .collect();
         assert_eq!(elapsed.len(), 1, "{log}");
@@ -495,4 +553,46 @@ async fn only_telephone_votes_use_token_issue_time_when_auth_time_is_absent() {
             "{client_id}"
         );
     }
+}
+
+#[path = "privacy_trace.rs"]
+mod privacy_trace;
+
+#[rocket::async_test]
+async fn legacy_cast_success_and_private_error_do_not_trace_attribution_at_any_level(
+) {
+    let private_error=CastVoteError::UnknownError("privacy-capture-voter-0123 privacy-capture-name-0123 198.51.100.73 AQ privacy-capture-agent-0123".into());
+    let services = Services::without_database().with_cast_votes(
+        ScriptedCastVotes::answering([
+            Ok(InsertCastVoteResult::Success(cast_vote(
+                CastVoteStatus::Valid,
+            ))),
+            Ok(InsertCastVoteResult::SkipRetryFailure(private_error)),
+        ]),
+    );
+    let client = services.client().await;
+    let claims = Claims::new(TENANT_ID, "privacy-capture-voter-0123")
+        .username("privacy-capture-name-0123")
+        .azp("voting-portal")
+        .area(AREA_ID)
+        .election_event(EVENT_ID)
+        .authorized_elections(&[ELECTION_ID])
+        .roles([VoterPermissions::CAST_VOTE]);
+    let logs=privacy_trace::capture(async {
+        for expected in [Status::Ok,Status::InternalServerError] {
+            let response=client.post("/insert-cast-vote").header(ContentType::JSON).header(bearer(&claims))
+                .header(Header::new("CF-Connecting-IP","198.51.100.73"))
+                .header(Header::new("CF-IPCountry","AQ"))
+                .header(Header::new("User-Agent","privacy-capture-agent-0123"))
+                .body(json!({"ballot_id":"private-ballot-hash-0123","election_id":ELECTION_ID,"content":"encrypted ballot"}).to_string())
+                .dispatch().await;
+            assert_eq!(response.status(),expected);
+        }
+    }).await;
+    assert!(
+        logs.contains("insert_cast_vote"),
+        "insert route span was not captured"
+    );
+    privacy_trace::assert_private(&logs, "private-ballot-hash-0123");
+    assert_eq!(services.cast_votes.attempts().len(), 2);
 }

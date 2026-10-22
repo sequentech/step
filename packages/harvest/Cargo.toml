@@ -10,6 +10,10 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+sequent-plugin-api = { path = "../plugins/api" }
+sequent-plugin-host = { path = "../plugins/host" }
+sequent-plugin-projects = { path = "../plugins/projects" }
+voting-crypto = { path = "../voting-crypto" }
 rocket = { version = "0.5", features = ["json"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -38,12 +42,14 @@ aws-sdk-s3 = "1.11"
 tracing = "0.1"
 
 
-# board-messages = { path="../board-messages" }
 electoral-log = { path="../electoral-log" }
-immudb-rs = { path="../immudb-rs" }
-strand = { path="../strand" }
 sequent-core = { path="../sequent-core", features = ["keycloak", "s3", "probe", "default_features", "monitoring"] }
 windmill = { path="../windmill" }
+protocol-board = { path = "../protocol-board" }
+messaging = { path = "../messaging" }
+pgmq-broker = { path="../pgmq-broker" }
+# Verifies Keycloak's service tokens on /messages/*.
+jsonwebtoken = { version = "10.3", features = ["aws_lc_rs"] }
 
 # To connect to the Database
 deadpool-postgres = { version = "0.14", features = ["rt_tokio_1", "serde"] }
@@ -61,4 +67,14 @@ serde_yaml = "0.9"
 sha2 = "0.10"
 
 [dev-dependencies]
+tracing-subscriber = "0.3"
+tracing-log = "0.2"
 keycloak = "24.0"
+# The test PKI of the signing certificate routes.
+openssl = "0.10"
+# The loopback provider messages are sent to in route tests.
+messaging = { path = "../messaging", features = ["test-support"] }
+# The webhook component, in front of the fake provider routes' reports.
+messaging-webhooks = { path = "../messaging-webhooks" }
+# Signs the bearer tokens of the route tests.
+jsonwebtoken = { version = "10.3", features = ["aws_lc_rs"] }

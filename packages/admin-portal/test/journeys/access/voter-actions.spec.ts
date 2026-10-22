@@ -495,6 +495,9 @@ test.describe("voter list manager", () => {
                 sequent_backend_template_aggregate: {aggregate: {count: 0}},
             },
         }))
+        portal.graphql.on("GetMessagingAccounts", () => ({
+            data: {sequent_backend_messaging_account: []},
+        }))
         portal.graphql.on("CreateScheduledEvent", () => ({
             data: {createScheduledEvent: {id: "77777777-7777-4777-8777-777777777701"}},
         }))
@@ -504,12 +507,13 @@ test.describe("voter list manager", () => {
         const drawer = page.getByRole("dialog")
         await expect(drawer.getByText("Send Notification", {exact: true}).first()).toBeVisible()
         await expect(drawer.getByText("To 1 Selected voters", {exact: true})).toBeVisible()
+        await drawer.getByRole("button", {name: "Email", exact: true}).click()
         await drawer
             .getByRole("textbox", {name: "Email Subject"})
             .fill('Your code {{lookup user.attributes "reference"}}')
         await drawer.getByRole("button", {name: "Send Notification", exact: true}).click()
         await expect(
-            page.getByText("Notification programmed/sent successfully", {exact: true})
+            page.getByText("Notification scheduled successfully", {exact: true})
         ).toBeVisible()
         await expect(drawer).toHaveCount(0)
         expect(
@@ -522,7 +526,6 @@ test.describe("voter list manager", () => {
                 eventPayload: {
                     audience_selection: "SELECTED",
                     audience_voter_ids: [ALICE_ID],
-                    communication_method: "EMAIL",
                     schedule_now: true,
                     email: {
                         subject: 'Your code {{lookup user.attributes "reference"}}',

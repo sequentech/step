@@ -70,6 +70,14 @@ async fn seed(client: &mut Client) -> Seeded {
     )
     .await
     .unwrap();
+    // This fixture represents voting that has already opened. Only its seed
+    // transaction writes protected status; the export uses ordinary access.
+    tx.execute(
+        "SELECT set_config('sequent.trusted_write', 'on', true)",
+        &[],
+    )
+    .await
+    .unwrap();
     let mut ids = Vec::new();
     for (name, region) in [("Madrid", "Europe"), ("Tokyo", "Asia")] {
         let id = Uuid::new_v4();

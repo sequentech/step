@@ -5,15 +5,20 @@
 // Boundaries of the election event's Data tab: the event, its tenant and
 // elections, and the Keycloak and results website services the save updates.
 import {GraphQLError} from "graphql"
-import {ElectionsOrder} from "@sequentech/ui-core"
+import {EBallotBoxSealPolicy, ElectionsOrder} from "@sequentech/ui-core"
 import {EVENT_ID, graphqlBoundary} from "@/__stories__/AdminStoryProvider"
 import {electionRecord, eventRecord, storyId, tenantRecord} from "@/__stories__/fixtures"
 import {resourceBoundary, type ReadState} from "@/__stories__/resourceBoundary"
 import type {RealmPasswordPolicy} from "@/queries/RealmPasswordPolicy"
+import {EStoryWorkflow} from "../../../../../ui-essentials/.storybook/globals"
 
 export const SECOND_ELECTION_ID = storyId(4, 2)
 
-export const REALM_ATTRIBUTES = {voter_certificate_policy: "disabled"}
+export const REALM_ATTRIBUTES = {
+    voter_certificate_policy: "disabled",
+    enrollment_windows: "null",
+    enrollment_registration_restore: "enabled",
+}
 
 export const PASSWORD_POLICY: RealmPasswordPolicy = {
     configured: true,
@@ -32,6 +37,10 @@ export interface EventDataScenario {
     customOrder: boolean
     /** Whether reading the realm attributes fails. */
     realmAttributesFail: boolean
+    /** Voting has never opened in the event, so the ballot box seal policy can still change. */
+    neverOpened?: boolean
+    /** The event seals its ballot boxes at close (VOTE-FREEZE). */
+    sealAtClose?: boolean
 }
 
 export const eventDataArgs: EventDataScenario = {
@@ -40,25 +49,35 @@ export const eventDataArgs: EventDataScenario = {
     realmAttributesFail: false,
 }
 
-export const eventDataEvent = (customOrder = false) => {
-    const event = eventRecord()
-    return customOrder
-        ? eventRecord(undefined, {
-              presentation: {...event.presentation, elections_order: ElectionsOrder.CUSTOM},
-          })
-        : event
+export const eventDataEvent = (customOrder = false, neverOpened = false, sealAtClose = false) => {
+    const workflow = neverOpened ? EStoryWorkflow.KEYS : undefined
+    const event = eventRecord(workflow)
+    return eventRecord(workflow, {
+        presentation: {
+            ...event.presentation,
+            ...(customOrder ? {elections_order: ElectionsOrder.CUSTOM} : {}),
+            ...(sealAtClose ? {ballot_box_seal_policy: EBallotBoxSealPolicy.SEAL_AT_CLOSE} : {}),
+        },
+    })
 }
 
-export function eventDataBoundaries({reads, customOrder, realmAttributesFail}: EventDataScenario) {
+export function eventDataBoundaries({
+    reads,
+    customOrder,
+    realmAttributesFail,
+    neverOpened = false,
+    sealAtClose = false,
+}: EventDataScenario) {
+    const workflow = neverOpened ? EStoryWorkflow.KEYS : undefined
     const data = resourceBoundary(
         {
-            sequent_backend_election_event: [eventDataEvent(customOrder)],
+            sequent_backend_election_event: [eventDataEvent(customOrder, neverOpened, sealAtClose)],
             sequent_backend_tenant: [tenantRecord],
             sequent_backend_election: [
-                electionRecord(undefined, {
+                electionRecord(workflow, {
                     presentation: {...electionRecord().presentation, sort_order: 5},
                 }),
-                electionRecord(undefined, {
+                electionRecord(workflow, {
                     id: SECOND_ELECTION_ID,
                     presentation: {...electionRecord().presentation, sort_order: 2},
                 }),
@@ -73,7 +92,10 @@ export function eventDataBoundaries({reads, customOrder, realmAttributesFail}: E
                 realmAttributesFail
                     ? {errors: [new GraphQLError("Synthetic Keycloak failure")]}
                     : {data: {get_realm_attributes: {attributes: REALM_ATTRIBUTES}}},
+            UpdateRealmAttributes: () => ({data: {update_realm_attributes: {updated: true}}}),
             GetRealmPasswordPolicy: () => ({data: {get_realm_password_policy: PASSWORD_POLICY}}),
+            // The published configuration the Voting lifecycle section compares with: none yet.
+            GetLifecycleSnapshots: () => ({data: {get_lifecycle_snapshots: {snapshots: []}}}),
             SetCustomUrls: () => ({data: {set_custom_urls: {success: true, message: ""}}}),
             SetVoterAuthentication: () => ({
                 data: {set_voter_authentication: {success: true, message: ""}},
@@ -89,7 +111,8 @@ export function eventDataBoundaries({reads, customOrder, realmAttributesFail}: E
                 },
             }),
         },
-        {schema: true}
+        // get_lifecycle_snapshots isn't in the generated schema yet: no schema check.
+        {schema: false}
     )
     return {data, graphql}
 }

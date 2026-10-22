@@ -1,611 +1,723 @@
-// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
-//
+// SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useState, useEffect, useRef, useCallback} from "react"
+import React, {useContext, useState, useRef, useEffect} from "react"
 import {
-    Card,
-    CardContent,
-    CardHeader,
-    Grid,
-    TextField,
-    Button,
-    Typography,
-    LinearProgress,
+    Accordion,
+    AccordionSummary,
+    AccordionDetails,
     Alert,
     Box,
-    Paper,
-    Divider,
-    Chip,
-    List,
-    ListItem,
-    ListItemButton,
-    ListItemText,
-    IconButton,
-    Collapse,
-    Tooltip,
+    Button,
+    Card,
+    CardContent,
+    TextField,
+    Typography,
 } from "@mui/material"
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
+import {trusteeFilename} from "@/services/trusteeFilename"
+import {AuthContext} from "@/providers/AuthContextProvider"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {
-    PlayArrow as PlayIcon,
-    Pause as PauseIcon,
-    Refresh as RefreshIcon,
-    Clear as ClearIcon,
-    Terminal as TerminalIcon,
-} from "@mui/icons-material"
-import {useInterval} from "react-use"
+    createBrowserTrustee,
+    loadBrowserTrustee,
+    listBrowserTrusteeBoards,
+    runBrowserCycle,
+    runExclusiveBrowserTrustee,
+    type TrusteeEngine,
+    type TrusteeKeys,
+    type TrusteeHistory,
+} from "@/services/BrowserTrustee"
 
-import {loadBraid} from "@/services/Braid"
-
-let trustee: any = null
-
-interface Config {
+interface TrusteeBoard {
     name: string
-    signing_key_sk: string
-    signing_key_pk: string
-    encryption_key: string
-    b4_url: string
+    kind: "DKG" | "TALLY"
+    parent: string | null
 }
 
-interface Board {
-    name: string
-}
-interface State {
-    current_messages?: number
-    max_messages?: number
-    board_name?: string
-}
-
-interface Action {
-    ts: string
-    msg: string
-    added: number
-    posted: number
+const actionGrid = {
+    "display": "grid",
+    "gridTemplateColumns": {
+        xs: "1fr",
+        sm: "repeat(2, minmax(0, 1fr))",
+        lg: "repeat(3, minmax(0, 1fr))",
+    },
+    "gap": 1.5,
+    "& .MuiButton-root": {minHeight: 44},
 }
 
-// The wasm session rejects with plain strings rather than Errors.
-const errorReason = (e: unknown) => (e instanceof Error ? e.message : String(e))
+const codeExample = {
+    my: 2,
+    p: 2,
+    bgcolor: "action.hover",
+    border: "1px solid",
+    borderColor: "divider",
+    borderRadius: 1,
+    fontFamily: "monospace",
+    fontSize: "0.875rem",
+    lineHeight: 1.6,
+    whiteSpace: "pre-wrap",
+    overflowWrap: "anywhere",
+}
 
 export const TrusteeDashboard = () => {
-    const [config, setConfig] = useState<Config>({
-        name: "browser-trustee-1",
-        signing_key_sk: "",
-        signing_key_pk: "",
-        encryption_key: "",
-        b4_url: "http://127.0.0.1:50051",
-    })
-
-    const [initialized, setInitialized] = useState(false)
-    const [connected, setConnected] = useState(false)
-    const [boards, setBoards] = useState<Board[]>([])
-    const [selectedBoard, setSelectedBoard] = useState("")
-    const [manualBoard, setManualBoard] = useState("")
-    const [state, setState] = useState<State>({})
-    const [lastAction, setLastAction] = useState("—")
-    const [boardSummary, setBoardSummary] = useState<any[]>([])
-    const [actionHistory, setActionHistory] = useState<Array<Action>>([])
-    const [consoleLog, setConsoleLog] = useState<string[]>([])
-    const [autoRun, setAutoRun] = useState(false)
+    const auth = useContext(AuthContext)
+    // The in-memory token Keycloak keeps fresh, as for every portal request.
+    const accessToken = () => auth.getAccessToken() ?? ""
+    const {globalSettings} = useContext(SettingsContext)
+    const platform = globalSettings.HASURA_URL
+    const trustee = auth.trustee || auth.username
+    const keysFilename = trusteeFilename(trustee, "private-keys.toml")
+    const requestFilename = trusteeFilename(trustee, "custody.json")
+    const proofFilename = trusteeFilename(trustee, "signed-custody-proof.json")
+    const [boards, setBoards] = useState<TrusteeBoard[]>([])
+    const [error, setError] = useState("")
     const [loading, setLoading] = useState(false)
-    const [storageInfo, setStorageInfo] = useState<any>(null)
-
-    const consoleEndRef = useRef<HTMLDivElement>(null)
-
-    const log = useCallback((msg: string, type: "info" | "warn" | "error" = "info") => {
-        const timestamp = new Date().toLocaleTimeString()
-        setConsoleLog((prev) => [...prev.slice(-500), `[${timestamp}] ${msg}`])
-    }, [])
-
+    const [loaded, setLoaded] = useState(false)
+    const refresh = async () => {
+        setLoading(true)
+        setError("")
+        try {
+            const token = accessToken()
+            if (!token) throw new Error("Sign in as a trustee to list assigned boards.")
+            const assigned = await listBrowserTrusteeBoards(platform, token)
+            setBoards(assigned)
+            setLoaded(true)
+            if (engine.current && !active.current)
+                await perform(async () => readHistory(engine.current, assigned))
+        } catch (error) {
+            setError(error instanceof Error ? error.message : String(error))
+        } finally {
+            setLoading(false)
+        }
+    }
+    const [boardUrl, setBoardUrl] = useState(globalSettings.WBRAID_BOARD_URL || "/b4")
+    const [keys, setKeys] = useState<TrusteeKeys | null>(null)
+    const [history, setHistory] = useState<TrusteeHistory | null>(null)
+    const [historyError, setHistoryError] = useState("")
+    const [running, setRunning] = useState(false)
+    const [busy, setBusy] = useState(false)
+    const [browserStatus, setBrowserStatus] = useState("")
+    const [tallyId, setTallyId] = useState("")
+    const keysInput = useRef<HTMLInputElement>(null)
+    const backupInput = useRef<HTMLInputElement>(null)
+    const custodyInput = useRef<HTMLInputElement>(null)
+    const engine = useRef<TrusteeEngine | null>(null)
+    const privateKeys = useRef("")
+    const active = useRef(false)
+    const occupied = useRef(false)
+    const mounted = useRef(true)
+    const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+    const catalog = useRef<string[]>([])
+    const catalogKey = useRef("")
+    const releaseLock = useRef<(() => void) | null>(null)
+    const release = () => {
+        releaseLock.current?.()
+        releaseLock.current = null
+    }
     useEffect(() => {
-        consoleEndRef.current?.scrollIntoView({behavior: "smooth"})
-    }, [consoleLog])
-
-    // Load WASM on mount
-    useEffect(() => {
-        async function load() {
-            try {
-                await loadBraid()
-                log("braid-wasm loaded and thread pool initialized")
-            } catch (e) {
-                log(`WASM init failed: ${errorReason(e)}`, "error")
-            }
-        }
-        load()
-    }, [])
-
-    // Override console
-    useEffect(() => {
-        const origLog = console.log
-        const origWarn = console.warn
-        const origError = console.error
-
-        console.log = (...args) => {
-            origLog(...args)
-            log(args.join(" "))
-        }
-        console.warn = (...args) => {
-            origWarn(...args)
-            log(args.join(" "), "warn")
-        }
-        console.error = (...args) => {
-            origError(...args)
-            log(args.join(" "), "error")
-        }
-
+        mounted.current = true
         return () => {
-            console.log = origLog
-            console.warn = origWarn
-            console.error = origError
-        }
-    }, [log])
-
-    const handleInit = async () => {
-        if (Object.values(config).some((v) => !v.trim())) {
-            log("All fields required", "error")
-            return
-        }
-
-        try {
-            const {WasmSession} = await loadBraid()
-            trustee = new WasmSession(JSON.stringify(config))
-            setInitialized(true)
-            log(`Trustee initialized: ${config.name}`)
-        } catch (e) {
-            log(`Init failed: ${errorReason(e)}`, "error")
-        }
-    }
-
-    const fetchBoards = async () => {
-        if (!trustee) return
-        setLoading(true)
-        try {
-            const list = await trustee.fetch_boards()
-            setBoards(list)
-            log(`Found ${list.length} board(s)`)
-        } catch (e) {
-            log(`Fetch failed: ${errorReason(e)}`, "error")
-        } finally {
-            setLoading(false)
-        }
-    }
-
-    const connect = async (boardName: string) => {
-        if (!trustee || !boardName) return
-        try {
-            await trustee.init_session(boardName)
-            const res = await trustee.connect_to_board()
-            setConnected(true)
-            setSelectedBoard(boardName)
-
-            const pendingMsg =
-                res.pending > 0
-                    ? `${res.pending} remote message${res.pending === 1 ? "" : "s"} pending`
-                    : "no new messages"
-            log(`Connected to ${boardName} (${pendingMsg})`)
-
-            updateState()
-            updateBoard()
-            updateStorageInfo()
-        } catch (e) {
-            log(`Connect failed: ${errorReason(e)}`, "error")
-        }
-    }
-
-    const updateState = async () => {
-        if (!trustee) return
-        try {
-            const s = await trustee.get_state()
-            setState(s)
-        } catch (e) {
-            console.log(e)
-        }
-    }
-
-    const updateBoard = async () => {
-        if (!trustee) return
-        try {
-            const summary = await trustee.get_board_summary()
-            setBoardSummary(summary)
-        } catch (e) {
-            log(`Board update failed: ${errorReason(e)}`, "error")
-        }
-    }
-
-    const updateStorageInfo = async () => {
-        if (!trustee) return
-        try {
-            const info = await trustee.get_storage_info()
-            setStorageInfo(info)
-        } catch (e) {
-            log(`Storage info update failed: ${errorReason(e)}`, "error")
-        }
-    }
-
-    const step = async () => {
-        if (!trustee || loading) return
-        setLoading(true)
-        try {
-            const res = await trustee.step()
-            await updateState()
-            await updateBoard()
-            await updateStorageInfo()
-
-            const action = res.actions?.length
-                ? res.actions.join(", ")
-                : `${res.added || 0} added, ${res.posted || 0} posted`
-
-            setLastAction(action === "0 added, 0 posted" ? "Idle" : action)
-
-            if (action !== "Idle" && action !== "0 added, 0 posted") {
-                setActionHistory((prev) => [
-                    {
-                        ts: new Date().toLocaleTimeString(),
-                        msg: action,
-                        added: res.added || 0,
-                        posted: res.posted || 0,
-                    },
-                    ...prev.slice(0, 99),
-                ])
+            mounted.current = false
+            active.current = false
+            clearTimeout(timer.current)
+            if (!occupied.current) {
+                engine.current?.free()
+                engine.current = null
+                release()
             }
-        } catch (e) {
-            log(`Step error: ${errorReason(e)}`, "error")
+        }
+    }, [])
+    const download = (name: string, contents: string, type: string) => {
+        const url = URL.createObjectURL(new Blob([contents], {type}))
+        const anchor = document.createElement("a")
+        anchor.href = url
+        anchor.download = trusteeFilename(trustee, name)
+        anchor.click()
+        setTimeout(() => URL.revokeObjectURL(url), 0)
+    }
+    const perform = async (action: () => Promise<void>) => {
+        if (occupied.current) return
+        occupied.current = true
+        setBusy(true)
+        setError("")
+        try {
+            await action()
+        } catch (error: unknown) {
+            if (mounted.current) setError(error instanceof Error ? error.message : String(error))
         } finally {
-            setLoading(false)
+            occupied.current = false
+            if (mounted.current) setBusy(false)
+            else {
+                engine.current?.free()
+                engine.current = null
+            }
         }
     }
-
-    useInterval(step, autoRun ? 1000 : null)
-
-    const progress = state.max_messages
-        ? Math.round(((state.current_messages || 0) / state.max_messages) * 100)
-        : 0
-
+    const readHistory = async (
+        current: TrusteeEngine | null,
+        assigned: TrusteeBoard[] = boards,
+        known: string[] = catalog.current
+    ) => {
+        if (!current) return
+        try {
+            const names = Array.from(
+                new Set([
+                    ...known,
+                    ...assigned.flatMap((board) =>
+                        board.parent ? [board.name, board.parent] : [board.name]
+                    ),
+                ])
+            )
+            const result: TrusteeHistory = JSON.parse(
+                await current.sessionHistory(JSON.stringify(names))
+            )
+            if (mounted.current) {
+                setHistory(result)
+                setHistoryError("")
+            }
+        } catch (error: unknown) {
+            if (mounted.current) {
+                setHistory(null)
+                setHistoryError(error instanceof Error ? error.message : String(error))
+            }
+        }
+    }
+    const install = async (contents: string, backup?: string) => {
+        const module = await loadBrowserTrustee()
+        if (!mounted.current) return
+        const candidate = createBrowserTrustee(
+            module,
+            auth.trustee || "browser trustee",
+            contents,
+            boardUrl,
+            accessToken
+        )
+        try {
+            const publicKeys: TrusteeKeys = JSON.parse(candidate.publicKeys())
+            const storageKey = `sequent-wbraid-catalog:${boardUrl.replace(/\/+$/, "")}:${publicKeys.signing_public_key}`
+            const saved: unknown = JSON.parse(localStorage.getItem(storageKey) || "[]")
+            if (!Array.isArray(saved) || !saved.every((name: unknown) => typeof name === "string"))
+                throw new Error("Invalid local session catalogue.")
+            const restored: string[] = backup
+                ? JSON.parse(await candidate.restoreBackup(backup))
+                : []
+            const nextCatalog = Array.from(new Set([...(saved as string[]), ...restored]))
+            localStorage.setItem(storageKey, JSON.stringify(nextCatalog))
+            engine.current?.free()
+            engine.current = candidate
+            privateKeys.current = contents
+            catalog.current = nextCatalog
+            catalogKey.current = storageKey
+            setHistory(null)
+            setHistoryError("")
+            setKeys(publicKeys)
+            await readHistory(candidate, boards, nextCatalog)
+            setBrowserStatus("Keys ready. Register both public keys before starting a ceremony.")
+        } catch (error: unknown) {
+            candidate.free()
+            throw error
+        }
+    }
+    const importKeys = (file: File | undefined) => {
+        if (file)
+            void perform(async () => {
+                await install(await file.text())
+            })
+    }
+    const importBackup = (file: File | undefined) => {
+        if (file)
+            void perform(async () => {
+                const contents = await file.text()
+                const backup: unknown = JSON.parse(contents)
+                if (
+                    typeof backup !== "object" ||
+                    backup === null ||
+                    !("keys" in backup) ||
+                    typeof backup.keys !== "string"
+                )
+                    throw new Error("Invalid browser trustee backup.")
+                await install(backup.keys, contents)
+            })
+    }
+    const cycle = async () => {
+        if (!active.current || !engine.current || occupied.current) return
+        occupied.current = true
+        setBusy(true)
+        try {
+            const result = await runBrowserCycle(
+                engine.current,
+                platform,
+                accessToken,
+                (assigned) => {
+                    catalog.current = Array.from(
+                        new Set([
+                            ...catalog.current,
+                            ...assigned.flatMap((board) =>
+                                board.parent ? [board.name, board.parent] : [board.name]
+                            ),
+                        ])
+                    )
+                    localStorage.setItem(catalogKey.current, JSON.stringify(catalog.current))
+                }
+            )
+            if (mounted.current) {
+                setBoards(result)
+                setLoaded(true)
+                if (active.current)
+                    setBrowserStatus(
+                        `Browser trustee running · ${result.length} assigned boards. Keep this page open.`
+                    )
+            }
+        } catch (error: unknown) {
+            active.current = false
+            if (mounted.current) {
+                setRunning(false)
+                setBrowserStatus(
+                    "Browser trustee stopped after an error. Resolve it before restarting."
+                )
+                setError(error instanceof Error ? error.message : String(error))
+            }
+        } finally {
+            await readHistory(engine.current)
+            occupied.current = false
+            if (!active.current) release()
+            if (mounted.current) setBusy(false)
+            else {
+                engine.current?.free()
+                engine.current = null
+            }
+        }
+        if (active.current)
+            timer.current = setTimeout(() => {
+                void cycle()
+            }, 2000)
+    }
+    const stop = () => {
+        active.current = false
+        clearTimeout(timer.current)
+        setRunning(false)
+        if (!occupied.current) release()
+        setBrowserStatus("Stopped. Local session commitments are retained for resuming.")
+    }
+    const start = async () => {
+        if (!keys || !engine.current || active.current || occupied.current) return
+        active.current = true
+        setRunning(true)
+        setError("")
+        try {
+            await runExclusiveBrowserTrustee(catalogKey.current, async () => {
+                if (!mounted.current || !active.current) return
+                const stopped = new Promise<void>((resolve) => {
+                    releaseLock.current = resolve
+                })
+                void cycle()
+                await stopped
+            })
+        } catch (error: unknown) {
+            active.current = false
+            if (mounted.current) {
+                setRunning(false)
+                setError(error instanceof Error ? error.message : String(error))
+            }
+        }
+    }
+    const prove = (file: File | undefined) => {
+        if (file)
+            void perform(async () => {
+                if (!engine.current) throw new Error("Import your trustee keys first.")
+                const request: Record<string, unknown> = JSON.parse(await file.text())
+                if (!auth.trustee || request.trustee_name !== auth.trustee)
+                    throw new Error("The custody file belongs to another trustee.")
+                if (tallyId.trim()) request.tally_session_id = tallyId.trim()
+                const proof = engine.current.attest(JSON.stringify(request))
+                download("signed-custody-proof.json", proof, "application/json")
+                setBrowserStatus(
+                    "Signed custody proof ready to upload to the key or tally ceremony."
+                )
+            })
+    }
     return (
-        <Box p={3}>
-            <Typography variant="h4" gutterBottom>
-                Braid Trustee Node
+        <Box sx={{p: {xs: 2, sm: 3}}}>
+            <Typography variant="h4" component="h1">
+                Trustee dashboard
             </Typography>
-
-            <Grid container spacing={3}>
-                {/* Config */}
-                <Grid size={{xs: 12, lg: 6}}>
-                    <Card>
-                        <CardHeader title="Trustee Configuration" />
-                        <CardContent>
-                            <Grid container spacing={2}>
-                                <Grid size={12}>
-                                    <TextField
-                                        label="Trustee Name"
-                                        fullWidth
-                                        value={config.name}
-                                        onChange={(e) =>
-                                            setConfig({...config, name: e.target.value})
-                                        }
-                                    />
-                                </Grid>
-                                <Grid size={12}>
-                                    <TextField
-                                        label="Signing Key SK (Base64 DER)"
-                                        multiline
-                                        rows={3}
-                                        fullWidth
-                                        value={config.signing_key_sk}
-                                        onChange={(e) =>
-                                            setConfig({...config, signing_key_sk: e.target.value})
-                                        }
-                                    />
-                                </Grid>
-                                <Grid size={12}>
-                                    <TextField
-                                        label="Signing Key PK (Base64 DER)"
-                                        multiline
-                                        rows={3}
-                                        fullWidth
-                                        value={config.signing_key_pk}
-                                        onChange={(e) =>
-                                            setConfig({...config, signing_key_pk: e.target.value})
-                                        }
-                                    />
-                                </Grid>
-                                <Grid size={12}>
-                                    <TextField
-                                        label="Encryption Key (Base64)"
-                                        fullWidth
-                                        value={config.encryption_key}
-                                        onChange={(e) =>
-                                            setConfig({...config, encryption_key: e.target.value})
-                                        }
-                                    />
-                                </Grid>
-                                <Grid size={12}>
-                                    <TextField
-                                        label="B4 Server URL"
-                                        fullWidth
-                                        value={config.b4_url}
-                                        onChange={(e) =>
-                                            setConfig({...config, b4_url: e.target.value})
-                                        }
-                                    />
-                                </Grid>
-                                <Grid size={12}>
-                                    <Button
-                                        variant="contained"
-                                        color="success"
-                                        fullWidth
-                                        onClick={handleInit}
-                                        disabled={initialized}
-                                    >
-                                        {initialized ? "Initialized" : "Initialize Trustee"}
-                                    </Button>
-                                </Grid>
-                            </Grid>
-                        </CardContent>
-                    </Card>
-                </Grid>
-
-                {/* Execution */}
-                <Grid size={{xs: 12, lg: 6}}>
-                    <Card>
-                        <CardHeader title="Protocol Execution" />
-                        <CardContent>
-                            <Box display="flex" gap={2} mb={2}>
-                                <Button
-                                    variant="contained"
-                                    startIcon={<PlayIcon />}
-                                    onClick={step}
-                                    disabled={!connected || loading || autoRun}
-                                >
-                                    Execute Step
-                                </Button>
-                                <Button
-                                    variant={autoRun ? "contained" : "outlined"}
-                                    color={autoRun ? "error" : "primary"}
-                                    startIcon={autoRun ? <PauseIcon /> : <PlayIcon />}
-                                    onClick={() => setAutoRun(!autoRun)}
-                                    disabled={!connected}
-                                >
-                                    {autoRun ? "Pause" : "Auto Run"}
-                                </Button>
-                            </Box>
-
-                            <Grid container spacing={2} mb={2}>
-                                <Grid size={4}>
-                                    <Paper variant="outlined" sx={{p: 2}}>
-                                        <Typography variant="caption">Messages</Typography>
-                                        <Typography variant="h5">
-                                            {state.current_messages || 0} /{" "}
-                                            {state.max_messages || 0}
-                                        </Typography>
-                                    </Paper>
-                                </Grid>
-                                <Grid size={4}>
-                                    <Paper variant="outlined" sx={{p: 2}}>
-                                        <Typography variant="caption">Last Action</Typography>
-                                        <Typography variant="body2" noWrap>
-                                            {lastAction}
-                                        </Typography>
-                                    </Paper>
-                                </Grid>
-                                <Grid size={4}>
-                                    <Paper variant="outlined" sx={{p: 2}}>
-                                        <Typography variant="caption">Board</Typography>
-                                        <Typography variant="body2">
-                                            {state.board_name || "-"}
-                                        </Typography>
-                                    </Paper>
-                                </Grid>
-                            </Grid>
-
-                            <LinearProgress variant="determinate" value={progress} />
-                            <Typography variant="body2" align="right" mt={1}>
-                                {progress}%
+            <Typography sx={{my: 2}}>
+                Use the browser trustee below or run the native trustee tool with your local keys
+                file. It discovers your assigned boards, verifies their messages and resumes from
+                its local session stores.
+            </Typography>
+            <Card sx={{mb: 2}}>
+                <CardContent>
+                    <Typography variant="h6" component="h2">
+                        Browser trustee
+                    </Typography>
+                    <Typography sx={{my: 2}}>
+                        Generate or import your local trustee keys. Your private keys stay in this
+                        browser's memory. Back up the keys file and browser sessions, and keep this
+                        page open while participating.
+                    </Typography>
+                    <Typography sx={{my: 2}}>
+                        For manual custody, start this browser trustee and keep this tab open.
+                        Upload the saved custody file in the key ceremony or tally tab; this browser
+                        creates the scoped proof automatically. Complete the custody confirmation
+                        and any required signing in that tab.
+                    </Typography>
+                    <TextField
+                        label="Board service URL"
+                        value={boardUrl}
+                        disabled={Boolean(keys) || busy}
+                        onChange={(event) => setBoardUrl(event.target.value)}
+                        fullWidth
+                        sx={{mb: 2}}
+                    />
+                    <Box sx={actionGrid}>
+                        <Button
+                            variant="outlined"
+                            disabled={Boolean(keys) || busy}
+                            onClick={() => {
+                                void perform(async () => {
+                                    const module = await loadBrowserTrustee()
+                                    await install(module.BrowserTrustee.generateKeys())
+                                })
+                            }}
+                        >
+                            Generate browser keys
+                        </Button>
+                        <Button
+                            variant="outlined"
+                            disabled={busy || running}
+                            onClick={() => keysInput.current?.click()}
+                        >
+                            Import private keys
+                        </Button>
+                        <input
+                            ref={keysInput}
+                            aria-label="Import private keys"
+                            type="file"
+                            hidden
+                            accept=".toml"
+                            onChange={(event) => {
+                                importKeys(event.target.files?.[0])
+                                event.target.value = ""
+                            }}
+                        />
+                        <Button
+                            variant="outlined"
+                            disabled={busy || running}
+                            onClick={() => backupInput.current?.click()}
+                        >
+                            Restore browser backup
+                        </Button>
+                        <input
+                            ref={backupInput}
+                            aria-label="Restore browser backup"
+                            type="file"
+                            hidden
+                            accept=".json"
+                            onChange={(event) => {
+                                importBackup(event.target.files?.[0])
+                                event.target.value = ""
+                            }}
+                        />
+                        <Button
+                            variant="outlined"
+                            disabled={!keys || busy}
+                            onClick={() =>
+                                download("private-keys.toml", privateKeys.current, "text/plain")
+                            }
+                        >
+                            Download private keys
+                        </Button>
+                        <Button
+                            variant="outlined"
+                            disabled={!keys || busy || running}
+                            onClick={() => {
+                                void perform(async () => {
+                                    if (engine.current)
+                                        download(
+                                            "browser-sessions.json",
+                                            await engine.current.backup(
+                                                JSON.stringify(catalog.current)
+                                            ),
+                                            "application/json"
+                                        )
+                                })
+                            }}
+                        >
+                            Back up browser sessions
+                        </Button>
+                        <Button
+                            variant="outlined"
+                            disabled={!keys || busy || running}
+                            onClick={() => {
+                                engine.current?.free()
+                                engine.current = null
+                                privateKeys.current = ""
+                                setKeys(null)
+                                setHistory(null)
+                                setHistoryError("")
+                                setBrowserStatus("")
+                            }}
+                        >
+                            Lock keys
+                        </Button>
+                    </Box>
+                    {keys && (
+                        <Box sx={{my: 2}}>
+                            <TextField
+                                label="Signing public key"
+                                value={keys.signing_public_key}
+                                InputProps={{readOnly: true}}
+                                fullWidth
+                                sx={{mb: 2}}
+                            />
+                            <TextField
+                                label="Share encryption public key"
+                                value={keys.share_encryption_public_key}
+                                InputProps={{readOnly: true}}
+                                fullWidth
+                            />
+                        </Box>
+                    )}
+                    <Box sx={{...actionGrid, mt: 2}}>
+                        <Button
+                            variant="contained"
+                            disabled={!keys || busy || running || !auth.trustee}
+                            onClick={() => {
+                                void start()
+                            }}
+                        >
+                            Start browser trustee
+                        </Button>
+                        <Button variant="outlined" disabled={!running} onClick={stop}>
+                            Stop browser trustee
+                        </Button>
+                    </Box>
+                    <Typography role="status" sx={{my: 2}}>
+                        {browserStatus}
+                    </Typography>
+                    <Box component="section" aria-labelledby="trustee-history-heading" sx={{my: 2}}>
+                        <Typography id="trustee-history-heading" variant="h6" component="h3">
+                            Local session history
+                        </Typography>
+                        <Typography sx={{my: 1}}>
+                            History is read from this browser using the loaded signing key and board
+                            service URL. These are the records the trustee reads when resuming a
+                            session. Counts confirm readable history, not a completed ceremony.
+                        </Typography>
+                        <Button
+                            variant="outlined"
+                            disabled={!keys || busy || running}
+                            onClick={() => {
+                                void perform(async () => readHistory(engine.current))
+                            }}
+                            sx={{minHeight: 44, my: 1}}
+                        >
+                            Refresh local history
+                        </Button>
+                        {!keys && (
+                            <Typography>
+                                Import your private keys or restore a browser backup to inspect
+                                history.
                             </Typography>
-
-                            <Collapse in={boardSummary.length > 0}>
-                                <Box mt={3}>
-                                    <Typography variant="subtitle2">
-                                        Local Board ({boardSummary.length})
+                        )}
+                        {historyError && (
+                            <Alert severity="error">
+                                Unable to read local history: {historyError}
+                            </Alert>
+                        )}
+                        {history && (
+                            <>
+                                <Typography sx={{overflowWrap: "anywhere", my: 1}}>
+                                    Browser: {window.location.origin} · Board service:{" "}
+                                    {history.board_url}
+                                </Typography>
+                                {history.stores.length === 0 && (
+                                    <Typography>
+                                        No known sessions. Refresh boards to include assigned
+                                        sessions.
                                     </Typography>
-                                    <List dense>
-                                        {Object.entries(
-                                            boardSummary.reduce<Record<string, any[]>>(
-                                                (acc, s: any) => {
-                                                    ;(acc[s.kind] ??= []).push(s)
-                                                    return acc
-                                                },
-                                                {}
-                                            )
-                                        ).map(([kind, items]) => (
-                                            <ListItem key={kind} disablePadding>
-                                                <ListItemButton>
-                                                    <ListItemText
-                                                        primary={kind}
-                                                        secondary={items
-                                                            .map((s: any) =>
-                                                                s.signer === 4294967295
-                                                                    ? "PM"
-                                                                    : `T${s.signer}`
-                                                            )
-                                                            .join(", ")}
-                                                    />
-                                                </ListItemButton>
-                                            </ListItem>
-                                        ))}
-                                    </List>
-                                </Box>
-                            </Collapse>
-                        </CardContent>
-                    </Card>
-                </Grid>
-
-                {/* Board Selection */}
-                <Grid size={{xs: 12, lg: 6}}>
-                    <Card>
-                        <CardHeader title="Board Selection" />
-                        <CardContent>
-                            <Box display="flex" gap={2}>
+                                )}
+                                {history.stores.length > 0 && (
+                                    <Accordion
+                                        disableGutters
+                                        sx={{mt: 2}}
+                                        slotProps={{transition: {unmountOnExit: true}}}
+                                    >
+                                        <AccordionSummary
+                                            id="trustee-history-entries-heading"
+                                            aria-controls="trustee-history-entries-content"
+                                            expandIcon={<ExpandMoreIcon />}
+                                        >
+                                            <Typography component="span">
+                                                Session entries ({history.stores.length})
+                                            </Typography>
+                                        </AccordionSummary>
+                                        <AccordionDetails>
+                                            {history.stores.map((store) => (
+                                                <Box
+                                                    key={store.board}
+                                                    sx={{
+                                                        border: "1px solid",
+                                                        borderColor: "divider",
+                                                        borderRadius: 1,
+                                                        p: 2,
+                                                        my: 1,
+                                                        overflowWrap: "anywhere",
+                                                    }}
+                                                >
+                                                    <Typography>{store.board}</Typography>
+                                                    <Typography>
+                                                        {store.predicates === 0
+                                                            ? "Empty history"
+                                                            : "History available"}{" "}
+                                                        · {store.predicates} records ·{" "}
+                                                        {store.own_posts} own posts
+                                                    </Typography>
+                                                    {store.predicates === 0 &&
+                                                        boards.some(
+                                                            (board) => board.parent === store.board
+                                                        ) && (
+                                                            <Alert severity="warning" sx={{my: 1}}>
+                                                                Parent DKG history is empty. Restore
+                                                                the session backup for this identity
+                                                                before tallying. Imported elections
+                                                                may use history under the original
+                                                                DKG board.
+                                                            </Alert>
+                                                        )}
+                                                    <Typography variant="body2">
+                                                        {store.database}
+                                                    </Typography>
+                                                </Box>
+                                            ))}
+                                        </AccordionDetails>
+                                    </Accordion>
+                                )}
+                            </>
+                        )}
+                    </Box>
+                    <Accordion
+                        disableGutters
+                        sx={{mt: 2}}
+                        slotProps={{transition: {unmountOnExit: true}}}
+                    >
+                        <AccordionSummary
+                            id="browser-trustee-advanced-heading"
+                            aria-controls="browser-trustee-advanced-content"
+                            expandIcon={<ExpandMoreIcon />}
+                        >
+                            <Typography component="h3">Advanced</Typography>
+                        </AccordionSummary>
+                        <AccordionDetails>
+                            <Typography sx={{mb: 2}}>
+                                A running browser trustee generates signed custody proofs
+                                automatically when you upload the saved custody file in the ceremony
+                                or tally wizard. Use this option only when you need to create and
+                                upload a proof file yourself. Stop the browser trustee before
+                                generating a file.
+                            </Typography>
+                            <TextField
+                                label="Tally session ID"
+                                helperText="For a tally proof, copy the tally ID from the tally wizard. Leave blank for key-ceremony custody."
+                                value={tallyId}
+                                disabled={busy || running}
+                                onChange={(event) => setTallyId(event.target.value)}
+                                fullWidth
+                                sx={{mb: 2}}
+                            />
+                            <Box sx={actionGrid}>
                                 <Button
                                     variant="outlined"
-                                    startIcon={<RefreshIcon />}
-                                    onClick={fetchBoards}
-                                    disabled={!initialized}
+                                    disabled={!keys || busy || running}
+                                    onClick={() => custodyInput.current?.click()}
                                 >
-                                    Fetch Boards
+                                    Generate signed custody proof manually
                                 </Button>
                             </Box>
-
-                            {boards.length > 0 && (
-                                <List>
-                                    {boards.map((b) => (
-                                        <ListItem key={b.name} disablePadding>
-                                            <ListItemButton
-                                                selected={selectedBoard === b.name}
-                                                onClick={() => {
-                                                    setManualBoard(b.name)
-                                                    setSelectedBoard(b.name)
-                                                }}
-                                            >
-                                                <ListItemText primary={b.name} />
-                                            </ListItemButton>
-                                        </ListItem>
-                                    ))}
-                                </List>
-                            )}
-
-                            <Box display="flex" gap={2} mt={2}>
-                                <TextField
-                                    label="Board name"
-                                    fullWidth
-                                    value={manualBoard}
-                                    onChange={(e) => setManualBoard(e.target.value)}
-                                    placeholder="Or type manually"
-                                />
-                                <Button
-                                    variant="contained"
-                                    onClick={() => connect(manualBoard || selectedBoard)}
-                                    disabled={!initialized || !(manualBoard || selectedBoard)}
-                                >
-                                    Connect
-                                </Button>
-                            </Box>
-                        </CardContent>
-                    </Card>
-                </Grid>
-
-                {/* Storage Diagnostics */}
-                <Grid size={{xs: 12, lg: 6}}>
-                    <Card>
-                        <CardHeader
-                            title="💾 Storage Diagnostics"
-                            action={
-                                <Button
-                                    size="small"
-                                    startIcon={<RefreshIcon />}
-                                    onClick={updateStorageInfo}
-                                    disabled={!connected}
-                                >
-                                    Refresh
-                                </Button>
-                            }
-                        />
-                        <CardContent>
-                            {storageInfo ? (
-                                <Paper variant="outlined" sx={{p: 2}}>
-                                    <Grid container spacing={2}>
-                                        <Grid size={12}>
-                                            <Typography variant="caption" color="text.secondary">
-                                                Backend:
-                                            </Typography>
-                                            <Typography variant="body2">
-                                                {storageInfo.backend_type}
-                                            </Typography>
-                                        </Grid>
-                                        <Grid size={6}>
-                                            <Typography variant="caption" color="text.secondary">
-                                                Total Messages:
-                                            </Typography>
-                                            <Typography variant="body2">
-                                                {storageInfo.total_messages}
-                                            </Typography>
-                                        </Grid>
-                                        <Grid size={6}>
-                                            <Typography variant="caption" color="text.secondary">
-                                                Max Internal ID:
-                                            </Typography>
-                                            <Typography variant="body2" color="success.main">
-                                                {storageInfo.max_internal_id}
-                                            </Typography>
-                                            <Typography variant="caption" sx={{fontSize: "0.7rem"}}>
-                                                (locally-controlled, security-critical)
-                                            </Typography>
-                                        </Grid>
-                                        <Grid size={12}>
-                                            <Typography variant="caption" color="text.secondary">
-                                                Max External ID:
-                                            </Typography>
-                                            <Typography variant="body2" color="warning.main">
-                                                {storageInfo.max_external_id}
-                                            </Typography>
-                                            <Typography variant="caption" sx={{fontSize: "0.7rem"}}>
-                                                (bulletin board ID, optimization only)
-                                            </Typography>
-                                        </Grid>
-                                        {storageInfo.extra_info && (
-                                            <Grid size={12}>
-                                                <Divider sx={{my: 1}} />
-                                                <Typography
-                                                    variant="caption"
-                                                    color="text.secondary"
-                                                >
-                                                    {storageInfo.extra_info}
-                                                </Typography>
-                                            </Grid>
-                                        )}
-                                    </Grid>
-                                </Paper>
-                            ) : (
-                                <Typography color="text.secondary" sx={{fontStyle: "italic"}}>
-                                    Connect to a board to see storage information
-                                </Typography>
-                            )}
-                        </CardContent>
-                    </Card>
-                </Grid>
-
-                {/* Console */}
-                <Grid size={{xs: 12, lg: 6}}>
-                    <Card>
-                        <CardHeader
-                            title="Console Output"
-                            avatar={<TerminalIcon />}
-                            action={
-                                <IconButton onClick={() => setConsoleLog([])}>
-                                    <ClearIcon />
-                                </IconButton>
-                            }
-                        />
-                        <CardContent>
-                            <Paper
-                                variant="outlined"
-                                sx={{
-                                    bgcolor: "#1e1e1e",
-                                    color: "#d4d4d4",
-                                    p: 2,
-                                    fontFamily: "Monospace",
-                                    fontSize: "0.8rem",
-                                    maxHeight: 400,
-                                    overflow: "auto",
+                            <input
+                                ref={custodyInput}
+                                aria-label="Custody file"
+                                type="file"
+                                hidden
+                                accept=".json"
+                                onChange={(event) => {
+                                    prove(event.target.files?.[0])
+                                    event.target.value = ""
                                 }}
-                            >
-                                {consoleLog.length === 0 ? (
-                                    <Typography color="gray">No logs yet</Typography>
-                                ) : (
-                                    consoleLog.map((line, i) => <div key={i}>{line}</div>)
-                                )}
-                                <div ref={consoleEndRef} />
-                            </Paper>
-                        </CardContent>
-                    </Card>
-                </Grid>
-            </Grid>
+                            />
+                        </AccordionDetails>
+                    </Accordion>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardContent>
+                    <Typography variant="h6" component="h2">
+                        Local trustee tool
+                    </Typography>
+                    <Box component="pre" sx={codeExample}>
+                        <code>{`trustee generate --trustee-config ${keysFilename}
+trustee start --trustee-config ${keysFilename}`}</code>
+                    </Box>
+                    <Typography>
+                        Register both public keys printed by generate. Keep a private backup of{" "}
+                        {keysFilename} and the message_store directory.
+                    </Typography>
+                    <Typography sx={{mt: 2}}>
+                        For a manual ceremony, download its custody file and create a signed custody
+                        proof to upload to the portal:
+                    </Typography>
+                    <Box component="pre" sx={codeExample}>
+                        <code>{`trustee attest --request ${requestFilename} --trustee-config ${keysFilename} --output ${proofFilename}`}</code>
+                    </Box>
+                    <Typography>
+                        For a tally restore, add --tally-session-id with the tally session's ID. The
+                        proof contains a signature and public metadata.
+                    </Typography>
+                </CardContent>
+            </Card>
+            <Typography variant="h6" component="h2" sx={{mt: 3}}>
+                Boards assigned to {auth.trustee || "your trustee"}
+            </Typography>
+            <Box
+                sx={{
+                    display: "grid",
+                    gridTemplateColumns: {xs: "1fr", sm: "minmax(0, 1fr) auto"},
+                    alignItems: "center",
+                    gap: 2,
+                    my: 2,
+                }}
+            >
+                <TextField
+                    label="Platform URL"
+                    value={platform}
+                    InputProps={{readOnly: true}}
+                    fullWidth
+                />
+                <Button
+                    variant="outlined"
+                    onClick={refresh}
+                    disabled={loading}
+                    sx={{minHeight: 44}}
+                >
+                    {loading ? "Loading boards…" : "Refresh boards"}
+                </Button>
+            </Box>
+            {error && <Alert severity="error">{error}</Alert>}
+            {loaded && boards.length === 0 && (
+                <Typography>No boards are currently assigned.</Typography>
+            )}
+            {boards.map((board) => (
+                <Card key={board.name} sx={{my: 1}}>
+                    <CardContent>
+                        <Typography sx={{overflowWrap: "anywhere"}}>{board.name}</Typography>
+                        <Typography>
+                            {board.kind}
+                            {board.parent ? ` · Parent: ${board.parent}` : ""}
+                        </Typography>
+                    </CardContent>
+                </Card>
+            ))}
         </Box>
     )
 }

@@ -204,6 +204,24 @@ fn a_profile_may_fix_a_field_an_empty_plan_leaves_out() {
 }
 
 #[test]
+fn a_profile_may_hide_the_reports_and_every_field_of_one() {
+    let hidden = [
+        "reports",
+        "reports[].report_type",
+        "reports[].election",
+        "reports[].formats",
+        "reports[].copies",
+        "reports[].template",
+    ];
+    let document = ClientProfile {
+        id: "acme".to_string(),
+        hidden: hidden.iter().map(|path| path.to_string()).collect(),
+        ..Default::default()
+    };
+    assert!(Profile::read(&document).is_ok());
+}
+
+#[test]
 fn a_path_reaching_into_a_contest_is_accepted() {
     profile_of(ClientProfile {
         id: "acme".to_string(),

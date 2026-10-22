@@ -12,6 +12,11 @@ import Template from "./Template"
 const Login = lazy(() => import("./pages/Login"))
 const LoginUsername = lazy(() => import("./pages/LoginUsername"))
 const MessageOtpLogin = lazy(() => import("./pages/MessageOtpLogin"))
+const ScanovateCapture = lazy(() => import("./pages/ScanovateCapture"))
+const ScanovateError = lazy(() => import("./pages/ScanovateError"))
+const ScanovateConfirmation = lazy(() => import("./pages/ScanovateConfirmation"))
+const Register = lazy(() => import("./pages/Register"))
+const EnrollmentFinish = lazy(() => import("./pages/EnrollmentFinish"))
 const UserProfileFormFields = lazy(() => import("keycloakify/login/UserProfileFormFields"))
 
 const classes = {} satisfies {[key in ClassKey]?: string}
@@ -54,7 +59,63 @@ export default function KcPage(props: {kcContext: KcContext}) {
                                 classes={classes}
                             />
                         )
+                    case "scanovate-capture.ftl":
+                        return (
+                            <ScanovateCapture
+                                kcContext={kcContext}
+                                i18n={i18n}
+                                Template={Template}
+                                doUseDefaultCss={false}
+                                classes={classes}
+                            />
+                        )
+                    case "scanovate-error.ftl":
+                        return (
+                            <ScanovateError
+                                kcContext={kcContext}
+                                i18n={i18n}
+                                Template={Template}
+                                doUseDefaultCss={false}
+                                classes={classes}
+                            />
+                        )
+                    case "scanovate-confirmation.ftl":
+                        return (
+                            <ScanovateConfirmation
+                                kcContext={kcContext}
+                                i18n={i18n}
+                                Template={Template}
+                                doUseDefaultCss={false}
+                                classes={classes}
+                            />
+                        )
+                    case "register.ftl":
+                        return (
+                            <Register
+                                kcContext={kcContext}
+                                i18n={i18n}
+                                Template={Template}
+                                doUseDefaultCss={false}
+                                classes={classes}
+                            />
+                        )
+                    case "registration-finish.ftl":
+                    case "registration-manual-finish.ftl":
+                    case "registration-rejected-finish.ftl":
+                    case "message-finish.ftl":
+                        return (
+                            <EnrollmentFinish
+                                kcContext={kcContext}
+                                i18n={i18n}
+                                Template={Template}
+                                doUseDefaultCss={false}
+                                classes={classes}
+                            />
+                        )
                     // Synthetic fallback; mounted themes inherit unported FreeMarker pages.
+                    // Intended for the contact change (message-otp.enter-app-contact.ftl and
+                    // message-otp.enter-otp.ftl): the voter sees the FreeMarker pages, and their
+                    // resetAppOtp.* texts come from the server bundles through context.ftl.
                     default:
                         return (
                             <DefaultPage

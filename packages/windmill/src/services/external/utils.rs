@@ -8,7 +8,7 @@ use crate::postgres::election_event::update_election_event_annotations;
 use crate::postgres::election_event::{get_all_tenant_election_events, ElectionEventDatafix};
 use crate::services::consolidation::eml_generator::ValidateAnnotations;
 use crate::services::electoral_log::ElectoralLog;
-use crate::services::protocol_manager::get_event_board;
+use crate::services::electoral_log_board::get_event_board;
 use crate::services::users::get_users_by_username;
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
@@ -65,8 +65,10 @@ pub fn remove_datafix_annotations(annotations: Option<&mut serde_json::Value>) {
     }
 }
 
-/// Returns true if the voter has voted via Sequent´s system -
+/// Returns true if the voter is recorded as having voted via Sequent´s system -
 /// this is if VOTED_CHANNEL attribute is set to VOTED_CHANNEL_INTERNET_VALUE.
+/// A voter can hold a valid online ballot without it, so this is not a test
+/// for the ballot itself.
 #[instrument(skip_all)]
 pub fn voted_via_internet(attributes: &HashMap<String, Vec<String>>) -> bool {
     match attributes.iter().find(|tupple| tupple.0.eq(VOTED_CHANNEL)) {

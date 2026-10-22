@@ -747,6 +747,48 @@ test("register pages render the realm's User Profile metadata", async ({page}) =
     }
 })
 
+test("register pages keep the submit button in view on a phone", async ({page}) => {
+    const token = await adminToken()
+    const realm = (await (await admin(token, "GET", "")).json()) as Json
+    const profile = (await (await admin(token, "GET", "/users/profile")).json()) as Json
+    await admin(token, "PUT", "", {...realm, registrationAllowed: true})
+    await admin(token, "PUT", "/users/profile", {
+        ...profile,
+        attributes: [...(profile.attributes as Json[]), ...PROFILE_ATTRIBUTES],
+    })
+    try {
+        // A phone with its keyboard open: the form is taller than what is left.
+        const height = 360
+        await page.setViewportSize({width: 390, height})
+        for (const theme of [Theme.Ftl, Theme.React]) {
+            const parameters = new URLSearchParams({
+                client_id: CLIENT_IDS[theme],
+                redirect_uri: CALLBACK,
+                response_type: "code",
+                scope: "openid",
+            })
+            await page.goto(
+                `${KEYCLOAK}/realms/${REALM}/protocol/openid-connect/registrations?${parameters}`
+            )
+            const form = page.locator("#kc-register-form")
+            const submit = form.locator("#kc-form-buttons [type='submit']")
+            await expect(submit).toBeVisible()
+            // The form is taller than the screen, and its button stays at the bottom.
+            expect((await form.boundingBox())!.height).toBeGreaterThan(height)
+            const box = (await submit.boundingBox())!
+            expect(box.y + box.height).toBeLessThanOrEqual(height)
+            await expect(
+                page.locator(
+                    "#kc-register-form > #kc-form-buttons, #kc-register-form > :has(> #kc-form-buttons)"
+                )
+            ).toHaveCSS("position", "sticky")
+        }
+    } finally {
+        await admin(token, "PUT", "/users/profile", profile)
+        await admin(token, "PUT", "", {...realm, registrationAllowed: realm.registrationAllowed})
+    }
+})
+
 async function selectVotingTheme(token: string, theme: Theme): Promise<void> {
     const [client] = (await (
         await admin(token, "GET", `/clients?clientId=${CLIENT_IDS[theme]}`)

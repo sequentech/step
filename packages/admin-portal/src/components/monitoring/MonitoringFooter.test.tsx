@@ -7,6 +7,11 @@ import {render, screen} from "@testing-library/react"
 import "@testing-library/jest-dom"
 import {MonitoringFooter} from "./MonitoringFooter"
 
+// Exercise the real timezone formatter without loading the shared UI barrel.
+jest.mock("@sequentech/ui-core", () => ({
+    ...jest.requireActual("../../../../ui-core/src/services/timeZones"),
+}))
+
 jest.mock("react-i18next", () => ({
     useTranslation: () => ({
         t: (key: string, options?: Record<string, unknown>) =>
@@ -27,7 +32,7 @@ describe("MonitoringFooter", () => {
         )
         expect(
             screen.getByText(
-                /^All regions · Dubai PCG · monitoring\.footer\.dataThrough \{"time":"[^"]*10:00[^"]*","timeZone":"Asia\/Manila"\}$/
+                /^All regions · Dubai PCG · monitoring\.footer\.dataThrough \{"time":"[^"]*10:00[^"]*","timeZone":"PhST"\}$/
             )
         ).toBeInTheDocument()
         expect(screen.getByText("SW-F-0259, SW-F-0371")).toBeInTheDocument()

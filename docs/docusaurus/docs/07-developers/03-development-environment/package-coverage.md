@@ -45,6 +45,11 @@ isolation themselves. Database and browser fixtures must be installed locally;
 never substitute a deployment endpoint or production credentials. Use focused
 Cargo tests while editing and a complete measurement after the changes stabilize.
 
+The Windmill and error-conversion macro profiles set both
+`WBRAID_BOARD_DATABASE_URL` and `WBRAID_B4_PG_PASSWORD` to the synthetic fixture.
+The password setting takes precedence over credentials in the URL, so declaring
+both prevents an inherited development credential from breaking archive tests.
+
 ## Interpret the reports
 
 - Lines, functions and LLVM regions are distinct native metrics. LLVM regions
@@ -86,6 +91,14 @@ Prepare two clean checkouts and their locked dependencies, then run:
 python3 scripts/coverage/ci.py rust sequent-core \
   --base ../step-base --head . --output ../coverage-comparison
 ```
+
+Native commands default to a 1,200-second timeout. Set
+`NATIVE_COVERAGE_TIMEOUT_SECONDS` to an integer from 1 through 3,600 to change
+that bound for both the paired runner and its native measurement commands.
+The hosted Windmill and Wrap Map Err comparisons use 3,600 seconds per command
+and a 150-minute job limit for both revisions, setup and artifact publication.
+Other profiles retain their existing limits. Cancellation stops the owned
+measurement and its Cargo process group before reporting incomplete evidence.
 
 Exit `0` means no decrease, `1` means a regression, and `2` means invalid or
 incomplete evidence. Failed tests, empty reports, changed source, incompatible
@@ -133,7 +146,7 @@ source counters. Preserve local fixture isolation when adding browser scenarios.
 ## Package guides
 
 - [Sequent Core Tests](testing/sequent-core.md)
-- [Strand boundary tests](testing/strand.md)
+- [Voting crypto boundary tests](testing/voting-crypto.md)
 - [Error conversion macro tests](testing/wrap-map-err.md)
 - [Harvest request boundary tests](testing/harvest.md)
 - [Windmill boundary tests](../08-windmill/test-coverage.md)

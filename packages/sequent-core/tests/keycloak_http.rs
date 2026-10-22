@@ -11,9 +11,13 @@ mod http;
 
 use http::{Exchange, HttpServer};
 use keycloak::types::{GroupRepresentation, RoleRepresentation};
-use sequent_core::services::keycloak::RoleAction;
+use sequent_core::services::keycloak::{
+    partial_import_realm_roles, IfResourceExists, PartialImportSummary,
+    RoleAction,
+};
 use sequent_core::types::keycloak::{Permission, Role};
 use serde_json::{json, Value};
+use std::collections::HashMap;
 
 const REALM: &str = "tenant-north";
 const GROUPS: &str = "/admin/realms/tenant-north/groups";
@@ -1028,5 +1032,290 @@ async fn group_creation_requires_the_requested_realm_and_group_resource() {
                 assert!(result.is_err(), "accepted wrong resource: {location}")
             }
         }
+    }
+}
+
+/// Adding roles to an existing realm sends only the roles and the policy,
+/// so nothing else in the realm is touched, and reports what Keycloak did.
+#[rocket::async_test]
+async fn a_roles_partial_import_sends_only_the_roles_and_its_policy() {
+    let peer = HttpServer::start(vec![Exchange::json(
+        "POST",
+        "/admin/realms/tenant-north/partialImport",
+        200,
+        json!({"added": 1, "skipped": 1, "overwritten": 0, "results": []}),
+    )]);
+    let roles = vec![
+        RoleRepresentation {
+            name: Some("read".into()),
+            description: Some("Read".into()),
+            ..Default::default()
+        },
+        RoleRepresentation {
+            name: Some("write".into()),
+            ..Default::default()
+        },
+    ];
+    let summary = partial_import_realm_roles(
+        &peer.public_client(),
+        REALM,
+        &roles,
+        IfResourceExists::Skip,
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        summary,
+        PartialImportSummary {
+            added: 1,
+            skipped: 1,
+            overwritten: 0
+        }
+    );
+    let requests = peer.finish();
+    assert_eq!(requests.len(), 1);
+    assert_eq!(
+        requests[0].headers.get("authorization").map(String::as_str),
+        Some("Bearer synthetic-access-token")
+    );
+    assert_eq!(
+        requests[0].json(),
+        json!({
+            "ifResourceExists": "SKIP",
+            "roles": {"realm": [
+                {"name": "read", "description": "Read"},
+                {"name": "write"},
+            ]},
+        })
+    );
+}
+
+#[rocket::async_test]
+async fn a_refused_roles_partial_import_is_an_error() {
+    let peer = HttpServer::start(vec![Exchange::json(
+        "POST",
+        "/admin/realms/tenant-north/partialImport",
+        404,
+        json!({"error": "Realm not found."}),
+    )]);
+    let result = partial_import_realm_roles(
+        &peer.public_client(),
+        REALM,
+        &[],
+        IfResourceExists::Skip,
+    )
+    .await;
+    assert!(result.is_err(), "{result:?}");
+    peer.finish();
+}
+
+#[rocket::async_test]
+async fn a_roles_partial_import_rejects_a_realm_that_leaves_its_segment() {
+    let peer = HttpServer::start(vec![]);
+    let result = partial_import_realm_roles(
+        &peer.public_client(),
+        "../../other-realm",
+        &[],
+        IfResourceExists::Skip,
+    )
+    .await;
+    assert!(result.is_err(), "{result:?}");
+    assert!(peer.finish().is_empty());
+}
+
+#[rocket::async_test]
+async fn identifiers_that_leave_their_path_segment_are_rejected_before_any_request(
+) {
+    let peer = HttpServer::start(vec![]);
+    let public = peer.public_client();
+    let bad = "../../other-realm";
+    let locales = HashMap::from([(bad.to_string(), HashMap::new())]);
+    let rejected = [
+        peer.client()
+            .create_permission(bad, &permission())
+            .await
+            .is_err(),
+        peer.client().get_realm(&public, bad).await.is_err(),
+        peer.client()
+            .get_flow_executions(&public, bad, "flow")
+            .await
+            .is_err(),
+        peer.client()
+            .get_flow_executions(&public, "north", bad)
+            .await
+            .is_err(),
+        peer.client()
+            .upsert_flow_execution(&public, bad, "flow", "{}")
+            .await
+            .is_err(),
+        peer.client()
+            .upsert_flow_execution(&public, "north", bad, "{}")
+            .await
+            .is_err(),
+        peer.client()
+            .partial_import_realm_with_cleanup(
+                &public,
+                bad,
+                "container",
+                vec![],
+                vec![],
+                "SKIP",
+            )
+            .await
+            .is_err(),
+        peer.client()
+            .realm_delete(&public, bad, "groups", "group-1")
+            .await
+            .is_err(),
+        peer.client()
+            .realm_delete(&public, "north", bad, "group-1")
+            .await
+            .is_err(),
+        peer.client()
+            .realm_delete(&public, "north", "groups", bad)
+            .await
+            .is_err(),
+        peer.client()
+            .create_new_group(bad, "Clerks", &public)
+            .await
+            .is_err(),
+        peer.client()
+            .add_roles_to_group(
+                bad,
+                &public,
+                "group-1",
+                &vec![],
+                RoleAction::Add,
+            )
+            .await
+            .is_err(),
+        peer.client()
+            .add_roles_to_group("north", &public, bad, &vec![], RoleAction::Add)
+            .await
+            .is_err(),
+        peer.client()
+            .get_group_assigned_roles(bad, "group-1", &public)
+            .await
+            .is_err(),
+        peer.client()
+            .get_group_assigned_roles("north", bad, &public)
+            .await
+            .is_err(),
+        peer.client()
+            .update_localization_texts_from_import(None, &public, bad)
+            .await
+            .is_err(),
+        peer.client()
+            .update_localization_texts_from_import(
+                Some(locales),
+                &public,
+                "north",
+            )
+            .await
+            .is_err(),
+    ];
+    assert!(!rejected.contains(&false), "{rejected:?}");
+    assert!(peer.finish().is_empty());
+}
+
+#[test]
+fn partial_import_policies_have_keycloak_names() {
+    for (policy, name) in [
+        (IfResourceExists::Fail, "FAIL"),
+        (IfResourceExists::Skip, "SKIP"),
+        (IfResourceExists::Overwrite, "OVERWRITE"),
+    ] {
+        assert_eq!(serde_json::to_value(policy).unwrap(), json!(name));
+    }
+}
+
+const RESERVED_NAMES: [&str; 5] = [
+    "admin",
+    "service-account",
+    "datafix-account",
+    "super-admin-user",
+    "cli-account-admin",
+];
+
+fn permission_named(name: &str) -> Permission {
+    serde_json::from_value(json!({ "name": name })).unwrap()
+}
+
+#[rocket::async_test]
+async fn reserved_permission_names_are_not_created() {
+    for name in RESERVED_NAMES
+        .into_iter()
+        .chain(["Service-Account", " admin "])
+    {
+        let peer = HttpServer::start(vec![]);
+
+        let result = peer
+            .client()
+            .create_permission(REALM, &permission_named(name))
+            .await;
+
+        assert!(result.is_err(), "{name:?} was created");
+        assert!(peer.finish().is_empty(), "{name:?} reached Keycloak");
+    }
+}
+
+#[rocket::async_test]
+async fn reserved_permission_names_are_not_assigned_to_a_role() {
+    for name in RESERVED_NAMES {
+        let peer = HttpServer::start(vec![]);
+
+        let single = peer
+            .client()
+            .set_role_permission(REALM, "group-1", name)
+            .await;
+        let bulk = peer
+            .client()
+            .set_role_permissions(
+                REALM,
+                "group-1",
+                &vec!["read".into(), name.into()],
+            )
+            .await;
+
+        assert!(single.is_err() && bulk.is_err(), "{name:?} was assigned");
+        assert!(peer.finish().is_empty(), "{name:?} reached Keycloak");
+    }
+}
+
+#[rocket::async_test]
+async fn a_reserved_permission_reached_by_another_spelling_is_not_assigned() {
+    for requested in ["%73ervice-account", "other/../service-account"] {
+        let peer = HttpServer::start(vec![]);
+
+        let single = peer
+            .client()
+            .set_role_permission(REALM, "group-1", requested)
+            .await;
+        let bulk = peer
+            .client()
+            .set_role_permissions(REALM, "group-1", &vec![requested.into()])
+            .await;
+
+        assert!(
+            single.is_err() && bulk.is_err(),
+            "{requested:?} was assigned"
+        );
+        assert!(peer.finish().is_empty(), "{requested:?} reached Keycloak");
+    }
+}
+
+#[rocket::async_test]
+async fn a_role_with_a_reserved_permission_is_not_created() {
+    for name in RESERVED_NAMES {
+        let peer = HttpServer::start(vec![]);
+        let role: Role = serde_json::from_value(
+            json!({"name": "Clerks", "permissions": ["read", name]}),
+        )
+        .unwrap();
+
+        let result = peer.client().create_role(REALM, &role).await;
+
+        assert!(result.is_err(), "a role with {name:?} was created");
+        assert!(peer.finish().is_empty(), "{name:?} reached Keycloak");
     }
 }

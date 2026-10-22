@@ -793,6 +793,8 @@ fn labelled_report(
         cron_config: None,
         created_at: chrono::DateTime::UNIX_EPOCH,
         permission_label: Some(vec![label.into()]),
+        copies: None,
+        output_formats: None,
     }
 }
 
@@ -1337,6 +1339,50 @@ fn a_cast_vote_logs_policy_the_platform_does_not_have_is_refused() {
 }
 
 #[test]
+fn a_period_for_checking_ballots_needs_a_date_with_an_offset() {
+    for receipts in [
+        serde_json::json!({"checks_period_policy": "until-date"}),
+        serde_json::json!({
+            "checks_period_policy": "until-date",
+            "checks_available_until": "2028-06-07T23:59"
+        }),
+        serde_json::json!({"checks_period_policy": "for-a-week"}),
+    ] {
+        let mut bundle = sound();
+        bundle.election_event.presentation =
+            Some(serde_json::json!({ "receipts": receipts }));
+
+        let report = validate(&bundle);
+        assert!(report.has_errors(), "{receipts} was accepted");
+        assert!(report.problems.iter().any(|problem| problem
+            .message
+            .contains("the period for checking ballots is not valid")));
+    }
+}
+
+#[test]
+fn a_period_for_checking_ballots_is_optional_and_may_be_in_the_past() {
+    for receipts in [
+        serde_json::Value::Null,
+        serde_json::json!({}),
+        serde_json::json!({"checks_period_policy": "unlimited"}),
+        serde_json::json!({
+            "checks_period_policy": "until-date",
+            "checks_available_until": "2028-06-07T23:59:00+08:00"
+        }),
+        serde_json::json!({
+            "checks_period_policy": "until-date",
+            "checks_available_until": "2020-01-01T00:00:00Z"
+        }),
+    ] {
+        let mut bundle = sound();
+        bundle.election_event.presentation =
+            Some(serde_json::json!({ "receipts": receipts }));
+        assert!(!validate(&bundle).has_errors(), "{receipts} was refused");
+    }
+}
+
+#[test]
 fn a_voter_can_look_up_their_ballot_unless_asked_otherwise() {
     for value in ["show-logs-tab", "hide-logs-tab"] {
         let mut bundle = sound();
@@ -1532,6 +1578,96 @@ fn a_grandchild_area_inherits_the_contest_linked_two_levels_up() {
     );
 }
 
+// -- signing configuration ------------------------------------------------
+
+fn with_signing(rules: serde_json::Value) -> ImportElectionEventSchema {
+    let mut bundle = sound();
+    bundle.signing_rules = Some(serde_json::from_value(rules).unwrap());
+    bundle
+}
+
+fn signing_problem_ids(bundle: &ImportElectionEventSchema) -> Vec<String> {
+    validate(bundle)
+        .problems
+        .iter()
+        .filter(|problem| problem.severity == Severity::Error)
+        .filter_map(|problem| problem.id.clone())
+        .filter(|id| id.starts_with("signing."))
+        .collect()
+}
+
+#[test]
+fn sound_signing_rules_raise_nothing() {
+    let bundle = with_signing(serde_json::json!([
+        {"action": "open-voting", "requirement": "required", "signatures": 100,
+         "requester_signing": "allowed", "expires_minutes": 525600},
+        {"action": "approve-voter", "requirement": "required", "signatures": 1,
+         "requester_signing": "not-allowed", "expires_minutes": null},
+        {"action": "close-voting", "requirement": "required", "signatures": 2,
+         "requester_signing": "allowed", "expires_minutes": 1}
+    ]));
+    assert_eq!(signing_problem_ids(&bundle), Vec::<String>::new());
+}
+
+#[test]
+fn an_action_with_two_rules_is_refused() {
+    // Which one would win is anybody's guess, so neither does.
+    let bundle = with_signing(serde_json::json!([
+        {"action": "open-voting", "requirement": "required", "signatures": 2,
+         "requester_signing": "allowed"},
+        {"action": "open-voting", "requirement": "not-required", "signatures": 1,
+         "requester_signing": "allowed"}
+    ]));
+    assert_eq!(
+        signing_problem_ids(&bundle),
+        vec!["signing.duplicate-action"]
+    );
+    assert!(error_codes(&bundle).contains(&Code::DuplicateId));
+}
+
+#[test]
+fn signature_counts_outside_one_to_a_hundred_are_refused() {
+    for signatures in [0, 101] {
+        let bundle = with_signing(serde_json::json!([
+            {"action": "close-voting", "requirement": "required",
+             "signatures": signatures, "requester_signing": "allowed"}
+        ]));
+        assert_eq!(
+            signing_problem_ids(&bundle),
+            vec!["signing.signatures-out-of-range"],
+            "{signatures}"
+        );
+        let report = validate(&bundle);
+        let problem = report
+            .problems
+            .iter()
+            .find(|problem| {
+                problem.id.as_deref() == Some("signing.signatures-out-of-range")
+            })
+            .unwrap();
+        assert_eq!(problem.details["min"], "1");
+        assert_eq!(
+            problem.details["max"],
+            crate::signing::MAX_SIGNATURES.to_string()
+        );
+    }
+}
+
+#[test]
+fn expiries_outside_a_minute_to_a_year_are_refused() {
+    for minutes in [0, 525601] {
+        let bundle = with_signing(serde_json::json!([
+            {"action": "close-voting", "requirement": "required", "signatures": 2,
+             "requester_signing": "allowed", "expires_minutes": minutes}
+        ]));
+        assert_eq!(
+            signing_problem_ids(&bundle),
+            vec!["signing.expiry-out-of-range"],
+            "{minutes}"
+        );
+    }
+}
+
 /// Every id named in a source file, in order.
 fn ids_in(source: &str) -> Vec<&str> {
     let mut names = Vec::new();
@@ -1614,4 +1750,62 @@ fn a_bundle_problem_carries_its_specifics() {
     assert_eq!(problem.details["min"], "3");
     assert_eq!(problem.details["max"], "1");
     assert_eq!(problem.code, Code::ContestArithmetic);
+}
+
+// -- slates -----------------------------------------------------------------
+
+/// The sound bundle with one slate naming one candidate for president.
+fn with_slate(candidate_id: &str) -> ImportElectionEventSchema {
+    let mut bundle = sound();
+    let slates = serde_json::json!({
+        "version": 1,
+        "slates": [{
+            "id": "forward-together",
+            "name": {"en": "Forward Together"},
+            "members": {
+                "c1000000-0000-5000-8000-000000000000": [candidate_id]
+            }
+        }]
+    });
+    bundle.elections[0].annotations = Some(serde_json::json!({
+        crate::election_config::slates::SLATES_ANNOTATION: slates.to_string()
+    }));
+    bundle
+}
+
+#[test]
+fn slates_that_resolve_are_accepted() {
+    let bundle = with_slate("d1000000-0000-5000-8000-000000000000");
+    assert_eq!(error_codes(&bundle), Vec::new());
+}
+
+#[test]
+fn a_slate_naming_a_candidate_the_bundle_lacks_is_refused() {
+    let bundle = with_slate("d9000000-0000-5000-8000-000000000000");
+    let report = validate(&bundle);
+    let problem = report.errors().next().expect("a slate problem");
+    assert_eq!(problem.code, Code::DanglingReference);
+    assert!(problem
+        .path
+        .starts_with("elections[0].annotations.sequent.slates"));
+    assert_eq!(problem.external_id.as_deref(), Some("officers"));
+}
+
+#[cfg(feature = "keycloak")]
+#[test]
+fn slates_still_resolve_after_the_importer_regenerates_ids() {
+    let bundle = with_slate("d1000000-0000-5000-8000-000000000000");
+    let document = serde_json::to_string(&bundle).unwrap();
+    let (remapped, replaced) = crate::services::replace_uuids::replace_uuids(
+        &document,
+        vec![TENANT.to_string()],
+    );
+    assert!(replaced.contains_key("d1000000-0000-5000-8000-000000000000"));
+    let imported: ImportElectionEventSchema =
+        serde_json::from_str(&remapped).unwrap();
+    assert_eq!(error_codes(&imported), Vec::new());
+    let annotations = imported.elections[0].annotations.as_ref().unwrap();
+    assert!(!annotations
+        .to_string()
+        .contains("d1000000-0000-5000-8000-000000000000"));
 }

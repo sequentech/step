@@ -52,8 +52,11 @@ use crate::election_config::policy::{Behaviour, Overrides};
 use crate::election_config::problem::{Code, Problem, Report, Severity};
 use crate::election_config::profile::{apply_profile, check_required, Profile};
 use crate::election_config::render::TemplateSet;
+use crate::election_config::report::{ReportFormat, ReportType};
 use crate::election_config::schema::ImportElectionEventSchema;
-use crate::election_config::sheet::{Row, Sheet, Workbook, SHEET_PARAMETERS};
+use crate::election_config::sheet::{
+    Row, Sheet, Workbook, SHEET_PARAMETERS, SHEET_REPORTS,
+};
 use crate::election_config::sources::{self, Sources};
 use crate::election_config::time::{self, Timestamp};
 use crate::election_config::validate::{ALLOW_EARLY_VOTING, NO_EARLY_VOTING};
@@ -730,6 +733,37 @@ pub struct Blueprint {
     /// the passwords it sent out — see [`super::password`].
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub passwords: Option<super::password::PasswordRecipe>,
+
+    /// The reports the platform generates for this event: how many copies,
+    /// in which formats and with which design.
+    ///
+    /// Written into the Reports sheet `build` reads, beside the rows of a
+    /// Reports sheet carried in [`Self::platform`]. Skipped when empty, so a
+    /// plan written before this field is unchanged.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub reports: Vec<PlannedReport>,
+}
+
+/// One report the platform generates.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PlannedReport {
+    pub report_type: ReportType,
+    /// The election it is about, by external id. `None` for the event.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub election: Option<String>,
+    /// Empty means the type's default.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub formats: Vec<ReportFormat>,
+    #[serde(default = "one_copy")]
+    pub copies: u32,
+    /// The alias of the template the report is drawn with: the
+    /// organization's design, from the Templates sheet.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub template: Option<String>,
+}
+
+fn one_copy() -> u32 {
+    1
 }
 
 impl Default for Blueprint {
@@ -1693,6 +1727,7 @@ pub fn validate_plan(plan: &Blueprint, sources: &Sources) -> Report {
     check_ballot(plan, &mut report);
     check_ivr(plan, &mut report);
     check_unique_identifiers(plan, &mut report);
+    check_reports(plan, &mut report);
 
     // There was a `messages.not-automatic` warning here, on every plan carrying a
     // message: `scheduled_events.rs` handles `SEND_TEMPLATE` with an empty arm, so
@@ -1744,6 +1779,82 @@ pub fn validate_plan(plan: &Blueprint, sources: &Sources) -> Report {
     }
 
     report
+}
+
+/// Whether each report can be generated as the plan asks: at least one copy,
+/// in formats its type has, about an election the plan has, and not set twice.
+fn check_reports(plan: &Blueprint, report: &mut Report) {
+    for (index, planned) in plan.reports.iter().enumerate() {
+        let path = format!("reports[{index}]");
+        let kind = planned.report_type.to_string();
+
+        if planned.copies == 0 {
+            report.push(
+                Problem::error(
+                    Code::InvalidValue,
+                    format!("{path}.copies"),
+                    format!("the {kind} report is set to print no copies"),
+                )
+                .id("reports.no-copies")
+                .detail("report", &kind),
+            );
+        }
+
+        for format in &planned.formats {
+            if !planned.report_type.formats().contains(format) {
+                report.push(
+                    Problem::error(
+                        Code::InvalidValue,
+                        format!("{path}.formats"),
+                        format!(
+                            "the {kind} report can't be generated as {format}"
+                        ),
+                    )
+                    .id("reports.unsupported-format")
+                    .detail("report", &kind)
+                    .detail("format", format),
+                );
+            }
+        }
+
+        if let Some(election) = &planned.election {
+            if !plan
+                .elections
+                .iter()
+                .any(|known| known.external_id == *election)
+            {
+                report.push(
+                    Problem::error(
+                        Code::DanglingReference,
+                        format!("{path}.election"),
+                        format!(
+                            "the {kind} report is about election '{election}', \
+                             which this plan doesn't have"
+                        ),
+                    )
+                    .id("reports.unknown-election")
+                    .detail("report", &kind)
+                    .detail("election", election),
+                );
+            }
+        }
+
+        let repeated = plan.reports[..index].iter().any(|earlier| {
+            earlier.report_type == planned.report_type
+                && earlier.election == planned.election
+        });
+        if repeated {
+            report.push(
+                Problem::error(
+                    Code::DuplicateId,
+                    path.clone(),
+                    format!("the {kind} report is set more than once"),
+                )
+                .id("reports.duplicate")
+                .detail("report", &kind),
+            );
+        }
+    }
 }
 
 /// Whether the telephone call can say everything it has to, in every language.
@@ -2988,6 +3099,14 @@ pub fn to_workbook(
         sheets.push(sheet);
     }
 
+    // The same for the reports: the plan's own rows join a carried Reports
+    // sheet rather than becoming a second one.
+    let reports = reports_sheet(plan).transpose()?;
+    let reports_replaced = reports.is_some();
+    if let Some(sheet) = reports {
+        sheets.push(sheet);
+    }
+
     // Last, and untouched. These are the sheets the wizard has no screens for,
     // carried through so `build` can do to them exactly what it does to a
     // janitor's own file. `Workbook::new` refuses a duplicate key, so a plan that
@@ -3001,6 +3120,7 @@ pub fn to_workbook(
         plan.platform
             .iter()
             .filter(|sheet| !(replaced && sheet.key == SHEET_PARAMETERS))
+            .filter(|sheet| !(reports_replaced && sheet.key == SHEET_REPORTS))
             .cloned(),
     );
 
@@ -4049,6 +4169,93 @@ fn keycloak_message_rows(plan: &Blueprint) -> Vec<(String, String)> {
         }
     }
     rows
+}
+
+/// The columns the plan's reports are written under.
+pub(crate) const REPORT_SHEET_COLUMNS: [&str; 5] = [
+    "report_type",
+    "election.external_id",
+    "template.alias",
+    "copies",
+    "output_formats",
+];
+
+/// The Reports sheet: a carried one with the plan's reports appended, or the
+/// plan's reports alone. `None` when the plan has none.
+fn reports_sheet(plan: &Blueprint) -> Option<Result<Sheet, Problem>> {
+    if plan.reports.is_empty() {
+        return None;
+    }
+    let cells_of = |report: &PlannedReport| -> Vec<Cell> {
+        vec![
+            Cell::text(report.report_type.to_string()),
+            report
+                .election
+                .clone()
+                .map(Cell::text)
+                .unwrap_or(Cell::Blank),
+            report
+                .template
+                .clone()
+                .map(Cell::text)
+                .unwrap_or(Cell::Blank),
+            Cell::text(report.copies.to_string()),
+            if report.formats.is_empty() {
+                Cell::Blank
+            } else {
+                Cell::text(
+                    report
+                        .formats
+                        .iter()
+                        .map(ReportFormat::to_string)
+                        .collect::<Vec<_>>()
+                        .join(
+                            crate::election_config::emit::MULTI_VALUE_SEPARATOR,
+                        ),
+                )
+            },
+        ]
+    };
+
+    let Some(carried) = plan
+        .platform
+        .iter()
+        .find(|sheet| sheet.key == SHEET_REPORTS)
+    else {
+        return Some(sheet_of(
+            "Reports",
+            REPORT_SHEET_COLUMNS.iter().map(|c| c.to_string()).collect(),
+            plan.reports.iter().map(cells_of).collect(),
+        ));
+    };
+
+    let mut merged = carried.clone();
+    for column in REPORT_SHEET_COLUMNS {
+        if !merged.headers.iter().any(|header| header == column) {
+            merged.headers.push(column.to_string());
+        }
+    }
+    let mut number =
+        merged.rows.iter().map(|row| row.number).max().unwrap_or(1);
+    for report in &plan.reports {
+        number += 1;
+        let cells = REPORT_SHEET_COLUMNS
+            .iter()
+            .zip(cells_of(report))
+            .filter_map(|(column, cell)| match cell {
+                Cell::Text(text) => {
+                    Some((column.to_string(), serde_json::Value::String(text)))
+                }
+                _ => None,
+            })
+            .collect();
+        merged.rows.push(Row {
+            sheet: merged.name.clone(),
+            number,
+            cells,
+        });
+    }
+    Some(Ok(merged))
 }
 
 /// The parameters sheet the plan carries, with the sign-in wording added to it.

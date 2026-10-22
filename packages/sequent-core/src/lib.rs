@@ -8,6 +8,10 @@ extern crate cfg_if;
 #[cfg(feature = "default_features")]
 pub mod ballot;
 #[cfg(feature = "default_features")]
+pub mod ballot_privacy;
+#[cfg(feature = "default_features")]
+pub mod ballot_receipt;
+#[cfg(feature = "default_features")]
 pub mod ballot_style;
 
 // Gated like types::hasura, whose entities the bundle schema is built from. The
@@ -47,6 +51,16 @@ pub mod plugins_wit;
 pub mod serialization;
 #[cfg(feature = "default_features")]
 pub mod services;
+
+/// Signing protected actions with staff certificates: the contracts shared by
+/// the server and the browser. Gated by `default_features`, which brings `sha2`.
+#[cfg(feature = "default_features")]
+pub mod signing;
+
+/// Which timezone applies where (VOTE-LIFECYCLE); zone names only.
+#[cfg(feature = "default_features")]
+pub mod time_zones;
+
 #[cfg(feature = "sqlite")]
 pub mod sqlite;
 

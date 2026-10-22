@@ -1202,10 +1202,6 @@ fn a_second_customer_s_preset_has_its_own_words_and_widgets_on_the_same_code() {
             .collect()
     };
     assert!(dimensions(&comelec).is_disjoint(&dimensions(&campus)));
-    assert_ne!(
-        comelec.set.settings.as_ref().unwrap().time_zone,
-        campus.set.settings.as_ref().unwrap().time_zone
-    );
     assert!(campus.manifest.owned_elsewhere.is_empty());
 }
 
@@ -1630,7 +1626,7 @@ fn a_preset_has_one_settings_document_in_settings_yaml() {
 #[test]
 fn a_problem_with_a_whole_document_is_placed_at_its_file() {
     const BROKEN: PresetFile = PresetFile {
-        yaml: "time_zone: [",
+        yaml: "scope: [",
         ..SETTINGS_FILE
     };
     assert_eq!(

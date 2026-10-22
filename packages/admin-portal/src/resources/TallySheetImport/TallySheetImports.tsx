@@ -48,6 +48,7 @@ import {
     useRefresh,
 } from "react-admin"
 import {useTranslation} from "react-i18next"
+import {useEventZonedFormat, type IZonedFormat, type ZonedEventRef} from "@/hooks/useZonedFormat"
 import {translateSharedValidationError} from "@/resources/TallySheet/utils"
 import ElectionHeader from "@/components/ElectionHeader"
 import {ListActions} from "@/components/ListActions"
@@ -673,6 +674,7 @@ export const TallySheetImports: React.FC<TallySheetImportsProps> = ({
                 <Box sx={{maxWidth: "100%", minWidth: 0, overflowX: "auto"}}>
                     <TallySheetImportsDatagrid
                         tenantId={tenantId}
+                        electionEvent={electionEvent}
                         onReview={setDetailImport}
                         onDownloadSource={handleDownloadSource}
                     />
@@ -845,6 +847,7 @@ export const TallySheetImports: React.FC<TallySheetImportsProps> = ({
                         </Stack>
                         <ImportMetadata
                             item={detailImport}
+                            electionEvent={electionEvent}
                             creatorUsernames={detailCreatorUsernames}
                         />
                         <ImportSummary summary={detailImport.summary ?? emptySummary} />
@@ -1006,10 +1009,12 @@ const formatCreatedBy = (record: TallySheetImportRecord, creatorUsernames: Map<s
 
 const TallySheetImportsDatagrid: React.FC<{
     tenantId?: string | null
+    electionEvent?: ZonedEventRef
     onReview: (record: TallySheetImportRecord) => void
     onDownloadSource: (record: TallySheetImportRecord) => void
-}> = ({tenantId, onReview, onDownloadSource}) => {
+}> = ({tenantId, electionEvent, onReview, onDownloadSource}) => {
     const {t} = useTranslation()
+    const zoned = useEventZonedFormat(electionEvent, {seconds: true})
     const {data = []} = useListContext<TallySheetImportRecord>()
     const creatorUsernames = useCreatorUsernames(data, tenantId)
 
@@ -1041,7 +1046,7 @@ const TallySheetImportsDatagrid: React.FC<{
             <FunctionField
                 source="created_at"
                 label={String(t("tallySheetImport.table.created"))}
-                render={(record: TallySheetImportRecord) => formatDate(record.created_at)}
+                render={(record: TallySheetImportRecord) => formatDate(zoned, record.created_at)}
             />
             <FunctionField
                 source="created_by_user_id"
@@ -1126,8 +1131,10 @@ const TallySheetImportsDatagrid: React.FC<{
 const ImportMetadata: React.FC<{
     item: TallySheetImportRecord
     creatorUsernames: Map<string, string>
-}> = ({item, creatorUsernames}) => {
+    electionEvent?: ZonedEventRef
+}> = ({item, creatorUsernames, electionEvent}) => {
     const {t} = useTranslation()
+    const zoned = useEventZonedFormat(electionEvent, {seconds: true})
 
     return (
         <Stack gap={0.5}>
@@ -1137,7 +1144,7 @@ const ImportMetadata: React.FC<{
             />
             <MetadataLine
                 label={String(t("tallySheetImport.table.created"))}
-                value={formatDate(item.created_at)}
+                value={formatDate(zoned, item.created_at)}
             />
         </Stack>
     )
@@ -1314,12 +1321,8 @@ const Status: React.FC<{status: string}> = ({status}) => {
     )
 }
 
-const formatDate = (value?: string | null) => {
-    if (!value) {
-        return "-"
-    }
-    return new Date(value).toLocaleString()
-}
+/** The time with its zone label, in the event's primary zone. */
+const formatDate = (zoned: IZonedFormat, value?: string | null) => zoned.format(value) || "-"
 
 const hashFileSha256 = async (file: File): Promise<string | undefined> => {
     const subtle = globalThis.crypto?.subtle

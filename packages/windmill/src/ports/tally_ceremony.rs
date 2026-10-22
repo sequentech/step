@@ -3,8 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::domain::tally_ceremony::TallyExecuter;
-use b4::messages::newtypes::BatchNumber;
+use crate::postgres::ballot_box_seal::BallotBoxSealStatus;
 use sequent_core::services::jwt::JwtClaims;
+use sequent_core::types::ceremonies::BatchNumber;
 use sequent_core::types::ceremonies::{TallyCeremonyStatus, TallyExecutionStatus, TallyRunReason};
 use sequent_core::types::hasura::core::{
     Area, AreaContest, BallotStyle, Contest, Election, ElectionEvent, KeysCeremony, TallySession,
@@ -29,6 +30,8 @@ pub struct NewTallySession {
     pub tally_type: String,
     pub annotations: Value,
     pub permission_labels: Vec<String>,
+    /// Actual parsed generated-style countries by Post, captured with session insertion.
+    pub initialization_country_coverage: Option<std::collections::BTreeMap<String, Vec<String>>>,
 }
 
 /// The election event data a tally session is created from, read together.
@@ -40,7 +43,37 @@ pub struct TallyEventSnapshot {
     pub area_contests: Vec<AreaContest>,
 }
 
+/// Where the seal of one ballot box is (VOTE-FREEZE), as the tally's
+/// readiness check needs it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BallotBoxSealState {
+    pub election_id: String,
+    pub area_id: String,
+    pub status: BallotBoxSealStatus,
+    /// Every ballot of the box, once it is sealed.
+    pub ballots_in_box: Option<i64>,
+}
+
 pub trait TallyCreationReader: Sync {
+    /// Trusted current/published countries, when the reader retains publication evidence.
+    fn initialization_countries(
+        &self,
+        _tenant_id: &str,
+        _election_event_id: &str,
+        _post: uuid::Uuid,
+    ) -> impl Future<Output = anyhow::Result<Option<std::collections::BTreeSet<String>>>> + Send
+    {
+        async { Ok(None) }
+    }
+
+    /// Both current and trusted published initialization scopes for this Post.
+    fn initialization_scopes(
+        &self,
+        tenant_id: &str,
+        election_event_id: &str,
+        post: uuid::Uuid,
+    ) -> impl Future<Output = anyhow::Result<crate::services::initialization_scope::ScopeCopies>> + Send;
+
     fn event_snapshot(
         &self,
         tenant_id: &str,
@@ -59,6 +92,14 @@ pub trait TallyCreationReader: Sync {
         tenant_id: &str,
         election_event_id: &str,
     ) -> impl Future<Output = anyhow::Result<Vec<TallySheet>>> + Send;
+
+    /// The seals of the given elections' ballot boxes, in any status.
+    fn ballot_box_seals(
+        &self,
+        tenant_id: &str,
+        election_event_id: &str,
+        election_ids: &[String],
+    ) -> impl Future<Output = anyhow::Result<Vec<BallotBoxSealState>>> + Send;
 }
 
 /// Tally sessions and their execution history. Each execution is a snapshot
@@ -160,16 +201,17 @@ pub trait KeysCeremonyReader: Sync {
     ) -> impl Future<Output = anyhow::Result<KeysCeremony>> + Send;
 }
 
-/// The private keys trustees generated in a keys ceremony, as stored
-/// (encrypted) on its bulletin board.
-pub trait TrusteePrivateKeys: Sync {
-    fn encrypted_private_key(
+/// Verifies scoped custody of the native trustee's local keys.
+pub trait TrusteeCustody: Sync {
+    fn verifies(
         &self,
         tenant_id: &str,
         election_event_id: &str,
         trustee_name: &str,
         keys_ceremony: &KeysCeremony,
-    ) -> impl Future<Output = anyhow::Result<String>> + Send;
+        tally_session_id: &str,
+        proof: &str,
+    ) -> impl Future<Output = anyhow::Result<bool>> + Send;
 }
 
 pub trait ElectionsById: Sync {
@@ -208,7 +250,7 @@ pub trait TallyCeremonyAudit: Sync {
     ) -> impl Future<Output = anyhow::Result<()>> + Send;
 
     /// Signed by the trustee's user, identified by `claims`.
-    fn key_restored(
+    fn custody_authorized(
         &self,
         board_name: &str,
         tenant_id: &str,

@@ -554,3 +554,48 @@ Consumers that only understand the aggregate blank count may continue to use the
 consolidated blank total. Consumers that need full semantic fidelity must retain
 the explicit-versus-implicit blank distinction exposed by decoding and tally
 results.
+
+## 14. Slates
+
+An election can configure named slates: groups of candidates that span several
+contests. A slate is a way of marking candidates in the Voting Portal. It is
+not part of the ballot:
+
+1. Slate definitions are election configuration. They are published in the
+   ballot style's `election_annotations`, under the key `sequent.slates`, and
+   are not an input to either codec.
+2. Choosing a slate marks its candidates in their contests. The resulting
+   selection has the same form, and the same encoding, as marking those
+   candidates one by one. The rule has one implementation,
+   `election_config::slates::selection::apply_slate` in `sequent-core`, which
+   the Voting Portal calls through WebAssembly: in each contest the slate
+   covers, its candidates replace the current marks; other contests keep
+   theirs.
+3. The encoded ballot has no slate identifier or slate flag, and choosing a
+   slate adds no vote of its own. A cast ballot still carries one ciphertext
+   per contest, or the single multi-contest ciphertext.
+4. Decoding, the ballot verifier and the tally see candidate marks only.
+   Results list the contest's candidates; a slate has no row.
+5. A ballot style without `sequent.slates` is serialized, and therefore hashed,
+   exactly as before. Configuring slates changes the annotations, so it takes
+   effect through a new publication with a new ballot style hash.
+
+## 15. Verifying an auditable ballot
+
+An auditable ballot carries, for every encoded contest, the ciphertext that
+was cast together with the plaintext and the randomness used to produce it.
+Decoding the plaintext shows what the ballot says; it does not show that the
+ciphertext actually encrypts it. A verifier must therefore:
+
+1. parse the public key of the ballot style included in the ballot
+2. check that the contests named by the ballot are exactly the votable
+   contests of that ballot style, each named once
+3. encrypt each plaintext again with the recorded randomness and the public
+   key, and compare the result with the ciphertext carried by the ballot
+
+Both encodings are verified this way: the single-contest codec has one
+ciphertext per contest, the multi-contest codec has a single ciphertext for
+the whole ballot. Any mismatch, and any ballot that cannot be checked (missing
+or malformed public key, contests that do not match the ballot style), must be
+reported as a verification failure rather than shown as a verified ballot. The
+Ballot Verifier performs this check before displaying the decoded ballot.

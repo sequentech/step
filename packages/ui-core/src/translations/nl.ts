@@ -6,23 +6,23 @@ import {TranslationType} from "./en"
 const dutchTranslation: TranslationType = {
     translations: {
         language: "Nederlands",
-        welcome: "Hello <br/> <strong>World</strong>",
         breadcrumbSteps: {
-            select: "Select a Verifier",
-            import: "Import Data",
-            verify: "Verify",
-            finish: "Finish",
+            select: "Selecteer een verificateur",
+            import: "Gegevens importeren",
+            verify: "Verifiëren",
+            finish: "Voltooien",
         },
         electionEventBreadcrumbSteps: {
-            created: "Created",
-            keys: "Keys",
-            publish: "Publish",
-            started: "Started",
-            ended: "Ended",
-            results: "Results",
+            created: "Aangemaakt",
+            keys: "Sleutels",
+            publish: "Publiceren",
+            started: "Gestart",
+            ended: "Beëindigd",
+            results: "Resultaten",
         },
         a11y: {
             closeDialog: "Dialoogvenster sluiten",
+            languageSelector: "Taal: {{language}}",
             dismissMessage: "Bericht sluiten",
             ballotIdHelp: "Over uw stembiljet-ID",
             loading: "Laden",
@@ -36,10 +36,52 @@ const dutchTranslation: TranslationType = {
             preferenceLabel: "Voorkeur",
             writeInFor: "Naam van de geschreven kandidaat",
         },
+        accessibility: {
+            button: "Toegankelijkheid",
+            title: "Toegankelijkheidsinstellingen",
+            description: "Pas aan hoe deze site er op dit apparaat uitziet.",
+            textSize: {
+                label: "Tekstgrootte",
+                default: "Standaard",
+                large: "Groot",
+                larger: "Groter",
+            },
+            contrast: {
+                label: "Contrast",
+                default: "Standaard",
+                high: "Hoog contrast",
+            },
+            textSpacing: {
+                label: "Tekstafstand",
+                default: "Standaard",
+                wide: "Ruim",
+            },
+            motion: {
+                label: "Beweging",
+                default: "Standaard",
+                reduced: "Verminderd",
+            },
+            reset: "Instellingen herstellen",
+            close: "Sluiten",
+            applied: "{{setting}}: {{value}}",
+            resetDone: "Instellingen hersteld",
+        },
+        audioInstructions: {
+            label: "Gesproken instructies",
+            play: "Instructies beluisteren",
+            pause: "Instructies pauzeren",
+            resume: "Instructies hervatten",
+            stop: "Instructies stoppen",
+            showTranscript: "Instructies lezen",
+            hideTranscript: "Instructies verbergen",
+            playing: "Instructies worden afgespeeld",
+            paused: "Instructies gepauzeerd",
+            stopped: "Instructies gestopt",
+        },
         candidate: {
-            moreInformationLink: "More information",
-            writeInsPlaceholder: "Type write-in candidate here",
-            blankVote: "Blank Vote",
+            moreInformationLink: "Meer informatie",
+            writeInsPlaceholder: "Typ hier de naam van de kandidaat",
+            blankVote: "Blanco stem",
             preferential: {
                 position: "Positie",
                 none: "Geen",
@@ -52,40 +94,39 @@ const dutchTranslation: TranslationType = {
             },
         },
         homeScreen: {
-            title: "Sequent Ballot Verifier",
+            title: "Sequent Stembiljetverificateur",
             description1:
-                "The ballot verifier is used when the voter chooses to audit the ballot in the voting booth. The verification should take 1-2 minutes.",
+                "De stembiljetverificateur wordt gebruikt wanneer de kiezer ervoor kiest het stembiljet in het stemhokje te controleren. De verificatie duurt 1 tot 2 minuten.",
             description2:
-                "The ballot verifier allows the voter to ensure that the encrypted ballot correctly captures the selections made in the voting booth. Allowing to perform this check is called cast-as-intended verifiability and prevents errors and malicious activity during ballot encryption.",
-            descriptionMore: "Learn more",
-            startButton: "Browse file",
-            dragDropOption: "Or drag and drop it here",
+                "Met de stembiljetverificateur kan de kiezer controleren of het versleutelde stembiljet de in het stemhokje gemaakte keuzes correct weergeeft. Deze controle mogelijk maken heet cast-as-intended-verifieerbaarheid en voorkomt fouten en kwaadwillig handelen tijdens het versleutelen van het stembiljet.",
+            descriptionMore: "Meer informatie",
+            startButton: "Bestand kiezen",
+            dragDropOption: "Of sleep het bestand hierheen",
             importErrorDescription:
-                "There was a problem importing the auditable ballot. Did you choose  the right file?",
-            importErrorMoreInfo: "More info",
-            importErrorTitle: "Error",
-            useSampleText: "Don't have an auditable ballot?",
-            useSampleLink: "Use a sample auditable ballot",
+                "Er is een probleem opgetreden bij het importeren van het controleerbare stembiljet. Heeft u het juiste bestand gekozen?",
+            importErrorMoreInfo: "Meer informatie",
+            importErrorTitle: "Fout",
+            useSampleText: "Heeft u geen controleerbaar stembiljet?",
+            useSampleLink: "Gebruik een voorbeeld van een controleerbaar stembiljet",
         },
         confirmationScreen: {
-            title: "Sequent Ballot Verifier",
+            title: "Sequent Stembiljetverificateur",
             topDescription1:
-                "Based on the information in the imported Auditable Ballot, we calculated that:",
-            topDescription2: "If this is the Ballot ID shown in the Voting Booth:",
+                "Op basis van de informatie in het geïmporteerde controleerbare stembiljet hebben wij berekend dat:",
+            topDescription2: "Als dit de stembiljet-ID is die in het stemhokje wordt weergegeven:",
             bottomDescription1:
-                "Your ballot was encrypted correctly. You can now close this window and return to the Voting Booth.",
+                "Uw stembiljet is correct versleuteld. U kunt dit venster nu sluiten en terugkeren naar het stemhokje.",
             bottomDescription2:
-                "If they don't match, click here to learn more about the potential reasons and what actions you can take.",
-            ballotChoicesDescription: "And your ballot choices are:",
-            helpAndFaq: "Help & FAQ",
-            backButton: "Back",
-            markedInvalid: "Ballot explicitly marked invalid",
+                "Als ze niet overeenkomen, klik hier voor meer informatie over de mogelijke oorzaken en wat u kunt doen.",
+            ballotChoicesDescription: "En uw keuzes op het stembiljet zijn:",
+            helpAndFaq: "Help en veelgestelde vragen",
+            backButton: "Terug",
+            markedInvalid: "Stembiljet expliciet als ongeldig gemarkeerd",
         },
         ballotSelectionsScreen: {
             statusModal: {
                 title: "Status",
-                content:
-                    "The status panel gives you information about the  verifications performed.",
+                content: "Het statuspaneel geeft u informatie over de uitgevoerde verificaties.",
                 ok: "OK",
             },
         },
@@ -97,24 +138,33 @@ const dutchTranslation: TranslationType = {
                 notEnoughChoices: "Niet genoeg keuzes om te decoderen",
                 writeInChoiceOutOfRange: "In te vullen keuze buiten bereik: {{index}}",
                 writeInNotEndInZero: "In te vullen tekst eindigt niet op 0",
-                writeInCharsExceeded:
-                    "In te vullen tekst overschrijdt maximum aantal tekens met {{numCharsExceeded}}. Moet worden aangepast.",
+                writeInCharsExceeded_one: "Maak de ingevulde tekst {{count}} teken korter.",
+                writeInCharsExceeded_many: "Maak de ingevulde tekst {{count}} tekens korter.",
+                writeInCharsExceeded_other: "Maak de ingevulde tekst {{count}} tekens korter.",
                 bytesToUtf8Conversion:
                     "Fout bij het converteren van in te vullen tekst van bytes naar UTF-8 string: {{errorMessage}}",
                 ballotTooLarge: "Stembiljet groter dan verwacht",
             },
             implicit: {
-                selectedMax:
-                    "Te veel stemmen: Aantal geselecteerde keuzes {{numSelected}} is meer dan het maximum {{max}}",
-                selectedMin:
-                    "Aantal geselecteerde keuzes {{numSelected}} is minder dan het minimum {{min}}",
-                maxSelectionsPerType:
-                    "Aantal geselecteerde keuzes {{numSelected}} voor lijst {{type}} is meer dan het maximum {{max}}",
-                underVote:
-                    "Te weinig stemmen: Aantal geselecteerde keuzes {{numSelected}} is minder dan het maximum {{max}}",
-                overVoteDisabled:
-                    "Maximum bereikt: U heeft het maximum aantal keuzes {{numSelected}} geselecteerd. Om uw selectie te wijzigen, deselecteer eerst een andere optie.",
-                blankVote: "Blanco stem: 0 keuzes geselecteerd",
+                selectedMax_one: "Deselecteer {{count}} kandidaat.",
+                selectedMax_many: "Deselecteer {{count}} kandidaten.",
+                selectedMax_other: "Deselecteer {{count}} kandidaten.",
+                selectedMin_one: "Selecteer nog {{count}} kandidaat.",
+                selectedMin_many: "Selecteer nog {{count}} kandidaten.",
+                selectedMin_other: "Selecteer nog {{count}} kandidaten.",
+                maxSelectionsPerType_one: "Deselecteer {{count}} kandidaat uit {{type}}.",
+                maxSelectionsPerType_many: "Deselecteer {{count}} kandidaten uit {{type}}.",
+                maxSelectionsPerType_other: "Deselecteer {{count}} kandidaten uit {{type}}.",
+                underVote_one: "Selecteer nog maximaal {{count}} kandidaat.",
+                underVote_many: "Selecteer nog maximaal {{count}} kandidaten.",
+                underVote_other: "Selecteer nog maximaal {{count}} kandidaten.",
+                overVoteDisabled_one:
+                    "U heeft het maximum van {{count}} kandidaat geselecteerd. Deselecteer deze om een andere te kiezen.",
+                overVoteDisabled_many:
+                    "U heeft het maximum van {{count}} kandidaten geselecteerd. Deselecteer er een om een andere te kiezen.",
+                overVoteDisabled_other:
+                    "U heeft het maximum van {{count}} kandidaten geselecteerd. Deselecteer er een om een andere te kiezen.",
+                blankVote: "U heeft geen kandidaat geselecteerd.",
                 preferenceOrderWithGaps:
                     "Ongeldige stem! De voorkeursvolgorde heeft een of meer hiaten.",
                 duplicatedPosition:
@@ -122,63 +172,66 @@ const dutchTranslation: TranslationType = {
             },
             explicit: {
                 notAllowed:
-                    "Stembiljet expliciet ongeldig gemarkeerd maar vraag staat dit niet toe",
+                    "Stembiljet expliciet ongeldig gemarkeerd maar de stemming staat dit niet toe",
                 alert: "Gemarkeerde selectie wordt als ongeldige stem beschouwd.",
             },
             configuration: {
                 multipleExplicitInvalidCandidates:
-                    "Ongeldige stemconfiguratie: de verkiezing definieert {{count}} expliciet ongeldige kandidaten, maar er is er maar één toegestaan.",
+                    "Ongeldige stemconfiguratie: de stemming definieert {{count}} expliciet ongeldige kandidaten, maar er is er maar één toegestaan.",
                 multipleExplicitBlankCandidates:
-                    "Ongeldige stemconfiguratie: de verkiezing definieert {{count}} expliciete blanco kandidaten, maar er is er maar één toegestaan.",
+                    "Ongeldige stemconfiguratie: de stemming definieert {{count}} expliciete blanco kandidaten, maar er is er maar één toegestaan.",
+                invalidSlateConfiguration:
+                    "Ongeldige stemconfiguratie: de lijsten zijn niet geldig ({{reason}}).",
             },
         },
-        ballotHash: "Your Ballot ID: {{ballotId}}",
+        ballotHash: "Uw stembiljet-ID: {{ballotId}}",
         version: {
-            header: "Version:",
+            header: "Versie:",
         },
         hash: {
             header: "Hash:",
         },
         logout: {
-            buttonText: "Logout",
+            buttonText: "Afmelden",
             modal: {
-                title: "Are you sure you want to logout?",
-                content: "You are about to close this application. This action can not be undone. ",
+                title: "Weet u zeker dat u zich wilt afmelden?",
+                content:
+                    "U staat op het punt deze applicatie te sluiten. Deze actie kan niet ongedaan worden gemaakt. ",
                 ok: "OK",
-                close: "Close",
+                close: "Sluiten",
             },
         },
         stories: {
-            openDialog: "Open Dialog",
+            openDialog: "Dialoogvenster openen",
         },
         dragNDrop: {
-            firstLine: "Drag & drop files or",
-            browse: "Browse",
-            format: "Supported format: txt",
+            firstLine: "Sleep bestanden hierheen of",
+            browse: "Bestand kiezen",
+            format: "Ondersteund formaat: txt",
             importError: "Dit bestand kon niet worden geïmporteerd. Probeer het opnieuw.",
         },
         selectElection: {
-            electionWebsite: "Ballot Website",
+            electionWebsite: "Verkiezingswebsite",
             countdown:
-                "Election Begins in {{years}} years, {{months}} months, {{weeks}} weeks, {{days}} days, {{hours}} hours, {{minutes}} minutes, {{seconds}} seconds",
-            openElection: "Open",
-            closedElection: "Closed",
-            voted: "Voted",
-            notVoted: "Not voted",
-            resultsButton: "Ballot Results",
-            voteButton: "Click to Vote",
-            openDate: "Open: ",
-            closeDate: "Close: ",
-            ballotLocator: "Locate your ballot",
+                "De verkiezing begint over {{years}} jaar, {{months}} maanden, {{weeks}} weken, {{days}} dagen, {{hours}} uur, {{minutes}} minuten, {{seconds}} seconden",
+            openElection: "Geopend",
+            closedElection: "Gesloten",
+            voted: "Gestemd",
+            notVoted: "Niet gestemd",
+            resultsButton: "Verkiezingsuitslag",
+            voteButton: "Klik om te stemmen",
+            openDate: "Geopend: ",
+            closeDate: "Gesloten: ",
+            ballotLocator: "Vind uw stembiljet",
         },
         header: {
-            profile: "Profile",
-            welcome: "Welcome,<br><span>{{name}}</span>",
+            profile: "Profiel",
+            welcome: "Welkom,<br><span>{{name}}</span>",
             session: {
-                title: "Your session is going to expire.",
-                timeLeft: "You have {{time}} left to cast your vote.",
-                timeLeftMinutesAndSeconds: "{{timeLeftInMinutes}} minutes and {{time}} seconds",
-                timeLeftSeconds: "{{timeLeft}} seconds",
+                title: "Uw sessie verloopt binnenkort.",
+                timeLeft: "U heeft nog {{time}} om uw stem uit te brengen.",
+                timeLeftMinutesAndSeconds: "{{timeLeftInMinutes}} minuten en {{time}} seconden",
+                timeLeftSeconds: "{{timeLeft}} seconden",
             },
         },
         problems: {
@@ -462,6 +515,16 @@ const dutchTranslation: TranslationType = {
                         text: "Geen importeerbaar archief — deze zip bevat een plan maar niet het archief dat het Beheerportaal importeert, dus het kiezersregister en de bestanden die het noemt zitten er niet in.",
                     },
                 },
+                design: {
+                    "no-stable-key": {
+                        lead: "Stembiljetontwerp zonder sleutel",
+                        text: "Stembiljetontwerp zonder sleutel — {{kind}} {{id}} heeft geen naam of externe id, dus de stembiljetontwerpen ervan zijn na een import niet te herkennen.",
+                    },
+                    "unreadable-style": {
+                        lead: "Stembiljetstijl onleesbaar",
+                        text: "Stembiljetstijl onleesbaar — de stembiljetstijl van het platform kon niet worden gelezen om de digest van het ontwerp te berekenen: {{reason}}",
+                    },
+                },
                 election: {
                     "channels-differ": {
                         lead: "Verkiezing en evenement verschillen",
@@ -497,6 +560,10 @@ const dutchTranslation: TranslationType = {
                     },
                 },
                 event: {
+                    "checks-period-invalid": {
+                        lead: "Controleperiode niet geldig",
+                        text: "Controleperiode niet geldig — de periode waarin kiezers hun uitgebrachte stem kunnen controleren kon niet worden gelezen: {{reason}}",
+                    },
                     "no-identifier": {
                         lead: "Geen identificatie",
                         text: "Geen identificatie — elke gegenereerde id wordt ervan afgeleid, dus zonder identificatie kan niets twee keer op dezelfde manier worden opgebouwd.",
@@ -657,6 +724,152 @@ const dutchTranslation: TranslationType = {
                         text: "Wachtwoorden zonder seed — de seed zorgt ervoor dat een nieuwe build dezelfde wachtwoorden oplevert in plaats van nieuwe.",
                     },
                 },
+                package: {
+                    "already-imported": {
+                        lead: "Al geïmporteerd",
+                        text: "Al geïmporteerd — revisie {{revision}} van deze configuratie is al eerder geïmporteerd; importeer een nieuwere revisie.",
+                    },
+                    "approval-invalid": {
+                        lead: "Goedkeuring telt niet",
+                        text: "Goedkeuring telt niet — de goedkeuring van {{name}} kon niet worden geverifieerd: {{reason}}",
+                    },
+                    "approval-repeated": {
+                        lead: "Dezelfde persoon keurde twee keer goed",
+                        text: "Dezelfde persoon keurde twee keer goed — {{name}} keurde meer dan eens goed, en telt één keer.",
+                    },
+                    "approver-key-usage": {
+                        lead: "Goedkeurder kan niet ondertekenen",
+                        text: "Goedkeurder kan niet ondertekenen — het certificaat van een goedkeurder is niet bedoeld om mee te ondertekenen.",
+                    },
+                    "bad-signature": {
+                        lead: "Handtekening klopt niet",
+                        text: "Handtekening klopt niet — de handtekening van het pakket verifieert niet, dus het is na ondertekening gewijzigd of met een andere sleutel ondertekend: {{reason}}",
+                    },
+                    "content-digest": {
+                        lead: "Inhoudsdigest klopt niet",
+                        text: "Inhoudsdigest klopt niet — het manifest zegt {{expected}} en de inhoud hasht naar {{actual}}.",
+                    },
+                    "duplicate-member": {
+                        lead: "Bestandsnaam twee keer gebruikt",
+                        text: "Bestandsnaam twee keer gebruikt — '{{file}}' komt twee keer voor in {{archive}}, dus twee lezers zouden verschillende bestanden kunnen nemen.",
+                    },
+                    "file-changed": {
+                        lead: "Gewijzigd na ondertekening",
+                        text: "Gewijzigd na ondertekening — {{file}} heeft SHA-256 {{actual}}, en het manifest zegt {{expected}}. Er is niets uit het pakket gelezen.",
+                    },
+                    "file-extra": {
+                        lead: "Bestand niet in het manifest",
+                        text: "Bestand niet in het manifest — {{file}} zit in het pakket maar is niet ondertekend. Er is niets uit het pakket gelezen.",
+                    },
+                    "file-missing": {
+                        lead: "Ondertekend bestand ontbreekt",
+                        text: "Ondertekend bestand ontbreekt — {{file}} staat in het manifest en niet in het pakket. Er is niets uit het pakket gelezen.",
+                    },
+                    "invalid-time": {
+                        lead: "Geen tijdstip",
+                        text: "Geen tijdstip — '{{value}}' in het manifest is geen datum en tijd.",
+                    },
+                    "member-too-large": {
+                        lead: "Bestand te groot",
+                        text: "Bestand te groot — '{{file}}' in {{archive}} is uitgepakt groter dan de {{limit}} bytes die een bestand mag zijn.",
+                    },
+                    "nested-too-deep": {
+                        lead: "Te diep genest",
+                        text: "Te diep genest — '{{file}}' zit in meer zips dan de {{limit}} waarin een bestand genest mag zijn.",
+                    },
+                    "no-importable": {
+                        lead: "Niets te importeren",
+                        text: "Niets te importeren — het pakket bevat geen official_election_setup.zip, het archief dat bij het importeren wordt gelezen.",
+                    },
+                    "report-template-changed": {
+                        lead: "Rapportsjabloon gewijzigd",
+                        text: "Rapportsjabloon gewijzigd — het sjabloon van het rapport {{report}} is niet het goedgekeurde: de digest is {{actual}}, en de ondertekende configuratie zegt {{expected}}.",
+                    },
+                    "report-template-missing": {
+                        lead: "Rapportsjabloon ontbreekt",
+                        text: "Rapportsjabloon ontbreekt — het rapport {{report}} wordt opgemaakt met sjabloon '{{template}}', dat niet in de configuratie staat, dus het ontwerp kan niet worden ondertekend.",
+                    },
+                    "report-unreadable": {
+                        lead: "Rapport kan niet worden ondertekend",
+                        text: "Rapport kan niet worden ondertekend — {{message}}",
+                    },
+                    "revoked-approver": {
+                        lead: "Certificaat van goedkeurder ingetrokken",
+                        text: "Certificaat van goedkeurder ingetrokken — het certificaat van een goedkeurder is ingetrokken, dus de goedkeuring telt niet.",
+                    },
+                    "revoked-signer": {
+                        lead: "Ondertekeningssleutel ingetrokken",
+                        text: "Ondertekeningssleutel ingetrokken — de sleutel die dit pakket ondertekende is ingetrokken, en de pakketten ervan worden geweigerd.",
+                    },
+                    "rollback": {
+                        lead: "Geen nieuwere revisie",
+                        text: "Geen nieuwere revisie — revisie {{revision}} is niet nieuwer dan revisie {{last}}, de laatst geïmporteerde.",
+                    },
+                    "signed-in-the-future": {
+                        lead: "In de toekomst ondertekend",
+                        text: "In de toekomst ondertekend — volgens het pakket is het ondertekend op {{at}}, en het is nu {{now}}.",
+                    },
+                    "signer-key-usage": {
+                        lead: "Ondertekeningssleutel kan niet ondertekenen",
+                        text: "Ondertekeningssleutel kan niet ondertekenen — het certificaat van de sleutel die dit pakket ondertekende is niet bedoeld om mee te ondertekenen.",
+                    },
+                    "too-few-approvals": {
+                        lead: "Te weinig goedkeuringen",
+                        text: "Te weinig goedkeuringen — {{count}} geldige goedkeuringen van verschillende personen, en er zijn er {{required}} nodig.",
+                    },
+                    "too-large": {
+                        lead: "Pakket te groot",
+                        text: "Pakket te groot — uitgepakt is het groter dan de {{limit}} bytes die een pakket mag zijn: '{{file}}' in {{archive}} gaat eroverheen.",
+                    },
+                    "too-many-members": {
+                        lead: "Te veel bestanden",
+                        text: "Te veel bestanden — {{archive}} bevat meer bestanden dan de {{limit}} die een pakket mag bevatten.",
+                    },
+                    "unhashable-content": {
+                        lead: "Inhoud kan niet worden gehasht",
+                        text: "Inhoud kan niet worden gehasht — de inhoud van de configuratie kon niet worden weggeschreven om te hashen: {{reason}}",
+                    },
+                    "unknown-format": {
+                        lead: "Onbekend manifestformaat",
+                        text: "Onbekend manifestformaat — het manifest heeft formaat '{{format}}', dat deze versie niet kan lezen.",
+                    },
+                    "unreadable-chain": {
+                        lead: "Certificaten van ondertekenaar onleesbaar",
+                        text: "Certificaten van ondertekenaar onleesbaar — de certificaatketen van het pakket kon niet worden gelezen: {{reason}}",
+                    },
+                    "unreadable-manifest": {
+                        lead: "Manifest onleesbaar",
+                        text: "Manifest onleesbaar — het manifest van het pakket kon niet worden gelezen: {{reason}}",
+                    },
+                    "unreadable-revocation-list": {
+                        lead: "Intrekkingslijst onleesbaar",
+                        text: "Intrekkingslijst onleesbaar — een intrekkingslijst kon niet worden gelezen, dus die kan niet worden toegepast: {{reason}}",
+                    },
+                    "unreadable-trust": {
+                        lead: "Vertrouwde certificaten onleesbaar",
+                        text: "Vertrouwde certificaten onleesbaar — de instelling {{setting}} kon niet worden gelezen: {{reason}}",
+                    },
+                    "unreadable-zip": {
+                        lead: "Archief onleesbaar",
+                        text: "Archief onleesbaar — {{archive}} kon niet als zip worden gelezen: {{reason}}",
+                    },
+                    "unsigned": {
+                        lead: "Pakket niet ondertekend",
+                        text: "Pakket niet ondertekend — het heeft geen {{missing}}, en deze installatie importeert alleen ondertekende pakketten.",
+                    },
+                    "untrusted-approver": {
+                        lead: "Goedkeurder niet vertrouwd",
+                        text: "Goedkeurder niet vertrouwd — het certificaat van een goedkeurder wordt niet vertrouwd: {{reason}}",
+                    },
+                    "untrusted-signer": {
+                        lead: "Ondertekenaar niet vertrouwd",
+                        text: "Ondertekenaar niet vertrouwd — de sleutel die dit pakket ondertekende is er geen die deze installatie vertrouwt: {{reason}}",
+                    },
+                    "unwritable-manifest": {
+                        lead: "Manifest kan niet worden geschreven",
+                        text: "Manifest kan niet worden geschreven — het manifest kon niet worden geschreven: {{reason}}",
+                    },
+                },
                 plan: {
                     "not-a-plan": {
                         lead: "Geen verkiezingsplan",
@@ -669,6 +882,24 @@ const dutchTranslation: TranslationType = {
                     "unreadable": {
                         lead: "Plan onleesbaar",
                         text: "Plan onleesbaar — {{error}}",
+                    },
+                },
+                reports: {
+                    "duplicate": {
+                        lead: "Rapport twee keer ingesteld",
+                        text: "Rapport twee keer ingesteld — het rapport {{report}} is meer dan eens ingesteld voor dezelfde verkiezing.",
+                    },
+                    "no-copies": {
+                        lead: "Geen exemplaren",
+                        text: "Geen exemplaren — het rapport {{report}} is ingesteld om geen exemplaren af te drukken. Stel er minstens één in.",
+                    },
+                    "unknown-election": {
+                        lead: "Onbekende verkiezing",
+                        text: "Onbekende verkiezing — het rapport {{report}} gaat over verkiezing '{{election}}', die dit plan niet heeft.",
+                    },
+                    "unsupported-format": {
+                        lead: "Formaat niet beschikbaar",
+                        text: "Formaat niet beschikbaar — het rapport {{report}} kan niet als {{format}} worden gemaakt.",
                     },
                 },
                 schedule: {
@@ -691,6 +922,20 @@ const dutchTranslation: TranslationType = {
                     "window-incomplete": {
                         lead: "Stemperiode onvolledig",
                         text: "Stemperiode onvolledig — de periode moet handmatig worden geopend of gesloten in het Beheerportaal.",
+                    },
+                },
+                signing: {
+                    "duplicate-action": {
+                        lead: "Twee regels voor één actie",
+                        text: "Twee regels voor één actie — '{{action}}' heeft meer dan één ondertekeningsregel. Houd er één.",
+                    },
+                    "signatures-out-of-range": {
+                        lead: "Handtekeningen buiten bereik",
+                        text: "Handtekeningen buiten bereik — de regel voor '{{action}}' moet tussen {{min}} en {{max}} handtekeningen vragen.",
+                    },
+                    "expiry-out-of-range": {
+                        lead: "Vervaltijd buiten bereik",
+                        text: "Vervaltijd buiten bereik — een '{{action}}'-verzoek moet na 1 tot 525.600 minuten (een jaar) vervallen, of nooit.",
                     },
                 },
                 threshold: {
@@ -772,6 +1017,24 @@ const dutchTranslation: TranslationType = {
                     },
                 },
             },
+        },
+        timezones: {
+            abbr: {
+                "Asia/Manila": "PhST",
+            },
+            name: {},
+            city: {},
+            offset: "GMT{{sign}}{{hours}}:{{minutes}}",
+            option: "({{offset}}) {{city}}",
+            optionPrimary: "{{option}} · primair",
+            optionDetail: "{{countries}} · {{name}}",
+            dateTimeZone: "{{dateTime}} {{zone}}",
+            myTime: "{{dateTime}} {{zone}} · mijn tijd",
+            placeTime: "{{dateTime}} {{zone}} · {{place}}",
+            voterDateTimeZone: "{{dateTime}} {{zoneName}}",
+            onThisDevice: "Op dit apparaat: {{dateTime}}",
+            gap: "{{dateTime}} bestaat niet in {{city}} omdat de klok vooruit gaat. Het wordt uitgevoerd op de getoonde tijd.",
+            overlap: "{{dateTime}} komt twee keer voor in {{city}}. De eerste wordt gebruikt.",
         },
     },
 }

@@ -46,6 +46,7 @@ const certificate = (
     not_before: "2025-01-01T00:00:00Z",
     not_after: "2099-01-01T00:00:00Z",
     pem: PEM,
+    purpose: "voter-sign-in",
     created_at: FIXED_TIME,
     ...overrides,
 })

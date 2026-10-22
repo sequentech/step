@@ -4,12 +4,16 @@
 import {FIXED_TIME} from "@sequentech/ui-test-kit/fixtures"
 import {test, expect, TENANT_ID} from "../fixtures"
 import {
+    AUDITOR_ROLES,
     ELECTION_TYPE_ID,
+    SETTINGS_CHANGED,
     SETTINGS_ROLES,
+    TENANT_LOG_SUBTITLE,
     electionType,
     listOf,
     mockElectionTypes,
     mockTenant,
+    mockTenantLog,
     openSettings,
     rowWith,
     serveDocument,
@@ -20,7 +24,6 @@ const PREVIEW_URL = "https://voting.synthetic.example/preview/50000000"
 const TABS = [
     "ELECTION TYPES",
     "VOTING CHANELS",
-    "TEMPLATES",
     "LANGUAGES",
     "LOCALIZATION",
     "Integrations",
@@ -29,11 +32,12 @@ const TABS = [
     "Countries",
     "Backup / Restore",
     "Previews",
+    "Plugins",
 ]
 
 for (const [missing, roles] of [
-    ["tenant-write", ["admin-user", "settings-menu"]],
-    ["settings-menu", ["admin-user", "tenant-write"]],
+    ["tenant-write and tenant-logs-read", ["admin-user", "settings-menu", "logs-read"]],
+    ["settings-menu", ["admin-user", "tenant-write", "tenant-logs-read", "tenant-logs-export"]],
 ] as const)
     test.describe(`without ${missing}`, () => {
         test.use({roles: [...roles]})
@@ -45,16 +49,53 @@ for (const [missing, roles] of [
             ).toBeVisible()
             await expect(page.getByRole("tab")).toHaveCount(0)
             expect(portal.graphql.callsTo("sequent_backend_election_type")).toEqual([])
+            expect(portal.graphql.callsTo("listTenantLog")).toEqual([])
         })
     })
 
-test.describe("with settings access", () => {
+test.describe("an auditor, with tenant-logs-read and without tenant-write", () => {
+    test.use({roles: AUDITOR_ROLES})
+
+    test("sees only the Logs tab, with the tenant log", async ({page, portal}) => {
+        mockTenant(portal)
+        mockTenantLog(portal)
+        await page.goto(`${portal.origin}/settings?lang=en`)
+        await expect(page.getByText("General Configuration", {exact: true})).toBeVisible()
+        await expect(page.getByRole("tab")).toHaveText(["Logs"])
+        await expect(page.getByRole("tab", {name: "Logs"})).toHaveAttribute("aria-selected", "true")
+        await expect(page.getByText(TENANT_LOG_SUBTITLE, {exact: true})).toBeVisible()
+        await expect(page.getByText(SETTINGS_CHANGED, {exact: true})).toBeVisible()
+        expect(portal.graphql.callsTo("sequent_backend_election_type")).toEqual([])
+    })
+})
+
+test.describe("a security officer, with tenant-write and tenant-logs-read", () => {
+    test.use({roles: [...SETTINGS_ROLES, "tenant-logs-read", "tenant-logs-export"]})
+
+    test("sees every settings tab, with Logs last", async ({page, portal}) => {
+        mockTenant(portal)
+        mockTenantLog(portal)
+        mockElectionTypes(portal, [electionType()])
+        await openSettings(page, portal)
+        await expect(page.getByRole("tab")).toHaveText([...TABS, "Logs"])
+        await expect(rowWith(page, "General election")).toBeVisible()
+        // The tenant log is read only once its tab opens.
+        expect(portal.graphql.callsTo("listTenantLog")).toEqual([])
+        await page.getByRole("tab", {name: "Logs", exact: true}).click()
+        await expect(page.getByText(SETTINGS_CHANGED, {exact: true})).toBeVisible()
+    })
+})
+
+test.describe("a configuration manager, with tenant-write and without tenant-logs-read", () => {
     test.use({roles: SETTINGS_ROLES})
     test.beforeEach(({portal}) => {
         mockTenant(portal)
     })
 
-    test("shows every settings tab, starting on election types", async ({page, portal}) => {
+    test("shows every settings tab but Logs, starting on election types", async ({
+        page,
+        portal,
+    }) => {
         mockElectionTypes(portal, [electionType()])
         await openSettings(page, portal)
         await expect(page.getByText("General Configuration", {exact: true})).toBeVisible()
@@ -148,5 +189,35 @@ test.describe("with preview-read", () => {
         await openSettings(page, portal, "Previews")
         await expect(page.getByText("No Previews found", {exact: true})).toBeVisible()
         expect(portal.graphql.callsTo("sequent_backend_preview")).toHaveLength(1)
+    })
+})
+
+test.describe("with messaging account access", () => {
+    test.use({roles: [...SETTINGS_ROLES, "messaging-account-read"]})
+    test.beforeEach(({portal}) => {
+        mockTenant(portal)
+    })
+
+    test("shows the messaging tab after the voting channels", async ({page, portal}) => {
+        mockElectionTypes(portal)
+        portal.graphql.on("GetMessagingAccounts", () => ({
+            data: {sequent_backend_messaging_account: []},
+        }))
+        portal.graphql.on("GetMessagingCallbackStatus", () => ({
+            data: {messaging_callback_status: {accounts: []}},
+        }))
+        portal.graphql.on("GetMessagingMonthlyVolumes", ({variables}) => ({
+            data: {messaging_monthly_volumes: {month: variables.month, rows: []}},
+        }))
+        await openSettings(page, portal, "MESSAGING")
+        await expect(page.getByRole("tab")).toHaveText([
+            ...TABS.slice(0, 2),
+            "MESSAGING",
+            ...TABS.slice(2),
+        ])
+        await expect(page.getByText("No sending accounts yet.", {exact: true})).toBeVisible()
+        expect(portal.graphql.callsTo("GetMessagingAccounts")[0].variables).toEqual({
+            tenantId: TENANT_ID,
+        })
     })
 })

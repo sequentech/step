@@ -4,18 +4,17 @@
 
 //! Production adapters for Datafix cast-vote processing. The task holds no
 //! database connection across the VoterView call, so every operation takes
-//! its own pooled connection and transaction.
+//! its own pooled connection.
 
 use crate::ports::datafix_cast_vote::{
     DatafixAudit, DatafixElectionEvents, DatafixVoterDirectory, DatafixVoterLocks, DatafixVotes,
     PreparedSetVoted, VoterView,
 };
-use crate::postgres::cast_vote::{
-    compare_and_set_cast_vote_status, get_cast_vote_by_id, has_valid_cast_vote,
-};
 use crate::postgres::election_event::{get_election_event_by_id, ElectionEventDatafix};
+use crate::services::ballot_box_reads::{ballot_box_time, cast_vote_status};
 use crate::services::cast_votes::{CastVote, CastVoteStatus};
 use crate::services::database::get_hasura_pool;
+use crate::services::electoral_log_board::get_event_store;
 use crate::services::external::datafix_types::{SoapRequest, SoapRequestResult};
 use crate::services::external::utils::post_operation_result_to_electoral_log;
 use crate::services::external::voterview_requests::{self, PreparedSoapRequest, SoapSendError};
@@ -24,6 +23,8 @@ use crate::types::error::Result;
 use anyhow::anyhow;
 use chrono::{DateTime, Local};
 use deadpool_postgres::{Client as DbClient, Transaction};
+use electoral_log::adapters::ballot_box::BallotStatus;
+use electoral_log::adapters::ballot_box_seal::is_sealed_refusal;
 use electoral_log::messages::newtypes::ExtApiRequestDirection;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::types::hasura::core::ElectionEvent;
@@ -34,6 +35,16 @@ use std::time::Duration as StdDuration;
 use tracing::{error, instrument};
 use uuid::Uuid;
 
+/// The status a vote's ballot has in the ballot box.
+fn ballot_status(status: CastVoteStatus) -> BallotStatus {
+    match status {
+        CastVoteStatus::InProgress => BallotStatus::Pending,
+        CastVoteStatus::Valid => BallotStatus::Valid,
+        CastVoteStatus::Discarded => BallotStatus::Rejected,
+    }
+}
+
+/// The election event's ballot box.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct PgDatafixVotes;
 
@@ -44,51 +55,76 @@ impl DatafixVotes for PgDatafixVotes {
         election_event_id: &str,
         cast_vote_id: &Uuid,
     ) -> anyhow::Result<Option<CastVote>> {
-        let mut client = hasura_client().await?;
-        let transaction = begin(&mut client).await?;
-        get_cast_vote_by_id(&transaction, tenant_id, election_event_id, cast_vote_id)
+        let ballot = get_event_store(election_event_id)
+            .await?
+            .pending_ballot(election_event_id, &cast_vote_id.to_string())
             .await
-            .map_err(|err| anyhow!("Error loading cast vote: {err:?}"))
+            .map_err(|err| anyhow!("Error loading cast vote: {err:?}"))?;
+        ballot
+            .map(|ballot| {
+                let accepted_at = ballot_box_time(ballot.accepted_at)?;
+                Ok(CastVote {
+                    id: ballot.id,
+                    tenant_id: tenant_id.to_string(),
+                    election_id: Some(ballot.election_id),
+                    area_id: Some(ballot.area_id),
+                    created_at: Some(accepted_at),
+                    last_updated_at: Some(accepted_at),
+                    content: None,
+                    voter_id_string: Some(ballot.voter_id),
+                    election_event_id: election_event_id.to_string(),
+                    ballot_id: Some(ballot.ballot_id),
+                    cast_ballot_signature: None,
+                    status: cast_vote_status(ballot.status),
+                })
+            })
+            .transpose()
     }
 
     async fn has_valid_vote(
         &self,
-        tenant_id: &str,
+        _tenant_id: &str,
         election_event_id: &str,
         voter_id: &str,
     ) -> anyhow::Result<bool> {
-        let mut client = hasura_client().await?;
-        let transaction = begin(&mut client).await?;
-        has_valid_cast_vote(&transaction, tenant_id, election_event_id, voter_id)
+        let state = get_event_store(election_event_id)
+            .await?
+            .voter_ballot_state(election_event_id, voter_id)
             .await
-            .map_err(|err| anyhow!("Error checking prior valid votes: {err:?}"))
+            .map_err(|err| anyhow!("Error checking prior valid votes: {err:?}"))?;
+        Ok(state.has_valid)
     }
 
     async fn compare_and_set(
         &self,
-        tenant_id: &str,
+        _tenant_id: &str,
         election_event_id: &str,
+        voter_id: &str,
         cast_vote_id: &Uuid,
         expected: CastVoteStatus,
         next: CastVoteStatus,
     ) -> anyhow::Result<bool> {
-        let mut client = hasura_client().await?;
-        let transaction = begin(&mut client).await?;
-        let changed = compare_and_set_cast_vote_status(
-            &transaction,
-            tenant_id,
-            election_event_id,
-            cast_vote_id,
-            expected,
-            next,
-        )
-        .await
-        .map_err(|err| anyhow!("Error transitioning cast vote status: {err:?}"))?;
-        transaction
-            .commit()
+        get_event_store(election_event_id)
+            .await?
+            .set_ballot_status(
+                election_event_id,
+                voter_id,
+                &cast_vote_id.to_string(),
+                ballot_status(expected),
+                ballot_status(next),
+            )
             .await
-            .map_err(|err| anyhow!("Error committing cast vote status: {err:?}"))?;
-        Ok(changed)
+            .map_err(|err| {
+                // A sealed ballot box takes no change (VOTE-FREEZE).
+                if is_sealed_refusal(&err) {
+                    anyhow!(
+                        "Error transitioning cast vote status: {}",
+                        crate::services::ballot_box_seal::BALLOT_BOX_SEALED_MESSAGE
+                    )
+                } else {
+                    anyhow!("Error transitioning cast vote status: {err:?}")
+                }
+            })
     }
 }
 
@@ -267,5 +303,106 @@ impl DatafixAudit for ElectoralLogDatafixAudit {
         {
             error!("Unable to record the Datafix audit entry: {err}");
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn vote_statuses_are_ballot_box_statuses() {
+        for status in [
+            CastVoteStatus::InProgress,
+            CastVoteStatus::Valid,
+            CastVoteStatus::Discarded,
+        ] {
+            assert_eq!(cast_vote_status(ballot_status(status)), status);
+        }
+    }
+}
+
+#[cfg(test)]
+mod postgres_wiring_tests {
+    use super::*;
+    use crate::services::ballot_box::BallotFormat;
+    use crate::services::electoral_log_board::get_event_databases;
+    use electoral_log::adapters::ballot_box::{AcceptBallot, AcceptOutcome};
+
+    #[tokio::test]
+    #[ignore = "requires a disposable ELECTORAL_LOG_PG_* database"]
+    async fn a_pending_vote_is_loaded_and_resolved_once_in_the_ballot_box() {
+        let (tenant, event) = (Uuid::new_v4().to_string(), Uuid::new_v4().to_string());
+        let (election, area) = (Uuid::new_v4().to_string(), Uuid::new_v4().to_string());
+        let store = get_event_databases()
+            .await
+            .unwrap()
+            .create_event(&tenant, &event)
+            .await
+            .unwrap();
+        store.create_ballot_box(&event).await.unwrap();
+        let format = BallotFormat::HashableBallot.to_string();
+        let AcceptOutcome::Accepted { id, .. } = store
+            .accept_ballot(&AcceptBallot {
+                election_event_id: &event,
+                election_id: &election,
+                area_id: &area,
+                voter_id: "voter",
+                ballot_id: "0abc12",
+                format: &format,
+                content: "ciphertext",
+                voter_signature: None,
+                pseudonym_hash: &[0; 64],
+                ballot_hash: &[0; 64],
+                voting_channel: "ONLINE",
+                status: BallotStatus::Pending,
+                voter_ip: None,
+                voter_country: None,
+                username: None,
+                allowed_votes: 0,
+            })
+            .await
+            .unwrap()
+        else {
+            panic!("the ballot is accepted");
+        };
+        let id = Uuid::parse_str(&id).unwrap();
+
+        let vote = PgDatafixVotes
+            .load(&tenant, &event, &id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(vote.status, CastVoteStatus::InProgress);
+        assert_eq!(vote.voter_id_string.as_deref(), Some("voter"));
+        assert_eq!(vote.ballot_id.as_deref(), Some("0abc12"));
+        assert!(!PgDatafixVotes
+            .has_valid_vote(&tenant, &event, "voter")
+            .await
+            .unwrap());
+
+        let resolve = |expected, next| {
+            PgDatafixVotes.compare_and_set(&tenant, &event, "voter", &id, expected, next)
+        };
+        assert!(!resolve(CastVoteStatus::Valid, CastVoteStatus::Discarded)
+            .await
+            .unwrap());
+        assert!(resolve(CastVoteStatus::InProgress, CastVoteStatus::Valid)
+            .await
+            .unwrap());
+        assert!(
+            !resolve(CastVoteStatus::InProgress, CastVoteStatus::Discarded)
+                .await
+                .unwrap()
+        );
+        assert!(PgDatafixVotes
+            .has_valid_vote(&tenant, &event, "voter")
+            .await
+            .unwrap());
+        // Only a pending vote is loaded.
+        assert_eq!(
+            PgDatafixVotes.load(&tenant, &event, &id).await.unwrap(),
+            None
+        );
     }
 }

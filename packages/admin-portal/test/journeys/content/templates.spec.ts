@@ -85,6 +85,16 @@ async function openTemplates(page: Page, portal: PortalServices) {
 const rowButtons = (page: Page, name: string): Locator =>
     page.getByRole("row").filter({hasText: name}).getByRole("button")
 
+/** What the form saves when only SMS is ticked. */
+const SMS_ONLY = {
+    DOCUMENT: false,
+    EMAIL: false,
+    SMS: true,
+    WHATSAPP: false,
+    VIBER: false,
+    MESSENGER: false,
+}
+
 test.describe("template administrator", () => {
     test.use({roles: writerRoles})
 
@@ -134,11 +144,11 @@ test.describe("template administrator", () => {
                 alias: "receipt",
                 tenant_id: TENANT_ID,
                 type: "BALLOT_RECEIPT",
-                communication_method: "EMAIL",
+                communication_method: "SMS",
                 template: {
                     alias: "receipt",
                     name: "Ballot receipt",
-                    selected_methods: {DOCUMENT: false, EMAIL: false, SMS: true},
+                    selected_methods: SMS_ONLY,
                     sms: {message: "Your receipt is ready"},
                     email: "",
                     document: "<p>{{receipt}}</p>",
@@ -182,14 +192,14 @@ test.describe("template administrator", () => {
             set: {
                 alias: "welcome",
                 annotations: {},
-                communication_method: "EMAIL",
+                communication_method: "SMS",
                 created_at: FIXED_TIME,
                 created_by: "synthetic-admin",
                 labels: {},
                 template: {
                     alias: "welcome",
                     name: "Welcome letter v2",
-                    selected_methods: {DOCUMENT: false, EMAIL: false, SMS: true},
+                    selected_methods: SMS_ONLY,
                     sms: {message: "Your credentials are ready"},
                     email: "",
                     pdf_options: "",
@@ -264,14 +274,14 @@ test.describe("template administrator", () => {
                 set: {
                     alias: "receipt",
                     annotations: {},
-                    communication_method: "EMAIL",
+                    communication_method: "SMS",
                     created_at: FIXED_TIME,
                     created_by: "synthetic-admin",
                     labels: {},
                     template: {
                         alias: "receipt",
                         name: "Receipt revised",
-                        selected_methods: {DOCUMENT: false, EMAIL: false, SMS: true},
+                        selected_methods: SMS_ONLY,
                         sms: {message: "Receipt ready"},
                         email: "",
                         pdf_options: "",

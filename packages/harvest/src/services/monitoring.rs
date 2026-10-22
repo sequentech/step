@@ -56,6 +56,7 @@ use windmill::services::monitoring::config_store::{
     EventRef, LiveConfig, StoredRevision,
 };
 use windmill::services::monitoring::snapshot::empty_payload;
+use windmill::services::time_zones::event_time_zone;
 
 // ---------------------------------------------------------------------------
 // Errors
@@ -419,6 +420,28 @@ pub async fn hasura_client(
         .get()
         .await
         .map_err(MonitoringError::internal)
+}
+
+/// The event's primary timezone (IANA): its figures, days and export
+/// ranges are in it.
+pub async fn event_zone(
+    services: &HarvestServices,
+    event: EventRef,
+) -> MonitoringResult<String> {
+    let mut client = hasura_client(services).await?;
+    let transaction = client
+        .transaction()
+        .await
+        .map_err(MonitoringError::internal)?;
+    let zone =
+        event_time_zone(&transaction, event.tenant_id, event.election_event_id)
+            .await
+            .map_err(MonitoringError::internal)?;
+    transaction
+        .commit()
+        .await
+        .map_err(MonitoringError::internal)?;
+    Ok(zone.name().to_owned())
 }
 
 /// The viewer of `election_event_id`, and the elections they may see; the

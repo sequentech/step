@@ -54,12 +54,35 @@ pub enum EventProcessors {
     END_LOCKDOWN_PERIOD,
     #[strum(serialize = "ALLOW_TALLY")]
     ALLOW_TALLY,
+    // Lifecycle windows (VOTE-LIFECYCLE): scheduling only switches each one
+    // on and off at the Post's local time; what a window enables belongs to
+    // EMS-READINESS and EMS-TEST-VOTING.
+    #[strum(serialize = "START_READINESS_TEST")]
+    START_READINESS_TEST,
+    #[strum(serialize = "END_READINESS_TEST")]
+    END_READINESS_TEST,
+    #[strum(serialize = "START_FINAL_TESTING")]
+    START_FINAL_TESTING,
+    #[strum(serialize = "END_FINAL_TESTING")]
+    END_FINAL_TESTING,
+    #[strum(serialize = "START_TEST_VOTING")]
+    START_TEST_VOTING,
+    #[strum(serialize = "END_TEST_VOTING")]
+    END_TEST_VOTING,
 }
 
-#[derive(Serialize, Deserialize, Eq, PartialEq, Debug, Clone)]
+#[derive(Serialize, Deserialize, Eq, PartialEq, Debug, Clone, Default)]
 pub struct CronConfig {
     pub cron: Option<String>,
+    /// The instant the scheduler runs, RFC 3339 with an offset.
     pub scheduled_date: Option<String>,
+    /// The wall time as entered, `YYYY-MM-DDTHH:MM`, in `timezone`. Kept so a
+    /// tz database update can recompute the instant (VOTE-LIFECYCLE).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub local: Option<String>,
+    /// The IANA zone of `local`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub timezone: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -184,61 +207,54 @@ pub fn generate_voting_period_dates(
     election_event_id: &str,
     election_id: Option<&str>,
 ) -> Result<VotingPeriodDates> {
-    let matches_payload = |scheduled: &ScheduledEvent| {
-        scheduled
-            .event_payload
-            .clone()
-            .and_then(|value| {
-                serde_json::from_value::<ManageElectionDatePayload>(value).ok()
+    let matches_payload =
+        |scheduled: &ScheduledEvent, election_id: Option<&str>| {
+            scheduled
+                .event_payload
+                .clone()
+                .and_then(|value| {
+                    serde_json::from_value::<ManageElectionDatePayload>(value)
+                        .ok()
+                })
+                .map(|payload| {
+                    payload.election_id.as_deref() == election_id
+                        && payload
+                            .channels()
+                            .contains(&VotingStatusChannel::ONLINE)
+                })
+                .unwrap_or(false)
+        };
+    let find = |election_id: Option<&str>, processor: &EventProcessors| {
+        let task_id = generate_manage_date_task_name(
+            tenant_id,
+            election_event_id,
+            election_id,
+            processor,
+        );
+        scheduled_events
+            .iter()
+            .find(|scheduled_event| {
+                scheduled_event.tenant_id.as_deref() == Some(tenant_id)
+                    && scheduled_event.election_event_id.as_deref()
+                        == Some(election_event_id)
+                    && scheduled_event.task_id.as_deref()
+                        == Some(task_id.as_str())
+                    && matches_payload(scheduled_event, election_id)
             })
-            .map(|payload| {
-                payload.election_id.as_deref() == election_id
-                    && payload.channels().contains(&VotingStatusChannel::ONLINE)
-            })
-            .unwrap_or(false)
+            .and_then(|scheduled_event| scheduled_event.cron_config.clone())
+            .and_then(|cron_config| cron_config.scheduled_date)
     };
 
-    let start_date_name = generate_manage_date_task_name(
-        tenant_id,
-        election_event_id,
-        election_id,
-        &EventProcessors::START_VOTING_PERIOD,
-    );
-    let start_date =
-        scheduled_events
-            .clone()
-            .into_iter()
-            .find(|scheduled_event| {
-                scheduled_event.tenant_id == Some(tenant_id.to_string())
-                    && scheduled_event.election_event_id
-                        == Some(election_event_id.to_string())
-                    && scheduled_event.task_id == Some(start_date_name.clone())
-                    && matches_payload(scheduled_event)
-            });
-
-    let end_date_name = generate_manage_date_task_name(
-        tenant_id,
-        election_event_id,
-        election_id,
-        &EventProcessors::END_VOTING_PERIOD,
-    );
-    let end_date = scheduled_events.into_iter().find(|scheduled_event| {
-        scheduled_event.tenant_id == Some(tenant_id.to_string())
-            && scheduled_event.election_event_id
-                == Some(election_event_id.to_string())
-            && scheduled_event.task_id == Some(end_date_name.clone())
-            && matches_payload(scheduled_event)
-    });
-
+    // The event-wide close applies to every election without its own
+    // (VOTE-LIFECYCLE): one common close for every Post.
+    let end_date = find(election_id, &EventProcessors::END_VOTING_PERIOD)
+        .or_else(|| {
+            election_id
+                .and_then(|_| find(None, &EventProcessors::END_VOTING_PERIOD))
+        });
     Ok(VotingPeriodDates {
-        start_date: start_date
-            .map(|val| val.cron_config.map(|val| val.scheduled_date))
-            .flatten()
-            .flatten(),
-        end_date: end_date
-            .map(|val| val.cron_config.map(|val| val.scheduled_date))
-            .flatten()
-            .flatten(),
+        start_date: find(election_id, &EventProcessors::START_VOTING_PERIOD),
+        end_date,
     })
 }
 
@@ -265,9 +281,10 @@ pub fn prepare_scheduled_dates(
         EventProcessors::END_LOCKDOWN_PERIOD,
     ];
 
-    Ok(scheduled_events
-        .iter()
-        .filter_map(|scheduled_event| {
+    let mut dates: HashMap<String, ScheduledEventDates> = HashMap::new();
+    let mut from_election: Vec<String> = vec![];
+    for (name, scoped, date) in
+        scheduled_events.iter().filter_map(|scheduled_event| {
             let Some(ref event_payload) = scheduled_event.event_payload else {
                 return None;
             };
@@ -292,6 +309,7 @@ pub fn prepare_scheduled_dates(
             }
             return Some((
                 event_processor.to_string(),
+                se_election_id.is_some(),
                 ScheduledEventDates {
                     scheduled_at: scheduled_event
                         .cron_config
@@ -301,10 +319,25 @@ pub fn prepare_scheduled_dates(
                         &scheduled_event.stopped_at,
                         "-",
                     )),
+                    timezone: scheduled_event
+                        .cron_config
+                        .as_ref()
+                        .and_then(|cron| cron.timezone.clone()),
                 },
             ));
         })
-        .collect())
+    {
+        // The election's own date wins over the event-wide one, whatever
+        // order the rows come in: the event-wide close applies to every
+        // election without its own.
+        if scoped {
+            from_election.push(name.clone());
+        } else if from_election.contains(&name) {
+            continue;
+        }
+        dates.insert(name, date);
+    }
+    Ok(dates)
 }
 
 #[cfg(test)]

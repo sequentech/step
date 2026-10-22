@@ -28,7 +28,7 @@ import {ExportElectionMenu, type IResultDocumentsData} from "./ExportElectionMen
 
 interface Scenario {
     /** Which results the menu exports: the event's or the council election's. */
-    level: "event" | "election"
+    level: "event" | "election" | "held"
     tallyType: ETallyType
     /** Whether the deployment enables the Miru transmission exports. */
     miru: boolean
@@ -39,6 +39,14 @@ const DOCUMENTS: Record<Scenario["level"], IResultDocumentsData[]> = {
     event: [{documents: RESULT_DOCUMENTS.event, name: "Council results", class_type: "event"}],
     election: [
         {documents: RESULT_DOCUMENTS.election, name: "Council election", class_type: "election"},
+    ],
+    // A report held for its signatures: its results data, no rendering yet.
+    held: [
+        {
+            documents: {json: RESULT_DOCUMENTS.election.json},
+            name: "Council election",
+            class_type: "election",
+        },
     ],
 }
 
@@ -56,7 +64,7 @@ function Fixture({level, tallyType, miru, onCreateTransmissionPackage}: Scenario
                         electionEventId={EVENT_ID}
                         tallySessionId={STORY_IDS.tallySession}
                         tallyType={tallyType}
-                        electionId={level === "election" ? STORY_IDS.election : null}
+                        electionId={level === "event" ? null : STORY_IDS.election}
                         onCreateTransmissionPackage={onCreateTransmissionPackage}
                         tenantId={TENANT_ID}
                         resultsEventId={TALLY_IDS.resultsEvent}
@@ -211,6 +219,23 @@ export const InitializationReportOmitsResultExports: Story = {
             exportLabel("Council election", "JSON"),
             exportLabel("Council election", "TAR_GZ"),
         ])
+        await closeMenu()
+    },
+}
+
+export const AHeldReportAwaitsItsSignatures: Story = {
+    args: {level: "held"},
+    play: async ({canvasElement}) => {
+        const menu = await openMenu(canvasElement)
+        // No HTML or PDF of the held report, nothing rendered from it: its
+        // results data only.
+        await expect(
+            menu.getByText(i18n.t("signing.results.awaiting", {item: "Council election"}))
+        ).toBeVisible()
+        expect(itemNames(menu)).toContain(exportLabel("Council election", "JSON"))
+        for (const format of ["HTML", "PDF"]) {
+            expect(itemNames(menu)).not.toContain(exportLabel("Council election", format))
+        }
         await closeMenu()
     },
 }

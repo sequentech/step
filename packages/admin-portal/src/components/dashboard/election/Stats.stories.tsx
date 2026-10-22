@@ -15,6 +15,7 @@ const meta = {
             areasCount: 2,
             emailsSentCount: 12,
             smsSentCount: 0,
+            messagesSentCount: {WHATSAPP: 40, VIBER: 7, MESSENGER: 0},
         },
     },
 } satisfies Meta<typeof Stats>
@@ -33,6 +34,20 @@ export const Populated: Story = {
         await expect(within(card(canvasElement, "Areas")).getByText("2")).toBeVisible()
         await expect(within(card(canvasElement, "Emails sent")).getByText("12")).toBeVisible()
         await expect(within(card(canvasElement, "SMS sent")).getByText("0")).toBeVisible()
+        await expect(
+            within(card(canvasElement, "WhatsApp messages sent")).getByText("40")
+        ).toBeVisible()
+        await expect(
+            within(card(canvasElement, "Viber messages sent")).getByText("7")
+        ).toBeVisible()
+        await expect(
+            within(card(canvasElement, "Messenger messages sent")).getByText("0")
+        ).toBeVisible()
+        // Channel order, each with the shared channel icon.
+        const channels = Array.from(canvasElement.querySelectorAll("svg[data-channel]")).map(
+            (icon) => icon.getAttribute("data-channel")
+        )
+        expect(channels).toEqual(["WHATSAPP", "VIBER", "MESSENGER", "SMS", "EMAIL"])
         expect(within(canvasElement).queryByText("Elections")).not.toBeInTheDocument()
     },
 }
@@ -45,9 +60,10 @@ export const Unknown: Story = {
             areasCount: "-",
             emailsSentCount: "-",
             smsSentCount: "-",
+            messagesSentCount: {WHATSAPP: "-", VIBER: "-", MESSENGER: "-"},
         },
     },
     play: async ({canvasElement}) => {
-        expect(within(canvasElement).getAllByText("-")).toHaveLength(5)
+        expect(within(canvasElement).getAllByText("-")).toHaveLength(8)
     },
 }

@@ -371,18 +371,27 @@ pub fn build_from_workbook(
         Err(problem) => return failed(problem).map(IBuildOutput::from),
     };
 
+    to_js(&build_workbook_output(&read, &options)).map(IBuildOutput::from)
+}
+
+#[cfg(all(
+    feature = "election_config_xlsx",
+    feature = "election_config_archive"
+))]
+fn build_workbook_output(
+    read: &crate::election_config::Workbook,
+    options: &BuildOptions,
+) -> Output {
     let templates = match TemplateSet::builtin() {
         Ok(templates) => templates,
-        Err(problem) => return failed(problem).map(IBuildOutput::from),
+        Err(problem) => return output_problem(problem),
     };
 
-    let built = build(&read, &templates, &options, &Sources::default());
+    let built = build(read, &templates, options, &Sources::default());
 
     let bundle = match built {
         Ok(bundle) => bundle,
-        Err(report) => {
-            return to_js(&Output::refused(report)).map(IBuildOutput::from)
-        }
+        Err(report) => return Output::refused(report),
     };
 
     // The same second pass `step-cli` makes: a document can be internally
@@ -407,16 +416,16 @@ pub fn build_from_workbook(
     }
 
     if report.has_errors() {
-        return to_js(&Output::refused(report)).map(IBuildOutput::from);
+        return Output::refused(report);
     }
 
     let layout = archive::layout(&bundle);
     let zipped = match archive::zip(&layout.importable) {
         Ok(bytes) => bytes,
-        Err(problem) => return failed(problem).map(IBuildOutput::from),
+        Err(problem) => return output_problem(problem),
     };
 
-    to_js(&Output {
+    Output {
         importable: layout.importable.iter().map(File::from).collect(),
         auxiliary: layout.auxiliary.iter().map(File::from).collect(),
         archive: Some(File {
@@ -426,8 +435,68 @@ pub fn build_from_workbook(
         delivery: None,
         report,
         event_external_id: Some(bundle.event_external_id.clone()),
-    })
-    .map(IBuildOutput::from)
+    }
+}
+
+#[cfg(all(
+    feature = "election_config_xlsx",
+    feature = "election_config_archive"
+))]
+fn output_problem(problem: Problem) -> Output {
+    let mut report = Report::default();
+    report.push(problem);
+    Output::refused(report)
+}
+
+/// Versioned handshake for an opt-in browser converter loaded as static assets.
+#[cfg(all(
+    feature = "election_config_xlsx",
+    feature = "election_config_archive"
+))]
+#[wasm_bindgen(js_name = historicalImportInfo)]
+pub fn historical_import_info() -> Result<JsValue, JsError> {
+    to_js(&serde_json::json!({
+        "abiVersion": 1,
+        "profile": crate::election_config::historical::PROFILE,
+        "packageVersion": env!("CARGO_PKG_VERSION")
+    }))
+}
+
+/// Build the reviewed legacy-seat-v1 profile locally, sharing the workbook build.
+#[cfg(all(
+    feature = "election_config_xlsx",
+    feature = "election_config_archive"
+))]
+#[wasm_bindgen(js_name = buildFromHistorical)]
+pub fn build_from_historical(
+    sql: &[u8],
+    workbook: &[u8],
+    decisions: JsValue,
+    options: JsValue,
+) -> Result<JsValue, JsError> {
+    use crate::election_config::historical::{
+        adapt, HistoricalOptions, Summary,
+    };
+    #[derive(Serialize)]
+    struct HistoricalOutput {
+        summary: Summary,
+        output: Output,
+    }
+    let decisions: HistoricalOptions =
+        serde_wasm_bindgen::from_value(decisions)
+            .map_err(|_| JsError::new("historical decisions are invalid"))?;
+    let options = build_options(options)?;
+    let result = match adapt(sql, workbook, &decisions) {
+        Ok(adapted) => HistoricalOutput {
+            summary: adapted.summary,
+            output: build_workbook_output(&adapted.workbook, &options),
+        },
+        Err(refused) => HistoricalOutput {
+            summary: refused.summary,
+            output: Output::refused(refused.report),
+        },
+    };
+    to_js(&result)
 }
 
 /// Check a plan, in the wizard's own vocabulary.
@@ -948,6 +1017,118 @@ pub fn plan_in_delivery_js(bytes: &[u8]) -> Result<JsValue, JsError> {
         })?;
 
     to_js(&value)
+}
+
+/// Every report type and the formats it can be generated in, the first being
+/// its default, so the Reports step offers only what the platform renders.
+#[wasm_bindgen(js_name = reportCatalog)]
+pub fn report_catalog() -> Result<JsValue, JsError> {
+    use crate::election_config::report::ReportType;
+
+    #[derive(Serialize)]
+    struct Entry {
+        report_type: String,
+        formats: Vec<crate::election_config::report::ReportFormat>,
+    }
+    to_js(
+        &ReportType::ALL
+            .iter()
+            .map(|report_type| Entry {
+                report_type: report_type.to_string(),
+                formats: report_type.formats().to_vec(),
+            })
+            .collect::<Vec<_>>(),
+    )
+}
+
+/// What a signed configuration package is checked against.
+#[cfg(feature = "election_config_signing")]
+#[derive(serde::Deserialize)]
+struct PackageTrustInput {
+    package_roots: String,
+    staff_roots: String,
+    #[serde(default)]
+    revocation_lists: Vec<String>,
+    required_approvals: u16,
+    #[serde(default)]
+    last: Option<crate::election_config::package_verify::LastImport>,
+}
+
+/// The outcome of checking a package: the problems, and when there are none,
+/// what was checked.
+#[cfg(feature = "election_config_signing")]
+#[derive(Serialize)]
+struct PackageCheck {
+    report: Report,
+    manifest: Option<crate::election_config::manifest::Manifest>,
+    manifest_sha256: Option<String>,
+    signer: Option<crate::election_config::package_verify::CertificateIdentity>,
+    approvers: Vec<crate::election_config::package_verify::CertificateIdentity>,
+    freshness: Option<crate::election_config::package_verify::Freshness>,
+}
+
+#[cfg(feature = "election_config_signing")]
+#[wasm_bindgen]
+extern "C" {
+    /// The browser's clock, in milliseconds since 1970.
+    #[wasm_bindgen(js_namespace = Date, js_name = now)]
+    fn browser_now() -> f64;
+}
+
+/// Checks a signed configuration package before `Import Configuration`
+/// reads anything in it: the same checks windmill runs at import, at the
+/// browser's own time.
+///
+/// A package that fails comes back as a report with no manifest, not as an
+/// exception, so the screen can name each problem.
+#[cfg(feature = "election_config_signing")]
+#[wasm_bindgen(js_name = verifyConfigurationPackage)]
+pub fn verify_configuration_package_js(
+    bytes: &[u8],
+    trust: JsValue,
+) -> Result<JsValue, JsError> {
+    use crate::election_config::package_verify::{
+        freshness, verify_package_at, PackageTrust,
+    };
+
+    let now = chrono::DateTime::from_timestamp_millis(browser_now() as i64)
+        .ok_or_else(|| JsError::new("the browser's clock can't be read"))?;
+    let input: PackageTrustInput = serde_wasm_bindgen::from_value(trust)
+        .map_err(|error| JsError::new(&format!("unreadable trust: {error}")))?;
+    let refused = |report: Report| PackageCheck {
+        report,
+        manifest: None,
+        manifest_sha256: None,
+        signer: None,
+        approvers: Vec::new(),
+        freshness: None,
+    };
+
+    let trust = match PackageTrust::from_pem(
+        &input.package_roots,
+        &input.staff_roots,
+        &input.revocation_lists,
+        input.required_approvals,
+    ) {
+        Ok(trust) => trust,
+        Err(problem) => return to_js(&refused(Report::from_problem(problem))),
+    };
+    let verified = match verify_package_at(bytes, &trust, now) {
+        Ok(verified) => verified,
+        Err(report) => return to_js(&refused(report)),
+    };
+    let fresh = match freshness(&verified, input.last.as_ref()) {
+        Ok(fresh) => fresh,
+        Err(problem) => return to_js(&refused(Report::from_problem(problem))),
+    };
+    to_js(&PackageCheck {
+        report: Report::default(),
+        manifest_sha256: Some(verified.manifest_sha256),
+        manifest: Some(verified.manifest),
+        signer: Some(verified.signer),
+        approvers: verified.approvers,
+        freshness: Some(fresh),
+    })
 }
 
 /// A delivery zip, a plan `.json` or a workbook `.xlsx` — whichever this is.
@@ -1504,21 +1685,16 @@ pub fn policy_catalog() -> Result<JsValue, JsError> {
             let default = crate::election_config::policy::Tally::default();
             TallyCatalog {
                 voting_types: crate::election_config::validate::VOTING_TYPES,
-                counting_algorithms:
-                    crate::election_config::validate::COUNTING_ALGORITHMS,
+                counting_algorithms: crate::election_config::validate::COUNTING_ALGORITHMS,
                 offered_counting_algorithms:
                     crate::election_config::validate::OFFERED_COUNTING_ALGORITHMS,
-                preferential:
-                    crate::election_config::validate::PREFERENTIAL_ALGORITHMS,
+                preferential: crate::election_config::validate::PREFERENTIAL_ALGORITHMS,
                 default_voting_type: default.voting_type.clone(),
                 default_counting_algorithm: default.counting_algorithm.clone(),
                 default_min_votes: default.min_votes,
                 default_is_encrypted: default.is_encrypted,
-                tie_breaking_policies:
-                    crate::election_config::validate::TIE_BREAKING_POLICIES,
-                default_tie_breaking_policy: default
-                    .tie_breaking_policy
-                    .clone(),
+                tie_breaking_policies: crate::election_config::validate::TIE_BREAKING_POLICIES,
+                default_tie_breaking_policy: default.tie_breaking_policy.clone(),
             }
         },
         layout: {

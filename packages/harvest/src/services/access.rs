@@ -11,6 +11,11 @@ use sequent_core::types::keycloak::PERMISSION_LABELS;
 use sequent_core::types::permissions::Permissions;
 use std::collections::HashMap;
 use std::fmt;
+use std::str::FromStr;
+use windmill::services::import::import_users::{
+    GroupAssignmentPolicy, ImportUsersPrivileges, PermissionLabelPolicy,
+};
+use windmill::services::signing::permissions::signing_action_of;
 
 pub type Attributes = HashMap<String, Vec<String>>;
 pub type SecretAttributes = HashMap<String, Option<Vec<String>>>;
@@ -79,10 +84,14 @@ fn sets_permission_labels(attributes: Option<&Attributes>) -> bool {
         .is_some_and(|attributes| attributes.contains_key(PERMISSION_LABELS))
 }
 
+/// The permissions needed to create a user: the create permission of the
+/// scope, plus the ones for the secret attributes, the permission labels and
+/// the roles that the request sets.
 pub fn create_user_permissions(
     scope: UserScope,
     secret_attributes: Option<&SecretAttributes>,
     attributes: Option<&Attributes>,
+    user_roles_ids: Option<&[String]>,
 ) -> Result<Vec<Permissions>, SecretAttributesOutsideElectionEvent> {
     let mut permissions = vec![create_permission(scope)];
     match scope {
@@ -102,7 +111,35 @@ pub fn create_user_permissions(
             }
         }
     }
+    if user_roles_ids.is_some_and(|role_ids| !role_ids.is_empty()) {
+        // The same permissions the set-user-role route requires.
+        permissions.push(Permissions::USER_WRITE);
+        permissions.push(Permissions::ROLE_WRITE);
+    }
     Ok(permissions)
+}
+
+/// What a user import may set, for a caller whose permissions `holds` answers
+/// for: assigning arbitrary groups needs the permissions of the set-user-role
+/// route, and setting permission labels needs permission-label-write.
+pub fn import_users_privileges(
+    holds: impl Fn(Vec<Permissions>) -> bool,
+) -> ImportUsersPrivileges {
+    ImportUsersPrivileges {
+        group_assignment: if holds(vec![
+            Permissions::USER_WRITE,
+            Permissions::ROLE_WRITE,
+        ]) {
+            GroupAssignmentPolicy::AnyGroup
+        } else {
+            GroupAssignmentPolicy::DefaultGroupOnly
+        },
+        permission_labels: if holds(vec![Permissions::PERMISSION_LABEL_WRITE]) {
+            PermissionLabelPolicy::Allowed
+        } else {
+            PermissionLabelPolicy::Forbidden
+        },
+    }
 }
 
 /// The fields of an edit-user request its permissions depend on.
@@ -214,6 +251,67 @@ pub fn authorize_any(
     second: Result<(), (Status, String)>,
 ) -> Result<(), (Status, String)> {
     first.or(second)
+}
+
+/// Which of a role's permissions a request may turn on or off.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RolePermissionEdit {
+    /// Any permission, with `user-permission-write` and `role-write`.
+    AnyPermission,
+    /// Only a `sign-<action>` permission, which decides who can sign, with
+    /// `role-write` alone: whoever administers who signs can't grant
+    /// themselves anything else.
+    SignPermission,
+}
+
+impl RolePermissionEdit {
+    /// The edit turning `permission` on or off is, for a user who holds
+    /// `user-permission-write` or not.
+    pub fn of(permission: &str, holds_user_permission_write: bool) -> Self {
+        match (
+            holds_user_permission_write,
+            signing_action_of(permission).is_some(),
+        ) {
+            (false, true) => Self::SignPermission,
+            _ => Self::AnyPermission,
+        }
+    }
+
+    /// The permissions the edit requires, in the order a denial lists them.
+    pub fn required(self) -> Vec<Permissions> {
+        match self {
+            Self::AnyPermission => {
+                vec![
+                    Permissions::USER_PERMISSION_WRITE,
+                    Permissions::ROLE_WRITE,
+                ]
+            }
+            Self::SignPermission => vec![Permissions::ROLE_WRITE],
+        }
+    }
+}
+
+/// The platform's own permissions can't be deleted: features and the
+/// realm templates rely on them.
+#[derive(Debug, PartialEq, Eq)]
+pub struct BuiltInPermission(pub String);
+
+impl fmt::Display for BuiltInPermission {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "{} is a built-in permission and can't be deleted",
+            self.0
+        )
+    }
+}
+
+/// Refuses deleting a permission the platform defines.
+pub fn deletable_permission(name: &str) -> Result<(), BuiltInPermission> {
+    match Permissions::from_str(name) {
+        Ok(_) => Err(BuiltInPermission(name.to_string())),
+        Err(_) => Ok(()),
+    }
 }
 
 #[cfg(test)]

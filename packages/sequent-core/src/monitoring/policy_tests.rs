@@ -626,15 +626,15 @@ fn age_bands_rise_and_only_the_last_is_open() {
     );
 }
 
+/// The event's zone is its presentation's (`presentation.timezones`): the
+/// settings name none, and one that still does is refused.
 #[test]
-fn the_time_zone_is_an_iana_name() {
-    let yaml = SETTINGS.replace("Asia/Manila", "Manila time");
-    assert_refused(&settings_report(&yaml), Code::InvalidValue, "time_zone");
-    for accepted in ["UTC", "Etc/GMT+8", "America/Argentina/Buenos_Aires"] {
-        assert_accepted(&settings_report(
-            &SETTINGS.replace("Asia/Manila", accepted),
-        ));
-    }
+fn the_settings_name_no_time_zone() {
+    assert!(!SETTINGS.contains("time_zone"));
+    let report =
+        settings_report(&format!("time_zone: Asia/Manila\n{SETTINGS}"));
+    assert!(!report.is_accepted());
+    assert!(report.to_string().contains("time_zone"), "{report}");
 }
 
 // -- across documents ------------------------------------------------------

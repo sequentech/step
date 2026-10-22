@@ -60,6 +60,10 @@ Everything else reaches Keycloak inside a provider jar:
   `voter-enrollment`, and `message-otp-authenticator/src/main/resources/theme/base/login/`.
 - Theme registration (`META-INF/keycloak-themes.json`), `quarkus.properties` and
   `packages/Dockerfile.keycloak`.
+- Not Java, but also only through an image rebuild: the React themes
+  (`packages/keycloak-ui`). To iterate on them without rebuilding, mount them as
+  described in
+  [Hot updates on a real authentication session](#hot-updates-on-a-real-authentication-session).
 
 To try a module change without rebuilding the image, package the module with the
 devcontainer's Maven, copy its jar into the running container and restart it;
@@ -79,13 +83,117 @@ keep the change, rebuild the image and recreate the container (the
 by the `up` command above), and run the module's tests with
 `mvn -f packages/keycloak-extensions/pom.xml -pl <module> -am verify`.
 
+### Privacy-safe authentication event storage
+
+Images containing `custom-event-listener` require these default-provider selections:
+
+```sh
+--spi-events-store--provider-default=sequent-privacy
+--spi-user-sessions--provider-default=sequent-privacy
+```
+
+The `provider-default` option keeps Keycloak's JPA provider loaded for explicit delegation.
+The exclusive `--spi-events-store--provider` option does not. Startup checks refuse a
+different default or an unavailable JPA delegate before serving authentication. Deploy the
+provider jar and these settings together; an older image without the providers cannot use them.
+
+The session provider delegates cache, persistence and cluster maintenance to the explicitly loaded
+`infinispan` provider. Before creating election-realm sessions it removes the IP address. Restarted,
+imported and offline sessions use the same boundary. Session views remove network notes and never expose an election voter's address, including
+when reached through a client session. The request connection remains intact for the
+separately authorized forensic sender. Tenant and master sessions keep their established behavior.
+Selecting the exclusive `--spi-user-sessions--provider` option would unload the required delegate;
+startup checks reject that configuration or a different default.
+
+Enabled election-realm authentication and admin audit stores remain enabled. Before persistence,
+the provider copies events, removes their IP address, and retains a known authentication-detail
+projection. Admin changes retain actor, operation, resource, outcome and safe representation
+fields while network and secret fields are redacted. An unstructured event-realm representation
+is replaced by a redaction marker. The same representation filtering protects electoral-log
+delivery. Known tenant and master realms retain their existing storage behavior; an unresolved
+realm receives the safe projection. Existing retention settings and queries are preserved,
+including the pinned JPA factory's admin-expiration callback.
+
+The original login event stays available to the separate forensic sender. Both Network Data
+Policies exclude attribution from ordinary storage; only an explicitly enabled forensic policy
+allows that sender to transmit it. This change does not delete historical audit rows.
+
+The disposable integration check uses pinned Keycloak 26.7.5 and PostgreSQL, enables audit storage
+in imported realms, tests actual database rows and custom audit delivery under both policies,
+and verifies session API/database redaction, online/offline refresh across restart, logout,
+idempotent quiesced cleanup and refusal of unsafe provider selection. Its queue and forensic endpoints use
+synthetic fixtures. It creates its own internal Docker network and containers, publishes no
+ports, and removes those resources on exit:
+
+```sh
+mvn -f packages/keycloak-extensions/pom.xml -pl custom-event-listener -am verify
+python3 packages/keycloak-extensions/custom-event-listener/src/test/integration/event_store.py
+```
+
+`--mock-image` can select an existing local image with Python 3 instead of the default
+`python:3.12-slim`. `--skip-build` reuses the test Keycloak image only when its provider jars
+already match the sources. Standalone fixtures that do not package `custom-event-listener`
+continue to use their normal provider selections.
+
+### Existing election-realm sessions
+
+Deployments upgrading from a version that stored session addresses must invalidate those sessions
+during the coordinated rollout. The read wrapper masks historical addresses, but it does not erase
+the existing database or cache copies. Use a maintenance window:
+
+1. Stop every Keycloak node and every other session writer. Discard all online/offline user and
+   client session caches on all nodes, including retained cache volumes or external cache copies.
+   Keep the fleet stopped throughout the cleanup. A database-only update while nodes run can be
+   overwritten by a stale cached session.
+2. Inventory the exact election-event realm names in the Keycloak database. For each approved realm,
+   run the bounded script against that database, repeating until `removed_sessions` is zero:
+
+   ```sh
+   psql "$KEYCLOAK_DATABASE_URL" \
+     -v realm_name=tenant-11111111-1111-4111-8111-111111111111-event-22222222-2222-4222-8222-222222222222 \
+     -v sessions_quiesced=yes \
+     -f packages/keycloak-extensions/custom-event-listener/scripts/purge_event_sessions.sql
+   ```
+
+   The realm is an example. Each transaction removes at most 5,000 online/offline session rows and
+   their client-session children. The script refuses tenant/master realm names and requires explicit
+   quiescence acknowledgement. It leaves users, credentials, audit records and other realms intact.
+3. Deploy both privacy providers and selections, then start Keycloak with empty session caches.
+   Affected voters must sign in again; existing refresh/offline tokens no longer name sessions.
+   Validate login, refresh, logout and permitted forensic capture before reopening voting access.
+4. Record cleanup counts and apply the authority's separate retention procedure to backups and
+   replicas. This script cannot erase historical exported or backed-up copies.
+
+The session provider supports the shipped persistent embedded Infinispan configuration. Deployments using a
+different session implementation must validate an equivalent redaction boundary before activation.
+
+
 ## React login and OTP development
 
-`packages/keycloak-ui` is an opt-in Keycloakify workspace with a scoped Sequent
+`packages/keycloak-ui` is a Keycloakify workspace with a scoped Sequent
 authentication theme, local font assets and Material UI controls. Its Vite server
 provides synthetic previews, Storybook and hot
-updates on real Keycloak login and message OTP pages. Production images and
-existing realm themes continue to use the Sequent FreeMarker themes.
+updates on real Keycloak login and message OTP pages.
+
+The Keycloak image ships its themes (`sequent-ui-admin`, `sequent-ui-voting` and
+`sequent-ui-architect`, from `themes.json`): a `themes-build` stage of
+`packages/Dockerfile.keycloak` builds the workspace and lays the themes out with
+`python3 -m scripts.dev.keycloak prepare --runtime built`, the same layout as the
+development themes below. Each theme inherits its FreeMarker theme
+(`sequent-ui-voting` inherits `sequent.voting-portal`), so the pages not ported to
+React keep rendering the FreeMarker ones. A realm or client uses them only when it
+selects them as its login theme; the COMELEC janitor template selects
+`sequent-ui-voting`, other realms keep the FreeMarker themes. Building the image
+needs two extra build contexts, which Compose and the CI workflows pass:
+
+```sh
+docker build -f packages/Dockerfile.keycloak \
+    --build-context beyond=./beyond --build-context scripts=./scripts packages
+```
+
+`python3 -m unittest scripts.dev.test_keycloak_image` checks that the image
+installs the themes, that every build passes the `scripts` context and that the
+COMELEC template selects the React theme.
 
 Install the workspace dependencies from `packages` with `yarn install
 --frozen-lockfile`. Run these commands in the development shell from the repository
@@ -178,7 +286,22 @@ labels. The build information wraps on narrow screens. A Keycloak without
 `APP_VERSION` or `APP_HASH` in its environment resolves the property to an empty
 value (`${env.APP_VERSION:}`) and the header leaves that line out; it never shows
 an unresolved `${...}` reference.
-Registration, profile updates and other pages inherit the original FreeMarker
+The registration form (`register.ftl`) and the pages that end an enrollment
+(`registration-finish.ftl`, `registration-manual-finish.ftl`,
+`registration-rejected-finish.ftl` and `message-finish.ftl`) render in React
+too. The form keeps what sequent-theme's template does with the realm's User
+Profile: groups, helper texts, option labels, `html-attribute:` annotations,
+`default`, `hidden`, `confirm`, `filterSelectAttribute`, `disableAttribute` and
+`disableElement`, the password placement (`showPasswordAfterThis`,
+`credential-field-position`), the attributes the authenticator hides and the
+ones a read-only login hint locks. The telephone widget and the password
+strength bar load sequent-theme's own scripts (`intl-tel-input`, `zxcvbn`) from
+the inherited theme resources; without them the fields stay plain inputs. In
+the voting theme the deferred registration form is step 1 of the enrollment.
+It falls back to the original template when it signs voters in (`formMode`
+`LOGIN`, with its structured credentials and identity providers), and for
+CAPTCHA and terms acceptance.
+Profile updates and other pages inherit the original FreeMarker
 implementation, including User Profile annotations and telephone widgets. Login
 also falls back to the original template for multi-attribute matching, structured
 credentials, CAPTCHA, identity-provider buttons, hidden usernames and alternative
@@ -233,7 +356,7 @@ denies users without the role. A `google` identity provider is included but
 disabled; it only links to existing users. The `sequent-ui-architect` theme
 (`themes.json`) is the admin theme with the Election Architect header and title.
 The realm file keeps `sequent.admin-portal` as its login theme so it imports on
-any Keycloak, including production images without the opt-in themes; the
+any Keycloak, including images built before the React themes shipped; the
 Architect's `npm run dev` and both test suites switch it to `sequent-ui-architect`
 when the server has that theme (`keycloak prepare` + `keycloak mount`).
 The gate, the Delivery contract and the one-command local loop are documented in
@@ -249,3 +372,60 @@ KEYCLOAK_UI_URL=http://127.0.0.1:8090 yarn test:real tests/architect-realm.spec.
 The real test creates a disposable copy of the realm with a random test-mode
 code and covers the username-first page, email-code sign-in, a wrong code,
 denial without the role, an unknown address and Spanish.
+
+## Tenant realm bootstrap
+
+Realm templates do not contain user passwords, OTPs or other user credentials.
+Realm imports remove user credentials while preserving user metadata and configured
+client-backed service accounts. New tenants retain their service-account users and
+an `admin` account without a password, with the `UPDATE_PASSWORD` required action.
+Other human template users, including demonstration API and trustee accounts, are
+not seeded into a new tenant.
+
+An operator must initialize each new tenant administrator through the authenticated
+Keycloak administration console: select the new tenant realm, open the `admin`
+user's Credentials tab and set a temporary password. The administrator then signs
+in interactively and chooses their own password. Create actual trustee accounts
+through the normal trustee workflow. Service-account client authentication keeps
+its configured client secrets and roles. The development stack imports the template
+as it is, so its `admin` also starts without a password; `step-dev scenario` and the
+backend journeys set the one in `ADMIN_PORTAL_TEST_PASSWORD`.
+
+The remote deployment configuration script also removes user credentials from its
+prepared realm JSON while continuing to generate client secrets. Updating templates
+or configuration files does not rotate existing deployed accounts. For existing
+realms, replace passwords for the seeded human accounts or disable unused accounts,
+terminate their sessions and inspect their login events. Coordinate changes with
+actual trustees before a ceremony. Update both the mounted realm template and the
+S3 object referenced by `KEYCLOAK_TENANT_REALM_CONFIG_S3_KEY`; otherwise a later
+MinIO configuration run can upload an older template again. No application import
+should be used as a substitute for this operator migration.
+
+Run the focused Windmill `realm_user_credentials` and `tenant_bootstrap_admin`
+regressions. The source-only configuration regression runs with
+`python3 scripts/test_tenant_bootstrap_configuration.py` against an isolated tree
+with synthetic accounts and credentials.
+
+## Harvest request authentication
+
+Harvest verifies bearer-token signatures, expiry and issuer before trusting
+Hasura authorization claims. The issuer realm must match the token's tenant and
+the election-event claim when present. Older event templates may omit that
+optional claim; their keys still come from the exact issuer realm. Signing keys are fetched from `KEYCLOAK_URL`
+over the configured internal connection and cached for five minutes. Requests
+fail authentication when a needed signing key cannot be retrieved, including
+while thirty-two key downloads are already in progress.
+
+Harvest requires `KEYCLOAK_URL` and trusts it as an issuer base.
+`KEYCLOAK_PUBLIC_URL` is optional and needed when tokens use that public URL as
+their issuer; `KIOSK_KEYCLOAK_URL` is likewise optional for kiosk issuers. Deployments using additional frontend aliases must supply
+their exact HTTP(S) base URLs in the comma-separated `HARVEST_JWT_ISSUER_URLS`
+setting, including any `/auth` prefix. These URLs select accepted issuers;
+key downloads always use the internal `KEYCLOAK_URL`. The checked-in local and
+air-gapped configurations explicitly include their localhost issuer aliases.
+
+Before restarting Harvest with this change, verify that every normal and kiosk
+login issuer is configured and that Harvest can reach each realm's internal
+`protocol/openid-connect/certs` endpoint. Existing Keycloak RS256 access tokens
+and Datafix client-credential tokens use the same verification boundary. No
+database or realm migration is required.

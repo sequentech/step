@@ -2,10 +2,27 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {fileURLToPath} from "node:url"
+import type {Plugin} from "vite"
 import {defineConfig} from "vitest/config"
 import {storybookTest} from "@storybook/addon-vitest/vitest-plugin"
 import {startNetworkGuard, finishNetworkGuard} from "./network"
 import {playwright} from "@vitest/browser-playwright"
+
+// Vitest discovers Nightwatch's unused Vue adapter. Only React runs in the browser.
+export const reactBrowserDependencies: Plugin = {
+    name: "react-browser-dependencies",
+    enforce: "post",
+    configResolved(config) {
+        for (const options of [
+            config.optimizeDeps,
+            ...Object.values(config.environments).map((environment) => environment.optimizeDeps),
+        ]) {
+            options.include = options.include?.filter(
+                (dependency) => dependency !== "@vue/test-utils"
+            )
+        }
+    },
+}
 
 // Every story file runs as a test in headless Chromium, with a fixed locale and
 // time zone so that rendered dates do not depend on the machine.
@@ -29,24 +46,7 @@ export const createStorybookTests = (configDir: URL) =>
                     extends: true,
                     plugins: [
                         storybookTest({configDir: fileURLToPath(configDir)}),
-                        {
-                            name: "react-browser-dependencies",
-                            enforce: "post",
-                            configResolved(config) {
-                                // Vitest discovers Nightwatch's unused Vue adapter.
-                                // Only React stories run in this project.
-                                for (const options of [
-                                    config.optimizeDeps,
-                                    ...Object.values(config.environments).map(
-                                        (environment) => environment.optimizeDeps
-                                    ),
-                                ]) {
-                                    options.include = options.include?.filter(
-                                        (dependency) => dependency !== "@vue/test-utils"
-                                    )
-                                }
-                            },
-                        },
+                        reactBrowserDependencies,
                     ],
                     test: {
                         name: "storybook",

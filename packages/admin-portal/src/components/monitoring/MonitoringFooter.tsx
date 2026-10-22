@@ -5,6 +5,7 @@ import React from "react"
 import {Stack, Typography} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import type {MonitoringSnapshot} from "./types"
+import {useTimeZoneService} from "@/components/timezones/timeZoneService"
 import {formatDateTime} from "./lib/format"
 
 export interface MonitoringFooterProps {
@@ -24,10 +25,11 @@ export function MonitoringFooter({
     requirements,
 }: MonitoringFooterProps) {
     const {t, i18n} = useTranslation()
+    const service = useTimeZoneService()
     const through = snapshot
         ? t("monitoring.footer.dataThrough", {
               time: formatDateTime(snapshot.as_of, timeZone, i18n.language),
-              timeZone,
+              timeZone: service.zoneLabel(timeZone, service.text, new Date(snapshot.as_of)),
           })
         : t("monitoring.header.notUpdated")
     return (

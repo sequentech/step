@@ -56,6 +56,7 @@ describe("before a voter has touched the contest", () => {
 describe("warnings a policy defers to the review screen", () => {
     it.each([
         [{under_vote_policy: "warn-only-in-review"}, UNDER_VOTE],
+        [{under_vote_policy: "warn-and-confirm-in-review"}, UNDER_VOTE],
         [{blank_vote_policy: "warn-only-in-review"}, BLANK_VOTE],
     ])("holds %o back while voting", (presentation, message) => {
         mountErrors(contest(presentation), {alerts: [anError(message)], isTouched: true})
@@ -64,6 +65,7 @@ describe("warnings a policy defers to the review screen", () => {
 
     it.each([
         [{under_vote_policy: "warn-only-in-review"}, UNDER_VOTE],
+        [{under_vote_policy: "warn-and-confirm-in-review"}, UNDER_VOTE],
         [{blank_vote_policy: "warn-only-in-review"}, BLANK_VOTE],
     ])("shows %o on review", (presentation, message) => {
         mountErrors(contest(presentation), {alerts: [anError(message)], isReview: true})
@@ -146,12 +148,12 @@ describe("errors, which are firmer than warnings", () => {
 
     it("reports an error normally when invalid ballots are not allowed", () => {
         mountErrors(contest({invalid_vote_policy: "not-allowed"}), {
-            errors: [anError(SELECTED_MAX)],
+            errors: [{message: SELECTED_MAX, message_map: {numSelected: "4", max: "3"}}],
             isReview: true,
         })
         expect(shown().join(" ")).toContain("selectedMax")
-        // The encoder's key is translated rather than shown raw.
-        expect(document.body).toHaveTextContent("more than the maximum")
+        // The encoder's key is translated, with the count of what to deselect.
+        expect(document.body).toHaveTextContent("Deselect 1 candidate.")
     })
 })
 

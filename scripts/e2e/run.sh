@@ -18,6 +18,7 @@
 #   STEP_E2E_PROJECT       compose project name (default unique per invocation)
 #   STEP_E2E_OUTPUT_DIR    logs/results (default .cache/backend-e2e/<project>)
 #   STEP_E2E_BIN_DIR       binaries (default .cache/backend-e2e/bin)
+#   STEP_E2E_COMPOSE_OVERLAY optional existing Compose file, applied last
 #   STEP_E2E_PORTS=1       also publish Hasura, Keycloak and MinIO on 127.0.0.1
 #   STEP_E2E_COVERAGE=1    instrumented binaries (default .cache/backend-e2e/bin-coverage);
 #                          after the journeys the services stop and <output>/coverage
@@ -37,13 +38,13 @@ $coverage && default_bin+=-coverage
 export STEP_E2E_BIN_DIR=${STEP_E2E_BIN_DIR:-$default_bin}
 DEVCONTAINER=$ROOT/.devcontainer
 SERVICES=(
-    devcontainer postgres postgres-keycloak postgres-b4 minio configure-minio rabbitmq
-    immudb immudb-init data-connector-agent graphql-engine keycloak harvest windmill beat b4
-    trustee1 trustee2
+    devcontainer postgres postgres-keycloak postgres-b4v6 minio configure-minio task-queues-setup
+    data-connector-agent graphql-engine keycloak harvest messaging-webhooks windmill beat b4v6
+    trustee1 trustee2 localstack configure-localstack
 )
-IMAGES=(postgres postgres-b4 minio configure-minio keycloak harvest)
+IMAGES=(postgres postgres-b4v6 minio configure-minio keycloak harvest)
 # Services with an LLVM_PROFILE_FILE in docker-compose-ci-coverage.yml.
-INSTRUMENTED=(immudb-init harvest windmill beat b4 trustee1 trustee2)
+INSTRUMENTED=(harvest messaging-webhooks windmill beat b4v6 trustee1 trustee2)
 
 original_args=("$@")
 keep=false images=true build=true down_only=false bootstrap_only=false pattern=()
@@ -62,6 +63,15 @@ while (($#)); do
     esac
     shift
 done
+
+# Resolve caller-relative overrides before builds, ownership checks or cleanup.
+if [[ -n "${STEP_E2E_COMPOSE_OVERLAY:-}" ]]; then
+    [[ -f "$STEP_E2E_COMPOSE_OVERLAY" && -r "$STEP_E2E_COMPOSE_OVERLAY" ]] || {
+        echo 'STEP_E2E_COMPOSE_OVERLAY must name an existing readable file' >&2
+        exit 2
+    }
+    export STEP_E2E_COMPOSE_OVERLAY="$(cd -- "$(dirname -- "$STEP_E2E_COMPOSE_OVERLAY")" && pwd)/$(basename -- "$STEP_E2E_COMPOSE_OVERLAY")"
+fi
 
 if $coverage && $keep; then
     echo 'Services write complete coverage profiles only when they stop; drop --keep' >&2
@@ -122,6 +132,7 @@ EOF
 files=(-f "$DEVCONTAINER/docker-compose.yml" -f "$DEVCONTAINER/docker-compose-ci.yml")
 [[ "${STEP_E2E_PORTS:-}" == 1 ]] && files+=(-f "$DEVCONTAINER/docker-compose-ci-ports.yml")
 $coverage && files+=(-f "$DEVCONTAINER/docker-compose-ci-coverage.yml")
+[[ -n "${STEP_E2E_COMPOSE_OVERLAY:-}" ]] && files+=(-f "$STEP_E2E_COMPOSE_OVERLAY")
 compose() {
     $DOCKER compose --project-name "$PROJECT" \
         --env-file "$DEVCONTAINER/.env.development" --env-file "$OUTPUT/compose.env" \

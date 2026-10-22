@@ -14,9 +14,12 @@ import React, {
 import {useRecordContext, useSidebarState, RecordContextProvider} from "react-admin"
 import {Sequent_Backend_Election_Event} from "@/gql/graphql"
 import ElectionHeader from "@/components/ElectionHeader"
+import {ListIpAddress} from "@/resources/ElectionEvent/ListIpAddress"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import {useTranslation} from "react-i18next"
+import {EventTimeZoneProvider} from "@/providers/EventTimeZoneProvider"
+import {FailedSealsBanner} from "@/components/dashboard/FailedSealsBanner"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {v4 as uuidv4} from "uuid"
 import {EPublishType} from "../Publish/EPublishType"
@@ -25,11 +28,16 @@ import {
     EVoterCertificatePolicy,
     IVotingChannelsConfig,
 } from "@sequentech/ui-core"
-import {Box, CircularProgress} from "@mui/material"
+import {Alert, Box, CircularProgress} from "@mui/material"
 import {Tabs} from "@/components/Tabs"
 import {useNavigate, useLocation} from "react-router-dom"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {monitoringLock} from "@/components/monitoring/useMonitoringPermissions"
+import {LOGS_TAB_ID} from "@/components/logs/messagingLogFilters"
+import {showMessagingTab} from "./messagingTabAccess"
+import {LockdownBanner} from "./LockdownBanner"
+import {ElectionEventDataTab} from "./ElectionEventDataTab"
+import {EEventDataMode, useElectionEventDataMode} from "./useElectionEventDataMode"
 
 // ---------------------------------------------------------------------
 // Lazy load all tab contents
@@ -40,20 +48,25 @@ const MonitoringDashboardTab = lazy(() =>
         default: m.MonitoringDashboardTab,
     }))
 )
-const EditElectionEventData = lazy(() =>
-    import("./EditElectionEventData").then((m) => ({default: m.EditElectionEventData}))
-)
 const EditElectionEventTextData = lazy(() =>
     import("./EditElectionEventTextData").then((m) => ({default: m.default}))
 )
 const EditElectionEventUsers = lazy(() =>
     import("./EditElectionEventUsers").then((m) => ({default: m.EditElectionEventUsers}))
 )
+const EditElectionEventMessaging = lazy(() =>
+    import("./EditElectionEventMessaging").then((m) => ({default: m.EditElectionEventMessaging}))
+)
 const EditElectionEventAreas = lazy(() =>
     import("./EditElectionEventAreas").then((m) => ({default: m.EditElectionEventAreas}))
 )
 const EditElectionEventKeys = lazy(() =>
     import("./EditElectionEventKeys").then((m) => ({default: m.EditElectionEventKeys}))
+)
+const EditElectionEventSignatures = lazy(() =>
+    import("./Signatures/EditElectionEventSignatures").then((m) => ({
+        default: m.EditElectionEventSignatures,
+    }))
 )
 const EditElectionEventCAs = lazy(() =>
     import("./EditElectionEventCAs").then((m) => ({default: m.EditElectionEventCAs}))
@@ -104,27 +117,29 @@ const DashboardTab: React.FC<ITabProps> = ({refreshRef, handleChildMount}) => {
     const lock = monitoringLock(record)
     return (
         <Suspense fallback={<div>Loading Dashboard...</div>}>
-            <MonitoringDashboardTab
-                electionEventId={record?.id}
-                lock={lock}
-                legacy={
-                    <Box sx={{overflowX: "auto"}}>
-                        <DashboardElectionEvent
-                            refreshRef={refreshRef}
-                            onMount={handleChildMount}
-                        />
-                    </Box>
-                }
-            />
+            <Box sx={{width: "100%", minWidth: 0}}>
+                {/* A failed seal is an incident the event shows in both monitoring modes. */}
+                <FailedSealsBanner
+                    electionEventId={record?.id}
+                    presentation={record?.presentation}
+                />
+                <MonitoringDashboardTab
+                    electionEventId={record?.id}
+                    lock={lock}
+                    footer={<ListIpAddress />}
+                    legacy={
+                        <Box sx={{overflowX: "auto"}}>
+                            <DashboardElectionEvent
+                                refreshRef={refreshRef}
+                                onMount={handleChildMount}
+                            />
+                        </Box>
+                    }
+                />
+            </Box>
         </Suspense>
     )
 }
-
-const DataTab: React.FC = () => (
-    <Suspense fallback={<div>Loading Data...</div>}>
-        <EditElectionEventData />
-    </Suspense>
-)
 
 const LocalizationTab: React.FC = () => (
     <Suspense fallback={<div>Loading Localization...</div>}>
@@ -141,6 +156,15 @@ const VotersTab: React.FC = () => {
     )
 }
 
+const MessagingTab: React.FC = () => {
+    const {t} = useTranslation()
+    return (
+        <Suspense fallback={<div>{t("common.label.loadingData")}</div>}>
+            <EditElectionEventMessaging />
+        </Suspense>
+    )
+}
+
 const AreasTab: React.FC = () => (
     <Suspense fallback={<div>Loading Areas...</div>}>
         <EditElectionEventAreas />
@@ -152,6 +176,15 @@ const KeysTab: React.FC<{showKeysList: string | null}> = ({showKeysList}) => (
         <EditElectionEventKeys isShowCeremony={showKeysList} isShowTrusteeCeremony={showKeysList} />
     </Suspense>
 )
+
+const SignaturesTab: React.FC = () => {
+    const {t} = useTranslation()
+    return (
+        <Suspense fallback={<div>{t("common.label.loadingData")}</div>}>
+            <EditElectionEventSignatures />
+        </Suspense>
+    )
+}
 
 const CAsTab: React.FC = () => {
     const {t} = useTranslation()
@@ -190,6 +223,7 @@ const PublishTab: React.FC<{showList: string | undefined}> = ({showList}) => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     return (
         <Suspense fallback={<div>Loading Publish...</div>}>
+            <FailedSealsBanner electionEventId={record?.id} presentation={record?.presentation} />
             <Publish electionEventId={record?.id} type={EPublishType.Event} showList={showList} />
         </Suspense>
     )
@@ -240,6 +274,7 @@ const ApprovalsTab: React.FC<{showList: string | undefined}> = ({showList}) => {
 export const ElectionEventTabs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     const authContext = useContext(AuthContext)
+    const dataMode = useElectionEventDataMode(record)
     const {t} = useTranslation()
     const location = useLocation()
     const navigate = useNavigate()
@@ -306,9 +341,7 @@ export const ElectionEventTabs: React.FC = () => {
         authContext.tenantId,
         IPermissions.ADMIN_DASHBOARD_VIEW
     )
-    const showData =
-        !isElectionEventLocked &&
-        authContext.isAuthorized(true, authContext.tenantId, IPermissions.ELECTION_EVENT_DATA_TAB)
+    const showData = dataMode === EEventDataMode.EDIT || dataMode === EEventDataMode.LOCKED_DOWN
     const showTextData =
         !isElectionEventLocked &&
         authContext.isAuthorized(true, authContext.tenantId, IPermissions.ELECTION_EVENT_DATA_TAB)
@@ -316,6 +349,11 @@ export const ElectionEventTabs: React.FC = () => {
         true,
         authContext.tenantId,
         IPermissions.ELECTION_EVENT_VOTERS_TAB
+    )
+    // The tab reads with messaging-config-read; with write only, it says so.
+    const showMessaging = showMessagingTab(
+        (permissions) => authContext.isAuthorized(true, authContext.tenantId, permissions),
+        isElectionEventLocked
     )
     const showAreas =
         !isElectionEventLocked &&
@@ -371,6 +409,18 @@ export const ElectionEventTabs: React.FC = () => {
             authContext.tenantId,
             IPermissions.ELECTION_EVENT_APPROVALS_TAB
         )
+    // The tab and at least one of its sub-tabs; each sub-tab checks its own read permission.
+    const showSignatures =
+        authContext.isAuthorized(
+            true,
+            authContext.tenantId,
+            IPermissions.ELECTION_EVENT_SIGNATURES_TAB
+        ) &&
+        authContext.isAuthorized(true, authContext.tenantId, [
+            IPermissions.SIGNING_RULES_READ,
+            IPermissions.SIGNING_CERTIFICATES_READ,
+            IPermissions.SIGNING_REQUESTS_READ,
+        ])
     const showCAs =
         authContext.isAuthorized(true, authContext.tenantId, IPermissions.ELECTION_EVENT_CAS_TAB) &&
         record?.presentation?.voter_certificate_policy === EVoterCertificatePolicy.ENABLED
@@ -403,7 +453,11 @@ export const ElectionEventTabs: React.FC = () => {
 
         // Data
         if (showData) {
-            result.push({label: t("electionEventScreen.tabs.data"), component: DataTab})
+            result.push({
+                id: "data",
+                label: t("electionEventScreen.tabs.data"),
+                component: ElectionEventDataTab,
+            })
         }
 
         // IVR
@@ -424,6 +478,11 @@ export const ElectionEventTabs: React.FC = () => {
             result.push({label: t("electionEventScreen.tabs.voters"), component: VotersTab})
         }
 
+        // Messaging
+        if (showMessaging) {
+            result.push({label: t("messagingEvent.tab"), component: MessagingTab})
+        }
+
         // Areas
         if (showAreas) {
             result.push({label: t("electionEventScreen.tabs.areas"), component: AreasTab})
@@ -436,6 +495,14 @@ export const ElectionEventTabs: React.FC = () => {
                 component: KeysTab,
                 props: {showKeysList},
                 action: () => setShowKeysList(uuidv4()),
+            })
+        }
+
+        // Signatures
+        if (showSignatures) {
+            result.push({
+                label: t("signing.tab.title"),
+                component: SignaturesTab,
             })
         }
 
@@ -469,16 +536,11 @@ export const ElectionEventTabs: React.FC = () => {
         // Publish
         if (showPublish) {
             result.push({
+                id: "publish",
                 label: t("electionEventScreen.tabs.publish"),
                 component: PublishTab,
                 props: {showList: showPublishList},
-                action: (index?: number) => {
-                    if (!index) {
-                        return
-                    }
-                    localStorage.setItem("electionEventPublishTabIndex", index.toString())
-                    setShowPublishList(uuidv4())
-                },
+                action: () => setShowPublishList(uuidv4()),
             })
         }
 
@@ -494,7 +556,11 @@ export const ElectionEventTabs: React.FC = () => {
 
         // Logs
         if (showLogs) {
-            result.push({label: t("electionEventScreen.tabs.logs"), component: LogsTab})
+            result.push({
+                id: LOGS_TAB_ID,
+                label: t("electionEventScreen.tabs.logs"),
+                component: LogsTab,
+            })
         }
 
         // Events
@@ -526,6 +592,7 @@ export const ElectionEventTabs: React.FC = () => {
         showData,
         showTextData,
         showVoters,
+        showMessaging,
         showAreas,
         showKeys,
         showTally,
@@ -536,6 +603,7 @@ export const ElectionEventTabs: React.FC = () => {
         showEvents,
         showReports,
         showApprovalsExecution,
+        showSignatures,
         showCAs,
         showIvr,
         t,
@@ -551,6 +619,30 @@ export const ElectionEventTabs: React.FC = () => {
     ])
 
     const tallySheetImportsTabIndex = tabs.findIndex((tab) => tab.id === "tally-sheet-imports")
+    const dataTabIndex = tabs.findIndex((tab) => tab.id === "data")
+    useEffect(() => {
+        if (new URLSearchParams(location.search).get("tabId") === "data" && dataTabIndex >= 0) {
+            setSelectedTab(dataTabIndex)
+        }
+    }, [location.search, dataTabIndex])
+    const logsTabIndex = tabs.findIndex((tab) => tab.id === LOGS_TAB_ID)
+
+    // The Messaging tab's Failed counts open Logs with `tabId=logs` and a filter.
+    useEffect(() => {
+        const tabId = new URLSearchParams(location.search).get("tabId")
+        if (tabId === LOGS_TAB_ID && logsTabIndex >= 0) {
+            setSelectedTab(logsTabIndex)
+        }
+    }, [location.search, logsTabIndex])
+    const publishTabIndex = tabs.findIndex((tab) => tab.id === "publish")
+
+    // Publish's re-authentication returns with `tabId=publish`: tab positions depend on permissions.
+    useEffect(() => {
+        const tabId = new URLSearchParams(location.search).get("tabId")
+        if (tabId === "publish" && publishTabIndex >= 0) {
+            setSelectedTab(publishTabIndex)
+        }
+    }, [location.search, publishTabIndex])
 
     useEffect(() => {
         const searchParams = new URLSearchParams(location.search)
@@ -587,13 +679,23 @@ export const ElectionEventTabs: React.FC = () => {
                 title={aliasRenderer(record)}
                 subtitle="electionEventScreen.common.subtitle"
             />
+            {isElectionEventLocked && <LockdownBanner event={record} />}
             <Box sx={{bgcolor: "background.paper"}}>
                 <RecordContextProvider value={record}>
-                    <Tabs
-                        elements={tabs}
-                        selectedTab={selectedTab}
-                        onSelectedTabChange={setSelectedTab}
-                    />
+                    {/* The event's screens show their times in its zones. */}
+                    <EventTimeZoneProvider event={record}>
+                        {tabs.length ? (
+                            <Tabs
+                                elements={tabs}
+                                selectedTab={selectedTab}
+                                onSelectedTabChange={setSelectedTab}
+                            />
+                        ) : (
+                            <Alert severity="info" sx={{m: 2}}>
+                                {t("electionEventScreen.noAccessibleTabs")}
+                            </Alert>
+                        )}
+                    </EventTimeZoneProvider>
                 </RecordContextProvider>
             </Box>
         </Box>

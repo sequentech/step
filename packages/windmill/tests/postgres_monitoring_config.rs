@@ -22,17 +22,29 @@ use std::time::Duration;
 use tokio::sync::Notify;
 use uuid::Uuid;
 use windmill::postgres::election_event::delete_election_event;
+use windmill::services::audit_log::AuditActor;
 use windmill::services::monitoring::config_store::{
-    get_config_at_generation, get_document, get_live_config, history, reset_to_preset, save,
-    set_mode, Author, DocumentEdit, EventRef, ExpectedHead, ModeError, ModeOutcome,
-    MonitoringConfigAudit, MonitoringConfigChecks, ProposedChange, RecordedChange, ResetError,
-    ResetOutcome, SaveError, SaveOutcome, WrittenRevision,
+    get_config_at_generation, get_document, get_live_config, history, reset_to_preset,
+    reset_to_preset_as, save, save_as, set_mode, set_mode_as, Author, DocumentEdit, EventRef,
+    ExpectedHead, ModeError, ModeOutcome, MonitoringConfigAudit, MonitoringConfigChecks,
+    ProposedChange, RecordedChange, ResetError, ResetOutcome, SaveError, SaveOutcome,
+    WrittenRevision,
 };
 use windmill::services::vault::admin_user_signing_key_exists;
 
 /// A fixed v4 UUID per test (`seed`) and call (`n`).
 fn id(seed: u32, n: u32) -> Uuid {
     Uuid::parse_str(&format!("{seed:08x}-0000-4000-8000-{n:012x}")).unwrap()
+}
+
+/// The admin a Harvest request makes the changes for: the rows they write
+/// are logged as this admin's.
+fn admin() -> AuditActor {
+    AuditActor {
+        user_id: Some("admin-1".to_string()),
+        username: Some("admin".to_string()),
+        role: Some("admin-user".to_string()),
+    }
 }
 
 fn editor() -> Author {
@@ -293,7 +305,16 @@ async fn reset(
     preset_id: &str,
     mode: DashboardMode,
 ) -> Result<ResetOutcome, ResetError> {
-    reset_to_preset(client, audit, event, &editor(), preset_id, mode).await
+    reset_to_preset_as(
+        client,
+        audit,
+        event,
+        &editor(),
+        preset_id,
+        mode,
+        Some(&admin()),
+    )
+    .await
 }
 
 async fn edit(
@@ -306,7 +327,7 @@ async fn edit(
     edit: Edit<'_>,
     expected: ExpectedHead,
 ) -> Result<SaveOutcome, SaveError> {
-    save(
+    save_as(
         client,
         checks,
         audit,
@@ -318,6 +339,7 @@ async fn edit(
             edit,
             expected,
         },
+        Some(&admin()),
     )
     .await
 }
@@ -366,12 +388,13 @@ async fn an_event_without_configuration_is_left_on_the_standard_dashboard() {
         matches!(outcome, Err(SaveError::NotConfigured)),
         "{outcome:?}"
     );
-    let switched = set_mode(
+    let switched = set_mode_as(
         &mut client,
         &audit,
         event,
         &editor(),
         DashboardMode::Configured,
+        Some(&admin()),
     )
     .await;
     assert!(
@@ -919,7 +942,7 @@ async fn a_refused_save_writes_nothing_and_records_nothing() {
             event,
             ConfigKind::Settings,
             &settings,
-            Edit::Upsert("time_zone: UTC\n"),
+            Edit::Upsert("unknown_label: Unknown\n"),
             ExpectedHead::At(1),
         )
         .await,
@@ -1699,7 +1722,7 @@ async fn hold_a_change(
         text,
         ExpectedHead::At(1),
     );
-    tokio::time::timeout(Duration::from_secs(5), entered.notified())
+    tokio::time::timeout(CONCURRENT_CHANGE_TIMEOUT, entered.notified())
         .await
         .expect("the save reaches its checks");
     Held {
@@ -1711,7 +1734,7 @@ async fn hold_a_change(
 
 /// Waits for a change that nothing should hold back.
 async fn promptly<T>(change: impl std::future::Future<Output = T>) -> T {
-    tokio::time::timeout(Duration::from_secs(5), change)
+    tokio::time::timeout(CONCURRENT_CHANGE_TIMEOUT, change)
         .await
         .expect("nothing holds the change back")
 }
@@ -3031,3 +3054,7 @@ async fn an_administrator_signing_key_is_found_without_being_read() {
     tx.rollback().await.unwrap();
     remove(&pool, event).await;
 }
+
+/// Bounds concurrency probes while allowing instrumented PostgreSQL work.
+/// The held save is released only after the competing change completes.
+const CONCURRENT_CHANGE_TIMEOUT: Duration = Duration::from_secs(30);

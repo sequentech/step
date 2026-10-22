@@ -22,7 +22,7 @@ const StyledTitle = styled(Typography)`
     display: flex;
     flex-direction: row;
     gap: 16px;
-    font-size: 24px;
+    font-size: 1.5rem;
     font-weight: 500;
     line-height: 27px;
     margin-top: 20px;

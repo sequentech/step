@@ -4,11 +4,10 @@
 
 use crate::domain::tally_execution::ExecutionConclusion;
 use crate::ports::tally_execution::*;
-use crate::postgres::{
-    election, election_event, keys_ceremony, tally_session, tally_session_execution,
-};
+use crate::postgres::{election_event, keys_ceremony, tally_session, tally_session_execution};
 use crate::services::ceremonies::{serialize_logs, tally_ceremony};
 use crate::services::election_event_status::get_election_event_status;
+use crate::services::initialization_record;
 use crate::types::error::Result;
 use anyhow::anyhow;
 use deadpool_postgres::Transaction;
@@ -107,13 +106,16 @@ impl ExecutionLedger for PgTallyExecution<'_> {
         .await?;
         Ok(())
     }
+    /// Records the initialization of each country of the Post the report
+    /// covered, with its electoral log entries, and marks the Post
+    /// initialized once it is (VOTE-LIFECYCLE §9).
     async fn mark_initialization(&self, scope: &ExecutionScope, election_id: &str) -> Result<()> {
-        election::set_election_initialization_report_generated(
+        initialization_record::store_initialization(
             self.transaction,
             &scope.tenant_id,
             &scope.election_event_id,
+            &scope.tally_session_id,
             election_id,
-            &true,
         )
         .await?;
         Ok(())

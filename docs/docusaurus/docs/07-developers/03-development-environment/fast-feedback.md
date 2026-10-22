@@ -20,8 +20,8 @@ configurations; the `devcontainer` CLI selects one with `--config`.
 | Mode | Configuration | Compose services | Dev servers | Use |
 | --- | --- | --- | --- | --- |
 | `ui-only` | `.devcontainer/ui-only/devcontainer.json` | `devcontainer` | Storybook 6006–6011 (default `ui-essentials`), workbench 5173, portals 3000–3004 | Stories and screens on fixtures |
-| `ui-keycloak` | `.devcontainer/ui-keycloak/devcontainer.json` | adds `postgres-keycloak` and `keycloak` (8090), which starts without Harvest | Storybook 6006–6011 | Login and account themes |
-| `backend` | `.devcontainer/backend/devcontainer.json` | the `base` profile: databases, MinIO, RabbitMQ, ImmuDB, Keycloak, Hasura, Harvest, Windmill, beat and B4 | none | Rust services, Hasura, step-cli |
+| `ui-keycloak` | `.devcontainer/ui-keycloak/devcontainer.json` | adds `postgres-keycloak` and `keycloak` (8090), which starts without Harvest and only logs its electoral-log events | Storybook 6006–6011 | Login and account themes |
+| `backend` | `.devcontainer/backend/devcontainer.json` | the `base` profile: databases (the electoral log's and the task queues' among them), MinIO, Keycloak, Hasura, Harvest, Windmill, beat and B4 | none | Rust services, Hasura, step-cli |
 | `full` | `.devcontainer/devcontainer.json` | as `backend` | portals 3000–3004 (default voting 3000 and admin 3002), Storybook, workbench 5173 | End-to-end work in the portals |
 
 ```sh
@@ -51,6 +51,37 @@ Reopening the folder with another configuration attaches to the running
 devcontainer without starting that mode's services: run `step-dev mode switch`,
 or **Dev Containers: Rebuild Container** and pick the configuration.
 
+For browser key ceremonies, use the dedicated development accounts and local
+forwarded ports in [browser trustee setup](../09-wbraid/trustee-configuration.md#browser-trustee-accounts).
+`scripts/dev/step-dev browser_trustees` provisions the accounts on an existing
+realm without resetting their passwords or MFA or changing native trustee accounts.
+
+### Opt-in Scanovate services
+
+The identity verification of enrollment (Liveness Plus with its PAD server, Face
+Match and OCR) belongs to the `scanovate` Compose profile, which no mode starts:
+its images are private, in our ECR mirror, and need about 18 GB of memory. To
+work on enrollment, start them next to `backend` or `full`, from the host, in the
+checkout:
+
+```sh
+aws sso login --profile sequent-ecr
+aws ecr get-login-password --profile sequent-ecr --region eu-west-1 \
+  | docker login --username AWS --password-stdin 133529410358.dkr.ecr.eu-west-1.amazonaws.com
+(cd .devcontainer && docker compose --profile scanovate up -d)
+
+# PAD and OCR load their models for a minute or two
+curl -s http://127.0.0.1:5050/alive http://127.0.0.1:5060/alive http://127.0.0.1:5070/alive
+
+# Free their memory when done
+(cd .devcontainer && docker compose --profile scanovate stop)
+```
+
+`step-dev mode status` lists them under `outsideModes`. The development realm
+and the sample enrollment event already point to them; see
+[Scanovate On-Premise Services](../../integrations/scanovate_on_premise_guide.md#running-them-in-the-development-environment)
+for the ECR access, the ports and the end-to-end test.
+
 Every checkout gets its own Compose project, `<folder>_devcontainer`. The one in
 a folder named `step` keeps `step_devcontainer` and unprefixed container names;
 any other prefixes them with `<folder>-`, so its `ui-only` mode runs next to
@@ -60,9 +91,18 @@ parent at `/workspaces` and again at its host path, where git worktree links
 resolve. Service containers build into the checkout's own `packages/target`;
 local Cargo builds use `rust-local-target`.
 
-Harvest, Windmill and beat each run their own `cargo run` command. Cargo-watch
-finds the current crate's local dependency directories automatically: a Harvest
-leaf edit affects Harvest, while a Windmill edit also affects Harvest and beat.
+From `.devcontainer`, `docker compose up harvest windmill beat` loads base-service
+defaults from the tracked `.env.development`. The checkout's local `.env`
+overrides those defaults, including explicitly empty values. Settings introduced
+after that local file was created therefore work without shell exports or
+rewriting local configuration.
+
+Harvest runs `cargo run`; Windmill and beat each build their own binary and run
+it in a restart loop (`.devcontainer/restart-worker.sh`), so a worker that exits
+starts again after five seconds and a compile error waits for the next change.
+Cargo-watch finds the current crate's local dependency directories
+automatically: a Harvest leaf edit affects Harvest, while a Windmill edit also
+affects Harvest and beat.
 Keep the per-service feature graphs separate; compiling the packages together can
 enable extra dependency features and invalidate the subsequent service build.
 
@@ -268,6 +308,7 @@ scripts/dev/step-dev scenario list
 scripts/dev/step-dev scenario up kiosk-voter         # kiosk voting open
 scripts/dev/step-dev scenario up completed-ceremony  # keys ceremony, ballots, online voting open
 scripts/dev/step-dev scenario up published-results   # votes cast, tallied, results published
+scripts/dev/step-dev scenario up messaging           # messaging on the fake provider; also messaging-second-organization
 scripts/dev/step-dev scenario urls kiosk-voter
 scripts/dev/step-dev scenario status
 scripts/dev/step-dev scenario reset kiosk-voter
@@ -278,9 +319,11 @@ task, ceremony and publication status, and prints the portal links and the synth
 voter credentials. The event is recorded in `.cache/scenarios/<Compose project>/` and
 carries owner annotations; the next `up` checks both and continues from the furthest
 stage that still holds. `reset` deletes only that event. Ceremonies start `trustee1`
-and `trustee2`, which no mode starts; their first start builds the braid image. On a
-new stack the first `up` enrolls the tenant administrator's email code, as the journeys
-do; the admin portal then asks for it, and the Keycloak container log shows it.
+and `trustee2`, which no mode starts; their first start builds the native trustee image. On a
+new stack the first `up` gives the tenant administrator the password in
+`ADMIN_PORTAL_TEST_PASSWORD`, which the realm template does not carry, and enrolls its
+email code, as the journeys do; the admin portal then asks for it, and the Keycloak
+container log shows it.
 `VOTING_PORTAL_URL`, `BALLOT_VERIFIER_URL` and `RESULTS_PORTAL_URL` select the printed
 portals, and `--step-cli` another step-cli build.
 
@@ -288,6 +331,39 @@ portals, and `--step-cli` another step-cli build.
 An empty reset still returns a JSON outcome. Reset refuses a mismatched owner or
 tenant and keeps the state file if deletion fails, so it can be retried. A second
 command for the same scenario fails while the first holds its lock.
+
+### Signing organizations
+
+`scripts/dev/scenario/signing-organizations/` describes organizations that sign their
+protected actions, as data: `post-qualification` (four Posts with three SBEI accounts
+each, titled Chairperson, Poll Clerk and Third Member, plus trustees, a Configuration
+Manager, a Security Officer and an OFOV, so every rule of the janitor's sample preset
+can be signed)
+and `student-council` (faculties as Posts, Returning Officer and Electoral Commission
+groups, its own trusted issuer, rules and translation overrides). Write one's files:
+
+```bash
+python3 -m scripts.dev.scenario.organizations post-qualification --out /tmp/organizations
+```
+
+and load them on a running stack:
+
+- `election-event.json`: `step-cli step import-election --file-path <file> --is-local`,
+  or Election Events > Import. It carries the Posts with their permission labels and
+  the `signing_rules` and `signing_checks`.
+- `realm-groups.json`: a Keycloak partial import into the tenant realm (Realm settings >
+  Partial import), which adds the signing groups with their `sign-*` roles.
+- `admin-users.csv`: Users and Roles > Import. Each signer has their Post's permission
+  label, their group and the `title` attribute the signing panel shows.
+- `tenant-settings.json`: the tenant's display name (Settings > Look & Feel) and its
+  translation overrides (Settings > Localization).
+- `trusted-issuer.pem` (student council only): Signatures > Certificates > Import issuer.
+  It is a synthetic CA. Its test-only private key stays in the fixtures
+  (`student-council-issuer.key`), so tests and journeys can issue staff certificates
+  under it; never trust this CA outside tests.
+
+[Testing signing](../14-signing/04-signing-testing.md) lists the signing test suites and
+the certificate file fixtures.
 
 ## Incremental WASM
 
@@ -438,7 +514,7 @@ repeats the workflow without an edit.
 
 `monitoring-viewers` is a load test, not a loop timing. It simulates
 concurrent viewers of a monitoring dashboard against a running stack; see
-[Viewer load benchmark](../13-monitoring/01-monitoring-architecture.md#viewer-load-benchmark).
+[Viewer load benchmark](../15-monitoring/01-monitoring-architecture.md#viewer-load-benchmark).
 
 `workspace` and `ci` run on the host, with the Dev Containers CLI and `gh`.
 `workspace` never uses the default Docker daemon: a cold sample creates a fresh

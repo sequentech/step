@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use anyhow::{ensure, Result};
 use chrono::{Duration, NaiveDate};
 use fake::faker::name::raw::{FirstName, LastName};
 use fake::locales::EN;
@@ -58,7 +59,9 @@ pub struct AreaElections<'a> {
 }
 
 impl ElectionIndex {
-    pub fn from_event(event: &Value) -> Self {
+    /// Fails when an election's authorization key contains the census list
+    /// separator, since Keycloak would split it into several elections.
+    pub fn from_event(event: &Value) -> Result<Self> {
         let list = |key: &str| {
             event
                 .get(key)
@@ -75,15 +78,19 @@ impl ElectionIndex {
                     .and_then(|annotations| annotations.get("clustered_precint_id"))
                     .and_then(Value::as_str)
                     .unwrap_or(UNKNOWN);
+                let authorization_key = election
+                    .get("external_id")
+                    .and_then(Value::as_str)
+                    .filter(|key| !key.is_empty())
+                    .unwrap_or(id);
+                ensure!(
+                    !authorization_key.contains(LIST_SEPARATOR),
+                    "Election authorization ID cannot contain the census multivalue separator '{LIST_SEPARATOR}'"
+                );
                 elections.insert(
                     id.to_string(),
                     ElectionLabels {
-                        authorization_key: election
-                            .get("external_id")
-                            .and_then(Value::as_str)
-                            .filter(|key| !key.is_empty())
-                            .unwrap_or(id)
-                            .to_string(),
+                        authorization_key: authorization_key.to_string(),
                         alias: election_alias(election),
                         clustered_precinct: clustered_precinct.to_string(),
                     },
@@ -115,13 +122,13 @@ impl ElectionIndex {
             }
         }
 
-        Self {
+        Ok(Self {
             areas: list("areas").to_vec(),
             area_contests,
             contest_elections,
             elections,
             embassies: country_embassy_options(event),
-        }
+        })
     }
 
     /// The area of the `voter`-th voter: voters are spread over the areas

@@ -96,7 +96,6 @@ def main():
         "contests": state.contests,
         "candidates": state.candidates,
         "voters": state.voters,
-        "voterPassword": fixtures.VOTER_PASSWORD,
         "adminOtp": otp["config"].get("test-mode-code", "123456"),
         "origins": origins,
     }

@@ -37,6 +37,25 @@ export default {
         return humanize(area.replace(/\.tsx?$/, ""))
     },
     excluded: {
+        "src/index.tsx#Portal":
+            "Application root: wraps the providers and the app in the data router; the " +
+            "production journeys render it.",
+        "src/plugins/NavigationGuard.tsx#NavigationGuard":
+            "Renders nothing: holds navigation while a screen has unsaved changes; the " +
+            "Admin/Plugins/ProjectView and Admin/Plugins/PluginRoute stories cover it.",
+        "src/plugins/projects/Projects.tsx#Screen":
+            "Chooses the project list or a project for Projects; the Admin/Plugins/Projects " +
+            "and Admin/Plugins/PluginRoute stories render both.",
+        "src/plugins/projects/Projects.tsx#RoutedProjects":
+            "Keeps the open project in the URL; the Admin/Plugins/PluginRoute stories render " +
+            "Projects under the plugin route.",
+        "src/plugins/projects/Projects.tsx#LocalProjects":
+            "Keeps the open project in state outside a router; the Admin/Plugins/Projects " +
+            "stories render it.",
+        "src/plugins/PluginProvider.tsx#PluginProvider":
+            PROVIDER +
+            " The Admin/Plugins/PluginRoute and PluginSettings stories render it with the " +
+            "plugin gateway's actions answered.",
         "src/App.tsx#App":
             "Application root: builds the Hasura data provider and registers the routes; " +
             "the production journeys' route matrix renders every route.",
@@ -80,5 +99,7 @@ export default {
         "src/components/monitoring/editor/useMonitoringEditor.tsx#EditorElement":
             "The element useMonitoringEditor returns: the editor's dialogs, which have their " +
             "own sections, and its notices; the MonitoringDashboardTab Editor* stories render it.",
+        "src/providers/EventTimeZoneProvider.tsx#EventTimeZoneProvider": PROVIDER,
+        "src/providers/EventTimeZoneProvider.tsx#MyTimeZoneProvider": PROVIDER,
     },
 }

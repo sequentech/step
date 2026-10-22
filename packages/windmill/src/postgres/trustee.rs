@@ -20,6 +20,8 @@ impl TryFrom<Row> for TrusteeWrapper {
         Ok(TrusteeWrapper(Trustee {
             id: item.try_get::<_, Uuid>("id")?.to_string(),
             public_key: item.try_get::<_, Option<String>>("public_key")?,
+            share_encryption_public_key: item
+                .try_get::<_, Option<String>>("share_encryption_public_key")?,
             name: item.try_get::<_, Option<String>>("name")?,
             tenant_id: item.try_get::<_, Uuid>("tenant_id")?.to_string(),
             created_at: item.get("created_at"),

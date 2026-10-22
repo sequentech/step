@@ -14,6 +14,7 @@
  */
 
 import {describe, expect, it} from "@jest/globals"
+import {createInstance} from "i18next"
 import {readdirSync, readFileSync} from "node:fs"
 import {join} from "node:path"
 
@@ -133,6 +134,30 @@ describe("problem catalog", () => {
                     orphanLead: false,
                 })
             }
+        }
+    )
+
+    it.each(Object.entries(locales))(
+        "%s: signature range uses the limits supplied by validation",
+        async (language, locale) => {
+            const i18n = createInstance()
+            await i18n.init({
+                lng: language,
+                resources: {[language]: {translation: locale.translations}},
+            })
+            const text =
+                locale.translations.problems.messages.signing["signatures-out-of-range"].text
+            expect(placeholders(text)).toEqual(["action", "max", "min"])
+            const rendered = i18n.t("problems.messages.signing.signatures-out-of-range.text", {
+                action: "close-voting",
+                min: "2",
+                max: "37",
+            })
+            expect(rendered).toContain("2")
+            expect(rendered).toContain("37")
+            expect(rendered).toContain("close-voting")
+            expect(rendered).not.toContain("{{")
+            expect(rendered).not.toContain("1000")
         }
     )
 

@@ -11,6 +11,7 @@ export interface GlobalSettings {
     DEFAULT_TENANT_ID: string
     ONLINE_VOTING_CLIENT_ID: string
     KEYCLOAK_URL: string
+    WBRAID_BOARD_URL?: string
     HASURA_URL: string
     APP_VERSION: string
     APP_HASH: string
@@ -24,6 +25,8 @@ export interface GlobalSettings {
     KIOSK_VOTING_PORTAL_URL?: string
     RESULTS_PORTAL_URL: string
     IVR_EMULATOR_BASE_URL: string
+    /** Opt-in extensionless JS/WASM converter asset URL, following IVR conventions. */
+    ELECTION_EVENT_IMPORT_CONVERTER_BASE_URL?: string
     ACTIVATE_MIRU_EXPORT: boolean
     CUSTOM_URLS_DOMAIN_NAME: string
 }

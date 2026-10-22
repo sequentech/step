@@ -25,7 +25,7 @@ use crate::services::reports::template_renderer::EReportEncryption;
 //
 // The database mapping stays below: it needs tokio_postgres, which cannot be in
 // a module that compiles to WASM.
-pub use sequent_core::election_config::{Report, ReportCronConfig, ReportType};
+pub use sequent_core::election_config::{Report, ReportCronConfig, ReportFormat, ReportType};
 
 pub struct ReportWrapper(pub Report);
 
@@ -61,6 +61,21 @@ impl TryFrom<Row> for ReportWrapper {
                 )
             })?,
             permission_label: item.get::<_, Option<Vec<String>>>("permission_label"),
+            copies: item
+                .try_get::<_, Option<i32>>("copies")?
+                .map(u32::try_from)
+                .transpose()
+                .map_err(|err| anyhow!("error deserializing copies: {err}"))?,
+            output_formats: item
+                .try_get::<_, Option<Vec<String>>>("output_formats")?
+                .map(|formats| {
+                    formats
+                        .iter()
+                        .map(|format| ReportFormat::from_str(format))
+                        .collect::<Result<Vec<_>, _>>()
+                })
+                .transpose()
+                .map_err(|err| anyhow!("error deserializing output_formats: {err}"))?,
         }))
     }
 }
@@ -138,6 +153,47 @@ pub async fn update_report_last_document_time(
     }
 
     Ok(())
+}
+
+/// Turns off the schedule of a report, keeping the rest of its cron
+/// configuration so it can be enabled again. The schedule is only turned off
+/// while it is still active and still runs as `executer_username`, so a stale
+/// check never overrides a schedule that was saved again in the meantime.
+/// Returns whether the schedule was turned off.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn deactivate_report_schedule(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    id: &str,
+    executer_username: &str,
+) -> Result<bool> {
+    let tenant_uuid: Uuid =
+        parse_uuid_v4(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+    let id_uuid: Uuid = parse_uuid_v4(id).with_context(|| "Error parsing id as UUID")?;
+
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+            UPDATE
+                "sequent_backend".report
+            SET
+                cron_config = jsonb_set(cron_config, '{is_active}', 'false'::jsonb)
+            WHERE
+                tenant_id = $1
+                AND id = $2
+                AND cron_config->>'executer_username' = $3
+                AND cron_config->>'is_active' = 'true'
+            "#,
+        )
+        .await
+        .map_err(|err| anyhow!("Error preparing query: {err}"))?;
+
+    let affected_rows = hasura_transaction
+        .execute(&statement, &[&tenant_uuid, &id_uuid, &executer_username])
+        .await
+        .map_err(|err| anyhow!("Error deactivating report schedule: {err}"))?;
+
+    Ok(affected_rows > 0)
 }
 
 #[instrument(skip(hasura_transaction), err)]
@@ -360,7 +416,7 @@ pub async fn insert_reports(
         .prepare(
             r#"
             INSERT INTO "sequent_backend".report (
-                id, election_event_id, tenant_id, election_id, report_type, template_alias, cron_config, created_at, encryption_policy, permission_label
+                id, election_event_id, tenant_id, election_id, report_type, template_alias, cron_config, created_at, encryption_policy, permission_label, copies, output_formats
             ) VALUES (
                 $1,
                 $2,
@@ -371,7 +427,9 @@ pub async fn insert_reports(
                 $7,
                 $8,
                 $9,
-                $10
+                $10,
+                $11,
+                $12
             )
             "#,
         )
@@ -379,6 +437,15 @@ pub async fn insert_reports(
         .map_err(|err| anyhow!("Error preparing query: {err}"))?;
 
     for report in reports {
+        let copies = report
+            .copies
+            .map(i32::try_from)
+            .transpose()
+            .map_err(|err| anyhow!("Too many copies for report {}: {err}", report.id))?;
+        let output_formats = report
+            .output_formats
+            .as_ref()
+            .map(|formats| formats.iter().map(ToString::to_string).collect::<Vec<_>>());
         hasura_transaction
             .execute(
                 &statement,
@@ -397,7 +464,9 @@ pub async fn insert_reports(
                         .map_err(|err| anyhow!("Error parsing cron config to value: {err}, cron_config={cron_config:?}", cron_config=report.cron_config))?,
                     &report.created_at,
                     &report.encryption_policy.to_string(),
-                    &report.permission_label
+                    &report.permission_label,
+                    &copies,
+                    &output_formats,
                 ],
             )
             .await
@@ -405,6 +474,41 @@ pub async fn insert_reports(
     }
 
     Ok(())
+}
+
+/// How many copies the event prints of the `report_type` reports a tally
+/// draws for all its elections at once: the event's own setting, else the
+/// most any of its elections asks for. `None` when no report sets copies.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_report_copies(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    report_type: &ReportType,
+) -> Result<Option<u32>> {
+    let tenant_uuid =
+        parse_uuid_v4(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+    let election_event_uuid = parse_uuid_v4(election_event_id)
+        .with_context(|| "Error parsing election_event_id as UUID")?;
+    let row = hasura_transaction
+        .query_opt(
+            r#"
+            SELECT copies
+            FROM "sequent_backend".report
+            WHERE tenant_id = $1
+              AND election_event_id = $2
+              AND report_type = $3
+              AND copies IS NOT NULL
+            ORDER BY (election_id IS NULL) DESC, copies DESC
+            LIMIT 1
+            "#,
+            &[&tenant_uuid, &election_event_uuid, &report_type.to_string()],
+        )
+        .await
+        .map_err(|err| anyhow!("Error reading the report's copies: {err}"))?;
+    row.map(|row| u32::try_from(row.get::<_, i32>("copies")))
+        .transpose()
+        .map_err(|err| anyhow!("Error reading the report's copies: {err}"))
 }
 
 #[instrument(skip_all, err)]

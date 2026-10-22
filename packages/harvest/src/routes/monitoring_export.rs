@@ -7,8 +7,8 @@
 //! `export_monitoring_data` task writes the document.
 //!
 //! `from` and `to` are instants: RFC 3339 with an offset, any offset; the
-//! portal turns the local times it shows into instants with the settings'
-//! time zone. A time without an offset names no instant and is refused.
+//! portal turns the local times it shows into instants with the event's
+//! primary timezone. A time without an offset names no instant and is refused.
 //! The dashboard and widget are looked up in the configuration the dashboard
 //! draws the run with ([`config_at_snapshot`]): the live one unless the
 //! settings changed since the run was counted. The request names that
@@ -251,8 +251,8 @@ pub async fn export_monitoring(
         to,
         document_id: document_id.clone(),
     };
-    let broker = services.tasks.connect().await;
-    if let Err(send_error) = broker
+    if let Err(send_error) = services
+        .tasks
         .send_task(
             windmill::tasks::export_monitoring_data::export_monitoring_data::new(
                 request,

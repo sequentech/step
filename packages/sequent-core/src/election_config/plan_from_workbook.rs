@@ -47,11 +47,16 @@ use crate::election_config::architect::{
     PlannedMaterial, PlannedMessage, PlannedVoter, Translated, Trustee,
     VotingChannelSet, BLUEPRINT_VERSION,
 };
+use crate::election_config::architect::{PlannedReport, REPORT_SHEET_COLUMNS};
+use crate::election_config::emit::MULTI_VALUE_SEPARATOR;
 use crate::election_config::paths::cell_text;
 use crate::election_config::problem::{Code, Problem, Report};
+use crate::election_config::report::{ReportFormat, ReportType};
+use crate::election_config::sheet::SHEET_REPORTS;
 use crate::election_config::sheet::{Origin, Row, Sheet, Workbook};
 use crate::election_config::time::Timestamp;
 use crate::types::ceremonies::CeremoniesPolicy;
+use std::str::FromStr;
 
 /// A plan read out of a workbook, and anything odd about it.
 #[derive(Debug, Clone)]
@@ -114,7 +119,9 @@ pub fn plan_from_workbook(workbook: &Workbook) -> Result<ReadPlan, Report> {
     plan.contacts = read_contacts(workbook);
     plan.trustees = read_trustees(workbook);
     plan.notes = read_notes(workbook);
-    plan.platform = carried(workbook);
+    let (reports, platform) = lift_reports(carried(workbook));
+    plan.reports = reports;
+    plan.platform = platform;
 
     if report.has_errors() {
         return Err(report);
@@ -1032,6 +1039,74 @@ fn carried(workbook: &Workbook) -> Vec<Sheet> {
         .filter(|sheet| PLATFORM_SHEETS.contains(&sheet.key.as_str()))
         .cloned()
         .collect()
+}
+
+/// The Reports rows the plan's own reports field can hold, lifted out of the
+/// carried sheets: those that use only its columns and read cleanly. Any
+/// other row stays in the sheet for `build` to read as it always has, and a
+/// sheet left with no rows is dropped.
+fn lift_reports(sheets: Vec<Sheet>) -> (Vec<PlannedReport>, Vec<Sheet>) {
+    let mut reports = Vec::new();
+    let mut kept = Vec::new();
+    for mut sheet in sheets {
+        if sheet.key != SHEET_REPORTS {
+            kept.push(sheet);
+            continue;
+        }
+        sheet.rows.retain(|row| match planned_report(row) {
+            Some(report) => {
+                reports.push(report);
+                false
+            }
+            None => true,
+        });
+        if !sheet.rows.is_empty() {
+            kept.push(sheet);
+        }
+    }
+    (reports, kept)
+}
+
+fn planned_report(row: &Row) -> Option<PlannedReport> {
+    if !row
+        .cells
+        .iter()
+        .all(|(column, _)| REPORT_SHEET_COLUMNS.contains(&column.as_str()))
+    {
+        return None;
+    }
+    let cell = |column: &str| {
+        row.cells
+            .iter()
+            .find(|(name, _)| name == column)
+            .and_then(|(_, value)| match value {
+                Value::String(text) => Some(text.trim().to_string()),
+                Value::Number(number) => Some(number.to_string()),
+                _ => None,
+            })
+            .filter(|text| !text.is_empty())
+    };
+    let report_type = ReportType::from_str(&cell("report_type")?).ok()?;
+    let copies = match cell("copies") {
+        Some(text) => text.parse::<u32>().ok().filter(|count| *count > 0)?,
+        None => 1,
+    };
+    let formats = match cell("output_formats") {
+        Some(text) => text
+            .split(MULTI_VALUE_SEPARATOR)
+            .map(|name| {
+                ReportFormat::from_str(&name.trim().to_ascii_lowercase()).ok()
+            })
+            .collect::<Option<Vec<_>>>()?,
+        None => Vec::new(),
+    };
+    Some(PlannedReport {
+        report_type,
+        election: cell("election.external_id"),
+        formats,
+        copies,
+        template: cell("template.alias"),
+    })
 }
 
 #[cfg(test)]

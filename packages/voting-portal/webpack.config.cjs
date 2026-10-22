@@ -137,5 +137,8 @@ module.exports = function (env, argv) {
                 "Cross-Origin-Resource-Policy": "cross-origin",
             },
         },
+        watchOptions: {
+            ignored: /node_modules/,
+        },
     })
 }

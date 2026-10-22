@@ -118,6 +118,7 @@ export const UnderVotePoliciesSaveEveryChoice = contestPolicyChoices(
     [
         ["Warn", "warn"],
         ["Warn in Review", "warn-only-in-review"],
+        ["Warn and Confirm in Review", "warn-and-confirm-in-review"],
         ["Warn and Alert", "warn-and-alert"],
         ["Allowed", "allowed"],
     ]

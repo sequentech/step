@@ -24,7 +24,6 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[3]
 TEMPLATE = ROOT / "packages/voting-load/fixtures/election.json"
 
-VOTER_PASSWORD = "E2e-voter-2026!"
 # num_allowed_revotes counts every vote: a first vote and one revote.
 MAIN_ALLOWED_VOTES = 2
 GRACE_PERIOD_SECONDS = 900
@@ -177,7 +176,7 @@ def census(tag, counts):
     ]
 
 
-def write_census(path, voters, authorization):
+def write_census(path, voters, authorization, *, weights=None):
     """Write the voter CSV `step-cli step import-voters` takes.
 
     `authorization` maps an area key to its `authorized-election-ids` value.
@@ -193,6 +192,7 @@ def write_census(path, voters, authorization):
                 "password",
                 "authorized-election-ids",
             ]
+            + (["vote-weight"] if weights is not None else [])
         )
         for voter in voters:
             writer.writerow(
@@ -201,7 +201,8 @@ def write_census(path, voters, authorization):
                     AREA[voter.area].name,
                     f"{voter.username}@example.invalid",
                     "true",
-                    VOTER_PASSWORD,
+                    voter.username,
                     authorization[voter.area],
                 ]
+                + ([weights[voter.username]] if weights is not None else [])
             )

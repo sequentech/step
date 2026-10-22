@@ -21,8 +21,13 @@ const OVER_VOTE: &[&str] = &[
 ];
 const BLANK_VOTE: &[&str] =
     &["allowed", "warn", "warn-only-in-review", "not-allowed"];
-const UNDER_VOTE: &[&str] =
-    &["allowed", "warn", "warn-only-in-review", "warn-and-alert"];
+const UNDER_VOTE: &[&str] = &[
+    "allowed",
+    "warn",
+    "warn-only-in-review",
+    "warn-and-alert",
+    "warn-and-confirm-in-review",
+];
 const INVALID_VOTE: &[&str] = &[
     "allowed",
     "warn",

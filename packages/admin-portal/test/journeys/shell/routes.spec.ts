@@ -1,11 +1,11 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 import {test as unit, type Page} from "@playwright/test"
+import {setTimeout as delay} from "node:timers/promises"
 import {IPermissions} from "../../../src/types/keycloak"
 import {test, expect, TENANT_ID, type AdminPortal} from "../fixtures"
 import {appRoutes} from "./routes"
 import {serveAdminTenant, SHELL_IDS} from "./data"
-import {serveTrusteeWorkerHelper} from "../tally/trustee-startup"
 
 /**
  * One entry per router route. The matrix gives breadth: each route loads with
@@ -38,6 +38,11 @@ const nextFrames = (page: Page) =>
     )
 
 const eventPage = async (page: Page) => {
+    // OIDC reloads the production bundle; wait for login before timing event loading.
+    // Two bundle loads take longer than one deadline on a busy runner.
+    await expect(page.getByRole("button", {name: "Welcome, synthetic-admin"})).toBeVisible({
+        timeout: 20_000,
+    })
     await text(page, "Council 2026")
     await text(page, "Election event configuration.")
     await expect(page.getByRole("tab", {name: "Dashboard", exact: true})).toHaveAttribute(
@@ -94,15 +99,36 @@ export const SMOKE: Record<string, Smoke> = {
     "/trustee": {
         url: "/trustee",
         shows: async (page) => {
-            await heading(page, "Braid Trustee Node")
-            await expect(
-                page.getByText(/braid-wasm loaded and thread pool initialized/)
-            ).toBeVisible()
+            await heading(page, "Trustee dashboard")
+            await expect(page.getByText(/trustee generate --trustee-config/)).toBeVisible()
         },
         checkConsole: true,
     },
     "/messages": {url: "/messages", shows: (page) => text(page, "Messages")},
+    "/electoral-log-console": {
+        url: "/electoral-log-console",
+        shows: async (page) => {
+            await heading(page, "Electoral Log")
+            await text(page, "KeyGeneration")
+        },
+    },
+    "/task-queues": {
+        url: "/task-queues",
+        shows: async (page) => {
+            await heading(page, "Task Queues")
+            await text(page, "short_queue")
+        },
+    },
     "/settings/*": {url: "/settings", shows: settingsPage},
+    // The journeys' tenant has not turned Projects on: the route explains where to.
+    "/plugins/:id/*": {
+        url: "/plugins/projects",
+        shows: (page) =>
+            text(
+                page,
+                "Projects is not turned on for this tenant. A tenant administrator can turn it on in Settings → Plugins."
+            ),
+    },
     "/sequent_backend_election_event": {url: "/sequent_backend_election_event", ...eventRedirect},
     "/sequent_backend_election_event/:id": {
         url: `/sequent_backend_election_event/${SHELL_IDS.event}`,
@@ -169,18 +195,6 @@ export const SMOKE: Record<string, Smoke> = {
             await heading(page, "Ballot Styles")
             await cell(page, "PUBLISHED")
         },
-    },
-    "/sequent_backend_ballot_style/create": {
-        url: "/sequent_backend_ballot_style/create",
-        shows: (page) => text(page, "Ballot Style creation"),
-    },
-    "/sequent_backend_ballot_style/:id": {
-        url: `/sequent_backend_ballot_style/${SHELL_IDS.ballotStyle}`,
-        shows: async (page) => {
-            await text(page, "Ballot Style configuration")
-            await text(page, SHELL_IDS.ballotStyle)
-        },
-        checkConsole: true,
     },
     "/sequent_backend_area": {
         url: "/sequent_backend_area",
@@ -341,14 +355,6 @@ test.describe("route smoke", () => {
 
     async function checkRoute(page: Page, portal: AdminPortal, smoke: Smoke) {
         serveAdminTenant(portal)
-        if (smoke.url === "/trustee")
-            await page.addInitScript(() => {
-                Object.defineProperty(navigator, "hardwareConcurrency", {value: 2})
-            })
-        const unroute =
-            smoke.url === "/trustee"
-                ? await serveTrusteeWorkerHelper(page.context(), portal)
-                : undefined
         let consoleErrors: string[] = []
         try {
             consoleErrors = await open(page, portal, smoke)
@@ -357,11 +363,32 @@ test.describe("route smoke", () => {
                 await expect(page).toHaveURL((url) => url.pathname === smoke.settlesAt)
             await nextFrames(page)
         } finally {
-            await unroute?.()
             expect(portal.violations.list(), "unexpected service requests").toEqual([])
             expect(consoleErrors, "console errors").toEqual([])
         }
     }
+
+    test("event content waits for login and then loads within its own deadline", async ({
+        page,
+        portal,
+    }) => {
+        // Each phase fits the deadline; login plus event loading exceeds one deadline.
+        await page.route("**/protocol/openid-connect/token", async (route) => {
+            await delay(5_000)
+            await route.fallback()
+        })
+        await page.route("**/v1/graphql", async (route) => {
+            const {operationName} = route.request().postDataJSON() as {operationName?: string}
+            if (
+                ["election_events_tree", "sequent_backend_election_event"].includes(
+                    operationName ?? ""
+                )
+            )
+                await delay(5_000)
+            await route.fallback()
+        })
+        await checkRoute(page, portal, SMOKE["/sequent_backend_election_event/:id"])
+    })
 
     for (const [path, smoke] of Object.entries(SMOKE)) {
         test(`${path} renders its main content`, async ({page, portal}) => {

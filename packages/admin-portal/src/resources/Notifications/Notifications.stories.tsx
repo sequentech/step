@@ -5,7 +5,7 @@ import React from "react"
 import type {StoryObj} from "@storybook/react-vite"
 import {expect, userEvent, waitFor, within} from "storybook/test"
 import {RecordContextProvider} from "react-admin"
-import {i18n} from "@sequentech/ui-core"
+import {i18n, browserTimeZone} from "@sequentech/ui-core"
 import {
     AdminStoryProvider,
     EVENT_ID,
@@ -17,6 +17,11 @@ import {resourceBoundary, type ReadState} from "@/__stories__/resourceBoundary"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
 import Notifications from "./Notifications"
 import {NOTIFICATION_RESOURCE, notificationRecords} from "./__stories__/NotificationsFixture"
+import {formatZoned} from "@/lib/timezones/zonedFormat"
+
+/** A time as the screen shows it outside an event's screens: labelled, in the viewer's zone. */
+const shownTime = (value: string, seconds = false) =>
+    formatZoned(value, browserTimeZone(), {t: i18n.t.bind(i18n), lang: i18n.language, seconds})
 
 interface Scenario {
     /** What reading the notifications does. */
@@ -62,7 +67,7 @@ type Story = StoryObj<Scenario>
 export const Populated: Story = {
     play: async ({canvasElement}) => {
         const rows = await within(canvasElement).findAllByRole("row")
-        await expect(within(rows[1]).getByText(new Date(FIXED_TIME).toLocaleString())).toBeVisible()
+        await expect(within(rows[1]).getByText(shownTime(FIXED_TIME, true))).toBeVisible()
         expect(within(canvasElement).queryByText("Invalid Date")).toBeNull()
         expect(data.calls).toEqual([
             {

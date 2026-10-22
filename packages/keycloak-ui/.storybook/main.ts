@@ -13,6 +13,13 @@ const config: StorybookConfig = {
     core: {disableTelemetry: true},
     viteFinal: (config) =>
         mergeConfig(config, {
+            // Storybook copies staticDirs; a second Vite copy races on the same files.
+            build: {copyPublicDir: false},
+            // Include coverage-only imports before Vitest starts its browser.
+            // Late discovery invalidates loaded modules while a story is running.
+            optimizeDeps: {
+                include: ["keycloakify/login/Template.useInitialize"],
+            },
             resolve: {
                 alias: {
                     "@sequentech/ui-essentials/theme": fileURLToPath(

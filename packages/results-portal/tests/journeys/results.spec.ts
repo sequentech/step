@@ -174,19 +174,11 @@ for (const failure of ["no-publication", "no-artifact", "token"] as const) {
 test("published results meet accessibility rules", async ({page, portal}) => {
     await page.goto(portal.origin + eventPath)
     await expect(page.getByRole("row", {name: /Alice Example/})).toContainText("45")
+    const legend = page.locator(".seq-results-summary__chart .apexcharts-legend").first()
+    await expect(legend).toHaveAttribute("tabindex", "0")
+    await legend.focus()
+    await expect(legend).toBeFocused()
     const violations = await scanPage(page)
-    if (violations.length)
-        expect(violations).toEqual([
-            {
-                id: "color-contrast",
-                impact: "serious",
-                targets: [
-                    [".seq-results-selector__election-tab--council"],
-                    [".seq-results-selector__contest-row__tab"],
-                    [".seq-results-selector__area-tab--global"],
-                ],
-            },
-        ])
     expect(violations).toEqual([])
 })
 

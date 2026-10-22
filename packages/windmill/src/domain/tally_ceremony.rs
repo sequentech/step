@@ -3,8 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 //! Rules of the tally ceremony: which status changes are allowed, when enough
-//! trustees have restored their keys, and when a session can be recounted.
+//! trustees have confirmed custody, and when a session can be recounted.
 
+use crate::domain::trustee_signatures::TrusteeSignatures;
 use anyhow::{anyhow, Result};
 use sequent_core::types::ceremonies::{
     TallyCeremonyStatus, TallyElection, TallyElectionStatus, TallyExecutionStatus, TallyTrustee,
@@ -57,7 +58,9 @@ pub fn allowed_status_changes(current: &TallyExecutionStatus) -> &'static [Tally
             TallyExecutionStatus::IN_PROGRESS,
             TallyExecutionStatus::CANCELLED,
         ],
-        TallyExecutionStatus::SUCCESS | TallyExecutionStatus::CANCELLED => &[],
+        TallyExecutionStatus::SUCCESS
+        | TallyExecutionStatus::FAILED
+        | TallyExecutionStatus::CANCELLED => &[],
     }
 }
 
@@ -74,56 +77,60 @@ pub fn check_status_change(
     }
 }
 
-pub fn restored_trustee_count(status: &TallyCeremonyStatus) -> usize {
+pub fn authorized_trustee_count(status: &TallyCeremonyStatus) -> usize {
     status
         .trustees
         .iter()
-        .filter(|trustee| trustee.status == TallyTrusteeStatus::KEY_RESTORED)
+        .filter(|trustee| trustee.status == TallyTrusteeStatus::CUSTODY_CONFIRMED)
         .count()
 }
 
-/// Until `threshold` trustees have restored their key, the session can only
+/// Until `threshold` trustees have confirmed custody, the session can only
 /// be cancelled.
 pub fn check_trustee_quorum(
     threshold: i64,
-    restored_trustees: usize,
+    authorized_trustees: usize,
     new: &TallyExecutionStatus,
 ) -> Result<(), TallyValidationError> {
-    if threshold > restored_trustees as i64 && *new != TallyExecutionStatus::CANCELLED {
+    if threshold > authorized_trustees as i64 && *new != TallyExecutionStatus::CANCELLED {
         return Err(TallyValidationError::new(format!(
-            "Insufficient number of connected trustees {restored_trustees}. Required threshold {threshold}."
+            "Insufficient number of connected trustees {authorized_trustees}. Required threshold {threshold}."
         )));
     }
     Ok(())
 }
 
-/// Keys can only be restored before the tally starts.
-pub fn check_key_restore_status(current: &TallyExecutionStatus) -> Result<()> {
+/// Custody can only be confirmed before the tally starts.
+pub fn check_custody_authorization_status(current: &TallyExecutionStatus) -> Result<()> {
     if *current != TallyExecutionStatus::STARTED && *current != TallyExecutionStatus::CONNECTED {
         return Err(anyhow!("Unexpected status {current}"));
     }
     Ok(())
 }
 
-/// The trustee named `trustee_name`, who must still be waiting to restore
-/// their key.
-pub fn waiting_trustee<'a>(
+/// The trustee named `trustee_name` who may confirm custody now: one
+/// still waiting, or, when the rule makes trustees sign, one who authorized
+/// custody unsigned before.
+pub fn authorizing_trustee<'a>(
     status: &'a TallyCeremonyStatus,
     trustee_name: &str,
+    signatures: &TrusteeSignatures,
 ) -> Result<&'a TallyTrustee> {
     let trustee = status
         .trustees
         .iter()
         .find(|trustee| trustee.name == trustee_name)
         .ok_or_else(|| anyhow!("Trustee not part of the keys ceremony or has invalid state"))?;
-    if trustee.status != TallyTrusteeStatus::WAITING {
+    let redo = trustee.status == TallyTrusteeStatus::CUSTODY_CONFIRMED
+        && signatures.may_redo(trustee_name);
+    if trustee.status != TallyTrusteeStatus::WAITING && !redo {
         return Err(anyhow!("Unexpected trustee status {}", trustee.status));
     }
     Ok(trustee)
 }
 
-/// `status` with `trustee_name` marked as having restored their key.
-pub fn restore_trustee_key(
+/// `status` with `trustee_name` marked as having confirmed custody.
+pub fn authorize_trustee_custody(
     mut status: TallyCeremonyStatus,
     trustee_name: &str,
 ) -> TallyCeremonyStatus {
@@ -132,14 +139,27 @@ pub fn restore_trustee_key(
         .iter_mut()
         .filter(|trustee| trustee.name == trustee_name)
     {
-        trustee.status = TallyTrusteeStatus::KEY_RESTORED;
+        trustee.status = TallyTrusteeStatus::CUSTODY_CONFIRMED;
     }
     status
 }
 
-/// Whether enough trustees restored their key for the session to connect.
-pub fn reaches_key_threshold(status: &TallyCeremonyStatus, threshold: i64) -> bool {
-    restored_trustee_count(status) as i64 >= threshold
+/// Whether enough trustees confirmed custody for the session to connect;
+/// when the rule makes trustees sign, only signed authorizations count.
+pub fn reaches_key_threshold(
+    status: &TallyCeremonyStatus,
+    threshold: i64,
+    signatures: &TrusteeSignatures,
+) -> bool {
+    status
+        .trustees
+        .iter()
+        .filter(|trustee| {
+            trustee.status == TallyTrusteeStatus::CUSTODY_CONFIRMED
+                && signatures.counts(&trustee.name)
+        })
+        .count() as i64
+        >= threshold
 }
 
 /// Only a session that completed successfully can be recounted.
@@ -257,17 +277,17 @@ mod tests {
     }
 
     #[test]
-    fn restored_trustees_are_counted_by_status() {
+    fn authorized_trustees_are_counted_by_status() {
         let status = ceremony_status(&[
-            ("alice", TallyTrusteeStatus::KEY_RESTORED),
+            ("alice", TallyTrusteeStatus::CUSTODY_CONFIRMED),
             ("bob", TallyTrusteeStatus::WAITING),
-            ("carol", TallyTrusteeStatus::KEY_RESTORED),
+            ("carol", TallyTrusteeStatus::CUSTODY_CONFIRMED),
         ]);
-        assert_eq!(restored_trustee_count(&status), 2);
+        assert_eq!(authorized_trustee_count(&status), 2);
     }
 
     #[test]
-    fn fewer_restored_trustees_than_the_threshold_only_allow_cancelling() {
+    fn fewer_authorized_trustees_than_the_threshold_only_allow_cancelling() {
         for new in [STARTED, CONNECTED, IN_PROGRESS, AWAITING_INPUT, SUCCESS] {
             assert_eq!(
                 check_trustee_quorum(3, 2, &new).unwrap_err().to_string(),
@@ -286,41 +306,52 @@ mod tests {
     }
 
     #[test]
-    fn keys_can_only_be_restored_while_started_or_connected() {
-        assert!(check_key_restore_status(&STARTED).is_ok());
-        assert!(check_key_restore_status(&CONNECTED).is_ok());
+    fn custody_can_only_be_confirmed_while_started_or_connected() {
+        assert!(check_custody_authorization_status(&STARTED).is_ok());
+        assert!(check_custody_authorization_status(&CONNECTED).is_ok());
         for status in [IN_PROGRESS, AWAITING_INPUT, SUCCESS, CANCELLED] {
             assert_eq!(
-                check_key_restore_status(&status).unwrap_err().to_string(),
+                check_custody_authorization_status(&status)
+                    .unwrap_err()
+                    .to_string(),
                 format!("Unexpected status {status}")
             );
         }
     }
 
     #[test]
-    fn a_waiting_trustee_can_restore_their_key() {
+    fn a_waiting_trustee_can_confirm_custody() {
         let status = ceremony_status(&[
-            ("alice", TallyTrusteeStatus::KEY_RESTORED),
+            ("alice", TallyTrusteeStatus::CUSTODY_CONFIRMED),
             ("bob", TallyTrusteeStatus::WAITING),
         ]);
-        assert_eq!(waiting_trustee(&status, "bob").unwrap().name, "bob");
+        assert_eq!(
+            authorizing_trustee(&status, "bob", &TrusteeSignatures::NotNeeded)
+                .unwrap()
+                .name,
+            "bob"
+        );
     }
 
     #[test]
-    fn a_trustee_outside_the_ceremony_cannot_restore_a_key() {
+    fn a_trustee_outside_the_ceremony_cannot_authorize_custody() {
         let status = ceremony_status(&[("alice", TallyTrusteeStatus::WAITING)]);
         assert_eq!(
-            waiting_trustee(&status, "mallory").unwrap_err().to_string(),
+            authorizing_trustee(&status, "mallory", &TrusteeSignatures::NotNeeded)
+                .unwrap_err()
+                .to_string(),
             "Trustee not part of the keys ceremony or has invalid state"
         );
     }
 
     #[test]
-    fn a_trustee_cannot_restore_their_key_twice() {
-        let status = ceremony_status(&[("alice", TallyTrusteeStatus::KEY_RESTORED)]);
+    fn a_trustee_cannot_confirm_custody_twice() {
+        let status = ceremony_status(&[("alice", TallyTrusteeStatus::CUSTODY_CONFIRMED)]);
         assert_eq!(
-            waiting_trustee(&status, "alice").unwrap_err().to_string(),
-            "Unexpected trustee status KEY_RESTORED"
+            authorizing_trustee(&status, "alice", &TrusteeSignatures::NotNeeded)
+                .unwrap_err()
+                .to_string(),
+            "Unexpected trustee status CUSTODY_CONFIRMED"
         );
     }
 
@@ -330,7 +361,7 @@ mod tests {
             ("alice", TallyTrusteeStatus::WAITING),
             ("bob", TallyTrusteeStatus::WAITING),
         ]);
-        let restored = restore_trustee_key(status, "bob");
+        let restored = authorize_trustee_custody(status, "bob");
         assert_eq!(
             restored
                 .trustees
@@ -339,7 +370,7 @@ mod tests {
                 .collect::<Vec<_>>(),
             vec![
                 ("alice", TallyTrusteeStatus::WAITING),
-                ("bob", TallyTrusteeStatus::KEY_RESTORED),
+                ("bob", TallyTrusteeStatus::CUSTODY_CONFIRMED),
             ]
         );
     }
@@ -347,16 +378,71 @@ mod tests {
     #[test]
     fn the_key_threshold_is_reached_at_exactly_the_threshold() {
         let one = ceremony_status(&[
-            ("alice", TallyTrusteeStatus::KEY_RESTORED),
+            ("alice", TallyTrusteeStatus::CUSTODY_CONFIRMED),
             ("bob", TallyTrusteeStatus::WAITING),
         ]);
         let two = ceremony_status(&[
-            ("alice", TallyTrusteeStatus::KEY_RESTORED),
-            ("bob", TallyTrusteeStatus::KEY_RESTORED),
+            ("alice", TallyTrusteeStatus::CUSTODY_CONFIRMED),
+            ("bob", TallyTrusteeStatus::CUSTODY_CONFIRMED),
         ]);
-        assert!(!reaches_key_threshold(&one, 2));
-        assert!(reaches_key_threshold(&two, 2));
-        assert!(reaches_key_threshold(&two, 1));
+        let any = TrusteeSignatures::NotNeeded;
+        assert!(!reaches_key_threshold(&one, 2, &any));
+        assert!(reaches_key_threshold(&two, 2, &any));
+        assert!(reaches_key_threshold(&two, 1, &any));
+    }
+
+    #[test]
+    fn with_signatures_needed_only_signed_restores_reach_the_threshold() {
+        let two = ceremony_status(&[
+            ("alice", TallyTrusteeStatus::CUSTODY_CONFIRMED),
+            ("bob", TallyTrusteeStatus::CUSTODY_CONFIRMED),
+        ]);
+        let only_bob = TrusteeSignatures::Needed {
+            signed: Default::default(),
+            signing: Some("bob".into()),
+        };
+        assert!(!reaches_key_threshold(&two, 2, &only_bob));
+        assert!(reaches_key_threshold(&two, 1, &only_bob));
+    }
+
+    #[test]
+    fn with_signatures_needed_an_unsigned_restore_is_redone_signed_once() {
+        let status = ceremony_status(&[
+            ("alice", TallyTrusteeStatus::CUSTODY_CONFIRMED),
+            ("bob", TallyTrusteeStatus::WAITING),
+        ]);
+        let none_signed = TrusteeSignatures::Needed {
+            signed: Default::default(),
+            signing: Some("alice".into()),
+        };
+        assert_eq!(
+            authorizing_trustee(&status, "alice", &none_signed)
+                .unwrap()
+                .name,
+            "alice"
+        );
+        let alice_signed = TrusteeSignatures::Needed {
+            signed: ["alice".to_string()].into(),
+            signing: None,
+        };
+        assert_eq!(
+            authorizing_trustee(&status, "alice", &alice_signed)
+                .unwrap_err()
+                .to_string(),
+            "Unexpected trustee status CUSTODY_CONFIRMED"
+        );
+        assert_eq!(
+            authorizing_trustee(&status, "alice", &TrusteeSignatures::NotNeeded)
+                .unwrap_err()
+                .to_string(),
+            "Unexpected trustee status CUSTODY_CONFIRMED"
+        );
+        assert_eq!(
+            authorizing_trustee(&status, "bob", &TrusteeSignatures::NotNeeded)
+                .unwrap()
+                .name,
+            "bob"
+        );
     }
 
     #[test]

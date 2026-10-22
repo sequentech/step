@@ -54,7 +54,7 @@ const OpenButton = styled(Button)`
 `
 
 const CardTitle = styled(Typography)`
-    font-size: 24px;
+    font-size: 1.5rem;
     line-height: 20px;
     margin-top: 0;
     margin-bottom: 10px;
@@ -65,7 +65,7 @@ const CardTitle = styled(Typography)`
 `
 
 const CardSubTitle = styled(Typography)<{component?: React.ElementType}>`
-    font-size: 18px;
+    font-size: 1.125rem;
     line-height: 20px;
     margin-top: 0;
     margin-bottom: 10px;
@@ -106,7 +106,7 @@ export interface ISupportMaterialCardProps {
 }
 
 const iconFor = (kind: string): React.JSX.Element => {
-    const style = {fontSize: "42px", marginRight: "16px"}
+    const style = {fontSize: "2.625rem", marginRight: "16px"}
     if (kind.includes("image")) {
         return <ImageIcon className="support-material-image-icon" sx={style} />
     }

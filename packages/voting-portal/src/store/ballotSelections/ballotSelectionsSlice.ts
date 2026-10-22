@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {createSlice, PayloadAction} from "@reduxjs/toolkit"
+import {createSlice, current, PayloadAction} from "@reduxjs/toolkit"
 import {RootState} from "../store"
 import {
     isUndefined,
@@ -11,6 +11,15 @@ import {
     EInvalidVotePolicy,
 } from "@sequentech/ui-core"
 import {IBallotStyle} from "../ballotStyles/ballotStylesSlice"
+import {computeSlateChoices} from "../../services/SlateChoices"
+import {
+    countSelections,
+    exceedsMaximum,
+    isSelected,
+    refusesOverVotes,
+    replacesOnSelect,
+} from "../../services/SelectionLimits"
+import type {IResolvedSlate} from "../../services/Slates"
 
 export interface BallotSelectionsState {
     [electionId: string]: BallotSelection | undefined
@@ -136,6 +145,22 @@ export const ballotSelectionsSlice = createSlice({
             )
             // update state
             if (!isUndefined(currentQuestion)) {
+                const isExclusive =
+                    ballotEmlContest.presentation?.invalid_vote_policy ===
+                    EInvalidVotePolicy.ALLOWED_WITH_EXCLUSIVE_EXPLICIT
+                if (
+                    action.payload.isExplicitInvalid &&
+                    !currentQuestion.is_explicit_invalid &&
+                    !isExclusive &&
+                    refusesOverVotes(ballotEmlContest) &&
+                    exceedsMaximum(
+                        ballotEmlContest,
+                        countSelections(ballotEmlContest, currentQuestion) + 1
+                    )
+                ) {
+                    return state
+                }
+
                 currentQuestion.is_explicit_invalid = action.payload.isExplicitInvalid
 
                 // Under ALLOWED_WITH_EXCLUSIVE_EXPLICIT, marking the ballot
@@ -230,8 +255,6 @@ export const ballotSelectionsSlice = createSlice({
 
             // modify
             if (currentQuestion && !isUndefined(currentChoiceIndex)) {
-                currentQuestion.choices[currentChoiceIndex] = action.payload.voteChoice
-
                 const explicitBlankCandidateIds = new Set(
                     ballotEmlContest.candidates
                         .filter((candidate) => candidate.presentation?.is_explicit_blank)
@@ -240,6 +263,31 @@ export const ballotSelectionsSlice = createSlice({
                 const isSelectingExplicitBlank =
                     explicitBlankCandidateIds.has(action.payload.voteChoice.id) &&
                     action.payload.voteChoice.selected > -1
+                const isNewSelection =
+                    isSelected(action.payload.voteChoice) &&
+                    !isSelected(currentChoice) &&
+                    !isSelectingExplicitBlank
+
+                // The same limits apply whatever dispatches the choice, so
+                // they are kept here and not only in the candidate controls.
+                if (isNewSelection && replacesOnSelect(ballotEmlContest)) {
+                    currentQuestion.is_explicit_invalid = false
+                    currentQuestion.choices = currentQuestion.choices.map((choice) => ({
+                        ...choice,
+                        selected: -1,
+                    }))
+                } else if (
+                    isNewSelection &&
+                    refusesOverVotes(ballotEmlContest) &&
+                    exceedsMaximum(
+                        ballotEmlContest,
+                        countSelections(ballotEmlContest, currentQuestion) + 1
+                    )
+                ) {
+                    return state
+                }
+
+                currentQuestion.choices[currentChoiceIndex] = action.payload.voteChoice
 
                 if (action.payload.voteChoice.selected > -1 && !isSelectingExplicitBlank) {
                     currentQuestion.choices = currentQuestion.choices.map((choice) =>
@@ -261,6 +309,27 @@ export const ballotSelectionsSlice = createSlice({
                 clearBlankBallotFlag(currentElection)
             }
 
+            return state
+        },
+        applySlateSelection: (
+            state,
+            action: PayloadAction<{
+                ballotStyle: IBallotStyle
+                slate: IResolvedSlate
+            }>
+        ): BallotSelectionsState => {
+            const currentElection = state[action.payload.ballotStyle.election_id]
+            if (isUndefined(currentElection)) {
+                return state
+            }
+            try {
+                state[action.payload.ballotStyle.election_id] = computeSlateChoices(
+                    action.payload.slate,
+                    current(currentElection)
+                ).selection
+            } catch (error) {
+                console.log(`Error applying slate: ${error}`)
+            }
             return state
         },
         setAllBallotSelectionsDeclineToVote: (
@@ -331,6 +400,7 @@ export const {
     setBallotSelectionInvalidVote,
     setBallotSelectionBlankVote,
     setBallotSelectionVoteChoice,
+    applySlateSelection,
     setAllBallotSelectionsDeclineToVote,
     setAllBallotSelectionsBlankBallot,
 } = ballotSelectionsSlice.actions

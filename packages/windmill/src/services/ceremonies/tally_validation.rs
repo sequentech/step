@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 pub use crate::domain::tally_ceremony::TallyValidationError;
-use sequent_core::ballot::{AllowTallyStatus, ElectionStatus, InitReport};
+use crate::ports::tally_ceremony::BallotBoxSealState;
+use crate::postgres::ballot_box_seal::BallotBoxSealStatus;
+use sequent_core::ballot::{AllowTallyStatus, BallotBoxSealPolicy, ElectionStatus, InitReport};
 use sequent_core::types::ceremonies::TallyType;
 use sequent_core::types::hasura::core::{Election, VotingChannels};
-use std::collections::HashSet;
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 
 pub fn validate_tally_elections(
     elections: &[Election],
@@ -94,6 +96,131 @@ pub fn validate_tally_elections(
         }
     }
     Ok(())
+}
+
+/// A ballot box the tally counts: one area of one election, with the names
+/// a refusal shows.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExpectedBallotBox {
+    pub election_id: String,
+    pub election_name: String,
+    pub area_id: String,
+    pub area_name: String,
+}
+
+/// Why a ballot box is not ready to tally, as the refusal shows it.
+fn not_ready_reason(status: Option<BallotBoxSealStatus>) -> Option<&'static str> {
+    match status {
+        Some(BallotBoxSealStatus::Published) => None,
+        None | Some(BallotBoxSealStatus::Pending) => Some("not sealed yet"),
+        Some(BallotBoxSealStatus::Sealed) => Some("sealed, not yet on the bulletin board"),
+        Some(BallotBoxSealStatus::Failed) => Some("not sealed: incident"),
+    }
+}
+
+/// With the event sealing ballot boxes at close, electoral results are
+/// tallied only once every ballot box they count has its seal on the
+/// bulletin board (`published`). Initialization reports count no ballots
+/// and are never refused here.
+pub fn validate_ballot_boxes_sealed(
+    policy: BallotBoxSealPolicy,
+    tally_type: &TallyType,
+    expected_boxes: &[ExpectedBallotBox],
+    seals: &[BallotBoxSealState],
+) -> Result<(), TallyValidationError> {
+    if policy != BallotBoxSealPolicy::SEAL_AT_CLOSE
+        || *tally_type == TallyType::INITIALIZATION_REPORT
+    {
+        return Ok(());
+    }
+    // Election name, then area name, so the refusal reads the same each time.
+    let mut not_ready: BTreeMap<(&str, &str), Vec<(&str, &str, &str)>> = BTreeMap::new();
+    for expected in expected_boxes {
+        let status = seals
+            .iter()
+            .find(|seal| {
+                seal.election_id == expected.election_id && seal.area_id == expected.area_id
+            })
+            .map(|seal| seal.status);
+        if let Some(reason) = not_ready_reason(status) {
+            not_ready
+                .entry((
+                    expected.election_name.as_str(),
+                    expected.election_id.as_str(),
+                ))
+                .or_default()
+                .push((
+                    expected.area_name.as_str(),
+                    expected.area_id.as_str(),
+                    reason,
+                ));
+        }
+    }
+    if not_ready.is_empty() {
+        return Ok(());
+    }
+    let elections: Vec<String> = not_ready
+        .into_iter()
+        .map(|((election_name, _), mut areas)| {
+            areas.sort();
+            let areas: Vec<String> = areas
+                .into_iter()
+                .map(|(area_name, _, reason)| format!("{area_name} ({reason})"))
+                .collect();
+            format!("{election_name}: {}", areas.join(", "))
+        })
+        .collect();
+    Err(TallyValidationError::new(format!(
+        "Every ballot box must be sealed and its seal on the bulletin board before \
+         tallying. Not ready: {}.",
+        elections.join("; ")
+    )))
+}
+
+/// Refuses a tally that leaves out a sealed ballot box with ballots: every
+/// such box must have the tally's contests in its area (`tallied`), or its
+/// ballots would silently be missing from the results. `boxes` names the
+/// boxes.
+pub fn validate_sealed_boxes_tallied(
+    boxes: &[ExpectedBallotBox],
+    seals: &[BallotBoxSealState],
+    tallied: &BTreeSet<(String, String)>,
+) -> Result<(), TallyValidationError> {
+    let mut missing: Vec<(&str, &str)> = seals
+        .iter()
+        .filter(|seal| seal.ballots_in_box.unwrap_or_default() > 0)
+        .filter(|seal| !tallied.contains(&(seal.election_id.clone(), seal.area_id.clone())))
+        .map(|seal| {
+            boxes
+                .iter()
+                .find(|named| {
+                    named.election_id == seal.election_id && named.area_id == seal.area_id
+                })
+                .map(|named| (named.election_name.as_str(), named.area_name.as_str()))
+                .unwrap_or((seal.election_id.as_str(), seal.area_id.as_str()))
+        })
+        .collect();
+    if missing.is_empty() {
+        return Ok(());
+    }
+    missing.sort();
+    let names: Vec<String> = missing
+        .iter()
+        .map(|(election, area)| format!("{election}, {area}"))
+        .collect();
+    Err(TallyValidationError::new(if names.len() == 1 {
+        format!(
+            "The sealed ballot box of {} is not in this tally: its area no longer has the \
+             election's contests.",
+            names[0]
+        )
+    } else {
+        format!(
+            "The sealed ballot boxes of {} are not in this tally: their areas no longer have \
+             the election's contests.",
+            names.join("; ")
+        )
+    }))
 }
 
 #[cfg(test)]
@@ -273,5 +400,150 @@ mod tests {
             )
             .is_err());
         }
+    }
+
+    fn expected(area: &str) -> ExpectedBallotBox {
+        ExpectedBallotBox {
+            election_id: "e1".into(),
+            election_name: "Mayor".into(),
+            area_id: area.into(),
+            area_name: format!("Area {area}"),
+        }
+    }
+
+    fn seal(area: &str, status: BallotBoxSealStatus) -> BallotBoxSealState {
+        BallotBoxSealState {
+            election_id: "e1".into(),
+            area_id: area.into(),
+            status,
+            ballots_in_box: Some(1),
+        }
+    }
+
+    fn sealed(
+        policy: BallotBoxSealPolicy,
+        tally_type: TallyType,
+        seals: &[BallotBoxSealState],
+    ) -> Result<(), TallyValidationError> {
+        validate_ballot_boxes_sealed(
+            policy,
+            &tally_type,
+            &[expected("north"), expected("south")],
+            seals,
+        )
+    }
+
+    #[test]
+    fn electoral_results_wait_for_every_seal_on_the_bulletin_board() {
+        use BallotBoxSealStatus::*;
+        let on = BallotBoxSealPolicy::SEAL_AT_CLOSE;
+        assert!(sealed(
+            on,
+            TallyType::ELECTORAL_RESULTS,
+            &[seal("north", Published), seal("south", Published)]
+        )
+        .is_ok());
+        for (south, reason) in [
+            (None, "not sealed yet"),
+            (Some(Pending), "not sealed yet"),
+            (Some(Sealed), "sealed, not yet on the bulletin board"),
+            (Some(Failed), "not sealed: incident"),
+        ] {
+            let mut seals = vec![seal("north", Published)];
+            seals.extend(south.map(|status| seal("south", status)));
+            let error = sealed(on, TallyType::ELECTORAL_RESULTS, &seals).unwrap_err();
+            assert_eq!(
+                error.to_string(),
+                format!(
+                    "Every ballot box must be sealed and its seal on the bulletin board \
+                     before tallying. Not ready: Mayor: Area south ({reason})."
+                )
+            );
+        }
+    }
+
+    #[test]
+    fn the_refusal_names_every_box_that_is_not_ready_in_order() {
+        let error = validate_ballot_boxes_sealed(
+            BallotBoxSealPolicy::SEAL_AT_CLOSE,
+            &TallyType::ELECTORAL_RESULTS,
+            &[
+                expected("south"),
+                ExpectedBallotBox {
+                    election_id: "e0".into(),
+                    election_name: "Council".into(),
+                    area_id: "west".into(),
+                    area_name: "Area west".into(),
+                },
+                expected("north"),
+            ],
+            &[seal("north", BallotBoxSealStatus::Failed)],
+        )
+        .unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "Every ballot box must be sealed and its seal on the bulletin board before \
+             tallying. Not ready: Council: Area west (not sealed yet); Mayor: Area north \
+             (not sealed: incident), Area south (not sealed yet)."
+        );
+    }
+
+    #[test]
+    fn initialization_reports_and_events_that_do_not_seal_skip_the_seal_check() {
+        assert!(sealed(
+            BallotBoxSealPolicy::SEAL_AT_CLOSE,
+            TallyType::INITIALIZATION_REPORT,
+            &[]
+        )
+        .is_ok());
+        assert!(sealed(
+            BallotBoxSealPolicy::DO_NOT_SEAL,
+            TallyType::ELECTORAL_RESULTS,
+            &[]
+        )
+        .is_ok());
+    }
+
+    #[test]
+    fn a_sealed_box_with_ballots_must_be_in_the_tally() {
+        let tallied = BTreeSet::from([("e1".to_string(), "north".to_string())]);
+        let boxes = [expected("north"), expected("south"), expected("east")];
+        let mut empty = seal("east", BallotBoxSealStatus::Published);
+        empty.ballots_in_box = Some(0);
+        // The north box is tallied and the east box has no ballots.
+        assert!(validate_sealed_boxes_tallied(
+            &boxes,
+            &[seal("north", BallotBoxSealStatus::Published), empty.clone()],
+            &tallied
+        )
+        .is_ok());
+        let error = validate_sealed_boxes_tallied(
+            &boxes,
+            &[
+                seal("north", BallotBoxSealStatus::Published),
+                seal("south", BallotBoxSealStatus::Published),
+                empty,
+            ],
+            &tallied,
+        )
+        .unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "The sealed ballot box of Mayor, Area south is not in this tally: its area no \
+             longer has the election's contests."
+        );
+        let mut unnamed = seal("west", BallotBoxSealStatus::Published);
+        unnamed.election_id = "e2".into();
+        let error = validate_sealed_boxes_tallied(
+            &boxes,
+            &[seal("south", BallotBoxSealStatus::Published), unnamed],
+            &tallied,
+        )
+        .unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "The sealed ballot boxes of Mayor, Area south; e2, west are not in this tally: \
+             their areas no longer have the election's contests."
+        );
     }
 }

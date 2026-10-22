@@ -1,14 +1,17 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::postgres::document::get_support_material_documents;
+use crate::postgres::ballot_publication::get_ballot_publication_by_id;
+use crate::postgres::document::{get_document, get_support_material_documents};
 use crate::postgres::election::get_elections;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::services::ballot_styles::ballot_publication::get_publication_json;
-use crate::services::database::get_hasura_pool;
+use crate::services::ballot_styles::publication_files::{
+    publication_snapshot, PublicationSnapshot,
+};
 use crate::services::documents::upload_and_return_document;
-use crate::services::election_event_status::get_election_status;
 use crate::services::external::utils::remove_datafix_annotations;
+use crate::services::providers::transactions_provider::provide_hasura_transaction;
 use crate::{
     services::tasks_execution::{update_complete, update_fail},
     types::error::Result,
@@ -16,7 +19,6 @@ use crate::{
 use anyhow::{anyhow, Context, Result as AnyhowResult};
 use celery::error::TaskError;
 use deadpool_postgres::Transaction;
-use sequent_core::ballot::VotingStatus;
 use sequent_core::types::hasura::core::ElectionEvent;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::hasura::core::{Document, SupportMaterial};
@@ -28,6 +30,10 @@ use tracing::{info, instrument};
 
 /// Field holding the annotations of a serialized `election_event` row.
 const ANNOTATIONS_FIELD: &str = "annotations";
+/// Field holding the identifier of a serialized row.
+const ID_FIELD: &str = "id";
+/// What a publication keeps of the event besides its identifier.
+const SNAPSHOT_EVENT_FIELDS: [&str; 2] = ["presentation", "description"];
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PublicationPreview {
@@ -65,29 +71,27 @@ pub async fn prepare_publication_preview(
     task_execution: TasksExecution,
     document_id: String,
 ) -> Result<()> {
-    let mut hasura_db_client = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .map_err(|e| format!("Failed to get db connection: {e:?}"))?;
-
-    let hasura_transaction = hasura_db_client
-        .transaction()
-        .await
-        .map_err(|e| format!("Failed to get db transaction: {e:?}"))?;
-
-    let result = prepare_publication_preview_task(
-        &hasura_transaction,
-        tenant_id,
-        election_event_id,
-        ballot_publication_id,
-        document_id,
-    )
+    let output_document_id = document_id.clone();
+    let result = provide_hasura_transaction(move |tx| {
+        Box::pin(async move {
+            prepare_publication_preview_task(
+                tx,
+                tenant_id,
+                election_event_id,
+                ballot_publication_id,
+                document_id,
+            )
+            .await?;
+            Ok(())
+        })
+    })
     .await;
 
     match result {
-        Ok(document_id) => {
-            let _res = update_complete(&task_execution, Some(document_id.clone())).await;
+        Ok(()) => {
+            update_complete(&task_execution, Some(output_document_id))
+                .await
+                .map_err(|err| format!("Error completing publication preview task: {err:?}"))?;
             Ok(())
         }
         Err(err) => {
@@ -106,6 +110,36 @@ pub async fn prepare_publication_preview_task(
     ballot_publication_id: String,
     document_id: String,
 ) -> AnyhowResult<String> {
+    let publication = get_ballot_publication_by_id(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &ballot_publication_id,
+    )
+    .await?
+    .context("Publication not found")?;
+    anyhow::ensure!(
+        publication.is_generated == Some(true),
+        "Publication is not generated"
+    );
+
+    // Completion bookkeeping can be retried after the document transaction committed.
+    if let Some(document) = get_document(
+        hasura_transaction,
+        &tenant_id,
+        Some(election_event_id.clone()),
+        &document_id,
+    )
+    .await?
+    {
+        anyhow::ensure!(
+            document.name.as_deref() == Some(format!("{ballot_publication_id}.json").as_str())
+                && document.is_public == Some(true),
+            "Preview document scope mismatch"
+        );
+        return Ok(document_id);
+    }
+
     let ballot_styles_json = get_publication_json(
         &hasura_transaction,
         tenant_id.clone(),
@@ -121,15 +155,41 @@ pub async fn prepare_publication_preview_task(
             .await
             .with_context(|| "Can't find election event")?;
 
-    let election_event_json =
+    let mut election_event_json =
         serde_json::to_value(election_event).with_context(|| "Error serializing election event")?;
 
-    let elections_json =
+    let mut elections_json =
         get_elections_json_with_open_status(&hasura_transaction, &tenant_id, &election_event_id)
             .await?;
+    open_preview_election(&mut election_event_json);
+    if let Some(elections) = elections_json.as_array_mut() {
+        elections.retain(|election| {
+            election["id"].as_str().is_some_and(|id| {
+                publication
+                    .election_ids
+                    .as_ref()
+                    .is_some_and(|ids| ids.iter().any(|election_id| election_id == id))
+            })
+        });
+        for election in elections {
+            open_preview_election(election);
+        }
+    }
     let (support_materials_json, documents_json) =
         get_support_material_documents_json(&hasura_transaction, &tenant_id, &election_event_id)
             .await?;
+    let snapshot = publication_snapshot(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &ballot_publication_id,
+    )
+    .await
+    .with_context(|| "Error reading the publication objects")?;
+    let (election_event_json, elections_json) = match snapshot {
+        Some(snapshot) => as_published(election_event_json, elections_json, &snapshot),
+        None => (election_event_json, elections_json),
+    };
     let pub_preview = PublicationPreview {
         ballot_styles: ballot_styles_json,
         election_event: election_event_json,
@@ -184,23 +244,54 @@ pub async fn get_elections_json_with_open_status(
     tenant_id: &str,
     election_event_id: &str,
 ) -> AnyhowResult<Value> {
-    let mut elections = get_elections(&hasura_transaction, tenant_id, election_event_id)
+    let elections = get_elections(&hasura_transaction, tenant_id, election_event_id)
         .await
         .with_context(|| "Can't find open elections")?;
+    let mut elections_json =
+        serde_json::to_value(elections).with_context(|| "Error serializing open elections")?;
+    if let Some(elections) = elections_json.as_array_mut() {
+        for election in elections {
+            open_preview_election(election);
+        }
+    }
+    Ok(elections_json)
+}
 
-    let open_elections = elections
-        .iter_mut()
-        .map(|election| {
-            let mut status = get_election_status(election.status.clone()).unwrap_or_default();
-            status.voting_status = VotingStatus::OPEN;
-            election
-        })
-        .collect::<Vec<_>>();
+fn open_preview_election(election: &mut Value) {
+    if !election["status"].is_object() {
+        election["status"] = serde_json::json!({});
+    }
+    election["status"]["voting_status"] = Value::String("OPEN".to_owned());
+}
 
-    let open_elections_json =
-        serde_json::to_value(open_elections).with_context(|| "Error serializing open elections")?;
-
-    Ok(open_elections_json)
+/// The event and elections with what the publication was written with in place
+/// of what the rows hold now, so a preview shows the publication and not later
+/// edits. Rows and fields the publication did not keep are left as they are.
+fn as_published(
+    mut election_event: Value,
+    mut elections: Value,
+    snapshot: &PublicationSnapshot,
+) -> (Value, Value) {
+    if let Some(event) = election_event.as_object_mut() {
+        for field in SNAPSHOT_EVENT_FIELDS {
+            if let Some(value) = snapshot.event.get(field) {
+                event.insert(field.to_owned(), value.clone());
+            }
+        }
+    }
+    for election in elections.as_array_mut().into_iter().flatten() {
+        let published = snapshot
+            .elections
+            .iter()
+            .find(|published| published.get(ID_FIELD) == election.get(ID_FIELD))
+            .and_then(Value::as_object);
+        if let (Some(election), Some(published)) = (election.as_object_mut(), published) {
+            for (field, value) in published {
+                election.insert(field.clone(), value.clone());
+            }
+        }
+    }
+    (election_event, elections)
 }
 
 #[cfg(test)]
@@ -259,6 +350,128 @@ mod tests {
             let written = written_preview(preview_with_annotations(election_event.clone()));
 
             assert_eq!(written["election_event"], election_event);
+        }
+    }
+
+    fn snapshot() -> PublicationSnapshot {
+        PublicationSnapshot {
+            event: json!({
+                "id": "event",
+                "presentation": {"css": ".published {}"},
+                "description": "Published event",
+                "ballot_eml_presentation": "{}",
+            }),
+            elections: vec![json!({
+                "id": "election",
+                "presentation": {"contests_order": "custom"},
+                "description": "Published election",
+            })],
+        }
+    }
+
+    #[test]
+    fn a_preview_shows_the_event_and_elections_the_publication_was_written_with() {
+        let (event, elections) = as_published(
+            json!({
+                "id": "event",
+                "presentation": {"css": ".edited {}"},
+                "description": "Edited event",
+                "status": {"is_published": true},
+                "annotations": {"kept": true},
+            }),
+            json!([
+                {
+                    "id": "election",
+                    "presentation": {"contests_order": "random"},
+                    "description": "Edited election",
+                    "status": {"voting_status": "OPEN"},
+                },
+                {"id": "added-later", "presentation": {"contests_order": "random"}},
+            ]),
+            &snapshot(),
+        );
+
+        assert_eq!(
+            event,
+            json!({
+                "id": "event",
+                "presentation": {"css": ".published {}"},
+                "description": "Published event",
+                "status": {"is_published": true},
+                "annotations": {"kept": true},
+            })
+        );
+        assert_eq!(
+            elections,
+            json!([
+                {
+                    "id": "election",
+                    "presentation": {"contests_order": "custom"},
+                    "description": "Published election",
+                    "status": {"voting_status": "OPEN"},
+                },
+                {"id": "added-later", "presentation": {"contests_order": "random"}},
+            ])
+        );
+    }
+
+    #[test]
+    fn a_snapshot_changes_nothing_it_does_not_hold() {
+        let empty = PublicationSnapshot {
+            event: json!({"id": "event"}),
+            elections: vec![json!("not an election"), json!({"presentation": {}})],
+        };
+        let event = json!({"id": "event", "presentation": {"css": ".a {}"}});
+        let elections = json!([{"id": "election", "presentation": {"a": 1}}, "not a row"]);
+        assert_eq!(
+            as_published(event.clone(), elections.clone(), &empty),
+            (event, elections)
+        );
+
+        for (event, elections) in [(json!(null), json!(null)), (json!([]), json!({}))] {
+            assert_eq!(
+                as_published(event.clone(), elections.clone(), &snapshot()),
+                (event, elections)
+            );
+        }
+    }
+
+    #[test]
+    fn preview_elections_are_open_for_voting_and_keep_the_rest_of_their_status() {
+        let mut election = json!({"id": "election", "status": {
+            "voting_status": "CLOSED",
+            "kiosk_voting_status": "PAUSED",
+            "is_published": true,
+        }});
+        open_preview_election(&mut election);
+        assert_eq!(election["status"]["voting_status"], "OPEN");
+        assert_eq!(election["status"]["kiosk_voting_status"], "PAUSED");
+        assert_eq!(election["status"]["is_published"], true);
+
+        for mut election in [
+            json!({"id": "election"}),
+            json!({"id": "election", "status": null}),
+            json!({"id": "election", "status": "unreadable"}),
+        ] {
+            open_preview_election(&mut election);
+            assert_eq!(election["status"]["voting_status"], "OPEN");
+        }
+    }
+
+    #[test]
+    fn publication_preview_opens_closed_and_missing_status_without_changing_metadata() {
+        for status in [
+            Value::Null,
+            serde_json::json!({"voting_status":"CLOSED", "kiosk_voting_status":"PAUSED"}),
+        ] {
+            let mut election =
+                serde_json::json!({"id":"election", "description":"frozen", "status":status});
+            open_preview_election(&mut election);
+            assert_eq!(election["status"]["voting_status"], "OPEN");
+            assert_eq!(election["description"], "frozen");
+            if status.is_object() {
+                assert_eq!(election["status"]["kiosk_voting_status"], "PAUSED");
+            }
         }
     }
 }

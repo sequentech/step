@@ -5,6 +5,7 @@
 //! payload. Expected bytes are assembled independently of the serializer.
 
 use electoral_log::messages::newtypes::*;
+use electoral_log::messages::statement::{StatementBody, StatementEventType, StatementLogType};
 
 macro_rules! string_wire_cases {
     ($($name:ident => $wrapper:ident),+ $(,)?) => {
@@ -59,6 +60,56 @@ string_wire_cases! {
     monitoring_config_key => MonitoringConfigKeyString,
     monitoring_config_digest => MonitoringConfigDigestString,
     monitoring_preset_identifier => MonitoringPresetIdString,
+    approval_matrix_digest => ApprovalMatrixDigestString,
+    area_identifier => AreaIdString,
+}
+
+/// The version is signed as a fixed-width little-endian number.
+#[test]
+fn an_approval_matrix_version_is_four_little_endian_bytes() {
+    for number in [0, 2, u32::MAX] {
+        let value = ApprovalMatrixVersion(number);
+        let expected = number.to_le_bytes().to_vec();
+        assert_eq!(borsh::to_vec(&value).unwrap(), expected);
+        let decoded: ApprovalMatrixVersion = borsh::from_slice(&expected).unwrap();
+        assert_eq!(decoded, value);
+
+        let mut trailing = expected.clone();
+        trailing.push(0);
+        assert!(borsh::from_slice::<ApprovalMatrixVersion>(&trailing).is_err());
+        assert!(borsh::from_slice::<ApprovalMatrixVersion>(&expected[..3]).is_err());
+        assert_eq!(
+            serde_json::to_value(&value).unwrap(),
+            serde_json::json!(number)
+        );
+        assert_eq!(
+            serde_json::from_value::<ApprovalMatrixVersion>(serde_json::json!(number)).unwrap(),
+            value
+        );
+    }
+}
+
+/// A seal hash is its 64 raw bytes in Borsh, like the other hash newtypes,
+/// and lowercase hex in JSON.
+#[test]
+fn a_seal_hash_is_raw_bytes_and_hex_text() {
+    let mut hash = [0u8; 64];
+    hash[0] = 0xab;
+    hash[63] = 0x01;
+    let value = SealHash::new(hash);
+    assert_eq!(borsh::to_vec(&value).unwrap(), hash.to_vec());
+    assert_eq!(borsh::from_slice::<SealHash>(&hash).unwrap(), value);
+    assert!(borsh::from_slice::<SealHash>(&hash[..63]).is_err());
+    let text = hex::encode(hash);
+    assert_eq!(
+        serde_json::to_value(&value).unwrap(),
+        serde_json::json!(text)
+    );
+    assert_eq!(
+        serde_json::from_value::<SealHash>(serde_json::json!(text)).unwrap(),
+        value
+    );
+    assert!(serde_json::from_value::<SealHash>(serde_json::json!("abcd")).is_err());
 }
 
 #[test]
@@ -102,6 +153,33 @@ action_wire_cases! {
     monitoring_config_actions => MonitoringConfigChangeAction {Upsert = 0, Delete = 1},
     monitoring_config_origins => MonitoringConfigOrigin {Editor = 0, Preset = 1},
     monitoring_dashboard_modes => MonitoringDashboardMode {Legacy = 0, Configured = 1},
+    // Inside the signed Signing body since it carries its own head fields.
+    statement_event_types => StatementEventType {USER = 0, SYSTEM = 1},
+    statement_log_types => StatementLogType {INFO = 0, ERROR = 1},
+    signing_statement_kinds => SigningStatementKind {
+        SigningRequestCreated = 0,
+        SigningCertificateOpenFailed = 1,
+        SigningRequestSigned = 2,
+        SigningSignatureRefused = 3,
+        SigningCertificateRegistered = 4,
+        SigningHandover = 5,
+        SigningRequestCancelled = 6,
+        SigningRequestExpired = 7,
+        SigningRequestCompleted = 8,
+        SigningActionExecuted = 9,
+        SigningRuleChanged = 10,
+        SigningPermissionChanged = 11,
+        SigningIssuerChanged = 12,
+        SigningChecksChanged = 13,
+        SigningCertificateRevoked = 14,
+        SigningRequestsExported = 15,
+        LifecycleWindowChanged = 16,
+        ScheduleRecomputeApplied = 17,
+        ScheduleImported = 18,
+        ScheduledOutcomeChanged = 19,
+        ElectionInitialized = 20,
+        LockdownChanged = 21
+    },
 }
 
 /// Field order is signed: every field of the audit entry, in order, as
@@ -160,6 +238,167 @@ fn a_monitoring_config_change_is_encoded_field_by_field() {
     );
 }
 
+/// Field order is signed: every field of a signing entry, in order, as
+/// independently assembled bytes.
+#[test]
+fn a_signing_entry_is_encoded_field_by_field() {
+    let text = |value: &str| {
+        let mut bytes = (value.len() as u32).to_le_bytes().to_vec();
+        bytes.extend_from_slice(value.as_bytes());
+        bytes
+    };
+    let entry = SigningLogEntry {
+        kind: SigningStatementKind::SigningSignatureRefused,
+        event_type: StatementEventType::SYSTEM,
+        log_type: StatementLogType::ERROR,
+        description: "Refused on 7F3A-91C2".into(),
+        details_json: r#"{"check":"trusted-issuer"}"#.into(),
+        step_id: "2b7c9e40-1f5d-4a8e-9c3b-6d2e1f0a9b87".into(),
+    };
+    let mut expected = vec![3, 1, 1];
+    expected.extend(text("Refused on 7F3A-91C2"));
+    expected.extend(text(r#"{"check":"trusted-issuer"}"#));
+    expected.extend(text("2b7c9e40-1f5d-4a8e-9c3b-6d2e1f0a9b87"));
+    assert_eq!(borsh::to_vec(&entry).unwrap(), expected);
+    assert_eq!(
+        borsh::from_slice::<SigningLogEntry>(&expected).unwrap(),
+        entry
+    );
+    let mut trailing = expected.clone();
+    trailing.push(0);
+    assert!(borsh::from_slice::<SigningLogEntry>(&trailing).is_err());
+    assert!(borsh::from_slice::<SigningLogEntry>(&expected[..expected.len() - 1]).is_err());
+}
+
+/// Field order is signed: every field of a configuration package entry, in
+/// order, as independently assembled bytes.
+#[test]
+fn a_configuration_package_entry_is_encoded_field_by_field() {
+    let text = |value: &str| {
+        let mut bytes = (value.len() as u32).to_le_bytes().to_vec();
+        bytes.extend_from_slice(value.as_bytes());
+        bytes
+    };
+    let details = ConfigurationPackageDetails {
+        action: ConfigurationPackageAction::Imported,
+        external_id: "ov-2028".into(),
+        revision: 8,
+        manifest_sha256: "ab".repeat(32),
+        design_digests: vec![ConfigurationDesignDigest {
+            area: "Post 1".into(),
+            election: "national".into(),
+            sha256: "cd".repeat(32),
+        }],
+    };
+    let mut expected = vec![0];
+    expected.extend(text("ov-2028"));
+    expected.extend(8_u64.to_le_bytes());
+    expected.extend(text(&"ab".repeat(32)));
+    expected.extend(1_u32.to_le_bytes());
+    expected.extend(text("Post 1"));
+    expected.extend(text("national"));
+    expected.extend(text(&"cd".repeat(32)));
+    assert_eq!(borsh::to_vec(&details).unwrap(), expected);
+    assert_eq!(
+        borsh::from_slice::<ConfigurationPackageDetails>(&expected).unwrap(),
+        details
+    );
+    let mut trailing = expected.clone();
+    trailing.push(0);
+    assert!(borsh::from_slice::<ConfigurationPackageDetails>(&trailing).is_err());
+    assert!(
+        borsh::from_slice::<ConfigurationPackageDetails>(&expected[..expected.len() - 1]).is_err()
+    );
+
+    // An action this version doesn't know is not read as one it does.
+    expected[0] = 1;
+    assert!(borsh::from_slice::<ConfigurationPackageDetails>(&expected).is_err());
+}
+
+/// Field order is signed: what a generated report's entry says of its hash
+/// manifest and of the configuration, as independently assembled bytes.
+#[test]
+fn a_generated_report_entry_is_encoded_field_by_field() {
+    let text = |value: &str| {
+        let mut bytes = (value.len() as u32).to_le_bytes().to_vec();
+        bytes.extend_from_slice(value.as_bytes());
+        bytes
+    };
+    let details = ReportGeneratedDetails {
+        report_type: "ELECTORAL_RESULTS".into(),
+        document_id: None,
+        report_manifest_sha256: "12".repeat(32),
+        external_id: "ov-2028".into(),
+        revision: 8,
+        manifest_sha256: "ab".repeat(32),
+    };
+    let mut expected = text("ELECTORAL_RESULTS");
+    expected.push(0);
+    expected.extend(text(&"12".repeat(32)));
+    expected.extend(text("ov-2028"));
+    expected.extend(8_u64.to_le_bytes());
+    expected.extend(text(&"ab".repeat(32)));
+    assert_eq!(borsh::to_vec(&details).unwrap(), expected);
+    assert_eq!(
+        borsh::from_slice::<ReportGeneratedDetails>(&expected).unwrap(),
+        details
+    );
+    let mut trailing = expected.clone();
+    trailing.push(0);
+    assert!(borsh::from_slice::<ReportGeneratedDetails>(&trailing).is_err());
+    assert!(borsh::from_slice::<ReportGeneratedDetails>(&expected[..expected.len() - 1]).is_err());
+
+    let stored = ReportGeneratedDetails {
+        document_id: Some("document".into()),
+        ..details
+    };
+    let mut expected = text("ELECTORAL_RESULTS");
+    expected.push(1);
+    expected.extend(text("document"));
+    expected.extend(text(&"12".repeat(32)));
+    expected.extend(text("ov-2028"));
+    expected.extend(8_u64.to_le_bytes());
+    expected.extend(text(&"ab".repeat(32)));
+    assert_eq!(borsh::to_vec(&stored).unwrap(), expected);
+}
+
+/// What a publication says of its configuration, in signed order: the
+/// external id, the revision, the manifest digest and each design.
+#[test]
+fn a_published_configuration_is_encoded_field_by_field() {
+    let text = |value: &str| {
+        let mut bytes = (value.len() as u32).to_le_bytes().to_vec();
+        bytes.extend_from_slice(value.as_bytes());
+        bytes
+    };
+    let configuration = PublishedConfiguration {
+        external_id: "ov-2028".into(),
+        revision: 8,
+        manifest_sha256: "ab".repeat(32),
+        design_digests: vec![ConfigurationDesignDigest {
+            area: "Post 1".into(),
+            election: "national".into(),
+            sha256: "cd".repeat(32),
+        }],
+    };
+    let mut expected = text("ov-2028");
+    expected.extend(8_u64.to_le_bytes());
+    expected.extend(text(&"ab".repeat(32)));
+    expected.extend(1_u32.to_le_bytes());
+    expected.extend(text("Post 1"));
+    expected.extend(text("national"));
+    expected.extend(text(&"cd".repeat(32)));
+    assert_eq!(borsh::to_vec(&configuration).unwrap(), expected);
+    assert_eq!(
+        borsh::from_slice::<PublishedConfiguration>(&expected).unwrap(),
+        configuration
+    );
+    let mut trailing = expected.clone();
+    trailing.push(0);
+    assert!(borsh::from_slice::<PublishedConfiguration>(&trailing).is_err());
+    assert!(borsh::from_slice::<PublishedConfiguration>(&expected[..expected.len() - 1]).is_err());
+}
+
 #[test]
 fn empty_lists_and_absent_lists_remain_distinct() {
     assert_eq!(borsh::to_vec(&ElectionsIdsString(None)).unwrap(), vec![0]);
@@ -187,4 +426,138 @@ fn empty_lists_and_absent_lists_remain_distinct() {
         .unwrap(),
         vec![0, 0]
     );
+}
+
+/// Field order is signed: every field of a tenant activity entry, in order,
+/// as independently assembled bytes.
+#[test]
+fn a_tenant_activity_entry_is_encoded_field_by_field() {
+    let text = |value: &str| {
+        let mut bytes = (value.len() as u32).to_le_bytes().to_vec();
+        bytes.extend_from_slice(value.as_bytes());
+        bytes
+    };
+    let entry = TenantActivityEntry {
+        tenant_id: TenantIdString("synthetic-tenant".into()),
+        kind: TenantActivityKind::TenantAdminAction,
+        event_type: StatementEventType::USER,
+        log_type: StatementLogType::ERROR,
+        description: "Refused to delete an election event".into(),
+        details_json: r#"{"status":403}"#.into(),
+    };
+    let mut expected = text("synthetic-tenant");
+    expected.extend([1, 0, 1]);
+    expected.extend(text("Refused to delete an election event"));
+    expected.extend(text(r#"{"status":403}"#));
+    assert_eq!(borsh::to_vec(&entry).unwrap(), expected);
+    assert_eq!(
+        borsh::from_slice::<TenantActivityEntry>(&expected).unwrap(),
+        entry
+    );
+    let mut trailing = expected.clone();
+    trailing.push(0);
+    assert!(borsh::from_slice::<TenantActivityEntry>(&trailing).is_err());
+    assert!(borsh::from_slice::<TenantActivityEntry>(&expected[..expected.len() - 1]).is_err());
+    assert_eq!(
+        borsh::to_vec(&TenantActivityKind::TenantLogOpened).unwrap(),
+        vec![0]
+    );
+    assert_eq!(
+        TenantActivityKind::TenantLogOpened
+            .statement_type()
+            .to_string(),
+        "TenantLogOpened"
+    );
+    assert_eq!(
+        TenantActivityKind::TenantAdminAction
+            .statement_type()
+            .to_string(),
+        "TenantAdminAction"
+    );
+}
+
+/// Field order is signed: every field of an audit entry, in order, as
+/// independently assembled bytes.
+#[test]
+fn an_audit_entry_is_encoded_field_by_field() {
+    let text = |value: &str| {
+        let mut bytes = (value.len() as u32).to_le_bytes().to_vec();
+        bytes.extend_from_slice(value.as_bytes());
+        bytes
+    };
+    let entry = AuditLogEntry {
+        kind: AuditStatementKind::LogsExported,
+        event_type: StatementEventType::USER,
+        log_type: StatementLogType::INFO,
+        description: "Exported the tenant log as SQL: 4 entries".into(),
+        details_json: r#"{"format":"SQL","entries":4}"#.into(),
+        entry_id: "0d1b2c3d-4e5f-4071-8293-a4b5c6d7e8f9".into(),
+    };
+    let mut expected = vec![2, 0, 0];
+    expected.extend(text("Exported the tenant log as SQL: 4 entries"));
+    expected.extend(text(r#"{"format":"SQL","entries":4}"#));
+    expected.extend(text("0d1b2c3d-4e5f-4071-8293-a4b5c6d7e8f9"));
+    assert_eq!(borsh::to_vec(&entry).unwrap(), expected);
+    assert_eq!(
+        borsh::from_slice::<AuditLogEntry>(&expected).unwrap(),
+        entry
+    );
+    let mut trailing = expected.clone();
+    trailing.push(0);
+    assert!(borsh::from_slice::<AuditLogEntry>(&trailing).is_err());
+    assert!(borsh::from_slice::<AuditLogEntry>(&expected[..expected.len() - 1]).is_err());
+    for (kind, tag) in [
+        (AuditStatementKind::AdminChange, 0u8),
+        (AuditStatementKind::KeycloakAdminEvent, 1),
+        (AuditStatementKind::LogsExported, 2),
+        (AuditStatementKind::LogWriterStarted, 3),
+        (AuditStatementKind::LogWriterStopped, 4),
+        (AuditStatementKind::TransmissionFileDownloaded, 5),
+        (AuditStatementKind::VotersImported, 6),
+        (AuditStatementKind::ReadinessVerified, 7),
+    ] {
+        assert_eq!(borsh::to_vec(&kind).unwrap(), vec![tag]);
+        assert_eq!(kind.statement_type().to_string(), kind.to_string());
+    }
+}
+
+#[test]
+fn a_configuration_content_hash_has_an_appended_wire_tag_without_changing_legacy_fields() {
+    let text = |value: &str| {
+        let mut bytes = (value.len() as u32).to_le_bytes().to_vec();
+        bytes.extend_from_slice(value.as_bytes());
+        bytes
+    };
+    let body = StatementBody::ConfigurationPackageWithContentHash(
+        EventIdString("event".into()),
+        ConfigurationPackageImportDetails {
+            package: ConfigurationPackageDetails {
+                action: ConfigurationPackageAction::Imported,
+                external_id: "approved".into(),
+                revision: 9,
+                manifest_sha256: "ab".repeat(32),
+                design_digests: vec![],
+            },
+            content_hash: "cd".repeat(32),
+        },
+    );
+    let mut expected = vec![45];
+    expected.extend(text("event"));
+    expected.push(0); // Imported
+    expected.extend(text("approved"));
+    expected.extend(9_u64.to_le_bytes());
+    expected.extend(text(&"ab".repeat(32)));
+    expected.extend(0_u32.to_le_bytes()); // no ballot design digests
+    expected.extend(text(&"cd".repeat(32)));
+    assert_eq!(borsh::to_vec(&body).unwrap(), expected);
+    assert_eq!(
+        borsh::to_vec(&borsh::from_slice::<StatementBody>(&expected).unwrap()).unwrap(),
+        expected
+    );
+    for limit in 0..expected.len() {
+        assert!(borsh::from_slice::<StatementBody>(&expected[..limit]).is_err());
+    }
+    let mut trailing = expected;
+    trailing.push(0);
+    assert!(borsh::from_slice::<StatementBody>(&trailing).is_err());
 }

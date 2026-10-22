@@ -42,6 +42,8 @@ function certificate(id: string, commonName: string, fields: Row): Row {
         serial_number: "01",
         pem: PEM,
         created_at: FIXED_TIME,
+        // Voter sign-in issuers; the staff signature issuers live in the Signatures tab.
+        purpose: "voter-sign-in",
         ...fields,
     }
 }
@@ -171,9 +173,9 @@ test("lists the trusted certificates with their type and expiry and shows their 
     await expect(page.getByRole("row")).toHaveText(
         [
             "Common Name Type Issuer CN Valid From Expires SHA256 Fingerprint Actions",
-            "Sequent Root CA Root Sequent Root CA 1/1/2024 1/1/2034 Valid 3f6a9c1e0b7d2a4c5e8f9a0b…",
-            "Council Voters CA Intermediate Sequent Root CA 1/1/2024 2/1/2026 Expiring soon bbbbbbbbbbbbbbbbbbbbbbbb…",
-            "Legacy Voters CA Intermediate Sequent Root CA 6/1/2020 12/31/2025 Expired cccccccccccccccccccccccc…",
+            "Sequent Root CA Root Sequent Root CA Jan 1, 2024, 12:00 AM UTC Jan 1, 2034, 12:00 AM UTC Valid 3f6a9c1e0b7d2a4c5e8f9a0b…",
+            "Council Voters CA Intermediate Sequent Root CA Jan 1, 2024, 12:00 AM UTC Feb 1, 2026, 12:00 AM UTC Expiring soon bbbbbbbbbbbbbbbbbbbbbbbb…",
+            "Legacy Voters CA Intermediate Sequent Root CA Jun 1, 2020, 12:00 AM UTC Dec 31, 2025, 12:00 AM UTC Expired cccccccccccccccccccccccc…",
         ],
         {useInnerText: true}
     )
@@ -187,7 +189,7 @@ test("lists the trusted certificates with their type and expiry and shows their 
     await expect(details).toContainText("TypeIntermediate")
     await expect(details).toContainText("SubjectCN=Council Voters CA,O=Council")
     await expect(details).toContainText(`Issuer${ROOT_SUBJECT}`)
-    await expect(details).toContainText("Expires2/1/2026Expiring soon")
+    await expect(details).toContainText("ExpiresFeb 1, 2026, 12:00 AM UTCExpiring soon")
     await expect(details).toContainText("Serial Number4A:1F:00:9C")
     await expect(details).toContainText(`SHA256 Fingerprint${"b".repeat(64)}`)
     await expect(details).toContainText(PEM.trim())
