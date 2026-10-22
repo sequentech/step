@@ -170,8 +170,11 @@ function check() {
       // A failed request must not switch the check off, nor push it past the
       // deadline Keycloak already gave.
       clearTimeout(deadlineTimer);
-      const untilDeadline = deadline === null ? RETRY_MS : deadline - Date.now();
-      deadlineTimer = setTimeout(check, Math.max(0, Math.min(RETRY_MS, untilDeadline)));
+      const untilDeadline = deadline === null ? 0 : deadline - Date.now();
+      deadlineTimer = setTimeout(
+        check,
+        untilDeadline > 0 ? Math.min(RETRY_MS, untilDeadline) : RETRY_MS,
+      );
     })
     .finally(() => {
       checking = false;
