@@ -929,16 +929,17 @@ mod tests {
         .unwrap();
         assert_eq!(realm["patch"]["displayName"], "Synthetic event");
     }
-    /// The login page takes its title from the event's name, so an event without
-    /// one has nothing to patch beside the import.
+    /// An event without a name would show voters and administrators `-`, so
+    /// the conversion refuses it and nothing is written.
     #[test]
-    fn a_historical_event_without_a_name_writes_nothing_beside_the_import() {
+    fn a_historical_event_without_a_name_is_refused_before_anything_is_written() {
         let mut fixture = historical_fixture(None);
-        fixture.command.build().unwrap();
-        assert!(!fixture
-            .directory()
-            .join("keycloak_event_realm_patch.json")
-            .exists());
+        let error = fixture.error();
+        assert!(
+            error.contains("historical source conversion refused"),
+            "{error}"
+        );
+        assert!(!fixture.directory().exists());
     }
     #[test]
     fn historical_io_decision_and_conversion_failures_never_write_a_package() {
@@ -968,7 +969,7 @@ mod tests {
     /// candidate of a contest the source does not have through as "outside".
     #[test]
     fn a_dangling_historical_candidate_reference_never_writes_a_package() {
-        let mut fixture = historical_fixture();
+        let mut fixture = historical_fixture(Some("Synthetic event"));
         let mut sql = fs::read(fixture.command.historical_sql.as_ref().unwrap()).unwrap();
         sql.extend_from_slice(
             b"INSERT INTO `candidate` VALUES ('0008','Dangling Example','C99','S01',NULL);",
