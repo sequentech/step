@@ -57,11 +57,12 @@ SPDX-License-Identifier: AGPL-3.0-only
             <script src="${script}" type="text/javascript"></script>
         </#list>
     </#if>
+    <#if authenticationSession??>
     <script src="${url.resourcesPath}/js/login-timeout.js"
-            data-status-url="${url.loginRestartFlowUrl?keep_before("/login-actions/")}/login-timeout"
-            data-tab-id="${(authenticationSession.tabId)!""}"
-            data-restart-url="${url.loginRestartFlowUrl}"
+            data-login-action="${(url.loginAction)!""}"
+            data-restart-url="${url.ssoLoginInOtherTabsUrl}"
             defer></script>
+    </#if>
     <script type="module">
         import { startSessionPolling } from "${url.resourcesPath}/js/authChecker.js";
 
