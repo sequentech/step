@@ -398,8 +398,6 @@ actions:
               version: 2
       permissions:
           - role: logs-export
-          - role: election-event-read
-          - role: logs-read
     - name: export_election_event_tasks
       definition:
           kind: synchronous
@@ -561,7 +559,6 @@ actions:
               version: 2
       permissions:
           - role: report-generate
-          - role: report-read
     - name: generate_transmission_report
       definition:
           kind: synchronous
@@ -723,7 +720,6 @@ actions:
           - role: election-ip-address-view
           - role: admin-ip-address-view
           - role: admin-user
-          - role: admin-dashboard-view
     - name: get_upload_url
       definition:
           kind: synchronous

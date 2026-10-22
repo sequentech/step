@@ -35,7 +35,7 @@ export const GenerateReport: React.FC<GenerateReportProps> = ({
     const [generateTemplate] = useMutation<GenerateTemplateMutation>(GENERATE_TEMPLATE, {
         context: {
             headers: {
-                "x-hasura-role": IPermissions.REPORT_READ,
+                "x-hasura-role": IPermissions.REPORT_GENERATE,
             },
         },
     })
