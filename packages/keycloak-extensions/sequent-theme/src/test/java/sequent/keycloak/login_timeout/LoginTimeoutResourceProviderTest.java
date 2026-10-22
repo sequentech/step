@@ -47,4 +47,16 @@ class LoginTimeoutResourceProviderTest {
     assertEquals(0, LoginTimeoutResourceProvider.secondsLeft(1000, 1800, 2800));
     assertEquals(0, LoginTimeoutResourceProvider.secondsLeft(1000, 1800, 99999));
   }
+
+  @Test
+  void eachStepUsesTheLifespanKeycloakChecks() {
+    assertEquals(1800, LoginTimeoutResourceProvider.lifespanOf(ActionType.LOGIN, 1800, 300, 60));
+    assertEquals(300, LoginTimeoutResourceProvider.lifespanOf(ActionType.USER, 1800, 300, 60));
+    assertEquals(60, LoginTimeoutResourceProvider.lifespanOf(ActionType.CLIENT, 1800, 300, 60));
+  }
+
+  @Test
+  void realmsWithoutALoginTimeoutUseTheActionTimeout() {
+    assertEquals(300, LoginTimeoutResourceProvider.lifespanOf(ActionType.LOGIN, 0, 300, 60));
+  }
 }

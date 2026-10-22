@@ -96,10 +96,21 @@ public class LoginTimeoutResourceProvider implements RealmResourceProvider {
   }
 
   static int lifespanOf(RealmModel realm, ClientSessionCode.ActionType actionType) {
+    return lifespanOf(
+        actionType,
+        realm.getAccessCodeLifespanLogin(),
+        realm.getAccessCodeLifespanUserAction(),
+        realm.getAccessCodeLifespan());
+  }
+
+  /** Mirrors {@link ClientSessionCode#isActionActive}'s choice of lifespan. */
+  static int lifespanOf(
+      ClientSessionCode.ActionType actionType, int login, int userAction, int client) {
     return switch (actionType) {
-      case USER -> realm.getAccessCodeLifespanUserAction();
-      case CLIENT -> realm.getAccessCodeLifespan();
-      case LOGIN -> realm.getAccessCodeLifespanLogin();
+      case USER -> userAction;
+      case CLIENT -> client;
+      // A realm without its own login timeout uses the action timeout.
+      case LOGIN -> login > 0 ? login : userAction;
     };
   }
 
