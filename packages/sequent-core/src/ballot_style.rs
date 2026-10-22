@@ -11,6 +11,7 @@ use crate::ballot::{
 
 use crate::serialization::deserialize_with_path::deserialize_value;
 use crate::services::translations::{Alias, Name};
+use crate::slates;
 use crate::types::ceremonies::CountingAlgType;
 use crate::types::hasura::core::{self as hasura_types};
 use anyhow::{anyhow, Context, Result};
@@ -130,7 +131,7 @@ pub fn create_ballot_style(
         .transpose()?
         .unwrap_or_default();
 
-    Ok(ballot::BallotStyle {
+    let ballot_style = ballot::BallotStyle {
         id,
         tenant_id: election.tenant_id,
         election_event_id: election.election_event_id,
@@ -158,7 +159,21 @@ pub fn create_ballot_style(
         election_annotations: Some(election_annotations),
         area_annotations,
         multi_contest_encoding_mode: Some(multi_contest_encoding_mode),
-    })
+    };
+
+    let problems = slates::check_ballot_style(
+        &ballot_style,
+        &format!(
+            "election {}: {}",
+            ballot_style.election_id,
+            slates::SLATES_ANNOTATION
+        ),
+    );
+    if !problems.is_empty() {
+        return Err(slates::InvalidSlates { problems }.into());
+    }
+
+    Ok(ballot_style)
 }
 
 /// `EXPANDED_CAPACITY` if any contest in the election allows over-voting,
@@ -189,7 +204,7 @@ fn resolve_multi_contest_encoding_mode(
     Ok(ballot::MultiContestEncodingMode::LEGACY)
 }
 
-fn create_contest(
+pub(crate) fn create_contest(
     contest: hasura_types::Contest,
     candidates: Vec<hasura_types::Candidate>,
     default_language: String,

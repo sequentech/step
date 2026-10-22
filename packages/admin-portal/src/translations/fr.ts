@@ -1049,6 +1049,29 @@ const frenchTranslation: TranslationType = {
                     "no-gold-level": "Pas d'authentification de niveau or",
                 },
             },
+            slates: {
+                enable: {
+                    label: "Activer les listes",
+                    helper: "Lorsque cette option est activée, les électeurs peuvent choisir une liste nommée et modifier n'importe quel scrutin, y compris avec des candidats indépendants.",
+                },
+                disable: {
+                    confirm: "Désactiver les listes",
+                    message_one:
+                        "Cette élection a {{count}} liste. Désactiver les listes la supprimera à l'enregistrement.",
+                    message_many:
+                        "Cette élection a {{count}} listes. Désactiver les listes les supprimera à l'enregistrement.",
+                    message_other:
+                        "Cette élection a {{count}} listes. Désactiver les listes les supprimera à l'enregistrement.",
+                },
+                mobileCandidateLists: {
+                    label: "Listes de candidats sur mobile",
+                    helper: "État initial de la liste de candidats de chaque liste sur mobile : Repliées ou Dépliées. Les électeurs peuvent toujours ouvrir ou fermer chaque liste. Sur ordinateur, tous les candidats sont toujours affichés.",
+                    options: {
+                        collapsed: "Repliées",
+                        expanded: "Dépliées",
+                    },
+                },
+            },
             startScreenTitlePolicy: {
                 label: "Politique de titre de l'écran d'accueil",
                 options: {
@@ -1777,6 +1800,7 @@ const frenchTranslation: TranslationType = {
             election: "Créer une Élection",
             contest: "Créer un Scrutin",
             candidate: "Créer un Candidat",
+            slate: "Créer une Liste",
         },
         importResource: {
             electionEvent: "Importer un Événement Électoral",
@@ -1817,6 +1841,7 @@ const frenchTranslation: TranslationType = {
                     election: "Supprimer cette Élection",
                     contest: "Supprimer ce Scrutin",
                     candidate: "Supprimer ce Candidat",
+                    slate: "Supprimer cette Liste",
                 },
                 messages: {
                     confirm: {
@@ -1881,6 +1906,39 @@ const frenchTranslation: TranslationType = {
             createCandidateSuccess: "Candidat créé",
             createCandidateError: "Erreur lors de la création du candidat",
         },
+        slateScreen: {
+            common: {
+                subtitle: "Configuration de la liste.",
+                newSlate: "Nouvelle liste",
+                notFound: "Cette liste n'existe pas.",
+            },
+            tabs: {
+                data: "Données",
+            },
+            edit: {
+                general: "Général",
+                members: "Membres",
+            },
+            field: {
+                name: "Nom",
+                alias: "Alias",
+                description: "Description",
+                externalId: "ID externe",
+            },
+            members: {
+                helper: "Attribuez jusqu'au nombre maximal de candidats de chaque scrutin. Laissez un scrutin vide pour que cette liste n'y présente personne. Les candidats qui ne figurent sur aucune liste apparaissent comme Indépendants dans ce scrutin.",
+                contest: "Scrutin",
+                candidate: "Candidat",
+                noCandidate: "Aucun candidat",
+            },
+            messages: {
+                saved: "Liste enregistrée",
+                invalid:
+                    "La liste ne peut pas être enregistrée. Corrigez les problèmes indiqués ci-dessous.",
+                error: "La liste n'a pas pu être enregistrée.",
+                unreadable: "La configuration des listes de l'élection ne peut pas être lue.",
+            },
+        },
         contestScreen: {
             common: {
                 subtitle: "Configuration du scrutin.",
@@ -1924,6 +1982,7 @@ const frenchTranslation: TranslationType = {
                 "warn-only-in-review": "Avertir en Révision",
                 "warn": "Avertir",
                 "warn-and-alert": "Avertir et Alerter",
+                "warn-and-confirm-in-review": "Avertir et Confirmer en Révision",
             },
             invalidVotePolicy: {
                 "label": "Politique de vote invalide",
