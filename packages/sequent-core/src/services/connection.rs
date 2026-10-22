@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::jwt::*;
+use crate::services::jwt_verification::verify_bearer;
 use crate::services::keycloak::{
     get_third_party_client_access_token, KeycloakAdminClient,
     PubKeycloakAdminToken,
@@ -68,15 +69,19 @@ impl<'r> FromRequest<'r> for JwtClaims {
         match headers.get_one("authorization") {
             Some(authorization) => {
                 match authorization.strip_prefix("Bearer ") {
-                    Some(token) => match decode_jwt(token) {
+                    Some(token) => match verify_bearer(token).await {
                         Ok(jwt) => Outcome::Success(jwt),
                         Err(err) => {
-                            warn!("JwtClaims guard: decode_jwt error {err:?}");
+                            warn!(
+                                "JwtClaims guard: invalid bearer token: {err:#}"
+                            );
                             Outcome::Error((Status::Unauthorized, ()))
                         }
                     },
                     None => {
-                        warn!("JwtClaims guard: missing bearer token");
+                        warn!(
+                            "JwtClaims guard: unsupported authorization scheme"
+                        );
                         Outcome::Error((Status::Unauthorized, ()))
                     }
                 }
@@ -117,6 +122,9 @@ impl<'r> FromRequest<'r> for UserLocation {
     }
 }
 
+/// Placeholder printed in place of secret values in `Debug` output.
+pub const REDACTED: &str = "<redacted>";
+
 #[derive(Debug)]
 pub struct DatafixClaims {
     pub jwt_claims: JwtClaims,
@@ -125,10 +133,18 @@ pub struct DatafixClaims {
     pub datafix_event_id: String,
 }
 
-#[derive(Debug)]
 struct DatafixCredentials {
     client_id: String,
     client_secret: String,
+}
+
+impl std::fmt::Debug for DatafixCredentials {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DatafixCredentials")
+            .field("client_id", &self.client_id)
+            .field("client_secret", &REDACTED)
+            .finish()
+    }
 }
 
 #[derive(Debug)]
@@ -185,13 +201,25 @@ fn parse_datafix_headers(headers: &HeaderMap) -> Option<DatafixHeaders> {
 
 /// TokenResponse, timestamp before sending the request and the credentials to
 /// make sure the requester is the same.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 struct TokenResponseExtended {
     token_resp: PubKeycloakAdminToken,
     stamp: Instant,
     client_id: String,
     client_secret: String,
     tenant_id: String,
+}
+
+impl std::fmt::Debug for TokenResponseExtended {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TokenResponseExtended")
+            .field("token_resp", &self.token_resp)
+            .field("stamp", &self.stamp)
+            .field("client_id", &self.client_id)
+            .field("client_secret", &REDACTED)
+            .field("tenant_id", &self.tenant_id)
+            .finish()
+    }
 }
 
 /// Last access token can be reused if it´s not expired, this is to avoid
@@ -331,14 +359,14 @@ impl<'r> FromRequest<'r> for DatafixClaims {
             }
         };
 
-        match decode_jwt(&token_resp.access_token) {
+        match verify_bearer(&token_resp.access_token).await {
             Ok(jwt_claims) => Outcome::Success(DatafixClaims {
                 jwt_claims,
                 tenant_id,
                 datafix_event_id,
             }),
             Err(err) => {
-                warn!("DatafixClaims guard: decode_jwt error {err:?}");
+                warn!("DatafixClaims guard: invalid bearer token: {err:#}");
                 Outcome::Error((Status::Unauthorized, ()))
             }
         }
@@ -348,11 +376,77 @@ impl<'r> FromRequest<'r> for DatafixClaims {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::services::jwt::JwtClaims;
+    use crate::services::jwt_verification::{
+        KEYCLOAK_PUBLIC_URL, KEYCLOAK_URL,
+    };
+    use crate::services::test_support::{
+        claims, clear_optional_issuer_settings, in_child_process, keys,
+        one_shot_server, token,
+    };
     use crate::util::http_stub::HttpStub;
     use crate::util::log_capture::LogCapture;
-    use rocket::http::Header;
+    use rocket::http::{Header, Status};
     use rocket::local::asynchronous::Client;
     use rocket::{get, routes};
+
+    #[rocket::get("/authenticated")]
+    fn authenticated(_claims: JwtClaims) -> &'static str {
+        "authenticated"
+    }
+
+    #[tokio::test]
+    async fn request_guard_rejects_forged_tokens_and_accepts_signed_tokens() {
+        if !in_child_process(
+            module_path!(),
+            "request_guard_rejects_forged_tokens_and_accepts_signed_tokens",
+        ) {
+            return;
+        }
+        clear_optional_issuer_settings();
+        let (internal, served) = one_shot_server(
+            "200 OK",
+            serde_json::to_string(&keys()).unwrap(),
+            "",
+        )
+        .await;
+        std::env::set_var(KEYCLOAK_URL, &internal);
+        std::env::set_var(KEYCLOAK_PUBLIC_URL, "https://keycloak.example");
+        let client = rocket::local::asynchronous::Client::tracked(
+            rocket::build().mount("/", rocket::routes![authenticated]),
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            client.get("/authenticated").dispatch().await.status(),
+            Status::Unauthorized
+        );
+        let valid = token(&claims());
+        let parts: Vec<_> = valid.split('.').collect();
+        let forged = format!("{}.{}.forged", parts[0], parts[1]);
+        assert_eq!(
+            client
+                .get("/authenticated")
+                .header(Header::new(
+                    "Authorization",
+                    format!("Bearer {forged}")
+                ))
+                .dispatch()
+                .await
+                .status(),
+            Status::Unauthorized
+        );
+        served.await.unwrap();
+        assert_eq!(
+            client
+                .get("/authenticated")
+                .header(Header::new("Authorization", format!("Bearer {valid}")))
+                .dispatch()
+                .await
+                .status(),
+            Status::Ok
+        );
+    }
 
     const ADMIN_SECRET_VALUE: &str = "AdminSecretValue4f1c";
     const COOKIE_VALUE: &str = "CookieValue9b2e";
