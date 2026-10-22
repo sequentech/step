@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Scanovate Identity Verification | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3987/docs/integrations/scanovate_identity_verification_guide"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Scanovate Identity Verification | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3987/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3987/docs/integrations/scanovate_identity_verification_guide"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3987/docs/integrations/scanovate_identity_verification_guide" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3987/docs/integrations/scanovate_identity_verification_guide" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Scanovate Identity Verification","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3987/docs/integrations/scanovate_identity_verification_guide"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3987/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3987/assets/js/runtime~main.7196e619.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3987/assets/js/runtime~main.f769f73d.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3987/assets/js/main.02f8a9ba.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -301,8 +301,11 @@ enroll with your own passport, import a voters CSV with your data instead. The
 <a class="" href="/docusaurus/pr-preview/pr-3987/docs/integrations/scanovate_on_premise_guide#end-to-end-test">End-to-end test</a> goes through
 the whole enrollment step by step.</p>
 <p>The development election event realm also ships a <code>scanovate-registration</code>
-config pointing to the same services, to be added to its registration flow
-from the Keycloak admin console (<a href="http://127.0.0.1:8090" target="_blank" rel="noopener noreferrer" class="">http://127.0.0.1:8090</a>).</p>
+config pointing to the same services, with an empty <code>liveness-secret</code>. To use
+it, add it to its registration flow from the Keycloak admin console
+(<a href="http://127.0.0.1:8090" target="_blank" rel="noopener noreferrer" class="">http://127.0.0.1:8090</a>) and set <code>liveness-secret</code> to
+<code>liveness-dev-callback-secret</code>, the secret of
+<code>.devcontainer/scanovate/liveness/service_config.json</code>.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="load-tests">Load tests<a href="#load-tests" class="hash-link" aria-label="Direct link to Load tests" title="Direct link to Load tests" translate="no">​</a></h3>
 <p>Every enrollment needs a camera, a live person and a document, so load tests
 can&#x27;t enroll voters through the identity verification. Load test their

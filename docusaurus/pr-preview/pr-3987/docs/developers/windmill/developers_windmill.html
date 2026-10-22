@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Developers Windmill | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3987/docs/developers/windmill/developers_windmill"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Developers Windmill | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3987/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3987/docs/developers/windmill/developers_windmill"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3987/docs/developers/windmill/developers_windmill" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3987/docs/developers/windmill/developers_windmill" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Developers Windmill","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3987/docs/developers/windmill/developers_windmill"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3987/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3987/assets/js/runtime~main.7196e619.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3987/assets/js/runtime~main.f769f73d.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3987/assets/js/main.02f8a9ba.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -87,18 +87,23 @@ existing <code>tenant-&lt;id&gt;</code> realm, apply the settings above to its <
 <code>cli-account-admin</code> clients in the Keycloak admin console, and list every URL
 that serves the admin portal.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="vendor-credentials">Vendor credentials<a href="#vendor-credentials" class="hash-link" aria-label="Direct link to Vendor credentials" title="Direct link to Vendor credentials" translate="no">​</a></h3>
-<p>The realm templates leave the vendor credentials in authenticator config empty:
-the Inetum <code>api-key</code> and the reCAPTCHA <code>siteSecret</code>. When Windmill creates a
-tenant or election-event realm from a default template, it empties these
-entries too, so new realms never inherit credentials from the uploaded template.
-An imported election event keeps the values in its realm.</p>
+<p>The realm templates leave the credentials in authenticator config empty: the
+Inetum <code>api-key</code>, the reCAPTCHA <code>siteSecret</code> and the Scanovate
+<code>liveness-secret</code>. When Windmill creates a tenant or election-event realm from a
+default template, it empties these entries too, so new realms never inherit
+credentials from the uploaded template. An imported election event keeps the
+values in its realm.</p>
 <p>Set the credentials in each realm that uses them: in the Keycloak admin console,
 open <strong>Authentication</strong>, then the flow, then the settings of the step. Janitor
-fills the reCAPTCHA secret from the <code>keycloak_recaptcha_site_secret</code> <code>settings</code>
-row of its Excel <code>Parameters</code> sheet.</p>
-<p>Templates from earlier versions include credentials in these entries. Upload
-the current default event realm template as described above, then rotate those
-credentials with the vendors and set the new values in the realms that use them.</p>
+fills the reCAPTCHA and Scanovate secrets from the
+<code>keycloak_recaptcha_site_secret</code> and <code>keycloak_scanovate_liveness_secret</code>
+<code>settings</code> rows of its Excel <code>Parameters</code> sheet.</p>
+<p>Templates from earlier versions include credentials in these entries, and their
+<code>liveness-secret</code> is the development value <code>liveness-dev-callback-secret</code>.
+Upload the current default event realm template as described above, then rotate
+those credentials with the vendors and set the new values in the realms that use
+them. Give each realm that uses Scanovate a random <code>liveness-secret</code>, the same
+as the <code>secret</code> of the Liveness Plus callback URLs.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="login-hint-prefill-configuration">Login hint prefill configuration<a href="#login-hint-prefill-configuration" class="hash-link" aria-label="Direct link to Login hint prefill configuration" title="Direct link to Login hint prefill configuration" translate="no">​</a></h2>
 <p>Voting Portal notification links can carry bounded <code>login_hint__&lt;field&gt;</code> query
 parameters on tenant/event <code>/login</code> and <code>/enroll</code> routes. The portal validates
