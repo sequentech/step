@@ -819,9 +819,10 @@ def gen_keycloak_context(excel_data, areas_dict):
         "scanovate_liveness_url": ("keycloak_scanovate_liveness_url", ""),
         "scanovate_liveness_secret": ("keycloak_scanovate_liveness_secret", ""),
         "scanovate_face_match_url": ("keycloak_scanovate_face_match_url", ""),
+        "recaptcha_site_secret": ("keycloak_recaptcha_site_secret", ""),
     }
     for context_key, (settings_key, default) in string_mappings.items():
-        value = str(keycloak_settings_dict.get(settings_key, default))
+        value = str(keycloak_settings_dict.get(settings_key) or default)
         keycloak_context[context_key] = json.dumps(value)[1:-1]
     return keycloak_context
 

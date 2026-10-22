@@ -3896,7 +3896,7 @@
       "config": {
         "recaptchaActionName": "forgotpassword",
         "recaptchaSiteKey": "6LfJ_RspAAAAAAX_gikmCVVs1MP8DPWV71WYUKUK",
-        "siteSecret": "6LfJ_RspAAAAAOAA1TlNmGRgzUANakib7MSQe1ae",
+        "siteSecret": "",
         "recaptchaEnabled": "false",
         "recaptchaMinScore": "0.5"
       }
@@ -4079,7 +4079,7 @@
       "config": {
         "recaptchaSiteKey": "6LfJ_RspAAAAAAX_gikmCVVs1MP8DPWV71WYUKUK",
         "recaptchaActionName": "login",
-        "siteSecret": "6LfJ_RspAAAAAOAA1TlNmGRgzUANakib7MSQe1ae",
+        "siteSecret": "",
         "passwordExpirationUserAttribute": "sequent.read-only.expirationDate",
         "recaptchaEnabled": "false",
         "recaptchaMinScore": "0.5"
