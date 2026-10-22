@@ -25,8 +25,8 @@ use sequent_core::ballot::verify_ballot_signature;
 use sequent_core::ballot::ContestEncryptionPolicy;
 use sequent_core::ballot::EGracePeriodPolicy;
 use sequent_core::ballot::{
-    AreaPresentation, EarlyVotingPolicy, ElectionPresentation, ElectionStatus, VoterSigningPolicy,
-    VotingPeriodDates, VotingStatus, VotingStatusChannel,
+    AreaPresentation, EarlyVotingPolicy, ElectionEventPresentation, ElectionPresentation,
+    ElectionStatus, VoterSigningPolicy, VotingPeriodDates, VotingStatus, VotingStatusChannel,
 };
 use sequent_core::ballot::{HashableBallot, HashableBallotContest, SignedHashableBallot};
 use sequent_core::encrypt::hash_ballot;
@@ -358,6 +358,7 @@ pub async fn try_insert_cast_vote(
     voter_id: &str,
     area_id: &str,
     voting_channel: VotingStatusChannel,
+    attested_voting_channel: Option<VotingStatusChannel>,
     auth_time: &Option<i64>,
     voter_ip: &Option<String>,
     voter_country: &Option<String>,
@@ -393,6 +394,14 @@ pub async fn try_insert_cast_vote(
     let presentation_opt = election_event
         .get_presentation()
         .map_err(|e| CastVoteError::ElectionEventNotFound(e.to_string()))?;
+
+    if let Err(cv_err) = check_voting_channel_attestation(
+        presentation_opt.as_ref(),
+        voting_channel,
+        attested_voting_channel,
+    ) {
+        return Ok(InsertCastVoteResult::SkipRetryFailure(cv_err));
+    }
 
     let is_multi_contest = if let Some(presentation) = presentation_opt.clone() {
         presentation.contest_encryption_policy == Some(ContestEncryptionPolicy::MULTIPLE_CONTESTS)
@@ -943,6 +952,23 @@ fn check_status_with_loaded_election(
         debug!("Allowing early voting for election id {election_id}");
     }
     Ok(effective_voting_channel)
+}
+
+fn check_voting_channel_attestation(
+    presentation: Option<&ElectionEventPresentation>,
+    voting_channel: VotingStatusChannel,
+    attested_voting_channel: Option<VotingStatusChannel>,
+) -> Result<(), CastVoteError> {
+    let policy = presentation
+        .and_then(|presentation| presentation.kiosk_channel_authentication_policy)
+        .unwrap_or_default();
+    if policy.accepts(voting_channel, attested_voting_channel) {
+        Ok(())
+    } else {
+        Err(CastVoteError::VotingChannelNotEnabled(format!(
+            "Voting Channel {voting_channel:?} requires an attested login"
+        )))
+    }
 }
 
 /// Missing presentation uses defaults; malformed configured policy must not

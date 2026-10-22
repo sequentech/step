@@ -73,6 +73,9 @@ pub struct JwtClaims {
     pub given_name: Option<String>,
     pub family_name: Option<String>,
     pub trustee: Option<String>,
+    /// Voting channel attested by the realm for this login, independently of
+    /// the client identity (`azp`).
+    pub voting_channel_attestation: Option<String>,
 }
 
 #[instrument(err, skip_all)]
