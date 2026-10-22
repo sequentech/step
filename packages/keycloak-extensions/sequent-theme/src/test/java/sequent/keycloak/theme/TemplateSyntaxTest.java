@@ -1098,10 +1098,15 @@ class TemplateSyntaxTest {
   void loginPagesRestartAfterTheLoginTimeout() throws IOException, TemplateException {
     Map<String, Object> model = baseModel("standard");
     model.put("authenticationSession", Map.of("tabId", "tab-1"));
+    @SuppressWarnings("unchecked")
+    Map<String, Object> url = new HashMap<>((Map<String, Object>) model.get("url"));
+    url.put("loginAction", "/login?tab_id=tab-1");
+    model.put("url", url);
     String html = renderVotingPortalLogin(model);
 
     assertTrue(html.contains("src=\"/resources/js/login-timeout.js\""));
-    assertTrue(html.contains("data-login-action=\"/login\""));
+    // The script reads the tab from here, so it asks about this tab's login.
+    assertTrue(html.contains("data-login-action=\"/login?tab_id=tab-1\""));
     // Restarting must not sign the voter out of a session they already have.
     assertTrue(html.contains("data-restart-url=\"" + SSO_RESTART_URL + "\""));
   }
