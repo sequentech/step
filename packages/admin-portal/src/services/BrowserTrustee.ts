@@ -10,12 +10,22 @@ export interface TrusteeKeys {
     signing_public_key: string
     share_encryption_public_key: string
 }
+export interface TrusteeHistory {
+    board_url: string
+    stores: {
+        board: string
+        database: string
+        predicates: number
+        own_posts: number
+    }[]
+}
 export interface TrusteeEngine {
     publicKeys(): string
     attest(request: string): string
     advance(boards: string): Promise<string>
     settle(board: string): void
     backup(boards: string): Promise<string>
+    sessionHistory(boards: string): Promise<string>
     restoreBackup(contents: string): Promise<string>
     free(): void
 }

@@ -411,6 +411,21 @@ sessions together; keep this JSON file private. **Restore browser backup** resto
 them into a fresh browser. A keys file alone is insufficient to restore a tally
 participant in a different browser: the recorded DKG commitments must survive.
 A Web Lock prevents two tabs in the same browser from running the same identity.
+
+After importing keys or restoring a backup, **Local session history** shows the
+readable history-record and own-post counts for known boards, including the DKG
+parents of assigned tallies. **Refresh boards** includes current assignments;
+**Refresh local history** rereads their local stores while the runner is stopped.
+Counts also refresh after each participation cycle. The displayed browser origin,
+board service URL and database name identify the storage the loaded trustee uses.
+Use the same literal board URL when resuming: `/b4` and an absolute URL select
+different stores even when they reach the same server. Empty parent history is
+flagged, and storage decoding failures appear as errors rather than zero counts.
+Nonzero counts confirm readable records, not a completed or valid ceremony;
+normal protocol verification still runs. Imported elections can also reuse the
+original DKG board's history. Restoring history does not reopen a failed tally;
+start a new tally session after recovery.
+
 Do not clear browser storage or run the same identity in another browser or native
 runner during a ceremony. Native SQLite stores and browser IndexedDB stores are distinct; a
 native keys file can enroll a browser participant before DKG, but moving an active

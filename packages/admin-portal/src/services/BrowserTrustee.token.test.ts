@@ -12,6 +12,7 @@ const engine = (): TrusteeEngine => ({
     publicKeys: jest.fn(),
     attest: jest.fn(),
     backup: jest.fn(),
+    sessionHistory: jest.fn(),
     restoreBackup: jest.fn(),
     free: jest.fn(),
     advance: jest.fn().mockResolvedValue("[]"),

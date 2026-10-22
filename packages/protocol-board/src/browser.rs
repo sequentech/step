@@ -82,6 +82,14 @@ struct Backup {
     stores: Vec<StoreBackup>,
 }
 
+#[derive(Serialize)]
+struct StoreHistory {
+    board: BoardName,
+    database: String,
+    predicates: usize,
+    own_posts: usize,
+}
+
 fn js_error(error: impl std::fmt::Display) -> JsValue {
     JsValue::from_str(&error.to_string())
 }
@@ -171,6 +179,35 @@ impl BrowserTrustee {
         self.sessions
             .settle(&BoardName::parse(board).map_err(js_error)?);
         Ok(())
+    }
+    /// Read through the same persistence and decoding path used by sessions.
+    /// Counts describe available history, not protocol completion or validity.
+    #[wasm_bindgen(js_name = sessionHistory)]
+    pub async fn session_history(
+        &self,
+        boards: &str,
+    ) -> Result<String, JsValue> {
+        let boards: Vec<BoardName> =
+            serde_json::from_str(boards).map_err(js_error)?;
+        let mut stores = Vec::new();
+        for board in boards {
+            let store = self.access.store(&board).await.map_err(js_error)?;
+            stores.push(StoreHistory {
+                database: format!("{}:{}", self.access.namespace, board),
+                board,
+                predicates: store.load().await.map_err(js_error)?.len(),
+                own_posts: store
+                    .load_own_posts()
+                    .await
+                    .map_err(js_error)?
+                    .len(),
+            });
+        }
+        serde_json::to_string(&serde_json::json!({
+            "board_url": self.access.url,
+            "stores": stores,
+        }))
+        .map_err(js_error)
     }
     /// Includes irreversible commitments and staged-message handles, not just keys.
     pub async fn backup(&self, boards: &str) -> Result<String, JsValue> {
