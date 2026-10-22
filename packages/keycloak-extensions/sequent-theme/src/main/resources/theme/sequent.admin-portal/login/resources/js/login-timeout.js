@@ -84,7 +84,7 @@ setInterval(() => {
   if (document.visibilityState === "visible") {
     restartIfExpired();
   }
-}, CHECK_INTERVAL_MS);
+}, Math.min(CHECK_INTERVAL_MS, limitMs / 2));
 // Last resort: an expired page must never submit.
 document.addEventListener(
   "submit",
