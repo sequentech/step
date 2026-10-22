@@ -42,7 +42,7 @@ election_event.id
 
 ### IDs
 
-- Each `id` and each reference to an `id` is a UUID version 4, for example
+- Each `id` and each reference to an `id` is a UUID, for example
   `3f2b8c1e-5d6a-4b7c-9e8f-0a1b2c3d4e5f`. The import refuses other values, for example
   `election-1`.
 - The import gives new IDs. It replaces **each** UUID in the file with a new UUID. The same old
@@ -69,7 +69,7 @@ candidates.
 
 | Type | Format |
 | --- | --- |
-| UUID | A UUID version 4 as text. |
+| UUID | A UUID as text. The import replaces it with a new version 4 UUID. |
 | Date and time | ISO 8601 text with a time zone, for example `2026-05-01T08:00:00Z`. |
 | i18n map | An object. Each key is a language code (`en`, `es`, ...). Each value is an object of text fields, for example `{"en": {"name": "Election 1"}, "es": {"name": "Elección 1"}}`. |
 | Annotations | An object. **Each value must be text.** To store an object, store it as JSON text. |
@@ -382,7 +382,7 @@ your own UUIDs version 4.
 
 | Problem | Action |
 | --- | --- |
-| The import fails with `invalid UUID` or `is not v4`. | Make sure that each `id`, `tenant_id`, `election_event_id`, `election_id` and `keys_ceremony_id` is a UUID version 4. |
+| The import fails with `invalid UUID` or `is not v4`. | Make sure that each `id`, `tenant_id`, `election_event_id`, `election_id` and `keys_ceremony_id` is a UUID. |
 | The import fails with an error about a `presentation`. | A field of `presentation` has a wrong type or a value that is not allowed. Correct it with the tables on this page. |
 | The import fails with `The election event bundle cannot be imported`. | Correct each problem in the list of the error. See [File checks](01-election-event.md#file-checks). |
 | A candidate is not on the ballot. | Make sure that `presentation.is_disabled` is not `true`, and that the contest is linked to the area of the voter in `area_contests`. |
