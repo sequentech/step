@@ -227,6 +227,13 @@ const basqueTranslation: TranslationType = {
                 event_type: "Gertaera Mota",
                 description: "Deskribapena",
                 version: "Bertsioa",
+                verification_status: "Egiaztapena",
+            },
+            verificationStatus: {
+                Verified: "Egiaztatua",
+                Unreadable: "Irakurtezina",
+                InvalidSignature: "Sinadura baliogabea",
+                ColumnMismatch: "Ez dator bat sinatutako edukiarekin",
             },
             main: {
                 title: "Datu-base Nagusiaren Egunkariak",

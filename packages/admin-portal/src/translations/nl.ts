@@ -227,6 +227,13 @@ const dutchTranslation: TranslationType = {
                 event_type: "Eventtype",
                 description: "Beschrijving",
                 version: "Versie",
+                verification_status: "Verificatie",
+            },
+            verificationStatus: {
+                Verified: "Geverifieerd",
+                Unreadable: "Onleesbaar",
+                InvalidSignature: "Ongeldige handtekening",
+                ColumnMismatch: "Komt niet overeen met de ondertekende inhoud",
             },
             main: {
                 title: "Logs Hoofddatabase",

@@ -1315,6 +1315,7 @@ type ElectoralLogRow {
     statement_kind: String!
     message: String!
     user_id: String!
+    verification_status: String
 }
 
 type CastVoteEntry {

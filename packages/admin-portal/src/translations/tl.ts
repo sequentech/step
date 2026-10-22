@@ -227,6 +227,13 @@ const tagalogTranslation: TranslationType = {
                 event_type: "Uri ng Kaganapan",
                 description: "Paglalarawan",
                 version: "Bersyon",
+                verification_status: "Beripikasyon",
+            },
+            verificationStatus: {
+                Verified: "Beripikado",
+                Unreadable: "Hindi mabasa",
+                InvalidSignature: "Hindi wastong lagda",
+                ColumnMismatch: "Hindi tugma sa nilagdaang nilalaman",
             },
             main: {
                 title: "Mga Log ng Pangunahing Database",
