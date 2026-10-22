@@ -42,7 +42,7 @@ election_event.id
 
 ### IDs
 
-- Each `id` and each reference to an `id` is a UUID version 4, for example
+- Each `id` and each reference to an `id` is a UUID, for example
   `3f2b8c1e-5d6a-4b7c-9e8f-0a1b2c3d4e5f`. The import refuses other values, for example
   `election-1`.
 - The import gives new IDs. It replaces **each** UUID in the file with a new UUID. The same old
@@ -52,7 +52,7 @@ election_event.id
   `tenant_id` of the file with the ID of that tenant.
 
 :::caution CAUTION: contest ID of a candidate
-Make sure that `candidates[].contest_id` is a correct UUID version 4. If it is not, the import does
+Make sure that `candidates[].contest_id` is the `id` of a contest in the file. If it is not, the import does
 not stop: it adds the candidate without a contest, and the candidate is not on any ballot.
 :::
 
@@ -71,7 +71,7 @@ candidates.
 
 | Type | Format |
 | --- | --- |
-| UUID | A UUID version 4 as text. |
+| UUID | A UUID as text. The import replaces it with a new version 4 UUID. |
 | Date and time | ISO 8601 text with a time zone, for example `2026-05-01T08:00:00Z`. |
 | i18n map | An object. Each key is a language code (`en`, `es`, ...). Each value is an object of text fields, for example `{"en": {"name": "Election 1"}, "es": {"name": "Elección 1"}}`. |
 | Annotations | An object. **Each value must be text.** To store an object, store it as JSON text. |
@@ -430,7 +430,7 @@ your own UUIDs version 4.
 
 | Problem | Action |
 | --- | --- |
-| The import fails with `invalid UUID` or `is not v4`. | Make sure that each `id`, `tenant_id`, `election_event_id`, `election_id` and `keys_ceremony_id` is a UUID version 4. |
+| The import fails with `invalid UUID` or `is not v4`. | Make sure that each `id`, `tenant_id`, `election_event_id`, `election_id` and `keys_ceremony_id` is a UUID. |
 | The import fails with an error about a `presentation`. | A field of `presentation` has a wrong type or a value that is not allowed. Correct it with the tables on this page. |
 | A candidate is not on the ballot. | Make sure that `contest_id` is the `id` of a contest in the file, and that `presentation.is_disabled` is not `true`. |
 | The publication fails with `Error parsing CountingAlgorithm`. | Set `counting_algorithm` of the contest to an allowed value. |

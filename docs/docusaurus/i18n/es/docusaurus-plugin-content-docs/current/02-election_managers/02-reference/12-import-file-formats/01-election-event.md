@@ -121,7 +121,7 @@ archivo antes de importar. Muestra los errores de versión y de JSON en este pas
 ## Estructura JSON {#json-structure}
 
 El archivo es un objeto JSON. La mayoría de los valores son texto, números, `true` o `false`, u
-objetos JSON. Todos los ID son UUID. La importación rechaza un ID que no sea un UUID versión 4.
+objetos JSON. Todos los ID son UUID. La importación rechaza un ID que no sea un UUID y sustituye cada UUID por un UUID versión 4 nuevo.
 
 Un campo "opcional" puede faltar o ser `null`. Un campo "obligatorio" debe estar presente.
 
