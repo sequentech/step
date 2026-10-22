@@ -22,10 +22,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import lombok.experimental.UtilityClass;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.authentication.AuthenticationFlowContext;
@@ -215,7 +213,11 @@ public class Utils {
       log.warnv("storeUserDataInAuthSessionNotes: ignoring fields {0}", ignoredFields);
     }
 
-    sessionModel.setAuthNote(USER_ID, user.getId());
+    if (user != null) {
+      sessionModel.setAuthNote(USER_ID, user.getId());
+    } else {
+      sessionModel.removeAuthNote(USER_ID);
+    }
   }
 
   /** We retrieve the user data stored in the session notes and create a new user in this realm. */
@@ -289,16 +291,33 @@ public class Utils {
     KeycloakSession session = context.getSession();
     RealmModel realm = context.getRealm();
 
-    Map<String, String> firstValueFormData =
-        formData.entrySet().stream()
-            .filter(e -> attributes.contains(e.getKey()))
-            .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().get(0).trim()));
+    if (attributes.isEmpty()) {
+      return null;
+    }
 
-    Stream<UserModel> userStream = session.users().searchForUserStream(realm, firstValueFormData);
+    Map<String, String> searchValues = new HashMap<>();
+    for (String attribute : attributes) {
+      String value = formData.getFirst(attribute);
+      if (value == null || value.isBlank()) {
+        log.infov("lookupUserByFormData(): search attribute {0} was not provided", attribute);
+        return null;
+      }
+      searchValues.put(attribute, value.trim());
+    }
+    searchValues.put(UserModel.EXACT, Boolean.TRUE.toString());
 
-    // Return the first user that matches all attributes, if any
-    Optional<UserModel> userOptional = userStream.findFirst();
-    return userOptional.orElse(null);
+    List<UserModel> users =
+        session
+            .users()
+            .searchForUserStream(realm, searchValues)
+            .limit(2)
+            .collect(Collectors.toList());
+
+    if (users.size() != 1) {
+      log.infov("lookupUserByFormData(): {0} users matched the search attributes", users.size());
+      return null;
+    }
+    return users.get(0);
   }
 
   /**
