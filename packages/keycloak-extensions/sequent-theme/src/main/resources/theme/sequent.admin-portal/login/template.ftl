@@ -58,8 +58,8 @@ SPDX-License-Identifier: AGPL-3.0-only
         </#list>
     </#if>
     <script src="${url.resourcesPath}/js/login-timeout.js"
-            data-timeout-seconds="${properties.loginTimeoutSeconds!"1800"}"
-            data-action-timeout-seconds="${properties.loginActionTimeoutSeconds!"300"}"
+            data-status-url="${url.loginRestartFlowUrl?keep_before("/login-actions/")}/login-timeout"
+            data-tab-id="${(authenticationSession.tabId)!""}"
             data-restart-url="${url.loginRestartFlowUrl}"
             defer></script>
     <script type="module">

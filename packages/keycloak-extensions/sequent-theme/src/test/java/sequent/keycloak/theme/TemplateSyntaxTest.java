@@ -36,6 +36,7 @@ import org.keycloak.common.util.StringPropertyReplacer;
 class TemplateSyntaxTest {
 
   private static final Path THEME_ROOT = Path.of("src/main/resources/theme");
+  private static final String RESTART_URL = "/realms/demo/login-actions/restart?skip_logout=false";
 
   @Test
   void structuredCredentialTemplatesParseWithHtmlAutoEscaping() throws IOException {
@@ -1097,9 +1098,17 @@ class TemplateSyntaxTest {
     String html = renderVotingPortalLogin(baseModel("standard"));
 
     assertTrue(html.contains("src=\"/resources/js/login-timeout.js\""));
-    assertTrue(html.contains("data-timeout-seconds=\"1800\""));
-    assertTrue(html.contains("data-action-timeout-seconds=\"300\""));
-    assertTrue(html.contains("data-restart-url=\"/restart\""));
+    assertTrue(html.contains("data-status-url=\"/realms/demo/login-timeout\""));
+    assertTrue(html.contains("data-tab-id=\"\""));
+    assertTrue(html.contains("data-restart-url=\"" + RESTART_URL + "\""));
+  }
+
+  @Test
+  void loginPagesAskAboutTheirOwnTab() throws IOException, TemplateException {
+    Map<String, Object> model = baseModel("standard");
+    model.put("authenticationSession", Map.of("tabId", "tab-1"));
+
+    assertTrue(renderVotingPortalLogin(model).contains("data-tab-id=\"tab-1\""));
   }
 
   @Test
@@ -1467,7 +1476,7 @@ class TemplateSyntaxTest {
                     Map.entry("resourcesPath", "/resources"),
                     Map.entry("resourcesCommonPath", "/common"),
                     Map.entry("ssoLoginInOtherTabsUrl", "/sso"),
-                    Map.entry("loginRestartFlowUrl", "/restart"),
+                    Map.entry("loginRestartFlowUrl", RESTART_URL),
                     Map.entry("loginAction", "/login"),
                     Map.entry("registrationAction", "/register"),
                     Map.entry("loginUrl", "/login"))),
