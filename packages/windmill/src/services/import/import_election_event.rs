@@ -79,6 +79,10 @@ use zip::read::ZipArchive;
 const KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY: &str =
     "KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY";
 
+/// Authenticator config entries holding vendor credentials: the Inetum
+/// `api-key` and the reCAPTCHA `siteSecret`.
+const SECRET_AUTHENTICATOR_CONFIG_KEYS: [&str; 2] = ["api-key", "siteSecret"];
+
 use super::import_users::import_users_file;
 use crate::postgres;
 use crate::postgres::area::insert_areas;
@@ -232,8 +236,21 @@ pub async fn read_default_election_event_realm() -> Result<RealmRepresentation> 
     read_realm_config_from_s3(KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY).await
 }
 
+/// What `remove_keycloak_realm_secrets` does with the vendor credentials in
+/// the realm's authenticator config.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AuthenticatorSecretsPolicy {
+    /// Keep them: an imported realm brings its own credentials.
+    Keep,
+    /// Empty them: a realm built from a default template must not inherit them.
+    Clear,
+}
+
 #[instrument(skip(realm))]
-pub fn remove_keycloak_realm_secrets(realm: &RealmRepresentation) -> Result<RealmRepresentation> {
+pub fn remove_keycloak_realm_secrets(
+    realm: &RealmRepresentation,
+    authenticator_secrets: AuthenticatorSecretsPolicy,
+) -> Result<RealmRepresentation> {
     let mut realm_copy = realm.clone();
 
     // Collect well-known clients and their secrets to set.
@@ -349,7 +366,24 @@ pub fn remove_keycloak_realm_secrets(realm: &RealmRepresentation) -> Result<Real
         }
         realm_copy.components = Some(newcomponents);
     }
+    if authenticator_secrets == AuthenticatorSecretsPolicy::Clear {
+        clear_authenticator_secrets(&mut realm_copy);
+    }
     Ok(realm_copy)
+}
+
+fn clear_authenticator_secrets(realm: &mut RealmRepresentation) {
+    for authenticator_config in realm.authenticator_config.iter_mut().flatten() {
+        for (key, value) in authenticator_config.config.iter_mut().flatten() {
+            if SECRET_AUTHENTICATOR_CONFIG_KEYS.contains(&key.as_str()) && !value.is_empty() {
+                info!(
+                    "Clearing {} from authenticator config {:?}",
+                    key, authenticator_config.alias
+                );
+                value.clear();
+            }
+        }
+    }
 }
 
 #[instrument(err, skip(keycloak_event_realm))]
@@ -380,7 +414,12 @@ pub async fn upsert_keycloak_realm(
         realm.attributes = Some(attrs);
     }
 
-    realm = remove_keycloak_realm_secrets(&realm)?;
+    let authenticator_secrets = if keycloak_event_realm.is_some() {
+        AuthenticatorSecretsPolicy::Keep
+    } else {
+        AuthenticatorSecretsPolicy::Clear
+    };
+    realm = remove_keycloak_realm_secrets(&realm, authenticator_secrets)?;
     let realm_config = serde_json::to_string(&realm)?;
     let client = KeycloakAdminClient::new().await?;
     let realm_name = get_event_realm(tenant_id, election_event_id);
@@ -1954,5 +1993,137 @@ mod new_election_event_tests {
         second.rollback().await?;
         first.rollback().await?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod realm_secrets_tests {
+    use super::*;
+
+    const DEFAULT_EVENT_REALM: &str = include_str!(
+        "../../../../../.devcontainer/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-33f18502-a67c-4853-8333-a58630663559.json"
+    );
+    const DEFAULT_TENANT_REALM: &str = include_str!(
+        "../../../../../.devcontainer/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json"
+    );
+    const JANITOR_EVENT_REALM: &str =
+        include_str!("../../../external-bin/janitor/templates/COMELEC/keycloak.hbs");
+
+    fn realm_with_vendor_secrets() -> RealmRepresentation {
+        serde_json::from_value(json!({
+            "authenticatorConfig": [
+                {
+                    "alias": "choose-user",
+                    "config": {
+                        "recaptchaSiteKey": "public-site-key",
+                        "recaptchaEnabled": "true",
+                        "siteSecret": "recaptcha-secret"
+                    }
+                },
+                {
+                    "alias": "inetum-registration",
+                    "config": {
+                        "base-url": "https://inetum.example/dob-api/2.0.0",
+                        "client-id": "inetum-client",
+                        "api-key": "inetum-api-key"
+                    }
+                },
+                { "alias": "already-validated-alias" }
+            ]
+        }))
+        .unwrap()
+    }
+
+    fn remove_secrets(
+        realm: &RealmRepresentation,
+        authenticator_secrets: AuthenticatorSecretsPolicy,
+    ) -> RealmRepresentation {
+        for (name, value) in [
+            ("KEYCLOAK_CLIENT_ID", "service-account"),
+            ("KEYCLOAK_CLIENT_SECRET", "service-account-secret"),
+        ] {
+            if env::var(name).is_err() {
+                env::set_var(name, value);
+            }
+        }
+        remove_keycloak_realm_secrets(realm, authenticator_secrets).unwrap()
+    }
+
+    fn authenticator_config(realm: &RealmRepresentation, alias: &str) -> HashMap<String, String> {
+        realm
+            .authenticator_config
+            .iter()
+            .flatten()
+            .find(|config| config.alias.as_deref() == Some(alias))
+            .and_then(|config| config.config.clone())
+            .unwrap()
+    }
+
+    fn secret_values(realm: &str) -> Vec<String> {
+        let realm: RealmRepresentation = serde_json::from_str(realm).unwrap();
+        realm
+            .authenticator_config
+            .into_iter()
+            .flatten()
+            .flat_map(|config| config.config.unwrap_or_default())
+            .filter(|(key, _)| SECRET_AUTHENTICATOR_CONFIG_KEYS.contains(&key.as_str()))
+            .map(|(_, value)| value)
+            .collect()
+    }
+
+    #[test]
+    fn realms_from_default_templates_lose_vendor_secrets() {
+        let realm = remove_secrets(
+            &realm_with_vendor_secrets(),
+            AuthenticatorSecretsPolicy::Clear,
+        );
+
+        let recaptcha = authenticator_config(&realm, "choose-user");
+        assert_eq!(recaptcha["siteSecret"], "");
+        assert_eq!(recaptcha["recaptchaSiteKey"], "public-site-key");
+        assert_eq!(recaptcha["recaptchaEnabled"], "true");
+        let inetum = authenticator_config(&realm, "inetum-registration");
+        assert_eq!(inetum["api-key"], "");
+        assert_eq!(inetum["base-url"], "https://inetum.example/dob-api/2.0.0");
+        assert_eq!(inetum["client-id"], "inetum-client");
+    }
+
+    #[test]
+    fn imported_realms_keep_their_vendor_secrets() {
+        let realm = remove_secrets(
+            &realm_with_vendor_secrets(),
+            AuthenticatorSecretsPolicy::Keep,
+        );
+
+        assert_eq!(
+            realm.authenticator_config,
+            realm_with_vendor_secrets().authenticator_config
+        );
+    }
+
+    #[test]
+    fn default_realm_templates_carry_no_vendor_secrets() {
+        let event_secrets = secret_values(DEFAULT_EVENT_REALM);
+        assert_eq!(event_secrets.len(), 3);
+        for value in event_secrets
+            .iter()
+            .chain(&secret_values(DEFAULT_TENANT_REALM))
+        {
+            assert_eq!(value, "");
+        }
+    }
+
+    #[test]
+    fn janitor_renders_vendor_secrets_from_its_settings() {
+        let mut janitor_secrets = secret_values(JANITOR_EVENT_REALM);
+        janitor_secrets.sort();
+        assert_eq!(
+            janitor_secrets,
+            [
+                "{{{inetum_api_key}}}",
+                "{{{recaptcha_site_secret}}}",
+                "{{{recaptcha_site_secret}}}"
+            ]
+        );
     }
 }
