@@ -117,7 +117,7 @@ It shows version errors and JSON errors at this step.
 ## JSON structure
 
 The file is one JSON object. Most values are text, numbers, `true` or `false`, or JSON objects. All
-IDs are UUIDs. The import refuses an ID that is not a version 4 UUID.
+IDs are UUIDs. The import refuses an ID that is not a UUID, and replaces each UUID with a new version 4 UUID.
 
 A field that is "optional" can be absent or `null`. A field that is "required" must be present.
 

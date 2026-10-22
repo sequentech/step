@@ -42,7 +42,7 @@ election_event.id
 
 ### IDs {#ids}
 
-- Cada `id` y cada referencia a un `id` es un UUID versión 4, por ejemplo
+- Cada `id` y cada referencia a un `id` es un UUID, por ejemplo
   `3f2b8c1e-5d6a-4b7c-9e8f-0a1b2c3d4e5f`. La importación rechaza otros valores, por ejemplo
   `election-1`.
 - La importación da IDs nuevos. Sustituye **cada** UUID del archivo por un UUID nuevo. El mismo UUID
@@ -52,7 +52,7 @@ election_event.id
   `tenant_id` del archivo por el ID de ese inquilino.
 
 :::caution PRECAUCIÓN: ID de la pregunta de un candidato
-Asegúrese de que `candidates[].contest_id` es un UUID versión 4 correcto. Si no lo es, la
+Asegúrese de que `candidates[].contest_id` es el `id` de una pregunta del archivo. Si no lo es, la
 importación no se detiene: añade el candidato sin pregunta, y el candidato no aparece en ninguna
 papeleta.
 :::
@@ -72,7 +72,7 @@ ni los candidatos.
 
 | Tipo | Formato |
 | --- | --- |
-| UUID | Un UUID versión 4 como texto. |
+| UUID | Un UUID como texto. La importación lo sustituye por un UUID versión 4 nuevo. |
 | Fecha y hora | Texto ISO 8601 con una zona horaria, por ejemplo `2026-05-01T08:00:00Z`. |
 | Mapa i18n | Un objeto. Cada clave es un código de idioma (`en`, `es`, ...). Cada valor es un objeto de campos de texto, por ejemplo `{"en": {"name": "Election 1"}, "es": {"name": "Elección 1"}}`. |
 | Anotaciones | Un objeto. **Cada valor debe ser texto.** Para guardar un objeto, guárdelo como texto JSON. |
@@ -380,7 +380,7 @@ propios UUID versión 4.
 
 | Problema | Acción |
 | --- | --- |
-| La importación falla con `invalid UUID` o `is not v4`. | Asegúrese de que cada `id`, `tenant_id`, `election_event_id`, `election_id` y `keys_ceremony_id` es un UUID versión 4. |
+| La importación falla con `invalid UUID` o `is not v4`. | Asegúrese de que cada `id`, `tenant_id`, `election_event_id`, `election_id` y `keys_ceremony_id` es un UUID. |
 | La importación falla con un error sobre un `presentation`. | Un campo de `presentation` tiene un tipo incorrecto o un valor que no está permitido. Corríjalo con las tablas de esta página. |
 | Un candidato no aparece en la papeleta. | Asegúrese de que `contest_id` es el `id` de una pregunta del archivo, y de que `presentation.is_disabled` no es `true`. |
 | La publicación falla con `Error parsing CountingAlgorithm`. | Indique para la pregunta un valor permitido en `counting_algorithm`. |
