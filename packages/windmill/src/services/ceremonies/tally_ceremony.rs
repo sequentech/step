@@ -1008,7 +1008,7 @@ pub async fn set_tally_session_completed(
     )
     .await
     {
-        Ok(_) => true,
+        Ok(updated) => updated,
         Err(_) => false,
     };
 
