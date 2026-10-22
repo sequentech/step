@@ -22,8 +22,10 @@ const galegoTranslation: TranslationType = {
             votingProgress: "Progreso da votación",
             stepOf: "Paso {{current}} de {{total}}",
             selectUpTo_one: "Seleccione ata {{count}} opción",
+            selectUpTo_many: "Seleccione ata {{count}} opcións",
             selectUpTo_other: "Seleccione ata {{count}} opcións",
             selectExactly_one: "Seleccione {{count}} opción",
+            selectExactly_many: "Seleccione {{count}} opcións",
             selectExactly_other: "Seleccione {{count}} opcións",
             selectBetween: "Seleccione entre {{min}} e {{max}} opcións",
         },
@@ -31,8 +33,9 @@ const galegoTranslation: TranslationType = {
             collapseToggle: "Alternar lista {{listTitle}}",
             showCandidates: "Mostrar candidatos",
             hideCandidates: "Ocultar candidatos",
-            selectedCandidate: "{{count}} candidato seleccionado",
-            selectedCandidates: "{{count}} candidatos seleccionados",
+            selectedCandidates_one: "{{count}} candidato seleccionado",
+            selectedCandidates_many: "{{count}} candidatos seleccionados",
+            selectedCandidates_other: "{{count}} candidatos seleccionados",
             expandAll: "Expandir todo",
             collapseAll: "Contraer todo",
         },
@@ -49,7 +52,7 @@ const galegoTranslation: TranslationType = {
         contest: {
             acclamation: {
                 description:
-                    "Este concurso resolveuse por aclamación. As súas candidaturas resultan elixidas sen votación, polo que non se pode seleccionar ningunha opción nin se rexistra ningún voto.",
+                    "Esta pregunta resolveuse por aclamación. As súas candidaturas resultan elixidas sen votación, polo que non se pode seleccionar ningunha opción nin se rexistra ningún voto.",
             },
         },
         votingScreen: {
@@ -59,7 +62,7 @@ const galegoTranslation: TranslationType = {
             ballotHelpDialog: {
                 title: "Información: Pantalla da papeleta",
                 content:
-                    "Esta pantalla mostra o concurso no que es elixible para votar. Podes facer a túa selección activando a caixa de verificación á dereita do Candidato/Resposta. Para restablecer as túas seleccións, fai clic no botón “<b>Limpar selección</b>”; para pasar ao seguinte paso, fai clic no botón “<b>Seguinte</b>” abaixo.",
+                    "Esta pantalla mostra a pregunta na que es elixible para votar. Podes facer a túa selección activando a caixa de verificación á dereita do Candidato/Resposta. Para restablecer as túas seleccións, fai clic no botón “<b>Limpar selección</b>”; para pasar ao seguinte paso, fai clic no botón “<b>Seguinte</b>” abaixo.",
                 ok: "Aceptar",
             },
             nonVotedDialog: {
@@ -165,6 +168,15 @@ const galegoTranslation: TranslationType = {
                 ok: "Si, quero emitir a miña papeleta en branco",
                 cancel: "Cancelar",
             },
+            unfilledContestsDialog: {
+                title: "Hai seleccións sen completar",
+                content:
+                    "Pode deixar un cargo en branco ou seleccionar menos candidatos. Revise o seguinte antes de continuar.",
+                selected: "{{selected}} de {{max}} seleccionadas",
+                nothingSelected: "Sen voto para este cargo",
+                ok: "Continuar con estas seleccións",
+                cancel: "Revisar seleccións",
+            },
             error: {
                 NETWORK_ERROR:
                     "Houbo un problema de rede. Inténtao de novo máis tarde ou contacta co soporte para obter axuda.",
@@ -261,11 +273,11 @@ const galegoTranslation: TranslationType = {
             acclamation: {
                 title: "Resolto por aclamación",
                 description:
-                    "Todos os concursos desta elección resolvéronse por aclamación, polo que non se emitiu ningunha papeleta e non hai identificador de papeleta que consultar.",
+                    "Todas as preguntas desta elección resolvéronse por aclamación, polo que non se emitiu ningunha papeleta e non hai identificador de papeleta que consultar.",
                 helpDialog: {
                     title: "Información: Aclamación",
                     content:
-                        "Todos os concursos desta elección resolvéronse por aclamación: as súas candidaturas resultan elixidas sen votación. Como non se emitiu ningunha papeleta, non hai identificador de papeleta, comprobante nin código QR que verificar.",
+                        "Todas as preguntas desta elección resolvéronse por aclamación: as súas candidaturas resultan elixidas sen votación. Como non se emitiu ningunha papeleta, non hai identificador de papeleta, comprobante nin código QR que verificar.",
                     ok: "Aceptar",
                 },
             },
@@ -337,7 +349,7 @@ const galegoTranslation: TranslationType = {
             downloadButton: "Descargar",
             step2Title: "2. Verifica a túa papeleta",
             step2Description:
-                '<a class="link" href="{{linkToBallotVerifier}}" target="_blank">Accede ao verificador de papeletas</a>, abrirase unha nova pestana no teu navegador.',
+                "<VerifierLink>Accede ao verificador de papeletas</VerifierLink>, abrirase unha nova pestana no teu navegador.",
             step2HelpDialog: {
                 title: "Tutorial de auditoría da papeleta",
                 content:
@@ -380,7 +392,7 @@ const galegoTranslation: TranslationType = {
             },
             alerts: {
                 noElections:
-                    "Non hai eleccións nas que poidas votar. Isto pode deberse a que a área non ten ningún concurso asociado. Inténteo de novo máis tarde ou contacte co soporte para obter asistencia.",
+                    "Non hai eleccións nas que poidas votar. Isto pode deberse a que a área non ten ningunha pregunta asociada. Inténteo de novo máis tarde ou contacte co soporte para obter asistencia.",
                 electionEventNotPublished:
                     "O evento electoral aínda non foi publicado. Inténteo de novo máis tarde ou contacte co soporte para obter asistencia.",
             },
@@ -391,8 +403,8 @@ const galegoTranslation: TranslationType = {
         },
         errors: {
             page: {
-                oopsWithStatus: "Oops! {{status}}",
-                oopsWithoutStatus: "Oops! Erro inesperado",
+                oopsWithStatus: "Vaia! {{status}}",
+                oopsWithoutStatus: "Vaia! Erro inesperado",
                 somethingWrong: "Algo saiu mal.",
                 invalidLoginHintParametersTitle: "Ligazón de votación non válida",
                 invalidLoginHintParametersMessage:
@@ -414,6 +426,123 @@ const galegoTranslation: TranslationType = {
                 checkboxLabel: "Lin os Materiais de apoio",
                 continueButton: "Continuar",
                 error: "Houbo un problema ao rexistrar a túa confirmación. Inténtao de novo.",
+            },
+        },
+        slates: {
+            title: "Candidaturas conxuntas",
+            independent: "Independente",
+            contestMembers: "Candidatos de {{slate}} para {{contest}}",
+            noCandidate: "Sen candidato",
+            note: "Unha lista selecciona os seus candidatos e deixa en branco os cargos nos que non ten candidato. Podes cambiar calquera opción individual en calquera momento.",
+            coverage: {
+                full: "Candidatura completa",
+                singleContest: "Só {{contest}}",
+                partial: "Candidatura parcial",
+                everyOffice: "Candidatos para todos os cargos.",
+                someOffices: "Candidatos para {{offices}}. Os demais cargos quedan en branco.",
+                candidates_one: "{{count}} candidato",
+                candidates_other: "{{count}} candidatos",
+                offices_one: "{{count}} cargo",
+                offices_other: "{{count}} cargos",
+            },
+            candidateList: {
+                show: "Amosar candidatos",
+                hide: "Agochar candidatos",
+            },
+            tabs: {
+                label: "Forma de selección",
+                slates: "Elixir unha lista",
+                candidates: "Candidaturas individuais",
+            },
+            count: {
+                short: "{{selected}} / {{seats}} candidatos seleccionados",
+                long: "· {{selected}} de {{seats}} candidatos seleccionados",
+                individual: "Seleccións individuais",
+                none: "Ningún candidato seleccionado",
+            },
+            allSelections: {
+                label: "As túas seleccións actuais",
+                none: "Sen selección",
+            },
+            review: {
+                title: "As túas seleccións",
+                of: "de {{seats}}",
+                selected: "Candidatos seleccionados",
+                note: "O teu voto rexístrase para cada candidato seleccionado.",
+                contestCount: "{{selected}} de {{max}} seleccionados",
+                unfilled: "Ningún candidato seleccionado",
+                editLabel: "Editar {{contest}}",
+            },
+            selection: {
+                all: "Os {{total}} seleccionados",
+                mixed: "Mixta · {{selected}} de {{total}} seleccionados",
+                partly: "Seleccionada en parte · {{selected}} de {{total}}",
+                selected: "Seleccionado",
+                edit: "Editar seleccións",
+            },
+            apply: {
+                button: "Seleccionar lista",
+                buttonLabel: "Seleccionar a lista {{slate}}",
+                applied: "{{slate}} seleccionada. Aínda podes cambiar calquera candidato.",
+                appliedPartial_one:
+                    "{{slate}} seleccionada. Non ten candidato para {{offices}}, así que ese cargo queda en branco. Aínda podes cambiar calquera candidato.",
+                appliedPartial_other:
+                    "{{slate}} seleccionada. Non ten candidato para {{offices}}, así que eses cargos quedan en branco. Aínda podes cambiar calquera candidato.",
+                overMaximum:
+                    "{{slate}} non se pode seleccionar: ten {{candidates}} candidatos para {{contest}}, que permite {{max}}. Podes seguir elixindo candidatos individualmente.",
+                unavailable:
+                    "{{slate}} non se pode seleccionar nesta papeleta. Podes seguir elixindo candidatos individualmente.",
+                replaceDialog: {
+                    title: "Substituír estas seleccións?",
+                    content_one:
+                        "Seleccionar <strong>{{slate}}</strong> cambiará o seguinte cargo.",
+                    content_other:
+                        "Seleccionar <strong>{{slate}}</strong> cambiará os seguintes cargos.",
+                    current: "Seleccións actuais",
+                    blankNote:
+                        "{{slate}} non ten candidato para algúns cargos. Eses cargos quedarán en branco.",
+                    ok: "Substituír seleccións",
+                    okOffice: "Substituír {{office}}",
+                    cancel: "Manter as miñas seleccións",
+                },
+            },
+            clear: {
+                cleared: "Borráronse todas as túas opcións.",
+                dialog: {
+                    title: "Borrar todas as túas opcións?",
+                    content: "Borrar quita todas as opcións da túa papeleta. Estes cargos cambian:",
+                    after: "Despois de borrar",
+                    ok: "Borrar opcións",
+                    cancel: "Manter as miñas opcións",
+                },
+            },
+            offices: {
+                label: "Cargos",
+                picker: "Cargo",
+                index: "Cargo {{index}} de {{total}}",
+                count: "{{selected}}/{{max}}",
+                previous: "Cargo anterior",
+                next: "Cargo seguinte",
+                last: "Último cargo",
+                instruction_one: "Selecciona ata {{count}} candidato. {{selected}} seleccionados.",
+                instruction_other:
+                    "Selecciona ata {{count}} candidatos. {{selected}} seleccionados.",
+            },
+            limit: "Podes seleccionar ata {{count}}. Quita un candidato antes de elixir outro.",
+            view: {
+                button: "Ver lista",
+                buttonLabel: "Ver a lista {{slate}}",
+                summary: "{{coverage}} · {{candidates}}",
+                select: "Seleccionar esta lista",
+                back: "Volver",
+            },
+            dialog: {
+                close: "Pechar o diálogo",
+            },
+            clearContest: {
+                button: "Borrar",
+                label: "Borrar {{contest}}",
+                cleared: "Borráronse as seleccións de {{contest}}.",
             },
         },
         ballotLocator: {

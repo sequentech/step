@@ -91,36 +91,30 @@ fn decode_plaintexts_to_biguints(
     plaintexts: &Vec<<RistrettoCtx as Ctx>::P>,
     contest: &Contest,
 ) -> Vec<String> {
-    plaintexts
+    use velvet::pipes::pipe_inputs::MALFORMED_PLAINTEXT_LINE;
+
+    let mut malformed_count = 0usize;
+    let lines = plaintexts
         .iter()
-        .filter_map(|plaintext| {
-            let plaintext_format = plaintext
-                .iter()
-                .map(|b| format!("{:02X}", b))
-                .collect::<Vec<String>>()
-                .join(" ");
-            let biguint = contest.decode_plaintext_contest_to_biguint(plaintext);
-
-            match biguint {
-                Ok(v) => {
-                    let biguit_str = v.to_str_radix(10);
-                    event!(
-                        Level::INFO,
-                        "Decoding plaintext {plaintext_format} into string '{biguit_str}'"
-                    );
-
-                    Some(biguit_str)
+        .map(
+            |plaintext| match contest.decode_plaintext_contest_to_biguint(plaintext) {
+                Ok(biguint) => biguint.to_str_radix(10),
+                Err(_) => {
+                    malformed_count += 1;
+                    MALFORMED_PLAINTEXT_LINE.to_string()
                 }
-                Err(e) => {
-                    event!(
-                        Level::WARN,
-                        "Decoding plaintext {plaintext_format} has failed: {e}"
-                    );
-                    None
-                }
-            }
-        })
-        .collect::<Vec<_>>()
+            },
+        )
+        .collect();
+
+    if malformed_count > 0 {
+        warn!(
+            "{malformed_count} plaintexts of contest {} do not decode and are counted as invalid ballots",
+            contest.id
+        );
+    }
+
+    lines
 }
 
 /// The ballots files to write for one area contest, as `(multiplier, ballots)`
@@ -979,6 +973,7 @@ mod tests {
     use crate::services::weight_batches::weight_batch_offsets;
     use sequent_core::ballot::VotingStatusChannel;
     use sequent_core::ballot_codec::multi_ballot::{BallotChoices, ContestChoices};
+    use sequent_core::ballot_codec::vec::encode_vec_to_array;
     use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
     use sequent_core::types::ceremonies::CountingAlgType;
     use sequent_core::types::keycloak::{weight_bit_multiplier, VOTE_WEIGHT_BATCHES};
@@ -986,6 +981,7 @@ mod tests {
     use std::collections::BTreeMap;
     use velvet::config::{Config, PipeConfig, Stage, Stages};
     use velvet::fixtures::ballot_styles::get_ballot_style_1;
+    use velvet::pipes::pipe_inputs::MALFORMED_PLAINTEXT_LINE;
     use velvet::pipes::pipe_name::PipeNameOutputDir;
     use walkdir::WalkDir;
 
@@ -1488,6 +1484,22 @@ mod tests {
         assert_eq!(
             config.number_format_policy,
             Some(NumberFormatPolicy::PeriodComma)
+        );
+    }
+
+    /// A plaintext that does not decode still takes its place in the ballots
+    /// file, so the file keeps one line per decrypted plaintext.
+    #[test]
+    fn decode_plaintexts_to_biguints_keeps_one_line_per_plaintext() {
+        let valid = encode_vec_to_array(&vec![5]).expect("plaintext should encode");
+        let oversized_length = [0xFF; 30];
+
+        let lines =
+            decode_plaintexts_to_biguints(&vec![valid, oversized_length], &Contest::default());
+
+        assert_eq!(
+            lines,
+            vec!["5".to_string(), MALFORMED_PLAINTEXT_LINE.to_string()]
         );
     }
 }

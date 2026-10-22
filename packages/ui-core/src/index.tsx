@@ -40,6 +40,8 @@ export {
     translate,
     translateFromPresentation,
 } from "./services/translate"
+export {getBallotErrorOptions} from "./services/ballotErrorMessages"
+export type {BallotErrorOptions} from "./services/ballotErrorMessages"
 export * from "./services/votingPortalDateTime"
 export * from "./types/ElectionEventPresentation"
 export * from "./services/percentFormatter"
@@ -56,3 +58,6 @@ export * from "./services/categoryService"
 export * from "./utils/cookies"
 export * from "./constants/keycloak"
 export * from "./types/VotingChannel"
+export * from "./types/Slates"
+export * from "./services/slates"
+export * from "./types/SlateCoverage"

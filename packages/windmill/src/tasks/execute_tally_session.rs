@@ -21,6 +21,10 @@ use crate::postgres::template::get_template_by_alias;
 use crate::services::cast_votes::{count_cast_votes_election, ElectionCastVotes};
 use crate::services::celery_app::get_celery_app;
 use crate::services::ceremonies::auditable_ballots::export_auditable_ballots;
+use crate::services::ceremonies::election_electorates::{
+    counted_before, record_election_electorates, recorded_election_electorates,
+    records_electorates, ElectionElectorates,
+};
 use crate::services::ceremonies::insert_ballots::{
     get_elections_end_dates, insert_ballots_messages,
 };
@@ -488,9 +492,13 @@ fn get_execution_status(execution_status: Option<String>) -> Option<TallyExecuti
     Some(execution_status)
 }
 
+/// Each election's census and cast votes. The census is the electorate the
+/// session recorded, or, for a session that recorded none, the sum of its
+/// contest areas' censuses.
 #[instrument(skip_all, err)]
 pub async fn count_cast_votes_election_with_census(
     tally_session_area_contest: &[TallySessionContest],
+    electorates: Option<&ElectionElectorates>,
 ) -> Result<Vec<ElectionCastVotes>> {
     let mut cast_votes_map: HashMap<String, ElectionCastVotes> = HashMap::new();
 
@@ -524,6 +532,17 @@ pub async fn count_cast_votes_election_with_census(
         entry.cast_votes += annotations.casted_ballots as i64;
 
         areas_set.insert(area_contest.area_id.clone());
+    }
+
+    for (election_id, electorate) in electorates.into_iter().flatten() {
+        cast_votes_map
+            .entry(election_id.clone())
+            .or_insert_with(|| ElectionCastVotes {
+                election_id: election_id.clone(),
+                census: 0,
+                cast_votes: 0,
+            })
+            .census = i64::try_from(*electorate)?;
     }
 
     Ok(cast_votes_map.into_values().collect())
@@ -964,9 +983,26 @@ async fn map_plaintext_data(
     )
     .await?;
 
+    let recorded_electorates = recorded_election_electorates(&tally_session)?;
+    let was_counted = counted_before(&tally_session_execution);
     if !new_ballots_messages.is_empty() {
         update_tally_session_contests_annotations(hasura_transaction, &new_ballots_messages)
             .await?;
+        if records_electorates(
+            recorded_electorates.is_some(),
+            &tally_session_contest,
+            true,
+            was_counted,
+        ) {
+            record_election_electorates(
+                hasura_transaction,
+                keycloak_transaction,
+                &tally_session,
+                &ballot_styles,
+                &tally_session_contest,
+            )
+            .await?;
+        }
 
         event!(
             Level::INFO,
@@ -975,6 +1011,26 @@ async fn map_plaintext_data(
         );
         return Ok(None);
     }
+
+    let electorates = if records_electorates(
+        recorded_electorates.is_some(),
+        &tally_session_contest,
+        false,
+        was_counted,
+    ) {
+        Some(
+            record_election_electorates(
+                hasura_transaction,
+                keycloak_transaction,
+                &tally_session,
+                &ballot_styles,
+                &tally_session_contest,
+            )
+            .await?,
+        )
+    } else {
+        recorded_electorates
+    };
 
     // Determine whether this is a tie-break re-run by checking if any resolved
     // resolutions exist for this session.
@@ -1161,7 +1217,8 @@ async fn map_plaintext_data(
     event!(Level::INFO, "Num plaintexts_data {}", plaintexts_data.len());
     let tally_sheets = clean_tally_sheets(&tally_sheet_rows, &ballot_styles)?;
 
-    let cast_votes_count = count_cast_votes_election_with_census(&tally_session_contest).await?;
+    let cast_votes_count =
+        count_cast_votes_election_with_census(&tally_session_contest, electorates.as_ref()).await?;
     Ok(Some((
         plaintexts_data,
         newest_message_id,
@@ -1701,6 +1758,8 @@ pub async fn execute_tally_session(
 #[cfg(test)]
 mod tests {
 
+    use crate::services::cast_votes::ElectionCastVotes;
+    use crate::services::ceremonies::election_electorates::ElectionElectorates;
     use crate::tasks::execute_tally_session::{
         count_cast_votes_election_with_census, generate_acclaimed_area_contests,
         should_force_initial_results,
@@ -1905,7 +1964,7 @@ mod tests {
         ];
 
         let cast_votes_count =
-            count_cast_votes_election_with_census(&tally_session_contest).await?;
+            count_cast_votes_election_with_census(&tally_session_contest, None).await?;
         let election_ee1e1 = cast_votes_count
             .get(0)
             .ok_or(anyhow!("Election1 not found"))?;
@@ -1918,6 +1977,79 @@ mod tests {
         assert_eq!(election_ee1e2.census, 3);
         assert_eq!(election_ee1e2.cast_votes, 3);
 
+        Ok(())
+    }
+
+    fn counted_area(
+        election_id: &str,
+        area_id: &str,
+        voters: u64,
+        cast: u64,
+    ) -> TallySessionContest {
+        TallySessionContest {
+            id: format!("{election_id}-{area_id}"),
+            tenant_id: "90505c8a-23a9-4cdf-a26b-4e19f6a097d5".into(),
+            election_event_id: "53c8a9ee-4cce-477b-a3a1-afc193f6a503".into(),
+            area_id: area_id.into(),
+            contest_id: None,
+            session_id: 1,
+            created_at: None,
+            last_updated_at: None,
+            labels: None,
+            annotations: Some(serde_json::json!({
+                "casted_ballots": cast,
+                "elegible_voters": voters,
+                "ballots_without_voter": 0
+            })),
+            tally_session_id: "93d39ddd-f868-4873-86fe-08948ae9e23f".into(),
+            election_id: election_id.into(),
+        }
+    }
+
+    #[tokio::test]
+    async fn the_census_is_the_recorded_electorate_and_the_cast_votes_stay() -> Result<()> {
+        // Election `post` spans north and south, which are tallied, and an
+        // area whose contests are all acclaimed, which has no contest area in
+        // the session. Election `acclaimed` is acclaimed everywhere, so the
+        // session has nothing of it at all.
+        let contests = vec![
+            counted_area("post", "north", 3, 2),
+            counted_area("post", "south", 2, 1),
+        ];
+        let electorates =
+            ElectionElectorates::from([("post".to_string(), 7), ("acclaimed".to_string(), 4)]);
+
+        let mut counts =
+            count_cast_votes_election_with_census(&contests, Some(&electorates)).await?;
+        counts.sort_by(|a, b| a.election_id.cmp(&b.election_id));
+        assert_eq!(
+            counts,
+            vec![
+                ElectionCastVotes {
+                    election_id: "acclaimed".into(),
+                    census: 4,
+                    cast_votes: 0,
+                },
+                ElectionCastVotes {
+                    election_id: "post".into(),
+                    census: 7,
+                    cast_votes: 3,
+                },
+            ]
+        );
+
+        // Without a recorded electorate, as for a session extracted before
+        // they were recorded, the census stays the contest areas' sum.
+        let mut counts = count_cast_votes_election_with_census(&contests, None).await?;
+        counts.sort_by(|a, b| a.election_id.cmp(&b.election_id));
+        assert_eq!(
+            counts,
+            vec![ElectionCastVotes {
+                election_id: "post".into(),
+                census: 5,
+                cast_votes: 3,
+            }]
+        );
         Ok(())
     }
 }

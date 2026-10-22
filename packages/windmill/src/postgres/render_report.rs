@@ -9,7 +9,7 @@ use serde_json::json;
 use serde_json::{Map, Value};
 use tracing::instrument;
 
-use crate::postgres::election_event::get_election_event_by_id_if_exist;
+use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::tenant::get_tenant_by_id;
 use crate::services::documents::upload_and_return_document;
 use crate::services::reports::utils::get_number_format_policy;
@@ -26,14 +26,12 @@ pub async fn render_report_task(
 ) -> Result<()> {
     let tenant = get_tenant_by_id(hasura_transaction, &tenant_id).await?;
     let election_event =
-        get_election_event_by_id_if_exist(hasura_transaction, &tenant_id, &election_event_id)
-            .await
-            .context("Error reading the election event's number format")?;
+        get_election_event_by_id(hasura_transaction, &tenant_id, &election_event_id).await?;
 
     let variables_map = report_variables(
         input.variables.clone(),
         &tenant.slug,
-        election_event.as_ref().and_then(get_number_format_policy),
+        get_number_format_policy(&election_event),
     );
 
     // render handlebars template

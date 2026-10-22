@@ -219,7 +219,9 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = ({
                         >
                             <span
                                 title={String(
-                                    t("tally.transmissionPackage.actions.download.emlTitle")
+                                    t("tally.transmissionPackage.actions.download.emlTitle", {
+                                        date: lastDocumentDate,
+                                    })
                                 )}
                             >
                                 {t("tally.transmissionPackage.actions.download.emlTitle", {

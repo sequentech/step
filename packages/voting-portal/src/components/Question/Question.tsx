@@ -42,11 +42,15 @@ import {IBallotStyle} from "../../store/ballotStyles/ballotStylesSlice"
 import {InvalidErrorsList, contestErrorsId} from "../InvalidErrorsList/InvalidErrorsList"
 import {useTranslation} from "react-i18next"
 import {IDecodedVoteContest, IInvalidPlaintextError} from "@sequentech/ui-core"
-import {useAppSelector} from "../../store/hooks"
-import {selectBallotSelectionQuestion} from "../../store/ballotSelections/ballotSelectionsSlice"
+import {useAppDispatch, useAppSelector} from "../../store/hooks"
+import {
+    resetBallotSelection,
+    selectBallotSelectionQuestion,
+} from "../../store/ballotSelections/ballotSelectionsSlice"
+import {useBallotSlates} from "../../providers/BallotSlatesProvider"
 import {sortCandidatesInContest, checkIsBlank} from "@sequentech/ui-core"
 import {provideBallotService} from "../../services/BallotService"
-import {faAngleDown, faAngleRight} from "@fortawesome/free-solid-svg-icons"
+import {faAngleDown, faAngleRight, faTriangleExclamation} from "@fortawesome/free-solid-svg-icons"
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome"
 
 const StyledTitle = styled(Typography)<{component?: React.ElementType}>`
@@ -117,6 +121,28 @@ const InvalidBlankWrapper = styled("ul")<{columnCount: number}>`
         margin-top: 12px;
     }
 `
+/** The id of the heading of a contest, so a screen can bring it into view. */
+export const contestTitleId = (contestId: string): string => `contest-${contestId}-title`
+
+const SlateLimitWarning = styled(Box)`
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin: 12px 0 8px;
+    padding: 13px 15px;
+    border: 1px solid #e7d69b;
+    border-radius: 7px;
+    background: #fff7d9;
+    color: #685815;
+    font-size: 14px;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+
+    .slate-limit-warning-icon {
+        margin-top: 3px;
+    }
+`
+
 export interface IQuestionProps {
     ballotStyle: IBallotStyle
     question: IContest
@@ -154,6 +180,7 @@ export const Question: React.FC<IQuestionProps> = ({
     // offers no explicit blank or invalid options, reports no selection
     // errors, and is not part of a declined or blank ballot either.
     const isAcclaimed = isAcclaimedContest(question)
+    const contestName = translate(question, "name", i18n.language) || ""
     const markerCandidates = isAcclaimed ? [] : invalidOrBlankCandidates
     const defaultLanguageCode =
         ballotStyle.ballot_eml.election_presentation?.language_conf?.default_language_code ??
@@ -161,6 +188,12 @@ export const Question: React.FC<IQuestionProps> = ({
     const showDeclineToVote = !!isDeclineToVote && !isAcclaimed
     const showBlankBallot = !!isBlankBallot && !isAcclaimed
     const [isTouched, setIsTouched] = useState(isReview)
+    const dispatch = useAppDispatch()
+    const ballotSlates = useBallotSlates()
+    // A ballot with slates is edited office by office: each office can be
+    // cleared on its own and says how many of its choices are taken.
+    const isSlateBallot = !!ballotSlates && !isReview && !isAcclaimedContest(question)
+    const [clearedAnnouncement, setClearedAnnouncement] = useState("")
     const contestState = useAppSelector(
         selectBallotSelectionQuestion(ballotStyle.election_id, question.id)
     )
@@ -325,18 +358,14 @@ export const Question: React.FC<IQuestionProps> = ({
     }, [question.min_votes, question.max_votes, isReview, t])
 
     return (
-        <Box
-            className="contest"
-            component="section"
-            aria-labelledby={`contest-${question.id}-title`}
-        >
+        <Box className="contest" component="section" aria-labelledby={contestTitleId(question.id)}>
             <StyledTitle
                 className="contest-title"
                 variant="h5"
                 component="h2"
                 data-min={question.min_votes}
                 data-max={question.max_votes}
-                id={`contest-${question.id}-title`}
+                id={contestTitleId(question.id)}
             >
                 <Box className="contest-title-text" component="span" sx={{flexGrow: 1}}>
                     {translate(question, "name", i18n.language) || ""}
@@ -363,7 +392,70 @@ export const Question: React.FC<IQuestionProps> = ({
                             : t("candidatesList.collapseAll")}
                     </Button>
                 ) : null}
+                {isSlateBallot ? (
+                    <Button
+                        className="contest-clear-button"
+                        variant="secondary"
+                        sx={{
+                            "flexShrink": 0,
+                            "minHeight": "44px",
+                            "fontSize": "14px",
+                            "border": "none",
+                            "background": "transparent",
+                            "boxShadow": "none",
+                            "&.Mui-disabled": {
+                                border: "none",
+                                background: "transparent",
+                                color: theme.palette.customGrey.main,
+                            },
+                        }}
+                        disabled={selectedChoicesSum === 0}
+                        aria-label={t("slates.clearContest.label", {contest: contestName})}
+                        onClick={() => {
+                            dispatch(
+                                resetBallotSelection({
+                                    ballotStyle,
+                                    force: true,
+                                    contestId: question.id,
+                                })
+                            )
+                            setClearedAnnouncement(
+                                t("slates.clearContest.cleared", {contest: contestName})
+                            )
+                        }}
+                    >
+                        {t("slates.clearContest.button")}
+                    </Button>
+                ) : null}
             </StyledTitle>
+            {isSlateBallot ? (
+                <>
+                    <Typography
+                        className="contest-selection-count"
+                        variant="body2"
+                        sx={{margin: "4px 0 0", color: theme.palette.customGrey.dark}}
+                    >
+                        {t("slates.offices.instruction", {
+                            count: question.max_votes,
+                            selected: selectedChoicesSum,
+                        })}
+                    </Typography>
+                    <VisuallyHidden className="contest-clear-status" role="status">
+                        {clearedAnnouncement}
+                    </VisuallyHidden>
+                    {overVoteDisableMode && selectedChoicesSum >= question.max_votes ? (
+                        <SlateLimitWarning className="slate-limit-warning" role="alert">
+                            <FontAwesomeIcon
+                                className="slate-limit-warning-icon"
+                                icon={faTriangleExclamation}
+                            />
+                            <span className="slate-limit-warning-text">
+                                {t("slates.limit", {count: question.max_votes})}
+                            </span>
+                        </SlateLimitWarning>
+                    ) : null}
+                </>
+            ) : null}
             {question.description || question.description_i18n?.[i18n.language] ? (
                 <Typography
                     className="contest-description"
