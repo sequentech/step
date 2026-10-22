@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Wbraid trustee configuration | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3975/docs/developers/wbraid/trustee-configuration"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Wbraid trustee configuration | Sequent Online Voting"><meta data-rh="true" name="description" content="--&gt;"><meta data-rh="true" property="og:description" content="--&gt;"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3975/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3975/docs/developers/wbraid/trustee-configuration"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3975/docs/developers/wbraid/trustee-configuration" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3975/docs/developers/wbraid/trustee-configuration" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Wbraid trustees","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3975/docs/developers/wbraid/trustee-configuration"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3975/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3975/assets/js/runtime~main.8a7bd580.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3975/assets/js/runtime~main.df4c5515.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3975/assets/js/main.8d44d712.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -319,8 +319,24 @@ these records. <strong>Back up browser sessions</strong> exports the keys and al
 sessions together; keep this JSON file private. <strong>Restore browser backup</strong> restores
 them into a fresh browser. A keys file alone is insufficient to restore a tally
 participant in a different browser: the recorded DKG commitments must survive.
-A Web Lock prevents two tabs in the same browser from running the same identity.
-Do not clear browser storage or run the same identity in another browser or native
+A Web Lock prevents two tabs in the same browser from running the same identity.</p>
+<p>After importing keys or restoring a backup, <strong>Local session history</strong> shows the
+readable history-record and own-post counts for known boards, including the DKG
+parents of assigned tallies. The <strong>Session entries</strong> collection starts collapsed;
+expand it to show all board entries, their counts, database names and parent-history
+warnings. The section heading and refresh controls remain visible.
+<strong>Refresh boards</strong> includes current assignments;
+<strong>Refresh local history</strong> rereads their local stores while the runner is stopped.
+Counts also refresh after each participation cycle. The displayed browser origin,
+board service URL and database name identify the storage the loaded trustee uses.
+Use the same literal board URL when resuming: <code>/b4</code> and an absolute URL select
+different stores even when they reach the same server. Empty parent history is
+flagged, and storage decoding failures appear as errors rather than zero counts.
+Nonzero counts confirm readable records, not a completed or valid ceremony;
+normal protocol verification still runs. Imported elections can also reuse the
+original DKG board&#x27;s history. Restoring history does not reopen a failed tally;
+start a new tally session after recovery.</p>
+<p>Do not clear browser storage or run the same identity in another browser or native
 runner during a ceremony. Native SQLite stores and browser IndexedDB stores are distinct; a
 native keys file can enroll a browser participant before DKG, but moving an active
 native participant to a browser requires its protocol state as well.</p>

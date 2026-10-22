@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Package Test Coverage | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3975/docs/developers/development-environment/package-coverage"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Package Test Coverage | Sequent Online Voting"><meta data-rh="true" name="description" content="--&gt;"><meta data-rh="true" property="og:description" content="--&gt;"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3975/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3975/docs/developers/development-environment/package-coverage"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3975/docs/developers/development-environment/package-coverage" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3975/docs/developers/development-environment/package-coverage" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Package Test Coverage","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3975/docs/developers/development-environment/package-coverage"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3975/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3975/assets/js/runtime~main.8a7bd580.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3975/assets/js/runtime~main.df4c5515.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3975/assets/js/main.8d44d712.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -34,6 +34,10 @@ and source inventory alongside HTML, JSON and LCOV exports.</p>
 isolation themselves. Database and browser fixtures must be installed locally;
 never substitute a deployment endpoint or production credentials. Use focused
 Cargo tests while editing and a complete measurement after the changes stabilize.</p>
+<p>The Windmill and error-conversion macro profiles set both
+<code>WBRAID_BOARD_DATABASE_URL</code> and <code>WBRAID_B4_PG_PASSWORD</code> to the synthetic fixture.
+The password setting takes precedence over credentials in the URL, so declaring
+both prevents an inherited development credential from breaking archive tests.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="interpret-the-reports">Interpret the reports<a href="#interpret-the-reports" class="hash-link" aria-label="Direct link to Interpret the reports" title="Direct link to Interpret the reports" translate="no">​</a></h2>
 <ul>
 <li class="">Lines, functions and LLVM regions are distinct native metrics. LLVM regions

@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Tenant Log and Audit Entries | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3975/docs/developers/electoral-log/electoral-log-tenant-log"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Tenant Log and Audit Entries | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3975/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3975/docs/developers/electoral-log/electoral-log-tenant-log"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3975/docs/developers/electoral-log/electoral-log-tenant-log" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3975/docs/developers/electoral-log/electoral-log-tenant-log" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Tenant log","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3975/docs/developers/electoral-log/electoral-log-tenant-log"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3975/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3975/assets/js/runtime~main.8a7bd580.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3975/assets/js/runtime~main.df4c5515.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3975/assets/js/main.8d44d712.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -377,9 +377,10 @@ Successful token refreshes, code exchanges and client logins are dropped. Event 
 are all sent, as before.</li>
 <li class=""><strong>Admin events</strong> of tenant realms and event realms are all sent, with the representation when the
 realm has admin event details on.</li>
-<li class=""><strong>The realm</strong> needs <code>custom-event-listener</code> among its event listeners, and <code>adminEventsEnabled</code> and
-<code>adminEventsDetailsEnabled</code> on. The development tenant realm template and the janitor&#x27;s client
-template have them; existing tenant realms get them from the one-off migration (section 11).</li>
+<li class=""><strong>The realm</strong> needs <code>custom-event-listener</code> among its event listeners and <code>adminEventsEnabled</code>
+on. <code>adminEventsDetailsEnabled</code> stays off, matching the realm templates, so admin actions
+are recorded without their raw representations. Existing tenant realms get these settings
+from the one-off migration (section 11).</li>
 </ul>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="72-the-batch-task">7.2 The batch task<a href="#72-the-batch-task" class="hash-link" aria-label="Direct link to 7.2 The batch task" title="Direct link to 7.2 The batch task" translate="no">​</a></h3>
 <p><code>process_electoral_log_events_batch</code> (<code>tasks/electoral_log.rs</code>) places each event of a batch on its
@@ -492,8 +493,8 @@ deployment.</p>
 <li class="">For every tenant, <code>ensure_tenant_log</code> creates the log and its key if they are missing, each tenant
 in a transaction of its own.</li>
 <li class="">For every tenant realm, <code>set_up_realm</code> adds <code>custom-event-listener</code> to the realm&#x27;s event listeners
-and turns on <code>adminEventsEnabled</code> and <code>adminEventsDetailsEnabled</code>, when any of the three is
-missing. A realm that already has them is left as it is.</li>
+and turns on <code>adminEventsEnabled</code>, with <code>adminEventsDetailsEnabled</code> off. A realm that
+already has these settings is left as it is.</li>
 </ol>
 <p>Every realm is tried. If any failed, the task fails naming them and is retried up to five times with
 a growing wait, as when Keycloak is still starting with beat.</p>
