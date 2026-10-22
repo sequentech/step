@@ -4,7 +4,7 @@ const {test} = require("node:test")
 const assert = require("node:assert/strict")
 const {readFileSync} = require("node:fs")
 const {resolve} = require("node:path")
-const yaml = require("../../packages/node_modules/js-yaml")
+const yaml = require("js-yaml")
 
 const VOTER_ROLE = "user"
 
@@ -28,15 +28,17 @@ const voterSelectColumns = (table) => {
     return permission.permission.columns
 }
 
-for (const table of [
-    "sequent_backend_election_event",
-    "sequent_backend_election",
-    "sequent_backend_area",
+// sequent_backend_area has no presentation column in this release.
+for (const [table, visibleColumns] of [
+    ["sequent_backend_election_event", ["id", "presentation"]],
+    ["sequent_backend_election", ["id", "presentation"]],
+    ["sequent_backend_area", ["id", "name"]],
 ]) {
     test(`voter select on ${table} excludes annotations`, () => {
         const columns = voterSelectColumns(table)
-        assert.ok(columns.includes("id"))
-        assert.ok(columns.includes("presentation"))
+        for (const column of visibleColumns) {
+            assert.ok(columns.includes(column))
+        }
         assert.ok(!columns.includes("annotations"))
     })
 }
