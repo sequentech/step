@@ -8,6 +8,9 @@ pub mod dbg;
 pub mod protocol_test_grpc;
 /// Test the protocol using an in memory board.
 pub mod protocol_test_memory;
+/// Test plaintext signing against the decryption factors it references.
+#[cfg(test)]
+mod sign_plaintexts_test;
 /// An in-memory board.
 pub mod vector_board;
 /// An in-memory session (for one trustee).
