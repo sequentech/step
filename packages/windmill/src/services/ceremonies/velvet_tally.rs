@@ -1406,6 +1406,39 @@ mod tests {
         }
     }
 
+    /// A plaintext that does not decode, in a batch its voter's weight
+    /// multiplies, is counted as that many invalid votes, like any other
+    /// ballot in the batch.
+    #[tokio::test]
+    async fn an_undecodable_plaintext_counts_its_batch_multiplier_as_invalid() {
+        let undecodable = [0xFF; 30];
+        for policy in [
+            ContestEncryptionPolicy::SINGLE_CONTEST,
+            ContestEncryptionPolicy::MULTIPLE_CONTESTS,
+        ] {
+            let fixture = fixture(policy.clone());
+            let mut batches = fixture.weight_batches(&[(5, Some(Choice::Candidate(0)))]);
+            let times_four = batches
+                .iter_mut()
+                .find(|batch| batch.multiplier == 4)
+                .unwrap();
+            times_four.plaintexts.push(undecodable);
+
+            let results = fixture.tally(batches, 9).await;
+            let contest_result = fixture.contest_result(&results);
+
+            assert_eq!(contest_result["total_votes"], 9, "{policy:?}");
+            assert_eq!(contest_result["total_invalid_votes"], 4, "{policy:?}");
+            assert_eq!(contest_result["invalid_votes"]["implicit"], 4, "{policy:?}");
+            assert_eq!(contest_result["total_valid_votes"], 5, "{policy:?}");
+            assert_eq!(
+                candidate_total(contest_result, &fixture.contest.candidates[0].id),
+                5,
+                "{policy:?}"
+            );
+        }
+    }
+
     /// Velvet run again into the output directories of an earlier run, with
     /// input that no longer has one of that run's batches, counts only the
     /// batches its input has: no decoded batch is left over to count again.
