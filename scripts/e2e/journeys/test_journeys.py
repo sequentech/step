@@ -2328,6 +2328,39 @@ class BackendJourneys(unittest.TestCase):
             timeout=120,
         )
         self.assertIn(expected_board, boards)
+        # Probe the deployed forward with real Keycloak tokens as well as
+        # running the protocol through it. Initiating an upload does not
+        # publish a message or disturb the ceremony's signed transcript.
+        messages_url = f"http://harvest:8400/b4/boards/{name}/messages"
+        origin = {"Origin": "https://unlisted.example.invalid"}
+        public = Http().get(messages_url + "?last_id=0&limit=5", headers=origin)
+        self.assertEqual(public.status, 200, public.text)
+        self.assertNotIn(
+            "access-control-allow-origin", {h.lower() for h in public.headers}
+        )
+        for authorization, expected in (
+            ({}, 401),
+            ({"Authorization": "Bearer invalid"}, 401),
+            ({"Authorization": f"Bearer {bootstrap.admin_token(self.keycloak)}"}, 401),
+            ({"Authorization": f"Bearer {token}"}, 200),
+        ):
+            response = Http().post(
+                messages_url + "/initiate",
+                json_body={"size": 1},
+                headers={**origin, **authorization},
+            )
+            self.assertEqual(response.status, expected, response.text)
+            self.assertNotIn(
+                "access-control-allow-origin",
+                {h.lower() for h in response.headers},
+            )
+            if expected == 200:
+                uuid.UUID(response.json()["message_id"])
+        confirm = Http().post(
+            f"{messages_url}/{uuid.uuid4()}/confirm",
+            json_body={"data": None, "version": "0.6"},
+        )
+        self.assertEqual(confirm.status, 401, confirm.text)
         updates = api.query("query { trustee_event_updates }")["trustee_event_updates"]
         self.assertIn(expected_board, updates["boards"])
         self.assertEqual(updates["actions"], [])
