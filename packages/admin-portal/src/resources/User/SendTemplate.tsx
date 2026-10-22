@@ -37,6 +37,7 @@ import {ScheduledEventType} from "@/services/ScheduledEvent"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {ITemplateMethod, ETemplateType, IEmail, ISendTemplateBody} from "@/types/templates"
 import {useLocation} from "react-router-dom"
+import {findTemplateForMethod, templatesForMethod} from "@/services/sendTemplateSelection"
 
 export enum AudienceSelection {
     ALL_USERS = "ALL_USERS",
@@ -204,90 +205,58 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
         setTemplate(newTemplate)
     }
 
+    // Loads the chosen template's content for the method, or clears the alias
+    // when no template of the type offers the method.
+    const withTemplateContent = (
+        base: ITemplate,
+        method: ITemplateMethod,
+        type: ETemplateType,
+        alias: string | undefined
+    ): ITemplate => {
+        const selected = findTemplateForMethod(receipts, method, type, alias)
+        if (!selected) {
+            return {...base, communication_method: method, type, alias: undefined}
+        }
+        const content = {...base.i18n["en"]}
+        if (method === ITemplateMethod.EMAIL) {
+            content.email = selected.email ?? {subject: "", plaintext_body: "", html_body: ""}
+        } else if (method === ITemplateMethod.SMS) {
+            content.sms = {message: selected.sms?.message ?? ""}
+        }
+        return {
+            ...base,
+            communication_method: method,
+            type,
+            alias: selected.alias,
+            i18n: {...base.i18n, en: content},
+        }
+    }
+
     const handleSelectMethodChange = async (e: any) => {
-        const {value} = e.target
-        var newTemplate = {...template}
-        newTemplate.communication_method = value
-        setTemplate(newTemplate)
-
+        const value = e.target.value as ITemplateMethod
         setSelectedMethod(value)
-
-        // filter receipts by communication method
-        const selectedReceipts = receipts
-            ?.filter(
-                (receipt) => receipt.communication_method === value && receipt.type === selectedType
-            )
-            .map((receipt) => receipt.template)
-
-        setSelectedList(selectedReceipts ?? null)
+        setTemplate(withTemplateContent(template, value, selectedType, template.alias))
     }
 
     const handleSelectTypeChange = async (e: any) => {
-        const {value} = e.target
-        var newTemplate = {...template}
-        newTemplate.type = value
-        setTemplate(newTemplate)
-
+        const value = e.target.value as ETemplateType
         setSelectedType(value)
-
-        // filter receipts by communication method
-        const selectedReceipts = receipts
-            ?.filter(
-                (receipt) =>
-                    receipt.type === value && receipt.communication_method === selectedMethod
-            )
-            .map((receipt) => receipt.template)
-
-        setSelectedList(selectedReceipts ?? null)
+        setTemplate(withTemplateContent(template, selectedMethod, value, template.alias))
     }
 
     const handleSelectAliasChange = async (e: any) => {
-        console.log("handleSelectAliasChange", e.target.value)
-
-        const {value} = e.target
-        var newTemplate = {...template}
-        newTemplate.alias = value
-        console.log("handleSelectAliasChange newTemplate", newTemplate)
-        setTemplate(newTemplate)
-
-        const selectedReceipt = receipts?.filter(
-            (receipt) =>
-                receipt.type === selectedType &&
-                receipt.communication_method === selectedMethod &&
-                receipt.template.alias === value
-        )
-
-        if (selectedReceipt && selectedReceipt.length > 0) {
-            console.log(
-                "selectedReceipt",
-                selectedReceipt[0]["template"][selectedMethod.toLowerCase()]
-            )
-            if (selectedMethod === ITemplateMethod.EMAIL) {
-                let newEmail = selectedReceipt[0]["template"][
-                    selectedMethod.toLowerCase()
-                ] as IEmail
-                setEmail(newEmail, value)
-            } else {
-                let newSms = selectedReceipt[0]["template"][selectedMethod.toLowerCase()]
-                    .message as string
-                let newSMSCommunication = {...newTemplate}
-                let a = newSMSCommunication.i18n?.["en"]
-                if (a?.sms?.message) {
-                    a.sms.message = newSms
-                }
-                setTemplate(newSMSCommunication)
-            }
-        }
+        setTemplate(withTemplateContent(template, selectedMethod, selectedType, e.target.value))
     }
 
     useEffect(() => {
         console.log("handleSelectAliasChange communication", template)
     }, [template])
 
-    const setEmail = async (newEmail: any, alias = "") => {
-        var newTemplate = {...template, alias}
-        newTemplate.i18n["en"].email = newEmail
-        setTemplate(newTemplate)
+    const setEmail = (newEmail: IEmail) => {
+        setTemplate({
+            ...template,
+            i18n: {...template.i18n, en: {...template.i18n["en"], email: newEmail}},
+        })
     }
 
     const handleLangChange = (lang: string) => async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -327,18 +296,14 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
         filter: {
             tenant_id: tenantId,
         },
+        pagination: {page: 1, perPage: 1000},
+        sort: {field: "alias", order: "ASC"},
     })
 
     useEffect(() => {
-        // filter receipts by communication method and sert email by default
-        const selectedReceipts = receipts
-            ?.filter(
-                (receipt) =>
-                    receipt.type === selectedType && receipt.communication_method === selectedMethod
-            )
-            .map((receipt) => receipt.template)
-
-        setSelectedList(selectedReceipts ?? null)
+        setSelectedList(
+            receipts ? templatesForMethod(receipts, selectedMethod, selectedType) : null
+        )
     }, [selectedMethod, selectedType, receipts])
 
     //const possibleLanguages = ["en", "es"]
