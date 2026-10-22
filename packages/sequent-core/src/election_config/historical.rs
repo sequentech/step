@@ -19,9 +19,11 @@ use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 
 pub const PROFILE: &str = "legacy-seat-v1";
-/// Where the importer keeps a name: event, election, contest and candidate rows
-/// have no plain `name` column since names moved into `presentation`.
-const NAME: &str = "presentation.i18n.en.name";
+/// The default language of the built-in event and election templates, used for
+/// a row whose workbook sets none.
+const TEMPLATE_LANGUAGE: &str = "en";
+const DEFAULT_LANGUAGE: &str =
+    "presentation.language_conf.default_language_code";
 const TABLES: &[&str] = &[
     "allbgy",
     "allmun",
@@ -348,6 +350,21 @@ impl<'a> Data<'a> {
         }
         Ok(Self { name, table })
     }
+    /// A name as the ballot shows it, unchanged; a blank one is refused rather
+    /// than shown as `-`.
+    fn name(&self, row: usize, column: &str) -> Result<String, Problem> {
+        let name = self.text(row, column)?;
+        if name.trim().is_empty() {
+            return Err(problem(
+                self.name,
+                row,
+                column,
+                Code::MissingField,
+                "source name is blank",
+            ));
+        }
+        Ok(name)
+    }
     fn text(&self, row: usize, column: &str) -> Result<String, Problem> {
         let index = self
             .table
@@ -508,25 +525,54 @@ fn text(row: &Row, column: &str) -> Result<String, Problem> {
         .at(&row.origin(Some(column)))),
     }
 }
-/// Moves a workbook row's plain `name` to [`NAME`]. A row may carry both only
-/// when they agree.
-fn localized_name(row: &mut Row) -> Result<(), Problem> {
-    let plain = text(row, "name").ok();
+/// Where the importer keeps a text in one language: event, election, contest
+/// and candidate rows have no plain `name` column since names moved into
+/// `presentation`, and the Admin Portal edits descriptions there too.
+fn localized(language: &str, field: &str) -> String {
+    format!("presentation.i18n.{language}.{field}")
+}
+/// The language a row's portals fall back to.
+fn default_language(row: &Row) -> String {
+    text(row, DEFAULT_LANGUAGE).unwrap_or_else(|_| TEMPLATE_LANGUAGE.into())
+}
+/// Moves a workbook row's plain `name` into its default language and copies its
+/// plain `description` there, keeping translations the row already has. A row
+/// may carry both forms of either only when they agree, and must end up with a
+/// name in its default language.
+fn localize(row: &mut Row) -> Result<String, Problem> {
+    let language = default_language(row);
+    let name = localized(&language, "name");
     let origin = row.origin(Some("name"));
+    adopt(row, "name", &name)?;
     row.cells.retain(|(column, _)| column != "name");
-    let Some(plain) = plain else {
+    if text(row, &name).is_err() {
+        return Err(Problem::error(
+            Code::MissingField,
+            origin.to_string(),
+            format!("a name is required in name or {name}"),
+        )
+        .at(&origin));
+    }
+    adopt(row, "description", &localized(&language, "description"))?;
+    Ok(language)
+}
+fn adopt(row: &mut Row, plain: &str, column: &str) -> Result<(), Problem> {
+    let Ok(value) = text(row, plain) else {
         return Ok(());
     };
-    match text(row, NAME) {
-        Ok(localized) if localized != plain => Err(Problem::error(
-            Code::ConflictingColumns,
-            origin.to_string(),
-            "name and presentation.i18n.en.name differ; keep only one",
-        )
-        .at(&origin)),
+    match text(row, column) {
+        Ok(localized) if localized != value => {
+            let origin = row.origin(Some(plain));
+            Err(Problem::error(
+                Code::ConflictingColumns,
+                origin.to_string(),
+                format!("{plain} and {column} differ; make them agree"),
+            )
+            .at(&origin))
+        }
         Ok(_) => Ok(()),
         Err(_) => {
-            set(row, NAME, json!(plain));
+            set(row, column, json!(value));
             Ok(())
         }
     }
@@ -763,7 +809,7 @@ fn map(
         ));
     }
     let mut event = workbook.rows("electionevent")[0].clone();
-    localized_name(&mut event)?;
+    localize(&mut event)?;
     let event_key = text(&event, "annotations.miru_election_event_id")?;
     set(
         &mut event,
@@ -1195,7 +1241,7 @@ fn map(
                 text(original_election, "alias")?
             );
             let mut election = original_election.clone();
-            localized_name(&mut election)?;
+            let language = localize(&mut election)?;
             election.cells.retain(|(c, _)| c != "election_post");
             set(&mut election, "external_id", json!(election_id));
             historical_annotations(
@@ -1273,7 +1319,10 @@ fn map(
                         vec![
                             ("external_id", json!(contest_id)),
                             ("election.external_id", json!(election_id)),
-                            (NAME, json!(seats.text(seat, "CONTEST")?)),
+                            (
+                                &localized(&language, "name"),
+                                json!(seats.name(seat, "CONTEST")?),
+                            ),
                             ("min_votes", json!(0)),
                             ("max_votes", json!(eligible)),
                             ("winning_candidates_num", json!(eligible)),
@@ -1320,9 +1369,9 @@ fn map(
                             ),
                             ("contest.external_id", json!(contest_id)),
                             (
-                                NAME,
+                                &localized(&language, "name"),
                                 json!(candidates
-                                    .text(candidate, "NAMEONBALLOT")?),
+                                    .name(candidate, "NAMEONBALLOT")?),
                             ),
                             ("presentation.sort_order", json!(candidate_order)),
                             ("annotations.miru:candidate-id", json!(code)),

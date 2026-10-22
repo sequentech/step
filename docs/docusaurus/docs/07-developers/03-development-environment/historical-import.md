@@ -115,11 +115,22 @@ The workbook contains `ElectionEvent`, `Elections`, `Areas`,
 Election aliases must be unique because schedules refer to aliases. Several
 election rows may share a post; they remain separate contexts.
 
-Event and election names belong in `presentation.i18n.en.name`, which is where
-the importer keeps them. A plain `name` column is accepted and moved there; a
-row that has both must give the same name in each. Contest and candidate names
-come from `seat.CONTEST` and `candidate.NAMEONBALLOT` and are written to the
-same field.
+Names and descriptions are kept per language in `presentation.i18n.<lang>`.
+`<lang>` is the row's `presentation.language_conf.default_language_code`, or
+`en` when the row sets none:
+
+- Event and election names go to `presentation.i18n.<lang>.name`. A plain
+  `name` column is accepted and moved there.
+- A plain `description` is copied to `presentation.i18n.<lang>.description`,
+  which is the field the Admin Portal edits. The plain column is kept.
+- Contest and candidate names are `seat.CONTEST` and `candidate.NAMEONBALLOT`,
+  exactly as the source spells them, in their election's language.
+- Translations the workbook already gives in other languages are kept. None are
+  added.
+- A row that gives a plain and a localized value must give the same text in
+  each, or it is refused with `conflicting_columns` at that cell.
+- An event or election with no name in its default language, or a blank contest
+  or candidate name in the SQL, is refused with `missing_field` where it is.
 
 | Relationship                   | Rule                                                                                     |
 | ------------------------------ | ---------------------------------------------------------------------------------------- |
