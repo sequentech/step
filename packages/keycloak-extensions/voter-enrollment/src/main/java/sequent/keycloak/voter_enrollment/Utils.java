@@ -19,9 +19,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import lombok.experimental.UtilityClass;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.authentication.AuthenticationFlowContext;
@@ -67,6 +66,33 @@ public class Utils {
       List.of(UserModel.FIRST_NAME, UserModel.LAST_NAME, UserModel.EMAIL, UserModel.USERNAME);
   private static final String USER_ID = "userId";
 
+  /**
+   * Notes that only authenticators set: the one-time code and link state, the verified email flag,
+   * the verification outcome, the stored field list and the matched user. A form field with one of
+   * these names is not stored as a note.
+   */
+  private static final Set<String> RESERVED_NOTES =
+      Set.of(
+          sequent.keycloak.authenticator.Utils.CODE,
+          sequent.keycloak.authenticator.Utils.CODE_TTL,
+          sequent.keycloak.authenticator.Utils.OTL_VISITED,
+          sequent.keycloak.authenticator.Utils.EMAIL_VERIFIED,
+          LookupAndUpdateUser.VERIFICATION_COMPLETED,
+          LookupAndUpdateUser.VERIFICATION_STATUS,
+          LookupAndUpdateUser.VERIFICATION_REJECTION_REASON,
+          LookupAndUpdateUser.VERIFICATION_MISMATCHED_FIELDS,
+          LookupAndUpdateUser.FIELDS_MATCH,
+          KEYS_USERDATA,
+          USER_ID);
+
+  /**
+   * Whether a submitted form field is stored as a note and listed in {@link #KEYS_USERDATA}: its
+   * name is not reserved and does not contain the list separator.
+   */
+  private static boolean isStoredFormField(String key) {
+    return !RESERVED_NOTES.contains(key) && !key.contains(KEYS_USERDATA_SEPARATOR);
+  }
+
   String escapeJson(String value) {
     return value != null
         ? value.replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")
@@ -108,21 +134,33 @@ public class Utils {
     // Lookup user by attributes using form data
     UserModel user = Utils.lookupUserByFormData(context, searchAttributesList, formData);
 
+    Map<Boolean, List<String>> fieldsByStored =
+        formData.keySet().stream().collect(Collectors.partitioningBy(Utils::isStoredFormField));
+    List<String> storedFields = fieldsByStored.get(true);
+    List<String> ignoredFields = fieldsByStored.get(false);
+
     // We store each key
-    String keys = Utils.serializeUserdataKeys(formData.keySet());
+    String keys = Utils.serializeUserdataKeys(storedFields);
 
     log.debug(
         "storeUserDataInAuthSessionNotes: setAuthNote(" + Utils.KEYS_USERDATA + ", " + keys + ")");
     sessionModel.setAuthNote(Utils.KEYS_USERDATA, keys);
 
-    formData.forEach(
-        (key, value) -> {
+    storedFields.forEach(
+        key -> {
           String values = Utils.serializeUserdataKeys(formData.get(key));
           log.debug("storeUserDataInAuthSessionNotes: setAuthNote(" + key + ", " + values + ")");
           sessionModel.setAuthNote(key, values);
         });
+    if (!ignoredFields.isEmpty()) {
+      log.warnv("storeUserDataInAuthSessionNotes: ignoring fields {0}", ignoredFields);
+    }
 
-    sessionModel.setAuthNote(USER_ID, user.getId());
+    if (user != null) {
+      sessionModel.setAuthNote(USER_ID, user.getId());
+    } else {
+      sessionModel.removeAuthNote(USER_ID);
+    }
   }
 
   /** We retrieve the user data stored in the session notes and create a new user in this realm. */
@@ -196,22 +234,37 @@ public class Utils {
     KeycloakSession session = context.getSession();
     RealmModel realm = context.getRealm();
 
-    Map<String, String> firstValueFormData =
-        formData.entrySet().stream()
-            .filter(e -> attributes.contains(e.getKey()))
-            .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().get(0).trim()));
+    if (attributes.isEmpty()) {
+      return null;
+    }
 
-    Stream<UserModel> userStream = session.users().searchForUserStream(realm, firstValueFormData);
+    Map<String, String> searchValues = new HashMap<>();
+    for (String attribute : attributes) {
+      String value = formData.getFirst(attribute);
+      if (value == null || value.isBlank()) {
+        log.infov("lookupUserByFormData(): search attribute {0} was not provided", attribute);
+        return null;
+      }
+      searchValues.put(attribute, value.trim());
+    }
+    searchValues.put(UserModel.EXACT, Boolean.TRUE.toString());
 
-    // Return the first user that matches all attributes, if any
-    Optional<UserModel> userOptional = userStream.findFirst();
-    return userOptional.orElse(null);
+    List<UserModel> users =
+        session
+            .users()
+            .searchForUserStream(realm, searchValues)
+            .limit(2)
+            .collect(Collectors.toList());
+
+    if (users.size() != 1) {
+      log.infov("lookupUserByFormData(): {0} users matched the search attributes", users.size());
+      return null;
+    }
+    return users.get(0);
   }
 
   private static String serializeUserdataKeys(Collection<String> keys, String separator) {
-    final StringBuilder key = new StringBuilder();
-    keys.forEach((s -> key.append(separator).append(s)));
-    return key.deleteCharAt(0).toString();
+    return String.join(separator, keys);
   }
 
   private static String serializeUserdataKeys(Collection<String> keys) {
@@ -219,7 +272,7 @@ public class Utils {
   }
 
   private static List<String> deserializeUserdataKeys(String key, String separator) {
-    if (key == null) {
+    if (key == null || key.isEmpty()) {
       return Collections.emptyList();
     }
     return List.of(key.split(separator));

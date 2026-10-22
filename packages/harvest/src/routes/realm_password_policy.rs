@@ -9,7 +9,7 @@ use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::services::keycloak::{
     get_realm_password_policy, update_realm_password_policy,
-    RealmPasswordPolicy,
+    validate_keycloak_scope, RealmPasswordPolicy,
 };
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
@@ -36,6 +36,21 @@ pub struct UpdateRealmPasswordPolicyOutput {
     pub updated: bool,
 }
 
+fn validate_event_scope(
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<(), JsonError> {
+    validate_keycloak_scope(tenant_id, Some(election_event_id)).map_err(
+        |error| {
+            ErrorResponse::new(
+                Status::BadRequest,
+                &error.to_string(),
+                ErrorCode::UuidParseFailed,
+            )
+        },
+    )
+}
+
 #[instrument(skip_all)]
 #[post("/get-realm-password-policy", format = "json", data = "<input>")]
 pub async fn get_realm_password_policy_route(
@@ -58,6 +73,11 @@ pub async fn get_realm_password_policy_route(
             ErrorCode::Unauthorized,
         )
     })?;
+
+    validate_event_scope(
+        &claims.hasura_claims.tenant_id,
+        &body.election_event_id,
+    )?;
 
     let password_policy = get_realm_password_policy(
         &claims.hasura_claims.tenant_id,
@@ -98,6 +118,11 @@ pub async fn update_realm_password_policy_route(
             ErrorCode::Unauthorized,
         )
     })?;
+
+    validate_event_scope(
+        &claims.hasura_claims.tenant_id,
+        &body.election_event_id,
+    )?;
 
     let password_policy = RealmPasswordPolicy {
         configured: true,

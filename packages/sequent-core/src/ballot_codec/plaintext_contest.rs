@@ -46,7 +46,7 @@ impl PlaintextCodec for Contest {
         &self,
         code: &[u8; 30],
     ) -> Result<DecodedVoteContest, String> {
-        let plaintext_bytes = decode_array_to_vec(code);
+        let plaintext_bytes = decode_array_to_vec(code)?;
 
         self.decode_plaintext_contest_from_bytes(&plaintext_bytes)
     }
@@ -55,7 +55,7 @@ impl PlaintextCodec for Contest {
         &self,
         code: &[u8; 30],
     ) -> Result<BigUint, String> {
-        let plaintext_bytes = decode_array_to_vec(code);
+        let plaintext_bytes = decode_array_to_vec(code)?;
         decode_bigint_from_bytes(&plaintext_bytes)
     }
 
@@ -94,7 +94,7 @@ mod tests {
         let encoded_plaintext =
             contest.encode_plaintext_contest(&decoded_contest).unwrap();
 
-        let plaintext_bytes = decode_array_to_vec(&encoded_plaintext); // test
+        let plaintext_bytes = decode_array_to_vec(&encoded_plaintext).unwrap(); // test
         let decoded_bigint =
             decode_bigint_from_bytes(&plaintext_bytes).unwrap(); // test
 
@@ -222,5 +222,26 @@ mod tests {
                 );
             }
         }
+    }
+
+    /// An envelope longer than its 29 byte payload is rejected, while a
+    /// full-length payload still decodes.
+    #[test]
+    fn test_decode_plaintext_contest_rejects_out_of_range_length() {
+        let contest = get_test_contest();
+
+        for length in [30u8, 255u8] {
+            let mut code = [0u8; 30];
+            code[0] = length;
+
+            assert!(contest.decode_plaintext_contest(&code).is_err());
+            assert!(contest
+                .decode_plaintext_contest_to_biguint(&code)
+                .is_err());
+        }
+
+        let mut full = [1u8; 30];
+        full[0] = 29;
+        assert!(contest.decode_plaintext_contest_to_biguint(&full).is_ok());
     }
 }
