@@ -292,3 +292,77 @@ pub async fn get_publication_ballot_styles(
 
     Ok(styles)
 }
+
+/// A ballot style a voter can cast with, and the public key of its election's
+/// keys ceremony.
+pub struct CastVoteBallotStyle {
+    pub ballot_eml: Option<String>,
+    pub keys_ceremony_public_key: Option<String>,
+}
+
+/// Finds the ballot style only when it is not deleted, belongs to the voter's
+/// tenant, event, election and area, and comes from a generated publication
+/// that is not deleted. The EML is read only when `with_ballot_eml` is set.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_cast_vote_ballot_style(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &Uuid,
+    election_event_id: &Uuid,
+    election_id: &Uuid,
+    area_id: &Uuid,
+    ballot_style_id: &Uuid,
+    with_ballot_eml: bool,
+) -> Result<Option<CastVoteBallotStyle>> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT
+                    CASE WHEN $6 THEN style.ballot_eml END AS ballot_eml,
+                    keys_ceremony.status ->> 'public_key' AS keys_ceremony_public_key
+                FROM sequent_backend.ballot_style style
+                JOIN sequent_backend.ballot_publication publication ON
+                    publication.id = style.ballot_publication_id AND
+                    publication.tenant_id = style.tenant_id AND
+                    publication.election_event_id = style.election_event_id
+                JOIN sequent_backend.election election ON
+                    election.id = style.election_id AND
+                    election.tenant_id = style.tenant_id AND
+                    election.election_event_id = style.election_event_id
+                LEFT JOIN sequent_backend.keys_ceremony keys_ceremony ON
+                    keys_ceremony.id = election.keys_ceremony_id AND
+                    keys_ceremony.tenant_id = election.tenant_id AND
+                    keys_ceremony.election_event_id = election.election_event_id
+                WHERE
+                    style.id = $5 AND
+                    style.tenant_id = $1 AND
+                    style.election_event_id = $2 AND
+                    style.election_id = $3 AND
+                    style.area_id = $4 AND
+                    style.deleted_at IS NULL AND
+                    publication.is_generated IS TRUE AND
+                    publication.deleted_at IS NULL;
+            "#,
+        )
+        .await?;
+    let row = hasura_transaction
+        .query_opt(
+            &statement,
+            &[
+                tenant_id,
+                election_event_id,
+                election_id,
+                area_id,
+                ballot_style_id,
+                &with_ballot_eml,
+            ],
+        )
+        .await?;
+
+    row.map(|row| -> Result<CastVoteBallotStyle> {
+        Ok(CastVoteBallotStyle {
+            ballot_eml: row.try_get("ballot_eml")?,
+            keys_ceremony_public_key: row.try_get("keys_ceremony_public_key")?,
+        })
+    })
+    .transpose()
+}
