@@ -33,6 +33,8 @@ const ELECTION_ID: &str = "00000000-0000-0000-0000-000000000001";
 // And some as version 4 UUIDs.
 const UUID_V4_TENANT_ID: &str = "00000000-0000-4000-8000-00000000000a";
 const UUID_V4_EVENT_ID: &str = "00000000-0000-4000-8000-00000000000e";
+// A board name the platform mints.
+const BOARD: &str = "dkg_d9792af071b849528aac94bc0fead5f7";
 const PEM: &str =
     "-----BEGIN CERTIFICATE-----\nAA==\n-----END CERTIFICATE-----\n";
 
@@ -127,9 +129,10 @@ impl Case {
     }
 }
 
-/// A route path as a request URL: a dynamic `<id>` segment takes a UUID.
+/// A route path as a request URL: a dynamic `<id>` segment takes a UUID,
+/// and `<board>` a board name.
 pub(super) fn concrete(path: &str) -> String {
-    path.replace("<id>", ELECTION_ID)
+    path.replace("<id>", ELECTION_ID).replace("<board>", BOARD)
 }
 
 fn reply(
@@ -326,7 +329,10 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/get-users", {"tenant_id": TENANT_ID}, [USER_READ], BACKEND, UNAUTHORIZED),
         case!(Admin, "/get-users", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID}, [VOTER_READ], BACKEND_TEXT, UNAUTHORIZED),
         case!(Admin, "/trustee/action-result", {"id": "test-action", "request": {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "keys_ceremony_id": "test-ceremony", "trustee_name": "test-trustee", "signing_public_key": "fixture-signing-key", "share_encryption_public_key": "fixture-share-key"}, "status": "FAILED", "detail": "fixture error"}, [TRUSTEE_CEREMONY], BACKEND, UNAUTHORIZED_JSON),
-        case!(Admin, "/trustee/boards/report", {"board": "dkg_d9792af071b849528aac94bc0fead5f7", "kind": "HALTED", "detail": "fixture error"}, [TRUSTEE_CEREMONY], BACKEND, UNAUTHORIZED),
+        case!(Admin, "/trustee/boards/report", {"board": BOARD, "kind": "HALTED", "detail": "fixture error"}, [TRUSTEE_CEREMONY], BACKEND, UNAUTHORIZED),
+        // Board membership is read from the database before b4 is contacted.
+        case!(Admin, "/b4/boards/<board>/messages/initiate", {"size": 1}, [TRUSTEE_CEREMONY], BACKEND, UNAUTHORIZED),
+        case!(Admin, "/b4/boards/<board>/messages/<id>/confirm", {"data": null, "version": "fixture-version"}, [TRUSTEE_CEREMONY], BACKEND, UNAUTHORIZED),
         case!(Admin, "/trustee/request-server-custody", {"election_event_id": EVENT_ID, "keys_ceremony_id": "test-ceremony", "tally_session_id": "test-session", "custody_request_json": "{}"}, [TRUSTEE_CEREMONY], BACKEND, UNAUTHORIZED_JSON),
         case!(Voter, "/get-voter-cast-votes", {"election_event_id": EVENT_ID}, [CAST_VOTE], BACKEND, FORBIDDEN),
         // Looking ballots up by their ID first reads the checks period.

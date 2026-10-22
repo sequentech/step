@@ -37,4 +37,4 @@ if [[ ! -f "$TRUSTEE_CONFIG_PATH" ]]; then
     unset config_content
 fi
 
-exec trustee start --b4-url "${B4_URL:-${WBRAID_B4_URL:-}}" --trustee-config "$TRUSTEE_CONFIG_PATH"
+exec trustee start --b4-url "${B4_URL:?B4_URL is required: the Harvest board route, e.g. http://harvest:8400/b4}" --trustee-config "$TRUSTEE_CONFIG_PATH"

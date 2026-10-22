@@ -77,6 +77,20 @@ pub fn parse_signing_identity(contents: &str) -> Result<SigningKey> {
 static ELECTORAL_LOG_DATABASES: OnceCell<EventDatabases> = OnceCell::const_new();
 static ELECTORAL_LOG_CLIENT: OnceCell<BoardClient> = OnceCell::const_new();
 
+/// Keep the process-wide pools' connection tasks alive across database tests.
+/// A separate Tokio test runtime can shut down while another test uses its pool.
+#[cfg(test)]
+pub(crate) fn test_runtime() -> &'static tokio::runtime::Runtime {
+    static RUNTIME: std::sync::OnceLock<tokio::runtime::Runtime> = std::sync::OnceLock::new();
+    RUNTIME.get_or_init(|| {
+        tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(2)
+            .enable_all()
+            .build()
+            .expect("electoral log test runtime")
+    })
+}
+
 /// The process-wide pools of the election events' electoral-log databases.
 pub async fn get_event_databases() -> Result<EventDatabases> {
     let databases = ELECTORAL_LOG_DATABASES

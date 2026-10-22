@@ -296,8 +296,11 @@ services:
     ports:
       - 3002:8000
     stdin_open: true
+    # Forwards /b4/ to Harvest (resolved per request).
+    volumes:
+      - ./admin-portal-nginx:/etc/nginx/default.d:ro,z
     environment:
-        WBRAID_BOARD_URL: ${WBRAID_BOARD_PUBLIC_URL:-http://localhost:3005}
+        WBRAID_BOARD_URL: ${WBRAID_BOARD_PUBLIC_URL:-/b4}
         MAX_DIFF_LINES: ${MAX_DIFF_LINES}
         SECONDS_TO_SHOW_COUNTDOWN: ${SECONDS_TO_SHOW_COUNTDOWN}
         SECONDS_TO_SHOW_ALERT: ${SECONDS_TO_SHOW_ALERT}
@@ -440,6 +443,8 @@ services:
       CLOUDFLARE_API_KEY: ${CLOUDFLARE_API_KEY}
       CUSTOM_URLS_IP_DNS_CONTENT: ${CUSTOM_URLS_IP_DNS_CONTENT}
       WBRAID_B4_URL: http://b4v6:3005
+      # Other origins whose pages may read boards (`*` or a comma-separated list); empty: the admin portal only.
+      HARVEST_B4_READ_ORIGINS: ${HARVEST_B4_READ_ORIGINS:-}
       WBRAID_BOARD_DATABASE_URL: postgres://postgres@postgres-b4v6:5432/wbraid_board
       WBRAID_B4_PG_PASSWORD: ${WBRAID_B4_PG_PASSWORD}
       # The monitoring renderer, reached on the internal monitoring-renderer
@@ -527,7 +532,7 @@ services:
     image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/b4v6:STEP_VERSION
     platform: linux/amd64
     restart: unless-stopped
-    ports: ["3005:3005"]
+    # Not published: trustees reach the board through Harvest (/b4).
     depends_on:
       postgres-b4v6:
         condition: service_healthy
@@ -560,7 +565,7 @@ services:
       AWS_REGION: ${AWS_REGION}
       VAULT_SERVER_URL: ${VAULT_SERVER_URL}
       VAULT_TOKEN: ${VAULT_TOKEN}
-      B4_URL: http://b4v6:3005
+      B4_URL: http://${HARVEST_DOMAIN}/b4
       TRUSTEE_PASSWORD: ${TRUSTEE1_PASSWORD}
       TRUSTEE_PLATFORM_URL: ${TRUSTEE_PLATFORM_URL:-${HASURA_ENDPOINT}}
       TRUSTEE_KEYCLOAK_URL: ${KEYCLOAK_URL}
@@ -593,7 +598,7 @@ services:
       AWS_REGION: ${AWS_REGION}
       VAULT_SERVER_URL: ${VAULT_SERVER_URL}
       VAULT_TOKEN: ${VAULT_TOKEN}
-      B4_URL: http://b4v6:3005
+      B4_URL: http://${HARVEST_DOMAIN}/b4
       TRUSTEE_PASSWORD: ${TRUSTEE2_PASSWORD}
       TRUSTEE_PLATFORM_URL: ${TRUSTEE_PLATFORM_URL:-${HASURA_ENDPOINT}}
       TRUSTEE_KEYCLOAK_URL: ${KEYCLOAK_URL}

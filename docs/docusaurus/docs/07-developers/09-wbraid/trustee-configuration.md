@@ -46,7 +46,98 @@ when running on the development host, or `http://graphql-engine:8080/v1/graphql`
 inside the development Compose network. A separately hosted trustee can use the
 production public endpoint. The runner sends fixed JSON requests using its
 existing HTTP client; it needs no GraphQL client library or schema generation.
-Containers use `http://b4v6:3005` for the supplied native board service.
+Set `B4_URL` to Harvest's board forward (see [Board access](#board-access)):
+`http://harvest:8400/b4` inside the Compose network, or
+`https://<admin-domain>/b4` for a trustee outside it.
+
+## Board access
+
+The board service (`b4v6`) is private. Trustees reach it only through Harvest at
+`/b4/*`, which uses the trustee's bearer token:
+
+| Route                                           | Access                                                             |
+| ----------------------------------------------- | ------------------------------------------------------------------ |
+| `GET /b4/boards/<board>/messages`               | Public, for verification                                           |
+| `POST /b4/boards/<board>/messages/initiate`     | Trustee token with the `trustee-ceremony` role, assigned the board |
+| `POST /b4/boards/<board>/messages/<id>/confirm` | Same                                                               |
+
+Harvest does not forward the caller's `Authorization` header to b4. It reaches
+b4 at `WBRAID_B4_URL`. Windmill creates boards and publishes messages directly
+at `WBRAID_B4_URL` (`http://b4v6:3005`). Presigned S3 URLs are unchanged.
+
+Pages read boards from the admin-portal origin, which needs no CORS. To let
+verifier pages on other origins read `GET /b4/boards/<board>/messages`, set
+Harvest's `HARVEST_B4_READ_ORIGINS`:
+
+| Value                                            | Pages that may read boards                                               |
+| ------------------------------------------------ | ------------------------------------------------------------------------ |
+| unset or empty (default)                         | The admin portal only; no `Access-Control-Allow-Origin` header           |
+| `https://verifier.example,https://other.example` | Those origins: Harvest echoes a listed `Origin` and sends `Vary: Origin` |
+| `*`                                              | Any origin                                                               |
+
+Board writes never allow other origins. Don't also set
+`Access-Control-Allow-Origin` for `/b4/` on the ingress: browsers reject an
+answer that carries the header twice.
+
+Every deployment needs one forward rule on the admin-portal domain:
+
+- `/b4/` goes to Harvest (`harvest:<HARVEST_PORT>`) with the `/b4/` prefix kept.
+  Pass the `Authorization` header and the request body through unchanged, and
+  allow bodies of at least 2 MB (b4's JSON request limit).
+- Do not publish b4 or make it reachable from outside the private network.
+
+The checked-in setups apply this rule as follows:
+
+- **Development:** the admin portal's webpack dev server forwards `/b4/` to
+  `http://${HARVEST_DOMAIN}`, or `http://harvest:8400` when `HARVEST_DOMAIN` is
+  unset, as in the devcontainer. b4 keeps port 3005 for wbraid tooling and
+  direct E2E reads.
+- **Remote:** the `nginx-proxy` admin server block
+  (`.devcontainer/nginx/default.conf.template`).
+- **Air-gapped:** the admin portal's own nginx includes
+  `.devcontainer/admin-portal-nginx/b4.conf` from `/etc/nginx/default.d/`.
+- **Production:** configure the same rule on the ingress or web server that
+  serves the admin-portal domain.
+
+The nginx files resolve `harvest` through Docker's DNS on each request and
+hardcode the Harvest port of their deployment (8000 remote, 8400 air-gapped);
+change it there if you change `HARVEST_PORT`.
+
+### Upgrading an existing deployment
+
+- **Remote:** `configure-environment.sh` writes `.devcontainer/nginx/default.conf`
+  only once, so add this block to the admin `server` block by hand, after
+  `location /`, then restart `nginx-proxy`:
+
+  ```nginx
+  location /b4/ {
+      resolver 127.0.0.11 valid=10s ipv6=off;
+      set $harvest_upstream harvest:8000; # HARVEST_PORT
+      if ($request_uri !~ "^/b4/") {
+          return 404;
+      }
+      proxy_pass http://$harvest_upstream;
+      proxy_set_header Host $host;
+      proxy_set_header X-Real-IP $remote_addr;
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+      proxy_set_header X-Forwarded-Proto https;
+      client_max_body_size 2m;
+  }
+  ```
+
+- Unset `WBRAID_BOARD_PUBLIC_URL`, or set it to `/b4`. The admin portal's
+  `WBRAID_BOARD_URL` must be on the portal's own origin: board writes carry an
+  `Authorization` header, which on another origin triggers a CORS preflight
+  that the forward does not answer.
+- Native trustees must set `B4_URL` to the Harvest `/b4` URL
+  (`https://<admin-domain>/b4` outside the network). The trustee image no longer
+  falls back to `WBRAID_B4_URL` and fails at startup without `B4_URL`.
+- Finish browser trustee ceremonies before upgrading. Browser session stores
+  and backups are tied to the board URL, so sessions and backups made under the
+  old absolute URL are not found, or are refused, under `/b4`. Native trustees
+  are unaffected.
+- Rebuild the admin-portal image, which now includes `/etc/nginx/default.d/`
+  locations (`packages/default.conf`), before relying on the air-gapped forward.
 
 ## Development workspace
 
@@ -72,15 +163,16 @@ override or update it when migrating a workspace. The default
 through public loopback DNS from a browser and a network alias inside Compose.
 No browser-host hosts-file change is needed. Older workspaces with an explicit
 `http://localstack:4566` override must update it to this default.
-The browser board URL defaults to `http://localhost:3005` through
-`WBRAID_BOARD_PUBLIC_URL`.
+The browser board URL defaults to `/b4` on the portal's own origin, which the
+dev server forwards to Harvest.
 
 The full and backend devcontainers forward ports **3002** (admin portal),
-**3005** (board), **4566** (storage), **8080** (Hasura) and **8090** (Keycloak).
+**3005** (board, for wbraid tooling and direct E2E reads), **4566** (storage),
+**8080** (Hasura) and **8090** (Keycloak).
 These ports must retain their local numbers; VS Code reports a conflict instead
 of silently selecting another port. Use the local forwarded admin URL,
 `http://localhost:3002/trustee`, when developing through a remote workspace.
-An HTTPS preview URL also requires HTTPS board and storage endpoints.
+An HTTPS preview URL also requires an HTTPS storage endpoint.
 
 ### Browser trustee accounts
 
@@ -319,6 +411,24 @@ sessions together; keep this JSON file private. **Restore browser backup** resto
 them into a fresh browser. A keys file alone is insufficient to restore a tally
 participant in a different browser: the recorded DKG commitments must survive.
 A Web Lock prevents two tabs in the same browser from running the same identity.
+
+After importing keys or restoring a backup, **Local session history** shows the
+readable history-record and own-post counts for known boards, including the DKG
+parents of assigned tallies. The **Session entries** collection starts collapsed;
+expand it to show all board entries, their counts, database names and parent-history
+warnings. The section heading and refresh controls remain visible.
+**Refresh boards** includes current assignments;
+**Refresh local history** rereads their local stores while the runner is stopped.
+Counts also refresh after each participation cycle. The displayed browser origin,
+board service URL and database name identify the storage the loaded trustee uses.
+Use the same literal board URL when resuming: `/b4` and an absolute URL select
+different stores even when they reach the same server. Empty parent history is
+flagged, and storage decoding failures appear as errors rather than zero counts.
+Nonzero counts confirm readable records, not a completed or valid ceremony;
+normal protocol verification still runs. Imported elections can also reuse the
+original DKG board's history. Restoring history does not reopen a failed tally;
+start a new tally session after recovery.
+
 Do not clear browser storage or run the same identity in another browser or native
 runner during a ceremony. Native SQLite stores and browser IndexedDB stores are distinct; a
 native keys file can enroll a browser participant before DKG, but moving an active
@@ -347,12 +457,14 @@ scope. The browser rejects requests for another trustee or either wrong public k
 Production browser participation requires HTTPS, WebAssembly threads, IndexedDB,
 the Web Locks API, and cross-origin isolation. The admin image serves COOP `same-origin` and COEP
 `require-corp` headers on documents and worker assets; preserve them at the ingress.
-The board service and its presigned S3 URLs must be reachable by the browser, use
-HTTPS in production, and permit the portal origin through CORS. Configure:
+The browser reaches the board through the admin domain's `/b4/` forward
+([Board access](#board-access)), so the board needs no CORS configuration. The
+presigned S3 URLs must be reachable by the browser, use HTTPS in production, and
+permit the portal origin through CORS. Configure:
 
 | Setting                  | Purpose                                                                                                                |
 | ------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
-| Admin `WBRAID_BOARD_URL` | Browser-reachable native board URL; Compose reads `WBRAID_BOARD_PUBLIC_URL`                                            |
+| Admin `WBRAID_BOARD_URL` | Board URL for the browser; defaults to `/b4` on the portal origin; Compose reads `WBRAID_BOARD_PUBLIC_URL`             |
 | Admin `HASURA_URL`       | Public GraphQL endpoint used for assigned-board discovery and halt reports; locally `http://localhost:8080/v1/graphql` |
 
 The displayed **Platform URL** is `HASURA_URL`. Browser trustees use the
@@ -360,8 +472,8 @@ The displayed **Platform URL** is `HASURA_URL`. Browser trustees use the
 `report_trustee_board` mutation with their bearer
 token and the `trustee-ceremony` role. Hasura forwards those calls internally to
 Harvest, which independently verifies the JWT, tenant, trustee identity and
-assigned board. Harvest remains private and needs no browser-facing URL or CORS
-configuration. Server trustees use `trustee_event_updates` for discovery and pending work, and
+assigned board. Apart from the `/b4/` forward, Harvest remains private and needs
+no browser-facing URL or CORS configuration. Server trustees use `trustee_event_updates` for discovery and pending work, and
 `report_trustee_board` for halts, with the same bearer token and role through
 `TRUSTEE_PLATFORM_URL`. Both require an explicit successful report
 acknowledgement before clearing a pending halt.

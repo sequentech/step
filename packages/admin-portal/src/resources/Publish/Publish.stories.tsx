@@ -363,6 +363,7 @@ const meta = {
                 return {data: publication() as unknown as RecordType}
             },
         })
+        await boundary.ready
         return () => {
             expect(boundary.unexpected).toEqual([])
             expect(data.unexpected).toEqual([])

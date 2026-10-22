@@ -294,13 +294,13 @@ class BootstrapAdminContracts(unittest.TestCase):
         self.enterContext(
             patch.dict(
                 os.environ,
-                {"ADMIN_USERNAME": "admin", "ADMIN_PASSWORD": "synthetic-password"},
+                {"ADMIN_USERNAME": "admin", "ADMIN_PASSWORD": "admin"},
             )
         )
         self.reset = (
             "PUT",
             f"{bootstrap.TENANT_REALM}/users/admin-id/reset-password",
-            {"type": "password", "value": "synthetic-password", "temporary": False},
+            {"type": "password", "value": "admin", "temporary": False},
         )
 
     def test_enrollment_completes_required_names_when_email_already_exists(self):
@@ -322,7 +322,7 @@ class BootstrapAdminContracts(unittest.TestCase):
         }
         with patch.object(bootstrap, "email_otp_config", return_value=config):
             self.assertTrue(
-                bootstrap.enroll_mfa(keycloak, "trustee1", "synthetic-password")
+                bootstrap.enroll_mfa(keycloak, "trustee1", "trustee1")
             )
         profile = keycloak.admin.call_args_list[1].args[2]
         self.assertEqual(
@@ -340,7 +340,7 @@ class BootstrapAdminContracts(unittest.TestCase):
             "admin-portal",
             "http://127.0.0.1:3002/",
             "trustee1",
-            "synthetic-password",
+            "trustee1",
             otp="123456",
         )
         self.assertEqual(config["config"]["test-mode"], "false")
@@ -350,8 +350,8 @@ class BootstrapAdminContracts(unittest.TestCase):
         with patch.dict(
             os.environ,
             {
-                "TRUSTEE1_PASSWORD": "trustee-one",
-                "TRUSTEE2_PASSWORD": "trustee-two",
+                "TRUSTEE1_PASSWORD": "trustee1",
+                "TRUSTEE2_PASSWORD": "trustee2",
                 "TRUSTEE_KEYCLOAK_CLIENT_ID": "trustee-client",
                 "TRUSTEE_KEYCLOAK_CLIENT_SECRET": "synthetic-secret",
             },
@@ -362,15 +362,15 @@ class BootstrapAdminContracts(unittest.TestCase):
         self.assertEqual(
             passwords.call_args_list,
             [
-                unittest.mock.call(keycloak, "trustee1", "trustee-one"),
-                unittest.mock.call(keycloak, "trustee2", "trustee-two"),
+                unittest.mock.call(keycloak, "trustee1", "trustee1"),
+                unittest.mock.call(keycloak, "trustee2", "trustee2"),
             ],
         )
         self.assertEqual(
             enroll.call_args_list,
             [
-                unittest.mock.call(keycloak, "trustee1", "trustee-one"),
-                unittest.mock.call(keycloak, "trustee2", "trustee-two"),
+                unittest.mock.call(keycloak, "trustee1", "trustee1"),
+                unittest.mock.call(keycloak, "trustee2", "trustee2"),
             ],
         )
         self.assertEqual(
@@ -380,18 +380,45 @@ class BootstrapAdminContracts(unittest.TestCase):
                     bootstrap.TENANT_REALM,
                     "trustee-client",
                     "trustee1",
-                    "trustee-one",
+                    "trustee1",
                     "synthetic-secret",
                 ),
                 unittest.mock.call(
                     bootstrap.TENANT_REALM,
                     "trustee-client",
                     "trustee2",
-                    "trustee-two",
+                    "trustee2",
                     "synthetic-secret",
                 ),
             ],
         )
+
+    def test_bootstrap_configures_the_generated_api_client_secret(self):
+        keycloak = MagicMock()
+        keycloak.admin.return_value = [{"id": "api-client-id", "clientId": "api-key-client"}]
+        with patch.dict(os.environ, {"API_KEY_CLIENT_SECRET": "synthetic-client-secret"}):
+            bootstrap.configure_api_client(keycloak)
+        self.assertEqual(
+            keycloak.admin.call_args_list,
+            [
+                unittest.mock.call("GET", f"{bootstrap.TENANT_REALM}/clients?clientId=api-key-client"),
+                unittest.mock.call(
+                    "PUT",
+                    f"{bootstrap.TENANT_REALM}/clients/api-client-id",
+                    {"enabled": True, "secret": "synthetic-client-secret"},
+                    expect=(204,),
+                ),
+            ],
+        )
+
+    def test_bootstrap_refuses_missing_or_ambiguous_api_clients(self):
+        for clients in ([], [{"id": "one"}, {"id": "two"}]):
+            with self.subTest(clients=clients):
+                keycloak = MagicMock()
+                keycloak.admin.return_value = clients
+                with self.assertRaisesRegex(AssertionError, "Expected one api-key-client"):
+                    bootstrap.configure_api_client(keycloak)
+                self.assertEqual(keycloak.admin.call_count, 1)
 
     def test_an_administrator_without_a_password_gets_the_configured_one(self):
         keycloak = FakeKeycloak([])
@@ -414,6 +441,9 @@ class BootstrapAdminContracts(unittest.TestCase):
             configure_step_cli=MagicMock(),
             seed_trustees=MagicMock(),
             enroll_trustees=MagicMock(),
+            configure_api_client=MagicMock(
+                side_effect=lambda keycloak: calls.append("api client")
+            ),
             set_admin_password=MagicMock(
                 side_effect=lambda keycloak: calls.append("password")
             ),
@@ -422,7 +452,7 @@ class BootstrapAdminContracts(unittest.TestCase):
             ),
         ), contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(bootstrap.main(), 0)
-        self.assertEqual(calls, ["password", "enroll"])
+        self.assertEqual(calls, ["api client", "password", "enroll"])
 
 
 class CoveragePackageContracts(unittest.TestCase):
@@ -545,6 +575,10 @@ class CombinedBallotInputContracts(unittest.TestCase):
             )
             with path.open(newline="") as handle:
                 rows = list(csv.DictReader(handle))
+            self.assertEqual(
+                [r["password"] for r in rows],
+                ["e2e-weighted-a1", "e2e-weighted-a2"],
+            )
             self.assertEqual(
                 [
                     (r["username"], r["vote-weight"], r["authorized-election-ids"])

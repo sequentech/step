@@ -23,6 +23,11 @@ image that executes them. Allow at least 8 GB RAM and 40 GB free disk space; use
 creates a uniquely named `step-e2e-...` Compose project without publishing host ports. It
 removes that project's containers and volumes when finished.
 
+The isolated bootstrap enables the tenant's `api-key-client` and assigns
+`API_KEY_CLIENT_SECRET` from the test environment before authenticating the
+administrator and trustees. Tenant creation rotates client secrets; the realm
+template's defaults do not provide credentials for the generated realm.
+
 For iteration:
 
 ```bash

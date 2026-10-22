@@ -6,6 +6,7 @@ const engine = (): TrusteeEngine => ({
     publicKeys: jest.fn(),
     attest: jest.fn(),
     backup: jest.fn(),
+    sessionHistory: jest.fn(),
     restoreBackup: jest.fn(),
     free: jest.fn(),
     advance: jest.fn().mockResolvedValue("[]"),
@@ -43,7 +44,7 @@ it("creates the exact queued tally proof locally while continuing its protocol b
             ok: true,
             json: async () => ({data: {submit_trustee_action_result: {accepted: true}}}),
         })
-    expect(await runBrowserCycle(e, "https://platform", "token", jest.fn())).toEqual([board])
+    expect(await runBrowserCycle(e, "https://platform", () => "token", jest.fn())).toEqual([board])
     expect(e.attest).toHaveBeenCalledWith(JSON.stringify(custodyRequest))
     const submission = JSON.parse((global.fetch as jest.Mock).mock.calls[1][1].body)
     expect(submission.query).toContain("submit_trustee_action_result")
@@ -76,7 +77,7 @@ it("reports a local key mismatch without authorizing custody or stopping its boa
                 }),
             }
         })
-    await runBrowserCycle(e, "platform", "token", jest.fn())
+    await runBrowserCycle(e, "platform", () => "token", jest.fn())
     const submitted = JSON.parse((global.fetch as jest.Mock).mock.calls[1][1].body)
     expect(submitted.variables.result).toEqual({
         id: "action",
@@ -100,7 +101,7 @@ it("skips future action kinds while running assigned boards", async () => {
             },
         }),
     })
-    await runBrowserCycle(e, "platform", "token", jest.fn())
+    await runBrowserCycle(e, "platform", () => "token", jest.fn())
     expect(e.attest).not.toHaveBeenCalled()
     expect(e.advance).toHaveBeenCalledWith(JSON.stringify([board]))
 })
@@ -126,9 +127,9 @@ it.each([
             ok: true,
             json: async () => ({data: {submit_trustee_action_result: {accepted: true}}}),
         })
-    await expect(runBrowserCycle(e, "platform", "token", jest.fn())).rejects.toThrow()
+    await expect(runBrowserCycle(e, "platform", () => "token", jest.fn())).rejects.toThrow()
     expect(e.advance).not.toHaveBeenCalled()
-    await runBrowserCycle(e, "platform", "token", jest.fn())
+    await runBrowserCycle(e, "platform", () => "token", jest.fn())
     const calls = (global.fetch as jest.Mock).mock.calls
     expect(JSON.parse(calls[1][1].body).variables).toEqual(JSON.parse(calls[3][1].body).variables)
     expect(e.attest).toHaveBeenCalledTimes(2)
@@ -145,7 +146,7 @@ it.each([
         ok: true,
         json: async () => ({data: {trustee_event_updates: {boards: [board], actions}}}),
     })
-    await expect(runBrowserCycle(e, "platform", "token", jest.fn())).rejects.toThrow()
+    await expect(runBrowserCycle(e, "platform", () => "token", jest.fn())).rejects.toThrow()
     expect(e.attest).not.toHaveBeenCalled()
     expect(e.advance).not.toHaveBeenCalled()
 })
@@ -166,7 +167,7 @@ it("discovers authorized boards and preserves their DKG parents", async () => {
         json: async () => ({data: {trustee_event_updates: {boards: [board]}}}),
     })
     expect(
-        await runBrowserCycle(e, "https://platform/v1/graphql", "issued-token", remember)
+        await runBrowserCycle(e, "https://platform/v1/graphql", () => "issued-token", remember)
     ).toEqual([board])
     expect(global.fetch).toHaveBeenCalledWith("https://platform/v1/graphql", {
         method: "POST",
@@ -194,7 +195,9 @@ it("keeps halt reports pending until the platform records them", async () => {
             json: async () => ({data: {trustee_event_updates: {boards: [board]}}}),
         })
         .mockResolvedValueOnce({ok: false, status: 503})
-    await expect(runBrowserCycle(e, "https://platform", "token", jest.fn())).rejects.toThrow("503")
+    await expect(runBrowserCycle(e, "https://platform", () => "token", jest.fn())).rejects.toThrow(
+        "503"
+    )
     expect(e.settle).not.toHaveBeenCalled()
     global.fetch = jest
         .fn()
@@ -206,7 +209,7 @@ it("keeps halt reports pending until the platform records them", async () => {
             ok: true,
             json: async () => ({data: {report_trustee_board: {accepted: true}}}),
         })
-    await runBrowserCycle(e, "https://platform", "token", jest.fn())
+    await runBrowserCycle(e, "https://platform", () => "token", jest.fn())
     expect(e.settle).toHaveBeenCalledWith(board.name)
     const request = JSON.parse((global.fetch as jest.Mock).mock.calls[1][1].body)
     expect(request.query).toContain("report_trustee_board")
@@ -220,9 +223,9 @@ it("does not run without authentication or with untrusted malformed hints", asyn
             data: {trustee_event_updates: {boards: [{...board, parent: "foreign"}]}},
         }),
     })
-    await expect(runBrowserCycle(e, "url", "", jest.fn())).rejects.toThrow("Sign in")
+    await expect(runBrowserCycle(e, "url", () => "", jest.fn())).rejects.toThrow("Sign in")
     expect(global.fetch).not.toHaveBeenCalled()
-    await expect(runBrowserCycle(e, "url", "token", jest.fn())).rejects.toThrow(
+    await expect(runBrowserCycle(e, "url", () => "token", jest.fn())).rejects.toThrow(
         "Invalid trustee board response"
     )
     expect(e.advance).not.toHaveBeenCalled()
@@ -235,7 +238,7 @@ it("does not advance when Hasura returns an authorization error over HTTP 200", 
         json: async () => ({errors: [{message: "permission denied"}]}),
     })
     await expect(
-        runBrowserCycle(e, "https://platform/v1/graphql", "token", jest.fn())
+        runBrowserCycle(e, "https://platform/v1/graphql", () => "token", jest.fn())
     ).rejects.toThrow("permission denied")
     expect(e.advance).not.toHaveBeenCalled()
 })
@@ -257,7 +260,7 @@ it.each([
         })
         .mockResolvedValueOnce({ok: true, json: async () => result})
     await expect(
-        runBrowserCycle(e, "https://platform/v1/graphql", "token", jest.fn())
+        runBrowserCycle(e, "https://platform/v1/graphql", () => "token", jest.fn())
     ).rejects.toThrow()
     expect(e.settle).not.toHaveBeenCalled()
 })
