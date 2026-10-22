@@ -45,6 +45,11 @@ isolation themselves. Database and browser fixtures must be installed locally;
 never substitute a deployment endpoint or production credentials. Use focused
 Cargo tests while editing and a complete measurement after the changes stabilize.
 
+The Windmill and error-conversion macro profiles set both
+`WBRAID_BOARD_DATABASE_URL` and `WBRAID_B4_PG_PASSWORD` to the synthetic fixture.
+The password setting takes precedence over credentials in the URL, so declaring
+both prevents an inherited development credential from breaking archive tests.
+
 ## Interpret the reports
 
 - Lines, functions and LLVM regions are distinct native metrics. LLVM regions
