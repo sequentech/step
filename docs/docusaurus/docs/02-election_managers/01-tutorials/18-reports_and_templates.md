@@ -20,18 +20,31 @@ To generate a report, you need to select the Election Event in the Admin Portal 
 
 After creating a report entry, you will see it in the list. Click on the actions menu (3 dots on the right side) and choose:
 
-- **Generate:** Create a report based on real data
-- **Preview:** Generate an example of that report template based on mock data
+- **Generate:** Create a report based on real data. Only **Activity Logs** and **Participation Report** have this action.
+- **Preview:** Show the template with example data. The preview does not contain real data.
 
 ## Report Types
+
+| Report type | Content | How you get the real document | Share outside the election organization |
+| --- | --- | --- | --- |
+| **Initialization Report** | For each election: the voting period, the registered voters, the ballots counted and the votes of each candidate. It is made before voting, so the counts are zero. | **Generate Initialization Report** on the **Tally** tab. See [Initialization report](11-admin_portal_tutorials_initialization-report.md). | Yes |
+| **Electoral Results** | For each contest, area and channel: the participation, the valid, blank and invalid votes, and the votes and winning position of each candidate. | The tally ceremony makes it. See [Get the Results](../03-procedures/07-results.md). | Yes |
+| **Participation Report** | The number of voters, the number of voters that voted, the votes and the participation, for the election event or one election. | **Generate** on the **Reports** tab. | Yes |
+| **Activity Logs** | The electoral log of the election event: each record with its date, kind, user id and full message. | **Generate** on the **Reports** tab, or the export button on the **Logs** tab. See [Election logs](19-admin_portal_tutorials_election-logs.md). | No. The records of the votes contain the identifier, the IP address and the country of each voter. |
+| **Ballot Images** | One image of each decrypted ballot, for each contest and area. | **Generate Ballot Images** in the results of a tally, only if your platform has the ballot images export. | No. In an area with few voters, a person can find how a voter voted. |
+| **Ballot Receipt** | The ballot ID of one voter and a link to find the ballot. It contains no vote. | The voter downloads it after casting the vote. | Only the voter |
+| **Manual Verification** | A sign-in link for one voter. | An action on the voter. | No |
+| **Credentials** | The voter information letter, with the username and the password of one voter. | An action on the voter. | No |
+
+The **Report hash** on a report identifies the moment when the platform made the report. It does
+not cover the content of the report.
+
+To select the documents for candidates and observers after an election, see
+[Prepare the Audit Pack](../03-procedures/08-audit-pack.md).
 
 ### Voters Turnout
 
 **Note:** To display male and female percentages, the sex attribute must have been added. Check out [how to add the sex attribute](./99-admin_portal_tutorials_add-user-attributes-to-keycloak.md).
-
-### Other Report Types
-
-*Additional report types will be documented here as they become available.*
 
 ## Voter Fields in Reports
 

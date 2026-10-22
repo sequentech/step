@@ -41,6 +41,7 @@ election with the Sequent Online Voting admin portal, version **10.0**.
 | 5 | [Publish and Manage the Voting Period](03-procedures/05-publish.md) | Publish the ballot; open, pause and close the voting | Election administrator | Voters can vote. Then the voting period is closed. |
 | 6 | [Run the Tally Ceremony](03-procedures/06-tally.md) | Decrypt and count the votes | Election administrator and trustees | The votes are decrypted and counted. |
 | 7 | [Get the Results](03-procedures/07-results.md) | Results, reports and the results website | Election administrator | You have the result documents. The public can see the results. |
+| 8 | [Prepare the Audit Pack](03-procedures/08-audit-pack.md) | The documents that show the election was secret and correct | Election administrator | You know which documents you can give to candidates and observers. |
 
 ## Versions and languages
 

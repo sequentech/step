@@ -104,6 +104,9 @@ menu. To check the electoral log of an election event, export it and contact Seq
 - Compare the records of the tally with the records of the tally ceremony.
 - Export the log at the end of the election, and keep it with the other records. See
   [Get the Results](../03-procedures/07-results.md#5-keep-the-records).
+- Do not give the log to persons outside the election organization. The records of the votes
+  contain the identifier, the username, the IP address and the country of each voter. See
+  [Prepare the Audit Pack](../03-procedures/08-audit-pack.md#2-select-the-documents-to-share).
 
 ## If there is a problem
 

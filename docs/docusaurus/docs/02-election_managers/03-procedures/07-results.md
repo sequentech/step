@@ -138,6 +138,10 @@ For more information, see [Results website](../02-results-website.md) and [Elect
 | A format is not in the menu. | The platform did not make that document for the item. Contact Sequent support. |
 | The number of votes is not what you expect. | Do not publish the results. Check the publication, the areas and the **Logs** tab, then contact Sequent support. |
 
+## Next
+
+[Prepare the Audit Pack](08-audit-pack.md)
+
 ## More information
 
 - [Election results in depth](../01-tutorials/17-admin_portal_tutorials_election-results.md)
