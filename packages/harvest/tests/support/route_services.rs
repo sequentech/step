@@ -22,7 +22,7 @@ use crate::adapters::monitoring_snapshots::WindmillMonitoringSnapshots;
 use crate::ports::database::DatabasePools;
 use crate::ports::monitoring_renderer::MonitoringRenderer;
 use crate::ports::monitoring_snapshots::MonitoringSnapshots;
-use crate::routes::b4::BoardService;
+use crate::routes::b4::{BoardService, ReadOrigins};
 use crate::routes::fake_provider::FakeProviderRoutes;
 use crate::routes::messaging::MessagingRelay;
 use crate::services::dependencies::{HarvestServices, MonitoringCache};
@@ -75,6 +75,8 @@ pub struct Services {
     /// The board service's address; none (answered 502) unless a test sets
     /// it.
     pub b4_url: Option<String>,
+    /// Which other origins may read boards from a page; none by default.
+    pub b4_read_origins: ReadOrigins,
     pub cast_votes: Arc<ScriptedCastVotes>,
     pub hasura: Arc<Pool>,
     pub keycloak: Arc<Pool>,
@@ -120,6 +122,7 @@ impl Services {
     fn with_pool(pool: Arc<Pool>) -> Self {
         Self {
             b4_url: None,
+            b4_read_origins: ReadOrigins::SameOrigin,
             cast_votes: Default::default(),
             hasura: pool.clone(),
             keycloak: pool,
@@ -234,6 +237,11 @@ impl Services {
         self
     }
 
+    pub fn with_b4_read_origins(mut self, origins: ReadOrigins) -> Self {
+        self.b4_read_origins = origins;
+        self
+    }
+
     pub fn with_messaging_webhooks_url(mut self, url: &str) -> Self {
         self.messaging_webhooks_url = Some(url.to_string());
         self
@@ -293,7 +301,8 @@ impl Services {
                 self.monitoring_snapshots.clone()
             };
         HarvestServices {
-            b4: BoardService::new(self.b4_url.as_deref()),
+            b4: BoardService::new(self.b4_url.as_deref())
+                .with_read_origins(self.b4_read_origins.clone()),
             cast_votes: self.cast_votes.clone(),
             databases,
             documents: self.documents.clone(),

@@ -65,6 +65,20 @@ Harvest does not forward the caller's `Authorization` header to b4. It reaches
 b4 at `WBRAID_B4_URL`. Windmill creates boards and publishes messages directly
 at `WBRAID_B4_URL` (`http://b4v6:3005`). Presigned S3 URLs are unchanged.
 
+Pages read boards from the admin-portal origin, which needs no CORS. To let
+verifier pages on other origins read `GET /b4/boards/<board>/messages`, set
+Harvest's `HARVEST_B4_READ_ORIGINS`:
+
+| Value                                            | Pages that may read boards                                               |
+| ------------------------------------------------ | ------------------------------------------------------------------------ |
+| unset or empty (default)                         | The admin portal only; no `Access-Control-Allow-Origin` header           |
+| `https://verifier.example,https://other.example` | Those origins: Harvest echoes a listed `Origin` and sends `Vary: Origin` |
+| `*`                                              | Any origin                                                               |
+
+Board writes never allow other origins. Don't also set
+`Access-Control-Allow-Origin` for `/b4/` on the ingress: browsers reject an
+answer that carries the header twice.
+
 Every deployment needs one forward rule on the admin-portal domain:
 
 - `/b4/` goes to Harvest (`harvest:<HARVEST_PORT>`) with the `/b4/` prefix kept.

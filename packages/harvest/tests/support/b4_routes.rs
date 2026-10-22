@@ -5,7 +5,9 @@
 //! what reaches b4, and what comes back. Membership is read from the
 //! migrated test database.
 
-use super::{ALLOW_ORIGIN, ANY_ORIGIN, BODY_LIMIT_BYTES, UNREACHABLE};
+use super::{
+    ReadOrigins, ALLOW_ORIGIN, ANY_ORIGIN, BODY_LIMIT_BYTES, UNREACHABLE,
+};
 use crate::route_services::http::{Exchange, HttpServer, Request};
 use crate::route_services::rows::{self, Event};
 use crate::route_services::Services;
@@ -386,15 +388,16 @@ async fn b4_board_reads_are_public_and_pass_the_query_on() {
         .await;
     assert_eq!(response.status(), Status::Ok);
     assert_eq!(response.content_type(), Some(ContentType::JSON));
-    assert_eq!(allowed_origin(&response).as_deref(), Some(ANY_ORIGIN));
+    // By default only the admin portal reads, from its own origin.
+    assert_eq!(allowed_origin(&response), None);
     let body: Value =
         serde_json::from_str(&response.into_string().await.unwrap()).unwrap();
     assert_eq!(body, messages);
 
-    // b4's failure is passed back as it is, and readable from any page.
+    // b4's failure is passed back as it is.
     let response = client.get(format!("/b4{path}")).dispatch().await;
     assert_eq!(response.status(), Status::InternalServerError);
-    assert_eq!(allowed_origin(&response).as_deref(), Some(ANY_ORIGIN));
+    assert_eq!(allowed_origin(&response), None);
 
     let requests = peer.finish();
     assert_eq!(requests.len(), 2);
@@ -417,10 +420,73 @@ async fn b4_board_reads_answer_bad_gateway_without_naming_b4() {
             .get(format!("/b4/boards/{board}/messages"))
             .dispatch()
             .await;
-        assert_eq!(allowed_origin(&response).as_deref(), Some(ANY_ORIGIN));
+        assert_eq!(allowed_origin(&response), None);
         assert_eq!(
             refusal(response).await,
             (Status::BadGateway, UNREACHABLE.to_string())
         );
+    }
+}
+
+#[test]
+fn b4_read_origins_are_parsed_from_their_variable() {
+    for unset in [None, Some(""), Some("  ")] {
+        assert_eq!(ReadOrigins::parse(unset), ReadOrigins::SameOrigin);
+    }
+    assert_eq!(ReadOrigins::parse(Some(" * ")), ReadOrigins::AnyOrigin);
+    assert_eq!(
+        ReadOrigins::parse(Some(
+            "https://verifier.example, http://localhost:3000/,not an origin,\
+             https://x.example/path"
+        )),
+        ReadOrigins::Listed(vec![
+            "https://verifier.example".to_string(),
+            "http://localhost:3000".to_string(),
+        ])
+    );
+    // Nothing usable listed: only the admin portal's own origin.
+    assert_eq!(
+        ReadOrigins::parse(Some("ftp://x.example")),
+        ReadOrigins::SameOrigin
+    );
+}
+
+/// A board read from a page on `origin`, or from no page.
+async fn read_board<'c>(
+    client: &'c Client,
+    path: &str,
+    origin: Option<&str>,
+) -> LocalResponse<'c> {
+    let mut request = client.get(path.to_string());
+    if let Some(origin) = origin {
+        request = request.header(Header::new("Origin", origin.to_string()));
+    }
+    request.dispatch().await
+}
+
+#[rocket::async_test]
+async fn b4_board_reads_allow_only_the_configured_origins() {
+    const VERIFIER: &str = "https://verifier.example";
+    let board = BoardName::for_dkg(&Uuid::new_v4());
+    let path = format!("/b4/boards/{board}/messages");
+
+    let client = Services::without_database()
+        .with_b4_read_origins(ReadOrigins::AnyOrigin)
+        .client()
+        .await;
+    let response = read_board(&client, &path, Some(VERIFIER)).await;
+    assert_eq!(allowed_origin(&response).as_deref(), Some(ANY_ORIGIN));
+
+    let client = Services::without_database()
+        .with_b4_read_origins(ReadOrigins::Listed(vec![VERIFIER.to_string()]))
+        .client()
+        .await;
+    let response = read_board(&client, &path, Some(VERIFIER)).await;
+    assert_eq!(allowed_origin(&response).as_deref(), Some(VERIFIER));
+    assert_eq!(response.headers().get_one("Vary"), Some("Origin"));
+    for other in [Some("https://elsewhere.example"), None] {
+        let response = read_board(&client, &path, other).await;
+        assert_eq!(allowed_origin(&response), None);
+        assert_eq!(response.headers().get_one("Vary"), Some("Origin"));
     }
 }

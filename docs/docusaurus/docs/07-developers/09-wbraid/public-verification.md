@@ -88,9 +88,11 @@ const report = JSON.parse(
 
 `verifyTranscript` also accepts a file exported by the CLI, without network
 access. `fetchTranscript` is read-only; pass `https://<admin-domain>/b4` as
-`boardUrl`. Harvest answers that public read with `Access-Control-Allow-Origin: *`,
-so a verifier page on another origin works too. Presigned blob URLs still need
-CORS access for that origin.
+`boardUrl`. A page on the admin-portal origin needs nothing more. A verifier
+page on another origin can read the board only if the deployment allows that
+origin in `HARVEST_B4_READ_ORIGINS` (see
+[Board access](./trustee-configuration.md#board-access)), and the presigned blob
+URLs need CORS access for that origin too.
 For DKG-only verification, omit `tallyBoard` and set `tally_id` to `null`.
 `configurationHash` and `ballotsHash` derive pins from padded-base64 canonical
 messages obtained from a trusted platform record; deriving pins from the board

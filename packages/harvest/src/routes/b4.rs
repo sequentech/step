@@ -39,15 +39,70 @@ const BODY_LIMIT_BYTES: u64 = 2 * 1024 * 1024;
 /// What a forwarded request gets when b4 can't be reached. The reason is
 /// logged, never answered: it names b4's private address.
 const UNREACHABLE: &str = "the board service is unreachable";
-/// Who may read the public board answers from a page: anyone, as from b4.
+/// Which other origins' pages may read boards (`*`, or a comma-separated
+/// list); unset, only the admin portal's own.
+pub const READ_ORIGINS_VARIABLE: &str = "HARVEST_B4_READ_ORIGINS";
 const ALLOW_ORIGIN: &str = "Access-Control-Allow-Origin";
 const ANY_ORIGIN: &str = "*";
+
+/// Which pages may read the public board answers. The admin portal reads
+/// `/b4` from its own origin and needs no CORS; verifiers on other origins
+/// are the exception a deployment opts into.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ReadOrigins {
+    /// Only the admin portal's origin, and clients that are not browsers.
+    SameOrigin,
+    /// Any page, as b4's own answers allowed.
+    AnyOrigin,
+    /// Pages on these origins (`scheme://host[:port]`).
+    Listed(Vec<String>),
+}
+
+impl ReadOrigins {
+    /// The policy `value` of [`READ_ORIGINS_VARIABLE`] names. Entries that
+    /// are not an http(s) origin are logged and left out.
+    pub fn parse(value: Option<&str>) -> Self {
+        let value = value.unwrap_or_default().trim();
+        if value.is_empty() {
+            return Self::SameOrigin;
+        }
+        if value == ANY_ORIGIN {
+            return Self::AnyOrigin;
+        }
+        let origins: Vec<String> = value
+            .split(',')
+            .map(|entry| entry.trim().trim_end_matches('/'))
+            .filter(|entry| !entry.is_empty())
+            .filter(|entry| {
+                let origin = entry
+                    .strip_prefix("https://")
+                    .or_else(|| entry.strip_prefix("http://"))
+                    .is_some_and(|host| {
+                        !host.is_empty() && !host.contains('/')
+                    });
+                if !origin {
+                    warn!(
+                        "{READ_ORIGINS_VARIABLE}: {entry:?} is not an origin"
+                    );
+                }
+                origin
+            })
+            .map(str::to_string)
+            .collect();
+        if origins.is_empty() {
+            Self::SameOrigin
+        } else {
+            Self::Listed(origins)
+        }
+    }
+}
 
 /// The board service trustees' board requests are forwarded to
 /// (`WBRAID_B4_URL`). Read once, into [`HarvestServices`].
 #[derive(Clone)]
 pub struct BoardService {
     connection: Connection,
+    read_origins: ReadOrigins,
 }
 
 /// Whether Harvest can forward requests to b4.
@@ -67,6 +122,15 @@ enum Connection {
 impl BoardService {
     pub fn from_env() -> Self {
         Self::new(std::env::var(URL_VARIABLE).ok().as_deref())
+            .with_read_origins(ReadOrigins::parse(
+                std::env::var(READ_ORIGINS_VARIABLE).ok().as_deref(),
+            ))
+    }
+
+    /// Which pages may read boards; [`ReadOrigins::SameOrigin`] unless set.
+    pub fn with_read_origins(mut self, read_origins: ReadOrigins) -> Self {
+        self.read_origins = read_origins;
+        self
     }
 
     /// b4 at `base_url`; none or blank: not configured. Until it is, and
@@ -80,6 +144,7 @@ impl BoardService {
             warn!("{URL_VARIABLE} is not set: board requests are refused");
             return Self {
                 connection: Connection::NotConfigured,
+                read_origins: ReadOrigins::SameOrigin,
             };
         };
         // An internal service: never through a proxy, and its redirects (b4
@@ -99,7 +164,10 @@ impl BoardService {
                 Connection::ClientUnavailable(error.to_string())
             }
         };
-        Self { connection }
+        Self {
+            connection,
+            read_origins: ReadOrigins::SameOrigin,
+        }
     }
 
     /// A request to b4's `path`, which starts with a slash, or 502.
@@ -179,15 +247,33 @@ fn b4_unreachable(error: reqwest::Error) -> (Status, String) {
     (Status::BadGateway, UNREACHABLE.to_string())
 }
 
-/// An answer any page may read, as b4's own were: board reads are public,
-/// and browser verifiers run on other origins. A simple GET needs no
-/// preflight.
-pub struct PublicRead<R>(R);
+/// A public board answer, readable by the pages [`ReadOrigins`] allows. A
+/// simple GET needs no preflight.
+pub struct PublicRead<R>(ReadOrigins, R);
 
 impl<'r, 'o: 'r, R: Responder<'r, 'o>> Responder<'r, 'o> for PublicRead<R> {
     fn respond_to(self, request: &'r Request<'_>) -> response::Result<'o> {
-        let mut response = self.0.respond_to(request)?;
-        response.set_raw_header(ALLOW_ORIGIN, ANY_ORIGIN);
+        let PublicRead(read_origins, answer) = self;
+        let mut response = answer.respond_to(request)?;
+        match read_origins {
+            ReadOrigins::SameOrigin => {}
+            ReadOrigins::AnyOrigin => {
+                response.set_raw_header(ALLOW_ORIGIN, ANY_ORIGIN);
+            }
+            ReadOrigins::Listed(origins) => {
+                // The answer differs by origin, so caches must keep them apart.
+                response.set_raw_header("Vary", "Origin");
+                if let Some(origin) =
+                    request.headers().get_one("Origin").filter(|origin| {
+                        origins
+                            .iter()
+                            .any(|listed| listed.eq_ignore_ascii_case(origin))
+                    })
+                {
+                    response.set_raw_header(ALLOW_ORIGIN, origin.to_string());
+                }
+            }
+        }
         Ok(response)
     }
 }
@@ -292,8 +378,8 @@ async fn read_body(body: Data<'_>) -> Result<Vec<u8>, (Status, String)> {
 }
 
 /// A board's messages, as b4 lists them, with the query (b4's `last_id`
-/// and `limit`) passed on unchanged. Public: verifiers read boards too,
-/// from any origin.
+/// and `limit`) passed on unchanged. Public: verifiers read boards too;
+/// pages on other origins only as [`READ_ORIGINS_VARIABLE`] allows.
 #[instrument(skip(services))]
 #[get("/b4/boards/<board>/messages")]
 pub async fn board_messages(
@@ -301,7 +387,10 @@ pub async fn board_messages(
     uri: &Origin<'_>,
     services: &State<HarvestServices>,
 ) -> PublicRead<Result<BoardReply, (Status, String)>> {
-    PublicRead(read_messages(board, uri, services).await)
+    PublicRead(
+        services.b4.read_origins.clone(),
+        read_messages(board, uri, services).await,
+    )
 }
 
 async fn read_messages(
