@@ -69,6 +69,11 @@ TRELLIS_TEST_DATABASE_URL="postgresql://test:test@127.0.0.1:5432/trellis_securit
 The Windmill job of the Tests workflow runs all three on PostgreSQL 16. It is
 selected when Windmill, the electoral log or Trellis change.
 
+Windmill unit tests that use the process-wide electoral-log pools run on the
+shared test runtime in `electoral_log_board::test_runtime`. Keep database work
+on that runtime so one test finishing cannot shut down another test's pooled
+connections. Each test still creates and removes its own event databases.
+
 ## Coverage
 
 The `electoral-log-native` coverage profile measures the default features and

@@ -21,9 +21,14 @@ use voting_crypto::{RecordDeserialize, RecordSerialize};
 
 /// The real writer must publish exactly one binding and one cast, including
 /// recovery when a cast appears after the received-outbox empty read.
-#[tokio::test]
+#[test]
 #[ignore = "requires disposable ELECTORAL_LOG_PG_* and ENV_SLUG"]
-async fn privacy_sequencer_orders_bindings_and_deduplicates_recovery() -> Result<()> {
+fn privacy_sequencer_orders_bindings_and_deduplicates_recovery() -> Result<()> {
+    crate::services::electoral_log_board::test_runtime()
+        .block_on(privacy_sequencer_orders_bindings_and_deduplicates_recovery_on_runtime())
+}
+
+async fn privacy_sequencer_orders_bindings_and_deduplicates_recovery_on_runtime() -> Result<()> {
     let databases = get_event_databases().await?;
     for simulate_queue_race in [false, true] {
         let tenant = uuid::Uuid::new_v4().to_string();
