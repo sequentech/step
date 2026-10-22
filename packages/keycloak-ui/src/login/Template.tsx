@@ -75,7 +75,7 @@ export default function Template(props: SequentTemplateProps) {
     } = props
     const {msgStr, currentLanguage, enabledLanguages} = i18n
     const {realm, message, isAppInitiatedAction, properties, url} = kcContext
-    const restartedByTimeout = useLoginTimeout(url.loginRestartFlowUrl, properties)
+    const restartedByTimeout = useLoginTimeout(url.ssoLoginInOtherTabsUrl, url.loginAction)
     const systemVersion = buildDetail(properties.systemVersion)
     const systemHash = buildDetail(properties.systemHash)
     const voting = kcContext.themeName === "sequent-ui-voting"
