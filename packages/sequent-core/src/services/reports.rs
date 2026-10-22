@@ -933,7 +933,8 @@ mod tests {
         let shown = |votes: u64| {
             let mut variables = Map::new();
             variables.insert("votes".to_string(), json!(votes));
-            render_template_text("{{divide votes 100}}", variables).expect("template renders")
+            render_template_text("{{divide votes 100}}", variables)
+                .expect("template renders")
         };
         assert_eq!(shown(2_550), "25.5");
         assert_eq!(shown(1_099_999_900), "10999999.0");
