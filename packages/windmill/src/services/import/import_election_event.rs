@@ -2781,7 +2781,8 @@ mod tests {
             Some(vec!["custom-event-listener".into()])
         );
         assert_eq!(realm.events_enabled, Some(false));
-        assert_eq!(realm.admin_events_enabled, Some(false));
+        assert_eq!(realm.admin_events_enabled, Some(true));
+        assert_eq!(realm.admin_events_details_enabled, Some(false));
     }
 
     const TENANT: &str = "90505c8a-23a9-4cdf-a26b-4e19f6a097d5";
