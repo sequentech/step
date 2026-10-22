@@ -18,7 +18,8 @@ const renderedAt = Date.now();
 const timeoutSeconds = USER_ACTION_PATH.test(location.pathname)
   ? Number(script.dataset.actionTimeoutSeconds)
   : Number(script.dataset.timeoutSeconds);
-const limitMs = Math.max(timeoutSeconds * 1000 - SAFETY_MARGIN_MS, SAFETY_MARGIN_MS);
+// Short timeouts keep half of their length as the margin.
+const limitMs = timeoutSeconds * 1000 - Math.min(SAFETY_MARGIN_MS, (timeoutSeconds * 1000) / 2);
 let restarting = false;
 
 function restartIfExpired() {
