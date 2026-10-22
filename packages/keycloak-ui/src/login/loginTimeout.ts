@@ -216,10 +216,10 @@ export function useLoginTimeout(restartUrl: string, loginActionUrl: string): boo
                 // A failed request must not switch the check off, nor push it past the deadline
                 // Keycloak already gave.
                 clearTimeout(deadlineTimer)
-                const untilDeadline = deadline === null ? RETRY_MS : deadline - Date.now()
+                const untilDeadline = deadline === null ? 0 : deadline - Date.now()
                 deadlineTimer = setTimeout(
                     () => void check(),
-                    Math.max(0, Math.min(RETRY_MS, untilDeadline))
+                    untilDeadline > 0 ? Math.min(RETRY_MS, untilDeadline) : RETRY_MS
                 )
             } finally {
                 checking = false
