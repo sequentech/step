@@ -929,6 +929,20 @@ mod tests {
     }
 
     #[test]
+    fn divide_shows_hundredths_of_a_weighted_total() {
+        let shown = |votes: u64| {
+            let mut variables = Map::new();
+            variables.insert("votes".to_string(), json!(votes));
+            render_template_text("{{divide votes 100}}", variables).expect("template renders")
+        };
+        assert_eq!(shown(2_550), "25.5");
+        assert_eq!(shown(1_099_999_900), "10999999.0");
+        assert_eq!(shown(1_200_000_000), "12000000.0");
+        assert_eq!(shown(858_993_459_100), "8589934591.0");
+        assert_eq!(shown(9_007_199_254_740_993), "90071992547409.92");
+    }
+
+    #[test]
     fn an_unknown_number_format_policy_renders_with_the_default() {
         assert_eq!(figures(Some(json!("unknown"))), figures(None));
         assert_eq!(figures(Some(json!(null))), figures(None));
