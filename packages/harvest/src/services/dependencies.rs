@@ -23,6 +23,7 @@ use crate::ports::monitoring_snapshots::MonitoringSnapshots;
 use crate::ports::task_ledger::TaskLedger;
 use crate::ports::task_queue::TaskQueue;
 use crate::ports::vault::SecretVault;
+use crate::routes::b4::BoardService;
 use crate::routes::fake_provider::FakeProviderRoutes;
 use crate::routes::messaging::MessagingRelay;
 use crate::services::monitoring::{DrawFailure, DrawnChart};
@@ -55,6 +56,9 @@ pub type MonitoringCache = RenderCache<DrawnChart, DrawFailure>;
 /// instance: the production adapters in the service, fakes or a test
 /// database in route tests.
 pub struct HarvestServices {
+    /// The board service (`WBRAID_B4_URL`) trustees' board requests are
+    /// forwarded to.
+    pub b4: BoardService,
     pub cast_votes: Arc<dyn CastVotes>,
     pub databases: Arc<dyn DatabasePools>,
     pub documents: Arc<dyn DocumentStorage>,
@@ -114,6 +118,7 @@ impl HarvestServices {
     pub fn production() -> Self {
         let databases: Arc<dyn DatabasePools> = Arc::new(WindmillDatabasePools);
         Self {
+            b4: BoardService::from_env(),
             cast_votes: Arc::new(WindmillCastVotes),
             databases: databases.clone(),
             documents: Arc::new(S3DocumentStorage),

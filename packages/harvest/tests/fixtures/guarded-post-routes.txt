@@ -7,6 +7,8 @@
 /acknowledge-support-materials
 /applications/support-reference
 /audit-ballot
+/b4/boards/<board>/messages/<id>/confirm
+/b4/boards/<board>/messages/initiate
 /ballot-box-entry
 /ballot-box-keys
 /ballot-box-log

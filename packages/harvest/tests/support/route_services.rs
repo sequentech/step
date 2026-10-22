@@ -22,6 +22,7 @@ use crate::adapters::monitoring_snapshots::WindmillMonitoringSnapshots;
 use crate::ports::database::DatabasePools;
 use crate::ports::monitoring_renderer::MonitoringRenderer;
 use crate::ports::monitoring_snapshots::MonitoringSnapshots;
+use crate::routes::b4::BoardService;
 use crate::routes::fake_provider::FakeProviderRoutes;
 use crate::routes::messaging::MessagingRelay;
 use crate::services::dependencies::{HarvestServices, MonitoringCache};
@@ -71,6 +72,9 @@ pub fn configure_super_admin_tenant() {
 }
 
 pub struct Services {
+    /// The board service's address; none (answered 502) unless a test sets
+    /// it.
+    pub b4_url: Option<String>,
     pub cast_votes: Arc<ScriptedCastVotes>,
     pub hasura: Arc<Pool>,
     pub keycloak: Arc<Pool>,
@@ -115,6 +119,7 @@ impl Services {
 
     fn with_pool(pool: Arc<Pool>) -> Self {
         Self {
+            b4_url: None,
             cast_votes: Default::default(),
             hasura: pool.clone(),
             keycloak: pool,
@@ -223,6 +228,12 @@ impl Services {
         self
     }
 
+    /// Forwards board requests to `url`, e.g. a [`http::HttpServer`] as b4.
+    pub fn with_b4_url(mut self, url: &str) -> Self {
+        self.b4_url = Some(url.to_string());
+        self
+    }
+
     pub fn with_messaging_webhooks_url(mut self, url: &str) -> Self {
         self.messaging_webhooks_url = Some(url.to_string());
         self
@@ -282,6 +293,7 @@ impl Services {
                 self.monitoring_snapshots.clone()
             };
         HarvestServices {
+            b4: BoardService::new(self.b4_url.as_deref()),
             cast_votes: self.cast_votes.clone(),
             databases,
             documents: self.documents.clone(),
