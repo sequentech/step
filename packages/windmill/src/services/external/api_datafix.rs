@@ -393,6 +393,7 @@ pub async fn replace_voter_pin(
         .password_policy
         .generate_password(username);
     let password = Some(pin.clone());
+    let temporary = Some(datafix_annotations.password_policy.pin_is_temporary());
 
     let client = KeycloakAdminClient::new().await.map_err(|e| {
         error!("Error getting KeycloakAdminClient: {e:?}");
@@ -403,7 +404,7 @@ pub async fn replace_voter_pin(
         .edit_user(
             realm, &user_id, None, // Enable/disable
             None, // attributes
-            None, None, None, None, password, None,
+            None, None, None, None, password, temporary,
         )
         .await
         .map_err(|e| {

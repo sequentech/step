@@ -201,9 +201,20 @@ pub struct PasswordPolicy {
     base: BasePolicy,
     size: usize,
     characters: CharactersPolicy,
+    /// Optional override for whether generated PINs are temporary. Omitted in
+    /// existing annotations, and never written back when omitted.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    temporary: Option<bool>,
 }
 
 impl PasswordPolicy {
+    /// Whether a generated PIN is a Keycloak temporary credential, forcing a
+    /// change on the voter's next login. Datafix-issued PINs are not, unless
+    /// the event's policy says so.
+    pub fn pin_is_temporary(&self) -> bool {
+        self.temporary.unwrap_or(false)
+    }
+
     #[instrument]
     pub fn generate_password(&self, voter_id: &str) -> String {
         let pin = match self.characters {
@@ -484,7 +495,7 @@ impl ParsedDatafixReconciliationRow {
 mod tests {
     use super::{
         channels_equal, file_channel_to_keycloak, keycloak_channel_to_file, DatafixErrorCode,
-        DatafixResponse, FILE_CHANNEL_INTERNET,
+        DatafixResponse, PasswordPolicy, FILE_CHANNEL_INTERNET,
     };
     use rocket::http::Status;
 
@@ -568,6 +579,22 @@ mod tests {
             serde_json::to_value(&*body).unwrap(),
             serde_json::json!({"code": 200, "message": "OK"})
         );
+    }
+
+    #[test]
+    fn replacement_pin_is_not_temporary_unless_the_policy_says_so() {
+        let policy = |json: &str| serde_json::from_str::<PasswordPolicy>(json).unwrap();
+        let base = r#""base":"password-only","size":6,"characters":"numeric""#;
+
+        let omitted = policy(&format!("{{{base}}}"));
+        assert!(!omitted.pin_is_temporary());
+        assert_eq!(
+            serde_json::to_value(&omitted).unwrap().get("temporary"),
+            None,
+            "an omitted override must not be written back"
+        );
+        assert!(policy(&format!(r#"{{{base},"temporary":true}}"#)).pin_is_temporary());
+        assert!(!policy(&format!(r#"{{{base},"temporary":false}}"#)).pin_is_temporary());
     }
 
     #[test]
