@@ -107,8 +107,13 @@ You can add additional fields like the voter's birthday or sex. [Check out the t
 ### External system (i.e. Datafix) API client credentials
 
 The external-system voter API authenticates with the `datafix-account` Keycloak
-client of the tenant realm, using the client credentials grant. The client
-secret is a credential, so follow these rules:
+client of the tenant realm, using the client credentials grant. Configure the
+client as confidential with service accounts enabled, give its service account
+the `datafix-account` role, keep the tenant's token mappers (the same as the
+`api-key-client`), and set at least one web origin: the API only accepts tokens
+that carry Keycloak's `allowed-origins` claim, which Keycloak issues only to a
+client with a web origin. The client secret is a credential, so follow these
+rules:
 
 - Create the client in Keycloak and let Keycloak generate its secret
   (Clients, `datafix-account`, Credentials, Regenerate). Never import a client

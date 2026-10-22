@@ -246,6 +246,7 @@ impl Message {
         direction: ExtApiRequestDirection,
         api_name: ExtApiName,
         operation: String,
+        area_id: Option<String>,
     ) -> Result<Self> {
         let subject = ExternalApiSubject {
             user_id: voter_id.clone(),
@@ -265,7 +266,7 @@ impl Message {
             voter_id.clone(),
             voter_username.clone(), /* username */
             election_id.0,
-            None,
+            area_id,
             None,
         )
     }

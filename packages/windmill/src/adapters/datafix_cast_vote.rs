@@ -280,6 +280,7 @@ impl DatafixAudit for ElectoralLogDatafixAudit {
         election_event_id: &str,
         voter_id: &str,
         username: &str,
+        area_id: Option<&str>,
         operation: String,
     ) {
         let Ok(mut client) = get_hasura_pool().await.get().await else {
@@ -295,7 +296,8 @@ impl DatafixAudit for ElectoralLogDatafixAudit {
             tenant_id,
             election_event_id,
             Some(voter_id),
-            username,
+            Some(username),
+            area_id,
             ExtApiRequestDirection::Outbound,
             operation,
         )

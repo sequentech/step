@@ -22,7 +22,7 @@ import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 
-from . import bootstrap, fixtures, transmission
+from . import bootstrap, datafix, fixtures, transmission
 from .client import (
     B4_URL,
     ENV,
@@ -49,6 +49,13 @@ query ($eventId: String) {
   listElectoralLog(election_event_id: $eventId, limit: 500, offset: 0) {
     total { aggregate { count } }
     items { statement_kind user_id }
+  }
+}"""
+
+ELECTORAL_LOG_MESSAGES = """
+query ($eventId: String) {
+  listElectoralLog(election_event_id: $eventId, limit: 500, offset: 0) {
+    items { id statement_kind user_id username message }
   }
 }"""
 
@@ -320,6 +327,191 @@ class BackendJourneys(unittest.TestCase):
         )
         self.assertEqual([e["extensions"]["code"] for e in errors], ["invalid-jwt"])
         self.passed("journey 1")
+
+    def datafix_log(self, event_id, expected, timeout=120):
+        """Wait until the event's log holds `expected` inbound Datafix entries."""
+
+        def entries():
+            items = Hasura(token=self.admin_token()).query(
+                ELECTORAL_LOG_MESSAGES, {"eventId": event_id}
+            )["listElectoralLog"]["items"]
+            found = datafix.inbound_entries(items)
+            return found if len(found) >= expected else None
+
+        try:
+            return wait_until(
+                f"{expected} inbound Datafix log entries", entries, timeout, interval=3
+            )
+        except TimeoutError as error:
+            raise AssertionError(f"{error}; found {entries()}") from error
+
+    def test_1b_datafix_api_records_voter_changes(self):
+        """The Datafix API applies voter changes and logs what changed or why it failed."""
+        self.requires("journey 1")
+        secret = datafix.ensure_client(self.keycloak)
+        datafix_id = f"datafix-{self.tag}"
+        document = datafix.event_document(
+            ENV["VOTING_PORTAL_URL"], self.tag, datafix_id
+        )
+        event_id = self.import_event(document, "datafix-event")
+        realm = event_realm(event_id)
+        areas = {
+            area["name"]: area["id"]
+            for area in self.admin.query(
+                "query ($event: uuid!) { sequent_backend_area(where: {election_event_id: {_eq: $event}}) { id name } }",
+                {"event": event_id},
+            )["sequent_backend_area"]
+        }
+        ward = datafix.ward_of(self.tag)
+        registry = datafix.Registry(datafix_id, secret)
+        voter = f"df{self.tag}1"
+        add_body = {"voter_id": voter, "ward": ward, "birthdate": "1990-01-02"}
+
+        def user():
+            return self.keycloak.user(realm, voter)
+
+        # A realm that would drop a written attribute refuses before writing.
+        profile = self.keycloak.admin("GET", f"{realm}/users/profile")
+        self.keycloak.admin(
+            "PUT",
+            f"{realm}/users/profile",
+            datafix.profile_without(profile, {"dateOfBirth"}),
+        )
+        self.assertEqual(
+            registry.call("add-voter", add_body),
+            (500, {"code": 500, "message": "Internal Server Error", "error_code": "internal-error"}),
+        )
+        self.assertEqual(
+            self.keycloak.admin("GET", f"{realm}/users?exact=true&username={voter}"),
+            [],
+        )
+        (refused,) = self.datafix_log(event_id, 1)
+        self.assertEqual(
+            refused["operation"],
+            f'voter_id="{voter}"; AddVoter Failed: Realm user profile does not store attributes [dateOfBirth]: '
+            "declare them in the election event user profile or allow administrators to edit unmanaged attributes "
+            "(error_code=internal-error)",
+        )
+        self.assertEqual(refused["description"], "Inbound request AddVoter Failed.")
+        self.assertIsNone(refused["user_id"])
+
+        # Administrators may now write every attribute the API writes.
+        allowing = datafix.profile_without(profile, set())
+        allowing["unmanagedAttributePolicy"] = "ADMIN_EDIT"
+        self.keycloak.admin("PUT", f"{realm}/users/profile", allowing)
+
+        ok = (200, {"code": 200, "message": "OK"})
+        self.assertEqual(registry.call("add-voter", add_body), ok)
+        created = user()
+        user_id = created["id"]
+        self.assertTrue(created["enabled"])
+        self.assertEqual(created["attributes"]["area-id"], [areas[f"{ward}-000"]])
+        self.assertEqual(created["attributes"]["dateOfBirth"], ["1990-01-02"])
+        self.assertEqual(
+            registry.call("add-voter", add_body),
+            (409, {"code": 409, "message": "Conflict", "error_code": "voter-already-exists"}),
+        )
+        self.assertEqual(
+            registry.call("add-voter", {"voter_id": f"{voter}x", "ward": "NOWARD"}),
+            (422, {"code": 422, "message": "Unprocessable Entity", "error_code": "area-not-found"}),
+        )
+
+        # Moving the voter keeps the birthdate it does not send.
+        self.assertEqual(
+            registry.call(
+                "update-voter", {"voter_id": voter, "ward": ward, "schoolboard": "SB1"}
+            ),
+            ok,
+        )
+        moved = user()
+        self.assertEqual(moved["attributes"]["area-id"], [areas[f"{ward}-SB1-000"]])
+        self.assertEqual(moved["attributes"]["dateOfBirth"], ["1990-01-02"])
+
+        status, body = registry.call("replace-pin", {"voter_id": voter})
+        self.assertEqual(status, 200, body)
+        pin = body["pin"]
+        self.assertRegex(pin, r"^[0-9]{6}$")
+        # Not temporary: the policy leaves `temporary` unset.
+        self.assertNotIn("UPDATE_PASSWORD", user().get("requiredActions") or [])
+
+        self.assertEqual(
+            registry.call("mark-voted", {"voter_id": voter, "channel": "PAPER"}), ok
+        )
+        marked = user()
+        self.assertFalse(marked["enabled"])
+        self.assertEqual(marked["attributes"]["voted-channel"], ["PAPER"])
+        self.assertEqual(
+            registry.call("replace-pin", {"voter_id": voter}),
+            (400, {"code": 400, "message": "Bad Request", "error_code": "invalid-request"}),
+        )
+        self.assertEqual(registry.call("unmark-voted", {"voter_id": voter}), ok)
+        unmarked = user()
+        self.assertTrue(unmarked["enabled"])
+        self.assertEqual(unmarked["attributes"]["voted-channel"], ["NONE"])
+        self.assertEqual(registry.call("delete-voter", {"voter_id": voter}), ok)
+        self.assertFalse(user()["enabled"])
+        self.assertEqual(
+            registry.call("update-voter", {"voter_id": f"{voter}x", "ward": ward}),
+            (404, {"code": 404, "message": "Not Found", "error_code": "voter-not-found"}),
+        )
+
+        entries = self.datafix_log(event_id, 11)
+        operations = [entry["operation"] for entry in entries]
+        area_1, area_2 = areas[f"{ward}-000"], areas[f"{ward}-SB1-000"]
+        self.assertEqual(
+            operations[1:],
+            [
+                f'voter_id="{voter}"; AddVoter Succeeded (area="{ward}-000", area_id="{area_1}", birthdate=1990-01-02, enabled=true)',
+                f'voter_id="{voter}"; AddVoter Failed: Voter already exists (error_code=voter-already-exists)',
+                f'voter_id="{voter}x"; AddVoter Failed: Area not found for NOWARD-000 (error_code=area-not-found)',
+                f'voter_id="{voter}"; UpdateVoter Succeeded (previous_area="{ward}-000", previous_area_id="{area_1}", '
+                f'area="{ward}-SB1-000", area_id="{area_2}", previous_birthdate="1990-01-02", birthdate=unchanged, '
+                "previous_enabled=true, enabled=unchanged)",
+                f'voter_id="{voter}"; ReplacePin Succeeded (temporary=false)',
+                f'voter_id="{voter}"; MarkVoted Succeeded (channel="PAPER", enabled=false, '
+                "disable_comment=Disable reason: Voter marked as voted via other channel)",
+                f'voter_id="{voter}"; ReplacePin Failed: Cannot replace pin because the user is disabled (error_code=invalid-request)',
+                f'voter_id="{voter}"; UnmarkVoted Succeeded (previous_channel="PAPER", channel=NONE, enabled=true, disable_comment=NONE)',
+                f'voter_id="{voter}"; DeleteVoter Succeeded (enabled=false, '
+                "disable_comment=Disable reason: datafix call to delete-voter endpoint)",
+                f'voter_id="{voter}x"; UpdateVoter Failed: Voter not found (error_code=voter-not-found)',
+            ],
+        )
+        self.assertNotIn(pin, json.dumps(entries))
+        for entry in entries:
+            self.assertEqual(entry["username"], entry["subject"]["username"])
+        # AddVoter knows the voter only once Keycloak created it; every other
+        # operation on an existing voter records its Keycloak id and area.
+        self.assertEqual(
+            [(entry["user_id"], entry["area_id"]) for entry in entries],
+            [(None, None), (user_id, area_1), (None, None), (None, None)]
+            + [(user_id, area_2)] * 6
+            + [(None, None)],
+        )
+
+        # A second event with the same datafix:id makes every request ambiguous:
+        # refused before touching a voter and logged in both events.
+        twin = datafix.event_document(ENV["VOTING_PORTAL_URL"], f"{self.tag}b", datafix_id)
+        twin_id = self.import_event(twin, "datafix-twin-event")
+        self.assertEqual(
+            registry.call("replace-pin", {"voter_id": voter}),
+            (500, {"code": 500, "message": "Internal Server Error", "error_code": "internal-error"}),
+        )
+        for logged_event in (event_id, twin_id):
+            last = self.datafix_log(
+                logged_event, 12 if logged_event == event_id else 1
+            )[-1]
+            self.assertTrue(
+                last["operation"].startswith(
+                    f'voter_id="{voter}"; ReplacePin Failed: '
+                ),
+                last,
+            )
+            self.assertIn(event_id, last["operation"])
+            self.assertIn(twin_id, last["operation"])
+            self.assertIsNone(last["user_id"])
+            self.assertIsNone(last["area_id"])
+        self.passed("journey 1b")
 
     def test_2_import_election_event(self):
         """Importing an event creates its elections, contests, areas, board and electoral log."""

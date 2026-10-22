@@ -36,7 +36,7 @@ use sequent_core::services::keycloak::{get_event_realm, KeycloakAdminClient};
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::{ElectionEvent, TasksExecution};
 use sequent_core::types::keycloak::{
-    User, ATTR_RESET_VALUE, VOTED_CHANNEL, VOTED_CHANNEL_INTERNET_VALUE,
+    User, AREA_ID_ATTR_NAME, ATTR_RESET_VALUE, VOTED_CHANNEL, VOTED_CHANNEL_INTERNET_VALUE,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -428,7 +428,12 @@ async fn clear_voted_channel(ctx: &DatafixEditCtx<'_>) -> anyhow::Result<()> {
 /// Records the outcome of a disabled-voter release in the electoral log.
 /// Failures are logged and swallowed so auditing never fails the user edit.
 #[instrument(skip(ctx))]
-async fn audit_datafix_user_operation(ctx: &DatafixEditCtx<'_>, username: &str, operation: String) {
+async fn audit_datafix_user_operation(
+    ctx: &DatafixEditCtx<'_>,
+    username: &str,
+    area_id: Option<&str>,
+    operation: String,
+) {
     let Ok(mut client) = get_hasura_pool().await.get().await else {
         error!("Unable to get a DB connection for the Datafix audit entry");
         return;
@@ -442,7 +447,8 @@ async fn audit_datafix_user_operation(ctx: &DatafixEditCtx<'_>, username: &str, 
         &ctx.body.tenant_id,
         &ctx.body.election_event_id,
         Some(ctx.body.user_id.as_str()),
-        username,
+        Some(username),
+        area_id,
         ExtApiRequestDirection::Outbound,
         operation,
     )
@@ -473,6 +479,7 @@ async fn send_set_not_voted(
     ctx: &DatafixEditCtx<'_>,
     election_event: ElectionEvent,
     username: &str,
+    area_id: Option<&str>,
 ) {
     let prepared = match external::voterview_requests::prepare(
         SoapRequest::SetNotVoted,
@@ -487,6 +494,7 @@ async fn send_set_not_voted(
             audit_datafix_user_operation(
                 ctx,
                 username,
+                area_id,
                 "SetNotVoted NotDispatched: pre-dispatch-error".to_string(),
             )
             .await;
@@ -523,7 +531,19 @@ async fn send_set_not_voted(
             )
         }
     };
-    audit_datafix_user_operation(ctx, username, operation).await;
+    audit_datafix_user_operation(ctx, username, area_id, operation).await;
+}
+
+/// The area the voter ends up in, for the electoral log: the one this edit
+/// requests, else the one the voter already has.
+fn audited_area_id(
+    requested_attributes: &HashMap<String, Vec<String>>,
+    current_user: &User,
+) -> Option<String> {
+    requested_attributes
+        .get(AREA_ID_ATTR_NAME)
+        .and_then(|values| values.first().cloned())
+        .or_else(|| current_user.get_area_id())
 }
 
 /// Runs the voter edit while the per-voter lock is held: validates the edit,
@@ -622,7 +642,8 @@ async fn run_datafix_voter_edit(
         .username
         .clone()
         .ok_or("Datafix voter has no username")?;
-    send_set_not_voted(ctx, election_event, &username).await;
+    let area_id = audited_area_id(&ctx.body.attributes, &current_user);
+    send_set_not_voted(ctx, election_event, &username, area_id.as_deref()).await;
     Ok(())
 }
 
@@ -669,6 +690,29 @@ async fn apply_datafix_voter_edit(body: &EditUserTaskBody) -> std::result::Resul
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn audited_area_is_the_requested_one_else_the_current_one() {
+        let in_area = |area: &str| User {
+            attributes: Some(HashMap::from([(
+                AREA_ID_ATTR_NAME.to_string(),
+                vec![area.to_string()],
+            )])),
+            ..Default::default()
+        };
+        let requested =
+            HashMap::from([(AREA_ID_ATTR_NAME.to_string(), vec!["area-new".to_string()])]);
+
+        assert_eq!(
+            audited_area_id(&requested, &in_area("area-old")),
+            Some("area-new".to_string())
+        );
+        assert_eq!(
+            audited_area_id(&HashMap::new(), &in_area("area-old")),
+            Some("area-old".to_string())
+        );
+        assert_eq!(audited_area_id(&HashMap::new(), &User::default()), None);
+    }
 
     #[test]
     fn disable_requires_an_enabled_to_disabled_transition() {

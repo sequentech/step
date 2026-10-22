@@ -22,6 +22,7 @@ const CAST_VOTE_ID: &str = "10000000-0000-4000-8000-000000000003";
 const EARLIER_CAST_VOTE_ID: &str = "10000000-0000-4000-8000-000000000004";
 const VOTER_ID: &str = "10000000-0000-4000-8000-000000000005";
 const USERNAME: &str = "voter-username";
+const AREA_ID: &str = "10000000-0000-4000-8000-000000000006";
 
 type TestProcessor = DatafixCastVoteProcessor<
     InMemoryDatafixVotes,
@@ -134,7 +135,7 @@ fn cast_vote(id: &str, status: CastVoteStatus) -> CastVote {
         id: id.to_string(),
         tenant_id: TENANT_ID.to_string(),
         election_id: None,
-        area_id: None,
+        area_id: Some(AREA_ID.to_string()),
         created_at: None,
         last_updated_at: None,
         content: None,
@@ -241,6 +242,7 @@ fn audit_entry(operation: String) -> DatafixAuditEntry {
         election_event_id: ELECTION_EVENT_ID.to_string(),
         voter_id: VOTER_ID.to_string(),
         username: USERNAME.to_string(),
+        area_id: Some(AREA_ID.to_string()),
         operation,
     }
 }

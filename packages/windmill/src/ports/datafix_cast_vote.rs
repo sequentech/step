@@ -125,6 +125,7 @@ pub trait DatafixAudit: Sync {
         election_event_id: &str,
         voter_id: &str,
         username: &str,
+        area_id: Option<&str>,
         operation: String,
     ) -> impl Future<Output = ()> + Send;
 }
