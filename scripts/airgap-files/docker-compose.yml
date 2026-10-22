@@ -315,6 +315,9 @@ services:
     ports:
       - "${BIND_ADDRESS:-127.0.0.1}:3002:8000"
     stdin_open: true
+    # Forwards /b4/ to Harvest (resolved per request).
+    volumes:
+      - ./admin-portal-nginx:/etc/nginx/default.d:ro,z
     environment:
         MAX_DIFF_LINES: ${MAX_DIFF_LINES}
         SECONDS_TO_SHOW_COUNTDOWN: ${SECONDS_TO_SHOW_COUNTDOWN}
@@ -528,7 +531,7 @@ services:
     image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/b4v6:STEP_VERSION
     pull_policy: never
     restart: unless-stopped
-    ports: ["3005:3005"]
+    # Not published: trustees reach the board through Harvest (/b4).
     depends_on:
       postgres-b4v6:
         condition: service_healthy
@@ -555,7 +558,7 @@ services:
         SECRETS_BACKEND: ${SECRETS_BACKEND}
         VAULT_SERVER_URL: ${VAULT_SERVER_URL}
         VAULT_TOKEN: ${VAULT_TOKEN}
-        B4_URL: http://b4v6:3005
+        B4_URL: http://${HARVEST_DOMAIN}/b4
         TRUSTEE_PASSWORD: ${TRUSTEE1_PASSWORD}
         TRUSTEE_PLATFORM_URL: ${TRUSTEE_PLATFORM_URL:-${HASURA_ENDPOINT}}
         TRUSTEE_KEYCLOAK_URL: ${KEYCLOAK_URL}
@@ -590,7 +593,7 @@ services:
         SECRETS_BACKEND: ${SECRETS_BACKEND}
         VAULT_SERVER_URL: ${VAULT_SERVER_URL}
         VAULT_TOKEN: ${VAULT_TOKEN}
-        B4_URL: http://b4v6:3005
+        B4_URL: http://${HARVEST_DOMAIN}/b4
         TRUSTEE_PASSWORD: ${TRUSTEE2_PASSWORD}
         TRUSTEE_PLATFORM_URL: ${TRUSTEE_PLATFORM_URL:-${HASURA_ENDPOINT}}
         TRUSTEE_KEYCLOAK_URL: ${KEYCLOAK_URL}
@@ -622,7 +625,7 @@ services:
         SECRETS_BACKEND: ${SECRETS_BACKEND}
         VAULT_SERVER_URL: ${VAULT_SERVER_URL}
         VAULT_TOKEN: ${VAULT_TOKEN}
-        B4_URL: http://b4v6:3005
+        B4_URL: http://${HARVEST_DOMAIN}/b4
         TRUSTEE_PASSWORD: ${TRUSTEE3_PASSWORD}
         TRUSTEE_PLATFORM_URL: ${TRUSTEE_PLATFORM_URL:-${HASURA_ENDPOINT}}
         TRUSTEE_KEYCLOAK_URL: ${KEYCLOAK_URL}

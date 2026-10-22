@@ -89,6 +89,9 @@ class BackendJourneys(unittest.TestCase):
         controller = ENV.get("STEP_E2E_BROWSER_TRUSTEES_URL") or ENV.get(
             "STEP_E2E_SERVER_CUSTODY_BROWSER_URL"
         )
+        # The browser-trustees controller replaces the `boardUrl` sent below
+        # with its same-origin /b4 (Harvest's public route); the server-custody
+        # observer's static origin has no forward, so it reads b4 directly.
         if not controller:
             return
         boards = self.admin.query(
@@ -1719,8 +1722,8 @@ class BackendJourneys(unittest.TestCase):
                 browser_call(
                     "/start",
                     name=name,
+                    # The controller serves the board as a same-origin /b4.
                     keys=(ROOT / f"packages/trustee/dev/{name}.toml").read_text(),
-                    boardUrl=B4_URL,
                     platform=ENV["HASURA_ENDPOINT"],
                     token=tokens["access_token"],
                     auth={

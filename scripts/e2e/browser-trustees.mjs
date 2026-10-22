@@ -4,7 +4,7 @@
 // Test-only controller: two real Chromium pages run the production WASM and
 // browser service against a disposable backend. It never substitutes protocol
 // messages. Start this only on the owned E2E compose network.
-import { createServer } from "node:http";
+import { createServer, request as forward } from "node:http";
 import { readFile } from "node:fs/promises";
 import { resolve, extname } from "node:path";
 import { chromium } from "../../packages/node_modules/playwright/index.mjs";
@@ -12,6 +12,40 @@ import { verifyPublicTranscript } from "./public-transcripts.mjs";
 import ts from "../../packages/node_modules/typescript/lib/typescript.js";
 
 const root = resolve("packages/admin-portal/public");
+// The pages reach the board as the portal does: a same-origin /b4/ forwarded
+// to Harvest, which checks the trustee token and board membership.
+const origin = "http://localhost:9229";
+const boardUrl = `${origin}/b4`;
+const harvest = new URL(
+  process.env.STEP_E2E_HARVEST_URL || "http://harvest:8400",
+);
+function forwardToHarvest(request, response) {
+  const upstream = forward(
+    new URL(request.url, harvest),
+    {
+      method: request.method,
+      headers: { ...request.headers, host: harvest.host },
+    },
+    (reply) => {
+      reply.on("error", fail);
+      response.writeHead(reply.statusCode, reply.headers);
+      reply.pipe(response);
+    },
+  );
+  // A broken forward is an outage to the page, which braid retries like any
+  // other; it is logged, not recorded in `failures`, so a recovered run passes.
+  // A lasting outage still fails the journey through its own timeouts.
+  function fail(error) {
+    console.warn(
+      `Harvest forward ${request.method} ${request.url}: ${error.message}`,
+    );
+    if (!response.headersSent) response.writeHead(502).end();
+    else response.destroy();
+  }
+  upstream.on("error", fail);
+  response.on("close", () => upstream.destroy());
+  request.pipe(upstream);
+}
 const service = ts.transpileModule(
   await readFile(
     "packages/admin-portal/src/services/BrowserTrustee.ts",
@@ -74,7 +108,13 @@ async function initialize(page, input) {
   await page.waitForFunction(() => Boolean(window.module));
   await page.evaluate(async (input) => {
     const { name, keys, boardUrl, platform, token } = input;
-    window.engine = new window.module.BrowserTrustee(name, keys, boardUrl);
+    // Read per board request, so renewals below reach long computations.
+    window.engine = new window.module.BrowserTrustee(
+      name,
+      keys,
+      boardUrl,
+      async () => window.token,
+    );
     if (input.backup)
       window.boards = JSON.parse(
         await window.engine.restoreBackup(input.backup),
@@ -95,7 +135,7 @@ async function initialize(page, input) {
         await window.runBrowserCycle(
           window.engine,
           platform,
-          window.token,
+          () => window.token,
           (boards) => {
             window.boards = Array.from(
               new Set([
@@ -118,6 +158,10 @@ async function initialize(page, input) {
 }
 const server = createServer(async (request, response) => {
   const path = new URL(request.url, "http://localhost").pathname;
+  if (path.startsWith("/b4/")) {
+    forwardToHarvest(request, response);
+    return;
+  }
   try {
     if (request.method === "GET" && path === "/health") {
       response
@@ -165,11 +209,11 @@ const server = createServer(async (request, response) => {
       });
       const page = await context.newPage();
       page.on("pageerror", (error) => failures.push(error.message));
-      await page.goto("http://localhost:9229/");
+      await page.goto(`${origin}/`);
       await page.waitForFunction(() => Boolean(window.module));
       // Confidential synthetic fixture credentials remain in the Node relay.
       const { auth, ...browserInput } = input;
-      await initialize(page, browserInput);
+      await initialize(page, { ...browserInput, boardUrl });
       clients.set(input.name, { page, context });
       if (auth)
         authentication.set(input.name, {
@@ -178,11 +222,12 @@ const server = createServer(async (request, response) => {
           pending: null,
         });
     } else if (path === "/verify") {
-      result = await verifyPublicTranscript(
-        browser,
-        "http://localhost:9229",
-        input,
-      );
+      // The public read goes through the same-origin /b4 forward, as a
+      // deployed verifier's does.
+      result = await verifyPublicTranscript(browser, origin, {
+        ...input,
+        boardUrl,
+      });
     } else {
       const client = clients.get(input.name);
       if (!client) throw new Error("trustee not started");

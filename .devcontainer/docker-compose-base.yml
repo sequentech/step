@@ -937,7 +937,7 @@ services:
       LOG_LEVEL: ${LOG_LEVEL}
       TRUSTEE_NAME: trustee1
       CARGO_TARGET_DIR: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/packages/rust-local-target/docker-dev
-      B4_URL: http://b4v6:3005
+      B4_URL: http://${HARVEST_DOMAIN}/b4
       TRUSTEE_CONFIG_PATH: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/packages/trustee/dev/trustee1.toml
       TRUSTEE_PASSWORD: ${TRUSTEE1_PASSWORD}
       TRUSTEE_PLATFORM_URL: ${TRUSTEE_PLATFORM_URL:-${HASURA_ENDPOINT}}
@@ -985,7 +985,7 @@ services:
       LOG_LEVEL: ${LOG_LEVEL}
       TRUSTEE_NAME: trustee2
       CARGO_TARGET_DIR: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/packages/rust-local-target/docker-dev
-      B4_URL: http://b4v6:3005
+      B4_URL: http://${HARVEST_DOMAIN}/b4
       TRUSTEE_CONFIG_PATH: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/packages/trustee/dev/trustee2.toml
       TRUSTEE_PASSWORD: ${TRUSTEE2_PASSWORD}
       TRUSTEE_PLATFORM_URL: ${TRUSTEE_PLATFORM_URL:-${HASURA_ENDPOINT}}

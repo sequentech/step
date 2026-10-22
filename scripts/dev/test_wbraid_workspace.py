@@ -57,7 +57,8 @@ class WorkspaceTrusteesTest(unittest.TestCase):
                 service = self.services[name]
                 environment = service["environment"]
                 self.assertEqual(environment["TRUSTEE_NAME"], name)
-                self.assertEqual(environment["B4_URL"], "http://b4v6:3005")
+                # The board is reached through Harvest's authenticated forward.
+                self.assertEqual(environment["B4_URL"], "http://harvest:8400/b4")
                 self.assertEqual(
                     environment["TRUSTEE_PLATFORM_URL"],
                     "http://graphql-engine:8080/v1/graphql",
@@ -85,6 +86,9 @@ class WorkspaceTrusteesTest(unittest.TestCase):
                 )
                 self.assertEqual(
                     service["depends_on"]["b4v6"]["condition"], "service_healthy"
+                )
+                self.assertEqual(
+                    service["depends_on"]["harvest"]["condition"], "service_started"
                 )
         self.assertEqual(
             self.services["b4v6"]["environment"]["AWS_ENDPOINT_URL"],

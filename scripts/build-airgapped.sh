@@ -133,6 +133,13 @@ add-minio-config-to-tarball() {
     tar --append -C $tmpdir --file=$DELIVERABLE_TARBALL minio
 }
 
+# The admin portal's /b4/ forward to Harvest (mounted at /etc/nginx/default.d).
+add-admin-portal-nginx-to-tarball() {
+    tmpdir=$(mktemp -d)
+    cp -r $PROJECT_ROOT/.devcontainer/admin-portal-nginx $tmpdir/admin-portal-nginx
+    tar --append -C $tmpdir --file=$DELIVERABLE_TARBALL admin-portal-nginx
+}
+
 add-up-script-to-tarball() {
     tmpdir=$(mktemp -d)
     cat $PROJECT_ROOT/scripts/airgap-files/up > $tmpdir/up
@@ -163,6 +170,7 @@ done
 add-images-to-tarball
 add-dotenv-to-tarball
 add-minio-config-to-tarball
+add-admin-portal-nginx-to-tarball
 add-keycloak-data-to-tarball
 add-docker-compose-to-tarball
 add-hasura-data-to-tarball

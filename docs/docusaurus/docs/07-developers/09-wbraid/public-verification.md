@@ -23,11 +23,13 @@ Build with the repository toolchain and target directory:
 devenv shell -- bash -c 'cd packages && CARGO_TARGET_DIR="$PWD/rust-local-target" cargo build --release -p trustee --locked'
 ```
 
-Fetch a DKG and tally, verify them, and save public evidence:
+Fetch a DKG and tally, verify them, and save public evidence. The board URL is
+the admin-portal domain's `/b4` forward, whose message reads are public (see
+[Board access](./trustee-configuration.md#board-access)):
 
 ```sh
 packages/rust-local-target/release/trustee verify \
-  --board-url https://boards.example.org \
+  --board-url https://admin.example.org/b4 \
   --dkg-board dkg_0123456789abcdef0123456789abcdef \
   --configuration-hash "$CONFIGURATION_HASH" \
   --tally-board tally_fedcba9876543210fedcba9876543210_1 \
@@ -85,7 +87,10 @@ const report = JSON.parse(
 ```
 
 `verifyTranscript` also accepts a file exported by the CLI, without network
-access. `fetchTranscript` is read-only and requires board and blob CORS access.
+access. `fetchTranscript` is read-only; pass `https://<admin-domain>/b4` as
+`boardUrl`. Harvest answers that public read with `Access-Control-Allow-Origin: *`,
+so a verifier page on another origin works too. Presigned blob URLs still need
+CORS access for that origin.
 For DKG-only verification, omit `tallyBoard` and set `tally_id` to `null`.
 `configurationHash` and `ballotsHash` derive pins from padded-base64 canonical
 messages obtained from a trusted platform record; deriving pins from the board

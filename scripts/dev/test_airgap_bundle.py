@@ -92,6 +92,28 @@ class AirgapBundleTest(unittest.TestCase):
                         service_block(compose, service),
                     )
 
+    def test_board_forwards_target_each_deployments_harvest_port(self):
+        # nginx files take no environment, so their Harvest port is hardcoded.
+        airgap = ".devcontainer/admin-portal-nginx/b4.conf"
+        for forward, env in (
+            (airgap, "scripts/airgap-files/.env"),
+            (airgap, ".devcontainer/.env.development"),
+            (
+                ".devcontainer/nginx/default.conf.template",
+                ".devcontainer/.env.remote-deployment.example",
+            ),
+        ):
+            with self.subTest(forward=forward, env=env):
+                port = re.search(
+                    r'^HARVEST_PORT="?(\d+)"?$', (ROOT / env).read_text(), re.M
+                )
+                upstream = re.search(
+                    r"set \$harvest_upstream harvest:(\d+);",
+                    (ROOT / forward).read_text(),
+                )
+                self.assertTrue(port and upstream)
+                self.assertEqual(upstream.group(1), port.group(1))
+
     def test_harvest_is_not_published_on_the_host(self):
         harvest = service_block(self.compose, "harvest")
         self.assertNotIn("ports:", harvest)
