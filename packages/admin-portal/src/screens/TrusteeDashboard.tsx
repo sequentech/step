@@ -496,80 +496,82 @@ export const TrusteeDashboard = () => {
                     <Typography role="status" sx={{my: 2}}>
                         {browserStatus}
                     </Typography>
-                    <Accordion
-                        disableGutters
-                        sx={{my: 2}}
-                        slotProps={{transition: {unmountOnExit: true}}}
-                    >
-                        <AccordionSummary
-                            id="trustee-history-heading"
-                            aria-controls="trustee-history-content"
-                            expandIcon={<ExpandMoreIcon />}
+                    <Box component="section" aria-labelledby="trustee-history-heading" sx={{my: 2}}>
+                        <Typography id="trustee-history-heading" variant="h6" component="h3">
+                            Local session history
+                        </Typography>
+                        <Typography sx={{my: 1}}>
+                            History is read from this browser using the loaded signing key and board
+                            service URL. These are the records the trustee reads when resuming a
+                            session. Counts confirm readable history, not a completed ceremony.
+                        </Typography>
+                        <Button
+                            variant="outlined"
+                            disabled={!keys || busy || running}
+                            onClick={() => {
+                                void perform(async () => readHistory(engine.current))
+                            }}
+                            sx={{minHeight: 44, my: 1}}
                         >
-                            <Typography variant="h6" component="span">
-                                Local session history
+                            Refresh local history
+                        </Button>
+                        {!keys && (
+                            <Typography>
+                                Import your private keys or restore a browser backup to inspect
+                                history.
                             </Typography>
-                        </AccordionSummary>
-                        <AccordionDetails>
-                            <Typography sx={{my: 1}}>
-                                History is read from this browser using the loaded signing key and
-                                board service URL. These are the records the trustee reads when
-                                resuming a session. Counts confirm readable history, not a completed
-                                ceremony.
-                            </Typography>
-                            <Button
-                                variant="outlined"
-                                disabled={!keys || busy || running}
-                                onClick={() => {
-                                    void perform(async () => readHistory(engine.current))
-                                }}
-                                sx={{minHeight: 44, my: 1}}
-                            >
-                                Refresh local history
-                            </Button>
-                            {!keys && (
-                                <Typography>
-                                    Import your private keys or restore a browser backup to inspect
-                                    history.
+                        )}
+                        {historyError && (
+                            <Alert severity="error">
+                                Unable to read local history: {historyError}
+                            </Alert>
+                        )}
+                        {history && (
+                            <>
+                                <Typography sx={{overflowWrap: "anywhere", my: 1}}>
+                                    Browser: {window.location.origin} · Board service:{" "}
+                                    {history.board_url}
                                 </Typography>
-                            )}
-                            {historyError && (
-                                <Alert severity="error">
-                                    Unable to read local history: {historyError}
-                                </Alert>
-                            )}
-                            {history && (
-                                <>
-                                    <Typography sx={{overflowWrap: "anywhere", my: 1}}>
-                                        Browser: {window.location.origin} · Board service:{" "}
-                                        {history.board_url}
+                                {history.stores.length === 0 && (
+                                    <Typography>
+                                        No known sessions. Refresh boards to include assigned
+                                        sessions.
                                     </Typography>
-                                    {history.stores.length === 0 && (
-                                        <Typography>
-                                            No known sessions. Refresh boards to include assigned
-                                            sessions.
-                                        </Typography>
-                                    )}
-                                    {history.stores.map((store) => (
-                                        <Box
-                                            key={store.board}
-                                            sx={{
-                                                border: "1px solid",
-                                                borderColor: "divider",
-                                                borderRadius: 1,
-                                                p: 2,
-                                                my: 1,
-                                                overflowWrap: "anywhere",
-                                            }}
+                                )}
+                                {history.stores.map((store) => (
+                                    <Accordion
+                                        key={store.board}
+                                        disableGutters
+                                        sx={{mt: 2, overflowWrap: "anywhere"}}
+                                        slotProps={{transition: {unmountOnExit: true}}}
+                                    >
+                                        <AccordionSummary
+                                            id={`trustee-history-${store.board}-heading`}
+                                            aria-controls={`trustee-history-${store.board}-content`}
+                                            expandIcon={<ExpandMoreIcon />}
+                                            sx={{"& .MuiAccordionSummary-content": {minWidth: 0}}}
                                         >
-                                            <Typography>{store.board}</Typography>
-                                            <Typography>
-                                                {store.predicates === 0
-                                                    ? "Empty history"
-                                                    : "History available"}{" "}
-                                                · {store.predicates} records · {store.own_posts} own
-                                                posts
-                                            </Typography>
+                                            <Box component="span" sx={{minWidth: 0}}>
+                                                <Typography
+                                                    component="span"
+                                                    sx={{display: "block"}}
+                                                >
+                                                    {store.board}
+                                                </Typography>
+                                                <Typography
+                                                    component="span"
+                                                    variant="body2"
+                                                    sx={{display: "block"}}
+                                                >
+                                                    {store.predicates === 0
+                                                        ? "Empty history"
+                                                        : "History available"}{" "}
+                                                    · {store.predicates} records · {store.own_posts}{" "}
+                                                    own posts
+                                                </Typography>
+                                            </Box>
+                                        </AccordionSummary>
+                                        <AccordionDetails>
                                             {store.predicates === 0 &&
                                                 boards.some(
                                                     (board) => board.parent === store.board
@@ -584,12 +586,12 @@ export const TrusteeDashboard = () => {
                                             <Typography variant="body2">
                                                 {store.database}
                                             </Typography>
-                                        </Box>
-                                    ))}
-                                </>
-                            )}
-                        </AccordionDetails>
-                    </Accordion>
+                                        </AccordionDetails>
+                                    </Accordion>
+                                ))}
+                            </>
+                        )}
+                    </Box>
                     <Accordion
                         disableGutters
                         sx={{mt: 2}}

@@ -412,9 +412,11 @@ them into a fresh browser. A keys file alone is insufficient to restore a tally
 participant in a different browser: the recorded DKG commitments must survive.
 A Web Lock prevents two tabs in the same browser from running the same identity.
 
-After importing keys or restoring a backup, expand **Local session history** to see the
+After importing keys or restoring a backup, **Local session history** shows the
 readable history-record and own-post counts for known boards, including the DKG
-parents of assigned tallies. **Refresh boards** includes current assignments;
+parents of assigned tallies. Each board entry starts collapsed with its counts
+visible; expand it to inspect the database name and any parent-history warning.
+**Refresh boards** includes current assignments;
 **Refresh local history** rereads their local stores while the runner is stopped.
 Counts also refresh after each participation cycle. The displayed browser origin,
 board service URL and database name identify the storage the loaded trustee uses.
