@@ -12,6 +12,8 @@ const SUBMIT_MARGIN_MS = 5 * 1000;
 const RESTART_KEY = "sequent.loginTimeoutRestart";
 // A restart older than this belongs to some other page and is ignored.
 const RESTART_MAX_AGE_MS = 60 * 1000;
+// When Keycloak can't be reached, ask again after this long.
+const RETRY_MS = 30 * 1000;
 const AUTH_ENDPOINT_PATH = /\/protocol\/openid-connect\/auth$/;
 const LOGIN_ACTIONS_PATH = "/login-actions/";
 const STATUS_PATH = "/login-timeout";
@@ -132,14 +134,23 @@ function expired() {
 }
 
 // Asks Keycloak again each time, since another tab of the same login also
-// extends it. When Keycloak has no answer for this page, it is left alone.
+// extends it. When Keycloak has no login for this page, it is left alone.
+// Until Keycloak answers, the last deadline it gave still applies.
 function check() {
   if (restarting || checking || document.visibilityState !== "visible") {
     return;
   }
   checking = true;
   fetch(statusUrl, {credentials: "same-origin", cache: "no-store"})
-    .then((response) => (response.status === 200 ? response.json() : null))
+    .then((response) => {
+      if (response.status === 204) {
+        return null;
+      }
+      if (!response.ok) {
+        throw new Error(`login-timeout answered ${response.status}`);
+      }
+      return response.json();
+    })
     .then((status) => {
       clearTimeout(deadlineTimer);
       if (!status || !Number.isFinite(status.secondsLeft)) {
@@ -155,7 +166,12 @@ function check() {
         restart();
       }
     })
-    .catch(() => {})
+    .catch(() => {
+      // A failed request must not switch the check off: the timer that
+      // replaces it also works with no deadline yet.
+      clearTimeout(deadlineTimer);
+      deadlineTimer = setTimeout(check, RETRY_MS);
+    })
     .finally(() => {
       checking = false;
       firstCheck = false;
