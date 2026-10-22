@@ -5,7 +5,6 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 set -e
-set -x
 
 # Set default values
 cd /opt/braid
@@ -39,9 +38,8 @@ if [ "$SECRETS_BACKEND_LOWER" = "awssecretsmanager" ]; then
     SECRET_KEY_NAME="${AWS_SM_KEY_PREFIX}${SECRET_KEY_NAME}"
 fi
 
-# Export Vault environment variables (Consumed internally by vault binary)
+# Export Vault address (Consumed internally by vault binary)
 export VAULT_ADDR="${VAULT_SERVER_URL}"
-export VAULT_TOKEN="${VAULT_TOKEN}"
 
 # Function to log messages
 log() {
@@ -60,12 +58,12 @@ fetch_secret_vault() {
 
 # Store secret in AWS Secrets Manager
 store_secret_aws() {
-    aws secretsmanager create-secret --name "$1" --secret-string "$2"
+    printf '%s' "$2" | aws secretsmanager create-secret --name "$1" --secret-string file:///dev/stdin
 }
 
 # Store secret in HashiCorp Vault
 store_secret_vault() {
-    vault kv put "$1" value="$2"
+    printf '%s' "$2" | vault kv put "$1" value=-
 }
 
 # Main function to handle the config
@@ -116,7 +114,7 @@ handle_trustee_config() {
     fi
 
     if [ ! -f "$TRUSTEE_CONFIG_PATH" ] || [ "$(cat "$TRUSTEE_CONFIG_PATH")" != "$config_content" ]; then
-        printf "%b" "$config_content" > "$TRUSTEE_CONFIG_PATH"
+        (umask 077 && printf "%b" "$config_content" > "$TRUSTEE_CONFIG_PATH")
         log "Wrote config to $TRUSTEE_CONFIG_PATH"
     fi
     grep key_pk "$TRUSTEE_CONFIG_PATH"
