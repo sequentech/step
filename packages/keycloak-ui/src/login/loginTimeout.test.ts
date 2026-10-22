@@ -40,10 +40,13 @@ describe("loginTimeoutLimitMs", () => {
         ).toBe(240 * 1000)
     })
 
-    it("never checks sooner than once a minute", () => {
+    it("restarts short timeouts halfway, before they expire", () => {
+        expect(
+            loginTimeoutLimitMs(`${REALM}/login-actions/authenticate`, {loginTimeoutSeconds: "60"})
+        ).toBe(30 * 1000)
         expect(
             loginTimeoutLimitMs(`${REALM}/login-actions/authenticate`, {loginTimeoutSeconds: "30"})
-        ).toBe(60 * 1000)
+        ).toBe(15 * 1000)
     })
 })
 

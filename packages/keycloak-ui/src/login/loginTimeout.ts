@@ -38,7 +38,8 @@ export function loginTimeoutLimitMs(pathname: string, settings: LoginTimeoutSett
     const timeout = USER_ACTION_PATH.test(pathname)
         ? seconds(settings.loginActionTimeoutSeconds, DEFAULT_ACTION_TIMEOUT_SECONDS)
         : seconds(settings.loginTimeoutSeconds, DEFAULT_LOGIN_TIMEOUT_SECONDS)
-    return Math.max(timeout * 1000 - SAFETY_MARGIN_MS, SAFETY_MARGIN_MS)
+    // Short timeouts keep half of their length as the margin.
+    return timeout * 1000 - Math.min(SAFETY_MARGIN_MS, (timeout * 1000) / 2)
 }
 
 export function loginRestartOf(pathname: string): LoginRestart {
