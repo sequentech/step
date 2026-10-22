@@ -22,6 +22,7 @@ import {
 import {useTranslation} from "react-i18next"
 
 import MenuActions from "./MenuActions"
+import {SlateTreeLeaves} from "./SlateTreeLeaves"
 import {useActionPermissions} from "../use-tree-menu-hook"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {NewResourceContext} from "@/providers/NewResourceProvider"
@@ -532,6 +533,7 @@ function TreeMenuItem({
                         className={({isActive}) =>
                             isActive ? `active menu-item-${treeResourceNames[0]}` : ``
                         }
+                        end={treeResourceNames[0] === "sequent_backend_election"}
                         to={`/${treeResourceNames[0]}/${id}`}
                         style={{textAlign: i18n.dir(i18n.language) === "rtl" ? "end" : "start"}}
                     >
@@ -556,6 +558,12 @@ function TreeMenuItem({
             </TreeMenuItemContainer>
             {resource?.active && open && (
                 <div className="">
+                    {treeResourceNames[0] === "sequent_backend_election" && (
+                        <SlateTreeLeaves
+                            election={resource as ElectionType}
+                            isArchivedElectionEvents={isArchivedElectionEvents}
+                        />
+                    )}
                     {hasNext && (
                         <TreeLeaves
                             data={data}
