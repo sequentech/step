@@ -14,6 +14,8 @@ import jakarta.ws.rs.core.Response;
 import java.util.Map;
 import org.keycloak.authentication.AuthenticationProcessor;
 import org.keycloak.common.util.Time;
+import org.keycloak.cookie.CookieProvider;
+import org.keycloak.cookie.CookieType;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.services.managers.AuthenticationSessionManager;
@@ -29,7 +31,8 @@ import org.keycloak.sessions.RootAuthenticationSessionModel;
  * use it to start over before the voter types into an expired form.
  *
  * <p>The login is found through the browser's own authentication session cookie, so a caller only
- * learns about its own login. Reading it does not extend it.
+ * learns about its own login. Reading it does not extend it. Without that cookie, or for a tab
+ * whose login is gone, the answer is 204 No Content.
  */
 public class LoginTimeoutResourceProvider implements RealmResourceProvider {
   static final String SECONDS_LEFT = "secondsLeft";
@@ -52,27 +55,34 @@ public class LoginTimeoutResourceProvider implements RealmResourceProvider {
   @Path("/")
   @Produces(MediaType.APPLICATION_JSON)
   public Response getSecondsLeft(@QueryParam("tab_id") String tabId) {
+    CacheControl noStore = new CacheControl();
+    noStore.setNoStore(true);
+    if (session.getProvider(CookieProvider.class).get(CookieType.AUTH_SESSION_ID) == null) {
+      // No login to ask about, for example with cookies blocked. Answering "expired" would make
+      // the page restart over and over.
+      return Response.noContent().cacheControl(noStore).build();
+    }
     RealmModel realm = session.getContext().getRealm();
     RootAuthenticationSessionModel rootSession =
         new AuthenticationSessionManager(session).getCurrentRootAuthenticationSession(realm);
-    int secondsLeft = 0;
-    if (rootSession != null) {
-      AuthenticationSessionModel authSession =
-          tabId == null ? null : rootSession.getAuthenticationSessions().get(tabId);
-      if (tabId == null || authSession != null) {
-        ClientSessionCode.ActionType actionType =
-            authSession == null
-                ? ClientSessionCode.ActionType.LOGIN
-                : actionTypeOf(
-                    authSession.getAction(),
-                    authSession.getAuthNote(AuthenticationProcessor.CURRENT_FLOW_PATH));
-        secondsLeft =
-            secondsLeft(
-                rootSession.getTimestamp(), lifespanOf(realm, actionType), Time.currentTime());
-      }
+    if (rootSession == null) {
+      // Keycloak drops a login once it expires.
+      return Response.ok(Map.of(SECONDS_LEFT, 0)).cacheControl(noStore).build();
     }
-    CacheControl noStore = new CacheControl();
-    noStore.setNoStore(true);
+    AuthenticationSessionModel authSession =
+        tabId == null ? null : rootSession.getAuthenticationSessions().get(tabId);
+    if (tabId != null && authSession == null) {
+      // That tab's login already finished or was replaced: nothing to restart.
+      return Response.noContent().cacheControl(noStore).build();
+    }
+    ClientSessionCode.ActionType actionType =
+        authSession == null
+            ? ClientSessionCode.ActionType.LOGIN
+            : actionTypeOf(
+                authSession.getAction(),
+                authSession.getAuthNote(AuthenticationProcessor.CURRENT_FLOW_PATH));
+    int secondsLeft =
+        secondsLeft(rootSession.getTimestamp(), lifespanOf(realm, actionType), Time.currentTime());
     return Response.ok(Map.of(SECONDS_LEFT, secondsLeft)).cacheControl(noStore).build();
   }
 
