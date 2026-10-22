@@ -408,7 +408,7 @@ mod tests {
     use electoral_log::messages::message::{Message, SigningData};
     use electoral_log::messages::newtypes::{
         CastVoteHash, ElectionIdString, EventIdString, PseudonymHash, VoterCountryString,
-        VoterIpString, VotingChannelString,
+        VoterIpString,
     };
     use strand::signature::StrandSignatureSk;
 
@@ -416,7 +416,7 @@ mod tests {
 
     fn queued_cast_vote(system_sk: &StrandSignatureSk) -> anyhow::Result<LogEventInput> {
         let signing_data = SigningData::new(system_sk.clone(), "voter-id", system_sk.clone());
-        let message = Message::cast_vote_with_channel_message(
+        let message = Message::cast_vote_message(
             EventIdString(EVENT_ID.to_string()),
             ElectionIdString(Some("election-id".to_string())),
             PseudonymHash::new([1; 64]),
@@ -424,7 +424,6 @@ mod tests {
             &signing_data,
             VoterIpString("ip".to_string()),
             VoterCountryString("country".to_string()),
-            VotingChannelString("ONLINE".to_string()),
             Some("voter-id".to_string()),
             Some("voter".to_string()),
             "area-id".to_string(),
