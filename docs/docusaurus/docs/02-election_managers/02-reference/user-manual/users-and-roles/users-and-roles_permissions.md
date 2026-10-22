@@ -218,3 +218,27 @@ These apply to users of the super-admin tenant only; in other tenants they grant
 | `task-queues-read` | Open the **Task Queues** page: the environment's queues, their recent outcomes and throughput, and the messages in them, without their tasks' arguments. |
 | `task-queues-write` | Replay or discard dead-lettered electoral-log events on the **Task Queues** page. Also needs `task-queues-read`. |
 | `task-queues-query` | Run read-only SQL queries on the task-queue database from the **Task Queues** page. Queries read messages as they are stored, with their tasks' arguments, which can include voters' data. Also needs `task-queues-read`. |
+
+## Exports and Other Sensitive Actions
+
+An election-event export needs `election-event-read`, which covers the event configuration and its
+scheduled events. Each other kind of data it includes needs the permission that exports or reads
+that data on its own:
+
+| Included data | Permission |
+|---|---|
+| Voters | `voter-export` |
+| Applications | `application-export` |
+| Activity logs | `logs-export` |
+| Tally | `tally-results-read` |
+| Reports | `report-read` |
+| Publications | `publish-export` |
+| Bulletin board (keys ceremonies and boards) | `export-ceremony` |
+| Documents | `document-download` |
+| Certificates | `ca-read` |
+
+| Action | Required permissions |
+|---|---|
+| Create a role | `role-create` |
+| Generate the ballot-images report | `report-generate` |
+| Export activity logs | `logs-export` |

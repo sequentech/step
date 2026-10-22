@@ -25,6 +25,8 @@ import {GenerateResultsXlsx} from "./GenerateResultsXlsx"
 import {ExportMenuItem} from "./ExportMenuItem"
 import {ReportRequestLinks} from "@/resources/Reports/ReportSigning"
 import {getExportDocumentId} from "./exportDocuments"
+import {offersBallotImagesReport} from "./templateReports"
+import {useReportsPermissions} from "@/resources/Reports/useReportsPermissions"
 
 interface PerformDownloadProps {
     onDownload: () => void
@@ -120,6 +122,7 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
         resultsEventId,
     } = props
     const {globalSettings} = useContext(SettingsContext)
+    const {canGenerateReports} = useReportsPermissions()
     const {t} = useTranslation()
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
     const [performDownload, setPerformDownload] = useState<IDocumentData | null>(null)
@@ -333,9 +336,11 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
                             loading={miruExportloading}
                         />
                     ) : null}
-                    {globalSettings?.ACTIVATE_MIRU_EXPORT &&
-                    tallyType !== ETallyType.INITIALIZATION_REPORT &&
-                    electionId ? (
+                    {offersBallotImagesReport({
+                        miruExportEnabled: Boolean(globalSettings?.ACTIVATE_MIRU_EXPORT),
+                        tallyType,
+                        canGenerateReports,
+                    }) && electionId ? (
                         <>
                             <GenerateReport
                                 handleClose={handleClose}
