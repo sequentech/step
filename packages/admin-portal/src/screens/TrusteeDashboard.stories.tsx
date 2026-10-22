@@ -31,6 +31,19 @@ export const NativeTrustee: Story = {
             canvas.queryByRole("button", {name: "Generate signed custody proof manually"})
         ).toBeNull()
         expect(canvas.queryByRole("textbox", {name: "Tally session ID"})).toBeNull()
+        const history = canvas.getByRole("button", {name: "Local session history"})
+        expect(history).toHaveAttribute("aria-expanded", "false")
+        expect(canvas.queryByRole("button", {name: "Refresh local history"})).toBeNull()
+        history.focus()
+        await userEvent.keyboard("{Enter}")
+        await expect(
+            await canvas.findByRole("button", {name: "Refresh local history"})
+        ).toBeVisible()
+        expect(history).toHaveAttribute("aria-expanded", "true")
+        await userEvent.click(history)
+        await waitFor(() =>
+            expect(canvas.queryByRole("button", {name: "Refresh local history"})).toBeNull()
+        )
     },
 }
 
@@ -79,6 +92,9 @@ const historyBoundary = () => {
     })
 }
 const restoreHistory = async (canvasElement: HTMLElement) => {
+    await userEvent.click(
+        within(canvasElement).getByRole("button", {name: "Local session history"})
+    )
     const module = await loadBrowserTrustee()
     const keys = module.BrowserTrustee.generateKeys()
     // Canonical Shares/PublicKey: tag, configuration hash, content hash, sender index.
@@ -171,6 +187,7 @@ export const MissingParentHistory: Story = {
     beforeEach: historyBoundary,
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
+        await userEvent.click(canvas.getByRole("button", {name: "Local session history"}))
         await userEvent.click(canvas.getByRole("button", {name: "Refresh boards"}))
         await userEvent.click(canvas.getByRole("button", {name: "Generate browser keys"}))
         await expect(await canvas.findByText(/Parent DKG history is empty/)).toBeVisible()

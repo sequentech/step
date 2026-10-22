@@ -496,85 +496,100 @@ export const TrusteeDashboard = () => {
                     <Typography role="status" sx={{my: 2}}>
                         {browserStatus}
                     </Typography>
-                    <Box component="section" aria-labelledby="trustee-history-heading" sx={{my: 2}}>
-                        <Typography id="trustee-history-heading" variant="h6" component="h3">
-                            Local session history
-                        </Typography>
-                        <Typography sx={{my: 1}}>
-                            History is read from this browser using the loaded signing key and board
-                            service URL. These are the records the trustee reads when resuming a
-                            session. Counts confirm readable history, not a completed ceremony.
-                        </Typography>
-                        <Button
-                            variant="outlined"
-                            disabled={!keys || busy || running}
-                            onClick={() => {
-                                void perform(async () => readHistory(engine.current))
-                            }}
-                            sx={{minHeight: 44, my: 1}}
+                    <Accordion
+                        disableGutters
+                        sx={{my: 2}}
+                        slotProps={{transition: {unmountOnExit: true}}}
+                    >
+                        <AccordionSummary
+                            id="trustee-history-heading"
+                            aria-controls="trustee-history-content"
+                            expandIcon={<ExpandMoreIcon />}
                         >
-                            Refresh local history
-                        </Button>
-                        {!keys && (
-                            <Typography>
-                                Import your private keys or restore a browser backup to inspect
-                                history.
+                            <Typography variant="h6" component="span">
+                                Local session history
                             </Typography>
-                        )}
-                        {historyError && (
-                            <Alert severity="error">
-                                Unable to read local history: {historyError}
-                            </Alert>
-                        )}
-                        {history && (
-                            <>
-                                <Typography sx={{overflowWrap: "anywhere", my: 1}}>
-                                    Browser: {window.location.origin} · Board service:{" "}
-                                    {history.board_url}
+                        </AccordionSummary>
+                        <AccordionDetails>
+                            <Typography sx={{my: 1}}>
+                                History is read from this browser using the loaded signing key and
+                                board service URL. These are the records the trustee reads when
+                                resuming a session. Counts confirm readable history, not a completed
+                                ceremony.
+                            </Typography>
+                            <Button
+                                variant="outlined"
+                                disabled={!keys || busy || running}
+                                onClick={() => {
+                                    void perform(async () => readHistory(engine.current))
+                                }}
+                                sx={{minHeight: 44, my: 1}}
+                            >
+                                Refresh local history
+                            </Button>
+                            {!keys && (
+                                <Typography>
+                                    Import your private keys or restore a browser backup to inspect
+                                    history.
                                 </Typography>
-                                {history.stores.length === 0 && (
-                                    <Typography>
-                                        No known sessions. Refresh boards to include assigned
-                                        sessions.
+                            )}
+                            {historyError && (
+                                <Alert severity="error">
+                                    Unable to read local history: {historyError}
+                                </Alert>
+                            )}
+                            {history && (
+                                <>
+                                    <Typography sx={{overflowWrap: "anywhere", my: 1}}>
+                                        Browser: {window.location.origin} · Board service:{" "}
+                                        {history.board_url}
                                     </Typography>
-                                )}
-                                {history.stores.map((store) => (
-                                    <Box
-                                        key={store.board}
-                                        sx={{
-                                            border: "1px solid",
-                                            borderColor: "divider",
-                                            borderRadius: 1,
-                                            p: 2,
-                                            my: 1,
-                                            overflowWrap: "anywhere",
-                                        }}
-                                    >
-                                        <Typography>{store.board}</Typography>
+                                    {history.stores.length === 0 && (
                                         <Typography>
-                                            {store.predicates === 0
-                                                ? "Empty history"
-                                                : "History available"}{" "}
-                                            · {store.predicates} records · {store.own_posts} own
-                                            posts
+                                            No known sessions. Refresh boards to include assigned
+                                            sessions.
                                         </Typography>
-                                        {store.predicates === 0 &&
-                                            boards.some(
-                                                (board) => board.parent === store.board
-                                            ) && (
-                                                <Alert severity="warning" sx={{my: 1}}>
-                                                    Parent DKG history is empty. Restore the session
-                                                    backup for this identity before tallying.
-                                                    Imported elections may use history under the
-                                                    original DKG board.
-                                                </Alert>
-                                            )}
-                                        <Typography variant="body2">{store.database}</Typography>
-                                    </Box>
-                                ))}
-                            </>
-                        )}
-                    </Box>
+                                    )}
+                                    {history.stores.map((store) => (
+                                        <Box
+                                            key={store.board}
+                                            sx={{
+                                                border: "1px solid",
+                                                borderColor: "divider",
+                                                borderRadius: 1,
+                                                p: 2,
+                                                my: 1,
+                                                overflowWrap: "anywhere",
+                                            }}
+                                        >
+                                            <Typography>{store.board}</Typography>
+                                            <Typography>
+                                                {store.predicates === 0
+                                                    ? "Empty history"
+                                                    : "History available"}{" "}
+                                                · {store.predicates} records · {store.own_posts} own
+                                                posts
+                                            </Typography>
+                                            {store.predicates === 0 &&
+                                                boards.some(
+                                                    (board) => board.parent === store.board
+                                                ) && (
+                                                    <Alert severity="warning" sx={{my: 1}}>
+                                                        Parent DKG history is empty. Restore the
+                                                        session backup for this identity before
+                                                        tallying. Imported elections may use history
+                                                        under the original DKG board.
+                                                    </Alert>
+                                                )}
+                                            <Typography variant="body2">
+                                                {store.database}
+                                            </Typography>
+                                        </Box>
+                                    ))}
+                                </>
+                            )}
+                        </AccordionDetails>
+                    </Accordion>
                     <Accordion
                         disableGutters
                         sx={{mt: 2}}
