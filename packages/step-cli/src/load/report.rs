@@ -114,6 +114,8 @@ pub struct Summary {
     pub traffic: BTreeMap<String, u64>,
     pub errors: Vec<String>,
     pub persistence_verification: String,
+    /// Voter matching exercised by this run, including the collision distribution.
+    pub login: serde_json::Value,
 }
 
 /// Interpolate several quantiles in one ordered scan, with memory bounded by point count.
@@ -456,6 +458,11 @@ pub fn generate(directory: &Path, dsn_env: Option<&str>) -> Result<()> {
         traffic,
         errors: failures.finish(),
         persistence_verification: verification,
+        login: super::census::distribution(
+            &input.settings.workload.login,
+            input.settings.workload.start,
+            input.settings.workload.count,
+        ),
     };
     files::save(&directory.join("results.json"), &summary)?;
     super::presentation::render(directory, &db, &input, &summary)?;
