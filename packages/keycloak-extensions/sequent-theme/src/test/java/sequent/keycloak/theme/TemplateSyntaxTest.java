@@ -36,7 +36,8 @@ import org.keycloak.common.util.StringPropertyReplacer;
 class TemplateSyntaxTest {
 
   private static final Path THEME_ROOT = Path.of("src/main/resources/theme");
-  private static final String RESTART_URL = "/realms/demo/login-actions/restart?skip_logout=false";
+  private static final String SSO_RESTART_URL =
+      "/realms/demo/login-actions/restart?skip_logout=true";
 
   @Test
   void structuredCredentialTemplatesParseWithHtmlAutoEscaping() throws IOException {
@@ -1095,20 +1096,19 @@ class TemplateSyntaxTest {
 
   @Test
   void loginPagesRestartAfterTheLoginTimeout() throws IOException, TemplateException {
-    String html = renderVotingPortalLogin(baseModel("standard"));
+    Map<String, Object> model = baseModel("standard");
+    model.put("authenticationSession", Map.of("tabId", "tab-1"));
+    String html = renderVotingPortalLogin(model);
 
     assertTrue(html.contains("src=\"/resources/js/login-timeout.js\""));
-    assertTrue(html.contains("data-status-url=\"/realms/demo/login-timeout\""));
-    assertTrue(html.contains("data-tab-id=\"\""));
-    assertTrue(html.contains("data-restart-url=\"" + RESTART_URL + "\""));
+    assertTrue(html.contains("data-login-action=\"/login\""));
+    // Restarting must not sign the voter out of a session they already have.
+    assertTrue(html.contains("data-restart-url=\"" + SSO_RESTART_URL + "\""));
   }
 
   @Test
-  void loginPagesAskAboutTheirOwnTab() throws IOException, TemplateException {
-    Map<String, Object> model = baseModel("standard");
-    model.put("authenticationSession", Map.of("tabId", "tab-1"));
-
-    assertTrue(renderVotingPortalLogin(model).contains("data-tab-id=\"tab-1\""));
+  void pagesWithoutALoginDoNotRestart() throws IOException, TemplateException {
+    assertFalse(renderVotingPortalLogin(baseModel("standard")).contains("login-timeout.js"));
   }
 
   @Test
@@ -1475,8 +1475,8 @@ class TemplateSyntaxTest {
                 Map.ofEntries(
                     Map.entry("resourcesPath", "/resources"),
                     Map.entry("resourcesCommonPath", "/common"),
-                    Map.entry("ssoLoginInOtherTabsUrl", "/sso"),
-                    Map.entry("loginRestartFlowUrl", RESTART_URL),
+                    Map.entry("ssoLoginInOtherTabsUrl", SSO_RESTART_URL),
+                    Map.entry("loginRestartFlowUrl", "/restart"),
                     Map.entry("loginAction", "/login"),
                     Map.entry("registrationAction", "/register"),
                     Map.entry("loginUrl", "/login"))),
