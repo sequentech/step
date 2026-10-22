@@ -213,10 +213,14 @@ export function useLoginTimeout(restartUrl: string, loginActionUrl: string): boo
                     restart()
                 }
             } catch {
-                // A failed request must not switch the check off: the timer that replaces it also
-                // works with no deadline yet.
+                // A failed request must not switch the check off, nor push it past the deadline
+                // Keycloak already gave.
                 clearTimeout(deadlineTimer)
-                deadlineTimer = setTimeout(() => void check(), RETRY_MS)
+                const untilDeadline = deadline === null ? RETRY_MS : deadline - Date.now()
+                deadlineTimer = setTimeout(
+                    () => void check(),
+                    Math.max(0, Math.min(RETRY_MS, untilDeadline))
+                )
             } finally {
                 checking = false
                 firstCheck = false
