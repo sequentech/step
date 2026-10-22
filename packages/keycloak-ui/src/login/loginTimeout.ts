@@ -12,6 +12,8 @@ const SUBMIT_MARGIN_MS = 5 * 1000
 export const RESTART_KEY = "sequent.loginTimeoutRestart"
 // A restart older than this belongs to some other page and is ignored.
 const RESTART_MAX_AGE_MS = 60 * 1000
+// When Keycloak can't be reached, ask again after this long.
+const RETRY_MS = 30 * 1000
 const AUTH_ENDPOINT_PATH = /\/protocol\/openid-connect\/auth$/
 const LOGIN_ACTIONS_PATH = "/login-actions/"
 const STATUS_PATH = "/login-timeout"
@@ -167,7 +169,8 @@ export function useLoginTimeout(restartUrl: string, loginActionUrl: string): boo
         }
 
         // Asks Keycloak again each time, since another tab of the same login also extends it.
-        // When Keycloak has no answer for this page, it is left alone.
+        // When Keycloak has no login for this page, it is left alone. Until Keycloak answers, the
+        // last deadline it gave still applies.
         const check = async () => {
             if (restarting || checking || document.visibilityState !== "visible") {
                 return
@@ -178,10 +181,13 @@ export function useLoginTimeout(restartUrl: string, loginActionUrl: string): boo
                     credentials: "same-origin",
                     cache: "no-store",
                 })
+                if (response.status !== 204 && !response.ok) {
+                    throw new Error(`login-timeout answered ${response.status}`)
+                }
                 const status =
-                    response.status === 200
-                        ? ((await response.json()) as {secondsLeft?: unknown})
-                        : null
+                    response.status === 204
+                        ? null
+                        : ((await response.json()) as {secondsLeft?: unknown})
                 clearTimeout(deadlineTimer)
                 if (
                     typeof status?.secondsLeft !== "number" ||
@@ -199,7 +205,10 @@ export function useLoginTimeout(restartUrl: string, loginActionUrl: string): boo
                     restart()
                 }
             } catch {
-                // Keycloak unreachable: leave the page alone.
+                // A failed request must not switch the check off: the timer that replaces it also
+                // works with no deadline yet.
+                clearTimeout(deadlineTimer)
+                deadlineTimer = setTimeout(() => void check(), RETRY_MS)
             } finally {
                 checking = false
                 firstCheck = false
