@@ -176,6 +176,15 @@ module.exports = function (env, argv) {
             port: 3002,
             open: true, // Automatically open the browser
             historyApiFallback: true,
+            // Browser trustees reach the board service through Harvest on the
+            // portal's own origin, as the deployed web server forwards /b4/.
+            // The path, Authorization header and body pass through unchanged.
+            proxy: [
+                {
+                    context: ["/b4/"],
+                    target: `http://${process.env.HARVEST_DOMAIN || "harvest:8400"}`,
+                },
+            ],
             headers: {
                 // Required together for SharedArrayBuffer/Atomics support,
                 // used by browser worker builds.

@@ -141,6 +141,17 @@ async function notified(message: string) {
 const saveButton = (canvasElement: HTMLElement) =>
     within(canvasElement).getByRole("button", {name: "Save"})
 
+export const PrivacyFollowsBallotDesign: Story = {
+    play: async ({canvasElement}) => {
+        await loaded(canvasElement)
+        const design = section(canvasElement, "ballotDesign").closest(".MuiAccordion-root")
+        const privacy = section(canvasElement, "ballotPrivacy.settings.title").closest(
+            ".MuiAccordion-root"
+        )
+        expect(design?.nextElementSibling).toBe(privacy)
+    },
+}
+
 async function editDescription(canvasElement: HTMLElement) {
     const canvas = await loaded(canvasElement)
     const description = canvas.getByRole("textbox", {name: field("description")})

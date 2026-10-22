@@ -27,7 +27,7 @@ pub struct EventBallotBox {
 }
 
 /// The ballot box of an election event.
-#[instrument(skip(hasura_transaction), err)]
+#[instrument(skip_all)]
 pub async fn get_event_ballot_box(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -53,7 +53,7 @@ pub async fn get_event_ballot_box(
 
 /// Ballots of an election's area whose outcome is pending, which the tally refuses
 /// to count.
-#[instrument(skip(hasura_transaction), err)]
+#[instrument(skip_all)]
 pub async fn count_unresolved_votes(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &Uuid,
@@ -142,7 +142,7 @@ pub enum VoterCastVotes<'a> {
 
 /// A voter's cast votes in their area and authorized elections, in the order they
 /// were cast.
-#[instrument(skip(hasura_transaction), err)]
+#[instrument(skip_all)]
 pub async fn get_voter_cast_votes(
     hasura_transaction: &Transaction<'_>,
     scope: &VoterScope<'_>,
@@ -155,7 +155,15 @@ pub async fn get_voter_cast_votes(
     }
     let ballot_box =
         get_event_ballot_box(hasura_transaction, scope.tenant_id, scope.election_event_id).await?;
-    let mut votes = ballot_box_voter_votes(&ballot_box.store, scope, which).await?;
+    let event =
+        get_election_event_by_id(hasura_transaction, scope.tenant_id, scope.election_event_id)
+            .await?;
+    let identity = crate::services::vote_privacy::ballot_identity(&event, scope.voter_id).await?;
+    let private_scope = VoterScope {
+        voter_id: &identity,
+        ..*scope
+    };
+    let mut votes = ballot_box_voter_votes(&ballot_box.store, &private_scope, which).await?;
     if let VoterCastVotes::All = which {
         let policy =
             get_election_event_by_id(hasura_transaction, scope.tenant_id, scope.election_event_id)

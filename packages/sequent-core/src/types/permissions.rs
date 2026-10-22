@@ -10,6 +10,10 @@ use strum_macros::{Display, EnumIter, EnumString};
     Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString,
 )]
 pub enum Permissions {
+    #[strum(serialize = "voter-pseudonym-resolve")]
+    VOTER_PSEUDONYM_RESOLVE,
+    #[strum(serialize = "forensic-read")]
+    FORENSIC_READ,
     #[strum(serialize = "projects-read")]
     PROJECTS_READ,
     #[strum(serialize = "projects-write")]

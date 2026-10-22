@@ -329,6 +329,46 @@ impl<'a> MultiBallotCodecContext<'a> {
             serial_number,
         })
     }
+
+    /// A ballot whose plaintext does not fit this context's layout. It has
+    /// no selections and counts as an implicitly invalid vote in every
+    /// contest. Like any decoded ballot, it takes the next serial number.
+    pub fn undecodable_ballot(
+        &self,
+        serial_number_counter: Option<&mut u32>,
+    ) -> Result<DecodedBallotChoices, String> {
+        let choices = self
+            .contest_contexts
+            .iter()
+            .map(|contest_context| {
+                DecodedContestChoices::new(
+                    contest_context.contest.id.clone(),
+                    vec![],
+                    false,
+                    vec![InvalidPlaintextError::ballot_too_large()],
+                    vec![],
+                )
+            })
+            .collect();
+
+        let serial_number = match serial_number_counter {
+            Some(serial_number) => {
+                let sn = Some(format!("{:09}", *serial_number));
+                *serial_number = serial_number
+                    .checked_add(1)
+                    .ok_or("Ballot serial number counter exhausted")?;
+                sn
+            }
+            None => None,
+        };
+
+        Ok(DecodedBallotChoices {
+            is_explicit_invalid: false,
+            is_blank_ballot: false,
+            choices,
+            serial_number,
+        })
+    }
 }
 
 /// A multi contest ballot.
@@ -3392,6 +3432,159 @@ mod tests {
                 .expect("acclaimed contest must not affect the algorithm"),
             CountingAlgType::PluralityAtLarge
         );
+    }
+
+    /// The largest value the bases can hold decodes, and the first value
+    /// beyond them is rejected.
+    #[test]
+    fn test_decode_mixed_radix_rejects_value_beyond_bases() {
+        let bases = vec![2, 3];
+
+        assert_eq!(
+            BallotChoices::decode_mixed_radix(&bases, &BigUint::from(5u32)),
+            Ok(vec![1, 2])
+        );
+        assert!(BallotChoices::decode_mixed_radix(
+            &bases,
+            &BigUint::from(6u32)
+        )
+        .is_err());
+    }
+
+    /// Slots of base one carry no information, so they cannot absorb a value
+    /// beyond the layout.
+    #[test]
+    fn test_decode_mixed_radix_rejects_value_beyond_unit_bases() {
+        assert!(BallotChoices::decode_mixed_radix(
+            &vec![2, 1, 1],
+            &BigUint::from(4u32)
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn test_decode_mixed_radix_rejects_zero_base() {
+        assert!(BallotChoices::decode_mixed_radix(
+            &vec![2, 0],
+            &BigUint::from(3u32)
+        )
+        .is_err());
+    }
+
+    /// The last value inside the capacity of a ballot style fills its slots,
+    /// the first value past it is rejected, and a rejected value does not
+    /// take a serial number.
+    #[test]
+    fn test_decode_from_bigint_with_context_rejects_value_beyond_bases() {
+        let contests = vec![test_contest("a", 2, 1), test_contest("b", 3, 2)];
+        let context = MultiBallotCodecContext::new(
+            &contests,
+            false,
+            false,
+            MultiContestEncodingMode::LEGACY,
+        )
+        .expect("context should build");
+        let capacity: BigUint = context
+            .bases
+            .iter()
+            .map(|base| BigUint::from(*base))
+            .product();
+        let mut serial_number_counter = 1;
+
+        assert!(BallotChoices::decode_mixed_radix(
+            &context.bases,
+            &(&capacity - 1u8)
+        )
+        .is_ok());
+        assert!(BallotChoices::decode_from_bigint_with_context(
+            &context,
+            &BigUint::from(0u8),
+            Some(&mut serial_number_counter),
+        )
+        .is_ok());
+        assert_eq!(serial_number_counter, 2);
+        assert!(BallotChoices::decode_from_bigint_with_context(
+            &context,
+            &capacity,
+            Some(&mut serial_number_counter),
+        )
+        .is_err());
+        assert_eq!(serial_number_counter, 2);
+    }
+
+    #[test]
+    fn test_decode_from_30_bytes_rejects_out_of_range_length() {
+        let style = test_ballot_style(vec![test_contest("a", 2, 1)]);
+
+        for length in [30u8, 255u8] {
+            let mut bytes = [0u8; 30];
+            bytes[0] = length;
+
+            assert!(
+                BallotChoices::decode_from_30_bytes(&bytes, &style).is_err()
+            );
+        }
+    }
+
+    /// An undecodable ballot is invalid without selections in every contest of
+    /// the layout, and takes a serial number only when it is given a counter.
+    #[test]
+    fn test_undecodable_ballot_is_invalid_in_every_contest() {
+        let contests = vec![test_contest("b", 3, 2), test_contest("a", 2, 1)];
+        let context = MultiBallotCodecContext::new(
+            &contests,
+            false,
+            false,
+            MultiContestEncodingMode::LEGACY,
+        )
+        .expect("context should build");
+        let mut serial_number_counter = 7;
+
+        let ballot = context
+            .undecodable_ballot(Some(&mut serial_number_counter))
+            .expect("undecodable ballot should build");
+
+        assert_eq!(serial_number_counter, 8);
+        assert_eq!(ballot.serial_number, Some("000000007".to_string()));
+        assert!(!ballot.is_explicit_invalid);
+        assert!(!ballot.is_blank_ballot);
+        assert_eq!(
+            ballot
+                .choices
+                .iter()
+                .map(|contest_choices| contest_choices.contest_id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["a", "b"]
+        );
+        for contest_choices in &ballot.choices {
+            assert!(contest_choices.choices.is_empty());
+            assert!(!contest_choices.is_explicit_invalid);
+            assert_eq!(
+                contest_choices.invalid_errors,
+                vec![InvalidPlaintextError::ballot_too_large()]
+            );
+        }
+
+        let decoded_contests =
+            map_decoded_ballot_choices_to_decoded_contests(ballot, &contests)
+                .expect("undecodable ballot should map to every contest");
+        assert_eq!(decoded_contests.len(), 2);
+        assert!(decoded_contests.iter().all(
+            |contest| contest.is_invalid() && !contest.is_explicit_invalid
+        ));
+
+        assert_eq!(
+            context
+                .undecodable_ballot(None)
+                .expect("undecodable ballot should build")
+                .serial_number,
+            None
+        );
+
+        let mut exhausted_counter = u32::MAX;
+        assert!(context
+            .undecodable_ballot(Some(&mut exhausted_counter))
+            .is_err());
     }
 
     fn test_contest(

@@ -769,6 +769,13 @@ pub async fn update_publish_ballot(
         }
     }
 
+    crate::services::vote_privacy::allocate_registry(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+    )
+    .await?;
+
     let _result = soft_delete_other_ballot_publications(
         &hasura_transaction,
         &ballot_publication_id,

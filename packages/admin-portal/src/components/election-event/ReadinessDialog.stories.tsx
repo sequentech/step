@@ -42,6 +42,19 @@ const report = (passed: boolean) => ({
         kind,
         passed: passed || kind !== "certified_voters",
         message: "Authoritative server check",
+        ...(passed || kind !== "certified_voters"
+            ? {}
+            : {
+                  findings: [
+                      {
+                          code: "registry_count_changed",
+                          event: "official",
+                          area: "Area A",
+                          values: {imported: "3", current: "4"},
+                          message: "The official event's registry has 4 voters in area Area A",
+                      },
+                  ],
+              }),
     })),
     evidence: {official: {event_id: EVENT_ID}, tested: {event_id: TESTED_ID}},
 })
@@ -136,7 +149,12 @@ async function run(canvasElement: HTMLElement) {
 }
 function expectChecklistAlignment(dialog: ReturnType<typeof within>) {
     const list = dialog.getByRole("list", {name: text("results")})
-    for (const row of within(list).getAllByRole("listitem")) {
+    // Failure detail is a nested list; align only the check rows.
+    const rows = within(list)
+        .getAllByRole("listitem")
+        .filter((row) => row.parentElement === list)
+    expect(rows).toHaveLength(5)
+    for (const row of rows) {
         const pill = row.querySelector(".MuiChip-root") as HTMLElement
         const label = row.querySelector("p") as HTMLElement
         expect(
@@ -173,6 +191,18 @@ export const Failed: Story = {
         await expect(await dialog.findByText(text("failed"))).toBeVisible()
         expect(dialog.getAllByText(i18n.t("logsScreen.readiness.failed"))).toHaveLength(1)
         expect(dialog.queryByText("signed-readiness-entry")).toBeNull()
+        // The server's condition stays visible beside each translated label.
+        expect(dialog.getAllByText("Authoritative server check")).toHaveLength(5)
+        expect(
+            dialog.getByText(
+                i18n.t("readiness.findings.registry_count_changed", {
+                    event: i18n.t("readiness.eventRoles.official"),
+                    area: "Area A",
+                    imported: "3",
+                    current: "4",
+                })
+            )
+        ).toBeVisible()
         expectChecklistAlignment(dialog)
     },
 }
@@ -181,12 +211,17 @@ export const ServerError: Story = {
     play: async ({canvasElement}) => {
         const dialog = await run(canvasElement)
         await expect(await dialog.findByText(text("error"))).toBeVisible()
+        await expect(dialog.getByText("Readiness denied")).toBeVisible()
         expect(dialog.queryByText(text("success"))).toBeNull()
     },
 }
 export const UnsignedPass: Story = {
     args: {outcome: "unsigned"},
-    play: ServerError.play,
+    play: async ({canvasElement}) => {
+        const dialog = await run(canvasElement)
+        await expect(await dialog.findByText(text("error"))).toBeVisible()
+        expect(dialog.queryByText(text("success"))).toBeNull()
+    },
 }
 export const Pending: Story = {
     args: {outcome: "pending"},

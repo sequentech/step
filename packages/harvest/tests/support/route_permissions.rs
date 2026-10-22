@@ -33,6 +33,8 @@ const ELECTION_ID: &str = "00000000-0000-0000-0000-000000000001";
 // And some as version 4 UUIDs.
 const UUID_V4_TENANT_ID: &str = "00000000-0000-4000-8000-00000000000a";
 const UUID_V4_EVENT_ID: &str = "00000000-0000-4000-8000-00000000000e";
+// A board name the platform mints.
+const BOARD: &str = "dkg_d9792af071b849528aac94bc0fead5f7";
 const PEM: &str =
     "-----BEGIN CERTIFICATE-----\nAA==\n-----END CERTIFICATE-----\n";
 
@@ -67,6 +69,8 @@ enum Identity {
     UuidTenant,
     /// A voter of the fixture election, signed in to the voting portal.
     Voter,
+    /// A voter whose event id is a UUID, as the privacy routes require.
+    PrivacyVoter,
 }
 
 impl Identity {
@@ -81,10 +85,14 @@ impl Identity {
             Self::Gold => claims
                 .acr(&Permissions::GOLD.to_string())
                 .auth_time(Utc::now().timestamp()),
-            Self::Voter => claims
+            Self::Voter | Self::PrivacyVoter => claims
                 .azp(VOTING_PORTAL_CLIENT)
                 .area(AREA_ID)
-                .election_event(EVENT_ID)
+                .election_event(if matches!(self, Self::PrivacyVoter) {
+                    UUID_EVENT_ID
+                } else {
+                    EVENT_ID
+                })
                 .authorized_elections(&[ELECTION_ID]),
             _ => claims,
         }
@@ -121,9 +129,10 @@ impl Case {
     }
 }
 
-/// A route path as a request URL: a dynamic `<id>` segment takes a UUID.
+/// A route path as a request URL: a dynamic `<id>` segment takes a UUID,
+/// and `<board>` a board name.
 pub(super) fn concrete(path: &str) -> String {
-    path.replace("<id>", ELECTION_ID)
+    path.replace("<id>", ELECTION_ID).replace("<board>", BOARD)
 }
 
 fn reply(
@@ -168,6 +177,19 @@ fn cases() -> Vec<Case> {
     use Permissions::*;
     use VoterPermissions::{ACK_SUPPORT_MATERIALS, CAST_VOTE};
     vec![
+        case!(PrivacyVoter, "/audit-ballot", {"election_id": ELECTION_ID, "ballot_id": "FTBE-MHRX"}, [CAST_VOTE], BACKEND, UNAUTHORIZED),
+        case!(PrivacyVoter, "/ballot-box-log", {"election_event_id": UUID_EVENT_ID}, [CAST_VOTE], BACKEND, FORBIDDEN),
+        case!(PrivacyVoter, "/ballot-box-own", {"election_event_id": UUID_EVENT_ID}, [CAST_VOTE], BACKEND, FORBIDDEN),
+        case!(PrivacyVoter, "/ballot-box-entry", {"election_event_id": UUID_EVENT_ID, "election_id": ELECTION_ID, "ballot_id": "FTBE-MHRX"}, [CAST_VOTE], BACKEND, FORBIDDEN),
+        case!(PrivacyVoter, "/ballot-box-keys", {"election_event_id": UUID_EVENT_ID, "election_id": ELECTION_ID}, [CAST_VOTE], BACKEND, FORBIDDEN),
+        case!(Admin, "/ballot-box-entry", {"election_event_id": UUID_EVENT_ID, "election_id": ELECTION_ID, "ballot_id": "FTBE-MHRX"}, [LOGS_READ], BACKEND, UNAUTHORIZED),
+        case!(Admin, "/ballot-box-keys", {"election_event_id": UUID_EVENT_ID, "election_id": ELECTION_ID}, [LOGS_READ], BACKEND, UNAUTHORIZED),
+        case!(Admin, "/ballot-privacy-settings", {"election_event_id": UUID_EVENT_ID}, [ELECTION_EVENT_READ], BACKEND, UNAUTHORIZED),
+        case!(Admin, "/forensic-network-summary", {"election_event_id": UUID_EVENT_ID}, [FORENSIC_READ], BACKEND, UNAUTHORIZED),
+        case!(Admin, "/forensic-network-detail", {"election_event_id": UUID_EVENT_ID, "ip": "192.0.2.10"}, [FORENSIC_READ], BACKEND, UNAUTHORIZED),
+        case!(UuidTenant, "/privacy/sign-in-network", {"tenant_id": UUID_TENANT_ID, "election_event_id": UUID_EVENT_ID, "voter_id": USER_ID, "delivery_id": "test-signin", "occurred_at_ms": 1_800_000_000_000_i64}, [], UNAUTHORIZED_JSON),
+        case!(PrivacyVoter, "/receipt-document", {"election_event_id": UUID_EVENT_ID, "document_id": ELECTION_ID}, [CAST_VOTE], BACKEND, FORBIDDEN),
+        case!(Admin, "/resolve-voter-pseudonym", {"election_event_id": UUID_EVENT_ID, "pseudonym": "7QKM-2HXD", "reason": "investigation"}, [VOTER_PSEUDONYM_RESOLVE], BACKEND, UNAUTHORIZED),
         case!(Voter, "/acknowledge-support-materials", {"election_event_id": EVENT_ID, "document_ids": []}, [ACK_SUPPORT_MATERIALS], BACKEND, UNAUTHORIZED),
         case!(UuidTenant, "/readiness-check", {"official_event_id": UUID_V4_EVENT_ID, "tested_event_id": "00000000-0000-4000-8000-00000000000f"}, [READINESS_CHECK], BACKEND, UNAUTHORIZED_JSON),
         case!(UuidTenant, "/apply-schedule-recompute", {"election_event_id": UUID_EVENT_ID}, [SCHEDULED_EVENT_WRITE], BACKEND, UNAUTHORIZED_JSON),
@@ -228,7 +250,7 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/edit-user", {"tenant_id": TENANT_ID, "election_event_id": UUID_EVENT_ID, "user_id": USER_ID, "password": "test-password", "first_name": "Ada"}, [VOTER_WRITE, VOTER_CHANGE_PASSWORD], BACKEND, UNAUTHORIZED_JSON),
         case!(Admin, "/edit-user", {"tenant_id": TENANT_ID, "election_event_id": UUID_EVENT_ID, "user_id": USER_ID, "secret_attributes": {"test-secret": ["value"]}}, [VOTER_WRITE, VOTER_SECRET_ATTRIBUTE_WRITE], BACKEND, UNAUTHORIZED_JSON),
         case!(Admin, "/election-event/stats", {"election_event_id": EVENT_ID, "start_date": "2026-01-01", "end_date": "2026-01-02", "user_timezone": "UTC"}, [ADMIN_DASHBOARD_VIEW], BACKEND, UNAUTHORIZED),
-        case!(Admin, "/election-event/top-votes-by-ip", {"election_event_id": EVENT_ID}, [ADMIN_DASHBOARD_VIEW], BACKEND, UNAUTHORIZED),
+        case!(Admin, "/election-event/top-votes-by-ip", {"election_event_id": EVENT_ID}, [FORENSIC_READ], Reply::Text(Status::Gone), UNAUTHORIZED),
         case!(Admin, "/election/stats", {"election_event_id": EVENT_ID, "election_id": "test-election", "start_date": "2026-01-01", "end_date": "2026-01-02", "user_timezone": "UTC"}, [ADMIN_DASHBOARD_VIEW], BACKEND, UNAUTHORIZED),
         case!(Admin, "/electoral-log", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID}, [LOGS_READ], BACKEND, UNAUTHORIZED),
         // Without an election event it is the tenant log, which refuses its non-readers.
@@ -281,6 +303,7 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/generate-report", {"report_id": "test-report", "tenant_id": TENANT_ID, "report_mode": "PREVIEW"}, [REPORT_READ], BACKEND, UNAUTHORIZED),
         // The permission is checked in the caller's tenant, not the body's.
         case!(Admin, "/generate-report", {"report_id": "test-report", "tenant_id": OTHER_TENANT_ID, "report_mode": "PREVIEW"}, [REPORT_READ], BACKEND, UNAUTHORIZED),
+        case!(Admin, "/generate-transmission-report", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "election_id": ELECTION_ID, "tally_session_id": ELECTION_ID}, [TRANSMISSION_REPORT_GENERATE], BACKEND, UNAUTHORIZED),
         case!(Admin, "/generate-template", {"type": "BallotImages", "election_event_id": EVENT_ID, "election_id": "test-election", "tally_session_id": "test-session"}, [REPORT_READ], BACKEND, UNAUTHORIZED),
         case!(Admin, "/get-manual-verification-pdf", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "voter_id": "test-voter"}, [VOTER_MANUALLY_VERIFY], BACKEND, UNAUTHORIZED),
         case!(Admin, "/generate-voter-information-letter", {"election_event_id": EVENT_ID, "voter_id": "test-voter"}, [VOTER_INFORMATION_LETTER, DOCUMENT_PASSWORD_READ], BACKEND, FORBIDDEN_JSON),
@@ -306,7 +329,10 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/get-users", {"tenant_id": TENANT_ID}, [USER_READ], BACKEND, UNAUTHORIZED),
         case!(Admin, "/get-users", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID}, [VOTER_READ], BACKEND_TEXT, UNAUTHORIZED),
         case!(Admin, "/trustee/action-result", {"id": "test-action", "request": {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "keys_ceremony_id": "test-ceremony", "trustee_name": "test-trustee", "signing_public_key": "fixture-signing-key", "share_encryption_public_key": "fixture-share-key"}, "status": "FAILED", "detail": "fixture error"}, [TRUSTEE_CEREMONY], BACKEND, UNAUTHORIZED_JSON),
-        case!(Admin, "/trustee/boards/report", {"board": "dkg_d9792af071b849528aac94bc0fead5f7", "kind": "HALTED", "detail": "fixture error"}, [TRUSTEE_CEREMONY], BACKEND, UNAUTHORIZED),
+        case!(Admin, "/trustee/boards/report", {"board": BOARD, "kind": "HALTED", "detail": "fixture error"}, [TRUSTEE_CEREMONY], BACKEND, UNAUTHORIZED),
+        // Board membership is read from the database before b4 is contacted.
+        case!(Admin, "/b4/boards/<board>/messages/initiate", {"size": 1}, [TRUSTEE_CEREMONY], BACKEND, UNAUTHORIZED),
+        case!(Admin, "/b4/boards/<board>/messages/<id>/confirm", {"data": null, "version": "fixture-version"}, [TRUSTEE_CEREMONY], BACKEND, UNAUTHORIZED),
         case!(Admin, "/trustee/request-server-custody", {"election_event_id": EVENT_ID, "keys_ceremony_id": "test-ceremony", "tally_session_id": "test-session", "custody_request_json": "{}"}, [TRUSTEE_CEREMONY], BACKEND, UNAUTHORIZED_JSON),
         case!(Voter, "/get-voter-cast-votes", {"election_event_id": EVENT_ID}, [CAST_VOTE], BACKEND, FORBIDDEN),
         // Looking ballots up by their ID first reads the checks period.

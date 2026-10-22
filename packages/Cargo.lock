@@ -9383,6 +9383,7 @@ dependencies = [
  "chrono-tz",
  "console_error_panic_hook",
  "csv",
+ "electoral-log",
  "handlebars",
  "handlebars-chrono",
  "headless_chrome",
@@ -11270,6 +11271,7 @@ name = "trustee"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "clap",
  "protocol-board",
  "reqwest 0.12.24",

@@ -1,10 +1,11 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {TranslationType} from "./en"
+import englishTranslation, {TranslationType} from "./en"
 
 const frenchTranslation: TranslationType = {
     translations: {
+        ballotPrivacy: englishTranslation.translations.ballotPrivacy,
         startup: {
             error: "Le portail de vote n’a pas pu démarrer. Veuillez réessayer.",
             retry: "Réessayer",
@@ -141,6 +142,11 @@ const frenchTranslation: TranslationType = {
                 "Soumettez votre bulletin pour qu'il soit enregistré, ou lancez un audit afin de vérifier qu'il a été correctement chiffré.",
         },
         reviewScreen: {
+            castRecovery: {
+                uncertain:
+                    "Le résultat du vote n’a pas été confirmé. Vous pouvez réessayer la même demande ou vérifier votre identifiant de bulletin avant de recommencer.",
+                checkBallot: "Vérifier le bulletin",
+            },
             acclamation: {
                 title: "Acquis par acclamation",
                 helpDialog: {
@@ -362,6 +368,9 @@ const frenchTranslation: TranslationType = {
             demoQRText: "Le suivi des bulletins est désactivé en mode démo",
         },
         auditScreen: {
+            confirmingAudit: "Confirmation que ce bulletin ne peut plus être déposé…",
+            auditUnavailable:
+                "Le bulletin n’a pas pu être audité. Son contenu n’a pas été révélé. Veuillez réessayer.",
             printButton: "Imprimer",
             restartButton: "Démarrer le vote",
             title: "Vérifiez votre Bulletin",

@@ -6,10 +6,14 @@
 //! trustee's user, as step-cli logs a trustee in, and the renewal of the token
 //! it gets.
 
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use anyhow::{Context as _, Result};
+use async_trait::async_trait;
+use protocol_board::trustee_sessions::RequestHeaders;
 use serde::Deserialize;
+use tokio::sync::Mutex;
 use tracing::{info, warn};
 
 use crate::platform::call;
@@ -37,6 +41,33 @@ pub(crate) struct TokenSource {
     token_url: String,
     credentials: Credentials,
     token: Option<Token>,
+}
+
+/// The token source shared by the platform's calls and the board's.
+pub(crate) type SharedTokens = Arc<Mutex<TokenSource>>;
+
+/// The trustee's token on every request to the board service, which Harvest
+/// fronts with the platform's authentication.
+pub(crate) struct BoardHeaders {
+    tokens: SharedTokens,
+}
+
+impl BoardHeaders {
+    pub(crate) fn new(tokens: SharedTokens) -> BoardHeaders {
+        BoardHeaders { tokens }
+    }
+}
+
+#[async_trait(?Send)]
+impl RequestHeaders for BoardHeaders {
+    async fn headers(&self) -> Result<Vec<(String, String)>> {
+        let mut tokens = self.tokens.lock().await;
+        let token = tokens.access_token().await?;
+        Ok(vec![(
+            "Authorization".to_owned(),
+            format!("Bearer {token}"),
+        )])
+    }
 }
 
 struct Token {

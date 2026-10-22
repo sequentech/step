@@ -426,11 +426,13 @@ impl PostgresStore {
             .collect()
     }
 
-    /// Valid ballots of an event, or of one of its elections, and their voters.
+    /// Valid ballots of an event, or of one of its elections, and their voters;
+    /// those cast in one area when `area_id` names it.
     pub async fn participation(
         &self,
         election_event_id: &str,
         election_id: Option<&str>,
+        area_id: Option<&str>,
     ) -> Result<Participation> {
         let row = self
             .client()
@@ -438,8 +440,9 @@ impl PostgresStore {
             .query_one(
                 "SELECT count(*), count(DISTINCT voter_id) FROM ballot_box_ballot \
                  WHERE election_event_id = $1::text::uuid AND status = $3 \
-                   AND ($2::text IS NULL OR election_id = $2::text::uuid)",
-                &[&election_event_id, &election_id, &VALID],
+                   AND ($2::text IS NULL OR election_id = $2::text::uuid) \
+                   AND ($4::text IS NULL OR area_id = $4::text::uuid)",
+                &[&election_event_id, &election_id, &VALID, &area_id],
             )
             .await
             .context("Error counting participation")?;
@@ -525,11 +528,15 @@ impl PostgresStore {
             .client()
             .await?
             .query_one(
-                "SELECT count(*) FROM ballot_box_pending p \
-                 JOIN ballot_box_ballot b \
-                   ON b.election_event_id = p.election_event_id AND b.seq = p.seq \
-                 WHERE p.election_event_id = $1::text::uuid \
-                   AND b.election_id = $2::text::uuid AND b.area_id = $3::text::uuid",
+                "SELECT (SELECT count(*) FROM ballot_box_pending p
+                 JOIN ballot_box_ballot b
+                   ON b.election_event_id = p.election_event_id AND b.seq = p.seq
+                 WHERE p.election_event_id = $1::text::uuid
+                   AND b.election_id = $2::text::uuid AND b.area_id = $3::text::uuid)
+                 + (SELECT count(*) FROM sequent_backend.ballot_evidence_pending p
+                    JOIN ballot_box_received r ON r.election_event_id = p.election_event_id AND r.id = p.received_id
+                    WHERE p.election_event_id = $1::text::uuid
+                      AND r.election_id = $2::text::uuid AND r.area_id = $3::text::uuid)",
                 &[&election_event_id, &election_id, &area_id],
             )
             .await

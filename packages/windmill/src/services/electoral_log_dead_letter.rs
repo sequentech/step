@@ -172,9 +172,10 @@ pub async fn dead_letter_events(
 /// The event-queue message carrying `event`, as producers send it. Its Celery ID is the
 /// event's delivery ID.
 pub fn event_message(event: &LogEventInput) -> Result<Value> {
-    let mut message =
-        celery::protocol::Message::try_from(enqueue_electoral_log_event::new(event.clone()))
-            .context("Error encoding a dead-lettered event")?;
+    let mut message = celery::protocol::Message::try_from(enqueue_electoral_log_event::new(
+        crate::services::privacy_signin::sanitized_event(event),
+    ))
+    .context("Error encoding a dead-lettered event")?;
     if let Some(delivery_id) = &event.delivery_id {
         message.headers.id = delivery_id.clone();
     }

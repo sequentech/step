@@ -6,8 +6,14 @@ import {RootState} from "../store"
 import {IAuditableBallot} from "@sequentech/ui-core"
 
 export interface AuditableBallotEntry {
-    auditableBallot: IAuditableBallot
+    auditableBallot?: IAuditableBallot
     isBlankBallot: boolean
+    auditStatus?: EBallotAuditStatus
+}
+
+export enum EBallotAuditStatus {
+    PREPARED = "prepared",
+    AUDITED = "audited",
 }
 
 export interface AuditableBallotsState {
@@ -31,17 +37,40 @@ export const auditableBallotsSlice = createSlice({
             state[action.payload.electionId] = {
                 auditableBallot: action.payload.auditableBallot,
                 isBlankBallot: action.payload.isBlankBallot,
+                auditStatus: EBallotAuditStatus.PREPARED,
             }
 
             return state
         },
+        markBallotAudited: (
+            state,
+            action: PayloadAction<{electionId: string; ballotHash: string}>
+        ) => {
+            const ballot = state[action.payload.electionId]
+            if (ballot?.auditableBallot?.ballot_hash === action.payload.ballotHash)
+                ballot.auditStatus = EBallotAuditStatus.AUDITED
+        },
+        clearAuditableBallot: (state, action: PayloadAction<string>) => {
+            const ballot = state[action.payload]
+            // The confirmation keeps only its non-identifying blank-ballot flag.
+            if (ballot) state[action.payload] = {isBlankBallot: ballot.isBlankBallot}
+        },
     },
 })
 
-export const {setAuditableBallot} = auditableBallotsSlice.actions
+export const {setAuditableBallot, markBallotAudited, clearAuditableBallot} =
+    auditableBallotsSlice.actions
 
 export const selectAuditableBallot = (electionId: string) => (state: RootState) =>
+    state.auditableBallots[electionId]?.auditStatus === EBallotAuditStatus.AUDITED
+        ? undefined
+        : state.auditableBallots[electionId]?.auditableBallot
+
+export const selectBallotForAudit = (electionId: string) => (state: RootState) =>
     state.auditableBallots[electionId]?.auditableBallot
+
+export const selectBallotAuditStatus = (electionId: string) => (state: RootState) =>
+    state.auditableBallots[electionId]?.auditStatus
 
 export const selectIsBlankBallot = (electionId: string) => (state: RootState) =>
     state.auditableBallots[electionId]?.isBlankBallot ?? false

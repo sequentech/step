@@ -18,12 +18,14 @@ import {trusteeFilename} from "@/services/trusteeFilename"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {
+    createBrowserTrustee,
     loadBrowserTrustee,
     listBrowserTrusteeBoards,
     runBrowserCycle,
     runExclusiveBrowserTrustee,
     type TrusteeEngine,
     type TrusteeKeys,
+    type TrusteeHistory,
 } from "@/services/BrowserTrustee"
 
 interface TrusteeBoard {
@@ -59,6 +61,8 @@ const codeExample = {
 
 export const TrusteeDashboard = () => {
     const auth = useContext(AuthContext)
+    // The in-memory token Keycloak keeps fresh, as for every portal request.
+    const accessToken = () => auth.getAccessToken() ?? ""
     const {globalSettings} = useContext(SettingsContext)
     const platform = globalSettings.HASURA_URL
     const trustee = auth.trustee || auth.username
@@ -73,20 +77,23 @@ export const TrusteeDashboard = () => {
         setLoading(true)
         setError("")
         try {
-            const token = localStorage.getItem("token")?.split(":")[0]
+            const token = accessToken()
             if (!token) throw new Error("Sign in as a trustee to list assigned boards.")
-            setBoards(await listBrowserTrusteeBoards(platform, token))
+            const assigned = await listBrowserTrusteeBoards(platform, token)
+            setBoards(assigned)
             setLoaded(true)
+            if (engine.current && !active.current)
+                await perform(async () => readHistory(engine.current, assigned))
         } catch (error) {
             setError(error instanceof Error ? error.message : String(error))
         } finally {
             setLoading(false)
         }
     }
-    const [boardUrl, setBoardUrl] = useState(
-        globalSettings.WBRAID_BOARD_URL || "http://localhost:3005"
-    )
+    const [boardUrl, setBoardUrl] = useState(globalSettings.WBRAID_BOARD_URL || "/b4")
     const [keys, setKeys] = useState<TrusteeKeys | null>(null)
+    const [history, setHistory] = useState<TrusteeHistory | null>(null)
+    const [historyError, setHistoryError] = useState("")
     const [running, setRunning] = useState(false)
     const [busy, setBusy] = useState(false)
     const [browserStatus, setBrowserStatus] = useState("")
@@ -146,17 +153,48 @@ export const TrusteeDashboard = () => {
             }
         }
     }
+    const readHistory = async (
+        current: TrusteeEngine | null,
+        assigned: TrusteeBoard[] = boards,
+        known: string[] = catalog.current
+    ) => {
+        if (!current) return
+        try {
+            const names = Array.from(
+                new Set([
+                    ...known,
+                    ...assigned.flatMap((board) =>
+                        board.parent ? [board.name, board.parent] : [board.name]
+                    ),
+                ])
+            )
+            const result: TrusteeHistory = JSON.parse(
+                await current.sessionHistory(JSON.stringify(names))
+            )
+            if (mounted.current) {
+                setHistory(result)
+                setHistoryError("")
+            }
+        } catch (error: unknown) {
+            if (mounted.current) {
+                setHistory(null)
+                setHistoryError(error instanceof Error ? error.message : String(error))
+            }
+        }
+    }
     const install = async (contents: string, backup?: string) => {
         const module = await loadBrowserTrustee()
         if (!mounted.current) return
-        const candidate = new module.BrowserTrustee(
+        const candidate = createBrowserTrustee(
+            module,
             auth.trustee || "browser trustee",
             contents,
-            boardUrl
+            boardUrl,
+            accessToken
         )
         try {
             const publicKeys: TrusteeKeys = JSON.parse(candidate.publicKeys())
-            const storageKey = `sequent-wbraid-catalog:${boardUrl.replace(/\/$/, "")}:${publicKeys.signing_public_key}`
+            const storageKey = `sequent-wbraid-catalog:${boardUrl.replace(/\/+$/, "")}:${publicKeys.signing_public_key}`
             const saved: unknown = JSON.parse(localStorage.getItem(storageKey) || "[]")
             if (!Array.isArray(saved) || !saved.every((name: unknown) => typeof name === "string"))
                 throw new Error("Invalid local session catalogue.")
@@ -170,7 +208,10 @@ export const TrusteeDashboard = () => {
             privateKeys.current = contents
             catalog.current = nextCatalog
             catalogKey.current = storageKey
+            setHistory(null)
+            setHistoryError("")
             setKeys(publicKeys)
+            await readHistory(candidate, boards, nextCatalog)
             setBrowserStatus("Keys ready. Register both public keys before starting a ceremony.")
         } catch (error: unknown) {
             candidate.free()
@@ -203,18 +244,22 @@ export const TrusteeDashboard = () => {
         occupied.current = true
         setBusy(true)
         try {
-            const token = localStorage.getItem("token")?.split(":")[0] || ""
-            const result = await runBrowserCycle(engine.current, platform, token, (assigned) => {
-                catalog.current = Array.from(
-                    new Set([
-                        ...catalog.current,
-                        ...assigned.flatMap((board) =>
-                            board.parent ? [board.name, board.parent] : [board.name]
-                        ),
-                    ])
-                )
-                localStorage.setItem(catalogKey.current, JSON.stringify(catalog.current))
-            })
+            const result = await runBrowserCycle(
+                engine.current,
+                platform,
+                accessToken,
+                (assigned) => {
+                    catalog.current = Array.from(
+                        new Set([
+                            ...catalog.current,
+                            ...assigned.flatMap((board) =>
+                                board.parent ? [board.name, board.parent] : [board.name]
+                            ),
+                        ])
+                    )
+                    localStorage.setItem(catalogKey.current, JSON.stringify(catalog.current))
+                }
+            )
             if (mounted.current) {
                 setBoards(result)
                 setLoaded(true)
@@ -233,6 +278,7 @@ export const TrusteeDashboard = () => {
                 setError(error instanceof Error ? error.message : String(error))
             }
         } finally {
+            await readHistory(engine.current)
             occupied.current = false
             if (!active.current) release()
             if (mounted.current) setBusy(false)
@@ -408,6 +454,8 @@ export const TrusteeDashboard = () => {
                                 engine.current = null
                                 privateKeys.current = ""
                                 setKeys(null)
+                                setHistory(null)
+                                setHistoryError("")
                                 setBrowserStatus("")
                             }}
                         >
@@ -448,6 +496,107 @@ export const TrusteeDashboard = () => {
                     <Typography role="status" sx={{my: 2}}>
                         {browserStatus}
                     </Typography>
+                    <Box component="section" aria-labelledby="trustee-history-heading" sx={{my: 2}}>
+                        <Typography id="trustee-history-heading" variant="h6" component="h3">
+                            Local session history
+                        </Typography>
+                        <Typography sx={{my: 1}}>
+                            History is read from this browser using the loaded signing key and board
+                            service URL. These are the records the trustee reads when resuming a
+                            session. Counts confirm readable history, not a completed ceremony.
+                        </Typography>
+                        <Button
+                            variant="outlined"
+                            disabled={!keys || busy || running}
+                            onClick={() => {
+                                void perform(async () => readHistory(engine.current))
+                            }}
+                            sx={{minHeight: 44, my: 1}}
+                        >
+                            Refresh local history
+                        </Button>
+                        {!keys && (
+                            <Typography>
+                                Import your private keys or restore a browser backup to inspect
+                                history.
+                            </Typography>
+                        )}
+                        {historyError && (
+                            <Alert severity="error">
+                                Unable to read local history: {historyError}
+                            </Alert>
+                        )}
+                        {history && (
+                            <>
+                                <Typography sx={{overflowWrap: "anywhere", my: 1}}>
+                                    Browser: {window.location.origin} · Board service:{" "}
+                                    {history.board_url}
+                                </Typography>
+                                {history.stores.length === 0 && (
+                                    <Typography>
+                                        No known sessions. Refresh boards to include assigned
+                                        sessions.
+                                    </Typography>
+                                )}
+                                {history.stores.length > 0 && (
+                                    <Accordion
+                                        disableGutters
+                                        sx={{mt: 2}}
+                                        slotProps={{transition: {unmountOnExit: true}}}
+                                    >
+                                        <AccordionSummary
+                                            id="trustee-history-entries-heading"
+                                            aria-controls="trustee-history-entries-content"
+                                            expandIcon={<ExpandMoreIcon />}
+                                        >
+                                            <Typography component="span">
+                                                Session entries ({history.stores.length})
+                                            </Typography>
+                                        </AccordionSummary>
+                                        <AccordionDetails>
+                                            {history.stores.map((store) => (
+                                                <Box
+                                                    key={store.board}
+                                                    sx={{
+                                                        border: "1px solid",
+                                                        borderColor: "divider",
+                                                        borderRadius: 1,
+                                                        p: 2,
+                                                        my: 1,
+                                                        overflowWrap: "anywhere",
+                                                    }}
+                                                >
+                                                    <Typography>{store.board}</Typography>
+                                                    <Typography>
+                                                        {store.predicates === 0
+                                                            ? "Empty history"
+                                                            : "History available"}{" "}
+                                                        · {store.predicates} records ·{" "}
+                                                        {store.own_posts} own posts
+                                                    </Typography>
+                                                    {store.predicates === 0 &&
+                                                        boards.some(
+                                                            (board) => board.parent === store.board
+                                                        ) && (
+                                                            <Alert severity="warning" sx={{my: 1}}>
+                                                                Parent DKG history is empty. Restore
+                                                                the session backup for this identity
+                                                                before tallying. Imported elections
+                                                                may use history under the original
+                                                                DKG board.
+                                                            </Alert>
+                                                        )}
+                                                    <Typography variant="body2">
+                                                        {store.database}
+                                                    </Typography>
+                                                </Box>
+                                            ))}
+                                        </AccordionDetails>
+                                    </Accordion>
+                                )}
+                            </>
+                        )}
+                    </Box>
                     <Accordion
                         disableGutters
                         sx={{mt: 2}}

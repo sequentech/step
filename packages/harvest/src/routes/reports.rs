@@ -37,7 +37,10 @@ use uuid::Uuid;
 use windmill::postgres::reports::Report;
 use windmill::postgres::reports::{get_report_by_type, ReportType};
 use windmill::{
-    postgres::{document::get_document, reports::get_report_by_id},
+    postgres::{
+        document::get_document, reports::get_report_by_id,
+        tally_session::get_tally_session_by_id_if_exist,
+    },
     services::reports::template_renderer::{
         EReportEncryption, GenerateReportMode,
     },
@@ -597,6 +600,199 @@ pub async fn encrypt_report_route(
     kick_audit_log_outbox();
 
     Ok(Json(output))
+}
+
+/// A server error saying what failed, then why.
+fn server_error<E: std::fmt::Debug>(
+    what: &'static str,
+) -> impl FnOnce(E) -> (Status, String) {
+    move |error| (Status::InternalServerError, format!("{what}: {error:?}"))
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct GenerateTransmissionReportBody {
+    pub tenant_id: String,
+    pub election_event_id: String,
+    pub election_id: Option<String>,
+    pub tally_session_id: Option<String>,
+}
+
+/// The Transmission Report of an election (a Post) after its tally: one
+/// page per area with its counts, the transmission status of each of its
+/// destinations and its SBEI members. It uses the election's saved report,
+/// when there is one, for its template.
+#[instrument(skip(claims, services))]
+#[post("/generate-transmission-report", format = "json", data = "<body>")]
+pub async fn generate_transmission_report(
+    claims: JwtClaims,
+    body: Json<GenerateTransmissionReportBody>,
+    services: &State<HarvestServices>,
+) -> Result<Json<GenerateReportResponse>, (Status, String)> {
+    let input = body.into_inner();
+    authorize(
+        &claims,
+        true,
+        Some(input.tenant_id.clone()),
+        vec![Permissions::TRANSMISSION_REPORT_GENERATE],
+    )?;
+    let election_id = input.election_id.clone().ok_or_else(|| {
+        (
+            Status::BadRequest,
+            "The transmission report is generated for one election".to_string(),
+        )
+    })?;
+    let tally_session_id = input.tally_session_id.clone().ok_or_else(|| {
+        (
+            Status::BadRequest,
+            "Tally session id is required to generate transmission report"
+                .to_string(),
+        )
+    })?;
+    Uuid::parse_str(&election_id)
+        .map_err(|_| (Status::BadRequest, "Invalid election id".to_string()))?;
+    Uuid::parse_str(&tally_session_id).map_err(|_| {
+        (Status::BadRequest, "Invalid tally session id".to_string())
+    })?;
+
+    let mut hasura_db_client: DbClient = services
+        .databases
+        .hasura()
+        .await
+        .get()
+        .await
+        .map_err(server_error("Error obtaining hasura client"))?;
+    let hasura_transaction = hasura_db_client
+        .transaction()
+        .await
+        .map_err(server_error("Error obtaining hasura transaction"))?;
+    authorize_election_permission_labels(
+        &hasura_transaction,
+        &claims,
+        &input.election_event_id,
+        Some(std::slice::from_ref(&election_id)),
+    )
+    .await?;
+    let tally_session = get_tally_session_by_id_if_exist(
+        &hasura_transaction,
+        &input.tenant_id,
+        &input.election_event_id,
+        &tally_session_id,
+    )
+    .await
+    .map_err(server_error("Error reading the tally session"))?
+    .ok_or_else(|| {
+        (
+            Status::NotFound,
+            format!("Tally session {tally_session_id} not found"),
+        )
+    })?;
+    if !tally_session
+        .election_ids
+        .as_ref()
+        .is_some_and(|ids| ids.contains(&election_id))
+    {
+        return Err((
+            Status::BadRequest,
+            format!(
+                "Tally session {tally_session_id} does not count election {election_id}"
+            ),
+        ));
+    }
+
+    let report = get_report_by_type(
+        &hasura_transaction,
+        &input.tenant_id,
+        &input.election_event_id,
+        &ReportType::TRANSMISSION_REPORT.to_string(),
+        &input.election_id,
+    )
+    .await
+    .map_err(server_error("Error getting report by type"))?
+    .unwrap_or_else(|| Report {
+        id: Uuid::new_v4().to_string(),
+        election_event_id: input.election_event_id.clone(),
+        tenant_id: input.tenant_id.clone(),
+        election_id: input.election_id.clone(),
+        report_type: ReportType::TRANSMISSION_REPORT.to_string(),
+        template_alias: None,
+        encryption_policy: EReportEncryption::Unencrypted,
+        cron_config: None,
+        created_at: chrono::Utc::now(),
+        permission_label: None,
+        copies: None,
+        output_formats: None,
+    });
+
+    let executer_name = claims
+        .name
+        .clone()
+        .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
+    let executer_username = claims
+        .preferred_username
+        .clone()
+        .unwrap_or_else(|| executer_name.clone());
+    let celery_app = services.tasks.connect().await.map_err(|error| {
+        (
+            Status::InternalServerError,
+            format!("The task queues are not available: {error:#}"),
+        )
+    })?;
+    let task_execution = services
+        .ledger
+        .post(
+            &input.tenant_id,
+            Some(input.election_event_id.as_str()),
+            ETasksExecution::GENERATE_TRANSMISSION_REPORT,
+            &executer_name,
+        )
+        .await
+        .map_err(server_error("Failed to insert task execution record"))?;
+
+    let document_id: String = Uuid::new_v4().to_string();
+    celery_app
+        .send_task(windmill::tasks::generate_report::generate_report::new(
+            report.clone(),
+            document_id.clone(),
+            GenerateReportMode::REAL,
+            false,
+            Some(task_execution.clone()),
+            Some(executer_username),
+            Some(tally_session_id),
+            false,
+            Some(SigningCaller::from_claims(&claims)),
+        ))
+        .await
+        .map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error generating report: {e:?}"),
+            )
+        })?;
+
+    let change = audit::change(
+        &claims,
+        audit::target(
+            &input.tenant_id,
+            Some(input.election_event_id.as_str()),
+        )?,
+        AuditObject::new(
+            "report",
+            &report.id,
+            Some(report.report_type.as_str()),
+        ),
+        AdminAction::Export,
+    )
+    .with_description(format!(
+        "Requested the {} report of election {election_id}",
+        report.report_type
+    ));
+    audit::record(services, &change).await?;
+
+    Ok(Json(GenerateReportResponse {
+        document_id,
+        encryption_policy: report.encryption_policy,
+        task_execution,
+    }))
 }
 
 #[cfg(test)]

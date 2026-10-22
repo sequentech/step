@@ -124,7 +124,10 @@ Some design decisions to be aware of:
   validation rules or without an OCR type, and missing service settings reject
   the verification instead of skipping checks.
 - **Confirmation is guarded.** The confirmation page only completes the step if
-  a verification succeeded in the same authentication session.
+  this step completed a verification in the same authentication session and is
+  waiting for its confirmation (auth note `scanovate-confirmation-case`, which
+  no form can set). A `user-status` note alone doesn't confirm: it is a profile
+  attribute, which a form could submit.
 - **Attempts.** A failed liveness check, a face that doesn't match or can't be
   found, an unreadable document and a failed rule each use up an attempt. Once
   the attempts of the authentication session reach `max-attempts`, no new
@@ -170,6 +173,14 @@ On success the auth note named by `user-status`
 (`sequent.read-only.id-card-number-validated` by default) is set to `VERIFIED`.
 Later flow steps rely on it, e.g. the `already-validated` conditional and
 `lookup-and-update-user`, which copies it into the user.
+
+Once the voter confirms (or right away, when nothing is stored to confirm), the
+step also sets the `identity-method` auth note to `VERIFIED`, which
+`lookup-and-update-user` forwards to the [approval
+matrix](../07-developers/08-windmill/03-approval-matrix.md#identity-method).
+Starting the step over, a retry, a failed check, a service error or reaching
+`max-attempts` removes it. A voter skipped as already verified (by the
+`user-status` attribute) gets no `identity-method`.
 
 The capture page receives a `scanovate` attribute with `documentType`, `sides`
 (`FRONT`, and `BACK` if the document has one), `videoSeconds` (how long the

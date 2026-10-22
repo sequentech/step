@@ -16084,23 +16084,23 @@ sentence-case@^3.0.4:
 
 "sequent-core@file:./admin-portal/rust/sequent-core-0.1.0.tgz":
   version "0.1.0"
-  resolved "file:./admin-portal/rust/sequent-core-0.1.0.tgz#a55e90a82550b26fcc6e565705fe02b5f4244f0a"
+  resolved "file:./admin-portal/rust/sequent-core-0.1.0.tgz#73d013f258515d4d882b317fb811ad7336a424d2"
 
 "sequent-core@file:./ballot-verifier/rust/sequent-core-0.1.0.tgz":
   version "0.1.0"
-  resolved "file:./ballot-verifier/rust/sequent-core-0.1.0.tgz#a55e90a82550b26fcc6e565705fe02b5f4244f0a"
+  resolved "file:./ballot-verifier/rust/sequent-core-0.1.0.tgz#73d013f258515d4d882b317fb811ad7336a424d2"
 
 "sequent-core@file:./voting-portal/rust/sequent-core-0.1.0.tgz":
   version "0.1.0"
-  resolved "file:./voting-portal/rust/sequent-core-0.1.0.tgz#a55e90a82550b26fcc6e565705fe02b5f4244f0a"
+  resolved "file:./voting-portal/rust/sequent-core-0.1.0.tgz#73d013f258515d4d882b317fb811ad7336a424d2"
 
 "sequent-core@file:voting-portal/rust/sequent-core-0.1.0.tgz":
   version "0.1.0"
-  resolved "file:voting-portal/rust/sequent-core-0.1.0.tgz#a55e90a82550b26fcc6e565705fe02b5f4244f0a"
+  resolved "file:voting-portal/rust/sequent-core-0.1.0.tgz#73d013f258515d4d882b317fb811ad7336a424d2"
 
 "sequent-election-config@file:./admin-portal/rust/sequent-election-config-0.1.0.tgz":
   version "0.1.0"
-  resolved "file:./admin-portal/rust/sequent-election-config-0.1.0.tgz#eac9a13c2514541359f281a4ed3c79989911bb1f"
+  resolved "file:./admin-portal/rust/sequent-election-config-0.1.0.tgz#7616d9560c8748da41aa40973a4a074146e87313"
 
 serialize-javascript@^6.0.0, serialize-javascript@^6.0.2, serialize-javascript@^7.0.5:
   version "7.1.1"
@@ -17978,7 +17978,7 @@ watchpack@^2.5.2:
 
 "wbraid-trustee@file:./admin-portal/rust/wbraid-trustee-0.1.0.tgz":
   version "0.1.0"
-  resolved "file:./admin-portal/rust/wbraid-trustee-0.1.0.tgz#79731c0c1dbd46f8f9f665df8c58fc41c1f6b5ef"
+  resolved "file:./admin-portal/rust/wbraid-trustee-0.1.0.tgz#e66f37ab7e68ebdd37cfdc0cb607617a3f90baee"
 
 wbuf@^1.1.0, wbuf@^1.7.3:
   version "1.7.3"

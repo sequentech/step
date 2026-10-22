@@ -74,12 +74,12 @@ services:
       ELECTORAL_LOG_PUBLISH_FAILURE_POLICY: ${ELECTORAL_LOG_PUBLISH_FAILURE_POLICY:-fail-request}
       KC_SPI_TRUSTSTORE_PROVIDER: ${KC_SPI_TRUSTSTORE_PROVIDER:-}
       KC_SPI_TRUSTSTORE_URL_REFRESH_INTERVAL_SECONDS: ${KC_SPI_TRUSTSTORE_URL_REFRESH_INTERVAL_SECONDS:-0}
-    volumes:
-      - ./keycloak/import:/opt/keycloak/data/import:ro,z
     entrypoint: >
       /opt/keycloak/bin/kc.sh start-dev
       --features=preview
       --health-enabled=true
+      --spi-events-store--provider-default=sequent-privacy
+      --spi-user-sessions--provider-default=sequent-privacy
       --spi-user-profile-declarative-user-profile-read-only-attributes=area-id,tenant-id
       --spi-user-profile-declarative-user-profile-admin-read-only-attributes=sequent.admin-read-only.*
       -Dkeycloak.profile.feature.upload_scripts=enabled
@@ -296,6 +296,7 @@ services:
       HASURA_GRAPHQL_ADMIN_SECRET: ${HASURA_GRAPHQL_ADMIN_SECRET}
       ACTIONS_ADMIN_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
       HARVEST_DOMAIN: ${HARVEST_DOMAIN}
+      HARVEST_BALLOT_LOG_DOMAIN: ${HARVEST_BALLOT_LOG_DOMAIN:-harvest-edge:8080}
     depends_on:
       data-connector-agent:
         condition: service_healthy
@@ -384,6 +385,18 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
   
+  harvest-edge:
+    profiles: ["full", "base"]
+    image: nginx:latest
+    restart: always
+    environment:
+      HARVEST_DOMAIN: ${HARVEST_DOMAIN}
+    volumes:
+      - ./harvest-edge/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+    depends_on:
+      harvest:
+        condition: service_started
+
   harvest:
     profiles: ["full", "base"]
     stdin_open: true
@@ -500,6 +513,8 @@ services:
       CLOUDFLARE_API_KEY: ${CLOUDFLARE_API_KEY}
       CUSTOM_URLS_IP_DNS_CONTENT: ${CUSTOM_URLS_IP_DNS_CONTENT}
       WBRAID_B4_URL: http://b4v6:3005
+      # Other origins whose pages may read boards (`*` or a comma-separated list); empty: the admin portal only.
+      HARVEST_B4_READ_ORIGINS: ${HARVEST_B4_READ_ORIGINS:-}
       WBRAID_BOARD_DATABASE_URL: postgres://postgres@postgres-b4v6:5432/wbraid_board
       WBRAID_B4_PG_PASSWORD: ${WBRAID_B4_PG_PASSWORD}
       DOC_RENDERER_BACKEND: ${DOC_RENDERER_BACKEND}
@@ -562,7 +577,7 @@ services:
     environment:
       LOG_LEVEL: ${LOG_LEVEL}
       TRUSTEE_NAME: trustee1
-      B4_URL: http://b4v6:3005
+      B4_URL: http://${HARVEST_DOMAIN}/b4
       TRUSTEE_CONFIG_PATH: ${TRUSTEE1_CONFIG:-/opt/trustee/trustee.toml}
       TRUSTEE_CONFIG: ${TRUSTEE1_CONFIG_DATA:-}
       SECRETS_BACKEND: ${SECRETS_BACKEND}
@@ -596,7 +611,7 @@ services:
     environment:
       LOG_LEVEL: ${LOG_LEVEL}
       TRUSTEE_NAME: trustee2
-      B4_URL: http://b4v6:3005
+      B4_URL: http://${HARVEST_DOMAIN}/b4
       TRUSTEE_CONFIG_PATH: ${TRUSTEE2_CONFIG:-/opt/trustee/trustee.toml}
       TRUSTEE_CONFIG: ${TRUSTEE2_CONFIG_DATA:-}
       SECRETS_BACKEND: ${SECRETS_BACKEND}
@@ -913,7 +928,7 @@ services:
       context: ../packages/wbraid
       dockerfile: crates/b4/Dockerfile
     restart: unless-stopped
-    ports: ["3005:3005"]
+    # Not published: trustees reach the board through Harvest (/b4).
     depends_on:
       postgres-b4v6:
         condition: service_healthy
@@ -941,7 +956,7 @@ services:
         SECONDS_TO_SHOW_COUNTDOWN: ${SECONDS_TO_SHOW_COUNTDOWN}
         SECONDS_TO_SHOW_ALRET: ${SECONDS_TO_SHOW_ALRET}
         HASURA_URL: ${HASURA_ENDPOINT}
-        WBRAID_BOARD_URL: ${WBRAID_BOARD_PUBLIC_URL:-http://localhost:3005}
+        WBRAID_BOARD_URL: ${WBRAID_BOARD_PUBLIC_URL:-/b4}
         KEYCLOAK_URL: ${KEYCLOAK_PUBLIC_URL}/
         PUBLIC_BUCKET_URL: ${AWS_S3_PUBLIC_URI}/public/
         VOTING_PORTAL_URL: ${VOTING_PORTAL_URL}

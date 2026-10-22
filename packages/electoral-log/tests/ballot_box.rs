@@ -746,17 +746,38 @@ async fn reads_cover_voters_administrators_and_reports() -> Result<()> {
         .is_empty());
 
     assert_eq!(
-        store.participation(&event, None).await?,
+        store.participation(&event, None, None).await?,
         Participation {
             ballots: 4,
             voters: 3
         }
     );
     assert_eq!(
-        store.participation(&event, Some(first.as_str())).await?,
+        store
+            .participation(&event, Some(first.as_str()), None)
+            .await?,
         Participation {
             ballots: 3,
             voters: 2
+        }
+    );
+    assert_eq!(
+        store
+            .participation(&event, Some(first.as_str()), Some(area.as_str()))
+            .await?,
+        Participation {
+            ballots: 3,
+            voters: 2
+        }
+    );
+    let (_, _, _, no_ballots_area) = ids();
+    assert_eq!(
+        store
+            .participation(&event, Some(first.as_str()), Some(no_ballots_area.as_str()))
+            .await?,
+        Participation {
+            ballots: 0,
+            voters: 0
         }
     );
     drop_ballot_box(&store, &event).await

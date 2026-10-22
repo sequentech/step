@@ -35,6 +35,27 @@ use uuid::Uuid;
 use voting_crypto::signing::VerificationKey;
 use voting_crypto::RecordDeserialize;
 
+/// Where a readiness check stopped without a verdict, as error context. It
+/// names the step for the operator; the underlying error stays in the logs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ReadinessStage {
+    Locks,
+    OfficialEvidence,
+    TestedEvidence,
+    SignedAppend,
+}
+
+impl std::fmt::Display for ReadinessStage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            ReadinessStage::Locks => "the events could not be locked for a consistent snapshot; a voter import, signing or publication may be running on one of them",
+            ReadinessStage::OfficialEvidence => "the official event's evidence could not be read",
+            ReadinessStage::TestedEvidence => "the tested event's evidence could not be read",
+            ReadinessStage::SignedAppend => "every check passed but the signed entry could not be confirmed on the official event's log; check its Logs before running it again",
+        })
+    }
+}
+
 /// Take the existing import/signing/publication locks in stable event order.
 /// Every official state row stays locked through the final signed append.
 pub async fn lock_events(
@@ -43,6 +64,12 @@ pub async fn lock_events(
     official: &str,
     tested: &str,
 ) -> Result<()> {
+    lock_both(tx, tenant, official, tested)
+        .await
+        .context(ReadinessStage::Locks)
+}
+
+async fn lock_both(tx: &Transaction<'_>, tenant: &str, official: &str, tested: &str) -> Result<()> {
     ensure!(
         official != tested,
         "The official and tested events must differ"
@@ -405,8 +432,12 @@ pub async fn verify(
     actor: &AuditActor,
 ) -> Result<ReadinessReport> {
     let evidence = ReadinessEvidence {
-        official: snapshot(tx, tenant, official).await?,
-        tested: snapshot(tx, tenant, tested).await?,
+        official: snapshot(tx, tenant, official)
+            .await
+            .context(ReadinessStage::OfficialEvidence)?,
+        tested: snapshot(tx, tenant, tested)
+            .await
+            .context(ReadinessStage::TestedEvidence)?,
     };
     let report = readiness::evaluate(evidence, chrono::Utc::now().to_rfc3339());
     record_if_passed(
@@ -419,6 +450,7 @@ pub async fn verify(
         },
     )
     .await
+    .context(ReadinessStage::SignedAppend)
 }
 
 struct EventRecorder<'a, 'tx> {
@@ -540,6 +572,62 @@ mod tests {
             *recorder.entries.lock().unwrap(),
             [serde_json::to_value(&passed).unwrap()]
         );
+    }
+
+    #[tokio::test]
+    async fn no_failed_check_of_any_kind_is_recorded_however_it_is_explained() {
+        let recorder = Recorder {
+            entries: Mutex::new(Vec::new()),
+            fail: false,
+        };
+        let breakages: [fn(&mut ReadinessEvidence); 5] = [
+            |evidence| evidence.tested.configuration = None,
+            |evidence| evidence.tested.voter_log_delivered = false,
+            |evidence| evidence.official.tally_session_count = 1,
+            |evidence| evidence.official.publication = None,
+            |evidence| evidence.tested.sealed_boxes.clear(),
+        ];
+        for (index, breakage) in breakages.into_iter().enumerate() {
+            let mut evidence = report().evidence;
+            breakage(&mut evidence);
+            let failed = readiness::evaluate(evidence, "2026-10-14T10:00:00Z".into());
+            assert!(!failed.checks[index].passed, "{index}");
+            assert!(!failed.checks[index].findings.is_empty(), "{index}");
+            let returned = record_if_passed(failed, &recorder).await.unwrap();
+            assert!(!returned.passed);
+            assert!(returned.log_entry_id.is_none());
+        }
+        assert!(recorder.entries.lock().unwrap().is_empty());
+    }
+
+    #[test]
+    fn each_stage_names_where_an_incomplete_check_stopped() {
+        let stages = [
+            ReadinessStage::Locks,
+            ReadinessStage::OfficialEvidence,
+            ReadinessStage::TestedEvidence,
+            ReadinessStage::SignedAppend,
+        ];
+        let texts: BTreeSet<String> = stages.iter().map(ToString::to_string).collect();
+        assert_eq!(texts.len(), stages.len());
+        let error = anyhow::anyhow!("internal detail").context(ReadinessStage::SignedAppend);
+        assert_eq!(
+            error.downcast_ref::<ReadinessStage>(),
+            Some(&ReadinessStage::SignedAppend)
+        );
+        assert!(!error.to_string().contains("internal detail"));
+    }
+
+    #[tokio::test]
+    async fn a_retried_pass_is_a_new_entry_never_a_replay_of_a_lost_response() {
+        let recorder = Recorder {
+            entries: Mutex::new(Vec::new()),
+            fail: false,
+        };
+        let first = record_if_passed(report(), &recorder).await.unwrap();
+        let retried = record_if_passed(report(), &recorder).await.unwrap();
+        assert_ne!(first.log_entry_id, retried.log_entry_id);
+        assert_eq!(recorder.entries.lock().unwrap().len(), 2);
     }
 
     #[tokio::test]

@@ -334,13 +334,30 @@ export const EmailEditorCannotEditAfterVoting: Story = {
         expect(canvas.getByRole("textbox", {name: "Username"})).toBeDisabled()
     },
 }
-export const VotedEditPermissionAllowsFields: Story = {
+export const VotedEditPermissionAloneAllowsNoField: Story = {
     args: {permissions: ["voter-voted-edit"], voted: true},
     play: async ({canvasElement}) => {
         const canvas = await loaded(canvasElement)
-        expect(canvas.getByRole("textbox", {name: "Email"})).toBeEnabled()
+        await waitFor(() => expect(canvas.getByRole("textbox", {name: "Email"})).toBeDisabled())
+        expect(canvas.getByRole("checkbox", {name: "Enabled *"})).toBeDisabled()
+    },
+}
+export const VotedEditPermissionLetsVoterWriterEditAfterVoting: Story = {
+    args: {permissions: ["voter-voted-edit", "voter-write"], voted: true},
+    play: async ({canvasElement}) => {
+        const canvas = await loaded(canvasElement)
+        await waitFor(() => expect(canvas.getByRole("textbox", {name: "Email"})).toBeEnabled())
         expect(canvas.getByRole("textbox", {name: "Username"})).toBeDisabled()
         expect(canvas.getByRole("checkbox", {name: "Enabled *"})).toBeEnabled()
+    },
+}
+export const VotedEditPermissionKeepsEmailEditorScope: Story = {
+    args: {permissions: ["voter-voted-edit", "voter-email-tlf-edit"], voted: true},
+    play: async ({canvasElement}) => {
+        const canvas = await loaded(canvasElement)
+        await waitFor(() => expect(canvas.getByRole("textbox", {name: "Email"})).toBeEnabled())
+        expect(canvas.getByRole("textbox", {name: "Username"})).toBeDisabled()
+        expect(canvas.getByRole("checkbox", {name: "Enabled *"})).toBeDisabled()
     },
 }
 

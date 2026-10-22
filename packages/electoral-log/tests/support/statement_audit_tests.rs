@@ -81,7 +81,7 @@ fn the_audit_kinds_are_appended() {
         assert_eq!(name.parse::<AuditStatementKind>().unwrap(), kind);
     }
     assert!("CastVote".parse::<AuditStatementKind>().is_err());
-    assert!(borsh::from_slice::<StatementType>(&[72]).is_err());
+    assert!(borsh::from_slice::<StatementType>(&[76]).is_err());
 }
 
 #[test]

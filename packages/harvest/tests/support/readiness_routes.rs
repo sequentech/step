@@ -168,7 +168,8 @@ fn readiness_snapshot_failure_is_redacted_and_does_not_write_audit_entries() {
             .roles([Permissions::READINESS_CHECK]);
         let before = audit_entries(&services, &official.tenant_id).await;
         // Both events exist and are authorized, but the official event has no
-        // electoral-log board. Snapshot failures must not expose internals.
+        // electoral-log board. Snapshot failures must not expose internals,
+        // only the step that stopped the check.
         let (status, body) = json(
             post(
                 &client,
@@ -186,7 +187,7 @@ fn readiness_snapshot_failure_is_redacted_and_does_not_write_audit_entries() {
         assert_eq!(
             body,
             json!({
-                "message": "Readiness check could not be completed",
+                "message": "Readiness check could not be completed: the official event's evidence could not be read",
                 "extensions": {"code": "InternalServerError"},
             })
         );

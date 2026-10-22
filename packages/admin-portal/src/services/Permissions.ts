@@ -297,6 +297,13 @@ export const getOperationRole = (
     hasRole: (role: IPermissions) => boolean
 ): IPermissions => {
     const operationName = operation?.operationName
+    if (operationName === "BallotPrivacySettings") return IPermissions.ELECTION_EVENT_READ
+    if (operationName === "ForensicNetworkSummary" || operationName === "ForensicNetworkDetail") {
+        return IPermissions.FORENSIC_READ
+    }
+    if (operationName === "BallotBoxEntry" || operationName === "BallotBoxKeys") {
+        return IPermissions.LOGS_READ
+    }
     const defaultRole = DEFAULT_OPERATION_ROLES.find(hasRole)
     if (!defaultRole) {
         const role =

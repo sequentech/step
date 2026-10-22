@@ -2,11 +2,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
+import {atViewport} from "../../../../test-support/storybook/viewport"
 import type {StoryObj} from "@storybook/react-vite"
 import {expect, userEvent, waitFor, within} from "storybook/test"
 import {RecordContextProvider, ResourceContextProvider, ShowBase} from "react-admin"
 import {
     EElectionEventLockedDown,
+    ENetworkDataPolicy,
     EVoterCertificatePolicy,
     i18n,
     initCore,
@@ -31,7 +33,11 @@ import {logsFilterSearch} from "@/components/logs/messagingLogFilters"
 import {EMessageChannel} from "@/types/messaging"
 import {IPermissions} from "@/types/keycloak"
 import {jsonEditorDefects} from "./__stories__/IvrFixture"
-import {legacyMonitoring} from "@/components/monitoring/__stories__/MonitoringFixture"
+import {
+    legacyMonitoring,
+    monitoringHandlers,
+    EMonitoringListScenario,
+} from "@/components/monitoring/__stories__/MonitoringFixture"
 import {EStoryPermissions, useStoryGlobals} from "../../../../ui-essentials/.storybook/globals"
 import {SigningProvider} from "@/components/signing/SigningProvider"
 import {idleSigningApi} from "./Signatures/__stories__/SignaturesFixture"
@@ -57,6 +63,9 @@ import "./EditElectionEventApprovals"
 import "../Reports/EditReportsTab"
 
 interface Scenario {
+    dashboard?: "records"
+    networkPolicy?: ENetworkDataPolicy
+    monitoring?: EMonitoringListScenario
     /** Whether the event is locked down, which hides its editing tabs. */
     lockedDown: boolean
     /** Whether the event has no record yet. */
@@ -77,9 +86,10 @@ const signingApi = idleSigningApi()
 let data: ReturnType<typeof recordsOrPending>
 
 /** An event with telephone voting and voter certificates, which show the IVR and CA tabs. */
-const tabsEvent = (lockedDown: boolean) => {
+const tabsEvent = (lockedDown: boolean, networkPolicy?: ENetworkDataPolicy) => {
     const presentation: IElectionEventPresentation = {
         ...eventPresentation,
+        network_data_policy: networkPolicy,
         timezones: {primary: "Asia/Manila", configured: ["Asia/Manila"]},
         voter_certificate_policy: EVoterCertificatePolicy.ENABLED,
         locked_down: lockedDown
@@ -140,7 +150,11 @@ const meta = {
             args.loading || args.uncached
                 ? {}
                 : {
-                      sequent_backend_election_event: [tabsEvent(args.lockedDown)],
+                      sequent_backend_election_event: [
+                          tabsEvent(args.lockedDown, args.networkPolicy),
+                      ],
+                      ip_address: [],
+                      ...(args.dashboard ? {sequent_backend_tally_session: []} : {}),
                       ...(args.lockdownTiming
                           ? {
                                 electoral_log: [
@@ -220,7 +234,31 @@ const meta = {
         )
         graphql = graphqlBoundary(
             answerOrPending({
-                ...legacyMonitoring(),
+                ...monitoringHandlers({list: args.monitoring ?? EMonitoringListScenario.LEGACY}),
+                ...(args.dashboard
+                    ? {
+                          GetElectionEventStats: () => ({
+                              data: {
+                                  stats: {
+                                      total_eligible_voters: 1204,
+                                      total_distinct_voters: 38,
+                                      total_areas: 2,
+                                      total_elections: 1,
+                                      voters_by_channel: [],
+                                      votes_per_day: [],
+                                  },
+                                  election_event: [
+                                      {statistics: {num_emails_sent: 12, num_sms_sent: 3}},
+                                  ],
+                              },
+                          }),
+                          ListKeysCeremony: () => ({
+                              data: {
+                                  list_keys_ceremony: {items: [], total: {aggregate: {count: 0}}},
+                              },
+                          }),
+                      }
+                    : {}),
                 ...(args.readinessResult
                     ? {
                           GetReadinessEvents: () => ({
@@ -530,13 +568,13 @@ const withoutSchema: Pick<Story, "beforeEach"> = {
 export const Data: Story = {
     // The Voting lifecycle section's snapshot query isn't in the generated schema yet.
     ...withoutSchema,
-    parameters: {widgets: ["ElectionEventDataTab"]},
+    parameters: {widgets: []},
     play: tabPlay("Data", {reads: ["getList sequent_backend_election"]}),
 }
 
 export const DataWhileTheEventLoads: Story = {
     args: {uncached: true},
-    parameters: {widgets: ["ElectionEventDataTab"]},
+    parameters: {widgets: []},
     play: async ({canvasElement}) => {
         await openTab(canvasElement, "Data")
         await expect(
@@ -800,7 +838,7 @@ export const LockedDownData: Story = {
             IPermissions.ELECTION_EVENT_READ,
         ],
     },
-    parameters: {widgets: ["ElectionEventDataTab", "LockedDownDataTab"]},
+    parameters: {widgets: []},
     play: async ({canvasElement}) => {
         expect(await tabNames(canvasElement)).toEqual(["Data"])
         const canvas = within(canvasElement)
@@ -839,7 +877,7 @@ export const LockedDownDataNeedsReadinessPermission: Story = {
 export const LockedDownDataLink: Story = {
     ...LockedDownData,
     parameters: {
-        widgets: ["ElectionEventDataTab", "LockedDownDataTab"],
+        widgets: [],
         router: {
             path: "/sequent_backend_election_event/:id/*",
             initialEntries: [`/sequent_backend_election_event/${EVENT_ID}?tabId=data&tabIndex=-1`],
@@ -895,4 +933,79 @@ export const LockedDownReadinessFailure: Story = {
     ...LockedDownData,
     args: {...LockedDownData.args, readinessResult: "fail"},
     play: runLockedDownReadiness(false),
+}
+
+const expectForensicDashboardWidth = async (canvasElement: HTMLElement) => {
+    const panel = await within(canvasElement).findByRole("region", {name: "IP Addresses"})
+    await expect(panel).toBeVisible()
+    const parent = panel.parentElement
+    if (!parent) throw new Error("The forensic panel must have a dashboard parent")
+    expect(panel.getBoundingClientRect().width).toBeCloseTo(parent.clientWidth, 0)
+}
+
+export const ForensicReviewWithCustomDashboard: Story = {
+    args: {
+        networkPolicy: ENetworkDataPolicy.FORENSIC_STORE,
+        monitoring: EMonitoringListScenario.CONFIGURED,
+        roles: [
+            IPermissions.ADMIN_DASHBOARD_VIEW,
+            IPermissions.MONITORING_VIEW,
+            IPermissions.FORENSIC_READ,
+        ],
+    },
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await waitFor(
+            () => expect(graphql.calls.map(({name}) => name)).toContain("MonitoringGetDashboard"),
+            {timeout: 10000}
+        )
+        await expectForensicDashboardWidth(canvasElement)
+        expect(canvas.getAllByRole("region", {name: "IP Addresses"})).toHaveLength(1)
+    },
+}
+
+export const ForensicReviewWhileDashboardLoads: Story = {
+    ...ForensicReviewWithCustomDashboard,
+    args: {...ForensicReviewWithCustomDashboard.args, monitoring: EMonitoringListScenario.LOADING},
+    play: async ({canvasElement}) => {
+        await waitFor(
+            () => expect(graphql.calls.map(({name}) => name)).toContain("MonitoringListDashboards"),
+            {timeout: 10000}
+        )
+        await expectForensicDashboardWidth(canvasElement)
+    },
+}
+
+export const ForensicReviewOnStandardDashboard: Story = {
+    ...ForensicReviewWhileDashboardLoads,
+    args: {
+        ...ForensicReviewWhileDashboardLoads.args,
+        monitoring: EMonitoringListScenario.LEGACY,
+        dashboard: "records",
+    },
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(await canvas.findByText("Eligible Voters")).toBeVisible()
+        const dashboard = canvasElement.querySelector<HTMLElement>(".dashboard")
+        if (!dashboard) throw new Error("The normal dashboard must be loaded")
+        const panel = await canvas.findByRole("region", {name: "IP Addresses"})
+        expect(panel.getBoundingClientRect().width).toBeCloseTo(
+            dashboard.getBoundingClientRect().width,
+            0
+        )
+        expect(panel.getBoundingClientRect().left).toBeCloseTo(
+            dashboard.getBoundingClientRect().left,
+            0
+        )
+    },
+}
+
+export const ForensicReviewOnStandardDashboardWide: Story = {
+    ...ForensicReviewOnStandardDashboard,
+    ...atViewport(1440),
+}
+
+export const ForensicReviewOnStandardDashboardTablet: Story = {
+    ...ForensicReviewOnStandardDashboard,
+    ...atViewport(820),
 }

@@ -1335,7 +1335,7 @@ class CommandTest(StoreTestCase):
         self.assertEqual(list(document["links"]), ["kiosk", "verifier", "admin"])
         credentials = document["credentials"]
         self.assertIs(credentials["synthetic"], True)
-        self.assertEqual(credentials["voterPassword"], fixtures.VOTER_PASSWORD)
+        self.assertEqual(credentials["voterPassword"], "same as username")
         self.assertEqual(credentials["voters"]["A"][0], "e2e-kiosk-voter-a1")
         self.assertEqual(
             credentials["admin"], {"username": "admin", "password": "admin"}

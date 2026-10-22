@@ -201,3 +201,30 @@ Portalled surfaces also expose `.dialog-container`, `.dialog-backdrop`,
 `.candidate-preference-paper`, `.candidate-preference-options`, `.header-tooltip`
 and `.header-tooltip-content`. The audit dialogs have their own
 `.audit-ballot-id-help-dialog`, `.audit-help-dialog` and `.audit-download-help-dialog` hooks.
+
+### Private ballot logs and cast recovery
+
+Pseudonymous ballot logs use `.ballot-box-log`. Search and pagination controls
+expose `.ballot-box-log-search`, `.ballot-box-log-clear-button`,
+`.ballot-box-log-page-size`, `.ballot-box-log-previous-button` and
+`.ballot-box-log-next-button`. The voter's own receipt uses
+`.ballot-box-log-own-ballot`, with `.ballot-box-log-own-check-button` and
+`.ballot-box-log-copy-button`. Public rows use `.ballot-box-log-row` on the
+desktop table and `.ballot-box-log-mobile-row` on the phone list; their check
+controls are `.ballot-box-log-check-button` and `.ballot-box-log-mobile-check-button`.
+Loading, error, empty and count messages expose `.ballot-box-log-loading`,
+`.ballot-box-log-error`, `.ballot-box-log-empty` and `.ballot-box-log-count`.
+
+The portalled proof dialog uses `.ballot-proof-dialog`, `.ballot-proof-title`,
+`.ballot-proof-content`, `.ballot-proof-loading`, `.ballot-proof-error`,
+`.ballot-proof-actions`, `.ballot-proof-retry-button` and `.ballot-proof-close-button`.
+The help dialog uses the `.ballot-box-log-help-*` family, including
+`.ballot-box-log-help-dialog` and `.ballot-box-log-help-close-button`. The portal
+stylesheet scope described above also applies to these dialogs.
+
+Pending audit confirmation exposes `.audit-confirmation-loading`,
+`.audit-confirmation-error` and `.audit-confirmation-retry-button`. Cast recovery
+after secondary authentication uses `.review-cast-recovery`, with
+`.review-cast-recovery-loading`, `.review-cast-recovery-error`,
+`.review-cast-recovery-retry-button`, `.review-cast-recovery-back-button` and
+`.review-cast-recovery-check-button`.

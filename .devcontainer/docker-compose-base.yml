@@ -415,6 +415,7 @@ services:
       HASURA_GRAPHQL_ADMIN_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
       ACTIONS_ADMIN_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
       HARVEST_DOMAIN: ${HARVEST_DOMAIN}
+      HARVEST_BALLOT_LOG_DOMAIN: ${HARVEST_BALLOT_LOG_DOMAIN:-harvest-edge:8080}
     depends_on:
       devcontainer:
         condition: service_started
@@ -626,6 +627,18 @@ services:
     ports:
       - ${SCANOVATE_OCR_PORT}:5040
 
+  harvest-edge:
+    profiles: ["full", "base"]
+    image: nginx:latest
+    restart: always
+    environment:
+      HARVEST_DOMAIN: ${HARVEST_DOMAIN}
+    volumes:
+      - ./harvest-edge/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+    depends_on:
+      harvest:
+        condition: service_started
+
   harvest:
     profiles: ["full", "base"]
     stdin_open: true
@@ -760,6 +773,8 @@ services:
       CLOUDFLARE_API_KEY: ${CLOUDFLARE_API_KEY}
       CUSTOM_URLS_IP_DNS_CONTENT: ${CUSTOM_URLS_IP_DNS_CONTENT}
       WBRAID_B4_URL: http://b4v6:3005
+      # Other origins whose pages may read boards (`*` or a comma-separated list); empty: the admin portal only.
+      HARVEST_B4_READ_ORIGINS: ${HARVEST_B4_READ_ORIGINS:-}
       WBRAID_BOARD_DATABASE_URL: postgres://postgres@postgres-b4v6:5432/b4
       WBRAID_B4_PG_PASSWORD: ${WBRAID_B4_PG_PASSWORD}
       DOC_RENDERER_BACKEND: ${DOC_RENDERER_BACKEND}
@@ -924,7 +939,7 @@ services:
       LOG_LEVEL: ${LOG_LEVEL}
       TRUSTEE_NAME: trustee1
       CARGO_TARGET_DIR: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/packages/rust-local-target/docker-dev
-      B4_URL: http://b4v6:3005
+      B4_URL: http://${HARVEST_DOMAIN}/b4
       TRUSTEE_CONFIG_PATH: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/packages/trustee/dev/trustee1.toml
       TRUSTEE_PASSWORD: ${TRUSTEE1_PASSWORD}
       TRUSTEE_PLATFORM_URL: ${TRUSTEE_PLATFORM_URL:-${HASURA_ENDPOINT}}
@@ -972,7 +987,7 @@ services:
       LOG_LEVEL: ${LOG_LEVEL}
       TRUSTEE_NAME: trustee2
       CARGO_TARGET_DIR: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/packages/rust-local-target/docker-dev
-      B4_URL: http://b4v6:3005
+      B4_URL: http://${HARVEST_DOMAIN}/b4
       TRUSTEE_CONFIG_PATH: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/packages/trustee/dev/trustee2.toml
       TRUSTEE_PASSWORD: ${TRUSTEE2_PASSWORD}
       TRUSTEE_PLATFORM_URL: ${TRUSTEE_PLATFORM_URL:-${HASURA_ENDPOINT}}

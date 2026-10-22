@@ -23,7 +23,6 @@ from scripts.dev.mode.checkout import (
 )
 from scripts.dev.mode.docker import DockerError
 from scripts.dev.mode.manifest import ManifestError, load_manifest
-from scripts.e2e.journeys import fixtures
 
 from . import runner
 from .catalog import (
@@ -111,7 +110,7 @@ def _links(context: Context, scenario: Scenario, state: State) -> dict[str, str]
 def _credentials(context: Context, scenario: Scenario, state: State) -> dict[str, Any]:
     return {
         "synthetic": True,
-        "voterPassword": fixtures.VOTER_PASSWORD,
+        "voterPassword": "same as username",
         "voters": state.voters,
         "votes": [
             {"voter": voter_username(scenario, vote), "candidate": vote.candidate}

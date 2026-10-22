@@ -29,7 +29,8 @@ use crate::services::electoral_log_board::{
     get_board_signing_key, get_event_databases, get_event_store,
 };
 use crate::services::users::{
-    list_keycloak_enabled_users_by_area_id_and_authorized_elections, VoterMultiplicityColumn,
+    census_voters_from_ballot_identities, list_keycloak_enabled_users_with_identity,
+    CensusIdentity, VoterMultiplicityColumn,
 };
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
@@ -269,7 +270,8 @@ pub trait SealEnvironment: Send + Sync {
         board: &str,
     ) -> Result<SigningKey>;
 
-    /// The census of the area for the election (alias `election_alias`).
+    /// The census of the area for the election (alias `election_alias`), keyed
+    /// by the event's ballot identity: pseudonym for privacy events, otherwise voter ID.
     async fn census(
         &self,
         election_event: &ElectionEvent,
@@ -336,6 +338,55 @@ impl SealEnvironment for ProductionSealEnvironment {
     ) -> Result<Census> {
         let multiplicity_column = multiplicity_column(&strict_presentation(election_event)?);
         let realm = get_event_realm(&election_event.tenant_id, &election_event.id);
+        let store = get_event_store(&election_event.id).await?;
+        let identity = match crate::services::vote_privacy::identity_mode(election_event)? {
+            sequent_core::types::vote_privacy::BallotIdentity::Pseudonym => {
+                CensusIdentity::Pseudonym {
+                    store: &store,
+                    event: &election_event.id,
+                }
+            }
+            sequent_core::types::vote_privacy::BallotIdentity::VoterId => CensusIdentity::VoterId,
+        };
+        // As in the unsealed tally, casting one's own valid ballot replaces a
+        // delegation. These IDs stay only in Keycloak's transaction-local lookup.
+        let voters_with_valid_ballot = if multiplicity_column
+            == VoterMultiplicityColumn::DelegateCount
+        {
+            let hasura = crate::services::database::get_hasura_pool()
+                .await
+                .get()
+                .await?;
+            let election = hasura
+                .query_one(
+                    "SELECT id::text FROM sequent_backend.election
+                 WHERE tenant_id = $1::text::uuid AND election_event_id = $2::text::uuid
+                   AND COALESCE(NULLIF(external_id, ''), id::text) = $3",
+                    &[
+                        &election_event.tenant_id,
+                        &election_event.id,
+                        &election_alias,
+                    ],
+                )
+                .await?
+                .try_get::<_, String>(0)?;
+            let identities = store
+                .client()
+                .await?
+                .query(
+                    "SELECT DISTINCT voter_id FROM ballot_box_ballot
+                 WHERE election_event_id = $1::text::uuid AND election_id = $2::text::uuid
+                   AND area_id = $3::text::uuid AND status = 'valid'",
+                    &[&election_event.id, &election, &area_id],
+                )
+                .await?
+                .into_iter()
+                .map(|row| row.try_get(0))
+                .collect::<std::result::Result<Vec<String>, _>>()?;
+            census_voters_from_ballot_identities(&store, &election_event.id, &identities).await?
+        } else {
+            Vec::new()
+        };
         let users_file = NamedTempFile::new().context("Error creating the census file")?;
         {
             let mut keycloak_client: DbClient = crate::services::database::get_keycloak_pool()
@@ -347,14 +398,15 @@ impl SealEnvironment for ProductionSealEnvironment {
                 .transaction()
                 .await
                 .context("Error starting a keycloak transaction")?;
-            list_keycloak_enabled_users_by_area_id_and_authorized_elections(
+            list_keycloak_enabled_users_with_identity(
                 &keycloak_transaction,
                 &realm,
                 area_id,
                 election_alias,
                 &users_file.path().to_path_buf(),
                 multiplicity_column,
-                &[],
+                &voters_with_valid_ballot,
+                identity,
             )
             .await?;
         }
