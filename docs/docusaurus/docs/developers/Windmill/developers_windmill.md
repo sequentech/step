@@ -28,6 +28,28 @@ and custom templates need no migration, and all PDF renderer backends receive
 the same server-built link. Restart Windmill workers after updating the code or
 these URL settings.
 
+## Vendor credentials in realm templates
+
+The default realm templates in `.devcontainer/keycloak/import/`, which
+`KEYCLOAK_TENANT_REALM_CONFIG_PATH` and
+`KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH` point to, leave the vendor
+credentials in authenticator config empty: the Inetum `api-key` and the
+reCAPTCHA `siteSecret`. When Windmill creates a tenant or election-event realm
+from a default template, it empties these entries too, so new realms never
+inherit credentials from the configured template. An imported election event
+keeps the values in its realm.
+
+Set the credentials in each realm that uses them: in the Keycloak admin console,
+open **Authentication**, then the flow, then the settings of the step. Janitor
+fills them from the `keycloak_inetum_api_key` and
+`keycloak_recaptcha_site_secret` `settings` rows of its Excel `Parameters`
+sheet.
+
+Templates from earlier versions include credentials in these entries. Replace
+the file that `KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH` points to with the
+current template, then rotate those credentials with the vendors and set the new
+values in the realms that use them.
+
 # Tally
 
 ## Discarded/Auditable Ballots
