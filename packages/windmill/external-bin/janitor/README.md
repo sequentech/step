@@ -58,3 +58,16 @@ the procedure described above.
 ## tenant configuration
 
 You can change the tenant id in the file `janitor/config/baseConfig.json`.
+
+## Vendor credentials
+
+The Keycloak template doesn't hold vendor credentials. Add them as `settings`
+rows of the `Parameters` sheet in the Excel file:
+
+| key | value |
+| --- | --- |
+| `keycloak_inetum_api_key` | Inetum API key of the `inetum-registration` authenticator |
+| `keycloak_recaptcha_site_secret` | reCAPTCHA secret of the `choose-user` and `username-password-exp` authenticators |
+
+Without a row the value stays empty, and you can set it later in the Keycloak
+admin console.
