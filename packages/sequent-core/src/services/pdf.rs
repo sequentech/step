@@ -646,10 +646,10 @@ fn print_to_pdf(
 ) -> Result<Vec<u8>> {
     // When multiple Rayon threads generate PDF batches concurrently (workers
     // 29, 30, 31), each spawns its own headless Chrome process. Chrome can
-    // crash mid-print (due to --single-process flag instability or memory
-    // pressure from concurrent instances), closing the WebSocket connection and
-    // causing tab.print_to_pdf() to fail with ConnectionClosed: Unable to make
-    // method calls because underlying connection is closed
+    // crash mid-print (due to memory pressure from concurrent instances),
+    // closing the WebSocket connection and causing tab.print_to_pdf() to fail
+    // with ConnectionClosed: Unable to make method calls because underlying
+    // connection is closed
     const MAX_RETRIES: u32 = 5;
     let mut delay = Duration::from_secs(1);
     // PrintToPdfOptions doesn't derive Clone, so serialize once and deserialize
@@ -697,7 +697,8 @@ fn print_to_pdf_once(
         .args(vec![
             std::ffi::OsStr::new("--disable-setuid-sandbox"),
             std::ffi::OsStr::new("--disable-dev-shm-usage"),
-            std::ffi::OsStr::new("--single-process"),
+            // Never add --single-process: Chromium 155+ aborts at startup
+            // with it, so the browser never comes up.
             std::ffi::OsStr::new("--no-zygote"),
         ])
         .build()
