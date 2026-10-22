@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::{ensure, Context, Result};
-use ballot_audit::{decode_message, digest, Scope};
+use ballot_audit::{decode_message, digest, invalid_input, validate_sha512_pin, ExitStatus, Scope};
 use clap::Parser;
 use electoral_log::messages::{
     message::Message,
@@ -149,14 +149,8 @@ fn is_receipt(value: &str) -> bool {
 }
 
 fn read_pinned(path: &Path, pin: &str, label: &str) -> Result<Vec<u8>> {
-    ensure!(
-        pin.len() == 128
-            && pin
-                .bytes()
-                .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b)),
-        "{label} SHA-512 pin must be 128 lowercase hexadecimal characters"
-    );
-    let bytes = fs::read(path).with_context(|| format!("cannot read {label} source"))?;
+    validate_sha512_pin(pin, label)?;
+    let bytes = fs::read(path).map_err(|_| invalid_input(format!("cannot read {label} source")))?;
     ensure!(digest(&bytes)? == pin, "{label} source digest mismatch");
     Ok(bytes)
 }
@@ -165,18 +159,16 @@ fn ballot_hash(content: &str, single_contest: bool) -> Result<Hash> {
     if single_contest {
         let ballot: HashableBallot =
             serde_json::from_str(content).context("unhashable historical single-contest ballot")?;
-        ensure!(
-            ballot.version == TYPES_VERSION,
-            "unsupported historical ballot version"
-        );
+        if ballot.version != TYPES_VERSION {
+            return Err(invalid_input("unsupported historical ballot version"));
+        }
         hash_ballot_sha512(&ballot).context("unhashable historical single-contest ballot")
     } else {
         let ballot: HashableMultiBallot =
             serde_json::from_str(content).context("unhashable historical multi-contest ballot")?;
-        ensure!(
-            ballot.version == TYPES_VERSION,
-            "unsupported historical ballot version"
-        );
+        if ballot.version != TYPES_VERSION {
+            return Err(invalid_input("unsupported historical ballot version"));
+        }
         hash_multi_ballot_sha512(&ballot).context("unhashable historical multi-contest ballot")
     }
 }
@@ -187,23 +179,28 @@ fn audit_history(
     logs: &[Vec<u8>],
     requested_receipt: Option<&str>,
 ) -> Result<HistoryReport> {
-    for id in [
+    if [
         &scope.tenant_id,
         &scope.election_event_id,
         &scope.election_id,
-    ] {
-        ensure!(!id.trim().is_empty(), "missing historical scope identifier");
+    ]
+    .iter()
+    .any(|id| id.trim().is_empty())
+    {
+        return Err(invalid_input("missing historical scope identifier"));
     }
-    ensure!(
-        requested_receipt.is_none_or(is_receipt),
-        "requested receipt must be 64 lowercase hexadecimal characters"
-    );
+    if !requested_receipt.is_none_or(is_receipt) {
+        return Err(invalid_input(
+            "requested receipt must be 64 lowercase hexadecimal characters",
+        ));
+    }
     let system_key = StrandSignaturePk::from_der_b64_string(&scope.electoral_log_system_public_key)
-        .context("invalid pinned electoral-log system key")?;
+        .map_err(|_| invalid_input("invalid pinned electoral-log system key"))?;
     let mut groups: BTreeMap<(Hash, Hash), Coverage> = BTreeMap::new();
     let mut row_ids = BTreeSet::new();
     for row in rows {
-        let id = Uuid::parse_str(&row.id).context("invalid historical cast_vote UUID")?;
+        let id = Uuid::parse_str(&row.id)
+            .map_err(|_| invalid_input("invalid historical cast_vote UUID"))?;
         ensure!(row_ids.insert(id), "duplicate historical cast_vote UUID");
         ensure!(
             row.tenant_id == scope.tenant_id
@@ -236,8 +233,8 @@ fn audit_history(
     let mut checked_logs = 0;
     let mut message_digests = BTreeSet::new();
     for bytes in logs {
-        let message =
-            Message::strand_deserialize(bytes).context("invalid full electoral-log message")?;
+        let message = Message::strand_deserialize(bytes)
+            .map_err(|_| invalid_input("invalid full electoral-log message"))?;
         // Verify before filtering: a tampered signed scope must not hide a log
         // when its corresponding database row has also been removed.
         message
@@ -342,7 +339,7 @@ fn audit_history(
         ambiguous_log_occurrence_groups: ambiguous_logs,
         unfiltered_receipt_groups, report_filtered: requested_receipt.is_some(), requested_receipt_found,
         receipts, source_sha512: BTreeMap::new(),
-        assurance: "Coverage comparison of the supplied pinned tenant/event/election Hasura history against signed successful CastVote statements, across all areas/statuses/revotes. Only signed event/election/pseudonym/full ballot hashes are matched; unsigned log area/user/receipt metadata is not authority. Repeated logs and repeated identical ballots do not establish a one-to-one row/event attribution. Multiple rows or distinct complete log messages sharing a tuple are ambiguous and return exit 2; byte-identical log duplicates are reported without assuming independent occurrences. Distinct signed statement counts are also reported: differing unsigned metadata does not prove another signing event. All input records are signature-verified before scope filtering; foreign or rotated system keys are unsupported without an independently trusted key set. Exported messages lack database row IDs; exact byte duplicates are reported, not treated as unique events. A signed log without a row is unexplained/incomplete, not a lawful selection exclusion. A row without a log is incomplete evidence, not proof of tampering: native success logging is best effort. This does not establish historical completeness, contemporaneous source authenticity, ImmuDB inclusion/consistency proofs, eligibility, tally inclusion, or integrity of metadata omitted from the native receipt hash.",
+        assurance: "Coverage comparison of the supplied pinned tenant/event/election Hasura history against signed successful CastVote statements, across all areas/statuses/revotes. Only signed event/election/pseudonym/full ballot hashes are matched; unsigned log area/user/receipt metadata is not authority. Repeated logs and repeated identical ballots do not establish a one-to-one row/event attribution. Multiple rows or distinct complete log messages sharing a tuple are ambiguous and return exit 3; byte-identical log duplicates are reported without assuming independent occurrences. Distinct signed statement counts are also reported: differing unsigned metadata does not prove another signing event. All input records are signature-verified before scope filtering; foreign or rotated system keys are unsupported without an independently trusted key set. Exported messages lack database row IDs; exact byte duplicates are reported, not treated as unique events. A signed log without a row is unexplained/incomplete, not a lawful selection exclusion. A row without a log is incomplete evidence, not proof of tampering: native success logging is best effort. This does not establish historical completeness, contemporaneous source authenticity, ImmuDB inclusion/consistency proofs, eligibility, tally inclusion, or integrity of metadata omitted from the native receipt hash.",
     })
 }
 
@@ -358,18 +355,21 @@ fn run(args: Args) -> Result<HistoryReport> {
         &args.electoral_log_sha512,
         "electoral log",
     )?;
-    let saved: SavedScope = serde_json::from_slice(&scope_bytes).context("invalid saved scope")?;
-    ensure!(
-        saved.format_version == 1 && !saved.batches.is_empty(),
-        "unsupported or incomplete saved scope"
-    );
-    let rows: Vec<HistoryRow> =
-        serde_json::from_slice(&row_bytes).context("invalid historical cast_vote export")?;
-    let encoded: Vec<String> =
-        serde_json::from_slice(&log_bytes).context("invalid electoral-log JSON export")?;
+    let saved: SavedScope =
+        serde_json::from_slice(&scope_bytes).map_err(|_| invalid_input("invalid saved scope"))?;
+    if saved.format_version != 1 || saved.batches.is_empty() {
+        return Err(invalid_input("unsupported or incomplete saved scope"));
+    }
+    let rows: Vec<HistoryRow> = serde_json::from_slice(&row_bytes)
+        .map_err(|_| invalid_input("invalid historical cast_vote export"))?;
+    let encoded: Vec<String> = serde_json::from_slice(&log_bytes)
+        .map_err(|_| invalid_input("invalid electoral-log JSON export"))?;
     let logs = encoded
         .iter()
-        .map(|value| decode_message(value).context("invalid historical electoral-log encoding"))
+        .map(|value| {
+            decode_message(value)
+                .map_err(|_| invalid_input("invalid historical electoral-log encoding"))
+        })
         .collect::<Result<Vec<_>>>()?;
     let mut report = audit_history(&saved.scope, &rows, &logs, args.ballot_id.as_deref())?;
     report.source_sha512 = BTreeMap::from([
@@ -385,17 +385,17 @@ fn main() {
         Ok(report) => {
             if serde_json::to_writer_pretty(std::io::stdout().lock(), &report).is_err() {
                 eprintln!("Historical audit failed: cannot write report");
-                std::process::exit(1);
+                std::process::exit(ExitStatus::VerificationFailed.code());
             }
             println!();
             if report.outcome != Outcome::Consistent {
-                std::process::exit(2);
+                std::process::exit(ExitStatus::Incomplete.code());
             }
         }
         Err(error) => {
             // Never print nested parser/crypto errors containing private raw data.
             eprintln!("Historical audit failed: {error}");
-            std::process::exit(1);
+            std::process::exit(ExitStatus::of(&error).code());
         }
     }
 }

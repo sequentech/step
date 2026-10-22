@@ -4,8 +4,8 @@
 use anyhow::{bail, ensure, Context, Result};
 use b3::messages::{artifact::Configuration, message::Message, statement::Statement};
 use ballot_audit::{
-    audit, decode_message, digest, AuditReport, CastVote, Manifest, MultiplicityPolicy, Scope,
-    SelectedVote,
+    audit, decode_message, digest, incomplete, invalid_input, validate_sha512_pin, AuditReport,
+    CastVote, ExitStatus, Manifest, MultiplicityPolicy, Scope, SelectedVote, SelectionReason,
 };
 use base64::{engine::general_purpose::STANDARD_NO_PAD, Engine};
 use chrono::{DateTime, FixedOffset};
@@ -18,6 +18,11 @@ use sequent_core::{
     ballot::{HashableBallot, VotingStatusChannel},
     encrypt::{hash_ballot_sha512, hash_multi_ballot_sha512},
     multi_ballot::HashableMultiBallot,
+    types::{
+        hasura::core::{TallySessionContest, TallySessionContestAnnotations},
+        keycloak::VOTE_WEIGHT_BATCHES,
+        participation::{ParticipationChannel, VotesByChannel},
+    },
 };
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
@@ -64,6 +69,11 @@ struct Args {
     electoral_log: PathBuf,
     #[arg(long)]
     electoral_log_sha512: String,
+    /// Exporter's saved-mapping.json, to cross-check the tally annotations Windmill saved.
+    #[arg(long, requires = "saved_mapping_sha512")]
+    saved_mapping: Option<PathBuf>,
+    #[arg(long, requires = "saved_mapping")]
+    saved_mapping_sha512: Option<String>,
     /// New local directory. Existing paths are never overwritten.
     #[arg(long)]
     output: PathBuf,
@@ -143,10 +153,9 @@ fn select_rows<'a>(
     rows: &'a [RawCastVote],
     eligibility: &FrozenEligibility,
 ) -> Result<Vec<SelectedRaw<'a>>> {
-    ensure!(
-        eligibility.format_version == 1,
-        "unsupported frozen eligibility version"
-    );
+    if eligibility.format_version != 1 {
+        return Err(invalid_input("unsupported frozen eligibility version"));
+    }
     ensure!(
         eligibility.scope_sha512 == scope_sha512,
         "frozen eligibility scope digest mismatch"
@@ -222,15 +231,16 @@ fn latest_scoped_rows<'a>(
     let mut latest: BTreeMap<&str, (OrderKey, &RawCastVote)> = BTreeMap::new();
     let mut row_ids = BTreeSet::new();
     for row in rows {
-        let id = Uuid::parse_str(&row.id).context("invalid cast_vote UUID")?;
+        let id = Uuid::parse_str(&row.id).map_err(|_| invalid_input("invalid cast_vote UUID"))?;
         ensure!(row_ids.insert(id), "duplicate cast_vote row ID");
         if !in_scope(scope, row) {
             continue;
         }
-        ensure!(
-            row.status != CastVoteStatus::InProgress,
-            "scoped in-progress cast vote blocks preparation"
-        );
+        if row.status == CastVoteStatus::InProgress {
+            return Err(incomplete(
+                "scoped in-progress cast vote blocks preparation",
+            ));
+        }
         let voter = row
             .voter_id_string
             .as_deref()
@@ -241,7 +251,7 @@ fn latest_scoped_rows<'a>(
             .as_deref()
             .map(DateTime::parse_from_rfc3339)
             .transpose()
-            .context("invalid scoped cast vote timestamp; expected RFC3339")?;
+            .map_err(|_| invalid_input("invalid scoped cast vote timestamp; expected RFC3339"))?;
         let key = (row.status == CastVoteStatus::Valid, created_at, id);
         if latest.get(voter).is_none_or(|(old_key, _)| key > *old_key) {
             latest.insert(voter, (key, row));
@@ -251,16 +261,6 @@ fn latest_scoped_rows<'a>(
         .into_iter()
         .map(|(voter, (_, row))| (voter, row))
         .collect())
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize)]
-#[serde(rename_all = "snake_case")]
-enum SelectionReason {
-    OutsideScope,
-    Discarded,
-    NoEligibleVoter,
-    SupersededRevote,
-    Selected,
 }
 
 #[derive(Default, Debug, Serialize)]
@@ -307,6 +307,20 @@ struct SelectionAccounting {
     frozen_eligible_multiplicity_without_valid_vote: u64,
     selected_input_positions: u64,
     stage_exclusions: StageExclusions,
+    stage_cast_count: u64,
+    /// Absent when a counted row stores a non-string voting channel, whose
+    /// PostgreSQL text form is not reproduced here.
+    stage_votes_by_channel: Option<VotesByChannel>,
+}
+
+// Mirrors COALESCE(annotations->>'voting_channel', 'ONLINE') in Windmill's
+// area_ballots_query.
+fn stage_channel(row: &RawCastVote) -> Option<String> {
+    match row.annotations.get("voting_channel") {
+        None | Some(Value::Null) => Some(VotingStatusChannel::ONLINE.to_string()),
+        Some(Value::String(channel)) => Some(channel.clone()),
+        Some(_) => None,
+    }
 }
 
 fn account_selection(
@@ -338,6 +352,7 @@ fn account_selection(
     .map(|reason| (reason, ReasonCount::default()))
     .collect();
     let mut decisions = Vec::with_capacity(rows.len());
+    let mut stage_votes_by_channel = Some(VotesByChannel::new());
     for row in rows {
         let outside = !in_scope(scope, row);
         let multiplicity = if outside {
@@ -378,6 +393,20 @@ fn account_selection(
             }
             SelectionReason::OutsideScope | SelectionReason::SupersededRevote => (0, 0),
         };
+        if channel_count > 0 {
+            stage_votes_by_channel = match (stage_votes_by_channel, stage_channel(row)) {
+                (Some(mut counts), Some(channel)) => {
+                    let total = counts
+                        .entry(ParticipationChannel::from(channel))
+                        .or_default();
+                    *total = total
+                        .checked_add(channel_count)
+                        .context("stage channel count overflow")?;
+                    Some(counts)
+                }
+                _ => None,
+            };
+        }
         decisions.push(RowDecision {
             cast_vote_id: row.id.clone(),
             ballot_id: row.ballot_id.clone(),
@@ -436,6 +465,11 @@ fn account_selection(
             .checked_add(count)
             .context("selected input position count overflow")
     })?;
+    let stage_cast_count = rows_by_reason.values().try_fold(0u64, |total, count| {
+        total
+            .checked_add(count.stage_cast_count)
+            .context("stage cast count overflow")
+    })?;
     let discarded = rows_by_reason[&SelectionReason::Discarded].stage_cast_count;
     let no_eligible_voter = rows_by_reason[&SelectionReason::NoEligibleVoter].stage_cast_count;
     let stage_exclusions = StageExclusions {
@@ -454,52 +488,65 @@ fn account_selection(
             frozen_eligible_multiplicity_without_valid_vote: without_valid_multiplicity,
             selected_input_positions,
             stage_exclusions,
+            stage_cast_count,
+            stage_votes_by_channel,
         },
         decisions,
     ))
 }
 
 fn read_pinned(path: &Path, pin: &str, label: &str) -> Result<Vec<u8>> {
-    ensure!(
-        pin.len() == 128
-            && pin
-                .bytes()
-                .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b)),
-        "{label} SHA-512 pin must be 128 lowercase hexadecimal characters"
-    );
-    let bytes = fs::read(path).with_context(|| format!("cannot read {label} source"))?;
+    validate_sha512_pin(pin, label)?;
+    let bytes = fs::read(path).map_err(|_| invalid_input(format!("cannot read {label} source")))?;
     ensure!(digest(&bytes)? == pin, "{label} source digest mismatch");
     Ok(bytes)
 }
 
 fn decode_export(bytes: &[u8], label: &str) -> Result<Vec<Vec<u8>>> {
-    let encoded: Vec<String> =
-        serde_json::from_slice(bytes).with_context(|| format!("invalid {label} JSON export"))?;
+    let encoded: Vec<String> = serde_json::from_slice(bytes)
+        .map_err(|_| invalid_input(format!("invalid {label} JSON export")))?;
     encoded
         .iter()
         .map(|value| {
-            decode_message(value).with_context(|| format!("invalid {label} message encoding"))
+            decode_message(value)
+                .map_err(|_| invalid_input(format!("invalid {label} message encoding")))
         })
         .collect()
 }
 
-fn board_inputs(saved: &SavedScope, messages: &[Vec<u8>]) -> Result<(Vec<u8>, Vec<Vec<u8>>)> {
-    ensure!(saved.format_version == 1, "unsupported saved scope version");
+#[derive(Debug, Serialize)]
+#[serde(tag = "status", rename_all = "snake_case")]
+enum PublicKeyCheck {
+    /// The board export carries no PublicKey statement to compare with.
+    NotOnBoard,
+    Matched {
+        signed_statements: usize,
+    },
+}
+
+struct BoardInputs {
+    configuration: Vec<u8>,
+    ballots: Vec<Vec<u8>>,
+    public_key: PublicKeyCheck,
+}
+
+fn board_inputs(saved: &SavedScope, messages: &[Vec<u8>]) -> Result<BoardInputs> {
+    if saved.format_version != 1 {
+        return Err(invalid_input("unsupported saved scope version"));
+    }
     let batches: BTreeSet<_> = saved.batches.iter().copied().collect();
-    ensure!(
-        !batches.is_empty() && batches.len() == saved.batches.len(),
-        "empty or duplicate saved batch scope"
-    );
-    let mut configuration_bytes = None;
+    if batches.is_empty() || batches.len() != saved.batches.len() {
+        return Err(invalid_input("empty or duplicate saved batch scope"));
+    }
+    let mut configuration = None;
+    let mut public_keys = Vec::new();
     let mut selected = Vec::new();
     for bytes in messages {
-        let message = Message::strand_deserialize(bytes).context("invalid full board message")?;
+        let message = Message::strand_deserialize(bytes)
+            .map_err(|_| invalid_input("invalid full board message"))?;
         match &message.statement {
             Statement::Configuration(_, configuration_hash) => {
-                ensure!(
-                    configuration_bytes.is_none(),
-                    "ambiguous board configuration"
-                );
+                ensure!(configuration.is_none(), "ambiguous board configuration");
                 let artifact = message
                     .artifact
                     .as_ref()
@@ -508,13 +555,23 @@ fn board_inputs(saved: &SavedScope, messages: &[Vec<u8>]) -> Result<(Vec<u8>, Ve
                     strand::hash::hash_to_array(artifact)? == configuration_hash.0,
                     "configuration artifact hash mismatch"
                 );
-                let configuration = Configuration::<RistrettoCtx>::strand_deserialize(artifact)
+                let parsed = Configuration::<RistrettoCtx>::strand_deserialize(artifact)
                     .context("invalid board configuration")?;
-                ensure!(configuration.is_valid(), "invalid board configuration");
+                ensure!(parsed.is_valid(), "invalid board configuration");
                 message
-                    .verify(&configuration)
+                    .verify(&parsed)
                     .context("configuration signature verification failed")?;
-                configuration_bytes = Some(artifact.clone());
+                configuration = Some((artifact.clone(), parsed));
+            }
+            Statement::PublicKey(_, _, public_key_hash, _, _)
+            | Statement::PublicKeySigned(_, _, public_key_hash, _, _) => {
+                if let Some(artifact) = &message.artifact {
+                    ensure!(
+                        strand::hash::hash_to_array(artifact)? == public_key_hash.0,
+                        "board public key artifact hash mismatch"
+                    );
+                }
+                public_keys.push((hex::encode(public_key_hash.0), message));
             }
             Statement::Ballots(_, _, batch, _, _, _)
                 if u32::try_from(*batch)
@@ -526,10 +583,28 @@ fn board_inputs(saved: &SavedScope, messages: &[Vec<u8>]) -> Result<(Vec<u8>, Ve
             _ => {}
         }
     }
-    Ok((
-        configuration_bytes.context("full board export lacks configuration")?,
-        selected,
-    ))
+    let (configuration, parsed) =
+        configuration.ok_or_else(|| incomplete("full board export lacks configuration"))?;
+    for (public_key_hash, message) in &public_keys {
+        message
+            .verify(&parsed)
+            .context("board public key signature verification failed")?;
+        ensure!(
+            *public_key_hash == saved.scope.public_key_sha512,
+            "pinned public key hash differs from the board PublicKey statement"
+        );
+    }
+    Ok(BoardInputs {
+        configuration,
+        ballots: selected,
+        public_key: if public_keys.is_empty() {
+            PublicKeyCheck::NotOnBoard
+        } else {
+            PublicKeyCheck::Matched {
+                signed_statements: public_keys.len(),
+            }
+        },
+    })
 }
 
 struct LogEvidence<'a> {
@@ -544,11 +619,11 @@ fn index_logs<'a>(
     messages: &'a [Vec<u8>],
 ) -> Result<BTreeMap<LogKey, Vec<LogEvidence<'a>>>> {
     let system_pk = StrandSignaturePk::from_der_b64_string(&scope.electoral_log_system_public_key)
-        .context("invalid pinned electoral-log system key")?;
+        .map_err(|_| invalid_input("invalid pinned electoral-log system key"))?;
     let mut indexed: BTreeMap<LogKey, Vec<LogEvidence<'a>>> = BTreeMap::new();
     for bytes in messages {
         let message = ElectoralMessage::strand_deserialize(bytes)
-            .context("invalid full electoral-log message")?;
+            .map_err(|_| invalid_input("invalid full electoral-log message"))?;
         if message.statement.head.event.0 != scope.election_event_id
             || !matches!(message.statement.head.kind, StatementType::CastVote)
         {
@@ -579,20 +654,134 @@ fn index_logs<'a>(
 }
 
 fn voting_channel(row: &RawCastVote) -> Result<String> {
-    ensure!(
-        row.annotations.is_null() || row.annotations.is_object(),
-        "invalid cast vote annotations object"
-    );
+    if !(row.annotations.is_null() || row.annotations.is_object()) {
+        return Err(invalid_input("invalid cast vote annotations object"));
+    }
     match row
         .annotations
         .get("voting_channel")
         .filter(|value| !value.is_null())
     {
         Some(value) => Ok(serde_json::from_value::<VotingStatusChannel>(value.clone())
-            .context("invalid cast vote voting channel")?
+            .map_err(|_| invalid_input("invalid cast vote voting channel"))?
             .to_string()),
         None => Ok(VotingStatusChannel::ONLINE.to_string()),
     }
+}
+
+#[derive(Debug, Deserialize)]
+struct SavedMapping {
+    tally_session_contest: TallySessionContest,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum AnnotationField {
+    Matched,
+    NotRecorded,
+    NotReproducible,
+}
+
+/// Saved eligible voter, ballots-without-voter and cast counts are always
+/// compared once annotations are present. The auditable ballots document is
+/// not: its archived JSONL is not authenticated by this reconstruction.
+#[derive(Debug, Serialize)]
+#[serde(tag = "status", rename_all = "snake_case")]
+enum TallyAnnotationsCheck {
+    NotSupplied,
+    AnnotationsAbsent,
+    Checked {
+        votes_by_channel: AnnotationField,
+        weight_bit_mask: AnnotationField,
+    },
+}
+
+fn check_tally_annotations(
+    saved: &SavedScope,
+    mapping: &SavedMapping,
+    eligibility: &FrozenEligibility,
+    accounting: &SelectionAccounting,
+) -> Result<TallyAnnotationsCheck> {
+    let scope = &saved.scope;
+    let contest = &mapping.tally_session_contest;
+    ensure!(
+        contest.id == scope.tally_session_contest_id
+            && contest.tenant_id == scope.tenant_id
+            && contest.election_event_id == scope.election_event_id
+            && contest.election_id == scope.election_id
+            && contest.area_id == scope.area_id
+            && contest.tally_session_id == scope.tally_session_id
+            && contest.contest_id == scope.contest_id,
+        "saved tally session contest differs from pinned scope"
+    );
+    ensure!(
+        u32::try_from(contest.session_id).ok() == Some(scope.base_batch),
+        "saved tally session batch differs from pinned base batch"
+    );
+    let Some(annotations) = contest.annotations.clone().filter(|value| !value.is_null()) else {
+        return Ok(TallyAnnotationsCheck::AnnotationsAbsent);
+    };
+    let annotations: TallySessionContestAnnotations = serde_json::from_value(annotations)
+        .map_err(|_| invalid_input("invalid saved tally session contest annotations"))?;
+    ensure!(
+        u64::try_from(eligibility.voters.len()).ok() == Some(annotations.elegible_voters),
+        "saved eligible voter count differs from frozen eligibility"
+    );
+    ensure!(
+        annotations.ballots_without_voter == accounting.stage_exclusions.total,
+        "saved ballots without voter differ from reconstructed stage exclusions"
+    );
+    ensure!(
+        annotations.casted_ballots == accounting.stage_cast_count,
+        "saved cast ballot count differs from reconstructed selection"
+    );
+    let votes_by_channel = match (
+        &annotations.votes_by_channel,
+        &accounting.stage_votes_by_channel,
+    ) {
+        (None, _) => AnnotationField::NotRecorded,
+        (Some(_), None) => AnnotationField::NotReproducible,
+        (Some(saved_counts), Some(counts)) => {
+            ensure!(
+                saved_counts == counts,
+                "saved votes by channel differ from reconstructed selection"
+            );
+            AnnotationField::Matched
+        }
+    };
+    let offsets = saved
+        .batches
+        .iter()
+        .map(|batch| {
+            batch
+                .checked_sub(scope.base_batch)
+                .context("saved batch below base batch")
+        })
+        .collect::<Result<BTreeSet<_>>>()?;
+    let weight_bit_mask = match (annotations.weight_bit_mask, scope.policy) {
+        (Some(mask), _) => {
+            let masked: BTreeSet<_> = (0..VOTE_WEIGHT_BATCHES)
+                .filter(|bit| mask & (1u32 << bit) != 0)
+                .collect();
+            ensure!(
+                mask >> VOTE_WEIGHT_BATCHES == 0 && masked == offsets,
+                "saved weight bit mask differs from the batch scope"
+            );
+            AnnotationField::Matched
+        }
+        (None, MultiplicityPolicy::Weighted) => AnnotationField::NotRecorded,
+        (None, MultiplicityPolicy::Unweighted | MultiplicityPolicy::Delegated) => {
+            ensure!(
+                offsets == BTreeSet::from([0]),
+                "unweighted saved tally contest spans several batches"
+            );
+            AnnotationField::Matched
+        }
+    };
+    Ok(TallyAnnotationsCheck::Checked {
+        votes_by_channel,
+        weight_bit_mask,
+    })
 }
 
 struct PreparedBundle {
@@ -604,6 +793,9 @@ struct PreparedBundle {
     report: AuditReport,
     selection_accounting: SelectionAccounting,
     row_decisions: Vec<RowDecision>,
+    public_key: PublicKeyCheck,
+    collapsed_identical_electoral_log_records: usize,
+    tally_annotations: TallyAnnotationsCheck,
 }
 
 fn prepare_bundle(
@@ -613,11 +805,18 @@ fn prepare_bundle(
     eligibility: &FrozenEligibility,
     board_messages: &[Vec<u8>],
     log_messages: &[Vec<u8>],
+    mapping: Option<&SavedMapping>,
 ) -> Result<PreparedBundle> {
     let selected = select_rows(&saved.scope, scope_sha512, raw_rows, eligibility)?;
     let (selection_accounting, row_decisions) =
         account_selection(&saved.scope, raw_rows, eligibility, &selected)?;
-    let (configuration, messages) = board_inputs(&saved, board_messages)?;
+    let tally_annotations = match mapping {
+        Some(mapping) => {
+            check_tally_annotations(&saved, mapping, eligibility, &selection_accounting)?
+        }
+        None => TallyAnnotationsCheck::NotSupplied,
+    };
+    let board = board_inputs(&saved, board_messages)?;
     let indexed_logs = index_logs(&saved.scope, log_messages)?;
     let mut manifest = Manifest {
         format_version: 1,
@@ -627,6 +826,7 @@ fn prepare_bundle(
     };
     let mut rows = Vec::new();
     let mut logs = Vec::new();
+    let mut collapsed_identical_electoral_log_records = 0;
     for selected in selected {
         let raw = selected.row;
         let voter_id = raw
@@ -652,13 +852,20 @@ fn prepare_bundle(
                 .context("cannot hash selected multi-contest ballot")?
         };
         let voter_hash = strand::hash::hash_to_array(&voter_id.strand_serialize()?)?;
+        // A lost log write (meta#13796) or Windmill's best-effort post-cast
+        // logging leaves an accepted vote without evidence, not a contradiction.
         let matches = indexed_logs
             .get(&(voter_hash, full_ballot_hash))
-            .context("selected cast vote has no matching signed electoral-log evidence")?;
-        ensure!(
-            matches.len() == 1,
-            "selected cast vote has ambiguous signed electoral-log evidence"
-        );
+            .ok_or_else(|| {
+                incomplete("selected cast vote has no matching signed electoral-log evidence")
+            })?;
+        let distinct: BTreeSet<_> = matches.iter().map(|evidence| evidence.bytes).collect();
+        if distinct.len() != 1 {
+            return Err(incomplete(
+                "selected cast vote has ambiguous signed electoral-log evidence",
+            ));
+        }
+        collapsed_identical_electoral_log_records += matches.len() - 1;
         let log = &matches[0];
         let channel = voting_channel(raw)?;
         ensure!(
@@ -686,22 +893,30 @@ fn prepare_bundle(
         &manifest,
         &digest(&manifest)?,
         &rows,
-        &configuration,
-        &digest(&configuration)?,
-        &messages,
+        &board.configuration,
+        &digest(&board.configuration)?,
+        &board.ballots,
         None,
         &logs,
     )
     .context("generated bundle failed complete input audit")?;
+    ensure!(
+        report.duplicate_selected_receipts.is_empty(),
+        "{} ballot receipt(s) are shared by several selected cast votes; one encrypted ballot was accepted for more than one voter",
+        report.duplicate_selected_receipts.len()
+    );
     Ok(PreparedBundle {
         manifest,
-        configuration,
+        configuration: board.configuration,
         rows,
-        messages,
+        messages: board.ballots,
         logs,
         report,
         selection_accounting,
         row_decisions,
+        public_key: board.public_key,
+        collapsed_identical_electoral_log_records,
+        tally_annotations,
     })
 }
 
@@ -743,9 +958,13 @@ fn write_bundle(args: &Args, bundle: &PreparedBundle) -> Result<()> {
             "eligible_voters": args.eligible_voters_sha512,
             "board_messages": args.board_messages_sha512,
             "electoral_log": args.electoral_log_sha512,
+            "saved_mapping": args.saved_mapping_sha512,
         },
         "anchors": anchors,
         "selection_accounting": bundle.selection_accounting,
+        "tally_annotations": bundle.tally_annotations,
+        "board_public_key": bundle.public_key,
+        "collapsed_identical_electoral_log_records": bundle.collapsed_identical_electoral_log_records,
         "checked_cast_votes": bundle.report.checked_cast_votes,
         "checked_batches": bundle.report.checked_batches,
         "checked_electoral_log_messages": bundle.report.checked_electoral_log_messages,
@@ -756,6 +975,8 @@ fn write_bundle(args: &Args, bundle: &PreparedBundle) -> Result<()> {
             "Selection accounting partitions complete exported row history. Superseded rows are not stage exclusions. Only the latest discarded row when no valid exists, or the latest valid row without frozen eligibility, contributes one exclusion and one channel participation count. Included rows contribute resolved multiplicity to channel participation; weighted cast counts remain headcounts. This reconstruction does not authenticate the archived encrypted-ballots.jsonl exclusion artifact.",
             "A missing frozen eligibility entry establishes only no_eligible_voter at this stage, not which upstream enabled, area, authorization, or other eligibility clause failed. Keep the source eligibility evidence to establish that reason.",
             "This newly generated manifest cannot prove historical integrity of ballot metadata omitted from the native receipt hash. Historical full-content integrity requires an independently authenticated contemporaneous source anchor.",
+            "anchors.json restates this bundle's own digests. Pass ballot-audit manifest and configuration pins obtained outside the bundle; pins read from it only show the bundle is self-consistent.",
+            "Saved tally annotations are compared only when --saved-mapping is supplied: eligible voters with the frozen eligibility size, ballots without voter with stage exclusions, cast ballots and votes by channel with the reconstructed stage counts, and the weight bit mask with the batch scope. Their auditable ballots document is not compared. Rows saved before these annotations existed are reported as not checked.",
             "The saved board name and tally/area/contest/batch mapping require external authentication. B3 signatures alone do not establish this application-level mapping.",
             "ImmuDB append-only history, mixnet shuffle/decryption proofs and final counting are not verified here.",
             "This local bundle contains raw voter identifiers and electoral-log metadata. Keep it private; stdout contains only aggregate counts."
@@ -813,14 +1034,24 @@ fn run(args: Args) -> Result<()> {
         &args.electoral_log_sha512,
         "electoral log",
     )?;
-    let saved: SavedScope = serde_json::from_slice(&scope_bytes)
-        .context("invalid saved scope; expected format_version, scope and batches")?;
-    let rows: Vec<RawCastVote> =
-        serde_json::from_slice(&raw_bytes).context("invalid full cast_vote table export")?;
-    let eligibility: FrozenEligibility = serde_json::from_slice(&eligibility_bytes)
-        .context("invalid frozen eligibility; a scope-bound envelope is required")?;
+    let saved: SavedScope = serde_json::from_slice(&scope_bytes).map_err(|_| {
+        invalid_input("invalid saved scope; expected format_version, scope and batches")
+    })?;
+    let rows: Vec<RawCastVote> = serde_json::from_slice(&raw_bytes)
+        .map_err(|_| invalid_input("invalid full cast_vote table export"))?;
+    let eligibility: FrozenEligibility =
+        serde_json::from_slice(&eligibility_bytes).map_err(|_| {
+            invalid_input("invalid frozen eligibility; a scope-bound envelope is required")
+        })?;
     let board_messages = decode_export(&board_bytes, "board")?;
     let log_messages = decode_export(&log_bytes, "electoral log")?;
+    let mapping: Option<SavedMapping> = match (&args.saved_mapping, &args.saved_mapping_sha512) {
+        (Some(path), Some(pin)) => Some(
+            serde_json::from_slice(&read_pinned(path, pin, "saved mapping")?)
+                .map_err(|_| invalid_input("invalid saved mapping"))?,
+        ),
+        _ => None,
+    };
     let bundle = prepare_bundle(
         saved,
         &args.scope_sha512,
@@ -828,6 +1059,7 @@ fn run(args: Args) -> Result<()> {
         &eligibility,
         &board_messages,
         &log_messages,
+        mapping.as_ref(),
     )?;
     write_bundle(&args, &bundle)?;
     println!("Prepared verified local bundle: {} selected cast votes, {} batches, {} signed electoral-log messages. Independently authenticate the source pins and read provenance.json before relying on this result.", bundle.report.checked_cast_votes, bundle.report.checked_batches, bundle.report.checked_electoral_log_messages);
@@ -838,7 +1070,7 @@ fn main() {
     if let Err(error) = run(Args::parse()) {
         // Parser/library source errors can contain ballot or voter data.
         eprintln!("prepare-ballot-audit: {error}");
-        std::process::exit(1);
+        std::process::exit(ExitStatus::of(&error).code());
     }
 }
 

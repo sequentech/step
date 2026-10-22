@@ -7,7 +7,7 @@ use b3::messages::{
     newtypes::{PublicKeyHash, MAX_TRUSTEES, NULL_TRUSTEE},
     protocol_manager::ProtocolManager,
 };
-use ballot_audit::digest;
+use ballot_audit::{digest, ExitStatus};
 use base64::{engine::general_purpose::STANDARD_NO_PAD, Engine};
 use serde_json::{json, Value};
 use std::{
@@ -34,6 +34,7 @@ const MAPPING: &str = "00000000-0000-4000-8000-000000000060";
 const CEREMONY: &str = "00000000-0000-4000-8000-000000000070";
 const BOARD: &str = "audit_board";
 const ALIAS: &str = "alias' OR '1'='1";
+const READER_PASSWORD: &str = "synthetic-reader";
 const CONTENT: &str = " \t{\"ciphertexts\" : [\"α\", \"\\u0061\"]}\r\n";
 
 struct TempDir(PathBuf);
@@ -68,7 +69,13 @@ async fn fixture_client(name: &str, expected_database: &str) -> (Client, String)
     tokio::spawn(async move {
         connection.await.unwrap();
     });
-    (client, dsn.replace("audit_fixture@", "audit_reader@"))
+    // The exporter must connect as the unprivileged reader: the fixture role
+    // owns the tables and would bypass row-level security.
+    let port = config.get_ports().first().copied().unwrap_or(5432);
+    let reader = format!(
+        "host=127.0.0.1 port={port} user=audit_reader password={READER_PASSWORD} dbname={expected_database}"
+    );
+    (client, reader)
 }
 
 fn write_json(path: &Path, value: &Value) {
@@ -95,6 +102,15 @@ fn invoke(root: &Path, name: &str, scope: &Value, with_blobs: bool) -> Output {
         command.arg("--b3-blob-root").arg(root.join("blobs"));
     }
     command.output().unwrap()
+}
+
+fn assert_exit(output: Output, status: ExitStatus) {
+    assert_eq!(
+        output.status.code(),
+        Some(status.code()),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 }
 
 fn load(root: &Path, directory: &str, file: &str) -> Value {
@@ -125,7 +141,8 @@ async fn exports_native_postgres_snapshots_without_application_servers() {
         fixture_client("BALLOT_AUDIT_TEST_KEYCLOAK_URL", "audit_keycloak").await;
     let (b3, b3_url) = fixture_client("BALLOT_AUDIT_TEST_B3_URL", "audit_b3").await;
     let root = TempDir::new();
-    hasura.batch_execute("CREATE ROLE audit_reader LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE;
+    hasura.batch_execute(&format!("CREATE ROLE audit_reader LOGIN PASSWORD '{READER_PASSWORD}'
+        NOSUPERUSER NOCREATEDB NOCREATEROLE;
         ALTER ROLE audit_reader SET default_transaction_read_only = on;
         CREATE SCHEMA sequent_backend;
         CREATE TABLE sequent_backend.election_event (id uuid PRIMARY KEY, tenant_id uuid, bulletin_board_reference jsonb);
@@ -140,7 +157,7 @@ async fn exports_native_postgres_snapshots_without_application_servers() {
             election_id uuid, area_id uuid, created_at timestamptz, voter_id_string text, content text,
             ballot_id text, status text, annotations jsonb);
         GRANT USAGE ON SCHEMA sequent_backend TO audit_reader;
-        GRANT SELECT ON ALL TABLES IN SCHEMA sequent_backend TO audit_reader;").await.unwrap();
+        GRANT SELECT ON ALL TABLES IN SCHEMA sequent_backend TO audit_reader;")).await.unwrap();
     hasura
         .execute(
             "INSERT INTO sequent_backend.election_event VALUES ($1::text::uuid,$2::text::uuid,$3)",
@@ -232,6 +249,7 @@ async fn exports_native_postgres_snapshots_without_application_servers() {
         ('weight-empty','alice','vote-weight',''), ('weight-seven','alice','vote-weight','7'),
         ('weight-three','alice','vote-weight','3'),
         ('delegate-self','alice','delegate-vote-to','alice'),
+        ('delegate-disabled','disabled','delegate-vote-to','alice'),
         ('delegate-outside-1','outside','delegate-vote-to','alice'),
         ('delegate-outside-2','outside','delegate-vote-to','alice'),
         ('delegate-service','outside-service','delegate-vote-to','alice');",
@@ -358,12 +376,22 @@ async fn exports_native_postgres_snapshots_without_application_servers() {
         json!(expected_bytes)
     );
     let reasons = load(&root.0, "plain", "eligibility-reasons.json");
-    assert_eq!(reasons["source_users"], 9);
+    assert_eq!(reasons["source_users"], 8);
     assert_eq!(reasons["eligible_users"], 3);
     assert_eq!(reasons["reason_counts"]["not_enabled"], 2);
     assert_eq!(reasons["reason_counts"]["service_account"], 1);
-    assert_eq!(reasons["reason_counts"]["area_not_matched"], 1);
     assert_eq!(reasons["reason_counts"]["election_not_authorized"], 2);
+    let keycloak_source =
+        String::from_utf8(fs::read(root.0.join("plain/keycloak-source.json")).unwrap()).unwrap();
+    for absent in [
+        "no-area",
+        "outside",
+        "\"username\"",
+        "vote-weight",
+        "delegate-vote-to\",",
+    ] {
+        assert!(!keycloak_source.contains(absent), "exported {absent}");
+    }
     for file in acquisition["files"]
         .as_object()
         .unwrap()
@@ -388,13 +416,40 @@ async fn exports_native_postgres_snapshots_without_application_servers() {
         0o700
     );
     let before = fs::read(root.0.join("plain/acquisition.json")).unwrap();
-    assert!(!invoke(&root.0, "plain", &scope, true).status.success());
+    assert_exit(
+        invoke(&root.0, "plain", &scope, true),
+        ExitStatus::InvalidInput,
+    );
     assert_eq!(
         fs::read(root.0.join("plain/acquisition.json")).unwrap(),
         before
     );
-    assert!(!invoke(&root.0, "no-blobs", &scope, false).status.success());
+    assert_exit(
+        invoke(&root.0, "no-blobs", &scope, false),
+        ExitStatus::Incomplete,
+    );
     assert!(!root.0.join("no-blobs/acquisition.json").exists());
+
+    hasura
+        .batch_execute("UPDATE sequent_backend.tally_session_contest SET session_id = 0;")
+        .await
+        .unwrap();
+    scope["scope"]["base_batch"] = json!(0);
+    scope["batches"] = json!([0]);
+    assert_success(invoke(&root.0, "first-batch", &scope, true));
+    assert_eq!(
+        load(&root.0, "first-batch", "board-messages.json"),
+        json!([expected_bytes[0]])
+    );
+    let first_batch = load(&root.0, "first-batch", "acquisition.json");
+    assert_eq!(first_batch["board_index_count"]["observed"], 2);
+    assert_eq!(first_batch["board_index_count"]["exported"], 1);
+    hasura
+        .batch_execute("UPDATE sequent_backend.tally_session_contest SET session_id = 10;")
+        .await
+        .unwrap();
+    scope["scope"]["base_batch"] = json!(10);
+    scope["batches"] = json!([10]);
 
     hasura.batch_execute("UPDATE sequent_backend.tally_session SET configuration =
         '{\"contest_encryption_policy\":\"multiple-contests\",\"weighted_voting_policy\":\"voters-weighted-voting\"}';
@@ -408,19 +463,24 @@ async fn exports_native_postgres_snapshots_without_application_servers() {
         {"voter_id":"alice","multiplicity":3},{"voter_id":"bob","multiplicity":1},{"voter_id":"null-auth","multiplicity":1}])
     );
     scope["batches"] = json!([10]);
-    assert!(!invoke(&root.0, "wrong-mask", &scope, true).status.success());
+    assert_exit(
+        invoke(&root.0, "wrong-mask", &scope, true),
+        ExitStatus::VerificationFailed,
+    );
     scope["batches"] = json!([10, 11]);
     keycloak.batch_execute("INSERT INTO public.user_attribute VALUES ('bad-weight','bob','vote-weight','not-a-number');").await.unwrap();
-    assert!(!invoke(&root.0, "malformed-weight", &scope, true)
-        .status
-        .success());
+    assert_exit(
+        invoke(&root.0, "malformed-weight", &scope, true),
+        ExitStatus::InvalidInput,
+    );
     keycloak
         .batch_execute("UPDATE public.user_attribute SET value='100001' WHERE id='bad-weight';")
         .await
         .unwrap();
-    assert!(!invoke(&root.0, "weight-limit", &scope, true)
-        .status
-        .success());
+    assert_exit(
+        invoke(&root.0, "weight-limit", &scope, true),
+        ExitStatus::InvalidInput,
+    );
     keycloak
         .batch_execute("DELETE FROM public.user_attribute WHERE id='bad-weight';")
         .await
@@ -433,31 +493,35 @@ async fn exports_native_postgres_snapshots_without_application_servers() {
     assert_success(invoke(&root.0, "delegated", &scope, true));
     assert_eq!(
         load(&root.0, "delegated", "eligible-voters.json")["voters"][0]["multiplicity"],
-        4
+        5
     );
+    let delegated_source = load(&root.0, "delegated", "keycloak-source.json");
+    assert_eq!(delegated_source["delegations"].as_array().unwrap().len(), 2);
     assert_eq!(
-        load(&root.0, "delegated", "keycloak-source.json")["delegations"]
-            .as_array()
-            .unwrap()
-            .len(),
-        4
+        delegated_source["cross_realm_delegation_counts"],
+        json!([{"delegate_user_id":"alice","counted_delegations":2}])
     );
+    assert!(!delegated_source.to_string().contains("outside"));
+    let diagnostics =
+        &load(&root.0, "delegated", "eligibility-reasons.json")["delegation_diagnostics"];
+    assert_eq!(diagnostics["cross_realm_delegations"], 2);
+    assert_eq!(diagnostics["not_enabled_delegations"], 1);
 
     hasura
         .batch_execute("UPDATE sequent_backend.keys_ceremony SET is_default=false;")
         .await
         .unwrap();
     let result = invoke(&root.0, "non-default", &scope, true);
-    assert!(!result.status.success());
     assert!(String::from_utf8_lossy(&result.stderr).contains("non-default"));
+    assert_exit(result, ExitStatus::InvalidInput);
     hasura
         .batch_execute("UPDATE sequent_backend.keys_ceremony SET is_default=true;")
         .await
         .unwrap();
     fs::write(&blob_paths[0], b"mismatch").unwrap();
     let result = invoke(&root.0, "blob-conflict", &scope, true);
-    assert!(!result.status.success());
     assert!(String::from_utf8_lossy(&result.stderr).contains("disagree"));
+    assert_exit(result, ExitStatus::VerificationFailed);
 
     fs::write(
         &blob_paths[0],
@@ -465,9 +529,10 @@ async fn exports_native_postgres_snapshots_without_application_servers() {
     )
     .unwrap();
     fs::write(&blob_paths[1], b"invalid-borsh").unwrap();
-    assert!(!invoke(&root.0, "corrupt-blob", &scope, true)
-        .status
-        .success());
+    assert_exit(
+        invoke(&root.0, "corrupt-blob", &scope, true),
+        ExitStatus::InvalidInput,
+    );
     fs::write(
         &blob_paths[1],
         STANDARD_NO_PAD.decode(&expected_bytes[1]).unwrap(),
@@ -482,7 +547,7 @@ async fn exports_native_postgres_snapshots_without_application_servers() {
         .await
         .unwrap();
     let result = invoke(&root.0, "rls-filtered", &scope, true);
-    assert!(!result.status.success());
+    assert_exit(result, ExitStatus::InvalidInput);
     assert!(!root.0.join("rls-filtered/acquisition.json").exists());
     hasura
         .batch_execute("ALTER TABLE sequent_backend.cast_vote DISABLE ROW LEVEL SECURITY;")
@@ -495,6 +560,7 @@ async fn exports_native_postgres_snapshots_without_application_servers() {
     let diagnostic = load(&root.0, "stale-count", "acquisition.json");
     assert_eq!(diagnostic["board_index_count"]["matches"], false);
     assert_eq!(diagnostic["board_index_count"]["observed"], 2);
+    assert_eq!(diagnostic["board_index_count"]["exported"], 2);
     assert_eq!(diagnostic["board_index_count"]["stored"], 999);
 
     let count: i64 = hasura
@@ -547,9 +613,10 @@ async fn exports_native_postgres_snapshots_without_application_servers() {
     b3.execute("INSERT INTO public.index VALUES (2,$1,2)", &[&collision])
         .await
         .unwrap();
-    assert!(!invoke(&root.0, "colliding-board", &scope, true)
-        .status
-        .success());
+    assert_exit(
+        invoke(&root.0, "colliding-board", &scope, true),
+        ExitStatus::InvalidInput,
+    );
 
     if let Ok(input) = std::env::var("BALLOT_AUDIT_SIGNED_FIXTURE_DIR") {
         let log = std::env::var("BALLOT_AUDIT_SIGNED_ELECTORAL_LOG")

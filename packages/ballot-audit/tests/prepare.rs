@@ -3,9 +3,12 @@
 
 use b3::messages::{
     artifact::{Ballots, Configuration},
-    message::Message,
-    newtypes::{PublicKeyHash, MAX_TRUSTEES, NULL_TRUSTEE},
+    message::{Message, Signer},
+    newtypes::{
+        ChannelsHashes, ConfigurationHash, PublicKeyHash, SharesHashes, MAX_TRUSTEES, NULL_TRUSTEE,
+    },
     protocol_manager::ProtocolManager,
+    statement::Statement,
 };
 use ballot_audit::{digest, Manifest, MultiplicityPolicy, Scope};
 use base64::{engine::general_purpose::STANDARD_NO_PAD, Engine};
@@ -27,6 +30,7 @@ use std::{
     marker::PhantomData,
     path::{Path, PathBuf},
     process::{Command, Output},
+    sync::atomic::{AtomicUsize, Ordering},
     time::{SystemTime, UNIX_EPOCH},
 };
 use strand::{
@@ -40,16 +44,18 @@ const VOTER: &str = "synthetic-private-voter-identifier";
 struct TempDir(PathBuf);
 impl TempDir {
     fn new() -> Self {
-        let path = std::env::temp_dir().join(format!(
-            "ballot-audit-prepare-test-{}-{}",
+        static NEXT: AtomicUsize = AtomicUsize::new(0);
+        let dir = std::env::temp_dir().join(format!(
+            "ballot-audit-prepare-test-{}-{}-{}",
             std::process::id(),
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap()
-                .as_nanos()
+                .as_nanos(),
+            NEXT.fetch_add(1, Ordering::Relaxed)
         ));
-        fs::create_dir(&path).unwrap();
-        Self(path)
+        fs::create_dir(&dir).unwrap();
+        Self(dir)
     }
 }
 impl Drop for TempDir {
@@ -59,6 +65,8 @@ impl Drop for TempDir {
 }
 
 struct Fixture {
+    pm: ProtocolManager<RistrettoCtx>,
+    configuration: Configuration<RistrettoCtx>,
     scope: Value,
     rows: Value,
     voters: Value,
@@ -196,6 +204,8 @@ impl Fixture {
         outside["area_id"] = "00000000-0000-4000-8000-000000000099".into();
         outside["status"] = "in-progress".into();
         Self {
+            pm,
+            configuration,
             scope: json!({"format_version":1,"scope":scope,"batches":batches}),
             rows: json!([older, latest, discarded, outside]),
             voters: json!([{"voter_id":VOTER,"multiplicity":multiplicity}]),
@@ -238,6 +248,108 @@ impl Fixture {
     fn command(&self, dir: &Path) -> Command {
         command_with_pins(dir, &self.write_sources(dir))
     }
+
+    fn resigned_log(&self, user_id: &str) -> Vec<u8> {
+        let log = ElectoralMessage::strand_deserialize(&self.logs[0]).unwrap();
+        ElectoralMessage::sign(
+            log.statement,
+            log.artifact,
+            &self.pm.signing_key,
+            "synthetic",
+            &self.pm.signing_key,
+            Some(user_id.into()),
+            log.username,
+            log.election_id,
+            log.area_id,
+            log.ballot_id,
+        )
+        .unwrap()
+        .strand_serialize()
+        .unwrap()
+    }
+
+    fn public_key_message(&self, public_key_hash: [u8; 64]) -> Vec<u8> {
+        let configuration_hash =
+            strand::hash::hash_to_array(&self.configuration.strand_serialize().unwrap()).unwrap();
+        let hashes = [[0; 64]; MAX_TRUSTEES];
+        self.pm
+            .sign(
+                Statement::PublicKeySigned(
+                    0,
+                    ConfigurationHash(configuration_hash),
+                    PublicKeyHash(public_key_hash),
+                    SharesHashes(hashes),
+                    ChannelsHashes(hashes),
+                ),
+                None,
+            )
+            .unwrap()
+            .strand_serialize()
+            .unwrap()
+    }
+
+    /// The exporter's saved-mapping.json for this scope, with `annotations`.
+    fn mapping_command(
+        &self,
+        dir: &Path,
+        annotations: Value,
+        change: impl FnOnce(&mut Value),
+    ) -> Command {
+        let scope = &self.scope["scope"];
+        let mut mapping = json!({"tally_session_contest": {
+            "id": scope["tally_session_contest_id"], "tenant_id": scope["tenant_id"],
+            "election_event_id": scope["election_event_id"], "election_id": scope["election_id"],
+            "area_id": scope["area_id"], "contest_id": scope["contest_id"],
+            "tally_session_id": scope["tally_session_id"], "session_id": scope["base_batch"],
+            "created_at": "2026-10-20T00:00:00+00:00", "last_updated_at": null,
+            "labels": null, "annotations": annotations,
+        }});
+        change(&mut mapping);
+        let mapping = serde_json::to_vec_pretty(&mapping).unwrap();
+        fs::write(dir.join("saved-mapping.json"), &mapping).unwrap();
+        let mut command = self.command(dir);
+        command
+            .arg("--saved-mapping")
+            .arg(dir.join("saved-mapping.json"))
+            .arg("--saved-mapping-sha512")
+            .arg(digest(&mapping).unwrap());
+        command
+    }
+}
+
+/// Audits a prepared bundle with the pins read from its own anchors.json,
+/// which only shows the bundle is self-consistent.
+fn audit_bundle(dir: &Path, extra: &[&str]) -> Output {
+    let bundle = dir.join("bundle");
+    let anchors: Value =
+        serde_json::from_slice(&fs::read(bundle.join("anchors.json")).unwrap()).unwrap();
+    let mut command = Command::new(env!("CARGO_BIN_EXE_ballot-audit"));
+    for name in ["cast-votes", "messages", "electoral-log"] {
+        command
+            .arg(format!("--{name}"))
+            .arg(bundle.join(format!("{name}.json")));
+    }
+    command
+        .arg("--manifest")
+        .arg(bundle.join("manifest.json"))
+        .arg("--manifest-sha512")
+        .arg(anchors["manifest_sha512"].as_str().unwrap())
+        .arg("--configuration")
+        .arg(bundle.join("configuration.borsh"))
+        .arg("--configuration-sha512")
+        .arg(anchors["configuration_sha512"].as_str().unwrap())
+        .args(extra);
+    let output = command.output().unwrap();
+    assert_private_output(&output);
+    output
+}
+
+fn stdout_json(output: &Output) -> Value {
+    serde_json::from_slice(&output.stdout).unwrap()
+}
+
+fn provenance(dir: &Path) -> Value {
+    serde_json::from_slice(&fs::read(dir.join("bundle/provenance.json")).unwrap()).unwrap()
 }
 
 fn command_with_pins(dir: &Path, sources: &[(&str, String)]) -> Command {
@@ -372,23 +484,46 @@ fn cli_weighted_and_delegated_multiplicities_are_audited() {
 }
 
 #[test]
-fn missing_duplicate_or_wrong_voter_logs_fail_before_writing() {
+fn missing_ambiguous_or_wrong_voter_logs_are_incomplete_before_writing() {
     for variant in 0..3 {
         let dir = TempDir::new();
         let mut f = Fixture::new(MultiplicityPolicy::Unweighted, 1);
         match variant {
             0 => f.logs.clear(),
-            1 => f.logs.push(f.logs[0].clone()),
+            1 => f.logs.push(f.resigned_log("different-unsigned-metadata")),
             _ => {
                 f.voters[0]["voter_id"] = "different-voter".into();
                 f.rows[1]["voter_id_string"] = "different-voter".into();
             }
         }
         let output = f.command(&dir.0).output().unwrap();
-        assert!(!output.status.success());
+        assert_eq!(output.status.code(), Some(3), "variant {variant}");
         assert_private_output(&output);
         assert!(!dir.0.join("bundle").exists());
     }
+}
+
+#[test]
+fn byte_identical_duplicate_logs_collapse_to_one_bundle_record() {
+    let dir = TempDir::new();
+    let mut f = Fixture::new(MultiplicityPolicy::Unweighted, 1);
+    f.logs.push(f.logs[0].clone());
+    f.logs.push(f.logs[0].clone());
+    let output = f.command(&dir.0).output().unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        provenance(&dir.0)["collapsed_identical_electoral_log_records"],
+        2
+    );
+    let logs: Vec<String> =
+        serde_json::from_slice(&fs::read(dir.0.join("bundle/electoral-log.json")).unwrap())
+            .unwrap();
+    assert_eq!(logs.len(), 1);
+    assert_eq!(audit_bundle(&dir.0, &[]).status.code(), Some(0));
 }
 
 #[test]
@@ -425,7 +560,7 @@ fn source_digest_mismatch_fails_before_parsing_or_writing() {
     let pins = f.write_sources(&dir.0);
     fs::write(dir.0.join("cast-votes.json"), VOTER).unwrap();
     let output = command_with_pins(&dir.0, &pins).output().unwrap();
-    assert!(!output.status.success());
+    assert_eq!(output.status.code(), Some(1));
     assert!(String::from_utf8_lossy(&output.stderr).contains("cast votes source digest mismatch"));
     assert_private_output(&output);
     assert!(!dir.0.join("bundle").exists());
@@ -460,7 +595,7 @@ fn parser_errors_do_not_echo_private_raw_values() {
     let mut f = Fixture::new(MultiplicityPolicy::Unweighted, 1);
     f.rows[1]["status"] = VOTER.into();
     let output = f.command(&dir.0).output().unwrap();
-    assert!(!output.status.success());
+    assert_eq!(output.status.code(), Some(4));
     assert!(String::from_utf8_lossy(&output.stderr).contains("invalid full cast_vote table export"));
     assert_private_output(&output);
 }
@@ -506,6 +641,347 @@ fn stage_exclusion_artifact_classifies_discarded_and_ineligible_receipts() {
     assert_eq!(selection["rows"][5]["stage_cast_count"], 1);
     assert_eq!(selection["rows"][5]["receipt_verification"], "not_checked");
     assert!(!serde_json::to_string(&selection).unwrap().contains(VOTER));
+}
+
+fn with_exclusions() -> Fixture {
+    let mut f = Fixture::new(MultiplicityPolicy::Delegated, 3);
+    let mut discarded = f.rows[1].clone();
+    discarded["id"] = "00000000-0000-4000-8000-000000000005".into();
+    discarded["voter_id_string"] = "discarded-voter".into();
+    discarded["ballot_id"] = "stored-discarded-label".into();
+    discarded["content"] = "malformed excluded content is not consumed".into();
+    discarded["status"] = "discarded".into();
+    discarded["annotations"] = json!({"voting_channel":"KIOSK"});
+    f.rows.as_array_mut().unwrap().push(discarded);
+    f.voters
+        .as_array_mut()
+        .unwrap()
+        .push(json!({"voter_id":"discarded-voter","multiplicity":7}));
+    let mut ineligible = f.rows[1].clone();
+    ineligible["id"] = "00000000-0000-4000-8000-000000000006".into();
+    ineligible["voter_id_string"] = "not-in-frozen-eligibility".into();
+    ineligible["ballot_id"] = "stored-ineligible-label".into();
+    ineligible["annotations"] = Value::Null;
+    f.rows.as_array_mut().unwrap().push(ineligible);
+    f
+}
+
+#[test]
+fn cli_audit_reports_each_receipt_lookup_outcome() {
+    let dir = TempDir::new();
+    let f = with_exclusions();
+    let output = f.command(&dir.0).output().unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let selection = dir.0.join("bundle/selection.json");
+    let selection = selection.to_str().unwrap();
+    let receipt = f.rows[1]["ballot_id"].as_str().unwrap();
+
+    let selected = audit_bundle(&dir.0, &["--ballot-id", receipt]);
+    assert_eq!(selected.status.code(), Some(0));
+    let report = stdout_json(&selected);
+    assert_eq!(report["lookup"]["outcome"], "selected");
+    assert_eq!(report["lookup"]["locations"].as_array().unwrap().len(), 3);
+
+    let excluded = audit_bundle(
+        &dir.0,
+        &[
+            "--ballot-id",
+            "stored-discarded-label",
+            "--selection",
+            selection,
+        ],
+    );
+    assert_eq!(excluded.status.code(), Some(3));
+    let report = stdout_json(&excluded);
+    assert_eq!(report["checked_cast_votes"], 1);
+    assert_eq!(report["lookup"]["outcome"], "excluded");
+    assert_eq!(report["lookup"]["rows"][0]["reason"], "discarded");
+    assert!(report["lookup"]["stored_labels"]
+        .as_str()
+        .unwrap()
+        .contains("unverified"));
+
+    let unexplained = audit_bundle(&dir.0, &["--ballot-id", "stored-discarded-label"]);
+    assert_eq!(unexplained.status.code(), Some(3));
+    assert_eq!(stdout_json(&unexplained)["lookup"]["outcome"], "missing");
+    assert_eq!(
+        stdout_json(&unexplained)["lookup"]["selection_searched"],
+        false
+    );
+    let missing = audit_bundle(&dir.0, &["--ballot-id", "absent", "--selection", selection]);
+    assert_eq!(missing.status.code(), Some(3));
+    assert_eq!(stdout_json(&missing)["lookup"]["selection_searched"], true);
+
+    let unreadable = audit_bundle(&dir.0, &["--selection", "/nonexistent/selection.json"]);
+    assert_eq!(unreadable.status.code(), Some(4));
+    assert!(unreadable.stdout.is_empty());
+}
+
+#[test]
+fn cli_audit_exit_statuses_follow_the_shared_taxonomy() {
+    let dir = TempDir::new();
+    let f = Fixture::new(MultiplicityPolicy::Unweighted, 1);
+    assert!(f.command(&dir.0).output().unwrap().status.success());
+    let bundle = dir.0.join("bundle");
+    let anchors: Value =
+        serde_json::from_slice(&fs::read(bundle.join("anchors.json")).unwrap()).unwrap();
+    let base = |manifest_pin: &str| {
+        let mut command = Command::new(env!("CARGO_BIN_EXE_ballot-audit"));
+        command
+            .arg("--manifest")
+            .arg(bundle.join("manifest.json"))
+            .arg("--manifest-sha512")
+            .arg(manifest_pin)
+            .arg("--configuration")
+            .arg(bundle.join("configuration.borsh"))
+            .arg("--configuration-sha512")
+            .arg(anchors["configuration_sha512"].as_str().unwrap());
+        for name in ["cast-votes", "messages", "electoral-log"] {
+            command
+                .arg(format!("--{name}"))
+                .arg(bundle.join(format!("{name}.json")));
+        }
+        command.output().unwrap()
+    };
+    let pin = anchors["manifest_sha512"].as_str().unwrap();
+    assert_eq!(base(pin).status.code(), Some(0));
+    assert_eq!(base(&pin.to_uppercase()).status.code(), Some(4));
+    assert_eq!(base("short").status.code(), Some(4));
+    assert_eq!(base(&"0".repeat(128)).status.code(), Some(1));
+    let usage = Command::new(env!("CARGO_BIN_EXE_ballot-audit"))
+        .output()
+        .unwrap();
+    assert_eq!(usage.status.code(), Some(2));
+    fs::write(bundle.join("electoral-log.json"), b"[]").unwrap();
+    assert_eq!(base(pin).status.code(), Some(3));
+    fs::write(bundle.join("electoral-log.json"), b"not json").unwrap();
+    assert_eq!(base(pin).status.code(), Some(4));
+}
+
+#[test]
+fn prepare_exit_statuses_follow_the_shared_taxonomy() {
+    let dir = TempDir::new();
+    let f = Fixture::new(MultiplicityPolicy::Unweighted, 1);
+    let mut pins = f.write_sources(&dir.0);
+    pins[0].1 = pins[0].1.to_uppercase();
+    assert_eq!(
+        command_with_pins(&dir.0, &pins)
+            .output()
+            .unwrap()
+            .status
+            .code(),
+        Some(4)
+    );
+    let dir = TempDir::new();
+    let mut f = Fixture::new(MultiplicityPolicy::Unweighted, 1);
+    f.board.remove(0);
+    assert_eq!(f.command(&dir.0).output().unwrap().status.code(), Some(3));
+    let dir = TempDir::new();
+    let mut f = Fixture::new(MultiplicityPolicy::Unweighted, 1);
+    f.board.push(f.board[0].clone());
+    assert_eq!(f.command(&dir.0).output().unwrap().status.code(), Some(1));
+}
+
+#[test]
+fn saved_tally_annotations_match_reconstructed_accounting() {
+    let dir = TempDir::new();
+    let f = with_exclusions();
+    let output = f
+        .mapping_command(
+            &dir.0,
+            json!({"elegible_voters":2,"ballots_without_voter":2,"casted_ballots":5,
+                "votes_by_channel":{"ONLINE":4,"KIOSK":1}}),
+            |_| {},
+        )
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let provenance = provenance(&dir.0);
+    assert_eq!(
+        provenance["tally_annotations"],
+        json!({"status":"checked","votes_by_channel":"matched","weight_bit_mask":"matched"})
+    );
+    assert!(provenance["source_sha512"]["saved_mapping"].is_string());
+
+    let dir = TempDir::new();
+    let f = Fixture::new(MultiplicityPolicy::Weighted, 5);
+    let annotations = json!({"elegible_voters":1,"ballots_without_voter":0,"casted_ballots":1,
+        "votes_by_channel":{"ONLINE":5},"weight_bit_mask":5});
+    assert!(f
+        .mapping_command(&dir.0, annotations, |_| {})
+        .output()
+        .unwrap()
+        .status
+        .success());
+}
+
+type MappingChange = fn(&mut Value);
+
+#[test]
+fn saved_tally_annotation_or_identity_mismatch_fails_before_writing() {
+    let weighted = json!({"elegible_voters":1,"ballots_without_voter":0,"casted_ballots":1,
+        "votes_by_channel":{"ONLINE":5},"weight_bit_mask":5});
+    let cases: Vec<(&str, Value, MappingChange)> = vec![
+        ("casted_ballots", json!(2), |_| {}),
+        ("ballots_without_voter", json!(1), |_| {}),
+        ("elegible_voters", json!(2), |_| {}),
+        ("votes_by_channel", json!({"ONLINE":4,"KIOSK":1}), |_| {}),
+        ("weight_bit_mask", json!(1), |_| {}),
+        ("weight_bit_mask", json!(5), |m| {
+            m["tally_session_contest"]["session_id"] = json!(11)
+        }),
+        ("weight_bit_mask", json!(5), |m| {
+            m["tally_session_contest"]["area_id"] = json!("00000000-0000-4000-8000-000000000099")
+        }),
+    ];
+    for (field, value, change) in cases {
+        let dir = TempDir::new();
+        let f = Fixture::new(MultiplicityPolicy::Weighted, 5);
+        let mut annotations = weighted.clone();
+        annotations[field] = value;
+        let output = f
+            .mapping_command(&dir.0, annotations, change)
+            .output()
+            .unwrap();
+        assert_eq!(output.status.code(), Some(1), "{field}");
+        assert_private_output(&output);
+        assert!(!dir.0.join("bundle").exists());
+    }
+}
+
+#[test]
+fn absent_or_legacy_saved_annotations_are_reported_as_not_checked() {
+    let dir = TempDir::new();
+    let f = Fixture::new(MultiplicityPolicy::Unweighted, 1);
+    assert!(f.command(&dir.0).output().unwrap().status.success());
+    assert_eq!(
+        provenance(&dir.0)["tally_annotations"],
+        json!({"status":"not_supplied"})
+    );
+    let dir = TempDir::new();
+    assert!(f
+        .mapping_command(&dir.0, Value::Null, |_| {})
+        .output()
+        .unwrap()
+        .status
+        .success());
+    assert_eq!(
+        provenance(&dir.0)["tally_annotations"],
+        json!({"status":"annotations_absent"})
+    );
+    let dir = TempDir::new();
+    let annotations = json!({"elegible_voters":1,"ballots_without_voter":0,"casted_ballots":1});
+    assert!(f
+        .mapping_command(&dir.0, annotations, |_| {})
+        .output()
+        .unwrap()
+        .status
+        .success());
+    assert_eq!(
+        provenance(&dir.0)["tally_annotations"]["votes_by_channel"],
+        "not_recorded"
+    );
+    let dir = TempDir::new();
+    let output = f
+        .mapping_command(&dir.0, json!({"unexpected": true}), |_| {})
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(4));
+}
+
+#[test]
+fn pinned_public_key_is_confirmed_against_board_public_key_statement() {
+    let dir = TempDir::new();
+    let mut f = Fixture::new(MultiplicityPolicy::Unweighted, 1);
+    assert!(f.command(&dir.0).output().unwrap().status.success());
+    assert_eq!(
+        provenance(&dir.0)["board_public_key"],
+        json!({"status":"not_on_board"})
+    );
+    let dir = TempDir::new();
+    f.board.push(f.public_key_message([7; 64]));
+    assert!(f.command(&dir.0).output().unwrap().status.success());
+    assert_eq!(
+        provenance(&dir.0)["board_public_key"],
+        json!({"status":"matched","signed_statements":1})
+    );
+    let dir = TempDir::new();
+    f.board.push(f.public_key_message([8; 64]));
+    let output = f.command(&dir.0).output().unwrap();
+    assert_eq!(output.status.code(), Some(1));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("pinned public key hash differs"));
+    assert!(!dir.0.join("bundle").exists());
+}
+
+#[test]
+fn identical_ballot_selected_for_two_voters_fails_before_writing() {
+    let dir = TempDir::new();
+    let mut f = Fixture::new(MultiplicityPolicy::Unweighted, 1);
+    let mut copy = f.rows[1].clone();
+    copy["id"] = "00000000-0000-4000-8000-000000000007".into();
+    copy["voter_id_string"] = "second-voter".into();
+    f.rows.as_array_mut().unwrap().push(copy);
+    f.voters
+        .as_array_mut()
+        .unwrap()
+        .push(json!({"voter_id":"second-voter","multiplicity":1}));
+    let log = ElectoralMessage::strand_deserialize(&f.logs[0]).unwrap();
+    let mut statement = log.statement;
+    if let electoral_log::messages::statement::StatementBody::CastVoteWithChannel(_, p, ..) =
+        &mut statement.body
+    {
+        *p = PseudonymHash::new(
+            strand::hash::hash_to_array(&"second-voter".to_owned().strand_serialize().unwrap())
+                .unwrap(),
+        );
+    }
+    f.logs.push(
+        ElectoralMessage::sign(
+            statement,
+            log.artifact,
+            &f.pm.signing_key,
+            "synthetic",
+            &f.pm.signing_key,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+        .unwrap()
+        .strand_serialize()
+        .unwrap(),
+    );
+    let message = Message::strand_deserialize(&f.board[1]).unwrap();
+    let ballots =
+        Ballots::<RistrettoCtx>::strand_deserialize(message.artifact.as_ref().unwrap()).unwrap();
+    let mut trustees = [NULL_TRUSTEE; MAX_TRUSTEES];
+    trustees[0] = 1;
+    trustees[1] = 2;
+    f.board[1] = Message::ballots_msg(
+        &f.configuration,
+        10,
+        &Ballots::new(vec![ballots.ciphertexts.0[0].clone(); 2]),
+        trustees,
+        PublicKeyHash([7; 64]),
+        &f.pm,
+    )
+    .unwrap()
+    .strand_serialize()
+    .unwrap();
+    let output = f.command(&dir.0).output().unwrap();
+    assert_eq!(output.status.code(), Some(1));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("shared by several selected"));
+    assert_private_output(&output);
+    assert!(!dir.0.join("bundle").exists());
 }
 
 #[test]

@@ -27,9 +27,44 @@ layer, not an inference from the area-scoped selected set.
 Acquisition, input reconciliation, and universal cryptographic verification
 are separate. A passing input audit is not a complete election audit.
 
+## Scope and exit statuses
+
+| In scope | Out of scope |
+| --- | --- |
+| Signed cast-vote statements, stored ballot content, selection from a frozen eligibility decision, and the exact B3 pre-shuffle `Ballots` multiset for one tally/area/contest | Velvet final counting |
+| Signature checks on the electoral-log messages supplied | ImmuDB inclusion and consistency proofs |
+| Positions before the shuffle | Any link from a voter to a decrypted plaintext |
+
+### Build the binaries
+
+From `packages/`:
+
+```sh
+cargo build --release -p ballot-audit --bins
+```
+
+This produces `ballot-audit`, `prepare-ballot-audit`, `audit-cast-history`,
+`export-ballot-audit`, and `export-electoral-log`.
+
+### Exit statuses
+
+All five commands share these statuses:
+
+| Status | Meaning |
+| --- | --- |
+| `0` | Success. |
+| `1` | Verification failed or the evidence contradicts itself or the pinned scope (digest, signature, hash, or multiset mismatch). Also the default for unclassified errors, and for duplicate selected receipts in `ballot-audit`. |
+| `2` | Command-line usage error, reported by clap. Nothing else uses it. |
+| `3` | Incomplete evidence: a missing signed log, row or batch, or a looked-up receipt that is not selected. Neither consistency nor contradiction is established. `ballot-audit` and `audit-cast-history` still print their JSON report. |
+| `4` | Invalid or unsupported input, or an acquisition failure (unreadable or malformed file, malformed pin, unsupported ceremony, refused connection, existing output directory). |
+
+Wrappers must not treat `2` as anything but a usage error, and must not collapse
+`3` into success or into `1`: an incomplete result is not a passing audit.
+
 ## Existing checks and the gap addressed
 
-The reviewed `release/10.0` baseline already has:
+The reviewed `release/10.0` baseline, source commit
+`d6d05a1cbaf9cc967c329005fa852fca10152a4e`, already has:
 
 - Auditable-ballot re-encryption checks using uploaded plaintext/randomness.
   They check the uploaded ballot against itself, not against tally inputs.
@@ -41,6 +76,19 @@ The reviewed `release/10.0` baseline already has:
   and decryption. It does not reproduce receipt hashing or voter/revote/census
   selection. Its existing CLI uses a gRPC server, and its
   [`--ballot-hash` argument is unimplemented](https://github.com/sequentech/step/blob/d6d05a1cbaf9cc967c329005fa852fca10152a4e/packages/braid/src/bin/verify.rs#L29-L33).
+
+The pinned source links in this page all point at that commit:
+
+| Topic | Source |
+| --- | --- |
+| Braid `--ballot-hash` unimplemented | `packages/braid/src/bin/verify.rs#L29-L33` |
+| Native board mapping | `packages/windmill/src/services/ceremonies/keys_ceremony.rs#L39-L74` |
+| B3 blob storage | `packages/b3/src/grpc/server.rs#L189-L218` |
+| Receipt hashing | `packages/sequent-core/src/encrypt.rs#L545-L571` |
+| `Message::verify` artifact hook | `packages/b3/src/messages/message.rs#L399-L418` |
+| Latest-valid selection | `packages/windmill/src/services/cast_votes.rs#L103-L159` |
+| Eligibility and multiplicity | `packages/windmill/src/services/users.rs#L349-L437` |
+| Auditable-ballots archive format | `packages/windmill/src/services/ceremonies/auditable_ballots.rs#L20-L74` |
 
 The new commands connect signed electoral-log evidence, original cast-vote
 content, complete scoped selection, and signed B3 input artifacts. They do not
@@ -56,7 +104,9 @@ process never writes logs or other runtime files.
 
 Establish a consistent historical boundary across Hasura, B3, immudb, and the
 eligibility evidence. Independent database transactions do not create a common
-cross-database snapshot. B3 blob files must also match the copied SQL state.
+cross-database snapshot, and independent database snapshots do not prove
+cross-system historical consistency. Records that match across the snapshots
+are not a claim that they were consistent at any historical moment. B3 blob files must also match the copied SQL state.
 Record and authenticate backup identities, checkpoint references, scope, and
 exact-byte SHA-512 source digests independently of the files under audit.
 
@@ -76,6 +126,22 @@ Building a fresh manifest after alteration cannot prove the original historical
 contents or selection. Generated acquisition/bundle hashes must retain a chain
 to independently authenticated sources; they do not manufacture that trust.
 
+### What the pins protect
+
+A regenerated bundle with a regenerated `anchors.json` passes the audit: the
+anchors only restate the bundle's own digests. The protection comes from
+pins obtained outside the bundle:
+
+| Pin | Must come from outside the bundle |
+| --- | --- |
+| Manifest and configuration SHA-512 given to `ballot-audit` | Yes |
+| `electoral_log_system_public_key` in the scope | Yes. The manifest carries the system key, so anyone who can regenerate both the bundle and its pins can substitute keys. |
+| The five source SHA-512 pins given to `prepare-ballot-audit` | Yes |
+
+Do not feed `anchors.json` back to `ballot-audit` as the pins for evidence it
+describes. The self-check that `prepare-ballot-audit` runs on its own output is
+not independent evidence.
+
 ### Save and pin the exact scope
 
 Create `scope.json` with `format_version: 1`, a `scope` object, and `batches`.
@@ -83,6 +149,8 @@ There is no selected-row list in this preparation input. The scope fields are:
 
 - `tenant_id`, `election_event_id`, `election_id`, `area_id`, `tally_session_id`,
   `tally_session_contest_id`, and `board_name`.
+- UUID fields must use canonical lowercase spelling, and `scope.json` rejects
+  unknown fields.
 - `contest_id`: the named contest for single-contest encryption, or JSON `null`
   for the consolidated multiple-contest ciphertext.
 - `base_batch`: numeric `TallySessionContest.session_id`, not the string tally
@@ -95,7 +163,8 @@ There is no selected-row list in this preparation input. The scope fields are:
 `batches` is the exact complete batch list, recovered from the saved mapping
 and weighted `annotations.weight_bit_mask`, not a guessed numeric neighborhood.
 Pin the exact `scope.json` bytes with a full SHA-512 digest, 128 lowercase hex
-characters. Whitespace changes its digest.
+characters. Whitespace changes its digest. Batch `0` is a valid base batch: it
+is the first contest-area of an event's first tally.
 
 B3 `Ballots` statements carry configuration hashes and numeric batch IDs, not
 tenant/area/tally labels. The authenticated saved mapping supplies that
@@ -138,7 +207,8 @@ configured:
 ```
 
 A connection may instead use an absolute Unix socket directory as `host`.
-If credentials are needed in connection strings, keep them in this private
+Each connection must name an explicit `dbname` and `user`, and may set at most
+one port. If credentials are needed in connection strings, keep them in this private
 local file, not command arguments, shared output, or a published audit.
 The PostgreSQL exporter currently requires a Unix platform for these private
 file-permission checks. The file must be regular, not a symlink, and have no
@@ -152,7 +222,10 @@ export-ballot-audit \
   --output ./postgres-export
 ```
 
-Add `--b3-blob-root /absolute/path/to/copied/blob-root` when needed. B3 can store
+The output directory must not exist and its parent must exist. Add
+`--b3-blob-root /absolute/path/to/copied/blob-root` when needed.
+`--statement-timeout-seconds` sets the per-statement PostgreSQL timeout for
+every snapshot query (default `120`, minimum `1`). B3 can store
 message bytes outside SQL; a database-only copy can then be insufficient.
 [Native B3 blob storage](https://github.com/sequentech/step/blob/d6d05a1cbaf9cc967c329005fa852fca10152a4e/packages/b3/src/grpc/server.rs#L189-L218).
 
@@ -160,7 +233,9 @@ The exporter:
 
 - Allows one literal loopback IP or absolute Unix socket host per connection.
   It rejects remote/DNS hosts, `hostaddr` overrides, custom startup options,
-  and TLS-required connections. Do not tunnel production through loopback.
+  multiple ports, and `sslmode=require`. `sslmode=prefer` is downgraded to
+  `disable`, which is acceptable only because the host is loopback. Do not
+  tunnel production through loopback.
 - Uses a separate read-only, repeatable-read transaction for each database.
   It checks the saved event/election/session/ceremony/contest, policies, base
   batch, and weighted mapping against the pinned scope.
@@ -170,15 +245,23 @@ The exporter:
   without an area filter for the optional historical-coverage check.
 - Reproduces the frozen native eligibility predicate and records source
   attributes and reasons, rather than deriving eligibility from B3 membership.
-- Reads the complete B3 board. It recovers missing message bytes from copied
-  blobs, rejects database/blob disagreements, and checks decoded message
-  fields against row index columns. Signature and inclusion checks happen later.
+  The Keycloak export is limited to the scope realm and area. Usernames are
+  exported only under the `delegated` policy, where matching needs them.
+  Delegators in other realms are counted, per delegate, in
+  `cross_realm_delegation_counts` and summarised in `delegation_diagnostics`
+  in `eligibility-reasons.json`; they are not exported by id. The
+  `area_not_matched` reason no longer exists.
+- Exports only the board's `Configuration`, `PublicKey`, and `PublicKeySigned`
+  messages plus the scope's `Ballots` batches, not the whole board. It recovers
+  missing message bytes from copied blobs, rejects database/blob disagreements,
+  and checks decoded message fields against row index columns. Signature and
+  inclusion checks happen later.
 
 Valid ASCII board identifiers longer than 63 bytes retain their full names for
 index/blob lookup; SQL relation lookup follows PostgreSQL's native lowercase
 and 63-byte truncation, rejecting indexed name collisions. The best-effort
-`index.message_count` is preserved beside the observed count and a mismatch
-diagnostic, not treated as omission evidence or a fatal integrity check.
+`index.message_count` is preserved beside the observed, exported (`board_index_count.exported`)
+and mismatch counts, not treated as omission evidence or a fatal integrity check.
 
 The new private output directory contains:
 
@@ -217,6 +300,8 @@ the disposable service listens on port `43322`; use its actual local port:
     --server-url http://127.0.0.1:43322 \
     --database "$ELECTORAL_LOG_DB" \
     --username "$IMMUDB_READ_ONLY_USER" \
+    --election-event-id "$ELECTION_EVENT_ID" \
+    --election-id "$ELECTION_ID" \
     --output ./immudb-export
 )
 ```
@@ -227,13 +312,22 @@ loopback HTTP endpoints with a nonzero port are accepted, including IPv6
 `http://[::1]:43322`. DNS names, remote addresses, embedded credentials, and URL
 paths are rejected. Do not proxy production through this boundary.
 
-The exporter opens a session and a `ReadOnly` transaction, reads
+`--election-event-id` is required. `--election-id` is optional: with it, only
+that election's `CastVote` messages are exported; omit it for the event-wide
+log that `audit-cast-history` needs. Both must be canonical lowercase UUIDs.
+
+The exporter opens a session and a `ReadOnly` transaction, reads `CastVote`
 `electoral_log_messages.message` BLOBs in ascending ID pages of 500, then rolls
 back the read transaction and closes the session. It rejects non-increasing
-IDs and missing, empty, or non-BLOB message values.
+IDs and missing, empty, or non-BLOB message values. Messages for other events
+are excluded and counted.
 
 It creates `electoral-log.json`, an unpadded-base64 array of original message
-bytes, and `electoral-log-provenance.json`, with counts, a checksum, and limits.
+bytes, and `electoral-log-provenance.json`, with counts, a checksum, the
+`filter` applied, `other_event_messages_excluded`, and limits. Rows are selected
+by the unsigned `statement_kind` and `election_id` columns, so a row whose column
+metadata was altered is not exported; the signed statement is checked against
+the election filter, not the column.
 This is **raw-record acquisition**, not signature verification. Signatures are
 checked during preparation/audit. The generated checksum is not a historical
 anchor or an immudb inclusion/consistency proof. The local snapshot is not
@@ -272,14 +366,35 @@ prepare-ballot-audit \
   --board-messages-sha512 "$BOARD_MESSAGES_SHA512" \
   --electoral-log ./immudb-export/electoral-log.json \
   --electoral-log-sha512 "$ELECTORAL_LOG_SHA512" \
+  --saved-mapping ./postgres-export/saved-mapping.json \
+  --saved-mapping-sha512 "$SAVED_MAPPING_SHA512" \
   --output ./prepared-audit
 ```
+
+`--saved-mapping` and `--saved-mapping-sha512` are optional but must be given
+together. They cross-check the saved `tally_session_contest` (exported as
+`saved-mapping.json`) against the scope and, when it has annotations, against
+the reconstruction:
+
+| Annotation | Compared with |
+| --- | --- |
+| `session_id` | `base_batch` |
+| `elegible_voters` | Size of the frozen eligibility list |
+| `ballots_without_voter` | Reconstructed stage exclusions |
+| `casted_ballots` | Reconstructed stage cast count |
+| `votes_by_channel` | Reconstructed per-channel counts; `not_recorded` or `not_reproducible` when one side lacks it |
+| `weight_bit_mask` | Declared batch offsets from `base_batch` |
+
+A mismatch fails preparation. The result is recorded as `tally_annotations`
+in `provenance.json`.
 
 Preparation rejects scoped in-progress rows; reproduces latest-valid selection
 and the frozen census join; preserves selected content; extracts the original
 configuration and exact `Ballots` messages; and finds a unique signed log match
-for each selected voter-pseudonym/full-ballot-hash pair. Missing/ambiguous
-matches fail. The complete generated bundle must pass `ballot-audit` before
+for each selected voter-pseudonym/full-ballot-hash pair. Byte-identical
+duplicate log records for a pair are collapsed and counted in
+`collapsed_identical_electoral_log_records`. A missing match, or several
+differing records for the same pair, exits `3`. The complete generated bundle must pass `ballot-audit` before
 being written. This automates selection **from** the supplied frozen decision;
 it does not independently reconstruct or authenticate that decision's history.
 
@@ -288,11 +403,16 @@ The output directory must be new and its parent must exist. It contains
 `electoral-log.json`, `anchors.json`, `provenance.json`, and `selection.json`.
 On Unix, directories are mode `0700` and files `0600`; files are not overwritten.
 stdout gives aggregate counts. Source pins, accounting, and limitations are
-retained in `provenance.json`.
+retained in `provenance.json`, together with `tally_annotations`,
+`board_public_key` (whether the board's signed `PublicKey` statements matched
+the pinned hash, or none were on the board), and
+`collapsed_identical_electoral_log_records`. `selection_accounting` includes
+`stage_cast_count` and `stage_votes_by_channel`; the latter is `null` when a
+counted row stores a non-string voting channel.
 
 Generated `anchors.json` pins the prepared manifest/configuration for a repeat
 check. Those hashes inherit trust only from the independently authenticated
-sources and preparation record. They cannot retroactively prove historical
+sources and preparation record, and must not be used as the audit's own pins. They cannot retroactively prove historical
 metadata integrity missing from the native receipt hash.
 
 ### Inspect a nonselected stored receipt privately
@@ -311,8 +431,9 @@ reconstruction does not authenticate archived exclusion JSONL. Keep it private.
 
 ## 4. Audit the prepared scope
 
-`ballot-audit` accepts five files, two independent digest arguments, and an
-optional report filter:
+`ballot-audit` accepts five files, two independent digest arguments, and
+optional `--ballot-id` and `--selection` arguments. Both digests must be 128
+lowercase hexadecimal characters.
 
 ```sh
 ballot-audit \
@@ -323,7 +444,8 @@ ballot-audit \
   --configuration-sha512 "$AUTHENTICATED_CONFIGURATION_SHA512" \
   --messages ./prepared-audit/messages.json \
   --electoral-log ./prepared-audit/electoral-log.json \
-  --ballot-id "$FULL_RECEIPT"
+  --ballot-id "$FULL_RECEIPT" \
+  --selection ./prepared-audit/selection.json
 ```
 
 Authenticate the exact manifest/configuration bytes independently. For a bundle
@@ -333,8 +455,16 @@ untrusted bundle as authentication.
 
 Omit `--ballot-id` to report all selected receipts. With it, **every selected row
 and batch is still checked**; only reported positions are filtered. A receipt
-outside the selected scope errors, not proves that it was never cast. Use the
-private selection record to examine stored nonselected labels.
+outside the selected scope is not proof that it was never cast. The report's
+`lookup` field gives the outcome, and the exit status is `3` unless it is
+`selected`:
+
+| `lookup.outcome` | Meaning |
+| --- | --- |
+| `selected` | One selected row has this receipt; its `{batch, index}` positions follow. |
+| `excluded` | `--selection` lists stored rows with this receipt, with their `reason`. The `ballot_id` labels are unverified stored labels. |
+| `missing` | Not selected and not in `--selection` (`selection_searched` says whether it was supplied). |
+| `ambiguous` | Several selected rows share the receipt. |
 
 The selected-scope result does not reconcile every historical signed `CastVote`
 log to a Hasura row. An accepted cast missing from both the supplied history
@@ -411,13 +541,26 @@ named single-contest ciphertext or the consolidated multiple-contest
 ciphertext. Exact per-batch **multisets and multiplicities** must match; one
 matching ciphertext anywhere is insufficient. Order is not compared.
 
-Success prints JSON with `scope`, `checked_cast_votes`, `checked_batches`,
+The command prints JSON with `scope`, `checked_cast_votes`, `checked_batches`,
 `checked_electoral_log_messages`, `legacy_online_channel_inferences`,
-`receipts`, and an assurance statement. Receipt locations use zero-based
+`receipts`, `lookup` (with `--ballot-id`), `duplicate_selected_receipts`,
+`privacy_warnings`, and an assurance statement. The assurance states that the
+manifest and configuration pins must come from outside the bundle, and that
+selected-scope results do not reconcile every historical log to Hasura.
+
+`duplicate_selected_receipts` lists receipts carried by several distinct
+selected cast votes: one encrypted ballot accepted for more than one voter and
+counted for each. Any entry makes the exit status `1`, though the report is
+still printed.
+
+`privacy_warnings` lists weighted batches with fewer than 5 ciphertexts
+(`MIN_WEIGHT_BATCH_ANONYMITY`). Decrypted votes in such a batch are close to
+individually attributable to the voters whose weight sets that bit, so do not
+publish positions in it. Receipt locations use zero-based
 `{batch, index}` positions. Identical ciphertexts are not uniquely attributable:
 all matching positions are reported, not a unique row-to-position assignment.
 
-Errors exit unsuccessfully, without a partial passing report. Rejection cases
+Errors exit with the statuses above and print no passing report. Rejection cases
 include malformed/unsupported inputs; wrong pins/content/receipts; duplicate
 IDs/receipts/contests; missing selected rows; extra unselected evidence;
 invalid signatures/event/election/pseudonym/channel/full hash; incorrect batch
@@ -474,9 +617,11 @@ containing row IDs, `signed_log_records`, `distinct_signed_log_message_bytes`,
 
 Omit `--ballot-id` to report every group. With it, the entire history is still
 checked; only reported groups are filtered. Exit `0` means consistent supplied
-coverage; exit `2` means incomplete coverage, ambiguous row/log attribution, or
+coverage; exit `3` means incomplete coverage, ambiguous row/log attribution, or
 a requested receipt absent from the supplied evidence. Both produce JSON. Exit
-`1` means invalid input, pins, signatures, or hashes, without a passing report.
+`1` means failed signatures, hashes, or digests, and `4` means invalid or
+unsupported input or a malformed pin, without a passing report. Wrappers that
+read `2` as incomplete must be updated: `2` is now usage only.
 
 Native success logging is best effort, so a row without a signed log is **not
 proof of tampering**. Even exit `0` does not establish historical completeness:
@@ -586,8 +731,42 @@ No throughput or maximum-election-size claim is implied by the examples.
 Keep voter IDs, receipts, cast-vote IDs, frozen census records, and signed logs
 private; logs may contain IP/country and other personal metadata. The audit
 report omits voter IDs/channels but still contains linkable receipt/row IDs.
+See *Publishing results* below.
 Its positions stop **before the shuffle**. Do not track an individual voter's
 ciphertext through the mixnet to an identified decrypted ballot.
+
+## Publishing results
+
+| Safe to publish | Do not publish |
+| --- | --- |
+| Aggregate counts (`checked_*`) and the exit status | Voter IDs and pseudonyms |
+| SHA-512 digests of inputs and pins | `cast_vote_id` values and receipts tied to a voter |
+| Tool build and source commit | Receipt `{batch, index}` locations in batches listed in `privacy_warnings` |
+| | Bundles, `selection.json`, `cast-votes.json`, `cast-vote-history.json`, electoral-log exports, `keycloak-source.json`, `eligibility-reasons.json` |
+
+## Troubleshooting
+
+Exit statuses are in brackets.
+
+| Message or status | Cause and fix |
+| --- | --- |
+| `... SHA-512 pin must be 128 lowercase hexadecimal characters` [4] | The pin is uppercase, truncated, or has whitespace. Recompute with `shasum -a 512` and lowercase it. |
+| `manifest digest mismatch`, `configuration digest mismatch`, `... source digest mismatch`, `scope digest mismatch` [1] | The file differs from the pinned bytes. Do not repin from the bundle; re-obtain the file or the pin from the authenticated source. |
+| `saved batch set differs from pinned scope` [1] | `batches` does not equal the batches implied by `base_batch` and the saved weight mask. Rebuild it from the saved mapping. |
+| `weighted saved mapping lacks a weight bit mask` [3] | The weighted tally mapping has no `annotations.weight_bit_mask`. Obtain a mapping saved after the tally ran. |
+| `invalid saved weight bit mask` [4] | The mask is zero or outside the supported weight bits. |
+| `non-default keys-ceremony boards require separately authenticated ...` [4] | Only default ceremonies are supported. Do not edit the ceremony data; use separately reviewed acquisition. |
+| `restored B3 board has no configuration or scoped ballots`, `missing B3 batch` [3] | The restored board or blob root lacks a declared batch. Check the restore and `--b3-blob-root`. |
+| `selected cast vote has no matching signed electoral-log evidence` [3] | The signed log write was lost (meta#13796) or never made. Report as incomplete; do not fabricate or infer evidence. |
+| `selected cast vote has ambiguous signed electoral-log evidence` [3] | Several differing signed records share the voter pseudonym and ballot hash. Identical records are collapsed; differing ones are not. |
+| `scoped in-progress cast vote blocks preparation` [3] | A scoped row is still `in-progress`. Restore a snapshot taken after it resolved. |
+| `saved eligible voter count differs ...`, `saved cast ballot count differs ...`, `saved ballots without voter differ ...`, `saved votes by channel differ ...`, `saved weight bit mask differs ...` [1] | The saved tally annotations disagree with the reconstruction: usually a mismatched snapshot, a wrong frozen eligibility file, or a mapping from another time. |
+| `... does not support TLS-required connections`, `remote database connections are refused`, `use a loopback IP, not a hostname` [4] | Connections must be loopback or an absolute Unix socket, without `sslmode=require`. Restore locally instead. |
+| `connections file must not grant group or other access` [4] | Run `chmod 600 connections.json`. |
+| `cannot create new private output directory`, `output directory already exists` [4] | Choose a new output path whose parent exists. |
+| `tally input multiset mismatch ...` [1] | The B3 `Ballots` input differs from the selected set. Keep the evidence and escalate; do not retry with regenerated inputs. |
+| Exit `3` with a JSON report | Evidence is incomplete or the receipt is not selected. Read `lookup` or the group classifications. |
+| `required checks failed or were incomplete` (Braid `verify`) | A batch check is false or unpopulated, a batch lacks plaintexts, or `--batches` differs from the verified set. |
 
 ## Universal verification remains separate
 
@@ -601,7 +780,12 @@ file-only universal-verification adapter is supplied here.
 The reviewed baseline printed a summary and could return success with
 unestablished required checks. The accompanying verifier fix preserves the
 summary, then returns an error/nonzero CLI status if any required root or
-descendant batch check is false or unpopulated. Still inspect its individual
+descendant batch check is false or unpopulated, if any batch with `Ballots`
+lacks `Plaintexts`, or if the board has no batches. The new optional
+`--batches 1,2,3` requires verification of exactly those batches: a missing
+or additional verified batch fails. Pass the manifest's `batches` list.
+Without it, a batch missing from the board is not detected unless it has
+`Ballots`, and extra verified batches are accepted. Still inspect its individual
 results and intended scope. That fix does not authenticate archive completeness
 or add receipt/census reconstruction to Braid.
 
