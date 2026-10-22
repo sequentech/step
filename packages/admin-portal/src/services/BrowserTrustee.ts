@@ -170,26 +170,28 @@ export function parseBoards(value: unknown): TrusteeBoard[] {
     })
 }
 
-/** The signed-in user's access token, which `AuthContextProvider` keeps fresh. */
-export function storedAccessToken(): string {
-    return localStorage.getItem("token")?.split(":")[0] || ""
+/**
+ * The board's token provider over `token`, the signed-in user's in-memory
+ * access token. It is read before each board request, so it is fresh after
+ * long computations; the trustee never persists it.
+ */
+export function boardTokenProvider(token: () => string): () => Promise<string> {
+    return async () => {
+        const current = token()
+        if (!current) throw new Error("Sign in as a trustee to reach the board service.")
+        return current
+    }
 }
 
-/** Read before each board request, so the token is fresh after long computations. */
-export async function boardAccessToken(): Promise<string> {
-    const token = storedAccessToken()
-    if (!token) throw new Error("Sign in as a trustee to reach the board service.")
-    return token
-}
-
-/** Every engine reaches the board service with the portal's fresh access token. */
+/** Every engine reaches the board service with the portal's current access token. */
 export function createBrowserTrustee(
     module: Pick<TrusteeModule, "BrowserTrustee">,
     name: string,
     keys: string,
-    boardUrl: string
+    boardUrl: string,
+    token: () => string
 ): TrusteeEngine {
-    return new module.BrowserTrustee(name, keys, boardUrl, boardAccessToken)
+    return new module.BrowserTrustee(name, keys, boardUrl, boardTokenProvider(token))
 }
 
 async function trusteeGraphql<T>(

@@ -2,10 +2,9 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 import {
-    boardAccessToken,
+    boardTokenProvider,
     createBrowserTrustee,
     runBrowserCycle,
-    storedAccessToken,
     type TrusteeEngine,
 } from "./BrowserTrustee"
 const board = {name: "dkg_d9792af071b849528aac94bc0fead5f7", kind: "DKG", parent: null}
@@ -23,21 +22,30 @@ afterEach(() => {
     global.fetch = originalFetch
     localStorage.clear()
 })
-it("reads the access token the portal stores with its expiry", async () => {
-    expect(storedAccessToken()).toBe("")
-    await expect(boardAccessToken()).rejects.toThrow("Sign in")
-    localStorage.setItem("token", "header.payload.signature:1893456000")
-    expect(storedAccessToken()).toBe("header.payload.signature")
-    await expect(boardAccessToken()).resolves.toBe("header.payload.signature")
+it("gives the board the in-memory access token on each request, never a stored one", async () => {
+    // A stale copy in storage must not be used: only the getter counts.
+    localStorage.setItem("token", "stored.copy.token:1893456000")
+    let current = ""
+    const provider = boardTokenProvider(() => current)
+    await expect(provider()).rejects.toThrow("Sign in")
+    current = "first"
+    await expect(provider()).resolves.toBe("first")
+    current = "renewed"
+    await expect(provider()).resolves.toBe("renewed")
 })
-it("constructs every browser engine with the board token provider", () => {
+it("constructs every browser engine with a provider over the given token", async () => {
     const e = engine()
     const BrowserTrustee = Object.assign(
         jest.fn(() => e),
         {generateKeys: jest.fn()}
     )
-    expect(createBrowserTrustee({BrowserTrustee}, "alice", "keys", "/b4")).toBe(e)
-    expect(BrowserTrustee).toHaveBeenCalledWith("alice", "keys", "/b4", boardAccessToken)
+    let current = "first"
+    expect(createBrowserTrustee({BrowserTrustee}, "alice", "keys", "/b4", () => current)).toBe(e)
+    expect(BrowserTrustee).toHaveBeenCalledWith("alice", "keys", "/b4", expect.any(Function))
+    const provider = (BrowserTrustee.mock.calls[0] as unknown[])[3] as () => Promise<string>
+    await expect(provider()).resolves.toBe("first")
+    current = "renewed"
+    await expect(provider()).resolves.toBe("renewed")
 })
 it("reads a fresh token before each platform request, including after advancing", async () => {
     const e = engine()

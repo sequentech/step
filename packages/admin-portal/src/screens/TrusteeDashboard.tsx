@@ -23,7 +23,6 @@ import {
     listBrowserTrusteeBoards,
     runBrowserCycle,
     runExclusiveBrowserTrustee,
-    storedAccessToken,
     type TrusteeEngine,
     type TrusteeKeys,
 } from "@/services/BrowserTrustee"
@@ -61,6 +60,8 @@ const codeExample = {
 
 export const TrusteeDashboard = () => {
     const auth = useContext(AuthContext)
+    // The in-memory token Keycloak keeps fresh, as for every portal request.
+    const accessToken = () => auth.getAccessToken() ?? ""
     const {globalSettings} = useContext(SettingsContext)
     const platform = globalSettings.HASURA_URL
     const trustee = auth.trustee || auth.username
@@ -75,7 +76,7 @@ export const TrusteeDashboard = () => {
         setLoading(true)
         setError("")
         try {
-            const token = storedAccessToken()
+            const token = accessToken()
             if (!token) throw new Error("Sign in as a trustee to list assigned boards.")
             setBoards(await listBrowserTrusteeBoards(platform, token))
             setLoaded(true)
@@ -153,7 +154,8 @@ export const TrusteeDashboard = () => {
             module,
             auth.trustee || "browser trustee",
             contents,
-            boardUrl
+            boardUrl,
+            accessToken
         )
         try {
             const publicKeys: TrusteeKeys = JSON.parse(candidate.publicKeys())
@@ -207,7 +209,7 @@ export const TrusteeDashboard = () => {
             const result = await runBrowserCycle(
                 engine.current,
                 platform,
-                storedAccessToken,
+                accessToken,
                 (assigned) => {
                     catalog.current = Array.from(
                         new Set([

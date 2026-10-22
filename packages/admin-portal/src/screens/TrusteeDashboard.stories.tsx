@@ -58,7 +58,12 @@ export const AutomaticTallyCustody: Story = {
     render: () => (
         <AdminStoryProvider
             boundary={graphqlBoundary({})}
-            auth={{trustee: "trustee1", username: "trustee1", isAuthenticated: true}}
+            auth={{
+                trustee: "trustee1",
+                username: "trustee1",
+                isAuthenticated: true,
+                getAccessToken: () => "synthetic-trustee-token",
+            }}
             settings={{HASURA_URL: CUSTODY_PLATFORM}}
         >
             <TrusteeDashboard />
@@ -67,8 +72,6 @@ export const AutomaticTallyCustody: Story = {
     beforeEach: () => {
         queuedRequest = undefined
         submittedProof = undefined
-        const previousToken = localStorage.getItem("token")
-        localStorage.setItem("token", "synthetic-trustee-token")
         storyFetch({
             [CUSTODY_PLATFORM]: ({body}) => {
                 const input = JSON.parse(body || "{}") as {
@@ -109,10 +112,6 @@ export const AutomaticTallyCustody: Story = {
                 throw new Error("Unexpected custody fixture operation")
             },
         })
-        return () => {
-            if (previousToken === null) localStorage.removeItem("token")
-            else localStorage.setItem("token", previousToken)
-        }
     },
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
