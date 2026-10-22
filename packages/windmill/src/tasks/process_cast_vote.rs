@@ -3,13 +3,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::cast_vote::{
-    compare_and_set_cast_vote_status, get_cast_vote_by_id, has_valid_cast_vote,
+    clear_unconfirmed_set_voted, compare_and_set_cast_vote_status, get_cast_vote_by_id,
+    has_unconfirmed_set_voted, has_valid_cast_vote, mark_set_voted_unconfirmed,
 };
 use crate::postgres::election_event::{get_election_event_by_id, ElectionEventDatafix};
 use crate::services::cast_votes::{CastVote, CastVoteStatus};
 use crate::services::database::get_hasura_pool;
 use crate::services::datafix;
-use crate::services::datafix::types::{SoapRequest, SoapRequestResponse};
+use crate::services::datafix::types::{
+    DatafixSetVotedConflictPolicy, SoapRequest, SoapRequestResponse,
+};
 use crate::services::datafix::utils::{
     datafix_annotations, datafix_voter_lock_key, post_operation_result_to_electoral_log,
     voted_via_internet, voted_via_not_internet_channel, DATAFIX_VOTER_LOCK_SECS,
@@ -90,11 +93,12 @@ pub async fn process_cast_vote(
 
 /// Runs the Datafix send while the per-voter lock is held: validates the
 /// event's Datafix configuration, resolves the voter, and sends `SetVoted`,
-/// transitioning the row to its terminal status. Any definitive VoterView
-/// answer, including a rejection or a SOAP fault, makes the vote `valid`. The
-/// vote stays `in-progress`, to be retried on the next beat, when the request
-/// cannot be prepared or delivered, or when its outcome is ambiguous: it may
-/// have been delivered, but no usable answer came back.
+/// moving the row as `set_voted_decision` says. The vote stays `in-progress`,
+/// to be retried on the next beat, when the request cannot be prepared or
+/// delivered, when VoterView answers with a SOAP fault, or when its outcome is
+/// ambiguous: it may have been delivered, but no usable answer came back. An
+/// ambiguous outcome is recorded on the vote, so a later "already voted" answer
+/// is known to confirm it.
 #[instrument(skip(lock), fields(cast_vote_id = %cast_vote_id), err)]
 async fn process_locked_cast_vote(
     tenant_id: &str,
@@ -115,9 +119,10 @@ async fn process_locked_cast_vote(
         .as_deref()
         .ok_or("Voter id not found")?;
     let election_event = load_election_event(&cast_vote).await?;
-    datafix_annotations(&election_event)
+    let conflict_policy = datafix_annotations(&election_event)
         .map_err(|err| format!("Invalid Datafix configuration: {err}"))?
-        .ok_or("Cast vote is pending but the election event is not configured for Datafix")?;
+        .ok_or("Cast vote is pending but the election event is not configured for Datafix")?
+        .set_voted_conflict_policy;
 
     let realm = get_event_realm(&cast_vote.tenant_id, &cast_vote.election_event_id);
     let keycloak = KeycloakAdminClient::new()
@@ -174,6 +179,7 @@ async fn process_locked_cast_vote(
         return Ok(());
     }
 
+    let unconfirmed = unconfirmed_set_voted(&cast_vote, voter_id).await?;
     let prepared = datafix::voterview_requests::prepare(
         SoapRequest::SetVoted,
         ElectionEventDatafix(election_event),
@@ -202,57 +208,89 @@ async fn process_locked_cast_vote(
 
     match result {
         Ok(result) => {
-            let operation = match result.response {
-                SoapRequestResponse::Ok => {
-                    let changed =
-                        transition_cast_vote_and_mark_internet(&cast_vote, &realm, voter_id)
-                            .await?;
-                    if changed {
-                        format!(
-                            "SetVoted Succeeded (template_sha256={})",
-                            result.template_sha256
-                        )
-                    } else {
-                        format!(
-                            "SetVoted result ignored after concurrent resolution (template_sha256={})",
-                            result.template_sha256
-                        )
+            let decision = set_voted_decision(&result.response, conflict_policy, unconfirmed);
+            // A refusal other than "already voted" means VoterView did not
+            // record the earlier unconfirmed `SetVoted` either.
+            if unconfirmed == UnconfirmedSetVoted::Present
+                && matches!(
+                    result.response,
+                    SoapRequestResponse::Rejected(_) | SoapRequestResponse::AlreadyNotVoted
+                )
+            {
+                clear_unconfirmed(&cast_vote, voter_id).await?;
+            }
+            let classification = result.response.classification();
+            let template_sha256 = &result.template_sha256;
+            let operation = match decision {
+                SetVotedDecision::Validate(update) => {
+                    let changed = match update {
+                        InternetChannelUpdate::Mark => {
+                            transition_cast_vote_and_mark_internet(&cast_vote, &realm, voter_id)
+                                .await?
+                        }
+                        InternetChannelUpdate::Leave => {
+                            transition_cast_vote(
+                                &cast_vote,
+                                CastVoteStatus::InProgress,
+                                CastVoteStatus::Valid,
+                            )
+                            .await?
+                        }
+                    };
+                    match (&result.response, changed) {
+                        (SoapRequestResponse::Ok, true) => {
+                            format!("SetVoted Succeeded (template_sha256={template_sha256})")
+                        }
+                        (SoapRequestResponse::Ok, false) => format!(
+                            "SetVoted result ignored after concurrent resolution (template_sha256={template_sha256})"
+                        ),
+                        (SoapRequestResponse::AlreadyVoted, true)
+                            if unconfirmed == UnconfirmedSetVoted::Present =>
+                        {
+                            format!(
+                                "SetVoted Succeeded: already-voted confirms an earlier unconfirmed request (template_sha256={template_sha256})"
+                            )
+                        }
+                        (SoapRequestResponse::AlreadyVoted, true) => format!(
+                            "SetVoted Failed: voter already voted (template_sha256={template_sha256})"
+                        ),
+                        (SoapRequestResponse::AlreadyVoted, false) => format!(
+                            "SetVoted already-voted result ignored after concurrent resolution (template_sha256={template_sha256})"
+                        ),
+                        _ => format!(
+                            "SetVoted Failed: {classification} (template_sha256={template_sha256})"
+                        ),
                     }
                 }
-                SoapRequestResponse::AlreadyVoted => {
-                    let changed =
-                        transition_cast_vote_and_mark_internet(&cast_vote, &realm, voter_id)
-                            .await?;
-                    if changed {
-                        format!(
-                            "SetVoted Failed: voter already voted (template_sha256={})",
-                            result.template_sha256
-                        )
-                    } else {
-                        format!(
-                            "SetVoted already-voted result ignored after concurrent resolution (template_sha256={})",
-                            result.template_sha256
-                        )
-                    }
-                }
-                // These cases can be an error response from VoterView (a
-                // definitive rejection, a SOAP fault, or an unexpected
-                // already-not-voted echo): never discard, just mark the
-                // vote valid and the next reconciliation process can sync it.
-                response @ (SoapRequestResponse::AlreadyNotVoted
-                | SoapRequestResponse::Fault(_)
-                | SoapRequestResponse::Rejected(_)) => {
+                SetVotedDecision::Hold => format!(
+                    "SetVoted Failed: {classification}; the vote stays in-progress for review (template_sha256={template_sha256})"
+                ),
+                SetVotedDecision::Discard => {
                     let changed = transition_cast_vote(
                         &cast_vote,
                         CastVoteStatus::InProgress,
-                        CastVoteStatus::Valid,
+                        CastVoteStatus::Discarded,
                     )
                     .await?;
-                    format!(
-                        "SetVoted Failed: {} (template_sha256={})",
-                        response.classification(),
-                        result.template_sha256
+                    if changed {
+                        format!(
+                            "SetVoted Failed: {classification}; the vote is discarded (template_sha256={template_sha256})"
+                        )
+                    } else {
+                        format!(
+                            "SetVoted {classification} result ignored after concurrent resolution (template_sha256={template_sha256})"
+                        )
+                    }
+                }
+                SetVotedDecision::Retry => {
+                    let operation = format!(
+                        "SetVoted Failed: {classification} (template_sha256={template_sha256})"
+                    );
+                    audit_operation(&cast_vote, voter_id, &username, operation).await;
+                    return Err(format!(
+                        "VoterView SetVoted answered {classification}; the vote stays in-progress"
                     )
+                    .into());
                 }
             };
             audit_operation(&cast_vote, voter_id, &username, operation).await;
@@ -276,6 +314,7 @@ async fn process_locked_cast_vote(
                 "SetVoted Failed: transport-or-response-error (template_sha256={template_sha256})"
             );
             audit_operation(&cast_vote, voter_id, &username, operation).await;
+            record_unconfirmed(&cast_vote).await?;
             return Err(format!(
                 "VoterView SetVoted outcome is ambiguous; the vote stays in-progress: {err}"
             )
@@ -284,6 +323,62 @@ async fn process_locked_cast_vote(
     }
 
     Ok(())
+}
+
+/// Whether an earlier `SetVoted` for one of the voter's in-progress votes got
+/// no usable reply, so VoterView may already have recorded it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum UnconfirmedSetVoted {
+    Present,
+    Absent,
+}
+
+/// Whether validating the vote also records the Internet channel in Keycloak.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum InternetChannelUpdate {
+    Mark,
+    Leave,
+}
+
+/// What a VoterView reply to `SetVoted` does to the in-progress vote.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SetVotedDecision {
+    Validate(InternetChannelUpdate),
+    /// The vote stays in progress and the next beat sends `SetVoted` again.
+    Hold,
+    Discard,
+    /// The vote stays in progress and the task fails, so the next beat
+    /// retries it.
+    Retry,
+}
+
+/// `Ok` validates the vote, and so does "already voted" when an earlier
+/// `SetVoted` for the voter is unconfirmed, since that answer confirms it. Any
+/// other "already voted", a rejection, or an already-not-voted echo follows
+/// the event's conflict policy. A SOAP fault never resolves the vote.
+fn set_voted_decision(
+    response: &SoapRequestResponse,
+    policy: DatafixSetVotedConflictPolicy,
+    unconfirmed: UnconfirmedSetVoted,
+) -> SetVotedDecision {
+    let conflict = |update| match policy {
+        DatafixSetVotedConflictPolicy::ValidateAndReconcile => SetVotedDecision::Validate(update),
+        DatafixSetVotedConflictPolicy::HoldForReview => SetVotedDecision::Hold,
+        DatafixSetVotedConflictPolicy::Discard => SetVotedDecision::Discard,
+    };
+    match (response, unconfirmed) {
+        (SoapRequestResponse::Ok, _)
+        | (SoapRequestResponse::AlreadyVoted, UnconfirmedSetVoted::Present) => {
+            SetVotedDecision::Validate(InternetChannelUpdate::Mark)
+        }
+        (SoapRequestResponse::AlreadyVoted, UnconfirmedSetVoted::Absent) => {
+            conflict(InternetChannelUpdate::Mark)
+        }
+        (SoapRequestResponse::AlreadyNotVoted | SoapRequestResponse::Rejected(_), _) => {
+            conflict(InternetChannelUpdate::Leave)
+        }
+        (SoapRequestResponse::Fault(_), _) => SetVotedDecision::Retry,
+    }
 }
 
 /// Loads the cast vote by id in its own short transaction, or `None` if it no
@@ -351,6 +446,93 @@ async fn has_prior_valid_vote(cast_vote: &CastVote, voter_id: &str) -> Result<bo
     )
     .await
     .map_err(|err| format!("Error checking prior valid votes: {err:?}").into())
+}
+
+/// Whether one of the voter's in-progress votes carries an unconfirmed
+/// `SetVoted`.
+#[instrument(skip(cast_vote), fields(cast_vote_id = %cast_vote.id), err)]
+async fn unconfirmed_set_voted(
+    cast_vote: &CastVote,
+    voter_id: &str,
+) -> Result<UnconfirmedSetVoted> {
+    let mut client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .map_err(|err| format!("Error getting Hasura DB client: {err:?}"))?;
+    let transaction = client
+        .transaction()
+        .await
+        .map_err(|err| format!("Error starting Hasura transaction: {err:?}"))?;
+    let present = has_unconfirmed_set_voted(
+        &transaction,
+        &cast_vote.tenant_id,
+        &cast_vote.election_event_id,
+        voter_id,
+    )
+    .await
+    .map_err(|err| format!("Error checking for an unconfirmed SetVoted: {err:?}"))?;
+    Ok(if present {
+        UnconfirmedSetVoted::Present
+    } else {
+        UnconfirmedSetVoted::Absent
+    })
+}
+
+/// Records on the vote, in its own transaction, that its `SetVoted` got no
+/// usable reply.
+#[instrument(skip(cast_vote), fields(cast_vote_id = %cast_vote.id), err)]
+async fn record_unconfirmed(cast_vote: &CastVote) -> Result<()> {
+    let cast_vote_id = Uuid::parse_str(&cast_vote.id)
+        .map_err(|err| format!("Invalid cast_vote_id in stored row: {err}"))?;
+    let mut client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .map_err(|err| format!("Error getting Hasura DB client: {err:?}"))?;
+    let transaction = client
+        .transaction()
+        .await
+        .map_err(|err| format!("Error starting Hasura transaction: {err:?}"))?;
+    mark_set_voted_unconfirmed(
+        &transaction,
+        &cast_vote.tenant_id,
+        &cast_vote.election_event_id,
+        &cast_vote_id,
+    )
+    .await
+    .map_err(|err| format!("Error recording an unconfirmed SetVoted: {err:?}"))?;
+    transaction
+        .commit()
+        .await
+        .map_err(|err| format!("Error committing an unconfirmed SetVoted: {err:?}").into())
+}
+
+/// Clears, in its own transaction, the unconfirmed `SetVoted` of the voter's
+/// in-progress votes.
+#[instrument(skip(cast_vote), fields(cast_vote_id = %cast_vote.id), err)]
+async fn clear_unconfirmed(cast_vote: &CastVote, voter_id: &str) -> Result<()> {
+    let mut client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .map_err(|err| format!("Error getting Hasura DB client: {err:?}"))?;
+    let transaction = client
+        .transaction()
+        .await
+        .map_err(|err| format!("Error starting Hasura transaction: {err:?}"))?;
+    clear_unconfirmed_set_voted(
+        &transaction,
+        &cast_vote.tenant_id,
+        &cast_vote.election_event_id,
+        voter_id,
+    )
+    .await
+    .map_err(|err| format!("Error clearing an unconfirmed SetVoted: {err:?}"))?;
+    transaction
+        .commit()
+        .await
+        .map_err(|err| format!("Error committing a cleared SetVoted: {err:?}").into())
 }
 
 /// Compare-and-sets the vote from `expected` to `next` in its own transaction,
@@ -485,6 +667,120 @@ async fn mark_voted_via_internet(realm: &str, voter_id: &str) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const POLICIES: [DatafixSetVotedConflictPolicy; 3] = [
+        DatafixSetVotedConflictPolicy::ValidateAndReconcile,
+        DatafixSetVotedConflictPolicy::HoldForReview,
+        DatafixSetVotedConflictPolicy::Discard,
+    ];
+
+    fn conflict_replies() -> [SoapRequestResponse; 2] {
+        [
+            SoapRequestResponse::Rejected("voter not found".to_string()),
+            SoapRequestResponse::AlreadyNotVoted,
+        ]
+    }
+
+    #[test]
+    fn accepted_set_voted_validates_and_marks_the_internet_channel() {
+        for policy in POLICIES {
+            for unconfirmed in [UnconfirmedSetVoted::Present, UnconfirmedSetVoted::Absent] {
+                assert_eq!(
+                    set_voted_decision(&SoapRequestResponse::Ok, policy, unconfirmed),
+                    SetVotedDecision::Validate(InternetChannelUpdate::Mark),
+                    "{policy} {unconfirmed:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn soap_fault_leaves_the_vote_in_progress_under_every_policy() {
+        for policy in POLICIES {
+            for unconfirmed in [UnconfirmedSetVoted::Present, UnconfirmedSetVoted::Absent] {
+                assert_eq!(
+                    set_voted_decision(
+                        &SoapRequestResponse::Fault("HTTP 500".to_string()),
+                        policy,
+                        unconfirmed
+                    ),
+                    SetVotedDecision::Retry,
+                    "{policy} {unconfirmed:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn already_voted_after_an_unconfirmed_set_voted_validates_the_vote() {
+        for policy in POLICIES {
+            assert_eq!(
+                set_voted_decision(
+                    &SoapRequestResponse::AlreadyVoted,
+                    policy,
+                    UnconfirmedSetVoted::Present
+                ),
+                SetVotedDecision::Validate(InternetChannelUpdate::Mark),
+                "{policy}"
+            );
+        }
+    }
+
+    #[test]
+    fn already_voted_without_an_unconfirmed_set_voted_follows_the_policy() {
+        for (policy, decision) in [
+            (
+                DatafixSetVotedConflictPolicy::ValidateAndReconcile,
+                SetVotedDecision::Validate(InternetChannelUpdate::Mark),
+            ),
+            (
+                DatafixSetVotedConflictPolicy::HoldForReview,
+                SetVotedDecision::Hold,
+            ),
+            (
+                DatafixSetVotedConflictPolicy::Discard,
+                SetVotedDecision::Discard,
+            ),
+        ] {
+            assert_eq!(
+                set_voted_decision(
+                    &SoapRequestResponse::AlreadyVoted,
+                    policy,
+                    UnconfirmedSetVoted::Absent
+                ),
+                decision,
+                "{policy}"
+            );
+        }
+    }
+
+    #[test]
+    fn rejected_set_voted_follows_the_policy_without_marking_the_channel() {
+        for (policy, decision) in [
+            (
+                DatafixSetVotedConflictPolicy::ValidateAndReconcile,
+                SetVotedDecision::Validate(InternetChannelUpdate::Leave),
+            ),
+            (
+                DatafixSetVotedConflictPolicy::HoldForReview,
+                SetVotedDecision::Hold,
+            ),
+            (
+                DatafixSetVotedConflictPolicy::Discard,
+                SetVotedDecision::Discard,
+            ),
+        ] {
+            for reply in conflict_replies() {
+                for unconfirmed in [UnconfirmedSetVoted::Present, UnconfirmedSetVoted::Absent] {
+                    assert_eq!(
+                        set_voted_decision(&reply, policy, unconfirmed),
+                        decision,
+                        "{policy} {reply:?} {unconfirmed:?}"
+                    );
+                }
+            }
+        }
+    }
 
     #[test]
     fn voter_lock_is_event_wide() {
