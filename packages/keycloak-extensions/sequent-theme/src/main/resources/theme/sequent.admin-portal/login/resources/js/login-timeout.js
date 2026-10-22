@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2026 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -13,11 +13,16 @@ const RESTART_FLAG = "sequent.loginTimeoutRestart";
 const USER_ACTION_PATH = /\/login-actions\/(required-action|reset-credentials)$/;
 const AUTH_ENDPOINT_PATH = /\/protocol\/openid-connect\/auth$/;
 
+function seconds(value, fallback) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
 const script = document.currentScript;
 const renderedAt = Date.now();
 const timeoutSeconds = USER_ACTION_PATH.test(location.pathname)
-  ? Number(script.dataset.actionTimeoutSeconds)
-  : Number(script.dataset.timeoutSeconds);
+  ? seconds(script.dataset.actionTimeoutSeconds, 300)
+  : seconds(script.dataset.timeoutSeconds, 1800);
 // Short timeouts keep half of their length as the margin.
 const limitMs = timeoutSeconds * 1000 - Math.min(SAFETY_MARGIN_MS, (timeoutSeconds * 1000) / 2);
 let restarting = false;
