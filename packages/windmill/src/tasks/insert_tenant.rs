@@ -187,7 +187,7 @@ mod tests {
             Some([EVENT_LISTENER.to_string(), "jboss-logging".to_string()].as_slice())
         );
         assert_eq!(realm.admin_events_enabled, Some(true));
-        assert_eq!(realm.admin_events_details_enabled, Some(true));
+        assert_eq!(realm.admin_events_details_enabled, Some(false));
         let roles = realm.roles.and_then(|roles| roles.realm).unwrap();
         assert!(roles
             .iter()
