@@ -20,6 +20,9 @@ use crate::postgres::tally_session_execution::{
     get_last_tally_session_execution, insert_tally_session_execution,
 };
 use crate::postgres::tally_sheet::get_approved_tally_sheets_by_event;
+use crate::services::ceremonies::election_electorates::{
+    election_areas, ELECTION_AREAS_ANNOTATION,
+};
 use crate::services::ceremonies::keys_ceremony::find_trustee_private_key;
 use crate::services::ceremonies::serialize_logs::{
     append_tally_recount_log, append_tally_trustee_log, generate_tally_initial_log,
@@ -560,6 +563,11 @@ pub async fn create_tally_ceremony(
     let annotations: Value = json!({
         "executer_username": username,
         "executer_user_id": user_id,
+        ELECTION_AREAS_ANNOTATION: serde_json::to_string(&election_areas(
+            published_ballot_styles
+                .iter()
+                .map(|style| (style.election_id.as_str(), style.area_id.as_str())),
+        ))?,
     });
 
     let keys_ceremony_policy = keys_ceremony.policy();

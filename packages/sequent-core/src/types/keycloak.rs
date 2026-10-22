@@ -114,6 +114,7 @@ pub const AUTHORIZED_ELECTION_IDS_NAME: &str = "authorized-election-ids";
 pub const TENANT_ID_ATTR_NAME: &str = "tenant-id";
 pub const PERMISSION_TO_EDIT: &str = "admin";
 pub const MOBILE_PHONE_ATTR_NAME: &str = "sequent.read-only.mobile-number";
+pub const EMAIL_AND_OR_MOBILE_ATTR_NAME: &str = "emailAndOrMobile";
 pub const FIRST_NAME: &str = "firstName";
 pub const LAST_NAME: &str = "lastName";
 pub const FIRST_NAME_ATTRIBUTE: &str = "first_name";

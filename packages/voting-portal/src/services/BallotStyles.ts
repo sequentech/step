@@ -8,12 +8,13 @@ import {isString, IBallotStyle as IElectionDTO} from "@sequentech/ui-core"
 import {IBallotStyle, setBallotStyle} from "../store/ballotStyles/ballotStylesSlice"
 import {resetBallotSelection} from "../store/ballotSelections/ballotSelectionsSlice"
 import {checkIsExplicitBlankVote, checkIsInvalidVote} from "./ElectionConfigService"
+import {getSlateConfigurationProblem} from "./Slates"
 
 export class BallotStyleConfigurationError extends Error {
     translationKey: string
-    translationParams: Record<string, string>
+    translationParams: Record<string, string | number>
 
-    constructor(translationKey: string, translationParams: Record<string, string>) {
+    constructor(translationKey: string, translationParams: Record<string, string | number>) {
         super(translationKey)
         this.name = "BallotStyleConfigurationError"
         this.translationKey = translationKey
@@ -29,7 +30,7 @@ export const getBallotStyleConfigurationError = (
         if (explicitInvalidCount > 1) {
             return new BallotStyleConfigurationError(
                 "errors.configuration.multipleExplicitInvalidCandidates",
-                {count: explicitInvalidCount.toString()}
+                {count: explicitInvalidCount}
             )
         }
 
@@ -37,9 +38,16 @@ export const getBallotStyleConfigurationError = (
         if (explicitBlankCount > 1) {
             return new BallotStyleConfigurationError(
                 "errors.configuration.multipleExplicitBlankCandidates",
-                {count: explicitBlankCount.toString()}
+                {count: explicitBlankCount}
             )
         }
+    }
+
+    const slateProblem = getSlateConfigurationProblem(ballotStyle)
+    if (slateProblem !== undefined) {
+        return new BallotStyleConfigurationError("errors.configuration.invalidSlateConfiguration", {
+            reason: slateProblem,
+        })
     }
 
     return undefined
