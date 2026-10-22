@@ -546,6 +546,10 @@ class CombinedBallotInputContracts(unittest.TestCase):
             with path.open(newline="") as handle:
                 rows = list(csv.DictReader(handle))
             self.assertEqual(
+                [r["password"] for r in rows],
+                ["e2e-weighted-a1", "e2e-weighted-a2"],
+            )
+            self.assertEqual(
                 [
                     (r["username"], r["vote-weight"], r["authorized-election-ids"])
                     for r in rows

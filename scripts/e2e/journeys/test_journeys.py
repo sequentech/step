@@ -2384,7 +2384,7 @@ class BackendJourneys(unittest.TestCase):
     def sbei_account(self):
         """A second signer for the Post: an administrator of the tenant, as an SBEI is."""
         username = f"sbei-{self.tag}"
-        password = f"E2e-sbei-{self.tag}!"
+        password = username
         self.keycloak.admin(
             "POST",
             f"{TENANT_REALM}/users",
