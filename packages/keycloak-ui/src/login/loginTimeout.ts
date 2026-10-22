@@ -45,22 +45,27 @@ export type LoginTimeoutUrls = {
 /**
  * The URLs to restart and to ask about the login that `loginActionUrl` submits to. Both name
  * this page's client and tab, so Keycloak doesn't fall back to whichever login the browser
- * started last.
+ * started last. Null when `restartUrl` isn't one of Keycloak's login actions, as in previews,
+ * since there is no realm to ask.
  */
 export function loginTimeoutUrls(
     restartUrl: string,
     loginActionUrl: string,
     base: string
-): LoginTimeoutUrls {
+): LoginTimeoutUrls | null {
     const loginAction = new URL(loginActionUrl || base, base)
     const restart = new URL(restartUrl, base)
+    const loginActionsAt = restart.pathname.indexOf(LOGIN_ACTIONS_PATH)
+    if (loginActionsAt < 0) {
+        return null
+    }
     LOGIN_PARAMS.forEach((param) => {
         const value = loginAction.searchParams.get(param)
         if (value) {
             restart.searchParams.set(param, value)
         }
     })
-    const realmPath = restart.pathname.slice(0, restart.pathname.indexOf(LOGIN_ACTIONS_PATH))
+    const realmPath = restart.pathname.slice(0, loginActionsAt)
     const status = new URL(`${realmPath}${STATUS_PATH}`, restart)
     const tabId = loginAction.searchParams.get("tab_id")
     if (tabId) {
@@ -127,6 +132,9 @@ export function useLoginTimeout(restartUrl: string, loginActionUrl: string): boo
 
     useEffect(() => {
         const urls = loginTimeoutUrls(restartUrl, loginActionUrl, location.href)
+        if (!urls) {
+            return
+        }
         let deadline: number | null = null
         let deadlineTimer: ReturnType<typeof setTimeout> | undefined
         let checking = false

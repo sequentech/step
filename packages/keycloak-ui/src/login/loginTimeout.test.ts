@@ -16,19 +16,19 @@ const LOGIN_ACTION =
 
 describe("loginTimeoutUrls", () => {
     it("asks the realm about the tab the form submits to", () => {
-        expect(loginTimeoutUrls(RESTART, LOGIN_ACTION, BASE).status.href).toBe(
+        expect(loginTimeoutUrls(RESTART, LOGIN_ACTION, BASE)?.status.href).toBe(
             "https://auth.example.com/realms/event/login-timeout?tab_id=tab-1"
         )
     })
 
     it("restarts that tab's login without signing out", () => {
-        expect(loginTimeoutUrls(RESTART, LOGIN_ACTION, BASE).restart.href).toBe(
+        expect(loginTimeoutUrls(RESTART, LOGIN_ACTION, BASE)?.restart.href).toBe(
             "https://auth.example.com/realms/event/login-actions/restart?skip_logout=true&client_id=portal&tab_id=tab-1"
         )
     })
 
     it("asks about the whole login when the form names no tab", () => {
-        expect(loginTimeoutUrls(RESTART, "", BASE).status.href).toBe(
+        expect(loginTimeoutUrls(RESTART, "", BASE)?.status.href).toBe(
             "https://auth.example.com/realms/event/login-timeout"
         )
     })
@@ -36,8 +36,12 @@ describe("loginTimeoutUrls", () => {
     it("stays on Keycloak's origin", () => {
         const urls = loginTimeoutUrls(RESTART, "https://other.example.com/?tab_id=x", BASE)
 
-        expect(urls.status.origin).toBe("https://auth.example.com")
-        expect(urls.restart.origin).toBe("https://auth.example.com")
+        expect(urls?.status.origin).toBe("https://auth.example.com")
+        expect(urls?.restart.origin).toBe("https://auth.example.com")
+    })
+
+    it("has nothing to ask outside Keycloak's login actions", () => {
+        expect(loginTimeoutUrls("#", LOGIN_ACTION, "http://localhost:6006/iframe.html")).toBeNull()
     })
 })
 
