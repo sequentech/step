@@ -373,7 +373,22 @@ public class Utils {
 
   /* Masks the auth code from the content body with stars */
   protected String maskCode(String content, String code) {
-    return content.replaceAll(code, "*".repeat(code.length()));
+    String masked = "*".repeat(code.length());
+    String result = content.replace(code, masked).replace(code.replace("&", "&amp;"), masked);
+    String query = URI.create(code).getRawQuery();
+    if (query != null) {
+      // Template sanitizers can rewrite the surrounding URL but keep the token verbatim.
+      String prefix = Constants.KEY + "=";
+      for (String parameter : query.split("&")) {
+        if (parameter.startsWith(prefix)) {
+          String token = parameter.substring(prefix.length());
+          if (!token.isEmpty()) {
+            result = result.replace(token, "*".repeat(token.length()));
+          }
+        }
+      }
+    }
+    return result;
   }
 
   void communicationsLog(Object context, String body) {
@@ -432,9 +447,7 @@ public class Utils {
   }
 
   UriBuilder actionTokenBuilder(URI baseUri, String tokenString, String clientId) {
-    log.infof(
-        "actionTokenBuilder(): baseUri: %s, tokenString: %s, clientId: %s",
-        baseUri, tokenString, clientId);
+    log.infof("actionTokenBuilder(): baseUri: %s, clientId: %s", baseUri, clientId);
     return Urls.realmBase(baseUri)
         .path(RealmsResource.class, "getLoginActionsService")
         .path(LoginActionsService.class, "executeActionToken")
