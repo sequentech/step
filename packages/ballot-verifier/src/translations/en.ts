@@ -94,6 +94,8 @@ const englishTranslation = {
                 bytesToUtf8Conversion:
                     "Error converting write-in from bytes to UTF-8 string: {{errorMessage}}",
                 ballotTooLarge: "Ballot larger than expected",
+                duplicatedSelection: "The same choice was selected more than once",
+                blankBallotWithSelections: "Ballot marked as blank but the question has selections",
             },
             explicit: {
                 notAllowed: "Ballot marked explicitly invalid but the contest doesn't allow it",
