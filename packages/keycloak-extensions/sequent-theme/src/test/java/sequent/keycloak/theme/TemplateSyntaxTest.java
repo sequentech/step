@@ -1052,6 +1052,27 @@ class TemplateSyntaxTest {
   }
 
   @Test
+  void loginPagesRestartAfterTheLoginTimeout() throws IOException, TemplateException {
+    String html = renderVotingPortalLogin(baseModel("standard"));
+
+    assertTrue(html.contains("src=\"/resources/js/login-timeout.js\""));
+    assertTrue(html.contains("data-timeout-seconds=\"1800\""));
+    assertTrue(html.contains("data-action-timeout-seconds=\"300\""));
+    assertTrue(html.contains("data-restart-url=\"/restart\""));
+  }
+
+  @Test
+  void onlyTheLoginTimeoutNoticeCanBeHiddenAfterARestart() throws IOException, TemplateException {
+    Map<String, Object> timedOut = baseModel("standard");
+    timedOut.put("message", Map.of("type", "warning", "summary", "loginTimeout"));
+    Map<String, Object> otherWarning = baseModel("standard");
+    otherWarning.put("message", Map.of("type", "warning", "summary", "invalidUserMessage"));
+
+    assertTrue(renderVotingPortalLogin(timedOut).contains("data-login-timeout-notice"));
+    assertFalse(renderVotingPortalLogin(otherWarning).contains("data-login-timeout-notice"));
+  }
+
+  @Test
   void secondPasswordAnchorDoesNotDuplicateTheCredential() throws IOException, TemplateException {
     // Two attributes claiming the anchor is a misconfiguration; rendering both would put duplicate
     // password ids and names on the page.
@@ -1233,6 +1254,7 @@ class TemplateSyntaxTest {
                     Map.entry("resourcesPath", "/resources"),
                     Map.entry("resourcesCommonPath", "/common"),
                     Map.entry("ssoLoginInOtherTabsUrl", "/sso"),
+                    Map.entry("loginRestartFlowUrl", "/restart"),
                     Map.entry("loginAction", "/login"),
                     Map.entry("registrationAction", "/register"),
                     Map.entry("loginUrl", "/login"))),
