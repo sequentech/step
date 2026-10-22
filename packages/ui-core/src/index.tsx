@@ -20,6 +20,7 @@ export * from "./services/WasmContext"
 export {
     stringToHtml,
     stringToText,
+    escapeHtml,
     escapeTranslationValues,
     translateHtml,
 } from "./services/stringToHtml"
@@ -56,3 +57,6 @@ export * from "./services/categoryService"
 export * from "./utils/cookies"
 export * from "./constants/keycloak"
 export * from "./types/VotingChannel"
+export * from "./types/Slates"
+export * from "./services/slates"
+export * from "./types/SlateCoverage"
