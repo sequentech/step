@@ -13,7 +13,7 @@ use rocket::serde::json::Json;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::types::keycloak::{
-    User, AREA_ID_ATTR_NAME, ATTR_RESET_VALUE, DATE_OF_BIRTH, DISABLE_COMMENT,
+    normalize_username, User, AREA_ID_ATTR_NAME, ATTR_RESET_VALUE, DATE_OF_BIRTH, DISABLE_COMMENT,
     DISABLE_REASON_DELETE_CALL, DISABLE_REASON_MARKVOTED_CALL, TENANT_ID_ATTR_NAME, VOTED_CHANNEL,
 };
 use sequent_core::util::date_time::verify_date_format_ymd;
@@ -322,7 +322,7 @@ pub async fn replace_voter_pin(
         tenant_id: tenant_id.to_string(),
         election_event_id: Some(election_event_id),
         realm: realm.clone(),
-        username: Some(FilterOption::IsEqual(username.to_string())),
+        username: Some(FilterOption::IsEqual(normalize_username(username))),
         ..ListUsersFilter::default()
     };
 
