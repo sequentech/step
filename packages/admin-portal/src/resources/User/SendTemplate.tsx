@@ -215,12 +215,16 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
     ): ITemplate => {
         const selected = findTemplateForMethod(receipts, method, type, alias)
         const content = {...base.i18n["en"]}
-        if (selected || alias) {
+        const emptyEmail = {subject: "", plaintext_body: "", html_body: ""}
+        if (selected) {
             if (method === ITemplateMethod.EMAIL) {
-                content.email = selected?.email ?? {subject: "", plaintext_body: "", html_body: ""}
+                content.email = selected.email ?? emptyEmail
             } else if (method === ITemplateMethod.SMS) {
-                content.sms = {message: selected?.sms?.message ?? ""}
+                content.sms = {message: selected.sms?.message ?? ""}
             }
+        } else if (alias) {
+            content.email = emptyEmail
+            content.sms = {message: ""}
         }
         return {
             ...base,
