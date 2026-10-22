@@ -210,26 +210,25 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
     }
 
     // Loads the chosen template's content for the method, or clears the alias
-    // when that template does not offer the method.
+    // and the previous template's content when it does not offer the method.
     const withTemplateContent = (
         base: ITemplate,
         method: ITemplateMethod,
         alias: string | undefined
     ): ITemplate => {
         const selected = findTemplateForMethod(receipts, method, alias)
-        if (!selected) {
-            return {...base, communication_method: method, alias: undefined}
-        }
         const content = {...base.i18n["en"]}
-        if (method === ITemplateMethod.EMAIL) {
-            content.email = selected.email ?? {subject: "", plaintext_body: "", html_body: ""}
-        } else if (method === ITemplateMethod.SMS) {
-            content.sms = {message: selected.sms?.message ?? ""}
+        if (selected || alias) {
+            if (method === ITemplateMethod.EMAIL) {
+                content.email = selected?.email ?? {subject: "", plaintext_body: "", html_body: ""}
+            } else if (method === ITemplateMethod.SMS) {
+                content.sms = {message: selected?.sms?.message ?? ""}
+            }
         }
         return {
             ...base,
             communication_method: method,
-            alias: selected.alias,
+            alias: selected?.alias,
             i18n: {...base.i18n, en: content},
         }
     }
