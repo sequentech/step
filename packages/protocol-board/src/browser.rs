@@ -5,20 +5,47 @@
 
 use crate::trustee_sessions::{BoardAccess, SessionSet};
 use crate::{BoardName, CustodyRequest, TrusteeBoard, TrusteeSecrets};
-use anyhow::{ensure, Result};
+use anyhow::{anyhow, ensure, Result};
 use cryptography::utils::serialization::{Deserializable, Serializable};
 use serde::{Deserialize, Serialize};
+use std::rc::Rc;
 use wasm_bindgen::prelude::*;
+use wasm_bindgen_futures::{js_sys, JsFuture};
 use wbraid::board::persistence::Persistence;
-use wbraid::board::transport::StagedRef;
+use wbraid::board::transport::{RequestHeaders, StagedRef};
 use wbraid::messages::predicate::Predicate;
 use wbraid::wasm::{
     persistence::IndexedDbPersistence, transport::WasmHttpTransport,
 };
 
+/// Calls the embedder's token provider before each board request, so the
+/// token is fresh even after minutes of computation. A failure is a braid
+/// error, which the session treats as an outage and retries.
+struct BearerToken(js_sys::Function);
+
+#[async_trait::async_trait(?Send)]
+impl RequestHeaders for BearerToken {
+    async fn headers(&self) -> Result<Vec<(String, String)>> {
+        let failed =
+            |error: JsValue| anyhow!("token provider failed: {error:?}");
+        let returned = self.0.call0(&JsValue::UNDEFINED).map_err(failed)?;
+        let token = JsFuture::from(js_sys::Promise::resolve(&returned))
+            .await
+            .map_err(failed)?
+            .as_string()
+            .filter(|token| !token.is_empty())
+            .ok_or_else(|| anyhow!("token provider returned no token"))?;
+        Ok(vec![(
+            "Authorization".to_string(),
+            format!("Bearer {token}"),
+        )])
+    }
+}
+
 struct BrowserBoards {
     url: String,
     namespace: String,
+    headers: Option<Rc<dyn RequestHeaders>>,
 }
 
 #[async_trait::async_trait(?Send)]
@@ -26,7 +53,11 @@ impl BoardAccess for BrowserBoards {
     type Transport = WasmHttpTransport;
     type Persistence = IndexedDbPersistence;
     fn transport(&self, board: &BoardName) -> Self::Transport {
-        WasmHttpTransport::new(&self.url, board.as_str())
+        let transport = WasmHttpTransport::new(&self.url, board.as_str());
+        match &self.headers {
+            Some(headers) => transport.with_headers(Rc::clone(headers)),
+            None => transport,
+        }
     }
     async fn store(&self, board: &BoardName) -> Result<Self::Persistence> {
         IndexedDbPersistence::open(&format!("{}:{}", self.namespace, board))
@@ -72,25 +103,40 @@ impl BrowserTrustee {
     pub fn generate_keys() -> Result<String, JsValue> {
         TrusteeSecrets::generate().to_toml().map_err(js_error)
     }
+    /// `tokenProvider` is called before each board request; its token is sent
+    /// as `Authorization: Bearer`. Without it no extra headers are sent.
     #[wasm_bindgen(constructor)]
     pub fn new(
         name: String,
         keys: &str,
         board_url: String,
+        #[wasm_bindgen(
+            js_name = tokenProvider,
+            unchecked_optional_param_type = "() => Promise<string>"
+        )]
+        token_provider: Option<js_sys::Function>,
     ) -> Result<BrowserTrustee, JsValue> {
         let secrets = TrusteeSecrets::parse(keys).map_err(js_error)?;
         let public = secrets.public_keys().map_err(js_error)?;
         let url = board_url.trim_end_matches('/').to_string();
         let namespace =
             format!("sequent-wbraid:{}:{}", url, public.signing_public_key);
+        let headers = token_provider.map(|provider| {
+            Rc::new(BearerToken(provider)) as Rc<dyn RequestHeaders>
+        });
         let access = BrowserBoards {
             url: url.clone(),
             namespace: namespace.clone(),
+            headers: headers.clone(),
         };
         let sessions = SessionSet::new(
             name,
             secrets.clone(),
-            BrowserBoards { url, namespace },
+            BrowserBoards {
+                url,
+                namespace,
+                headers,
+            },
         );
         Ok(Self {
             secrets,

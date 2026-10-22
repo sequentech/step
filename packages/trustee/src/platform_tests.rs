@@ -342,3 +342,49 @@ async fn action_results_require_explicit_acknowledgement_and_are_retried() {
         assert_eq!(graphql_body(&requests[1]), graphql_body(&requests[2]));
     }
 }
+
+fn bearer(token: &str) -> Vec<(String, String)> {
+    vec![("Authorization".to_owned(), format!("Bearer {token}"))]
+}
+
+#[tokio::test]
+async fn board_headers_carry_the_platform_token_and_share_its_login() {
+    use protocol_board::trustee_sessions::RequestHeaders;
+
+    let (mut client, server) = platform(vec![(200, TOKEN), (200, BOARDS)]);
+    let headers = client.board_headers();
+    assert_eq!(headers.headers().await.unwrap(), bearer("issued-token"));
+    client.list().await.unwrap();
+    let requests = server.join().unwrap();
+    assert_eq!(requests.len(), 2, "One login serves the board and platform");
+    graphql_body(&requests[1]);
+}
+
+#[tokio::test]
+async fn board_headers_renew_a_due_token_or_log_in_again() {
+    use protocol_board::trustee_sessions::RequestHeaders;
+
+    const DUE: &str = r#"{"access_token":"due-token","expires_in":0,"refresh_token":"refresh-1"}"#;
+    const RENEWED: &str = r#"{"access_token":"renewed-token","expires_in":0,"refresh_token":"refresh-2"}"#;
+    let (client, server) = platform(vec![
+        (200, DUE),
+        (200, RENEWED),
+        (400, r#"{"error":"invalid_grant"}"#),
+        (200, TOKEN),
+    ]);
+    let headers = client.board_headers();
+    assert_eq!(headers.headers().await.unwrap(), bearer("due-token"));
+    assert_eq!(headers.headers().await.unwrap(), bearer("renewed-token"));
+    assert_eq!(headers.headers().await.unwrap(), bearer("issued-token"));
+    let grants: Vec<String> = server
+        .join()
+        .unwrap()
+        .iter()
+        .map(|request| String::from_utf8_lossy(&request.body).into_owned())
+        .collect();
+    assert!(grants[0].contains("grant_type=password"), "{grants:?}");
+    assert!(grants[1].contains("grant_type=refresh_token"), "{grants:?}");
+    assert!(grants[1].contains("refresh_token=refresh-1"), "{grants:?}");
+    assert!(grants[2].contains("refresh_token=refresh-2"), "{grants:?}");
+    assert!(grants[3].contains("grant_type=password"), "{grants:?}");
+}

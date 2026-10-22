@@ -5,6 +5,7 @@
 //! The trustee's calls to the platform: which boards are its own, and the
 //! report of a halt on one of them.
 
+use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{bail, Context as _, Result};
@@ -15,8 +16,9 @@ use protocol_board::{
 use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use serde_json::{json, Value};
+use tokio::sync::Mutex;
 
-use crate::login::{Credentials, TokenSource};
+use crate::login::{BoardHeaders, Credentials, SharedTokens, TokenSource};
 
 /// How long a request to the platform may take before it counts as failed.
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
@@ -72,7 +74,7 @@ struct ActionResultAcknowledgement {
 pub(crate) struct PlatformClient {
     http: reqwest::Client,
     graphql_url: String,
-    tokens: TokenSource,
+    tokens: SharedTokens,
 }
 
 impl PlatformClient {
@@ -85,10 +87,18 @@ impl PlatformClient {
             .build()
             .context("building the platform's HTTP client")?;
         Ok(PlatformClient {
-            tokens: TokenSource::new(http.clone(), credentials),
+            tokens: Arc::new(Mutex::new(TokenSource::new(
+                http.clone(),
+                credentials,
+            ))),
             http,
             graphql_url: graphql_url.to_owned(),
         })
+    }
+
+    /// The headers of the board service's requests: this client's token.
+    pub(crate) fn board_headers(&self) -> BoardHeaders {
+        BoardHeaders::new(Arc::clone(&self.tokens))
     }
 
     /// The boards that need this trustee's work, oldest first.
@@ -156,7 +166,7 @@ impl PlatformClient {
         query: &str,
         variables: Value,
     ) -> Result<T> {
-        let token = self.tokens.access_token().await?;
+        let token = self.tokens.lock().await.access_token().await?.to_owned();
         let answer: GraphqlResponse<T> = call(
             self.http
                 .post(&self.graphql_url)

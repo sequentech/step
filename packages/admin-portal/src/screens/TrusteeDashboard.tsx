@@ -18,10 +18,12 @@ import {trusteeFilename} from "@/services/trusteeFilename"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {
+    createBrowserTrustee,
     loadBrowserTrustee,
     listBrowserTrusteeBoards,
     runBrowserCycle,
     runExclusiveBrowserTrustee,
+    storedAccessToken,
     type TrusteeEngine,
     type TrusteeKeys,
 } from "@/services/BrowserTrustee"
@@ -73,7 +75,7 @@ export const TrusteeDashboard = () => {
         setLoading(true)
         setError("")
         try {
-            const token = localStorage.getItem("token")?.split(":")[0]
+            const token = storedAccessToken()
             if (!token) throw new Error("Sign in as a trustee to list assigned boards.")
             setBoards(await listBrowserTrusteeBoards(platform, token))
             setLoaded(true)
@@ -83,9 +85,7 @@ export const TrusteeDashboard = () => {
             setLoading(false)
         }
     }
-    const [boardUrl, setBoardUrl] = useState(
-        globalSettings.WBRAID_BOARD_URL || "http://localhost:3005"
-    )
+    const [boardUrl, setBoardUrl] = useState(globalSettings.WBRAID_BOARD_URL || "/b4")
     const [keys, setKeys] = useState<TrusteeKeys | null>(null)
     const [running, setRunning] = useState(false)
     const [busy, setBusy] = useState(false)
@@ -149,7 +149,8 @@ export const TrusteeDashboard = () => {
     const install = async (contents: string, backup?: string) => {
         const module = await loadBrowserTrustee()
         if (!mounted.current) return
-        const candidate = new module.BrowserTrustee(
+        const candidate = createBrowserTrustee(
+            module,
             auth.trustee || "browser trustee",
             contents,
             boardUrl
@@ -203,18 +204,22 @@ export const TrusteeDashboard = () => {
         occupied.current = true
         setBusy(true)
         try {
-            const token = localStorage.getItem("token")?.split(":")[0] || ""
-            const result = await runBrowserCycle(engine.current, platform, token, (assigned) => {
-                catalog.current = Array.from(
-                    new Set([
-                        ...catalog.current,
-                        ...assigned.flatMap((board) =>
-                            board.parent ? [board.name, board.parent] : [board.name]
-                        ),
-                    ])
-                )
-                localStorage.setItem(catalogKey.current, JSON.stringify(catalog.current))
-            })
+            const result = await runBrowserCycle(
+                engine.current,
+                platform,
+                storedAccessToken,
+                (assigned) => {
+                    catalog.current = Array.from(
+                        new Set([
+                            ...catalog.current,
+                            ...assigned.flatMap((board) =>
+                                board.parent ? [board.name, board.parent] : [board.name]
+                            ),
+                        ])
+                    )
+                    localStorage.setItem(catalogKey.current, JSON.stringify(catalog.current))
+                }
+            )
             if (mounted.current) {
                 setBoards(result)
                 setLoaded(true)

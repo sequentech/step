@@ -35,11 +35,16 @@ export interface PublicVerificationReport {
     plaintexts: string[]
     ballot_inclusions: {ciphertext_hash: string; occurrences: number}[]
 }
-interface TrusteeModule {
+export interface TrusteeModule {
     default(options: {module_or_path: string}): Promise<unknown>
     initThreadPool(threads: number): Promise<void>
     BrowserTrustee: {
-        new (name: string, keys: string, boardUrl: string): TrusteeEngine
+        new (
+            name: string,
+            keys: string,
+            boardUrl: string,
+            tokenProvider?: () => Promise<string>
+        ): TrusteeEngine
         generateKeys(): string
     }
     WasmVerifier: {
@@ -165,6 +170,28 @@ export function parseBoards(value: unknown): TrusteeBoard[] {
     })
 }
 
+/** The signed-in user's access token, which `AuthContextProvider` keeps fresh. */
+export function storedAccessToken(): string {
+    return localStorage.getItem("token")?.split(":")[0] || ""
+}
+
+/** Read before each board request, so the token is fresh after long computations. */
+export async function boardAccessToken(): Promise<string> {
+    const token = storedAccessToken()
+    if (!token) throw new Error("Sign in as a trustee to reach the board service.")
+    return token
+}
+
+/** Every engine reaches the board service with the portal's fresh access token. */
+export function createBrowserTrustee(
+    module: Pick<TrusteeModule, "BrowserTrustee">,
+    name: string,
+    keys: string,
+    boardUrl: string
+): TrusteeEngine {
+    return new module.BrowserTrustee(name, keys, boardUrl, boardAccessToken)
+}
+
 async function trusteeGraphql<T>(
     platform: string,
     token: string,
@@ -202,16 +229,19 @@ export async function listBrowserTrusteeBoards(
     return parseBoards(data.list_trustee_boards)
 }
 
-/** One sequential cycle; callers never overlap cycles or release a busy engine. */
+/**
+ * One sequential cycle; callers never overlap cycles or release a busy engine.
+ * `token` is read before each request: `advance` can outlast an access token.
+ */
 export async function runBrowserCycle(
     engine: TrusteeEngine,
     platform: string,
-    token: string,
+    token: () => string,
     remember: (boards: TrusteeBoard[]) => void
 ): Promise<TrusteeBoard[]> {
     const data = await trusteeGraphql<{trustee_event_updates: unknown}>(
         platform,
-        token,
+        token(),
         "query TrusteeEventUpdates { trustee_event_updates }"
     )
     const boards = parseBoards(data.trustee_event_updates)
@@ -234,7 +264,7 @@ export async function runBrowserCycle(
             submit_trustee_action_result: {accepted: boolean} | null
         }>(
             platform,
-            token,
+            token(),
             "mutation SubmitTrusteeActionResult($result: jsonb!) { submit_trustee_action_result(result: $result) { accepted } }",
             {result: {id: action.id, request: action.request, ...outcome}}
         )
@@ -245,7 +275,7 @@ export async function runBrowserCycle(
     for (const report of reports) {
         const data = await trusteeGraphql<{report_trustee_board: {accepted: boolean} | null}>(
             platform,
-            token,
+            token(),
             "mutation ReportTrusteeBoard($report: jsonb!) { report_trustee_board(report: $report) { accepted } }",
             {report}
         )
