@@ -12,6 +12,24 @@ use tokio_postgres::types::ToSql;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
+/// The id of the realm with this name, or `None` when there is no such realm.
+#[instrument(skip(keycloak_transaction), err)]
+pub async fn find_realm_id(
+    keycloak_transaction: &Transaction<'_>,
+    realm_name: &str,
+) -> Result<Option<String>> {
+    let row = keycloak_transaction
+        .query_opt(
+            "SELECT id::VARCHAR AS id FROM realm WHERE name = $1",
+            &[&realm_name],
+        )
+        .await
+        .context("Error querying realm ID")?;
+    row.map(|row| row.try_get("id"))
+        .transpose()
+        .context("Error reading realm ID")
+}
+
 #[instrument(skip(keycloak_transaction), err)]
 pub async fn get_realm_id(
     keycloak_transaction: &Transaction<'_>,
