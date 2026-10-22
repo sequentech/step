@@ -221,10 +221,10 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
             return {...base, communication_method: method, alias: undefined}
         }
         const content = {...base.i18n["en"]}
-        if (method === ITemplateMethod.EMAIL && selected.email) {
-            content.email = selected.email
-        } else if (method === ITemplateMethod.SMS && selected.sms) {
-            content.sms = {message: selected.sms.message}
+        if (method === ITemplateMethod.EMAIL) {
+            content.email = selected.email ?? {subject: "", plaintext_body: "", html_body: ""}
+        } else if (method === ITemplateMethod.SMS) {
+            content.sms = {message: selected.sms?.message ?? ""}
         }
         return {
             ...base,
