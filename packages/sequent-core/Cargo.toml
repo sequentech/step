@@ -130,6 +130,7 @@ wasmtime-wasi = {version = "44.0.3", optional = true}
 
 [dev-dependencies]
 ptree = "0.5"
+tracing-subscriber = "0.3"
 wasm-bindgen-test = "0.3.42"
 
 [features]
