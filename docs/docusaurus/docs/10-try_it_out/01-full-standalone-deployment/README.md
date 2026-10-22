@@ -427,6 +427,12 @@ docker compose -f docker-compose-remote.yml build <service-name>
 docker compose -f docker-compose-remote.yml up -d
 ```
 
+### Trustee Configuration
+
+Each trustee generates its configuration on first start and keeps it in its volume (`trustee1_data`, `trustee2_data`) at `/opt/braid/trustee.toml`, the path that `TRUSTEE1_CONFIG` and `TRUSTEE2_CONFIG` name in `.env`. The trustee logs its `signing_key_pk` at startup; use that value as the trustee's public key in the Admin Portal. The trustees refuse the sample configurations in `packages/braid/scripts` unless `TRUSTEE_SAMPLE_KEYS_POLICY=Allow`.
+
+Deployments created before this behaviour keep `/opt/braid/trustee1.toml` and `/opt/braid/trustee2.toml`, copied from those samples, in the trustee volumes. With the earlier `.env` values their trustees stop at startup; with the current ones they generate new configurations. Election events whose keys were created with the sample configurations can only be tallied with them. To finish such an event, set `TRUSTEE1_CONFIG=/opt/braid/trustee1.toml`, `TRUSTEE2_CONFIG=/opt/braid/trustee2.toml` and `TRUSTEE_SAMPLE_KEYS_POLICY=Allow` in `.env` and recreate the trustees with `docker compose -f docker-compose-remote.yml up -d trustee1 trustee2`. When no such event is left, restore the values from `.env.remote-deployment.example`, recreate the trustees the same way, update their public keys in the Admin Portal and run a new key ceremony for later election events.
+
 ### Fixing Nginx Proxy Issues
 
 If you get 502 Bad Gateway or services are unreachable:
