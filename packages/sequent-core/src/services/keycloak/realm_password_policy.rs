@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use super::validate_keycloak_path_segment;
 use crate::services::keycloak::{get_event_realm, KeycloakAdminClient};
 use anyhow::{anyhow, bail, Result};
 use rand::rngs::OsRng;
@@ -690,6 +691,7 @@ impl KeycloakAdminClient {
         self,
         realm: &str,
     ) -> Result<ParsedRealmPasswordPolicy> {
+        validate_keycloak_path_segment(realm)?;
         let generation = {
             let cache = password_policy_cache()?;
             if let Some(policy) = cache.get(realm) {
@@ -717,6 +719,7 @@ impl KeycloakAdminClient {
         realm: &str,
         password_policy: RealmPasswordPolicy,
     ) -> Result<()> {
+        validate_keycloak_path_segment(realm)?;
         password_policy.validate()?;
 
         let mut current_realm = self
