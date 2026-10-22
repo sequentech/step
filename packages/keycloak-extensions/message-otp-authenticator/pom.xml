@@ -89,6 +89,35 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<version>10.6.2</version>
 			<scope>compile</scope>
 		</dependency>
+
+		<dependency>
+			<groupId>org.freemarker</groupId>
+			<artifactId>freemarker</artifactId>
+			<version>2.3.34</version>
+			<scope>test</scope>
+		</dependency>
+
+		<!-- JUnit 5 -->
+		<dependency>
+			<groupId>org.junit.jupiter</groupId>
+			<artifactId>junit-jupiter-api</artifactId>
+			<version>5.8.1</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.junit.jupiter</groupId>
+			<artifactId>junit-jupiter-engine</artifactId>
+			<version>5.8.1</version>
+			<scope>test</scope>
+		</dependency>
+
+		<!-- Provides a jakarta.ws.rs.ext.RuntimeDelegate for building the action link outside a running Keycloak server. -->
+		<dependency>
+			<groupId>org.glassfish.jersey.core</groupId>
+			<artifactId>jersey-common</artifactId>
+			<version>3.1.6</version>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 	<build>
@@ -120,6 +149,16 @@ SPDX-License-Identifier: AGPL-3.0-only
 						</configuration>
 					</execution>
 				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<version>3.5.2</version>
+				<configuration>
+					<systemPropertyVariables>
+						<org.jboss.logging.provider>jdk</org.jboss.logging.provider>
+					</systemPropertyVariables>
+				</configuration>
 			</plugin>
 			<plugin>
 			<groupId>com.diffplug.spotless</groupId>
