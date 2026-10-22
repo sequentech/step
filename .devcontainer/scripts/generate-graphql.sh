@@ -89,5 +89,9 @@ ADMIN_SECRET="${HASURA_ADMIN_SECRET}" yarn generate:voting-portal
 ADMIN_SECRET="${HASURA_ADMIN_SECRET}" yarn generate:ballot-verifier
 ADMIN_SECRET="${HASURA_ADMIN_SECRET}" yarn generate:results-portal
 
-# Format the generated source files
-yarn lint:fix && yarn prettify:fix
+# Format the generated source files, and only those: a workspace-wide
+# lint:fix also rewrites unrelated files (it drops eslint-disable directives,
+# including the one codegen writes), so regeneration would not be clean.
+for app in admin-portal voting-portal ballot-verifier results-portal; do
+    (cd "${app}" && yarn prettier --write --ignore-path .prettierignore src/gql)
+done
