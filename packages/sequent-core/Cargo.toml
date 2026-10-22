@@ -120,6 +120,7 @@ kuchiki = { version = "0.8.1", optional = true }
 
 [dev-dependencies]
 ptree = "0.5.0"
+tracing-subscriber = "0.3"
 
 [features]
 wasmtest = ["wasm", "dep:web-sys", "strand/wasmtest"]
