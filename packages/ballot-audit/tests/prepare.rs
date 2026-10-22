@@ -18,6 +18,7 @@ use electoral_log::messages::{
         CastVoteHash, ElectionIdString, EventIdString, PseudonymHash, VoterCountryString,
         VoterIpString, VotingChannelString,
     },
+    statement::StatementBody,
 };
 use sequent_core::{
     ballot::{HashableBallot, SignedHashableBallot},
@@ -288,6 +289,41 @@ impl Fixture {
             .unwrap()
     }
 
+    /// A validly signed success log for VOTER naming another full ballot hash.
+    fn signed_log_for_hash(&self, hash: [u8; 64]) -> Vec<u8> {
+        let mut log = ElectoralMessage::strand_deserialize(&self.logs[0]).unwrap();
+        if let StatementBody::CastVoteWithChannel(_, _, h, _, _, _) = &mut log.statement.body {
+            *h = CastVoteHash::new(hash);
+        }
+        ElectoralMessage::sign(
+            log.statement,
+            log.artifact,
+            &self.pm.signing_key,
+            "synthetic",
+            &self.pm.signing_key,
+            log.user_id,
+            log.username,
+            log.election_id,
+            log.area_id,
+            log.ballot_id,
+        )
+        .unwrap()
+        .strand_serialize()
+        .unwrap()
+    }
+
+    fn history_command(&self, dir: &Path, history: &Value) -> Command {
+        let history = serde_json::to_vec_pretty(history).unwrap();
+        fs::write(dir.join("cast-vote-history.json"), &history).unwrap();
+        let mut command = self.command(dir);
+        command
+            .arg("--cast-vote-history")
+            .arg(dir.join("cast-vote-history.json"))
+            .arg("--cast-vote-history-sha512")
+            .arg(digest(&history).unwrap());
+        command
+    }
+
     /// The exporter's saved-mapping.json for this scope, with `annotations`.
     fn mapping_command(
         &self,
@@ -501,6 +537,93 @@ fn missing_ambiguous_or_wrong_voter_logs_are_incomplete_before_writing() {
         assert_private_output(&output);
         assert!(!dir.0.join("bundle").exists());
     }
+}
+
+fn other_ballot() -> HashableBallot {
+    let ballot = encrypt_decoded_contest::<RistrettoCtx>(
+        &RistrettoCtx,
+        &vec![get_writein_plaintext()],
+        &get_writein_ballot_style(),
+    )
+    .unwrap();
+    HashableBallot::try_from(&SignedHashableBallot::try_from(&ballot).unwrap()).unwrap()
+}
+
+#[test]
+fn history_confirms_every_signed_ballot_of_selected_voters() {
+    let dir = TempDir::new();
+    let f = Fixture::new(MultiplicityPolicy::Unweighted, 1);
+    let output = f
+        .history_command(&dir.0, &json!([f.rows[1]]))
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        provenance(&dir.0)["cast_vote_history"],
+        json!({"status":"checked","signed_ballots_of_selected_voters":1})
+    );
+    let dir = TempDir::new();
+    assert!(f.command(&dir.0).output().unwrap().status.success());
+    assert_eq!(
+        provenance(&dir.0)["cast_vote_history"],
+        json!({"status":"not_supplied"})
+    );
+}
+
+#[test]
+fn replaced_selected_ballot_is_a_contradiction_only_with_history() {
+    let mut f = Fixture::new(MultiplicityPolicy::Unweighted, 1);
+    let forged = other_ballot();
+    f.rows[1]["content"] = serde_json::to_string(&forged).unwrap().into();
+    f.rows[1]["ballot_id"] = hash_ballot(&forged).unwrap().into();
+    let dir = TempDir::new();
+    let output = f.command(&dir.0).output().unwrap();
+    assert_eq!(output.status.code(), Some(3));
+    let dir = TempDir::new();
+    let output = f
+        .history_command(&dir.0, &json!([f.rows[1]]))
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(1));
+    assert_private_output(&output);
+    assert!(String::from_utf8_lossy(&output.stderr).contains("no stored cast vote holds"));
+    assert!(!dir.0.join("bundle").exists());
+}
+
+#[test]
+fn removed_later_revote_is_a_contradiction_only_with_history() {
+    let mut f = Fixture::new(MultiplicityPolicy::Unweighted, 1);
+    f.logs
+        .push(f.signed_log_for_hash(hash_ballot_sha512(&other_ballot()).unwrap()));
+    let dir = TempDir::new();
+    assert!(f.command(&dir.0).output().unwrap().status.success());
+    let dir = TempDir::new();
+    let output = f
+        .history_command(&dir.0, &json!([f.rows[1]]))
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(1));
+    assert!(!dir.0.join("bundle").exists());
+}
+
+#[test]
+fn history_keeps_missing_logs_incomplete_and_must_hold_selected_rows() {
+    let mut f = Fixture::new(MultiplicityPolicy::Unweighted, 1);
+    let dir = TempDir::new();
+    let output = f.history_command(&dir.0, &json!([])).output().unwrap();
+    assert_eq!(output.status.code(), Some(1));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("does not hold a selected cast vote"));
+    f.logs.clear();
+    let dir = TempDir::new();
+    let output = f
+        .history_command(&dir.0, &json!([f.rows[1]]))
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(3));
 }
 
 #[test]

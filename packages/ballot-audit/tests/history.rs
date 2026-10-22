@@ -221,7 +221,7 @@ fn complete_signed_history_matches_all_areas_statuses_and_revotes() {
 }
 
 #[test]
-fn signed_receipt_without_hasura_row_is_unexplained_incomplete() {
+fn signed_receipt_without_hasura_row_is_a_contradiction() {
     let dir = TempDir::new();
     let mut f = Fixture::new();
     let receipt = f.rows[0]["ballot_id"].as_str().unwrap().to_owned();
@@ -232,9 +232,9 @@ fn signed_receipt_without_hasura_row_is_unexplained_incomplete() {
         .arg(&receipt)
         .output()
         .unwrap();
-    assert_eq!(output.status.code(), Some(3));
+    assert_eq!(output.status.code(), Some(1));
     let report = report(&output);
-    assert_eq!(report["outcome"], "incomplete");
+    assert_eq!(report["outcome"], "contradicted");
     assert_eq!(report["signed_log_records_without_hasura_row"], 1);
     assert_eq!(report["receipts"][0]["ballot_id"], receipt);
     assert_eq!(
@@ -301,7 +301,7 @@ fn multiple_rows_for_one_signed_tuple_report_ambiguous_attribution() {
 }
 
 #[test]
-fn filter_never_hides_incomplete_other_history() {
+fn filter_never_hides_contradicted_other_history() {
     let dir = TempDir::new();
     let mut f = Fixture::new();
     let receipt = f.rows[0]["ballot_id"].as_str().unwrap().to_owned();
@@ -313,8 +313,9 @@ fn filter_never_hides_incomplete_other_history() {
         .arg(receipt)
         .output()
         .unwrap();
-    assert_eq!(output.status.code(), Some(3));
+    assert_eq!(output.status.code(), Some(1));
     let report = report(&output);
+    assert_eq!(report["outcome"], "contradicted");
     assert_eq!(report["receipts"].as_array().unwrap().len(), 1);
     assert_eq!(report["receipts"][0]["classification"], "matched");
     assert_eq!(report["checked_signed_cast_vote_log_records"], 2);
@@ -400,8 +401,25 @@ fn lower_half_of_signed_full_hash_is_not_replaced_by_receipt_prefix_matching() {
         }
     });
     let output = f.command(&dir.0).output().unwrap();
-    assert_eq!(output.status.code(), Some(3));
+    assert_eq!(output.status.code(), Some(1));
     let report = report(&output);
+    assert_eq!(report["signed_log_records_without_hasura_row"], 1);
+    assert_eq!(report["hasura_rows_without_signed_log"], 1);
+}
+
+#[test]
+fn replaced_row_content_contradicts_the_signed_original() {
+    let dir = TempDir::new();
+    let mut f = Fixture::new();
+    f.add_cast(2, "another-voter", "first-area", "valid");
+    f.logs.pop();
+    let forged = f.rows.pop().unwrap();
+    f.rows[0]["content"] = forged["content"].clone();
+    f.rows[0]["ballot_id"] = forged["ballot_id"].clone();
+    let output = f.command(&dir.0).output().unwrap();
+    assert_eq!(output.status.code(), Some(1));
+    let report = report(&output);
+    assert_eq!(report["outcome"], "contradicted");
     assert_eq!(report["signed_log_records_without_hasura_row"], 1);
     assert_eq!(report["hasura_rows_without_signed_log"], 1);
 }
@@ -584,7 +602,7 @@ fn export_synthetic_historical_inputs() {
     let mut f = Fixture::new();
     f.add_cast(2, PRIVATE_VOTER, "second-area", "discarded");
     let receipt = f.rows[0]["ballot_id"].as_str().unwrap().to_owned();
-    for (name, expected_exit) in [("valid", 0), ("missing-row", 3), ("invalid-signature", 1)] {
+    for (name, expected_exit) in [("valid", 0), ("missing-row", 1), ("invalid-signature", 1)] {
         if name == "missing-row" {
             f.rows.remove(0);
         }

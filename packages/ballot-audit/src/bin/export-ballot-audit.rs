@@ -790,11 +790,7 @@ async fn export_keycloak(
         ],
     )
     .await?;
-    let policy = match scope.policy {
-        MultiplicityPolicy::Unweighted => "unweighted",
-        MultiplicityPolicy::Weighted => "weighted",
-        MultiplicityPolicy::Delegated => "delegated",
-    };
+    let policy = scope.policy.as_str();
     let default_weight = DEFAULT_VOTE_WEIGHT as i64;
     let eligible_rows = transaction
         .query(

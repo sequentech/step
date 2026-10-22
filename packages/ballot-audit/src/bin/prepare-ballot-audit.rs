@@ -4,8 +4,9 @@
 use anyhow::{bail, ensure, Context, Result};
 use b3::messages::{artifact::Configuration, message::Message, statement::Statement};
 use ballot_audit::{
-    audit, decode_message, digest, incomplete, invalid_input, validate_sha512_pin, AuditReport,
-    CastVote, ExitStatus, Manifest, MultiplicityPolicy, Scope, SelectedVote, SelectionReason,
+    audit, decode_message, digest, incomplete, index_history, invalid_input, validate_sha512_pin,
+    AuditReport, CastVote, CastVoteKey, ExitStatus, HistoryRow, Manifest, MultiplicityPolicy,
+    Scope, SelectedVote, SelectionReason,
 };
 use base64::{engine::general_purpose::STANDARD_NO_PAD, Engine};
 use chrono::{DateTime, FixedOffset};
@@ -69,6 +70,13 @@ struct Args {
     electoral_log: PathBuf,
     #[arg(long)]
     electoral_log_sha512: String,
+    /// Complete tenant/event/election cast_vote history across all areas. With it,
+    /// a selected voter's signed ballot that no stored row holds fails as a
+    /// contradiction instead of leaving the evidence incomplete.
+    #[arg(long, requires = "cast_vote_history_sha512")]
+    cast_vote_history: Option<PathBuf>,
+    #[arg(long, requires = "cast_vote_history")]
+    cast_vote_history_sha512: Option<String>,
     /// Exporter's saved-mapping.json, to cross-check the tally annotations Windmill saved.
     #[arg(long, requires = "saved_mapping_sha512")]
     saved_mapping: Option<PathBuf>,
@@ -784,6 +792,45 @@ fn check_tally_annotations(
     })
 }
 
+#[derive(Debug, Serialize)]
+#[serde(tag = "status", rename_all = "snake_case")]
+enum HistoryCheck {
+    NotSupplied,
+    Checked {
+        signed_ballots_of_selected_voters: usize,
+    },
+}
+
+/// Windmill posts the success log only after the cast_vote row commits, so a
+/// signed ballot of a selected voter must still be held by some stored row.
+fn check_history(
+    history: &BTreeMap<CastVoteKey, Vec<String>>,
+    indexed_logs: &BTreeMap<LogKey, Vec<LogEvidence<'_>>>,
+    selected: &[(String, CastVoteKey)],
+) -> Result<HistoryCheck> {
+    for (id, key) in selected {
+        ensure!(
+            history.get(key).is_some_and(|ids| ids.contains(id)),
+            "cast-vote history does not hold a selected cast vote with the same voter and ballot"
+        );
+    }
+    let voters: BTreeSet<_> = selected.iter().map(|(_, (voter, _))| voter).collect();
+    let mut signed_ballots_of_selected_voters = 0;
+    for key in indexed_logs
+        .keys()
+        .filter(|(voter, _)| voters.contains(voter))
+    {
+        ensure!(
+            history.contains_key(key),
+            "a selected voter has a signed cast vote that no stored cast vote holds; the row was removed or its content replaced"
+        );
+        signed_ballots_of_selected_voters += 1;
+    }
+    Ok(HistoryCheck::Checked {
+        signed_ballots_of_selected_voters,
+    })
+}
+
 struct PreparedBundle {
     manifest: Vec<u8>,
     configuration: Vec<u8>,
@@ -796,8 +843,10 @@ struct PreparedBundle {
     public_key: PublicKeyCheck,
     collapsed_identical_electoral_log_records: usize,
     tally_annotations: TallyAnnotationsCheck,
+    history: HistoryCheck,
 }
 
+#[allow(clippy::too_many_arguments)]
 fn prepare_bundle(
     saved: SavedScope,
     scope_sha512: &str,
@@ -806,6 +855,7 @@ fn prepare_bundle(
     board_messages: &[Vec<u8>],
     log_messages: &[Vec<u8>],
     mapping: Option<&SavedMapping>,
+    history: Option<&BTreeMap<CastVoteKey, Vec<String>>>,
 ) -> Result<PreparedBundle> {
     let selected = select_rows(&saved.scope, scope_sha512, raw_rows, eligibility)?;
     let (selection_accounting, row_decisions) =
@@ -827,6 +877,7 @@ fn prepare_bundle(
     let mut rows = Vec::new();
     let mut logs = Vec::new();
     let mut collapsed_identical_electoral_log_records = 0;
+    let mut hashed = Vec::with_capacity(selected.len());
     for selected in selected {
         let raw = selected.row;
         let voter_id = raw
@@ -852,13 +903,33 @@ fn prepare_bundle(
                 .context("cannot hash selected multi-contest ballot")?
         };
         let voter_hash = strand::hash::hash_to_array(&voter_id.strand_serialize()?)?;
+        hashed.push((
+            selected,
+            voter_id,
+            content,
+            ballot_id,
+            (voter_hash, full_ballot_hash),
+        ));
+    }
+    let history = match history {
+        Some(history) => {
+            let keys = hashed
+                .iter()
+                .map(|(selected, .., key)| {
+                    Ok((Uuid::parse_str(&selected.row.id)?.to_string(), *key))
+                })
+                .collect::<Result<Vec<_>>>()?;
+            check_history(history, &indexed_logs, &keys)?
+        }
+        None => HistoryCheck::NotSupplied,
+    };
+    for (selected, voter_id, content, ballot_id, key) in hashed {
+        let raw = selected.row;
         // A lost log write (meta#13796) or Windmill's best-effort post-cast
         // logging leaves an accepted vote without evidence, not a contradiction.
-        let matches = indexed_logs
-            .get(&(voter_hash, full_ballot_hash))
-            .ok_or_else(|| {
-                incomplete("selected cast vote has no matching signed electoral-log evidence")
-            })?;
+        let matches = indexed_logs.get(&key).ok_or_else(|| {
+            incomplete("selected cast vote has no matching signed electoral-log evidence")
+        })?;
         let distinct: BTreeSet<_> = matches.iter().map(|evidence| evidence.bytes).collect();
         if distinct.len() != 1 {
             return Err(incomplete(
@@ -917,6 +988,7 @@ fn prepare_bundle(
         public_key: board.public_key,
         collapsed_identical_electoral_log_records,
         tally_annotations,
+        history,
     })
 }
 
@@ -959,10 +1031,12 @@ fn write_bundle(args: &Args, bundle: &PreparedBundle) -> Result<()> {
             "board_messages": args.board_messages_sha512,
             "electoral_log": args.electoral_log_sha512,
             "saved_mapping": args.saved_mapping_sha512,
+            "cast_vote_history": args.cast_vote_history_sha512,
         },
         "anchors": anchors,
         "selection_accounting": bundle.selection_accounting,
         "tally_annotations": bundle.tally_annotations,
+        "cast_vote_history": bundle.history,
         "board_public_key": bundle.public_key,
         "collapsed_identical_electoral_log_records": bundle.collapsed_identical_electoral_log_records,
         "checked_cast_votes": bundle.report.checked_cast_votes,
@@ -976,6 +1050,7 @@ fn write_bundle(args: &Args, bundle: &PreparedBundle) -> Result<()> {
             "A missing frozen eligibility entry establishes only no_eligible_voter at this stage, not which upstream enabled, area, authorization, or other eligibility clause failed. Keep the source eligibility evidence to establish that reason.",
             "This newly generated manifest cannot prove historical integrity of ballot metadata omitted from the native receipt hash. Historical full-content integrity requires an independently authenticated contemporaneous source anchor.",
             "anchors.json restates this bundle's own digests. Pass ballot-audit manifest and configuration pins obtained outside the bundle; pins read from it only show the bundle is self-consistent.",
+            "Without --cast-vote-history, a selected cast vote lacking signed evidence is reported as incomplete: a lost success log and a removed or replaced row look the same. With it, a selected voter's signed ballot that no stored row holds is a contradiction.",
             "Saved tally annotations are compared only when --saved-mapping is supplied: eligible voters with the frozen eligibility size, ballots without voter with stage exclusions, cast ballots and votes by channel with the reconstructed stage counts, and the weight bit mask with the batch scope. Their auditable ballots document is not compared. Rows saved before these annotations existed are reported as not checked.",
             "The saved board name and tally/area/contest/batch mapping require external authentication. B3 signatures alone do not establish this application-level mapping.",
             "ImmuDB append-only history, mixnet shuffle/decryption proofs and final counting are not verified here.",
@@ -1052,6 +1127,15 @@ fn run(args: Args) -> Result<()> {
         ),
         _ => None,
     };
+    let history = match (&args.cast_vote_history, &args.cast_vote_history_sha512) {
+        (Some(path), Some(pin)) => {
+            let rows: Vec<HistoryRow> =
+                serde_json::from_slice(&read_pinned(path, pin, "cast-vote history")?)
+                    .map_err(|_| invalid_input("invalid historical cast_vote export"))?;
+            Some(index_history(&saved.scope, &rows)?)
+        }
+        _ => None,
+    };
     let bundle = prepare_bundle(
         saved,
         &args.scope_sha512,
@@ -1060,6 +1144,7 @@ fn run(args: Args) -> Result<()> {
         &board_messages,
         &log_messages,
         mapping.as_ref(),
+        history.as_ref(),
     )?;
     write_bundle(&args, &bundle)?;
     println!("Prepared verified local bundle: {} selected cast votes, {} batches, {} signed electoral-log messages. Independently authenticate the source pins and read provenance.json before relying on this result.", bundle.report.checked_cast_votes, bundle.report.checked_batches, bundle.report.checked_electoral_log_messages);

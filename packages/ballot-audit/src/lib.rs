@@ -13,7 +13,7 @@ use electoral_log::messages::{
     statement::{StatementBody, StatementType},
 };
 use sequent_core::{
-    ballot::{HashableBallot, TYPES_VERSION},
+    ballot::{HashableBallot, VotingStatusChannel, TYPES_VERSION},
     encrypt::{hash_ballot_sha512, hash_multi_ballot_sha512},
     multi_ballot::HashableMultiBallot,
     types::keycloak::MIN_WEIGHT_BATCH_ANONYMITY,
@@ -50,6 +50,22 @@ pub enum MultiplicityPolicy {
     Unweighted,
     Delegated,
     Weighted,
+}
+
+impl MultiplicityPolicy {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            MultiplicityPolicy::Unweighted => "unweighted",
+            MultiplicityPolicy::Delegated => "delegated",
+            MultiplicityPolicy::Weighted => "weighted",
+        }
+    }
+}
+
+impl std::fmt::Display for MultiplicityPolicy {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -277,6 +293,93 @@ pub fn validate_sha512_pin(pin: &str, label: &str) -> Result<()> {
     }
 }
 
+fn required_nullable<'de, D, T>(deserializer: D) -> std::result::Result<Option<T>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    Option::deserialize(deserializer)
+}
+
+/// Signed CastVote identity: voter pseudonym and full native ballot hash.
+pub type CastVoteKey = (strand::hash::Hash, strand::hash::Hash);
+
+// Extra columns, including area/status/timestamp, are deliberately not used to
+// filter historical coverage. No latest-vote or eligibility selection occurs.
+#[derive(Deserialize)]
+pub struct HistoryRow {
+    pub id: String,
+    pub tenant_id: String,
+    pub election_event_id: String,
+    #[serde(deserialize_with = "required_nullable")]
+    pub election_id: Option<String>,
+    #[serde(deserialize_with = "required_nullable")]
+    pub voter_id_string: Option<String>,
+    #[serde(deserialize_with = "required_nullable")]
+    pub content: Option<String>,
+    #[serde(deserialize_with = "required_nullable")]
+    pub ballot_id: Option<String>,
+}
+
+fn history_ballot_hash(content: &str, single_contest: bool) -> Result<strand::hash::Hash> {
+    if single_contest {
+        let ballot: HashableBallot =
+            serde_json::from_str(content).context("unhashable historical single-contest ballot")?;
+        if ballot.version != TYPES_VERSION {
+            return Err(invalid_input("unsupported historical ballot version"));
+        }
+        hash_ballot_sha512(&ballot).context("unhashable historical single-contest ballot")
+    } else {
+        let ballot: HashableMultiBallot =
+            serde_json::from_str(content).context("unhashable historical multi-contest ballot")?;
+        if ballot.version != TYPES_VERSION {
+            return Err(invalid_input("unsupported historical ballot version"));
+        }
+        hash_multi_ballot_sha512(&ballot).context("unhashable historical multi-contest ballot")
+    }
+}
+
+/// Validate a complete tenant/event/election cast_vote history and group its
+/// row IDs by signed CastVote identity.
+pub fn index_history(
+    scope: &Scope,
+    rows: &[HistoryRow],
+) -> Result<BTreeMap<CastVoteKey, Vec<String>>> {
+    let mut groups: BTreeMap<CastVoteKey, Vec<String>> = BTreeMap::new();
+    let mut row_ids = BTreeSet::new();
+    for row in rows {
+        let id = uuid::Uuid::parse_str(&row.id)
+            .map_err(|_| invalid_input("invalid historical cast_vote UUID"))?;
+        ensure!(row_ids.insert(id), "duplicate historical cast_vote UUID");
+        ensure!(
+            row.tenant_id == scope.tenant_id
+                && row.election_event_id == scope.election_event_id
+                && row.election_id.as_deref() == Some(scope.election_id.as_str()),
+            "historical Hasura row outside pinned tenant/event/election; all areas are allowed"
+        );
+        let voter = row
+            .voter_id_string
+            .as_ref()
+            .filter(|id| !id.is_empty())
+            .context("historical cast vote lacks voter ID")?;
+        let content = row
+            .content
+            .as_ref()
+            .context("historical cast vote lacks content")?;
+        let full_hash = history_ballot_hash(content, scope.contest_id.is_some())?;
+        ensure!(
+            row.ballot_id.as_deref() == Some(hex::encode(&full_hash[..32]).as_str()),
+            "historical stored ballot receipt does not match native full-ballot hash"
+        );
+        let pseudonym = strand::hash::hash_to_array(&voter.strand_serialize()?)?;
+        groups
+            .entry((pseudonym, full_hash))
+            .or_default()
+            .push(id.to_string());
+    }
+    Ok(groups)
+}
+
 pub fn digest(bytes: &[u8]) -> Result<String> {
     Ok(hex::encode(strand::hash::hash_to_array(bytes)?))
 }
@@ -463,6 +566,7 @@ pub fn audit_with_selection(
     }
     let mut used_logs = BTreeSet::new();
     let mut legacy_online_channel_inferences = 0;
+    let legacy_channel = VotingStatusChannel::ONLINE.to_string();
     let mut rows_by_id = BTreeMap::new();
     for row in rows {
         ensure!(
@@ -526,7 +630,7 @@ pub fn audit_with_selection(
         let (election, pseudonym, cast_hash, channel) = match &log.statement.body {
             StatementBody::CastVote(e, p, h, _, _) => {
                 legacy_online_channel_inferences += 1;
-                (e, p, h, "ONLINE")
+                (e, p, h, legacy_channel.as_str())
             }
             StatementBody::CastVoteWithChannel(e, p, h, _, _, c) => (e, p, h, c.0.as_str()),
             _ => bail!("electoral-log evidence is not a cast vote"),

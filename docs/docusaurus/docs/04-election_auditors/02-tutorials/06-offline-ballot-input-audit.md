@@ -53,9 +53,9 @@ All five commands share these statuses:
 | Status | Meaning |
 | --- | --- |
 | `0` | Success. |
-| `1` | Verification failed or the evidence contradicts itself or the pinned scope (digest, signature, hash, or multiset mismatch). Also the default for unclassified errors, and for duplicate selected receipts in `ballot-audit`. |
+| `1` | Verification failed or the evidence contradicts itself or the pinned scope (digest, signature, hash, or multiset mismatch). This includes a signed cast-vote record whose ballot no stored row holds, in `audit-cast-history` and in `prepare-ballot-audit` given `--cast-vote-history`. Also the default for unclassified errors, and for duplicate selected receipts in `ballot-audit`. |
 | `2` | Command-line usage error, reported by clap. Nothing else uses it. |
-| `3` | Incomplete evidence: a missing signed log, row or batch, or a looked-up receipt that is not selected. Neither consistency nor contradiction is established. `ballot-audit` and `audit-cast-history` still print their JSON report. |
+| `3` | Incomplete evidence: a stored row without a signed log, a missing batch, or a looked-up receipt that is not selected. Neither consistency nor contradiction is established. `ballot-audit` and `audit-cast-history` still print their JSON report. |
 | `4` | Invalid or unsupported input, or an acquisition failure (unreadable or malformed file, malformed pin, unsupported ceremony, refused connection, existing output directory). |
 
 Wrappers must not treat `2` as anything but a usage error, and must not collapse
@@ -368,8 +368,27 @@ prepare-ballot-audit \
   --electoral-log-sha512 "$ELECTORAL_LOG_SHA512" \
   --saved-mapping ./postgres-export/saved-mapping.json \
   --saved-mapping-sha512 "$SAVED_MAPPING_SHA512" \
+  --cast-vote-history ./postgres-export/cast-vote-history.json \
+  --cast-vote-history-sha512 "$CAST_VOTE_HISTORY_SHA512" \
   --output ./prepared-audit
 ```
+
+`--cast-vote-history` and `--cast-vote-history-sha512` are optional but must be
+given together. They take the all-area history described in
+[reconcile all-area cast history](#optional-reconcile-all-area-cast-history-with-signed-logs),
+validated the same way. Windmill posts the signed success log only after the
+cast vote row commits, so every signed ballot of a selected voter must still be
+held by a stored row. With the history, preparation exits `1` when:
+
+- a selected voter has a signed cast-vote record whose ballot no stored row
+  holds: the row was removed or its content replaced, including a later revote
+  removed so that an earlier ballot is selected;
+- the history does not hold a selected row with the same voter and ballot.
+
+Without it, a replaced selected ballot exits `3` and a removed later revote is
+not detected: the scoped rows alone cannot tell them apart from a lost log
+write. The result is recorded as `cast_vote_history` in `provenance.json`,
+either `not_supplied` or `checked` with `signed_ballots_of_selected_voters`.
 
 `--saved-mapping` and `--saved-mapping-sha512` are optional but must be given
 together. They cross-check the saved `tally_session_contest` (exported as
@@ -394,7 +413,8 @@ configuration and exact `Ballots` messages; and finds a unique signed log match
 for each selected voter-pseudonym/full-ballot-hash pair. Byte-identical
 duplicate log records for a pair are collapsed and counted in
 `collapsed_identical_electoral_log_records`. A missing match, or several
-differing records for the same pair, exits `3`. The complete generated bundle must pass `ballot-audit` before
+differing records for the same pair, exits `3`, unless the history check above
+already found a contradiction. The complete generated bundle must pass `ballot-audit` before
 being written. This automates selection **from** the supplied frozen decision;
 it does not independently reconstruct or authenticate that decision's history.
 
@@ -469,7 +489,8 @@ outside the selected scope is not proof that it was never cast. The report's
 The selected-scope result does not reconcile every historical signed `CastVote`
 log to a Hasura row. An accepted cast missing from both the supplied history
 and tally inputs can escape this selected-set comparison. An unmatched historical
-receipt is **unexplained/incomplete**, not automatically a lawful exclusion.
+receipt with a stored row is **unexplained/incomplete**, not automatically a
+lawful exclusion; a signed receipt that no stored row holds is a contradiction.
 Use the optional historical-coverage check below for a separate
 event/election-wide comparison across all areas; the unsigned outer
 electoral-log area metadata is not sufficient.
@@ -612,15 +633,19 @@ containing row IDs, `signed_log_records`, `distinct_signed_log_message_bytes`,
 - `matched_ambiguous_log_occurrences`: distinct complete messages share the
   pair. Counts cannot establish one-to-one row/event correspondence; even
   differing unsigned wrappers do not prove separate signing events.
-- `signed_log_without_hasura_row` or `hasura_row_without_signed_log`:
-  unexplained/incomplete coverage, not a lawful tally-selection exclusion.
+- `signed_log_without_hasura_row`: a contradiction. The success log is posted
+  only after the row commits, so the row was removed or its content replaced.
+- `hasura_row_without_signed_log`: incomplete coverage, not a lawful
+  tally-selection exclusion. The log write may have been lost.
 
 Omit `--ballot-id` to report every group. With it, the entire history is still
 checked; only reported groups are filtered. Exit `0` means consistent supplied
-coverage; exit `3` means incomplete coverage, ambiguous row/log attribution, or
-a requested receipt absent from the supplied evidence. Both produce JSON. Exit
-`1` means failed signatures, hashes, or digests, and `4` means invalid or
-unsupported input or a malformed pin, without a passing report. Wrappers that
+coverage; exit `3` means rows without signed logs, ambiguous row/log
+attribution, or a requested receipt absent from the supplied evidence. Exit `1`
+with a JSON report (`outcome: contradicted`) means at least one
+`signed_log_without_hasura_row` group; it takes precedence over `3`. Exit `1`
+without a report means failed signatures, hashes, or digests, and `4` means
+invalid or unsupported input or a malformed pin. Wrappers that
 read `2` as incomplete must be updated: `2` is now usage only.
 
 Native success logging is best effort, so a row without a signed log is **not
@@ -757,7 +782,9 @@ Exit statuses are in brackets.
 | `invalid saved weight bit mask` [4] | The mask is zero or outside the supported weight bits. |
 | `non-default keys-ceremony boards require separately authenticated ...` [4] | Only default ceremonies are supported. Do not edit the ceremony data; use separately reviewed acquisition. |
 | `restored B3 board has no configuration or scoped ballots`, `missing B3 batch` [3] | The restored board or blob root lacks a declared batch. Check the restore and `--b3-blob-root`. |
-| `selected cast vote has no matching signed electoral-log evidence` [3] | The signed log write was lost (meta#13796) or never made. Report as incomplete; do not fabricate or infer evidence. |
+| `selected cast vote has no matching signed electoral-log evidence` [3] | The signed log write was lost (meta#13796) or never made, or the row was replaced. Rerun with `--cast-vote-history` to tell them apart. Report as incomplete; do not fabricate or infer evidence. |
+| `a selected voter has a signed cast vote that no stored cast vote holds ...` [1] | A row the signed log proves was committed has been removed or its content replaced. Keep the evidence and escalate. |
+| `cast-vote history does not hold a selected cast vote ...` [1] | The history and scoped cast votes come from different snapshots or one was altered. Re-export both in one acquisition. |
 | `selected cast vote has ambiguous signed electoral-log evidence` [3] | Several differing signed records share the voter pseudonym and ballot hash. Identical records are collapsed; differing ones are not. |
 | `scoped in-progress cast vote blocks preparation` [3] | A scoped row is still `in-progress`. Restore a snapshot taken after it resolved. |
 | `saved eligible voter count differs ...`, `saved cast ballot count differs ...`, `saved ballots without voter differ ...`, `saved votes by channel differ ...`, `saved weight bit mask differs ...` [1] | The saved tally annotations disagree with the reconstruction: usually a mismatched snapshot, a wrong frozen eligibility file, or a mapping from another time. |
@@ -766,6 +793,7 @@ Exit statuses are in brackets.
 | `cannot create new private output directory`, `output directory already exists` [4] | Choose a new output path whose parent exists. |
 | `tally input multiset mismatch ...` [1] | The B3 `Ballots` input differs from the selected set. Keep the evidence and escalate; do not retry with regenerated inputs. |
 | Exit `3` with a JSON report | Evidence is incomplete or the receipt is not selected. Read `lookup` or the group classifications. |
+| Exit `1` with an `audit-cast-history` report | `outcome: contradicted`: a signed receipt has no stored row. Read the `signed_log_without_hasura_row` groups and escalate. |
 | `required checks failed or were incomplete` (Braid `verify`) | A batch check is false or unpopulated, a batch lacks plaintexts, or `--batches` differs from the verified set. |
 
 ## Universal verification remains separate

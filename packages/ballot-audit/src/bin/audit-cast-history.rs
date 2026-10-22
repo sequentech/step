@@ -2,29 +2,25 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::{ensure, Context, Result};
-use ballot_audit::{decode_message, digest, invalid_input, validate_sha512_pin, ExitStatus, Scope};
+use ballot_audit::{
+    decode_message, digest, index_history, invalid_input, validate_sha512_pin, CastVoteKey,
+    ExitStatus, HistoryRow, Scope,
+};
 use clap::Parser;
 use electoral_log::messages::{
     message::Message,
     statement::{StatementBody, StatementType},
 };
-use sequent_core::{
-    ballot::{HashableBallot, TYPES_VERSION},
-    encrypt::{hash_ballot_sha512, hash_multi_ballot_sha512},
-    multi_ballot::HashableMultiBallot,
-};
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs,
     path::{Path, PathBuf},
 };
 use strand::{
-    hash::Hash,
     serialization::{StrandDeserialize, StrandSerialize},
     signature::StrandSignaturePk,
 };
-use uuid::Uuid;
 
 /// Compare signed CastVote history with every Hasura row for one event/election.
 /// All areas, statuses and revotes must be supplied. Never connects to a service.
@@ -55,31 +51,6 @@ struct SavedScope {
     format_version: u32,
     scope: Scope,
     batches: Vec<u32>,
-}
-
-fn required_nullable<'de, D, T>(deserializer: D) -> std::result::Result<Option<T>, D::Error>
-where
-    D: Deserializer<'de>,
-    T: Deserialize<'de>,
-{
-    Option::deserialize(deserializer)
-}
-
-// Extra columns, including area/status/timestamp, are deliberately not used to
-// filter historical coverage. No latest-vote or eligibility selection occurs.
-#[derive(Deserialize)]
-struct HistoryRow {
-    id: String,
-    tenant_id: String,
-    election_event_id: String,
-    #[serde(deserialize_with = "required_nullable")]
-    election_id: Option<String>,
-    #[serde(deserialize_with = "required_nullable")]
-    voter_id_string: Option<String>,
-    #[serde(deserialize_with = "required_nullable")]
-    content: Option<String>,
-    #[serde(deserialize_with = "required_nullable")]
-    ballot_id: Option<String>,
 }
 
 #[derive(Default)]
@@ -116,6 +87,10 @@ struct ReceiptCoverage {
 #[serde(rename_all = "snake_case")]
 enum Outcome {
     Consistent,
+    /// A signed CastVote names a voter/ballot pair that no stored row holds.
+    /// Windmill logs only after the row commits, so the row was removed or
+    /// its content replaced.
+    Contradicted,
     Incomplete,
     Ambiguous,
 }
@@ -155,24 +130,6 @@ fn read_pinned(path: &Path, pin: &str, label: &str) -> Result<Vec<u8>> {
     Ok(bytes)
 }
 
-fn ballot_hash(content: &str, single_contest: bool) -> Result<Hash> {
-    if single_contest {
-        let ballot: HashableBallot =
-            serde_json::from_str(content).context("unhashable historical single-contest ballot")?;
-        if ballot.version != TYPES_VERSION {
-            return Err(invalid_input("unsupported historical ballot version"));
-        }
-        hash_ballot_sha512(&ballot).context("unhashable historical single-contest ballot")
-    } else {
-        let ballot: HashableMultiBallot =
-            serde_json::from_str(content).context("unhashable historical multi-contest ballot")?;
-        if ballot.version != TYPES_VERSION {
-            return Err(invalid_input("unsupported historical ballot version"));
-        }
-        hash_multi_ballot_sha512(&ballot).context("unhashable historical multi-contest ballot")
-    }
-}
-
 fn audit_history(
     scope: &Scope,
     rows: &[HistoryRow],
@@ -196,39 +153,18 @@ fn audit_history(
     }
     let system_key = StrandSignaturePk::from_der_b64_string(&scope.electoral_log_system_public_key)
         .map_err(|_| invalid_input("invalid pinned electoral-log system key"))?;
-    let mut groups: BTreeMap<(Hash, Hash), Coverage> = BTreeMap::new();
-    let mut row_ids = BTreeSet::new();
-    for row in rows {
-        let id = Uuid::parse_str(&row.id)
-            .map_err(|_| invalid_input("invalid historical cast_vote UUID"))?;
-        ensure!(row_ids.insert(id), "duplicate historical cast_vote UUID");
-        ensure!(
-            row.tenant_id == scope.tenant_id
-                && row.election_event_id == scope.election_event_id
-                && row.election_id.as_deref() == Some(scope.election_id.as_str()),
-            "historical Hasura row outside pinned tenant/event/election; all areas are allowed"
-        );
-        let voter = row
-            .voter_id_string
-            .as_ref()
-            .filter(|id| !id.is_empty())
-            .context("historical cast vote lacks voter ID")?;
-        let content = row
-            .content
-            .as_ref()
-            .context("historical cast vote lacks content")?;
-        let full_hash = ballot_hash(content, scope.contest_id.is_some())?;
-        ensure!(
-            row.ballot_id.as_deref() == Some(hex::encode(&full_hash[..32]).as_str()),
-            "historical stored ballot receipt does not match native full-ballot hash"
-        );
-        let pseudonym = strand::hash::hash_to_array(&voter.strand_serialize()?)?;
-        groups
-            .entry((pseudonym, full_hash))
-            .or_default()
-            .row_ids
-            .push(id.to_string());
-    }
+    let mut groups: BTreeMap<CastVoteKey, Coverage> = index_history(scope, rows)?
+        .into_iter()
+        .map(|(key, row_ids)| {
+            (
+                key,
+                Coverage {
+                    row_ids,
+                    ..Default::default()
+                },
+            )
+        })
+        .collect();
     let mut ignored = 0;
     let mut checked_logs = 0;
     let mut message_digests = BTreeSet::new();
@@ -316,14 +252,15 @@ fn audit_history(
     let requested_receipt_found =
         requested_receipt.map(|requested| receipts.iter().any(|r| r.ballot_id == requested));
     let unfiltered_receipt_groups = receipts.len();
-    let outcome =
-        if missing_rows != 0 || missing_logs != 0 || requested_receipt_found == Some(false) {
-            Outcome::Incomplete
-        } else if ambiguous != 0 || ambiguous_logs != 0 {
-            Outcome::Ambiguous
-        } else {
-            Outcome::Consistent
-        };
+    let outcome = if missing_rows != 0 {
+        Outcome::Contradicted
+    } else if missing_logs != 0 || requested_receipt_found == Some(false) {
+        Outcome::Incomplete
+    } else if ambiguous != 0 || ambiguous_logs != 0 {
+        Outcome::Ambiguous
+    } else {
+        Outcome::Consistent
+    };
     if let Some(requested) = requested_receipt {
         receipts.retain(|receipt| receipt.ballot_id == requested);
     }
@@ -339,7 +276,7 @@ fn audit_history(
         ambiguous_log_occurrence_groups: ambiguous_logs,
         unfiltered_receipt_groups, report_filtered: requested_receipt.is_some(), requested_receipt_found,
         receipts, source_sha512: BTreeMap::new(),
-        assurance: "Coverage comparison of the supplied pinned tenant/event/election Hasura history against signed successful CastVote statements, across all areas/statuses/revotes. Only signed event/election/pseudonym/full ballot hashes are matched; unsigned log area/user/receipt metadata is not authority. Repeated logs and repeated identical ballots do not establish a one-to-one row/event attribution. Multiple rows or distinct complete log messages sharing a tuple are ambiguous and return exit 3; byte-identical log duplicates are reported without assuming independent occurrences. Distinct signed statement counts are also reported: differing unsigned metadata does not prove another signing event. All input records are signature-verified before scope filtering; foreign or rotated system keys are unsupported without an independently trusted key set. Exported messages lack database row IDs; exact byte duplicates are reported, not treated as unique events. A signed log without a row is unexplained/incomplete, not a lawful selection exclusion. A row without a log is incomplete evidence, not proof of tampering: native success logging is best effort. This does not establish historical completeness, contemporaneous source authenticity, ImmuDB inclusion/consistency proofs, eligibility, tally inclusion, or integrity of metadata omitted from the native receipt hash.",
+        assurance: "Coverage comparison of the supplied pinned tenant/event/election Hasura history against signed successful CastVote statements, across all areas/statuses/revotes. Only signed event/election/pseudonym/full ballot hashes are matched; unsigned log area/user/receipt metadata is not authority. Repeated logs and repeated identical ballots do not establish a one-to-one row/event attribution. Multiple rows or distinct complete log messages sharing a tuple are ambiguous and return exit 3; byte-identical log duplicates are reported without assuming independent occurrences. Distinct signed statement counts are also reported: differing unsigned metadata does not prove another signing event. All input records are signature-verified before scope filtering; foreign or rotated system keys are unsupported without an independently trusted key set. Exported messages lack database row IDs; exact byte duplicates are reported, not treated as unique events. A signed log without a row contradicts the history and returns exit 1: Windmill posts the success log only after the row commits, so the row was later removed or its content replaced. A row without a log is incomplete evidence, not proof of tampering: native success logging is best effort. This does not establish historical completeness, contemporaneous source authenticity, ImmuDB inclusion/consistency proofs, eligibility, tally inclusion, or integrity of metadata omitted from the native receipt hash.",
     })
 }
 
@@ -388,8 +325,12 @@ fn main() {
                 std::process::exit(ExitStatus::VerificationFailed.code());
             }
             println!();
-            if report.outcome != Outcome::Consistent {
-                std::process::exit(ExitStatus::Incomplete.code());
+            match report.outcome {
+                Outcome::Consistent => {}
+                Outcome::Contradicted => std::process::exit(ExitStatus::VerificationFailed.code()),
+                Outcome::Incomplete | Outcome::Ambiguous => {
+                    std::process::exit(ExitStatus::Incomplete.code())
+                }
             }
         }
         Err(error) => {
