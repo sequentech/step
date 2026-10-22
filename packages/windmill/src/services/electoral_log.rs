@@ -2618,9 +2618,15 @@ mod voter_secret_attribute_audit_tests {
 mod postgres_wiring_tests {
     use super::*;
 
-    #[tokio::test]
+    #[test]
     #[ignore = "requires a disposable ELECTORAL_LOG_PG_* database and ENV_SLUG"]
-    async fn prepared_append_list_count_and_delete_use_the_postgres_store() -> Result<()> {
+    fn prepared_append_list_count_and_delete_use_the_postgres_store() -> Result<()> {
+        crate::services::electoral_log_board::test_runtime()
+            .block_on(prepared_append_list_count_and_delete_use_the_postgres_store_on_runtime())
+    }
+
+    async fn prepared_append_list_count_and_delete_use_the_postgres_store_on_runtime() -> Result<()>
+    {
         let tenant = Uuid::new_v4().to_string();
         let event = Uuid::new_v4().to_string();
         let slug = std::env::var("ENV_SLUG")?;
