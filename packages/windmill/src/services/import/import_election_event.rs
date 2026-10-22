@@ -86,9 +86,9 @@ use zip::read::ZipArchive;
 const KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY: &str =
     "KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY";
 
-/// Authenticator config entries holding vendor credentials: the Inetum
-/// `api-key` and the reCAPTCHA `siteSecret`.
-const SECRET_AUTHENTICATOR_CONFIG_KEYS: [&str; 2] = ["api-key", "siteSecret"];
+/// Authenticator config entries holding credentials: the Inetum `api-key`, the
+/// reCAPTCHA `siteSecret` and the Scanovate `liveness-secret`.
+const SECRET_AUTHENTICATOR_CONFIG_KEYS: [&str; 3] = ["api-key", "siteSecret", "liveness-secret"];
 
 use super::import_users::{import_users_file, ImportUsersPrivileges};
 use crate::postgres;
@@ -3925,6 +3925,13 @@ mod realm_secrets_tests {
                         "api-key": "inetum-api-key"
                     }
                 },
+                {
+                    "alias": "scanovate-registration",
+                    "config": {
+                        "liveness-url": "https://keycloak.example/biometric",
+                        "liveness-secret": "liveness-callback-secret"
+                    }
+                },
                 { "alias": "already-validated-alias" }
             ]
         }))
@@ -3983,6 +3990,12 @@ mod realm_secrets_tests {
         assert_eq!(inetum["api-key"], "");
         assert_eq!(inetum["base-url"], "https://inetum.example/dob-api/2.0.0");
         assert_eq!(inetum["client-id"], "inetum-client");
+        let scanovate = authenticator_config(&realm, "scanovate-registration");
+        assert_eq!(scanovate["liveness-secret"], "");
+        assert_eq!(
+            scanovate["liveness-url"],
+            "https://keycloak.example/biometric"
+        );
     }
 
     #[test]
@@ -4001,7 +4014,7 @@ mod realm_secrets_tests {
     #[test]
     fn default_realm_templates_carry_no_vendor_secrets() {
         let event_secrets = secret_values(DEFAULT_EVENT_REALM);
-        assert_eq!(event_secrets.len(), 2);
+        assert_eq!(event_secrets.len(), 3);
         for value in event_secrets
             .iter()
             .chain(&secret_values(DEFAULT_TENANT_REALM))
@@ -4014,7 +4027,11 @@ mod realm_secrets_tests {
     fn janitor_renders_vendor_secrets_from_its_settings() {
         assert_eq!(
             secret_values(JANITOR_EVENT_REALM),
-            ["{{{recaptcha_site_secret}}}", "{{{recaptcha_site_secret}}}"]
+            [
+                "{{{recaptcha_site_secret}}}",
+                "{{{scanovate_liveness_secret}}}",
+                "{{{recaptcha_site_secret}}}"
+            ]
         );
     }
 }

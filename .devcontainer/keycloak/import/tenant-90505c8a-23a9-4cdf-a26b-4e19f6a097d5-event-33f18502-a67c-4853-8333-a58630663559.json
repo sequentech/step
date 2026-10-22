@@ -3946,7 +3946,7 @@
       "config": {
         "ocr-url": "http://scanovate-ocr:5040",
         "liveness-url": "https://localhost:8443/biometric",
-        "liveness-secret": "liveness-dev-callback-secret",
+        "liveness-secret": "",
         "face-match-url": "http://scanovate-face-match:3000",
         "doc-id-type": "sequent.read-only.id-card-type",
         "user-status": "sequent.read-only.id-card-number-validated",
