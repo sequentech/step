@@ -414,8 +414,9 @@ A Web Lock prevents two tabs in the same browser from running the same identity.
 
 After importing keys or restoring a backup, **Local session history** shows the
 readable history-record and own-post counts for known boards, including the DKG
-parents of assigned tallies. Each board entry starts collapsed with its counts
-visible; expand it to inspect the database name and any parent-history warning.
+parents of assigned tallies. The **Session entries** collection starts collapsed;
+expand it to show all board entries, their counts, database names and parent-history
+warnings. The section heading and refresh controls remain visible.
 **Refresh boards** includes current assignments;
 **Refresh local history** rereads their local stores while the runner is stopped.
 Counts also refresh after each participation cycle. The displayed browser origin,

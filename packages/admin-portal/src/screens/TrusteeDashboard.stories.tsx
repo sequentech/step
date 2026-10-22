@@ -80,6 +80,10 @@ const historyBoundary = () => {
         }),
     })
 }
+const openHistoryEntries = async (canvasElement: HTMLElement) => {
+    const collection = await within(canvasElement).findByRole("button", {name: /^Session entries/})
+    if (collection.getAttribute("aria-expanded") === "false") await userEvent.click(collection)
+}
 const restoreHistory = async (canvasElement: HTMLElement) => {
     const module = await loadBrowserTrustee()
     const keys = module.BrowserTrustee.generateKeys()
@@ -113,6 +117,7 @@ const restoreHistory = async (canvasElement: HTMLElement) => {
             within(canvasElement).getByRole("button", {name: "Refresh local history"})
         ).toBeEnabled()
     )
+    await openHistoryEntries(canvasElement)
     return keys
 }
 
@@ -130,16 +135,17 @@ export const RestoredLocalHistory: Story = {
             canvas.getByRole("textbox", {name: "Signing public key"}) as HTMLInputElement
         ).value
         const database = `sequent-wbraid:/b4:${signing}:${parentBoard}`
-        const entry = canvas.getByRole("button", {name: new RegExp(parentBoard)})
-        expect(entry).toHaveAttribute("aria-expanded", "false")
-        expect(canvas.queryByText(database)).toBeNull()
-        entry.focus()
+        const collection = canvas.getByRole("button", {name: /^Session entries/})
+        await expect(canvas.getByText(database)).toBeVisible()
+        await userEvent.click(collection)
+        await waitFor(() => expect(canvas.queryByText(database)).toBeNull())
+        expect(canvas.queryByText(parentBoard)).toBeNull()
+        expect(canvas.queryByText(/History available/)).toBeNull()
+        await expect(canvas.getByRole("button", {name: "Refresh local history"})).toBeVisible()
+        collection.focus()
         await userEvent.keyboard("{Enter}")
         await expect(await canvas.findByText(database)).toBeVisible()
-        await userEvent.click(entry)
-        await waitFor(() => expect(canvas.queryByText(database)).toBeNull())
         await expect(canvas.getByText("History available · 2 records · 1 own posts")).toBeVisible()
-        await expect(canvas.getByRole("button", {name: "Refresh local history"})).toBeVisible()
         await userEvent.click(canvas.getByRole("button", {name: "Refresh boards"}))
         await expect(
             await canvas.findByText("Empty history · 0 records · 0 own posts")
@@ -151,6 +157,7 @@ export const RestoredLocalHistory: Story = {
             canvas.getByLabelText("Import private keys"),
             new File([keys], "keys.toml")
         )
+        await openHistoryEntries(canvasElement)
         await expect(
             await canvas.findByText("History available · 2 records · 1 own posts")
         ).toBeVisible()
@@ -163,7 +170,7 @@ export const RestoredLocalHistory: Story = {
             canvas.getByLabelText("Import private keys"),
             new File([keys], "keys.toml")
         )
-        await userEvent.click(await canvas.findByRole("button", {name: new RegExp(parentBoard)}))
+        await openHistoryEntries(canvasElement)
         await expect(await canvas.findByText(/Parent DKG history is empty/)).toBeVisible()
         await expect(canvas.queryByText(/History available/)).toBeNull()
         await userEvent.click(canvas.getByRole("button", {name: "Lock keys"}))
@@ -173,6 +180,7 @@ export const RestoredLocalHistory: Story = {
             canvas.getByLabelText("Import private keys"),
             new File([keys], "keys.toml")
         )
+        await openHistoryEntries(canvasElement)
         await expect(
             await canvas.findByText("History available · 2 records · 1 own posts")
         ).toBeVisible()
@@ -186,13 +194,16 @@ export const MissingParentHistory: Story = {
         const canvas = within(canvasElement)
         await userEvent.click(canvas.getByRole("button", {name: "Refresh boards"}))
         await userEvent.click(canvas.getByRole("button", {name: "Generate browser keys"}))
-        await userEvent.click(await canvas.findByRole("button", {name: new RegExp(parentBoard)}))
-        await expect(await canvas.findByText(/Parent DKG history is empty/)).toBeVisible()
-        expect(canvas.getByRole("button", {name: new RegExp(tallyBoard)})).toHaveAttribute(
-            "aria-expanded",
-            "false"
-        )
+        const collection = await canvas.findByRole("button", {name: "Session entries (2)"})
         const history = within(canvas.getByRole("region", {name: "Local session history"}))
+        expect(collection).toHaveAttribute("aria-expanded", "false")
+        expect(history.queryByText(parentBoard)).toBeNull()
+        expect(history.queryByText(tallyBoard)).toBeNull()
+        await expect(canvas.getByRole("button", {name: "Refresh local history"})).toBeVisible()
+        await userEvent.click(collection)
+        await expect(await canvas.findByText(/Parent DKG history is empty/)).toBeVisible()
+        expect(canvas.queryByRole("button", {name: new RegExp(parentBoard)})).toBeNull()
+        expect(canvas.queryByRole("button", {name: new RegExp(tallyBoard)})).toBeNull()
         expect(history.getAllByText("Empty history · 0 records · 0 own posts")).toHaveLength(2)
         await expect(history.getByText(parentBoard)).toBeVisible()
         await expect(history.getByText(tallyBoard)).toBeVisible()

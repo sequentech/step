@@ -538,57 +538,62 @@ export const TrusteeDashboard = () => {
                                         sessions.
                                     </Typography>
                                 )}
-                                {history.stores.map((store) => (
+                                {history.stores.length > 0 && (
                                     <Accordion
-                                        key={store.board}
                                         disableGutters
-                                        sx={{mt: 2, overflowWrap: "anywhere"}}
+                                        sx={{mt: 2}}
                                         slotProps={{transition: {unmountOnExit: true}}}
                                     >
                                         <AccordionSummary
-                                            id={`trustee-history-${store.board}-heading`}
-                                            aria-controls={`trustee-history-${store.board}-content`}
+                                            id="trustee-history-entries-heading"
+                                            aria-controls="trustee-history-entries-content"
                                             expandIcon={<ExpandMoreIcon />}
-                                            sx={{"& .MuiAccordionSummary-content": {minWidth: 0}}}
                                         >
-                                            <Box component="span" sx={{minWidth: 0}}>
-                                                <Typography
-                                                    component="span"
-                                                    sx={{display: "block"}}
-                                                >
-                                                    {store.board}
-                                                </Typography>
-                                                <Typography
-                                                    component="span"
-                                                    variant="body2"
-                                                    sx={{display: "block"}}
-                                                >
-                                                    {store.predicates === 0
-                                                        ? "Empty history"
-                                                        : "History available"}{" "}
-                                                    · {store.predicates} records · {store.own_posts}{" "}
-                                                    own posts
-                                                </Typography>
-                                            </Box>
+                                            <Typography component="span">
+                                                Session entries ({history.stores.length})
+                                            </Typography>
                                         </AccordionSummary>
                                         <AccordionDetails>
-                                            {store.predicates === 0 &&
-                                                boards.some(
-                                                    (board) => board.parent === store.board
-                                                ) && (
-                                                    <Alert severity="warning" sx={{my: 1}}>
-                                                        Parent DKG history is empty. Restore the
-                                                        session backup for this identity before
-                                                        tallying. Imported elections may use history
-                                                        under the original DKG board.
-                                                    </Alert>
-                                                )}
-                                            <Typography variant="body2">
-                                                {store.database}
-                                            </Typography>
+                                            {history.stores.map((store) => (
+                                                <Box
+                                                    key={store.board}
+                                                    sx={{
+                                                        border: "1px solid",
+                                                        borderColor: "divider",
+                                                        borderRadius: 1,
+                                                        p: 2,
+                                                        my: 1,
+                                                        overflowWrap: "anywhere",
+                                                    }}
+                                                >
+                                                    <Typography>{store.board}</Typography>
+                                                    <Typography>
+                                                        {store.predicates === 0
+                                                            ? "Empty history"
+                                                            : "History available"}{" "}
+                                                        · {store.predicates} records ·{" "}
+                                                        {store.own_posts} own posts
+                                                    </Typography>
+                                                    {store.predicates === 0 &&
+                                                        boards.some(
+                                                            (board) => board.parent === store.board
+                                                        ) && (
+                                                            <Alert severity="warning" sx={{my: 1}}>
+                                                                Parent DKG history is empty. Restore
+                                                                the session backup for this identity
+                                                                before tallying. Imported elections
+                                                                may use history under the original
+                                                                DKG board.
+                                                            </Alert>
+                                                        )}
+                                                    <Typography variant="body2">
+                                                        {store.database}
+                                                    </Typography>
+                                                </Box>
+                                            ))}
                                         </AccordionDetails>
                                     </Accordion>
-                                ))}
+                                )}
                             </>
                         )}
                     </Box>
