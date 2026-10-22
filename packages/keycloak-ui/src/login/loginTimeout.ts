@@ -109,7 +109,7 @@ export function useLoginTimeout(restartUrl: string, settings: LoginTimeoutSettin
         }
         // Timers are throttled in background tabs and stop while the computer sleeps, so this
         // only covers a page left in view.
-        const interval = setInterval(onVisibilityChange, CHECK_INTERVAL_MS)
+        const interval = setInterval(onVisibilityChange, Math.min(CHECK_INTERVAL_MS, limitMs / 2))
         // Last resort: an expired page must never submit.
         const onSubmit = (event: SubmitEvent) => {
             if (restartIfExpired()) {
