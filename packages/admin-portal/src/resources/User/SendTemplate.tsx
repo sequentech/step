@@ -312,7 +312,6 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
             tenant_id: tenantId,
         },
         pagination: {page: 1, perPage: 1000},
-        sort: {field: "alias", order: "ASC"},
     })
 
     const selectableTemplates = useMemo(
