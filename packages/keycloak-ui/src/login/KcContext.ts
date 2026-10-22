@@ -79,6 +79,8 @@ export type KcContextExtension = {
     properties: Record<KcEnvName, string> & {
         systemVersion?: string
         systemHash?: string
+        loginTimeoutSeconds?: string
+        loginActionTimeoutSeconds?: string
     }
     sequent: {
         loginValidationPolicy: LoginValidationPolicy
