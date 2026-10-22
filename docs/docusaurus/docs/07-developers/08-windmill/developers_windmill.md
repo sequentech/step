@@ -114,6 +114,24 @@ variables. Upload the objects first, then deploy the Step, beyond, and gitops
 configuration changes together. The Windmill error for a missing object names
 the configured bucket and key.
 
+### Vendor credentials
+
+The realm templates leave the vendor credentials in authenticator config empty:
+the Inetum `api-key` and the reCAPTCHA `siteSecret`. When Windmill creates a
+tenant or election-event realm from a default template, it empties these
+entries too, so new realms never inherit credentials from the uploaded template.
+An imported election event keeps the values in its realm.
+
+Set the credentials in each realm that uses them: in the Keycloak admin console,
+open **Authentication**, then the flow, then the settings of the step. Janitor
+fills them from the `keycloak_inetum_api_key` and
+`keycloak_recaptcha_site_secret` `settings` rows of its Excel `Parameters`
+sheet.
+
+Templates from earlier versions include credentials in these entries. Upload
+the current default event realm template as described above, then rotate those
+credentials with the vendors and set the new values in the realms that use them.
+
 ## Login hint prefill configuration
 
 Voting Portal notification links can carry bounded `login_hint__<field>` query
