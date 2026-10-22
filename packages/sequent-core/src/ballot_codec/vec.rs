@@ -66,4 +66,20 @@ mod tests {
         let decoded = decode_array_to_vec(&encoded).unwrap();
         assert_eq!(data, decoded);
     }
+
+    #[test]
+    fn test_decode_array_to_vec_rejects_out_of_range_length() {
+        for length in [30u8, 255u8] {
+            let mut code = [0u8; 30];
+            code[0] = length;
+            assert!(decode_array_to_vec(&code).is_err());
+        }
+    }
+
+    #[test]
+    fn test_decode_array_to_vec_accepts_max_length() {
+        let mut code = [7u8; 30];
+        code[0] = 29;
+        assert_eq!(decode_array_to_vec(&code).unwrap(), vec![7u8; 29]);
+    }
 }

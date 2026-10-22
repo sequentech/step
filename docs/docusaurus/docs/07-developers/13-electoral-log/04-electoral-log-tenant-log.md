@@ -608,9 +608,10 @@ with these additions to the task's input:
   are all sent, as before.
 - **Admin events** of tenant realms and event realms are all sent, with the representation when the
   realm has admin event details on.
-- **The realm** needs `custom-event-listener` among its event listeners, and `adminEventsEnabled` and
-  `adminEventsDetailsEnabled` on. The development tenant realm template and the janitor's client
-  template have them; existing tenant realms get them from the one-off migration (section 11).
+- **The realm** needs `custom-event-listener` among its event listeners and `adminEventsEnabled`
+  on. `adminEventsDetailsEnabled` stays off, matching the realm templates, so admin actions
+  are recorded without their raw representations. Existing tenant realms get these settings
+  from the one-off migration (section 11).
 
 ### 7.2 The batch task
 
@@ -805,8 +806,8 @@ Beat schedules `migrate_tenant_logs` once, whenever it starts (`short_queue`). I
 1. For every tenant, `ensure_tenant_log` creates the log and its key if they are missing, each tenant
    in a transaction of its own.
 2. For every tenant realm, `set_up_realm` adds `custom-event-listener` to the realm's event listeners
-   and turns on `adminEventsEnabled` and `adminEventsDetailsEnabled`, when any of the three is
-   missing. A realm that already has them is left as it is.
+   and turns on `adminEventsEnabled`, with `adminEventsDetailsEnabled` off. A realm that
+   already has these settings is left as it is.
 
 Every realm is tried. If any failed, the task fails naming them and is retried up to five times with
 a growing wait, as when Keycloak is still starting with beat.

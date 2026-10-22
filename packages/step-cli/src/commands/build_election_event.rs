@@ -942,4 +942,19 @@ mod tests {
             .contains("historical source conversion refused"));
         assert!(!fixture.directory().exists());
     }
+    /// Configured-seats-only scope filters valid candidates; it must not let a
+    /// candidate of a contest the source does not have through as "outside".
+    #[test]
+    fn a_dangling_historical_candidate_reference_never_writes_a_package() {
+        let mut fixture = historical_fixture();
+        let mut sql = fs::read(fixture.command.historical_sql.as_ref().unwrap()).unwrap();
+        sql.extend_from_slice(
+            b"INSERT INTO `candidate` VALUES ('0008','Dangling Example','C99','S01',NULL);",
+        );
+        fixture.command.historical_sql = Some(fixture.file("dangling.sql", &sql));
+        assert!(fixture
+            .error()
+            .contains("historical source conversion refused"));
+        assert!(!fixture.directory().exists());
+    }
 }
