@@ -117,6 +117,8 @@ const catalanTranslation: TranslationType = {
                 preferenceOrderWithGaps: "Vot invàlid! L'ordre de preferència té un o més buits.",
                 duplicatedPosition:
                     "Vot invàlid! La mateixa posició va ser seleccionada per a dos o més candidats.",
+                selectedDisabledCandidate:
+                    "Vot invàlid! S'ha seleccionat un candidat deshabilitat.",
             },
             explicit: {
                 notAllowed: "Vot marcat explícitament com a invàlid però la pregunta no ho permet",
