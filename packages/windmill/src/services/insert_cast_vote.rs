@@ -4,6 +4,7 @@
 use crate::postgres::area::get_area_by_id;
 use crate::postgres::election::{get_cast_vote_configuration, CastVoteConfiguration};
 use crate::postgres::election_event::get_election_event_by_id;
+use crate::postgres::vitrine::get_vitrine_log;
 use crate::services::ballot_box::{accept_ballot, get_allowed_votes, BallotFormat};
 use crate::services::ballot_box_reads::cast_vote_status;
 use crate::services::cast_votes::{CastVote, CastVoteStatus};
@@ -16,13 +17,17 @@ use crate::services::external::utils::{
 };
 use crate::services::pg_lock::PgLock;
 use crate::services::protocol_manager::get_protocol_manager;
+use crate::services::vitrine::transparency::transparency_mode;
+use crate::services::vitrine::LogName;
 use anyhow::{anyhow, Context, Result};
 use b4::messages::message::Signer;
 use base64::{engine::general_purpose, Engine as _};
 use chrono::{DateTime, Duration, Local};
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
-use electoral_log::adapters::ballot_box::{AcceptBallot, AcceptOutcome, BallotStatus};
+use electoral_log::adapters::ballot_box::{
+    AcceptBallot, AcceptOutcome, BallotStatus, VitrineEntry, VitrineQueue,
+};
 use electoral_log::messages::newtypes::*;
 use sequent_core::ballot::verify_ballot_signature;
 use sequent_core::ballot::ContestEncryptionPolicy;
@@ -58,7 +63,7 @@ use strand::signature::StrandSignaturePk;
 use strand::util::StrandError;
 use strand::zkp::Zkp;
 use strum_macros::Display;
-use tracing::{debug, error, info, instrument, trace};
+use tracing::{debug, error, info, instrument, trace, warn};
 use uuid::Uuid;
 
 /// Emits one duration even when a phase fails or its future is cancelled.
@@ -138,13 +143,24 @@ impl InsertCastVoteInput {
 
 pub type InsertCastVoteOutput = CastVote;
 
+/// A cast's Vitrine entry, for the caller to wait for its receipt, when the
+/// event's transparency is on.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CastVitrine {
+    /// The sidecar's name of the event's `ballots` log, if it has one.
+    pub log: Option<String>,
+    /// The ballot's entry, if the ballot box made one.
+    pub entry: Option<VitrineEntry>,
+}
+
 /// Outcome of a cast-vote insert, distinguishing the follow-up each needs:
 /// `Success` is a final `valid` vote, `PendingDatafix` is an `in-progress` vote
 /// the caller must enqueue for the async Datafix pipeline, and
 /// `SkipRetryFailure` is a terminal error the caller should surface as-is.
+/// Accepted votes carry their Vitrine entry when the event is transparent.
 pub enum InsertCastVoteResult {
-    Success(InsertCastVoteOutput),
-    PendingDatafix(InsertCastVoteOutput),
+    Success(InsertCastVoteOutput, Option<CastVitrine>),
+    PendingDatafix(InsertCastVoteOutput, Option<CastVitrine>),
     SkipRetryFailure(CastVoteError),
 }
 
@@ -154,10 +170,11 @@ pub enum InsertCastVoteResult {
 #[instrument(skip_all, err)]
 fn classify_inserted_cast_vote(
     cast_vote: InsertCastVoteOutput,
+    vitrine: Option<CastVitrine>,
 ) -> Result<InsertCastVoteResult, CastVoteError> {
     match cast_vote.status {
-        CastVoteStatus::InProgress => Ok(InsertCastVoteResult::PendingDatafix(cast_vote)),
-        CastVoteStatus::Valid => Ok(InsertCastVoteResult::Success(cast_vote)),
+        CastVoteStatus::InProgress => Ok(InsertCastVoteResult::PendingDatafix(cast_vote, vitrine)),
+        CastVoteStatus::Valid => Ok(InsertCastVoteResult::Success(cast_vote, vitrine)),
         status => Err(CastVoteError::UnknownError(format!(
             "Unexpected initial cast vote status: {status}"
         ))),
@@ -198,7 +215,7 @@ async fn release_datafix_voter_lock(lock: PgLock) {
 #[instrument(skip_all, err)]
 async fn accept_datafix_ballot_locked(
     ballot: &BallotToAccept<'_>,
-) -> Result<(CastVote, VotingStatusChannel), CastVoteError> {
+) -> Result<AcceptedCastVote, CastVoteError> {
     let ids = ballot.ids;
     let voter_id_uuid = parse_uuid_v4(ids.voter_id)
         .map_err(|err| CastVoteError::VoterStateLocked(format!("Invalid voter id: {err}")))?;
@@ -469,7 +486,7 @@ pub async fn try_insert_cast_vote(
     let country = format!("country: {}", voter_country.as_deref().unwrap_or(""),);
     let _audit_phase = CastVotePhase::start("audit");
     match result {
-        Ok((accepted, _)) => classify_inserted_cast_vote(accepted),
+        Ok(accepted) => classify_inserted_cast_vote(accepted.cast_vote, accepted.vitrine),
         Err(cast_vote_err) => {
             error!(err=?cast_vote_err);
 
@@ -649,14 +666,103 @@ struct BallotToAccept<'a> {
     ballot_hash: &'a CastVoteHash,
 }
 
+/// An accepted vote, with its Vitrine entry when the event is transparent.
+struct AcceptedCastVote {
+    cast_vote: CastVote,
+    vitrine: Option<CastVitrine>,
+}
+
+const VITRINE_SAVEPOINT: &str = "vitrine_ballots_log";
+
+/// Where a cast's Vitrine entry goes.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum VitrineTarget {
+    /// The event's transparency is off.
+    Off,
+    /// It is on, but the event's `ballots` log is missing or can't be read.
+    NoLog,
+    Log {
+        log_id: i64,
+        sidecar_name: String,
+    },
+}
+
+impl VitrineTarget {
+    fn queue(&self, accepted_at: i64) -> Option<VitrineQueue> {
+        match self {
+            VitrineTarget::Log { log_id, .. } => Some(VitrineQueue {
+                log_id: *log_id,
+                accepted_at,
+            }),
+            VitrineTarget::Off | VitrineTarget::NoLog => None,
+        }
+    }
+
+    fn cast(self, entry: Option<VitrineEntry>) -> Option<CastVitrine> {
+        match self {
+            VitrineTarget::Off => None,
+            VitrineTarget::NoLog => Some(CastVitrine {
+                log: None,
+                entry: None,
+            }),
+            VitrineTarget::Log { sidecar_name, .. } => Some(CastVitrine {
+                log: Some(sidecar_name),
+                entry,
+            }),
+        }
+    }
+}
+
+/// The event's `ballots` log, when its transparency is on. Transparency never
+/// fails a cast: the log is read under a savepoint, and an error only means
+/// that the ballot is cast without its entry.
+#[instrument(skip_all)]
+async fn vitrine_target(
+    hasura_transaction: &mut Transaction<'_>,
+    ids: CastVoteIds<'_>,
+    election_event: &ElectionEvent,
+) -> VitrineTarget {
+    match transparency_mode(election_event) {
+        Ok(mode) if !mode.is_enabled() => return VitrineTarget::Off,
+        Ok(_) => {}
+        Err(err) => {
+            warn!("Error reading the event's transparency: {err:#}");
+            return VitrineTarget::NoLog;
+        }
+    }
+    let read = async {
+        let savepoint = hasura_transaction.savepoint(VITRINE_SAVEPOINT).await?;
+        let log = get_vitrine_log(
+            &savepoint,
+            ids.tenant_id,
+            ids.election_event_id,
+            LogName::Ballots,
+        )
+        .await?;
+        savepoint.commit().await?;
+        anyhow::Ok(log)
+    };
+    match read.await {
+        Ok(Some(log)) => VitrineTarget::Log {
+            log_id: log.log_id,
+            sidecar_name: log.sidecar_name,
+        },
+        Ok(None) => VitrineTarget::NoLog,
+        Err(err) => {
+            warn!("Error reading the event's Vitrine ballots log: {err:#}");
+            VitrineTarget::NoLog
+        }
+    }
+}
+
 /// Accept a vote into the event's ballot box, after checking that its election
 /// accepts votes through its channel. The ballot box enforces the revote limit and
 /// cross-area exclusivity.
 #[instrument(skip_all, err)]
 async fn accept_into_ballot_box(
-    hasura_transaction: Transaction<'_>,
+    mut hasura_transaction: Transaction<'_>,
     ballot: &BallotToAccept<'_>,
-) -> Result<(CastVote, VotingStatusChannel), CastVoteError> {
+) -> Result<AcceptedCastVote, CastVoteError> {
     let BallotToAccept {
         input,
         election_event,
@@ -693,6 +799,7 @@ async fn accept_into_ballot_box(
     )
     .await
     .map_err(|e| CastVoteError::CheckRevotesFailed(e.to_string()))?;
+    let target = vitrine_target(&mut hasura_transaction, ids, election_event).await;
     hasura_transaction
         .commit()
         .await
@@ -723,13 +830,18 @@ async fn accept_into_ballot_box(
         voter_country: voter_country.as_deref(),
         username: username.as_deref(),
         allowed_votes,
-        vitrine: None,
+        vitrine: target.queue(chrono::Utc::now().timestamp()),
     })
     .await
     .map_err(|e| CastVoteError::InsertFailed(format!("{e:#}")))?;
     match outcome {
-        AcceptOutcome::Accepted { id, .. } => Ok((
-            CastVote {
+        AcceptOutcome::Accepted {
+            id,
+            status,
+            vitrine,
+            ..
+        } => Ok(AcceptedCastVote {
+            cast_vote: CastVote {
                 id,
                 tenant_id: ids.tenant_id.to_string(),
                 election_id: Some(election_id),
@@ -743,8 +855,8 @@ async fn accept_into_ballot_box(
                 cast_ballot_signature: voter_signature,
                 status: cast_vote_status(status),
             },
-            effective_voting_channel,
-        )),
+            vitrine: target.cast(vitrine),
+        }),
         AcceptOutcome::TooManyVotes => Err(CastVoteError::InsertFailedExceedsAllowedRevotes),
         AcceptOutcome::VotedInOtherArea => Err(CastVoteError::CheckVotesInOtherAreasFailed(
             "The voter already voted in another area".to_string(),
