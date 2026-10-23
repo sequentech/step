@@ -4,7 +4,7 @@ import {getCompleteElectionIds, isNumericallyComplete} from "./resultsCompletene
 
 const fixture = () => {
     const tally: any = {
-        annotations: {result_readiness_version: 1},
+        annotations: {result_readiness_version: "1"},
         id: "tally",
         election_ids: ["one", "two"],
         area_ids: ["a", "b"],
@@ -73,7 +73,7 @@ const fixture = () => {
 
 test("a complete election does not wait for an unrelated incomplete election or PDFs", () => {
     const {tally, execution, data} = fixture()
-    tally.annotations = {result_readiness_version: 1, is_post_task_completed: false}
+    tally.annotations = {result_readiness_version: "1", is_post_task_completed: false}
     expect(getCompleteElectionIds(tally, execution, data)).toEqual(["one"])
     tally.annotations.is_post_task_completed = true
     execution.documents = {sqlite: "post-pdf"}
@@ -279,7 +279,7 @@ test("recount accepts finalized numbers during new-policy report finalization on
     const tally = {
         execution_status: "IN_PROGRESS",
         is_execution_completed: true,
-        annotations: {result_readiness_version: 1},
+        annotations: {result_readiness_version: "1"},
     }
     expect(isNumericallyComplete(tally)).toBe(true)
     expect(isNumericallyComplete({...tally, annotations: {}})).toBe(false)

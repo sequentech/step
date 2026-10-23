@@ -299,6 +299,7 @@ export function useSQLQuery<T = QueryResult>(
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : "Unknown query error"
             setError(errorMessage)
+            setData([])
         } finally {
             setLastExecutedKey(executionKey)
             setIsLoading(false)
@@ -316,6 +317,7 @@ export function useSQLQuery<T = QueryResult>(
         (!!databaseName &&
             databases.has(databaseName) &&
             lastExecutedKey === executionKey &&
+            !error &&
             !isLoading)
 
     return {data, isLoading, isReady, error, refetch: executeQuery}

@@ -394,16 +394,44 @@ pub async fn create_tally_ceremony(
     let styles =
         get_ballot_styles_by_elections(transaction, &tenant_id, &election_event_id, &election_ids)
             .await?;
+    let published_styles: Vec<sequent_core::ballot::BallotStyle> = styles
+        .iter()
+        .map(|style| {
+            deserialize_str(
+                style
+                    .ballot_eml
+                    .as_deref()
+                    .context("Published ballot style has no ballot EML")?,
+            )
+            .map_err(|error| anyhow!(error))
+        })
+        .collect::<Result<_>>()?;
+    let expected_pairs = relevant_area_contests
+        .iter()
+        .map(|pair| {
+            let contest = contests_map
+                .get(&pair.contest_id)
+                .context("Tally contest no longer exists")?;
+            Ok((
+                contest.election_id.clone(),
+                pair.contest_id.clone(),
+                pair.area_id.clone(),
+            ))
+        })
+        .collect::<Result<Vec<_>>>()?;
+    super::result_readiness::validate_published_pairs(&expected_pairs, &published_styles)?;
     let mut election_areas =
         std::collections::BTreeMap::<String, std::collections::BTreeSet<String>>::new();
     for style in styles {
-        election_areas
-            .entry(style.election_id)
-            .or_default()
-            .insert(style.area_id);
+        if let Some(area_id) = style.area_id {
+            election_areas
+                .entry(style.election_id)
+                .or_default()
+                .insert(area_id);
+        }
     }
     let annotations: Value = json!({
-        "result_readiness_version": 1,
+        "result_readiness_version": "1",
         "election_areas": serde_json::to_string(&election_areas)?,
         "executer_username": username,
     });
@@ -865,7 +893,7 @@ pub async fn set_tally_session_completed(
     };
 
     if strict {
-        hasura_transaction.execute("UPDATE sequent_backend.tally_session SET annotations=COALESCE(annotations,'{}'::jsonb) || '{\"is_post_task_completed\":true}'::jsonb WHERE tenant_id=$1 AND election_event_id=$2 AND id=$3", &[&sequent_core::services::uuid_validation::parse_uuid_v4(&tenant_id)?, &sequent_core::services::uuid_validation::parse_uuid_v4(&election_event_id)?, &sequent_core::services::uuid_validation::parse_uuid_v4(&tally_session_id)?]).await?;
+        hasura_transaction.execute("UPDATE sequent_backend.tally_session SET annotations=COALESCE(annotations,'{}'::jsonb) || '{\"is_post_task_completed\":\"true\"}'::jsonb WHERE tenant_id=$1 AND election_event_id=$2 AND id=$3", &[&sequent_core::services::uuid_validation::parse_uuid_v4(&tenant_id)?, &sequent_core::services::uuid_validation::parse_uuid_v4(&election_event_id)?, &sequent_core::services::uuid_validation::parse_uuid_v4(&tally_session_id)?]).await?;
     }
     if is_updated {
         let election_event =

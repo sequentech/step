@@ -8,6 +8,7 @@ import {
     useDatabaseContext,
     useDatabaseManager,
     useManagedDatabase,
+    useSQLQuery,
 } from "./useSQLiteDatabase"
 
 const mockGet = jest.fn()
@@ -149,4 +150,44 @@ test("B remains unchanged when its download finishes before A", async () => {
     })
     expect(result.current.databases.get("B")).toBe(database)
     expect((database as any).bytes).toEqual(new Uint8Array([22]))
+})
+
+test("a query error cannot certify the previous document rows as ready", async () => {
+    const first = {
+        prepare: () => {
+            let pending = true
+            return {
+                step: () => {
+                    const value = pending
+                    pending = false
+                    return value
+                },
+                getAsObject: () => ({count: 42}),
+                free: () => undefined,
+            }
+        },
+    }
+    const broken = {
+        prepare: () => {
+            throw new Error("missing result table")
+        },
+    }
+    const context = {
+        databases: new Map([
+            ["A", first],
+            ["B", broken],
+        ]),
+    } as any
+    const wrapper = ({children}: {children: React.ReactNode}) =>
+        React.createElement(DatabaseContext.Provider, {value: context}, children)
+    const {result, rerender} = renderHook(
+        ({document}) => useSQLQuery("SELECT count FROM results", [], {databaseName: document}),
+        {wrapper, initialProps: {document: "A"}}
+    )
+    await waitFor(() => expect(result.current.isReady).toBe(true))
+    expect(result.current.data).toEqual([{count: 42}])
+    rerender({document: "B"})
+    await waitFor(() => expect(result.current.error).toBe("missing result table"))
+    expect(result.current.isReady).toBe(false)
+    expect(result.current.data).toEqual([])
 })

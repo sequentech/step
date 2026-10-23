@@ -367,9 +367,10 @@ export const TallyCeremony: React.FC = () => {
         }
     )
 
-    const isPostTallyPending = enforceCompleteness
-        ? tallySession?.annotations?.is_post_task_completed !== true
-        : tallySession?.annotations?.is_post_task_completed === false
+    const isPostTallyPending =
+        enforceCompleteness &&
+        tallySession?.annotations?.is_post_task_completed !== true &&
+        tallySession?.annotations?.is_post_task_completed !== "true"
 
     useEffect(() => {
         // A successful poll may structurally share unchanged session data.

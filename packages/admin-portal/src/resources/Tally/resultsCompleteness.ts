@@ -46,7 +46,8 @@ export function hasCompletedEmptyResults(
         requiresCompleteResults(tally) &&
         tally.execution_status === "SUCCESS" &&
         tally.is_execution_completed &&
-        tally.annotations?.is_post_task_completed === true &&
+        (tally.annotations?.is_post_task_completed === true ||
+            tally.annotations?.is_post_task_completed === "true") &&
         !!execution &&
         execution.tally_session_id === tally.id &&
         !execution.results_event_id &&

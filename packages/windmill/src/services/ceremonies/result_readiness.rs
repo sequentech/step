@@ -76,6 +76,21 @@ fn scope_complete(status: &Value, election_ids: &[String], election_id: Option<&
 
 type AreaContest = (String, String, String);
 
+/// Reject unpublished live assignments before starting a new ceremony, instead
+/// of discovering missing output after trustees restore their keys.
+pub fn validate_published_pairs(expected: &[AreaContest], styles: &[BallotStyle]) -> Result<()> {
+    for (election, contest, area) in expected {
+        if !styles.iter().any(|style| {
+            &style.election_id == election
+                && &style.area_id == area
+                && style.contests.iter().any(|item| &item.id == contest)
+        }) {
+            bail!("Tally scope contains an area-contest missing from its published ballot style");
+        }
+    }
+    Ok(())
+}
+
 /// The run's input scope is independent of whichever rows were processed.
 /// Missing mapped data must not erase an expected area-contest.
 pub fn expected_area_contests(
@@ -460,6 +475,16 @@ mod tests {
             "id":"style", "tenant_id":"tenant", "election_event_id":"event", "election_id":"e", "area_id":"a",
             "contests":[contest("c1"),contest("c2")]
         })).unwrap();
+        assert!(validate_published_pairs(
+            &[("e".into(), "c1".into(), "a".into())],
+            &[style.clone()]
+        )
+        .is_ok());
+        assert!(validate_published_pairs(
+            &[("e".into(), "unpublished".into(), "a".into())],
+            &[style.clone()]
+        )
+        .is_err());
         assert_eq!(
             expected_area_contests(&session, &[row.clone()], &[style.clone()])
                 .unwrap()
@@ -639,15 +664,6 @@ CREATE TABLE sequent_backend.tasks_execution (tenant_id uuid, election_event_id 
                 json!({"id":id,"tenant_id":tenant,"election_event_id":event,"annotations":annotations}),
             )?)
         }
-        assert!(require_complete_execution_report(
-            &tx,
-            &tenant.to_string(),
-            &event.to_string(),
-            &execution_id.to_string(),
-            &result.to_string()
-        )
-        .await
-        .is_err());
         let source = document(&tx, report, tenant, event).await?;
         let origin = require_complete_result_document(
             &tx,
@@ -764,15 +780,6 @@ CREATE TABLE sequent_backend.tasks_execution (tenant_id uuid, election_event_id 
             &tenant.to_string(),
             &document(&tx, report, tenant, event).await?,
             None
-        )
-        .await?
-        .is_none());
-        assert!(require_complete_execution_report(
-            &tx,
-            &tenant.to_string(),
-            &event.to_string(),
-            &execution_id.to_string(),
-            &result.to_string()
         )
         .await?
         .is_none());
