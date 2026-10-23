@@ -11,6 +11,7 @@ pub mod client;
 pub mod config;
 pub mod policy;
 pub mod quorum;
+pub mod statements;
 pub mod transparency;
 pub mod window;
 

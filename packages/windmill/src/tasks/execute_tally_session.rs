@@ -60,6 +60,7 @@ use crate::services::temp_path::{
 };
 use crate::services::users::list_users;
 use crate::services::users::ListUsersFilter;
+use crate::services::vitrine::statements::{queue_event_statements, EventMilestone};
 use crate::services::weight_batches::{collect_weighted_plaintexts, contest_weight_batches};
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context, Result as AnyhowResult};
@@ -1620,6 +1621,14 @@ pub async fn transactions_wrapper(
                     &tenant_id,
                     &election_event_id,
                     &tally_session_id,
+                )
+                .await;
+                queue_event_statements(
+                    &tenant_id,
+                    &election_event_id,
+                    Some(EventMilestone::TallyCompleted {
+                        tally_session_id: tally_session_id.clone(),
+                    }),
                 )
                 .await;
             }

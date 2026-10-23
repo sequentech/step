@@ -13,6 +13,7 @@ use sequent_core::types::hasura::core::{ElectionEvent, VotingChannels};
 use serde_json::value::Value;
 use tracing::{event, info, instrument, warn, Level};
 
+use super::vitrine::statements::{check_voting_status_change, queue_after_status_change};
 use super::voting_status::{
     queue_voting_checkpoint, update_board_on_status_change, voting_checkpoint_reason,
 };
@@ -163,6 +164,8 @@ async fn update_event_voting_status_impl(
         info!("Election event is archived, skipping");
         return Ok(election_event);
     }
+    check_voting_status_change(hasura_transaction, tenant_id, election_event_id, new_status)
+        .await?;
 
     let configured: HashMap<String, VotingChannels> = elections
         .iter()
@@ -280,6 +283,9 @@ async fn update_event_voting_status_impl(
     if let Some(reason) = voting_checkpoint_reason(new_status).filter(|_| logged_changes > 0) {
         queue_voting_checkpoint(&tenant_id, election_event_id, reason).await;
     }
+    if logged_changes > 0 {
+        queue_after_status_change(&election_event, new_status).await;
+    }
 
     for election in &elections {
         let election_status = elections_status.get(&election.id);
@@ -350,6 +356,13 @@ pub async fn update_election_voting_status_impl(
         info!("New status is the same as the current voting status, skipping");
         return Ok(StatusChange::Unchanged);
     }
+    check_voting_status_change(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &new_status,
+    )
+    .await?;
 
     let election_presentation = election.get_presentation().unwrap_or_default();
 

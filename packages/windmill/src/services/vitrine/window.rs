@@ -29,7 +29,7 @@ impl VotingWindow {
     }
 }
 
-fn timestamp(date: Option<String>) -> Result<Option<i64>> {
+pub(super) fn timestamp(date: Option<String>) -> Result<Option<i64>> {
     date.map(|date| {
         ISO8601::to_date(&date)
             .map(|date| date.timestamp())
@@ -40,7 +40,7 @@ fn timestamp(date: Option<String>) -> Result<Option<i64>> {
 
 /// How long after its end an election keeps accepting the ballots of voters
 /// who logged in before it.
-fn grace_secs(election: &Election) -> Result<i64> {
+pub(super) fn grace_secs(election: &Election) -> Result<i64> {
     let presentation: ElectionPresentation = election
         .presentation
         .clone()

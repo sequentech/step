@@ -7,6 +7,7 @@ use crate::services::celery_app::get_celery_app;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status;
 use crate::services::electoral_log::*;
+use crate::services::vitrine::statements::queue_after_status_change;
 use crate::tasks::publish_electoral_log_checkpoint::publish_electoral_log_checkpoint;
 use anyhow::{Context, Result};
 use deadpool_postgres::Transaction;
@@ -161,6 +162,9 @@ pub async fn update_election_status(
 
     if let Some(reason) = voting_checkpoint_reason(voting_status).filter(|_| changed_channels > 0) {
         queue_voting_checkpoint(&tenant_id, election_event_id, reason).await;
+    }
+    if changed_channels > 0 {
+        queue_after_status_change(&election_event, voting_status).await;
     }
 
     Ok(())

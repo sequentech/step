@@ -29,6 +29,7 @@ use windmill::tasks::review_cast_votes::review_cast_votes;
 use windmill::tasks::scheduled_events::scheduled_events;
 use windmill::tasks::scheduled_reports::scheduled_reports;
 use windmill::tasks::sequence_ballot_box::schedule_ballot_box_sequencers;
+use windmill::tasks::vitrine_statements::schedule_vitrine_statements;
 
 #[derive(Debug, Parser)]
 #[command(name = "beat", about = "Windmill's periodic task scheduler.")]
@@ -46,6 +47,10 @@ struct CeleryOpt {
     /// Seconds between scans for ballots waiting for the sequencer.
     #[arg(short = 'b', long, default_value = "2")]
     ballot_box_interval: u64,
+    /// Seconds between scans for transparent events with Vitrine statements
+    /// to log or receipts to keep.
+    #[arg(long, default_value = "15")]
+    vitrine_statements_interval: u64,
 }
 
 #[tokio::main]
@@ -129,6 +134,11 @@ async fn main() -> Result<()> {
                 schedule = DeltaSchedule::new(Duration::from_secs(CeleryOpt::parse().ballot_box_interval)),
                 args = (),
             },
+            schedule_vitrine_statements::NAME => {
+                schedule_vitrine_statements,
+                schedule = DeltaSchedule::new(Duration::from_secs(CeleryOpt::parse().vitrine_statements_interval)),
+                args = (),
+            },
             publish_periodic_electoral_log_checkpoints::NAME => {
                 publish_periodic_electoral_log_checkpoints,
                 schedule = DeltaSchedule::new(Duration::from_secs(
@@ -152,6 +162,7 @@ async fn main() -> Result<()> {
             electoral_log_batch_dispatcher::NAME => Queue::ElectoralLogBeat.queue_name(),
             publish_periodic_electoral_log_checkpoints::NAME => Queue::Beat.queue_name(),
             schedule_ballot_box_sequencers::NAME => Queue::ElectoralLogBeat.queue_name(),
+            schedule_vitrine_statements::NAME => Queue::Beat.queue_name(),
             purge_queue_archives::NAME => Queue::Beat.queue_name(),
         ],
         default_queue = Queue::Beat.queue_name(),

@@ -16,6 +16,7 @@ use crate::services::electoral_log::*;
 use crate::services::tasks_execution::{
     post as post_task_execution, update_fail as update_task_execution_fail,
 };
+use crate::services::vitrine::statements::check_configuration_change;
 use crate::tasks::update_election_event_ballot_styles::update_election_event_ballot_styles;
 use crate::types::tasks::ETasksExecution;
 use anyhow::{anyhow, Context, Result};
@@ -351,6 +352,8 @@ pub async fn update_publish_ballot(
     if ballot_publication.published_at.is_some() {
         return Ok(());
     }
+
+    check_configuration_change(hasura_transaction, &tenant_id, &election_event_id).await?;
 
     validate_published_acclamation_status(
         hasura_transaction,
