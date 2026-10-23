@@ -762,6 +762,15 @@
         "attributes": {}
       },
       {
+        "id": "3b0f6c1e-5d2a-4e7b-9a41-8c6d2f0e7a15",
+        "name": "election-event-transparency-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
         "id": "7f9d0130-c877-490d-9c23-c05e18061672",
         "name": "election-event-ivr-tab",
         "description": "",
@@ -2477,6 +2486,7 @@
         "keycloak-realm-attributes-read",
         "keycloak-realm-attributes-write",
         "election-event-cas-tab",
+        "election-event-transparency-tab",
         "ca-read",
         "ca-write",
         "tally-sheet-create",
@@ -2709,6 +2719,7 @@
         "election-event-write",
         "election-event-ivr-tab",
         "election-event-cas-tab",
+        "election-event-transparency-tab",
         "ca-read",
         "ca-write",
         "notification-send",
