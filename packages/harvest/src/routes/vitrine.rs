@@ -54,7 +54,9 @@ fn admin_sidecar() -> Option<SidecarClient> {
 
 /// The sidecar's internal listener, for voters' forwards: no admin token.
 fn voter_sidecar() -> Option<SidecarClient> {
-    let url = std::env::var(Service::Harvest.internal_url_env()).ok()?;
+    let url = std::env::var(Service::Harvest.internal_url_env())
+        .ok()
+        .filter(|url| !url.is_empty())?;
     SidecarClient::new(&url, None)
         .map_err(|e| error!("{e:#}"))
         .ok()

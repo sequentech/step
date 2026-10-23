@@ -146,7 +146,9 @@ pub fn deployment_release() -> Result<Release> {
 /// The operator's authority key, from `WINDMILL_VITRINE_AUTHORITY_KEY_FILE`.
 pub fn authority_signer() -> Result<NoteSigner> {
     let path = std::env::var(AUTHORITY_KEY_FILE_ENV)
-        .map_err(|_| anyhow!("{AUTHORITY_KEY_FILE_ENV} isn't set"))?;
+        .ok()
+        .filter(|path| !path.is_empty())
+        .ok_or_else(|| anyhow!("{AUTHORITY_KEY_FILE_ENV} isn't set"))?;
     let text = std::fs::read_to_string(&path).with_context(|| format!("Error reading {path}"))?;
     NoteSigner::from_private_key(&text).with_context(|| format!("{path} isn't a note signing key"))
 }

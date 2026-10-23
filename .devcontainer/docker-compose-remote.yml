@@ -429,6 +429,19 @@ services:
       ELECTORAL_LOG_PG_READER_PASSWORD: ${ELECTORAL_LOG_PG_READER_PASSWORD:-electoral_log_reader_dev}
       # The role that the Vitrine sidecar grants a ballots log's queue to.
       ELECTORAL_LOG_PG_VITRINE_QUEUE_ROLE: ${ELECTORAL_LOG_PG_VITRINE_QUEUE_ROLE:-vitrine_queue}
+      # The Vitrine sidecar's internal listener and admin token, the deployment
+      # configuration that event policies are drafted from, the receipt wait at
+      # cast, and the development witnesses that Harvest enrols the logs in.
+      # Without HARVEST_VITRINE_INTERNAL_URL, transparent events' casts get no
+      # receipt and the Transparency tab can't create logs.
+      HARVEST_VITRINE_INTERNAL_URL: ${HARVEST_VITRINE_INTERNAL_URL:-}
+      HARVEST_VITRINE_ADMIN_TOKEN_FILE: ${HARVEST_VITRINE_ADMIN_TOKEN_FILE:-}
+      HARVEST_VITRINE_CONFIG_FILE: ${HARVEST_VITRINE_CONFIG_FILE:-}
+      HARVEST_VITRINE_BUDGET_MS: ${HARVEST_VITRINE_BUDGET_MS:-800}
+      HARVEST_VITRINE_WAIT_MS: ${HARVEST_VITRINE_WAIT_MS:-600}
+      HARVEST_VITRINE_BREAKER_FAILURES: ${HARVEST_VITRINE_BREAKER_FAILURES:-5}
+      HARVEST_VITRINE_BREAKER_OPEN_SECS: ${HARVEST_VITRINE_BREAKER_OPEN_SECS:-30}
+      HARVEST_VITRINE_DEV_WITNESS_ADMINS: ${HARVEST_VITRINE_DEV_WITNESS_ADMINS:-}
       ELECTORAL_LOG_PG_DATABASE: ${ELECTORAL_LOG_PG_DATABASE}
       ELECTORAL_LOG_PG_EVENT_POOL_SIZE: ${ELECTORAL_LOG_PG_EVENT_POOL_SIZE:-4}
       ELECTORAL_LOG_PG_OPEN_EVENTS: ${ELECTORAL_LOG_PG_OPEN_EVENTS:-16}
@@ -683,6 +696,13 @@ services:
       ELECTORAL_LOG_PG_READER_USER: ${ELECTORAL_LOG_PG_READER_USER:-electoral_log_reader}
       # Lets the Vitrine sidecar keep its schema in each election event's database.
       ELECTORAL_LOG_PG_VITRINE_USER: ${ELECTORAL_LOG_PG_VITRINE_USER:-vitrine}
+      # The Vitrine sidecar's internal listener and admin token, and the
+      # operator's authority key, which signs the events logs' statements.
+      WINDMILL_VITRINE_INTERNAL_URL: ${WINDMILL_VITRINE_INTERNAL_URL:-}
+      WINDMILL_VITRINE_ADMIN_TOKEN_FILE: ${WINDMILL_VITRINE_ADMIN_TOKEN_FILE:-}
+      WINDMILL_VITRINE_AUTHORITY_KEY_FILE: ${WINDMILL_VITRINE_AUTHORITY_KEY_FILE:-}
+      # The voting portal's release in the config statements: its APP_VERSION.
+      WINDMILL_VITRINE_PORTAL_VERSION: ${APP_VERSION}
       ELECTORAL_LOG_PG_DATABASE: ${ELECTORAL_LOG_PG_DATABASE}
       ELECTORAL_LOG_PG_EVENT_POOL_SIZE: ${ELECTORAL_LOG_PG_EVENT_POOL_SIZE:-4}
       ELECTORAL_LOG_PG_OPEN_EVENTS: ${ELECTORAL_LOG_PG_OPEN_EVENTS:-16}

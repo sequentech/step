@@ -433,13 +433,6 @@ impl DeploymentConfig {
         Self::parse(&text)
     }
 
-    /// The configuration named by `HARVEST_VITRINE_CONFIG_FILE`.
-    pub fn from_env() -> Result<Self> {
-        let path =
-            std::env::var(CONFIG_FILE_ENV).map_err(|_| anyhow!("{CONFIG_FILE_ENV} isn't set"))?;
-        Self::load(&path)
-    }
-
     pub fn mmd(&self) -> u64 {
         self.mmd.unwrap_or(DEFAULT_MMD)
     }

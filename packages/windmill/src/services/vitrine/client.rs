@@ -157,7 +157,10 @@ impl SidecarClient {
     /// `<SERVICE>_VITRINE_ADMIN_TOKEN_FILE`.
     pub fn from_env(service: Service) -> Result<Self> {
         let url_env = service.internal_url_env();
-        let base = std::env::var(&url_env).map_err(|_| anyhow!("{url_env} isn't set"))?;
+        let base = std::env::var(&url_env)
+            .ok()
+            .filter(|url| !url.is_empty())
+            .ok_or_else(|| anyhow!("{url_env} isn't set"))?;
         let token = std::env::var(service.admin_token_file_env())
             .ok()
             .filter(|path| !path.is_empty())
