@@ -661,7 +661,7 @@ async fn run(args: Args) -> Result<ExitStatus> {
                 command: vec![],
                 exit_code: None,
                 status,
-                outputs: runner.digests(&[log.clone()]),
+                outputs: runner.digests(std::slice::from_ref(&log)),
                 message: "existing electoral log export".into(),
             });
             (status == StepStatus::Success).then_some(log)

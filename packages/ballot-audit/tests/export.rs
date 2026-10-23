@@ -723,7 +723,7 @@ async fn signed_database_pipeline(
         )
         .await
         .unwrap();
-    hasura.execute("UPDATE sequent_backend.tally_session_contest SET contest_id=$1::text::uuid, annotations='{}'", &[&contest]).await.unwrap();
+    hasura.execute("UPDATE sequent_backend.tally_session_contest SET contest_id=$1::text::uuid, annotations=NULL", &[&contest]).await.unwrap();
     let mut votes: Vec<Value> =
         serde_json::from_slice(&fs::read(input.join("cast-votes.json")).unwrap()).unwrap();
     let selected = votes
@@ -731,6 +731,25 @@ async fn signed_database_pipeline(
         .find(|row| row["id"] == "00000000-0000-4000-8000-000000000002")
         .unwrap()
         .clone();
+    // The selected ballot with another issue date, so that its receipt differs.
+    let redated = |row: &mut Value, date: &str| {
+        let mut ballot: sequent_core::ballot::HashableBallot =
+            serde_json::from_str(selected["content"].as_str().unwrap()).unwrap();
+        ballot.issue_date = date.into();
+        row["content"] = json!(serde_json::to_string(&ballot).unwrap());
+        row["ballot_id"] = json!(sequent_core::encrypt::hash_ballot(&ballot).unwrap());
+    };
+    // A restored database holds a real ballot in every row: replace the
+    // fixture's placeholder contents, which history reconciliation must hash.
+    for (vote, date) in
+        votes
+            .iter_mut()
+            .zip(["03/10/2026", "04/10/2026", "05/10/2026", "06/10/2026"])
+    {
+        if serde_json::from_str::<Value>(vote["content"].as_str().unwrap()).is_err() {
+            redated(vote, date);
+        }
+    }
     for (id, voter, status, date) in [
         (
             "00000000-0000-4000-8000-000000000081",
@@ -746,14 +765,10 @@ async fn signed_database_pipeline(
         ),
     ] {
         let mut row = selected.clone();
-        let mut ballot: sequent_core::ballot::HashableBallot =
-            serde_json::from_str(selected["content"].as_str().unwrap()).unwrap();
-        ballot.issue_date = date.into();
         row["id"] = json!(id);
         row["voter_id_string"] = json!(voter);
         row["status"] = json!(status);
-        row["content"] = json!(serde_json::to_string(&ballot).unwrap());
-        row["ballot_id"] = json!(sequent_core::encrypt::hash_ballot(&ballot).unwrap());
+        redated(&mut row, date);
         votes.push(row);
     }
     for vote in &votes {
@@ -850,9 +865,25 @@ async fn signed_database_pipeline(
             .unwrap();
         assert_eq!(row["content"], original["content"]);
     }
+    let scoped_board: Vec<&String> = encoded
+        .iter()
+        .filter(|value| {
+            let message =
+                Message::strand_deserialize(&STANDARD_NO_PAD.decode(value).unwrap()).unwrap();
+            match message.statement.get_kind().to_string().as_str() {
+                "Configuration" | "PublicKey" | "PublicKeySigned" => true,
+                "Ballots" => scope["batches"]
+                    .as_array()
+                    .unwrap()
+                    .contains(&json!(message.statement.get_batch_number())),
+                _ => false,
+            }
+        })
+        .collect();
+    assert!(scoped_board.len() < encoded.len());
     assert_eq!(
         load(output, "postgres", "board-messages.json"),
-        json!(encoded)
+        json!(scoped_board)
     );
     let native_log: Value = serde_json::from_slice(&fs::read(acquired_log).unwrap()).unwrap();
     let expected_log: Value =
@@ -912,6 +943,7 @@ async fn signed_database_pipeline(
     assert_eq!(report["checked_batches"], 1);
     assert_eq!(report["checked_electoral_log_messages"], 1);
     write_json(&output.join("audit-report.json"), &report);
+    signed_tally_run_passes(root, &scope, acquired_log, output);
     let selected_id = selected["id"].as_str().unwrap();
     let original_content = selected["content"].as_str().unwrap();
     let mut tampered: Value = serde_json::from_str(original_content).unwrap();
@@ -939,7 +971,8 @@ async fn signed_database_pipeline(
     assert!(!tampered_result.status.success());
     let content_error = String::from_utf8(tampered_result.stderr).unwrap();
     assert!(
-        content_error.contains("no matching signed electoral-log evidence"),
+        content_error
+            .contains("historical stored ballot receipt does not match native full-ballot hash"),
         "{content_error}"
     );
     hasura
@@ -1021,6 +1054,104 @@ async fn signed_database_pipeline(
     println!("Signed database acquisition, eligibility/exclusions, preparation, audit and cryptographic negative cases passed: {}", output.display());
 }
 
+/// Writes a stand-in for the Braid verifier that prints its working directory
+/// and arguments and exits with `code`.
+fn stand_in_verify(directory: &Path, code: i32) -> PathBuf {
+    let path = directory.join(format!("verify-exit-{code}"));
+    fs::write(&path, format!("#!/bin/sh\npwd\necho \"$@\"\nexit {code}\n")).unwrap();
+    fs::set_permissions(&path, fs::Permissions::from_mode(0o700)).unwrap();
+    path
+}
+
+fn tally_run(root: &Path, scope: &Value, log: &Path, verify: &Path, output: &Path) -> Output {
+    Command::new(env!("CARGO_BIN_EXE_audit-tally"))
+        .arg("--connections")
+        .arg(root.join("connections.json"))
+        .args(["--tally-session-id", SESSION, "--public-key-sha512"])
+        .arg(scope["scope"]["public_key_sha512"].as_str().unwrap())
+        .arg("--electoral-log-system-public-key")
+        .arg(
+            scope["scope"]["electoral_log_system_public_key"]
+                .as_str()
+                .unwrap(),
+        )
+        .arg("--electoral-log-export")
+        .arg(log)
+        .args(["--b3-server-url", "http://127.0.0.1:1"])
+        .arg("--braid-verify")
+        .arg(verify)
+        .arg("--output")
+        .arg(output)
+        .output()
+        .unwrap()
+}
+
+/// audit-tally on the signed database: every per-scope step passes, and the
+/// Braid verifier gets the tally and board batches in braid/. A stand-in
+/// replaces the Braid verifier, which needs a B3 server.
+fn signed_tally_run_passes(root: &Path, scope: &Value, acquired_log: &Path, output: &Path) {
+    let log = output.join("tally-log");
+    fs::create_dir(&log).unwrap();
+    fs::copy(acquired_log, log.join("electoral-log.json")).unwrap();
+    let tally = output.join("tally");
+    let result = tally_run(root, scope, &log, &stand_in_verify(output, 0), &tally);
+    let record: Value =
+        serde_json::from_slice(&fs::read(tally.join("audit-record.json")).unwrap()).unwrap();
+    let status_of = |step: &str| {
+        record["steps"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|record| record["step"] == step)
+            .unwrap_or_else(|| panic!("no {step} step"))
+            .clone()
+    };
+    for step in [
+        "export-ballot-audit",
+        "prepare-ballot-audit",
+        "ballot-audit",
+        "verify",
+    ] {
+        assert_eq!(status_of(step)["status"], "success", "{}", status_of(step));
+    }
+    let derived = load(&tally, "scopes/001", "scope.json");
+    assert_eq!(&derived, scope);
+    let report = load(&tally, "scopes/001", "audit-report.json");
+    assert_eq!(report["checked_cast_votes"], 1);
+    assert_eq!(report["checked_batches"], 1);
+    let verify_log = fs::read_to_string(tally.join("braid/verify.log")).unwrap();
+    let braid = fs::canonicalize(tally.join("braid")).unwrap();
+    assert_eq!(
+        verify_log,
+        format!(
+            "{}\n--server-url http://127.0.0.1:1 --board synthetic_board --batches 10,100\n",
+            braid.display()
+        )
+    );
+    let summary = load(&tally, "", "public-summary.json");
+    assert_eq!(summary["scopes"][0]["status"], "success");
+    assert_eq!(summary["scopes"][0]["checked_cast_votes"], 1);
+    assert_eq!(summary["braid"]["status"], "success");
+    // The fixture's unselected rows have no signed log, which leaves the
+    // event-wide history incomplete but not contradicted.
+    assert_eq!(status_of("audit-cast-history")["status"], "incomplete");
+    let history = &summary["cast_vote_history"][0];
+    assert_eq!(history["outcome"], "incomplete");
+    assert_eq!(history["signed_log_records_without_hasura_row"], 0);
+    assert_eq!(history["hasura_rows_without_signed_log"], 4);
+    assert_eq!(summary["status"], "incomplete");
+    assert_eq!(record["status"], summary["status"]);
+    assert_exit(result, ExitStatus::Incomplete);
+
+    let failed = output.join("tally-braid-failed");
+    let result = tally_run(root, scope, &log, &stand_in_verify(output, 1), &failed);
+    assert_exit(result, ExitStatus::VerificationFailed);
+    let summary = load(&failed, "", "public-summary.json");
+    assert_eq!(summary["status"], "verification_failed");
+    assert_eq!(summary["braid"]["status"], "verification_failed");
+    assert_eq!(summary["scopes"][0]["status"], "success");
+}
+
 fn prepare_acquired(postgres: &Path, acquired_log: &Path, output: &Path) -> Output {
     let mut command = Command::new(env!("CARGO_BIN_EXE_prepare-ballot-audit"));
     for (option, file) in [
@@ -1028,6 +1159,7 @@ fn prepare_acquired(postgres: &Path, acquired_log: &Path, output: &Path) -> Outp
         ("cast-votes", "cast-votes.json"),
         ("eligible-voters", "eligible-voters.json"),
         ("board-messages", "board-messages.json"),
+        ("cast-vote-history", "cast-vote-history.json"),
     ] {
         let path = postgres.join(file);
         command
