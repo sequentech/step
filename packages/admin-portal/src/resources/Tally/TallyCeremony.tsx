@@ -87,6 +87,7 @@ import {IPermissions} from "@/types/keycloak"
 import {CREATE_TRANSMISSION_PACKAGE} from "@/queries/CreateTransmissionPackage"
 import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
+import {getCompleteElectionIds} from "./resultsCompleteness"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
@@ -295,6 +296,24 @@ export const TallyCeremony: React.FC = () => {
     let resultsEventId = tallySessionExecutions?.[0]?.results_event_id ?? null
 
     const resultsSQLiteDocumentId = tallySessionExecutions?.[0]?.documents?.sqlite ?? null
+    const loadedTallyData = useAtomValue(tallyQueryData)
+    const completeElectionIds = useMemo(
+        () =>
+            getCompleteElectionIds(
+                tallySession?.id === tallyId ? tallySession : undefined,
+                tallySessionExecutions?.[0],
+                loadedTallyData
+            ),
+        [tallyId, tallySession, tallySessionExecutions, loadedTallyData]
+    )
+    const displayedExecutionStatus =
+        tally?.execution_status === ITallyExecutionStatus.SUCCESS &&
+        !(
+            tallySession?.election_ids?.length &&
+            tallySession.election_ids.every((id) => completeElectionIds.includes(id))
+        )
+            ? ITallyExecutionStatus.IN_PROGRESS
+            : tally?.execution_status
 
     const tallySessionData = useMemo(() => {
         try {
@@ -943,20 +962,21 @@ export const TallyCeremony: React.FC = () => {
                                     <WizardStyles.CeremonyStatus
                                         sx={{
                                             backgroundColor: statusColor(
-                                                tally?.execution_status ??
+                                                displayedExecutionStatus ??
                                                     ITallyExecutionStatus.STARTED
                                             ),
                                             color: theme.palette.background.default,
                                         }}
                                         label={String(
                                             t("keysGeneration.ceremonyStep.executionStatus", {
-                                                status: tally?.execution_status,
+                                                status: displayedExecutionStatus,
                                             })
                                         )}
                                     />
                                 </AccordionSummary>
                                 <WizardStyles.AccordionDetails>
                                     <TallyElectionsProgress
+                                        completeElectionIds={completeElectionIds}
                                         tally={tally}
                                         tallySessionExecutions={tallySessionExecutions}
                                         allElections={elections}
@@ -986,6 +1006,7 @@ export const TallyCeremony: React.FC = () => {
                                 <WizardStyles.AccordionDetails>
                                     <TallyStartDate />
                                     <TallyElectionsResults
+                                        completeElectionIds={completeElectionIds}
                                         tenantId={tally?.tenant_id}
                                         electionEventId={tally?.election_event_id}
                                         electionIds={tally?.election_ids}
@@ -1017,6 +1038,7 @@ export const TallyCeremony: React.FC = () => {
                                 </AccordionSummary>
                                 <WizardStyles.AccordionDetails>
                                     <TallyResults
+                                        completeElectionIds={completeElectionIds}
                                         tally={tally}
                                         resultsEventId={resultsEventId}
                                         onCreateTransmissionPackage={
@@ -1062,20 +1084,21 @@ export const TallyCeremony: React.FC = () => {
                                     <WizardStyles.CeremonyStatus
                                         sx={{
                                             backgroundColor: statusColor(
-                                                tally?.execution_status ??
+                                                displayedExecutionStatus ??
                                                     ITallyExecutionStatus.STARTED
                                             ),
                                             color: theme.palette.background.default,
                                         }}
                                         label={String(
                                             t("keysGeneration.ceremonyStep.executionStatus", {
-                                                status: tally?.execution_status,
+                                                status: displayedExecutionStatus,
                                             })
                                         )}
                                     />
                                 </AccordionSummary>
                                 <WizardStyles.AccordionDetails>
                                     <TallyElectionsProgress
+                                        completeElectionIds={completeElectionIds}
                                         tally={tally}
                                         tallySessionExecutions={tallySessionExecutions}
                                         allElections={elections}
@@ -1105,6 +1128,7 @@ export const TallyCeremony: React.FC = () => {
                                 <WizardStyles.AccordionDetails>
                                     <TallyStartDate />
                                     <TallyElectionsResults
+                                        completeElectionIds={completeElectionIds}
                                         tenantId={tally?.tenant_id}
                                         electionEventId={tally?.election_event_id}
                                         electionIds={tally?.election_ids}
@@ -1168,6 +1192,7 @@ export const TallyCeremony: React.FC = () => {
                                 </AccordionSummary>
                                 <WizardStyles.AccordionDetails style={{zIndex: 100}}>
                                     <TallyResults
+                                        completeElectionIds={completeElectionIds}
                                         tally={tally}
                                         resultsEventId={resultsEventId}
                                         onCreateTransmissionPackage={

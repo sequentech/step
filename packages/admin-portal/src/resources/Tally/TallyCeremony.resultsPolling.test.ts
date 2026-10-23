@@ -12,6 +12,8 @@ const mockExecutionRefetch = jest.fn()
 const mockExecutionOptions = jest.fn()
 let mockSession: Record<string, unknown>
 let mockExecution: Record<string, unknown>
+let mockTallyData: any = null
+const mockCompleteElections = jest.fn()
 const mockT = (key: string) => key
 const mockEmpty: unknown[] = []
 const mockRecord = {
@@ -64,7 +66,11 @@ jest.mock("@apollo/client", () => ({
     useQuery: () => ({data: mockKeys}),
 }))
 jest.mock("react-i18next", () => ({
-    useTranslation: () => ({t: mockT, i18n: {language: "en", dir: () => "ltr"}}),
+    useTranslation: () => ({
+        t: (key: string, options?: any) =>
+            key === "keysGeneration.ceremonyStep.executionStatus" ? options.status : mockT(key),
+        i18n: {language: "en", dir: () => "ltr"},
+    }),
 }))
 jest.mock("@/providers/ElectionEventTallyProvider", () => ({
     useElectionEventTallyStore: () => mockStore,
@@ -137,7 +143,20 @@ jest.mock("@/components/styles/TallyStyles", () => ({
     TallyStyles: new Proxy({}, {get: () => "div"}),
 }))
 jest.mock("@/components/styles/WizardStyles", () => ({
-    WizardStyles: new Proxy({}, {get: () => "div"}),
+    WizardStyles: new Proxy(
+        {},
+        {
+            get: (_target, key) =>
+                key === "CeremonyStatus"
+                    ? ({label}: any) =>
+                          require("react").createElement(
+                              "output",
+                              {"data-testid": "ceremony-status"},
+                              label
+                          )
+                    : "div",
+        }
+    ),
 }))
 jest.mock("./styles", () => ({NextButton: "button", CancelButton: "button"}))
 jest.mock("@/components/ElectionHeader", () => ({__esModule: true, default: () => null}))
@@ -146,7 +165,12 @@ jest.mock("@/components/tally/ExportElectionMenu", () => ({ExportElectionMenu: (
 jest.mock("./TallyTrusteesList", () => ({TallyTrusteesList: () => null}))
 jest.mock("./TallyStartDate", () => ({TallyStartDate: () => null}))
 jest.mock("./TallyElectionsProgress", () => ({TallyElectionsProgress: () => null}))
-jest.mock("./TallyElectionsResults", () => ({TallyElectionsResults: () => null}))
+jest.mock("./TallyElectionsResults", () => ({
+    TallyElectionsResults: (props: any) => {
+        mockCompleteElections(props.completeElectionIds)
+        return null
+    },
+}))
 jest.mock("./TallyResults", () => ({TallyResults: () => null}))
 jest.mock("./TallyLogs", () => ({TallyLogs: () => null}))
 jest.mock("./TallyResolutionPanel", () => ({TallyResolutionPanel: () => null}))
@@ -165,12 +189,14 @@ jest.mock("./ResultsDataLoader", () => ({
             `${resultsEventId}:${databaseName}`
         ),
 }))
+jest.mock("jotai", () => ({useAtomValue: () => mockTallyData}))
 jest.mock("@/atoms/tally-candidates", () => ({tallyQueryData: {}}))
 
 const pollingInterval = () => mockExecutionOptions.mock.calls.at(-1)[0].refetchInterval
 
 beforeEach(() => {
     jest.clearAllMocks()
+    mockTallyData = null
     mockStore.tallyId = "tally"
     mockSession = {
         id: "tally",
@@ -308,5 +334,52 @@ it("resumes polling after a completed tally when selecting a new tally", async (
         is_execution_completed: false,
     }
     rerender(React.createElement(TallyCeremony))
+    expect(pollingInterval()).toBe(1000)
+})
+
+it("does not show success or permit final results from an incomplete snapshot", async () => {
+    mockSession = {...mockSession, execution_status: "SUCCESS", is_execution_completed: true}
+    mockExecution = {
+        ...mockExecution,
+        tally_session_id: "tally",
+        status: {elections_status: [{election_id: "closed", status: "DECRYPTING", progress: 90}]},
+    }
+    render(React.createElement(TallyCeremony))
+    await waitFor(() =>
+        expect(screen.getByTestId("ceremony-status").textContent).toBe("IN_PROGRESS")
+    )
+    expect(mockCompleteElections).toHaveBeenLastCalledWith([])
+})
+
+it("permits completed numeric results and success while PDFs remain pending", async () => {
+    mockSession = {...mockSession, execution_status: "SUCCESS", is_execution_completed: true}
+    mockExecution = {
+        ...mockExecution,
+        tally_session_id: "tally",
+        status: {elections_status: [{election_id: "closed", status: "SUCCESS", progress: 100}]},
+    }
+    mockTallyData = {
+        sequent_backend_results_event: [{id: "partial-results"}],
+        sequent_backend_election: [{id: "closed"}],
+        sequent_backend_contest: [{id: "contest", election_id: "closed"}],
+        sequent_backend_area_contest: [{contest_id: "contest", area_id: "area"}],
+        sequent_backend_results_election: [
+            {election_id: "closed", results_event_id: "partial-results"},
+        ],
+        sequent_backend_results_contest: [
+            {election_id: "closed", contest_id: "contest", results_event_id: "partial-results"},
+        ],
+        sequent_backend_results_area_contest: [
+            {
+                election_id: "closed",
+                contest_id: "contest",
+                area_id: "area",
+                results_event_id: "partial-results",
+            },
+        ],
+    }
+    render(React.createElement(TallyCeremony))
+    await waitFor(() => expect(screen.getByTestId("ceremony-status").textContent).toBe("SUCCESS"))
+    expect(mockCompleteElections).toHaveBeenLastCalledWith(["closed"])
     expect(pollingInterval()).toBe(1000)
 })
