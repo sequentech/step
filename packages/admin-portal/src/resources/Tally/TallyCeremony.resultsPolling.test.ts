@@ -351,7 +351,7 @@ it("does not show success or permit final results from an incomplete snapshot", 
     expect(mockCompleteElections).toHaveBeenLastCalledWith([])
 })
 
-it("permits completed numeric results and success while PDFs remain pending", async () => {
+it("permits complete numeric results while withholding ceremony success until PDFs finish", async () => {
     mockSession = {...mockSession, execution_status: "SUCCESS", is_execution_completed: true}
     mockExecution = {
         ...mockExecution,
@@ -359,6 +359,7 @@ it("permits completed numeric results and success while PDFs remain pending", as
         status: {elections_status: [{election_id: "closed", status: "SUCCESS", progress: 100}]},
     }
     mockTallyData = {
+        sqliteDocumentId: "partial-db",
         sequent_backend_results_event: [{id: "partial-results"}],
         sequent_backend_election: [{id: "closed"}],
         sequent_backend_contest: [{id: "contest", election_id: "closed"}],
@@ -378,8 +379,13 @@ it("permits completed numeric results and success while PDFs remain pending", as
             },
         ],
     }
-    render(React.createElement(TallyCeremony))
-    await waitFor(() => expect(screen.getByTestId("ceremony-status").textContent).toBe("SUCCESS"))
+    const {rerender} = render(React.createElement(TallyCeremony))
+    await waitFor(() =>
+        expect(screen.getByTestId("ceremony-status").textContent).toBe("IN_PROGRESS")
+    )
     expect(mockCompleteElections).toHaveBeenLastCalledWith(["closed"])
     expect(pollingInterval()).toBe(1000)
+    mockSession = {...mockSession, annotations: {is_post_task_completed: true}}
+    rerender(React.createElement(TallyCeremony))
+    await waitFor(() => expect(screen.getByTestId("ceremony-status").textContent).toBe("SUCCESS"))
 })

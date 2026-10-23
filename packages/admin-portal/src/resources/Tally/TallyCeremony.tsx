@@ -309,6 +309,7 @@ export const TallyCeremony: React.FC = () => {
     const displayedExecutionStatus =
         tally?.execution_status === ITallyExecutionStatus.SUCCESS &&
         !(
+            isTallyCompleted &&
             tallySession?.election_ids?.length &&
             tallySession.election_ids.every((id) => completeElectionIds.includes(id))
         )
@@ -394,7 +395,7 @@ export const TallyCeremony: React.FC = () => {
         currentKeysCeremony?.settings?.policy ===
         EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES
 
-    const isPostTallyPending = tallySession?.annotations?.is_post_task_completed === false
+    const isPostTallyPending = tallySession?.annotations?.is_post_task_completed !== true
 
     useEffect(() => {
         if (!tallyId || tallySession?.id !== tallyId) return

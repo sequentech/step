@@ -1,10 +1,10 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 import type {
-    GetTallyDataQuery,
     Sequent_Backend_Tally_Session,
     Sequent_Backend_Tally_Session_Execution,
 } from "@/gql/graphql"
+import type {TallyDataSnapshot} from "@/atoms/tally-candidates"
 import {ITallyCeremonyStatus, ITallyElectionStatus} from "@/types/ceremonies"
 
 /** Numeric completeness belongs to one execution snapshot and one election.
@@ -17,16 +17,18 @@ export function getCompleteElectionIds(
     execution:
         | Pick<
               Sequent_Backend_Tally_Session_Execution,
-              "tally_session_id" | "results_event_id" | "status"
+              "tally_session_id" | "results_event_id" | "status" | "documents"
           >
         | undefined,
-    data: GetTallyDataQuery | null
+    data: TallyDataSnapshot | null
 ): string[] {
     const resultsId = execution?.results_event_id
     if (
         !tally ||
         execution?.tally_session_id !== tally.id ||
         !resultsId ||
+        !execution.documents?.sqlite ||
+        data?.sqliteDocumentId !== execution.documents.sqlite ||
         !data?.sequent_backend_results_event.some((row) => row.id === resultsId)
     )
         return []

@@ -5,6 +5,7 @@ import {getCompleteElectionIds} from "./resultsCompleteness"
 const fixture = () => {
     const tally: any = {id: "tally", election_ids: ["one", "two"], area_ids: ["a", "b"]}
     const execution: any = {
+        documents: {sqlite: "db"},
         tally_session_id: "tally",
         results_event_id: "result",
         status: {
@@ -15,6 +16,7 @@ const fixture = () => {
         },
     }
     const data: any = {
+        sqliteDocumentId: "db",
         sequent_backend_results_event: [{id: "result"}],
         sequent_backend_election: [{id: "one"}, {id: "two"}],
         sequent_backend_contest: [
@@ -56,6 +58,8 @@ test("a complete election does not wait for an unrelated incomplete election or 
     expect(getCompleteElectionIds(tally, execution, data)).toEqual(["one"])
     tally.annotations.is_post_task_completed = true
     execution.documents = {sqlite: "post-pdf"}
+    expect(getCompleteElectionIds(tally, execution, data)).toEqual([])
+    data.sqliteDocumentId = "post-pdf"
     expect(getCompleteElectionIds(tally, execution, data)).toEqual(["one"])
 })
 
@@ -114,4 +118,10 @@ test("contests assigned only to excluded areas do not block selected-area result
     data.sequent_backend_contest.push({id: "excluded-contest", election_id: "one"})
     data.sequent_backend_area_contest.push({contest_id: "excluded-contest", area_id: "b"})
     expect(getCompleteElectionIds(tally, execution, data)).toEqual(["one"])
+})
+
+test("a missing SQLite artifact or older loaded document cannot satisfy completeness", () => {
+    const {tally, execution, data} = fixture()
+    expect(getCompleteElectionIds(tally, {...execution, documents: null}, data)).toEqual([])
+    expect(getCompleteElectionIds(tally, execution, {...data, sqliteDocumentId: "old"})).toEqual([])
 })
