@@ -737,6 +737,14 @@ async fn reads_cover_voters_administrators_and_reports() -> Result<()> {
             voters: 2
         }
     );
+
+    let mut counts = vec![(first.clone(), 5), (second.clone(), 1)];
+    counts.sort();
+    assert_eq!(store.accepted_counts(&event).await?, counts);
+    assert!(store
+        .accepted_counts(&Uuid::new_v4().to_string())
+        .await?
+        .is_empty());
     drop_ballot_box(&store, &event).await
 }
 

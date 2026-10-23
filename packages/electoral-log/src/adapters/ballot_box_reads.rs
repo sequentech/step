@@ -420,6 +420,25 @@ impl PostgresStore {
             voters: row.try_get(1)?,
         })
     }
+
+    /// How many ballots each election of an event accepted, whatever their
+    /// outcome, by election ID: the `count` lines of the event's
+    /// `voting-closed` milestone in its Vitrine `events` log.
+    pub async fn accepted_counts(&self, election_event_id: &str) -> Result<Vec<(String, i64)>> {
+        let rows = self
+            .client()
+            .await?
+            .query(
+                "SELECT election_id::text, count(*) FROM ballot_box_ballot \
+                 WHERE election_event_id = $1::text::uuid GROUP BY 1 ORDER BY 1",
+                &[&election_event_id],
+            )
+            .await
+            .context("Error counting the ballots of each election")?;
+        rows.iter()
+            .map(|row| Ok((row.try_get(0)?, row.try_get(1)?)))
+            .collect()
+    }
 }
 
 /// Checks before an election's area is tallied.
