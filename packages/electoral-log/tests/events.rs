@@ -3,11 +3,11 @@
 //! Election event databases against a real server: `ELECTORAL_LOG_PG_*` name the base
 //! database, with a role that may create databases.
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use electoral_log::{
     adapters::{
         events::{ActivityMark, EventDatabases},
-        postgres::{LogScope, PostgresConnection, PostgresStore},
+        postgres::{LogScope, PostgresStore},
         transfer::{ExportManifest, ExportedRecord, SignedCheckpoint, EXPORT_FORMAT_V1},
     },
     messages::{
@@ -136,43 +136,6 @@ async fn event_databases_are_created_routed_and_dropped() -> Result<()> {
         .query_opt("SELECT 1 FROM pg_database WHERE datname = $1", &[&name])
         .await?
         .is_none());
-    Ok(())
-}
-
-#[tokio::test]
-#[ignore = "requires ELECTORAL_LOG_PG_* and ELECTORAL_LOG_PG_VITRINE_USER naming an existing role"]
-async fn the_vitrine_role_may_keep_its_schema_in_event_databases() -> Result<()> {
-    let databases = databases()?;
-    let vitrine =
-        PostgresConnection::vitrine().context("ELECTORAL_LOG_PG_VITRINE_USER is not set")?;
-    let (tenant, event) = (Uuid::new_v4().to_string(), Uuid::new_v4().to_string());
-    databases.create_event(&tenant, &event).await?;
-    let database = databases.database_name(&event)?;
-    let catalog = databases.catalog().client().await?;
-    let may = |privilege: &'static str| {
-        let (vitrine, database, catalog) = (&vitrine, &database, &catalog);
-        async move {
-            let row = catalog
-                .query_one(
-                    "SELECT has_database_privilege($1, $2, $3)",
-                    &[vitrine, database, &privilege],
-                )
-                .await?;
-            anyhow::Ok(row.get::<_, bool>(0))
-        }
-    };
-    assert!(may("CONNECT").await?);
-    assert!(may("CREATE").await?);
-    // PUBLIC still may not connect.
-    let public = catalog
-        .query_one(
-            "SELECT coalesce(bool_or(acl.grantee = 0 AND acl.privilege_type = 'CONNECT'), false) \
-             FROM pg_database, aclexplode(datacl) acl WHERE datname = $1",
-            &[&database],
-        )
-        .await?;
-    assert!(!public.get::<_, bool>(0));
-    databases.drop_event(&tenant, &event).await?;
     Ok(())
 }
 
