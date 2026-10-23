@@ -167,30 +167,23 @@ pub async fn render_document_pdf(
         )
     })?;
 
-    // Insert the task execution record
-    let task_execution = services
-        .ledger
-        .post(
+    // Bind the generated report before it can be queued or downloaded.
+    let task_execution = if let Some(origin) = &result_origin {
+        services.ledger.post_with_annotations(
             &claims.hasura_claims.tenant_id,
             election_event_id.as_deref(),
             ETasksExecution::RENDER_DOCUMENT_PDF,
             &executer_name,
-        )
-        .await
-        .map_err(|error| {
-            (
-                Status::InternalServerError,
-                format!("Failed to insert task execution record: {error:?}"),
-            )
-        })?;
-
-    if let Some(origin) = &result_origin {
-        windmill::services::tasks_execution::update_with_annotations(
-            &task_execution.tenant_id, &task_execution.id,
-            sequent_core::types::hasura::extra::TasksExecutionStatus::IN_PROGRESS, task_execution.logs.clone().unwrap_or_default(),
             serde_json::json!({(POLICY):1, (ORIGIN):origin, "expected_document_id": output_document_id}),
-        ).await.map_err(|error| (Status::InternalServerError, error.to_string()))?;
-    }
+        ).await
+    } else {
+        services.ledger.post(
+            &claims.hasura_claims.tenant_id,
+            election_event_id.as_deref(),
+            ETasksExecution::RENDER_DOCUMENT_PDF,
+            &executer_name,
+        ).await
+    }.map_err(|error| (Status::InternalServerError, format!("Failed to insert task execution record: {error:?}")))?;
 
     let _task = celery_app
         .send_task(

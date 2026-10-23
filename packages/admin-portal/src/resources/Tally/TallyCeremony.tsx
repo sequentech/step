@@ -415,9 +415,8 @@ export const TallyCeremony: React.FC = () => {
         currentKeysCeremony?.settings?.policy ===
         EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES
 
-    const isPostTallyPending = enforceCompleteness
-        ? tallySession?.annotations?.is_post_task_completed !== true
-        : tallySession?.annotations?.is_post_task_completed === false
+    const isPostTallyPending =
+        enforceCompleteness && tallySession?.annotations?.is_post_task_completed !== true
 
     useEffect(() => {
         // A successful poll may structurally share unchanged session data.
@@ -445,6 +444,14 @@ export const TallyCeremony: React.FC = () => {
                 const execution = await refetchTallySessionExecutions({throwOnError: true})
                 // useGetList flattens hook data, but its React Query refetch keeps
                 // the data-provider envelope (despite the hook's array return type).
+                if (
+                    [ITallyExecutionStatus.FAILED, ITallyExecutionStatus.CANCELLED].includes(
+                        tallySession.execution_status as ITallyExecutionStatus
+                    )
+                ) {
+                    if (active) setCompletedTallyId(tallyId)
+                    return
+                }
                 const refreshed = execution.data as unknown as
                     | {data?: Sequent_Backend_Tally_Session_Execution[]}
                     | Sequent_Backend_Tally_Session_Execution[]
