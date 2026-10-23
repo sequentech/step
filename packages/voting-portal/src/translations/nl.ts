@@ -488,6 +488,8 @@ const dutchTranslation: TranslationType = {
                     "Het ontvangstbewijs is nog niet klaar. Deze website blijft erom vragen zolang deze pagina open is.",
                 missing:
                     "Deze website heeft geen ontvangstbewijs voor uw stembiljet gekregen. Uw stem is uitgebracht. De waarnemers van de verkiezing zijn op de hoogte gebracht.",
+                unchecked:
+                    "Deze website kon het ontvangstbewijs niet controleren. Uw stem is uitgebracht.",
                 stored: "Dit ontvangstbewijs wordt op dit apparaat bewaard, en u kunt het opnieuw zien nadat u zich hebt aangemeld.",
                 notStored: "Dit ontvangstbewijs wordt niet op dit apparaat bewaard.",
                 forget: "Geen ontvangstbewijzen op dit apparaat bewaren",

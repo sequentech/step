@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import type {EVotingPortalAuditButtonCfg} from "@sequentech/ui-core"
+import type {ITransparency} from "../../services/vitrine/presentation"
 
 export interface SessionBallotData {
     ballotId: string
@@ -11,6 +12,9 @@ export interface SessionBallotData {
     ballot: string
     timestamp?: number
     auditButtonCfg?: EVotingPortalAuditButtonCfg
+    /** The event's transparency settings, for the receipt after the
+     * re-authentication reload. */
+    transparency?: ITransparency
 }
 
 export const BALLOT_DATA_KEY = "ballotData"

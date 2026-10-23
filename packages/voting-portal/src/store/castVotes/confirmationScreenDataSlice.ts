@@ -4,11 +4,22 @@
 import {createSlice, PayloadAction} from "@reduxjs/toolkit"
 import {RootState} from "../store"
 import type {EVotingPortalAuditButtonCfg} from "@sequentech/ui-core"
+import type {ITransparency} from "../../services/vitrine/presentation"
+import type {IVitrineCast} from "../../services/vitrine/types"
+
+/** Vitrine's part of the confirmation (step-integration.md, section 2.6). */
+export interface IConfirmationVitrine {
+    /** Harvest's answer at cast, as data; null when it gave none. */
+    cast: IVitrineCast | null
+    /** The event's transparency settings when the ballot was cast. */
+    transparency: ITransparency
+}
 
 export interface ConfirmationScreenData {
     ballotId: string
     isDemo: boolean
     auditButtonCfg?: EVotingPortalAuditButtonCfg
+    vitrine?: IConfirmationVitrine
 }
 
 export interface ConfirmationScreenDataState {

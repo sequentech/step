@@ -79,6 +79,13 @@ export const readTransparency = (presentation: unknown): ITransparency => {
     return {mode, vitrine}
 }
 
+/** Transparency settings kept by the portal itself (across the golden
+ * re-authentication reload), read as defensively as a presentation. */
+export const asTransparency = (value: unknown): ITransparency => {
+    const o = asObject(value)
+    return readTransparency({transparency: o?.mode, vitrine: o?.vitrine})
+}
+
 /** The first presentation that says anything about transparency: the event's
  * own, then the copy in the ballot style. */
 export const eventTransparency = (...presentations: unknown[]): ITransparency => {

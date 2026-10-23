@@ -4,7 +4,8 @@
 
 // What the booth tells the policy's monitors (Vitrine's specs/evidence.md,
 // sections 3.1 and 5): observations and promise escrow, without cookies and
-// after a random delay of up to a minute. Observations are block documents:
+// after a random delay of up to a minute, retried after 1, 2, 4… minutes when
+// the monitor can't take them. Observations are block documents:
 //
 //   vitrine/observation/v1
 //   policy <policy ID>
@@ -25,6 +26,13 @@ const PROMISE_TYPE = "text/plain"
 
 /** Observations and escrowed promises leave after up to this long. */
 export const MAX_REPORT_DELAY_MS = 60_000
+/** The first wait before a retry, doubled each time up to an hour, and the
+ * number of tries in all. */
+export const FIRST_RETRY_MS = 60_000
+const MAX_RETRY_MS = 3_600_000
+export const REPORT_TRIES = 6
+const TOO_MANY_REQUESTS = 429
+const SERVER_ERROR = 500
 
 export enum EObservationKind {
     CONFIG_MISMATCH = "config-mismatch",
@@ -127,12 +135,17 @@ const delayed = (opts: IReportOptions, url: string, body: string, type: string):
         ((send: () => Promise<void>, delayMs: number) => {
             setTimeout(send, delayMs)
         })
-    schedule(
-        async () => {
-            await httpPost(url, body, type, opts)
-        },
-        Math.floor(random() * MAX_REPORT_DELAY_MS)
-    )
+    const attempt = (tried: number) => async () => {
+        const {status} = await httpPost(url, body, type, opts)
+        const retry = status === 0 || status === TOO_MANY_REQUESTS || status >= SERVER_ERROR
+        if (retry && tried + 1 < REPORT_TRIES) {
+            schedule(
+                attempt(tried + 1),
+                Math.min(FIRST_RETRY_MS * Math.pow(2, tried), MAX_RETRY_MS)
+            )
+        }
+    }
+    schedule(attempt(0), Math.floor(random() * MAX_REPORT_DELAY_MS))
 }
 
 /** Sends `body` to every monitor of the policy, each after its own delay. */

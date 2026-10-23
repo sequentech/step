@@ -486,6 +486,8 @@ const tagalogTranslation: TranslationType = {
                     "Hindi pa handa ang resibo. Patuloy itong hinihingi ng website na ito habang bukas ang pahinang ito.",
                 missing:
                     "Hindi nakatanggap ang website na ito ng resibo para sa iyong balota. Naisumite na ang iyong boto. Naabisuhan na ang mga tagamasid ng halalan.",
+                unchecked:
+                    "Hindi nasuri ng website na ito ang resibo. Naisumite na ang iyong boto.",
                 stored: "Nakatago ang resibong ito sa device na ito, at makikita mo itong muli pagkatapos mong mag-log in.",
                 notStored: "Hindi nakatago ang resibong ito sa device na ito.",
                 forget: "Huwag magtago ng mga resibo sa device na ito",

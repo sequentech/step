@@ -490,6 +490,8 @@ const catalanTranslation: TranslationType = {
                     "El rebut encara no està a punt. Aquest lloc web el continua demanant mentre aquesta pàgina estigui oberta.",
                 missing:
                     "Aquest lloc web no ha rebut cap rebut de la vostra papereta. El vostre vot s'ha emès. S'ha avisat els observadors de l'elecció.",
+                unchecked:
+                    "Aquest lloc web no ha pogut comprovar el rebut. El vostre vot s'ha emès.",
                 stored: "Aquest rebut es guarda en aquest dispositiu i el podreu tornar a veure quan inicieu la sessió.",
                 notStored: "Aquest rebut no es guarda en aquest dispositiu.",
                 forget: "No guardis rebuts en aquest dispositiu",

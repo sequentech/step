@@ -367,6 +367,8 @@ export interface IScenarioOptions {
     openedConfigLeaf?: string
     /** The milestone's kind. */
     openedKind?: string
+    /** More policy lines. */
+    policyExtra?: readonly string[]
 }
 
 export interface IScenario {
@@ -385,7 +387,7 @@ export interface IScenario {
 /** An event whose booth check passes, unless the options break it. */
 export const scenario = (options: IScenarioOptions = {}): IScenario => {
     const mode = options.mode ?? ETransparencyMode.PUBLIC
-    const policy = policyText(mode)
+    const policy = policyText(mode, options.policyExtra)
     const policyId = policyIdOf(policy)
     const witnesses = KEYS.witnesses.slice(0, options.cosigners ?? 2)
     const hashesList = styleHashes()

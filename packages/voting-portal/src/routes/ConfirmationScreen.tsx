@@ -65,6 +65,7 @@ import {
     selectConfirmationScreenData,
 } from "../store/castVotes/confirmationScreenDataSlice"
 import {GET_DOCUMENT} from "../queries/GetDocument"
+import {CastReceipt} from "../components/Vitrine/CastReceipt"
 
 const StyledTitle = styled(Typography)<{component?: React.ElementType}>`
     margin-top: 25.5px;
@@ -684,6 +685,18 @@ const ConfirmationScreen: React.FC = () => {
                             </Dialog>
                         </BallotIdBorder>
                     </BallotIdContainer>
+                    {confirmationScreenData?.vitrine &&
+                    !isDemo &&
+                    eventId &&
+                    electionId &&
+                    ballotId.current ? (
+                        <CastReceipt
+                            eventId={eventId}
+                            electionId={electionId}
+                            ballotId={ballotId.current}
+                            vitrine={confirmationScreenData.vitrine}
+                        />
+                    ) : null}
                     <Typography
                         className="ballot-verification-title"
                         variant="h5"

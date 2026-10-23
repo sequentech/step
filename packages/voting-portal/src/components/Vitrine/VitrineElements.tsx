@@ -87,6 +87,9 @@ export interface IVitrineReceiptViewProps {
     /** The pinned policy: its text, or the verifier's parsed policy. */
     policy?: unknown
     expect?: Expect
+    /** The page's own result for the chain; without one the element checks
+     * the chain itself. */
+    result?: ChainResult
     where: Where
     compact?: boolean
     lang: string
@@ -99,6 +102,7 @@ export const VitrineReceiptView: React.FC<IVitrineReceiptViewProps> = ({
     chain,
     policy,
     expect,
+    result,
     where,
     compact,
     lang,
@@ -117,7 +121,8 @@ export const VitrineReceiptView: React.FC<IVitrineReceiptViewProps> = ({
         element.policy = policy ?? null
         element.expect = expect ?? null
         element.chain = chain ?? null
-    }, [ready, chain, policy, expect])
+        if (chain && result) element.result = result
+    }, [ready, chain, policy, expect, result])
 
     useEffect(() => {
         const element = ref.current

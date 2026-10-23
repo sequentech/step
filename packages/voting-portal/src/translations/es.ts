@@ -489,6 +489,8 @@ const spanishTranslation: TranslationType = {
                     "El recibo aún no está listo. Este sitio web lo sigue pidiendo mientras esta página esté abierta.",
                 missing:
                     "Este sitio web no ha recibido ningún recibo de su papeleta. Su voto se ha emitido. Se ha avisado a los observadores de la elección.",
+                unchecked:
+                    "Este sitio web no ha podido comprobar el recibo. Su voto se ha emitido.",
                 stored: "Este recibo se guarda en este dispositivo y podrá verlo de nuevo al iniciar sesión.",
                 notStored: "Este recibo no se guarda en este dispositivo.",
                 forget: "No guardar recibos en este dispositivo",

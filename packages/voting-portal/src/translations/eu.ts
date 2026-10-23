@@ -488,6 +488,7 @@ const basqueTranslation: TranslationType = {
                     "Hartu-agiria ez dago oraindik prest. Webgune honek eskatzen jarraitzen du orri hau irekita dagoen bitartean.",
                 missing:
                     "Webgune honek ez du zure boto-txartelaren hartu-agiririk jaso. Zure botoa eman da. Hauteskundearen behatzaileei jakinarazi zaie.",
+                unchecked: "Webgune honek ezin izan du hartu-agiria egiaztatu. Zure botoa eman da.",
                 stored: "Hartu-agiri hau gailu honetan gordetzen da, eta saioa hasten duzunean berriro ikus dezakezu.",
                 notStored: "Hartu-agiri hau ez da gailu honetan gordetzen.",
                 forget: "Ez gorde hartu-agiririk gailu honetan",
