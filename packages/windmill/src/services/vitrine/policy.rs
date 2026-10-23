@@ -118,11 +118,11 @@ fn check_log_keys(name: LogName, log: &DraftLog) -> Result<(Vkey, Vkey)> {
     Ok((key, time))
 }
 
-fn mirrors_of<'a>(config: &'a DeploymentConfig, name: LogName) -> impl Iterator<Item = &'a Mirror> {
+fn mirrors_of(config: &DeploymentConfig, name: LogName) -> impl Iterator<Item = &Mirror> {
     config.mirrors.iter().filter(move |m| {
         m.logs
             .as_ref()
-            .map_or(true, |logs| logs.iter().any(|l| l == name.as_ref()))
+            .is_none_or(|logs| logs.iter().any(|l| l == name.as_ref()))
     })
 }
 
@@ -165,6 +165,25 @@ fn log_lines(
         LogName::Events => (EVENTS_TAG, &config.profiles.events),
     };
     lines.push(&["profile", log_name, tag, meaning]);
+    Ok(())
+}
+
+/// Whether the deployment can draft policies of this mode: a public event's
+/// ballots log needs a mirror that the operator doesn't run (rule 10), and a
+/// private event needs an auditor (rule 7).
+pub fn check_mode(config: &DeploymentConfig, mode: TransparencyMode) -> Result<()> {
+    match mode {
+        TransparencyMode::PUBLIC => ensure!(
+            mirrors_of(config, LogName::Ballots)
+                .any(|m| m.party.as_deref().is_some_and(|p| p != config.operator)),
+            "a public event's ballots log needs a mirror that the operator doesn't run: add one to the deployment's [[mirrors]] with its party"
+        ),
+        TransparencyMode::PRIVATE => ensure!(
+            !config.auditors.is_empty(),
+            "a private event needs an auditor: add one to the deployment's [[auditors]]"
+        ),
+        TransparencyMode::DISABLED => {}
+    }
     Ok(())
 }
 
@@ -233,18 +252,7 @@ pub fn draft(config: &DeploymentConfig, event: &DraftEvent) -> Result<String> {
             hub.name
         );
     }
-    if public {
-        ensure!(
-            mirrors_of(config, LogName::Ballots)
-                .any(|m| m.party.as_deref().is_some_and(|p| p != config.operator)),
-            "a public event's ballots log needs a mirror that the operator doesn't run: add one to the deployment's [[mirrors]] with its party"
-        );
-    } else {
-        ensure!(
-            !config.auditors.is_empty(),
-            "a private event needs an auditor: add one to the deployment's [[auditors]]"
-        );
-    }
+    check_mode(config, event.mode)?;
 
     let mut lines = Lines(Vec::new());
     lines.push(&[POLICY_HEADER]);
@@ -387,6 +395,64 @@ pub fn draft(config: &DeploymentConfig, event: &DraftEvent) -> Result<String> {
     let mut text = lines.0.join("\n");
     text.push('\n');
     Ok(text)
+}
+
+/// What step reads back from a signed policy: the lines its checks at
+/// opening and its config statements use.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PolicyFacts {
+    pub visibility: TransparencyMode,
+    pub opens: i64,
+    pub closes: i64,
+    /// The `ballots` log's `event-id` parameter.
+    pub event_id: Option<String>,
+    /// The `ballots` log's `election-ids` parameter.
+    pub election_ids: BTreeSet<String>,
+}
+
+impl PolicyFacts {
+    /// Reads a policy note's text, up to its signatures. It checks only what
+    /// it reads: the sidecar checks the rest when the policy is installed.
+    pub fn read(note: &str) -> Result<Self> {
+        let text = note.split("\n\n").next().unwrap_or_default();
+        let mut lines = text.split('\n');
+        ensure!(
+            lines.next() == Some(POLICY_HEADER),
+            "the policy doesn't start with {POLICY_HEADER}"
+        );
+        let mut visibility = None;
+        let mut opens = None;
+        let mut closes = None;
+        let mut event_id = None;
+        let mut election_ids = BTreeSet::new();
+        let ballots = LogName::Ballots.as_ref();
+        for line in lines {
+            let words: Vec<&str> = line.split(' ').collect();
+            match words.as_slice() {
+                ["visibility", "public"] => visibility = Some(TransparencyMode::PUBLIC),
+                ["visibility", "private"] => visibility = Some(TransparencyMode::PRIVATE),
+                ["opens", time] => opens = Some(time.parse::<i64>()?),
+                ["closes", time] => closes = Some(time.parse::<i64>()?),
+                ["param", log, PARAM_EVENT_ID, id] if *log == ballots => {
+                    event_id = Some(id.to_string());
+                }
+                ["param", log, PARAM_ELECTION_IDS, ids @ ..] if *log == ballots => {
+                    election_ids.extend(ids.iter().map(|id| id.to_string()));
+                }
+                _ => {}
+            }
+        }
+        let (Some(opens), Some(closes)) = (opens, closes) else {
+            bail!("the policy has no opens and closes lines");
+        };
+        Ok(PolicyFacts {
+            visibility: visibility.ok_or_else(|| anyhow!("the policy has no visibility line"))?,
+            opens,
+            closes,
+            event_id,
+            election_ids,
+        })
+    }
 }
 
 #[cfg(test)]
@@ -756,5 +822,52 @@ pub(crate) mod tests {
             PublicRefusal::LimitedRevotes.to_string(),
             "public-needs-unlimited-revotes"
         );
+    }
+
+    #[test]
+    fn the_facts_of_a_signed_policy_come_from_its_text() {
+        let config = dev();
+        let text = draft(&config, &event(&config, TransparencyMode::PUBLIC)).unwrap();
+        let sealed = format!("{text}seal board mJ2X9cQe1v0rTq8LkW4sPA==\n");
+        let board = NoteSigner::from_seed("board.localhost/policy", &[9; 32]).unwrap();
+        let facts = PolicyFacts::read(&board.sign(&sealed).unwrap()).unwrap();
+        assert_eq!(
+            facts,
+            PolicyFacts {
+                visibility: TransparencyMode::PUBLIC,
+                opens: 1793520000,
+                closes: 1793566800,
+                event_id: Some(EVENT.to_string()),
+                election_ids: [MAYOR, COUNCIL].map(String::from).into(),
+            }
+        );
+        let private = draft(&config, &event(&config, TransparencyMode::PRIVATE)).unwrap();
+        assert_eq!(
+            PolicyFacts::read(&private).unwrap().visibility,
+            TransparencyMode::PRIVATE
+        );
+    }
+
+    #[test]
+    fn a_policy_without_its_window_has_no_facts() {
+        assert!(PolicyFacts::read("vitrine/config/v1\nopens 1\ncloses 2\n").is_err());
+        assert!(PolicyFacts::read("vitrine/policy/v1\nvisibility public\nopens 1\n").is_err());
+        assert!(PolicyFacts::read("vitrine/policy/v1\nopens 1\ncloses 2\n").is_err());
+        assert!(
+            PolicyFacts::read("vitrine/policy/v1\nvisibility public\nopens x\ncloses 2\n").is_err()
+        );
+        assert!(PolicyFacts::read("").is_err());
+    }
+
+    #[test]
+    fn only_the_events_with_a_mirror_or_an_auditor_can_have_their_mode() {
+        let mut config = dev();
+        assert!(check_mode(&config, TransparencyMode::PUBLIC).is_ok());
+        assert!(check_mode(&config, TransparencyMode::PRIVATE).is_ok());
+        config.mirrors.clear();
+        config.auditors.clear();
+        assert!(check_mode(&config, TransparencyMode::PUBLIC).is_err());
+        assert!(check_mode(&config, TransparencyMode::PRIVATE).is_err());
+        assert!(check_mode(&config, TransparencyMode::DISABLED).is_ok());
     }
 }

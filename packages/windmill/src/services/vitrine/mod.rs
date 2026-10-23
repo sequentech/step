@@ -7,9 +7,11 @@
 //! sidecar's queue, and an `events` log, where windmill appends the
 //! configuration and milestone statements the booth and verifiers check.
 
+pub mod client;
 pub mod config;
 pub mod policy;
 pub mod quorum;
+pub mod transparency;
 pub mod window;
 
 use anyhow::{Context, Result};
