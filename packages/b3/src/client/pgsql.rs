@@ -15,6 +15,7 @@ use tokio_postgres::{NoTls, Row};
 use tracing::error;
 use tracing::instrument;
 
+use crate::grpc::validate_board_name;
 use crate::messages::artifact::Configuration;
 use crate::messages::message::Message;
 use crate::messages::newtypes::Timestamp;
@@ -465,6 +466,7 @@ async fn create_index_ine(client: &mut Client) -> Result<()> {
 /// Creates the requested board table and adds it to the index, if it doesn't exist.
 #[instrument(err, skip(client))]
 async fn create_board_ine(client: &mut Client, board: &str) -> Result<()> {
+    validate_board_name(board)?;
     let transaction = client.transaction().await?;
     transaction
         .execute(
@@ -552,6 +554,7 @@ async fn get_messages(
 
 #[instrument(err, skip(client))]
 async fn get_message_count(client: &Client, board: &str) -> Result<i64> {
+    validate_board_name(board)?;
     let sql = format!(
         r#"
     SELECT count(*)
@@ -582,6 +585,7 @@ async fn get_with_kind(
     kind: &str,
     sender_pk: &str,
 ) -> Result<Vec<B3MessageRow>> {
+    validate_board_name(board)?;
     let sql = format!(
         r#"
     SELECT
@@ -612,6 +616,7 @@ async fn get_with_kind(
 
 #[instrument(err, skip(client))]
 async fn get_with_kind_only(client: &Client, board: &str, kind: &str) -> Result<Vec<B3MessageRow>> {
+    validate_board_name(board)?;
     let sql = format!(
         r#"
     SELECT
@@ -839,6 +844,7 @@ async fn insert_messages(
 /// Deletes the requested board table and removes it from the index.
 #[instrument(err, skip(client))]
 async fn delete_board(client: &mut Client, board_name: &str) -> Result<()> {
+    validate_board_name(board_name)?;
     let transaction = client.transaction().await?;
     let message_sql = format!(
         r#"
@@ -884,6 +890,7 @@ async fn get(
     limit: Option<usize>,
     offset: Option<usize>,
 ) -> Result<Vec<B3MessageRow>> {
+    validate_board_name(board)?;
     let sql = format!(
         r#"
     SELECT
@@ -918,6 +925,7 @@ async fn get(
 
 #[instrument(err, skip(client, messages))]
 async fn insert(client: &mut Client, board_name: &str, messages: &[B3MessageRow]) -> Result<()> {
+    validate_board_name(board_name)?;
     // Start a new transaction
     let transaction = client.transaction().await?;
     // http://disq.us/p/2ficy6c
@@ -1018,6 +1026,7 @@ async fn insert(client: &mut Client, board_name: &str, messages: &[B3MessageRow]
 
 #[instrument(err, skip(client))]
 async fn get_one(client: &Client, board_name: &str, id: i64) -> Result<Option<B3MessageRow>> {
+    validate_board_name(board_name)?;
     let sql = format!(
         r#"
     SELECT
@@ -1055,6 +1064,7 @@ cfg_if::cfg_if! { if #[cfg(feature = "sqlcopy")] {
         board_name: &str,
         messages: &[B3MessageRow],
     ) -> Result<()> {
+        validate_board_name(board_name)?;
         // Start a new transaction
         let transaction = client.transaction().await?;
         let types: Vec<Type> = vec![
@@ -1225,5 +1235,104 @@ pub(crate) mod tests {
         assert_eq!(msg.statement_kind, board_message.statement_kind);
         assert_eq!(msg.message, board_message.message);
         assert_eq!(msg.version, board_message.version);
+    }
+
+    const INVALID_BOARD: &str = "invalid board-name";
+
+    // Connects a client to an in-memory server that completes the startup
+    // handshake and then returns the first bytes the client sends after it.
+    async fn offline_client() -> (PgsqlB3Client, tokio::task::JoinHandle<Vec<u8>>) {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+        let (client_stream, mut server_stream) = tokio::io::duplex(4096);
+        let server = tokio::spawn(async move {
+            let len = server_stream.read_i32().await.unwrap();
+            let mut startup = vec![0u8; (len - 4) as usize];
+            server_stream.read_exact(&mut startup).await.unwrap();
+            let auth_ok = [b'R', 0, 0, 0, 8, 0, 0, 0, 0];
+            let ready_for_query = [b'Z', 0, 0, 0, 5, b'I'];
+            server_stream.write_all(&auth_ok).await.unwrap();
+            server_stream.write_all(&ready_for_query).await.unwrap();
+            let mut received = vec![0u8; 4096];
+            let n = server_stream.read(&mut received).await.unwrap_or(0);
+            received.truncate(n);
+            received
+        });
+
+        let mut config = tokio_postgres::Config::new();
+        config
+            .user(PG_USER)
+            .ssl_mode(tokio_postgres::config::SslMode::Disable);
+        let (client, connection) = config.connect_raw(client_stream, NoTls).await.unwrap();
+        tokio::spawn(connection);
+
+        (PgsqlB3Client { client }, server)
+    }
+
+    async fn assert_rejected<T: std::fmt::Debug>(
+        client: PgsqlB3Client,
+        server: tokio::task::JoinHandle<Vec<u8>>,
+        result: Result<T>,
+    ) {
+        let error = result.expect_err("invalid board name must be rejected");
+        assert!(
+            error.to_string().contains("Invalid board name"),
+            "unexpected error: {error}"
+        );
+        drop(client);
+        let received = server.await.unwrap();
+        assert!(!String::from_utf8_lossy(&received).contains(INVALID_BOARD));
+    }
+
+    #[tokio::test]
+    async fn test_rejects_invalid_board_name_before_querying() {
+        let (client, server) = offline_client().await;
+        let result = client.get_messages(INVALID_BOARD, -1).await;
+        assert_rejected(client, server, result).await;
+
+        let sk = strand::signature::StrandSignatureSk::gen().unwrap();
+        let pk = StrandSignaturePk::from_sk(&sk).unwrap();
+        let (client, server) = offline_client().await;
+        let result = client
+            .get_with_kind(INVALID_BOARD, StatementType::Configuration, &pk)
+            .await;
+        assert_rejected(client, server, result).await;
+
+        let (client, server) = offline_client().await;
+        let result = client
+            .get_with_kind_only(INVALID_BOARD, StatementType::Configuration)
+            .await;
+        assert_rejected(client, server, result).await;
+
+        let (client, server) = offline_client().await;
+        let result = client.get_one_message(INVALID_BOARD, 1).await;
+        assert_rejected(client, server, result).await;
+
+        let (client, server) = offline_client().await;
+        let result = client.get_message_count(INVALID_BOARD).await;
+        assert_rejected(client, server, result).await;
+
+        let (mut client, server) = offline_client().await;
+        let result = client.create_board_ine(INVALID_BOARD).await;
+        assert_rejected(client, server, result).await;
+
+        let message = B3MessageRow {
+            id: 1,
+            created: crate::timestamp(),
+            sender_pk: "".to_string(),
+            statement_timestamp: crate::timestamp(),
+            statement_kind: "".to_string(),
+            batch: 0,
+            mix_number: 0,
+            message: vec![],
+            version: "".to_string(),
+        };
+        let (mut client, server) = offline_client().await;
+        let result = client.insert_messages(INVALID_BOARD, &vec![message]).await;
+        assert_rejected(client, server, result).await;
+
+        let (mut client, server) = offline_client().await;
+        let result = client.delete_board(INVALID_BOARD).await;
+        assert_rejected(client, server, result).await;
     }
 }
