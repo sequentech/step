@@ -132,6 +132,38 @@ pub async fn update_tenant(
 }
 
 #[instrument(skip(hasura_transaction), err)]
+pub async fn remove_tenant_setting(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    setting: &str,
+) -> Result<()> {
+    let tenant_uuid =
+        parse_uuid_v4(tenant_id).map_err(|err| anyhow!("Error parsing tenant UUID: {}", err))?;
+
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                UPDATE
+                    sequent_backend.tenant
+                SET
+                    settings = settings - $2::text
+                WHERE
+                    id = $1 AND
+                    settings ? $2::text;
+            "#,
+        )
+        .await
+        .map_err(|err| anyhow!("Error preparing remove_tenant_setting statement: {}", err))?;
+
+    hasura_transaction
+        .execute(&statement, &[&tenant_uuid, &setting])
+        .await
+        .map_err(|err| anyhow!("Error removing tenant setting: {}", err))?;
+
+    Ok(())
+}
+
+#[instrument(skip(hasura_transaction), err)]
 pub async fn insert_tenant(
     hasura_transaction: &Transaction<'_>,
     id: &str,
