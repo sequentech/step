@@ -71,6 +71,7 @@ pub mod to_result;
 pub mod transmission;
 pub mod users;
 pub mod vault;
+pub mod vitrine;
 pub mod voter_secret_attributes;
 pub mod voting_status;
 pub mod weight_batches;

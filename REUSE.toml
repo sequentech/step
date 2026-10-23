@@ -133,6 +133,13 @@ precedence = "aggregate"
 SPDX-FileCopyrightText = ["", "2025 Free & Fair"]
 SPDX-License-Identifier = "Apache-2.0"
 
+# The development Vitrine stack's keys and tokens.
+[[annotations]]
+path = ".devcontainer/vitrine/secrets/**"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Sequent Tech Inc <legal@sequentech.io>"
+SPDX-License-Identifier = "AGPL-3.0-only"
+
 # Vitrine's profile and styles vectors, copied from its repository.
 [[annotations]]
 path = "packages/electoral-log/tests/vitrine-vectors/**"
