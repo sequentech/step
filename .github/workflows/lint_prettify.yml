@@ -88,6 +88,12 @@ jobs:
           cmd: prettify
           dir: hasura/
 
+      - name: Test metadata permissions
+        uses: borales/actions-yarn@v4
+        with:
+          cmd: test
+          dir: hasura/
+
   deployment-env-templates:
     name: Check deployment env templates
     runs-on: ubuntu-24.04
@@ -97,12 +103,6 @@ jobs:
 
       - name: Check Hasura log types
         run: scripts/check-deployment-env-templates.sh
-
-      - name: Test metadata permissions
-        uses: borales/actions-yarn@v4
-        with:
-          cmd: test
-          dir: hasura/
 
   rust-fmt:
     name: Check Rust format 
