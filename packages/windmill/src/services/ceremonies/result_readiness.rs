@@ -3,11 +3,15 @@
 //! Readiness belongs to the execution that produced a report, not today's tally head.
 use anyhow::{bail, Context, Result};
 use deadpool_postgres::Transaction;
+use sequent_core::ballot::BallotStyle;
+use sequent_core::ballot_codec::multi_ballot::votable_contests;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
-use sequent_core::types::hasura::core::{Document, TallySession, TallySessionExecution};
+use sequent_core::types::hasura::core::{
+    Document, TallySession, TallySessionContest, TallySessionExecution,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use std::collections::HashSet;
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 use uuid::Uuid;
 
 pub const POLICY: &str = "result_readiness_version";
@@ -74,6 +78,95 @@ fn scope_complete(status: &Value, election_ids: &[String], election_id: Option<&
 
 type AreaContest = (String, String, String);
 
+/// The run's input scope is independent of whichever rows were processed.
+/// Missing mapped data must not erase an expected area-contest.
+pub fn expected_area_contests(
+    session: &TallySession,
+    sessions: &[TallySessionContest],
+    styles: &[BallotStyle],
+) -> Result<Vec<AreaContest>> {
+    let recorded: BTreeMap<String, BTreeSet<String>> = serde_json::from_str(
+        session
+            .annotations
+            .as_ref()
+            .and_then(|a| a.get("election_areas"))
+            .and_then(Value::as_str)
+            .context("New tally is missing its recorded area scope")?,
+    )?;
+    let selected = |election: &str, area: &str| {
+        session
+            .election_ids
+            .as_ref()
+            .is_some_and(|ids| ids.iter().any(|id| id == election))
+            && session
+                .area_ids
+                .as_ref()
+                .is_none_or(|ids| ids.iter().any(|id| id == area))
+    };
+    let in_scope = |election: &str, area: &str| {
+        selected(election, area) && recorded.get(election).is_some_and(|ids| ids.contains(area))
+    };
+    let mut expected = BTreeSet::new();
+    for row in sessions
+        .iter()
+        .filter(|row| selected(&row.election_id, &row.area_id))
+    {
+        if !in_scope(&row.election_id, &row.area_id) {
+            bail!("Expected tally area is missing from the recorded publication scope");
+        }
+        if let Some(contest) = row.contest_id.as_ref() {
+            expected.insert((
+                row.election_id.clone(),
+                contest.clone(),
+                row.area_id.clone(),
+            ));
+        } else {
+            let style = styles
+                .iter()
+                .find(|style| style.election_id == row.election_id && style.area_id == row.area_id)
+                .context("Expected multi-contest area has no published ballot style")?;
+            let contests: Vec<_> = votable_contests(&style.contests).collect();
+            if contests.is_empty() {
+                bail!("Expected multi-contest area has no votable contests");
+            }
+            for contest in contests {
+                expected.insert((
+                    row.election_id.clone(),
+                    contest.id.clone(),
+                    row.area_id.clone(),
+                ));
+            }
+        }
+    }
+    for style in styles
+        .iter()
+        .filter(|style| in_scope(&style.election_id, &style.area_id))
+    {
+        for contest in style
+            .contests
+            .iter()
+            .filter(|contest| contest.is_acclaimed())
+        {
+            expected.insert((
+                style.election_id.clone(),
+                contest.id.clone(),
+                style.area_id.clone(),
+            ));
+        }
+    }
+    Ok(expected.into_iter().collect())
+}
+
+/// Hold the session lock through execution insertion and completion. Cancellation
+/// may commit while numeric work runs, but must not be overwritten afterwards.
+pub async fn lock_active_tally(tx: &Transaction<'_>, session: &TallySession) -> Result<()> {
+    let row = tx.query_opt("SELECT is_execution_completed, execution_status FROM sequent_backend.tally_session WHERE tenant_id=$1 AND election_event_id=$2 AND id=$3 FOR UPDATE", &[&parse_uuid_v4(&session.tenant_id)?, &parse_uuid_v4(&session.election_event_id)?, &parse_uuid_v4(&session.id)?]).await?.context("Tally session no longer exists")?;
+    if row.get::<_, bool>(0) || row.get::<_, Option<String>>(1).as_deref() != Some("IN_PROGRESS") {
+        bail!("Tally session is no longer in progress");
+    }
+    Ok(())
+}
+
 fn rows_complete(
     election_id: &str,
     expected: &[AreaContest],
@@ -93,7 +186,7 @@ fn rows_complete(
 }
 
 /// Called in the same transaction as the execution/results insert. Expected
-/// pairs come from that run's mapped area-contests, including zero-vote areas.
+/// pairs come from the session's recorded scope, including zero-vote areas.
 /// Progress must also be complete, so receiving a subset of weight batches can
 /// never certify its otherwise-present rows as final.
 pub async fn record_result_origins(
@@ -269,7 +362,9 @@ pub async fn require_complete_result_document(
             )
             .await?
         {
-            let result: Uuid = row.get(1);
+            let Some(result) = row.get::<_, Option<Uuid>>(1) else {
+                continue;
+            };
             if tx.query_opt("SELECT 1 FROM sequent_backend.tally_session_execution e JOIN sequent_backend.tally_session s ON s.id=e.tally_session_id AND s.tenant_id=e.tenant_id WHERE e.tenant_id=$1 AND e.election_event_id=$2 AND e.results_event_id=$3 AND s.annotations ? 'result_readiness_version' LIMIT 1", &[&tenant, &event, &result]).await?.is_some() {
                 bail!("New tally result document is missing provenance");
             }
@@ -362,6 +457,60 @@ mod tests {
         assert!(!is_numerically_complete(&session));
     }
     #[test]
+    fn expected_scope_survives_missing_processed_rows_and_covers_multi_contest_and_acclaimed() {
+        let mut session: TallySession = serde_json::from_value(json!({
+            "id":"tally", "tenant_id":"tenant", "election_event_id":"event", "keys_ceremony_id":"keys",
+            "threshold":1, "is_execution_completed":false, "election_ids":["e"], "area_ids":["a"],
+            "annotations":{"election_areas":"{\"e\":[\"a\"]}"}
+        })).unwrap();
+        let mut row: TallySessionContest = serde_json::from_value(json!({
+            "id":"row", "tenant_id":"tenant", "election_event_id":"event", "tally_session_id":"tally",
+            "election_id":"e", "area_id":"a", "contest_id":"missing", "session_id":0
+        })).unwrap();
+        let expected = expected_area_contests(&session, &[row.clone()], &[]).unwrap();
+        assert_eq!(expected, vec![("e".into(), "missing".into(), "a".into())]);
+        assert!(!rows_complete(
+            "e",
+            &expected,
+            &HashSet::new(),
+            &HashSet::new(),
+            &HashSet::new()
+        ));
+        row.contest_id = None;
+        assert!(expected_area_contests(&session, &[row.clone()], &[]).is_err());
+        let contest = |id: &str, acclaimed| sequent_core::ballot::Contest {
+            id: id.into(),
+            election_id: "e".into(),
+            is_acclaimed: Some(acclaimed),
+            ..Default::default()
+        };
+        let style: BallotStyle = serde_json::from_value(json!({
+            "id":"style", "tenant_id":"tenant", "election_event_id":"event", "election_id":"e", "area_id":"a",
+            "contests":[contest("c1",false),contest("c2",false),contest("acclaimed",true)]
+        })).unwrap();
+        assert_eq!(
+            expected_area_contests(&session, &[row.clone()], &[style.clone()])
+                .unwrap()
+                .len(),
+            3
+        );
+        assert_eq!(
+            expected_area_contests(&session, &[], &[style.clone()])
+                .unwrap()
+                .len(),
+            1
+        );
+        session.area_ids = Some(vec![]);
+        assert!(
+            expected_area_contests(&session, &[row.clone()], &[style.clone()])
+                .unwrap()
+                .is_empty()
+        );
+        session.area_ids = Some(vec!["a".into()]);
+        session.annotations = Some(json!({"election_areas":"{}"}));
+        assert!(expected_area_contests(&session, &[row], &[style]).is_err());
+    }
+    #[test]
     fn only_explicit_creation_marker_enables_policy() {
         assert!(!uses_readiness_policy(None));
         assert!(!uses_readiness_policy(Some(
@@ -391,7 +540,7 @@ mod postgres_tests {
         tx.batch_execute(r#"
 CREATE SCHEMA sequent_backend;
 CREATE TABLE sequent_backend.document (id uuid, tenant_id uuid, election_event_id uuid, annotations jsonb);
-CREATE TABLE sequent_backend.tally_session (id uuid, tenant_id uuid, election_event_id uuid, annotations jsonb, election_ids uuid[]);
+CREATE TABLE sequent_backend.tally_session (id uuid, tenant_id uuid, election_event_id uuid, annotations jsonb, election_ids uuid[], is_execution_completed boolean DEFAULT false, execution_status text DEFAULT 'IN_PROGRESS');
 CREATE TABLE sequent_backend.tally_session_execution (id uuid, tenant_id uuid, election_event_id uuid, tally_session_id uuid, results_event_id uuid, status jsonb, documents jsonb);
 CREATE TABLE sequent_backend.results_event (id uuid, tenant_id uuid, election_event_id uuid, documents jsonb);
 CREATE TABLE sequent_backend.results_election (tenant_id uuid, election_event_id uuid, results_event_id uuid, election_id uuid, documents jsonb);
@@ -416,7 +565,7 @@ CREATE TABLE sequent_backend.tasks_execution (tenant_id uuid, election_event_id 
         let ids = vec![a.to_string(), b.to_string()];
         let status = json!({"elections_status":[{"election_id":a,"status":"SUCCESS","progress":100},{"election_id":b,"status":"DECRYPTING","progress":40}]});
         tx.execute(
-            "INSERT INTO sequent_backend.tally_session VALUES ($1,$2,$3,$4,$5)",
+            "INSERT INTO sequent_backend.tally_session (id,tenant_id,election_event_id,annotations,election_ids) VALUES ($1,$2,$3,$4,$5)",
             &[&tally, &tenant, &event, &json!({(POLICY):1}), &vec![a, b]],
         )
         .await?;
@@ -460,6 +609,24 @@ CREATE TABLE sequent_backend.tasks_execution (tenant_id uuid, election_event_id 
             )
             .await?;
         }
+        let session: TallySession = serde_json::from_value(json!({
+            "id":tally, "tenant_id":tenant, "election_event_id":event, "keys_ceremony_id":Uuid::new_v4(),
+            "threshold":1, "is_execution_completed":false, "execution_status":"IN_PROGRESS"
+        }))?;
+        lock_active_tally(&tx, &session).await?;
+        tx.execute(
+            "UPDATE sequent_backend.tally_session SET execution_status='CANCELLED' WHERE id=$1",
+            &[&tally],
+        )
+        .await?;
+        assert!(lock_active_tally(&tx, &session).await.is_err());
+        tx.execute("UPDATE sequent_backend.tally_session SET execution_status='IN_PROGRESS', is_execution_completed=true WHERE id=$1", &[&tally]).await?;
+        assert!(lock_active_tally(&tx, &session).await.is_err());
+        tx.execute(
+            "UPDATE sequent_backend.tally_session SET is_execution_completed=false WHERE id=$1",
+            &[&tally],
+        )
+        .await?;
         let execution: TallySessionExecution = serde_json::from_value(
             json!({"id":execution_id,"tenant_id":tenant,"election_event_id":event,"tally_session_id":tally,"results_event_id":result,"current_message_id":1,"status":status,"documents":{"sqlite":Uuid::new_v4()}}),
         )?;
