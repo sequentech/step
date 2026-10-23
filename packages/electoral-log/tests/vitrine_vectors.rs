@@ -2,14 +2,16 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! Step's encoders against Vitrine's profile vectors, copied from Vitrine's
-//! `profiles/election/v1/vectors` and `profiles/events/v1/vectors`.
+//! Step's encoders against Vitrine's vectors, copied from Vitrine's
+//! `profiles/election/v1/vectors`, `profiles/events/v1/vectors` and
+//! `testdata/styles`.
 
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use electoral_log::vitrine::note::split_note;
 use electoral_log::vitrine::{
-    leaf_hash, ConfigStatement, Demo, ElectionEntry, EventKind, EventsEntry, Hash, MilestoneKind,
-    MilestoneStatement, NoteSigner, Release, Subject, Visibility,
+    leaf_hash, style_digest, style_list, styles_hash, ConfigStatement, Demo, ElectionEntry,
+    EventKind, EventsEntry, Hash, MilestoneKind, MilestoneStatement, NoteSigner, Release, Subject,
+    Visibility,
 };
 use serde_json::Value;
 use std::path::PathBuf;
@@ -251,4 +253,39 @@ fn milestones_name_the_config_entry_by_its_leaf_hash() {
         line.rsplit(' ').next().unwrap(),
         STANDARD.encode(leaf_hash(config))
     );
+}
+
+/// The config statement's `styles` from the digests the application serves,
+/// and the booth's check of the style it renders.
+#[test]
+fn styles_match_the_vectors() {
+    let mut checked = 0;
+    for (_, file) in vectors("styles") {
+        for vector in file["vectors"].as_array().unwrap() {
+            let name = text(&vector["name"]);
+            let served: Vec<Hash> = vector["served"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|digest| b64_hash(text(digest)))
+                .collect();
+            let hashed = styles_hash(&served);
+            assert_eq!(hashed, b64_hash(text(&vector["hash"])), "{name}");
+            if let Some(styles) = vector["styles"].as_array() {
+                let digests: Vec<Hash> = styles
+                    .iter()
+                    .map(|style| {
+                        let bytes = STANDARD.decode(text(style)).unwrap();
+                        style_digest(std::str::from_utf8(&bytes).unwrap())
+                    })
+                    .collect();
+                assert_eq!(style_list(&digests), style_list(&served), "{name}");
+            }
+            let rendered = b64_hash(text(&vector["rendered"]));
+            let valid = served.contains(&rendered) && hashed == b64_hash(text(&vector["config"]));
+            assert_eq!(valid, vector["valid"].as_bool().unwrap(), "{name}");
+            checked += 1;
+        }
+    }
+    assert!(checked > 0);
 }
