@@ -1448,6 +1448,79 @@ actions:
       permissions:
           - role: user
       comment: insert_cast_vote
+    - name: vitrine_voter_context
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/vitrine/voter-context
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: user
+      comment: What the booth must hold before encrypting in an election event with transparency
+    - name: vitrine_voter_forward
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/vitrine/voter-forward
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: user
+      comment: Forwards a private event's receipt upgrades and openings for the voter's own ballots
+    - name: get_transparency
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/vitrine/transparency
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: election-event-transparency-tab
+          - role: admin-user
+      comment: The Transparency tab: the event's mode, Vitrine logs and policy
+    - name: enable_transparency
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/vitrine/enable-transparency
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: election-event-transparency-tab
+          - role: admin-user
+      comment: Sets the event's transparency mode, creating its Vitrine logs
+    - name: upload_transparency_policy
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/vitrine/upload-transparency-policy
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: election-event-transparency-tab
+          - role: admin-user
+      comment: Installs the event's sealed, signed policy in its Vitrine logs
     - name: limit_access_by_countries
       definition:
           kind: synchronous
@@ -2052,6 +2125,10 @@ custom_types:
         - name: GetBallotPublicationChangesOutput
         - name: RestorePrivateKeyOutput
         - name: InsertCastVoteOutput
+        - name: VitrineCast
+        - name: VitrineVoterContext
+        - name: VitrineForwardOutput
+        - name: TransparencyOutput
         - name: createBallotReceiptOutput
         - name: OptionalImportEvent
         - name: ManageElectionDatesOutput

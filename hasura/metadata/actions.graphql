@@ -675,6 +675,40 @@ type Mutation {
     ): InsertCastVoteOutput
 }
 
+type Query {
+    vitrine_voter_context(
+        election_event_id: uuid!
+        election_id: uuid!
+    ): VitrineVoterContext
+}
+
+type Mutation {
+    vitrine_voter_forward(
+        election_event_id: uuid!
+        route: String!
+        body: String!
+        hub: String
+    ): VitrineForwardOutput
+}
+
+type Query {
+    get_transparency(election_event_id: uuid!): TransparencyOutput
+}
+
+type Mutation {
+    enable_transparency(
+        election_event_id: uuid!
+        mode: String!
+    ): TransparencyOutput
+}
+
+type Mutation {
+    upload_transparency_policy(
+        election_event_id: uuid!
+        signed_policy: String!
+    ): TransparencyOutput
+}
+
 type Mutation {
     limit_access_by_countries(
         voting_countries: [String!]!
@@ -1543,6 +1577,41 @@ type InsertCastVoteOutput {
     voter_id_string: String
     election_event_id: uuid!
     ballot_id: String
+    vitrine: VitrineCast
+}
+
+type VitrineCast {
+    kind: String!
+    text: String
+    reason: String
+}
+
+type VitrineVoterContext {
+    mode: String!
+    policy: String
+    policy_ack: String
+    config: jsonb
+    opened: jsonb
+    style_hashes: [String!]
+    release: String
+}
+
+type VitrineForwardOutput {
+    status: Int!
+    body: String
+}
+
+type TransparencyOutput {
+    mode: String!
+    refusal: String
+    locked: Boolean!
+    logs: jsonb
+    status: jsonb
+    draft_policy: String
+    policy: String
+    policy_id: String
+    enrolments: jsonb
+    explorer_url: String
 }
 
 type createBallotReceiptOutput {
