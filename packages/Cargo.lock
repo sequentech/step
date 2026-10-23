@@ -3510,6 +3510,7 @@ dependencies = [
  "borsh",
  "clap",
  "deadpool-postgres",
+ "ed25519-dalek",
  "futures-util",
  "hex",
  "log",

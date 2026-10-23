@@ -1,0 +1,92 @@
+{
+  "description": "A browser holds entries 0, 1 and 5: entries 2 to 4 could be a second voting-opened or voting-closed entry, so both rules wait.",
+  "params": {},
+  "entries": [
+    "EXZpdHJpbmUvZXZlbnRzL3YxAdYAAAZjb25maWcAAAgAAAAAat7sYAAAAQAAAbh2aXRyaW5lL2NvbmZpZy92MQpldmVudCBtdW5pLTIwMjYKZWxlY3Rpb24gbWF5b3IKa2V5IEQwOXdGRWN2cjYxSjRuMEtidXNiQzJ2SldUR0pMdSsxS093RUtPTUtMZ2s9CnN0eWxlcyAwSm1sWkszSG9GYTJaUWhWVTkycW1hb2JCeFBuMUlSRTBSckY4WEhYc09nPQpvcGVucyAxNzkzMDAxNjAwCmNsb3NlcyAxNzkzMDQ0ODAwCnBvbGljeSBzaGEyNTY6ODIzNDEyZDFlYWNiNjc5NTYyMjBlNTMyOTU5ZjAxMDQ2MDMwNTdjODg3MDQ4NjNjYTM4ZTdjZDE4OGZkYTgxMgpyZWxlYXNlIGJvb3RoIDEuMC4wCnRyYW5zcGFyZW5jeSBwdWJsaWMKZGVtbyBubwp0aW1lIDE3OTI5OTQ0MDAKCuKAlCBib2FyZC5leGFtcGxlIGNDMjAvWGlUWmlOVys2NFplSXIvOHl4WGVySytqVEZnRlFSc281TG9heXZWQ0IycGNTVHNiOW5uVVdVbHRCMmxJRzFQOUt4bTVxczRmdWhMUlhTb1pzOVdVZzg9CgAAAA==",
+    "EXZpdHJpbmUvZXZlbnRzL3YxARcAAA12b3Rpbmctb3BlbmVkAAAIAAAAAGrfCIAAAAEAAADydml0cmluZS9taWxlc3RvbmUvdjEKZXZlbnQgbXVuaS0yMDI2CmtpbmQgdm90aW5nLW9wZW5lZAp0aW1lIDE3OTMwMDE2MDAKY29uZmlnIG1heW9yIEZ6RVZiTHdabHF3TTF5YUtlWVdEajgwNS9mR3JZNENUT21qd3JqQVhmTmM9CgrigJQgYm9hcmQuZXhhbXBsZSBjQzIwL1UvT0pkNldadGYydEoxUUs1OS96b0xqTjNvMU10eXIzZ3VYY2x6Y1lmbnY4LzM4aHNTSXZHUThLVXpIVGFEa0lZZjhxSzNWaThUdjNRdmRkZldMZ1FBPQoAAAA=",
+    "EXZpdHJpbmUvZXZlbnRzL3YxAN4AAAZub3RpY2UAAAgAAAAAat8WkAAAAQAAAKJ2aXRyaW5lL25vdGljZS92MQpldmVudCBtdW5pLTIwMjYKdGltZSAxNzkzMDA1MjAwCgrigJQgYm9hcmQuZXhhbXBsZSBjQzIwL2ZvcmJDcldmcXNVSkk1WFJGZkNhaUhaUlNZa3VEZnRPQi9mbTVtVVFTUnRsYjR4RTVpOHgxWkN4eTZ2UWkrWWtjblhuanFad0thNmxia2thSGh6bVFjPQoBMK43oZ6x2mWS5eIh5IY1CXg0wrAHDcXGT2ZLGAyjvj8="
+  ],
+  "indexes": [
+    0,
+    1,
+    5
+  ],
+  "sequenced": [
+    1792994600,
+    1793001595,
+    1793005201
+  ],
+  "fields": [
+    [
+      {
+        "name": "kind",
+        "value": "config"
+      },
+      {
+        "name": "time",
+        "value": "1792994400"
+      },
+      {
+        "name": "subject",
+        "value": "none"
+      },
+      {
+        "name": "statement",
+        "value": "vitrine/config/v1\nevent muni-2026\nelection mayor\nkey D09wFEcvr61J4n0KbusbC2vJWTGJLu+1KOwEKOMKLgk=\nstyles 0JmlZK3HoFa2ZQhVU92qmaobBxPn1IRE0RrF8XHXsOg=\nopens 1793001600\ncloses 1793044800\npolicy sha256:823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812\nrelease booth 1.0.0\ntransparency public\ndemo no\ntime 1792994400\n\n— board.example cC20/XiTZiNW+64ZeIr/8yxXerK+jTFgFQRso5LoayvVCB2pcSTsb9nnUWUltB2lIG1P9Kxm5qs4fuhLRXSoZs9WUg8=\n"
+      },
+      {
+        "name": "details",
+        "value": null
+      }
+    ],
+    [
+      {
+        "name": "kind",
+        "value": "voting-opened"
+      },
+      {
+        "name": "time",
+        "value": "1793001600"
+      },
+      {
+        "name": "subject",
+        "value": "none"
+      },
+      {
+        "name": "statement",
+        "value": "vitrine/milestone/v1\nevent muni-2026\nkind voting-opened\ntime 1793001600\nconfig mayor FzEVbLwZlqwM1yaKeYWDj805/fGrY4CTOmjwrjAXfNc=\n\n— board.example cC20/U/OJd6WZtf2tJ1QK59/zoLjN3o1Mtyr3guXclzcYfnv8/38hsSIvGQ8KUzHTaDkIYf8qK3Vi8Tv3QvddfWLgQA=\n"
+      },
+      {
+        "name": "details",
+        "value": null
+      }
+    ],
+    [
+      {
+        "name": "kind",
+        "value": "notice"
+      },
+      {
+        "name": "time",
+        "value": "1793005200"
+      },
+      {
+        "name": "subject",
+        "value": "none"
+      },
+      {
+        "name": "statement",
+        "value": "vitrine/notice/v1\nevent muni-2026\ntime 1793005200\n\n— board.example cC20/forbCrWfqsUJI5XRFfCaiHZRSYkuDftOB/fm5mUQSRtlb4xE5i8x1ZCxy6vQi+YkcnXnjqZwKa6lbkkaHhzmQc=\n"
+      },
+      {
+        "name": "details",
+        "value": "30ae37a19eb1da6592e5e221e48635097834c2b0070dc5c64f664b180ca3be3f"
+      }
+    ]
+  ],
+  "rules": {
+    "one-closed": "waiting",
+    "one-opened": "waiting",
+    "vitrine/parse": "passing"
+  }
+}

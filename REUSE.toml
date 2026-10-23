@@ -133,6 +133,13 @@ precedence = "aggregate"
 SPDX-FileCopyrightText = ["", "2025 Free & Fair"]
 SPDX-License-Identifier = "Apache-2.0"
 
+# Vitrine's profile vectors, copied from its repository.
+[[annotations]]
+path = "packages/electoral-log/tests/vitrine-vectors/**"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Sequent Tech Inc <legal@sequentech.io>"
+SPDX-License-Identifier = "Apache-2.0"
+
 [[annotations]]
 path = [
     "packages/trellis/.gitignore",

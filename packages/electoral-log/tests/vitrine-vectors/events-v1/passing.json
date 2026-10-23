@@ -1,0 +1,189 @@
+{
+  "description": "An event's log: a config, voting-opened, a notice with removable details, a checkpoint of the ballots log, voting-closed, a tally commitment whose statement is deferred, and a custom milestone.",
+  "params": {},
+  "entries": [
+    "EXZpdHJpbmUvZXZlbnRzL3YxAdYAAAZjb25maWcAAAgAAAAAat7sYAAAAQAAAbh2aXRyaW5lL2NvbmZpZy92MQpldmVudCBtdW5pLTIwMjYKZWxlY3Rpb24gbWF5b3IKa2V5IEQwOXdGRWN2cjYxSjRuMEtidXNiQzJ2SldUR0pMdSsxS093RUtPTUtMZ2s9CnN0eWxlcyAwSm1sWkszSG9GYTJaUWhWVTkycW1hb2JCeFBuMUlSRTBSckY4WEhYc09nPQpvcGVucyAxNzkzMDAxNjAwCmNsb3NlcyAxNzkzMDQ0ODAwCnBvbGljeSBzaGEyNTY6ODIzNDEyZDFlYWNiNjc5NTYyMjBlNTMyOTU5ZjAxMDQ2MDMwNTdjODg3MDQ4NjNjYTM4ZTdjZDE4OGZkYTgxMgpyZWxlYXNlIGJvb3RoIDEuMC4wCnRyYW5zcGFyZW5jeSBwdWJsaWMKZGVtbyBubwp0aW1lIDE3OTI5OTQ0MDAKCuKAlCBib2FyZC5leGFtcGxlIGNDMjAvWGlUWmlOVys2NFplSXIvOHl4WGVySytqVEZnRlFSc281TG9heXZWQ0IycGNTVHNiOW5uVVdVbHRCMmxJRzFQOUt4bTVxczRmdWhMUlhTb1pzOVdVZzg9CgAAAA==",
+    "EXZpdHJpbmUvZXZlbnRzL3YxARcAAA12b3Rpbmctb3BlbmVkAAAIAAAAAGrfCIAAAAEAAADydml0cmluZS9taWxlc3RvbmUvdjEKZXZlbnQgbXVuaS0yMDI2CmtpbmQgdm90aW5nLW9wZW5lZAp0aW1lIDE3OTMwMDE2MDAKY29uZmlnIG1heW9yIEZ6RVZiTHdabHF3TTF5YUtlWVdEajgwNS9mR3JZNENUT21qd3JqQVhmTmM9CgrigJQgYm9hcmQuZXhhbXBsZSBjQzIwL1UvT0pkNldadGYydEoxUUs1OS96b0xqTjNvMU10eXIzZ3VYY2x6Y1lmbnY4LzM4aHNTSXZHUThLVXpIVGFEa0lZZjhxSzNWaThUdjNRdmRkZldMZ1FBPQoAAAA=",
+    "EXZpdHJpbmUvZXZlbnRzL3YxAN4AAAZub3RpY2UAAAgAAAAAat8WkAAAAQAAAKJ2aXRyaW5lL25vdGljZS92MQpldmVudCBtdW5pLTIwMjYKdGltZSAxNzkzMDA1MjAwCgrigJQgYm9hcmQuZXhhbXBsZSBjQzIwL2ZvcmJDcldmcXNVSkk1WFJGZkNhaUhaUlNZa3VEZnRPQi9mbTVtVVFTUnRsYjR4RTVpOHgxWkN4eTZ2UWkrWWtjblhuanFad0thNmxia2thSGh6bVFjPQoBMK43oZ6x2mWS5eIh5IY1CXg0wrAHDcXGT2ZLGAyjvj8=",
+    "EXZpdHJpbmUvZXZlbnRzL3YxAfEAAApjaGVja3BvaW50AAAIAAAAAGrfJKAAABoCdm90ZS5leGFtcGxlL211bmkvYmFsbG90cwABtnZvdGUuZXhhbXBsZS9tdW5pL2JhbGxvdHMKNDIKSlZnaHVNVVJsZS8xSVQ4d3U2aDZ0b3N5aVFCcHBWRWw5SjBFNk45cGE1ST0KCuKAlCB2b3RlLmV4YW1wbGUvbXVuaS9iYWxsb3RzIDYxYVhxNGxobG10L0dVRHFOUVVPL2RFRG9udi9rMFFzQ3hwNDhZUzdhRXp6UTBTOCt6cTl1WnI1L2tLKzFlRy9ZRlFwcEV0bElGMGZpazcyY0dnWFZKRy9aQW89CuKAlCB3MC5leGFtcGxlIGRtczF2QUFBQUFCcTN5U2ZGNHRKc1FlNnpPNCtzM2lUMy8xSnBVZW4rYzFJZFRFVWRCOUlsYVk1eUJ0cDZweEJIRGFVV05iR3N2cGtlSDRGcWVFVmZ1dXhaamJBUk5Oc0xNYUxEUT09CuKAlCB3MS5leGFtcGxlIGIrRy8yUUFBQUFCcTN5U2ZXTkJDa21XVnY1a2p6NHp2SElKTDdEN1NtUkM1USt3VVE0QkdYS281b1NNSXBZd3RhblJmTE9OKzZ5cDViRkxJVUJQcS83Z2E2WlVmdWJPTVhhT0dCdz09CgAAAA==",
+    "EXZpdHJpbmUvZXZlbnRzL3YxAOwAAA12b3RpbmctY2xvc2VkAAAIAAAAAGrfsUAAAAEAAADHdml0cmluZS9taWxlc3RvbmUvdjEKZXZlbnQgbXVuaS0yMDI2CmtpbmQgdm90aW5nLWNsb3NlZAp0aW1lIDE3OTMwNDQ4MDAKY291bnQgbWF5b3IgNDIKCuKAlCBib2FyZC5leGFtcGxlIGNDMjAvVVM4bldCcGJGdDkzVENDbkFJR3VGRTN6RjhiNitmQmF3b0lob1NoVzhheDRZeUZYRVdKRTNXZUliYlF1S0xZMExiczFVek9OL1I0anBISE04UnZ5Z2s9CgAAAA==",
+    "EXZpdHJpbmUvZXZlbnRzL3YxAEkAABB0YWxseS1jb21taXRtZW50AAAIAAAAAGrfv1AAACIDGHZvdGUuZXhhbXBsZS9tdW5pL2V2ZW50cwAAAAAAAAAEAAAAAAAA",
+    "EXZpdHJpbmUvZXZlbnRzL3YxANkAAAltaWxlc3RvbmUAAAgAAAAAat/NYAAAAQAAALh2aXRyaW5lL21pbGVzdG9uZS92MQpldmVudCBtdW5pLTIwMjYKa2luZCB0YWxseS1zdGFydGVkCnRpbWUgMTc5MzA1MjAwMAoK4oCUIGJvYXJkLmV4YW1wbGUgY0MyMC9lTkt1WFIyWklVMEdQV2hVVnVMdDRIS0xrekJwQ3ZMeHhwUHRTU0lMTnB5R1NZdHphb2N2YnByWVc4dDJZNStIcTlVMjB0SVJRd1lpc0NSODE1czNBaz0KAAAA"
+  ],
+  "sequenced": [
+    1792994600,
+    1793001595,
+    1793005201,
+    1793008801,
+    1793045400,
+    1793048401,
+    1793052001
+  ],
+  "checkpoints": [
+    [
+      7,
+      1793052001
+    ]
+  ],
+  "fields": [
+    [
+      {
+        "name": "kind",
+        "value": "config"
+      },
+      {
+        "name": "time",
+        "value": "1792994400"
+      },
+      {
+        "name": "subject",
+        "value": "none"
+      },
+      {
+        "name": "statement",
+        "value": "vitrine/config/v1\nevent muni-2026\nelection mayor\nkey D09wFEcvr61J4n0KbusbC2vJWTGJLu+1KOwEKOMKLgk=\nstyles 0JmlZK3HoFa2ZQhVU92qmaobBxPn1IRE0RrF8XHXsOg=\nopens 1793001600\ncloses 1793044800\npolicy sha256:823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812\nrelease booth 1.0.0\ntransparency public\ndemo no\ntime 1792994400\n\n— board.example cC20/XiTZiNW+64ZeIr/8yxXerK+jTFgFQRso5LoayvVCB2pcSTsb9nnUWUltB2lIG1P9Kxm5qs4fuhLRXSoZs9WUg8=\n"
+      },
+      {
+        "name": "details",
+        "value": null
+      }
+    ],
+    [
+      {
+        "name": "kind",
+        "value": "voting-opened"
+      },
+      {
+        "name": "time",
+        "value": "1793001600"
+      },
+      {
+        "name": "subject",
+        "value": "none"
+      },
+      {
+        "name": "statement",
+        "value": "vitrine/milestone/v1\nevent muni-2026\nkind voting-opened\ntime 1793001600\nconfig mayor FzEVbLwZlqwM1yaKeYWDj805/fGrY4CTOmjwrjAXfNc=\n\n— board.example cC20/U/OJd6WZtf2tJ1QK59/zoLjN3o1Mtyr3guXclzcYfnv8/38hsSIvGQ8KUzHTaDkIYf8qK3Vi8Tv3QvddfWLgQA=\n"
+      },
+      {
+        "name": "details",
+        "value": null
+      }
+    ],
+    [
+      {
+        "name": "kind",
+        "value": "notice"
+      },
+      {
+        "name": "time",
+        "value": "1793005200"
+      },
+      {
+        "name": "subject",
+        "value": "none"
+      },
+      {
+        "name": "statement",
+        "value": "vitrine/notice/v1\nevent muni-2026\ntime 1793005200\n\n— board.example cC20/forbCrWfqsUJI5XRFfCaiHZRSYkuDftOB/fm5mUQSRtlb4xE5i8x1ZCxy6vQi+YkcnXnjqZwKa6lbkkaHhzmQc=\n"
+      },
+      {
+        "name": "details",
+        "value": "30ae37a19eb1da6592e5e221e48635097834c2b0070dc5c64f664b180ca3be3f"
+      }
+    ],
+    [
+      {
+        "name": "kind",
+        "value": "checkpoint"
+      },
+      {
+        "name": "time",
+        "value": "1793008800"
+      },
+      {
+        "name": "subject",
+        "value": "origin vote.example/muni/ballots"
+      },
+      {
+        "name": "statement",
+        "value": "vote.example/muni/ballots\n42\nJVghuMURle/1IT8wu6h6tosyiQBppVEl9J0E6N9pa5I=\n\n— vote.example/muni/ballots 61aXq4lhlmt/GUDqNQUO/dEDonv/k0QsCxp48YS7aEzzQ0S8+zq9uZr5/kK+1eG/YFQppEtlIF0fik72cGgXVJG/ZAo=\n— w0.example dms1vAAAAABq3ySfF4tJsQe6zO4+s3iT3/1JpUen+c1IdTEUdB9IlaY5yBtp6pxBHDaUWNbGsvpkeH4FqeEVfuuxZjbARNNsLMaLDQ==\n— w1.example b+G/2QAAAABq3ySfWNBCkmWVv5kjz4zvHIJL7D7SmRC5Q+wUQ4BGXKo5oSMIpYwtanRfLON+6yp5bFLIUBPq/7ga6ZUfubOMXaOGBw==\n"
+      },
+      {
+        "name": "details",
+        "value": null
+      }
+    ],
+    [
+      {
+        "name": "kind",
+        "value": "voting-closed"
+      },
+      {
+        "name": "time",
+        "value": "1793044800"
+      },
+      {
+        "name": "subject",
+        "value": "none"
+      },
+      {
+        "name": "statement",
+        "value": "vitrine/milestone/v1\nevent muni-2026\nkind voting-closed\ntime 1793044800\ncount mayor 42\n\n— board.example cC20/US8nWBpbFt93TCCnAIGuFE3zF8b6+fBawoIhoShW8ax4YyFXEWJE3WeIbbQuKLY0Lbs1UzON/R4jpHHM8Rvygk=\n"
+      },
+      {
+        "name": "details",
+        "value": null
+      }
+    ],
+    [
+      {
+        "name": "kind",
+        "value": "tally-commitment"
+      },
+      {
+        "name": "time",
+        "value": "1793048400"
+      },
+      {
+        "name": "subject",
+        "value": "ref vote.example/muni/events 4"
+      },
+      {
+        "name": "statement",
+        "value": null
+      },
+      {
+        "name": "details",
+        "value": null
+      }
+    ],
+    [
+      {
+        "name": "kind",
+        "value": "milestone"
+      },
+      {
+        "name": "time",
+        "value": "1793052000"
+      },
+      {
+        "name": "subject",
+        "value": "none"
+      },
+      {
+        "name": "statement",
+        "value": "vitrine/milestone/v1\nevent muni-2026\nkind tally-started\ntime 1793052000\n\n— board.example cC20/eNKuXR2ZIU0GPWhUVuLt4HKLkzBpCvLxxpPtSSILNpyGSYtzaocvbprYW8t2Y5+Hq9U20tIRQwYisCR815s3Ak=\n"
+      },
+      {
+        "name": "details",
+        "value": null
+      }
+    ]
+  ],
+  "rules": {
+    "one-closed": "passing",
+    "one-opened": "passing",
+    "vitrine/parse": "passing"
+  }
+}
