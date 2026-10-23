@@ -249,3 +249,56 @@ async fn channel_enablement_and_pause_are_rechecked_from_the_writer() {
     }
     transaction.rollback().await.unwrap();
 }
+
+#[tokio::test]
+#[ignore = "requires the disposable devenv database fixture"]
+async fn discarding_a_voters_ballots_returns_the_ids_it_discarded() {
+    let mut client = test_client().await;
+    let transaction = client.transaction().await.unwrap();
+    let tenant = Uuid::new_v4();
+    let event = Uuid::new_v4();
+    let mut expected = Vec::new();
+    for (voter, status) in [
+        ("voter", CastVoteStatus::Valid),
+        ("voter", CastVoteStatus::InProgress),
+        ("voter", CastVoteStatus::Discarded),
+        ("other-voter", CastVoteStatus::Valid),
+    ] {
+        let row = transaction
+            .query_one(
+                r#"
+            INSERT INTO sequent_backend.cast_vote
+                (tenant_id, election_event_id, election_id, voter_id_string, status)
+            VALUES ($1, $2, $3, $4, $5)
+            RETURNING id
+            "#,
+                &[
+                    &tenant,
+                    &event,
+                    &Uuid::new_v4(),
+                    &voter,
+                    &status.to_string(),
+                ],
+            )
+            .await
+            .unwrap();
+        if voter == "voter" && status != CastVoteStatus::Discarded {
+            expected.push(row.get::<_, Uuid>("id"));
+        }
+    }
+
+    let mut discarded =
+        postgres::cast_vote::discard_voter_cast_votes(&transaction, &tenant, &event, "voter")
+            .await
+            .unwrap();
+    discarded.sort();
+    expected.sort();
+    assert_eq!(discarded, expected);
+    assert!(
+        postgres::cast_vote::discard_voter_cast_votes(&transaction, &tenant, &event, "voter")
+            .await
+            .unwrap()
+            .is_empty()
+    );
+    transaction.rollback().await.unwrap();
+}

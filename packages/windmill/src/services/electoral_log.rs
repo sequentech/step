@@ -47,6 +47,7 @@ use strum_macros::{Display, EnumString};
 use tempfile::NamedTempFile;
 use tokio_stream::StreamExt;
 use tracing::{event, info, instrument, warn, Level};
+use uuid::Uuid;
 
 pub const IMMUDB_ROWS_LIMIT: usize = 2500;
 pub const MAX_ROWS_PER_PAGE: usize = 50;
@@ -330,6 +331,83 @@ pub async fn post_voter_password_change(
         .post()
         .await
         .context("Failed to post the voter password-change electoral-log entry")
+}
+
+const VOTER_BALLOTS_DISCARD_EVENT_TYPE: &str = "DISCARD_BALLOTS: VOTER_DISABLED";
+
+#[derive(Serialize)]
+struct VoterBallotsDiscardBody<'a> {
+    action: &'static str,
+    voter: ElectoralLogUser<'a>,
+    initiated_by: ElectoralLogUser<'a>,
+    cast_vote_ids: Vec<String>,
+}
+
+fn voter_ballots_discard_body(
+    voter_id: &str,
+    voter_username: Option<&str>,
+    admin: &ElectoralLogAdminContext,
+    cast_vote_ids: &[Uuid],
+) -> Result<String> {
+    serde_json::to_string(&VoterBallotsDiscardBody {
+        action: "voter_ballots_discarded",
+        voter: ElectoralLogUser {
+            user_id: voter_id,
+            username: voter_username,
+        },
+        initiated_by: ElectoralLogUser {
+            user_id: &admin.user_id,
+            username: admin.username.as_deref(),
+        },
+        cast_vote_ids: cast_vote_ids.iter().map(Uuid::to_string).collect(),
+    })
+    .context("Failed to serialize voter ballot-discard electoral-log details")
+}
+
+/// Prepares the admin-signed entry naming the ballots discarded when an admin
+/// disables a voter. It uses the discard's own transaction, so the caller can
+/// post it before committing and roll the discard back if posting fails.
+#[instrument(skip_all, err)]
+pub async fn prepare_voter_ballots_discard(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    voter_id: &str,
+    voter_username: Option<String>,
+    admin: &ElectoralLogAdminContext,
+    cast_vote_ids: &[Uuid],
+) -> Result<PreparedVoterPasswordChangeLog> {
+    let election_event = get_election_event_by_id(hasura_transaction, tenant_id, election_event_id)
+        .await
+        .context("Failed to get election event for the ballot-discard electoral log")?;
+    let board = get_election_event_board(election_event.bulletin_board_reference)
+        .context("Election event is missing its electoral-log board")?;
+    let electoral_log = ElectoralLog::for_admin_user(
+        hasura_transaction,
+        &board,
+        tenant_id,
+        election_event_id,
+        &admin.user_id,
+        admin.username.clone(),
+        admin.authorized_election_ids.clone(),
+        admin.area_id.clone(),
+    )
+    .await
+    .context("Failed to initialize the admin-signed ballot-discard electoral log")?;
+    let body =
+        voter_ballots_discard_body(voter_id, voter_username.as_deref(), admin, cast_vote_ids)?;
+    let message = electoral_log
+        .build_keycloak_event_message(
+            election_event_id.to_string(),
+            VOTER_BALLOTS_DISCARD_EVENT_TYPE.to_string(),
+            body,
+            Some(voter_id.to_string()),
+            voter_username,
+            None,
+        )
+        .context("Failed to build the voter ballot-discard electoral-log entry")?;
+
+    Ok(PreparedVoterPasswordChangeLog { board, message })
 }
 
 /// What an administrator did with one or more secret voter attributes.
@@ -2276,5 +2354,43 @@ mod voter_secret_attribute_audit_tests {
         assert_eq!(body["voter"]["user_id"], "voter-id");
         assert_eq!(body["initiated_by"]["username"], "admin");
         assert!(body.get("document_id").is_none());
+    }
+}
+
+#[cfg(test)]
+mod voter_ballots_discard_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn discard_body_names_the_voter_the_admin_and_every_discarded_ballot() {
+        let admin = ElectoralLogAdminContext {
+            user_id: "admin-id".to_string(),
+            username: Some("admin".to_string()),
+            authorized_election_ids: None,
+            area_id: None,
+        };
+        let valid = Uuid::new_v4();
+        let in_progress = Uuid::new_v4();
+        let body =
+            voter_ballots_discard_body("voter-id", Some("voter"), &admin, &[valid, in_progress])
+                .unwrap();
+        let body: serde_json::Value = serde_json::from_str(&body).unwrap();
+
+        assert_eq!(
+            body,
+            json!({
+                "action": "voter_ballots_discarded",
+                "voter": {
+                    "user_id": "voter-id",
+                    "username": "voter",
+                },
+                "initiated_by": {
+                    "user_id": "admin-id",
+                    "username": "admin",
+                },
+                "cast_vote_ids": [valid.to_string(), in_progress.to_string()],
+            })
+        );
     }
 }
