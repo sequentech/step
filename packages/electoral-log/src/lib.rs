@@ -8,6 +8,7 @@ pub mod ports;
 pub mod proofs;
 pub mod service;
 pub mod util;
+pub mod vitrine;
 
 use std::time::{SystemTime, UNIX_EPOCH};
 

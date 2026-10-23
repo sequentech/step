@@ -267,6 +267,7 @@ async fn client_loop(
             voter_country: Some("ES"),
             username: Some(voter.as_str()),
             allowed_votes: plan.allowed_votes,
+            vitrine: None,
         };
         let started = Instant::now();
         match store.accept_ballot(&ballot).await {

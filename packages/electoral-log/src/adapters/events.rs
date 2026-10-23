@@ -15,6 +15,7 @@ use super::ballot_box::canonical_uuid;
 use super::console::check_role_name;
 use super::postgres::{
     LogScope, PostgresConnection, PostgresStore, BACKUP_USER_ENV, READER_USER_ENV,
+    VITRINE_QUEUE_ROLE_ENV, VITRINE_USER_ENV,
 };
 use crate::{
     domain::{ElectoralLogMessage, LogEntry, LogQuery},
@@ -178,12 +179,25 @@ fn is_event_database_of(base: &str, database: &str) -> bool {
 }
 
 impl EventDatabases {
-    /// Read the `ELECTORAL_LOG_PG_*` variables. Refuses reader and backup roles that
-    /// event databases could not be granted to, before any is created.
+    /// Read the `ELECTORAL_LOG_PG_*` variables. Refuses reader, backup and Vitrine
+    /// roles that event databases could not be granted to, before any is created.
     pub fn from_env() -> Result<Self> {
         for role in PostgresConnection::read_roles() {
             check_role_name(&role).with_context(|| {
                 format!("{READER_USER_ENV} and {BACKUP_USER_ENV} must be lowercase role names")
+            })?;
+        }
+        for role in [
+            PostgresConnection::vitrine(),
+            PostgresConnection::vitrine_queue_role(),
+        ]
+        .into_iter()
+        .flatten()
+        {
+            check_role_name(&role).with_context(|| {
+                format!(
+                    "{VITRINE_USER_ENV} and {VITRINE_QUEUE_ROLE_ENV} must be lowercase role names"
+                )
             })?;
         }
         Self::new(
@@ -282,9 +296,10 @@ impl EventDatabases {
         self.open(&entry.election_event_id, &entry.database_name)
     }
 
-    /// Create an election event's database, its schema and its catalog entry, and let
+    /// Create an election event's database, its schema and its catalog entry, let
     /// the roles of `ELECTORAL_LOG_PG_READER_USER` and `ELECTORAL_LOG_PG_BACKUP_USER`
-    /// read it. Needs a role that may create databases.
+    /// read it, and let that of `ELECTORAL_LOG_PG_VITRINE_USER` keep its schema in it.
+    /// Needs a role that may create databases.
     ///
     /// An event already registered to the tenant is returned as it is, without running
     /// any DDL on its database; one registered to another tenant is refused.
@@ -389,8 +404,9 @@ impl EventDatabases {
         }
     }
 
-    /// Apply the schema to a registered event's database again, and let the reader
-    /// and backup roles read it, as an upgrade does. Takes locks that wait for the
+    /// Apply the schema to a registered event's database again, let the reader and
+    /// backup roles read it and the Vitrine role keep its schema in it, as an
+    /// upgrade does. Takes locks that wait for the
     /// event's appends and audits.
     pub async fn apply_schema(&self, election_event_id: &str) -> Result<()> {
         let event = canonical_uuid(election_event_id)?;
@@ -423,6 +439,15 @@ impl EventDatabases {
             ))
             .await
             .with_context(|| format!("Error letting {reader} connect to {database}"))?;
+        }
+        if let Some(vitrine) = PostgresConnection::vitrine() {
+            base.batch_execute(&format!(
+                "GRANT CONNECT, CREATE ON DATABASE {} TO {}",
+                quote_identifier(database),
+                quote_identifier(&vitrine)
+            ))
+            .await
+            .with_context(|| format!("Error letting {vitrine} keep its schema in {database}"))?;
         }
         store.initialize().await?;
         for reader in &readers {

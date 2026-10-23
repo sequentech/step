@@ -167,6 +167,7 @@ async fn cast_copies(
                 voter_country: None,
                 username: None,
                 allowed_votes,
+                vitrine: None,
             })
             .await?;
         match outcome {

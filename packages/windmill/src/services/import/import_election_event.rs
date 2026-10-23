@@ -18,6 +18,7 @@ use crate::services::protocol_manager::get_event_board;
 use crate::services::reports::template_renderer::EReportEncryption;
 use crate::services::reports_vault::get_report_key_pair;
 use crate::services::tasks_execution::update_fail;
+use crate::services::vitrine::transparency::without_transparency;
 use crate::tasks::insert_election_event::CreateElectionEventInput;
 use crate::types::documents::ETallyDocuments;
 use ::keycloak::types::{ComponentExportRepresentation, RealmRepresentation};
@@ -430,7 +431,7 @@ pub async fn insert_election_event_db(
         updated_at: None,
         labels: object.labels.clone(),
         annotations: object.annotations.clone(),
-        presentation: object.presentation.clone(),
+        presentation: without_transparency(object.presentation.clone()),
         bulletin_board_reference: object.bulletin_board_reference.clone(),
         is_archived: object.is_archived.unwrap_or(false),
         voting_channels: object.voting_channels.clone(),
@@ -736,7 +737,11 @@ pub async fn process_election_event_file(
     .await
     .with_context(|| format!("Error upserting Keycloak realm for tenant ID {tenant_id} and election event ID {election_event_id}"))?;
 
-    insert_election_event(hasura_transaction, &data.election_event)
+    let election_event = ElectionEvent {
+        presentation: without_transparency(data.election_event.presentation.clone()),
+        ..data.election_event.clone()
+    };
+    insert_election_event(hasura_transaction, &election_event)
         .await
         .with_context(|| "Error inserting election event")?;
 

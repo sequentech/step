@@ -1,0 +1,100 @@
+{
+  "description": "Milestones that fail: voting-opened (1) is signed by a key with the board's name that isn't the policy's authority, and voting-closed (2) states another time than its entry. The bound shows the log complete through both.",
+  "params": {},
+  "policy": {
+    "authorities": [
+      "board.example+702db4fd+AepKbGPinFIKvvVQexMuxfmVR3auvr57kkIe6mkURtIs"
+    ]
+  },
+  "entries": [
+    "EXZpdHJpbmUvZXZlbnRzL3YxAdYAAAZjb25maWcAAAgAAAAAat7sYAAAAQAAAbh2aXRyaW5lL2NvbmZpZy92MQpldmVudCBtdW5pLTIwMjYKZWxlY3Rpb24gbWF5b3IKa2V5IEQwOXdGRWN2cjYxSjRuMEtidXNiQzJ2SldUR0pMdSsxS093RUtPTUtMZ2s9CnN0eWxlcyAwSm1sWkszSG9GYTJaUWhWVTkycW1hb2JCeFBuMUlSRTBSckY4WEhYc09nPQpvcGVucyAxNzkzMDAxNjAwCmNsb3NlcyAxNzkzMDQ0ODAwCnBvbGljeSBzaGEyNTY6ODIzNDEyZDFlYWNiNjc5NTYyMjBlNTMyOTU5ZjAxMDQ2MDMwNTdjODg3MDQ4NjNjYTM4ZTdjZDE4OGZkYTgxMgpyZWxlYXNlIGJvb3RoIDEuMC4wCnRyYW5zcGFyZW5jeSBwdWJsaWMKZGVtbyBubwp0aW1lIDE3OTI5OTQ0MDAKCuKAlCBib2FyZC5leGFtcGxlIGNDMjAvWGlUWmlOVys2NFplSXIvOHl4WGVySytqVEZnRlFSc281TG9heXZWQ0IycGNTVHNiOW5uVVdVbHRCMmxJRzFQOUt4bTVxczRmdWhMUlhTb1pzOVdVZzg9CgAAAA==",
+    "EXZpdHJpbmUvZXZlbnRzL3YxARcAAA12b3Rpbmctb3BlbmVkAAAIAAAAAGrfCIAAAAEAAADydml0cmluZS9taWxlc3RvbmUvdjEKZXZlbnQgbXVuaS0yMDI2CmtpbmQgdm90aW5nLW9wZW5lZAp0aW1lIDE3OTMwMDE2MDAKY29uZmlnIG1heW9yIEZ6RVZiTHdabHF3TTF5YUtlWVdEajgwNS9mR3JZNENUT21qd3JqQVhmTmM9CgrigJQgYm9hcmQuZXhhbXBsZSA1R05OYWxiampNOG1icERmRVRLSDlocFBWbjBSc2U1dkc4REJ4NnNYUmk2bkovbEd1L01YTUIrTDRvQ3NLbkptVms4WXlTSVIyWDlFNHpsbmxGNTBYUzAzbEFRPQoAAAA=",
+    "EXZpdHJpbmUvZXZlbnRzL3YxAOwAAA12b3RpbmctY2xvc2VkAAAIAAAAAGrfsUAAAAEAAADHdml0cmluZS9taWxlc3RvbmUvdjEKZXZlbnQgbXVuaS0yMDI2CmtpbmQgdm90aW5nLWNsb3NlZAp0aW1lIDE3OTMwNDQyMDAKY291bnQgbWF5b3IgNDIKCuKAlCBib2FyZC5leGFtcGxlIGNDMjAvVlAxcVJrS1NoTWhyaDkzbnV1Vkc5SkV0QVUxeFV0TTFpRVNLMVdsVS92SHU1K2NtVUN4a2M4TU1NN2NtYXNOSk9lZGc5MisyRjkxU1ViVitBRFZiUWM9CgAAAA=="
+  ],
+  "sequenced": [
+    1792994600,
+    1793001595,
+    1793045400
+  ],
+  "checkpoints": [
+    [
+      3,
+      1793045401
+    ]
+  ],
+  "fields": [
+    [
+      {
+        "name": "kind",
+        "value": "config"
+      },
+      {
+        "name": "time",
+        "value": "1792994400"
+      },
+      {
+        "name": "subject",
+        "value": "none"
+      },
+      {
+        "name": "statement",
+        "value": "vitrine/config/v1\nevent muni-2026\nelection mayor\nkey D09wFEcvr61J4n0KbusbC2vJWTGJLu+1KOwEKOMKLgk=\nstyles 0JmlZK3HoFa2ZQhVU92qmaobBxPn1IRE0RrF8XHXsOg=\nopens 1793001600\ncloses 1793044800\npolicy sha256:823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812\nrelease booth 1.0.0\ntransparency public\ndemo no\ntime 1792994400\n\n— board.example cC20/XiTZiNW+64ZeIr/8yxXerK+jTFgFQRso5LoayvVCB2pcSTsb9nnUWUltB2lIG1P9Kxm5qs4fuhLRXSoZs9WUg8=\n"
+      },
+      {
+        "name": "details",
+        "value": null
+      }
+    ],
+    [
+      {
+        "name": "kind",
+        "value": "voting-opened"
+      },
+      {
+        "name": "time",
+        "value": "1793001600"
+      },
+      {
+        "name": "subject",
+        "value": "none"
+      },
+      {
+        "name": "statement",
+        "value": "vitrine/milestone/v1\nevent muni-2026\nkind voting-opened\ntime 1793001600\nconfig mayor FzEVbLwZlqwM1yaKeYWDj805/fGrY4CTOmjwrjAXfNc=\n\n— board.example 5GNNalbjjM8mbpDfETKH9hpPVn0Rse5vG8DBx6sXRi6nJ/lGu/MXMB+L4oCsKnJmVk8YySIR2X9E4zlnlF50XS03lAQ=\n"
+      },
+      {
+        "name": "details",
+        "value": null
+      }
+    ],
+    [
+      {
+        "name": "kind",
+        "value": "voting-closed"
+      },
+      {
+        "name": "time",
+        "value": "1793044800"
+      },
+      {
+        "name": "subject",
+        "value": "none"
+      },
+      {
+        "name": "statement",
+        "value": "vitrine/milestone/v1\nevent muni-2026\nkind voting-closed\ntime 1793044200\ncount mayor 42\n\n— board.example cC20/VP1qRkKShMhrh93nuuVG9JEtAU1xUtM1iESK1WlU/vHu5+cmUCxkc8MMM7cmasNJOedg92+2F91SUbV+ADVbQc=\n"
+      },
+      {
+        "name": "details",
+        "value": null
+      }
+    ]
+  ],
+  "rules": {
+    "milestones": "failing",
+    "one-closed": "passing",
+    "one-opened": "passing",
+    "other-milestones": "passing",
+    "vitrine/parse": "passing"
+  }
+}

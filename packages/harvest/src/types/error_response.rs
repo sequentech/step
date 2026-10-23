@@ -54,6 +54,11 @@ pub enum ErrorCode {
     ElectoralLogRecordNotFound,
     InvalidTaskQueuesRequest,
     TaskQueuesUnavailable,
+    TransparencyRefused,
+    VitrineConfigurationInvalid,
+    VitrineUnavailable,
+    InvalidVitrineForward,
+    VitrineForwardRefused,
     // Add any other needed error codes
 }
 

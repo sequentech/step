@@ -64,4 +64,5 @@ pub mod sequence_ballot_box;
 pub mod set_public_key;
 pub mod update_election_event_ballot_styles;
 pub mod upsert_areas;
+pub mod vitrine_statements;
 pub mod voter_information_letter;

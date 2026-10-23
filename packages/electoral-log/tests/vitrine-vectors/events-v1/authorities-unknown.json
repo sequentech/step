@@ -1,0 +1,95 @@
+{
+  "description": "The vector gives no authorities, as for a tool that lacks the policy, so who signed a milestone can't be judged: other-milestones, whose milestone (2) states what its entry says, can't run. What a statement says needs no authority, so voting-opened (1), which has none, fails milestones all the same.",
+  "params": {},
+  "entries": [
+    "EXZpdHJpbmUvZXZlbnRzL3YxAdYAAAZjb25maWcAAAgAAAAAat7sYAAAAQAAAbh2aXRyaW5lL2NvbmZpZy92MQpldmVudCBtdW5pLTIwMjYKZWxlY3Rpb24gbWF5b3IKa2V5IEQwOXdGRWN2cjYxSjRuMEtidXNiQzJ2SldUR0pMdSsxS093RUtPTUtMZ2s9CnN0eWxlcyAwSm1sWkszSG9GYTJaUWhWVTkycW1hb2JCeFBuMUlSRTBSckY4WEhYc09nPQpvcGVucyAxNzkzMDAxNjAwCmNsb3NlcyAxNzkzMDQ0ODAwCnBvbGljeSBzaGEyNTY6ODIzNDEyZDFlYWNiNjc5NTYyMjBlNTMyOTU5ZjAxMDQ2MDMwNTdjODg3MDQ4NjNjYTM4ZTdjZDE4OGZkYTgxMgpyZWxlYXNlIGJvb3RoIDEuMC4wCnRyYW5zcGFyZW5jeSBwdWJsaWMKZGVtbyBubwp0aW1lIDE3OTI5OTQ0MDAKCuKAlCBib2FyZC5leGFtcGxlIGNDMjAvWGlUWmlOVys2NFplSXIvOHl4WGVySytqVEZnRlFSc281TG9heXZWQ0IycGNTVHNiOW5uVVdVbHRCMmxJRzFQOUt4bTVxczRmdWhMUlhTb1pzOVdVZzg9CgAAAA==",
+    "EXZpdHJpbmUvZXZlbnRzL3YxACUAAA12b3Rpbmctb3BlbmVkAAAIAAAAAGrfCIAAAAEAAAAAAAAA",
+    "EXZpdHJpbmUvZXZlbnRzL3YxANkAAAltaWxlc3RvbmUAAAgAAAAAat/NYAAAAQAAALh2aXRyaW5lL21pbGVzdG9uZS92MQpldmVudCBtdW5pLTIwMjYKa2luZCB0YWxseS1zdGFydGVkCnRpbWUgMTc5MzA1MjAwMAoK4oCUIGJvYXJkLmV4YW1wbGUgY0MyMC9lTkt1WFIyWklVMEdQV2hVVnVMdDRIS0xrekJwQ3ZMeHhwUHRTU0lMTnB5R1NZdHphb2N2YnByWVc4dDJZNStIcTlVMjB0SVJRd1lpc0NSODE1czNBaz0KAAAA"
+  ],
+  "sequenced": [
+    1792994600,
+    1793001595,
+    1793052001
+  ],
+  "checkpoints": [
+    [
+      3,
+      1793052002
+    ]
+  ],
+  "fields": [
+    [
+      {
+        "name": "kind",
+        "value": "config"
+      },
+      {
+        "name": "time",
+        "value": "1792994400"
+      },
+      {
+        "name": "subject",
+        "value": "none"
+      },
+      {
+        "name": "statement",
+        "value": "vitrine/config/v1\nevent muni-2026\nelection mayor\nkey D09wFEcvr61J4n0KbusbC2vJWTGJLu+1KOwEKOMKLgk=\nstyles 0JmlZK3HoFa2ZQhVU92qmaobBxPn1IRE0RrF8XHXsOg=\nopens 1793001600\ncloses 1793044800\npolicy sha256:823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812\nrelease booth 1.0.0\ntransparency public\ndemo no\ntime 1792994400\n\n— board.example cC20/XiTZiNW+64ZeIr/8yxXerK+jTFgFQRso5LoayvVCB2pcSTsb9nnUWUltB2lIG1P9Kxm5qs4fuhLRXSoZs9WUg8=\n"
+      },
+      {
+        "name": "details",
+        "value": null
+      }
+    ],
+    [
+      {
+        "name": "kind",
+        "value": "voting-opened"
+      },
+      {
+        "name": "time",
+        "value": "1793001600"
+      },
+      {
+        "name": "subject",
+        "value": "none"
+      },
+      {
+        "name": "statement",
+        "value": null
+      },
+      {
+        "name": "details",
+        "value": null
+      }
+    ],
+    [
+      {
+        "name": "kind",
+        "value": "milestone"
+      },
+      {
+        "name": "time",
+        "value": "1793052000"
+      },
+      {
+        "name": "subject",
+        "value": "none"
+      },
+      {
+        "name": "statement",
+        "value": "vitrine/milestone/v1\nevent muni-2026\nkind tally-started\ntime 1793052000\n\n— board.example cC20/eNKuXR2ZIU0GPWhUVuLt4HKLkzBpCvLxxpPtSSILNpyGSYtzaocvbprYW8t2Y5+Hq9U20tIRQwYisCR815s3Ak=\n"
+      },
+      {
+        "name": "details",
+        "value": null
+      }
+    ]
+  ],
+  "rules": {
+    "milestones": "failing",
+    "one-closed": "passing",
+    "one-opened": "passing",
+    "other-milestones": "not-run",
+    "vitrine/parse": "passing"
+  }
+}

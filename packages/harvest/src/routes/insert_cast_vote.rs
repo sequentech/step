@@ -3,15 +3,18 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::authorization::authorize_voter_election;
+use crate::services::vitrine::CastReceipts;
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use anyhow::Result;
 use rocket::http::Status;
 use rocket::serde::json::Json;
+use rocket::State;
 use sequent_core::ballot::VotingStatusChannel;
 use sequent_core::services::connection::UserLocation;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::VoterPermissions;
 use sequent_core::util::retry::retry_with_exponential_backoff;
+use serde::Serialize;
 use std::time::Duration;
 use std::time::Instant;
 use tracing::{error, info, instrument};
@@ -21,8 +24,18 @@ use windmill::services::insert_cast_vote::{
     InsertCastVoteOutput, InsertCastVoteResult,
 };
 use windmill::tasks::process_cast_vote;
+use windmill::types::vitrine::VitrineCast;
 
 const ROUTE_PHASE_COMPLETED: &str = "cast-vote route phase completed";
+
+/// The cast vote, and what the event's Vitrine `ballots` log said about its
+/// entry, or `None` when the event's transparency is off.
+#[derive(Debug, Serialize)]
+pub struct InsertCastVoteResponse {
+    #[serde(flatten)]
+    pub cast_vote: InsertCastVoteOutput,
+    pub vitrine: Option<VitrineCast>,
+}
 
 /// API endpoint for inserting votes. POST coming from the
 /// frontend->Hasura->Harvest->Here.
@@ -31,13 +44,17 @@ const ROUTE_PHASE_COMPLETED: &str = "cast-vote route phase completed";
 /// case of success or logs the information of the error (coming from a
 /// synchronous windmill library function, `try_insert_cast_vote`) before
 /// returning the error.
+///
+/// Once the vote is in, it waits a bounded time for the ballot's Vitrine
+/// receipt, which never fails the cast.
 #[instrument(skip_all)]
 #[post("/insert-cast-vote", format = "json", data = "<body>")]
 pub async fn insert_cast_vote(
     body: Json<InsertCastVoteInput>,
     claims: JwtClaims,
     user_info: UserLocation,
-) -> Result<Json<InsertCastVoteOutput>, JsonError> {
+    receipts: &State<CastReceipts>,
+) -> Result<Json<InsertCastVoteResponse>, JsonError> {
     let start = Instant::now();
     let input: InsertCastVoteInput = body.into_inner();
     let election_id = input.election_id.to_string();
@@ -95,12 +112,15 @@ pub async fn insert_cast_vote(
     // Unwrap SkipRetryFailure into a normal Result/Error
     let insert_result = match insert_result_wrapped {
         Ok(insert_cv_result) => match insert_cv_result {
-            InsertCastVoteResult::Success(inserted_cast_vote) => {
-                Ok((inserted_cast_vote, None))
+            InsertCastVoteResult::Success(inserted_cast_vote, vitrine) => {
+                Ok((inserted_cast_vote, None, vitrine))
             }
-            InsertCastVoteResult::PendingDatafix(inserted_cast_vote) => {
+            InsertCastVoteResult::PendingDatafix(
+                inserted_cast_vote,
+                vitrine,
+            ) => {
                 let cast_vote_id = inserted_cast_vote.id.clone();
-                Ok((inserted_cast_vote, Some(cast_vote_id)))
+                Ok((inserted_cast_vote, Some(cast_vote_id), vitrine))
             }
             InsertCastVoteResult::SkipRetryFailure(cast_vote_error) => {
                 Err(cast_vote_error)
@@ -109,7 +129,7 @@ pub async fn insert_cast_vote(
         Err(e) => Err(e),
     };
 
-    let (inserted_cast_vote, pending_cast_vote_id) = insert_result
+    let (inserted_cast_vote, pending_cast_vote_id, vitrine) = insert_result
     .map_err(|cast_vote_err| {
         let duration = start.elapsed();
         info!(
@@ -334,10 +354,21 @@ pub async fn insert_cast_vote(
         duration_us = enqueue_start.elapsed().as_micros() as u64,
         "{ROUTE_PHASE_COMPLETED}"
     );
+
+    let vitrine_start = Instant::now();
+    let vitrine = receipts.cast(vitrine).await;
+    info!(
+        phase = "vitrine",
+        duration_us = vitrine_start.elapsed().as_micros() as u64,
+        "{ROUTE_PHASE_COMPLETED}"
+    );
     info!(
         phase = "request",
         duration_us = start.elapsed().as_micros() as u64,
         "cast-vote route completed"
     );
-    Ok(Json(inserted_cast_vote))
+    Ok(Json(InsertCastVoteResponse {
+        cast_vote: inserted_cast_vote,
+        vitrine,
+    }))
 }

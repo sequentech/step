@@ -40,6 +40,13 @@ pub const BACKUP_USER_ENV: &str = "ELECTORAL_LOG_PG_BACKUP_USER";
 /// application role creates them itself and needs `CREATEDB`.
 pub const PROVISIONING_USER_ENV: &str = "ELECTORAL_LOG_PG_PROVISIONING_USER";
 pub const PROVISIONING_PASSWORD_ENV: &str = "ELECTORAL_LOG_PG_PROVISIONING_PASSWORD";
+/// Role of the Vitrine sidecar, which keeps its `vitrine` schema in each election
+/// event's database: it may connect to them and create schemas in them.
+pub const VITRINE_USER_ENV: &str = "ELECTORAL_LOG_PG_VITRINE_USER";
+/// Role the Vitrine sidecar grants a `ballots` log's queue to. The application role
+/// is a member of it, so the ballot box's `ACCEPT` can queue entries, and so is the
+/// sidecar's role, so it can test the grant without the application's privileges.
+pub const VITRINE_QUEUE_ROLE_ENV: &str = "ELECTORAL_LOG_PG_VITRINE_QUEUE_ROLE";
 /// Connections of a store's pool.
 const POOL_SIZE: usize = 8;
 
@@ -156,6 +163,16 @@ impl PostgresConnection {
             .into_iter()
             .filter_map(Self::role)
             .collect()
+    }
+
+    /// The role of `ELECTORAL_LOG_PG_VITRINE_USER`, if set.
+    pub fn vitrine() -> Option<String> {
+        Self::role(VITRINE_USER_ENV)
+    }
+
+    /// The role of `ELECTORAL_LOG_PG_VITRINE_QUEUE_ROLE`, if set.
+    pub fn vitrine_queue_role() -> Option<String> {
+        Self::role(VITRINE_QUEUE_ROLE_ENV)
     }
 
     fn role(variable: &str) -> Option<String> {

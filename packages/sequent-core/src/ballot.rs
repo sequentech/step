@@ -1186,6 +1186,55 @@ pub struct ElectionEventPresentation {
     #[serde(default, deserialize_with = "deserialize_optional_json_string")]
     pub results_website: Option<String>,
     pub voting_portal_datetime_format: Option<VotingPortalDateTimeFormat>,
+    /// Absent means `TransparencyMode::DISABLED`.
+    #[borsh(skip)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub transparency: Option<TransparencyMode>,
+    #[borsh(skip)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub vitrine: Option<VitrinePresentation>,
+}
+
+impl ElectionEventPresentation {
+    pub fn transparency_mode(&self) -> TransparencyMode {
+        self.transparency.unwrap_or_default()
+    }
+}
+
+/// A Vitrine log of an election event, as voters reach it.
+#[derive(
+    Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone, Default,
+)]
+pub struct VitrineLogPresentation {
+    pub url: String,
+    pub origin: String,
+}
+
+/// The `ballots` and `events` logs of an election event.
+#[derive(
+    Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone, Default,
+)]
+pub struct VitrineLogsPresentation {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ballots: Option<VitrineLogPresentation>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub events: Option<VitrineLogPresentation>,
+}
+
+/// What voters need to check an election event's Vitrine logs. Voters read it,
+/// so it never holds a token or a key.
+#[derive(
+    Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone, Default,
+)]
+pub struct VitrinePresentation {
+    /// The policy ID's hex, without the `sha256:` prefix.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub policy_id: Option<String>,
+    /// The sealed, signed policy note; public events only.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub policy: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub logs: Option<VitrineLogsPresentation>,
 }
 
 impl ElectionEvent {
@@ -2874,6 +2923,43 @@ pub enum DelegatedVotingPolicy {
     ENABLED,
 }
 
+/// Whether an election event's ballots and milestones go to Vitrine
+/// transparency logs, and who may read them. Public receipts let a coercer
+/// check that a ballot was cast, so `PUBLIC` needs unlimited revoting.
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    EnumString,
+    Default,
+    JsonSchema,
+)]
+pub enum TransparencyMode {
+    #[default]
+    #[strum(serialize = "disabled")]
+    #[serde(rename = "disabled")]
+    DISABLED,
+    #[strum(serialize = "public")]
+    #[serde(rename = "public")]
+    PUBLIC,
+    #[strum(serialize = "private")]
+    #[serde(rename = "private")]
+    PRIVATE,
+}
+
+impl TransparencyMode {
+    pub fn is_enabled(&self) -> bool {
+        !matches!(self, TransparencyMode::DISABLED)
+    }
+}
+
 #[derive(
     BorshSerialize,
     BorshDeserialize,
@@ -3221,5 +3307,74 @@ mod support_materials_policy_tests {
             materials.effective_policy(),
             SupportMaterialsPolicy::MandatoryForVoting
         );
+    }
+}
+
+#[cfg(test)]
+mod transparency_presentation_tests {
+    use super::*;
+    use std::str::FromStr;
+
+    fn transparent_presentation() -> ElectionEventPresentation {
+        ElectionEventPresentation {
+            transparency: Some(TransparencyMode::PUBLIC),
+            vitrine: Some(VitrinePresentation {
+                policy_id: Some("ab".repeat(32)),
+                policy: Some("vitrine/policy/v1\n".to_string()),
+                logs: Some(VitrineLogsPresentation {
+                    ballots: Some(VitrineLogPresentation {
+                        url: "https://logs.example/acme/e/ballots/".to_string(),
+                        origin: "logs.example/acme/e/ballots".to_string(),
+                    }),
+                    events: None,
+                }),
+            }),
+            ..ElectionEventPresentation::default()
+        }
+    }
+
+    #[test]
+    fn transparency_fields_do_not_change_borsh_bytes() {
+        let plain = borsh::to_vec(&ElectionEventPresentation::default()).unwrap();
+        assert_eq!(borsh::to_vec(&transparent_presentation()).unwrap(), plain);
+    }
+
+    #[test]
+    fn absent_transparency_reads_as_disabled_and_is_not_written() {
+        let presentation: ElectionEventPresentation =
+            serde_json::from_value(serde_json::json!({"css": "x"})).unwrap();
+        assert_eq!(presentation.transparency_mode(), TransparencyMode::DISABLED);
+        assert!(!presentation.transparency_mode().is_enabled());
+        let json = serde_json::to_value(&presentation).unwrap();
+        assert!(json.get("transparency").is_none());
+        assert!(json.get("vitrine").is_none());
+    }
+
+    #[test]
+    fn transparency_round_trips_in_the_contract_shape() {
+        let json = serde_json::to_value(transparent_presentation()).unwrap();
+        assert_eq!(json["transparency"], "public");
+        assert_eq!(
+            json["vitrine"]["logs"]["ballots"]["origin"],
+            "logs.example/acme/e/ballots"
+        );
+        assert!(json["vitrine"]["logs"].get("events").is_none());
+        let back: ElectionEventPresentation =
+            serde_json::from_value(json).unwrap();
+        assert_eq!(back, transparent_presentation());
+    }
+
+    #[test]
+    fn modes_parse_and_print_as_the_contract_spells_them() {
+        for (text, mode) in [
+            ("disabled", TransparencyMode::DISABLED),
+            ("public", TransparencyMode::PUBLIC),
+            ("private", TransparencyMode::PRIVATE),
+        ] {
+            assert_eq!(TransparencyMode::from_str(text).unwrap(), mode);
+            assert_eq!(mode.to_string(), text);
+        }
+        assert!(TransparencyMode::from_str("PUBLIC").is_err());
+        assert!(serde_json::from_str::<TransparencyMode>("\"open\"").is_err());
     }
 }

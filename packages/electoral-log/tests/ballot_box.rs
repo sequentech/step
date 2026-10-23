@@ -6,13 +6,16 @@
 //! their partitions at the end.
 
 use anyhow::Result;
-use electoral_log::adapters::ballot_box::{AcceptBallot, AcceptOutcome, BallotStatus};
+use electoral_log::adapters::ballot_box::{
+    AcceptBallot, AcceptOutcome, Acceptance, BallotStatus, QueueState, VitrineQueue,
+};
 use electoral_log::adapters::ballot_box_reads::{
     tally_ballots_query, BallotIdMatch, BucketRange, IpBallotsFilter, Participation,
 };
 use electoral_log::adapters::ballot_box_status::{BallotToReview, VoterBallotState};
 use electoral_log::adapters::postgres::PostgresStore;
 use electoral_log::ports::ElectoralLogStore;
+use electoral_log::vitrine::{leaf_hash, ElectionEntry};
 use electoral_log::{ElectoralLogMessage, LogEntry};
 use std::time::Duration;
 use uuid::Uuid;
@@ -51,6 +54,7 @@ struct Vote {
     country: Option<&'static str>,
     status: BallotStatus,
     content: &'static str,
+    vitrine: Option<VitrineQueue>,
 }
 
 impl Vote {
@@ -67,7 +71,25 @@ impl Vote {
             country: Some("ES"),
             status: BallotStatus::Valid,
             content: "ciphertext",
+            vitrine: None,
         }
+    }
+
+    /// A vote of a transparent event, with a ballot ID that is a 32-byte hash.
+    fn queued_in(mut self, log_id: i64, accepted_at: i64) -> Self {
+        self.ballot = format!("{}{}", Uuid::new_v4().simple(), Uuid::new_v4().simple());
+        self.vitrine = Some(VitrineQueue {
+            log_id,
+            accepted_at,
+        });
+        self
+    }
+
+    fn at(mut self, accepted_at: i64) -> Self {
+        if let Some(queue) = self.vitrine.as_mut() {
+            queue.accepted_at = accepted_at;
+        }
+        self
     }
 
     fn with_content(mut self, content: &'static str) -> Self {
@@ -98,7 +120,7 @@ impl Vote {
 
     async fn accept_with_id(&self, store: &PostgresStore) -> Result<(i64, String)> {
         match store.accept_ballot(&self.request()).await? {
-            AcceptOutcome::Accepted { seq, id } => Ok((seq, id)),
+            AcceptOutcome::Accepted { seq, id, .. } => Ok((seq, id)),
             other => anyhow::bail!("unexpected {other:?}"),
         }
     }
@@ -121,6 +143,7 @@ impl Vote {
             voter_country: self.country,
             username: Some("voter"),
             allowed_votes: self.allowed,
+            vitrine: self.vitrine,
         }
     }
 }
@@ -714,6 +737,14 @@ async fn reads_cover_voters_administrators_and_reports() -> Result<()> {
             voters: 2
         }
     );
+
+    let mut counts = vec![(first.clone(), 5), (second.clone(), 1)];
+    counts.sort();
+    assert_eq!(store.accepted_counts(&event).await?, counts);
+    assert!(store
+        .accepted_counts(&Uuid::new_v4().to_string())
+        .await?
+        .is_empty());
     drop_ballot_box(&store, &event).await
 }
 
@@ -875,4 +906,303 @@ async fn ballot_boxes_come_and_go_without_holding_back_other_events_votes() -> R
     let ballots = store.voter_ballots(&event, "voter").await?;
     assert_eq!(ballots.len(), 1);
     drop_ballot_box(&store, &event).await
+}
+
+// ACCEPT_WITH_VITRINE against a minimal copy of the Vitrine queue: the shape
+// of vitrine.queue and of a log's partitions, defaults and grants in Vitrine's
+// crates/vitrine-store/migrations/0001_schema.sql and logs::grant_queue. The
+// votes run as a role that has only the ballot box's privileges and the grants
+// the sidecar gives a queue log's application role.
+
+const APP_ROLE: &str = "vitrine_contract_app";
+const APP_PASSWORD: &str = "vitrine-contract-app";
+
+const VITRINE_QUEUE: &str = r#"
+CREATE SCHEMA IF NOT EXISTS vitrine;
+CREATE TABLE IF NOT EXISTS vitrine.log_state (
+    log_id     bigint PRIMARY KEY,
+    queue_part smallint NOT NULL DEFAULT 0 CHECK (queue_part BETWEEN 0 AND 2)
+);
+CREATE TABLE IF NOT EXISTS vitrine.queue (
+    log_id    bigint NOT NULL,
+    part      smallint NOT NULL,
+    id        bigint NOT NULL,
+    txid      xid8 NOT NULL DEFAULT pg_current_xact_id(),
+    entry     bytea NOT NULL,
+    payloads  bytea,
+    queued_at timestamptz NOT NULL DEFAULT now(),
+    leaf_hash bytea GENERATED ALWAYS AS (sha256(decode('00', 'hex') || entry)) STORED
+) PARTITION BY LIST (log_id);
+CREATE OR REPLACE FUNCTION vitrine.queue_part(p_log bigint) RETURNS smallint
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = pg_catalog, pg_temp
+AS $$ SELECT queue_part FROM vitrine.log_state WHERE log_id = p_log $$;
+REVOKE ALL ON FUNCTION vitrine.queue_part(bigint) FROM PUBLIC;
+DO $$ BEGIN
+    CREATE ROLE vitrine_contract_app LOGIN PASSWORD 'vitrine-contract-app';
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+GRANT SELECT, INSERT, UPDATE ON ballot_box_ballot, ballot_box_voter, ballot_box_pending
+    TO vitrine_contract_app;
+GRANT USAGE ON SEQUENCE ballot_box_seq TO vitrine_contract_app;
+"#;
+
+static VITRINE: tokio::sync::OnceCell<()> = tokio::sync::OnceCell::const_new();
+
+/// A queue log's partitions and grants, as the sidecar creates them.
+fn queue_log(log_id: i64) -> String {
+    let q = format!("vitrine.queue_{log_id}");
+    format!(
+        "INSERT INTO vitrine.log_state (log_id) VALUES ({log_id});
+         CREATE SEQUENCE {q}_id AS bigint;
+         CREATE TABLE {q} PARTITION OF vitrine.queue FOR VALUES IN ({log_id})
+             PARTITION BY LIST (part);
+         ALTER TABLE {q} ALTER COLUMN log_id SET DEFAULT {log_id},
+             ALTER COLUMN part SET DEFAULT vitrine.queue_part({log_id}),
+             ALTER COLUMN id SET DEFAULT nextval('{q}_id'::regclass),
+             ALTER COLUMN txid SET DEFAULT pg_current_xact_id(),
+             ALTER COLUMN queued_at SET DEFAULT now();
+         CREATE TABLE {q}_0 PARTITION OF {q} FOR VALUES IN (0);
+         CREATE TABLE {q}_1 PARTITION OF {q} FOR VALUES IN (1);
+         CREATE TABLE {q}_2 PARTITION OF {q} FOR VALUES IN (2);
+         GRANT USAGE ON SCHEMA vitrine TO {APP_ROLE};
+         GRANT INSERT ON {q} TO {APP_ROLE};
+         GRANT USAGE ON SEQUENCE {q}_id TO {APP_ROLE};
+         GRANT EXECUTE ON FUNCTION vitrine.queue_part(bigint) TO {APP_ROLE};"
+    )
+}
+
+/// The ballot box as the application role, and a new queue log for it.
+async fn vitrine_store(admin: &PostgresStore) -> Result<(PostgresStore, i64)> {
+    VITRINE
+        .get_or_try_init(|| async {
+            admin.client().await?.batch_execute(VITRINE_QUEUE).await?;
+            anyhow::Ok(())
+        })
+        .await?;
+    let log_id = (Uuid::new_v4().as_u128() % 1_000_000_000_000) as i64 + 1;
+    admin
+        .client()
+        .await?
+        .batch_execute(&queue_log(log_id))
+        .await?;
+    let mut config: tokio_postgres::Config =
+        std::env::var("ELECTORAL_LOG_TEST_DATABASE_URL")?.parse()?;
+    config.user(APP_ROLE).password(APP_PASSWORD);
+    Ok((PostgresStore::new(config)?, log_id))
+}
+
+/// The entries queued in a log, with the leaf hashes the queue computed.
+async fn queued(admin: &PostgresStore, log_id: i64) -> Result<Vec<(Vec<u8>, Vec<u8>)>> {
+    let rows = admin
+        .client()
+        .await?
+        .query(
+            &format!("SELECT entry, leaf_hash FROM vitrine.queue_{log_id} ORDER BY id"),
+            &[],
+        )
+        .await?;
+    Ok(rows.iter().map(|r| (r.get(0), r.get(1))).collect())
+}
+
+async fn stored_accepted_at(admin: &PostgresStore, event: &str, ballot: &str) -> Result<f64> {
+    Ok(admin
+        .client()
+        .await?
+        .query_one(
+            "SELECT extract(epoch FROM accepted_at)::float8 FROM ballot_box_ballot \
+             WHERE election_event_id = $1::text::uuid AND ballot_id = $2",
+            &[&event, &ballot],
+        )
+        .await?
+        .get(0))
+}
+
+const ACCEPTED_AT: i64 = 1_793_001_660;
+
+#[tokio::test]
+#[ignore = "requires ELECTORAL_LOG_TEST_DATABASE_URL"]
+async fn an_accepted_ballot_queues_its_entry_with_it() -> Result<()> {
+    let admin = store().await?;
+    let (app, log_id) = vitrine_store(&admin).await?;
+    let (event, election, area, _) = ids();
+    admin.create_ballot_box(&event).await?;
+
+    let vote = Vote::new(&event, &election, &area, "voter", 1).queued_in(log_id, ACCEPTED_AT);
+    let AcceptOutcome::Accepted {
+        acceptance,
+        vitrine: Some(vitrine),
+        ..
+    } = app.accept_ballot(&vote.request()).await?
+    else {
+        anyhow::bail!("not accepted with an entry");
+    };
+    assert_eq!(acceptance, Acceptance::New);
+    assert_eq!(vitrine.queue, QueueState::Queued);
+    let expected = ElectionEntry {
+        event_id: event.clone(),
+        election_id: election.clone(),
+        ballot_id: hex::decode(&vote.ballot)?.try_into().unwrap(),
+        accepted_at: ACCEPTED_AT as u64,
+    };
+    assert_eq!(vitrine.entry, expected.encode()?);
+    assert_eq!(vitrine.leaf_hash, leaf_hash(&vitrine.entry));
+    assert_eq!(
+        queued(&admin, log_id).await?,
+        vec![(vitrine.entry.clone(), vitrine.leaf_hash.to_vec())]
+    );
+    assert_eq!(
+        stored_accepted_at(&admin, &event, &vote.ballot).await?,
+        ACCEPTED_AT as f64
+    );
+    drop_ballot_box(&admin, &event).await
+}
+
+#[tokio::test]
+#[ignore = "requires ELECTORAL_LOG_TEST_DATABASE_URL"]
+async fn a_refused_vote_queues_nothing() -> Result<()> {
+    let admin = store().await?;
+    let (app, log_id) = vitrine_store(&admin).await?;
+    let (event, election, area, other_area) = ids();
+    admin.create_ballot_box(&event).await?;
+
+    let first = Vote::new(&event, &election, &area, "voter", 1).queued_in(log_id, ACCEPTED_AT);
+    assert!(matches!(
+        app.accept_ballot(&first.request()).await?,
+        AcceptOutcome::Accepted { .. }
+    ));
+    let second = Vote::new(&event, &election, &area, "voter", 1).queued_in(log_id, ACCEPTED_AT);
+    assert_eq!(
+        app.accept_ballot(&second.request()).await?,
+        AcceptOutcome::TooManyVotes
+    );
+    let elsewhere =
+        Vote::new(&event, &election, &other_area, "voter", 0).queued_in(log_id, ACCEPTED_AT);
+    assert_eq!(
+        app.accept_ballot(&elsewhere.request()).await?,
+        AcceptOutcome::VotedInOtherArea
+    );
+    let mut clash = Vote::new(&event, &election, &area, "other", 0).queued_in(log_id, ACCEPTED_AT);
+    clash.ballot = first.ballot.clone();
+    assert_eq!(
+        app.accept_ballot(&clash.request()).await?,
+        AcceptOutcome::DuplicateBallotId
+    );
+    assert_eq!(queued(&admin, log_id).await?.len(), 1);
+    drop_ballot_box(&admin, &event).await
+}
+
+#[tokio::test]
+#[ignore = "requires ELECTORAL_LOG_TEST_DATABASE_URL"]
+async fn a_retried_cast_returns_the_original_acceptance() -> Result<()> {
+    let admin = store().await?;
+    let (app, log_id) = vitrine_store(&admin).await?;
+    let (event, election, area, _) = ids();
+    admin.create_ballot_box(&event).await?;
+
+    for allowed in [1, 0] {
+        let voter = format!("voter-{allowed}");
+        let vote =
+            Vote::new(&event, &election, &area, &voter, allowed).queued_in(log_id, ACCEPTED_AT);
+        let first = app.accept_ballot(&vote.request()).await?;
+        let retry = vote.at(ACCEPTED_AT + 7);
+        let again = app.accept_ballot(&retry.request()).await?;
+        let (
+            AcceptOutcome::Accepted {
+                seq,
+                id,
+                vitrine: Some(original),
+                ..
+            },
+            AcceptOutcome::Accepted {
+                seq: seq_again,
+                id: id_again,
+                acceptance,
+                vitrine: Some(replayed),
+                ..
+            },
+        ) = (first, again)
+        else {
+            anyhow::bail!("allowed {allowed}: the retry wasn't accepted");
+        };
+        assert_eq!((seq, id), (seq_again, id_again), "allowed {allowed}");
+        assert_eq!(acceptance, Acceptance::Replayed);
+        assert_eq!(replayed.entry, original.entry);
+        assert_eq!(replayed.leaf_hash, original.leaf_hash);
+        assert_eq!(
+            app.voter_state(&event, &election, &voter)
+                .await?
+                .unwrap()
+                .votes,
+            1
+        );
+    }
+    assert_eq!(queued(&admin, log_id).await?.len(), 2);
+
+    // A ballot rejected since isn't replayed.
+    let vote = Vote::new(&event, &election, &area, "rejected", 1).queued_in(log_id, ACCEPTED_AT);
+    app.accept_ballot(&vote.request()).await?;
+    admin
+        .client()
+        .await?
+        .execute(
+            "UPDATE ballot_box_ballot SET status = 'rejected' \
+             WHERE election_event_id = $1::text::uuid AND ballot_id = $2",
+            &[&event, &vote.ballot],
+        )
+        .await?;
+    assert_eq!(
+        app.accept_ballot(&vote.request()).await?,
+        AcceptOutcome::TooManyVotes
+    );
+    drop_ballot_box(&admin, &event).await
+}
+
+#[tokio::test]
+#[ignore = "requires ELECTORAL_LOG_TEST_DATABASE_URL"]
+async fn a_queue_that_refuses_the_insert_never_refuses_the_ballot() -> Result<()> {
+    let admin = store().await?;
+    let (app, log_id) = vitrine_store(&admin).await?;
+    let (event, election, area, _) = ids();
+    admin.create_ballot_box(&event).await?;
+
+    let first = Vote::new(&event, &election, &area, "first", 1).queued_in(log_id, ACCEPTED_AT);
+    assert!(matches!(
+        app.accept_ballot(&first.request()).await?,
+        AcceptOutcome::Accepted { .. }
+    ));
+    // Freezing a log takes the insert grant back.
+    admin
+        .client()
+        .await?
+        .batch_execute(&format!(
+            "REVOKE INSERT ON vitrine.queue_{log_id} FROM {APP_ROLE}"
+        ))
+        .await?;
+    let frozen = Vote::new(&event, &election, &area, "frozen", 1).queued_in(log_id, ACCEPTED_AT);
+    let AcceptOutcome::Accepted {
+        vitrine: Some(vitrine),
+        ..
+    } = app.accept_ballot(&frozen.request()).await?
+    else {
+        anyhow::bail!("refused");
+    };
+    assert_eq!(vitrine.queue, QueueState::NotQueued);
+    assert_eq!(
+        stored_accepted_at(&admin, &event, &frozen.ballot).await?,
+        ACCEPTED_AT as f64
+    );
+
+    // A log whose queue partition doesn't exist.
+    let missing =
+        Vote::new(&event, &election, &area, "missing", 1).queued_in(log_id + 1, ACCEPTED_AT);
+    let AcceptOutcome::Accepted {
+        vitrine: Some(vitrine),
+        ..
+    } = app.accept_ballot(&missing.request()).await?
+    else {
+        anyhow::bail!("refused");
+    };
+    assert_eq!(vitrine.queue, QueueState::NotQueued);
+    assert_eq!(queued(&admin, log_id).await?.len(), 1);
+    drop_ballot_box(&admin, &event).await
 }

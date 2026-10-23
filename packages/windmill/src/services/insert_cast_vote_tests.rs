@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use super::*;
+use electoral_log::adapters::ballot_box::QueueState;
 use serde_json::json;
 
 fn election_event(annotations: Option<serde_json::Value>) -> ElectionEvent {
@@ -165,14 +166,59 @@ fn accepted_ballots_report_their_status_as_cast_vote_statuses() {
         status: cast_vote_status(status),
     };
     assert!(matches!(
-        classify_inserted_cast_vote(vote(BallotStatus::Valid)),
-        Ok(InsertCastVoteResult::Success(_))
+        classify_inserted_cast_vote(vote(BallotStatus::Valid), None),
+        Ok(InsertCastVoteResult::Success(_, None))
     ));
     assert!(matches!(
-        classify_inserted_cast_vote(vote(BallotStatus::Pending)),
-        Ok(InsertCastVoteResult::PendingDatafix(_))
+        classify_inserted_cast_vote(vote(BallotStatus::Pending), None),
+        Ok(InsertCastVoteResult::PendingDatafix(_, None))
     ));
-    assert!(classify_inserted_cast_vote(vote(BallotStatus::Rejected)).is_err());
+    assert!(classify_inserted_cast_vote(vote(BallotStatus::Rejected), None).is_err());
+    let vitrine = CastVitrine {
+        log: Some("tenant/event/ballots".into()),
+        entry: None,
+    };
+    assert!(matches!(
+        classify_inserted_cast_vote(vote(BallotStatus::Valid), Some(vitrine.clone())),
+        Ok(InsertCastVoteResult::Success(_, Some(v))) if v == vitrine
+    ));
+}
+
+#[test]
+fn casts_in_transparent_events_carry_their_entry() {
+    let log = VitrineTarget::Log {
+        log_id: 7,
+        sidecar_name: "tenant/event/ballots".into(),
+    };
+    assert_eq!(
+        log.queue(1_793_520_123),
+        Some(VitrineQueue {
+            log_id: 7,
+            accepted_at: 1_793_520_123,
+        })
+    );
+    assert_eq!(VitrineTarget::Off.queue(1), None);
+    assert_eq!(VitrineTarget::NoLog.queue(1), None);
+    let entry = VitrineEntry {
+        entry: vec![1, 2, 3],
+        leaf_hash: [9; 32],
+        queue: QueueState::Queued,
+    };
+    assert_eq!(
+        log.cast(Some(entry.clone())),
+        Some(CastVitrine {
+            log: Some("tenant/event/ballots".into()),
+            entry: Some(entry),
+        })
+    );
+    assert_eq!(VitrineTarget::Off.cast(None), None);
+    assert_eq!(
+        VitrineTarget::NoLog.cast(None),
+        Some(CastVitrine {
+            log: None,
+            entry: None,
+        })
+    );
 }
 
 #[test]

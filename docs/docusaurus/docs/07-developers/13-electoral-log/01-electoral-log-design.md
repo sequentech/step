@@ -846,6 +846,8 @@ A load test filled one board to 20 million records on a PostgreSQL server with 1
 | `ELECTORAL_LOG_PG_READER_USER` | The role of console queries (section 9.6). Windmill and Harvest let it connect to and read each event database they create, and Harvest connects as it. Unset, queries are not available |
 | `ELECTORAL_LOG_PG_READER_PASSWORD` | Harvest only: the reader role's password |
 | `ELECTORAL_LOG_PG_BACKUP_USER` | Optional role of the backups (section 14.3). Windmill and Harvest let it connect to and read each event database they create |
+| `ELECTORAL_LOG_PG_VITRINE_USER` | Optional role of the Vitrine sidecar. Windmill lets it connect to and create schemas in each event database it creates, for the `vitrine` schema (see the Vitrine transparency page) |
+| `ELECTORAL_LOG_PG_VITRINE_QUEUE_ROLE` | Harvest: the role the Vitrine sidecar grants a `ballots` log's queue to. The dedicated role and the sidecar's role are members of it |
 | `ELECTORAL_LOG_PG_SSLMODE` | `disable`, `require` (default) or `verify-full` |
 | `ELECTORAL_LOG_PG_SSLROOTCERT` | Optional CA file for `verify-full` |
 | `ELECTORAL_LOG_BATCH_SIZE` | Maximum events per dispatcher batch; 1,000 when unset or empty |

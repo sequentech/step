@@ -78,6 +78,7 @@ use crate::tasks::send_template::send_template;
 use crate::tasks::sequence_ballot_box::{schedule_ballot_box_sequencers, sequence_ballot_box};
 use crate::tasks::set_public_key::set_public_key;
 use crate::tasks::update_election_event_ballot_styles::update_election_event_ballot_styles;
+use crate::tasks::vitrine_statements::{log_vitrine_statements, schedule_vitrine_statements};
 use crate::tasks::voter_information_letter::generate_voter_information_letter;
 
 /// The environment's task queues. Each environment has its own task-queue database, so
@@ -310,6 +311,8 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             review_cast_votes,
             schedule_ballot_box_sequencers,
             sequence_ballot_box,
+            schedule_vitrine_statements,
+            log_vitrine_statements,
             export_templates,
             export_ballot_publication,
             export_application,
@@ -368,6 +371,8 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             review_cast_votes::NAME => Queue::Beat.queue_name(),
             schedule_ballot_box_sequencers::NAME => Queue::ElectoralLogBeat.queue_name(),
             sequence_ballot_box::NAME => Queue::ElectoralLogBatch.queue_name(),
+            schedule_vitrine_statements::NAME => Queue::Beat.queue_name(),
+            log_vitrine_statements::NAME => Queue::Short.queue_name(),
             manage_election_date::NAME => Queue::Beat.queue_name(),
             manage_election_event_date::NAME => Queue::Beat.queue_name(),
             manage_election_event_enrollment::NAME => Queue::Beat.queue_name(),

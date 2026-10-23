@@ -1,0 +1,64 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# The Vitrine deployment configuration of the development environment: Harvest
+# drafts each transparent election event's trust policy from it and from the
+# event (docs/docusaurus/docs/07-developers/14-vitrine.md describes every key).
+# The keys are development keys: their private halves are in secrets/, next
+# to this file. Never use them anywhere else.
+
+domain = "vote.localhost"
+operator = "sequent"
+quorum = "witnesses"
+words = "en"
+
+[profiles]
+election = "sha256:93a933ed8cc8eede70ddcaee9e7b585ba37dda55abd9df2c74d4c09ae671d01e"
+events = "sha256:7b2a3fb1295e9c5e230f221d9bf12a35d6b4535430414a2cd9d0c0b9a45a2905"
+
+# The Electoral Board seals and signs each event's policy; it alone approves
+# successors.
+[sign]
+threshold = 1
+authorities = ["board"]
+
+[[authorities]]
+name = "board"
+vkey = "board.localhost/policy+e84875ed+AcTFy7hl2XaVrTmh8sYkfe2zx0jmlSaCRx+U2GfY/ecY"
+role = "board"
+
+# Windmill signs the events log's statements with this key (secrets/operator.key).
+[[authorities]]
+name = "sequent"
+vkey = "sequent.localhost/policy+965f165e+AYKfBcg/N5ARcFPC8jzo3rDOsuZSzuAwELOU1cSZQqH0"
+role = "operator"
+
+[[auditors]]
+name = "auditor"
+vkey = "auditor.localhost/auditor+0e0f5920+AeNdKNo9J2Kfb/4XojAVi0e2PL3HtRWq3fJ+OYa/Tl4U"
+
+# The two witnesses of the compose profile `vitrine`. They share the sidecar's
+# network namespace, so the sidecar reaches them on localhost.
+[[witnesses]]
+name = "w1"
+vkey = "witness-1.localhost+df7780a5+BDqFD4Tm5LiM1Y9lXZGf4/crPTGNR8HbiE9s8r39o10e"
+url = "http://localhost:8096/"
+party = "observers"
+
+[[witnesses]]
+name = "w2"
+vkey = "witness-2.localhost+85abf543+BHrAQhQfW3/7ERydAjcoSYy+W3ovvjQEN6hTIgneCgiR"
+url = "http://localhost:8098/"
+party = "university"
+
+[[groups]]
+name = "witnesses"
+threshold = "all"
+members = ["w1", "w2"]
+
+# A public election log needs a mirror that the operator doesn't run. In
+# development the sidecar's own public listener stands in for the observers'.
+[[mirrors]]
+url = "http://localhost:8094/{path}/"
+party = "observers"
