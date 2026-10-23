@@ -197,6 +197,11 @@ async fn rocket() -> _ {
                 routes::delete_certificate_authority::delete_certificate_authority_route,
                 routes::export_certificate_authority::export_certificate_authority_route,
                 routes::get_certificate_authorities_pem::get_cas_pem,
+                routes::vitrine::vitrine_voter_context,
+                routes::vitrine::vitrine_voter_forward,
+                routes::vitrine::get_transparency,
+                routes::vitrine::enable_transparency,
+                routes::vitrine::upload_transparency_policy,
             ],
         )
         .mount("/", routes![routes::plugins::plugin_routes])
