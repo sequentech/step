@@ -73,6 +73,18 @@ struct Fixture {
     voters: Value,
     board: Vec<Vec<u8>>,
     logs: Vec<Vec<u8>>,
+    history: History,
+}
+
+/// Cast-vote history passed to prepare.
+enum History {
+    /// Every row with a real ballot and receipt, taken when the sources are
+    /// written. Synthetic placeholder contents and receipt labels of
+    /// unselected rows cannot be hashed.
+    FromRows,
+    Rows(Value),
+    /// Passes --without-cast-vote-history.
+    Skipped,
 }
 impl Fixture {
     fn new(policy: MultiplicityPolicy, multiplicity: u64) -> Self {
@@ -212,6 +224,28 @@ impl Fixture {
             voters: json!([{"voter_id":VOTER,"multiplicity":multiplicity}]),
             board,
             logs: vec![log],
+            history: History::FromRows,
+        }
+    }
+
+    fn history_rows(&self) -> Option<Value> {
+        match &self.history {
+            History::FromRows => Some(Value::Array(
+                self.rows
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .filter(|row| {
+                        serde_json::from_str::<Value>(row["content"].as_str().unwrap()).is_ok()
+                            && row["ballot_id"]
+                                .as_str()
+                                .is_some_and(|id| id.len() == 64 && hex::decode(id).is_ok())
+                    })
+                    .cloned()
+                    .collect(),
+            )),
+            History::Rows(rows) => Some(rows.clone()),
+            History::Skipped => None,
         }
     }
 
@@ -239,6 +273,12 @@ impl Fixture {
             ("electoral-log", encode(&self.logs)),
         ]
         .into_iter()
+        .chain(self.history_rows().map(|history| {
+            (
+                "cast-vote-history",
+                serde_json::to_vec_pretty(&history).unwrap(),
+            )
+        }))
         .map(|(name, bytes)| {
             fs::write(dir.join(format!("{name}.json")), &bytes).unwrap();
             (name, digest(&bytes).unwrap())
@@ -289,12 +329,14 @@ impl Fixture {
             .unwrap()
     }
 
-    /// A validly signed success log for VOTER naming another full ballot hash.
-    fn signed_log_for_hash(&self, hash: [u8; 64]) -> Vec<u8> {
+    /// A validly signed success log for VOTER naming another full ballot hash,
+    /// signed `seconds_later` than the selected ballot's log.
+    fn signed_log_for_hash(&self, hash: [u8; 64], seconds_later: u64) -> Vec<u8> {
         let mut log = ElectoralMessage::strand_deserialize(&self.logs[0]).unwrap();
         if let StatementBody::CastVoteWithChannel(_, _, h, _, _, _) = &mut log.statement.body {
             *h = CastVoteHash::new(hash);
         }
+        log.statement.head.timestamp += seconds_later;
         ElectoralMessage::sign(
             log.statement,
             log.artifact,
@@ -312,16 +354,20 @@ impl Fixture {
         .unwrap()
     }
 
-    fn history_command(&self, dir: &Path, history: &Value) -> Command {
-        let history = serde_json::to_vec_pretty(history).unwrap();
-        fs::write(dir.join("cast-vote-history.json"), &history).unwrap();
-        let mut command = self.command(dir);
-        command
-            .arg("--cast-vote-history")
-            .arg(dir.join("cast-vote-history.json"))
-            .arg("--cast-vote-history-sha512")
-            .arg(digest(&history).unwrap());
-        command
+    /// Adds a signed revote by VOTER with another ballot, stored `created_at`
+    /// in `area` with `status`, signed `seconds_later` than the selected ballot.
+    fn add_revote(&mut self, id: u64, area: &str, status: &str, seconds_later: u64) {
+        let ballot = other_ballot();
+        let mut row = self.rows[1].clone();
+        row["id"] = format!("00000000-0000-4000-8000-{id:012x}").into();
+        row["area_id"] = area.into();
+        row["status"] = status.into();
+        row["created_at"] = "2026-09-30T12:00:00Z".into();
+        row["content"] = serde_json::to_string(&ballot).unwrap().into();
+        row["ballot_id"] = hash_ballot(&ballot).unwrap().into();
+        self.rows.as_array_mut().unwrap().push(row);
+        let log = self.signed_log_for_hash(hash_ballot_sha512(&ballot).unwrap(), seconds_later);
+        self.logs.push(log);
     }
 
     /// The exporter's saved-mapping.json for this scope, with `annotations`.
@@ -395,6 +441,9 @@ fn command_with_pins(dir: &Path, sources: &[(&str, String)]) -> Command {
             .arg(format!("--{name}"))
             .arg(dir.join(format!("{name}.json")));
         command.arg(format!("--{name}-sha512")).arg(pin);
+    }
+    if !sources.iter().any(|(name, _)| *name == "cast-vote-history") {
+        command.arg("--without-cast-vote-history");
     }
     command.arg("--output").arg(dir.join("bundle"));
     command
@@ -550,13 +599,40 @@ fn other_ballot() -> HashableBallot {
 }
 
 #[test]
-fn history_confirms_every_signed_ballot_of_selected_voters() {
+fn history_is_required_unless_explicitly_skipped() {
     let dir = TempDir::new();
     let f = Fixture::new(MultiplicityPolicy::Unweighted, 1);
-    let output = f
-        .history_command(&dir.0, &json!([f.rows[1]]))
+    let mut pins = f.write_sources(&dir.0);
+    pins.retain(|(name, _)| *name != "cast-vote-history");
+    let mut command = Command::new(env!("CARGO_BIN_EXE_prepare-ballot-audit"));
+    for (name, pin) in &pins {
+        command
+            .arg(format!("--{name}"))
+            .arg(dir.0.join(format!("{name}.json")))
+            .arg(format!("--{name}-sha512"))
+            .arg(pin);
+    }
+    let output = command
+        .arg("--output")
+        .arg(dir.0.join("bundle"))
         .output()
         .unwrap();
+    assert_eq!(output.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("--cast-vote-history"));
+
+    let output = f
+        .command(&dir.0)
+        .arg("--without-cast-vote-history")
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(2));
+}
+
+#[test]
+fn history_confirms_every_signed_ballot_of_selected_voters() {
+    let dir = TempDir::new();
+    let mut f = Fixture::new(MultiplicityPolicy::Unweighted, 1);
+    let output = f.command(&dir.0).output().unwrap();
     assert!(
         output.status.success(),
         "{}",
@@ -564,13 +640,15 @@ fn history_confirms_every_signed_ballot_of_selected_voters() {
     );
     assert_eq!(
         provenance(&dir.0)["cast_vote_history"],
-        json!({"status":"checked","signed_ballots_of_selected_voters":1})
+        json!({"status":"checked","signed_ballots_of_selected_voters":1,
+            "later_signed_revotes_not_valid_in_scope":0})
     );
+    f.history = History::Skipped;
     let dir = TempDir::new();
     assert!(f.command(&dir.0).output().unwrap().status.success());
     assert_eq!(
         provenance(&dir.0)["cast_vote_history"],
-        json!({"status":"not_supplied"})
+        json!({"status":"skipped"})
     );
 }
 
@@ -578,52 +656,90 @@ fn history_confirms_every_signed_ballot_of_selected_voters() {
 fn replaced_selected_ballot_is_a_contradiction_only_with_history() {
     let mut f = Fixture::new(MultiplicityPolicy::Unweighted, 1);
     let forged = other_ballot();
+    // The out-of-area row keeps the original ballot; remove it so no stored row does.
+    f.rows.as_array_mut().unwrap().remove(3);
     f.rows[1]["content"] = serde_json::to_string(&forged).unwrap().into();
     f.rows[1]["ballot_id"] = hash_ballot(&forged).unwrap().into();
     let dir = TempDir::new();
     let output = f.command(&dir.0).output().unwrap();
-    assert_eq!(output.status.code(), Some(3));
-    let dir = TempDir::new();
-    let output = f
-        .history_command(&dir.0, &json!([f.rows[1]]))
-        .output()
-        .unwrap();
     assert_eq!(output.status.code(), Some(1));
     assert_private_output(&output);
     assert!(String::from_utf8_lossy(&output.stderr).contains("no stored cast vote holds"));
     assert!(!dir.0.join("bundle").exists());
+    f.history = History::Skipped;
+    let dir = TempDir::new();
+    assert_eq!(f.command(&dir.0).output().unwrap().status.code(), Some(3));
 }
 
 #[test]
 fn removed_later_revote_is_a_contradiction_only_with_history() {
     let mut f = Fixture::new(MultiplicityPolicy::Unweighted, 1);
     f.logs
-        .push(f.signed_log_for_hash(hash_ballot_sha512(&other_ballot()).unwrap()));
+        .push(f.signed_log_for_hash(hash_ballot_sha512(&other_ballot()).unwrap(), 60));
     let dir = TempDir::new();
-    assert!(f.command(&dir.0).output().unwrap().status.success());
-    let dir = TempDir::new();
-    let output = f
-        .history_command(&dir.0, &json!([f.rows[1]]))
-        .output()
-        .unwrap();
+    let output = f.command(&dir.0).output().unwrap();
     assert_eq!(output.status.code(), Some(1));
     assert!(!dir.0.join("bundle").exists());
+    f.history = History::Skipped;
+    let dir = TempDir::new();
+    assert!(f.command(&dir.0).output().unwrap().status.success());
 }
 
 #[test]
 fn history_keeps_missing_logs_incomplete_and_must_hold_selected_rows() {
     let mut f = Fixture::new(MultiplicityPolicy::Unweighted, 1);
+    f.history = History::Rows(json!([]));
     let dir = TempDir::new();
-    let output = f.history_command(&dir.0, &json!([])).output().unwrap();
+    let output = f.command(&dir.0).output().unwrap();
     assert_eq!(output.status.code(), Some(1));
     assert!(String::from_utf8_lossy(&output.stderr).contains("does not hold a selected cast vote"));
+    let mut f = Fixture::new(MultiplicityPolicy::Unweighted, 1);
     f.logs.clear();
     let dir = TempDir::new();
-    let output = f
-        .history_command(&dir.0, &json!([f.rows[1]]))
-        .output()
-        .unwrap();
-    assert_eq!(output.status.code(), Some(3));
+    assert_eq!(f.command(&dir.0).output().unwrap().status.code(), Some(3));
+}
+
+#[test]
+fn later_signed_valid_revote_must_be_selected() {
+    let mut f = Fixture::new(MultiplicityPolicy::Unweighted, 1);
+    let area = f.scope["scope"]["area_id"].as_str().unwrap().to_owned();
+    // Stored as older than the selected row, but signed a minute later.
+    f.add_revote(5, &area, "valid", 60);
+    let dir = TempDir::new();
+    let output = f.command(&dir.0).output().unwrap();
+    assert_eq!(output.status.code(), Some(1));
+    assert_private_output(&output);
+    assert!(String::from_utf8_lossy(&output.stderr).contains("later signed revote"));
+    assert!(!dir.0.join("bundle").exists());
+    f.history = History::Skipped;
+    let dir = TempDir::new();
+    assert!(f.command(&dir.0).output().unwrap().status.success());
+}
+
+#[test]
+fn later_signed_revotes_that_cannot_be_selected_here_are_counted() {
+    for (area, status, seconds_later, counted) in [
+        (None, "discarded", 60, 1),
+        (Some("00000000-0000-4000-8000-000000000098"), "valid", 60, 1),
+        (None, "valid", 0, 0),
+    ] {
+        let mut f = Fixture::new(MultiplicityPolicy::Unweighted, 1);
+        let area = area
+            .map(str::to_owned)
+            .unwrap_or_else(|| f.scope["scope"]["area_id"].as_str().unwrap().to_owned());
+        f.add_revote(5, &area, status, seconds_later);
+        let dir = TempDir::new();
+        let output = f.command(&dir.0).output().unwrap();
+        assert!(
+            output.status.success(),
+            "{status} {seconds_later}: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            provenance(&dir.0)["cast_vote_history"]["later_signed_revotes_not_valid_in_scope"],
+            counted
+        );
+    }
 }
 
 #[test]

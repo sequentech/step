@@ -53,7 +53,7 @@ All five commands share these statuses:
 | Status | Meaning |
 | --- | --- |
 | `0` | Success. |
-| `1` | Verification failed or the evidence contradicts itself or the pinned scope (digest, signature, hash, or multiset mismatch). This includes a signed cast-vote record whose ballot no stored row holds, in `audit-cast-history` and in `prepare-ballot-audit` given `--cast-vote-history`. Also the default for unclassified errors, and for duplicate selected receipts in `ballot-audit`. |
+| `1` | Verification failed or the evidence contradicts itself or the pinned scope (digest, signature, hash, or multiset mismatch). This includes a signed cast-vote record whose ballot no stored row holds, in `audit-cast-history` and `prepare-ballot-audit`, and a later signed revote that `prepare-ballot-audit` did not select. Also the default for unclassified errors, and for duplicate selected receipts in `ballot-audit`. |
 | `2` | Command-line usage error, reported by clap. Nothing else uses it. |
 | `3` | Incomplete evidence: a stored row without a signed log, a missing batch, or a looked-up receipt that is not selected. Neither consistency nor contradiction is established. `ballot-audit` and `audit-cast-history` still print their JSON report. |
 | `4` | Invalid or unsupported input, or an acquisition failure (unreadable or malformed file, malformed pin, unsupported ceremony, refused connection, existing output directory). |
@@ -136,7 +136,7 @@ pins obtained outside the bundle:
 | --- | --- |
 | Manifest and configuration SHA-512 given to `ballot-audit` | Yes |
 | `electoral_log_system_public_key` in the scope | Yes. The manifest carries the system key, so anyone who can regenerate both the bundle and its pins can substitute keys. |
-| The five source SHA-512 pins given to `prepare-ballot-audit` | Yes |
+| The six source SHA-512 pins given to `prepare-ballot-audit` | Yes |
 
 Do not feed `anchors.json` back to `ballot-audit` as the pins for evidence it
 describes. The self-check that `prepare-ballot-audit` runs on its own output is
@@ -335,7 +335,7 @@ automatically synchronized with PostgreSQL or eligibility snapshots.
 
 ## 3. Prepare the complete selected bundle
 
-`prepare-ballot-audit` reads five local files and requires a separately
+`prepare-ballot-audit` reads six local files and requires a separately
 supplied, independently authenticated 128-character lowercase SHA-512 pin for
 each. It makes no database/network connections:
 
@@ -353,8 +353,11 @@ each. It makes no database/network connections:
   bytes, containing exactly one configuration message plus other protocol data.
 - Full electoral log: an unpadded-base64 array of original Borsh-serialized
   `electoral_log::Message` bytes, not a hand-picked subset or JSON display export.
+- Cast-vote history: the all-area history described in
+  [reconcile all-area cast history](#optional-reconcile-all-area-cast-history-with-signed-logs),
+  validated the same way.
 
-After authenticating acquisition provenance and the five source pins:
+After authenticating acquisition provenance and the six source pins:
 
 ```sh
 prepare-ballot-audit \
@@ -373,22 +376,33 @@ prepare-ballot-audit \
   --output ./prepared-audit
 ```
 
-`--cast-vote-history` and `--cast-vote-history-sha512` are optional but must be
-given together. They take the all-area history described in
-[reconcile all-area cast history](#optional-reconcile-all-area-cast-history-with-signed-logs),
-validated the same way. Windmill posts the signed success log only after the
-cast vote row commits, so every signed ballot of a selected voter must still be
-held by a stored row. With the history, preparation exits `1` when:
+`--cast-vote-history` and `--cast-vote-history-sha512` are required unless
+`--without-cast-vote-history` is given. Windmill posts the signed success log
+only after the cast vote row commits, so every signed ballot of a selected voter
+must still be held by a stored row. Selection orders revotes by the unsigned
+`created_at`, so the signed log's timestamp is checked too. Preparation exits
+`1` when:
 
 - a selected voter has a signed cast-vote record whose ballot no stored row
   holds: the row was removed or its content replaced, including a later revote
   removed so that an earlier ballot is selected;
+- a selected voter has a revote signed later than the selected ballot, held by
+  a `valid` row in the scoped area: `created_at` was changed so that an earlier
+  ballot is selected;
 - the history does not hold a selected row with the same voter and ballot.
 
-Without it, a replaced selected ballot exits `3` and a removed later revote is
-not detected: the scoped rows alone cannot tell them apart from a lost log
-write. The result is recorded as `cast_vote_history` in `provenance.json`,
-either `not_supplied` or `checked` with `signed_ballots_of_selected_voters`.
+Signed timestamps are whole seconds from the clock of the Windmill worker that
+posted the log. Revotes signed in the same second are not ordered, and clock
+skew between workers can make a legitimate revote look later. Later signed
+revotes held only by `discarded` rows or rows in other areas cannot be selected
+in this scope and are counted, not failed.
+
+With `--without-cast-vote-history`, a replaced selected ballot exits `3`, and
+removed or reordered revotes are not detected: the scoped rows alone cannot tell
+them apart from a lost log write. The result is recorded as `cast_vote_history`
+in `provenance.json`: `skipped`, or `checked` with
+`signed_ballots_of_selected_voters` and
+`later_signed_revotes_not_valid_in_scope`.
 
 `--saved-mapping` and `--saved-mapping-sha512` are optional but must be given
 together. They cross-check the saved `tally_session_contest` (exported as
@@ -737,7 +751,7 @@ BALLOT_AUDIT_HISTORY_FIXTURE_DIR=/path/new-history-demo \
   cargo test -p ballot-audit --test history export_synthetic_historical_inputs -- --ignored
 ```
 
-The first writes the five preparation sources and `source-anchors.json`; the
+The first writes the six preparation sources and `source-anchors.json`; the
 second writes the five prepared audit inputs, invalid variants, and
 `anchors.json`. The third writes `valid`, `missing-row`, and `invalid-signature`
 history examples with source pins and expected outcomes. Use their actual
@@ -782,8 +796,9 @@ Exit statuses are in brackets.
 | `invalid saved weight bit mask` [4] | The mask is zero or outside the supported weight bits. |
 | `non-default keys-ceremony boards require separately authenticated ...` [4] | Only default ceremonies are supported. Do not edit the ceremony data; use separately reviewed acquisition. |
 | `restored B3 board has no configuration or scoped ballots`, `missing B3 batch` [3] | The restored board or blob root lacks a declared batch. Check the restore and `--b3-blob-root`. |
-| `selected cast vote has no matching signed electoral-log evidence` [3] | The signed log write was lost (meta#13796) or never made, or the row was replaced. Rerun with `--cast-vote-history` to tell them apart. Report as incomplete; do not fabricate or infer evidence. |
+| `selected cast vote has no matching signed electoral-log evidence` [3] | The signed log write was lost (meta#13796) or never made, or the row was replaced. Rerun with `--cast-vote-history` instead of `--without-cast-vote-history` to tell them apart. Report as incomplete; do not fabricate or infer evidence. |
 | `a selected voter has a signed cast vote that no stored cast vote holds ...` [1] | A row the signed log proves was committed has been removed or its content replaced. Keep the evidence and escalate. |
+| `a selected voter has a later signed revote held by a valid scoped cast vote ...` [1] | The stored `created_at` order disagrees with the signed log, so an earlier ballot was selected. If the timestamps are seconds apart across workers, check their clocks before escalating. |
 | `cast-vote history does not hold a selected cast vote ...` [1] | The history and scoped cast votes come from different snapshots or one was altered. Re-export both in one acquisition. |
 | `selected cast vote has ambiguous signed electoral-log evidence` [3] | Several differing signed records share the voter pseudonym and ballot hash. Identical records are collapsed; differing ones are not. |
 | `scoped in-progress cast vote blocks preparation` [3] | A scoped row is still `in-progress`. Restore a snapshot taken after it resolved. |

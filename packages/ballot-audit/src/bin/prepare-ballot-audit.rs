@@ -70,13 +70,21 @@ struct Args {
     electoral_log: PathBuf,
     #[arg(long)]
     electoral_log_sha512: String,
-    /// Complete tenant/event/election cast_vote history across all areas. With it,
-    /// a selected voter's signed ballot that no stored row holds fails as a
-    /// contradiction instead of leaving the evidence incomplete.
-    #[arg(long, requires = "cast_vote_history_sha512")]
+    /// Complete tenant/event/election cast_vote history across all areas. A
+    /// selected voter's signed ballot that no stored row holds, or a later
+    /// signed revote that was not selected, fails as a contradiction.
+    #[arg(
+        long,
+        requires = "cast_vote_history_sha512",
+        required_unless_present = "without_cast_vote_history"
+    )]
     cast_vote_history: Option<PathBuf>,
     #[arg(long, requires = "cast_vote_history")]
     cast_vote_history_sha512: Option<String>,
+    /// Skip the history checks. Replaced ballots are then only incomplete
+    /// evidence, and removed or reordered revotes go undetected.
+    #[arg(long, conflicts_with = "cast_vote_history")]
+    without_cast_vote_history: bool,
     /// Exporter's saved-mapping.json, to cross-check the tally annotations Windmill saved.
     #[arg(long, requires = "saved_mapping_sha512")]
     saved_mapping: Option<PathBuf>,
@@ -618,6 +626,7 @@ fn board_inputs(saved: &SavedScope, messages: &[Vec<u8>]) -> Result<BoardInputs>
 struct LogEvidence<'a> {
     bytes: &'a [u8],
     channel: String,
+    timestamp: u64,
 }
 
 type LogKey = (strand::hash::Hash, strand::hash::Hash);
@@ -656,7 +665,11 @@ fn index_logs<'a>(
                 ballot_hash.0.clone().into_inner(),
             ))
             .or_default()
-            .push(LogEvidence { bytes, channel });
+            .push(LogEvidence {
+                bytes,
+                channel,
+                timestamp: message.statement.head.timestamp,
+            });
     }
     Ok(indexed)
 }
@@ -795,17 +808,29 @@ fn check_tally_annotations(
 #[derive(Debug, Serialize)]
 #[serde(tag = "status", rename_all = "snake_case")]
 enum HistoryCheck {
-    NotSupplied,
+    Skipped,
     Checked {
         signed_ballots_of_selected_voters: usize,
+        later_signed_revotes_not_valid_in_scope: usize,
     },
 }
 
+fn voter_logs<'m, 'a>(
+    indexed_logs: &'m BTreeMap<LogKey, Vec<LogEvidence<'a>>>,
+    voter: &strand::hash::Hash,
+) -> impl Iterator<Item = (&'m LogKey, &'m Vec<LogEvidence<'a>>)> {
+    indexed_logs.range((*voter, [0; 64])..=(*voter, [u8::MAX; 64]))
+}
+
 /// Windmill posts the success log only after the cast_vote row commits, so a
-/// signed ballot of a selected voter must still be held by some stored row.
+/// signed ballot of a selected voter must still be held by some stored row,
+/// and a later signed ballot held by a valid scoped row should have been
+/// selected instead. Signed timestamps are whole seconds from the posting
+/// worker's clock, so equal timestamps do not order revotes.
 fn check_history(
     history: &BTreeMap<CastVoteKey, Vec<String>>,
     indexed_logs: &BTreeMap<LogKey, Vec<LogEvidence<'_>>>,
+    valid_scoped_ids: &BTreeSet<String>,
     selected: &[(String, CastVoteKey)],
 ) -> Result<HistoryCheck> {
     for (id, key) in selected {
@@ -816,18 +841,41 @@ fn check_history(
     }
     let voters: BTreeSet<_> = selected.iter().map(|(_, (voter, _))| voter).collect();
     let mut signed_ballots_of_selected_voters = 0;
-    for key in indexed_logs
-        .keys()
-        .filter(|(voter, _)| voters.contains(voter))
-    {
-        ensure!(
-            history.contains_key(key),
-            "a selected voter has a signed cast vote that no stored cast vote holds; the row was removed or its content replaced"
-        );
-        signed_ballots_of_selected_voters += 1;
+    for voter in &voters {
+        for (key, _) in voter_logs(indexed_logs, voter) {
+            ensure!(
+                history.contains_key(key),
+                "a selected voter has a signed cast vote that no stored cast vote holds; the row was removed or its content replaced"
+            );
+            signed_ballots_of_selected_voters += 1;
+        }
+    }
+    let mut later_signed_revotes_not_valid_in_scope = 0;
+    for (_, key) in selected {
+        // A selected row without signed evidence is reported as incomplete later.
+        let Some(selected_at) = indexed_logs
+            .get(key)
+            .and_then(|logs| logs.iter().map(|log| log.timestamp).max())
+        else {
+            continue;
+        };
+        for (other, logs) in voter_logs(indexed_logs, &key.0) {
+            let signed_at = logs.iter().map(|log| log.timestamp).min();
+            if other == key || signed_at.is_none_or(|at| at <= selected_at) {
+                continue;
+            }
+            ensure!(
+                !history[other]
+                    .iter()
+                    .any(|id| valid_scoped_ids.contains(id)),
+                "a selected voter has a later signed revote held by a valid scoped cast vote that was not selected; cast_vote created_at disagrees with the signed electoral log"
+            );
+            later_signed_revotes_not_valid_in_scope += 1;
+        }
     }
     Ok(HistoryCheck::Checked {
         signed_ballots_of_selected_voters,
+        later_signed_revotes_not_valid_in_scope,
     })
 }
 
@@ -919,9 +967,14 @@ fn prepare_bundle(
                     Ok((Uuid::parse_str(&selected.row.id)?.to_string(), *key))
                 })
                 .collect::<Result<Vec<_>>>()?;
-            check_history(history, &indexed_logs, &keys)?
+            let valid_scoped_ids = raw_rows
+                .iter()
+                .filter(|row| in_scope(&manifest.scope, row) && row.status == CastVoteStatus::Valid)
+                .map(|row| Ok(Uuid::parse_str(&row.id)?.to_string()))
+                .collect::<Result<BTreeSet<_>>>()?;
+            check_history(history, &indexed_logs, &valid_scoped_ids, &keys)?
         }
-        None => HistoryCheck::NotSupplied,
+        None => HistoryCheck::Skipped,
     };
     for (selected, voter_id, content, ballot_id, key) in hashed {
         let raw = selected.row;
@@ -1050,7 +1103,7 @@ fn write_bundle(args: &Args, bundle: &PreparedBundle) -> Result<()> {
             "A missing frozen eligibility entry establishes only no_eligible_voter at this stage, not which upstream enabled, area, authorization, or other eligibility clause failed. Keep the source eligibility evidence to establish that reason.",
             "This newly generated manifest cannot prove historical integrity of ballot metadata omitted from the native receipt hash. Historical full-content integrity requires an independently authenticated contemporaneous source anchor.",
             "anchors.json restates this bundle's own digests. Pass ballot-audit manifest and configuration pins obtained outside the bundle; pins read from it only show the bundle is self-consistent.",
-            "Without --cast-vote-history, a selected cast vote lacking signed evidence is reported as incomplete: a lost success log and a removed or replaced row look the same. With it, a selected voter's signed ballot that no stored row holds is a contradiction.",
+            "With --cast-vote-history, a selected voter's signed ballot that no stored row holds, or a later signed revote held by a valid scoped row, is a contradiction. Revotes signed in the same second, or reordered by worker clock skew, cannot be ordered. With --without-cast-vote-history, a lost success log and a removed or replaced row look the same, and revote order is not checked.",
             "Saved tally annotations are compared only when --saved-mapping is supplied: eligible voters with the frozen eligibility size, ballots without voter with stage exclusions, cast ballots and votes by channel with the reconstructed stage counts, and the weight bit mask with the batch scope. Their auditable ballots document is not compared. Rows saved before these annotations existed are reported as not checked.",
             "The saved board name and tally/area/contest/batch mapping require external authentication. B3 signatures alone do not establish this application-level mapping.",
             "ImmuDB append-only history, mixnet shuffle/decryption proofs and final counting are not verified here.",
