@@ -36,6 +36,8 @@ import org.keycloak.common.util.StringPropertyReplacer;
 class TemplateSyntaxTest {
 
   private static final Path THEME_ROOT = Path.of("src/main/resources/theme");
+  private static final String SSO_RESTART_URL =
+      "/realms/demo/login-actions/restart?skip_logout=true";
 
   @Test
   void structuredCredentialTemplatesParseWithHtmlAutoEscaping() throws IOException {
@@ -1093,6 +1095,39 @@ class TemplateSyntaxTest {
   }
 
   @Test
+  void loginPagesRestartAfterTheLoginTimeout() throws IOException, TemplateException {
+    Map<String, Object> model = baseModel("standard");
+    model.put("authenticationSession", Map.of("tabId", "tab-1"));
+    @SuppressWarnings("unchecked")
+    Map<String, Object> url = new HashMap<>((Map<String, Object>) model.get("url"));
+    url.put("loginAction", "/login?tab_id=tab-1");
+    model.put("url", url);
+    String html = renderVotingPortalLogin(model);
+
+    assertTrue(html.contains("src=\"/resources/js/login-timeout.js\""));
+    // The script reads the tab from here, so it asks about this tab's login.
+    assertTrue(html.contains("data-login-action=\"/login?tab_id=tab-1\""));
+    // Restarting must not sign the voter out of a session they already have.
+    assertTrue(html.contains("data-restart-url=\"" + SSO_RESTART_URL + "\""));
+  }
+
+  @Test
+  void pagesWithoutALoginDoNotRestart() throws IOException, TemplateException {
+    assertFalse(renderVotingPortalLogin(baseModel("standard")).contains("login-timeout.js"));
+  }
+
+  @Test
+  void onlyTheLoginTimeoutNoticeCanBeHiddenAfterARestart() throws IOException, TemplateException {
+    Map<String, Object> timedOut = baseModel("standard");
+    timedOut.put("message", Map.of("type", "warning", "summary", "loginTimeout"));
+    Map<String, Object> otherWarning = baseModel("standard");
+    otherWarning.put("message", Map.of("type", "warning", "summary", "invalidUserMessage"));
+
+    assertTrue(renderVotingPortalLogin(timedOut).contains("data-login-timeout-notice"));
+    assertFalse(renderVotingPortalLogin(otherWarning).contains("data-login-timeout-notice"));
+  }
+
+  @Test
   void secondPasswordAnchorDoesNotDuplicateTheCredential() throws IOException, TemplateException {
     // Two attributes claiming the anchor is a misconfiguration; rendering both would put duplicate
     // password ids and names on the page.
@@ -1445,7 +1480,8 @@ class TemplateSyntaxTest {
                 Map.ofEntries(
                     Map.entry("resourcesPath", "/resources"),
                     Map.entry("resourcesCommonPath", "/common"),
-                    Map.entry("ssoLoginInOtherTabsUrl", "/sso"),
+                    Map.entry("ssoLoginInOtherTabsUrl", SSO_RESTART_URL),
+                    Map.entry("loginRestartFlowUrl", "/restart"),
                     Map.entry("loginAction", "/login"),
                     Map.entry("registrationAction", "/register"),
                     Map.entry("loginUrl", "/login"))),
