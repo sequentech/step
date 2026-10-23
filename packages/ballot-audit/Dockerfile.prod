@@ -1,0 +1,80 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# The offline ballot audit tools, the B3 server and the Braid verifier, for the
+# audit kit in ballot-audit/kit. Build from packages/:
+#   docker build -f ballot-audit/Dockerfile.prod -t ballot-audit .
+
+FROM rust:1.96.0-slim-bookworm AS builder
+
+WORKDIR /app
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        protobuf-compiler \
+        libprotobuf-dev \
+        m4 \
+        make \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY ./braid ./braid
+COPY ./b3 ./b3
+COPY ./electoral-log ./electoral-log
+COPY ./harvest ./harvest
+COPY ./strand ./strand
+COPY ./immu-board ./immu-board
+COPY ./immudb-rs ./immudb-rs
+COPY ./sequent-core ./sequent-core
+COPY ./velvet ./velvet
+COPY ./windmill ./windmill
+COPY ./e2e ./e2e
+COPY ./step-cli ./step-cli
+COPY ./orare ./orare
+COPY ./wrap-map-err ./wrap-map-err
+COPY ./braid/scripts ./braid/scripts
+COPY ./plugins ./plugins
+COPY ./ballot-audit ./ballot-audit
+COPY ./Cargo.toml ./Cargo.toml
+COPY ./Cargo.lock ./Cargo.lock
+COPY ./.cargo ./.cargo
+
+RUN cargo build --release --locked -p ballot-audit --bins \
+    && cargo build --release --locked -p b3 --features server --bin server \
+    && cargo build --release --locked -p braid --bin verify
+
+FROM debian:bookworm-slim
+
+ARG TARGETARCH
+ARG IMMUCLIENT_VERSION=1.9.6
+ARG IMMUCLIENT_SHA256_AMD64=16e0d8e67253f253dc3ae1220f4aee84b3634eaa5c018e2b0729df0b03d4c11b
+ARG IMMUCLIENT_SHA256_ARM64=49f162ce5ca9a073dcdc50ae18869eafb014507fcb6af5ad111e5b195596a2d6
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates curl \
+    && case "${TARGETARCH:-amd64}" in \
+        amd64) sha="${IMMUCLIENT_SHA256_AMD64}" ;; \
+        arm64) sha="${IMMUCLIENT_SHA256_ARM64}" ;; \
+        *) echo "unsupported architecture ${TARGETARCH}" && exit 1 ;; \
+    esac \
+    && curl -fsSL -o /usr/local/bin/immuclient \
+        "https://github.com/codenotary/immudb/releases/download/v${IMMUCLIENT_VERSION}/immuclient-v${IMMUCLIENT_VERSION}-linux-${TARGETARCH:-amd64}" \
+    && echo "${sha}  /usr/local/bin/immuclient" | sha256sum -c - \
+    && chmod 755 /usr/local/bin/immuclient \
+    && apt-get purge -y curl \
+    && apt-get autoremove -y \
+    && rm -rf /var/lib/apt/lists/*
+
+# audit-tally runs the other commands and verify from its own directory.
+COPY --from=builder \
+    /app/target/release/audit-tally \
+    /app/target/release/export-ballot-audit \
+    /app/target/release/export-electoral-log \
+    /app/target/release/prepare-ballot-audit \
+    /app/target/release/ballot-audit \
+    /app/target/release/audit-cast-history \
+    /app/target/release/verify \
+    /usr/local/bin/
+COPY --from=builder /app/target/release/server /usr/local/bin/b3-server
+
+WORKDIR /audit

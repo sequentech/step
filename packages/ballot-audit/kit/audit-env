@@ -1,0 +1,389 @@
+#!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# Restores the backups of an election into isolated local copies, runs the
+# offline ballot audit on them, and removes them. See `audit-env help`.
+
+set -euo pipefail
+
+KIT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+COMPOSE_FILE="$KIT_DIR/compose.yml"
+
+DEFAULT_IMAGE="ballot-audit:local"
+READER="ballot_audit_reader"
+IMMUDB_URL="http://127.0.0.1:43322"
+B3_URL="http://127.0.0.1:50051"
+PASSWORD_ENV="BALLOT_AUDIT_IMMUDB_PASSWORD"
+# name, port and backup file of each PostgreSQL copy
+PG_COPIES="hasura:55432:hasura.dump keycloak:55433:keycloak.dump b3:55434:b3.dump"
+IMMUDB_BACKUP="immudb.tar.gz"
+B3_BLOBS_BACKUP="b3-blobs.tar.gz"
+
+die() {
+    echo "audit-env: $*" >&2
+    exit 1
+}
+
+info() {
+    echo "audit-env: $*"
+}
+
+usage() {
+    cat <<'EOF'
+Usage:
+  audit-env up    --dir <directory> --digests <file> --postgres-version <tag>
+                  --immudb-version <tag> [--image <image>]
+  audit-env tally --dir <directory> --tally-session-id <ID>
+                  --public-key-sha512 <digest> --electoral-log-system-public-key <key>
+                  [--output <name>] [-- <more audit-tally options>]
+  audit-env exec  --dir <directory> -- <command> [<option> ...]
+  audit-env sql   --dir <directory> hasura|keycloak|b3 [-- <psql option> ...]
+  audit-env status --dir <directory>
+  audit-env down  --dir <directory>
+
+<directory>/backups must hold hasura.dump, keycloak.dump and b3.dump (pg_dump
+custom format), immudb.tar.gz (the ImmuDB data directory) and, if the board
+stores messages in files, b3-blobs.tar.gz. --digests is a file with one line
+"<SHA-512>  <file name>" for each backup, from the system operator.
+
+up      checks the backups, restores them into copies with no network, makes
+        read-only accounts and writes <directory>/private/connections.json.
+tally   runs audit-tally on the copies. The output is in <directory>/results.
+exec    runs one command of the audit in the tools container, in /audit/results.
+        <directory>/private is /audit/private there.
+sql     opens a read-only psql session on one PostgreSQL copy as the reader.
+status  shows the containers of the copies.
+down    removes the copies, their volumes and <directory>/private.
+        <directory>/results and <directory>/backups stay.
+EOF
+}
+
+sha512() {
+    if command -v sha512sum >/dev/null 2>&1; then
+        sha512sum "$1" | cut -d' ' -f1
+    else
+        shasum -a 512 "$1" | cut -d' ' -f1
+    fi
+}
+
+# 28 characters with an upper case letter, a lower case letter, a digit and a
+# symbol, as ImmuDB requires. No character needs quoting.
+new_password() {
+    printf '%s%s' "$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 24)" 'Aa1!'
+}
+
+compose() {
+    docker compose -f "$COMPOSE_FILE" -p "$AUDIT_PROJECT" "$@"
+}
+
+load_settings() {
+    [ -n "$AUDIT_DIR" ] || die "--dir is required"
+    [ -f "$AUDIT_DIR/private/kit.env" ] || die "no copies in $AUDIT_DIR; run audit-env up first"
+    # shellcheck disable=SC1091
+    . "$AUDIT_DIR/private/kit.env"
+    export AUDIT_DIR AUDIT_PROJECT AUDIT_IMAGE AUDIT_UID AUDIT_GID AUDIT_POSTGRES_VERSION \
+        AUDIT_IMMUDB_VERSION AUDIT_POSTGRES_PASSWORD AUDIT_IMMUDB_ADMIN_PASSWORD
+}
+
+set_dir() {
+    [ -d "$1" ] || die "directory does not exist: $1"
+    AUDIT_DIR="$(cd "$1" && pwd -P)"
+    AUDIT_PROJECT="ballot-audit-$(printf '%s' "$AUDIT_DIR" | cksum | cut -d' ' -f1)"
+}
+
+check_backups() {
+    local digests="$1" name expected actual
+    [ -f "$digests" ] || die "digests file does not exist: $digests"
+    for name in hasura.dump keycloak.dump b3.dump "$IMMUDB_BACKUP"; do
+        [ -f "$AUDIT_DIR/backups/$name" ] || die "missing backup: backups/$name"
+        grep -Eq "^[0-9a-f]{128}[ *]+$name\$" "$digests" || die "no digest for $name in $digests"
+    done
+    if [ -f "$AUDIT_DIR/backups/$B3_BLOBS_BACKUP" ]; then
+        grep -Eq "^[0-9a-f]{128}[ *]+$B3_BLOBS_BACKUP\$" "$digests" \
+            || die "no digest for $B3_BLOBS_BACKUP in $digests"
+    fi
+    while read -r expected name; do
+        [ -n "$expected" ] || continue
+        name="${name#\*}"
+        [ -f "$AUDIT_DIR/backups/$name" ] || die "missing backup: backups/$name"
+        actual="$(sha512 "$AUDIT_DIR/backups/$name")"
+        [ "$actual" = "$expected" ] || die "backup digest mismatch: backups/$name; do not restore it"
+        echo "$name: SHA-512 matches"
+    done <"$digests"
+}
+
+wait_for() {
+    local what="$1" tries=60
+    shift
+    until "$@" >/dev/null 2>&1; do
+        tries=$((tries - 1))
+        [ "$tries" -gt 0 ] || die "$what did not start; see: docker compose -p $AUDIT_PROJECT logs"
+        sleep 2
+    done
+}
+
+pg() {
+    local service="$1" port="$2"
+    shift 2
+    compose exec -T "$service-db" "$@" -U postgres -p "$port"
+}
+
+restore_postgres() {
+    local copy service port file errors
+    for copy in $PG_COPIES; do
+        service="${copy%%:*}"
+        port="$(echo "$copy" | cut -d: -f2)"
+        file="${copy##*:}"
+        wait_for "$service-db" compose exec -T "$service-db" pg_isready -h 127.0.0.1 -p "$port"
+        info "restoring backups/$file into ${service}_copy"
+        pg "$service" "$port" createdb -T template0 "${service}_copy"
+        if ! pg "$service" "$port" pg_restore --no-owner --no-privileges \
+            -d "${service}_copy" "/backups/$file" >"$AUDIT_DIR/private/restore-$service.log" 2>&1; then
+            errors="$(grep -c 'error:' "$AUDIT_DIR/private/restore-$service.log" || true)"
+            echo "audit-env: WARNING: pg_restore reported $errors error(s) for $file." \
+                "Read private/restore-$service.log and write each error in the audit notes." >&2
+        fi
+        pg "$service" "$port" psql -q -v ON_ERROR_STOP=1 -d postgres \
+            -c "CREATE ROLE $READER LOGIN PASSWORD '$READER_PG_PASSWORD'" \
+            -c "GRANT pg_read_all_data TO $READER"
+    done
+}
+
+unpack() {
+    local blobs=0
+    [ -f "$AUDIT_DIR/backups/$B3_BLOBS_BACKUP" ] && blobs=1
+    info "unpacking backups/$IMMUDB_BACKUP"
+    # The archive holds the data directory, or one directory that holds it.
+    # shellcheck disable=SC2016 # expanded by the shell in the container
+    compose run --rm -T unpack sh -euc '
+        tar -C /unpack/immudb -xzf /backups/'"$IMMUDB_BACKUP"'
+        if [ ! -d /unpack/immudb/systemdb ]; then
+            top="$(ls -A /unpack/immudb)"
+            [ "$(echo "$top" | wc -l)" -eq 1 ] && [ -d "/unpack/immudb/$top/systemdb" ] \
+                || { echo "the ImmuDB archive has no systemdb directory" >&2; exit 1; }
+            mv "/unpack/immudb/$top"/* "/unpack/immudb/"
+            rmdir "/unpack/immudb/$top"
+        fi
+        chown -R 3322:3322 /unpack/immudb
+        if [ '"$blobs"' -eq 1 ]; then
+            tar -C /unpack/b3-blobs -xzf /backups/'"$B3_BLOBS_BACKUP"'
+        fi
+        chown -R '"$AUDIT_UID:$AUDIT_GID"' /unpack/b3-blobs'
+    echo "AUDIT_B3_BLOBS=$blobs" >>"$AUDIT_DIR/private/kit.env"
+}
+
+# immuclient <command> [<option> ...]: logs in again on each call.
+immuclient() {
+    local command="$1"
+    shift
+    # shellcheck disable=SC2016 # expanded by the shell in the container
+    compose exec -T -e IMMUCLIENT_USERNAME=immudb -e IMMUCLIENT_PASSWORD="$AUDIT_IMMUDB_ADMIN_PASSWORD" \
+        tools sh -c 'token="$(mktemp)"; immuclient "$@" --tokenfile "$token"; status=$?; rm -f "$token"; exit $status' \
+        immuclient "$command" "$@" --immudb-port 43322
+}
+
+immuadmin() {
+    compose exec -T immudb immuadmin "$@" -p 43322 --tokenfile /tmp/audit-env-token
+}
+
+# A user created with SQL can read one database. immuadmin gives it the others.
+immudb_reader() {
+    local databases database first=1
+    wait_for "immudb" immuclient query "SHOW DATABASES;" --database defaultdb
+    printf '%s' "$AUDIT_IMMUDB_ADMIN_PASSWORD" | immuadmin login immudb >/dev/null
+    databases="$(immuclient query "SHOW DATABASES;" --database defaultdb \
+        | sed -n 's/^| *"\([^"]*\)" *|$/\1/p')"
+    for database in $databases; do
+        if [ "$first" -eq 1 ]; then
+            immuclient exec "CREATE USER $READER WITH PASSWORD '$READER_IMMUDB_PASSWORD' READ;" \
+                --database "$database" >/dev/null
+            first=0
+        else
+            immuadmin user permission grant "$READER" read "$database" >/dev/null
+        fi
+        info "ImmuDB database $database: read access for $READER"
+    done
+    [ "$first" -eq 0 ] || die "the ImmuDB copy has no databases"
+    immuadmin logout >/dev/null
+}
+
+b3_listening() {
+    compose exec -T tools bash -c 'exec 3<>/dev/tcp/127.0.0.1/50051'
+}
+
+write_connections() {
+    local copy service port file digest separator=""
+    {
+        echo '{'
+        echo '  "format_version": 1,'
+        for copy in $PG_COPIES; do
+            service="${copy%%:*}"
+            port="$(echo "$copy" | cut -d: -f2)"
+            file="${copy##*:}"
+            digest="$(sha512 "$AUDIT_DIR/backups/$file")"
+            printf '%s  "%s": {\n' "$separator" "$service"
+            printf '    "connection_string": "host=127.0.0.1 port=%s dbname=%s_copy user=%s password=%s",\n' \
+                "$port" "$service" "$READER" "$READER_PG_PASSWORD"
+            printf '    "restore_reference": "%s sha512:%s"\n  }' "$file" "$digest"
+            separator=$',\n'
+        done
+        printf '\n}\n'
+    } >"$AUDIT_DIR/private/connections.json"
+    chmod 600 "$AUDIT_DIR/private/connections.json"
+}
+
+cmd_up() {
+    local digests="" image="$DEFAULT_IMAGE" postgres="" immudb=""
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --dir) set_dir "$2"; shift 2 ;;
+            --digests) digests="$2"; shift 2 ;;
+            --image) image="$2"; shift 2 ;;
+            --postgres-version) postgres="$2"; shift 2 ;;
+            --immudb-version) immudb="$2"; shift 2 ;;
+            *) die "unknown option: $1" ;;
+        esac
+    done
+    [ -n "$AUDIT_DIR" ] || die "--dir is required"
+    [ -n "$digests" ] || die "--digests is required"
+    [ -n "$postgres" ] || die "--postgres-version is required: the major version of the source"
+    [ -n "$immudb" ] || die "--immudb-version is required: the version of the source"
+    [ ! -e "$AUDIT_DIR/private" ] || die "copies already exist in $AUDIT_DIR; run audit-env down first"
+    docker image inspect "$image" >/dev/null 2>&1 || die "image not found: $image"
+    check_backups "$digests"
+
+    mkdir -m 700 "$AUDIT_DIR/private"
+    [ -d "$AUDIT_DIR/results" ] || mkdir -m 700 "$AUDIT_DIR/results"
+    READER_PG_PASSWORD="$(new_password)"
+    READER_IMMUDB_PASSWORD="$(new_password)"
+    umask 077
+    cat >"$AUDIT_DIR/private/kit.env" <<EOF
+AUDIT_PROJECT=$AUDIT_PROJECT
+AUDIT_IMAGE=$image
+AUDIT_UID=$(id -u)
+AUDIT_GID=$(id -g)
+AUDIT_POSTGRES_VERSION=$postgres
+AUDIT_IMMUDB_VERSION=$immudb
+AUDIT_POSTGRES_PASSWORD=$(new_password)
+AUDIT_IMMUDB_ADMIN_PASSWORD=$(new_password)
+READER_IMMUDB_PASSWORD=$READER_IMMUDB_PASSWORD
+EOF
+    load_settings
+
+    compose up -d tools hasura-db keycloak-db b3-db
+    restore_postgres
+    unpack
+    compose up -d immudb
+    immudb_reader
+    compose up -d b3
+    wait_for "the B3 server" b3_listening
+    write_connections
+    info "the copies are ready. They have no network access."
+    info "next: audit-env tally --dir $AUDIT_DIR --tally-session-id ... --public-key-sha512 ... --electoral-log-system-public-key ..."
+}
+
+cmd_tally() {
+    local output="tally" args=()
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --dir) set_dir "$2"; shift 2 ;;
+            --output) output="$2"; shift 2 ;;
+            --tally-session-id | --public-key-sha512 | --electoral-log-system-public-key)
+                args+=("$1" "$2"); shift 2 ;;
+            --) shift; args+=("$@"); break ;;
+            *) die "unknown option: $1" ;;
+        esac
+    done
+    load_settings
+    case "$output" in
+        */* | .* | "") die "--output must be a plain name in $AUDIT_DIR/results" ;;
+    esac
+    if [ "${AUDIT_B3_BLOBS:-0}" -eq 1 ]; then
+        args+=(--b3-blob-root /audit/b3-blobs)
+    fi
+    set +e
+    compose exec -T -e "$PASSWORD_ENV=$READER_IMMUDB_PASSWORD" tools audit-tally \
+        --connections /audit/private/connections.json \
+        --immudb-server-url "$IMMUDB_URL" --immudb-username "$READER" \
+        --b3-server-url "$B3_URL" \
+        --output "/audit/results/$output" "${args[@]}"
+    local status=$?
+    set -e
+    if [ -d "$AUDIT_DIR/results/$output" ]; then
+        info "the output is in $AUDIT_DIR/results/$output"
+    fi
+    exit "$status"
+}
+
+cmd_exec() {
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --dir) set_dir "$2"; shift 2 ;;
+            --) shift; break ;;
+            *) die "unknown option: $1" ;;
+        esac
+    done
+    load_settings
+    [ $# -gt 0 ] || die "give the command after --"
+    exec docker compose -f "$COMPOSE_FILE" -p "$AUDIT_PROJECT" exec -T \
+        -e "$PASSWORD_ENV=$READER_IMMUDB_PASSWORD" tools "$@"
+}
+
+cmd_sql() {
+    local copy="" port="" entry tty=""
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --dir) set_dir "$2"; shift 2 ;;
+            --) shift; break ;;
+            -*) die "unknown option: $1" ;;
+            *) copy="$1"; shift ;;
+        esac
+    done
+    load_settings
+    for entry in $PG_COPIES; do
+        if [ "${entry%%:*}" = "$copy" ]; then
+            port="$(echo "$entry" | cut -d: -f2)"
+        fi
+    done
+    [ -n "$port" ] || die "give the copy: hasura, keycloak or b3"
+    [ -t 0 ] || tty="-T"
+    # shellcheck disable=SC2086 # $tty is empty or one option
+    exec docker compose -f "$COMPOSE_FILE" -p "$AUDIT_PROJECT" exec $tty \
+        -e "PGOPTIONS=-c default_transaction_read_only=on" "$copy-db" \
+        psql -U "$READER" -p "$port" -d "${copy}_copy" "$@"
+}
+
+cmd_status() {
+    if [ "${1:-}" != "--dir" ] || [ $# -ne 2 ]; then
+        die "usage: audit-env status --dir <directory>"
+    fi
+    set_dir "$2"
+    load_settings
+    compose ps
+}
+
+cmd_down() {
+    if [ "${1:-}" != "--dir" ] || [ $# -ne 2 ]; then
+        die "usage: audit-env down --dir <directory>"
+    fi
+    set_dir "$2"
+    load_settings
+    compose --profile unpack down -v --remove-orphans
+    rm -rf "$AUDIT_DIR/private"
+    info "the copies and their volumes are removed. results/ and backups/ stay in $AUDIT_DIR."
+}
+
+AUDIT_DIR=""
+command="${1:-help}"
+[ $# -gt 0 ] && shift
+case "$command" in
+    up) cmd_up "$@" ;;
+    tally) cmd_tally "$@" ;;
+    exec) cmd_exec "$@" ;;
+    sql) cmd_sql "$@" ;;
+    status) cmd_status "$@" ;;
+    down) cmd_down "$@" ;;
+    help | -h | --help) usage ;;
+    *) usage >&2; exit 2 ;;
+esac

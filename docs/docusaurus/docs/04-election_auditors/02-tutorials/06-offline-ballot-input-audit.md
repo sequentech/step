@@ -108,6 +108,47 @@ The trust anchors stay outside the copies: the tally ID, the two keys and the
 digests of the backups. Each command below can still run on its own to repeat
 or examine one step.
 
+## Restore the copies with the audit kit
+
+`packages/ballot-audit/kit` restores the four backups into local copies and runs
+`audit-tally` on them, with Docker Compose. Build its image from `packages/`:
+
+```sh
+docker build -f ballot-audit/Dockerfile.prod -t ballot-audit:<commit> .
+```
+
+The image holds the six ballot audit commands, the B3 server (`b3-server`), the
+Braid `verify` program and `immuclient`. Put the backups in `<dir>/backups`:
+`hasura.dump`, `keycloak.dump` and `b3.dump` (`pg_dump` custom format),
+`immudb.tar.gz` (the ImmuDB data directory) and, for file-backed boards,
+`b3-blobs.tar.gz`. Write the digests from the system operator into a file in
+`sha512sum` format, then:
+
+```sh
+audit-env up --dir <dir> --digests <digests file> --image ballot-audit:<commit> \
+  --postgres-version <source major version> --immudb-version <source version>
+audit-env tally --dir <dir> --tally-session-id "$TALLY_SESSION_ID" \
+  --public-key-sha512 "$PUBLIC_KEY_SHA512" \
+  --electoral-log-system-public-key "$ELECTORAL_LOG_SYSTEM_PUBLIC_KEY"
+audit-env down --dir <dir>
+```
+
+`up` refuses a backup whose digest differs or is missing. It restores the
+PostgreSQL copies with `pg_restore --no-owner --no-privileges` and makes the
+role `ballot_audit_reader` with `pg_read_all_data`. It unpacks the ImmuDB data
+directory and starts ImmuDB with a new admin password
+(`IMMUDB_FORCE_ADMIN_PASSWORD`), so the password of the source is not needed.
+It then makes `ballot_audit_reader` with read access to each ImmuDB database,
+starts the B3 server on the B3 copy and writes `<dir>/private/connections.json`.
+Every container shares the network namespace of one container with
+`network_mode: none`. The copies reach each other only on `127.0.0.1`, which the
+loopback-only rules of the tools accept, and nothing reaches outside.
+
+`tally` writes to `<dir>/results/<name>` (default `tally`). `exec` runs one
+command in the tools container, in `/audit/results`, to repeat one step. `down`
+removes the containers, the volumes and `<dir>/private`, and keeps `results`
+and `backups`.
+
 ## Existing checks and the gap addressed
 
 The reviewed `release/10.0` baseline, source commit
