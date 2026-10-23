@@ -29,6 +29,7 @@ use crate::services::ceremonies::insert_ballots::{
     get_elections_end_dates, insert_ballots_messages,
 };
 use crate::services::ceremonies::keys_ceremony::get_keys_ceremony_board;
+use crate::services::ceremonies::result_readiness::{record_result_origins, uses_readiness_policy};
 use crate::services::ceremonies::results::populate_results_tables;
 use crate::services::ceremonies::serialize_logs::{
     append_tally_finished, append_tally_updated, generate_logs, print_messages, sort_logs,
@@ -1516,7 +1517,7 @@ pub async fn execute_tally_session_wrapped(
                 .map(|values| values.into_iter().map(|int| int as i32).collect());
             new_status.logs =
                 append_tally_updated(&new_status.logs, &election_ids.clone().unwrap_or_default());
-            insert_tally_session_execution(
+            let saved_execution = insert_tally_session_execution(
                 hasura_transaction,
                 &tenant_id,
                 &election_event_id,
@@ -1531,6 +1532,27 @@ pub async fn execute_tally_session_wrapped(
                 TallyRunReason::NORMAL,
             )
             .await?;
+
+            if uses_readiness_policy(tally_session.annotations.as_ref()) {
+                let expected = plaintexts_data
+                    .iter()
+                    .map(|pair| {
+                        (
+                            pair.contest.election_id.clone(),
+                            pair.contest.id.clone(),
+                            pair.area.id.clone(),
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                record_result_origins(
+                    hasura_transaction,
+                    &saved_execution,
+                    &tally_session.election_ids.clone().unwrap_or_default(),
+                    &expected,
+                    false,
+                )
+                .await?;
+            }
 
             // Update status to AWAITING_INPUT
             update_tally_session_status(
@@ -1561,7 +1583,7 @@ pub async fn execute_tally_session_wrapped(
     };
 
     // insert tally_session_execution
-    insert_tally_session_execution(
+    let saved_execution = insert_tally_session_execution(
         hasura_transaction,
         &tenant_id,
         &election_event_id,
@@ -1574,6 +1596,27 @@ pub async fn execute_tally_session_wrapped(
         TallyRunReason::NORMAL,
     )
     .await?;
+
+    if uses_readiness_policy(tally_session.annotations.as_ref()) {
+        let expected = plaintexts_data
+            .iter()
+            .map(|pair| {
+                (
+                    pair.contest.election_id.clone(),
+                    pair.contest.id.clone(),
+                    pair.area.id.clone(),
+                )
+            })
+            .collect::<Vec<_>>();
+        record_result_origins(
+            hasura_transaction,
+            &saved_execution,
+            &tally_session.election_ids.clone().unwrap_or_default(),
+            &expected,
+            is_execution_completed,
+        )
+        .await?;
+    }
 
     if is_execution_completed {
         // update tally session to flag it as completed

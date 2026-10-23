@@ -231,7 +231,7 @@ beforeEach(() => {
         election_ids: ["closed"],
         execution_status: "IN_PROGRESS",
         is_execution_completed: false,
-        annotations: {is_post_task_completed: false},
+        annotations: {result_readiness_version: 1, is_post_task_completed: false},
     }
     mockExecution = {
         id: "partial",
@@ -260,7 +260,7 @@ it("waits for the post-report execution refresh before stopping polling", async 
         ...mockSession,
         execution_status: "SUCCESS",
         is_execution_completed: true,
-        annotations: {is_post_task_completed: true},
+        annotations: {result_readiness_version: 1, is_post_task_completed: true},
     }
     const {rerender} = render(React.createElement(TallyCeremony))
     expect(pollingInterval()).toBe(1000)
@@ -282,7 +282,7 @@ it("continues polling after a failed completion refresh", async () => {
         ...mockSession,
         execution_status: "SUCCESS",
         is_execution_completed: true,
-        annotations: {is_post_task_completed: true},
+        annotations: {result_readiness_version: 1, is_post_task_completed: true},
     }
     render(React.createElement(TallyCeremony))
     await act(async () => undefined)
@@ -300,7 +300,7 @@ it("resumes polling when another tally is selected and ignores the old refresh",
         ...mockSession,
         execution_status: "SUCCESS",
         is_execution_completed: true,
-        annotations: {is_post_task_completed: true},
+        annotations: {result_readiness_version: 1, is_post_task_completed: true},
     }
     const {rerender} = render(React.createElement(TallyCeremony))
     mockStore.tallyId = "next-tally"
@@ -309,7 +309,7 @@ it("resumes polling when another tally is selected and ignores the old refresh",
         election_ids: ["closed"],
         execution_status: "IN_PROGRESS",
         is_execution_completed: false,
-        annotations: {is_post_task_completed: false},
+        annotations: {result_readiness_version: 1, is_post_task_completed: false},
     }
     rerender(React.createElement(TallyCeremony))
     await act(async () => {
@@ -331,7 +331,10 @@ it("keeps the final snapshot selected when report generation replaces its SQLite
     expect(screen.getByTestId("loaded-results").textContent).toBe("final-results:final-db")
     expect(pollingInterval()).toBe(1000)
 
-    mockSession = {...mockSession, annotations: {is_post_task_completed: true}}
+    mockSession = {
+        ...mockSession,
+        annotations: {result_readiness_version: 1, is_post_task_completed: true},
+    }
     mockExecution = {
         id: "reported",
         results_event_id: "final-results",
@@ -350,7 +353,7 @@ it("resumes polling after a completed tally when selecting a new tally", async (
         ...mockSession,
         execution_status: "SUCCESS",
         is_execution_completed: true,
-        annotations: {is_post_task_completed: true},
+        annotations: {result_readiness_version: 1, is_post_task_completed: true},
     }
     const {rerender} = render(React.createElement(TallyCeremony))
     await waitFor(() => expect(pollingInterval()).toBeUndefined())
@@ -387,7 +390,10 @@ it("permits complete numeric results while withholding ceremony success until PD
     )
     expect(mockCompleteElections).toHaveBeenLastCalledWith(["closed"])
     expect(pollingInterval()).toBe(1000)
-    mockSession = {...mockSession, annotations: {is_post_task_completed: true}}
+    mockSession = {
+        ...mockSession,
+        annotations: {result_readiness_version: 1, is_post_task_completed: true},
+    }
     rerender(React.createElement(TallyCeremony))
     await waitFor(() => expect(screen.getByTestId("ceremony-status").textContent).toBe("SUCCESS"))
 })
@@ -427,7 +433,10 @@ it.each(["execution", "results"])(
     "recovers from a transient %s refresh failure after an unchanged successful session poll",
     async (failure) => {
         setCompleteNumericSnapshot()
-        mockSession = {...mockSession, annotations: {is_post_task_completed: true}}
+        mockSession = {
+            ...mockSession,
+            annotations: {result_readiness_version: 1, is_post_task_completed: true},
+        }
         mockExecutionRefetch.mockResolvedValue({data: {data: [mockExecution], total: 1}})
         if (failure === "execution")
             mockExecutionRefetch.mockRejectedValueOnce(new Error("temporary execution failure"))
@@ -454,7 +463,10 @@ it.each(["execution", "results"])(
 
 it("does not restart an in-flight completion refresh on identical session polls", async () => {
     setCompleteNumericSnapshot()
-    mockSession = {...mockSession, annotations: {is_post_task_completed: true}}
+    mockSession = {
+        ...mockSession,
+        annotations: {result_readiness_version: 1, is_post_task_completed: true},
+    }
     let finish!: (value: unknown) => void
     mockExecutionRefetch.mockReturnValue(
         new Promise((resolve) => {
@@ -477,7 +489,7 @@ it("withholds results and ceremony success until an inherited child contest resu
     mockSession = {
         ...mockSession,
         area_ids: ["area", "child"],
-        annotations: {is_post_task_completed: true},
+        annotations: {result_readiness_version: 1, is_post_task_completed: true},
     }
     mockTallyData.sequent_backend_area.push({id: "child", parent_id: "area"})
     const {rerender} = render(React.createElement(TallyCeremony))
@@ -505,7 +517,10 @@ it.each(["missing area result", "stale document", "other incomplete election"])(
     "hides event-wide exports and publication for %s despite backend SUCCESS",
     async (condition) => {
         setCompleteNumericSnapshot()
-        mockSession = {...mockSession, annotations: {is_post_task_completed: true}}
+        mockSession = {
+            ...mockSession,
+            annotations: {result_readiness_version: 1, is_post_task_completed: true},
+        }
         mockCanExportCeremony = true
         mockResultsEvents = [
             {id: "partial-results", election_event_id: "event", documents: {json: "numbers"}},
@@ -525,7 +540,10 @@ it.each(["missing area result", "stale document", "other incomplete election"])(
 
 it("enables event-wide exports only for the complete selected snapshot", async () => {
     setCompleteNumericSnapshot()
-    mockSession = {...mockSession, annotations: {is_post_task_completed: true}}
+    mockSession = {
+        ...mockSession,
+        annotations: {result_readiness_version: 1, is_post_task_completed: true},
+    }
     mockCanExportCeremony = true
     mockResultsEvents = [
         {id: "partial-results", election_event_id: "event", documents: {json: "numbers"}},
@@ -541,7 +559,10 @@ it("enables event-wide exports only for the complete selected snapshot", async (
 
 it("does not offer a historical partial PDF link as an event-wide final export", async () => {
     setCompleteNumericSnapshot()
-    mockSession = {...mockSession, annotations: {is_post_task_completed: true}}
+    mockSession = {
+        ...mockSession,
+        annotations: {result_readiness_version: 1, is_post_task_completed: true},
+    }
     mockCanExportCeremony = true
     mockResultsEvents = [
         {
@@ -558,7 +579,10 @@ it("does not offer a historical partial PDF link as an event-wide final export",
 
 it("never associates current PDF exports with the previous selected tally", async () => {
     setCompleteNumericSnapshot()
-    mockSession = {...mockSession, annotations: {is_post_task_completed: true}}
+    mockSession = {
+        ...mockSession,
+        annotations: {result_readiness_version: 1, is_post_task_completed: true},
+    }
     mockCanExportCeremony = true
     mockResultsEvents = [
         {id: "partial-results", election_event_id: "event", documents: {pdf: "report"}},
@@ -586,4 +610,18 @@ it("never associates current PDF exports with the previous selected tally", asyn
     rerender(React.createElement(TallyCeremony))
     await waitFor(() => expect(mockEventExport).toHaveBeenCalledWith("next-tally"))
     expect(mockEventExport.mock.calls.every(([id]) => id === "next-tally")).toBe(true)
+})
+
+it("preserves legacy success and report availability without new completeness gates", async () => {
+    setCompleteNumericSnapshot()
+    mockSession = {...mockSession, annotations: {}}
+    mockTallyData.sequent_backend_results_area_contest = []
+    mockCanExportCeremony = true
+    mockResultsEvents = [
+        {id: "partial-results", election_event_id: "event", documents: {pdf: "legacy-report"}},
+    ]
+    render(React.createElement(TallyCeremony))
+    await waitFor(() => expect(screen.getByText("Event export")).toBeTruthy())
+    expect(screen.getByTestId("ceremony-status").textContent).toBe("SUCCESS")
+    expect(mockCompleteElections).toHaveBeenLastCalledWith(["closed"])
 })

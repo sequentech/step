@@ -7,13 +7,22 @@ import type {
 import type {TallyDataSnapshot} from "@/atoms/tally-candidates"
 import {ITallyCeremonyStatus, ITallyElectionStatus} from "@/types/ceremonies"
 
+export function requiresCompleteResults(tally: {annotations?: unknown} | undefined): boolean {
+    return (
+        !!tally?.annotations &&
+        Object.prototype.hasOwnProperty.call(tally.annotations, "result_readiness_version")
+    )
+}
+
 /** Numeric completeness belongs to one execution snapshot and one election.
  * Its SUCCESS progress covers every expected weight batch. The SQLite input
  * tables supply the selected area/contest scope, including zero-vote areas.
  * PDF documents and other elections do not determine numeric completeness.
  */
 export function getCompleteElectionIds(
-    tally: Pick<Sequent_Backend_Tally_Session, "id" | "election_ids" | "area_ids"> | undefined,
+    tally:
+        | Pick<Sequent_Backend_Tally_Session, "id" | "election_ids" | "area_ids" | "annotations">
+        | undefined,
     execution:
         | Pick<
               Sequent_Backend_Tally_Session_Execution,
@@ -22,6 +31,9 @@ export function getCompleteElectionIds(
         | undefined,
     data: TallyDataSnapshot | null
 ): string[] {
+    // The server marks new tallies at creation. Existing tallies retain their
+    // previous result/report availability; asynchronous identity fixes still apply.
+    if (tally && !requiresCompleteResults(tally)) return tally.election_ids ?? []
     const resultsId = execution?.results_event_id
     if (
         !tally ||
@@ -79,25 +91,27 @@ export function getCompleteElectionIds(
             electionProgress.progress !== 100
         )
             return false
-        if (
-            !data.sequent_backend_election.some((row) => row.id === electionId) ||
-            !data.sequent_backend_results_election.some(
-                (row) => row.election_id === electionId && row.results_event_id === resultsId
-            )
-        )
-            return false
+        if (!data.sequent_backend_election.some((row) => row.id === electionId)) return false
 
         const contests = data.sequent_backend_contest.filter(
             (row) => row.election_id === electionId
         )
         const contestIds = new Set(contests.map((row) => row.id))
         // A contest assigned only to excluded areas is not part of this run.
-        return expectedPairs
-            .filter((row) => contestIds.has(row.contest_id))
-            .every(
-                (expected) =>
-                    contestResults.has(`${electionId}:${expected.contest_id}`) &&
-                    areaResults.has(`${electionId}:${expected.contest_id}:${expected.area_id}`)
+        const electionPairs = expectedPairs.filter((row) => contestIds.has(row.contest_id))
+        // The backend completes elections with no assigned areas without
+        // emitting an election result. They must not block the other elections.
+        if (electionPairs.length === 0) return true
+        if (
+            !data.sequent_backend_results_election.some(
+                (row) => row.election_id === electionId && row.results_event_id === resultsId
             )
+        )
+            return false
+        return electionPairs.every(
+            (expected) =>
+                contestResults.has(`${electionId}:${expected.contest_id}`) &&
+                areaResults.has(`${electionId}:${expected.contest_id}:${expected.area_id}`)
+        )
     })
 }

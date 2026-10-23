@@ -87,7 +87,7 @@ import {IPermissions} from "@/types/keycloak"
 import {CREATE_TRANSMISSION_PACKAGE} from "@/queries/CreateTransmissionPackage"
 import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
-import {getCompleteElectionIds} from "./resultsCompleteness"
+import {getCompleteElectionIds, requiresCompleteResults} from "./resultsCompleteness"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
@@ -311,11 +311,18 @@ export const TallyCeremony: React.FC = () => {
             ),
         [tallyId, tally?.id, tallySession, tallySessionExecutions, loadedTallyData]
     )
-    const allNumericResultsComplete = !!(
-        tallySession?.election_ids?.length &&
-        tallySession.election_ids.every((id) => completeElectionIds.includes(id))
-    )
+    const enforceCompleteness = !tallySession || requiresCompleteResults(tallySession)
+    const allNumericResultsComplete =
+        tallySession?.id === tallyId &&
+        tally?.id === tallyId &&
+        tallySessionExecutions?.[0]?.tally_session_id === tallyId &&
+        (!enforceCompleteness ||
+            !!(
+                tallySession?.election_ids?.length &&
+                tallySession.election_ids.every((id) => completeElectionIds.includes(id))
+            ))
     const displayedExecutionStatus =
+        enforceCompleteness &&
         tally?.execution_status === ITallyExecutionStatus.SUCCESS &&
         !(isTallyCompleted && allNumericResultsComplete)
             ? ITallyExecutionStatus.IN_PROGRESS
@@ -400,7 +407,9 @@ export const TallyCeremony: React.FC = () => {
         currentKeysCeremony?.settings?.policy ===
         EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES
 
-    const isPostTallyPending = tallySession?.annotations?.is_post_task_completed !== true
+    const isPostTallyPending = enforceCompleteness
+        ? tallySession?.annotations?.is_post_task_completed !== true
+        : tallySession?.annotations?.is_post_task_completed === false
 
     useEffect(() => {
         // A successful poll may structurally share unchanged session data.

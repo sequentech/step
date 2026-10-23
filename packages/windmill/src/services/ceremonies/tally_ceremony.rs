@@ -561,6 +561,7 @@ pub async fn create_tally_ceremony(
     let tally_session_id: String = Uuid::new_v4().to_string();
 
     let annotations: Value = json!({
+        "result_readiness_version": 1,
         "executer_username": username,
         "executer_user_id": user_id,
         ELECTION_AREAS_ANNOTATION: serde_json::to_string(&election_areas(
@@ -1004,7 +1005,20 @@ pub async fn set_tally_session_completed(
     election_event_id: String,
     tally_session_id: String,
 ) -> Result<()> {
-    let execution_status = TallyExecutionStatus::SUCCESS;
+    let session = get_tally_session_by_id(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &tally_session_id,
+    )
+    .await?;
+    // Existing tallies retain their original completion semantics.
+    let execution_status =
+        if super::result_readiness::uses_readiness_policy(session.annotations.as_ref()) {
+            TallyExecutionStatus::IN_PROGRESS
+        } else {
+            TallyExecutionStatus::SUCCESS
+        };
 
     let is_updated = match set_tally_session_completed_in_db(
         hasura_transaction,
@@ -1016,7 +1030,7 @@ pub async fn set_tally_session_completed(
     .await
     {
         Ok(_) => true,
-        Err(_) => false,
+        Err(error) => return Err(error),
     };
 
     if is_updated {
@@ -1114,9 +1128,10 @@ pub async fn begin_tally_session_recount(
         tally_session_id,
     )
     .await?;
-    if tally_session.execution_status.as_deref()
-        != Some(TallyExecutionStatus::SUCCESS.to_string().as_str())
-        || !tally_session.is_execution_completed
+    if !tally_session.is_execution_completed
+        || !(tally_session.execution_status.as_deref() == Some("SUCCESS")
+            || (super::result_readiness::uses_readiness_policy(tally_session.annotations.as_ref())
+                && tally_session.execution_status.as_deref() == Some("IN_PROGRESS")))
     {
         return Ok(false);
     }

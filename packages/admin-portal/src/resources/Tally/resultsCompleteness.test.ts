@@ -3,7 +3,12 @@
 import {getCompleteElectionIds} from "./resultsCompleteness"
 
 const fixture = () => {
-    const tally: any = {id: "tally", election_ids: ["one", "two"], area_ids: ["a", "b"]}
+    const tally: any = {
+        annotations: {result_readiness_version: 1},
+        id: "tally",
+        election_ids: ["one", "two"],
+        area_ids: ["a", "b"],
+    }
     const execution: any = {
         documents: {sqlite: "db"},
         tally_session_id: "tally",
@@ -58,7 +63,7 @@ const fixture = () => {
 
 test("a complete election does not wait for an unrelated incomplete election or PDFs", () => {
     const {tally, execution, data} = fixture()
-    tally.annotations = {is_post_task_completed: false}
+    tally.annotations = {result_readiness_version: 1, is_post_task_completed: false}
     expect(getCompleteElectionIds(tally, execution, data)).toEqual(["one"])
     tally.annotations.is_post_task_completed = true
     execution.documents = {sqlite: "post-pdf"}
@@ -181,4 +186,38 @@ test("missing selected area metadata cannot prove the expected contest scope", (
     const {tally, execution, data} = inheritedFixture()
     data.sequent_backend_area.pop()
     expect(getCompleteElectionIds(tally, execution, data)).toEqual([])
+})
+
+test.each(["unassigned", "excluded"])(
+    "an election with only %s areas needs no result row and does not block the event",
+    (scope) => {
+        const {tally, execution, data} = fixture()
+        execution.status.elections_status[1] = {
+            election_id: "two",
+            status: "SUCCESS",
+            progress: 100,
+        }
+        data.sequent_backend_area_contest = data.sequent_backend_area_contest.filter(
+            (row: any) => row.contest_id !== "c2"
+        )
+        if (scope === "excluded") {
+            data.sequent_backend_area.push({id: "excluded", parent_id: null})
+            data.sequent_backend_area_contest.push({contest_id: "c2", area_id: "excluded"})
+        }
+        expect(getCompleteElectionIds(tally, execution, data)).toEqual(["one", "two"])
+    }
+)
+
+test("a missing election result still blocks an election with expected area contests", () => {
+    const {tally, execution, data} = fixture()
+    data.sequent_backend_results_election = []
+    expect(getCompleteElectionIds(tally, execution, data)).toEqual([])
+})
+
+test("legacy tallies retain result availability without new completeness restrictions", () => {
+    const {tally, execution, data} = fixture()
+    delete tally.annotations.result_readiness_version
+    data.sequent_backend_results_area_contest = []
+    expect(getCompleteElectionIds(tally, execution, data)).toEqual(["one", "two"])
+    expect(getCompleteElectionIds(tally, execution, null)).toEqual(["one", "two"])
 })
