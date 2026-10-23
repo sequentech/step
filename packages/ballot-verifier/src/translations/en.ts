@@ -38,6 +38,10 @@ const englishTranslation = {
             ballotIdLabel: "Ballot ID",
             ballotIdPlaceholder: "Type in your Ballot ID",
             fileUploaded: "Uploaded",
+            receiptTitle: "Transparency receipt",
+            receiptDescription:
+                "This election publishes a receipt for every ballot cast. Check yours: that it is in the public record, unchanged and the same for everyone.",
+            receiptButton: "Check a receipt",
         },
         confirmationScreen: {
             ballotIdTitle: "Ballot ID",
@@ -82,6 +86,123 @@ const englishTranslation = {
             blankBallot: "Blank ballot",
             acclamationDescription:
                 "This contest was decided by acclamation. Its candidates are elected without a vote, so no option can be selected and no vote is recorded for it.",
+        },
+        receiptScreen: {
+            title: "Check a transparency receipt",
+            description:
+                "A transparency receipt shows that your ballot is in the election's public record, unchanged and the same for everyone. This page checks it in your browser, against the trust policy that the election authority published.",
+            loading: "Loading the receipt checker…",
+            loadFailed: "The receipt checker couldn't load. Reload the page to try again.",
+            receipt: {
+                title: "Your receipt",
+                description:
+                    "Open the receipt file you saved after voting, or paste the receipt, its link or its reference (the text of its QR code).",
+                fileFormat: "Receipt files end in .vitrine-receipt",
+                pasteLabel: "Receipt, link or reference",
+                pastePlaceholder: "Paste it here",
+                open: "Open",
+                another: "Check another receipt",
+                problems: {
+                    "empty": "Paste a receipt, its link or its reference first.",
+                    "too-large": "This is too large to be a receipt.",
+                    "bad-link":
+                        "This link doesn't hold a receipt that can be read. Open the receipt file instead.",
+                    "bad-reference":
+                        "This reference is incomplete or damaged. Copy it again, or open the receipt file.",
+                    "bad-chain": "This receipt is damaged: it can't be read.",
+                    "not-https":
+                        "The link says the policy is at an address that isn't secure (https), so it isn't used.",
+                    "wrong-box": "This is a trust policy, not a receipt. Open the receipt first.",
+                    "unrecognised": "This isn't a receipt, a receipt link or a receipt reference.",
+                    "unreadable": "The file couldn't be read.",
+                },
+            },
+            policy: {
+                title: "Trust policy",
+                description:
+                    "Receipts are checked against the trust policy that the election authority published. Give it here, as its text or its https address, from the official election notice.",
+                fromLink:
+                    "The receipt's link says where its trust policy is. Before you pin it on this device, compare its words and ID with the official election notice.",
+                inputLabel: "Trust policy or its address",
+                inputPlaceholder: "Paste the policy, or its https address",
+                load: "Load the policy",
+                openFile: "Open a policy file",
+                loading: "Loading the trust policy…",
+                pin: "They match: pin this policy",
+                reject: "They don't match",
+                rejected:
+                    "Don't use this policy. Tell the election authority, and give the policy from the official election notice.",
+                pinned: "Checked against the trust policy you pinned on this device.",
+                unpin: "Forget this policy",
+                draft: "This is a draft of the policy, not the sealed policy, so it can't be pinned. Its draft words:",
+                invalid: "This isn't a valid trust policy.",
+                otherPolicy: "This trust policy is valid, but the receipt is for another one.",
+                ambiguous:
+                    "More than one policy you pinned matches this reference, so it isn't used. Open the receipt file instead.",
+                problems: {
+                    "empty": "Paste the trust policy or its address first.",
+                    "too-large": "This is too large to be a trust policy.",
+                    "not-https": "Only addresses that start with https are used.",
+                    "wrong-box": "This is a receipt, not a trust policy.",
+                    "unrecognised": "This isn't a trust policy or its address.",
+                    "unreadable": "The file couldn't be read.",
+                },
+                fetchProblems: {
+                    "not-https": "Only addresses that start with https are used.",
+                    "unreachable":
+                        "The trust policy couldn't be loaded. Check the address, or paste the policy instead.",
+                    "status": "The server didn't return the trust policy (status {{status}}).",
+                    "too-large": "This is too large to be a trust policy.",
+                    "not-text": "The address didn't return a trust policy.",
+                },
+            },
+            ballot: {
+                title: "Your ballot",
+                description:
+                    "The receipt shows as yours only for the ballot you cast. Type in the ballot ID that the voting portal showed you.",
+                ballotId: "Ballot ID",
+                ballotIdPlaceholder: "Type in your ballot ID",
+                election: "Election ID",
+                electionPlaceholder: "Choose the election",
+                event: "Election event ID",
+                check: "Check the receipt",
+                change: "Change the ballot ID",
+                invalid:
+                    "Check the ballot ID: it has 64 characters, digits and the letters a to f.",
+                lookedFor: "Ballot ID looked for:",
+            },
+            result: {
+                title: "Result",
+                checking: "Checking…",
+                rounds: {
+                    log: "Checked with the election's logs. Within the next half hour, this page also asks the logs' mirrors, the anchor hubs and the monitors, at a random moment, so that they can't tell when you opened your receipt. Keep the page open, or check everything now.",
+                    full: "Checked with the election's logs, their mirrors, the anchor hubs and the monitors.",
+                    offline:
+                        "This election's logs are private, so the receipt was checked with what it holds.",
+                },
+                checkEverything: "Check everything now",
+                checkAgain: "Check again",
+                retry: "Try again",
+                problems: {
+                    "policy-mismatch": "This reference is for another trust policy.",
+                    "unknown-log": "The trust policy has no log of this name.",
+                    "quiet-period":
+                        "The log isn't serving proofs during its quiet period. Try again after {{time}}.",
+                    "not-found":
+                        "The log doesn't have this entry yet. If you voted recently, try again later.",
+                    "entry-mismatch":
+                        "The log's entry at this position isn't the one in the reference.",
+                    "private-reference":
+                        "This election's logs are private, so a reference can't be checked here. Open the receipt file instead.",
+                    "failed": "The receipt couldn't be checked. Try again.",
+                },
+                evidenceSaved:
+                    "The receipt file was saved. It holds the signed objects that contradict each other: an auditor can check it, and build the evidence file from it, with the Vitrine verifier.",
+                advice: {
+                    failed: "A check failed: signed data contradicts itself or the trust policy. Save the evidence, and give it with your receipt file to the election authority and to the observers that the trust policy names.",
+                    late: "Something that should be there by now isn't there yet. It may only be slow: check again later, and if it stays late, tell the election authority. Keep your receipt file.",
+                },
+            },
         },
         footer: {
             poweredBy: "Powered by <1></1>",

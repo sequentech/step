@@ -12,6 +12,8 @@ import {HomeScreen} from "./HomeScreen"
 import {IBallotService, IConfirmationBallot} from "../services/BallotService"
 import {store} from "../store/store"
 import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
+import {IBallotStyle, setBallotStyle} from "../store/ballotStyles/ballotStylesSlice"
+import {TenantEventContext} from ".."
 
 jest.mock("@sequentech/ui-core", () => ({}))
 jest.mock("react-i18next", () => ({useTranslation: () => ({t: (key: string) => key})}))
@@ -140,4 +142,63 @@ describe("HomeScreen ballot verification", () => {
         expect(setConfirmationBallot).toHaveBeenLastCalledWith(null)
         expect(service.hashBallot512).not.toHaveBeenCalled()
     })
+})
+
+describe("HomeScreen receipt link", () => {
+    /** The home screen of an event whose presentation has this transparency
+     * mode. Each mode has its own event, as the store outlives the test. */
+    const renderEvent = (transparency?: string) => {
+        const eventId = `event-${transparency ?? "none"}`
+        const at = "2026-10-01T00:00:00Z"
+        store.dispatch(
+            setBallotStyle({
+                id: `style-${eventId}`,
+                ballot_publication_id: "publication-1",
+                publication_published_at: at,
+                election_id: `election-${eventId}`,
+                election_event_id: eventId,
+                tenant_id: "tenant-1",
+                ballot_eml: {
+                    election_event_presentation: transparency ? {transparency} : {},
+                } as unknown as IBallotStyle["ballot_eml"],
+                created_at: at,
+                last_updated_at: at,
+            })
+        )
+        render(
+            <Provider store={store}>
+                <MockedProvider mocks={[ballotStylesMock]}>
+                    <TenantEventContext.Provider value={{tenantId: "tenant-1", eventId}}>
+                        <MemoryRouter>
+                            <HomeScreen
+                                confirmationBallot={null}
+                                setConfirmationBallot={jest.fn()}
+                                ballotId=""
+                                setBallotId={jest.fn()}
+                                fileName=""
+                                setFileName={jest.fn()}
+                                ballotService={ballotService(true)}
+                            />
+                        </MemoryRouter>
+                    </TenantEventContext.Provider>
+                </MockedProvider>
+            </Provider>
+        )
+    }
+
+    it.each(["public", "private"])(
+        "links to the receipt screen when transparency is %s",
+        (mode) => {
+            renderEvent(mode)
+            expect(screen.getByTestId("receipt-link")).toHaveAttribute("href", "/receipt")
+        }
+    )
+
+    it.each([undefined, "disabled", "unknown"])(
+        "has no receipt link when transparency is %s",
+        (mode) => {
+            renderEvent(mode)
+            expect(screen.queryByTestId("receipt-link-section")).toBeNull()
+        }
+    )
 })
