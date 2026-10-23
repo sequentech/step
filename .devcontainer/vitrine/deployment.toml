@@ -4,7 +4,7 @@
 
 # The Vitrine deployment configuration of the development environment: Harvest
 # drafts each transparent election event's trust policy from it and from the
-# event (docs/docusaurus/docs/07-developers/vitrine.md describes every key).
+# event (docs/docusaurus/docs/07-developers/14-vitrine.md describes every key).
 # The keys are development keys: their private halves are in secrets/, next
 # to this file. Never use them anywhere else.
 
