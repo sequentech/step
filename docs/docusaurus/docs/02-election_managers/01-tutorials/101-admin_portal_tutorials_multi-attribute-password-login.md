@@ -1,6 +1,7 @@
 ---
 id: admin_portal_tutorials_multi_attribute_password_login
 title: Logging In Without a Username (Attribute + Password or Secret)
+description: "By default, voters log in with a username and password. Some elections instead identify voters by attributes they already know - a date of birth, a national ID - without asking them to remember a…"
 ---
 
 <!--
