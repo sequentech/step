@@ -1188,7 +1188,9 @@ services:
     init: true
     restart: unless-stopped
     network_mode: "service:vitrine"
-    command: ["vitrine-log", "serve", "--config", "/state/log/config.toml"]
+    # One PostgreSQL without a synchronous standby: development only.
+    command:
+      ["vitrine-log", "serve", "--config", "/state/log/config.toml", "--dev-no-standby"]
     volumes:
       - vitrine_state:/state:ro
       - vitrine_data:/data

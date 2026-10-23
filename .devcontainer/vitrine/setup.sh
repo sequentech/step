@@ -109,8 +109,6 @@ admin_token_file = "$STATE/log/admin.token"
 keys_dir = "$DATA/log/keys"
 enrolment_key_file = "$STATE/log/enrolment.key"
 replica = "log-1"
-# One PostgreSQL without a synchronous standby: development only.
-dev_no_standby = true
 
 [database]
 url = "$(database_url "$ELECTORAL_LOG_PG_VITRINE_DATABASE")"
