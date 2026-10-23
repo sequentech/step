@@ -42,6 +42,9 @@ jest.mock("@sequentech/ui-core", () => ({
     ...jest.requireActual<typeof import("@sequentech/ui-core")>(
         "../../../ui-core/src/utils/typechecks"
     ),
+    escapeHtml: jest.requireActual<typeof import("@sequentech/ui-core")>(
+        "../../../ui-core/src/services/stringToHtml"
+    ).escapeHtml,
 }))
 
 jest.mock("@sequentech/ui-essentials", () => ({
@@ -50,6 +53,9 @@ jest.mock("@sequentech/ui-essentials", () => ({
     pieChartNumberFormatOptions: jest.requireActual<typeof import("@sequentech/ui-essentials")>(
         "../../../ui-essentials/src/components/TallyResults/utils"
     ).pieChartNumberFormatOptions,
+    withEscapedChartText: jest.requireActual<typeof import("@sequentech/ui-essentials")>(
+        "../../../ui-essentials/src/services/chartOptions"
+    ).withEscapedChartText,
 }))
 
 jest.mock("@/services/resultLabels", () => ({
