@@ -342,7 +342,11 @@ pub fn process_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Resul
         invalid_votes.explicit_invalid.unwrap_or(0),
         invalid_votes.implicit_invalid.unwrap_or(0),
     );
-    let count_invalid: u64 = count_invalid_votes.explicit + count_invalid_votes.implicit;
+    let count_invalid = add_count(
+        count_invalid_votes.explicit,
+        count_invalid_votes.implicit,
+        "invalid votes",
+    )?;
     let blank_votes = BlankVotes::new(0, content.total_blank_votes.unwrap_or(0));
     let count_blank = blank_votes.total();
 
@@ -366,26 +370,29 @@ pub fn process_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Resul
         })
         .collect::<Result<Vec<CandidateResult>>>()?;
 
-    let votes_for_candidates: u64 = candidate_results
+    let votes_for_candidates = candidate_results
         .iter()
-        .map(|candidate_result| candidate_result.total_count)
-        .sum();
-    let total_valid_marks: u64 = match contest.get_counting_algorithm() {
+        .try_fold(0, |sum, candidate_result| {
+            add_count(sum, candidate_result.total_count, "candidate votes")
+        })?;
+    let total_valid_marks = match contest.get_counting_algorithm() {
         CountingAlgType::PluralityAtLarge => candidate_results
             .iter()
             .filter(|candidate_result| {
                 !candidate_result.candidate.is_explicit_blank()
                     && !candidate_result.candidate.is_explicit_invalid()
             })
-            .map(|candidate_result| candidate_result.total_count)
-            .sum(),
+            .try_fold(0, |sum, candidate_result| {
+                add_count(sum, candidate_result.total_count, "valid marks")
+            })?,
         _ => 0,
     };
-    let count_valid: u64 = content
-        .total_valid_votes
-        .unwrap_or(votes_for_candidates.saturating_add(count_blank));
+    let count_valid = match content.total_valid_votes {
+        Some(total_valid_votes) => total_valid_votes,
+        None => add_count(votes_for_candidates, count_blank, "valid votes")?,
+    };
 
-    let total_votes = count_valid + count_invalid;
+    let total_votes = add_count(count_valid, count_invalid, "votes")?;
     let channel: VotingChannel = tally_sheet.channel.clone().into();
     let votes_by_channel =
         VotesByChannel::from([(ParticipationChannel::from(channel), total_votes)]);
@@ -792,5 +799,15 @@ mod tests {
 
         assert_percentage(candidate_percentage(&result, "candidate-a"), 60.0);
         assert_percentage(candidate_percentage(&result, "candidate-b"), 40.0);
+    }
+
+    #[test]
+    fn process_tally_sheet_rejects_vote_totals_beyond_the_counter_range() {
+        let mut sheet = tally_sheet(4, 2);
+        if let Some(content) = sheet.content.as_mut() {
+            content.total_valid_votes = Some(u64::MAX);
+        }
+
+        assert!(process_tally_sheet(&sheet, &contest()).is_err());
     }
 }
