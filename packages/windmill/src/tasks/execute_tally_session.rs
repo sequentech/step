@@ -561,6 +561,13 @@ pub async fn upsert_ballots_messages(
         .clone()
         .unwrap_or_default()
         .get_weighted_voting_policy();
+    let tally_type = tally_session_hasura
+        .tally_type
+        .as_deref()
+        .map(TallyType::try_from)
+        .transpose()
+        .map_err(|_| Error::String("Invalid tally type".to_string()))?
+        .unwrap_or_default();
     let weight_batches = session_weight_batches(
         &tally_session_hasura
             .configuration
@@ -628,6 +635,7 @@ pub async fn upsert_ballots_messages(
         contest_encryption_policy,
         delegated_voting_policy,
         weighted_voting_policy,
+        tally_type,
         weight_batches,
     )
     .await?)
