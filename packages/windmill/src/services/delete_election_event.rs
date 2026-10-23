@@ -5,9 +5,11 @@ use super::jwks::remove_realm_jwks;
 use super::protocol_manager::{get_b3_pgsql_client, get_election_board};
 use crate::postgres::election::get_elections;
 use crate::postgres::election_event::election_event_id_exists;
+use crate::postgres::vitrine::{get_vitrine_logs, set_vitrine_log_frozen, VitrineLog};
 use crate::services::database::get_hasura_pool;
 use crate::services::protocol_manager::get_event_board;
 use crate::services::protocol_manager::get_event_databases;
+use crate::services::vitrine::client::{Service, SidecarClient};
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
@@ -17,6 +19,8 @@ use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::services::s3;
 use tracing::info;
 use tracing::{event, instrument, Level};
+
+const NOT_FOUND: u16 = 404;
 
 #[instrument(err)]
 pub async fn delete_keycloak_realm(realm: &str) -> Result<()> {
@@ -80,6 +84,50 @@ pub async fn delete_election_event_b3(
         if existing.is_some() {
             board_client.delete_board(board_name.as_str()).await?;
         }
+    }
+    Ok(())
+}
+
+/// Freeze the event's Vitrine logs, before its electoral-log database, which
+/// holds their `vitrine` schema, is dropped: the tile store keeps their files
+/// and the mirrors their copies. A log the sidecar doesn't know is gone
+/// already.
+#[instrument(err)]
+pub async fn freeze_election_event_vitrine_logs(
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<()> {
+    let mut db: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .context("Error getting a database client")?;
+    let tx = db.transaction().await?;
+    let logs: Vec<VitrineLog> = get_vitrine_logs(&tx, tenant_id, election_event_id)
+        .await?
+        .into_iter()
+        .filter(|log| !log.frozen)
+        .collect();
+    tx.commit().await?;
+    if logs.is_empty() {
+        return Ok(());
+    }
+    let sidecar = SidecarClient::from_env(Service::Windmill)?;
+    for log in logs {
+        match sidecar.freeze(&log.sidecar_name).await {
+            Ok(()) => info!("Froze the Vitrine log {}", log.sidecar_name),
+            Err(error) if error.status() == Some(NOT_FOUND) => {
+                info!("The Vitrine sidecar has no log {}", log.sidecar_name)
+            }
+            Err(error) => {
+                return Err(error).with_context(|| {
+                    format!("Error freezing the Vitrine log {}", log.sidecar_name)
+                })
+            }
+        }
+        let tx = db.transaction().await?;
+        set_vitrine_log_frozen(&tx, tenant_id, election_event_id, log.name).await?;
+        tx.commit().await?;
     }
     Ok(())
 }

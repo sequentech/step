@@ -9,7 +9,7 @@ use crate::{
     services::{
         delete_election_event::{
             delete_election_event_electoral_log, delete_election_event_related_documents,
-            delete_event_b3, delete_keycloak_realm,
+            delete_event_b3, delete_keycloak_realm, freeze_election_event_vitrine_logs,
         },
         providers::transactions_provider::provide_hasura_transaction,
     },
@@ -42,6 +42,11 @@ async fn delete_election_event(
     election_event_id: String,
     realm: String,
 ) -> AnyhowResult<()> {
+    // The event's database is dropped below, with its Vitrine logs' schema.
+    freeze_election_event_vitrine_logs(&tenant_id, &election_event_id)
+        .await
+        .map_err(|err| anyhow!("Error freezing the election event's Vitrine logs: {err:#}"))?;
+
     let tenant_id_cloned = tenant_id.clone();
     let election_event_id_cloned = election_event_id.clone();
     let realm_cloned = realm.clone();
