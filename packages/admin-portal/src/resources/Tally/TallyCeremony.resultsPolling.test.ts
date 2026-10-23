@@ -625,7 +625,7 @@ it("never associates current PDF exports with the previous selected tally", asyn
 
 it("preserves legacy success and report availability without new completeness gates", async () => {
     setCompleteNumericSnapshot()
-    mockSession = {...mockSession, annotations: {}}
+    mockSession = {...mockSession, annotations: {is_post_task_completed: false}}
     mockTallyData.sequent_backend_results_area_contest = []
     mockCanExportCeremony = true
     mockResultsEvents = [
@@ -635,6 +635,7 @@ it("preserves legacy success and report availability without new completeness ga
     await waitFor(() => expect(screen.getByText("Event export")).toBeTruthy())
     expect(screen.getByTestId("ceremony-status").textContent).toBe("SUCCESS")
     expect(mockCompleteElections).toHaveBeenLastCalledWith(["closed"])
+    await waitFor(() => expect(pollingInterval()).toBeUndefined())
 })
 
 it("finishes an empty tally without waiting for nonexistent result metadata", async () => {
