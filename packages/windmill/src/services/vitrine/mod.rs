@@ -13,6 +13,7 @@ pub mod policy;
 pub mod quorum;
 pub mod statements;
 pub mod transparency;
+pub mod voter;
 pub mod window;
 
 use anyhow::{Context, Result};
