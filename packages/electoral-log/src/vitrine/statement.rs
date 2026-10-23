@@ -75,12 +75,21 @@ pub fn style_digest(style: &str) -> Hash {
     Sha256::digest(style.as_bytes()).into()
 }
 
-/// `styles`: SHA-256 over the concatenation of the sorted style digests.
+/// The list of an election's style digests that the application serves with
+/// its config statement: in ascending byte order and without repeats, so two
+/// areas with byte-identical styles give one digest.
+pub fn style_list(digests: &[Hash]) -> Vec<Hash> {
+    let mut list = digests.to_vec();
+    list.sort_unstable();
+    list.dedup();
+    list
+}
+
+/// `styles`: SHA-256 over the concatenation of the digests in
+/// [`style_list`]'s order.
 pub fn styles_hash(digests: &[Hash]) -> Hash {
-    let mut sorted = digests.to_vec();
-    sorted.sort_unstable();
     let mut h = Sha256::new();
-    for digest in &sorted {
+    for digest in style_list(digests) {
         h.update(digest);
     }
     h.finalize().into()
@@ -317,5 +326,15 @@ mod tests {
             hex::encode(styles_hash(&[])),
             "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
         );
+    }
+
+    #[test]
+    fn identical_styles_give_one_digest() {
+        let a = style_digest("{\"area\":\"a\"}");
+        let b = style_digest("{\"area\":\"b\"}");
+        let (lo, hi) = if a < b { (a, b) } else { (b, a) };
+        assert_eq!(style_list(&[hi, a, b, lo]), vec![lo, hi]);
+        assert_eq!(styles_hash(&[a, a, b]), styles_hash(&[b, a]));
+        assert_eq!(styles_hash(&[a, a]), <Hash>::from(Sha256::digest(a)));
     }
 }

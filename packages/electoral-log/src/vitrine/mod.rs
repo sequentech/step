@@ -19,6 +19,6 @@ pub use entry::{
 pub use note::{NoteSigner, Vkey};
 pub use proof::{receipt_chain, ChainBlock, Submitted};
 pub use statement::{
-    election_key_hash, style_digest, styles_hash, ConfigStatement, Demo, MilestoneKind,
+    election_key_hash, style_digest, style_list, styles_hash, ConfigStatement, Demo, MilestoneKind,
     MilestoneStatement, Release, Visibility,
 };
