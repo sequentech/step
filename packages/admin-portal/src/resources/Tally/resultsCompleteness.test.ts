@@ -10,6 +10,16 @@ const fixture = () => {
         area_ids: ["a", "b"],
     }
     const execution: any = {
+        annotations: {
+            result_readiness: {
+                complete_election_ids: ["one", "two"],
+                expected_area_contests: [
+                    ["one", "c1", "a"],
+                    ["one", "c1", "b"],
+                    ["two", "c2", "a"],
+                ],
+            },
+        },
         documents: {sqlite: "db"},
         tally_session_id: "tally",
         results_event_id: "result",
@@ -97,6 +107,10 @@ test.each(["ERROR", "WAITING", "MIXING"])("%s progress cannot produce final resu
 test("intentionally excluded areas are outside the expected scope", () => {
     const {tally, execution, data} = fixture()
     tally.area_ids = ["a"]
+    execution.annotations.result_readiness.expected_area_contests =
+        execution.annotations.result_readiness.expected_area_contests.filter(
+            (pair: string[]) => pair[2] === "a"
+        )
     data.sequent_backend_results_area_contest.pop()
     expect(getCompleteElectionIds(tally, execution, data)).toEqual(["one"])
 })
@@ -124,6 +138,10 @@ test("loading or missing progress cannot be treated as success", () => {
 test("contests assigned only to excluded areas do not block selected-area results", () => {
     const {tally, execution, data} = fixture()
     tally.area_ids = ["a"]
+    execution.annotations.result_readiness.expected_area_contests =
+        execution.annotations.result_readiness.expected_area_contests.filter(
+            (pair: string[]) => pair[2] === "a"
+        )
     data.sequent_backend_contest.push({id: "excluded-contest", election_id: "one"})
     data.sequent_backend_area_contest.push({contest_id: "excluded-contest", area_id: "b"})
     expect(getCompleteElectionIds(tally, execution, data)).toEqual(["one"])
@@ -160,6 +178,7 @@ test("inherited contests propagate through multiple generations", () => {
     const {tally, execution, data} = inheritedFixture()
     data.sequent_backend_area.push({id: "grandchild", parent_id: "b"})
     tally.area_ids.push("grandchild")
+    execution.annotations.result_readiness.expected_area_contests.push(["one", "c1", "grandchild"])
     data.sequent_backend_results_area_contest.push({
         election_id: "one",
         contest_id: "c1",
@@ -179,6 +198,10 @@ test("inherited contests propagate through multiple generations", () => {
 test("an excluded child does not block its parent's complete election result", () => {
     const {tally, execution, data} = inheritedFixture()
     tally.area_ids = ["a"]
+    execution.annotations.result_readiness.expected_area_contests =
+        execution.annotations.result_readiness.expected_area_contests.filter(
+            (pair: string[]) => pair[2] === "a"
+        )
     expect(getCompleteElectionIds(tally, execution, data)).toEqual(["one"])
 })
 
@@ -197,6 +220,10 @@ test.each(["unassigned", "excluded"])(
             status: "SUCCESS",
             progress: 100,
         }
+        execution.annotations.result_readiness.expected_area_contests =
+            execution.annotations.result_readiness.expected_area_contests.filter(
+                (pair: string[]) => pair[0] !== "two"
+            )
         data.sequent_backend_area_contest = data.sequent_backend_area_contest.filter(
             (row: any) => row.contest_id !== "c2"
         )
@@ -222,11 +249,13 @@ test("legacy tallies retain result availability without new completeness restric
     expect(getCompleteElectionIds(tally, execution, null)).toEqual(["one", "two"])
 })
 
-test("unpublished inherited areas are outside the saved tally scope", () => {
-    const {tally, execution, data} = inheritedFixture()
-    tally.annotations.election_areas = JSON.stringify({one: ["a"], two: ["a"]})
+test("live assignments cannot expand the backend-certified scope", () => {
+    const {tally, execution, data} = fixture()
+    tally.is_execution_completed = true
+    data.sequent_backend_contest.push({id: "live", election_id: "one"})
+    data.sequent_backend_area_contest.push({contest_id: "live", area_id: "a"})
     expect(getCompleteElectionIds(tally, execution, data)).toEqual(["one"])
-    tally.annotations.election_areas = JSON.stringify({one: ["a", "b"]})
+    delete execution.annotations.result_readiness
     expect(getCompleteElectionIds(tally, execution, data)).toEqual([])
 })
 

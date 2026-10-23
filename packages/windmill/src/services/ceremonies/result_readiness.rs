@@ -49,7 +49,7 @@ FROM (
  UNION ALL SELECT tenant_id, election_event_id, results_event_id, election_id, documents FROM sequent_backend.results_contest
  UNION ALL SELECT tenant_id, election_event_id, results_event_id, election_id, documents FROM sequent_backend.results_area_contest
  UNION ALL SELECT tenant_id, election_event_id, results_event_id, NULL::uuid, jsonb_build_object('xlsx', documents->'xlsx') FROM sequent_backend.tally_session_execution
-) r CROSS JOIN LATERAL jsonb_each_text(COALESCE(r.documents, '{}'::jsonb)) d
+) r CROSS JOIN LATERAL jsonb_each_text(CASE WHEN jsonb_typeof(r.documents) = 'object' THEN r.documents ELSE '{}'::jsonb END) d
 WHERE r.tenant_id = $1 AND r.election_event_id = $2
  AND ($3::uuid IS NULL OR r.results_event_id = $3)
  AND ($4::text IS NULL OR d.value = $4) AND d.value IS NOT NULL
@@ -258,6 +258,15 @@ pub async fn record_result_origins(
     if require_all && complete.len() != election_ids.len() {
         bail!("Completed tally is missing expected election/area-contest results");
     }
+    write_execution_readiness(
+        tx,
+        execution,
+        &json!({
+            "complete_election_ids": complete.iter().collect::<BTreeSet<_>>(),
+            "expected_area_contests": expected,
+        }),
+    )
+    .await?;
     for row in tx
         .query(
             REFERENCES,
@@ -282,6 +291,16 @@ pub async fn record_result_origins(
         let document_id: String = row.get(0);
         tx.execute("UPDATE sequent_backend.document SET annotations=COALESCE(annotations,'{}'::jsonb) || $3 WHERE tenant_id=$1 AND id=$2 AND NOT (COALESCE(annotations,'{}'::jsonb) ? 'tally_result_origin')", &[&tenant, &parse_uuid_v4(&document_id)?, &json!({(ORIGIN): origin})]).await?;
     }
+    Ok(())
+}
+
+/// Copy this certificate to the post-PDF execution; the numeric rows do not change.
+pub async fn write_execution_readiness(
+    tx: &Transaction<'_>,
+    execution: &TallySessionExecution,
+    readiness: &Value,
+) -> Result<()> {
+    tx.execute("UPDATE sequent_backend.tally_session_execution SET annotations=COALESCE(annotations,'{}'::jsonb) || $4 WHERE tenant_id=$1 AND election_event_id=$2 AND id=$3", &[&parse_uuid_v4(&execution.tenant_id)?, &parse_uuid_v4(&execution.election_event_id)?, &parse_uuid_v4(&execution.id)?, &json!({"result_readiness":readiness})]).await?;
     Ok(())
 }
 
@@ -541,7 +560,7 @@ mod postgres_tests {
 CREATE SCHEMA sequent_backend;
 CREATE TABLE sequent_backend.document (id uuid, tenant_id uuid, election_event_id uuid, annotations jsonb);
 CREATE TABLE sequent_backend.tally_session (id uuid, tenant_id uuid, election_event_id uuid, annotations jsonb, election_ids uuid[], is_execution_completed boolean DEFAULT false, execution_status text DEFAULT 'IN_PROGRESS');
-CREATE TABLE sequent_backend.tally_session_execution (id uuid, tenant_id uuid, election_event_id uuid, tally_session_id uuid, results_event_id uuid, status jsonb, documents jsonb);
+CREATE TABLE sequent_backend.tally_session_execution (id uuid, tenant_id uuid, election_event_id uuid, tally_session_id uuid, results_event_id uuid, status jsonb, documents jsonb, annotations jsonb);
 CREATE TABLE sequent_backend.results_event (id uuid, tenant_id uuid, election_event_id uuid, documents jsonb);
 CREATE TABLE sequent_backend.results_election (tenant_id uuid, election_event_id uuid, results_event_id uuid, election_id uuid, documents jsonb);
 CREATE TABLE sequent_backend.results_election_area (LIKE sequent_backend.results_election);
@@ -570,7 +589,7 @@ CREATE TABLE sequent_backend.tasks_execution (tenant_id uuid, election_event_id 
         )
         .await?;
         tx.execute(
-            "INSERT INTO sequent_backend.tally_session_execution VALUES ($1,$2,$3,$4,$5,$6,$7)",
+            "INSERT INTO sequent_backend.tally_session_execution (id,tenant_id,election_event_id,tally_session_id,results_event_id,status,documents) VALUES ($1,$2,$3,$4,$5,$6,$7)",
             &[
                 &execution_id,
                 &tenant,
@@ -640,6 +659,16 @@ CREATE TABLE sequent_backend.tasks_execution (tenant_id uuid, election_event_id 
         );
         record_result_origins(&tx, &empty_execution, &ids, &[], true).await?;
         record_result_origins(&tx, &execution, &ids, &expected, false).await?;
+        let certificate: Value = tx.query_one("SELECT annotations->'result_readiness' FROM sequent_backend.tally_session_execution WHERE id=$1", &[&execution_id]).await?.get(0);
+        assert_eq!(certificate["complete_election_ids"], json!([a]));
+        assert_eq!(certificate["expected_area_contests"], json!(expected));
+        // Malformed historical document metadata must not break generic downloads.
+        tx.execute(
+            "INSERT INTO sequent_backend.results_event VALUES ($1,$2,$3,'null'::jsonb)",
+            &[&Uuid::new_v4(), &tenant, &event],
+        )
+        .await?;
+
         async fn document(
             tx: &Transaction<'_>,
             id: Uuid,

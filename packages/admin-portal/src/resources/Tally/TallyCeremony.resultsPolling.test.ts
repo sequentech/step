@@ -404,6 +404,12 @@ function setCompleteNumericSnapshot() {
         ...mockExecution,
         tally_session_id: "tally",
         status: {elections_status: [{election_id: "closed", status: "SUCCESS", progress: 100}]},
+        annotations: {
+            result_readiness: {
+                complete_election_ids: ["closed"],
+                expected_area_contests: [["closed", "contest", "area"]],
+            },
+        },
     }
     mockTallyData = {
         sqliteDocumentId: "partial-db",
@@ -491,6 +497,11 @@ it("withholds results and ceremony success until an inherited child contest resu
         area_ids: ["area", "child"],
         annotations: {result_readiness_version: 1, is_post_task_completed: true},
     }
+    ;(mockExecution.annotations as any).result_readiness.expected_area_contests.push([
+        "closed",
+        "contest",
+        "child",
+    ])
     mockTallyData.sequent_backend_area.push({id: "child", parent_id: "area"})
     const {rerender} = render(React.createElement(TallyCeremony))
     await act(async () => undefined)
@@ -639,6 +650,12 @@ it("finishes an empty tally without waiting for nonexistent result metadata", as
         results_event_id: null,
         documents: null,
         status: {elections_status: [{election_id: "closed", status: "SUCCESS", progress: 100}]},
+        annotations: {
+            result_readiness: {
+                complete_election_ids: ["closed"],
+                expected_area_contests: [["closed", "contest", "area"]],
+            },
+        },
     }
     mockExecutionRefetch.mockResolvedValue({data: {data: [mockExecution], total: 1}})
     render(React.createElement(TallyCeremony))

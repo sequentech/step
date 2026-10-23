@@ -2,7 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::ceremonies::result_readiness::{
-    require_complete_result_document, uses_readiness_policy, write_origin,
+    require_complete_result_document, uses_readiness_policy, write_execution_readiness,
+    write_origin,
 };
 
 use crate::postgres::document::get_document;
@@ -273,8 +274,12 @@ pub async fn post_tally_task_impl(
         Some(election_event_id.clone()),
         Some(tally_session_execution.tally_session_id.clone()),
     )
-    .await?
-    .ok_or(anyhow!("Could not find options."))?;
+    .await?;
+    let pdf_options = match pdf_options {
+        Some(options) => options,
+        None if result_origin.is_some() => Default::default(),
+        None => return Err(anyhow!("Could not find options.").into()),
+    };
 
     let pdf_options = PrintToPdfOptionsLocal::from_pdf_options(pdf_options);
 
@@ -436,7 +441,7 @@ pub async fn post_tally_task_impl(
     }
 
     // Add a new tally session execution
-    insert_tally_session_execution(
+    let final_execution = insert_tally_session_execution(
         &hasura_transaction,
         &tenant_id,
         &election_event_id,
@@ -449,6 +454,17 @@ pub async fn post_tally_task_impl(
         TallyRunReason::NORMAL,
     )
     .await?;
+
+    if uses_readiness_policy(current_session.annotations.as_ref()) {
+        let readiness = latest_execution
+            .annotations
+            .as_ref()
+            .and_then(|a| a.get("result_readiness"))
+            .ok_or(anyhow!(
+                "Completed execution is missing its result readiness certificate"
+            ))?;
+        write_execution_readiness(&hasura_transaction, &final_execution, readiness).await?;
+    }
 
     set_post_tally_task_completed(
         &hasura_transaction,
