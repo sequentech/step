@@ -105,6 +105,7 @@ impl VoterInformationLetterTemplate {
             .user_tpl_and_extra_cfg_provider(hasura_transaction)
             .await
             .with_context(|| "Failed to load Voter Information Letter template")?;
+        let number_format_policy = self.get_number_format_policy(hasura_transaction).await?;
         let html = self
             .generate_report_inner(
                 GenerateReportMode::REAL,
@@ -113,6 +114,7 @@ impl VoterInformationLetterTemplate {
                 &user_template,
                 &declared_secret_names,
                 self.may_read_secret_attributes,
+                number_format_policy,
             )
             .await
             .with_context(|| "Failed to render Voter Information Letter template")?;
