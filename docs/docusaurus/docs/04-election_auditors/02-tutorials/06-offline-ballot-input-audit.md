@@ -154,7 +154,8 @@ There is no selected-row list in this preparation input. The scope fields are:
 - `contest_id`: the named contest for single-contest encryption, or JSON `null`
   for the consolidated multiple-contest ciphertext.
 - `base_batch`: numeric `TallySessionContest.session_id`, not the string tally
-  session ID; `policy`: `unweighted`, `delegated`, or `weighted`.
+  session ID; `policy`: `unweighted`, `delegated`, or `weighted`. A tally that
+  combines weighted and delegated voting is unsupported (`4`).
 - `public_key_sha512`: the full lowercase hexadecimal B3 public-key artifact
   hash expected in the `Ballots` statements.
 - `electoral_log_system_public_key`: the independently authenticated system
@@ -794,6 +795,8 @@ Exit statuses are in brackets.
 | `... SHA-512 pin must be 128 lowercase hexadecimal characters` [4] | The pin is uppercase, truncated, or has whitespace. Recompute with `shasum -a 512` and lowercase it. |
 | `manifest digest mismatch`, `configuration digest mismatch`, `... source digest mismatch`, `scope digest mismatch` [1] | The file differs from the pinned bytes. Do not repin from the bundle; re-obtain the file or the pin from the authenticated source. |
 | `saved batch set differs from pinned scope` [1] | `batches` does not equal the batches implied by `base_batch` and the saved weight mask. Rebuild it from the saved mapping. |
+| `saved tally mapping differs from pinned scope`, `saved base batch differs from pinned scope`, `saved multiplicity policy differs from pinned scope`, or another `... differs from pinned scope` [1] | The scope names a different tally, contest, area, base batch, board or policy than the saved tally. Check the scope against the authenticated tally record. |
+| `combined weighted and delegated voting is unsupported`, `unsupported saved tally configuration` [4] | The saved tally uses a setup these commands do not support, so it cannot be audited with them. |
 | `weighted saved mapping lacks a weight bit mask` [3] | The weighted tally mapping has no `annotations.weight_bit_mask`. Obtain a mapping saved after the tally ran. |
 | `invalid saved weight bit mask` [4] | The mask is zero or outside the supported weight bits. |
 | `non-default keys-ceremony boards require separately authenticated ...` [4] | Only default ceremonies are supported. Do not edit the ceremony data; use separately reviewed acquisition. |
@@ -802,6 +805,9 @@ Exit statuses are in brackets.
 | `a selected voter has a signed cast vote that no stored cast vote holds ...` [1] | A row the signed log proves was committed has been removed or its content replaced. Keep the evidence and escalate. |
 | `a selected voter has a later signed revote held by a valid scoped cast vote ...` [1] | The stored `created_at` order disagrees with the signed log, so an earlier ballot was selected. If the timestamps are seconds apart across workers, check their clocks before escalating. |
 | `cast-vote history does not hold a selected cast vote ...` [1] | The history and scoped cast votes come from different snapshots or one was altered. Re-export both in one acquisition. |
+| `scoped electoral-log signature verification failed` [1] | A signed cast-vote record fails its sender or system signature, or the scope pins the wrong `electoral_log_system_public_key`. Check the key against its authenticated source; if it is right, keep the evidence and escalate. |
+| `pinned public key hash differs from the board PublicKey statement` [1] | `public_key_sha512` is not the key published on this board. Check the pin against its authenticated source; if it is right, keep the evidence and escalate. |
+| `... ballot receipt(s) are shared by several selected cast votes ...` [1] | One encrypted ballot was accepted and counted for more than one voter. No bundle is written. Keep the evidence and escalate. |
 | `selected cast vote has ambiguous signed electoral-log evidence` [3] | Several differing signed records share the voter pseudonym and ballot hash. Identical records are collapsed; differing ones are not. |
 | `scoped in-progress cast vote blocks preparation` [3] | A scoped row is still `in-progress`. Restore a snapshot taken after it resolved. |
 | `saved eligible voter count differs ...`, `saved cast ballot count differs ...`, `saved ballots without voter differ ...`, `saved votes by channel differ ...`, `saved weight bit mask differs ...` [1] | The saved tally annotations disagree with the reconstruction: usually a mismatched snapshot, a wrong frozen eligibility file, or a mapping from another time. |
@@ -828,7 +834,9 @@ summary, then returns an error/nonzero CLI status if any required root or
 descendant batch check is false or unpopulated, if any batch with `Ballots`
 lacks `Plaintexts`, or if the board has no batches. The new optional
 `--batches 1,2,3` requires verification of exactly those batches: a missing
-or additional verified batch fails. Pass the manifest's `batches` list.
+or additional verified batch fails. Braid verifies every batch on the board, so
+pass the manifest's `batches` plus those of any other tally on the same board;
+the manifest's list alone fails when the board holds other tallies.
 Without it, a batch missing from the board is not detected unless it has
 `Ballots`, and extra verified batches are accepted. Still inspect its individual
 results and intended scope. That fix does not authenticate archive completeness
