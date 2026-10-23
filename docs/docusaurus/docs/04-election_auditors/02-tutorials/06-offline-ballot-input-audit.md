@@ -53,7 +53,7 @@ All five commands share these statuses:
 | Status | Meaning |
 | --- | --- |
 | `0` | Success. |
-| `1` | Verification failed or the evidence contradicts itself or the pinned scope (digest, signature, hash, or multiset mismatch). This includes a signed cast-vote record whose ballot no stored row holds, in `audit-cast-history` and `prepare-ballot-audit`, and a later signed revote that `prepare-ballot-audit` did not select. Also the default for unclassified errors, and for duplicate selected receipts in `ballot-audit`. |
+| `1` | Verification failed or the evidence contradicts itself or the pinned scope (digest, signature, hash, or multiset mismatch). This includes a signed cast-vote record whose ballot no stored row holds, in `audit-cast-history` and `prepare-ballot-audit`, and a later signed revote that `prepare-ballot-audit` did not select. Also the default for unclassified errors, and for duplicate selected receipts in `prepare-ballot-audit` and `ballot-audit`. |
 | `2` | Command-line usage error, reported by clap. Nothing else uses it. |
 | `3` | Incomplete evidence: a stored row without a signed log, a missing batch, or a looked-up receipt that is not selected. Neither consistency nor contradiction is established. `ballot-audit` and `audit-cast-history` still print their JSON report. |
 | `4` | Invalid or unsupported input, or an acquisition failure (unreadable or malformed file, malformed pin, unsupported ceremony, refused connection, existing output directory). |
@@ -498,7 +498,7 @@ outside the selected scope is not proof that it was never cast. The report's
 | `selected` | One selected row has this receipt; its `{batch, index}` positions follow. |
 | `excluded` | `--selection` lists stored rows with this receipt, with their `reason`. The `ballot_id` labels are unverified stored labels. |
 | `missing` | Not selected and not in `--selection` (`selection_searched` says whether it was supplied). |
-| `ambiguous` | Several selected rows share the receipt. |
+| `ambiguous` | Several selected rows share the receipt. `prepare-ballot-audit` refuses such a selection (exit `1`), so this appears only for a bundle prepared another way. |
 
 The selected-scope result does not reconcile every historical signed `CastVote`
 log to a Hasura row. An accepted cast missing from both the supplied history
@@ -586,7 +586,9 @@ selected-scope results do not reconcile every historical log to Hasura.
 `duplicate_selected_receipts` lists receipts carried by several distinct
 selected cast votes: one encrypted ballot accepted for more than one voter and
 counted for each. Any entry makes the exit status `1`, though the report is
-still printed.
+still printed. `prepare-ballot-audit` already fails with `1` on such a selection
+and writes no bundle, so this list is non-empty only for a bundle prepared
+another way.
 
 `privacy_warnings` lists weighted batches with fewer than 5 ciphertexts
 (`MIN_WEIGHT_BATCH_ANONYMITY`). Decrypted votes in such a batch are close to
