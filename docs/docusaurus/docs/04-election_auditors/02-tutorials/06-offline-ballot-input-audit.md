@@ -538,8 +538,9 @@ untrusted bundle as authentication.
 Omit `--ballot-id` to report all selected receipts. With it, **every selected row
 and batch is still checked**; only reported positions are filtered. A receipt
 outside the selected scope is not proof that it was never cast. The report's
-`lookup` field gives the outcome, and the exit status is `3` unless it is
-`selected`:
+`lookup` field gives the outcome. The exit status is `3` unless it is
+`selected`, but a non-empty `duplicate_selected_receipts` gives `1` whatever the
+outcome:
 
 | `lookup.outcome` | Meaning |
 | --- | --- |
