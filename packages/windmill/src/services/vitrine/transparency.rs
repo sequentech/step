@@ -28,7 +28,7 @@ use crate::services::protocol_manager::get_event_databases;
 use crate::types::vitrine::TransparencyOutput;
 use anyhow::{anyhow, Context};
 use deadpool_postgres::{Client as DbClient, Transaction};
-use electoral_log::adapters::postgres::PostgresConnection;
+use electoral_log::adapters::postgres::{PostgresConnection, VITRINE_QUEUE_ROLE_ENV};
 use electoral_log::vitrine::{ELECTION_TAG, EVENTS_TAG};
 use sequent_core::ballot::{
     TransparencyMode, VitrineLogPresentation, VitrineLogsPresentation, VitrinePresentation,
@@ -305,6 +305,37 @@ async fn lock_unopened(
     Ok(get_election_event_by_id(tx, tenant_id, election_event_id).await?)
 }
 
+/// The sidecar's `POST /admin/logs` request for one of an event's logs, in
+/// the event's electoral-log database: the `ballots` log takes the ballot
+/// box's entries from its queue, which the sidecar grants to `queue_role`, and
+/// the `events` log takes windmill's statements with its submission token.
+pub fn log_request<'a>(
+    name: LogName,
+    sidecar_name: &'a str,
+    origin: &'a str,
+    database: &'a str,
+    visibility: &'a str,
+    queue_role: Option<&'a str>,
+) -> anyhow::Result<CreateLog<'a>> {
+    let (profile, submission, app_role) = match name {
+        LogName::Ballots => (
+            ELECTION_TAG,
+            Submission::Queue,
+            Some(queue_role.ok_or_else(|| anyhow!("{VITRINE_QUEUE_ROLE_ENV} isn't set"))?),
+        ),
+        LogName::Events => (EVENTS_TAG, Submission::Http, None),
+    };
+    Ok(CreateLog {
+        name: sidecar_name,
+        origin,
+        database,
+        profile,
+        visibility,
+        submission,
+        app_role,
+    })
+}
+
 async fn create_log(
     db: &mut DbClient,
     sidecar: &SidecarClient,
@@ -324,30 +355,14 @@ async fn create_log(
     let origin = config.origin(tenant_id, election_event_id, name)?;
     let visibility = mode.to_string();
     let queue_role = PostgresConnection::vitrine_queue_role();
-    let request = match name {
-        LogName::Ballots => CreateLog {
-            name: &sidecar_name,
-            origin: &origin,
-            database: &database,
-            profile: ELECTION_TAG,
-            visibility: &visibility,
-            submission: Submission::Queue,
-            app_role: Some(
-                queue_role
-                    .as_deref()
-                    .ok_or_else(|| anyhow!("ELECTORAL_LOG_PG_VITRINE_QUEUE_ROLE isn't set"))?,
-            ),
-        },
-        LogName::Events => CreateLog {
-            name: &sidecar_name,
-            origin: &origin,
-            database: &database,
-            profile: EVENTS_TAG,
-            visibility: &visibility,
-            submission: Submission::Http,
-            app_role: None,
-        },
-    };
+    let request = log_request(
+        name,
+        &sidecar_name,
+        &origin,
+        &database,
+        &visibility,
+        queue_role.as_deref(),
+    )?;
     let created = sidecar.create_log(&request).await?;
     if name == LogName::Events && created.token.is_none() {
         return Err(anyhow!("The sidecar gave the events log no submission token").into());
@@ -656,6 +671,37 @@ mod tests {
             TransparencyMode::PRIVATE
         );
         assert!(transparency_mode(&event(Some(json!({ "transparency": "open" })))).is_err());
+    }
+
+    #[test]
+    fn the_ballots_log_takes_its_queue_and_the_events_log_http() {
+        let ballots = log_request(
+            LogName::Ballots,
+            "t/e/ballots",
+            "vote.localhost/t/e/ballots",
+            "electoral_log_e",
+            "public",
+            Some("vitrine_queue"),
+        )
+        .unwrap();
+        assert_eq!(
+            serde_json::to_value(&ballots).unwrap(),
+            json!({
+                "name": "t/e/ballots",
+                "origin": "vote.localhost/t/e/ballots",
+                "database": "electoral_log_e",
+                "profile": "vitrine/election/v1",
+                "visibility": "public",
+                "submission": "queue",
+                "app_role": "vitrine_queue",
+            })
+        );
+        assert!(log_request(LogName::Ballots, "n", "o", "d", "public", None).is_err());
+        let events = log_request(LogName::Events, "n", "o", "d", "private", None).unwrap();
+        let events = serde_json::to_value(&events).unwrap();
+        assert_eq!(events["profile"], "vitrine/events/v1");
+        assert_eq!(events["submission"], "http");
+        assert_eq!(events.get("app_role"), None);
     }
 
     #[test]
