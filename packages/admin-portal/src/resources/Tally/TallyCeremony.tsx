@@ -152,7 +152,8 @@ export const TallyCeremony: React.FC = () => {
     const [selectedTrustees, setSelectedTrustees] = useState<boolean>(false)
     const [keysCeremonyId, setKeysCeremonyId] = useState<string | undefined>(undefined)
     const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
-    const [isTallyCompleted, setIsTallyCompleted] = useState<boolean>(false)
+    const [completedTallyId, setCompletedTallyId] = useState<string | null>(null)
+    const isTallyCompleted = !!tallyId && completedTallyId === tallyId
     const [isConfirming, setIsConfirming] = useState<boolean>(false)
     const [isCreating, setIsCreating] = useState(false)
     const allowTallyCeremonyCreation = useRef<boolean>(true)
@@ -269,26 +270,27 @@ export const TallyCeremony: React.FC = () => {
         }
     )
 
-    const {data: tallySessionExecutions} = useGetList<Sequent_Backend_Tally_Session_Execution>(
-        "sequent_backend_tally_session_execution",
-        {
-            pagination: {page: 1, perPage: 1},
-            sort: {field: "created_at", order: "DESC"},
-            filter: {
-                tally_session_id: tallyId,
-                tenant_id: tenantId,
+    const {data: tallySessionExecutions, refetch: refetchTallySessionExecutions} =
+        useGetList<Sequent_Backend_Tally_Session_Execution>(
+            "sequent_backend_tally_session_execution",
+            {
+                pagination: {page: 1, perPage: 1},
+                sort: {field: "created_at", order: "DESC"},
+                filter: {
+                    tally_session_id: tallyId,
+                    tenant_id: tenantId,
+                },
             },
-        },
-        {
-            refetchInterval: isTallyCompleted
-                ? undefined
-                : globalSettings.QUERY_FAST_POLL_INTERVAL_MS,
-            refetchOnWindowFocus: false,
-            refetchOnReconnect: false,
-            refetchOnMount: false,
-            enabled: !!tallyId && !!tenantId,
-        }
-    )
+            {
+                refetchInterval: isTallyCompleted
+                    ? undefined
+                    : globalSettings.QUERY_FAST_POLL_INTERVAL_MS,
+                refetchOnWindowFocus: false,
+                refetchOnReconnect: false,
+                refetchOnMount: false,
+                enabled: !!tallyId && !!tenantId,
+            }
+        )
 
     let resultsEventId = tallySessionExecutions?.[0]?.results_event_id ?? null
 
@@ -373,25 +375,48 @@ export const TallyCeremony: React.FC = () => {
         currentKeysCeremony?.settings?.policy ===
         EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES
 
+    const isPostTallyPending = tallySession?.annotations?.is_post_task_completed === false
+
     useEffect(() => {
-        if (tallySession?.is_execution_completed && !isTallyCompleted) {
-            // Only mark as completed if we have the resultsEventId
-            if (resultsEventId) {
-                // The results event can be created before its documents are uploaded. Refresh it
-                // once the execution is complete so export actions do not retain that stale state.
-                void refetch()
-                setIsTallyCompleted(true)
-            } else {
-                // Force a refetch if we don't have resultsEventId yet
-                refetchTallySession()
+        if (!tallyId || tallySession?.id !== tallyId) return
+        if (!tallySession.is_execution_completed) {
+            setCompletedTallyId(null)
+            return
+        }
+        if (isTallyCompleted) return
+
+        let active = true
+        const refreshCompletedResults = async () => {
+            try {
+                // Session and execution polls can finish in either order. Fetch the
+                // execution after completion so a partial snapshot cannot be frozen.
+                const execution = await refetchTallySessionExecutions({throwOnError: true})
+                if (
+                    !active ||
+                    !resultsEventId ||
+                    execution.data?.[0]?.results_event_id !== resultsEventId
+                )
+                    return
+                await refetch({throwOnError: true})
+                // PDF generation appends another execution with a new SQLite document.
+                if (active && !isPostTallyPending) setCompletedTallyId(tallyId)
+            } catch {
+                // Keep polling if the final execution or its documents could not be read.
             }
         }
+        void refreshCompletedResults()
+        return () => {
+            active = false
+        }
     }, [
+        tallyId,
+        tallySession?.id,
         tallySession?.is_execution_completed,
+        isPostTallyPending,
         isTallyCompleted,
         resultsEventId,
         refetch,
-        refetchTallySession,
+        refetchTallySessionExecutions,
     ])
 
     useEffect(() => {
