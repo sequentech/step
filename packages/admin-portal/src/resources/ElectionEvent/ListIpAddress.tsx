@@ -23,6 +23,7 @@ import {FormStyles} from "@/components/styles/FormStyles"
 import {ListActions} from "@/components/ListActions"
 import {Sequent_Backend_Election} from "@/gql/graphql"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
+import {useNumberFormat} from "@sequentech/ui-core"
 
 const ListStyle = styled(List)`
     button.RaFilterFormInput-hideButton {
@@ -37,6 +38,7 @@ export interface ListIpAddressProps {
 export interface RecordVoteCloudflareData {
     ip?: string
     country?: string
+    vote_count?: number | null
 }
 
 const Empty: React.FC = () => {
@@ -56,6 +58,7 @@ export const ListIpAddress: React.FC<ListIpAddressProps> = ({aside}) => {
     const [tenantId] = useTenantStore()
     const {globalSettings} = useContext(SettingsContext)
     const aliasRenderer = useAliasRenderer()
+    const {formatNumber} = useNumberFormat()
     const record = useRecordContext<Sequent_Backend_Election>()
 
     const electionEventId = record?.election_event_id ?? record?.id
@@ -132,10 +135,13 @@ export const ListIpAddress: React.FC<ListIpAddressProps> = ({aside}) => {
                             record.country ? record.country : "-"
                         }
                     />
-                    <TextField
+                    <FunctionField
                         source="vote_count"
                         sortable={false}
                         label={t(`dashboard.ipAddress.VoteCount`)}
+                        render={(record: RecordVoteCloudflareData) =>
+                            formatNumber(record.vote_count)
+                        }
                     />
                     <FunctionField
                         source="election_presentation"
