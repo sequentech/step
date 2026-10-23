@@ -23,6 +23,13 @@
     "paths": {
       "@/*": [
         "./src/*"
+      ],
+      "@vitrine/verify": [
+        "../node_modules/@vitrine/verify/dist/index.d.ts"
+      ],
+      "@vitrine/verify/*": [
+        "../node_modules/@vitrine/verify/dist/*/index.d.ts",
+        "../node_modules/@vitrine/verify/dist/*.d.ts"
       ]
     }
   },

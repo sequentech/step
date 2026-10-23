@@ -135,6 +135,15 @@ SPDX-License-Identifier = "Apache-2.0"
 
 [[annotations]]
 path = [
+	"packages/vendor-npm/vitrine-verify.tgz",
+	"packages/vendor-npm/vitrine-ui.tgz"
+]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Sequent Tech Inc <legal@sequentech.io>"
+SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
+path = [
     "packages/trellis/.gitignore",
     "packages/trellis/Cargo.toml",
     "packages/trellis/README.md",

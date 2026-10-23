@@ -2281,6 +2281,11 @@
   resolved "https://registry.yarnpkg.com/@fastify/busboy/-/busboy-3.2.0.tgz#13ed8212f3b9ba697611529d15347f8528058cea"
   integrity sha512-m9FVDXU3GT2ITSe0UaMA5rU3QkfC/UXtCU8y0gSN/GugTqtVldOBWIB5V6V3sbmenVZUIpU6f+mPEO2+m5iTaA==
 
+"@fluent/bundle@^0.19.1":
+  version "0.19.1"
+  resolved "https://registry.yarnpkg.com/@fluent/bundle/-/bundle-0.19.1.tgz#d9931a0be577fc6ebebd97d73c6d15d20fa5f54c"
+  integrity sha512-SWJLZrPamDPsJlFFOW1nkgN0j0rbPbmSdmK0XAoXlyqKieLtMVl4vzng3aR5pwKoUx0scug8+YY2oct3fdfy9A==
+
 "@fortawesome/fontawesome-common-types@7.2.0":
   version "7.2.0"
   resolved "https://registry.yarnpkg.com/@fortawesome/fontawesome-common-types/-/fontawesome-common-types-7.2.0.tgz#ae54831ab5974bc1a64e8b07410f2da2b4abf87f"
@@ -4353,10 +4358,22 @@
     rimraf "^3.0.2"
     vite-plugin-nightwatch "^0.4.6"
 
+"@noble/curves@^2.4.0":
+  version "2.4.0"
+  resolved "https://registry.yarnpkg.com/@noble/curves/-/curves-2.4.0.tgz#367c869bfd790c3a2248152562f255b5f8898b74"
+  integrity sha512-P4/62zrgfH33CneE3Dn4WhJVA22YUU0eR51wKIan4NVRvwsA0YnPTwWGpNbpuacSujmSFLvyzpyuR30+fbq2Ew==
+  dependencies:
+    "@noble/hashes" "2.4.0"
+
 "@noble/hashes@1.4.0":
   version "1.4.0"
   resolved "https://registry.yarnpkg.com/@noble/hashes/-/hashes-1.4.0.tgz#45814aa329f30e4fe0ba49426f49dfccdd066426"
   integrity sha512-V1JJ1WTRUqHHrOSh597hURcMqVKVGL/ea3kv0gSnEdsEZ0/+VyPghM1lMNGc00z7CIQorSvbKpuJkxvuHbvdbg==
+
+"@noble/hashes@2.4.0", "@noble/hashes@^2.4.0":
+  version "2.4.0"
+  resolved "https://registry.yarnpkg.com/@noble/hashes/-/hashes-2.4.0.tgz#e6a3e98edbed3c8659b28bb8f9b18ca02ec8ea4b"
+  integrity sha512-X5XaVWZIBCT7HHZGm5I7ZQXDwLG+bGXuSrMQAW+7Zvl87h1kmc1ZB1VSRJcpUfoUrGQp4Fkoxm5kZ+Ms+aW+eA==
 
 "@nodelib/fs.scandir@2.1.5":
   version "2.1.5"
@@ -6865,6 +6882,21 @@
     "@vitest/pretty-format" "2.1.9"
     loupe "^3.1.2"
     tinyrainbow "^1.2.0"
+
+"@vitrine/ui@file:vendor-npm/vitrine-ui.tgz":
+  version "0.1.0"
+  uid eff2be2df6d034f0c3d06fb2021ed655ba99ba49
+  resolved "file:vendor-npm/vitrine-ui.tgz#eff2be2df6d034f0c3d06fb2021ed655ba99ba49"
+  dependencies:
+    "@fluent/bundle" "^0.19.1"
+    "@vitrine/verify" "0.1.0"
+
+"@vitrine/verify@0.1.0", "@vitrine/verify@file:./vendor-npm/vitrine-verify.tgz", "@vitrine/verify@file:vendor-npm/vitrine-verify.tgz":
+  version "0.1.0"
+  resolved "file:./vendor-npm/vitrine-verify.tgz#2452c4515bde643759d507cbeeac5fe070fcce74"
+  dependencies:
+    "@noble/curves" "^2.4.0"
+    "@noble/hashes" "^2.4.0"
 
 "@vue/test-utils@^2.3.2":
   version "2.4.6"

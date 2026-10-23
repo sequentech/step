@@ -5,11 +5,19 @@
 /** @type {import('jest').Config} */
 module.exports = {
     testEnvironment: "node",
-    testMatch: ["<rootDir>/src/**/*.test.ts"],
+    testMatch: ["<rootDir>/src/**/*.test.ts", "<rootDir>/src/**/*.test.tsx"],
+    // @vitrine/ui exports its elements only under the "import" condition,
+    // which Jest's CommonJS resolver doesn't match.
     moduleNameMapper: {
         "^@/(.*)$": "<rootDir>/src/$1",
         "^@sequentech/ui-core$": "<rootDir>/../ui-core/src/types/VotingChannel.ts",
+        "^@vitrine/ui$": "<rootDir>/../node_modules/@vitrine/ui/dist/index.js",
+        "^@vitrine/ui/(receipt|status|proof-steps|chain|alert|badge)$":
+            "<rootDir>/../node_modules/@vitrine/ui/dist/$1.js",
     },
+    // The vendored Vitrine packages and @noble, which @vitrine/verify uses, ship
+    // only ES modules, so they are transformed like the app's own code.
+    transformIgnorePatterns: ["/node_modules/(?!(@vitrine|@noble)/)"],
     transform: {
         "^.+\\.[jt]sx?$": [
             "babel-jest",

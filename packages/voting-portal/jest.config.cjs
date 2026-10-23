@@ -12,9 +12,17 @@ module.exports = {
     setupFilesAfterEnv: ["<rootDir>/src/setupTests.ts"],
     // @sequentech/ui-core resolves to its built dist/ bundle, which a clean
     // `yarn install` doesn't produce; see src/__mocks__/uiCoreTestEntry.ts.
+    // @vitrine/ui exports its elements only under the "import" condition,
+    // which Jest's CommonJS resolver doesn't match.
     moduleNameMapper: {
         "^@sequentech/ui-core$": "<rootDir>/src/__mocks__/uiCoreTestEntry.ts",
+        "^@vitrine/ui$": "<rootDir>/../node_modules/@vitrine/ui/dist/index.js",
+        "^@vitrine/ui/(receipt|status|proof-steps|chain|alert|badge)$":
+            "<rootDir>/../node_modules/@vitrine/ui/dist/$1.js",
     },
+    // The vendored Vitrine packages and @noble, which @vitrine/verify uses, ship
+    // only ES modules, so they are transformed like the app's own code.
+    transformIgnorePatterns: ["/node_modules/(?!(@vitrine|@noble)/)"],
     transform: {
         "^.+\\.(t|j)sx?$": [
             "@swc/jest",

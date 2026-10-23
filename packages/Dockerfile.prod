@@ -13,6 +13,7 @@ COPY ./voting-portal ./voting-portal
 COPY ./admin-portal ./admin-portal
 COPY ./ballot-verifier ./ballot-verifier
 COPY ./results-portal ./results-portal
+COPY ./vendor-npm ./vendor-npm
 COPY ./package.json ./package.json
 COPY ./yarn.lock ./yarn.lock
 
