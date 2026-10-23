@@ -140,13 +140,11 @@ impl CountingAlgorithm for PluralityAtLarge {
             }
         };
 
-        let aggregate = self
-            .tally
+        self.tally
             .tally_sheet_results
             .iter()
-            .fold(contest_result, |acc, x| acc.aggregate(x, false));
-
-        Ok(aggregate)
+            .try_fold(contest_result, |acc, x| acc.aggregate(x, false))
+            .map_err(|error| Error::UnexpectedError(error.to_string()))
     }
 }
 
