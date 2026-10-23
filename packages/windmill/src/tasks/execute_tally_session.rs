@@ -1360,6 +1360,17 @@ pub async fn execute_tally_session_wrapped(
         return Ok(());
     };
 
+    // Late nudges must stop before fallible key/template reads can append an
+    // error execution that displaces the completed numeric snapshot.
+    if get_execution_status(
+        tally_session.execution_status.clone(),
+        tally_session.is_execution_completed,
+    )
+    .is_none()
+    {
+        return Ok(());
+    }
+
     let keys_ceremony = get_keys_ceremony_by_id(
         hasura_transaction,
         &tenant_id,

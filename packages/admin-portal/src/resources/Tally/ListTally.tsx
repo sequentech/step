@@ -419,7 +419,13 @@ export const ListTally: React.FC<ListAreaProps> = () => {
                 </Tooltip>
             ),
             action: recountAdminTally,
-            showAction: (id: Identifier) => canRecountTally && isNumericallyComplete(record),
+            showAction: (id: Identifier) =>
+                canRecountTally &&
+                isNumericallyComplete({
+                    is_execution_completed: record.is_execution_completed,
+                    execution_status: record.execution_status,
+                    annotations: record.annotations,
+                }),
         },
         {
             icon:
