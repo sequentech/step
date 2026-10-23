@@ -256,9 +256,9 @@ export const ResultsDataLoader: React.FC<ResultsDataLoaderProps> = ({
 
     useEffect(() => {
         if (allQueriesReady && !dbError) {
-            setTallyQueryData(tallyData)
+            setTallyQueryData({...tallyData, sqliteDocumentId: databaseName})
         }
-    }, [allQueriesReady, dbError, setTallyQueryData, tallyData])
+    }, [allQueriesReady, databaseName, dbError, setTallyQueryData, tallyData])
 
     return <></>
 }

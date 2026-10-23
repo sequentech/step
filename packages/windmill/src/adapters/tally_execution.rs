@@ -17,6 +17,7 @@ use sequent_core::types::hasura::core::KeysCeremony;
 
 pub struct PgTallyExecution<'a> {
     pub transaction: &'a Transaction<'a>,
+    pub readiness: Option<(Vec<(String, String, String)>, bool)>,
 }
 
 impl ExecutionCeremonies for PgTallyExecution<'_> {
@@ -50,7 +51,7 @@ impl ExecutionLogs for TallyExecutionLogs {
 
 impl ExecutionLedger for PgTallyExecution<'_> {
     async fn insert(&self, scope: &ExecutionScope, record: ExecutionRecord) -> Result<()> {
-        tally_session_execution::insert_tally_session_execution(
+        let execution = tally_session_execution::insert_tally_session_execution(
             self.transaction,
             &scope.tenant_id,
             &scope.election_event_id,
@@ -63,6 +64,23 @@ impl ExecutionLedger for PgTallyExecution<'_> {
             record.run_reason,
         )
         .await?;
+        if let Some((expected, require_all)) = &self.readiness {
+            let session = tally_session::get_tally_session_by_id(
+                self.transaction,
+                &scope.tenant_id,
+                &scope.election_event_id,
+                &scope.tally_session_id,
+            )
+            .await?;
+            crate::services::ceremonies::result_readiness::record_result_origins(
+                self.transaction,
+                &execution,
+                &session.election_ids.unwrap_or_default(),
+                expected,
+                *require_all,
+            )
+            .await?;
+        }
         Ok(())
     }
     async fn await_input(&self, scope: &ExecutionScope) -> Result<()> {
@@ -78,11 +96,20 @@ impl ExecutionLedger for PgTallyExecution<'_> {
         Ok(())
     }
     async fn complete(&self, scope: &ExecutionScope) -> Result<()> {
+        let execution = tally_session_execution::get_last_tally_session_execution(
+            self.transaction,
+            &scope.tenant_id,
+            &scope.election_event_id,
+            &scope.tally_session_id,
+        )
+        .await?
+        .ok_or(anyhow!("Missing tally execution"))?;
         tally_ceremony::set_tally_session_completed(
             self.transaction,
             scope.tenant_id.clone(),
             scope.election_event_id.clone(),
             scope.tally_session_id.clone(),
+            execution.results_event_id.is_some(),
         )
         .await?;
         Ok(())
