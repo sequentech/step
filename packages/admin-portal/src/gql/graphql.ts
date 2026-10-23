@@ -1433,12 +1433,6 @@ export type ResolveResultsPublicationOutput = {
   tenant_id: Scalars['String']['output'];
 };
 
-export enum RestorePrivateKeyOutcome {
-  AlreadyRestored = 'ALREADY_RESTORED',
-  Invalid = 'INVALID',
-  Restored = 'RESTORED'
-}
-
 export enum ResultsPublicationStatus {
   Failed = 'Failed',
   Published = 'Published',
@@ -1886,7 +1880,7 @@ export type VotersByChannel = {
 export type VotesInfo = {
   __typename?: 'VotesInfo';
   election_id: Scalars['String']['output'];
-  last_voted_at: Scalars['String']['output'];
+  last_voted_at?: Maybe<Scalars['String']['output']>;
   num_votes: Scalars['Int']['output'];
 };
 
@@ -2594,9 +2588,11 @@ export type Mutation_Root = {
   /** Publish selected tally contests to the results website */
   publishResultsWebsite: PublishResultsWebsiteOutput;
   publish_ballot?: Maybe<PublishBallotOutput>;
+  /** Compare tested and official events and sign a successful readiness snapshot */
   readiness_check: Scalars['jsonb']['output'];
   /** receive_ballot */
   receive_ballot?: Maybe<ReceiveBallotOutput>;
+  /** Record a download of a transmission package's file in its log and the election event's log */
   record_transmission_download?: Maybe<RecordTransmissionDownloadOutput>;
   /** Recount a completed tally session with fresh result ids */
   recount_tally_session?: Maybe<StartTallyOutput>;
@@ -2606,6 +2602,7 @@ export type Mutation_Root = {
   replace_messaging_account_credentials?: Maybe<ReplaceMessagingAccountCredentialsOutput>;
   /** Record an authenticated trustee's halt report */
   report_trustee_board: TrusteeReportOutput;
+  /** Authenticated trustee ceremony work */
   request_server_custody: Scalars['jsonb']['output'];
   resolve_voter_pseudonym: BallotPrivacyPayload;
   /** review_tally_sheet */
@@ -2654,6 +2651,7 @@ export type Mutation_Root = {
   signingRevokeCertificate: SigningCertificateIdOutput;
   /** Submit tally resolutions */
   submit_tally_resolution?: Maybe<SubmitTallyResolutionOutput>;
+  /** Authenticated trustee ceremony work */
   submit_trustee_action_result: TrusteeReportOutput;
   /** Replay or discard dead-lettered electoral-log events */
   task_queues_dead_letters: Scalars['jsonb']['output'];
@@ -7823,6 +7821,7 @@ export type Query_Root = {
   /** Processed messages of a task queue over time, by outcome */
   task_queues_throughput: Scalars['jsonb']['output'];
   tenant_plugins: PluginsRouteOutput;
+  /** Authenticated trustee ceremony work */
   trustee_event_updates: Scalars['jsonb']['output'];
 };
 
@@ -10897,11 +10896,13 @@ export type Sequent_Backend_Ballot_Box_Seal = {
   election_event_id: Scalars['uuid']['output'];
   election_id: Scalars['uuid']['output'];
   election_name?: Maybe<Scalars['String']['output']>;
+  failure_posted_at?: Maybe<Scalars['timestamptz']['output']>;
   failure_reason?: Maybe<Scalars['String']['output']>;
   grace_deadline: Scalars['timestamptz']['output'];
   id: Scalars['uuid']['output'];
   last_attempt_at?: Maybe<Scalars['timestamptz']['output']>;
   log_delivery_id?: Maybe<Scalars['String']['output']>;
+  log_entry_id?: Maybe<Scalars['bigint']['output']>;
   log_leaf_index?: Maybe<Scalars['bigint']['output']>;
   log_uid?: Maybe<Scalars['uuid']['output']>;
   manifest?: Maybe<Scalars['bytea']['output']>;
@@ -10964,6 +10965,7 @@ export type Sequent_Backend_Ballot_Box_Seal_Avg_Fields = {
   __typename?: 'sequent_backend_ballot_box_seal_avg_fields';
   ballots_counted?: Maybe<Scalars['Float']['output']>;
   ballots_in_box?: Maybe<Scalars['Float']['output']>;
+  log_entry_id?: Maybe<Scalars['Float']['output']>;
   log_leaf_index?: Maybe<Scalars['Float']['output']>;
 };
 
@@ -10984,11 +10986,13 @@ export type Sequent_Backend_Ballot_Box_Seal_Bool_Exp = {
   election_event_id?: InputMaybe<Uuid_Comparison_Exp>;
   election_id?: InputMaybe<Uuid_Comparison_Exp>;
   election_name?: InputMaybe<String_Comparison_Exp>;
+  failure_posted_at?: InputMaybe<Timestamptz_Comparison_Exp>;
   failure_reason?: InputMaybe<String_Comparison_Exp>;
   grace_deadline?: InputMaybe<Timestamptz_Comparison_Exp>;
   id?: InputMaybe<Uuid_Comparison_Exp>;
   last_attempt_at?: InputMaybe<Timestamptz_Comparison_Exp>;
   log_delivery_id?: InputMaybe<String_Comparison_Exp>;
+  log_entry_id?: InputMaybe<Bigint_Comparison_Exp>;
   log_leaf_index?: InputMaybe<Bigint_Comparison_Exp>;
   log_uid?: InputMaybe<Uuid_Comparison_Exp>;
   manifest?: InputMaybe<Bytea_Comparison_Exp>;
@@ -11030,6 +11034,7 @@ export type Sequent_Backend_Ballot_Box_Seal_Delete_Key_Input = {
 export type Sequent_Backend_Ballot_Box_Seal_Inc_Input = {
   ballots_counted?: InputMaybe<Scalars['bigint']['input']>;
   ballots_in_box?: InputMaybe<Scalars['bigint']['input']>;
+  log_entry_id?: InputMaybe<Scalars['bigint']['input']>;
   log_leaf_index?: InputMaybe<Scalars['bigint']['input']>;
 };
 
@@ -11047,11 +11052,13 @@ export type Sequent_Backend_Ballot_Box_Seal_Insert_Input = {
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   election_id?: InputMaybe<Scalars['uuid']['input']>;
   election_name?: InputMaybe<Scalars['String']['input']>;
+  failure_posted_at?: InputMaybe<Scalars['timestamptz']['input']>;
   failure_reason?: InputMaybe<Scalars['String']['input']>;
   grace_deadline?: InputMaybe<Scalars['timestamptz']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   last_attempt_at?: InputMaybe<Scalars['timestamptz']['input']>;
   log_delivery_id?: InputMaybe<Scalars['String']['input']>;
+  log_entry_id?: InputMaybe<Scalars['bigint']['input']>;
   log_leaf_index?: InputMaybe<Scalars['bigint']['input']>;
   log_uid?: InputMaybe<Scalars['uuid']['input']>;
   manifest?: InputMaybe<Scalars['bytea']['input']>;
@@ -11081,11 +11088,13 @@ export type Sequent_Backend_Ballot_Box_Seal_Max_Fields = {
   election_event_id?: Maybe<Scalars['uuid']['output']>;
   election_id?: Maybe<Scalars['uuid']['output']>;
   election_name?: Maybe<Scalars['String']['output']>;
+  failure_posted_at?: Maybe<Scalars['timestamptz']['output']>;
   failure_reason?: Maybe<Scalars['String']['output']>;
   grace_deadline?: Maybe<Scalars['timestamptz']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
   last_attempt_at?: Maybe<Scalars['timestamptz']['output']>;
   log_delivery_id?: Maybe<Scalars['String']['output']>;
+  log_entry_id?: Maybe<Scalars['bigint']['output']>;
   log_leaf_index?: Maybe<Scalars['bigint']['output']>;
   log_uid?: Maybe<Scalars['uuid']['output']>;
   /** The seal record's document: public or private, by the event's Seal Record Publication policy. */
@@ -11113,11 +11122,13 @@ export type Sequent_Backend_Ballot_Box_Seal_Min_Fields = {
   election_event_id?: Maybe<Scalars['uuid']['output']>;
   election_id?: Maybe<Scalars['uuid']['output']>;
   election_name?: Maybe<Scalars['String']['output']>;
+  failure_posted_at?: Maybe<Scalars['timestamptz']['output']>;
   failure_reason?: Maybe<Scalars['String']['output']>;
   grace_deadline?: Maybe<Scalars['timestamptz']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
   last_attempt_at?: Maybe<Scalars['timestamptz']['output']>;
   log_delivery_id?: Maybe<Scalars['String']['output']>;
+  log_entry_id?: Maybe<Scalars['bigint']['output']>;
   log_leaf_index?: Maybe<Scalars['bigint']['output']>;
   log_uid?: Maybe<Scalars['uuid']['output']>;
   /** The seal record's document: public or private, by the event's Seal Record Publication policy. */
@@ -11162,11 +11173,13 @@ export type Sequent_Backend_Ballot_Box_Seal_Order_By = {
   election_event_id?: InputMaybe<Order_By>;
   election_id?: InputMaybe<Order_By>;
   election_name?: InputMaybe<Order_By>;
+  failure_posted_at?: InputMaybe<Order_By>;
   failure_reason?: InputMaybe<Order_By>;
   grace_deadline?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
   last_attempt_at?: InputMaybe<Order_By>;
   log_delivery_id?: InputMaybe<Order_By>;
+  log_entry_id?: InputMaybe<Order_By>;
   log_leaf_index?: InputMaybe<Order_By>;
   log_uid?: InputMaybe<Order_By>;
   manifest?: InputMaybe<Order_By>;
@@ -11216,6 +11229,8 @@ export enum Sequent_Backend_Ballot_Box_Seal_Select_Column {
   /** column name */
   ElectionName = 'election_name',
   /** column name */
+  FailurePostedAt = 'failure_posted_at',
+  /** column name */
   FailureReason = 'failure_reason',
   /** column name */
   GraceDeadline = 'grace_deadline',
@@ -11225,6 +11240,8 @@ export enum Sequent_Backend_Ballot_Box_Seal_Select_Column {
   LastAttemptAt = 'last_attempt_at',
   /** column name */
   LogDeliveryId = 'log_delivery_id',
+  /** column name */
+  LogEntryId = 'log_entry_id',
   /** column name */
   LogLeafIndex = 'log_leaf_index',
   /** column name */
@@ -11264,11 +11281,13 @@ export type Sequent_Backend_Ballot_Box_Seal_Set_Input = {
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   election_id?: InputMaybe<Scalars['uuid']['input']>;
   election_name?: InputMaybe<Scalars['String']['input']>;
+  failure_posted_at?: InputMaybe<Scalars['timestamptz']['input']>;
   failure_reason?: InputMaybe<Scalars['String']['input']>;
   grace_deadline?: InputMaybe<Scalars['timestamptz']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   last_attempt_at?: InputMaybe<Scalars['timestamptz']['input']>;
   log_delivery_id?: InputMaybe<Scalars['String']['input']>;
+  log_entry_id?: InputMaybe<Scalars['bigint']['input']>;
   log_leaf_index?: InputMaybe<Scalars['bigint']['input']>;
   log_uid?: InputMaybe<Scalars['uuid']['input']>;
   manifest?: InputMaybe<Scalars['bytea']['input']>;
@@ -11290,6 +11309,7 @@ export type Sequent_Backend_Ballot_Box_Seal_Stddev_Fields = {
   __typename?: 'sequent_backend_ballot_box_seal_stddev_fields';
   ballots_counted?: Maybe<Scalars['Float']['output']>;
   ballots_in_box?: Maybe<Scalars['Float']['output']>;
+  log_entry_id?: Maybe<Scalars['Float']['output']>;
   log_leaf_index?: Maybe<Scalars['Float']['output']>;
 };
 
@@ -11298,6 +11318,7 @@ export type Sequent_Backend_Ballot_Box_Seal_Stddev_Pop_Fields = {
   __typename?: 'sequent_backend_ballot_box_seal_stddev_pop_fields';
   ballots_counted?: Maybe<Scalars['Float']['output']>;
   ballots_in_box?: Maybe<Scalars['Float']['output']>;
+  log_entry_id?: Maybe<Scalars['Float']['output']>;
   log_leaf_index?: Maybe<Scalars['Float']['output']>;
 };
 
@@ -11306,6 +11327,7 @@ export type Sequent_Backend_Ballot_Box_Seal_Stddev_Samp_Fields = {
   __typename?: 'sequent_backend_ballot_box_seal_stddev_samp_fields';
   ballots_counted?: Maybe<Scalars['Float']['output']>;
   ballots_in_box?: Maybe<Scalars['Float']['output']>;
+  log_entry_id?: Maybe<Scalars['Float']['output']>;
   log_leaf_index?: Maybe<Scalars['Float']['output']>;
 };
 
@@ -11330,11 +11352,13 @@ export type Sequent_Backend_Ballot_Box_Seal_Stream_Cursor_Value_Input = {
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   election_id?: InputMaybe<Scalars['uuid']['input']>;
   election_name?: InputMaybe<Scalars['String']['input']>;
+  failure_posted_at?: InputMaybe<Scalars['timestamptz']['input']>;
   failure_reason?: InputMaybe<Scalars['String']['input']>;
   grace_deadline?: InputMaybe<Scalars['timestamptz']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   last_attempt_at?: InputMaybe<Scalars['timestamptz']['input']>;
   log_delivery_id?: InputMaybe<Scalars['String']['input']>;
+  log_entry_id?: InputMaybe<Scalars['bigint']['input']>;
   log_leaf_index?: InputMaybe<Scalars['bigint']['input']>;
   log_uid?: InputMaybe<Scalars['uuid']['input']>;
   manifest?: InputMaybe<Scalars['bytea']['input']>;
@@ -11356,6 +11380,7 @@ export type Sequent_Backend_Ballot_Box_Seal_Sum_Fields = {
   __typename?: 'sequent_backend_ballot_box_seal_sum_fields';
   ballots_counted?: Maybe<Scalars['bigint']['output']>;
   ballots_in_box?: Maybe<Scalars['bigint']['output']>;
+  log_entry_id?: Maybe<Scalars['bigint']['output']>;
   log_leaf_index?: Maybe<Scalars['bigint']['output']>;
 };
 
@@ -11384,6 +11409,8 @@ export enum Sequent_Backend_Ballot_Box_Seal_Update_Column {
   /** column name */
   ElectionName = 'election_name',
   /** column name */
+  FailurePostedAt = 'failure_posted_at',
+  /** column name */
   FailureReason = 'failure_reason',
   /** column name */
   GraceDeadline = 'grace_deadline',
@@ -11393,6 +11420,8 @@ export enum Sequent_Backend_Ballot_Box_Seal_Update_Column {
   LastAttemptAt = 'last_attempt_at',
   /** column name */
   LogDeliveryId = 'log_delivery_id',
+  /** column name */
+  LogEntryId = 'log_entry_id',
   /** column name */
   LogLeafIndex = 'log_leaf_index',
   /** column name */
@@ -11443,6 +11472,7 @@ export type Sequent_Backend_Ballot_Box_Seal_Var_Pop_Fields = {
   __typename?: 'sequent_backend_ballot_box_seal_var_pop_fields';
   ballots_counted?: Maybe<Scalars['Float']['output']>;
   ballots_in_box?: Maybe<Scalars['Float']['output']>;
+  log_entry_id?: Maybe<Scalars['Float']['output']>;
   log_leaf_index?: Maybe<Scalars['Float']['output']>;
 };
 
@@ -11451,6 +11481,7 @@ export type Sequent_Backend_Ballot_Box_Seal_Var_Samp_Fields = {
   __typename?: 'sequent_backend_ballot_box_seal_var_samp_fields';
   ballots_counted?: Maybe<Scalars['Float']['output']>;
   ballots_in_box?: Maybe<Scalars['Float']['output']>;
+  log_entry_id?: Maybe<Scalars['Float']['output']>;
   log_leaf_index?: Maybe<Scalars['Float']['output']>;
 };
 
@@ -11459,6 +11490,7 @@ export type Sequent_Backend_Ballot_Box_Seal_Variance_Fields = {
   __typename?: 'sequent_backend_ballot_box_seal_variance_fields';
   ballots_counted?: Maybe<Scalars['Float']['output']>;
   ballots_in_box?: Maybe<Scalars['Float']['output']>;
+  log_entry_id?: Maybe<Scalars['Float']['output']>;
   log_leaf_index?: Maybe<Scalars['Float']['output']>;
 };
 
@@ -23976,6 +24008,7 @@ export type Sequent_Backend_Scheduled_Event = {
   event_processor?: Maybe<Scalars['String']['output']>;
   id: Scalars['uuid']['output'];
   labels?: Maybe<Scalars['jsonb']['output']>;
+  participation_authorization?: Maybe<Scalars['jsonb']['output']>;
   stopped_at?: Maybe<Scalars['timestamptz']['output']>;
   task_id?: Maybe<Scalars['String']['output']>;
   tenant_id?: Maybe<Scalars['uuid']['output']>;
@@ -24002,6 +24035,12 @@ export type Sequent_Backend_Scheduled_EventEvent_PayloadArgs = {
 
 /** columns and relationships of "sequent_backend.scheduled_event" */
 export type Sequent_Backend_Scheduled_EventLabelsArgs = {
+  path?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+/** columns and relationships of "sequent_backend.scheduled_event" */
+export type Sequent_Backend_Scheduled_EventParticipation_AuthorizationArgs = {
   path?: InputMaybe<Scalars['String']['input']>;
 };
 
@@ -24033,6 +24072,7 @@ export type Sequent_Backend_Scheduled_Event_Append_Input = {
   cron_config?: InputMaybe<Scalars['jsonb']['input']>;
   event_payload?: InputMaybe<Scalars['jsonb']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
+  participation_authorization?: InputMaybe<Scalars['jsonb']['input']>;
 };
 
 /** Boolean expression to filter rows from the table "sequent_backend.scheduled_event". All fields are combined with a logical 'AND'. */
@@ -24050,6 +24090,7 @@ export type Sequent_Backend_Scheduled_Event_Bool_Exp = {
   event_processor?: InputMaybe<String_Comparison_Exp>;
   id?: InputMaybe<Uuid_Comparison_Exp>;
   labels?: InputMaybe<Jsonb_Comparison_Exp>;
+  participation_authorization?: InputMaybe<Jsonb_Comparison_Exp>;
   stopped_at?: InputMaybe<Timestamptz_Comparison_Exp>;
   task_id?: InputMaybe<String_Comparison_Exp>;
   tenant_id?: InputMaybe<Uuid_Comparison_Exp>;
@@ -24069,6 +24110,7 @@ export type Sequent_Backend_Scheduled_Event_Delete_At_Path_Input = {
   cron_config?: InputMaybe<Array<Scalars['String']['input']>>;
   event_payload?: InputMaybe<Array<Scalars['String']['input']>>;
   labels?: InputMaybe<Array<Scalars['String']['input']>>;
+  participation_authorization?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
 /** delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array */
@@ -24077,6 +24119,7 @@ export type Sequent_Backend_Scheduled_Event_Delete_Elem_Input = {
   cron_config?: InputMaybe<Scalars['Int']['input']>;
   event_payload?: InputMaybe<Scalars['Int']['input']>;
   labels?: InputMaybe<Scalars['Int']['input']>;
+  participation_authorization?: InputMaybe<Scalars['Int']['input']>;
 };
 
 /** delete key/value pair or string element. key/value pairs are matched based on their key value */
@@ -24085,6 +24128,7 @@ export type Sequent_Backend_Scheduled_Event_Delete_Key_Input = {
   cron_config?: InputMaybe<Scalars['String']['input']>;
   event_payload?: InputMaybe<Scalars['String']['input']>;
   labels?: InputMaybe<Scalars['String']['input']>;
+  participation_authorization?: InputMaybe<Scalars['String']['input']>;
 };
 
 /** input type for inserting data into table "sequent_backend.scheduled_event" */
@@ -24099,6 +24143,7 @@ export type Sequent_Backend_Scheduled_Event_Insert_Input = {
   event_processor?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
+  participation_authorization?: InputMaybe<Scalars['jsonb']['input']>;
   stopped_at?: InputMaybe<Scalars['timestamptz']['input']>;
   task_id?: InputMaybe<Scalars['String']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
@@ -24160,6 +24205,7 @@ export type Sequent_Backend_Scheduled_Event_Order_By = {
   event_processor?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
   labels?: InputMaybe<Order_By>;
+  participation_authorization?: InputMaybe<Order_By>;
   stopped_at?: InputMaybe<Order_By>;
   task_id?: InputMaybe<Order_By>;
   tenant_id?: InputMaybe<Order_By>;
@@ -24176,6 +24222,7 @@ export type Sequent_Backend_Scheduled_Event_Prepend_Input = {
   cron_config?: InputMaybe<Scalars['jsonb']['input']>;
   event_payload?: InputMaybe<Scalars['jsonb']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
+  participation_authorization?: InputMaybe<Scalars['jsonb']['input']>;
 };
 
 /** select columns of table "sequent_backend.scheduled_event" */
@@ -24201,6 +24248,8 @@ export enum Sequent_Backend_Scheduled_Event_Select_Column {
   /** column name */
   Labels = 'labels',
   /** column name */
+  ParticipationAuthorization = 'participation_authorization',
+  /** column name */
   StoppedAt = 'stopped_at',
   /** column name */
   TaskId = 'task_id',
@@ -24220,6 +24269,7 @@ export type Sequent_Backend_Scheduled_Event_Set_Input = {
   event_processor?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
+  participation_authorization?: InputMaybe<Scalars['jsonb']['input']>;
   stopped_at?: InputMaybe<Scalars['timestamptz']['input']>;
   task_id?: InputMaybe<Scalars['String']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
@@ -24245,6 +24295,7 @@ export type Sequent_Backend_Scheduled_Event_Stream_Cursor_Value_Input = {
   event_processor?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
+  participation_authorization?: InputMaybe<Scalars['jsonb']['input']>;
   stopped_at?: InputMaybe<Scalars['timestamptz']['input']>;
   task_id?: InputMaybe<Scalars['String']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
@@ -24272,6 +24323,8 @@ export enum Sequent_Backend_Scheduled_Event_Update_Column {
   Id = 'id',
   /** column name */
   Labels = 'labels',
+  /** column name */
+  ParticipationAuthorization = 'participation_authorization',
   /** column name */
   StoppedAt = 'stopped_at',
   /** column name */
@@ -31154,6 +31207,7 @@ export type Sequent_Backend_Tasks_Execution = {
   labels?: Maybe<Scalars['jsonb']['output']>;
   logs?: Maybe<Scalars['json']['output']>;
   name: Scalars['String']['output'];
+  participation_authorization?: Maybe<Scalars['jsonb']['output']>;
   start_at: Scalars['timestamptz']['output'];
   /** An object relationship */
   tenant: Sequent_Backend_Tenant;
@@ -31176,6 +31230,12 @@ export type Sequent_Backend_Tasks_ExecutionLabelsArgs = {
 
 /** columns and relationships of "sequent_backend.tasks_execution" */
 export type Sequent_Backend_Tasks_ExecutionLogsArgs = {
+  path?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+/** columns and relationships of "sequent_backend.tasks_execution" */
+export type Sequent_Backend_Tasks_ExecutionParticipation_AuthorizationArgs = {
   path?: InputMaybe<Scalars['String']['input']>;
 };
 
@@ -31205,6 +31265,7 @@ export type Sequent_Backend_Tasks_Execution_Aggregate_FieldsCountArgs = {
 export type Sequent_Backend_Tasks_Execution_Append_Input = {
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
+  participation_authorization?: InputMaybe<Scalars['jsonb']['input']>;
 };
 
 /** Boolean expression to filter rows from the table "sequent_backend.tasks_execution". All fields are combined with a logical 'AND'. */
@@ -31222,6 +31283,7 @@ export type Sequent_Backend_Tasks_Execution_Bool_Exp = {
   labels?: InputMaybe<Jsonb_Comparison_Exp>;
   logs?: InputMaybe<Json_Comparison_Exp>;
   name?: InputMaybe<String_Comparison_Exp>;
+  participation_authorization?: InputMaybe<Jsonb_Comparison_Exp>;
   start_at?: InputMaybe<Timestamptz_Comparison_Exp>;
   tenant?: InputMaybe<Sequent_Backend_Tenant_Bool_Exp>;
   tenant_id?: InputMaybe<Uuid_Comparison_Exp>;
@@ -31238,18 +31300,21 @@ export enum Sequent_Backend_Tasks_Execution_Constraint {
 export type Sequent_Backend_Tasks_Execution_Delete_At_Path_Input = {
   annotations?: InputMaybe<Array<Scalars['String']['input']>>;
   labels?: InputMaybe<Array<Scalars['String']['input']>>;
+  participation_authorization?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
 /** delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array */
 export type Sequent_Backend_Tasks_Execution_Delete_Elem_Input = {
   annotations?: InputMaybe<Scalars['Int']['input']>;
   labels?: InputMaybe<Scalars['Int']['input']>;
+  participation_authorization?: InputMaybe<Scalars['Int']['input']>;
 };
 
 /** delete key/value pair or string element. key/value pairs are matched based on their key value */
 export type Sequent_Backend_Tasks_Execution_Delete_Key_Input = {
   annotations?: InputMaybe<Scalars['String']['input']>;
   labels?: InputMaybe<Scalars['String']['input']>;
+  participation_authorization?: InputMaybe<Scalars['String']['input']>;
 };
 
 /** input type for inserting data into table "sequent_backend.tasks_execution" */
@@ -31264,6 +31329,7 @@ export type Sequent_Backend_Tasks_Execution_Insert_Input = {
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   logs?: InputMaybe<Scalars['json']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
+  participation_authorization?: InputMaybe<Scalars['jsonb']['input']>;
   start_at?: InputMaybe<Scalars['timestamptz']['input']>;
   tenant?: InputMaybe<Sequent_Backend_Tenant_Obj_Rel_Insert_Input>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
@@ -31328,6 +31394,7 @@ export type Sequent_Backend_Tasks_Execution_Order_By = {
   labels?: InputMaybe<Order_By>;
   logs?: InputMaybe<Order_By>;
   name?: InputMaybe<Order_By>;
+  participation_authorization?: InputMaybe<Order_By>;
   start_at?: InputMaybe<Order_By>;
   tenant?: InputMaybe<Sequent_Backend_Tenant_Order_By>;
   tenant_id?: InputMaybe<Order_By>;
@@ -31344,6 +31411,7 @@ export type Sequent_Backend_Tasks_Execution_Pk_Columns_Input = {
 export type Sequent_Backend_Tasks_Execution_Prepend_Input = {
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
+  participation_authorization?: InputMaybe<Scalars['jsonb']['input']>;
 };
 
 /** select columns of table "sequent_backend.tasks_execution" */
@@ -31369,6 +31437,8 @@ export enum Sequent_Backend_Tasks_Execution_Select_Column {
   /** column name */
   Name = 'name',
   /** column name */
+  ParticipationAuthorization = 'participation_authorization',
+  /** column name */
   StartAt = 'start_at',
   /** column name */
   TenantId = 'tenant_id',
@@ -31388,6 +31458,7 @@ export type Sequent_Backend_Tasks_Execution_Set_Input = {
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   logs?: InputMaybe<Scalars['json']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
+  participation_authorization?: InputMaybe<Scalars['jsonb']['input']>;
   start_at?: InputMaybe<Scalars['timestamptz']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
   type?: InputMaybe<Scalars['String']['input']>;
@@ -31413,6 +31484,7 @@ export type Sequent_Backend_Tasks_Execution_Stream_Cursor_Value_Input = {
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   logs?: InputMaybe<Scalars['json']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
+  participation_authorization?: InputMaybe<Scalars['jsonb']['input']>;
   start_at?: InputMaybe<Scalars['timestamptz']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
   type?: InputMaybe<Scalars['String']['input']>;
@@ -31440,6 +31512,8 @@ export enum Sequent_Backend_Tasks_Execution_Update_Column {
   Logs = 'logs',
   /** column name */
   Name = 'name',
+  /** column name */
+  ParticipationAuthorization = 'participation_authorization',
   /** column name */
   StartAt = 'start_at',
   /** column name */
