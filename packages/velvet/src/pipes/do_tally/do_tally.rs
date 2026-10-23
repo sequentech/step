@@ -120,12 +120,14 @@ impl DoTally {
         for (contest_result, tally_sheet) in tally_sheet_results {
             let channel: VotingChannel = tally_sheet.channel.clone().into();
 
-            breakdown_map
-                .entry(channel)
-                .and_modify(|current_result| {
-                    *current_result = current_result.aggregate(contest_result, true);
-                })
-                .or_insert_with(|| contest_result.clone());
+            match breakdown_map.get_mut(&channel) {
+                Some(current_result) => {
+                    *current_result = current_result.aggregate(contest_result, true)?;
+                }
+                None => {
+                    breakdown_map.insert(channel, contest_result.clone());
+                }
+            }
         }
 
         for (channel, contest_result) in breakdown_map {
@@ -153,6 +155,16 @@ fn participation_total(result: &ContestResult) -> Result<u64> {
         .checked_add(result.auditable_votes)
         .and_then(|total| total.checked_add(declined))
         .ok_or_else(|| Error::UnexpectedError("Participation total overflow".to_string()))
+}
+
+pub(crate) fn checked_count_sum(
+    counts: impl IntoIterator<Item = u64>,
+    counter: &str,
+) -> Result<u64> {
+    counts
+        .into_iter()
+        .try_fold(0u64, u64::checked_add)
+        .ok_or_else(|| Error::UnexpectedError(format!("Tally count overflow for {counter}")))
 }
 
 fn merge_votes_by_channel(aggregate: &mut VotesByChannel, counts: &VotesByChannel) -> Result<()> {
@@ -480,12 +492,12 @@ impl Pipe for DoTally {
                                     )?);
                                 }
 
-                                aggregate_result = aggregate_tally_sheet_results.iter().fold(
+                                aggregate_result = aggregate_tally_sheet_results.iter().try_fold(
                                     aggregate_result,
                                     |result, (tally_sheet_result, _)| {
                                         result.aggregate(tally_sheet_result, false)
                                     },
-                                );
+                                )?;
                                 if !has_complete_electronic_channels {
                                     set_votes_by_channel(
                                         &mut aggregate_result,
@@ -568,12 +580,12 @@ impl Pipe for DoTally {
                             }
 
                             let mut area_result_with_tally_sheets =
-                                area_specific_tally_sheet_results.iter().fold(
+                                area_specific_tally_sheet_results.iter().try_fold(
                                     area_tally_results.clone(),
                                     |result, (tally_sheet_result, _)| {
                                         result.aggregate(tally_sheet_result, false)
                                     },
-                                );
+                                )?;
                             if !has_complete_electronic_channels {
                                 set_votes_by_channel(
                                     &mut area_result_with_tally_sheets,
@@ -708,12 +720,11 @@ impl ExplicitImplicitCount {
         ExplicitImplicitCount { explicit, implicit }
     }
 
-    pub fn aggregate(&self, other: &ExplicitImplicitCount) -> ExplicitImplicitCount {
-        let mut sum = *self;
-
-        sum.explicit += other.explicit;
-        sum.implicit += other.implicit;
-        sum
+    pub fn aggregate(&self, other: &ExplicitImplicitCount) -> Result<ExplicitImplicitCount> {
+        Ok(ExplicitImplicitCount {
+            explicit: checked_count_sum([self.explicit, other.explicit], "explicit")?,
+            implicit: checked_count_sum([self.implicit, other.implicit], "implicit")?,
+        })
     }
 
     pub fn total(&self) -> u64 {
@@ -732,8 +743,8 @@ impl InvalidVotes {
     }
 
     #[instrument]
-    pub fn aggregate(&self, other: &InvalidVotes) -> InvalidVotes {
-        InvalidVotes(self.0.aggregate(&other.0))
+    pub fn aggregate(&self, other: &InvalidVotes) -> Result<InvalidVotes> {
+        Ok(InvalidVotes(self.0.aggregate(&other.0)?))
     }
 }
 
@@ -761,8 +772,8 @@ impl BlankVotes {
     }
 
     #[instrument]
-    pub fn aggregate(&self, other: &BlankVotes) -> BlankVotes {
-        BlankVotes(self.0.aggregate(&other.0))
+    pub fn aggregate(&self, other: &BlankVotes) -> Result<BlankVotes> {
+        Ok(BlankVotes(self.0.aggregate(&other.0)?))
     }
 }
 
@@ -805,20 +816,33 @@ pub struct ExtendedMetricsContest {
 
 impl ExtendedMetricsContest {
     #[instrument(skip_all)]
-    pub fn aggregate(&self, other: &ExtendedMetricsContest) -> ExtendedMetricsContest {
+    pub fn aggregate(&self, other: &ExtendedMetricsContest) -> Result<ExtendedMetricsContest> {
         let mut result = self.clone();
-        result.over_votes += other.over_votes;
-        result.under_votes += other.under_votes;
-        result.votes_actually += other.votes_actually;
-        result.expected_votes += other.expected_votes;
-        result.total_ballots += other.total_ballots;
-        result.total_weight += other.total_weight;
-        result.total_declined_to_vote += other.total_declined_to_vote;
-        result.total_blank_ballots += other.total_blank_ballots;
-        for (channel, count) in &other.votes_by_channel {
-            *result.votes_by_channel.entry(channel.clone()).or_default() += count;
-        }
-        result
+        result.over_votes = checked_count_sum([result.over_votes, other.over_votes], "over_votes")?;
+        result.under_votes =
+            checked_count_sum([result.under_votes, other.under_votes], "under_votes")?;
+        result.votes_actually = checked_count_sum(
+            [result.votes_actually, other.votes_actually],
+            "votes_actually",
+        )?;
+        result.expected_votes = checked_count_sum(
+            [result.expected_votes, other.expected_votes],
+            "expected_votes",
+        )?;
+        result.total_ballots =
+            checked_count_sum([result.total_ballots, other.total_ballots], "total_ballots")?;
+        result.total_weight =
+            checked_count_sum([result.total_weight, other.total_weight], "total_weight")?;
+        result.total_declined_to_vote = checked_count_sum(
+            [result.total_declined_to_vote, other.total_declined_to_vote],
+            "total_declined_to_vote",
+        )?;
+        result.total_blank_ballots = checked_count_sum(
+            [result.total_blank_ballots, other.total_blank_ballots],
+            "total_blank_ballots",
+        )?;
+        merge_votes_by_channel(&mut result.votes_by_channel, &other.votes_by_channel)?;
+        Ok(result)
     }
 }
 
@@ -937,21 +961,34 @@ impl ContestResult {
     }
 
     #[instrument(skip_all)]
-    pub fn aggregate(&self, other: &ContestResult, add_census: bool) -> ContestResult {
+    pub fn aggregate(&self, other: &ContestResult, add_census: bool) -> Result<ContestResult> {
         let mut aggregate = self.clone();
         if add_census {
-            aggregate.census += other.census;
+            aggregate.census = checked_count_sum([aggregate.census, other.census], "census")?;
         }
         let aggregate_metrics = aggregate.extended_metrics.take().unwrap_or_default();
         aggregate.extended_metrics =
-            Some(aggregate_metrics.aggregate(&other.extended_metrics.clone().unwrap_or_default()));
-        aggregate.auditable_votes += other.auditable_votes;
-        aggregate.total_votes += other.total_votes;
-        aggregate.total_valid_votes += other.total_valid_votes;
-        aggregate.total_invalid_votes += other.total_invalid_votes;
-        aggregate.total_blank_votes += other.total_blank_votes;
-        aggregate.blank_votes = aggregate.blank_votes.aggregate(&other.blank_votes);
-        aggregate.invalid_votes = aggregate.invalid_votes.aggregate(&other.invalid_votes);
+            Some(aggregate_metrics.aggregate(&other.extended_metrics.clone().unwrap_or_default())?);
+        aggregate.auditable_votes = checked_count_sum(
+            [aggregate.auditable_votes, other.auditable_votes],
+            "auditable_votes",
+        )?;
+        aggregate.total_votes =
+            checked_count_sum([aggregate.total_votes, other.total_votes], "total_votes")?;
+        aggregate.total_valid_votes = checked_count_sum(
+            [aggregate.total_valid_votes, other.total_valid_votes],
+            "total_valid_votes",
+        )?;
+        aggregate.total_invalid_votes = checked_count_sum(
+            [aggregate.total_invalid_votes, other.total_invalid_votes],
+            "total_invalid_votes",
+        )?;
+        aggregate.total_blank_votes = checked_count_sum(
+            [aggregate.total_blank_votes, other.total_blank_votes],
+            "total_blank_votes",
+        )?;
+        aggregate.blank_votes = aggregate.blank_votes.aggregate(&other.blank_votes)?;
+        aggregate.invalid_votes = aggregate.invalid_votes.aggregate(&other.invalid_votes)?;
 
         let mut candidate_map: HashMap<String, CandidateResult> = HashMap::new();
 
@@ -963,15 +1000,23 @@ impl ContestResult {
         }
 
         for candidate_result in &other.candidate_result {
-            candidate_map
-                .entry(candidate_result.candidate.id.clone())
-                .and_modify(|entry| entry.total_count += candidate_result.total_count)
-                .or_insert_with(|| candidate_result.clone());
+            let candidate_id = &candidate_result.candidate.id;
+            match candidate_map.get_mut(candidate_id) {
+                Some(entry) => {
+                    entry.total_count = checked_count_sum(
+                        [entry.total_count, candidate_result.total_count],
+                        candidate_id,
+                    )?;
+                }
+                None => {
+                    candidate_map.insert(candidate_id.clone(), candidate_result.clone());
+                }
+            }
         }
 
         aggregate.candidate_result = candidate_map.into_values().collect();
 
-        aggregate.calculate_percentages()
+        Ok(aggregate.calculate_percentages())
     }
 }
 
@@ -1059,7 +1104,7 @@ mod tests {
             ..Default::default()
         };
 
-        let aggregate = left.aggregate(&right);
+        let aggregate = left.aggregate(&right).expect("counts fit");
 
         assert_eq!(
             aggregate
@@ -1092,9 +1137,23 @@ mod tests {
             ..Default::default()
         };
 
-        let aggregate = left.aggregate(&right);
+        let aggregate = left.aggregate(&right).expect("counts fit");
 
         assert_eq!(aggregate.total_blank_ballots, 5);
+    }
+
+    #[test]
+    fn extended_metrics_aggregate_rejects_counts_beyond_the_counter_range() {
+        let left = ExtendedMetricsContest {
+            total_ballots: u64::MAX,
+            ..Default::default()
+        };
+        let right = ExtendedMetricsContest {
+            total_ballots: 1,
+            ..Default::default()
+        };
+
+        assert!(left.aggregate(&right).is_err());
     }
 
     #[test]
@@ -1110,7 +1169,9 @@ mod tests {
             ..Default::default()
         };
 
-        let aggregate = ContestResult::default().aggregate(&area_result, true);
+        let aggregate = ContestResult::default()
+            .aggregate(&area_result, true)
+            .expect("counts fit");
 
         assert_eq!(aggregate.auditable_votes, 1);
         assert!(validate_votes_by_channel(&aggregate).is_ok());
