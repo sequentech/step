@@ -22,6 +22,7 @@ use windmill::services::electoral_log::VoterSecretAttributeAction;
 const USER_ID: &str = "report-admin";
 const USERNAME: &str = "report.admin";
 const TEMPLATE_ALIAS: &str = "voter-credentials";
+const LEGACY_TALLY_ID: &str = "00000000-0000-4000-8000-000000000001";
 
 fn reader(event: &Event, permissions: &[Permissions]) -> Claims {
     Claims::new(&event.tenant_id, USER_ID)
@@ -39,7 +40,7 @@ fn render_request(event: &Event, document_id: &str) -> Value {
     json!({
         "document_id": document_id,
         "election_event_id": event.election_event_id,
-        "tally_session_id": "tally-session",
+        "tally_session_id": LEGACY_TALLY_ID,
     })
 }
 
@@ -83,7 +84,7 @@ async fn rendering_an_html_document_queues_its_pdf_behind_a_task_row() {
     assert_ne!(body["document_id"], document_id.as_str());
     assert_eq!(kwargs["task_execution"]["id"], tasks[0].id.as_str());
     assert_eq!(kwargs["executer_username"], USERNAME);
-    assert_eq!(kwargs["tally_session_id"], "tally-session");
+    assert_eq!(kwargs["tally_session_id"], LEGACY_TALLY_ID);
 }
 
 #[rocket::async_test]

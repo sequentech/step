@@ -89,6 +89,7 @@ const meta = {
         <AdminStoryProvider boundary={boundary}>
             <TallyStoryContext data={loadedResults(args)}>
                 <TallyElectionsResults
+                    completeElectionIds={[STORY_IDS.election, STORY_IDS.secondElection]}
                     tenantId={TENANT_ID}
                     electionEventId={EVENT_ID}
                     resultsEventId={TALLY_IDS.resultsEvent}

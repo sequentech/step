@@ -546,9 +546,34 @@ mod postgres_tests {
     /// Uses an empty disposable database; schema creation fails if it is not
     /// empty. All fixtures, including the schema, are rolled back.
     #[tokio::test]
-    #[ignore = "requires RESULT_READINESS_TEST_DATABASE_URL pointing to an empty disposable PostgreSQL database"]
+    #[ignore = "requires a disposable RESULT_READINESS_TEST_DATABASE_URL or ELECTORAL_LOG_TEST_DATABASE_URL server"]
     async fn result_document_origins_enforce_scope_and_preserve_legacy() -> Result<()> {
-        let config = std::env::var("RESULT_READINESS_TEST_DATABASE_URL")?.parse()?;
+        // OVCS coverage includes ignored tests and supplies its existing synthetic
+        // PostgreSQL fixture. Give this contract its own empty database so its
+        // abbreviated schema cannot collide with the other concurrent tests.
+        let dedicated_url = std::env::var("RESULT_READINESS_TEST_DATABASE_URL");
+        let mut config: deadpool_postgres::tokio_postgres::Config = dedicated_url
+            .as_ref()
+            .cloned()
+            .or_else(|_| std::env::var("ELECTORAL_LOG_TEST_DATABASE_URL"))?
+            .parse()?;
+        let fixture = if dedicated_url.is_err() {
+            let admin_pool = deadpool_postgres::Pool::builder(deadpool_postgres::Manager::new(
+                config.clone(),
+                deadpool_postgres::tokio_postgres::NoTls,
+            ))
+            .max_size(1)
+            .build()?;
+            let admin = admin_pool.get().await?;
+            let database = format!("result_readiness_{}", Uuid::new_v4().simple());
+            admin
+                .batch_execute(&format!("CREATE DATABASE \"{database}\""))
+                .await?;
+            config.dbname(&database);
+            Some((admin, database))
+        } else {
+            None
+        };
         let manager =
             deadpool_postgres::Manager::new(config, deadpool_postgres::tokio_postgres::NoTls);
         let pool = deadpool_postgres::Pool::builder(manager)
@@ -824,6 +849,13 @@ CREATE TABLE sequent_backend.tasks_execution (tenant_id uuid, election_event_id 
         .await?
         .is_none());
         tx.rollback().await?;
+        drop(client);
+        pool.close();
+        if let Some((admin, database)) = fixture {
+            admin
+                .batch_execute(&format!("DROP DATABASE \"{database}\" WITH (FORCE)"))
+                .await?;
+        }
         Ok(())
     }
 }
