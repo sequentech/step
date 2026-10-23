@@ -44,6 +44,8 @@ decryption. You must do both checks for a complete audit.
 4. Use [Troubleshooting](04-troubleshooting.md) when a command stops with a message.
 5. Use [Command Reference](05-command-reference.md) for all options of the commands and the
    format of the input files.
+6. Use [File Reference](06-file-reference.md) for the content of the files that the commands
+   write.
 
 ## Procedures
 
