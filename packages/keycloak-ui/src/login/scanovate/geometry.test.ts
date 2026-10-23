@@ -7,12 +7,13 @@ import {
     RING_GAP,
     StageLayout,
     coverTransform,
+    documentCrop,
     ellipseToFrame,
     fitSize,
     overlayFor,
     rectToFrame,
 } from "./geometry"
-import {CaptureStep, type Ellipse, type Rect, type Size} from "./types"
+import {CaptureStep, type Ellipse, type Point, type Rect, type Size} from "./types"
 import {FACE_ANALYSIS_SIDE} from "./frames"
 
 const FACE_SIDE = (video: Size) => fitSize(video, FACE_ANALYSIS_SIDE)
@@ -233,4 +234,58 @@ describe("video step analysis regions", () => {
             expect(overlay.oval!.cx - overlay.oval!.rx).toBeGreaterThanOrEqual(0)
         })
     }
+})
+
+describe("documentCrop", () => {
+    const STILL = {width: 1920, height: 1080}
+    // A passport page 800 × 563 px, centred in a 1080p still, slightly rotated.
+    const CORNERS: Point[] = [
+        [560, 262],
+        [1360, 258],
+        [1362, 821],
+        [558, 818],
+    ]
+
+    it("keeps the document and a margin of its size around it", () => {
+        const crop = documentCrop(CORNERS, STILL, 0.1)
+        // Bounding box 558..1362 × 258..821 (804 × 563), plus 10% on each side,
+        // rounded outwards.
+        expect(crop).toEqual({x: 477, y: 201, width: 966, height: 677})
+    })
+
+    it("makes the document fill most of the photo", () => {
+        const crop = documentCrop(CORNERS, STILL, 0.1)
+        expect(804 / crop.width).toBeGreaterThan(0.8)
+        expect(563 / crop.height).toBeGreaterThan(0.8)
+    })
+
+    it("stays inside the still", () => {
+        const nearEdge: Point[] = [
+            [10, 5],
+            [900, 5],
+            [900, 600],
+            [10, 600],
+        ]
+        const crop = documentCrop(nearEdge, STILL, 0.1)
+        expect(crop.x).toBe(0)
+        expect(crop.y).toBe(0)
+        expect(crop.x + crop.width).toBeLessThanOrEqual(STILL.width)
+        expect(crop.y + crop.height).toBeLessThanOrEqual(STILL.height)
+    })
+
+    it("uses whole pixels", () => {
+        const crop = documentCrop(
+            [
+                [100.4, 100.6],
+                [500.5, 100.2],
+                [500.7, 380.9],
+                [100.1, 380.3],
+            ],
+            STILL,
+            0.1
+        )
+        for (const value of Object.values(crop)) {
+            expect(Number.isInteger(value)).toBe(true)
+        }
+    })
 })

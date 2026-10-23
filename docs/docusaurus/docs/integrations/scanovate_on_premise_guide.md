@@ -21,8 +21,10 @@ Nothing is sent to any third party:
   the face photos our capture page sends to its API, and posts the verdict to
   Keycloak.
 - **Face Match** compares two face images (1:1) and returns their similarity.
-  It finds the face in each image itself, so it can compare a photo of a whole
-  document with a photo of the voter.
+  It finds the face in each image itself, so it can compare a photo of a
+  document with a photo of the voter. It misses a face that is a small part of
+  the image, so the capture page uploads the document cropped to it and a
+  margin, not the whole camera frame.
 - **OCR** reads the fields of a photo of an identity document and validates its
   machine readable zone (MRZ).
 
