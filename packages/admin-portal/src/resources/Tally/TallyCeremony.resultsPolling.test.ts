@@ -17,6 +17,7 @@ let mockTallyData: any = null
 let mockResultsEvents: any[] = []
 let mockCanExportCeremony = false
 const mockCompleteElections = jest.fn()
+const mockEventExport = jest.fn()
 const mockT = (key: string) => key
 const mockEmpty: unknown[] = []
 const mockRecord = {
@@ -176,7 +177,10 @@ jest.mock("./styles", () => ({NextButton: "button", CancelButton: "button"}))
 jest.mock("@/components/ElectionHeader", () => ({__esModule: true, default: () => null}))
 jest.mock("@/components/ListActions", () => ({ListActions: () => null}))
 jest.mock("@/components/tally/ExportElectionMenu", () => ({
-    ExportElectionMenu: () => require("react").createElement("button", null, "Event export"),
+    ExportElectionMenu: (props: any) => {
+        mockEventExport(props.tallySessionId)
+        return require("react").createElement("button", null, "Event export")
+    },
 }))
 jest.mock("./TallyTrusteesList", () => ({TallyTrusteesList: () => null}))
 jest.mock("./TallyStartDate", () => ({TallyStartDate: () => null}))
@@ -533,4 +537,53 @@ it("enables event-wide exports only for the complete selected snapshot", async (
     rerender(React.createElement(TallyCeremony))
     expect(screen.queryByText("Event export")).toBeNull()
     expect(screen.queryByText("Publish results")).toBeNull()
+})
+
+it("does not offer a historical partial PDF link as an event-wide final export", async () => {
+    setCompleteNumericSnapshot()
+    mockSession = {...mockSession, annotations: {is_post_task_completed: true}}
+    mockCanExportCeremony = true
+    mockResultsEvents = [
+        {
+            id: "historical-partial-result",
+            election_event_id: "event",
+            documents: {pdf: "partial-pdf", html: "partial-html"},
+        },
+    ]
+    render(React.createElement(TallyCeremony))
+    await act(async () => undefined)
+    expect(screen.queryByText("Event export")).toBeNull()
+    expect(mockEventExport).not.toHaveBeenCalled()
+})
+
+it("never associates current PDF exports with the previous selected tally", async () => {
+    setCompleteNumericSnapshot()
+    mockSession = {...mockSession, annotations: {is_post_task_completed: true}}
+    mockCanExportCeremony = true
+    mockResultsEvents = [
+        {id: "partial-results", election_event_id: "event", documents: {pdf: "report"}},
+    ]
+    const {rerender} = render(React.createElement(TallyCeremony))
+    await waitFor(() => expect(mockEventExport).toHaveBeenCalledWith("tally"))
+    mockEventExport.mockClear()
+    mockStore.tallyId = "next-tally"
+    mockSession = {...mockSession, id: "next-tally"}
+    mockExecution = {
+        ...mockExecution,
+        tally_session_id: "next-tally",
+        results_event_id: "next-results",
+        documents: {sqlite: "next-db"},
+    }
+    mockExecutionRefetch.mockResolvedValue({data: [mockExecution]})
+    mockResultsEvents = [
+        {id: "next-results", election_event_id: "event", documents: {pdf: "next-report"}},
+    ]
+    mockTallyData = JSON.parse(
+        JSON.stringify(mockTallyData)
+            .replaceAll("partial-results", "next-results")
+            .replaceAll("partial-db", "next-db")
+    )
+    rerender(React.createElement(TallyCeremony))
+    await waitFor(() => expect(mockEventExport).toHaveBeenCalledWith("next-tally"))
+    expect(mockEventExport.mock.calls.every(([id]) => id === "next-tally")).toBe(true)
 })

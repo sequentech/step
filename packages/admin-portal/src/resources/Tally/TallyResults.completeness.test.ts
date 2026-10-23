@@ -95,3 +95,15 @@ test("a complete election can display results while other elections remain incom
     expect(screen.queryByText("Global numeric results")).toBeNull()
     expect(screen.queryByText("Export")).toBeNull()
 })
+
+test("does not offer historical partial PDFs when the current result identity differs", () => {
+    render(
+        React.createElement(TallyResults, {
+            ...props,
+            resultsEventId: "current-final-result",
+            completeElectionIds: ["one"],
+        })
+    )
+    // The fixture has an existing election PDF link, but only for the older result.
+    expect(screen.queryByText("Export")).toBeNull()
+})

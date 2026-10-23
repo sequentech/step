@@ -305,11 +305,11 @@ export const TallyCeremony: React.FC = () => {
     const completeElectionIds = useMemo(
         () =>
             getCompleteElectionIds(
-                tallySession?.id === tallyId ? tallySession : undefined,
+                tallySession?.id === tallyId && tally?.id === tallyId ? tallySession : undefined,
                 tallySessionExecutions?.[0],
                 loadedTallyData
             ),
-        [tallyId, tallySession, tallySessionExecutions, loadedTallyData]
+        [tallyId, tally?.id, tallySession, tallySessionExecutions, loadedTallyData]
     )
     const allNumericResultsComplete = !!(
         tallySession?.election_ids?.length &&
