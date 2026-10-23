@@ -426,10 +426,19 @@ export const TallyCeremony: React.FC = () => {
                 // Session and execution polls can finish in either order. Fetch the
                 // execution after completion so a partial snapshot cannot be frozen.
                 const execution = await refetchTallySessionExecutions({throwOnError: true})
+                // useGetList flattens hook data, but its React Query refetch keeps
+                // the data-provider envelope (despite the hook's array return type).
+                const refreshed = execution.data as unknown as
+                    | {data?: Sequent_Backend_Tally_Session_Execution[]}
+                    | Sequent_Backend_Tally_Session_Execution[]
+                    | undefined
+                const latestExecution = Array.isArray(refreshed)
+                    ? refreshed[0]
+                    : refreshed?.data?.[0]
                 if (
                     !active ||
                     !resultsEventId ||
-                    execution.data?.[0]?.results_event_id !== resultsEventId
+                    latestExecution?.results_event_id !== resultsEventId
                 )
                     return
                 await refetch({throwOnError: true})

@@ -238,7 +238,7 @@ beforeEach(() => {
         results_event_id: "partial-results",
         documents: {sqlite: "partial-db"},
     }
-    mockExecutionRefetch.mockResolvedValue({data: [mockExecution]})
+    mockExecutionRefetch.mockResolvedValue({data: {data: [mockExecution], total: 1}})
 })
 
 it("refreshes the execution when completion arrives ahead of the final result snapshot", async () => {
@@ -270,7 +270,7 @@ it("waits for the post-report execution refresh before stopping polling", async 
         documents: {sqlite: "reported-db"},
     }
     await act(async () => {
-        finish({data: [mockExecution]})
+        finish({data: {data: [mockExecution], total: 1}})
     })
     rerender(React.createElement(TallyCeremony))
     await waitFor(() => expect(pollingInterval()).toBeUndefined())
@@ -313,7 +313,7 @@ it("resumes polling when another tally is selected and ignores the old refresh",
     }
     rerender(React.createElement(TallyCeremony))
     await act(async () => {
-        finish({data: [mockExecution]})
+        finish({data: {data: [mockExecution], total: 1}})
     })
     expect(pollingInterval()).toBe(1000)
 })
@@ -324,7 +324,7 @@ it("keeps the final snapshot selected when report generation replaces its SQLite
         results_event_id: "final-results",
         documents: {sqlite: "final-db"},
     }
-    mockExecutionRefetch.mockResolvedValue({data: [mockExecution]})
+    mockExecutionRefetch.mockResolvedValue({data: {data: [mockExecution], total: 1}})
     mockSession = {...mockSession, execution_status: "SUCCESS", is_execution_completed: true}
     const {rerender} = render(React.createElement(TallyCeremony))
     await act(async () => undefined)
@@ -337,7 +337,7 @@ it("keeps the final snapshot selected when report generation replaces its SQLite
         results_event_id: "final-results",
         documents: {sqlite: "reported-db"},
     }
-    mockExecutionRefetch.mockResolvedValue({data: [mockExecution]})
+    mockExecutionRefetch.mockResolvedValue({data: {data: [mockExecution], total: 1}})
     rerender(React.createElement(TallyCeremony))
     await waitFor(() => expect(pollingInterval()).toBeUndefined())
     expect(screen.getByTestId("loaded-results").textContent).toBe("final-results:reported-db")
@@ -428,7 +428,7 @@ it.each(["execution", "results"])(
     async (failure) => {
         setCompleteNumericSnapshot()
         mockSession = {...mockSession, annotations: {is_post_task_completed: true}}
-        mockExecutionRefetch.mockResolvedValue({data: [mockExecution]})
+        mockExecutionRefetch.mockResolvedValue({data: {data: [mockExecution], total: 1}})
         if (failure === "execution")
             mockExecutionRefetch.mockRejectedValueOnce(new Error("temporary execution failure"))
         else mockRefetch.mockRejectedValueOnce(new Error("temporary result failure"))
@@ -466,7 +466,7 @@ it("does not restart an in-flight completion refresh on identical session polls"
     rerender(React.createElement(TallyCeremony))
     expect(mockExecutionRefetch).toHaveBeenCalledTimes(1)
     await act(async () => {
-        finish({data: [mockExecution]})
+        finish({data: {data: [mockExecution], total: 1}})
     })
     await waitFor(() => expect(pollingInterval()).toBeUndefined())
     expect(screen.getByTestId("ceremony-status").textContent).toBe("SUCCESS")
@@ -574,7 +574,7 @@ it("never associates current PDF exports with the previous selected tally", asyn
         results_event_id: "next-results",
         documents: {sqlite: "next-db"},
     }
-    mockExecutionRefetch.mockResolvedValue({data: [mockExecution]})
+    mockExecutionRefetch.mockResolvedValue({data: {data: [mockExecution], total: 1}})
     mockResultsEvents = [
         {id: "next-results", election_event_id: "event", documents: {pdf: "next-report"}},
     ]
