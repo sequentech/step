@@ -44,11 +44,12 @@ cargo build --release -p ballot-audit --bins
 ```
 
 This produces `ballot-audit`, `prepare-ballot-audit`, `audit-cast-history`,
-`export-ballot-audit`, and `export-electoral-log`.
+`export-ballot-audit`, `export-electoral-log`, and `audit-tally`. Build the
+Braid verifier with `cargo build --release -p braid --bin verify`.
 
 ### Exit statuses
 
-All five commands share these statuses:
+All six commands share these statuses:
 
 | Status | Meaning |
 | --- | --- |
@@ -60,6 +61,52 @@ All five commands share these statuses:
 
 Wrappers must not treat `2` as anything but a usage error, and must not collapse
 `3` into success or into `1`: an incomplete result is not a passing audit.
+
+## Audit a whole tally with `audit-tally`
+
+`audit-tally` runs the commands below for every area and contest of one tally.
+It needs only the trusted inputs from the election authority:
+
+```sh
+audit-tally --connections connections.json \
+  --tally-session-id "$TALLY_SESSION_ID" \
+  --public-key-sha512 "$PUBLIC_KEY_SHA512" \
+  --electoral-log-system-public-key "$ELECTORAL_LOG_SYSTEM_PUBLIC_KEY" \
+  --immudb-server-url http://127.0.0.1:43322 --immudb-username "$IMMUDB_READ_ONLY_USER" \
+  --b3-server-url http://127.0.0.1:50051 \
+  --output audit
+```
+
+1. In one read-only Hasura snapshot it reads the tally session, its contest
+   rows and the event board, and writes one `scopes/NNN/scope.json` per row.
+   It derives the policy, the contest and the batches with the rules that
+   `export-ballot-audit` uses to check a scope. The export still checks each
+   derived scope against the saved tally.
+2. It runs `export-electoral-log` once for the event, then
+   `export-ballot-audit`, `prepare-ballot-audit` and `ballot-audit` for each
+   scope, and `audit-cast-history` once per election. It passes the digests of
+   the files it has just written as the pins.
+3. It runs the Braid `verify` program once for the board. `--batches` is the
+   union of the tally's batches and every batch with `Ballots` statements in the
+   B3 copy, so Braid fails if a batch of this tally is not verified.
+
+`--electoral-log-export <dir>` uses an existing `export-electoral-log`
+directory instead of ImmuDB. Without `--b3-server-url`, Braid does not run and
+the result is incomplete. `--braid-verify <path>` selects the verifier; the
+default is `verify` next to `audit-tally`.
+
+The output directory holds `tally-plan.json`, the per-scope directories,
+`history/<election ID>.json`, `braid/verify.log`, `audit-record.json` and
+`public-summary.json`. The audit record lists each command line, exit code,
+status and output digest. The public summary has counts and statuses only: no
+voter IDs, receipts or batch positions. The exit status is the most serious
+step status: `1` before `4` before `3`. A step that did not run counts as `3`,
+and a usage error (`2`) of a child command counts as `4`.
+
+The pins inside one run only protect files from changes between its steps.
+The trust anchors stay outside the copies: the tally ID, the two keys and the
+digests of the backups. Each command below can still run on its own to repeat
+or examine one step.
 
 ## Existing checks and the gap addressed
 

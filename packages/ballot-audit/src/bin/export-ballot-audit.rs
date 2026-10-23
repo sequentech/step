@@ -3,48 +3,38 @@
 
 use anyhow::{bail, ensure, Context, Result};
 use b3::messages::{message::Message, statement::StatementType};
-use ballot_audit::{digest, incomplete, invalid_input, ExitStatus, MultiplicityPolicy, Scope};
+use ballot_audit::{
+    digest, incomplete, invalid_input,
+    source::{
+        board_identifier, board_relation_name, connect, into_invalid_input, local_config,
+        new_private_directory, one, read_connections, rows, save_bytes, save_json,
+        snapshot_metadata, start_snapshot, ConnectionSource,
+    },
+    tally::{tally_batches, tally_policies},
+    ExitStatus, MultiplicityPolicy, Scope, SOURCE_REVISION,
+};
 use base64::{engine::general_purpose::STANDARD_NO_PAD, Engine};
 use clap::Parser;
 use sequent_core::{
-    ballot::{ContestEncryptionPolicy, DelegatedVotingPolicy, WeightedVotingPolicy},
-    types::{
-        hasura::core::TallySessionConfiguration,
-        keycloak::{
-            AREA_ID_ATTR_NAME, AUTHORIZED_ELECTION_IDS_NAME, DEFAULT_VOTE_WEIGHT, MAX_VOTE_WEIGHT,
-            MIN_VOTE_WEIGHT, VOTE_WEIGHT_ATTR_NAME, VOTE_WEIGHT_BATCHES,
-        },
+    ballot::ContestEncryptionPolicy,
+    types::keycloak::{
+        AREA_ID_ATTR_NAME, AUTHORIZED_ELECTION_IDS_NAME, DEFAULT_VOTE_WEIGHT, MAX_VOTE_WEIGHT,
+        MIN_VOTE_WEIGHT, VOTE_WEIGHT_ATTR_NAME,
     },
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::{
     collections::{BTreeMap, BTreeSet},
-    fs::{self, OpenOptions},
-    io::Write,
-    net::IpAddr,
+    fs,
     path::{Path, PathBuf},
-    time::Duration,
 };
 use strand::serialization::StrandDeserialize;
-use tokio_postgres::{
-    config::{Host, SslMode},
-    types::ToSql,
-    Client, Config, IsolationLevel, NoTls, Transaction,
-};
+use tokio_postgres::{types::ToSql, Config};
 use uuid::Uuid;
 
+const APPLICATION_NAME: &str = "export-ballot-audit";
 const DELEGATE_TO_ATTR_NAME: &str = "delegate-vote-to";
-const SOURCE_REVISION: &str = "d6d05a1";
-const SNAPSHOT_SQL: &str = "SELECT jsonb_build_object(
-    'database', current_database(),
-    'snapshot', txid_current_snapshot()::text,
-    'transaction_started_at', transaction_timestamp(),
-    'server_version', current_setting('server_version'),
-    'max_identifier_length', current_setting('max_identifier_length'),
-    'read_only', current_setting('transaction_read_only'),
-    'row_security', current_setting('row_security'),
-    'isolation', current_setting('transaction_isolation')) AS data";
 const CAST_VOTES_SQL: &str = "SELECT to_jsonb(v) AS data
     FROM sequent_backend.cast_vote v
     WHERE tenant_id = $1::text::uuid AND election_event_id = $2::text::uuid
@@ -162,22 +152,6 @@ struct SavedScope {
     batches: Vec<u32>,
 }
 
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct Connections {
-    format_version: u32,
-    hasura: ConnectionSource,
-    keycloak: ConnectionSource,
-    b3: ConnectionSource,
-}
-
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct ConnectionSource {
-    connection_string: String,
-    restore_reference: String,
-}
-
 #[derive(Serialize)]
 struct EligibleVoter {
     voter_id: String,
@@ -205,155 +179,6 @@ struct BoardExport {
     messages: Vec<String>,
     rows: Vec<Value>,
     index_count: Value,
-}
-
-/// Keeps only the outer message: source chains can echo credentials or row values.
-fn into_invalid_input(error: anyhow::Error) -> anyhow::Error {
-    invalid_input(error.to_string())
-}
-
-fn local_config(source: &ConnectionSource) -> Result<Config> {
-    ensure!(
-        !source.restore_reference.trim().is_empty(),
-        "restore reference is required"
-    );
-    let mut config: Config = source
-        .connection_string
-        .parse()
-        .map_err(|_| anyhow::anyhow!("invalid database connection configuration"))?;
-    ensure!(
-        config.get_hosts().len() == 1,
-        "exactly one explicit local database host is required"
-    );
-    ensure!(
-        config.get_hostaddrs().is_empty(),
-        "hostaddr overrides are not allowed"
-    );
-    ensure!(
-        config.get_ports().len() <= 1,
-        "multiple database ports are not allowed"
-    );
-    ensure!(
-        config.get_options().is_none(),
-        "custom database startup options are not allowed"
-    );
-    ensure!(
-        config.get_dbname().is_some_and(|v| !v.is_empty()),
-        "explicit database name is required"
-    );
-    ensure!(
-        config.get_user().is_some_and(|v| !v.is_empty()),
-        "explicit database user is required"
-    );
-    ensure!(
-        config.get_ssl_mode() != SslMode::Require,
-        "this local-only exporter does not support TLS-required connections"
-    );
-    match &config.get_hosts()[0] {
-        Host::Tcp(host) => {
-            let ip: IpAddr = host.parse().context("use a loopback IP, not a hostname")?;
-            ensure!(ip.is_loopback(), "remote database connections are refused");
-        }
-        #[cfg(unix)]
-        Host::Unix(path) => ensure!(path.is_absolute(), "Unix socket directory must be absolute"),
-        #[allow(unreachable_patterns)]
-        _ => bail!("unsupported local database host"),
-    }
-    config.ssl_mode(SslMode::Disable);
-    config.connect_timeout(Duration::from_secs(10));
-    config.application_name("export-ballot-audit");
-    config.options("-c default_transaction_read_only=on -c row_security=off");
-    Ok(config)
-}
-
-async fn connect(config: Config) -> Result<Client> {
-    let (client, connection) = config
-        .connect(NoTls)
-        .await
-        .map_err(|_| invalid_input("local database connection failed"))?;
-    tokio::spawn(async move {
-        let _ = connection.await;
-    });
-    Ok(client)
-}
-
-fn snapshot_options(statement_timeout_seconds: u32) -> String {
-    format!(
-        "SET LOCAL statement_timeout = '{statement_timeout_seconds}s';
-        SET LOCAL lock_timeout = '5s'; SET LOCAL row_security = off;
-        SET LOCAL timezone = 'UTC'; SET LOCAL search_path = pg_catalog;"
-    )
-}
-
-async fn start_snapshot(
-    client: &mut Client,
-    statement_timeout_seconds: u32,
-) -> Result<Transaction<'_>> {
-    let transaction = client
-        .build_transaction()
-        .isolation_level(IsolationLevel::RepeatableRead)
-        .read_only(true)
-        .start()
-        .await
-        .map_err(|_| invalid_input("cannot start read-only repeatable-read transaction"))?;
-    transaction
-        .batch_execute(&snapshot_options(statement_timeout_seconds))
-        .await
-        .map_err(|_| invalid_input("cannot set safe snapshot transaction options"))?;
-    Ok(transaction)
-}
-
-async fn rows(
-    transaction: &Transaction<'_>,
-    sql: &str,
-    params: &[&(dyn ToSql + Sync)],
-) -> Result<Vec<Value>> {
-    transaction
-        .query(sql, params)
-        .await
-        .map_err(|_| {
-            invalid_input("snapshot query failed; check restored schema and read permissions")
-        })?
-        .into_iter()
-        .map(|row| {
-            row.try_get("data")
-                .map_err(|_| invalid_input("snapshot row has an unexpected schema"))
-        })
-        .collect()
-}
-
-fn single_row(mut values: Vec<Value>, what: &str) -> Result<Value> {
-    match values.len() {
-        1 => Ok(values.remove(0)),
-        0 => Err(incomplete(format!(
-            "expected exactly one {what} row, found none"
-        ))),
-        found => bail!("expected exactly one {what} row, found {found}"),
-    }
-}
-
-async fn one(
-    transaction: &Transaction<'_>,
-    what: &str,
-    sql: &str,
-    params: &[&(dyn ToSql + Sync)],
-) -> Result<Value> {
-    single_row(rows(transaction, sql, params).await?, what)
-}
-
-async fn snapshot_metadata(
-    transaction: &Transaction<'_>,
-    source: &ConnectionSource,
-) -> Result<Value> {
-    let mut metadata = one(transaction, "snapshot metadata", SNAPSHOT_SQL, &[]).await?;
-    ensure!(
-        metadata["read_only"] == "on"
-            && metadata["isolation"] == "repeatable read"
-            && metadata["row_security"] == "off",
-        invalid_input("database did not establish the required read-only repeatable-read snapshot")
-    );
-    metadata["restore_reference"] = json!(source.restore_reference);
-    Ok(metadata)
 }
 
 fn validate_scope(saved: &SavedScope) -> Result<()> {
@@ -460,52 +285,16 @@ fn validate_mapping(saved: &SavedScope, mapping: &Value) -> Result<String> {
     let configuration = mapping["tally_session"]
         .get("configuration")
         .ok_or_else(|| invalid_input("saved session has no configuration column"))?;
-    let configuration: Option<TallySessionConfiguration> =
-        serde_json::from_value(configuration.clone())
-            .map_err(|_| invalid_input("unsupported saved tally configuration"))?;
-    let configuration = configuration.unwrap_or_default();
-    let weighted =
-        configuration.get_weighted_voting_policy() == WeightedVotingPolicy::VOTERS_WEIGHTED_VOTING;
-    let delegated = configuration.get_delegated_voting_policy() == DelegatedVotingPolicy::ENABLED;
+    let (policy, encryption) = tally_policies(configuration)?;
     ensure!(
-        !(weighted && delegated),
-        invalid_input("combined weighted and delegated voting is unsupported")
-    );
-    ensure!(
-        matches!(
-            (&scope.policy, weighted, delegated),
-            (MultiplicityPolicy::Weighted, true, false)
-                | (MultiplicityPolicy::Delegated, false, true)
-                | (MultiplicityPolicy::Unweighted, false, false)
-        ),
+        policy == scope.policy,
         "saved multiplicity policy differs from pinned scope"
     );
-    let single =
-        configuration.get_contest_encryption_policy() == ContestEncryptionPolicy::SINGLE_CONTEST;
     ensure!(
-        single == scope.contest_id.is_some(),
+        (encryption == ContestEncryptionPolicy::SINGLE_CONTEST) == scope.contest_id.is_some(),
         "saved contest encryption policy differs from pinned scope"
     );
-    let expected_batches = if weighted {
-        let mask = contest["annotations"]["weight_bit_mask"]
-            .as_u64()
-            .ok_or_else(|| incomplete("weighted saved mapping lacks a weight bit mask"))?;
-        ensure!(
-            mask > 0 && mask < (1u64 << VOTE_WEIGHT_BATCHES),
-            invalid_input("invalid saved weight bit mask")
-        );
-        (0..VOTE_WEIGHT_BATCHES)
-            .filter(|bit| mask & (1u64 << bit) != 0)
-            .map(|bit| {
-                scope
-                    .base_batch
-                    .checked_add(bit)
-                    .context("saved batch overflow")
-            })
-            .collect::<Result<Vec<_>>>()?
-    } else {
-        vec![scope.base_batch]
-    };
+    let expected_batches = tally_batches(policy, scope.base_batch, &contest["annotations"])?;
     let mut supplied_batches = saved.batches.clone();
     supplied_batches.sort_unstable();
     ensure!(
@@ -874,27 +663,6 @@ fn board_context_kinds() -> Vec<String> {
     .collect()
 }
 
-fn board_relation_name(board: &str) -> Result<String> {
-    ensure!(
-        !board.is_empty()
-            && board
-                .bytes()
-                .all(|b| b.is_ascii_alphanumeric() || b == b'_')
-            && board
-                .bytes()
-                .next()
-                .is_some_and(|b| b.is_ascii_alphabetic() || b == b'_'),
-        "invalid B3 board SQL identifier"
-    );
-    // Native CREATE uses an unquoted name: PostgreSQL folds ASCII case and
-    // truncates it to 63 bytes. The index and blob directory keep the full name.
-    Ok(board[..board.len().min(63)].to_ascii_lowercase())
-}
-
-fn board_identifier(board: &str) -> Result<String> {
-    Ok(format!("public.\"{}\"", board_relation_name(board)?))
-}
-
 fn message_bytes(
     database: Option<Vec<u8>>,
     root: Option<&Path>,
@@ -1101,78 +869,18 @@ fn read_scope(path: &Path, pin: &str) -> Result<Vec<u8>> {
     Ok(bytes)
 }
 
-fn read_connections(path: &Path) -> Result<Connections> {
-    let metadata = fs::symlink_metadata(path).context("cannot inspect private connections file")?;
-    ensure!(
-        metadata.is_file() && !metadata.file_type().is_symlink(),
-        "connections must be a regular private file"
-    );
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        ensure!(
-            metadata.permissions().mode() & 0o077 == 0,
-            "connections file must not grant group or other access; use mode 0600"
-        );
-    }
-    #[cfg(not(unix))]
-    bail!("private connection-file permissions require a Unix platform");
-    let bytes = fs::read(path).context("cannot read private connections file")?;
-    let connections: Connections = serde_json::from_slice(&bytes)
-        .map_err(|_| anyhow::anyhow!("invalid private connections JSON"))?;
-    ensure!(
-        connections.format_version == 1,
-        "unsupported connections format version"
-    );
-    Ok(connections)
-}
-
-fn new_private_directory(path: &Path) -> Result<()> {
-    let mut builder = fs::DirBuilder::new();
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::DirBuilderExt;
-        builder.mode(0o700);
-    }
-    #[cfg(not(unix))]
-    bail!("private output permissions require a Unix platform");
-    builder.create(path).context(
-        "cannot create new private output directory; existing paths are never overwritten",
-    )?;
-    Ok(())
-}
-
-fn save_bytes(directory: &Path, name: &str, bytes: &[u8]) -> Result<Value> {
-    let mut options = OpenOptions::new();
-    options.write(true).create_new(true);
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::OpenOptionsExt;
-        options.mode(0o600);
-    }
-    let mut file = options
-        .open(directory.join(name))
-        .map_err(|_| invalid_input("cannot create new private export file"))?;
-    file.write_all(bytes)
-        .map_err(|_| invalid_input("cannot write export file"))?;
-    file.sync_all()
-        .map_err(|_| invalid_input("cannot sync export file"))?;
-    Ok(json!({"sha512":digest(bytes)?, "bytes":bytes.len()}))
-}
-
-fn save_json<T: Serialize>(directory: &Path, name: &str, value: &T) -> Result<Value> {
-    save_bytes(directory, name, &serde_json::to_vec_pretty(value)?)
-}
-
 async fn run(args: Args) -> Result<()> {
     let scope_bytes = read_scope(&args.scope, &args.scope_sha512)?;
     let saved: SavedScope = serde_json::from_slice(&scope_bytes)
         .map_err(|_| invalid_input("invalid saved scope envelope"))?;
     validate_scope(&saved).map_err(into_invalid_input)?;
     let connections = read_connections(&args.connections).map_err(into_invalid_input)?;
-    let hasura_config = local_config(&connections.hasura).map_err(into_invalid_input)?;
-    let keycloak_config = local_config(&connections.keycloak).map_err(into_invalid_input)?;
-    let board_config = local_config(&connections.b3).map_err(into_invalid_input)?;
+    let hasura_config =
+        local_config(&connections.hasura, APPLICATION_NAME).map_err(into_invalid_input)?;
+    let keycloak_config =
+        local_config(&connections.keycloak, APPLICATION_NAME).map_err(into_invalid_input)?;
+    let board_config =
+        local_config(&connections.b3, APPLICATION_NAME).map_err(into_invalid_input)?;
     new_private_directory(&args.output).map_err(into_invalid_input)?;
     let timeout = args.statement_timeout_seconds;
     let hasura = export_hasura(hasura_config, &connections.hasura, &saved, timeout).await?;
@@ -1294,6 +1002,7 @@ async fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ballot_audit::source::{single_row, snapshot_options};
     use std::time::{SystemTime, UNIX_EPOCH};
 
     fn source(dsn: &str) -> ConnectionSource {
@@ -1321,7 +1030,7 @@ mod tests {
             "host=::1 user=test dbname=test",
             "host=/tmp/local-socket user=test dbname=test",
         ] {
-            let config = local_config(&source(dsn)).unwrap();
+            let config = local_config(&source(dsn), APPLICATION_NAME).unwrap();
             assert_eq!(
                 config.get_options(),
                 Some("-c default_transaction_read_only=on -c row_security=off")
@@ -1337,14 +1046,20 @@ mod tests {
             "host=127.0.0.1 user=test dbname=test options='-c default_transaction_read_only=off'",
             "host=relative/socket user=test dbname=test",
         ] {
-            assert!(local_config(&source(dsn)).is_err(), "accepted unsafe DSN");
+            assert!(
+                local_config(&source(dsn), APPLICATION_NAME).is_err(),
+                "accepted unsafe DSN"
+            );
         }
     }
 
     #[test]
     fn connection_error_does_not_echo_secrets() {
-        let error =
-            local_config(&source("password=synthetic-secret invalid-option=value")).unwrap_err();
+        let error = local_config(
+            &source("password=synthetic-secret invalid-option=value"),
+            APPLICATION_NAME,
+        )
+        .unwrap_err();
         assert!(!error.to_string().contains("synthetic-secret"));
     }
 

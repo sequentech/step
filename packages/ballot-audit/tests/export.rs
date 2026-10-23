@@ -334,6 +334,7 @@ async fn exports_native_postgres_snapshots_without_application_servers() {
         "electoral_log_system_public_key":pk.to_der_b64_string().unwrap(),
         "contest_id":null,"base_batch":10,"policy":"unweighted"},"batches":[10]});
     assert_success(invoke(&root.0, "plain", &scope, true));
+    tally_run_derives_the_pinned_scope(&root.0, &scope);
     let acquisition = load(&root.0, "plain", "acquisition.json");
     for name in ["hasura", "keycloak", "b3"] {
         assert_eq!(acquisition["snapshots"][name]["read_only"], "on");
@@ -634,6 +635,61 @@ async fn exports_native_postgres_snapshots_without_application_servers() {
         )
         .await;
     }
+}
+
+/// audit-tally must derive, from the tally ID alone, the same scope that the
+/// hand-written fixture pins, and the real export must accept it.
+fn tally_run_derives_the_pinned_scope(root: &Path, scope: &Value) {
+    let log = root.join("tally-log");
+    fs::create_dir(&log).unwrap();
+    write_json(&log.join("electoral-log.json"), &json!([]));
+    let output = root.join("tally");
+    let result = Command::new(env!("CARGO_BIN_EXE_audit-tally"))
+        .arg("--connections")
+        .arg(root.join("connections.json"))
+        .args(["--tally-session-id", SESSION, "--public-key-sha512"])
+        .arg(scope["scope"]["public_key_sha512"].as_str().unwrap())
+        .arg("--electoral-log-system-public-key")
+        .arg(
+            scope["scope"]["electoral_log_system_public_key"]
+                .as_str()
+                .unwrap(),
+        )
+        .arg("--electoral-log-export")
+        .arg(&log)
+        .arg("--b3-blob-root")
+        .arg(root.join("blobs"))
+        .arg("--output")
+        .arg(&output)
+        .output()
+        .unwrap();
+    assert_ne!(result.status.code(), Some(0));
+    let derived: Value =
+        serde_json::from_slice(&fs::read(output.join("scopes/001/scope.json")).unwrap()).unwrap();
+    assert_eq!(&derived, scope);
+    let record: Value =
+        serde_json::from_slice(&fs::read(output.join("audit-record.json")).unwrap()).unwrap();
+    let steps = record["steps"].as_array().unwrap();
+    let export = steps
+        .iter()
+        .find(|step| step["step"] == "export-ballot-audit")
+        .unwrap();
+    assert_eq!(export["status"], "success", "{export}");
+    assert!(export["outputs"]["scopes/001/postgres-export/acquisition.json"].is_string());
+    assert!(steps
+        .iter()
+        .any(|step| step["step"] == "verify" && step["status"] == "not_run"));
+    let summary = fs::read_to_string(output.join("public-summary.json")).unwrap();
+    for private in ["\"alice\"", "\"receipt\"", "synthetic-reader"] {
+        assert!(
+            !summary.contains(private),
+            "public summary contains {private}"
+        );
+    }
+    let summary: Value = serde_json::from_str(&summary).unwrap();
+    assert_eq!(summary["scopes"][0]["area_id"], AREA);
+    assert_eq!(summary["braid"]["tally_batches"], json!([10]));
+    assert_eq!(summary["braid"]["board_ballot_batches"], json!([10]));
 }
 
 async fn signed_database_pipeline(

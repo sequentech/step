@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 
+pub mod source;
+pub mod tally;
+
 use anyhow::{bail, ensure, Context, Result};
 use b3::messages::{
     artifact::{Ballots, Configuration},
@@ -27,6 +30,9 @@ use strand::{
     serialization::{StrandDeserialize, StrandSerialize},
 };
 
+/// The source revision that the commands record in their outputs.
+pub const SOURCE_REVISION: &str = "d6d05a1";
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Scope {
@@ -44,7 +50,7 @@ pub struct Scope {
     pub policy: MultiplicityPolicy,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum MultiplicityPolicy {
     Unweighted,
