@@ -1210,10 +1210,10 @@ export const TallyCeremony: React.FC = () => {
                                             ? t("tally.common.ceremony")
                                             : t("tally.common.initialization")
                                         : page === WizardSteps.Ceremony
-                                          ? t("tally.common.start")
-                                          : page === WizardSteps.Tally
-                                            ? t("tally.common.results")
-                                            : t("tally.common.next")}
+                                        ? t("tally.common.start")
+                                        : page === WizardSteps.Tally
+                                        ? t("tally.common.results")
+                                        : t("tally.common.next")}
                                     {isConfirming ? (
                                         <StyledCircularProgress
                                             key="progress-tally-next"

@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+import {useTranslate} from "react-admin"
 import {tallyQueryData} from "@/atoms/tally-candidates"
 import {
     GetTallyDataQuery,
@@ -42,6 +43,7 @@ export const ResultsDataLoader: React.FC<ResultsDataLoaderProps> = ({
     electionIds,
     databaseName,
 }) => {
+    const translate = useTranslate()
     const [tenantId] = useTenantStore()
     const setTallyQueryData = useSetAtom(tallyQueryData)
 
@@ -52,7 +54,11 @@ export const ResultsDataLoader: React.FC<ResultsDataLoaderProps> = ({
         electionEventId ? electionEventId : undefined
     )
 
-    const {data: area, isReady: isAreaReady} = useSQLQuery(
+    const {
+        data: area,
+        isReady: isAreaReady,
+        error: isAreaReadyError,
+    } = useSQLQuery(
         `SELECT * FROM area WHERE election_event_id = ? and tenant_id = ?`,
         [electionEventId, tenantId],
         {
@@ -61,7 +67,11 @@ export const ResultsDataLoader: React.FC<ResultsDataLoaderProps> = ({
         }
     )
 
-    const {data: area_contest, isReady: isAreaContestReady} = useSQLQuery(
+    const {
+        data: area_contest,
+        isReady: isAreaContestReady,
+        error: isAreaContestReadyError,
+    } = useSQLQuery(
         `SELECT * FROM area_contest WHERE election_event_id = ? and tenant_id = ? and contest_id in (${contestIds
             .map(() => "?")
             .join(",")})`,
@@ -72,7 +82,11 @@ export const ResultsDataLoader: React.FC<ResultsDataLoaderProps> = ({
         }
     )
 
-    const {data: election, isReady: isElectionReady} = useSQLQuery(
+    const {
+        data: election,
+        isReady: isElectionReady,
+        error: isElectionReadyError,
+    } = useSQLQuery(
         `SELECT * FROM election WHERE election_event_id = ? and tenant_id = ? and id in (${electionIds
             .map(() => "?")
             .join(",")})`,
@@ -83,7 +97,11 @@ export const ResultsDataLoader: React.FC<ResultsDataLoaderProps> = ({
         }
     )
 
-    const {data: candidate, isReady: isCandidateReady} = useSQLQuery(
+    const {
+        data: candidate,
+        isReady: isCandidateReady,
+        error: isCandidateReadyError,
+    } = useSQLQuery(
         `SELECT * FROM candidate WHERE election_event_id = ? and tenant_id = ? and contest_id in (${contestIds
             .map(() => "?")
             .join(",")})`,
@@ -94,7 +112,11 @@ export const ResultsDataLoader: React.FC<ResultsDataLoaderProps> = ({
         }
     )
 
-    const {data: contest, isReady: isContestReady} = useSQLQuery(
+    const {
+        data: contest,
+        isReady: isContestReady,
+        error: isContestReadyError,
+    } = useSQLQuery(
         `SELECT * FROM contest WHERE election_event_id = ? and tenant_id = ? and id in (${contestIds
             .map(() => "?")
             .join(",")})`,
@@ -105,7 +127,11 @@ export const ResultsDataLoader: React.FC<ResultsDataLoaderProps> = ({
         }
     )
 
-    const {data: results_event, isReady: isResultsEventReady} = useSQLQuery(
+    const {
+        data: results_event,
+        isReady: isResultsEventReady,
+        error: isResultsEventReadyError,
+    } = useSQLQuery(
         `SELECT * FROM results_event WHERE election_event_id = ? and tenant_id = ? and id = ?`,
         [electionEventId, tenantId, resultsEventId],
         {
@@ -114,7 +140,11 @@ export const ResultsDataLoader: React.FC<ResultsDataLoaderProps> = ({
         }
     )
 
-    const {data: results_election, isReady: isResultsElectionReady} = useSQLQuery(
+    const {
+        data: results_election,
+        isReady: isResultsElectionReady,
+        error: isResultsElectionReadyError,
+    } = useSQLQuery(
         `SELECT * FROM results_election WHERE election_event_id = ? and tenant_id = ? and results_event_id = ?`,
         [electionEventId, tenantId, resultsEventId],
         {
@@ -123,7 +153,11 @@ export const ResultsDataLoader: React.FC<ResultsDataLoaderProps> = ({
         }
     )
 
-    const {data: results_contest_candidate, isReady: isResultsContestCandidateReady} = useSQLQuery(
+    const {
+        data: results_contest_candidate,
+        isReady: isResultsContestCandidateReady,
+        error: isResultsContestCandidateReadyError,
+    } = useSQLQuery(
         `SELECT * FROM results_contest_candidate WHERE election_event_id = ? and tenant_id = ? and results_event_id = ?`,
         [electionEventId, tenantId, resultsEventId],
         {
@@ -132,7 +166,11 @@ export const ResultsDataLoader: React.FC<ResultsDataLoaderProps> = ({
         }
     )
 
-    const {data: results_contest, isReady: isResultsContestReady} = useSQLQuery(
+    const {
+        data: results_contest,
+        isReady: isResultsContestReady,
+        error: isResultsContestReadyError,
+    } = useSQLQuery(
         `SELECT * FROM results_contest WHERE election_event_id = ? and tenant_id = ? and results_event_id = ?`,
         [electionEventId, tenantId, resultsEventId],
         {
@@ -141,17 +179,24 @@ export const ResultsDataLoader: React.FC<ResultsDataLoaderProps> = ({
         }
     )
 
-    const {data: results_area_contest_candidate, isReady: isResultsAreaCandidateReady} =
-        useSQLQuery(
-            `SELECT * FROM results_area_contest_candidate WHERE election_event_id = ? and tenant_id = ? and results_event_id = ?`,
-            [electionEventId, tenantId, resultsEventId],
-            {
-                databaseName: databaseName,
-                enabled: isDbReady && !!resultsEventId && !!electionEventId && !!tenantId,
-            }
-        )
+    const {
+        data: results_area_contest_candidate,
+        isReady: isResultsAreaCandidateReady,
+        error: isResultsAreaCandidateReadyError,
+    } = useSQLQuery(
+        `SELECT * FROM results_area_contest_candidate WHERE election_event_id = ? and tenant_id = ? and results_event_id = ?`,
+        [electionEventId, tenantId, resultsEventId],
+        {
+            databaseName: databaseName,
+            enabled: isDbReady && !!resultsEventId && !!electionEventId && !!tenantId,
+        }
+    )
 
-    const {data: results_area_contest, isReady: isResultsAreaContestReady} = useSQLQuery(
+    const {
+        data: results_area_contest,
+        isReady: isResultsAreaContestReady,
+        error: isResultsAreaContestReadyError,
+    } = useSQLQuery(
         `SELECT * FROM results_area_contest WHERE election_event_id = ? and tenant_id = ? and results_event_id = ?`,
         [electionEventId, tenantId, resultsEventId],
         {
@@ -160,7 +205,11 @@ export const ResultsDataLoader: React.FC<ResultsDataLoaderProps> = ({
         }
     )
 
-    const {data: results_election_area, isReady: isResultsElectionAreaReady} = useSQLQuery(
+    const {
+        data: results_election_area,
+        isReady: isResultsElectionAreaReady,
+        error: isResultsElectionAreaReadyError,
+    } = useSQLQuery(
         `SELECT * FROM results_election_area WHERE election_event_id = ? and tenant_id = ? and results_event_id = ?`,
         [electionEventId, tenantId, resultsEventId],
         {
@@ -169,7 +218,11 @@ export const ResultsDataLoader: React.FC<ResultsDataLoaderProps> = ({
         }
     )
 
-    const {data: electionEvent, isReady: isElectionEventReady} = useSQLQuery(
+    const {
+        data: electionEvent,
+        isReady: isElectionEventReady,
+        error: isElectionEventReadyError,
+    } = useSQLQuery(
         `SELECT * FROM election_event WHERE id = ? and tenant_id = ?`,
         [electionEventId, tenantId],
         {databaseName, enabled: isDbReady && !!electionEventId && !!tenantId}
@@ -230,6 +283,24 @@ export const ResultsDataLoader: React.FC<ResultsDataLoaderProps> = ({
         ]
     )
 
+    const queryError =
+        dbError ||
+        [
+            isAreaReadyError,
+            isAreaContestReadyError,
+            isElectionReadyError,
+            isCandidateReadyError,
+            isContestReadyError,
+            isResultsEventReadyError,
+            isResultsElectionReadyError,
+            isResultsContestCandidateReadyError,
+            isResultsContestReadyError,
+            isResultsAreaCandidateReadyError,
+            isResultsAreaContestReadyError,
+            isResultsElectionAreaReadyError,
+            isElectionEventReadyError,
+        ].find(Boolean)
+
     const allQueriesReady =
         isDbReady &&
         isElectionEventReady &&
@@ -256,5 +327,5 @@ export const ResultsDataLoader: React.FC<ResultsDataLoaderProps> = ({
         }
     }, [allQueriesReady, databaseName, dbError, setTallyQueryData, tallyData])
 
-    return <></>
+    return queryError ? <div role="alert">{translate("ra.message.error")}</div> : null
 }

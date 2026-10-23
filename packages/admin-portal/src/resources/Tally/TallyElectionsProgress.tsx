@@ -91,7 +91,7 @@ export const TallyElectionsProgress: React.FC<TallyElectionsProgressProps> = ({
                             election_data?.status === ITallyElectionStatus.SUCCESS &&
                             !completeElectionIds.includes(String(props["id"]))
                                 ? ITallyElectionStatus.WAITING
-                                : (election_data?.status ?? ITallyElectionStatus.WAITING)
+                                : election_data?.status ?? ITallyElectionStatus.WAITING
                         }
                     />
                 )

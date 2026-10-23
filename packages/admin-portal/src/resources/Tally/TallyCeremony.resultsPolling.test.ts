@@ -67,8 +67,8 @@ jest.mock("react-admin", () => ({
                 resource === "sequent_backend_election"
                     ? mockElections
                     : resource === "sequent_backend_results_event"
-                      ? mockResultsEvents
-                      : mockEmpty,
+                    ? mockResultsEvents
+                    : mockEmpty,
             refetch: mockRefetch,
         }
     },
@@ -123,13 +123,7 @@ jest.mock(
                 brandSuccess: "green",
             },
         },
-        Dialog: ({
-            open,
-            handleClose,
-        }: {
-            open: boolean
-            handleClose: (confirmed: boolean) => void
-        }) =>
+        Dialog: ({open, handleClose}: {open: boolean; handleClose: (confirmed: boolean) => void}) =>
             open
                 ? require("react").createElement(
                       "button",
