@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
-import {getCompleteElectionIds} from "./resultsCompleteness"
+import {getCompleteElectionIds, isNumericallyComplete} from "./resultsCompleteness"
 
 const fixture = () => {
     const tally: any = {
@@ -220,4 +220,40 @@ test("legacy tallies retain result availability without new completeness restric
     data.sequent_backend_results_area_contest = []
     expect(getCompleteElectionIds(tally, execution, data)).toEqual(["one", "two"])
     expect(getCompleteElectionIds(tally, execution, null)).toEqual(["one", "two"])
+})
+
+test("unpublished inherited areas are outside the saved tally scope", () => {
+    const {tally, execution, data} = inheritedFixture()
+    tally.annotations.election_areas = JSON.stringify({one: ["a"], two: ["a"]})
+    expect(getCompleteElectionIds(tally, execution, data)).toEqual(["one"])
+    tally.annotations.election_areas = JSON.stringify({one: ["a", "b"]})
+    expect(getCompleteElectionIds(tally, execution, data)).toEqual([])
+})
+
+test("empty tallies complete without artifacts only after server finalization", () => {
+    const {tally, execution} = fixture()
+    tally.election_ids = ["one"]
+    tally.is_execution_completed = true
+    tally.execution_status = "SUCCESS"
+    tally.annotations.is_post_task_completed = true
+    execution.results_event_id = null
+    execution.documents = null
+    expect(getCompleteElectionIds(tally, execution, null)).toEqual(["one"])
+    tally.annotations.is_post_task_completed = false
+    expect(getCompleteElectionIds(tally, execution, null)).toEqual([])
+    tally.annotations.is_post_task_completed = true
+    execution.tally_session_id = "old"
+    expect(getCompleteElectionIds(tally, execution, null)).toEqual([])
+})
+
+test("recount accepts finalized numbers during new-policy report finalization only", () => {
+    const tally = {
+        execution_status: "IN_PROGRESS",
+        is_execution_completed: true,
+        annotations: {result_readiness_version: 1},
+    }
+    expect(isNumericallyComplete(tally)).toBe(true)
+    expect(isNumericallyComplete({...tally, annotations: {}})).toBe(false)
+    expect(isNumericallyComplete({...tally, is_execution_completed: false})).toBe(false)
+    expect(isNumericallyComplete({...tally, execution_status: "CANCELLED"})).toBe(false)
 })

@@ -4,7 +4,7 @@
 use anyhow::{bail, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
-use sequent_core::types::hasura::core::{Document, TallySessionExecution};
+use sequent_core::types::hasura::core::{Document, TallySession, TallySessionExecution};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::HashSet;
@@ -15,6 +15,13 @@ pub const ORIGIN: &str = "tally_result_origin";
 
 pub fn uses_readiness_policy(annotations: Option<&Value>) -> bool {
     annotations.and_then(|value| value.get(POLICY)).is_some()
+}
+
+pub fn is_numerically_complete(session: &TallySession) -> bool {
+    session.is_execution_completed
+        && (session.execution_status.as_deref() == Some("SUCCESS")
+            || (uses_readiness_policy(session.annotations.as_ref())
+                && session.execution_status.as_deref() == Some("IN_PROGRESS")))
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -37,6 +44,7 @@ FROM (
  UNION ALL SELECT tenant_id, election_event_id, results_event_id, election_id, documents FROM sequent_backend.results_election_area
  UNION ALL SELECT tenant_id, election_event_id, results_event_id, election_id, documents FROM sequent_backend.results_contest
  UNION ALL SELECT tenant_id, election_event_id, results_event_id, election_id, documents FROM sequent_backend.results_area_contest
+ UNION ALL SELECT tenant_id, election_event_id, results_event_id, NULL::uuid, jsonb_build_object('xlsx', documents->'xlsx') FROM sequent_backend.tally_session_execution
 ) r CROSS JOIN LATERAL jsonb_each_text(COALESCE(r.documents, '{}'::jsonb)) d
 WHERE r.tenant_id = $1 AND r.election_event_id = $2
  AND ($3::uuid IS NULL OR r.results_event_id = $3)
@@ -96,6 +104,9 @@ pub async fn record_result_origins(
     require_all: bool,
 ) -> Result<()> {
     let Some(result_id) = execution.results_event_id.as_deref() else {
+        if require_all && !expected.is_empty() {
+            bail!("Completed tally is missing its expected results");
+        }
         return Ok(());
     };
     let tenant = parse_uuid_v4(&execution.tenant_id)?;
@@ -239,10 +250,18 @@ pub async fn require_complete_result_document(
         }
         return Ok(Some(origin));
     }
+    if let Some(id) = requested_tally_id {
+        if tx.query_opt("SELECT 1 FROM sequent_backend.tally_session WHERE tenant_id=$1 AND id=$2 AND annotations ? 'result_readiness_version'", &[&tenant, &parse_uuid_v4(id)?]).await?.is_some() {
+            bail!("Document is not bound to the requested new tally");
+        }
+    }
     // Check ownership independently of document annotations. This prevents a
     // missing new-policy origin from being mistaken for a legacy document.
     if let Some(event_id) = document.election_event_id.as_deref() {
         let event = parse_uuid_v4(event_id)?;
+        if tx.query_opt("SELECT 1 FROM sequent_backend.tally_session WHERE tenant_id=$1 AND election_event_id=$2 AND annotations ? 'result_readiness_version' LIMIT 1", &[&tenant, &event]).await?.is_none() {
+            return Ok(None);
+        }
         for row in tx
             .query(
                 REFERENCES,
@@ -255,18 +274,40 @@ pub async fn require_complete_result_document(
                 bail!("New tally result document is missing provenance");
             }
         }
-    }
-    // Detached generated PDFs retain a separate durable task binding, even if
-    // the document's own origin is absent. Legacy tasks have no opt-in marker.
-    if tx.query_opt("SELECT 1 FROM sequent_backend.tasks_execution WHERE tenant_id=$1 AND annotations ? 'result_readiness_version' AND annotations->>'expected_document_id'=$2 LIMIT 1", &[&tenant, &document.id]).await?.is_some() {
-        bail!("New tally PDF is missing provenance");
-    }
-    if let Some(id) = requested_tally_id {
-        if tx.query_opt("SELECT 1 FROM sequent_backend.tally_session WHERE tenant_id=$1 AND id=$2 AND annotations ? 'result_readiness_version'", &[&tenant, &parse_uuid_v4(id)?]).await?.is_some() {
-            bail!("Document is not bound to the requested new tally");
+        // Detached generated PDFs retain a separate durable task binding.
+        if tx.query_opt("SELECT 1 FROM sequent_backend.tasks_execution WHERE tenant_id=$1 AND election_event_id=$2 AND annotations ? 'result_readiness_version' AND annotations->>'expected_document_id'=$3 LIMIT 1", &[&tenant, &event, &document.id]).await?.is_some() {
+            bail!("New tally PDF is missing provenance");
         }
     }
     Ok(None)
+}
+
+/// Event-wide exports must validate the exact execution selected by their worker.
+/// Legacy sessions retain their existing export behavior.
+pub async fn require_complete_execution_report(
+    tx: &Transaction<'_>,
+    tenant_id: &str,
+    event_id: &str,
+    execution_id: &str,
+    results_id: &str,
+) -> Result<Option<ResultOrigin>> {
+    let tenant = parse_uuid_v4(tenant_id)?;
+    let event = parse_uuid_v4(event_id)?;
+    let result = parse_uuid_v4(results_id)?;
+    let row = tx.query_opt("SELECT s.annotations FROM sequent_backend.tally_session_execution e JOIN sequent_backend.tally_session s ON s.id=e.tally_session_id AND s.tenant_id=e.tenant_id WHERE e.tenant_id=$1 AND e.election_event_id=$2 AND e.id=$3 AND e.results_event_id=$4", &[&tenant, &event, &parse_uuid_v4(execution_id)?, &result]).await?.context("Export execution/result identity mismatch")?;
+    let annotations: Option<Value> = row.get(0);
+    if !uses_readiness_policy(annotations.as_ref()) {
+        return Ok(None);
+    }
+    let row = tx.query_opt("SELECT to_jsonb(d) FROM sequent_backend.results_event r JOIN sequent_backend.document d ON d.id=(r.documents->>'tar_gz')::uuid AND d.tenant_id=r.tenant_id AND d.election_event_id=r.election_event_id WHERE r.tenant_id=$1 AND r.election_event_id=$2 AND r.id=$3", &[&tenant, &event, &result]).await?.context("New tally export is missing its result artifact")?;
+    let document: Document = serde_json::from_value(row.get(0))?;
+    let origin = require_complete_result_document(tx, tenant_id, &document, None)
+        .await?
+        .context("New tally export is missing provenance")?;
+    if origin.results_event_id != results_id || origin.election_id.is_some() {
+        bail!("Export requires the complete event scope");
+    }
+    Ok(Some(origin))
 }
 
 #[cfg(test)]
@@ -305,6 +346,22 @@ mod tests {
         ));
     }
     #[test]
+    fn numeric_completion_blocks_cancellation_and_allows_recount_during_reports() {
+        let mut session: TallySession = serde_json::from_value(json!({
+            "id":"tally", "tenant_id":"tenant", "election_event_id":"event",
+            "keys_ceremony_id":"keys", "threshold":1, "is_execution_completed":true,
+            "execution_status":"IN_PROGRESS", "annotations":{(POLICY):1}
+        }))
+        .unwrap();
+        assert!(is_numerically_complete(&session));
+        session.annotations = None;
+        assert!(!is_numerically_complete(&session));
+        session.execution_status = Some("SUCCESS".into());
+        assert!(is_numerically_complete(&session));
+        session.is_execution_completed = false;
+        assert!(!is_numerically_complete(&session));
+    }
+    #[test]
     fn only_explicit_creation_marker_enables_policy() {
         assert!(!uses_readiness_policy(None));
         assert!(!uses_readiness_policy(Some(
@@ -341,7 +398,7 @@ CREATE TABLE sequent_backend.results_election (tenant_id uuid, election_event_id
 CREATE TABLE sequent_backend.results_election_area (LIKE sequent_backend.results_election);
 CREATE TABLE sequent_backend.results_contest (LIKE sequent_backend.results_election, contest_id uuid, annotations jsonb);
 CREATE TABLE sequent_backend.results_area_contest (LIKE sequent_backend.results_election, contest_id uuid, area_id uuid);
-CREATE TABLE sequent_backend.tasks_execution (tenant_id uuid, annotations jsonb);
+CREATE TABLE sequent_backend.tasks_execution (tenant_id uuid, election_event_id uuid, annotations jsonb);
 "#).await?;
         let tenant = Uuid::new_v4();
         let event = Uuid::new_v4();
@@ -407,6 +464,14 @@ CREATE TABLE sequent_backend.tasks_execution (tenant_id uuid, annotations jsonb)
             json!({"id":execution_id,"tenant_id":tenant,"election_event_id":event,"tally_session_id":tally,"results_event_id":result,"current_message_id":1,"status":status,"documents":{"sqlite":Uuid::new_v4()}}),
         )?;
         let expected = vec![(a.to_string(), contest.to_string(), area.to_string())];
+        let mut empty_execution = execution.clone();
+        empty_execution.results_event_id = None;
+        assert!(
+            record_result_origins(&tx, &empty_execution, &ids, &expected, true)
+                .await
+                .is_err()
+        );
+        record_result_origins(&tx, &empty_execution, &ids, &[], true).await?;
         record_result_origins(&tx, &execution, &ids, &expected, false).await?;
         async fn document(
             tx: &Transaction<'_>,
@@ -425,6 +490,15 @@ CREATE TABLE sequent_backend.tasks_execution (tenant_id uuid, annotations jsonb)
                 json!({"id":id,"tenant_id":tenant,"election_event_id":event,"annotations":annotations}),
             )?)
         }
+        assert!(require_complete_execution_report(
+            &tx,
+            &tenant.to_string(),
+            &event.to_string(),
+            &execution_id.to_string(),
+            &result.to_string()
+        )
+        .await
+        .is_err());
         let source = document(&tx, report, tenant, event).await?;
         let origin = require_complete_result_document(
             &tx,
@@ -473,9 +547,10 @@ CREATE TABLE sequent_backend.tasks_execution (tenant_id uuid, annotations jsonb)
         .is_err());
         write_origin(&tx, &tenant.to_string(), &report.to_string(), &origin).await?;
         tx.execute(
-            "INSERT INTO sequent_backend.tasks_execution VALUES ($1,$2)",
+            "INSERT INTO sequent_backend.tasks_execution VALUES ($1,$2,$3)",
             &[
                 &tenant,
+                &event,
                 &json!({(POLICY):1,"expected_document_id":detached}),
             ],
         )
@@ -540,6 +615,15 @@ CREATE TABLE sequent_backend.tasks_execution (tenant_id uuid, annotations jsonb)
             &tenant.to_string(),
             &document(&tx, report, tenant, event).await?,
             None
+        )
+        .await?
+        .is_none());
+        assert!(require_complete_execution_report(
+            &tx,
+            &tenant.to_string(),
+            &event.to_string(),
+            &execution_id.to_string(),
+            &result.to_string()
         )
         .await?
         .is_none());

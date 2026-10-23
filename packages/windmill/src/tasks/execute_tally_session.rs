@@ -1625,6 +1625,7 @@ pub async fn execute_tally_session_wrapped(
             tenant_id.clone(),
             election_event_id.clone(),
             tally_session_id.clone(),
+            saved_execution.results_event_id.is_some(),
         )
         .await?;
         // get the election event

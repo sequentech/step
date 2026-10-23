@@ -625,3 +625,23 @@ it("preserves legacy success and report availability without new completeness ga
     expect(screen.getByTestId("ceremony-status").textContent).toBe("SUCCESS")
     expect(mockCompleteElections).toHaveBeenLastCalledWith(["closed"])
 })
+
+it("finishes an empty tally without waiting for nonexistent result metadata", async () => {
+    mockSession = {
+        ...mockSession,
+        execution_status: "SUCCESS",
+        is_execution_completed: true,
+        annotations: {result_readiness_version: 1, is_post_task_completed: true},
+    }
+    mockExecution = {
+        id: "empty",
+        tally_session_id: "tally",
+        results_event_id: null,
+        documents: null,
+        status: {elections_status: [{election_id: "closed", status: "SUCCESS", progress: 100}]},
+    }
+    mockExecutionRefetch.mockResolvedValue({data: {data: [mockExecution], total: 1}})
+    render(React.createElement(TallyCeremony))
+    await waitFor(() => expect(pollingInterval()).toBeUndefined())
+    expect(mockRefetch).not.toHaveBeenCalled()
+})

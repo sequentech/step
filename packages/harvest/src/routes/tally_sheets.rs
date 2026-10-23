@@ -603,10 +603,7 @@ async fn maybe_trigger_automatic_recount_for_import(
     let sessions_to_recount: Vec<TallySession> = tally_sessions
         .into_iter()
         .filter(|session| {
-            session.is_execution_completed
-                && (session.execution_status.as_deref() == Some("SUCCESS")
-                    || (windmill::services::ceremonies::result_readiness::uses_readiness_policy(session.annotations.as_ref())
-                        && session.execution_status.as_deref() == Some("IN_PROGRESS")))
+            windmill::services::ceremonies::result_readiness::is_numerically_complete(session)
         })
         .filter(|session| {
             session

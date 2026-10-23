@@ -114,6 +114,14 @@ pub async fn render_document_pdf(
     .await
     .map_err(|error| (Status::Conflict, error.to_string()))?;
 
+    // Bind new report tasks/outputs to the source event even when the caller
+    // omitted the optional event filter. Legacy request behavior is unchanged.
+    let election_event_id = if result_origin.is_some() {
+        found_document.election_event_id.clone()
+    } else {
+        election_event_id
+    };
+
     if let Some(media_type) = found_document.media_type {
         if "text/html".to_string() != media_type {
             return Err((

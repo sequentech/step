@@ -14,6 +14,54 @@ export function requiresCompleteResults(tally: {annotations?: unknown} | undefin
     )
 }
 
+export function isNumericallyComplete(tally: {
+    is_execution_completed?: boolean
+    execution_status?: string | null
+    annotations?: unknown
+}): boolean {
+    return (
+        !!tally.is_execution_completed &&
+        (tally.execution_status === "SUCCESS" ||
+            (requiresCompleteResults(tally) && tally.execution_status === "IN_PROGRESS"))
+    )
+}
+
+export function hasCompletedEmptyResults(
+    tally:
+        | Pick<
+              Sequent_Backend_Tally_Session,
+              "id" | "election_ids" | "annotations" | "execution_status" | "is_execution_completed"
+          >
+        | undefined,
+    execution:
+        | Pick<
+              Sequent_Backend_Tally_Session_Execution,
+              "tally_session_id" | "results_event_id" | "status" | "documents"
+          >
+        | undefined
+): boolean {
+    const progress = (execution?.status as ITallyCeremonyStatus | undefined)?.elections_status
+    return (
+        !!tally &&
+        requiresCompleteResults(tally) &&
+        tally.execution_status === "SUCCESS" &&
+        tally.is_execution_completed &&
+        tally.annotations?.is_post_task_completed === true &&
+        execution?.tally_session_id === tally.id &&
+        !execution.results_event_id &&
+        !execution.documents?.sqlite &&
+        !!tally.election_ids?.length &&
+        tally.election_ids.every((id) =>
+            progress?.some(
+                (row) =>
+                    row.election_id === id &&
+                    row.status === ITallyElectionStatus.SUCCESS &&
+                    row.progress === 100
+            )
+        )
+    )
+}
+
 /** Numeric completeness belongs to one execution snapshot and one election.
  * Its SUCCESS progress covers every expected weight batch. The SQLite input
  * tables supply the selected area/contest scope, including zero-vote areas.
@@ -21,7 +69,15 @@ export function requiresCompleteResults(tally: {annotations?: unknown} | undefin
  */
 export function getCompleteElectionIds(
     tally:
-        | Pick<Sequent_Backend_Tally_Session, "id" | "election_ids" | "area_ids" | "annotations">
+        | Pick<
+              Sequent_Backend_Tally_Session,
+              | "id"
+              | "election_ids"
+              | "area_ids"
+              | "annotations"
+              | "execution_status"
+              | "is_execution_completed"
+          >
         | undefined,
     execution:
         | Pick<
@@ -34,6 +90,7 @@ export function getCompleteElectionIds(
     // The server marks new tallies at creation. Existing tallies retain their
     // previous result/report availability; asynchronous identity fixes still apply.
     if (tally && !requiresCompleteResults(tally)) return tally.election_ids ?? []
+    if (hasCompletedEmptyResults(tally, execution)) return tally?.election_ids ?? []
     const resultsId = execution?.results_event_id
     if (
         !tally ||
@@ -45,6 +102,24 @@ export function getCompleteElectionIds(
     )
         return []
 
+    let publishedAreas: Record<string, string[]> | undefined
+    if (tally.annotations?.election_areas !== undefined) {
+        try {
+            const parsed: unknown = JSON.parse(tally.annotations.election_areas)
+            if (
+                !parsed ||
+                typeof parsed !== "object" ||
+                Array.isArray(parsed) ||
+                !Object.values(parsed).every(
+                    (ids) => Array.isArray(ids) && ids.every((id) => typeof id === "string")
+                )
+            )
+                return []
+            publishedAreas = parsed as Record<string, string[]>
+        } catch {
+            return []
+        }
+    }
     const progress = (execution.status as ITallyCeremonyStatus | undefined)?.elections_status
     const areaResults = new Set(
         data.sequent_backend_results_area_contest
@@ -98,7 +173,11 @@ export function getCompleteElectionIds(
         )
         const contestIds = new Set(contests.map((row) => row.id))
         // A contest assigned only to excluded areas is not part of this run.
-        const electionPairs = expectedPairs.filter((row) => contestIds.has(row.contest_id))
+        const electionPairs = expectedPairs.filter(
+            (row) =>
+                contestIds.has(row.contest_id) &&
+                (!publishedAreas || publishedAreas[electionId]?.includes(row.area_id))
+        )
         // The backend completes elections with no assigned areas without
         // emitting an election result. They must not block the other elections.
         if (electionPairs.length === 0) return true

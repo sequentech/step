@@ -87,7 +87,11 @@ import {IPermissions} from "@/types/keycloak"
 import {CREATE_TRANSMISSION_PACKAGE} from "@/queries/CreateTransmissionPackage"
 import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
-import {getCompleteElectionIds, requiresCompleteResults} from "./resultsCompleteness"
+import {
+    getCompleteElectionIds,
+    hasCompletedEmptyResults,
+    requiresCompleteResults,
+} from "./resultsCompleteness"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
@@ -444,6 +448,10 @@ export const TallyCeremony: React.FC = () => {
                 const latestExecution = Array.isArray(refreshed)
                     ? refreshed[0]
                     : refreshed?.data?.[0]
+                if (active && hasCompletedEmptyResults(tallySession, latestExecution)) {
+                    setCompletedTallyId(tallyId)
+                    return
+                }
                 if (
                     !active ||
                     !resultsEventId ||
@@ -466,6 +474,7 @@ export const TallyCeremony: React.FC = () => {
         tallyId,
         tallySession?.id,
         tallySession?.is_execution_completed,
+        tallySession?.execution_status,
         isPostTallyPending,
         isTallyCompleted,
         resultsEventId,
