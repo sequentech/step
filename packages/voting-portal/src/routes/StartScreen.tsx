@@ -30,6 +30,8 @@ import {
 } from "../store/ballotSelections/ballotSelectionsSlice"
 import {clearIsVoted, setDeclinedToVote, setIsVoted} from "../store/extra/extraSlice"
 import {useEncryptBallotForReview} from "../hooks/useEncryptBallotForReview"
+import {EEncryptOutcome} from "../services/EncryptOutcome"
+import {BoothRefusalDialog} from "../components/Vitrine/BoothRefusalDialog"
 import {store} from "../store/store"
 
 const StyledTitle = styled(Typography)<{component?: React.ElementType}>`
@@ -61,7 +63,7 @@ const StartScreen: React.FC = () => {
     const dispatch = useAppDispatch()
     const navigate = useNavigate()
     const location = useLocation()
-    const {encryptAndStoreBallot} = useEncryptBallotForReview()
+    const {encryptAndStoreBallot, boothRefusal, dismissBoothRefusal} = useEncryptBallotForReview()
 
     const titleObject = useMemo(() => {
         const startScreenTitlePolicy = election?.presentation?.start_screen_title_policy
@@ -116,7 +118,13 @@ const StartScreen: React.FC = () => {
         dispatch(setAllBallotSelectionsDeclineToVote({ballotStyle}))
         dispatch(setDeclinedToVote(ballotStyle.election_id))
         dispatch(setIsVoted(ballotStyle.election_id))
+        encryptDeclinedBallot()
+    }
 
+    const encryptDeclinedBallot = async () => {
+        if (!ballotStyle || !election) {
+            return
+        }
         const declinedSelection = selectBallotSelectionByElectionId(ballotStyle.election_id)(
             store.getState()
         )
@@ -124,11 +132,17 @@ const StartScreen: React.FC = () => {
             return
         }
 
-        if (encryptAndStoreBallot(ballotStyle, declinedSelection, isMultiContest)) {
+        const outcome = await encryptAndStoreBallot(ballotStyle, declinedSelection, isMultiContest)
+        if (outcome === EEncryptOutcome.ENCRYPTED) {
             navigate(
                 `/tenant/${tenantId}/event/${eventId}/election/${election.id}/review${location.search}`
             )
         }
+    }
+
+    const retryAfterBoothRefusal = () => {
+        dismissBoothRefusal()
+        encryptDeclinedBallot()
     }
 
     if (!election || !titleObject) {
@@ -290,6 +304,11 @@ const StartScreen: React.FC = () => {
                     {stringToHtml(t("startScreen.declineToVoteDialog.content"))}
                 </Dialog>
             ) : null}
+            <BoothRefusalDialog
+                refusal={boothRefusal}
+                onRetry={retryAfterBoothRefusal}
+                onClose={dismissBoothRefusal}
+            />
         </PageLimit>
     )
 }

@@ -49,6 +49,8 @@ import {canVoteSomeElection} from "../store/castVotes/castVotesSlice"
 import {IDecodedVoteContest} from "@sequentech/ui-core"
 import {sortContestList} from "@sequentech/ui-core"
 import {useEncryptBallotForReview} from "../hooks/useEncryptBallotForReview"
+import {EEncryptOutcome} from "../services/EncryptOutcome"
+import {BoothRefusalDialog} from "../components/Vitrine/BoothRefusalDialog"
 
 const StyledTitle = styled(Typography)<{component?: React.ElementType}>`
     margin-top: 25.5px;
@@ -332,7 +334,7 @@ const VotingScreen: React.FC = () => {
     const [hasInvalidErrors, setHasInvalidErrors] = useState<boolean>(false)
     const [contestsPerPage, setContestsPerPage] = useState<IContest[][]>([])
 
-    const {encryptAndStoreBallot} = useEncryptBallotForReview()
+    const {encryptAndStoreBallot, boothRefusal, dismissBoothRefusal} = useEncryptBallotForReview()
     const election = useAppSelector(selectElectionById(String(electionId)))
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
     const defaultLanguageCode =
@@ -421,7 +423,7 @@ const VotingScreen: React.FC = () => {
         dispatch(setIsVoted(electionId))
     }
 
-    const finallyEncryptAndReview = () => {
+    const finallyEncryptAndReview = async () => {
         if (isUndefined(selectionState) || !ballotStyle) {
             return
         }
@@ -451,11 +453,21 @@ const VotingScreen: React.FC = () => {
             ballotStyle?.ballot_eml.election_event_presentation?.contest_encryption_policy ==
             EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
 
-        if (encryptAndStoreBallot(ballotStyle, selectionStateToEncrypt, isMultiContest)) {
+        const outcome = await encryptAndStoreBallot(
+            ballotStyle,
+            selectionStateToEncrypt,
+            isMultiContest
+        )
+        if (outcome === EEncryptOutcome.ENCRYPTED) {
             submit(null, {method: "post"})
-        } else {
+        } else if (outcome === EEncryptOutcome.FAILED) {
             submit({error: VotingPortalErrorType.UNABLE_TO_CAST_BALLOT}, {method: "post"})
         }
+    }
+
+    const retryAfterBoothRefusal = () => {
+        dismissBoothRefusal()
+        finallyEncryptAndReview()
     }
 
     useEffect(() => {
@@ -626,6 +638,11 @@ const VotingScreen: React.FC = () => {
                     )}
                 </Dialog>
             )}
+            <BoothRefusalDialog
+                refusal={boothRefusal}
+                onRetry={retryAfterBoothRefusal}
+                onClose={dismissBoothRefusal}
+            />
         </PageLimit>
     )
 }

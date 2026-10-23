@@ -66,6 +66,7 @@ export const updateBallotStyleAndSelection = (
                 election_event_id: ballotStyle.election_event_id,
                 tenant_id: ballotStyle.tenant_id,
                 ballot_eml: electionData,
+                ballot_eml_text: ballotEml,
                 ballot_signature: ballotStyle.ballot_signature,
                 created_at: ballotStyle.created_at,
                 area_id: ballotStyle.area_id,

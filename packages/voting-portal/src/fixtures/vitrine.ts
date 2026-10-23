@@ -1,0 +1,440 @@
+// SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// Vitrine objects for tests: keys from fixed seeds, a signed policy, the
+// `events` and `ballots` logs with cosigned checkpoints, receipts, promises,
+// chains and the voter context Harvest serves. Everything is encoded with
+// @vitrine/verify's own formatters, so the portal checks real objects.
+
+import {Buffer} from "buffer"
+import {createPrivateKey, createPublicKey, sign as signEd25519} from "crypto"
+import {
+    bytes,
+    encoding,
+    entries,
+    formatChain,
+    hashes,
+    merkle,
+    notes,
+    promises,
+    proofs,
+    type ReceiptChain,
+} from "@vitrine/verify/pure"
+import {
+    ETransparencyMode,
+    IVitrineVoterContext,
+    VOTING_PORTAL_PACKAGE,
+} from "../services/vitrine/types"
+
+const PKCS8_ED25519_PREFIX = "302e020100300506032b657004220420"
+const EVENTS_TAG = "vitrine/events/v1"
+const MEANING_HASH = `sha256:${"ab".repeat(32)}`
+
+export const NOW = 1_800_000_000
+export const EVENT_ID = "0b6c4f53-8c0b-4cbb-9b7a-6c8a3a5c2f10"
+export const ELECTION_ID = "4f1d2e3c-5b6a-4789-8a9b-0c1d2e3f4a5b"
+export const RELEASE = "10.4.0"
+export const BALLOT_ID = "c0ffee".repeat(10) + "abcd"
+export const ACCEPTED_AT = NOW - 5
+
+export interface ITestKey {
+    name: string
+    type: number
+    key: Uint8Array
+    keyId: number
+    vkey: string
+    sign(message: Uint8Array): Uint8Array
+}
+
+export const testKey = (name: string, seed: number, type: number = notes.SIG_ED25519): ITestKey => {
+    const der = Buffer.concat([Buffer.from(PKCS8_ED25519_PREFIX, "hex"), Buffer.alloc(32, seed)])
+    const privateKey = createPrivateKey({key: der, format: "der", type: "pkcs8"})
+    const spki = createPublicKey(privateKey).export({format: "der", type: "spki"})
+    const key = new Uint8Array(spki.subarray(spki.length - 32))
+    return {
+        name,
+        type,
+        key,
+        keyId: notes.keyId(name, type, key),
+        vkey: notes.formatVkey(name, type, key),
+        sign: (message) => new Uint8Array(signEd25519(null, Buffer.from(message), privateKey)),
+    }
+}
+
+/** `text` as a note signed by each of `keys`. */
+export const signNote = (text: string, keys: readonly ITestKey[]): string =>
+    notes.formatNote(
+        text,
+        keys.map((k) => ({name: k.name, keyId: k.keyId, sig: k.sign(bytes.utf8(text))}))
+    )
+
+const cosignature = (witness: ITestKey, time: number, checkpointText: string) => ({
+    name: witness.name,
+    keyId: witness.keyId,
+    sig: bytes.concat(
+        bytes.u64be(time),
+        witness.sign(notes.cosignatureMessage(BigInt(time), checkpointText))
+    ),
+})
+
+export const KEYS = {
+    board: testKey("board.acme.example", 1),
+    stranger: testKey("stranger.example", 2),
+    ballots: testKey("logs.acme.example/e/ballots", 3),
+    events: testKey("logs.acme.example/e/events", 4),
+    witnesses: [
+        testKey("witness-1.example", 5, notes.SIG_COSIGNATURE_V1),
+        testKey("witness-2.example", 6, notes.SIG_COSIGNATURE_V1),
+        testKey("witness-3.example", 7, notes.SIG_COSIGNATURE_V1),
+    ],
+    monitor: testKey("monitor.example", 8),
+    auditor: testKey("auditor.example", 9),
+}
+
+export const LOG_URLS = {
+    ballots: "https://logs.acme.example/e/ballots/",
+    events: "https://logs.acme.example/e/events/",
+}
+export const MONITOR_URL = "https://monitor.example/"
+
+// -- Merkle trees (RFC 9162, section 2.1) ------------------------------------
+
+const split = (n: number): number => {
+    let k = 1
+    while (k * 2 < n) k *= 2
+    return k
+}
+
+const inclusionPath = (leaves: Uint8Array[], index: number): Uint8Array[] => {
+    if (leaves.length <= 1) return []
+    const k = split(leaves.length)
+    return index < k
+        ? [...inclusionPath(leaves.slice(0, k), index), merkle.treeRoot(leaves.slice(k))]
+        : [...inclusionPath(leaves.slice(k), index - k), merkle.treeRoot(leaves.slice(0, k))]
+}
+
+const subproof = (leaves: Uint8Array[], m: number, whole: boolean): Uint8Array[] => {
+    const n = leaves.length
+    if (m === n) return whole ? [] : [merkle.treeRoot(leaves)]
+    const k = split(n)
+    return m <= k
+        ? [...subproof(leaves.slice(0, k), m, whole), merkle.treeRoot(leaves.slice(k))]
+        : [...subproof(leaves.slice(k), m - k, false), merkle.treeRoot(leaves.slice(0, k))]
+}
+
+export class TestLog {
+    readonly entries: Uint8Array[] = []
+
+    constructor(
+        readonly name: string,
+        readonly key: ITestKey,
+        readonly url: string
+    ) {}
+
+    get origin(): string {
+        return this.key.name
+    }
+
+    add(entry: Uint8Array): number {
+        this.entries.push(entry)
+        return this.entries.length - 1
+    }
+
+    leaves(size: number): Uint8Array[] {
+        return this.entries.slice(0, size).map((e) => hashes.leafHash(e))
+    }
+
+    checkpointText(size: number): string {
+        return `${this.origin}\n${size}\n${encoding.b64encode(merkle.treeRoot(this.leaves(size)))}\n`
+    }
+
+    /** The checkpoint at `size`, signed by the log and cosigned at `time`. */
+    checkpoint(size: number, witnesses: readonly ITestKey[], time: number = NOW - 10): string {
+        const text = this.checkpointText(size)
+        const logSig = {
+            name: this.key.name,
+            keyId: this.key.keyId,
+            sig: this.key.sign(bytes.utf8(text)),
+        }
+        return notes.formatNote(text, [logSig, ...witnesses.map((w) => cosignature(w, time, text))])
+    }
+
+    inclusion(index: number, size: number): Uint8Array[] {
+        return inclusionPath(this.leaves(size), index)
+    }
+
+    consistency(from: number, to: number): Uint8Array[] {
+        return subproof(this.leaves(to), from, true)
+    }
+
+    /** A receipt: the entry at `index` against the checkpoint at `size`. */
+    receipt(
+        index: number,
+        size: number,
+        witnesses: readonly ITestKey[],
+        time: number = NOW - 10
+    ): string {
+        return proofs.formatTlogProof({
+            extra: this.entries[index],
+            index: BigInt(index),
+            proof: this.inclusion(index, size),
+            checkpoint: this.checkpoint(size, witnesses, time),
+        })
+    }
+
+    /** A promise for the entry at `index`, in a batch of `batch` entries. */
+    promise(index: number, batch: readonly number[], time: number = NOW - 2, mmd = 60): string {
+        const leaf = hashes.leafHash(this.entries[index])
+        const batchLeaves = batch.map((i) => hashes.leafHash(hashes.leafHash(this.entries[i])))
+        const text = promises.formatPromiseBatchText({
+            origin: this.origin,
+            time,
+            mmd,
+            size: batch.length,
+            root: merkle.treeRoot(batchLeaves),
+        })
+        const at = batch.indexOf(index)
+        return promises.formatPromise(
+            leaf,
+            at,
+            inclusionPath(batchLeaves, at),
+            signNote(text, [this.key])
+        )
+    }
+}
+
+export const hashLines = (proof: readonly Uint8Array[]): string =>
+    proof.map((h) => `${encoding.b64encode(h)}\n`).join("")
+
+export const chainText = (
+    policyId: string,
+    log: string,
+    blocks: Partial<Omit<ReceiptChain, "policyId" | "log">>
+): string => bytes.fromUtf8(formatChain({policyId, log, hubs: new Map(), unknown: [], ...blocks}))
+
+// -- The policy ------------------------------------------------------------
+
+export type TVisibility = ETransparencyMode.PUBLIC | ETransparencyMode.PRIVATE
+
+export const policyText = (visibility: TVisibility, extra: readonly string[] = []): string => {
+    const lines = [
+        "vitrine/policy/v1",
+        "name acme-2026",
+        `visibility ${visibility}`,
+        ...(visibility === ETransparencyMode.PRIVATE ? [`policy-salt ${"5a".repeat(32)}`] : []),
+        "operator sequent",
+        `authority board ${KEYS.board.vkey}`,
+        "sign 1 board",
+        ...(visibility === ETransparencyMode.PRIVATE
+            ? [`auditor auditors ${KEYS.auditor.vkey}`]
+            : []),
+        "mmd 60",
+        `log ballots ${KEYS.ballots.vkey} ${LOG_URLS.ballots}`,
+        `mirror ballots https://mirror.example/ballots/`,
+        `profile ballots vitrine/election/v1 ${MEANING_HASH}`,
+        `log events ${KEYS.events.vkey} ${LOG_URLS.events}`,
+        `profile events ${EVENTS_TAG} ${MEANING_HASH}`,
+        ...KEYS.witnesses.map((w, i) => `witness w${i + 1} ${w.vkey}`),
+        "group witnesses 2 w1 w2 w3",
+        "quorum witnesses",
+        `monitor observers ${KEYS.monitor.vkey} ${MONITOR_URL}`,
+        ...extra,
+    ]
+    return signNote(`${lines.join("\n")}\n`, [KEYS.board])
+}
+
+/** The policy ID of a signed policy note: SHA-256 of its text. */
+export const policyIdOf = (note: string): string => {
+    const text = notes.parseNote(note).textBytes
+    return `sha256:${encoding.hexEncode(hashes.sha256(text))}`
+}
+
+// -- Entries ------------------------------------------------------------------
+
+const pub = (value: Uint8Array): entries.Field => ({kind: entries.FIELD_PUBLIC, value})
+
+export const eventsEntry = (
+    kind: string,
+    statement: string,
+    time: number = NOW - 100
+): Uint8Array =>
+    entries.encodeEntry(EVENTS_TAG, [
+        pub(bytes.utf8(kind)),
+        pub(bytes.u64be(time)),
+        pub(Uint8Array.of(0)),
+        pub(bytes.utf8(statement)),
+        {kind: entries.FIELD_COMMITMENT, value: hashes.sha256(`details ${kind} ${time}`)},
+    ])
+
+export const ballotEntry = (ballotId: string = BALLOT_ID, acceptedAt: number = ACCEPTED_AT) =>
+    entries.buildElectionEntry({
+        eventId: EVENT_ID,
+        electionId: ELECTION_ID,
+        ballotId,
+        acceptedAt,
+    })
+
+// -- The booth's inputs ---------------------------------------------------------
+
+/** The election public key as step's ballot styles carry it: base64, no padding. */
+export const PUBLIC_KEY = encoding.b64encode(new Uint8Array(32).fill(42)).replace(/=+$/, "")
+export const STYLE_TEXT = JSON.stringify({id: "style-north", public_key: {public_key: PUBLIC_KEY}})
+const OTHER_STYLE_TEXT = JSON.stringify({id: "style-south", public_key: {public_key: PUBLIC_KEY}})
+
+const sha256Hex = (text: string): string => encoding.hexEncode(hashes.sha256(text))
+
+export const styleHashes = (): string[] =>
+    [sha256Hex(STYLE_TEXT), sha256Hex(OTHER_STYLE_TEXT)].sort()
+
+const stylesLine = (hexDigests: readonly string[]): string =>
+    encoding.b64encode(
+        hashes.sha256(
+            ...hexDigests
+                .map((h) => encoding.hexDecode(h, 32))
+                .sort((a, b) => bytes.compareBytes(a, b))
+        )
+    )
+
+export interface IConfigFields {
+    event: string
+    election: string
+    key: string
+    styles: string
+    opens: number
+    closes: number
+    policy: string
+    releases: string[]
+    transparency: string
+    demo: string
+    time: number
+}
+
+export const configStatementText = (f: IConfigFields): string =>
+    [
+        "vitrine/config/v1",
+        `event ${f.event}`,
+        `election ${f.election}`,
+        `key ${f.key}`,
+        `styles ${f.styles}`,
+        `opens ${f.opens}`,
+        `closes ${f.closes}`,
+        `policy ${f.policy}`,
+        ...f.releases.map((r) => `release ${r}`),
+        `transparency ${f.transparency}`,
+        `demo ${f.demo}`,
+        `time ${f.time}`,
+    ].join("\n") + "\n"
+
+export interface IScenarioOptions {
+    mode?: TVisibility
+    config?: Partial<IConfigFields>
+    /** Who signs the config statement. */
+    configSigners?: readonly ITestKey[]
+    /** How many witnesses cosign the events checkpoint. */
+    cosigners?: number
+    /** The milestone's `config` line for the election, base64. */
+    openedConfigLeaf?: string
+    /** The milestone's kind. */
+    openedKind?: string
+}
+
+export interface IScenario {
+    mode: TVisibility
+    policy: string
+    policyId: string
+    presentation: Record<string, unknown>
+    context: IVitrineVoterContext
+    events: TestLog
+    ballots: TestLog
+    configEntry: Uint8Array
+    openedEntry: Uint8Array
+    policyAck: string
+}
+
+/** An event whose booth check passes, unless the options break it. */
+export const scenario = (options: IScenarioOptions = {}): IScenario => {
+    const mode = options.mode ?? ETransparencyMode.PUBLIC
+    const policy = policyText(mode)
+    const policyId = policyIdOf(policy)
+    const witnesses = KEYS.witnesses.slice(0, options.cosigners ?? 2)
+    const hashesList = styleHashes()
+    const fields: IConfigFields = {
+        event: EVENT_ID,
+        election: ELECTION_ID,
+        key: encoding.b64encode(hashes.sha256(encoding.b64decode(`${PUBLIC_KEY}=`))),
+        styles: stylesLine(hashesList),
+        opens: NOW - 3600,
+        closes: NOW + 3600,
+        policy: policyId,
+        releases: [`${VOTING_PORTAL_PACKAGE} ${RELEASE}`, "sequent/ballot-verifier 10.4.0"],
+        transparency: mode,
+        demo: "no",
+        time: NOW - 200,
+        ...options.config,
+    }
+    const config = signNote(configStatementText(fields), options.configSigners ?? [KEYS.board])
+    const events = new TestLog("events", KEYS.events, LOG_URLS.events)
+    events.add(eventsEntry("notice", signNote("vitrine/notice/v1\nhello\n", [KEYS.board])))
+    const configIndex = events.add(eventsEntry("config", config))
+    const configEntry = events.entries[configIndex]
+    const leaf = encoding.b64encode(hashes.leafHash(configEntry))
+    const opened = signNote(
+        [
+            "vitrine/milestone/v1",
+            `event ${EVENT_ID}`,
+            `kind ${options.openedKind ?? "voting-opened"}`,
+            `time ${NOW - 150}`,
+            `config ${ELECTION_ID} ${options.openedConfigLeaf ?? leaf}`,
+        ].join("\n") + "\n",
+        [KEYS.board]
+    )
+    const openedIndex = events.add(eventsEntry("voting-opened", opened))
+    const openedEntry = events.entries[openedIndex]
+    const size = events.entries.length
+    const chainFor = (index: number) =>
+        chainText(policyId, "events", {record: bytes.utf8(events.receipt(index, size, witnesses))})
+    const policyAck = signNote(
+        `vitrine/policy-ack/v1\norigin ${KEYS.ballots.name}\npolicy ${policyId}\ntime ${NOW - 500}\n`,
+        [KEYS.ballots]
+    )
+    const ballots = new TestLog("ballots", KEYS.ballots, LOG_URLS.ballots)
+    return {
+        mode,
+        policy,
+        policyId,
+        presentation: {
+            transparency: mode,
+            vitrine: {
+                policy_id: policyId.slice("sha256:".length),
+                ...(mode === ETransparencyMode.PUBLIC ? {policy} : {}),
+                logs: {
+                    ballots: {url: LOG_URLS.ballots, origin: KEYS.ballots.name},
+                    events: {url: LOG_URLS.events, origin: KEYS.events.name},
+                },
+            },
+        },
+        context: {
+            mode,
+            policy: mode === ETransparencyMode.PRIVATE ? policy : null,
+            policy_ack: mode === ETransparencyMode.PRIVATE ? policyAck : null,
+            config: {
+                statement: config,
+                entry: encoding.b64encode(configEntry),
+                chain: chainFor(configIndex),
+            },
+            opened: {
+                statement: opened,
+                entry: encoding.b64encode(openedEntry),
+                chain: chainFor(openedIndex),
+            },
+            style_hashes: hashesList,
+            release: `${VOTING_PORTAL_PACKAGE} ${RELEASE}`,
+        },
+        events,
+        ballots,
+        configEntry,
+        openedEntry,
+        policyAck,
+    }
+}

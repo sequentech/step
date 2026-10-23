@@ -459,6 +459,37 @@ const englishTranslation = {
                 ballot_id: "Ballot ID",
             },
         },
+        vitrine: {
+            booth: {
+                title: "Your ballot can't be prepared yet",
+                explanation:
+                    "Before it encrypts your ballot, this website checks that the election's settings are the ones published in the election's public record. Your ballot hasn't been encrypted or sent, and your choices are still here.",
+                pending:
+                    "The published settings aren't available yet. Please try again in a moment.",
+                invalid: "The published settings couldn't be read. Please try again in a moment.",
+                failed: "The settings don't match the published ones. The election's observers have been told. Please contact support.",
+                retry: "Try again",
+                close: "Close",
+            },
+            receipt: {
+                title: "Your receipt",
+                description:
+                    "The receipt shows that your ballot was recorded in the election's public record. It doesn't show how you voted.",
+                waiting:
+                    "The receipt isn't ready yet. This website keeps asking for it while this page is open.",
+                missing:
+                    "This website didn't get a receipt for your ballot. Your vote was cast. The election's observers have been told.",
+                stored: "This receipt is kept on this device, and you can see it again after you log in.",
+                notStored: "This receipt isn't kept on this device.",
+                forget: "Don't keep receipts on this device",
+                keep: "Keep receipts on this device",
+            },
+            storedReceipts: {
+                title: "Receipts on this device",
+                description: "The receipts of the ballots you cast on this device.",
+                forget: "Remove the receipts from this device",
+            },
+        },
     },
 }
 

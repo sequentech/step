@@ -467,6 +467,39 @@ const dutchTranslation: TranslationType = {
                 ballot_id: "Stembiljet ID",
             },
         },
+        vitrine: {
+            booth: {
+                title: "Uw stembiljet kan nog niet worden voorbereid",
+                explanation:
+                    "Voordat deze website uw stembiljet versleutelt, controleert ze of de instellingen van de verkiezing dezelfde zijn als die in het openbare register van de verkiezing. Uw stembiljet is niet versleuteld of verzonden, en uw keuzes blijven bewaard.",
+                pending:
+                    "De gepubliceerde instellingen zijn nog niet beschikbaar. Probeer het zo meteen opnieuw.",
+                invalid:
+                    "De gepubliceerde instellingen konden niet worden gelezen. Probeer het zo meteen opnieuw.",
+                failed: "De instellingen komen niet overeen met de gepubliceerde. De waarnemers van de verkiezing zijn op de hoogte gebracht. Neem contact op met de ondersteuning.",
+                retry: "Opnieuw proberen",
+                close: "Sluiten",
+            },
+            receipt: {
+                title: "Uw ontvangstbewijs",
+                description:
+                    "Het ontvangstbewijs toont dat uw stembiljet is vastgelegd in het openbare register van de verkiezing. Het toont niet hoe u hebt gestemd.",
+                waiting:
+                    "Het ontvangstbewijs is nog niet klaar. Deze website blijft erom vragen zolang deze pagina open is.",
+                missing:
+                    "Deze website heeft geen ontvangstbewijs voor uw stembiljet gekregen. Uw stem is uitgebracht. De waarnemers van de verkiezing zijn op de hoogte gebracht.",
+                stored: "Dit ontvangstbewijs wordt op dit apparaat bewaard, en u kunt het opnieuw zien nadat u zich hebt aangemeld.",
+                notStored: "Dit ontvangstbewijs wordt niet op dit apparaat bewaard.",
+                forget: "Geen ontvangstbewijzen op dit apparaat bewaren",
+                keep: "Ontvangstbewijzen op dit apparaat bewaren",
+            },
+            storedReceipts: {
+                title: "Ontvangstbewijzen op dit apparaat",
+                description:
+                    "De ontvangstbewijzen van de stembiljetten die u op dit apparaat hebt uitgebracht.",
+                forget: "De ontvangstbewijzen van dit apparaat verwijderen",
+            },
+        },
     },
 }
 

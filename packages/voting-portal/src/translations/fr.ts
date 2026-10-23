@@ -465,6 +465,38 @@ const frenchTranslation: TranslationType = {
                 ballot_id: "Numéro d'identification du bulletin",
             },
         },
+        vitrine: {
+            booth: {
+                title: "Votre bulletin ne peut pas encore être préparé",
+                explanation:
+                    "Avant de chiffrer votre bulletin, ce site vérifie que la configuration de l'élection est celle publiée dans le registre public de l'élection. Votre bulletin n'a été ni chiffré ni envoyé, et vos choix sont conservés.",
+                pending:
+                    "La configuration publiée n'est pas encore disponible. Veuillez réessayer dans un instant.",
+                invalid:
+                    "La configuration publiée n'a pas pu être lue. Veuillez réessayer dans un instant.",
+                failed: "La configuration ne correspond pas à celle publiée. Les observateurs de l'élection ont été prévenus. Veuillez contacter l'assistance.",
+                retry: "Réessayer",
+                close: "Fermer",
+            },
+            receipt: {
+                title: "Votre reçu",
+                description:
+                    "Le reçu montre que votre bulletin a été inscrit dans le registre public de l'élection. Il ne montre pas votre vote.",
+                waiting:
+                    "Le reçu n'est pas encore prêt. Ce site continue de le demander tant que cette page est ouverte.",
+                missing:
+                    "Ce site n'a reçu aucun reçu pour votre bulletin. Votre vote a été émis. Les observateurs de l'élection ont été prévenus.",
+                stored: "Ce reçu est conservé sur cet appareil, et vous pourrez le revoir après vous être connecté.",
+                notStored: "Ce reçu n'est pas conservé sur cet appareil.",
+                forget: "Ne pas conserver de reçus sur cet appareil",
+                keep: "Conserver les reçus sur cet appareil",
+            },
+            storedReceipts: {
+                title: "Reçus sur cet appareil",
+                description: "Les reçus des bulletins que vous avez émis sur cet appareil.",
+                forget: "Supprimer les reçus de cet appareil",
+            },
+        },
     },
 }
 
