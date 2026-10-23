@@ -1191,10 +1191,13 @@ async fn a_recount_of_an_execution_without_status_writes_nothing() {
 
 #[tokio::test]
 async fn new_sessions_wait_for_reports_and_propagate_completion_errors() {
-    let ceremony = ceremony(&IN_PROGRESS, &restored_pair());
-    let mut session = ceremony.session(SESSION);
+    let ceremony = InMemoryTallyCeremony::default();
+    let mut session = tally_session(&IN_PROGRESS);
     session.annotations = Some(json!({"result_readiness_version": 1}));
     ceremony.add_session(session);
+    ceremony.add_election_event(election_event(Some(
+        json!({"id":1, "database_name":EVENT_BOARD, "is_archived":false}),
+    )));
     complete(&ceremony).await.unwrap();
     assert_eq!(stored_status(&ceremony), Some(IN_PROGRESS.to_string()));
     assert!(ceremony.session(SESSION).is_execution_completed);

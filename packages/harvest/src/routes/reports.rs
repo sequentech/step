@@ -169,12 +169,13 @@ pub async fn render_document_pdf(
 
     // Bind the generated report before it can be queued or downloaded.
     let task_execution = if let Some(origin) = &result_origin {
+        let annotations = serde_json::json!({(POLICY):1, (ORIGIN):origin, "expected_document_id": output_document_id});
         services.ledger.post_with_annotations(
             &claims.hasura_claims.tenant_id,
             election_event_id.as_deref(),
             ETasksExecution::RENDER_DOCUMENT_PDF,
             &executer_name,
-            serde_json::json!({(POLICY):1, (ORIGIN):origin, "expected_document_id": output_document_id}),
+            annotations,
         ).await
     } else {
         services.ledger.post(
