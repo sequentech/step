@@ -52,7 +52,8 @@ Both commands open read-only transactions and accept only loopback addresses.
 
 **Expected result:** the exit status is `0`. The directory `postgres-export` contains
 `scope.json`, `cast-votes.json`, `eligible-voters.json`, `board-messages.json`,
-`cast-vote-history.json`, `saved-mapping.json` and `acquisition.json`.
+`cast-vote-history.json`, `saved-mapping.json` and `acquisition.json`. It also contains three
+source files for the audit report. See [Command Reference](../05-command-reference.md#export-ballot-audit).
 
 ## 2. Export the electoral log
 

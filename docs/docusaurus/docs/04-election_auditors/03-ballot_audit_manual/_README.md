@@ -18,6 +18,7 @@ authors. Docusaurus does not publish files whose name starts with `_`.
 | `02-procedures/` | The audit in order, from the workstation to the clean-up. | 2 |
 | `03-read-the-results.md` | Exit statuses, lookup outcomes and exclusion reasons. | 3 |
 | `04-troubleshooting.md` | Each message of the commands, with its cause and action. | 4 |
+| `05-command-reference.md` | All options of each command and the fields of `scope.json` and `connections.json`. Copy them from the `Args` structs of this branch. | 5 |
 
 Each procedure page has the parts of the procedures of the administrator manual: a title that
 starts with a verb, one paragraph, **Before you start**, numbered steps under `##` headings,
