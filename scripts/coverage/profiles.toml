@@ -363,6 +363,7 @@ WBRAID_B4_PG_PASSWORD = "test"
 
 [profiles.windmill.excluded_files]
 "src/services/ballot_box_privacy_tests.rs" = "Standalone unit-test module under cfg(test); signed sequencing, receive/cast and retention remain measured in production services."
+"src/services/vault/tests.rs" = "Standalone unit-test module under cfg(test); the vault backends it checks remain measured."
 "src/services/messaging/insights_tests.rs" = "Standalone unit-test module under cfg(test); the messaging audience preview and stats remain measured."
 "src/services/ceremonies/keys_ceremony_tests.rs" = "Standalone unit-test module under cfg(test); the keys ceremony use cases remain measured."
 "src/services/ceremonies/tally_ceremony_creation_tests.rs" = "Standalone unit-test module under cfg(test); the tally creation use case remains measured."
