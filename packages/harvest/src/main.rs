@@ -201,4 +201,5 @@ async fn rocket() -> _ {
         )
         .mount("/", routes![routes::plugins::plugin_routes])
         .manage(LastDatafixAccessToken::init())
+        .manage(services::vitrine::CastReceipts::from_env())
 }
