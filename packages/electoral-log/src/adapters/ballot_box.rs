@@ -8,10 +8,15 @@
 //! to the event's board. The tables are partitioned by election event.
 
 use super::postgres::PostgresStore;
+use crate::vitrine::{ballot_id_hash, leaf_hash, ElectionEntry, Hash};
 use anyhow::{ensure, Context, Result};
+use deadpool_postgres::Object;
+use std::str::FromStr;
 use std::time::{Duration, Instant};
 use strum_macros::{Display, EnumString};
 use tokio_postgres::error::SqlState;
+use tokio_postgres::types::ToSql;
+use tracing::warn;
 
 /// Status of a stored ballot.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Display, EnumString)]
@@ -48,14 +53,62 @@ pub struct AcceptBallot<'a> {
     pub username: Option<&'a str>,
     /// Votes a voter may cast in the election; 0 means unlimited.
     pub allowed_votes: i32,
+    /// The event's Vitrine `ballots` log, when the event has transparency on.
+    pub vitrine: Option<VitrineQueue>,
+}
+
+/// Where an accepted ballot's `vitrine/election/v1` entry goes: the queue
+/// partition of the event's `ballots` log, in the event's database.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct VitrineQueue {
+    /// The sidecar's ID of the log.
+    pub log_id: i64,
+    /// When the ballot is accepted, in POSIX seconds truncated to the profile's
+    /// granularity. The ballot row and the entry both hold it.
+    pub accepted_at: i64,
+}
+
+/// Whether an accepted ballot's entry went into its log's queue.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum QueueState {
+    /// Queued in the transaction that stored the ballot.
+    Queued,
+    /// The queue refused the insert, so the ballot was stored without it.
+    NotQueued,
+}
+
+/// An accepted ballot's Vitrine entry and its leaf hash.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VitrineEntry {
+    pub entry: Vec<u8>,
+    pub leaf_hash: Hash,
+    pub queue: QueueState,
+}
+
+/// Whether an acceptance is new.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Display)]
+#[strum(serialize_all = "snake_case")]
+pub enum Acceptance {
+    /// This call stored the ballot.
+    New,
+    /// The voter had cast this ballot already: the stored acceptance, with the
+    /// same entry, so a retried cast gets the same receipt. The entry is reported
+    /// as queued; the log says whether it is.
+    Replayed,
 }
 
 /// What happened to a vote.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AcceptOutcome {
     /// Stored and queued for the sequencer under this sequence number, with
-    /// this ID.
-    Accepted { seq: i64, id: String },
+    /// this ID and status.
+    Accepted {
+        seq: i64,
+        id: String,
+        status: BallotStatus,
+        acceptance: Acceptance,
+        vitrine: Option<VitrineEntry>,
+    },
     /// The voter already voted in this election in another area.
     VotedInOtherArea,
     /// The voter has cast all the votes the election allows.
@@ -99,7 +152,30 @@ const VOTERS: &str = "ballot_box_voter";
 const DETACH_WAIT: Duration = Duration::from_secs(120);
 const DETACH_RETRY: Duration = Duration::from_millis(200);
 
-const ACCEPT: &str = r#"
+/// The statement that accepts a ballot. `accepted_at` comes from the column's
+/// default, from `$17`, or from `$17` with the ballot's entry (`$18`) queued in
+/// the event's `ballots` log.
+fn accept_statement(time: &AcceptedAt) -> String {
+    let (column, value, vitrine) = match time {
+        AcceptedAt::Now => ("", "", String::new()),
+        AcceptedAt::Bound => (
+            ", accepted_at",
+            ", to_timestamp($17::bigint)",
+            String::new(),
+        ),
+        AcceptedAt::Queued { log_id } => (
+            ", accepted_at",
+            ", to_timestamp($17::bigint)",
+            format!(
+                ", vitrine_queued AS (
+    INSERT INTO vitrine.queue_{log_id} (entry)
+    SELECT $18::bytea FROM ballot
+)"
+            ),
+        ),
+    };
+    format!(
+        r#"
 WITH voter AS (
     INSERT INTO ballot_box_voter AS v
         (election_event_id, election_id, voter_id, area_id, votes, last_ballot_id, updated_at)
@@ -116,17 +192,31 @@ WITH voter AS (
     INSERT INTO ballot_box_ballot
         (election_event_id, ballot_id, election_id, area_id, voter_id, format, content,
          voter_signature, pseudonym_hash, ballot_hash, voting_channel, status, voter_ip,
-         voter_country, username)
+         voter_country, username{column})
     SELECT election_event_id, $5, $2::text::uuid, $4::text::uuid, $3, $7, $8, $9, $10, $11,
-           $12, $13, $14, $15, $16
+           $12, $13, $14, $15, $16{value}
     FROM voter
     RETURNING election_event_id, seq, id
 ), queued AS (
     INSERT INTO ballot_box_pending (election_event_id, seq)
     SELECT election_event_id, seq FROM ballot
-)
+){vitrine}
 SELECT seq, id::text FROM ballot
-"#;
+"#
+    )
+}
+
+/// Where the ballot row's `accepted_at` comes from.
+enum AcceptedAt {
+    Now,
+    Bound,
+    Queued { log_id: i64 },
+}
+
+/// The stored ballot with a given ballot ID, for idempotent casting.
+const STORED_BALLOT: &str = "SELECT seq, id::text, voter_id, election_id::text, status, \
+     floor(extract(epoch FROM accepted_at))::bigint FROM ballot_box_ballot \
+     WHERE election_event_id = $1::text::uuid AND ballot_id = $2";
 
 const VOTER_STATE: &str = "SELECT area_id::text, votes, last_ballot_id FROM ballot_box_voter \
      WHERE election_event_id = $1::text::uuid AND election_id = $2::text::uuid AND voter_id = $3";
@@ -164,6 +254,104 @@ fn partition_suffix(election_event_id: &str) -> Result<String> {
         "Invalid election event ID {election_event_id:?}"
     );
     Ok(suffix)
+}
+
+/// The ballot's `vitrine/election/v1` entry.
+fn vitrine_entry(ballot: &AcceptBallot<'_>, accepted_at: i64) -> Result<Vec<u8>> {
+    ElectionEntry {
+        event_id: canonical_uuid(ballot.election_event_id)?,
+        election_id: canonical_uuid(ballot.election_id)?,
+        ballot_id: ballot_id_hash(ballot.ballot_id)?,
+        accepted_at: u64::try_from(accepted_at).context("accepted_at is before 1970")?,
+    }
+    .encode()
+}
+
+async fn run_accept(
+    client: &Object,
+    ballot: &AcceptBallot<'_>,
+    time: &AcceptedAt,
+    entry: Option<&[u8]>,
+) -> Result<Option<tokio_postgres::Row>, tokio_postgres::Error> {
+    // Prepared once per connection, so that each vote does not parse and plan it.
+    let statement = client.prepare_cached(&accept_statement(time)).await?;
+    let status = ballot.status.to_string();
+    let accepted_at = ballot.vitrine.map(|queue| queue.accepted_at);
+    let mut params: Vec<&(dyn ToSql + Sync)> = vec![
+        &ballot.election_event_id,
+        &ballot.election_id,
+        &ballot.voter_id,
+        &ballot.area_id,
+        &ballot.ballot_id,
+        &ballot.allowed_votes,
+        &ballot.format,
+        &ballot.content,
+        &ballot.voter_signature,
+        &ballot.pseudonym_hash,
+        &ballot.ballot_hash,
+        &ballot.voting_channel,
+        &status,
+        &ballot.voter_ip,
+        &ballot.voter_country,
+        &ballot.username,
+    ];
+    match time {
+        AcceptedAt::Now => {}
+        AcceptedAt::Bound => params.push(&accepted_at),
+        AcceptedAt::Queued { .. } => {
+            params.push(&accepted_at);
+            params.push(&entry);
+        }
+    }
+    client.query_opt(&statement, &params).await
+}
+
+/// The stored acceptance of a ballot the voter cast already, if there is one.
+async fn replay(client: &Object, ballot: &AcceptBallot<'_>) -> Result<Option<AcceptOutcome>> {
+    let Some(row) = client
+        .query_opt(
+            STORED_BALLOT,
+            &[&ballot.election_event_id, &ballot.ballot_id],
+        )
+        .await
+        .context("Error reading the stored ballot")?
+    else {
+        return Ok(None);
+    };
+    let voter_id: String = row.get(2);
+    let election_id: String = row.get(3);
+    let status: String = row.get(4);
+    let status = BallotStatus::from_str(&status)
+        .with_context(|| format!("Unknown ballot status {status:?}"))?;
+    if voter_id != ballot.voter_id
+        || !election_id.eq_ignore_ascii_case(ballot.election_id)
+        || status == BallotStatus::Rejected
+    {
+        return Ok(None);
+    }
+    let accepted_at: i64 = row.get(5);
+    let vitrine = ballot.vitrine.and_then(|_| {
+        vitrine_entry(ballot, accepted_at)
+            .map_err(|error| {
+                warn!(
+                    "No Vitrine entry for ballot {}: {error:#}",
+                    ballot.ballot_id
+                )
+            })
+            .ok()
+            .map(|entry| VitrineEntry {
+                leaf_hash: leaf_hash(&entry),
+                entry,
+                queue: QueueState::Queued,
+            })
+    });
+    Ok(Some(AcceptOutcome::Accepted {
+        seq: row.get(0),
+        id: row.get(1),
+        status,
+        acceptance: Acceptance::Replayed,
+        vitrine,
+    }))
 }
 
 impl PostgresStore {
@@ -306,47 +494,66 @@ impl PostgresStore {
         Ok(row.get(0))
     }
 
-    /// Accept a vote: in one statement, count it for the voter, store the ballot and
-    /// queue it for the sequencer, unless the election's rules refuse it.
+    /// Accept a vote: in one statement, count it for the voter, store the ballot,
+    /// queue it for the sequencer and, with transparency on, queue its Vitrine
+    /// entry, unless the election's rules refuse it.
+    ///
+    /// Casting is idempotent: a ballot ID that the same voter already cast in the
+    /// same election returns the stored acceptance, unless the ballot was rejected
+    /// since. The same ballot ID from another voter is still refused.
+    ///
+    /// The Vitrine queue never refuses a ballot: if its insert fails, the ballot
+    /// is accepted without it, with the same `accepted_at`.
     pub async fn accept_ballot(&self, ballot: &AcceptBallot<'_>) -> Result<AcceptOutcome> {
         let client = self.client().await?;
-        // Prepared once per connection, so that each vote does not parse and plan it.
-        let statement = client
-            .prepare_cached(ACCEPT)
-            .await
-            .context("Error preparing the statement that accepts ballots")?;
-        let status = ballot.status.to_string();
-        let accepted = client
-            .query_opt(
-                &statement,
-                &[
-                    &ballot.election_event_id,
-                    &ballot.election_id,
-                    &ballot.voter_id,
-                    &ballot.area_id,
-                    &ballot.ballot_id,
-                    &ballot.allowed_votes,
-                    &ballot.format,
-                    &ballot.content,
-                    &ballot.voter_signature,
-                    &ballot.pseudonym_hash,
-                    &ballot.ballot_hash,
-                    &ballot.voting_channel,
-                    &status,
-                    &ballot.voter_ip,
-                    &ballot.voter_country,
-                    &ballot.username,
-                ],
-            )
-            .await;
+        let entry = ballot.vitrine.and_then(|queue| {
+            vitrine_entry(ballot, queue.accepted_at)
+                .map_err(|error| {
+                    warn!(
+                        "No Vitrine entry for ballot {}: {error:#}",
+                        ballot.ballot_id
+                    )
+                })
+                .ok()
+        });
+        let time = match (ballot.vitrine, &entry) {
+            (Some(queue), Some(_)) => AcceptedAt::Queued {
+                log_id: queue.log_id,
+            },
+            (Some(_), None) => AcceptedAt::Bound,
+            (None, _) => AcceptedAt::Now,
+        };
+        let mut queue = QueueState::Queued;
+        let mut accepted = run_accept(&client, ballot, &time, entry.as_deref()).await;
+        if let (AcceptedAt::Queued { log_id }, Err(error)) = (&time, &accepted) {
+            if error.code() != Some(&SqlState::UNIQUE_VIOLATION) {
+                warn!(
+                    "The queue of Vitrine log {log_id} refused ballot {}; accepting it without \
+                     its entry: {error}",
+                    ballot.ballot_id
+                );
+                queue = QueueState::NotQueued;
+                accepted = run_accept(&client, ballot, &AcceptedAt::Bound, None).await;
+            }
+        }
         match accepted {
             Ok(Some(row)) => Ok(AcceptOutcome::Accepted {
                 seq: row.get(0),
                 id: row.get(1),
+                status: ballot.status,
+                acceptance: Acceptance::New,
+                vitrine: entry.map(|entry| VitrineEntry {
+                    leaf_hash: leaf_hash(&entry),
+                    entry,
+                    queue,
+                }),
             }),
             Ok(None) => {
                 // On the same connection: taking a second one while holding this one
                 // could exhaust the pool under load.
+                if let Some(replayed) = replay(&client, ballot).await? {
+                    return Ok(replayed);
+                }
                 let state = client
                     .query_opt(
                         VOTER_STATE,
@@ -366,7 +573,9 @@ impl PostgresStore {
                 })
             }
             Err(error) if error.code() == Some(&SqlState::UNIQUE_VIOLATION) => {
-                Ok(AcceptOutcome::DuplicateBallotId)
+                Ok(replay(&client, ballot)
+                    .await?
+                    .unwrap_or(AcceptOutcome::DuplicateBallotId))
             }
             Err(error) => Err(error).context("Error accepting the ballot"),
         }

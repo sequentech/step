@@ -723,6 +723,7 @@ async fn accept_into_ballot_box(
         voter_country: voter_country.as_deref(),
         username: username.as_deref(),
         allowed_votes,
+        vitrine: None,
     })
     .await
     .map_err(|e| CastVoteError::InsertFailed(format!("{e:#}")))?;

@@ -417,6 +417,7 @@ mod tests {
                     voter_country: None,
                     username: Some(voter),
                     allowed_votes: 1,
+                    vitrine: None,
                 })
                 .await?;
             assert!(matches!(outcome, AcceptOutcome::Accepted { .. }));
