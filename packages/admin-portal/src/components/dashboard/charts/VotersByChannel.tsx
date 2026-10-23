@@ -7,6 +7,7 @@ import Chart, {Props} from "react-apexcharts"
 import CardChart from "./Charts"
 import {useTranslation} from "react-i18next"
 import {useNumberFormat} from "@sequentech/ui-core"
+import {withEscapedChartText} from "@sequentech/ui-essentials"
 import {TotalVotersRow} from "./votersByChannelData"
 import {getVotersByChannelChartOptions} from "./votersByChannelOptions"
 
@@ -22,12 +23,14 @@ export const VotersByChannel: React.FC<VotersByChannelProps> = ({data, width, he
     const visibleData = data.filter(({count}) => count > 0)
 
     const state: Props = {
-        options: getVotersByChannelChartOptions({
-            labels: visibleData.map((item) =>
-                String(t(`common.channel.${item.channel.toLowerCase()}`))
-            ),
-            numberFormatPolicy: policy,
-        }),
+        options: withEscapedChartText(
+            getVotersByChannelChartOptions({
+                labels: visibleData.map((item) =>
+                    String(t(`common.channel.${item.channel.toLowerCase()}`))
+                ),
+                numberFormatPolicy: policy,
+            })
+        ),
         series: visibleData.map((item) => item.count),
     }
 

@@ -4,6 +4,9 @@
 
 import React from "react"
 import {renderToStaticMarkup} from "react-dom/server"
+import type {ApexOptions} from "apexcharts"
+
+const mockChartOptions: ApexOptions[] = []
 
 jest.mock("./ChartPanel", () => {
     const react = jest.requireActual<typeof import("react")>("react")
@@ -19,14 +22,12 @@ jest.mock("./ChartPanel", () => {
         }: {
             className?: string
             height?: number | string
-            options?: {
-                labels?: string[]
-                dataLabels?: {formatter?: (percentage: number) => string}
-                tooltip?: {y?: {formatter?: (value: number) => string}}
-            }
+            options?: ApexOptions
             series?: number[]
         }) => {
+            mockChartOptions.push(options ?? {})
             const total = series.reduce((sum, value) => sum + value, 0)
+            const tooltipY = Array.isArray(options?.tooltip?.y) ? undefined : options?.tooltip?.y
 
             return react.createElement("div", {
                 className,
@@ -37,7 +38,7 @@ jest.mock("./ChartPanel", () => {
                     .map((value) => options?.dataLabels?.formatter?.((value / total) * 100))
                     .join("|"),
                 "data-tooltip-labels": series
-                    .map((value) => options?.tooltip?.y?.formatter?.(value))
+                    .map((value) => tooltipY?.formatter?.(value))
                     .join("|"),
             })
         },
@@ -74,6 +75,9 @@ jest.mock(
         ...jest.requireActual<typeof import("@sequentech/ui-core")>(
             "../../../../ui-core/src/services/percentFormatter"
         ),
+        escapeHtml: jest.requireActual<typeof import("@sequentech/ui-core")>(
+            "../../../../ui-core/src/services/stringToHtml"
+        ).escapeHtml,
     }),
     {virtual: true}
 )
@@ -90,6 +94,20 @@ import {ParticipationSummary, ParticipationSummaryChart} from "./ParticipationSu
 import type {ResultsParticipationSummary} from "./types"
 
 const NBSP = "\u00a0"
+
+const MARKUP_LABEL = "<b>Label</b> & more"
+const ESCAPED_LABEL = "&lt;b&gt;Label&lt;/b&gt; &amp; more"
+
+const expectEscapedChartText = (options: ApexOptions) => {
+    const tooltipY = Array.isArray(options.tooltip?.y) ? undefined : options.tooltip?.y
+
+    expect(options.legend?.formatter?.(MARKUP_LABEL, {})).toBe(ESCAPED_LABEL)
+    expect(tooltipY?.title?.formatter?.(MARKUP_LABEL)).toBe(ESCAPED_LABEL)
+}
+
+beforeEach(() => {
+    mockChartOptions.length = 0
+})
 
 describe("ParticipationSummaryChart", () => {
     it("keeps the chart panel visible when every tally value is zero", () => {
@@ -126,6 +144,20 @@ describe("ParticipationSummaryChart", () => {
         expect(markup).toContain('data-series="[100]"')
         expect(markup).not.toContain("No results")
         expect(markup).not.toContain('role="img"')
+    })
+
+    it("escapes label overrides in the legend and tooltip and keeps the labels raw", () => {
+        renderToStaticMarkup(
+            <ParticipationSummaryChart
+                result={{eligibleCensus: 0}}
+                chartName="Election - Contest"
+                labels={{nonVoters: MARKUP_LABEL}}
+            />
+        )
+
+        expect(mockChartOptions).toHaveLength(1)
+        expect(mockChartOptions[0].labels).toEqual([MARKUP_LABEL])
+        expectEscapedChartText(mockChartOptions[0])
     })
 })
 
@@ -321,5 +353,21 @@ describe("ParticipationByChannel", () => {
         expect(markup).toContain(">75.0%<")
         expect(markup).toContain('data-tooltip-labels="1,500,000|500,000"')
         expect(markup).toContain('data-slice-labels="75.0%|25.0%"')
+    })
+
+    it("escapes channel name overrides in the legend and tooltip and keeps the labels raw", () => {
+        renderToStaticMarkup(
+            <ParticipationByChannel
+                result={{
+                    eligibleCensus: 10,
+                    votesByChannel: {[VotingStatusChannel.Online]: 2},
+                }}
+                labels={{channelNames: {[VotingStatusChannel.Online]: MARKUP_LABEL}}}
+            />
+        )
+
+        expect(mockChartOptions).toHaveLength(1)
+        expect(mockChartOptions[0].labels).toEqual([MARKUP_LABEL])
+        expectEscapedChartText(mockChartOptions[0])
     })
 })

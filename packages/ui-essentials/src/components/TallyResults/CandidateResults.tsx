@@ -16,6 +16,7 @@ import {
     TALLY_RESULTS_PIE_PANEL_WIDTH,
 } from "./constants"
 import {Chart, ChartPanel} from "./ChartPanel"
+import {withEscapedChartText} from "../../services/chartOptions"
 import type {
     CandidateResultRow,
     NumericValue,
@@ -126,7 +127,7 @@ export const CandidateResultsChart: React.FC<CandidateResultsChartProps> = ({
     )
     const chartOptions = useMemo<ApexChartProps>(
         () => ({
-            options: {
+            options: withEscapedChartText({
                 labels: chartData.map((item) => item.label),
                 legend: {
                     position: "right",
@@ -134,7 +135,7 @@ export const CandidateResultsChart: React.FC<CandidateResultsChartProps> = ({
                 responsive: RESPONSIVE_PIE_OPTIONS,
                 colors: CANDIDATE_CHART_COLORS,
                 ...pieChartNumberFormatOptions(policy),
-            },
+            }),
             series: chartData.map((item) => item.value),
         }),
         [chartData, policy]

@@ -3,8 +3,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React from "react"
-import {describe, expect, it, jest} from "@jest/globals"
+import {beforeEach, describe, expect, it, jest} from "@jest/globals"
 import {renderToStaticMarkup} from "react-dom/server"
+import type {ApexOptions} from "apexcharts"
+
+const mockChartOptions: ApexOptions[] = []
 
 jest.mock("react-apexcharts", () => {
     const react = jest.requireActual<typeof import("react")>("react")
@@ -21,14 +24,12 @@ jest.mock("react-apexcharts", () => {
         }: {
             className?: string
             height?: number | string
-            options?: {
-                labels?: string[]
-                dataLabels?: {formatter?: (percentage: number) => string}
-                tooltip?: {y?: {formatter?: (value: number) => string}}
-            }
+            options?: ApexOptions
             series?: number[]
         }) => {
+            mockChartOptions.push(options ?? {})
             const total = series.reduce((sum, value) => sum + value, 0)
+            const tooltipY = Array.isArray(options?.tooltip?.y) ? undefined : options?.tooltip?.y
 
             return react.createElement("div", {
                 className,
@@ -39,7 +40,7 @@ jest.mock("react-apexcharts", () => {
                     .map((value) => options?.dataLabels?.formatter?.((value / total) * 100))
                     .join("|"),
                 "data-tooltip-labels": series
-                    .map((value) => options?.tooltip?.y?.formatter?.(value))
+                    .map((value) => tooltipY?.formatter?.(value))
                     .join("|"),
             })
         },
@@ -78,6 +79,9 @@ jest.mock("@sequentech/ui-core", () => ({
     ...jest.requireActual<typeof import("@sequentech/ui-core")>(
         "../../../ui-core/src/services/percentFormatter"
     ),
+    escapeHtml: jest.requireActual<typeof import("@sequentech/ui-core")>(
+        "../../../ui-core/src/services/stringToHtml"
+    ).escapeHtml,
     isNumber: (value: unknown) => typeof value === "number" && Number.isFinite(value),
 }))
 
@@ -87,6 +91,9 @@ jest.mock("@sequentech/ui-essentials", () => ({
     pieChartNumberFormatOptions: jest.requireActual<typeof import("@sequentech/ui-essentials")>(
         "../../../ui-essentials/src/components/TallyResults/utils"
     ).pieChartNumberFormatOptions,
+    withEscapedChartText: jest.requireActual<typeof import("@sequentech/ui-essentials")>(
+        "../../../ui-essentials/src/services/chartOptions"
+    ).withEscapedChartText,
 }))
 
 jest.mock("@/services/resultLabels", () => ({
@@ -107,6 +114,10 @@ const electionResult = {
 }
 
 describe("ResultsSummary", () => {
+    beforeEach(() => {
+        mockChartOptions.length = 0
+    })
+
     it("renders a 100 percent non-voters pie for an empty tally", () => {
         const markup = renderToStaticMarkup(
             <ResultsSummary
@@ -248,5 +259,36 @@ describe("ResultsSummary", () => {
 
         expect(markup).toMatch(/seq-results-summary__eligible-cell[^"]*">-</)
         expect(markup).not.toContain("n/a")
+    })
+
+    it("escapes chart labels in the legend and tooltip and keeps the labels raw", () => {
+        const markupLabel = "<b>Label</b> & more"
+        const escapedLabel = "&lt;b&gt;Label&lt;/b&gt; &amp; more"
+
+        renderToStaticMarkup(
+            <ResultsSummary
+                elections={[{id: "election-id", presentation: {en: "Election"}}]}
+                resultsElections={[
+                    {
+                        id: "result-id",
+                        election_id: "election-id",
+                        name: "Election",
+                        elegible_census: 10,
+                        total_voters: 5,
+                        total_voters_percent: 50,
+                    },
+                ]}
+                locale="en"
+            />
+        )
+
+        expect(mockChartOptions).toHaveLength(1)
+        const [options] = mockChartOptions
+        const tooltipY = Array.isArray(options.tooltip?.y) ? undefined : options.tooltip?.y
+
+        expect(options.labels).toEqual(["Total votes counted", "Non voters"])
+        expect(options.legend?.position).toBe("right")
+        expect(options.legend?.formatter?.(markupLabel, {})).toBe(escapedLabel)
+        expect(tooltipY?.title?.formatter?.(markupLabel)).toBe(escapedLabel)
     })
 })

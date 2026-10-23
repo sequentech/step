@@ -35,6 +35,7 @@ import {
     Loader,
     TALLY_RESULTS_PIE_HEIGHT,
     TALLY_RESULTS_PIE_PANEL_WIDTH,
+    withEscapedChartText,
 } from "@sequentech/ui-essentials"
 import {orderItemsByIds} from "./utils"
 
@@ -128,7 +129,7 @@ const GeneralInformationCharts: React.FC<GeneralInformationChartsProps> = ({
             : [{label: t("tally.chart.nonVoters"), value: 100}]
 
     const chartOptions: Props = {
-        options: {
+        options: withEscapedChartText({
             ...getPieChartNumberFormatOptions(policy),
             labels: chartData.map((item) => item.label),
             legend: {
@@ -147,7 +148,7 @@ const GeneralInformationCharts: React.FC<GeneralInformationChartsProps> = ({
                     },
                 },
             ],
-        },
+        }),
         series: chartData.map((item) => item.value),
     }
 

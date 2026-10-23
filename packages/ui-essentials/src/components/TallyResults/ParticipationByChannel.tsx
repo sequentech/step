@@ -21,6 +21,7 @@ import {
     TALLY_RESULTS_PIE_PANEL_WIDTH,
 } from "./constants"
 import {Chart, ChartPanel} from "./ChartPanel"
+import {withEscapedChartText} from "../../services/chartOptions"
 import {
     PARTICIPATION_CHANNEL_ORDER,
     formatNumber,
@@ -129,12 +130,12 @@ export const ParticipationByChannel: React.FC<ParticipationByChannelProps> = ({
     )
     const chartOptions = useMemo<ApexChartProps>(
         () => ({
-            options: {
+            options: withEscapedChartText({
                 labels: chartData.map((item) => item.label),
                 legend: {position: "right"},
                 responsive: RESPONSIVE_PIE_OPTIONS,
                 ...pieChartNumberFormatOptions(policy),
-            },
+            }),
             series: chartData.map((item) => item.value),
         }),
         [chartData, policy]
