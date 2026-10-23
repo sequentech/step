@@ -7,6 +7,7 @@ import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {getDefaultElectionLang} from "@/hooks/useDefaultElectionLang"
 import Chart, {Props} from "react-apexcharts"
 import CardChart from "@/components/dashboard/charts/Charts"
+import {getPieChartNumberFormatOptions} from "@/components/dashboard/charts/chartNumberFormat"
 import {Box} from "@mui/material"
 
 import {
@@ -26,6 +27,7 @@ import {
     isNumber,
     parseEntityPresentation,
     sortByPresentationOrder,
+    useNumberFormat,
 } from "@sequentech/ui-core"
 import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
@@ -85,6 +87,7 @@ const GeneralInformationCharts: React.FC<GeneralInformationChartsProps> = ({
     aliasRenderer,
 }) => {
     const {t} = useTranslation()
+    const {policy} = useNumberFormat()
 
     // Filter out results with valid participation data
     const validResults = results.filter(
@@ -127,6 +130,7 @@ const GeneralInformationCharts: React.FC<GeneralInformationChartsProps> = ({
 
     const chartOptions: Props = {
         options: withEscapedChartText({
+            ...getPieChartNumberFormatOptions(policy),
             labels: chartData.map((item) => item.label),
             legend: {
                 position: "right",
@@ -184,6 +188,7 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
     const tallyData = useAtomValue(tallyQueryData)
     const electionEventRecord = useRecordContext<Sequent_Backend_Election_Event>()
     const aliasRenderer = useAliasRenderer()
+    const {formatNumber, policy} = useNumberFormat()
 
     const elections: Array<Sequent_Backend_Election> | undefined = useMemo(() => {
         const availableElections = tallyData?.sequent_backend_election?.map(
@@ -331,14 +336,16 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
                 headerName: t("tally.table.elegible_census"),
                 flex: 1,
                 editable: false,
-                renderCell: (props: GridRenderCellParams<any, string>) => props["value"] ?? "-",
+                renderCell: (props: GridRenderCellParams<any, string>) =>
+                    formatNumber(props["value"] ?? "-"),
             },
             {
                 field: "total_voters",
                 headerName: t("tally.table.total_votes"),
                 flex: 1,
                 editable: false,
-                renderCell: (props: GridRenderCellParams<any, number>) => props["value"] ?? "-",
+                renderCell: (props: GridRenderCellParams<any, number>) =>
+                    formatNumber(props["value"] ?? "-"),
             },
             ...(showTotalInvalidVotesColumn
                 ? [
@@ -348,7 +355,7 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
                           flex: 1.5,
                           editable: false,
                           renderCell: (props: GridRenderCellParams<any, number>) =>
-                              props["value"] ?? "-",
+                              formatNumber(props["value"] ?? "-"),
                       } satisfies GridColDef,
                   ]
                 : []),
@@ -360,7 +367,7 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
                           flex: 1.5,
                           editable: false,
                           renderCell: (props: GridRenderCellParams<any, number>) =>
-                              props["value"] ?? "-",
+                              formatNumber(props["value"] ?? "-"),
                       } satisfies GridColDef,
                   ]
                 : []),
@@ -370,13 +377,15 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
                 flex: 1,
                 editable: false,
                 renderCell: (props: GridRenderCellParams<any, number>) =>
-                    isNumber(props["value"]) ? formatPercentOne(props["value"]) : "-",
+                    isNumber(props["value"]) ? formatPercentOne(props["value"], policy) : "-",
             },
         ],
         [
             aliasRenderer,
             defaultLangByElectionId,
+            formatNumber,
             i18n.language,
+            policy,
             showTotalInvalidVotesColumn,
             showBlankBallotsColumn,
             t,
