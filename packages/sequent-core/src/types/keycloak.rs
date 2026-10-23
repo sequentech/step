@@ -31,9 +31,44 @@ pub const VOTED_CHANNEL_INTERNET_VALUE: &str = "Internet";
 pub const ATTR_RESET_VALUE: &str = "NONE";
 
 pub const AREA_ID_ATTR_NAME: &str = "area-id";
+/// The form in which Keycloak stores a username and in which it looks one up:
+/// lowercased, with nothing trimmed. Any lookup or insert keyed on a username
+/// that did not come from Keycloak itself must go through this function.
+pub fn normalize_username(username: &str) -> String {
+    username.to_lowercase()
+}
+
+#[cfg(test)]
+mod normalize_username_tests {
+    use super::normalize_username;
+
+    #[test]
+    fn normalize_username_lowercases_ascii_letters() {
+        assert_eq!(normalize_username("AB12"), "ab12");
+        assert_eq!(normalize_username("aB-12_c"), "ab-12_c");
+    }
+
+    #[test]
+    fn normalize_username_keeps_lowercase_and_numeric_usernames() {
+        assert_eq!(normalize_username("ab12"), "ab12");
+        assert_eq!(normalize_username("17695"), "17695");
+    }
+
+    #[test]
+    fn normalize_username_lowercases_non_ascii_letters() {
+        assert_eq!(normalize_username("ÑANDÚ-É1"), "ñandú-é1");
+    }
+
+    #[test]
+    fn normalize_username_does_not_trim() {
+        assert_eq!(normalize_username(" AB12 "), " ab12 ");
+    }
+}
+
 pub const DATE_OF_BIRTH: &str = "dateOfBirth";
 pub const AUTHORIZED_ELECTION_IDS_NAME: &str = "authorized-election-ids";
 pub const TENANT_ID_ATTR_NAME: &str = "tenant-id";
+pub const TRUSTEE_ATTR_NAME: &str = "trustee";
 pub const PERMISSION_TO_EDIT: &str = "admin";
 pub const MOBILE_PHONE_ATTR_NAME: &str = "sequent.read-only.mobile-number";
 pub const EMAIL_AND_OR_MOBILE_ATTR_NAME: &str = "emailAndOrMobile";

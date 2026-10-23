@@ -15,6 +15,7 @@ use sequent_core::services::keycloak::{GroupInfo, KeycloakAdminClient};
 use sequent_core::types::keycloak::{
     User, UserProfileAttribute, EMAIL_AND_OR_MOBILE_ATTR_NAME,
     MOBILE_PHONE_ATTR_NAME, PERMISSION_LABELS, TENANT_ID_ATTR_NAME,
+    TRUSTEE_ATTR_NAME,
 };
 use sequent_core::types::permissions::Permissions;
 use serde::Deserialize;
@@ -401,6 +402,37 @@ pub async fn get_users(
     }))
 }
 
+/// The `trustee` attribute is the trustee a user acts as in the key and tally
+/// ceremonies, so giving it a new value needs trustee write permission.
+fn trustee_attribute_permission(
+    requested: Option<&HashMap<String, Vec<String>>>,
+    current: Option<&HashMap<String, Vec<String>>>,
+) -> Option<Permissions> {
+    let requested = requested?.get(TRUSTEE_ATTR_NAME)?;
+    let current = current
+        .and_then(|attributes| attributes.get(TRUSTEE_ATTR_NAME))
+        .map(Vec::as_slice)
+        .unwrap_or_default();
+    (requested.as_slice() != current).then_some(Permissions::TRUSTEE_WRITE)
+}
+
+/// Attributes for a new user: the client's ones plus the user's tenant as its
+/// only `tenant-id`. A client `tenant-id` naming another tenant is refused.
+fn new_user_attributes(
+    tenant_id: &str,
+    client_attributes: Option<HashMap<String, Vec<String>>>,
+) -> Result<HashMap<String, Vec<String>>, String> {
+    let mut attributes = client_attributes.unwrap_or_default();
+    if let Some(values) = attributes.remove(TENANT_ID_ATTR_NAME) {
+        if values.iter().any(|value| value != tenant_id) {
+            return Err("Cannot set tenant-id attribute".to_string());
+        }
+    }
+    attributes
+        .insert(TENANT_ID_ATTR_NAME.to_string(), vec![tenant_id.to_string()]);
+    Ok(attributes)
+}
+
 #[derive(Deserialize, Debug)]
 pub struct CreateUserBody {
     tenant_id: String,
@@ -429,6 +461,10 @@ pub async fn create_user(
             }
         }
     };
+    required_perms.extend(trustee_attribute_permission(
+        input.user.attributes.as_ref(),
+        None,
+    ));
     authorize(&claims, true, Some(input.tenant_id.clone()), required_perms)?;
     let realm = match input.election_event_id.clone() {
         Some(election_event_id) => {
@@ -439,49 +475,22 @@ pub async fn create_user(
     let client = KeycloakAdminClient::new()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    let (tenant_id_attribute, groups) = if input.election_event_id.is_some() {
+    let groups = if input.election_event_id.is_some() {
         let voter_group_name = env::var("KEYCLOAK_VOTER_GROUP_NAME")
             .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-        (
-            Some(HashMap::from([(
-                TENANT_ID_ATTR_NAME.to_string(),
-                vec![input.tenant_id.clone()],
-            )])),
-            Some(vec![voter_group_name]),
-        )
+        Some(vec![voter_group_name])
     } else {
-        (
-            Some(HashMap::from([(
-                TENANT_ID_ATTR_NAME.to_string(),
-                vec![input.tenant_id.clone()],
-            )])),
-            None,
-        )
+        None
     };
 
     let user_attributes =
-        match (&tenant_id_attribute, input.user.attributes.clone()) {
-            (Some(tenant_id_attribute), Some(user_attributes)) => {
-                let mut attributes = tenant_id_attribute.clone();
-                for (key, mut values) in user_attributes {
-                    attributes
-                        .entry(key.clone())
-                        .or_insert_with(Vec::new)
-                        .append(&mut values);
-                }
-                Some(attributes)
-            }
-            (Some(tenant_id_attribute), None) => {
-                Some(tenant_id_attribute.clone())
-            }
-            (None, Some(user_attributes)) => Some(user_attributes.clone()),
-            (None, None) => None,
-        };
+        new_user_attributes(&input.tenant_id, input.user.attributes.clone())
+            .map_err(|message| (Status::BadRequest, message))?;
     let mut user = input.user.clone();
     user.email_verified = Some(true);
 
     let user = client
-        .create_user(&realm, &user, user_attributes, groups)
+        .create_user(&realm, &user, Some(user_attributes), groups)
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
@@ -644,6 +653,29 @@ pub async fn edit_user(
         }
         None => get_tenant_realm(&input.tenant_id),
     };
+    if input
+        .attributes
+        .as_ref()
+        .is_some_and(|attributes| attributes.contains_key(TRUSTEE_ATTR_NAME))
+    {
+        let current_user = KeycloakAdminClient::new()
+            .await
+            .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?
+            .get_user(&realm, &input.user_id)
+            .await
+            .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        if let Some(permission) = trustee_attribute_permission(
+            input.attributes.as_ref(),
+            current_user.attributes.as_ref(),
+        ) {
+            authorize(
+                &claims,
+                true,
+                Some(input.tenant_id.clone()),
+                vec![permission],
+            )?;
+        }
+    }
 
     let mut hasura_db_client: DbClient =
         get_hasura_pool().await.get().await.map_err(|e| {
@@ -1296,5 +1328,99 @@ mod tests {
             assert!(violations(json!({"enabled": null, "attributes": {}}))
                 .is_empty());
         }
+    }
+
+    use super::{new_user_attributes, trustee_attribute_permission};
+    use sequent_core::types::keycloak::{
+        TENANT_ID_ATTR_NAME, TRUSTEE_ATTR_NAME,
+    };
+    use sequent_core::types::permissions::Permissions;
+    use std::collections::HashMap;
+
+    fn attributes(entries: &[(&str, &[&str])]) -> HashMap<String, Vec<String>> {
+        entries
+            .iter()
+            .map(|(name, values)| {
+                (
+                    name.to_string(),
+                    values.iter().map(|value| value.to_string()).collect(),
+                )
+            })
+            .collect()
+    }
+
+    #[test]
+    fn setting_the_trustee_attribute_requires_trustee_write() {
+        let requested = attributes(&[(TRUSTEE_ATTR_NAME, &["trustee1"])]);
+        assert_eq!(
+            trustee_attribute_permission(Some(&requested), None),
+            Some(Permissions::TRUSTEE_WRITE)
+        );
+    }
+
+    #[test]
+    fn changing_the_trustee_attribute_requires_trustee_write() {
+        let current = attributes(&[(TRUSTEE_ATTR_NAME, &["trustee1"])]);
+        for requested in [
+            attributes(&[(TRUSTEE_ATTR_NAME, &["trustee2"])]),
+            attributes(&[(TRUSTEE_ATTR_NAME, &["trustee1", "trustee2"])]),
+            attributes(&[(TRUSTEE_ATTR_NAME, &[])]),
+        ] {
+            assert_eq!(
+                trustee_attribute_permission(Some(&requested), Some(&current)),
+                Some(Permissions::TRUSTEE_WRITE)
+            );
+        }
+    }
+
+    #[test]
+    fn an_unchanged_trustee_attribute_needs_no_trustee_write() {
+        let current = attributes(&[
+            (TRUSTEE_ATTR_NAME, &["trustee1"]),
+            ("area-id", &["area"]),
+        ]);
+        let requested = attributes(&[(TRUSTEE_ATTR_NAME, &["trustee1"])]);
+        assert_eq!(
+            trustee_attribute_permission(Some(&requested), Some(&current)),
+            None
+        );
+    }
+
+    #[test]
+    fn other_attributes_need_no_trustee_write() {
+        let requested = attributes(&[("area-id", &["area"])]);
+        assert_eq!(trustee_attribute_permission(Some(&requested), None), None);
+        assert_eq!(trustee_attribute_permission(None, None), None);
+    }
+
+    #[test]
+    fn new_user_attributes_refuse_another_tenant_id() {
+        for values in [&["tenant-b"][..], &["tenant-a", "tenant-b"]] {
+            let requested = attributes(&[(TENANT_ID_ATTR_NAME, values)]);
+            assert!(new_user_attributes("tenant-a", Some(requested)).is_err());
+        }
+    }
+
+    #[test]
+    fn new_user_attributes_keep_a_single_own_tenant_id() {
+        let requested = attributes(&[
+            (TENANT_ID_ATTR_NAME, &["tenant-a"]),
+            ("area-id", &["area"]),
+        ]);
+        assert_eq!(
+            new_user_attributes("tenant-a", Some(requested)),
+            Ok(attributes(&[
+                (TENANT_ID_ATTR_NAME, &["tenant-a"]),
+                ("area-id", &["area"]),
+            ]))
+        );
+    }
+
+    #[test]
+    fn new_user_attributes_set_the_tenant_id() {
+        assert_eq!(
+            new_user_attributes("tenant-a", None),
+            Ok(attributes(&[(TENANT_ID_ATTR_NAME, &["tenant-a"])]))
+        );
     }
 }
