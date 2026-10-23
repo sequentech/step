@@ -30,6 +30,20 @@ pub async fn handle_tally_session_error(
         .await
         .with_context(|| "Error acquiring hasura transaction")?;
 
+    let session = crate::postgres::tally_session::get_tally_session_by_id(
+        &hasura_transaction,
+        tenant_id,
+        election_event_id,
+        tally_session_id,
+    )
+    .await?;
+    if super::result_readiness::uses_readiness_policy(session.annotations.as_ref())
+        && super::result_readiness::is_numerically_complete(&session)
+    {
+        // A failure in a late job must not replace the completed result head.
+        return Ok(());
+    }
+
     let executions = get_tally_session_executions(
         &hasura_transaction,
         tenant_id,

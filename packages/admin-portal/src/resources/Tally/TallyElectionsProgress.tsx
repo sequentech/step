@@ -25,6 +25,7 @@ type Sequent_Backend_Election_Extended = Sequent_Backend_Election & {
 }
 
 interface TallyElectionsProgressProps {
+    completeElectionIds: string[]
     tally?: Sequent_Backend_Tally_Session
     tallySessionExecutions?: Array<Sequent_Backend_Tally_Session_Execution>
     allElections?: Array<Sequent_Backend_Election>
@@ -32,6 +33,7 @@ interface TallyElectionsProgressProps {
 
 export const TallyElectionsProgress: React.FC<TallyElectionsProgressProps> = ({
     tally,
+    completeElectionIds,
     tallySessionExecutions: execution,
     allElections,
 }) => {
@@ -85,7 +87,12 @@ export const TallyElectionsProgress: React.FC<TallyElectionsProgressProps> = ({
                 )
                 return (
                     <ElectionStatusItem
-                        name={election_data?.status ?? ITallyElectionStatus.WAITING}
+                        name={
+                            election_data?.status === ITallyElectionStatus.SUCCESS &&
+                            !completeElectionIds.includes(String(props["id"]))
+                                ? ITallyElectionStatus.WAITING
+                                : (election_data?.status ?? ITallyElectionStatus.WAITING)
+                        }
                     />
                 )
             },

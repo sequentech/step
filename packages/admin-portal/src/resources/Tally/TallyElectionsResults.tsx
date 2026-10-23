@@ -22,6 +22,7 @@ interface TallyElectionsResultsProps {
     electionEventId: string | null
     resultsEventId: string | null
     electionIds?: string[] | null
+    completeElectionIds: string[]
 }
 
 type Sequent_Backend_Election_Extended = Sequent_Backend_Election & {
@@ -50,7 +51,7 @@ export const LoadingResults: React.FC = () => {
 }
 
 export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (props) => {
-    const {tenantId, electionEventId, resultsEventId, electionIds} = props
+    const {tenantId, electionEventId, resultsEventId, electionIds, completeElectionIds} = props
     const {t} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
     const [resultsData, setResultsData] = useState<Array<Sequent_Backend_Election_Extended>>([])
@@ -61,14 +62,21 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
     const elections: Array<Sequent_Backend_Election> | undefined = useMemo(
         () =>
             tallyData?.sequent_backend_election
-                ?.filter((election) => electionIds?.includes(election.id))
+                ?.filter(
+                    (election) =>
+                        electionIds?.includes(election.id) &&
+                        completeElectionIds.includes(election.id)
+                )
                 ?.map((election): Sequent_Backend_Election => election as any),
-        [tallyData?.sequent_backend_election, electionIds]
+        [tallyData?.sequent_backend_election, electionIds, completeElectionIds]
     )
 
     const results: Array<Sequent_Backend_Results_Election> | undefined = useMemo(
-        () => tallyData?.sequent_backend_results_election,
-        [tallyData?.sequent_backend_results_election]
+        () =>
+            tallyData?.sequent_backend_results_election?.filter(
+                (row) => row.results_event_id === resultsEventId
+            ),
+        [tallyData?.sequent_backend_results_election, resultsEventId]
     )
 
     const defaultLangByElectionId = useMemo(() => {
@@ -90,6 +98,7 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
 
     useEffect(() => {
         setIsLoading(true)
+        setResultsData([])
         if (elections && results && elections.length > 0 && results.length > 0) {
             const temp: Array<Sequent_Backend_Election_Extended> | undefined = elections?.map(
                 (item, index): Sequent_Backend_Election_Extended => {
@@ -153,7 +162,8 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
         <>
             {isLoading || !isTallyDataMatchCurrentResults ? (
                 <LoadingResults />
-            ) : resultsData.length ? (
+            ) : resultsData.length &&
+              resultsData.every((row) => completeElectionIds.includes(row.id)) ? (
                 <DataGrid
                     rows={resultsData}
                     columns={columns}
