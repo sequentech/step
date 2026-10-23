@@ -1,6 +1,6 @@
 ---
 title: Verify the Bulletin Board
-sidebar_position: 7
+sidebar_position: 6
 description: "Run the Braid verifier on the restored bulletin board to check the mix and the decryption of each batch."
 ---
 
@@ -21,9 +21,9 @@ decrypted results is found only by this check. You must do both.
 
 ## Before you start
 
-- You did [Audit the Bundle](06-audit.md).
-- The B3 server runs on the B3 copy at `127.0.0.1:50051`. See
-  [Restore the Database Copies](02-restore.md#6-start-the-b3-server).
+- You did [Audit the Bundle](05-audit.md).
+- The B3 server runs on the B3 copy at `127.0.0.1:50051`. `audit-env up` starts it. Without the
+  audit kit, see [Without the Audit Kit](01-without-kit.md#7-start-the-b3-server).
 - You have the board name of the scope.
 
 ## 1. Find all batches on the board
@@ -45,7 +45,7 @@ the same election event.
    ```
 
 3. Make sure that the list contains all batches of your scope.
-4. Write the list in the audit record.
+4. Write the list in the audit notes.
 
 **Expected result:** you have the complete list of batches on the board.
 
@@ -59,7 +59,7 @@ the same election event.
 
 2. Read the exit status.
 3. Read the summary. Write the number of passed checks and the number of all checks in the
-   audit record.
+   audit notes.
 
 **Expected result:** the exit status is `0`. All required checks pass.
 
@@ -78,5 +78,5 @@ ballots.
 
 ## Next
 
-[Check the Cast-Vote History](08-history.md), or [Report and Remove the Copies](09-close.md)
+[Check the Cast-Vote History](07-history.md), or [Report and Remove the Copies](../02-procedures/04-close.md)
 if you do not do the optional check.

@@ -12,7 +12,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 # File Reference
 
 This page gives the content of each file that the commands write. The directory names are the
-names that the procedures use.
+names that the procedures use. `audit-tally` writes the same files of each command in the
+directories of [Files of audit-tally](#files-of-audit-tally-tally).
 
 ## Common rules
 
@@ -23,7 +24,7 @@ names that the procedures use.
   change a message.
 - **Personal data** in the tables shows if the file contains voter IDs, voter pseudonyms,
   user names or receipts. Keep these files private. See
-  [Report and Remove the Copies](02-procedures/09-close.md).
+  [Report and Remove the Copies](02-procedures/04-close.md).
 - Fields of the `limitations`, `limits`, `limitation` and `assurance` types are text. They tell
   what the command did not check. Copy them into the audit report.
 
@@ -31,6 +32,130 @@ names that the procedures use.
 Do not edit a file and then use it again. A change of one byte changes its digest, and the next
 command stops with a digest mismatch.
 :::
+
+## Files of the audit kit (~/audit)
+
+The audit kit uses the audit directory that you give with `--dir`. The procedures use `~/audit`:
+
+```text
+~/audit/
+├── audit-notes.txt          you write it
+├── backup-digests.txt       you write it
+├── backups/                 the backups, read only
+├── private/                 audit-env up writes it, audit-env down removes it
+│   ├── connections.json
+│   ├── kit.env
+│   └── restore-<copy>.log
+└── results/
+    └── tally/               the output of audit-tally
+```
+
+| File | Content | Personal data |
+| --- | --- | --- |
+| `private/connections.json` | The connections file of the copies, with the password of `ballot_audit_reader`. See [connections.json](05-command-reference.md#connectionsjson). | No. It contains passwords. |
+| `private/kit.env` | The settings of the copies: the image, the versions and the passwords. `audit-env` reads it. | No. It contains passwords. |
+| `private/restore-hasura.log`, `private/restore-keycloak.log`, `private/restore-b3.log` | The messages of `pg_restore` for each copy. | No |
+
+The copies are in Docker volumes, not in `~/audit`. `audit-env down` removes them.
+
+## Files of audit-tally (tally)
+
+`audit-tally` writes all files of the audit in its output directory. With the audit kit, it is
+`~/audit/results/tally`:
+
+```text
+tally/
+├── tally-plan.json
+├── immudb-export/              only without --electoral-log-export
+├── scopes/
+│   ├── 001/
+│   │   ├── scope.json
+│   │   ├── postgres-export/
+│   │   ├── prepared-audit/
+│   │   └── audit-report.json
+│   └── 002/ ...
+├── history/
+│   └── <election ID>.json
+├── braid/
+│   └── verify.log
+├── audit-record.json
+└── public-summary.json
+```
+
+| File or directory | Content | Personal data |
+| --- | --- | --- |
+| `tally-plan.json` | The scopes that the command made from the tally. See [tally-plan.json](#tally-planjson). | No |
+| `immudb-export/` | The files of `export-electoral-log`. See [Files of export-electoral-log](#files-of-export-electoral-log-immudb-export). | Yes |
+| `scopes/<NNN>/scope.json` | The scope of one area and contest. See [scope.json](05-command-reference.md#scopejson). | No |
+| `scopes/<NNN>/postgres-export/` | The files of `export-ballot-audit` for the scope. | Yes |
+| `scopes/<NNN>/prepared-audit/` | The audit bundle of the scope. | Yes |
+| `scopes/<NNN>/audit-report.json` | The report of `ballot-audit` for the scope. | Yes |
+| `history/<election ID>.json` | The report of `audit-cast-history` for one election. | Yes |
+| `braid/verify.log` | The output of the Braid verifier. | No |
+| `audit-record.json` | The record of the audit. See [audit-record.json](#audit-recordjson). | No |
+| `public-summary.json` | The summary that you can publish. See [public-summary.json](#public-summaryjson). | No |
+
+The scopes are numbered from `001`, in the order of election, area and contest.
+
+### tally-plan.json
+
+| Field | Content |
+| --- | --- |
+| `tenant_id`, `election_event_id`, `tally_session_id` | The tally. |
+| `board_name` | The name of the event board. |
+| `policy` | `unweighted`, `weighted` or `delegated`, from the configuration of the tally. |
+| `scopes[]` | One object for each scope: `directory`, `election_id`, `area_id`, `contest_id`, `tally_session_contest_id`, `base_batch`, `batches` and `scope_sha512`, the digest of its `scope.json`. |
+| `tally_batches` | All batches of the scopes. |
+| `board_ballot_batches` | All batches with `Ballots` statements on the board. |
+| `hasura_snapshot`, `b3_snapshot` | The database, the restore reference, the time of the read and the read-only settings of each read. |
+
+### audit-record.json
+
+| Field | Content |
+| --- | --- |
+| `source_revision` | The source code revision of the command. |
+| `started_at`, `finished_at` | The time of the start and of the end of the audit. |
+| `inputs` | The tally ID, the two keys, the restore reference of each copy, and the addresses and directories that you gave. |
+| `tally_plan`, `public_summary` | The digest (`sha512`) and the size (`bytes`) of `tally-plan.json` and of `public-summary.json`. |
+| `status` | The status of the full audit. See [Read the Results](03-read-the-results.md#statuses-of-audit-tally). |
+| `steps[]` | One object for each step. See the table below. |
+| `braid_batches` | The batches that the command gave to the Braid verifier. |
+| `limitations` | Text. What the audit does not prove. |
+
+Each object of `steps` has these fields:
+
+| Field | Content |
+| --- | --- |
+| `step` | The command: `export-electoral-log`, `export-ballot-audit`, `prepare-ballot-audit`, `ballot-audit`, `audit-cast-history` or `verify`. |
+| `scope` | The directory of the scope, for example `scopes/001`. Only for the steps of a scope. |
+| `election_id` | The election. Only for `audit-cast-history`. |
+| `command` | The command line. Paths in the output directory are relative to it. Empty if the step did not run. |
+| `exit_code` | The exit status of the command. `null` if the command did not start or did not run. |
+| `status` | The status of the step. |
+| `outputs` | The digest of each file that the step wrote, by path. |
+| `message` | The messages of the command, or the cause of `not_run`. Only if there is a message. |
+
+:::note
+`audit-record.json` contains the digests of all files of the audit. Record its digest in the
+audit notes.
+:::
+
+### public-summary.json
+
+The summary contains only IDs of the tally, the board name, statuses, counts and batch numbers.
+The command removes all text from the selection counts. The summary contains no voter IDs, no
+receipts and no batch positions.
+
+| Field | Content |
+| --- | --- |
+| `source_revision` | The source code revision of the command. |
+| `tenant_id`, `election_event_id`, `tally_session_id`, `policy` | The tally. |
+| `status` | The status of the full audit. |
+| `scopes[]` | For each scope: `election_id`, `area_id`, `contest_id`, `batches`, `status`, `checked_cast_votes`, `checked_batches`, `checked_electoral_log_messages`, the number of `duplicate_selected_receipts` and of `privacy_warnings`, and `selection_accounting`, the counts of the selection. |
+| `cast_vote_history[]` | For each election: `election_id`, `status`, `outcome`, `checked_hasura_rows`, `checked_signed_cast_vote_log_records`, `signed_log_records_without_hasura_row` and `hasura_rows_without_signed_log`. |
+| `braid` | The `status` of the Braid verifier, the `board_name`, `tally_batches` and `board_ballot_batches`. |
+
+A count is `null` when its step did not run.
 
 ## Files of export-ballot-audit (postgres-export)
 
@@ -98,7 +223,7 @@ audit uses these fields:
 
 :::note
 The digests in `acquisition.json` come from the same command that made the files. They show that
-the files did not change after the export. They do not replace the pins in the audit record.
+the files did not change after the export. They do not replace the pins in the audit notes.
 :::
 
 ## Files of export-electoral-log (immudb-export)
@@ -215,6 +340,6 @@ the position can show how a person voted.
 | `hasura_rows_without_signed_log` | Stored ballots without a signed record. This is incomplete evidence. |
 | `ambiguous_row_attribution_groups`, `ambiguous_log_occurrence_groups` | The numbers of ambiguous groups. |
 | `report_filtered`, `requested_receipt_found` | Only with `--ballot-id`: the report shows one receipt, and if the command found it. |
-| `receipts[]` | One group for each receipt: `ballot_id`, `cast_vote_ids`, the counts of signed records, and the `classification`. See [Check the Cast-Vote History](02-procedures/08-history.md#2-read-the-groups). |
+| `receipts[]` | One group for each receipt: `ballot_id`, `cast_vote_ids`, the counts of signed records, and the `classification`. See [Check the Cast-Vote History](07-run-each-step/07-history.md#2-read-the-groups). |
 | `source_sha512` | The pins of the input files. |
 | `assurance` | Text. What the check proves. |

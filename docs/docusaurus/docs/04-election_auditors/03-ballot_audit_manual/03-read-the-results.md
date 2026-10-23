@@ -15,7 +15,7 @@ This page tells you what each result means and what to do next.
 
 ## Exit statuses
 
-All five ballot audit commands use the same exit statuses.
+All six ballot audit commands use the same exit statuses.
 
 | Status | Meaning | Action |
 | --- | --- | --- |
@@ -30,6 +30,36 @@ The Braid verifier returns a status other than `0` when a required check fails o
 :::caution CAUTION
 Do not count a `3` as a pass. An audit with an incomplete result did not pass.
 :::
+
+## Statuses of audit-tally
+
+`audit-tally` gives a status to each step in `audit-record.json`. It also gives a status to each
+scope, to each election history, to the Braid verifier and to the full audit in
+`public-summary.json`.
+
+| Status | Meaning | Exit status |
+| --- | --- | --- |
+| `success` | The step passed. | `0` |
+| `incomplete` | The step returned `3`. Part of the evidence is missing. | `3` |
+| `not_run` | The step did not run, because an earlier step did not pass or an input is missing. The `message` gives the cause. | `3` |
+| `invalid_input` | The step returned `2` or `4`, or the command could not start. | `4` |
+| `verification_failed` | The step returned `1` or another status. For the Braid verifier: any status other than `0`. | `1` |
+
+The status of a scope, of an election history or of the full audit is the most serious status of
+its steps. The order is: `verification_failed`, then `invalid_input`, then `incomplete` and
+`not_run`. The exit status of `audit-tally` is the exit status of the full audit.
+
+:::caution CAUTION
+Do not count `not_run` as a pass. A step that did not run makes the audit incomplete.
+:::
+
+When a step does not pass, `audit-tally` records the next steps of the same scope as `not_run`:
+
+| Step that did not pass | Steps with `not_run` |
+| --- | --- |
+| `export-electoral-log` | `prepare-ballot-audit`, `ballot-audit` and `audit-cast-history` of all scopes. |
+| `export-ballot-audit` of a scope | `prepare-ballot-audit` and `ballot-audit` of the scope. `audit-cast-history` of the election if no scope of the election was exported. |
+| `prepare-ballot-audit` of a scope | `ballot-audit` of the scope. |
 
 ## Contradiction or a change after the tally?
 

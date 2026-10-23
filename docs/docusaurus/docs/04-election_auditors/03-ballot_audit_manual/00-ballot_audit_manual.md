@@ -32,7 +32,8 @@ The audit connects four records of each counted ballot:
 4. The encrypted ballots that went into the tally on the bulletin board.
 
 A separate check with the Braid verifier examines the cryptography of the mix and of the
-decryption. You must do both checks for a complete audit.
+decryption. You must do both checks for a complete audit. The `audit-tally` command does both
+checks for all areas and contests of a tally.
 
 ## How to use this manual
 
@@ -46,24 +47,25 @@ decryption. You must do both checks for a complete audit.
    format of the input files.
 6. Use [File Reference](06-file-reference.md) for the content of the files that the commands
    write.
+7. Use [Appendix: Run Each Step Separately](07-run-each-step/00-run-each-step.md) to run one
+   command at a time.
 
 ## Procedures
 
 | Step | Procedure | Content | Result |
 | --- | --- | --- | --- |
-|  | [Before You Start](01-before-you-start.md) | Roles, terms and safety rules | You know who does each task. |
-| 1 | [Set Up the Audit Workstation](02-procedures/01-workstation.md) | An isolated computer and the tools | The tools run on the workstation. |
-| 2 | [Restore the Database Copies](02-procedures/02-restore.md) | The copies of the four databases | The copies run on the workstation, with read-only accounts. |
-| 3 | [Get the Scope and the Pins](02-procedures/03-scope.md) | The tally to audit and the trusted keys | You have a pinned `scope.json` file. |
-| 4 | [Export the Evidence](02-procedures/04-export.md) | Files from the copies | The evidence files and their digests. |
-| 5 | [Prepare the Audit Bundle](02-procedures/05-prepare.md) | The selection of the counted ballots | An audit bundle. |
-| 6 | [Audit the Bundle](02-procedures/06-audit.md) | The independent check and receipt lookups | An audit report. |
-| 7 | [Verify the Bulletin Board](02-procedures/07-braid.md) | The mix and decryption proofs | A Braid result for each batch. |
-| 8 | [Check the Cast-Vote History](02-procedures/08-history.md) | Optional: all areas against the electoral log | A history report. |
-| 9 | [Report and Remove the Copies](02-procedures/09-close.md) | The audit record and the clean-up | A published summary. No copies are left. |
+|  | [Before You Start](01-before-you-start.md) | Roles, terms, versions and safety rules | You know who does each task. |
+| 1 | [Set Up the Audit Workstation](02-procedures/01-workstation.md) | An isolated computer and the audit image | The audit image and the audit kit are on the workstation. |
+| 2 | [Restore the Database Copies](02-procedures/02-restore.md) | The copies of the four databases, with `audit-env up` | The copies run without a network, with read-only accounts. |
+| 3 | [Run the Audit](02-procedures/03-run-the-audit.md) | One command for all areas and contests of the tally, with `audit-env tally` | An audit record and a public summary. |
+| 4 | [Report and Remove the Copies](02-procedures/04-close.md) | The audit report and the clean-up, with `audit-env down` | A published summary. No copies are left. |
+
+To repeat or examine one step of the audit, or to work without the audit kit, use
+[Appendix: Run Each Step Separately](07-run-each-step/00-run-each-step.md).
 
 ## Scope of this manual
 
-This manual is for version **10.0** of the ballot audit tools. It covers one tally, one area and
-one contest in each audit run. It does not cover the final count of the results, the history
-proofs of the electoral log database, or a link between a voter and a decrypted vote.
+This manual is for version **10.0** of the ballot audit tools. See
+[Versions](01-before-you-start.md#versions). Each audit run covers one tally, with all its areas
+and contests. The manual does not cover the final count of the results, the history proofs of the
+electoral log database, or a link between a voter and a decrypted vote.

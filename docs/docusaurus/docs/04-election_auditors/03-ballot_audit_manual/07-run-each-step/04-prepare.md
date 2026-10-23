@@ -1,6 +1,6 @@
 ---
 title: Prepare the Audit Bundle
-sidebar_position: 5
+sidebar_position: 4
 description: "Select the counted ballots of the scope from the evidence, check them against the signed electoral log and the saved tally, and write the audit bundle."
 ---
 
@@ -27,7 +27,7 @@ The command does these checks:
 
 ## Before you start
 
-- You did [Export the Evidence](04-export.md).
+- You did [Export the Evidence](03-export.md).
 - The seven digest variables are set: `SCOPE_SHA512` and the six of the evidence.
 - The directory `~/audit/prepared-audit` does not exist.
 
@@ -59,7 +59,7 @@ The command does these checks:
    ```
 
 3. Read the exit status.
-4. Write the counts that the command shows in the audit record.
+4. Write the counts that the command shows in the audit notes.
 
 :::caution CAUTION
 Do not use `--without-cast-vote-history`. Without the history, the command cannot detect a
@@ -79,14 +79,14 @@ removed revote or a changed vote order.
    export CONFIGURATION_SHA512=$(shasum -a 512 prepared-audit/configuration.borsh | cut -d' ' -f1)
    ```
 
-2. Write the two digests in the audit record.
+2. Write the two digests in the audit notes.
 
 :::danger WARNING
 Do not use the digests in `anchors.json` as pins. The bundle wrote that file itself. A changed
 bundle can contain changed anchors.
 :::
 
-**Expected result:** the audit record has the digests of the manifest and of the configuration.
+**Expected result:** the audit notes have the digests of the manifest and of the configuration.
 
 ## If there is a problem
 
@@ -105,4 +105,4 @@ See [Troubleshooting](../04-troubleshooting.md) for all messages.
 
 ## Next
 
-[Audit the Bundle](06-audit.md)
+[Audit the Bundle](05-audit.md)

@@ -1,6 +1,6 @@
 ---
 title: Check the Cast-Vote History
-sidebar_position: 8
+sidebar_position: 7
 description: "Optional: compare the stored ballots of all areas of the election with the signed records of the electoral log."
 ---
 
@@ -27,7 +27,7 @@ board.
 
 ## Before you start
 
-- You did [Export the Evidence](04-export.md). The electoral log export has no `--election-id`.
+- You did [Export the Evidence](03-export.md). The electoral log export has no `--election-id`.
 - `SCOPE_SHA512`, `CAST_VOTE_HISTORY_SHA512` and `ELECTORAL_LOG_SHA512` are set from the audit
   record.
 
@@ -51,7 +51,7 @@ board.
    ```
 
 3. Read the exit status.
-4. Write the exit status and the coverage counts of `history-report.json` in the audit record.
+4. Write the exit status and the coverage counts of `history-report.json` in the audit notes.
 
 **Expected result:** the exit status is `0`, or `3` with only `hasura_row_without_signed_log`
 groups.
@@ -80,4 +80,4 @@ Each group of the report has a `classification`:
 
 ## Next
 
-[Report and Remove the Copies](09-close.md)
+[Report and Remove the Copies](../02-procedures/04-close.md)

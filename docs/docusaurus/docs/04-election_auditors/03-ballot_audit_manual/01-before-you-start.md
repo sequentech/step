@@ -12,31 +12,27 @@ SPDX-License-Identifier: AGPL-3.0-only
 # Before You Start
 
 Read this page before you do a procedure. It gives the order of the work, the roles, the terms,
-the conventions and the rules that keep the audit safe.
+the versions, the conventions and the rules that keep the audit safe.
 
 ## The order of the work
 
 1. [Set Up the Audit Workstation](02-procedures/01-workstation.md)
 2. [Restore the Database Copies](02-procedures/02-restore.md)
-3. [Get the Scope and the Pins](02-procedures/03-scope.md)
-4. [Export the Evidence](02-procedures/04-export.md)
-5. [Prepare the Audit Bundle](02-procedures/05-prepare.md)
-6. [Audit the Bundle](02-procedures/06-audit.md)
-7. [Verify the Bulletin Board](02-procedures/07-braid.md)
-8. [Check the Cast-Vote History](02-procedures/08-history.md)
-9. [Report and Remove the Copies](02-procedures/09-close.md)
+3. [Run the Audit](02-procedures/03-run-the-audit.md)
+4. [Report and Remove the Copies](02-procedures/04-close.md)
 
-Do the procedures in this order. **Check the Cast-Vote History** is optional. If a command
-stops with a failure, do not continue to the next procedure. Read
-[Read the Results](03-read-the-results.md) first.
+Do the procedures in this order. If the audit does not pass, read
+[Read the Results](03-read-the-results.md) before you report. To repeat or examine one step, use
+[Appendix: Run Each Step Separately](07-run-each-step/00-run-each-step.md).
 
 ## Roles
 
 | Role | Tasks |
 | --- | --- |
-| Election authority | Decides which tally to audit. Gives the auditor the trusted keys and the backups. Receives the audit report. |
+| Election authority | Decides which tally to audit. Gives the auditor the tally ID, the trusted keys and the backups. Receives the audit report. |
 | System operator | Makes the backups of the four databases. Records the identity and the digest of each backup. |
 | Auditor | Restores the copies, runs the tools and writes the audit report. |
+| Second person | Checks the digests in the audit notes and signs them. Must not be the auditor. |
 
 The auditor must not be the person who made the backups. If one person has both roles, write
 this in the audit report.
@@ -46,7 +42,7 @@ this in the audit report.
 | Term | Meaning |
 | --- | --- |
 | Tally | One count of the votes. An election event can have more than one tally. |
-| Scope | The part of a tally that one audit run covers: one tally, one election, one area and one contest. |
+| Scope | One election, one area and one contest of a tally. `audit-tally` makes one scope for each area and contest of the tally. |
 | Electoral log | The signed log of the election events. It is stored in an ImmuDB database. Each cast vote has a signed `CastVote` record. |
 | Bulletin board | The B3 database of the cryptographic protocol. It holds the election public key and the encrypted ballots of each tally. |
 | Batch | A numbered group of encrypted ballots on the bulletin board. A tally of one area and one contest uses one or more batches. |
@@ -57,6 +53,21 @@ this in the audit report.
 | Evidence | The files that the export procedures write. |
 | Audit bundle | The files that **Prepare the Audit Bundle** writes. They contain only the ballots of the scope. |
 | Exit status | The number that a command returns when it stops. It tells the result. See [Read the Results](03-read-the-results.md). |
+| Audit record | The file `audit-record.json` that `audit-tally` writes. It records each command, its result and the digests of its files. |
+| Audit notes | The text file `audit-notes.txt` in which you write the values that the procedures tell you to record. |
+| Audit image | The Docker image with all tools of the audit. You build it from the source code. |
+| Audit kit | The command `audit-env`. It restores the copies from the backups, runs the audit on them and removes them. |
+
+## Versions
+
+| Item | Version |
+| --- | --- |
+| Election data | The release of the election platform that ran the election, for example `10.0.1-rc.1`. |
+| Tools | The audit image, built from a commit of the same release line that contains the folder `packages/ballot-audit/kit`. A release from before the tools does not contain this folder. |
+| Database servers | The same major version of PostgreSQL and the same version of ImmuDB as the source. Give them to `audit-env up` with `--postgres-version` and `--immudb-version`. |
+
+Write the release of the data, the commit of the tools, the ID of the audit image and the versions
+of the database servers in the audit notes.
 
 ## Conventions
 
@@ -80,13 +91,14 @@ this in the audit report.
 
 :::danger WARNING
 Do not connect the tools to a production system. Use only restored copies on an isolated
-workstation. The tools refuse remote connections, but a tunnel or a proxy can go around this
+workstation. The audit kit runs the copies and the tools in containers without a network. The
+tools also refuse remote connections, but without the kit a tunnel or a proxy can go around this
 protection.
 :::
 
 :::danger WARNING
 Keep the copies, the evidence and the audit bundle private. They contain voter IDs, receipts and
-ballots. Publish only the summary that [Report and Remove the Copies](02-procedures/09-close.md)
+ballots. Publish only the summary that [Report and Remove the Copies](02-procedures/04-close.md)
 describes.
 :::
 
@@ -102,9 +114,10 @@ evidence.
 
 ## What the audit proves
 
-If all commands return `0`, the selected ballots in the copies agree with the signed electoral
-log, with the frozen list of voters, with the saved tally and with the encrypted ballots on the
-bulletin board.
+If `audit-tally` returns `0`, the selected ballots of each area and contest in the copies agree
+with the signed electoral log, with the frozen list of voters, with the saved tally and with the
+encrypted ballots on the bulletin board. Also, the Braid verifier passed all required checks of
+the mix and of the decryption.
 
 The audit does not prove these points:
 

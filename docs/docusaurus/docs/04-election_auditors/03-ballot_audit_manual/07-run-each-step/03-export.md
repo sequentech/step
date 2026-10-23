@@ -1,6 +1,6 @@
 ---
 title: Export the Evidence
-sidebar_position: 4
+sidebar_position: 3
 description: "Read the evidence of the scope from the restored copies into files, and record the digest of each file."
 ---
 
@@ -23,7 +23,7 @@ Both commands open read-only transactions and accept only loopback addresses.
 
 ## Before you start
 
-- You did [Get the Scope and the Pins](03-scope.md). `$SCOPE_SHA512` is set.
+- You did [Get the Scope and the Pins](02-scope.md). `$SCOPE_SHA512` is set.
 - The three PostgreSQL copies and the ImmuDB copy run.
 - The directories `~/audit/postgres-export` and `~/audit/immudb-export` do not exist. The
   commands make them.
@@ -101,11 +101,11 @@ event. The cast-vote history check needs the full log.
    export ELECTORAL_LOG_SHA512=$(pin immudb-export/electoral-log.json)
    ```
 
-2. Write the six digests in the audit record.
-3. Ask a second person to sign the audit record. From now on, the digests are the pins of the
+2. Write the six digests in the audit notes.
+3. Ask a second person to sign the audit notes. From now on, the digests are the pins of the
    evidence.
 
-**Expected result:** the audit record has the six digests and a second signature.
+**Expected result:** the audit notes have the six digests and a second signature.
 
 ## If there is a problem
 
@@ -122,4 +122,4 @@ See [Troubleshooting](../04-troubleshooting.md) for all messages.
 
 ## Next
 
-[Prepare the Audit Bundle](05-prepare.md)
+[Prepare the Audit Bundle](04-prepare.md)

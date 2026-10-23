@@ -1,6 +1,6 @@
 ---
 title: Get the Scope and the Pins
-sidebar_position: 3
+sidebar_position: 2
 description: "Find the tally to audit, write the scope file with the trusted keys and pin it with its SHA-512 digest."
 ---
 
@@ -16,7 +16,7 @@ contest to audit, and which keys to trust. The auditor does it with the election
 
 ## Before you start
 
-- You did [Restore the Database Copies](02-restore.md).
+- You did [Restore the Database Copies](../02-procedures/02-restore.md).
 - The election authority has told you which tally, election, area and contest to audit.
 - You have these two keys from the election authority, through a trusted channel that is not
   the backups:
@@ -48,7 +48,7 @@ You can read the IDs from the Hasura copy. The export checks them against the sa
    WHERE tally_session_id = '<tally ID>';
    ```
 
-3. Find the row of the election, area and contest to audit. Write its values in the audit record.
+3. Find the row of the election, area and contest to audit. Write its values in the audit notes.
 4. Read the name of the event board:
 
    ```sql
@@ -57,7 +57,7 @@ You can read the IDs from the Hasura copy. The export checks them against the sa
    WHERE id = '<election event ID>';
    ```
 
-5. Write the tenant ID and the board name in the audit record.
+5. Write the tenant ID and the board name in the audit notes.
 
 **Expected result:** you have all the IDs of the scope, the `session_id` and the board name.
 
@@ -112,14 +112,14 @@ status `4`.
    export SCOPE_SHA512=$(shasum -a 512 ~/audit/scope.json | cut -d' ' -f1)
    ```
 
-3. Write the digest in the audit record.
+3. Write the digest in the audit notes.
 
 :::caution CAUTION
 Do not change `scope.json` after this step. A change of one space changes the digest. If you must
 change it, calculate and record the digest again.
 :::
 
-**Expected result:** `scope.json` exists and its digest is in the audit record.
+**Expected result:** `scope.json` exists and its digest is in the audit notes.
 
 ## If there is a problem
 
@@ -131,4 +131,4 @@ change it, calculate and record the digest again.
 
 ## Next
 
-[Export the Evidence](04-export.md)
+[Export the Evidence](03-export.md)

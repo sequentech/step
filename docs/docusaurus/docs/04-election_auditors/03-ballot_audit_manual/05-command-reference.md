@@ -11,15 +11,16 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 # Command Reference
 
-This page lists all options of the six commands of the audit, in the order of the procedures. It
-also gives the format of the two files that you write: `scope.json` and `connections.json`.
+This page lists all options of the audit kit, `audit-env`, and of the seven commands of the
+audit: first `audit-tally`, then the commands that it runs. It also gives the format of the two
+files that you can write: `scope.json` and `connections.json`.
 
 ## Common rules
 
 - All options are long options: `--option value`. The commands have no short options.
 - `--help` shows the options of a command. `--version` is not available.
 - An option with the suffix `-sha512` is a pin: the SHA-512 digest of a file, in 128 lowercase
-  hexadecimal characters. Get the pin from the audit record, not from the file.
+  hexadecimal characters. Get the pin from the audit notes, not from the file.
 - An `--output` directory must not exist. The command makes it with access for your account only,
   and it does not overwrite a file.
 - All ballot audit commands use the exit statuses `0` to `4`. See
@@ -28,11 +29,104 @@ also gives the format of the two files that you write: `scope.json` and `connect
 In the tables, **Required** shows if you must give the option. **Default** in the description is the
 value that the command uses when you do not give the option.
 
+## audit-env
+
+The audit kit. It restores the copies, runs the commands of the audit on them and removes them.
+It is in `packages/ballot-audit/kit` of the source repository. See
+[Restore the Database Copies](02-procedures/02-restore.md). Each command needs `--dir <directory>`,
+the audit directory.
+
+| Command | Description |
+| --- | --- |
+| `audit-env up` | Checks the backups, restores the copies and starts them. |
+| `audit-env tally` | Runs `audit-tally` on the copies. |
+| `audit-env exec -- <command> ...` | Runs one command of the audit in the tools container, in `<directory>/results`. `<directory>/private` is `/audit/private` there. |
+| `audit-env sql <copy> [-- <psql option> ...]` | Opens a read-only `psql` session on the copy `hasura`, `keycloak` or `b3`, as `ballot_audit_reader`. |
+| `audit-env status` | Shows the containers of the copies. |
+| `audit-env down` | Removes the copies, their volumes and `<directory>/private`. `<directory>/results` and `<directory>/backups` stay. |
+| `audit-env help` | Shows the commands. |
+
+Options of `audit-env up`:
+
+| Option | Required | Description |
+| --- | --- | --- |
+| `--dir <directory>` | Yes | The audit directory. `<directory>/backups` holds the backups. `<directory>/private` must not exist. |
+| `--digests <file>` | Yes | One line for each backup: its SHA-512 digest, two spaces and its file name, as `shasum -a 512` writes it. The command stops if a backup has no line or a different digest. |
+| `--postgres-version <tag>` | Yes | The tag of the `postgres` image: the major version of PostgreSQL of the source, for example `16`. |
+| `--immudb-version <tag>` | Yes | The tag of the `codenotary/immudb` image: the version of ImmuDB of the source. |
+| `--image <image>` | No | The audit image. Default: `ballot-audit:local`. |
+
+The backups must have these names: `hasura.dump`, `keycloak.dump`, `b3.dump`, `immudb.tar.gz`
+and, if the board stores messages in files, `b3-blobs.tar.gz`. The ImmuDB archive holds the data
+directory, or one directory that holds it.
+
+Options of `audit-env tally`:
+
+| Option | Required | Description |
+| --- | --- | --- |
+| `--dir <directory>` | Yes | The audit directory. |
+| `--tally-session-id <ID>` | Yes | The tally ID, from the election authority. |
+| `--public-key-sha512 <digest>` | Yes | The public key hash, from the election authority. |
+| `--electoral-log-system-public-key <key>` | Yes | The electoral log system public key, from the election authority. |
+| `--output <name>` | No | The output directory in `<directory>/results`. Default: `tally`. |
+| `-- <option> ...` | No | More options of `audit-tally`, for example `--statement-timeout-seconds 600`. |
+
+The command gives `audit-tally` the options `--connections`, `--immudb-server-url`,
+`--immudb-username`, `--b3-server-url`, `--output` and, if there is a blob archive,
+`--b3-blob-root`. It returns the exit status of `audit-tally`.
+
+The copies run in containers that share one network namespace without a network. They use these
+addresses:
+
+| Copy | Address |
+| --- | --- |
+| Hasura | `127.0.0.1:55432`, database `hasura_copy` |
+| Keycloak | `127.0.0.1:55433`, database `keycloak_copy` |
+| B3 | `127.0.0.1:55434`, database `b3_copy` |
+| ImmuDB | `http://127.0.0.1:43322` |
+| B3 server | `http://127.0.0.1:50051` |
+
+## audit-tally
+
+Audits all areas and contests of one tally. It reads the tally from the Hasura copy, makes one
+scope for each area and contest, and runs the other six commands. See
+[Run the Audit](02-procedures/03-run-the-audit.md).
+
+| Option | Required | Description |
+| --- | --- | --- |
+| `--connections <file>` | Yes | The connections file. See [connections.json](#connectionsjson). |
+| `--tally-session-id <ID>` | Yes | The tally ID, from the election authority. Use lowercase. |
+| `--public-key-sha512 <digest>` | Yes | The public key hash, from the election authority. |
+| `--electoral-log-system-public-key <key>` | Yes | The electoral log system public key, from the election authority. |
+| `--immudb-server-url <url>` | Yes, if you do not give `--electoral-log-export` | The loopback address of the restored ImmuDB, for example `http://127.0.0.1:43322`. Give it with `--immudb-username`. |
+| `--immudb-username <user>` | With `--immudb-server-url` | The read-only ImmuDB user. |
+| `--immudb-password-env <variable>` | No | The name of the environment variable that holds the ImmuDB password. Default: `BALLOT_AUDIT_IMMUDB_PASSWORD`. |
+| `--electoral-log-export <directory>` | Yes, if you do not give `--immudb-server-url` | An existing directory from `export-electoral-log` of the full election event. The command uses it and does not read ImmuDB. |
+| `--b3-server-url <url>` | No | The address of the B3 server on the B3 copy, for example `http://127.0.0.1:50051`. Without it, the Braid verifier does not run and the audit is incomplete. |
+| `--braid-verify <file>` | No | The Braid verifier. Default: `verify` in the directory of `audit-tally`. |
+| `--b3-blob-root <directory>` | No | The restored B3 blob directory. Give it when the bulletin board stores messages in files. |
+| `--statement-timeout-seconds <n>` | No | The time limit of each database query, in seconds. The minimum is `1`. Default: `120`. |
+| `--output <directory>` | Yes | The new directory for all files of the audit. |
+
+The command runs `export-electoral-log`, `export-ballot-audit`, `prepare-ballot-audit`,
+`ballot-audit` and `audit-cast-history` from its own directory. It gives each command the pins of
+the files that the earlier steps wrote. It gives `prepare-ballot-audit` the cast-vote history and
+the saved mapping, and `ballot-audit` the selection file. It runs `export-electoral-log` without
+`--election-id`.
+
+It runs the Braid verifier once for the board, with `--batches` set to all batches of the tally
+and all batches with `Ballots` statements on the board. The verifier runs in the directory
+`braid`.
+
+**Output files:** `tally-plan.json`, `audit-record.json`, `public-summary.json` and one directory
+for each scope, for the histories and for the Braid verifier. See
+[File Reference](06-file-reference.md#files-of-audit-tally-tally).
+
 ## export-ballot-audit
 
 Reads the restored Hasura, Keycloak and B3 copies in read-only transactions and writes the evidence
 of the scope. It checks the scope against the saved tally. See
-[Export the Evidence](02-procedures/04-export.md).
+[Export the Evidence](07-run-each-step/03-export.md).
 
 | Option | Required | Description |
 | --- | --- | --- |
@@ -50,7 +144,7 @@ of the scope. It checks the scope against the saved tally. See
 ## export-electoral-log
 
 Reads the signed cast-vote records of an election event from the restored ImmuDB copy in a
-read-only transaction. See [Export the Evidence](02-procedures/04-export.md).
+read-only transaction. See [Export the Evidence](07-run-each-step/03-export.md).
 
 | Option | Required | Description |
 | --- | --- | --- |
@@ -67,7 +161,7 @@ read-only transaction. See [Export the Evidence](02-procedures/04-export.md).
 ## prepare-ballot-audit
 
 Selects the ballots that the tally must count and writes the audit bundle. It reads only files.
-See [Prepare the Audit Bundle](02-procedures/05-prepare.md).
+See [Prepare the Audit Bundle](07-run-each-step/04-prepare.md).
 
 | Option | Required | Description |
 | --- | --- | --- |
@@ -99,15 +193,15 @@ detect a removed revote or a changed vote order.
 ## ballot-audit
 
 Checks the audit bundle a second time, independently of the preparation, and looks up a receipt.
-It writes the report to the standard output. See [Audit the Bundle](02-procedures/06-audit.md).
+It writes the report to the standard output. See [Audit the Bundle](07-run-each-step/05-audit.md).
 
 | Option | Required | Description |
 | --- | --- | --- |
 | `--manifest <file>` | Yes | `manifest.json` from the bundle. |
-| `--manifest-sha512 <digest>` | Yes | The pin of the manifest, from the audit record. |
+| `--manifest-sha512 <digest>` | Yes | The pin of the manifest, from the audit notes. |
 | `--cast-votes <file>` | Yes | `cast-votes.json` from the bundle. |
 | `--configuration <file>` | Yes | `configuration.borsh` from the bundle. |
-| `--configuration-sha512 <digest>` | Yes | The pin of the configuration, from the audit record. |
+| `--configuration-sha512 <digest>` | Yes | The pin of the configuration, from the audit notes. |
 | `--messages <file>` | Yes | `messages.json` from the bundle. |
 | `--electoral-log <file>` | Yes | `electoral-log.json` from the bundle. |
 | `--ballot-id <receipt>` | No | Looks up one receipt. The command still checks all ballots. |
@@ -117,7 +211,7 @@ It writes the report to the standard output. See [Audit the Bundle](02-procedure
 
 Compares all stored ballots of the election with the signed records of the electoral log. It
 writes the report to the standard output. See
-[Check the Cast-Vote History](02-procedures/08-history.md).
+[Check the Cast-Vote History](07-run-each-step/07-history.md).
 
 | Option | Required | Description |
 | --- | --- | --- |
@@ -133,7 +227,7 @@ writes the report to the standard output. See
 
 Checks the signatures, the configuration, the mix and the decryption of each batch on the
 bulletin board. It reads the board through the B3 server. See
-[Verify the Bulletin Board](02-procedures/07-braid.md).
+[Verify the Bulletin Board](07-run-each-step/06-braid.md).
 
 | Option | Required | Description |
 | --- | --- | --- |
@@ -145,7 +239,8 @@ bulletin board. It reads the board through the B3 server. See
 ## scope.json
 
 The scope file tells the commands which tally, election, area and contest to audit, and which
-keys to trust. All fields are required. See [Get the Scope and the Pins](02-procedures/03-scope.md).
+keys to trust. `audit-tally` writes one for each scope. You write it only when you run each step
+separately. All fields are required. See [Get the Scope and the Pins](07-run-each-step/02-scope.md).
 
 | Field | Value |
 | --- | --- |
@@ -168,14 +263,15 @@ Use lowercase IDs. Do not change the file after you record its pin.
 
 ## connections.json
 
-The connections file tells `export-ballot-audit` how to connect to each restored copy. See
+The connections file tells `audit-tally` and `export-ballot-audit` how to connect to each
+restored copy. See
 [Restore the Database Copies](02-procedures/02-restore.md).
 
 | Field | Value |
 | --- | --- |
 | `format_version` | `1` |
 | `hasura`, `keycloak`, `b3` | One object for each database copy. |
-| `<copy>.connection_string` | A PostgreSQL connection string to a loopback address, for example `host=127.0.0.1 port=55432 dbname=hasura_copy user=audit_reader password=<password>`. A host name, a remote address or `sslmode=require` is refused. |
+| `<copy>.connection_string` | A PostgreSQL connection string to a loopback address, for example `host=127.0.0.1 port=55432 dbname=hasura_copy user=ballot_audit_reader password=<password>`. A host name, a remote address or `sslmode=require` is refused. |
 | `<copy>.restore_reference` | The identity and the digest of the backup of this copy. The export writes it in `acquisition.json`. |
 
 The commands refuse a field that is not in this list. Only your account can have access to the
