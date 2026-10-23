@@ -375,6 +375,7 @@ impl<'r> FromRequest<'r> for DatafixClaims {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::services::jwt::JwtClaims;
     use crate::services::jwt_verification::{
         KEYCLOAK_PUBLIC_URL, KEYCLOAK_URL,
@@ -383,7 +384,11 @@ mod tests {
         claims, clear_optional_issuer_settings, in_child_process, keys,
         one_shot_server, token,
     };
+    use crate::util::http_stub::HttpStub;
+    use crate::util::log_capture::LogCapture;
     use rocket::http::{Header, Status};
+    use rocket::local::asynchronous::Client;
+    use rocket::{get, routes};
 
     #[rocket::get("/authenticated")]
     fn authenticated(_claims: JwtClaims) -> &'static str {
@@ -440,6 +445,92 @@ mod tests {
                 .await
                 .status(),
             Status::Ok
+        );
+    }
+
+    const ADMIN_SECRET_VALUE: &str = "AdminSecretValue4f1c";
+    const COOKIE_VALUE: &str = "CookieValue9b2e";
+    const BASIC_CREDENTIALS: &str = "BasicCredentials7d3a";
+    const DATAFIX_CLIENT_SECRET: &str = "DatafixClientSecret5e8b";
+    const TOKEN_RESPONSE: &str = r#"{"access_token":"opaque","expires_in":60,"scope":"openid","token_type":"Bearer"}"#;
+
+    #[get("/claims")]
+    fn claims_route(_claims: JwtClaims) {}
+
+    #[get("/datafix")]
+    fn datafix_route(_claims: DatafixClaims) {}
+
+    #[rocket::async_test]
+    async fn jwt_guard_logs_no_header_values() {
+        let client = Client::untracked(
+            rocket::build().mount("/", routes![claims_route]),
+        )
+        .await
+        .expect("rocket client");
+        let (capture, _guard) = LogCapture::install();
+
+        let without_authorization = client
+            .get("/claims")
+            .header(Header::new("X-Hasura-Admin-Secret", ADMIN_SECRET_VALUE))
+            .header(Header::new("Cookie", format!("session={COOKIE_VALUE}")))
+            .dispatch()
+            .await;
+        assert_eq!(without_authorization.status(), Status::Unauthorized);
+
+        let basic_authorization = client
+            .get("/claims")
+            .header(Header::new(
+                AUTHORIZATION_HEADER,
+                format!("Basic {BASIC_CREDENTIALS}"),
+            ))
+            .dispatch()
+            .await;
+        assert_eq!(basic_authorization.status(), Status::Unauthorized);
+
+        let logs = capture.contents();
+        assert!(logs.contains("JwtClaims guard"), "{logs}");
+        for value in [ADMIN_SECRET_VALUE, COOKIE_VALUE, BASIC_CREDENTIALS] {
+            assert!(!logs.contains(value), "{value} in logs: {logs}");
+        }
+    }
+
+    #[rocket::async_test]
+    async fn datafix_guard_logs_no_client_secret() {
+        let keycloak = HttpStub::start(|_| (200, TOKEN_RESPONSE.to_string()))
+            .expect("keycloak stub");
+        std::env::set_var("KEYCLOAK_URL", keycloak.url());
+        let client = Client::untracked(
+            rocket::build()
+                .manage(LastDatafixAccessToken::init())
+                .mount("/", routes![datafix_route]),
+        )
+        .await
+        .expect("rocket client");
+        let authorization = format!("datafix-client:{DATAFIX_CLIENT_SECRET}");
+        let (capture, _guard) = LogCapture::install();
+
+        let missing_event_id = client
+            .get("/datafix")
+            .header(Header::new(TENANT_ID_HEADER, "tenant"))
+            .header(Header::new(AUTHORIZATION_HEADER, authorization.clone()))
+            .dispatch()
+            .await;
+        assert_eq!(missing_event_id.status(), Status::BadRequest);
+
+        let token_request = client
+            .get("/datafix")
+            .header(Header::new(TENANT_ID_HEADER, "tenant"))
+            .header(Header::new(EVENT_ID_HEADER, "event"))
+            .header(Header::new(AUTHORIZATION_HEADER, authorization))
+            .dispatch()
+            .await;
+        assert_eq!(token_request.status(), Status::Unauthorized);
+
+        let logs = capture.contents();
+        assert!(logs.contains("Acquiring credentials"), "{logs}");
+        assert!(
+            !logs.contains(DATAFIX_CLIENT_SECRET),
+            "client secret in logs: {logs}"
         );
     }
 }
