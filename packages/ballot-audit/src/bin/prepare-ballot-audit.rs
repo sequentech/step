@@ -860,8 +860,8 @@ fn check_history(
             continue;
         };
         for (other, logs) in voter_logs(indexed_logs, &key.0) {
-            let signed_at = logs.iter().map(|log| log.timestamp).min();
-            if other == key || signed_at.is_none_or(|at| at <= selected_at) {
+            let latest_signed_at = logs.iter().map(|log| log.timestamp).max();
+            if other == key || latest_signed_at.is_none_or(|at| at <= selected_at) {
                 continue;
             }
             ensure!(

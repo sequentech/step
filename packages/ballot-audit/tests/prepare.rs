@@ -717,6 +717,27 @@ fn later_signed_valid_revote_must_be_selected() {
 }
 
 #[test]
+fn ballot_signed_again_after_the_selected_one_counts_as_a_later_revote() {
+    let mut f = Fixture::new(MultiplicityPolicy::Unweighted, 1);
+    let area = f.scope["scope"]["area_id"].as_str().unwrap().to_owned();
+    f.add_revote(5, &area, "valid", 0);
+    let revote: HashableBallot = serde_json::from_str(
+        f.rows.as_array().unwrap().last().unwrap()["content"]
+            .as_str()
+            .unwrap(),
+    )
+    .unwrap();
+    // The same ballot signed once alongside the selected one and once later.
+    let log = f.signed_log_for_hash(hash_ballot_sha512(&revote).unwrap(), 60);
+    f.logs.push(log);
+    let dir = TempDir::new();
+    let output = f.command(&dir.0).output().unwrap();
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert_eq!(output.status.code(), Some(1), "{stderr}");
+    assert!(stderr.contains("later signed revote"), "{stderr}");
+}
+
+#[test]
 fn later_signed_revotes_that_cannot_be_selected_here_are_counted() {
     for (area, status, seconds_later, counted) in [
         (None, "discarded", 60, 1),
