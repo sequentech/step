@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::postgres::skip_unparseable_rows;
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
@@ -87,14 +88,15 @@ pub async fn find_all_active_events(
         .await
         .map_err(|err| anyhow!("Error running the find_all_active_events query: {err}"))?;
 
-    let scheduled_events = rows
-        .into_iter()
-        .map(|row| -> Result<ScheduledEvent> {
-            row.try_into()
-                .map(|res: ScheduledEventWrapper| -> ScheduledEvent { res.0 })
-        })
-        .collect::<Result<Vec<ScheduledEvent>>>()
-        .with_context(|| "Error converting rows into ScheduledEvent")?;
+    let scheduled_events = skip_unparseable_rows(rows.into_iter().map(|row| {
+        let id = row
+            .try_get::<_, Uuid>("id")
+            .map(|id| id.to_string())
+            .unwrap_or_default();
+        ScheduledEventWrapper::try_from(row)
+            .map(|res| res.0)
+            .with_context(|| format!("Skipping scheduled_event id={id}"))
+    }));
     Ok(scheduled_events)
 }
 
