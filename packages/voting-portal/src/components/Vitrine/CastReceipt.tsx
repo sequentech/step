@@ -2,18 +2,19 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useContext, useMemo} from "react"
+import React, {useContext, useEffect, useMemo, useState} from "react"
 import {Box, Typography} from "@mui/material"
 import {styled} from "@mui/material/styles"
 import {useTranslation} from "react-i18next"
-import {StyledButton, theme} from "@sequentech/ui-essentials"
+import {QRCode, StyledButton, theme} from "@sequentech/ui-essentials"
 import type {OverallStatus} from "@vitrine/ui"
 import {useCastReceipt} from "../../hooks/useCastReceipt"
 import {AuthContext} from "../../providers/AuthContextProvider"
 import {SettingsContext} from "../../providers/SettingsContextProvider"
 import {EReceiptNotice, IReceiptView} from "../../services/vitrine/castReceipt"
-import {checkIndependentlyUrl} from "../../services/vitrine/handoff"
+import {checkIndependentlyUrl, receiptReferenceUrl} from "../../services/vitrine/handoff"
 import {vitrineLanguage} from "../../services/vitrine/language"
+import {chainReceipt} from "../../services/vitrine/receipt"
 import {loadVitrineSdk} from "../../services/vitrine/sdk"
 import {EReceiptKeeping} from "../../services/vitrine/storage"
 import {ETransparencyMode} from "../../services/vitrine/types"
@@ -33,6 +34,13 @@ const StorageLine = styled(Box)`
     flex-wrap: wrap;
     align-items: center;
     gap: 12px;
+`
+
+const ReferenceContainer = styled(Box)`
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
 `
 
 const NOTICE_STATE: Record<EReceiptNotice, OverallStatus> = {
@@ -67,6 +75,35 @@ export const openVerifier = async (verifierUrl: string, view: IReceiptView, chai
     }
 }
 
+/** The receipt's reference for its QR code, built on this device: showing
+ * and printing it makes no request. */
+const useReceiptReference = (verifierUrl: string, view?: IReceiptView): string | undefined => {
+    const [reference, setReference] = useState<string>()
+    useEffect(() => {
+        const {chain, own, policy} = view ?? {}
+        setReference(undefined)
+        if (!chain || !own || !policy || !verifierUrl) return
+        let active = true
+        const build = async () => {
+            try {
+                const sdk = await loadVitrineSdk()
+                const receipt = chainReceipt(sdk, chain)
+                const url =
+                    receipt &&
+                    receiptReferenceUrl(sdk.pure, verifierUrl, policy, receipt, own.entry)
+                if (active) setReference(url)
+            } catch {
+                if (active) setReference(undefined)
+            }
+        }
+        void build()
+        return () => {
+            active = false
+        }
+    }, [verifierUrl, view])
+    return reference
+}
+
 export interface ICastReceiptProps {
     eventId: string
     electionId: string
@@ -89,6 +126,7 @@ export const CastReceipt: React.FC<ICastReceiptProps> = ({
     const {globalSettings} = useContext(SettingsContext)
     const target = useMemo(() => ({eventId, electionId, ballotId}), [eventId, electionId, ballotId])
     const {view, keeping, kept, setKeeping} = useCastReceipt(target, vitrine)
+    const reference = useReceiptReference(globalSettings.BALLOT_VERIFIER_URL, view)
     const lang = vitrineLanguage(i18n.language)
     if (vitrine.transparency.mode === ETransparencyMode.DISABLED) return null
 
@@ -146,6 +184,23 @@ export const CastReceipt: React.FC<ICastReceiptProps> = ({
                         void openVerifier(globalSettings.BALLOT_VERIFIER_URL, view, chain)
                 }}
             />
+            {reference ? (
+                <ReferenceContainer className="vitrine-receipt-reference">
+                    <Typography
+                        className="vitrine-receipt-reference-text"
+                        variant="body2"
+                        component="p"
+                        id="vitrine-receipt-reference-description"
+                        sx={{color: theme.palette.customGrey.main}}
+                    >
+                        {t("vitrine.receipt.reference")}
+                    </Typography>
+                    <QRCode
+                        ariaLabelledby="vitrine-receipt-reference-description"
+                        value={reference}
+                    />
+                </ReferenceContainer>
+            ) : null}
             {isKiosk() ? null : (
                 <StorageLine className="vitrine-receipt-storage">
                     <Typography

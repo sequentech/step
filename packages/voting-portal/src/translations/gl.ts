@@ -488,6 +488,7 @@ const galegoTranslation: TranslationType = {
                 missing:
                     "Este sitio web non recibiu ningún recibo da súa papeleta. O seu voto emitiuse. Avisouse aos observadores da elección.",
                 unchecked: "Este sitio web non puido comprobar o recibo. O seu voto emitiuse.",
+                reference: "Escanee este código para comprobar o recibo noutro dispositivo.",
                 stored: "Este recibo gárdase neste dispositivo e poderá velo de novo ao iniciar sesión.",
                 notStored: "Este recibo non se garda neste dispositivo.",
                 forget: "Non gardar recibos neste dispositivo",

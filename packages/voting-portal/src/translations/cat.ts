@@ -492,6 +492,8 @@ const catalanTranslation: TranslationType = {
                     "Aquest lloc web no ha rebut cap rebut de la vostra papereta. El vostre vot s'ha emès. S'ha avisat els observadors de l'elecció.",
                 unchecked:
                     "Aquest lloc web no ha pogut comprovar el rebut. El vostre vot s'ha emès.",
+                reference:
+                    "Escanegeu aquest codi per comprovar el rebut des d'un altre dispositiu.",
                 stored: "Aquest rebut es guarda en aquest dispositiu i el podreu tornar a veure quan inicieu la sessió.",
                 notStored: "Aquest rebut no es guarda en aquest dispositiu.",
                 forget: "No guardis rebuts en aquest dispositiu",

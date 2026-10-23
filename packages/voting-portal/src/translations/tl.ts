@@ -488,6 +488,7 @@ const tagalogTranslation: TranslationType = {
                     "Hindi nakatanggap ang website na ito ng resibo para sa iyong balota. Naisumite na ang iyong boto. Naabisuhan na ang mga tagamasid ng halalan.",
                 unchecked:
                     "Hindi nasuri ng website na ito ang resibo. Naisumite na ang iyong boto.",
+                reference: "I-scan ang code na ito para masuri ang resibo sa ibang device.",
                 stored: "Nakatago ang resibong ito sa device na ito, at makikita mo itong muli pagkatapos mong mag-log in.",
                 notStored: "Hindi nakatago ang resibong ito sa device na ito.",
                 forget: "Huwag magtago ng mga resibo sa device na ito",

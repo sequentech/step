@@ -32,12 +32,17 @@ export interface IHandOff {
     policyText?: string
 }
 
+/** The ballot verifier's receipt screen. */
+const receiptScreen = (verifierUrl: string): string => {
+    const at = verifierUrl.indexOf("#")
+    return joinUrl(at < 0 ? verifierUrl : verifierUrl.slice(0, at), VERIFIER_RECEIPT_PATH)
+}
+
 /** The link that opens the receipt in the ballot verifier. */
 export const checkIndependentlyUrl = (pure: TVitrinePure, h: IHandOff): string => {
     const {b64urlEncode} = pure.encoding
     const {utf8} = pure.bytes
-    const at = h.verifierUrl.indexOf("#")
-    const base = joinUrl(at < 0 ? h.verifierUrl : h.verifierUrl.slice(0, at), VERIFIER_RECEIPT_PATH)
+    const base = receiptScreen(h.verifierUrl)
     const params = [`c=${b64urlEncode(utf8(h.chain))}`, `e=${b64urlEncode(h.entry)}`]
     const log = h.policy.logs.get(EVitrineLog.BALLOTS)?.url
     if (h.mode === ETransparencyMode.PUBLIC && log) {
@@ -46,4 +51,28 @@ export const checkIndependentlyUrl = (pure: TVitrinePure, h: IHandOff): string =
         params.push(`policy=${b64urlEncode(utf8(h.policyText))}`)
     }
     return `${base}${CHAIN_LINK_PREFIX}${params.join("&")}`
+}
+
+/** The receipt's reference (receipt.md, section 4), the short link for its QR
+ * code: the policy's locator, the log, the entry's index and the entry, from
+ * which the verifier rebuilds the chain. Undefined without a receipt. */
+export const receiptReferenceUrl = (
+    pure: TVitrinePure,
+    verifierUrl: string,
+    policy: Policy,
+    receipt: string,
+    entry: Uint8Array
+): string | undefined => {
+    try {
+        const {index} = pure.proofs.parseTlogProof(receipt)
+        return pure.formatReceiptReference(
+            receiptScreen(verifierUrl),
+            policy.id,
+            EVitrineLog.BALLOTS,
+            index,
+            entry
+        )
+    } catch {
+        return undefined
+    }
 }

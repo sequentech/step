@@ -238,9 +238,9 @@ const missingNotice = async (container: HTMLElement): Promise<VitrineStatus> => 
 
 describe("the receipt on the confirmation screen", () => {
     it.each([
-        ["receipt", receiptOf, "issued"],
-        ["promise", promiseOf, "promise"],
-    ] as const)("shows the %s, checked by this website", async (_kind, answer, block) => {
+        ["receipt", receiptOf, "issued", true],
+        ["promise", promiseOf, "promise", false],
+    ] as const)("shows the %s, checked by this website", async (_kind, answer, block, qr) => {
         const {cast} = casting(answer)
         const {container} = renderScreen()
         const element = await receiptElement(container)
@@ -252,6 +252,14 @@ describe("the receipt on the confirmation screen", () => {
         expect(text).toContain("Checked by this website")
         expect(text).toContain("Check independently")
         expect(container.querySelector("vitrine-status")).toBeNull()
+        // A receipt's reference is drawn as a QR code here; a promise has none yet.
+        if (qr) {
+            await waitFor(() =>
+                expect(container.querySelector(".vitrine-receipt-reference svg")).not.toBeNull()
+            )
+        } else {
+            expect(container.querySelector(".vitrine-receipt-reference")).toBeNull()
+        }
         await waitFor(() => expect(mockKeepReceipt).toHaveBeenCalled())
         expect(mockKeepReceipt.mock.calls[0][2]).toMatchObject({
             eventId: EVENT_ID,
@@ -301,6 +309,10 @@ describe("the receipt on the confirmation screen", () => {
         const element = await receiptElement(container)
         await waitFor(() => expect(element.state).toBe("done"))
         expect(container.querySelector(".vitrine-receipt-storage")).toBeNull()
+        // The voter can still take the receipt away by scanning it.
+        await waitFor(() =>
+            expect(container.querySelector(".vitrine-receipt-reference svg")).not.toBeNull()
+        )
         expect(mockKeepReceipt).not.toHaveBeenCalled()
     })
 

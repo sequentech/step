@@ -487,6 +487,7 @@ const frenchTranslation: TranslationType = {
                 missing:
                     "Ce site n'a reçu aucun reçu pour votre bulletin. Votre vote a été émis. Les observateurs de l'élection ont été prévenus.",
                 unchecked: "Ce site n'a pas pu vérifier le reçu. Votre vote a été émis.",
+                reference: "Scannez ce code pour vérifier le reçu sur un autre appareil.",
                 stored: "Ce reçu est conservé sur cet appareil, et vous pourrez le revoir après vous être connecté.",
                 notStored: "Ce reçu n'est pas conservé sur cet appareil.",
                 forget: "Ne pas conserver de reçus sur cet appareil",

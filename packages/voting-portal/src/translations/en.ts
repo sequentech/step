@@ -480,6 +480,7 @@ const englishTranslation = {
                 missing:
                     "This website didn't get a receipt for your ballot. Your vote was cast. The election's observers have been told.",
                 unchecked: "This website couldn't check the receipt. Your vote was cast.",
+                reference: "Scan this code to check the receipt on another device.",
                 stored: "This receipt is kept on this device, and you can see it again after you log in.",
                 notStored: "This receipt isn't kept on this device.",
                 forget: "Don't keep receipts on this device",
