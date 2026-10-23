@@ -154,6 +154,8 @@ export const TallyCeremony: React.FC = () => {
     const [keysCeremonyId, setKeysCeremonyId] = useState<string | undefined>(undefined)
     const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
     const [completedTallyId, setCompletedTallyId] = useState<string | null>(null)
+    const retryCompletionRefresh = useRef(false)
+    const [completionRefreshAttempt, setCompletionRefreshAttempt] = useState(0)
     const isTallyCompleted = !!tallyId && completedTallyId === tallyId
     const [isConfirming, setIsConfirming] = useState<boolean>(false)
     const [isCreating, setIsCreating] = useState(false)
@@ -181,23 +183,26 @@ export const TallyCeremony: React.FC = () => {
         "tally-results-results": true,
     })
 
-    const {data: tallySession, refetch: refetchTallySession} =
-        useGetOne<Sequent_Backend_Tally_Session>(
-            "sequent_backend_tally_session",
-            {
-                id: localTallyId || tallyId,
-            },
-            {
-                refetchInterval: isTallyCompleted
-                    ? undefined
-                    : globalSettings.QUERY_FAST_POLL_INTERVAL_MS,
-                refetchIntervalInBackground: true,
-                refetchOnWindowFocus: false,
-                refetchOnReconnect: false,
-                refetchOnMount: false,
-                enabled: !!localTallyId || !!tallyId,
-            }
-        )
+    const {
+        data: tallySession,
+        refetch: refetchTallySession,
+        dataUpdatedAt: tallySessionDataUpdatedAt,
+    } = useGetOne<Sequent_Backend_Tally_Session>(
+        "sequent_backend_tally_session",
+        {
+            id: localTallyId || tallyId,
+        },
+        {
+            refetchInterval: isTallyCompleted
+                ? undefined
+                : globalSettings.QUERY_FAST_POLL_INTERVAL_MS,
+            refetchIntervalInBackground: true,
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+            refetchOnMount: false,
+            enabled: !!localTallyId || !!tallyId,
+        }
+    )
 
     const {data: keysCeremonies} = useQuery<ListKeysCeremonyQuery>(LIST_KEYS_CEREMONY, {
         variables: {
@@ -306,13 +311,13 @@ export const TallyCeremony: React.FC = () => {
             ),
         [tallyId, tallySession, tallySessionExecutions, loadedTallyData]
     )
+    const allNumericResultsComplete = !!(
+        tallySession?.election_ids?.length &&
+        tallySession.election_ids.every((id) => completeElectionIds.includes(id))
+    )
     const displayedExecutionStatus =
         tally?.execution_status === ITallyExecutionStatus.SUCCESS &&
-        !(
-            isTallyCompleted &&
-            tallySession?.election_ids?.length &&
-            tallySession.election_ids.every((id) => completeElectionIds.includes(id))
-        )
+        !(isTallyCompleted && allNumericResultsComplete)
             ? ITallyExecutionStatus.IN_PROGRESS
             : tally?.execution_status
 
@@ -398,6 +403,16 @@ export const TallyCeremony: React.FC = () => {
     const isPostTallyPending = tallySession?.annotations?.is_post_task_completed !== true
 
     useEffect(() => {
+        // A successful poll may structurally share unchanged session data.
+        // Retry only a failed finalization; do not cancel one still in flight.
+        if (retryCompletionRefresh.current) {
+            retryCompletionRefresh.current = false
+            setCompletionRefreshAttempt((attempt) => attempt + 1)
+        }
+    }, [tallySessionDataUpdatedAt])
+
+    useEffect(() => {
+        retryCompletionRefresh.current = false
         if (!tallyId || tallySession?.id !== tallyId) return
         if (!tallySession.is_execution_completed) {
             setCompletedTallyId(null)
@@ -421,7 +436,8 @@ export const TallyCeremony: React.FC = () => {
                 // PDF generation appends another execution with a new SQLite document.
                 if (active && !isPostTallyPending) setCompletedTallyId(tallyId)
             } catch {
-                // Keep polling if the final execution or its documents could not be read.
+                // Retry after the next successful session poll, even if its data is unchanged.
+                if (active) retryCompletionRefresh.current = true
             }
         }
         void refreshCompletedResults()
@@ -437,6 +453,7 @@ export const TallyCeremony: React.FC = () => {
         resultsEventId,
         refetch,
         refetchTallySessionExecutions,
+        completionRefreshAttempt,
     ])
 
     useEffect(() => {
@@ -1174,7 +1191,8 @@ export const TallyCeremony: React.FC = () => {
                                         {t("tally.resultsTitle")}
                                     </WizardStyles.AccordionTitle>
                                     <TallyStyles.StyledSpacing>
-                                        {resultsEvent?.[0] &&
+                                        {allNumericResultsComplete &&
+                                        resultsEvent?.[0] &&
                                         documents &&
                                         canExportCeremony &&
                                         tally?.id ? (
@@ -1211,7 +1229,7 @@ export const TallyCeremony: React.FC = () => {
                                     </WizardStyles.AccordionTitle>
                                 </AccordionSummary>
                                 <WizardStyles.AccordionDetails>
-                                    {tenantId && record?.id ? (
+                                    {allNumericResultsComplete && tenantId && record?.id ? (
                                         <ResultsWebsitePublication
                                             tenantId={tenantId}
                                             electionEventId={record.id}

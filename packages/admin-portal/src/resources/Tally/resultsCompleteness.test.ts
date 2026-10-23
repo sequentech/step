@@ -17,6 +17,10 @@ const fixture = () => {
     }
     const data: any = {
         sqliteDocumentId: "db",
+        sequent_backend_area: [
+            {id: "a", parent_id: null},
+            {id: "b", parent_id: null},
+        ],
         sequent_backend_results_event: [{id: "result"}],
         sequent_backend_election: [{id: "one"}, {id: "two"}],
         sequent_backend_contest: [
@@ -124,4 +128,57 @@ test("a missing SQLite artifact or older loaded document cannot satisfy complete
     const {tally, execution, data} = fixture()
     expect(getCompleteElectionIds(tally, {...execution, documents: null}, data)).toEqual([])
     expect(getCompleteElectionIds(tally, execution, {...data, sqliteDocumentId: "old"})).toEqual([])
+})
+
+function inheritedFixture() {
+    const fixtureData = fixture()
+    fixtureData.tally.area_ids = ["a", "b"]
+    fixtureData.data.sequent_backend_area[1].parent_id = "a"
+    fixtureData.data.sequent_backend_area_contest = [{contest_id: "c1", area_id: "a"}]
+    fixtureData.data.sequent_backend_results_area_contest.pop()
+    return fixtureData
+}
+
+test("an inherited child contest must be present before its election is complete", () => {
+    const {tally, execution, data} = inheritedFixture()
+    expect(getCompleteElectionIds(tally, execution, data)).toEqual([])
+    data.sequent_backend_results_area_contest.push({
+        election_id: "one",
+        contest_id: "c1",
+        area_id: "b",
+        results_event_id: "result",
+    })
+    expect(getCompleteElectionIds(tally, execution, data)).toEqual(["one"])
+})
+
+test("inherited contests propagate through multiple generations", () => {
+    const {tally, execution, data} = inheritedFixture()
+    data.sequent_backend_area.push({id: "grandchild", parent_id: "b"})
+    tally.area_ids.push("grandchild")
+    data.sequent_backend_results_area_contest.push({
+        election_id: "one",
+        contest_id: "c1",
+        area_id: "b",
+        results_event_id: "result",
+    })
+    expect(getCompleteElectionIds(tally, execution, data)).toEqual([])
+    data.sequent_backend_results_area_contest.push({
+        election_id: "one",
+        contest_id: "c1",
+        area_id: "grandchild",
+        results_event_id: "result",
+    })
+    expect(getCompleteElectionIds(tally, execution, data)).toEqual(["one"])
+})
+
+test("an excluded child does not block its parent's complete election result", () => {
+    const {tally, execution, data} = inheritedFixture()
+    tally.area_ids = ["a"]
+    expect(getCompleteElectionIds(tally, execution, data)).toEqual(["one"])
+})
+
+test("missing selected area metadata cannot prove the expected contest scope", () => {
+    const {tally, execution, data} = inheritedFixture()
+    data.sequent_backend_area.pop()
+    expect(getCompleteElectionIds(tally, execution, data)).toEqual([])
 })

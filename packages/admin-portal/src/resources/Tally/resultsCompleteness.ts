@@ -45,6 +45,33 @@ export function getCompleteElectionIds(
             .map((row) => `${row.election_id}:${row.contest_id}`)
     )
     const selectedAreas = tally.area_ids ? new Set(tally.area_ids) : null
+    // SQLite stores raw assignments, while the tally inherits contests from
+    // ancestor areas. Expand the snapshot hierarchy before applying exclusions.
+    const areas = data.sequent_backend_area as Array<{id: string; parent_id?: string | null}>
+    const areaById = new Map(areas.map((area) => [area.id, area]))
+    if (selectedAreas && [...selectedAreas].some((id) => !areaById.has(id))) return []
+    const directContests = new Map<string, Set<string>>()
+    for (const assignment of data.sequent_backend_area_contest) {
+        const ids = directContests.get(assignment.area_id) ?? new Set<string>()
+        ids.add(assignment.contest_id)
+        directContests.set(assignment.area_id, ids)
+    }
+    const expectedPairs: Array<{area_id: string; contest_id: string}> = []
+    for (const area of areas) {
+        if (selectedAreas && !selectedAreas.has(area.id)) continue
+        const inheritedContests = new Set<string>()
+        const visited = new Set<string>()
+        let ancestor: typeof area | undefined = area
+        while (ancestor) {
+            if (visited.has(ancestor.id)) return []
+            visited.add(ancestor.id)
+            directContests.get(ancestor.id)?.forEach((id) => inheritedContests.add(id))
+            ancestor = ancestor.parent_id ? areaById.get(ancestor.parent_id) : undefined
+        }
+        inheritedContests.forEach((contest_id) =>
+            expectedPairs.push({area_id: area.id, contest_id})
+        )
+    }
     return (tally.election_ids ?? []).filter((electionId) => {
         const electionProgress = progress?.find((row) => row.election_id === electionId)
         if (
@@ -64,15 +91,13 @@ export function getCompleteElectionIds(
             (row) => row.election_id === electionId
         )
         const contestIds = new Set(contests.map((row) => row.id))
-        const expectedPairs = data.sequent_backend_area_contest.filter(
-            (row) =>
-                contestIds.has(row.contest_id) && (!selectedAreas || selectedAreas.has(row.area_id))
-        )
         // A contest assigned only to excluded areas is not part of this run.
-        return expectedPairs.every(
-            (expected) =>
-                contestResults.has(`${electionId}:${expected.contest_id}`) &&
-                areaResults.has(`${electionId}:${expected.contest_id}:${expected.area_id}`)
-        )
+        return expectedPairs
+            .filter((row) => contestIds.has(row.contest_id))
+            .every(
+                (expected) =>
+                    contestResults.has(`${electionId}:${expected.contest_id}`) &&
+                    areaResults.has(`${electionId}:${expected.contest_id}:${expected.area_id}`)
+            )
     })
 }
