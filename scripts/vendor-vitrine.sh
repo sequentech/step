@@ -11,9 +11,11 @@
 #
 # It exports the ref's packages/ and testdata/ with `git archive` into a
 # temporary directory, installs Vitrine's locked dependencies there, builds and
-# tests both packages, and packs them. The tarballs keep fixed names, so the
-# apps' `file:` dependencies don't change with Vitrine's version. It drops the
-# packages' entries from packages/yarn.lock, whose hashes no longer match.
+# tests both packages, and packs them; a failing test stops it, unless
+# VITRINE_ALLOW_FAILING_TESTS=1 says to vendor anyway. The tarballs keep fixed
+# names, so the apps' `file:` dependencies don't change with Vitrine's version.
+# It drops the packages' entries from packages/yarn.lock, whose hashes no
+# longer match, and yarn's unpacked copies of the old tarballs.
 #
 # Afterwards, run `yarn install` in packages/ so that yarn.lock records the
 # new tarballs, and commit the tarballs, VITRINE_COMMIT and yarn.lock.
@@ -40,7 +42,13 @@ mkdir "$WORK/out"
     cd "$WORK/packages"
     npm ci --no-audit --no-fund
     npm run build -w @vitrine/verify -w @vitrine/ui
-    npm test -w @vitrine/verify -w @vitrine/ui
+    if ! npm test -w @vitrine/verify -w @vitrine/ui; then
+        if [[ "${VITRINE_ALLOW_FAILING_TESTS:-}" != "1" ]]; then
+            echo "Vitrine's tests failed: set VITRINE_ALLOW_FAILING_TESTS=1 to vendor anyway." >&2
+            exit 1
+        fi
+        echo "Vitrine's tests failed: vendoring anyway, as VITRINE_ALLOW_FAILING_TESTS asks." >&2
+    fi
     npm pack -w @vitrine/verify -w @vitrine/ui --pack-destination "$WORK/out"
 )
 
@@ -55,6 +63,19 @@ awk '
   !skip { print }
 ' "$PACKAGES_DIR/yarn.lock" >"$WORK/yarn.lock"
 cp "$WORK/yarn.lock" "$PACKAGES_DIR/yarn.lock"
+
+# Yarn 1 keeps an unpacked copy of each file: tarball in its cache's .tmp,
+# keyed by the tarball's path, and installs that copy again while it exists,
+# so it would never see the new tarballs. Drop the copies of these two.
+YARN_CACHE="$(cd "$PACKAGES_DIR" && yarn cache dir 2>/dev/null || true)"
+if [[ -n "$YARN_CACHE" && -d "$YARN_CACHE/.tmp" ]]; then
+    for copy in "$YARN_CACHE"/.tmp/*/; do
+        if grep -qE '"name": "@vitrine/(verify|ui)"' "$copy/package.json" 2>/dev/null; then
+            rm -rf "$copy"
+        fi
+    done
+fi
+rm -rf "$PACKAGES_DIR/node_modules/@vitrine"
 
 echo "Vendored @vitrine/verify and @vitrine/ui from $COMMIT into $VENDOR_DIR."
 echo "Now run 'yarn install' in packages/ to update yarn.lock."

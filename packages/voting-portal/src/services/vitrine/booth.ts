@@ -62,6 +62,7 @@ export const runBoothCheck = async (o: IRunBoothCheck): Promise<TBoothOutcome> =
     }
     const {electionEventId: eventId, electionId} = o.style
     const context = await fetchVoterContext(o.client, eventId, electionId)
+    const now = Math.floor((o.now ?? Date.now)() / 1000)
     const result = checkBooth(sdk, {
         mode: transparency.mode,
         presentation: transparency.vitrine,
@@ -71,6 +72,7 @@ export const runBoothCheck = async (o: IRunBoothCheck): Promise<TBoothOutcome> =
         publicKey: o.style.publicKey,
         styleText: o.style.styleText,
         release: o.release,
+        now,
     })
     if (result.ok) return {ok: true}
     const seen = `${eventId}/${electionId} ${result.reason}`
@@ -78,7 +80,7 @@ export const runBoothCheck = async (o: IRunBoothCheck): Promise<TBoothOutcome> =
         observed.add(seen)
         const body = configObservation(sdk.pure, {
             policyId: result.policy.id,
-            time: Math.floor((o.now ?? Date.now)() / 1000),
+            time: now,
             eventId,
             electionId,
             reason: result.reason,

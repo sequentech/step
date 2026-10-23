@@ -8,6 +8,7 @@ import {
     ELECTION_ID,
     EVENT_ID,
     KEYS,
+    NOW,
     PUBLIC_KEY,
     RELEASE,
     STYLE_TEXT,
@@ -42,6 +43,7 @@ const inputFor = (s: IScenario, overrides: Partial<IBoothCheckInput> = {}): IBoo
     publicKey: PUBLIC_KEY,
     styleText: STYLE_TEXT,
     release: RELEASE,
+    now: NOW,
     ...overrides,
 })
 
@@ -160,9 +162,9 @@ describe("checkBooth", () => {
         )
     })
 
-    it("refuses a statement carried with another entry", () => {
+    it("refuses a config whose receipt is for another entry", () => {
         const s = scenario()
-        const config = {...s.context.config!, entry: s.context.opened!.entry}
+        const config = {...s.context.config!, chain: s.context.opened!.chain}
         expectRefusal(
             checkBooth(sdk, withContext(s, {config})),
             EBoothCheckReason.CONFIG_INVALID,

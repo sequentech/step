@@ -37,6 +37,8 @@ export const ELECTION_ID = "4f1d2e3c-5b6a-4789-8a9b-0c1d2e3f4a5b"
 export const RELEASE = "10.4.0"
 export const BALLOT_ID = "c0ffee".repeat(10) + "abcd"
 export const ACCEPTED_AT = NOW - 5
+/** When voting opened: the milestone states its entry's time. */
+export const OPENED_AT = NOW - 150
 
 export interface ITestKey {
     name: string
@@ -90,6 +92,9 @@ export const KEYS = {
     ],
     monitor: testKey("monitor.example", 8),
     auditor: testKey("auditor.example", 9),
+    // The logs' log-time keys: cosigner keys named by each log's origin.
+    ballotsTime: testKey("logs.acme.example/e/ballots", 10, notes.SIG_COSIGNATURE_V1),
+    eventsTime: testKey("logs.acme.example/e/events", 11, notes.SIG_COSIGNATURE_V1),
 }
 
 export const LOG_URLS = {
@@ -97,6 +102,7 @@ export const LOG_URLS = {
     events: "https://logs.acme.example/e/events/",
 }
 export const MONITOR_URL = "https://monitor.example/"
+export const MIRROR_URL = "https://mirror.example/ballots/"
 
 // -- Merkle trees (RFC 9162, section 2.1) ------------------------------------
 
@@ -129,6 +135,7 @@ export class TestLog {
     constructor(
         readonly name: string,
         readonly key: ITestKey,
+        readonly logTime: ITestKey,
         readonly url: string
     ) {}
 
@@ -149,7 +156,8 @@ export class TestLog {
         return `${this.origin}\n${size}\n${encoding.b64encode(merkle.treeRoot(this.leaves(size)))}\n`
     }
 
-    /** The checkpoint at `size`, signed by the log and cosigned at `time`. */
+    /** The checkpoint at `size`, signed by the log, dated by its log-time key
+     * and cosigned at `time`. */
     checkpoint(size: number, witnesses: readonly ITestKey[], time: number = NOW - 10): string {
         const text = this.checkpointText(size)
         const logSig = {
@@ -157,7 +165,11 @@ export class TestLog {
             keyId: this.key.keyId,
             sig: this.key.sign(bytes.utf8(text)),
         }
-        return notes.formatNote(text, [logSig, ...witnesses.map((w) => cosignature(w, time, text))])
+        return notes.formatNote(text, [
+            logSig,
+            cosignature(this.logTime, time, text),
+            ...witnesses.map((w) => cosignature(w, time, text)),
+        ])
     }
 
     inclusion(index: number, size: number): Uint8Array[] {
@@ -183,12 +195,20 @@ export class TestLog {
         })
     }
 
-    /** A promise for the entry at `index`, in a batch of `batch` entries. */
-    promise(index: number, batch: readonly number[], time: number = NOW - 2, mmd = 60): string {
+    /** A promise for the entry at `index`, in a batch of the entries at
+     * `batch` (in ascending order of their leaf hashes), under `policyId`. */
+    promise(
+        index: number,
+        batch: readonly number[],
+        policyId: string,
+        time: number = NOW - 2,
+        mmd = 60
+    ): string {
         const leaf = hashes.leafHash(this.entries[index])
         const batchLeaves = batch.map((i) => hashes.leafHash(hashes.leafHash(this.entries[i])))
         const text = promises.formatPromiseBatchText({
             origin: this.origin,
+            policy: policyId,
             time,
             mmd,
             size: batch.length,
@@ -217,31 +237,41 @@ export const chainText = (
 
 export type TVisibility = ETransparencyMode.PUBLIC | ETransparencyMode.PRIVATE
 
+/** The policy's lines without the seal: the draft the board seals. */
+const policyLines = (visibility: TVisibility, extra: readonly string[]): string[] => [
+    "vitrine/policy/v1",
+    "name acme-2026",
+    `visibility ${visibility}`,
+    ...(visibility === ETransparencyMode.PRIVATE ? [`policy-salt ${"5a".repeat(32)}`] : []),
+    "operator sequent",
+    `authority board ${KEYS.board.vkey}`,
+    "sign 1 board",
+    ...(visibility === ETransparencyMode.PRIVATE ? [`auditor auditors ${KEYS.auditor.vkey}`] : []),
+    "mmd 60",
+    `log ballots ${KEYS.ballots.vkey} ${LOG_URLS.ballots}`,
+    `log-time ballots ${KEYS.ballotsTime.vkey}`,
+    `mirror ballots ${MIRROR_URL}`,
+    `mirror-party ballots ${MIRROR_URL} mirror-co`,
+    `profile ballots vitrine/election/v1 ${MEANING_HASH}`,
+    `log events ${KEYS.events.vkey} ${LOG_URLS.events}`,
+    `log-time events ${KEYS.eventsTime.vkey}`,
+    `profile events ${EVENTS_TAG} ${MEANING_HASH}`,
+    ...KEYS.witnesses.map((w, i) => `witness w${i + 1} ${w.vkey}`),
+    "group witnesses 2 w1 w2 w3",
+    "quorum witnesses",
+    `monitor observers ${KEYS.monitor.vkey} ${MONITOR_URL}`,
+    ...extra,
+]
+
+/** The board's draft: the policy lines without the seal, unsigned. */
+export const draftPolicyText = (visibility: TVisibility, extra: readonly string[] = []): string =>
+    `${policyLines(visibility, extra).join("\n")}\n`
+
+/** The sealed policy, signed by the board, which seals it. */
 export const policyText = (visibility: TVisibility, extra: readonly string[] = []): string => {
-    const lines = [
-        "vitrine/policy/v1",
-        "name acme-2026",
-        `visibility ${visibility}`,
-        ...(visibility === ETransparencyMode.PRIVATE ? [`policy-salt ${"5a".repeat(32)}`] : []),
-        "operator sequent",
-        `authority board ${KEYS.board.vkey}`,
-        "sign 1 board",
-        ...(visibility === ETransparencyMode.PRIVATE
-            ? [`auditor auditors ${KEYS.auditor.vkey}`]
-            : []),
-        "mmd 60",
-        `log ballots ${KEYS.ballots.vkey} ${LOG_URLS.ballots}`,
-        `mirror ballots https://mirror.example/ballots/`,
-        `profile ballots vitrine/election/v1 ${MEANING_HASH}`,
-        `log events ${KEYS.events.vkey} ${LOG_URLS.events}`,
-        `profile events ${EVENTS_TAG} ${MEANING_HASH}`,
-        ...KEYS.witnesses.map((w, i) => `witness w${i + 1} ${w.vkey}`),
-        "group witnesses 2 w1 w2 w3",
-        "quorum witnesses",
-        `monitor observers ${KEYS.monitor.vkey} ${MONITOR_URL}`,
-        ...extra,
-    ]
-    return signNote(`${lines.join("\n")}\n`, [KEYS.board])
+    const lines = policyLines(visibility, extra)
+    const seal = encoding.b64encode(hashes.sha256(`seal ${lines.join(" ")}`).slice(0, 16))
+    return signNote(`${[...lines, `seal board ${seal}`].join("\n")}\n`, [KEYS.board])
 }
 
 /** The policy ID of a signed policy note: SHA-256 of its text. */
@@ -374,7 +404,7 @@ export const scenario = (options: IScenarioOptions = {}): IScenario => {
         ...options.config,
     }
     const config = signNote(configStatementText(fields), options.configSigners ?? [KEYS.board])
-    const events = new TestLog("events", KEYS.events, LOG_URLS.events)
+    const events = new TestLog("events", KEYS.events, KEYS.eventsTime, LOG_URLS.events)
     events.add(eventsEntry("notice", signNote("vitrine/notice/v1\nhello\n", [KEYS.board])))
     const configIndex = events.add(eventsEntry("config", config))
     const configEntry = events.entries[configIndex]
@@ -384,12 +414,12 @@ export const scenario = (options: IScenarioOptions = {}): IScenario => {
             "vitrine/milestone/v1",
             `event ${EVENT_ID}`,
             `kind ${options.openedKind ?? "voting-opened"}`,
-            `time ${NOW - 150}`,
+            `time ${OPENED_AT}`,
             `config ${ELECTION_ID} ${options.openedConfigLeaf ?? leaf}`,
         ].join("\n") + "\n",
         [KEYS.board]
     )
-    const openedIndex = events.add(eventsEntry("voting-opened", opened))
+    const openedIndex = events.add(eventsEntry("voting-opened", opened, OPENED_AT))
     const openedEntry = events.entries[openedIndex]
     const size = events.entries.length
     const chainFor = (index: number) =>
@@ -398,7 +428,7 @@ export const scenario = (options: IScenarioOptions = {}): IScenario => {
         `vitrine/policy-ack/v1\norigin ${KEYS.ballots.name}\npolicy ${policyId}\ntime ${NOW - 500}\n`,
         [KEYS.ballots]
     )
-    const ballots = new TestLog("ballots", KEYS.ballots, LOG_URLS.ballots)
+    const ballots = new TestLog("ballots", KEYS.ballots, KEYS.ballotsTime, LOG_URLS.ballots)
     return {
         mode,
         policy,
