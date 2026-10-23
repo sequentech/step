@@ -8,6 +8,7 @@ import CardChart from "./Charts"
 import {CastVotesPerDay} from "@/gql/graphql"
 import {useTranslation} from "react-i18next"
 import {CircularProgress, MenuItem, Select, Stack, Tooltip} from "@mui/material"
+import {useNumberFormat} from "@sequentech/ui-core"
 import {toVotesPerDayChartData} from "./votesPerDayData"
 import {getVotesPerDayChartOptions} from "./votesPerDayOptions"
 import {
@@ -58,6 +59,7 @@ export const VotesPerDay: React.FC<VotersPerDayProps> = ({
     onSelectionChange,
 }) => {
     const {t, i18n} = useTranslation()
+    const {policy} = useNumberFormat()
     const rangeOptions = getVotesTimeRangeOptions(selection.resolution)
 
     const controls = (
@@ -128,6 +130,7 @@ export const VotesPerDay: React.FC<VotersPerDayProps> = ({
             buckets: chartData.buckets,
             resolution: selection.resolution,
             locale: i18n.resolvedLanguage ?? i18n.language,
+            numberFormatPolicy: policy,
         }),
         series: chartData.series.map(({channel, data: channelData}) => ({
             name: String(t(`common.channel.${channel.toLowerCase()}`)),

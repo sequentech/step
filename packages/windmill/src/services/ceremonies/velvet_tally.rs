@@ -18,6 +18,7 @@ use crate::services::reports::report_variables::{get_app_hash, get_app_version, 
 use crate::services::reports::template_renderer::{
     ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
 };
+use crate::services::reports::utils::get_number_format_policy;
 use crate::services::tally_sheets::tally::create_tally_sheets_map;
 use crate::services::temp_path::*;
 use crate::services::weight_batches::PlaintextBatch;
@@ -607,6 +608,7 @@ pub async fn build_ballot_images_pipe_config(
 
 async fn build_reports_pipe_config(
     tally_session: &TallySession,
+    election_event: &ElectionEvent,
     minio_endpoint_base: String,
     public_asset_path: String,
     report_content_template: Option<String>,
@@ -658,6 +660,7 @@ async fn build_reports_pipe_config(
         extra_data: serde_json::to_value(extra_data)?,
         tally_type: tally_type.clone(),
         tally_session_configuration: tally_session.configuration.clone(),
+        number_format_policy: get_number_format_policy(election_event),
     })
 }
 
@@ -667,6 +670,7 @@ pub async fn create_config_file(
     report_content_template: Option<String>,
     report_system_template: String,
     pdf_options: Option<PrintToPdfOptionsLocal>,
+    election_event: &ElectionEvent,
     tally_session: &TallySession,
     tally_type: TallyType,
 ) -> Result<()> {
@@ -686,6 +690,7 @@ pub async fn create_config_file(
 
     let gen_report_pipe_config = build_reports_pipe_config(
         &tally_session,
+        election_event,
         minio_endpoint_base,
         public_asset_path,
         report_content_template,
@@ -954,6 +959,7 @@ pub async fn run_velvet_tally(
         report_content_template,
         report_system_template,
         pdf_options,
+        election_event,
         tally_session,
         tally_type,
     )
@@ -971,6 +977,7 @@ mod tests {
     use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
     use sequent_core::types::ceremonies::CountingAlgType;
     use sequent_core::types::keycloak::{weight_bit_multiplier, VOTE_WEIGHT_BATCHES};
+    use sequent_core::types::number_format::NumberFormatPolicy;
     use std::collections::BTreeMap;
     use velvet::config::{Config, PipeConfig, Stage, Stages};
     use velvet::fixtures::ballot_styles::get_ballot_style_1;
@@ -1399,6 +1406,39 @@ mod tests {
         }
     }
 
+    /// A plaintext that does not decode, in a batch its voter's weight
+    /// multiplies, is counted as that many invalid votes, like any other
+    /// ballot in the batch.
+    #[tokio::test]
+    async fn an_undecodable_plaintext_counts_its_batch_multiplier_as_invalid() {
+        let undecodable = [0xFF; 30];
+        for policy in [
+            ContestEncryptionPolicy::SINGLE_CONTEST,
+            ContestEncryptionPolicy::MULTIPLE_CONTESTS,
+        ] {
+            let fixture = fixture(policy.clone());
+            let mut batches = fixture.weight_batches(&[(5, Some(Choice::Candidate(0)))]);
+            let times_four = batches
+                .iter_mut()
+                .find(|batch| batch.multiplier == 4)
+                .unwrap();
+            times_four.plaintexts.push(undecodable);
+
+            let results = fixture.tally(batches, 9).await;
+            let contest_result = fixture.contest_result(&results);
+
+            assert_eq!(contest_result["total_votes"], 9, "{policy:?}");
+            assert_eq!(contest_result["total_invalid_votes"], 4, "{policy:?}");
+            assert_eq!(contest_result["invalid_votes"]["implicit"], 4, "{policy:?}");
+            assert_eq!(contest_result["total_valid_votes"], 5, "{policy:?}");
+            assert_eq!(
+                candidate_total(contest_result, &fixture.contest.candidates[0].id),
+                5,
+                "{policy:?}"
+            );
+        }
+    }
+
     /// Velvet run again into the output directories of an earlier run, with
     /// input that no longer has one of that run's batches, counts only the
     /// batches its input has: no decoded batch is left over to count again.
@@ -1427,6 +1467,57 @@ mod tests {
                 "{policy:?}"
             );
         }
+    }
+
+    /// The generate-reports config windmill writes for a tally of
+    /// `election_event`.
+    async fn reports_pipe_config(election_event: &ElectionEvent) -> PipeConfigGenerateReports {
+        let tally_session = TallySession {
+            id: Uuid::new_v4().to_string(),
+            tenant_id: election_event.tenant_id.clone(),
+            election_event_id: election_event.id.clone(),
+            created_at: None,
+            last_updated_at: None,
+            labels: None,
+            annotations: Some(serde_json::json!({ "executer_username": "admin" })),
+            election_ids: None,
+            area_ids: None,
+            is_execution_completed: false,
+            keys_ceremony_id: Uuid::new_v4().to_string(),
+            execution_status: None,
+            threshold: 1,
+            configuration: None,
+            tally_type: None,
+            permission_label: None,
+        };
+        build_reports_pipe_config(
+            &tally_session,
+            election_event,
+            "http://minio".to_string(),
+            "public-assets".to_string(),
+            None,
+            String::new(),
+            None,
+            TallyType::ELECTORAL_RESULTS,
+        )
+        .await
+        .unwrap()
+    }
+
+    #[tokio::test]
+    async fn the_reports_config_carries_the_event_number_format() {
+        let mut election_event = fixture(ContestEncryptionPolicy::SINGLE_CONTEST).election_event;
+        let config = reports_pipe_config(&election_event).await;
+        assert_eq!(config.number_format_policy, None);
+
+        election_event.presentation =
+            Some(serde_json::json!({ "number_format_policy": "period-comma" }));
+        let config = reports_pipe_config(&election_event).await;
+
+        assert_eq!(
+            config.number_format_policy,
+            Some(NumberFormatPolicy::PeriodComma)
+        );
     }
 
     /// A plaintext that does not decode still takes its place in the ballots
