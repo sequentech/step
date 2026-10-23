@@ -81,6 +81,19 @@ fn b64_hash(text: &str) -> Hash {
     STANDARD.decode(text).unwrap().try_into().unwrap()
 }
 
+/// Whether a note's signature line is by the key `vkey`: its name and key ID.
+/// Some vectors sign with another key under the authority's name.
+fn signed_with(signature: &str, vkey: &str) -> bool {
+    let mut parts = vkey.split('+');
+    let (Some(name), Some(id)) = (parts.next(), parts.next()) else {
+        return false;
+    };
+    signature
+        .strip_prefix(&format!("\u{2014} {name} "))
+        .and_then(|sig| STANDARD.decode(sig).ok())
+        .is_some_and(|bytes| bytes.get(..4).map(hex::encode).as_deref() == Some(id))
+}
+
 #[test]
 fn election_entries_match_the_vectors() {
     let mut checked = 0;
@@ -125,11 +138,17 @@ fn statement_lines(text: &str) -> Vec<(&str, &str)> {
         .collect()
 }
 
-fn one<'a>(lines: &[(&str, &'a str)], key: &str) -> &'a str {
-    lines.iter().find(|(k, _)| *k == key).unwrap().1
+/// The value of a line that the statement has exactly once.
+fn one<'a>(lines: &[(&str, &'a str)], key: &str) -> Option<&'a str> {
+    let mut values = lines.iter().filter(|(k, _)| *k == key).map(|(_, v)| *v);
+    match (values.next(), values.next()) {
+        (Some(value), None) => Some(value),
+        _ => None,
+    }
 }
 
-/// Rebuilds a statement's text with step's encoders.
+/// Rebuilds a statement's text with step's encoders, or `None` for one that
+/// step can't make: another type, or a line missing or repeated.
 fn rebuild(text: &str) -> Option<String> {
     let kind = text.lines().next().unwrap();
     let lines = match kind {
@@ -139,13 +158,13 @@ fn rebuild(text: &str) -> Option<String> {
     match kind {
         "vitrine/config/v1" => Some(
             ConfigStatement {
-                event_id: one(&lines, "event").into(),
-                election_id: one(&lines, "election").into(),
-                key: b64_hash(one(&lines, "key")),
-                styles: b64_hash(one(&lines, "styles")),
-                opens: one(&lines, "opens").parse().unwrap(),
-                closes: one(&lines, "closes").parse().unwrap(),
-                policy_id: one(&lines, "policy").into(),
+                event_id: one(&lines, "event")?.into(),
+                election_id: one(&lines, "election")?.into(),
+                key: b64_hash(one(&lines, "key")?),
+                styles: b64_hash(one(&lines, "styles")?),
+                opens: one(&lines, "opens")?.parse().unwrap(),
+                closes: one(&lines, "closes")?.parse().unwrap(),
+                policy_id: one(&lines, "policy")?.into(),
                 releases: lines
                     .iter()
                     .filter(|(k, _)| *k == "release")
@@ -157,22 +176,22 @@ fn rebuild(text: &str) -> Option<String> {
                         }
                     })
                     .collect(),
-                transparency: Visibility::from_str(one(&lines, "transparency")).unwrap(),
-                demo: Demo::from_str(one(&lines, "demo")).unwrap(),
-                time: one(&lines, "time").parse().unwrap(),
+                transparency: Visibility::from_str(one(&lines, "transparency")?).unwrap(),
+                demo: Demo::from_str(one(&lines, "demo")?).unwrap(),
+                time: one(&lines, "time")?.parse().unwrap(),
             }
             .text()
             .unwrap(),
         ),
         "vitrine/milestone/v1" => Some(
             MilestoneStatement {
-                event_id: one(&lines, "event").into(),
-                kind: match one(&lines, "kind") {
+                event_id: one(&lines, "event")?.into(),
+                kind: match one(&lines, "kind")? {
                     MilestoneKind::VOTING_OPENED => MilestoneKind::VotingOpened,
                     MilestoneKind::VOTING_CLOSED => MilestoneKind::VotingClosed,
                     other => MilestoneKind::Other(other.into()),
                 },
-                time: one(&lines, "time").parse().unwrap(),
+                time: one(&lines, "time")?.parse().unwrap(),
                 configs: lines
                     .iter()
                     .filter(|(k, _)| *k == "config")
@@ -200,8 +219,17 @@ fn rebuild(text: &str) -> Option<String> {
 #[test]
 fn events_entries_and_statements_match_the_vectors() {
     let board = NoteSigner::from_seed(BOARD, &BOARD_SEED).unwrap();
+    let vkey = board.vkey();
     let (mut entries_checked, mut statements_signed, mut statements_rebuilt) = (0, 0, 0);
     for (name, vector) in vectors("events-v1") {
+        if let Some(authorities) = vector["policy"]["authorities"].as_array() {
+            assert!(
+                authorities
+                    .iter()
+                    .any(|a| a.as_str() == Some(vkey.as_str())),
+                "{name}: the vectors' authority"
+            );
+        }
         for (bytes, fields) in entries(&vector) {
             let Some(fields) = fields else {
                 assert!(EventsEntry::decode(&bytes).is_err(), "{name}: parsed");
@@ -221,7 +249,7 @@ fn events_entries_and_statements_match_the_vectors() {
 
             let Some(note) = statement else { continue };
             let (body, signatures) = split_note(&note).unwrap();
-            if signatures.len() == 1 && signatures[0].starts_with(&format!("\u{2014} {BOARD} ")) {
+            if signatures.len() == 1 && signed_with(signatures[0], &vkey) {
                 assert_eq!(board.sign(body).unwrap(), note, "{name}: signature");
                 statements_signed += 1;
             }

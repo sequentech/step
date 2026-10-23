@@ -1,6 +1,11 @@
 {
-  "description": "A browser holds entries 0, 1 and 5: entries 2 to 4 could be a second voting-opened or voting-closed entry, so both rules wait.",
+  "description": "A browser holds entries 0, 1 and 5: entries 2 to 4 could be a second voting-opened or voting-closed entry, so both rules wait. One could also be a successor policy with other authorities, sequenced with voting-opened, so milestones waits to judge who signed it.",
   "params": {},
+  "policy": {
+    "authorities": [
+      "board.example+702db4fd+AepKbGPinFIKvvVQexMuxfmVR3auvr57kkIe6mkURtIs"
+    ]
+  },
   "entries": [
     "EXZpdHJpbmUvZXZlbnRzL3YxAdYAAAZjb25maWcAAAgAAAAAat7sYAAAAQAAAbh2aXRyaW5lL2NvbmZpZy92MQpldmVudCBtdW5pLTIwMjYKZWxlY3Rpb24gbWF5b3IKa2V5IEQwOXdGRWN2cjYxSjRuMEtidXNiQzJ2SldUR0pMdSsxS093RUtPTUtMZ2s9CnN0eWxlcyAwSm1sWkszSG9GYTJaUWhWVTkycW1hb2JCeFBuMUlSRTBSckY4WEhYc09nPQpvcGVucyAxNzkzMDAxNjAwCmNsb3NlcyAxNzkzMDQ0ODAwCnBvbGljeSBzaGEyNTY6ODIzNDEyZDFlYWNiNjc5NTYyMjBlNTMyOTU5ZjAxMDQ2MDMwNTdjODg3MDQ4NjNjYTM4ZTdjZDE4OGZkYTgxMgpyZWxlYXNlIGJvb3RoIDEuMC4wCnRyYW5zcGFyZW5jeSBwdWJsaWMKZGVtbyBubwp0aW1lIDE3OTI5OTQ0MDAKCuKAlCBib2FyZC5leGFtcGxlIGNDMjAvWGlUWmlOVys2NFplSXIvOHl4WGVySytqVEZnRlFSc281TG9heXZWQ0IycGNTVHNiOW5uVVdVbHRCMmxJRzFQOUt4bTVxczRmdWhMUlhTb1pzOVdVZzg9CgAAAA==",
     "EXZpdHJpbmUvZXZlbnRzL3YxARcAAA12b3Rpbmctb3BlbmVkAAAIAAAAAGrfCIAAAAEAAADydml0cmluZS9taWxlc3RvbmUvdjEKZXZlbnQgbXVuaS0yMDI2CmtpbmQgdm90aW5nLW9wZW5lZAp0aW1lIDE3OTMwMDE2MDAKY29uZmlnIG1heW9yIEZ6RVZiTHdabHF3TTF5YUtlWVdEajgwNS9mR3JZNENUT21qd3JqQVhmTmM9CgrigJQgYm9hcmQuZXhhbXBsZSBjQzIwL1UvT0pkNldadGYydEoxUUs1OS96b0xqTjNvMU10eXIzZ3VYY2x6Y1lmbnY4LzM4aHNTSXZHUThLVXpIVGFEa0lZZjhxSzNWaThUdjNRdmRkZldMZ1FBPQoAAAA=",
@@ -85,8 +90,10 @@
     ]
   ],
   "rules": {
+    "milestones": "waiting",
     "one-closed": "waiting",
     "one-opened": "waiting",
+    "other-milestones": "passing",
     "vitrine/parse": "passing"
   }
 }

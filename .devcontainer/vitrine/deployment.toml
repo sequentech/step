@@ -15,7 +15,7 @@ words = "en"
 
 [profiles]
 election = "sha256:93a933ed8cc8eede70ddcaee9e7b585ba37dda55abd9df2c74d4c09ae671d01e"
-events = "sha256:3ebbbd19024ab55b2e6af02176c801d541a4322ea3b2587fcfa3414efb5a3ed4"
+events = "sha256:7b2a3fb1295e9c5e230f221d9bf12a35d6b4535430414a2cd9d0c0b9a45a2905"
 
 # The Electoral Board seals and signs each event's policy; it alone approves
 # successors.

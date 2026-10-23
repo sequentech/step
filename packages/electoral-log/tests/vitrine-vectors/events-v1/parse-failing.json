@@ -1,6 +1,11 @@
 {
   "description": "Entries that don't parse: an unknown kind (1), an empty subject (2), a statement that isn't a signed note (3), and details in a public field instead of a commitment (4).",
   "params": {},
+  "policy": {
+    "authorities": [
+      "board.example+702db4fd+AepKbGPinFIKvvVQexMuxfmVR3auvr57kkIe6mkURtIs"
+    ]
+  },
   "entries": [
     "EXZpdHJpbmUvZXZlbnRzL3YxAdYAAAZjb25maWcAAAgAAAAAat7sYAAAAQAAAbh2aXRyaW5lL2NvbmZpZy92MQpldmVudCBtdW5pLTIwMjYKZWxlY3Rpb24gbWF5b3IKa2V5IEQwOXdGRWN2cjYxSjRuMEtidXNiQzJ2SldUR0pMdSsxS093RUtPTUtMZ2s9CnN0eWxlcyAwSm1sWkszSG9GYTJaUWhWVTkycW1hb2JCeFBuMUlSRTBSckY4WEhYc09nPQpvcGVucyAxNzkzMDAxNjAwCmNsb3NlcyAxNzkzMDQ0ODAwCnBvbGljeSBzaGEyNTY6ODIzNDEyZDFlYWNiNjc5NTYyMjBlNTMyOTU5ZjAxMDQ2MDMwNTdjODg3MDQ4NjNjYTM4ZTdjZDE4OGZkYTgxMgpyZWxlYXNlIGJvb3RoIDEuMC4wCnRyYW5zcGFyZW5jeSBwdWJsaWMKZGVtbyBubwp0aW1lIDE3OTI5OTQ0MDAKCuKAlCBib2FyZC5leGFtcGxlIGNDMjAvWGlUWmlOVys2NFplSXIvOHl4WGVySytqVEZnRlFSc281TG9heXZWQ0IycGNTVHNiOW5uVVdVbHRCMmxJRzFQOUt4bTVxczRmdWhMUlhTb1pzOVdVZzg9CgAAAA==",
     "EXZpdHJpbmUvZXZlbnRzL3YxAMMAAAl2b3RlLWNhc3QAAAgAAAAAat8IgAAAAQAAAKJ2aXRyaW5lL25vdGljZS92MQpldmVudCBtdW5pLTIwMjYKdGltZSAxNzkzMDAxNjAwCgrigJQgYm9hcmQuZXhhbXBsZSBjQzIwL1FOeWhyYVFMblBtcWFWbTQ2S3c1WWJ4LzdTMW5GdlAyaCtRMGZteUxtbEV3OG9BbmFxbUVtbTJvY0diSEZlekFncUkwV20xbFpib2hXTlB1cmYwVkFBPQoAAAA=",
@@ -44,8 +49,10 @@
     null
   ],
   "rules": {
+    "milestones": "passing",
     "one-closed": "passing",
     "one-opened": "passing",
+    "other-milestones": "passing",
     "vitrine/parse": "failing"
   }
 }

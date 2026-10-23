@@ -1,6 +1,11 @@
 {
-  "description": "Entry 2 is a milestone entry whose statement says voting-opened. Only the kind field counts, so it isn't a second voting-opened entry.",
+  "description": "Entry 2 is a milestone entry whose statement says voting-opened. Only the kind field counts, so it isn't a second voting-opened entry, and other-milestones compares only its statement's time.",
   "params": {},
+  "policy": {
+    "authorities": [
+      "board.example+702db4fd+AepKbGPinFIKvvVQexMuxfmVR3auvr57kkIe6mkURtIs"
+    ]
+  },
   "entries": [
     "EXZpdHJpbmUvZXZlbnRzL3YxAdYAAAZjb25maWcAAAgAAAAAat7sYAAAAQAAAbh2aXRyaW5lL2NvbmZpZy92MQpldmVudCBtdW5pLTIwMjYKZWxlY3Rpb24gbWF5b3IKa2V5IEQwOXdGRWN2cjYxSjRuMEtidXNiQzJ2SldUR0pMdSsxS093RUtPTUtMZ2s9CnN0eWxlcyAwSm1sWkszSG9GYTJaUWhWVTkycW1hb2JCeFBuMUlSRTBSckY4WEhYc09nPQpvcGVucyAxNzkzMDAxNjAwCmNsb3NlcyAxNzkzMDQ0ODAwCnBvbGljeSBzaGEyNTY6ODIzNDEyZDFlYWNiNjc5NTYyMjBlNTMyOTU5ZjAxMDQ2MDMwNTdjODg3MDQ4NjNjYTM4ZTdjZDE4OGZkYTgxMgpyZWxlYXNlIGJvb3RoIDEuMC4wCnRyYW5zcGFyZW5jeSBwdWJsaWMKZGVtbyBubwp0aW1lIDE3OTI5OTQ0MDAKCuKAlCBib2FyZC5leGFtcGxlIGNDMjAvWGlUWmlOVys2NFplSXIvOHl4WGVySytqVEZnRlFSc281TG9heXZWQ0IycGNTVHNiOW5uVVdVbHRCMmxJRzFQOUt4bTVxczRmdWhMUlhTb1pzOVdVZzg9CgAAAA==",
     "EXZpdHJpbmUvZXZlbnRzL3YxARcAAA12b3Rpbmctb3BlbmVkAAAIAAAAAGrfCIAAAAEAAADydml0cmluZS9taWxlc3RvbmUvdjEKZXZlbnQgbXVuaS0yMDI2CmtpbmQgdm90aW5nLW9wZW5lZAp0aW1lIDE3OTMwMDE2MDAKY29uZmlnIG1heW9yIEZ6RVZiTHdabHF3TTF5YUtlWVdEajgwNS9mR3JZNENUT21qd3JqQVhmTmM9CgrigJQgYm9hcmQuZXhhbXBsZSBjQzIwL1UvT0pkNldadGYydEoxUUs1OS96b0xqTjNvMU10eXIzZ3VYY2x6Y1lmbnY4LzM4aHNTSXZHUThLVXpIVGFEa0lZZjhxSzNWaThUdjNRdmRkZldMZ1FBPQoAAAA=",
@@ -10,6 +15,12 @@
     1792994600,
     1793001595,
     1793002201
+  ],
+  "checkpoints": [
+    [
+      3,
+      1793002202
+    ]
   ],
   "fields": [
     [
@@ -80,8 +91,10 @@
     ]
   ],
   "rules": {
+    "milestones": "passing",
     "one-closed": "passing",
     "one-opened": "passing",
+    "other-milestones": "passing",
     "vitrine/parse": "passing"
   }
 }
