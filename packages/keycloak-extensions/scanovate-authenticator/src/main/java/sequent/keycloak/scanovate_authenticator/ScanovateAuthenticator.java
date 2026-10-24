@@ -11,11 +11,13 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import lombok.extern.jbosslog.JBossLog;
@@ -26,7 +28,9 @@ import org.keycloak.models.AuthenticationExecutionModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
+import org.keycloak.representations.userprofile.config.UPAttribute;
 import org.keycloak.sessions.AuthenticationSessionModel;
+import org.keycloak.userprofile.UserProfileProvider;
 import sequent.keycloak.scanovate_authenticator.FaceMatchClient.FaceComparison;
 import sequent.keycloak.scanovate_authenticator.FaceMatchClient.FaceMatchOutcome;
 import sequent.keycloak.scanovate_authenticator.LivenessSessions.LivenessResult;
@@ -227,6 +231,11 @@ public class ScanovateAuthenticator implements Authenticator {
       return;
     }
     clearVerification(context);
+    context.getEvent().getEvent().setDetails(new LinkedHashMap<>());
+    context
+        .getAuthenticationSession()
+        .setAuthNote(ScanovateDiagnostics.ATTEMPT_NOTE, UUID.randomUUID().toString());
+    buildEventDetails(context);
     Optional<CaptureSettings> settings = settings(context);
     if (settings.isEmpty()) {
       return;
@@ -242,6 +251,7 @@ public class ScanovateAuthenticator implements Authenticator {
    * are configured. Otherwise, shows a non retryable error and returns empty.
    */
   private Optional<CaptureSettings> settings(AuthenticationFlowContext context) {
+    diagnostic(context, "stage", "configuration");
     Map<String, String> config = config(context);
     String docType = documentType(config, context.getAuthenticationSession());
     try {
@@ -250,7 +260,7 @@ public class ScanovateAuthenticator implements Authenticator {
       OcrSettings.fromConfig(config, docType);
       return Optional.of(CaptureSettings.fromConfig(config, docType));
     } catch (ScanovateException e) {
-      log.error("settings: invalid authenticator configuration", e);
+      log.error("settings: invalid authenticator configuration");
       showError(context, ScanovateError.INTERNAL, false);
       return Optional.empty();
     }
@@ -284,7 +294,7 @@ public class ScanovateAuthenticator implements Authenticator {
     try {
       liveness = LivenessSettings.fromConfig(config);
     } catch (ScanovateException e) {
-      log.error("showCapture: invalid liveness configuration", e);
+      log.error("showCapture: invalid liveness configuration");
       showError(context, ScanovateError.INTERNAL, false);
       return;
     }
@@ -363,6 +373,7 @@ public class ScanovateAuthenticator implements Authenticator {
       return;
     }
 
+    diagnostic(context, "stage", "capture");
     CaptureUploads uploads = uploadsFactory.apply(context.getSession());
     String uploadToken = authSession.getAuthNote(CAPTURE_TOKEN_NOTE);
     Map<String, byte[]> parts = uploads.parts(uploadToken).orElse(Map.of());
@@ -372,7 +383,9 @@ public class ScanovateAuthenticator implements Authenticator {
     try {
       media = CaptureMedia.fromUploads(parts, settings.get());
     } catch (InvalidCaptureException e) {
-      log.warnv("capture: rejected the capture {0}: {1}", caseId, e.getMessage());
+      log.warnv("capture: rejected capture {0}", ScanovateDiagnostics.caseId(caseId));
+      recordFailure(context, ScanovateError.CAPTURE_INVALID.messageKey(), true);
+      context.getEvent().error(EVENT_ERROR);
       showCapture(
           context, settings.get(), Optional.of(ScanovateError.CAPTURE_INVALID.messageKey()));
       return;
@@ -390,6 +403,7 @@ public class ScanovateAuthenticator implements Authenticator {
    * of the voter holding it. Otherwise, shows the error and returns false.
    */
   private boolean checkFace(AuthenticationFlowContext context, CaptureMedia media) {
+    diagnostic(context, "stage", "liveness");
     Map<String, String> config = config(context);
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
     String caseId = authSession.getAuthNote(CASE_ID_NOTE);
@@ -399,7 +413,8 @@ public class ScanovateAuthenticator implements Authenticator {
       liveness = LivenessSettings.fromConfig(config);
       faceMatch = FaceMatchSettings.fromConfig(config, documentType(config, authSession));
     } catch (ScanovateException e) {
-      log.error("capture: invalid liveness or face match configuration", e);
+      log.error("capture: invalid liveness or face match configuration");
+      diagnostic(context, "stage", "configuration");
       showError(context, ScanovateError.INTERNAL, false);
       return false;
     }
@@ -411,14 +426,19 @@ public class ScanovateAuthenticator implements Authenticator {
             ? Optional.empty()
             : sessions.awaitResult(token, liveness.resultWaitSeconds());
     if (result.isEmpty()) {
+      diagnostic(context, "liveness_status", "unknown");
       log.errorv("capture: no liveness result for {0}", caseId);
       showError(context, ScanovateError.INTERNAL, true);
       return false;
     }
     sessions.discard(token);
     authSession.removeAuthNote(LIVENESS_TOKEN_NOTE);
+    diagnostic(context, "liveness_status", ScanovateDiagnostics.status(result.get().status()));
+    diagnostic(context, "liveness_passed", Boolean.toString(result.get().passed()));
     if (!result.get().passed() || result.get().image().isEmpty()) {
-      log.warnv("capture: liveness of {0} did not pass, status={1}", caseId, result.get().status());
+      log.warnv(
+          "capture: liveness of {0} did not pass, status={1}",
+          ScanovateDiagnostics.caseId(caseId), ScanovateDiagnostics.status(result.get().status()));
       failAttempt(context, ScanovateError.LIVENESS_FAILED.messageKey());
       return false;
     }
@@ -452,16 +472,20 @@ public class ScanovateAuthenticator implements Authenticator {
       byte[] photo,
       byte[] face,
       String eventDetail) {
+    diagnostic(
+        context,
+        "stage",
+        EVENT_DETAIL_FACE_MATCH_DOCUMENT.equals(eventDetail) ? "face_document" : "face_holding");
     String caseId = context.getAuthenticationSession().getAuthNote(CASE_ID_NOTE);
     FaceComparison comparison;
     try {
       comparison = client.compare(photo, face);
     } catch (IOException e) {
-      log.error("capture: could not compare the faces with Face Match", e);
+      log.error("capture: could not compare the faces with Face Match");
       showError(context, ScanovateError.INTERNAL, true);
       return false;
     }
-    String similarity = String.format(Locale.ROOT, "%.4f", comparison.similarity());
+    String similarity = ScanovateDiagnostics.score(comparison.similarity());
     context.getEvent().detail(eventDetail, similarity);
     FaceMatchOutcome outcome = comparison.outcome(settings.minSimilarity());
     log.infov(
@@ -488,6 +512,7 @@ public class ScanovateAuthenticator implements Authenticator {
    */
   private void readDocument(
       AuthenticationFlowContext context, CaptureSettings settings, CaptureMedia media) {
+    diagnostic(context, "stage", "ocr");
     Map<String, String> config = config(context);
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
     String caseId = authSession.getAuthNote(CASE_ID_NOTE);
@@ -496,7 +521,8 @@ public class ScanovateAuthenticator implements Authenticator {
     try {
       ocr = OcrSettings.fromConfig(config, docType);
     } catch (ScanovateException e) {
-      log.error("readDocument: invalid OCR configuration", e);
+      log.error("readDocument: invalid OCR configuration");
+      diagnostic(context, "stage", "configuration");
       showError(context, ScanovateError.INTERNAL, false);
       return;
     }
@@ -506,13 +532,15 @@ public class ScanovateAuthenticator implements Authenticator {
       OcrClient client = ocrFactory.apply(ocr);
       List<JsonNode> responses = new ArrayList<>();
       for (MediaKind kind : settings.documentMedia()) {
-        responses.add(
+        JsonNode response =
             client.recognize(
-                ocr.ocrType(), media.files().get(kind), caseId + "-" + kind.formPart()));
+                ocr.ocrType(), media.files().get(kind), caseId + "-" + kind.formPart());
+        recordOcrStatus(context, response, kind.formPart());
+        responses.add(response);
       }
       results = OcrResults.combine(responses, LocalDate.now());
     } catch (IOException e) {
-      log.error("readDocument: the OCR service could not read the document", e);
+      log.error("readDocument: the OCR service could not read the document");
       showError(context, ScanovateError.INTERNAL, true);
       return;
     }
@@ -522,13 +550,15 @@ public class ScanovateAuthenticator implements Authenticator {
       return;
     }
 
+    recordReading(context, results.get());
+    diagnostic(context, "stage", "validation");
     List<StoredAttribute> storedAttributes;
     try {
       Optional<JsonNode> validationRules =
           AttributeRules.rulesFor(
               config.get(ScanovateAuthenticatorFactory.ATTRIBUTES_TO_VALIDATE), docType);
       if (validationRules.isEmpty()) {
-        log.errorv("readDocument: no validation rules for document type {0}", docType);
+        log.error("readDocument: no validation rules for the selected document type");
         showError(context, ScanovateError.INTERNAL, false);
         return;
       }
@@ -547,7 +577,7 @@ public class ScanovateAuthenticator implements Authenticator {
               ? AttributeRules.extract(results.get(), storeRules.get())
               : List.of();
     } catch (ScanovateException e) {
-      log.error("readDocument: could not apply the configured rules", e);
+      log.error("readDocument: could not apply the configured rules");
       showError(context, ScanovateError.INTERNAL, false);
       return;
     }
@@ -598,6 +628,7 @@ public class ScanovateAuthenticator implements Authenticator {
     int attempts = attempts(context) + 1;
     context.getAuthenticationSession().setAuthNote(ATTEMPTS_NOTE, String.valueOf(attempts));
     boolean canRetry = attempts < maxAttempts(config(context));
+    diagnostic(context, "failure_reason", ScanovateDiagnostics.failure(messageKey));
     showError(context, canRetry ? messageKey : ScanovateError.MAX_RETRIES.messageKey(), canRetry);
   }
 
@@ -607,8 +638,9 @@ public class ScanovateAuthenticator implements Authenticator {
   }
 
   private void showError(AuthenticationFlowContext context, String messageKey, boolean canRetry) {
+    recordFailure(context, messageKey, canRetry);
     clearVerification(context);
-    context.getEvent().detail(EVENT_DETAIL_ERROR, messageKey).error(EVENT_ERROR);
+    context.getEvent().error(EVENT_ERROR);
 
     AuthenticationExecutionModel execution = context.getExecution();
     if (execution != null && (execution.isAlternative() || execution.isConditional())) {
@@ -622,7 +654,8 @@ public class ScanovateAuthenticator implements Authenticator {
             .setAttribute(FTL_CAN_RETRY, canRetry)
             .setAttribute(FTL_ATTEMPTS_LEFT, attemptsLeft(context, maxAttempts(config(context))))
             .setAttribute(
-                FTL_CODE_ID, context.getAuthenticationSession().getParentSession().getId())
+                FTL_CODE_ID,
+                context.getAuthenticationSession().getAuthNote(ScanovateDiagnostics.ATTEMPT_NOTE))
             .createForm(ERROR_FORM));
   }
 
@@ -672,12 +705,140 @@ public class ScanovateAuthenticator implements Authenticator {
   }
 
   private void buildEventDetails(AuthenticationFlowContext context) {
-    Utils.buildEventDetails(
-        context.getEvent(),
-        context.getAuthenticationSession(),
-        context.getUser(),
-        context.getSession(),
-        getClass().getSimpleName());
+    // Every HTTP action gets a fresh snapshot; a retry must not inherit a prior reading/reason.
+    context.getEvent().getEvent().setDetails(new LinkedHashMap<>());
+    AuthenticationSessionModel notes = context.getAuthenticationSession();
+    String attempt = notes.getAuthNote(ScanovateDiagnostics.ATTEMPT_NOTE);
+    if (!ScanovateDiagnostics.caseId(attempt).equals(attempt)) {
+      notes.setAuthNote(ScanovateDiagnostics.ATTEMPT_NOTE, UUID.randomUUID().toString());
+    }
+    diagnostic(context, "attempt_id", notes.getAuthNote(ScanovateDiagnostics.ATTEMPT_NOTE));
+    diagnostic(context, "stage", "capture");
+    diagnostic(
+        context, "entered_email_state", ScanovateDiagnostics.presence(notes.getAuthNote("email")));
+    diagnostic(
+        context,
+        "entered_phone_state",
+        ScanovateDiagnostics.presence(notes.getAuthNote(Utils.PHONE_NUMBER_ATTRIBUTE)));
+    diagnostic(
+        context,
+        "entered_document_number_state",
+        ScanovateDiagnostics.presence(notes.getAuthNote("sequent.read-only.id-card-number")));
+    String documentAttribute =
+        config(context)
+            .getOrDefault(
+                ScanovateAuthenticatorFactory.DOC_ID_TYPE,
+                ScanovateAuthenticatorFactory.DEFAULT_DOC_ID_TYPE);
+    enteredChoice(context, "document_type", documentAttribute);
+    enteredChoice(context, "embassy", "embassy");
+    enteredChoice(context, "country", "country");
+    if (context.getUser() != null) context.getEvent().user(context.getUser());
+  }
+
+  private static void diagnostic(AuthenticationFlowContext context, String key, String value) {
+    context.getEvent().detail(ScanovateDiagnostics.PREFIX + key, value);
+  }
+
+  private static void enteredChoice(
+      AuthenticationFlowContext context, String key, String attribute) {
+    Set<String> options = new HashSet<>();
+    // Diagnostic metadata is best effort: an absent/unreadable profile must not change
+    // verification.
+    try {
+      UserProfileProvider provider = context.getSession().getProvider(UserProfileProvider.class);
+      UPAttribute profile =
+          provider == null || provider.getConfiguration() == null
+              ? null
+              : provider.getConfiguration().getAttribute(attribute);
+      Map<String, Object> validation =
+          profile == null || profile.getValidations() == null
+              ? null
+              : profile.getValidations().get("options");
+      Object values = validation == null ? null : validation.get("options");
+      if (values instanceof Collection<?> choices) {
+        for (Object choice : choices) if (choice instanceof String text) options.add(text);
+      }
+    } catch (RuntimeException ignored) {
+      log.warn("diagnostics: profile options unavailable");
+    }
+    diagnostic(
+        context,
+        "entered_" + key,
+        ScanovateDiagnostics.selection(
+            context.getAuthenticationSession().getAuthNote(attribute), options));
+  }
+
+  private static void recordOcrStatus(
+      AuthenticationFlowContext context, JsonNode response, String side) {
+    if (response == null) return;
+    diagnostic(
+        context,
+        "ocr_" + side + "_status",
+        ScanovateDiagnostics.status(response.path("status").asText()));
+    for (String responseSide : OcrResults.SIDES) {
+      JsonNode result = response.path(responseSide).path("processing_result");
+      if (result.isObject()) {
+        diagnostic(
+            context,
+            "ocr_" + side + "_result",
+            ScanovateDiagnostics.status(result.path("status").asText()));
+        break;
+      }
+    }
+  }
+
+  private static void recordReading(AuthenticationFlowContext context, JsonNode result) {
+    JsonNode fields = result.path(OcrResults.OCR_PROCESS);
+    diagnostic(
+        context,
+        "extracted_document_type",
+        ScanovateDiagnostics.documentType(readingText(fields, "document_type")));
+    diagnostic(
+        context,
+        "extracted_issuing_country",
+        ScanovateDiagnostics.country(readingText(fields, "issuing_country_code")));
+    diagnostic(
+        context,
+        "extracted_nationality",
+        ScanovateDiagnostics.country(readingText(fields, "nationality_code")));
+    diagnostic(
+        context,
+        "extracted_document_number_state",
+        ScanovateDiagnostics.presence(readingText(fields, "document_number")));
+    for (String check : ScanovateDiagnostics.CHECKS) {
+      JsonNode value = result.path(OcrResults.AUTHENTICATIONS_PROCESS).path(check);
+      String safe =
+          value.isMissingNode() || value.isNull()
+              ? "missing"
+              : value.isBoolean() ? Boolean.toString(value.asBoolean()) : "invalid";
+      diagnostic(context, "check_" + check, safe);
+    }
+  }
+
+  private static String readingText(JsonNode fields, String name) {
+    JsonNode value = fields.path(name);
+    if (value.isMissingNode() || value.isNull()) return null;
+    return value.isTextual() ? value.asText() : ScanovateDiagnostics.REDACTED;
+  }
+
+  private void recordFailure(
+      AuthenticationFlowContext context, String messageKey, boolean canRetry) {
+    String caseId = context.getAuthenticationSession().getAuthNote(CASE_ID_NOTE);
+    if (caseId != null) diagnostic(context, "case_id", ScanovateDiagnostics.caseId(caseId));
+    diagnostic(context, "error", ScanovateDiagnostics.failure(messageKey));
+    Map<String, String> details = context.getEvent().getEvent().getDetails();
+    if (details == null || !details.containsKey("scanovate_failure_reason")) {
+      diagnostic(context, "failure_reason", ScanovateDiagnostics.failure(messageKey));
+    }
+    diagnostic(context, "can_retry", Boolean.toString(canRetry));
+    diagnostic(
+        context,
+        "failed_attempts",
+        Integer.toString(Math.max(0, Math.min(9999, attempts(context)))));
+    context
+        .getEvent()
+        .getEvent()
+        .setDetails(ScanovateDiagnostics.filter(context.getEvent().getEvent().getDetails()));
   }
 
   private static String userStatusNote(Map<String, String> config) {

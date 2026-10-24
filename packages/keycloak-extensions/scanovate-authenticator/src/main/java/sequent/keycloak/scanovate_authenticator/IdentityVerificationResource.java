@@ -107,7 +107,9 @@ public class IdentityVerificationResource implements RealmResourceProvider {
       @HeaderParam("case-id") String caseId,
       @QueryParam(SECRET_QUERY_PARAM) String secret) {
     if (!livenessFactory.apply(session).verify(token, caseId, secret)) {
-      log.warnv("verifyLivenessToken: rejected a token for case {0}", caseId);
+      log.warnv(
+          "verifyLivenessToken: rejected a token for case {0}",
+          ScanovateDiagnostics.caseId(caseId));
       return json(Response.Status.UNAUTHORIZED);
     }
     return json(Response.Status.OK);
@@ -124,7 +126,7 @@ public class IdentityVerificationResource implements RealmResourceProvider {
     JsonNode json;
     try {
       json = MAPPER.readTree(body);
-    } catch (IOException e) {
+    } catch (IOException | IllegalArgumentException e) {
       log.warn("livenessCallback: invalid JSON body");
       return json(Response.Status.BAD_REQUEST);
     }

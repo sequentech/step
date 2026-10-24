@@ -43,8 +43,8 @@ class RetryingRequests {
       try {
         result = request.send();
       } catch (IOException e) {
-        log.warnv("{0}: attempt {1} failed: {2}", path, attempt + 1, e.getMessage());
-        lastError = e;
+        log.warnv("{0}: attempt {1} failed", path, attempt + 1);
+        lastError = new IOException("Service transport failed");
         continue;
       }
       if (result.status() >= 500) {
@@ -53,13 +53,12 @@ class RetryingRequests {
         continue;
       }
       if (result.status() != 200) {
-        throw new IOException(
-            String.format("%s returned status %d: %.200s", path, result.status(), result.body()));
+        throw new IOException(String.format("%s returned status %d", path, result.status()));
       }
       try {
         return MAPPER.readTree(result.body());
       } catch (IOException e) {
-        throw new IOException(path + " returned an invalid JSON body", e);
+        throw new IOException(path + " returned an invalid JSON body");
       }
     }
     throw new IOException(path + " failed after " + maxRetries + " attempts", lastError);

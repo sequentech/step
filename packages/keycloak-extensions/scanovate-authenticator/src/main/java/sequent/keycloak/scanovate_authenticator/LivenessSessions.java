@@ -149,7 +149,9 @@ public class LivenessSessions {
       }
       log.infov(
           "record: liveness session of case {0} ended with {1}, passed={2}",
-          entry.get().get(CASE_ID), status.asText(), passed);
+          ScanovateDiagnostics.caseId(entry.get().get(CASE_ID)),
+          ScanovateDiagnostics.status(status.asText()),
+          passed);
     }
     store.put(key(token), LIFESPAN_SECONDS, updated);
     return RecordOutcome.RECORDED;
