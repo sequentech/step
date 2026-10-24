@@ -200,7 +200,7 @@ The auditor uses public evidence rather than election private keys.
 
 `audit-tally` passes Braid the tally's batches together with every `Ballots` batch found on the board.
 Braid checks this exact set, with at least one batch and plaintext evidence for every required batch.
-An unfinished batch from another tally on the same board therefore makes Braid, and the audit, fail.
+A batch from another tally on the same board makes Braid, and the audit, fail if its required plaintext record is missing.
 At the reviewed revision, failed or unpopulated required checks, including nested batch checks, produce a nonzero exit status.
 
 ## What a successful run establishes
