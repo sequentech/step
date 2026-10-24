@@ -73,6 +73,7 @@ public class Utils {
   private static final String KEYS_USERDATA_SEPARATOR = ";";
   private static final List<String> DEFAULT_KEYS_USERDATA =
       List.of(UserModel.FIRST_NAME, UserModel.LAST_NAME, UserModel.EMAIL, UserModel.USERNAME);
+
   /** Server-resolved roster match, protected from registration form fields. */
   public static final String USER_ID = "userId";
 
