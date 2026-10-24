@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import lombok.extern.jbosslog.JBossLog;
+import sequent.keycloak.authenticator.diagnostics.ScanovateDiagnostics.ServiceError;
 import sequent.keycloak.scanovate_authenticator.HttpTransport.HttpResult;
 
 /**
@@ -34,7 +35,7 @@ class RetryingRequests {
 
   /** Sends the request and parses its JSON body. {@code path} names the request in errors. */
   JsonNode execute(String path, Request request) throws IOException {
-    IOException lastError = null;
+    ServiceFailure lastError = new ServiceFailure(ServiceError.TRANSPORT);
     for (int attempt = 0; attempt < maxRetries; attempt++) {
       if (attempt > 0) {
         backoff(attempt);
@@ -44,24 +45,27 @@ class RetryingRequests {
         result = request.send();
       } catch (IOException e) {
         log.warnv("{0}: attempt {1} failed", path, attempt + 1);
-        lastError = new IOException("Service transport failed");
+        lastError = ServiceFailure.from(e);
         continue;
       }
       if (result.status() >= 500) {
         log.warnv("{0}: attempt {1} got status {2}", path, attempt + 1, result.status());
-        lastError = new IOException(path + " returned status " + result.status());
+        lastError = ServiceFailure.http(result.status());
         continue;
       }
       if (result.status() != 200) {
-        throw new IOException(String.format("%s returned status %d", path, result.status()));
+        throw ServiceFailure.http(result.status());
       }
       try {
-        return MAPPER.readTree(result.body());
+        JsonNode response = MAPPER.readTree(result.body());
+        if (response == null || !response.isObject())
+          throw new ServiceFailure(ServiceError.MALFORMED_RESPONSE);
+        return response;
       } catch (IOException e) {
-        throw new IOException(path + " returned an invalid JSON body");
+        throw new ServiceFailure(ServiceError.MALFORMED_RESPONSE);
       }
     }
-    throw new IOException(path + " failed after " + maxRetries + " attempts", lastError);
+    throw lastError;
   }
 
   private void backoff(int attempt) throws IOException {
@@ -69,7 +73,7 @@ class RetryingRequests {
       sleeper.sleep(BASE_RETRY_DELAY_MS * (1L << (attempt - 1)));
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
-      throw new IOException("Interrupted while waiting to retry", e);
+      throw new ServiceFailure(ServiceError.INTERRUPTED);
     }
   }
 }

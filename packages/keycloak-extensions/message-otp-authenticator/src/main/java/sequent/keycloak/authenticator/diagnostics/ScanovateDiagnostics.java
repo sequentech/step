@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
-package sequent.keycloak.scanovate_authenticator;
+package sequent.keycloak.authenticator.diagnostics;
 
 import java.util.LinkedHashMap;
 import java.util.Locale;
@@ -9,12 +9,51 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 /** Bounded, non-secret fields for the existing signed event log, never a vendor payload. */
-final class ScanovateDiagnostics {
-  static final String PREFIX = "scanovate_";
-  static final String ATTEMPT_NOTE = "scanovate-diagnostic-attempt";
-  static final String MISSING = "missing";
-  static final String REDACTED = "unrecognized_redacted";
-  static final Set<String> CHECKS =
+public final class ScanovateDiagnostics {
+  public static final String PREFIX = "scanovate_";
+  public static final String ATTEMPT_NOTE = "scanovate-diagnostic-attempt";
+  public static final String EVENT_ERROR = "scanovate_verification_failed";
+  public static final String ENTERED_NOTE = "scanovate-diagnostic-entered";
+  public static final Set<String> ENTERED_FIELDS =
+      Set.of(
+          "entered_email_state",
+          "entered_phone_state",
+          "entered_document_number_state",
+          "entered_document_type",
+          "entered_embassy",
+          "entered_country");
+
+  public enum ServiceError {
+    HTTP_ERROR,
+    TIMEOUT,
+    CONNECTION,
+    TLS,
+    TRANSPORT,
+    MALFORMED_RESPONSE,
+    PROVIDER_RESPONSE,
+    INTERRUPTED;
+
+    public String value() {
+      return name().toLowerCase(Locale.ROOT);
+    }
+  }
+
+  public enum ConfigComponent {
+    CAPTURE,
+    LIVENESS,
+    FACE_MATCH,
+    OCR,
+    VALIDATION_RULES,
+    STORAGE_RULES;
+
+    public String value() {
+      return name().toLowerCase(Locale.ROOT);
+    }
+  }
+
+  public static final String MISSING = "missing";
+  public static final String REDACTED = "unrecognized_redacted";
+  public static final Set<String> CHECKS =
       Set.of(
           "template_matching_valid",
           "document_in_frame_valid",
@@ -44,7 +83,7 @@ final class ScanovateDiagnostics {
           "failed",
           "error",
           "unknown");
-  private static final Set<String> PRESENCE = Set.of(MISSING, "present_redacted");
+  private static final Set<String> PRESENCE = Set.of(MISSING, "present_redacted", "unknown");
   private static final Set<String> CHECK_VALUES = Set.of(MISSING, "true", "false", "invalid");
   private static final Pattern UUID =
       Pattern.compile("[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}");
@@ -74,12 +113,12 @@ final class ScanovateDiagnostics {
 
   private ScanovateDiagnostics() {}
 
-  static String presence(String value) {
+  public static String presence(String value) {
     return value == null || value.isBlank() ? MISSING : "present_redacted";
   }
 
   /** Only a bounded value actually offered by the realm may be recorded as an entered choice. */
-  static String selection(String value, Set<String> options) {
+  public static String selection(String value, Set<String> options) {
     if (value == null || value.isBlank()) return MISSING;
     return options.contains(value) && safeSelection(value) ? value : REDACTED;
   }
@@ -88,43 +127,43 @@ final class ScanovateDiagnostics {
     return SELECTION.matcher(value).matches() && !NUMBER.matcher(value).find();
   }
 
-  static String status(String value) {
+  public static String status(String value) {
     return value != null && STATUSES.contains(value) ? value : "unknown";
   }
 
-  static String country(String value) {
+  public static String country(String value) {
     if (value == null || value.isBlank()) return MISSING;
     return value.matches("[A-Z]{3}") ? value : REDACTED;
   }
 
-  static String documentType(String value) {
+  public static String documentType(String value) {
     if (value == null || value.isBlank()) return MISSING;
     return Set.of("P", "I", "A", "C", "V", "ID", "TD1", "TD2", "TD3").contains(value)
         ? value
         : REDACTED;
   }
 
-  static String score(double value) {
+  public static String score(double value) {
     return Double.isFinite(value) && value >= 0 && value <= 1
         ? String.format(Locale.ROOT, "%.4f", value)
         : "invalid";
   }
 
-  static String check(Object value) {
+  public static String check(Object value) {
     return value == null ? MISSING : value instanceof Boolean ? value.toString() : "invalid";
   }
 
   /** A custom rule's display text is not a safe diagnostic failure code. */
-  static String failure(String value) {
+  public static String failure(String value) {
     return value != null && REASONS.contains(value) ? value : "scanovateAttributesError";
   }
 
-  static String caseId(String value) {
+  public static String caseId(String value) {
     return value != null && UUID.matcher(value).matches() ? value : "unavailable";
   }
 
   /** Strip inherited form/session details as well as unknown diagnostic fields before emission. */
-  static Map<String, String> filter(Map<String, String> details) {
+  public static Map<String, String> filter(Map<String, String> details) {
     Map<String, String> result = new LinkedHashMap<>();
     if (details == null) return result;
     details.forEach(
@@ -144,6 +183,20 @@ final class ScanovateDiagnostics {
     if (SELECTION_FIELDS.contains(key)) return safeSelection(value);
     if (PRESENCE_FIELDS.contains(key)) return PRESENCE.contains(value);
     if (key.equals("case_id") || key.equals("attempt_id")) return UUID.matcher(value).matches();
+    if (key.equals("service_error"))
+      return java.util.Arrays.stream(ServiceError.values())
+          .anyMatch(kind -> kind.value().equals(value));
+    if (key.equals("config_component"))
+      return java.util.Arrays.stream(ConfigComponent.values())
+          .anyMatch(kind -> kind.value().equals(value));
+    if (key.equals("http_status")) return value.matches("[1-5][0-9]{2}");
+    if (key.equals("occurred_at")) {
+      try {
+        return java.time.Instant.parse(value).toString().equals(value);
+      } catch (java.time.DateTimeException ignored) {
+        return false;
+      }
+    }
     if (key.equals("stage")) return STAGES.contains(value);
     if (key.equals("error") || key.equals("failure_reason")) return REASONS.contains(value);
     if (key.equals("can_retry")) return Set.of("true", "false").contains(value);

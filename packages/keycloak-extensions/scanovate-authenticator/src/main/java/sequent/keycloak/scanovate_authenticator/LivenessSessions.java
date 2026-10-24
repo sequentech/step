@@ -13,6 +13,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import lombok.extern.jbosslog.JBossLog;
+import sequent.keycloak.authenticator.diagnostics.ScanovateDiagnostics;
 
 /**
  * One-time tokens that let a voter's browser open a Liveness Plus session, and the results that

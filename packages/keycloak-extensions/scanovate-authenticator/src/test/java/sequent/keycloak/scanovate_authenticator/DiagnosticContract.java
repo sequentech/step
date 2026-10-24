@@ -5,6 +5,7 @@ package sequent.keycloak.scanovate_authenticator;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import sequent.keycloak.authenticator.diagnostics.ScanovateDiagnostics;
 
 /** Dependency-free privacy contract, also run by the JUnit suite. All inputs are synthetic. */
 final class DiagnosticContract {
@@ -14,6 +15,20 @@ final class DiagnosticContract {
   }
 
   static void verify() {
+    Map<String, String> serviceFailure =
+        Map.of(
+            "scanovate_service_error", "http_error",
+            "scanovate_http_status", "401",
+            "scanovate_config_component", "validation_rules",
+            "scanovate_entered_email_state", "unknown");
+    equal(serviceFailure, ScanovateDiagnostics.filter(serviceFailure));
+    equal(
+        Map.of(),
+        ScanovateDiagnostics.filter(
+            Map.of(
+                "scanovate_service_error", "https://example.invalid/?token=synthetic",
+                "scanovate_http_status", "999",
+                "scanovate_config_component", "secret-setting=value")));
     equal("missing", ScanovateDiagnostics.presence(null));
     equal("missing", ScanovateDiagnostics.presence("  "));
     equal("present_redacted", ScanovateDiagnostics.presence("person@example.invalid"));

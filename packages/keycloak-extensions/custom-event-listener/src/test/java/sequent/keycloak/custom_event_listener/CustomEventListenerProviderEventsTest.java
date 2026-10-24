@@ -70,6 +70,44 @@ class CustomEventListenerProviderEventsTest {
   }
 
   @Test
+  void scanovateContractSurvivesTheRealListenerAndQueueEnvelope() throws Exception {
+    JsonNode fixture =
+        om.readTree(getClass().getResourceAsStream("/scanovate-failure-contract.json"));
+    JsonNode expected = fixture.get("queue_input").deepCopy();
+    String tenant = expected.get("tenant_id").asText();
+    String election = expected.get("election_event_id").asText();
+    String user = expected.get("user_id").asText();
+    String name = "tenant-" + tenant + "-event-" + election;
+    account(realm(name), user, "synthetic-voter");
+    Event event = event(name, EventType.REGISTER_ERROR, user, "scanovate_verification_failed");
+    Map<String, String> details = new HashMap<>();
+    fixture
+        .get("producer_details")
+        .fields()
+        .forEachRemaining(field -> details.put(field.getKey(), field.getValue().asText()));
+    // Even a legacy producer's extra fields must not become a new durable disclosure.
+    details.put("email", "person@example.invalid");
+    details.put("passport", "P123456789");
+    details.put("scanovate_raw_response", "synthetic secret");
+    details.put("code_id", "synthetic-session");
+    details.put("scanovate_http_status", "999");
+    event.setDetails(details);
+    provider.onEvent(event);
+    JsonNode actual = publishedInput();
+    ((com.fasterxml.jackson.databind.node.ObjectNode) actual)
+        .set("body", om.readTree(actual.get("body").asText()));
+    ((com.fasterxml.jackson.databind.node.ObjectNode) expected)
+        .set("body", om.readTree(expected.get("body").asText()));
+    assertEquals(expected, actual);
+    assertEquals("missing", actual.at("/body/details/scanovate_check_barcode_valid").asText());
+    for (String forbidden :
+        java.util.List.of(
+            "person@", "P123456789", "synthetic secret", "synthetic-session", "999")) {
+      assertFalse(actual.toString().contains(forbidden), forbidden);
+    }
+  }
+
+  @Test
   void successfulSignInCaptureRunsAfterCommitAndNeverChangesTheAuditPayload() throws Exception {
     SigninNetworkDispatcher capture = mock(SigninNetworkDispatcher.class);
     provider =

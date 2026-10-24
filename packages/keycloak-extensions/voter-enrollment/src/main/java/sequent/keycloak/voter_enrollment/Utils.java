@@ -44,6 +44,7 @@ import org.keycloak.sessions.AuthenticationSessionModel;
 import org.keycloak.userprofile.UserProfile;
 import org.keycloak.userprofile.UserProfileContext;
 import org.keycloak.userprofile.UserProfileProvider;
+import sequent.keycloak.authenticator.diagnostics.ScanovateDiagnostics;
 import sequent.keycloak.authenticator.messaging.ContactDetails;
 import sequent.keycloak.authenticator.messaging.MessageChannel;
 import sequent.keycloak.authenticator.messaging.MessagingAttributes;
@@ -125,6 +126,7 @@ public class Utils {
   static boolean isFormNote(String key, Set<String> profileAttributes) {
     if (key == null
         || key.contains(KEYS_USERDATA_SEPARATOR)
+        || key.startsWith("scanovate-diagnostic-")
         || RESERVED_NOTES.contains(key)
         || MessagingAttributes.CONTACT_ATTRIBUTES.contains(key)) {
       return false;
@@ -239,6 +241,11 @@ public class Utils {
       sessionModel.setAuthNote(USER_ID, user.getId());
     } else {
       sessionModel.removeAuthNote(USER_ID);
+    }
+    sessionModel.removeAuthNote(ScanovateDiagnostics.ENTERED_NOTE);
+    sessionModel.removeAuthNote(ScanovateDiagnostics.ATTEMPT_NOTE);
+    for (String field : ScanovateDiagnostics.ENTERED_FIELDS) {
+      sessionModel.removeAuthNote(ScanovateDiagnostics.ENTERED_NOTE + "." + field);
     }
     // The data was typed again: what an earlier verification established no longer holds.
     sessionModel.removeAuthNote(LookupAndUpdateUser.IDENTITY_METHOD);

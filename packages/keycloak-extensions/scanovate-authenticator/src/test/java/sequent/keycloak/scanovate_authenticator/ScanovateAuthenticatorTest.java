@@ -26,12 +26,15 @@ import static sequent.keycloak.scanovate_authenticator.CaptureMediaTest.WEBM;
 import static sequent.keycloak.scanovate_authenticator.OcrResultsTest.PASSPORT_RESPONSE;
 import static sequent.keycloak.scanovate_authenticator.TestJson.json;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.Response;
 import java.io.IOException;
 import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -43,6 +46,7 @@ import org.junit.jupiter.api.Test;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.events.Event;
 import org.keycloak.events.EventBuilder;
+import org.keycloak.events.EventType;
 import org.keycloak.forms.login.LoginFormsProvider;
 import org.keycloak.headers.SecurityHeadersOptions;
 import org.keycloak.headers.SecurityHeadersProvider;
@@ -87,6 +91,7 @@ class ScanovateAuthenticatorTest {
   private SecurityHeadersOptions securityHeaders;
   private EventBuilder event;
   private Event eventData;
+  private final List<Event> failures = new ArrayList<>();
   private FaceMatchClient faceMatch;
   private OcrClient ocr;
   private final List<FaceMatchSettings> faceMatchSettings = new ArrayList<>();
@@ -134,6 +139,8 @@ class ScanovateAuthenticatorTest {
 
     event = mock(EventBuilder.class, RETURNS_SELF);
     eventData = new Event();
+    eventData.setType(EventType.REGISTER);
+    failures.clear();
     eventData.setDetails(new HashMap<>());
     when(event.getEvent()).thenReturn(eventData);
     doAnswer(
@@ -143,6 +150,37 @@ class ScanovateAuthenticatorTest {
             })
         .when(event)
         .detail(anyString(), anyString());
+    doAnswer(
+            i -> {
+              eventData.setUserId(i.getArgument(0, String.class));
+              return event;
+            })
+        .when(event)
+        .user((String) any());
+    doAnswer(
+            i -> {
+              failures.add(eventData.clone());
+              return null;
+            })
+        .when(event)
+        .error(anyString());
+    when(event.clone())
+        .thenAnswer(
+            i -> {
+              Event snapshot = eventData.clone();
+              EventBuilder copy = mock(EventBuilder.class, RETURNS_SELF);
+              when(copy.getEvent()).thenReturn(snapshot);
+              doAnswer(
+                      call -> {
+                        snapshot.setError(call.getArgument(0));
+                        snapshot.setType(EventType.REGISTER_ERROR);
+                        failures.add(snapshot.clone());
+                        return null;
+                      })
+                  .when(copy)
+                  .error(anyString());
+              return copy;
+            });
     when(context.getEvent()).thenReturn(event);
     KeycloakUriInfo uriInfo = mock(KeycloakUriInfo.class);
     when(uriInfo.getBaseUri()).thenReturn(URI.create("https://kc/"));
@@ -201,7 +239,8 @@ class ScanovateAuthenticatorTest {
   }
 
   @Test
-  void failureHasBoundedEnteredAndExtractedDataWithoutSecretsOrDocumentNumbers() {
+  void failureHasBoundedEnteredAndExtractedDataWithoutSecretsOrDocumentNumbers()
+      throws IOException {
     authNotes.put("email", "person@example.invalid");
     authNotes.put(Utils.PHONE_NUMBER_ATTRIBUTE, "+12025550123");
     authNotes.put("sequent.read-only.id-card-number", "P123456789");
@@ -228,7 +267,7 @@ class ScanovateAuthenticatorTest {
 
     authenticator.action(context);
 
-    Map<String, String> details = eventData.getDetails();
+    Map<String, String> details = lastFailure();
     assertEquals("validation", details.get("scanovate_stage"));
     assertEquals(caseId, details.get("scanovate_case_id"));
     assertEquals("passport", details.get("scanovate_entered_document_type"));
@@ -256,6 +295,16 @@ class ScanovateAuthenticatorTest {
     verify(form)
         .setAttribute(ScanovateAuthenticator.FTL_CODE_ID, details.get("scanovate_attempt_id"));
     verify(context, never()).success();
+    Map<String, String> normalized = new HashMap<>(details);
+    normalized.put("scanovate_attempt_id", "00000000-0000-4000-8000-000000000004");
+    normalized.put("scanovate_case_id", "00000000-0000-4000-8000-000000000005");
+    var fixture =
+        new ObjectMapper()
+            .readTree(
+                Files.readString(
+                    Path.of(
+                        "../custom-event-listener/src/test/resources/scanovate-failure-contract.json")));
+    assertEquals(fixture.get("producer_details"), new ObjectMapper().valueToTree(normalized));
   }
 
   @Test
@@ -267,12 +316,11 @@ class ScanovateAuthenticatorTest {
                 "{\"status\":\"completed\",\"front\":{\"processing_result\":{\"status\":\"card_not_detected\"}}}"));
     passedCapture();
     authenticator.action(context);
-    assertEquals("scanovateMaxRetriesError", eventData.getDetails().get("scanovate_error"));
-    assertEquals(
-        "scanovateDocumentUnreadableError", eventData.getDetails().get("scanovate_failure_reason"));
-    assertEquals("ocr", eventData.getDetails().get("scanovate_stage"));
-    assertEquals("card_not_detected", eventData.getDetails().get("scanovate_ocr_front_result"));
-    assertEquals("false", eventData.getDetails().get("scanovate_can_retry"));
+    assertEquals("scanovateMaxRetriesError", lastFailure().get("scanovate_error"));
+    assertEquals("scanovateDocumentUnreadableError", lastFailure().get("scanovate_failure_reason"));
+    assertEquals("ocr", lastFailure().get("scanovate_stage"));
+    assertEquals("card_not_detected", lastFailure().get("scanovate_ocr_front_result"));
+    assertEquals("false", lastFailure().get("scanovate_can_retry"));
     verify(context, never()).success();
   }
 
@@ -281,24 +329,102 @@ class ScanovateAuthenticatorTest {
     when(faceMatch.compare(any(), any())).thenReturn(match(0.1));
     passedCapture();
     authenticator.action(context);
-    String attempt = eventData.getDetails().get("scanovate_attempt_id");
+    Map<String, String> first = lastFailure();
     post(FormAction.RETRY);
     authenticator.action(context);
-    assertNotEquals(attempt, eventData.getDetails().get("scanovate_attempt_id"));
-    assertFalse(eventData.getDetails().containsKey("scanovate_failure_reason"));
-    assertFalse(eventData.getDetails().containsKey("scanovate_face_match_document"));
-    assertNotNull(caseId());
+    // A new HTTP request has its own builder metadata. The second failure is a missing liveness
+    // result.
+    post(FormAction.CAPTURE);
+    capture(FRONT_JPEG, BACK_JPEG, HOLDING_JPEG);
+    authenticator.action(context);
+    Map<String, String> second = lastFailure();
+    assertEquals(2, failures.size());
+    assertNotEquals(first.get("scanovate_attempt_id"), second.get("scanovate_attempt_id"));
+    assertEquals("scanovateFaceMismatchError", first.get("scanovate_failure_reason"));
+    assertEquals("scanovateInternalError", second.get("scanovate_failure_reason"));
+    assertFalse(second.containsKey("scanovate_face_match_document"));
   }
 
   @Test
   void configurationFailureHasAnAttemptReferenceAndNoInventedReading() {
     config.put(ScanovateAuthenticatorFactory.OCR_URL, "");
     authenticator.authenticate(context);
-    assertEquals("configuration", eventData.getDetails().get("scanovate_stage"));
-    assertNotNull(eventData.getDetails().get("scanovate_attempt_id"));
-    assertFalse(eventData.getDetails().containsKey("scanovate_case_id"));
-    assertFalse(eventData.getDetails().containsKey("scanovate_extracted_document_type"));
+    assertEquals("configuration", lastFailure().get("scanovate_stage"));
+    assertEquals("ocr", lastFailure().get("scanovate_config_component"));
+    assertNotNull(lastFailure().get("scanovate_attempt_id"));
+    assertFalse(lastFailure().containsKey("scanovate_case_id"));
+    assertFalse(lastFailure().containsKey("scanovate_extracted_document_type"));
     verify(context, never()).success();
+  }
+
+  private Map<String, String> lastFailure() {
+    assertFalse(failures.isEmpty(), "a failure must actually be emitted");
+    return failures.get(failures.size() - 1).getDetails();
+  }
+
+  @Test
+  void matchedVoterAttributionAndInheritedMetadataSurviveFailureEmission() throws IOException {
+    authNotes.put(Utils.USER_ID, "00000000-0000-4000-8000-000000000003");
+    eventData.getDetails().put("auth_method", "openid-connect");
+    when(execution.isAlternative()).thenReturn(true);
+    when(faceMatch.compare(any(), any()))
+        .thenAnswer(
+            call -> {
+              eventData.getDetails().put("session_id", "synthetic-session");
+              return match(0.1);
+            });
+    passedCapture();
+    authenticator.action(context);
+    assertEquals("00000000-0000-4000-8000-000000000003", failures.get(0).getUserId());
+    assertFalse(lastFailure().containsKey("session_id"));
+    assertFalse(lastFailure().containsKey("auth_method"));
+    assertEquals("openid-connect", eventData.getDetails().get("auth_method"));
+    assertEquals(EventType.REGISTER, eventData.getType());
+    assertNull(eventData.getError());
+    verify(context).attempted();
+  }
+
+  @Test
+  void successAndAlreadyVerifiedPassThroughKeepAuthenticationMetadata() {
+    eventData.getDetails().put("auth_method", "openid-connect");
+    config.put(ScanovateAuthenticatorFactory.ATTRIBUTES_TO_STORE, "{}");
+    passedCapture();
+    authenticator.action(context);
+    assertEquals("openid-connect", eventData.getDetails().get("auth_method"));
+    UserModel user = mock(UserModel.class);
+    when(user.getFirstAttribute(STATUS_NOTE)).thenReturn("VERIFIED");
+    when(context.getUser()).thenReturn(user);
+    authenticator.authenticate(context);
+    assertEquals("openid-connect", eventData.getDetails().get("auth_method"));
+    assertTrue(failures.isEmpty());
+  }
+
+  @Test
+  void retryAfterConfirmationNeverRelabelsOcrAsEntered() throws IOException {
+    config.put(
+        ScanovateAuthenticatorFactory.ATTRIBUTES_TO_STORE,
+        "{\"default\":[{\"UserAttribute\":\"sequent.read-only.id-card-number\",\"process\":\"ocr\",\"attributePath\":\"/document_number\",\"type\":\"text\"}]}");
+    passedCapture();
+    authenticator.action(context);
+    assertEquals("P1234567A", authNotes.get("sequent.read-only.id-card-number"));
+    post(FormAction.RETRY);
+    authenticator.action(context);
+    livenessResult(authNotes.get(ScanovateAuthenticator.LIVENESS_TOKEN_NOTE), true);
+    when(faceMatch.compare(any(), any())).thenReturn(match(0.1));
+    post(FormAction.CAPTURE);
+    capture(FRONT_JPEG, BACK_JPEG, HOLDING_JPEG);
+    authenticator.action(context);
+    assertEquals("missing", lastFailure().get("scanovate_entered_document_number_state"));
+  }
+
+  @Test
+  void serviceFailuresKeepSafeCategoriesAndHttpStatus() throws IOException {
+    when(faceMatch.compare(any(), any())).thenThrow(ServiceFailure.http(401));
+    passedCapture();
+    authenticator.action(context);
+    assertEquals("http_error", lastFailure().get("scanovate_service_error"));
+    assertEquals("401", lastFailure().get("scanovate_http_status"));
+    assertEquals("face_document", lastFailure().get("scanovate_stage"));
   }
 
   private static FaceComparison match(double similarity) {
@@ -941,6 +1067,7 @@ class ScanovateAuthenticatorTest {
     authenticator.action(context);
 
     verifyFailedAttempt(ScanovateError.FACE_MISMATCH.messageKey());
+    assertEquals("face_holding", lastFailure().get("scanovate_stage"));
   }
 
   @Test
@@ -976,6 +1103,8 @@ class ScanovateAuthenticatorTest {
     authenticator.action(context);
 
     verifyFailedAttempt(ScanovateError.LIVENESS_FAILED.messageKey());
+    assertEquals("false", lastFailure().get("scanovate_liveness_passed"));
+    assertEquals("liveness", lastFailure().get("scanovate_stage"));
     verify(faceMatch, never()).compare(any(), any());
     verify(ocr, never()).recognize(anyString(), any(), anyString());
   }
@@ -1002,6 +1131,9 @@ class ScanovateAuthenticatorTest {
     authenticator.action(context);
 
     verifyCaptureRejected();
+    assertEquals("capture", lastFailure().get("scanovate_stage"));
+    assertEquals("true", lastFailure().get("scanovate_can_retry"));
+    assertEquals("0", lastFailure().get("scanovate_failed_attempts"));
   }
 
   @Test

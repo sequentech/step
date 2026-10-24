@@ -21,6 +21,7 @@ import java.util.function.Function;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.services.resource.RealmResourceProvider;
+import sequent.keycloak.authenticator.diagnostics.ScanovateDiagnostics;
 
 /**
  * The endpoint the capture page uploads its files to, see {@link CaptureUploads}, and endpoints
