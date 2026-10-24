@@ -3297,7 +3297,6 @@
         "require.pushed.authorization.requests": "false",
         "acr.loa.map": "{}",
         "display.on.consent.screen": "false",
-        "request.uris": "*",
         "token.response.type.bearer.lower-case": "false",
         "dpop.bound.access.tokens": "false"
       },
@@ -3735,7 +3734,6 @@
         "require.pushed.authorization.requests": "false",
         "acr.loa.map": "{}",
         "display.on.consent.screen": "false",
-        "request.uris": "*",
         "token.response.type.bearer.lower-case": "false",
         "dpop.bound.access.tokens": "false"
       },
