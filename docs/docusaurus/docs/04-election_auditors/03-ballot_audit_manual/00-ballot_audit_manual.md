@@ -30,8 +30,8 @@ The audit connects four records of each selected ballot:
 3. The supplied eligibility list and the rule that selects each voter's latest cast row marked valid.
 4. The encrypted ballots that went into the tally on the bulletin board.
 
-A separate check with Braid verifies the public key, mix evidence and references in published plaintext records.
-See [Versions](01-before-you-start.md#versions) for the decryption completion requirement.
+A separate check with Braid verifies the public key, the mix evidence and the decryption, which it recomputes for every batch.
+See [Versions](01-before-you-start.md#versions) for the revisions that require that recomputation.
 You must do both parts of this audit. The `audit-tally` command runs both
 parts for the areas and contests in the supplied tally mappings.
 

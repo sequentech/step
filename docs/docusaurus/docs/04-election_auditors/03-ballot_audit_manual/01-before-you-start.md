@@ -60,12 +60,12 @@ this in the audit report.
 ## Versions
 
 This manual and the [technical explanation](../04-ballot_audit_explanation.md) describe proposed tools in
-[PR #3968](https://github.com/sequentech/step/pull/3968), reviewed at `820352256b8d`.
+[PR #3968](https://github.com/sequentech/step/pull/3968), reviewed at `dc593d2e2f9`.
 The code and [manual PR #4048](https://github.com/sequentech/step/pull/4048) are drafts at the time of writing.
 This documentation does not establish release, deployment or availability of a published image.
 
-Before reporting verified decryption, use a verifier revision that requires successful plaintext recomputation for every batch.
-The reviewed revision does not enforce this requirement in its success condition.
+Braid reports success only when it has recomputed the plaintexts of every batch itself.
+Revisions before `586cfe5e1b7` do not require this recomputation; do not use them to report verified decryption.
 See [Check the cryptographic tally](../04-ballot_audit_explanation.md#6-check-the-cryptographic-tally) for the checks and their interpretation.
 
 | Item | Version |
@@ -139,11 +139,11 @@ evidence.
 At the reviewed implementation, `audit-tally` returns `0` when all recorded steps report success.
 The checks connect the selected ballots to signed cast records, supplied eligibility and encrypted tally inputs.
 Braid checks the public key, mix evidence and references in the published plaintext records.
-Its decryption routine checks proofs and recomputes plaintexts when it runs, but the current success condition does not require its completion.
+It also checks the decryption proofs and recomputes the plaintexts of every batch, and its success requires that recomputation.
 The result depends on the trusted inputs, supported scope and available evidence.
 
 Read the restore logs and each report before reporting a pass.
-The image can continue after restore errors, and some saved annotation checks can be unavailable without failing the command.
+The image does not audit copies with restore errors, but some saved annotation checks can be unavailable without failing the command.
 See [What a successful run establishes](../04-ballot_audit_explanation.md#what-a-successful-run-establishes) for the connection between the checks.
 
 The audit does not prove these points:
