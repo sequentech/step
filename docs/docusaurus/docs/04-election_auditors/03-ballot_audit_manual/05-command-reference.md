@@ -58,11 +58,12 @@ that holds it.
 The command gives `audit-tally` the options `--connections`, `--immudb-server-url`,
 `--immudb-username`, `--b3-server-url`, `--output` and, if there is a blob archive,
 `--b3-blob-root`. It returns the exit status of `audit-tally`, and shows it in its last line, for
-example `ballot-audit: exit status 0 (all steps passed)`.
+example `ballot-audit: exit status 0 (all steps passed)`. When a backup is refused or does not
+restore without errors, it stops before the audit with exit status `4`.
 
-Do not repeat the image-controlled options after `--`.
-At the reviewed revision, `--electoral-log-export` conflicts with the image's fixed ImmuDB option.
-These conflicts cause a usage error after restoration.
+The options that the image sets cannot follow `--`: `--connections`, `--immudb-server-url`,
+`--immudb-username`, `--electoral-log-export`, `--b3-server-url`, `--b3-blob-root` and `--output`.
+The image refuses them before the restore, with exit status `2`.
 Use the image's `shell` form to run a command separately when you need those options.
 
 Two other forms:
@@ -220,8 +221,8 @@ writes the report to the standard output. See
 ## verify (Braid)
 
 Checks signatures, configuration, public keys, mix evidence and references in published plaintext records.
-Its decryption routine checks proofs and recomputes plaintexts when it runs.
-See [Versions](01-before-you-start.md#versions) for the decryption completion requirement.
+It also checks the decryption proofs and recomputes the plaintexts of every batch; its success requires that recomputation.
+See [Versions](01-before-you-start.md#versions) for the revisions that require it.
 It reads the board through the B3 server. See
 [Verify the Bulletin Board](07-run-each-step/06-braid.md).
 
