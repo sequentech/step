@@ -85,7 +85,7 @@ function exportGuidance({site, selection, out}) {
     'body{font:10pt/1.4 DejaVu Sans,sans-serif;color:#111;background:white}section{break-before:page}'+
     'img{max-width:100%;max-height:220mm;height:auto}table{border-collapse:collapse;width:100%;table-layout:fixed}tr{break-inside:avoid}th,td{overflow-wrap:anywhere;border:1px solid #aaa;padding:.4em}'+
     'pre,code{white-space:pre-wrap;overflow-wrap:anywhere;font-family:DejaVu Sans Mono,monospace}pre,pre *,code,code *{color:#111!important;background:transparent!important}'+
-    'pre{border:1px solid #bbb;padding:.5em}h1,h2,h3{break-after:avoid}a{color:#153b67}'+
+    'pre{border:1px solid #bbb;padding:.5em;font-size:8pt}h1,h2,h3{break-after:avoid}a{color:#153b67}'+
     // WeasyPrint paints outside list markers after the page text, which splits a list block across a page break.
     'li{list-style-position:inside}li>p:first-child{display:inline}'+
     '.theme-admonition{border-left:3px solid #777;padding:.6em 1em;margin:1em 0}.guidance-admonition-heading{font-weight:bold;break-after:avoid}'+
