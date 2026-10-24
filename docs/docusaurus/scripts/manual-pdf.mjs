@@ -2,18 +2,17 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// Print the election administrator manual to one PDF per locale.
+// Print each manual of manuals.js to one PDF per locale.
 //
 // Run after `yarn build`, with the same BASE_URL:
 //
 //   BASE_URL=/docusaurus/main yarn pdf
 //
-// The script serves ./build, opens the first page of the Election Managers
-// section, follows the "Next" links (the sidebar order) while they stay in
-// that section, and prints all pages as one document with a cover and a table
-// of contents. The files go to
-// build/[<locale>/]pdf/sequent-admin-manual-<version>-<locale>.pdf, where the
-// ManualPdfLink component links to them.
+// The script serves ./build, opens the home page of each manual, reads its
+// sidebar section, and prints all pages in sidebar order as one document with
+// a cover and a table of contents. The files go to
+// build/[<locale>/]pdf/<file>-<version>-<locale>.pdf, where the ManualPdfLink
+// component links to them.
 
 import fs from 'node:fs';
 import http from 'node:http';
@@ -27,23 +26,20 @@ const siteDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const buildDir = path.join(siteDir, 'build');
 const baseUrl = withSlashes(process.env.BASE_URL || '/step/');
 const publicOrigin = process.env.PUBLIC_ORIGIN || 'https://docs.sequentech.io';
-const {versionName, versionLabel, manualHome} = createRequire(import.meta.url)(
-  '../docs-version.js',
-);
+const require = createRequire(import.meta.url);
+const {versionName, versionLabel} = require('../docs-version.js');
+const manuals = require('../manuals.js');
 const version = versionName(process.env.BASE_URL);
-// The manual is the docs section of its home page.
-const manualPath = manualHome.slice(0, manualHome.lastIndexOf('/'));
 const defaultLocale = 'en';
-const locales = ['en', 'es'];
-const titles = {
+// The labels of the cover, the contents and the page frame. The title and the
+// product name come from each manual.
+const labels = {
   en: {
-    title: 'Election Administrator Manual',
     contents: 'Contents',
     version: 'Version',
     issued: 'Date of issue',
     revision: 'Revision',
     product: 'Product',
-    productName: 'Sequent Online Voting, admin portal',
     language: 'Language',
     languageName: 'English',
     figure: 'Figure',
@@ -51,15 +47,14 @@ const titles = {
     of: 'of',
     video: 'This page has a video in the online documentation.',
     watch: 'Watch the video',
+    next: 'Next',
   },
   es: {
-    title: 'Manual del administrador electoral',
     contents: 'Índice',
     version: 'Versión',
     issued: 'Fecha de edición',
     revision: 'Revisión',
     product: 'Producto',
-    productName: 'Sequent Online Voting, portal de administración',
     language: 'Idioma',
     languageName: 'Español',
     figure: 'Figura',
@@ -67,6 +62,7 @@ const titles = {
     of: 'de',
     video: 'Esta página tiene un vídeo en la documentación en línea.',
     watch: 'Ver el vídeo',
+    next: 'Siguiente',
   },
 };
 
@@ -178,8 +174,10 @@ async function readSidebar(page, origin, rootPath) {
   await loadPage(page, origin + rootPath);
   const findRoot = `(() => {
     const norm = (h) => new URL(h, location.href).pathname.replace(/\\/$/, '');
+    // A category without a page links to "#", which resolves to this page.
     const link = [...document.querySelectorAll('.theme-doc-sidebar-menu a.menu__link')]
-      .find((a) => norm(a.getAttribute('href') || '#') === ${JSON.stringify(rootPath)});
+      .filter((a) => !(a.getAttribute('href') || '#').startsWith('#'))
+      .find((a) => norm(a.getAttribute('href')) === ${JSON.stringify(rootPath)});
     return link && link.closest('li');
   })()`;
   for (let i = 0; i < 100; i++) {
@@ -252,13 +250,40 @@ async function collect(page, origin, tree) {
   return pages;
 }
 
-async function printManual(browser, origin, locale) {
+// The pages of a guide, in the order of `manual.pages`, without their children.
+function guidePages(tree, home, manual) {
+  const nodes = [];
+  const walk = (list) => list.forEach((n) => {
+    nodes.push(n);
+    walk(n.children);
+  });
+  walk(tree);
+  return manual.pages.map((p) => {
+    const node = nodes.find((n) => n.path === `${home}/${p}`);
+    if (!node) throw new Error(`No page ${p} in the sidebar of ${manual.id}`);
+    return {...node, children: []};
+  });
+}
+
+async function printManual(browser, origin, manual, locale) {
   const localePrefix = locale === defaultLocale ? '' : `${locale}/`;
   const page = await browser.newPage();
   await page.emulateMediaFeatures([{name: 'prefers-color-scheme', value: 'light'}]);
-  const tree = await readSidebar(page, origin, `${baseUrl}${localePrefix}${manualHome}`);
+  const home = `${baseUrl}${localePrefix}${manual.home}`;
+  let tree = await readSidebar(page, origin, home);
+  if (manual.pages) tree = guidePages(tree, home, manual);
   const pages = await collect(page, origin, tree);
-  const t = titles[locale] || titles[defaultLocale];
+  const intro = manual.intro
+    ? fs
+        .readFileSync(path.join(siteDir, 'scripts', 'pdf-intros', `${manual.intro}.${locale}.html`), 'utf8')
+        .replace(/<!--[\s\S]*?-->/g, '')
+        .replaceAll('{{manual}}', `${publicOrigin}${home}`)
+    : '';
+  const guide = Boolean(manual.pages);
+  const t = {
+    ...(labels[locale] || labels[defaultLocale]),
+    ...(manual.titles[locale] || manual.titles[defaultLocale]),
+  };
   const label = versionLabel(version);
   let commit = '';
   try {
@@ -270,7 +295,7 @@ async function printManual(browser, origin, locale) {
   // Rebuild the last visited page as the print document so the site's
   // stylesheets stay loaded.
   await page.evaluate(
-    ({tree, pages, t, label, locale, commit, publicOrigin, baseUrl}) => {
+    ({tree, pages, t, label, locale, commit, publicOrigin, baseUrl, intro, guide}) => {
       const index = new Map(pages.map((p, i) => [p.path, i]));
       const html = new Map(pages.map((p) => [p.path, p.html]));
       // The contents follow the sidebar: one numbered list item for each
@@ -367,6 +392,16 @@ async function printManual(browser, origin, locale) {
         section.className = 'manual-print__page markdown';
         section.id = `p${i}`;
         section.innerHTML = p.html;
+        // The last page of a guide has no next page in the guide.
+        if (guide && i === pages.length - 1) {
+          const next = [...section.querySelectorAll('h2')].find(
+            (h) => h.textContent.replace(/\u200b/g, '').trim() === t.next,
+          );
+          if (next) {
+            while (next.nextElementSibling) next.nextElementSibling.remove();
+            next.remove();
+          }
+        }
         number(section.querySelector('h1'), n);
         namePage(section, n);
         // A screenshot alone in its paragraph is a numbered figure with its
@@ -408,6 +443,13 @@ async function printManual(browser, origin, locale) {
         shiftHeadings(section, depth);
         body.appendChild(section);
       };
+      if (intro) {
+        const section = document.createElement('section');
+        section.className = 'manual-print__page markdown';
+        section.innerHTML = intro;
+        shiftHeadings(section, 0);
+        body.appendChild(section);
+      }
       emit(tree, 0);
       document.documentElement.lang = locale;
       const font = getComputedStyle(document.body).fontFamily;
@@ -486,7 +528,7 @@ async function printManual(browser, origin, locale) {
       `;
       document.head.appendChild(style);
     },
-    {tree, pages, t, label, locale, commit, publicOrigin, baseUrl},
+    {tree, pages, t, label, locale, commit, publicOrigin, baseUrl, intro, guide},
   );
   // Expand collapsed <details> blocks so their content prints.
   await page.evaluate(() =>
@@ -495,7 +537,7 @@ async function printManual(browser, origin, locale) {
 
   const outDir = path.join(buildDir, localePrefix, 'pdf');
   fs.mkdirSync(outDir, {recursive: true});
-  const out = path.join(outDir, `sequent-admin-manual-${version}-${locale}.pdf`);
+  const out = path.join(outDir, `${manual.file}-${version}-${locale}.pdf`);
   await page.pdf({
     path: out,
     format: 'A4',
@@ -519,13 +561,17 @@ async function main() {
     args: ['--no-sandbox', '--font-render-hinting=none'],
   });
   try {
-    for (const locale of locales) {
-      const localeBuild = locale === defaultLocale ? buildDir : path.join(buildDir, locale);
-      if (!fs.existsSync(path.join(localeBuild, manualPath))) {
-        console.warn(`Skip locale ${locale}: not built`);
-        continue;
+    for (const manual of manuals) {
+      // The manual is the docs section of its home page.
+      const manualPath = manual.home.slice(0, manual.home.lastIndexOf('/'));
+      for (const locale of manual.locales) {
+        const localeBuild = locale === defaultLocale ? buildDir : path.join(buildDir, locale);
+        if (!fs.existsSync(path.join(localeBuild, manualPath))) {
+          console.warn(`Skip ${manual.id} in ${locale}: not built`);
+          continue;
+        }
+        await printManual(browser, origin, manual, locale);
       }
-      await printManual(browser, origin, locale);
     }
   } finally {
     await browser.close();

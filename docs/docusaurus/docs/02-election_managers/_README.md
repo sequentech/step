@@ -61,7 +61,8 @@ page. A page without a translation shows the English text. Run
 `yarn build` followed by `yarn pdf` prints the manual for each language to
 `build/[<locale>/]pdf/sequent-admin-manual-<version>-<locale>.pdf`. The page order of the PDF is
 the order of the sidebar. The `<ManualPdfLink />` component links to the PDF of the language on
-screen. The **Documentation** workflow runs both commands.
+screen. The **Documentation** workflow runs both commands. The list of manuals that `yarn pdf`
+prints, with their home pages and languages, is in `manuals.js`.
 
 ## Writing rules (ASD-STE100, adapted)
 
