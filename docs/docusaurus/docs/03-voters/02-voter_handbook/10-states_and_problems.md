@@ -51,8 +51,8 @@ regulation.
 The voting system keeps records of what happens during the election. If it can
 no longer keep them safely (for example, because the storage for these records
 is almost full), it refuses new voter logins and voter requests until the
-problem is solved. Try again later. If it lasts, contact the election
-organizer.
+problem is solved; a login then shows "Voting is temporarily unavailable.
+Please try again later." If it lasts, contact the election organizer.
 
 ## Messages and what to do
 
