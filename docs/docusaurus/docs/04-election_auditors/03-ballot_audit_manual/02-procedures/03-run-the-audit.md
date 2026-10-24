@@ -100,7 +100,7 @@ ballot-audit: exit status 0 (all steps passed)
    | `1` | A step found a contradiction. Read the message. |
    | `2` | An option of the command is wrong. |
    | `3` | Evidence is missing, or a step did not run. The audit is incomplete. |
-   | `4` | An input was refused, or a backup did not restore without errors. The command stopped before the audit. |
+   | `4` | An input was refused. A refused backup or a restore with errors stops the command before the audit. A step of the audit can also return `4`: read the result files. |
 
 3. Open `~/audit/output/public-summary.json`. Read `status`, the `status` of each scope, of each
    `cast_vote_history` entry and of `braid`.
