@@ -36,7 +36,7 @@ authority and removes the copies.
 
 ## 2. Publish the safe summary
 
-1. Publish `~/audit/results/tally/public-summary.json`. It contains only IDs of the election,
+1. Publish `~/audit/output/public-summary.json`. It contains only IDs of the election,
    statuses and counts. See [File Reference](../06-file-reference.md#public-summaryjson).
 2. Publish the digest of `audit-record.json`, the commit of the tools and the limits of the audit.
 3. Do not publish other information. Use this table:
@@ -49,11 +49,10 @@ authority and removes the copies.
 | The limits of the audit. | The copies, the evidence, the audit bundles and the reports. |
 
 :::danger WARNING
-Do not publish the files in `results/tally/scopes/`, `results/tally/history/` or
-`results/tally/immudb-export/`. They contain personal data, for example `selection.json`,
-`cast-votes.json`, `cast-vote-history.json`, `keycloak-source.json`, `eligibility-reasons.json`
-and `audit-report.json`. Do not publish or copy `~/audit/private`. It contains the passwords of
-the copies.
+Do not publish the files in `output/scopes/`, `output/history/` or `output/immudb-export/`.
+They contain personal data, for example `selection.json`, `cast-votes.json`,
+`cast-vote-history.json`, `keycloak-source.json`, `eligibility-reasons.json` and
+`audit-report.json`.
 :::
 
 **Expected result:** the election authority has the audit report. The public summary contains no
@@ -62,7 +61,7 @@ personal data.
 ## 3. Keep the evidence
 
 1. Ask the election authority how long to keep the evidence.
-2. Put the directory `~/audit/results` and the audit notes in an encrypted archive.
+2. Put the directory `~/audit/output` and the audit notes in an encrypted archive.
 3. Give the archive to the election authority.
 
 **Expected result:** the election authority keeps the evidence.
@@ -73,24 +72,21 @@ personal data.
 Do this step only after the election authority has the archive. You cannot get the copies back.
 :::
 
-1. Remove the copies, their volumes and the passwords in `~/audit/private`:
+The copies were inside the container of the audit. Docker removed them when the command
+stopped.
 
-   ```sh
-   audit-env down --dir ~/audit
-   ```
-
-2. Remove the audit directory, which contains the backups and the results:
+1. Remove the audit directory, which contains the backups and the output:
 
    ```sh
    rm -rf ~/audit
    ```
 
-3. Write the date of the removal in the audit report.
+2. Write the date of the removal in the audit report.
 
 :::note
-If you used [Without the Audit Kit](../07-run-each-step/01-without-kit.md), remove the containers,
-the volume and the network that you made there, with `docker rm -f`, `docker volume rm` and
-`docker network rm`.
+If you used [Without the Audit Image](../07-run-each-step/01-without-kit.md), also remove the
+containers, the volume and the network that you made there, with `docker rm -f`,
+`docker volume rm` and `docker network rm`.
 :::
 
 **Expected result:** no copy of the election data is on the workstation.

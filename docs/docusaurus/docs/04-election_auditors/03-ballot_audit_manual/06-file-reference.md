@@ -33,35 +33,35 @@ Do not edit a file and then use it again. A change of one byte changes its diges
 command stops with a digest mismatch.
 :::
 
-## Files of the audit kit (~/audit)
+## Files of the audit image (backups and output)
 
-The audit kit uses the audit directory that you give with `--dir`. The procedures use `~/audit`:
+The audit image reads the backups directory at `/backups` and writes to the output directory at
+`/output`. The procedures use `~/audit/backups` and `~/audit/output`:
 
 ```text
 ~/audit/
 ├── audit-notes.txt          you write it
-├── backup-digests.txt       you write it
-├── backups/                 the backups, read only
-├── private/                 audit-env up writes it, audit-env down removes it
-│   ├── connections.json
-│   ├── kit.env
-│   └── restore-<copy>.log
-└── results/
-    └── tally/               the output of audit-tally
+├── backups/                 read only for the audit
+│   ├── backup-digests.txt   you write it
+│   ├── hasura.dump, keycloak.dump, b3.dump, immudb.tar.gz
+│   └── b3-blobs.tar.gz      only for a board that stores messages in files
+└── output/                  must be empty before the audit
+    ├── restore/             the messages of the restore
+    └── the files of audit-tally
 ```
 
-| File | Content | Personal data |
+| File in `output/restore` | Content | Personal data |
 | --- | --- | --- |
-| `private/connections.json` | The connections file of the copies, with the password of `ballot_audit_reader`. See [connections.json](05-command-reference.md#connectionsjson). | No. It contains passwords. |
-| `private/kit.env` | The settings of the copies: the image, the versions and the passwords. `audit-env` reads it. | No. It contains passwords. |
-| `private/restore-hasura.log`, `private/restore-keycloak.log`, `private/restore-b3.log` | The messages of `pg_restore` for each copy. | No |
+| `restore-hasura.log`, `restore-keycloak.log`, `restore-b3.log` | The messages of `pg_restore` for each copy. | No |
+| `postgres-init.log`, `immudb.log`, `b3-server.log` | The messages of the database servers of the copies. `b3-server.log` shows the password of the PostgreSQL copy, which the container removed. | No |
 
-The copies are in Docker volumes, not in `~/audit`. `audit-env down` removes them.
+The copies are inside the container. Docker removes them when the command stops. The files of
+`output` belong to the owner of `backup-digests.txt`.
 
 ## Files of audit-tally (tally)
 
-`audit-tally` writes all files of the audit in its output directory. With the audit kit, it is
-`~/audit/results/tally`:
+`audit-tally` writes all files of the audit in its output directory. With the audit image, it is
+`~/audit/output`:
 
 ```text
 tally/

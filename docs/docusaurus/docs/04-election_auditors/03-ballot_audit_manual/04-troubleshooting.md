@@ -13,28 +13,26 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 This page lists the messages of the ballot audit commands. The exit status is in brackets.
 
-## Messages of audit-env
+## Messages of the audit image
 
-`audit-env` shows its own messages after `audit-env:`. It stops with exit status `1` after each of
-these messages. This exit status is not a result of the audit. `audit-env tally` returns the exit
-status of `audit-tally`.
+The audit image shows its own messages after `ballot-audit:`. It stops with exit status `1` after
+each of these messages, before the audit. This exit status is not a result of the audit. When the
+audit runs, the exit status is the exit status of `audit-tally`.
 
 | Message | Cause | Action |
 | --- | --- | --- |
 | `backup digest mismatch: backups/...; do not restore it` | The backup is not the backup that the system operator described. | Stop. Do not use the backup. Tell the election authority. |
-| `missing backup: backups/...` | A backup is not in the directory, or it has another name. | Put the backup in `backups` with the name of [audit-env](05-command-reference.md#audit-env). |
-| `no digest for ... in ...` | The digests file has no line for a backup. | Add the digest from the system operator. |
-| `digests file does not exist: ...` | The path of `--digests` is wrong. | Give the correct path. |
-| `copies already exist in ...; run audit-env down first` | `audit-env up` ran before in this directory. | Run `audit-env down --dir <directory>`, then `audit-env up` again. |
-| `no copies in ...; run audit-env up first` | The copies are not restored in this directory. | Run `audit-env up`. |
-| `image not found: ...` | The audit image is not built, or `--image` has another name. | Build the image. See [Set Up the Audit Workstation](02-procedures/01-workstation.md#2-build-the-audit-image). |
-| `... is required` | An option of the command is missing. | Add the option. See [audit-env](05-command-reference.md#audit-env). |
-| `... did not start; see: docker compose -p ... logs` | A copy did not start in time. | Read the logs with the command of the message. Check the versions of the source. Run `audit-env down`, then `audit-env up` again. |
-| `WARNING: pg_restore reported ... error(s) for ...` | `pg_restore` could not restore part of a backup. The command continues. | Read the log in `private`. Write each error in the audit notes. |
+| `missing backup: backups/...` | A backup is not in the directory, or it has another name. | Put the backup in the backups directory with the name of [The audit image](05-command-reference.md#the-audit-image). |
+| `no digest for ... in backup-digests.txt` | The digests file has no line for a backup. | Add the digest from the system operator. |
+| `no backup-digests.txt in the backups directory` | The digests file is missing. | Write it. See [Prepare the Backups](02-procedures/02-restore.md). |
+| `no backups; mount the backups directory at /backups` | The command has no `-v <backups>:/backups:ro`. | Add it. |
+| `no output; mount an empty output directory at /output` | The command has no `-v <output>:/output`. | Add it. |
+| `the output directory is not empty; use a new one` | The output directory has files of an earlier run. | Use a new, empty directory. |
+| `WARNING: pg_restore reported ... error(s) for ...` | `pg_restore` could not restore part of a backup. The command continues. | Read the log in `output/restore`. Write each error in the audit notes. |
 | `the ImmuDB archive has no systemdb directory` | The ImmuDB archive is not an ImmuDB data directory. | Ask the system operator for the correct archive. |
 | `the ImmuDB copy has no databases` | The ImmuDB data directory is empty. | Ask the system operator for the correct archive. |
-| `--output must be a plain name in .../results` | `--output` is a path. | Give only a name, for example `tally-2`. |
-| `give the copy: hasura, keycloak or b3` | `audit-env sql` has no copy name, or a wrong one. | Give `hasura`, `keycloak` or `b3`. |
+| `ImmuDB did not start`, `the B3 server did not start` | A copy did not start. The command shows the end of its log. | Read the logs in `output/restore`. |
+| `unknown option: ...`, `... needs a value` | An option of the command is wrong. | Correct the command. See [The audit image](05-command-reference.md#the-audit-image). |
 
 ## Messages of audit-tally
 
@@ -48,7 +46,7 @@ other tables of this page.
 | `invalid tally session ID`, `tally session ID must use canonical lowercase spelling` [4] | The tally ID is not a UUID in lowercase. | Get the tally ID again from the election authority. Use lowercase. |
 | `public key SHA-512 pin must be 128 lowercase hexadecimal characters` [4] | The public key hash is not valid. | Get the hash again from the election authority. |
 | `invalid electoral log system public key` [4] | The key is not a DER/SPKI key in standard base64. | Get the key again from the election authority. |
-| `cannot locate the ballot audit commands` [4] | The command cannot find its own directory. | Build the audit image again. Without the audit kit, run `audit-tally` from `target/release`, or give its full path. |
+| `cannot locate the ballot audit commands` [4] | The command cannot find its own directory. | Build the audit image again. Without the audit image, run `audit-tally` from `target/release`, or give its full path. |
 | `expected exactly one tally session row, found none` [3] | The Hasura copy has no tally with this ID. | Check the tally ID. Make sure that the backup is from after the tally. |
 | `expected exactly one election event row, found none` [3] | The Hasura copy has no election event for the tally. | Make sure that the Hasura backup is complete. |
 | `saved tally has no contest rows` [3] | The tally has no areas or contests yet. | Get a backup from after the start of the tally. |
@@ -62,7 +60,7 @@ other tables of this page.
 
 | `message` of a step | Cause | Action |
 | --- | --- | --- |
-| `cannot start <program>` | The command is not next to `audit-tally`, or `--braid-verify` is wrong. | Build the audit image again. Without the audit kit, build all tools into `target/release`. |
+| `cannot start <program>` | The command is not next to `audit-tally`, or `--braid-verify` is wrong. | Build the audit image again. Without the audit image, build all tools into `target/release`. |
 | `no report on the standard output`, `cannot save the report` | The command did not write a report, or the report could not be saved. | Read the rest of the message. Check the free disk space. |
 | `existing electoral log export` with the status `invalid_input` | The directory of `--electoral-log-export` has no `electoral-log.json`. | Give the directory that `export-electoral-log` wrote. |
 | `the export did not succeed`, `the preparation did not succeed` | An earlier step of the scope did not pass. | Correct the cause of the earlier step. |

@@ -1,7 +1,7 @@
 ---
-title: Without the Audit Kit
+title: Without the Audit Image
 sidebar_position: 1
-description: "Build the tools with Rust and restore the database copies by hand, without the audit kit."
+description: "Build the tools with Rust and restore the database copies by hand, without the audit image."
 ---
 
 <!--
@@ -9,12 +9,12 @@ SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-# Without the Audit Kit
+# Without the Audit Image
 
 This procedure builds the tools and restores the copies by hand. Use it when you cannot use the
-audit kit, or to check what the kit does. It replaces
-[Set Up the Audit Workstation](../02-procedures/01-workstation.md#2-build-the-audit-image) step 2
-and [Restore the Database Copies](../02-procedures/02-restore.md).
+audit image, or to check what the image does. It replaces
+[Set Up the Audit Workstation](../02-procedures/01-workstation.md#1-get-the-audit-image) step 1
+and step 2 of [Run the Audit](../02-procedures/03-run-the-audit.md).
 
 | Database | Content |
 | --- | --- |
@@ -25,11 +25,14 @@ and [Restore the Database Copies](../02-procedures/02-restore.md).
 
 ## Before you start
 
-- You did steps 1 and 3 of [Set Up the Audit Workstation](../02-procedures/01-workstation.md).
+- You have the source code at the agreed commit. See
+  [Set Up the Audit Workstation](../02-procedures/01-workstation.md#1-get-the-audit-image), "If
+  you build the image from the source code", steps 1 to 4.
+- You did step 2 of [Set Up the Audit Workstation](../02-procedures/01-workstation.md).
 - The Rust toolchain of the release is installed. The repository file `rust-toolchain.toml` gives
   the version.
 - You have the four backups and their digests. See
-  [Restore the Database Copies](../02-procedures/02-restore.md#before-you-start).
+  [Prepare the Backups](../02-procedures/02-restore.md).
 - You have the password of the ImmuDB admin user of the source, from the system operator.
 
 ## 1. Build the tools
@@ -243,7 +246,7 @@ copy and the account `postgres`, not `audit_reader`. Never start it on an origin
 ## 8. Run audit-tally
 
 Do [Run the Audit](../02-procedures/03-run-the-audit.md) with this command in step 2, in
-`~/audit`. First make the results directory and set the ImmuDB password:
+`~/audit`. Read the results in `~/audit/results/tally`. First make the results directory and set the ImmuDB password:
 
 ```sh
 cd ~/audit && mkdir -m 700 results

@@ -55,12 +55,12 @@ checks for all areas and contests of a tally.
 | Step | Procedure | Content | Result |
 | --- | --- | --- | --- |
 |  | [Before You Start](01-before-you-start.md) | Roles, terms, versions and safety rules | You know who does each task. |
-| 1 | [Set Up the Audit Workstation](02-procedures/01-workstation.md) | An isolated computer and the audit image | The audit image and the audit kit are on the workstation. |
-| 2 | [Restore the Database Copies](02-procedures/02-restore.md) | The copies of the four databases, with `audit-env up` | The copies run without a network, with read-only accounts. |
-| 3 | [Run the Audit](02-procedures/03-run-the-audit.md) | One command for all areas and contests of the tally, with `audit-env tally` | An audit record and a public summary. |
-| 4 | [Report and Remove the Copies](02-procedures/04-close.md) | The audit report and the clean-up, with `audit-env down` | A published summary. No copies are left. |
+| 1 | [Set Up the Audit Workstation](02-procedures/01-workstation.md) | Docker and the audit image | The audit image is on the workstation. |
+| 2 | [Prepare the Backups](02-procedures/02-restore.md) | The backups of the four databases and their digests | One directory with the backups. |
+| 3 | [Run the Audit](02-procedures/03-run-the-audit.md) | One `docker run` command for all areas and contests of the tally | An audit record and a public summary. |
+| 4 | [Report and Remove the Copies](02-procedures/04-close.md) | The audit report and the clean-up | A published summary. No copies are left. |
 
-To repeat or examine one step of the audit, or to work without the audit kit, use
+To repeat or examine one step of the audit, or to work without the audit image, use
 [Appendix: Run Each Step Separately](07-run-each-step/00-run-each-step.md).
 
 ## Scope of this manual

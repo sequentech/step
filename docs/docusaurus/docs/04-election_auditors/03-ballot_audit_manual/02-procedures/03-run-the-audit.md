@@ -1,7 +1,7 @@
 ---
 title: Run the Audit
 sidebar_position: 3
-description: "Audit all areas and contests of one tally with the audit-tally command, read the results and record the digest of the audit record."
+description: "Audit all areas and contests of one tally with one docker run command, read the results and record the digest of the audit record."
 ---
 
 <!--
@@ -11,38 +11,37 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 # Run the Audit
 
-This procedure audits all areas and contests of one tally with one command, `audit-tally`. The
-auditor does it with the audit kit: `audit-env tally` runs `audit-tally` on the restored copies.
-The command reads the copies, runs each check of the audit and writes an audit record and a
-public summary.
+This procedure audits all areas and contests of one tally with one command. The auditor does it.
+The command runs the audit image with the backups directory and the output directory.
 
 The command does these steps:
 
-1. It reads the tally from the Hasura copy and makes one scope for each area and contest.
-2. It exports the electoral log of the election event from the ImmuDB copy.
-3. For each scope, it exports the evidence, prepares the audit bundle and audits the bundle.
-4. For each election, it checks the cast-vote history.
-5. It runs the Braid verifier on all batches of the tally and of the bulletin board.
+1. It checks the digest of each backup. It stops if a digest is missing or different.
+2. It restores the backups into copies inside the container, with the read-only account
+   `ballot_audit_reader`. It gives the ImmuDB copy a new admin password, so you do not need the
+   password of the source.
+3. It starts the B3 server on the B3 copy.
+4. It runs `audit-tally`. `audit-tally` makes one scope for each area and contest of the tally,
+   exports the evidence, prepares and audits each scope, checks the cast-vote history of each
+   election and runs the Braid verifier.
+5. It writes the results to the output directory and stops. The copies are removed.
 
-The command calculates the pin of each file that it writes and gives it to the next step. It
+The container has no network. The copies can connect only to each other.
+
+`audit-tally` calculates the pin of each file that it writes and gives it to the next step. It
 records all pins in `audit-record.json`. The digest of `audit-record.json` protects all of them.
 
 ## Before you start
 
-- You did [Restore the Database Copies](02-restore.md). `audit-env up` showed that the copies are
-  ready.
+- You did [Prepare the Backups](02-restore.md).
+- `AUDIT_IMAGE` is set. See [Set Up the Audit Workstation](01-workstation.md).
 - You have these three values from the election authority, through a trusted channel that is not
   the backups:
   - The **tally ID**.
   - The **public key hash**: the SHA-512 digest of the election public key on the bulletin board,
     in 128 lowercase hexadecimal characters.
   - The **electoral log system public key**: DER/SPKI, encoded in standard base64.
-- The directory `~/audit/results/tally` does not exist. The command makes it.
-
-:::danger WARNING
-Do not read the tally ID or the two keys from the copies. The audit uses them to check the copies.
-A value from the copies cannot show that the copies were changed.
-:::
+- The directory `~/audit/output` is empty.
 
 ## 1. Set the trusted values
 
@@ -63,60 +62,55 @@ A value from the copies cannot show that the copies were changed.
 1. Run the audit:
 
    ```sh
-   audit-env tally --dir ~/audit \
+   docker run --rm --network none \
+     -v ~/audit/backups:/backups:ro -v ~/audit/output:/output "$AUDIT_IMAGE" \
      --tally-session-id "$TALLY_SESSION_ID" \
      --public-key-sha512 "$PUBLIC_KEY_SHA512" \
      --electoral-log-system-public-key "$ELECTORAL_LOG_SYSTEM_PUBLIC_KEY"
    ```
 
-2. Read the exit status:
-
-   ```sh
-   echo $?
-   ```
-
-The audit kit gives `audit-tally` the connections file, the read-only ImmuDB account, the address
-of the B3 server and, if there is one, the B3 blob directory. The output is in
-`~/audit/results/tally`. To use another output directory in `~/audit/results`, add
-`--output <name>`.
-
 :::note
 The command runs the steps one after the other. A large tally can take a long time.
 :::
 
-**Expected result:** the exit status is `0`. The command shows one line for each scope, the
-overall status and the digest of the audit record:
+**Expected result:** the command shows `SHA-512 matches` for each backup, `the copies are
+ready`, one line for each scope, the overall status, the digest of the audit record and, in the
+last line, the exit status:
 
 ```text
 scopes/001: election <ID> area <ID> contest <ID>: Success
 scopes/002: election <ID> area <ID> contest all: Success
 Overall: Success
 audit-record.json SHA-512: <digest>
+ballot-audit: exit status 0 (all steps passed)
 ```
 
 `contest all` is a scope whose ballots encrypt all contests together.
 
 ## 3. Read the results
 
-1. Read the exit status:
+1. If the command shows `WARNING: pg_restore reported ... error(s)`, read the log that the
+   warning names in `~/audit/output/restore`. Write each error in the audit notes.
+2. Read the exit status in the last line of the command:
 
    | Exit status | Meaning |
    | --- | --- |
    | `0` | All steps passed. |
-   | `1` | A step found a contradiction. |
+   | `1` | A step found a contradiction, or the command stopped before the audit. Read the message. |
    | `3` | Evidence is missing, or a step did not run. The audit is incomplete. |
    | `4` | An input was refused. |
 
-2. Open `~/audit/results/tally/public-summary.json`. Read `status`, the `status` of each scope,
-   of each `cast_vote_history` entry and of `braid`.
-3. For each status that is not `success`, open `~/audit/results/tally/audit-record.json`. Find
-   the steps of that scope or election in `steps`. Read their `exit_code` and `message`.
-4. Find each message in [Troubleshooting](../04-troubleshooting.md).
-5. Write the overall status and the status of each scope in the audit notes.
+3. Open `~/audit/output/public-summary.json`. Read `status`, the `status` of each scope, of each
+   `cast_vote_history` entry and of `braid`.
+4. For each status that is not `success`, open `~/audit/output/audit-record.json`. Find the steps
+   of that scope or election in `steps`. Read their `exit_code` and `message`.
+5. Find each message in [Troubleshooting](../04-troubleshooting.md).
+6. Write the overall status and the status of each scope in the audit notes.
 
 :::note
 A step with the status `not_run` did not run because an earlier step did not pass. Correct the
-cause of the first step that did not pass, then run the audit again with a new output directory.
+cause of the first step that did not pass, then run the audit again with a new, empty output
+directory.
 :::
 
 See [Read the Results](../03-read-the-results.md#statuses-of-audit-tally) for all statuses.
@@ -129,7 +123,7 @@ verifier.
 1. Calculate the digest of the audit record:
 
    ```sh
-   shasum -a 512 ~/audit/results/tally/audit-record.json
+   shasum -a 512 ~/audit/output/audit-record.json
    ```
 
 2. Compare it with the digest that the command showed.
@@ -143,13 +137,14 @@ verifier.
 
 | Problem | Action |
 | --- | --- |
-| Exit status `4`, `output directory already exists` | Use a new output directory. Do not delete evidence that you need. |
+| `backup digest mismatch: backups/...; do not restore it` | Stop. Do not use the backup. Tell the election authority. |
+| `the output directory is not empty; use a new one` | Use a new, empty output directory. Do not delete evidence that you need. |
+| `missing backup: backups/...` or `no digest for ... in backup-digests.txt` | Put the backup in `~/audit/backups` with its file name, and its digest in the digests file. See [Prepare the Backups](02-restore.md). |
+| `... did not start` | The command shows the end of the log. Read the logs in `~/audit/output/restore`. |
 | Exit status `3`, `expected exactly one tally session row, found none` | The tally ID is wrong, or the backup is from before the tally. Check the tally ID with the election authority. |
-| `no copies in ...; run audit-env up first` | Restore the copies. See [Restore the Database Copies](02-restore.md). |
-| Exit status `4`, `cannot start ...` in the `message` of a step | The image is not complete. Build it again. See [Set Up the Audit Workstation](01-workstation.md#2-build-the-audit-image). |
 | You must repeat or examine one step. | Use [Run Each Step Separately](../07-run-each-step/00-run-each-step.md). |
 
-See [Troubleshooting](../04-troubleshooting.md#messages-of-audit-tally) for all messages.
+See [Troubleshooting](../04-troubleshooting.md#messages-of-the-audit-image) for all messages.
 
 ## Next
 

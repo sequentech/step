@@ -55,19 +55,18 @@ this in the audit report.
 | Exit status | The number that a command returns when it stops. It tells the result. See [Read the Results](03-read-the-results.md). |
 | Audit record | The file `audit-record.json` that `audit-tally` writes. It records each command, its result and the digests of its files. |
 | Audit notes | The text file `audit-notes.txt` in which you write the values that the procedures tell you to record. |
-| Audit image | The Docker image with all tools of the audit. You build it from the source code. |
-| Audit kit | The command `audit-env`. It restores the copies from the backups, runs the audit on them and removes them. |
+| Audit image | The Docker image with all tools of the audit and the database servers of the copies. One `docker run` command restores the backups into copies inside the container, runs the audit and removes the copies. |
 
 ## Versions
 
 | Item | Version |
 | --- | --- |
 | Election data | The release of the election platform that ran the election, for example `10.0.1-rc.1`. |
-| Tools | The audit image, built from a commit of the same release line that contains the folder `packages/ballot-audit/kit`. A release from before the tools does not contain this folder. |
-| Database servers | The same major version of PostgreSQL and the same version of ImmuDB as the source. Give them to `audit-env up` with `--postgres-version` and `--immudb-version`. |
+| Tools | The audit image, built from a commit of the same release line that contains the folder `packages/ballot-audit/image`. A release from before the tools does not contain this folder. |
+| Database servers | The audit image contains PostgreSQL 18 and ImmuDB 1.9.6. It restores backups of PostgreSQL 18 and earlier, and the ImmuDB data directory of the platform. |
 
-Write the release of the data, the commit of the tools, the ID of the audit image and the versions
-of the database servers in the audit notes.
+Write the release of the data, the commit of the tools and the ID of the audit image in the audit
+notes.
 
 ## Conventions
 
@@ -91,9 +90,9 @@ of the database servers in the audit notes.
 
 :::danger WARNING
 Do not connect the tools to a production system. Use only restored copies on an isolated
-workstation. The audit kit runs the copies and the tools in containers without a network. The
-tools also refuse remote connections, but without the kit a tunnel or a proxy can go around this
-protection.
+workstation. The audit image runs the copies and the tools in a container without a network.
+The tools also refuse remote connections, but without the image a tunnel or a proxy can go
+around this protection.
 :::
 
 :::danger WARNING

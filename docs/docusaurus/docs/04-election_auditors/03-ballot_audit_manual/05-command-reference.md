@@ -11,8 +11,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 # Command Reference
 
-This page lists all options of the audit kit, `audit-env`, and of the seven commands of the
-audit: first `audit-tally`, then the commands that it runs. It also gives the format of the two
+This page lists how to run the audit image and all options of the seven commands of the audit:
+first `audit-tally`, then the commands that it runs. It also gives the format of the two
 files that you can write: `scope.json` and `connections.json`.
 
 ## Common rules
@@ -29,61 +29,50 @@ files that you can write: `scope.json` and `connections.json`.
 In the tables, **Required** shows if you must give the option. **Default** in the description is the
 value that the command uses when you do not give the option.
 
-## audit-env
+## The audit image
 
-The audit kit. It restores the copies, runs the commands of the audit on them and removes them.
-It is in `packages/ballot-audit/kit` of the source repository. See
-[Restore the Database Copies](02-procedures/02-restore.md). Each command needs `--dir <directory>`,
-the audit directory.
+The audit image restores the backups into copies inside the container, runs `audit-tally` on
+them and stops. See [Run the Audit](02-procedures/03-run-the-audit.md).
 
-| Command | Description |
+```sh
+docker run --rm --network none -v <backups>:/backups:ro -v <output>:/output <image> \
+  --tally-session-id <ID> --public-key-sha512 <digest> \
+  --electoral-log-system-public-key <key> [-- <audit-tally option> ...]
+```
+
+| Part of the command | Description |
 | --- | --- |
-| `audit-env up` | Checks the backups, restores the copies and starts them. |
-| `audit-env tally` | Runs `audit-tally` on the copies. |
-| `audit-env exec -- <command> ...` | Runs one command of the audit in the tools container, in `<directory>/results`. `<directory>/private` is `/audit/private` there. |
-| `audit-env sql <copy> [-- <psql option> ...]` | Opens a read-only `psql` session on the copy `hasura`, `keycloak` or `b3`, as `ballot_audit_reader`. |
-| `audit-env status` | Shows the containers of the copies. |
-| `audit-env down` | Removes the copies, their volumes and `<directory>/private`. `<directory>/results` and `<directory>/backups` stay. |
-| `audit-env help` | Shows the commands. |
+| `--rm` | Removes the container, with the copies, when it stops. |
+| `--network none` | The container has no network. The copies and the tools connect only on `127.0.0.1`. |
+| `-v <backups>:/backups:ro` | The backups directory, read only. It holds `hasura.dump`, `keycloak.dump`, `b3.dump`, `immudb.tar.gz`, `backup-digests.txt` and, if the board stores messages in files, `b3-blobs.tar.gz`. |
+| `-v <output>:/output` | An empty directory for the results. |
+| `--tally-session-id <ID>` | The tally ID, from the election authority. |
+| `--public-key-sha512 <digest>` | The public key hash, from the election authority. |
+| `--electoral-log-system-public-key <key>` | The electoral log system public key, from the election authority. |
+| `-- <option> ...` | More options of `audit-tally`, for example `--statement-timeout-seconds 600`. |
 
-Options of `audit-env up`:
-
-| Option | Required | Description |
-| --- | --- | --- |
-| `--dir <directory>` | Yes | The audit directory. `<directory>/backups` holds the backups. `<directory>/private` must not exist. |
-| `--digests <file>` | Yes | One line for each backup: its SHA-512 digest, two spaces and its file name, as `shasum -a 512` writes it. The command stops if a backup has no line or a different digest. |
-| `--postgres-version <tag>` | Yes | The tag of the `postgres` image: the major version of PostgreSQL of the source, for example `16`. |
-| `--immudb-version <tag>` | Yes | The tag of the `codenotary/immudb` image: the version of ImmuDB of the source. |
-| `--image <image>` | No | The audit image. Default: `ballot-audit:local`. |
-
-The backups must have these names: `hasura.dump`, `keycloak.dump`, `b3.dump`, `immudb.tar.gz`
-and, if the board stores messages in files, `b3-blobs.tar.gz`. The ImmuDB archive holds the data
-directory, or one directory that holds it.
-
-Options of `audit-env tally`:
-
-| Option | Required | Description |
-| --- | --- | --- |
-| `--dir <directory>` | Yes | The audit directory. |
-| `--tally-session-id <ID>` | Yes | The tally ID, from the election authority. |
-| `--public-key-sha512 <digest>` | Yes | The public key hash, from the election authority. |
-| `--electoral-log-system-public-key <key>` | Yes | The electoral log system public key, from the election authority. |
-| `--output <name>` | No | The output directory in `<directory>/results`. Default: `tally`. |
-| `-- <option> ...` | No | More options of `audit-tally`, for example `--statement-timeout-seconds 600`. |
+`backup-digests.txt` has one line for each backup: its SHA-512 digest, two spaces and its file
+name, as `shasum -a 512` writes it. The ImmuDB archive holds the data directory, or one directory
+that holds it.
 
 The command gives `audit-tally` the options `--connections`, `--immudb-server-url`,
 `--immudb-username`, `--b3-server-url`, `--output` and, if there is a blob archive,
-`--b3-blob-root`. It returns the exit status of `audit-tally`.
+`--b3-blob-root`. It returns the exit status of `audit-tally`, and shows it in its last line, for
+example `ballot-audit: exit status 0 (all steps passed)`.
 
-The copies run in containers that share one network namespace without a network. They use these
-addresses:
+Two other forms:
+
+| Command | Description |
+| --- | --- |
+| `docker run --rm -it --network none -v <backups>:/backups:ro -v <output>:/output <image> shell` | Restores the copies and opens a shell in `/output`, to run one command at a time. The copies stop when you leave the shell. |
+| `docker run --rm <image> help` | Shows how to run the audit. |
+
+In the container, the copies use these addresses:
 
 | Copy | Address |
 | --- | --- |
-| Hasura | `127.0.0.1:55432`, database `hasura_copy` |
-| Keycloak | `127.0.0.1:55433`, database `keycloak_copy` |
-| B3 | `127.0.0.1:55434`, database `b3_copy` |
-| ImmuDB | `http://127.0.0.1:43322` |
+| Hasura, Keycloak, B3 | `127.0.0.1:5432`, databases `hasura_copy`, `keycloak_copy` and `b3_copy` |
+| ImmuDB | `http://127.0.0.1:3322` |
 | B3 server | `http://127.0.0.1:50051` |
 
 ## audit-tally

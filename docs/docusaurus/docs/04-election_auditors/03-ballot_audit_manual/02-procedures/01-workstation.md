@@ -1,7 +1,7 @@
 ---
 title: Set Up the Audit Workstation
 sidebar_position: 1
-description: "Prepare an isolated computer, build the audit image and get the images of the database copies."
+description: "Prepare an isolated computer with Docker and get the audit image, which contains all tools of the audit and the database servers of the copies."
 ---
 
 <!--
@@ -11,106 +11,106 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 # Set Up the Audit Workstation
 
-This procedure prepares a computer for the audit and builds the audit image. The auditor does it
-once for each audit. The audit image contains all tools of the audit. The audit kit,
-`audit-env`, uses it to restore the copies and to run the audit.
+This procedure prepares a computer for the audit. The auditor does it once for each audit. The
+computer needs only Docker and the audit image. The audit image contains all tools of the audit
+and the database servers that hold the copies.
 
 ## Before you start
 
 - You have a Linux or macOS computer with at least 16 GB of memory and enough disk space for
-  the four database copies.
+  the backups and for the four database copies.
 - The computer has encrypted storage.
-- Docker with Docker Compose version 2, Git and the `shasum` command are installed.
-- You know the release of the election platform that ran the election, the major version of
-  PostgreSQL and the version of ImmuDB. See [Versions](../01-before-you-start.md#versions).
+- Docker is installed.
+- You know the release of the election platform that ran the election. See
+  [Versions](../01-before-you-start.md#versions).
+
+## 1. Get the audit image
+
+Do one of these two tasks.
+
+**If the election authority gives you the image as a file:**
+
+1. Load the image:
+
+   ```sh
+   docker load -i <image file>
+   ```
+
+2. Set the name of the image that the command shows:
+
+   ```sh
+   export AUDIT_IMAGE=<image name>
+   ```
+
+**If you build the image from the source code:**
 
 :::note
-The build needs access to the internet. Do this procedure before you copy the backups to the
-computer. After this procedure, the audit does not need a network.
+The build needs access to the internet. Build the image before you copy the backups to the
+computer. The audit itself does not need a network.
 :::
 
-## 1. Get the source code
-
-1. Clone the source repository:
+1. Clone the source repository and go to it:
 
    ```sh
-   git clone https://github.com/sequentech/step.git
+   git clone https://github.com/sequentech/step.git && cd step
    ```
 
-2. Go to the repository:
-
-   ```sh
-   cd step
-   ```
-
-3. Check out the release tag or commit that the election authority gives you:
+2. Check out the release tag or commit that the election authority gives you:
 
    ```sh
    git checkout <tag-or-commit>
    ```
 
-4. Make sure that the commit contains the ballot audit tools:
+3. Make sure that the commit contains the audit image:
 
    ```sh
-   test -d packages/ballot-audit/kit && echo found
+   test -f packages/ballot-audit/image/run-audit && echo found
    ```
 
-5. Write the commit in the audit notes:
+4. Write the commit in the audit notes:
 
    ```sh
    git rev-parse HEAD
    ```
 
-**Expected result:** the repository is at the agreed commit, and the command shows `found`.
-
-## 2. Build the audit image
-
-1. Set the name of the image. It contains the commit:
+5. Set the name of the image. It contains the commit:
 
    ```sh
    export AUDIT_IMAGE=ballot-audit:$(git rev-parse --short HEAD)
    ```
 
-2. Build the image:
+6. Build the image:
 
    ```sh
    docker build -f packages/ballot-audit/Dockerfile.prod -t "$AUDIT_IMAGE" packages
    ```
 
-3. Write the ID of the image in the audit notes:
+**Then, in both cases:**
+
+1. Write the ID of the image in the audit notes:
 
    ```sh
    docker image inspect --format '{{.Id}}' "$AUDIT_IMAGE"
    ```
 
-4. Get the images of the database copies. Use the versions of the source:
+2. Ask a second person to compare the ID with the ID from the election authority, if there is
+   one.
 
-   ```sh
-   docker pull postgres:<PostgreSQL major version>
-   docker pull codenotary/immudb:<ImmuDB version>
-   ```
-
-5. Add the audit kit to the `PATH` of your shell:
-
-   ```sh
-   export PATH="$PWD/packages/ballot-audit/kit:$PATH"
-   ```
-
-**Expected result:** `audit-env help` shows the commands of the audit kit.
+**Expected result:** `docker run --rm "$AUDIT_IMAGE" help` shows how to run the audit.
 
 :::note
 The image contains `audit-tally`, `export-ballot-audit`, `export-electoral-log`,
 `prepare-ballot-audit`, `ballot-audit`, `audit-cast-history`, the B3 server, the Braid verifier
-`verify` and `immuclient`. To build the tools without Docker, see
-[Without the Audit Kit](../07-run-each-step/01-without-kit.md).
+`verify`, PostgreSQL 18 and ImmuDB 1.9.6. To build the tools without Docker, see
+[Without the Audit Image](../07-run-each-step/01-without-kit.md).
 :::
 
-## 3. Make the audit directory
+## 2. Make the audit directory
 
-1. Make a private directory for the audit and its backups:
+1. Make a private directory for the audit, its backups and its output:
 
    ```sh
-   mkdir -m 700 ~/audit ~/audit/backups
+   mkdir -m 700 ~/audit ~/audit/backups ~/audit/output
    ```
 
 2. Make a text file `audit-notes.txt` in `~/audit`. Write in it each value that this manual tells
@@ -122,11 +122,10 @@ The image contains `audit-tally`, `export-ballot-audit`, `export-electoral-log`,
 
 | Problem | Action |
 | --- | --- |
-| The command does not show `found`. | The commit is from before the tools. Ask the election authority for a commit that contains `packages/ballot-audit/kit`. |
-| `docker compose` is not found. | Install Docker Compose version 2. |
+| The command does not show `found`. | The commit is from before the audit image. Ask the election authority for a commit that contains `packages/ballot-audit/image`. |
+| `docker` is not found, or it cannot connect to the Docker daemon. | Install Docker and start it. |
 | The build stops because it cannot download a file. | Connect the computer to the internet for the build. Then disconnect it. |
-| `docker pull` cannot find the version. | Check the version of the source with the system operator. |
 
 ## Next
 
-[Restore the Database Copies](02-restore.md)
+[Prepare the Backups](02-restore.md)

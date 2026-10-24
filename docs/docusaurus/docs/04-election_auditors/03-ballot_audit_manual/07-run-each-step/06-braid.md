@@ -22,8 +22,8 @@ decrypted results is found only by this check. You must do both.
 ## Before you start
 
 - You did [Audit the Bundle](05-audit.md).
-- The B3 server runs on the B3 copy at `127.0.0.1:50051`. `audit-env up` starts it. Without the
-  audit kit, see [Without the Audit Kit](01-without-kit.md#7-start-the-b3-server).
+- The B3 server runs on the B3 copy at `127.0.0.1:50051`. The `shell` of the audit image starts
+  it. Without the audit image, see [Without the Audit Image](01-without-kit.md#7-start-the-b3-server).
 - You have the board name of the scope.
 
 ## 1. Find all batches on the board

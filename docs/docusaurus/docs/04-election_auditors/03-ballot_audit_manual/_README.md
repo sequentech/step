@@ -15,16 +15,16 @@ authors. Docusaurus does not publish files whose name starts with `_`.
 | --- | --- | --- |
 | `00-ballot_audit_manual.md` | Manual home: purpose, what the audit checks, the procedure table and the PDF link. | Section page |
 | `01-before-you-start.md` | Order of the work, roles, terms, versions, conventions, notices, safety rules and limits. | 1 |
-| `02-procedures/` | The audit in order, from the workstation to the clean-up, with the audit kit (`packages/ballot-audit/kit`): the audit image, `audit-env up`, `audit-env tally` and `audit-env down`. | 2 |
+| `02-procedures/` | The audit in order, from the workstation to the clean-up, with the audit image (`packages/ballot-audit/Dockerfile.prod` and `packages/ballot-audit/image/run-audit`): get the image, prepare the backups, one `docker run` command. | 2 |
 | `03-read-the-results.md` | Exit statuses, the step statuses of `audit-tally`, lookup outcomes and exclusion reasons. | 3 |
 | `04-troubleshooting.md` | Each message of the commands, with its cause and action. The messages of `audit-tally` come first. | 4 |
 | `05-command-reference.md` | All options of each command and the fields of `scope.json` and `connections.json`. Copy them from the `Args` structs of this branch. | 5 |
 | `06-file-reference.md` | The content of each file that the commands write, and which files contain personal data. Copy the fields from the code that writes each file. | 6 |
-| `07-run-each-step/` | Appendix: the setup without the audit kit, and each command of `audit-tally` run by hand for one scope, to repeat or examine one step. | 7 |
+| `07-run-each-step/` | Appendix: the setup without the audit image, and each command of `audit-tally` run by hand for one scope, to repeat or examine one step. | 7 |
 
-When `audit-env` changes, update the procedures, the `audit-env` sections of **Troubleshooting**,
-**Command Reference** and **File Reference**, and the table of the appendix home page. Copy the
-messages from `packages/ballot-audit/kit/audit-env`.
+When the audit image changes, update the procedures, the audit image sections of
+**Troubleshooting**, **Command Reference** and **File Reference**, and the table of the appendix
+home page. Copy the messages from `packages/ballot-audit/image/run-audit`.
 
 When `audit-tally` changes, update **Run the Audit**, the `audit-tally` sections of **Read the
 Results**, **Troubleshooting**, **Command Reference** and **File Reference**, and the appendix
@@ -46,6 +46,10 @@ Use the writing rules of the administrator manual (ASD-STE100, about 70 %), in
 
 ## PDF
 
-`yarn pdf` prints this manual to `build/pdf/sequent-ballot-audit-manual-<version>-en.pdf`. The
-list of manuals is in `manuals.js`. Add a locale to `locales` there only when the translation of
-all pages exists.
+`yarn pdf` prints the **Ballot Audit Guide** to
+`build/pdf/sequent-ballot-audit-guide-<version>-en.pdf`, and the download button of the
+manual home links to it. The guide has the pages of `pages` in `manuals.js` (Restore the Database
+Copies and Run the Audit), after its first page `scripts/pdf-intros/ballot-audit-guide.en.html`,
+which sends the reader to the online manual for everything else. When you add, move or rename a
+page that the first page links to, update its links. Add a locale to `locales` in `manuals.js`
+only when the translation of all pages exists.
