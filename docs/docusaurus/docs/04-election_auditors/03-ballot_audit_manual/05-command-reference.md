@@ -222,7 +222,6 @@ writes the report to the standard output. See
 
 Checks signatures, configuration, public keys, mix evidence and references in published plaintext records.
 It also checks the decryption proofs and recomputes the plaintexts of every batch; its success requires that recomputation.
-See [Versions](01-before-you-start.md#versions) for the revisions that require it.
 It reads the board through the B3 server. See
 [Verify the Bulletin Board](07-run-each-step/06-braid.md).
 

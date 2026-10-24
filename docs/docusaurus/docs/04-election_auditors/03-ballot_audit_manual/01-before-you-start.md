@@ -65,7 +65,6 @@ The code and [manual PR #4048](https://github.com/sequentech/step/pull/4048) are
 This documentation does not establish release, deployment or availability of a published image.
 
 Braid reports success only when it has recomputed the plaintexts of every batch itself.
-Revisions before `586cfe5e1b7` do not require this recomputation; do not use them to report verified decryption.
 See [Check the cryptographic tally](../04-ballot_audit_explanation.md#6-check-the-cryptographic-tally) for the checks and their interpretation.
 
 | Item | Version |
