@@ -438,7 +438,7 @@ export function TallyStoryContext({
     const context = useContext(ElectionEventTallyContext)
     const [store] = useState(() => {
         const atoms = createStore()
-        atoms.set(tallyQueryData, data)
+        atoms.set(tallyQueryData, data ? {...data, sqliteDocumentId: documentId(90)} : null)
         return atoms
     })
     const [selectedTally, setSelectedTally] = useState(tallyId)

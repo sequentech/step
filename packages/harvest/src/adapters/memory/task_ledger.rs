@@ -83,6 +83,24 @@ impl TaskLedger for MemoryTaskLedger {
         task_type: ETasksExecution,
         executed_by_user: &str,
     ) -> anyhow::Result<TasksExecution> {
+        self.post_with_annotations(
+            tenant_id,
+            election_event_id,
+            task_type,
+            executed_by_user,
+            serde_json::Value::Null,
+        )
+        .await
+    }
+
+    async fn post_with_annotations(
+        &self,
+        tenant_id: &str,
+        election_event_id: Option<&str>,
+        task_type: ETasksExecution,
+        executed_by_user: &str,
+        annotations: serde_json::Value,
+    ) -> anyhow::Result<TasksExecution> {
         self.check(Refusal::Everything)?;
         let mut tasks = self.tasks.lock().unwrap();
         let task: TasksExecution = serde_json::from_value(json!({
@@ -91,7 +109,7 @@ impl TaskLedger for MemoryTaskLedger {
             "name": task_type.to_name(), "task_type": task_type.to_string(),
             "execution_status": TasksExecutionStatus::IN_PROGRESS.to_string(),
             "created_at": "2026-01-01T00:00:00Z",
-            "executed_by_user": executed_by_user, "annotations": null
+            "executed_by_user": executed_by_user, "annotations": annotations
         }))?;
         tasks.push(task.clone());
         Ok(task)
@@ -121,5 +139,39 @@ impl TaskLedger for MemoryTaskLedger {
             &format!("Error: {err_message}"),
             None,
         )
+    }
+}
+
+#[cfg(test)]
+mod result_binding_tests {
+    use super::*;
+    #[tokio::test]
+    async fn result_binding_is_created_atomically_with_the_task() {
+        let annotations = json!({"result_readiness_version":1, "expected_document_id":"pdf", "tally_result_origin":{"execution_id":"execution"}});
+        let ledger = MemoryTaskLedger::default();
+        let task = ledger
+            .post_with_annotations(
+                "tenant",
+                Some("event"),
+                ETasksExecution::RENDER_DOCUMENT_PDF,
+                "admin",
+                annotations.clone(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(task.annotations, Some(annotations.clone()));
+        assert_eq!(ledger.tasks()[0].annotations, Some(annotations.clone()));
+        let refusing = MemoryTaskLedger::refusing();
+        assert!(refusing
+            .post_with_annotations(
+                "tenant",
+                Some("event"),
+                ETasksExecution::RENDER_DOCUMENT_PDF,
+                "admin",
+                annotations
+            )
+            .await
+            .is_err());
+        assert!(refusing.tasks().is_empty());
     }
 }

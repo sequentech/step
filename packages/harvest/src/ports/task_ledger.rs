@@ -18,6 +18,15 @@ pub trait TaskLedger: Send + Sync {
         executed_by_user: &str,
     ) -> anyhow::Result<TasksExecution>;
 
+    async fn post_with_annotations(
+        &self,
+        tenant_id: &str,
+        election_event_id: Option<&str>,
+        task_type: ETasksExecution,
+        executed_by_user: &str,
+        annotations: serde_json::Value,
+    ) -> anyhow::Result<TasksExecution>;
+
     async fn update_complete(
         &self,
         task: &TasksExecution,
