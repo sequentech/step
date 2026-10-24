@@ -117,8 +117,10 @@ restore_postgres() {
         info "restoring backups/$copy.dump into ${copy}_copy"
         log="$LOGS/restore-$copy.log"
         gosu postgres createdb -h "$WORK/pg" -p "$PG_PORT" -T template0 "${copy}_copy"
+        # The dump goes in through stdin: this shell, not the postgres user,
+        # opens it, so a private (mode 700) backups directory still works.
         if ! gosu postgres pg_restore -h "$WORK/pg" -p "$PG_PORT" --no-owner --no-privileges \
-            -d "${copy}_copy" "$BACKUPS/$copy.dump" >"$log" 2>&1; then
+            -d "${copy}_copy" <"$BACKUPS/$copy.dump" >"$log" 2>&1; then
             errors="$(grep -c 'error:' "$log" || true)"
             info "WARNING: pg_restore reported $errors error(s) for $copy.dump." \
                 "Read restore/restore-$copy.log in the output and write each error in the audit notes."
@@ -183,6 +185,14 @@ start_immudb() {
         fi
     done
     [ "$first" -eq 0 ] || die "the ImmuDB copy has no databases"
+    # The read permission lets the account open each database but not run SQL
+    # on it. SELECT is granted after all permissions, which would otherwise
+    # replace it. Names that SQL cannot quote (the system databases) are not
+    # audited.
+    for database in $databases; do
+        immuclient_admin exec "GRANT SELECT ON DATABASE $database TO USER $READER;" \
+            --database "$database" >/dev/null 2>&1 || true
+    done
     immuadmin_admin logout >/dev/null
 }
 

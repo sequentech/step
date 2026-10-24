@@ -537,9 +537,11 @@ impl std::fmt::Display for VerificationResult {
 #[cfg(test)]
 mod tests {
     use super::{check_batches, verify_messages, Check, VerificationResult};
-    use b3::messages::artifact::Ballots;
+    use b3::messages::artifact::{Ballots, Configuration};
     use b3::messages::message::Message;
-    use b3::messages::newtypes::{BatchNumber, PublicKeyHash, MAX_TRUSTEES, NULL_TRUSTEE};
+    use b3::messages::newtypes::{
+        BatchNumber, PublicKeyHash, MAX_TRUSTEES, NULL_TRUSTEE, VERIFIER_INDEX,
+    };
     use b3::messages::statement::StatementType;
     use std::collections::BTreeSet;
     use std::sync::{Arc, Mutex};
@@ -549,6 +551,7 @@ mod tests {
     use strand::serialization::{StrandDeserialize, StrandSerialize};
     use strand::signature::StrandSignatureSk;
 
+    use crate::protocol::predicate::Predicate;
     use crate::protocol::trustee2::Trustee;
     use crate::test::protocol_test_memory::create_protocol_test;
     use crate::test::vector_session::VectorSession;
@@ -807,5 +810,64 @@ mod tests {
             .filter(|(m, _)| m.statement.get_batch_number() == 0)
             .collect();
         assert_incomplete(verify_board::<RistrettoCtx>(without_batches, None));
+    }
+
+    /// The datalog verdict must depend on the verifier's own confirmation that
+    /// it recomputed the plaintexts, not only on the published records.
+    #[test]
+    fn verified_requires_verifier_plaintexts_confirmation() {
+        let messages = run_board(RistrettoCtx, 2);
+        let cfg_message = messages
+            .iter()
+            .find(|m| m.0.statement.get_kind() == StatementType::Configuration)
+            .unwrap();
+        let cfg_bytes = cfg_message.0.artifact.as_ref().unwrap();
+        let cfg = Configuration::<RistrettoCtx>::strand_deserialize(cfg_bytes).unwrap();
+
+        let mut predicates = vec![];
+        for (message, _) in &messages[1..] {
+            let verified = message.verify(&cfg).unwrap();
+            predicates.push(
+                Predicate::from_statement::<RistrettoCtx>(
+                    &verified.statement,
+                    verified.signer_position,
+                    &cfg,
+                )
+                .unwrap(),
+            );
+        }
+        predicates.push(Predicate::get_verifier_bootstrap_predicate(&cfg).unwrap());
+
+        let mut trustee: Trustee<RistrettoCtx> = Trustee::new(
+            "Verifier".to_string(),
+            "board".to_string(),
+            StrandSignatureSk::gen().unwrap(),
+            strand::symm::gen_key(),
+            None,
+            None,
+        );
+        let outputs = trustee.verify(messages).unwrap();
+        let mut outputs_without_confirmation = vec![];
+        for message in &outputs {
+            let predicate =
+                Predicate::from_statement::<RistrettoCtx>(&message.statement, VERIFIER_INDEX, &cfg)
+                    .unwrap();
+            predicates.push(predicate);
+            if message.statement.get_kind() != StatementType::PlaintextsSigned
+                || message.statement.get_batch_number() != 2
+            {
+                outputs_without_confirmation.push(predicate);
+            }
+        }
+        let base: Vec<Predicate> = predicates[..predicates.len() - outputs.len()].to_vec();
+
+        let (_, _, verified) = crate::verify::datalog::S.run(&predicates);
+        assert_eq!(verified.len(), 2);
+
+        let mut partial = base;
+        partial.extend(outputs_without_confirmation);
+        let (_, _, verified) = crate::verify::datalog::S.run(&partial);
+        let batches: BTreeSet<BatchNumber> = verified.iter().map(|v| v.1).collect();
+        assert_eq!(batches, BTreeSet::from([1]));
     }
 }
