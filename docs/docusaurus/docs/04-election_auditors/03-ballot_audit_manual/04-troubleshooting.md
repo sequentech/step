@@ -15,9 +15,10 @@ This page lists the messages of the ballot audit commands. The exit status is in
 
 ## Messages of the audit image
 
-The audit image shows its own messages after `ballot-audit:`. It stops with exit status `1` after
-each of these messages, before the audit. This exit status is not a result of the audit. When the
-audit runs, the exit status is the exit status of `audit-tally`.
+The audit image shows its own messages after `ballot-audit:`. After each of these messages except
+the two warnings, it stops before the audit: with exit status `2` after a wrong option, and `4`
+after any other message. This exit status is not a result of the audit. When the audit runs, the exit
+status is the exit status of `audit-tally`.
 
 | Message | Cause | Action |
 | --- | --- | --- |
@@ -28,7 +29,9 @@ audit runs, the exit status is the exit status of `audit-tally`.
 | `no backups; mount the backups directory at /backups` | The command has no `-v <backups>:/backups:ro`. | Add it. |
 | `no output; mount an empty output directory at /output` | The command has no `-v <output>:/output`. | Add it. |
 | `the output directory is not empty; use a new one` | The output directory has files of an earlier run. | Use a new, empty directory. |
-| `WARNING: pg_restore reported ... error(s) for ...` | `pg_restore` could not restore part of a backup. The command continues. | Read the log in `output/restore`. Write each error in the audit notes. |
+| `WARNING: pg_restore reported ... error(s) for ...` | `pg_restore` could not restore part of a backup. The command restores the other backups. | Read the log in `output/restore`. Write each error in the audit notes. |
+| `not auditing: the restore of ... had errors` | A copy can miss rows after a restore error, and an audit of it could pass. The command stops before the audit. | Ask the system operator for a backup that restores without errors. To examine the errors, use the `shell` form, which opens after restore errors. |
+| `WARNING: the read-only account cannot run SQL on the ImmuDB database ...` | The copy did not accept the read permission for this database. | If it is the electoral log of the event, the audit stops at `export-electoral-log`. Read `output/restore/immudb-grants.log`. |
 | `the ImmuDB archive has no systemdb directory` | The ImmuDB archive is not an ImmuDB data directory. | Ask the system operator for the correct archive. |
 | `the ImmuDB copy has no databases` | The ImmuDB data directory is empty. | Ask the system operator for the correct archive. |
 | `ImmuDB did not start`, `the B3 server did not start` | A copy did not start. The command shows the end of its log. | Read the logs in `output/restore`. |
