@@ -2175,6 +2175,8 @@ const tagalogTranslation: TranslationType = {
             },
         },
         tally: {
+            numericResultsReportsPending:
+                "Kumpleto na ang mga numerikong resulta. Ginagawa pa ang mga ulat.",
             errorUploadingSignature: "Nagkaroon ng error sa pag-upload ng pirma",
             downloadTransmissionPackage: "I-download ang pakete",
             resultsPublication: {
