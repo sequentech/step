@@ -2,6 +2,7 @@
 id: decline_to_vote
 title: Decline to Vote
 sidebar_position: 7
+description: "The Decline to Vote policy lets voters formally abstain from an entire election at once, across all of its contests, instead of casting candidate selections."
 ---
 
 <!--
@@ -13,7 +14,7 @@ The **Decline to Vote** policy lets voters formally abstain from an entire elect
 
 This feature is available **only when the Election Event uses the Multiple Contests encryption policy**. It does not apply to Single Contest encryption.
 
-> **Note on Instant Runoff (IRV):** The Instant Runoff counting algorithm is not currently supported with Multiple Contests encryption. Because Decline to Vote requires Multiple Contests encryption, it does not apply to elections that use IRV today. See [Instant Runoff Algorithm](../../07-developers/07-velvet/05-instant-runoff.md) for details on IRV limitations.
+> **Note on Instant Runoff (IRV):** The Instant Runoff counting algorithm is not currently supported with Multiple Contests encryption. Because Decline to Vote requires Multiple Contests encryption, it does not apply to elections that use IRV today. See [Instant Runoff Algorithm](/docs/developers/velvet/velvet_instant_runoff) for details on IRV limitations.
 
 ---
 

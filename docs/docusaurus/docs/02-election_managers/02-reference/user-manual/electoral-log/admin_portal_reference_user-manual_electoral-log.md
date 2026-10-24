@@ -1,6 +1,7 @@
 ---
 id: admin_portal_reference_user_manual_electoral_log
 title: Electoral Log
+description: "The Electoral Log page shows the electoral log and the ballot box of your tenant's election events, and lets authorized administrators run read-only SQL queries on them."
 ---
 
 <!--
