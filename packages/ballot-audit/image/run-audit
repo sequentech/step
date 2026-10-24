@@ -1,0 +1,310 @@
+#!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# Entry point of the ballot audit image. It checks the backups in /backups,
+# restores them into copies inside this container, runs the audit on them,
+# writes the results to /output and exits. The copies are lost when the
+# container stops. See `help`.
+
+set -euo pipefail
+
+BACKUPS=/backups
+DIGESTS="$BACKUPS/backup-digests.txt"
+OUTPUT=/output
+WORK=/var/lib/ballot-audit
+LOGS="$OUTPUT/restore"
+PRIVATE="$WORK/private"
+READER=ballot_audit_reader
+PG_PORT=5432
+IMMUDB_PORT=3322
+B3_PORT=50051
+PASSWORD_ENV=BALLOT_AUDIT_IMMUDB_PASSWORD
+PG_COPIES="hasura keycloak b3"
+IMMUDB_BACKUP=immudb.tar.gz
+B3_BLOBS_BACKUP=b3-blobs.tar.gz
+
+die() {
+    echo "ballot-audit: $*" >&2
+    exit 1
+}
+
+info() {
+    echo "ballot-audit: $*" >&2
+}
+
+usage() {
+    cat <<'EOF'
+Usage:
+  docker run --rm --network none -v <backups>:/backups:ro -v <output>:/output <image> \
+    --tally-session-id <ID> --public-key-sha512 <digest> \
+    --electoral-log-system-public-key <key> [-- <audit-tally option> ...]
+  docker run --rm -it --network none -v <backups>:/backups:ro -v <output>:/output <image> shell
+
+<backups> holds hasura.dump, keycloak.dump and b3.dump (pg_dump custom format),
+immudb.tar.gz (the ImmuDB data directory), b3-blobs.tar.gz if the board stores
+messages in files, and backup-digests.txt: one line "<SHA-512>  <file name>"
+for each backup, from the system operator. <output> must be empty.
+
+The container checks the backups, restores them into copies with read-only
+accounts, starts ImmuDB and the B3 server, and runs audit-tally. It writes the
+results of audit-tally to <output>, and the messages of the restore to
+<output>/restore. The exit status is the exit status of audit-tally. The copies
+are removed when the container stops.
+
+shell   restores the copies and opens a shell in <output>, to run one command
+        of the audit at a time.
+EOF
+}
+
+check_backups() {
+    local name expected actual
+    [ -d "$BACKUPS" ] || die "no backups; mount the backups directory at /backups"
+    [ -f "$DIGESTS" ] || die "no backup-digests.txt in the backups directory"
+    for name in hasura.dump keycloak.dump b3.dump "$IMMUDB_BACKUP"; do
+        [ -f "$BACKUPS/$name" ] || die "missing backup: backups/$name"
+        grep -Eq "^[0-9a-f]{128}[ *]+$name\$" "$DIGESTS" || die "no digest for $name in backup-digests.txt"
+    done
+    if [ -f "$BACKUPS/$B3_BLOBS_BACKUP" ]; then
+        grep -Eq "^[0-9a-f]{128}[ *]+$B3_BLOBS_BACKUP\$" "$DIGESTS" \
+            || die "no digest for $B3_BLOBS_BACKUP in backup-digests.txt"
+    fi
+    while read -r expected name; do
+        [ -n "$expected" ] || continue
+        name="${name#\*}"
+        [ -f "$BACKUPS/$name" ] || die "missing backup: backups/$name"
+        actual="$(sha512sum "$BACKUPS/$name" | cut -d' ' -f1)"
+        [ "$actual" = "$expected" ] || die "backup digest mismatch: backups/$name; do not restore it"
+        info "$name: SHA-512 matches"
+    done <"$DIGESTS"
+}
+
+# 28 characters with an upper case letter, a lower case letter, a digit and a
+# symbol, as ImmuDB requires. No character needs quoting.
+new_password() {
+    printf '%s%s' "$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 24)" 'Aa1!'
+}
+
+wait_for() {
+    local what="$1" log="$2" tries=60
+    shift 2
+    until "$@" >/dev/null 2>&1; do
+        tries=$((tries - 1))
+        if [ "$tries" -le 0 ]; then
+            tail -n 20 "$log" >&2 || true
+            die "$what did not start"
+        fi
+        sleep 1
+    done
+}
+
+psql_admin() {
+    gosu postgres psql -q -v ON_ERROR_STOP=1 -h "$WORK/pg" -p "$PG_PORT" -d postgres "$@"
+}
+
+restore_postgres() {
+    local copy errors log
+    mkdir -p "$WORK/pg" "$LOGS"
+    chown postgres:postgres "$WORK/pg"
+    gosu postgres initdb -D "$WORK/pg/data" -U postgres --auth-local=trust \
+        --auth-host=scram-sha-256 >"$LOGS/postgres-init.log"
+    gosu postgres pg_ctl -D "$WORK/pg/data" -l "$WORK/pg/server.log" -w \
+        -o "-c listen_addresses=127.0.0.1 -p $PG_PORT -k $WORK/pg" start >/dev/null
+    psql_admin -c "ALTER ROLE postgres PASSWORD '$POSTGRES_PASSWORD'" \
+        -c "CREATE ROLE $READER LOGIN PASSWORD '$READER_PG_PASSWORD'" \
+        -c "GRANT pg_read_all_data TO $READER"
+    for copy in $PG_COPIES; do
+        info "restoring backups/$copy.dump into ${copy}_copy"
+        log="$LOGS/restore-$copy.log"
+        gosu postgres createdb -h "$WORK/pg" -p "$PG_PORT" -T template0 "${copy}_copy"
+        if ! gosu postgres pg_restore -h "$WORK/pg" -p "$PG_PORT" --no-owner --no-privileges \
+            -d "${copy}_copy" "$BACKUPS/$copy.dump" >"$log" 2>&1; then
+            errors="$(grep -c 'error:' "$log" || true)"
+            info "WARNING: pg_restore reported $errors error(s) for $copy.dump." \
+                "Read restore/restore-$copy.log in the output and write each error in the audit notes."
+        fi
+    done
+}
+
+unpack() {
+    local top
+    info "unpacking backups/$IMMUDB_BACKUP"
+    mkdir -p "$WORK/immudb" "$WORK/b3-blobs"
+    tar -C "$WORK/immudb" -xzf "$BACKUPS/$IMMUDB_BACKUP"
+    # The archive holds the data directory, or one directory that holds it.
+    if [ ! -d "$WORK/immudb/systemdb" ]; then
+        top="$(ls -A "$WORK/immudb")"
+        if [ "$(echo "$top" | wc -l)" -ne 1 ] || [ ! -d "$WORK/immudb/$top/systemdb" ]; then
+            die "the ImmuDB archive has no systemdb directory"
+        fi
+        mv "$WORK/immudb/$top"/* "$WORK/immudb/"
+        rmdir "$WORK/immudb/$top"
+    fi
+    if [ -f "$BACKUPS/$B3_BLOBS_BACKUP" ]; then
+        info "unpacking backups/$B3_BLOBS_BACKUP"
+        tar -C "$WORK/b3-blobs" -xzf "$BACKUPS/$B3_BLOBS_BACKUP"
+    fi
+}
+
+# immuclient <command> [<option> ...] as the admin user, with a new login.
+immuclient_admin() {
+    local token status=0
+    token="$(mktemp)"
+    IMMUCLIENT_USERNAME=immudb IMMUCLIENT_PASSWORD="$IMMUDB_ADMIN_PASSWORD" \
+        immuclient "$@" --immudb-port "$IMMUDB_PORT" --tokenfile "$token" || status=$?
+    rm -f "$token"
+    return "$status"
+}
+
+immuadmin_admin() {
+    immuadmin "$@" -p "$IMMUDB_PORT" --tokenfile "$WORK/immuadmin-token"
+}
+
+# The copy keeps the users of the source. A new admin password lets this
+# script make the read-only user without the password of the source. A user
+# created with SQL can read one database; immuadmin gives it the others.
+start_immudb() {
+    local databases database first=1
+    immudb --dir "$WORK/immudb" --address 127.0.0.1 --port "$IMMUDB_PORT" \
+        --pgsql-server=false --metrics-server=false --web-server=false \
+        --admin-password "$IMMUDB_ADMIN_PASSWORD" --force-admin-password \
+        >"$LOGS/immudb.log" 2>&1 &
+    wait_for "ImmuDB" "$LOGS/immudb.log" immuclient_admin query "SHOW DATABASES;" --database defaultdb
+    printf '%s' "$IMMUDB_ADMIN_PASSWORD" | immuadmin_admin login immudb >/dev/null
+    databases="$(immuclient_admin query "SHOW DATABASES;" --database defaultdb \
+        | sed -n 's/^| *"\([^"]*\)" *|$/\1/p')"
+    for database in $databases; do
+        if [ "$first" -eq 1 ]; then
+            immuclient_admin exec "CREATE USER $READER WITH PASSWORD '$READER_IMMUDB_PASSWORD' READ;" \
+                --database "$database" >/dev/null
+            first=0
+        else
+            immuadmin_admin user permission grant "$READER" read "$database" >/dev/null
+        fi
+    done
+    [ "$first" -eq 0 ] || die "the ImmuDB copy has no databases"
+    immuadmin_admin logout >/dev/null
+}
+
+b3_listening() {
+    exec 3<>"/dev/tcp/127.0.0.1/$B3_PORT"
+}
+
+start_b3() {
+    (
+        export B3_PG_HOST=127.0.0.1 B3_PG_PORT="$PG_PORT" B3_PG_USER=postgres \
+            B3_PG_PASSWORD="$POSTGRES_PASSWORD" B3_PG_DATABASE=b3_copy B3_BIND="127.0.0.1:$B3_PORT"
+        if [ -n "$(ls -A "$WORK/b3-blobs")" ]; then
+            export B3_BLOB_ROOT="$WORK/b3-blobs"
+        fi
+        exec b3-server
+    ) >"$LOGS/b3-server.log" 2>&1 &
+    wait_for "the B3 server" "$LOGS/b3-server.log" b3_listening
+}
+
+write_connections() {
+    local copy separator="" digest
+    mkdir -m 700 "$PRIVATE"
+    {
+        echo '{'
+        echo '  "format_version": 1,'
+        for copy in $PG_COPIES; do
+            digest="$(sha512sum "$BACKUPS/$copy.dump" | cut -d' ' -f1)"
+            printf '%s  "%s": {\n' "$separator" "$copy"
+            printf '    "connection_string": "host=127.0.0.1 port=%s dbname=%s_copy user=%s password=%s",\n' \
+                "$PG_PORT" "$copy" "$READER" "$READER_PG_PASSWORD"
+            printf '    "restore_reference": "%s.dump sha512:%s"\n  }' "$copy" "$digest"
+            separator=$',\n'
+        done
+        printf '\n}\n'
+    } >"$PRIVATE/connections.json"
+    chmod 600 "$PRIVATE/connections.json"
+}
+
+# The output belongs to the owner of the backups, not to root.
+give_output_back() {
+    chown -R "$(stat -c %u:%g "$DIGESTS")" "$OUTPUT" 2>/dev/null || true
+}
+
+start_copies() {
+    [ -d "$OUTPUT" ] || die "no output; mount an empty output directory at /output"
+    [ -z "$(ls -A "$OUTPUT")" ] || die "the output directory is not empty; use a new one"
+    check_backups
+    trap give_output_back EXIT
+    POSTGRES_PASSWORD="$(new_password)"
+    READER_PG_PASSWORD="$(new_password)"
+    IMMUDB_ADMIN_PASSWORD="$(new_password)"
+    READER_IMMUDB_PASSWORD="$(new_password)"
+    restore_postgres
+    unpack
+    start_immudb
+    start_b3
+    write_connections
+    info "the copies are ready"
+}
+
+status_meaning() {
+    case "$1" in
+        0) echo "all steps passed" ;;
+        1) echo "a step found a contradiction" ;;
+        2) echo "usage error" ;;
+        3) echo "evidence is missing or a step did not run: the audit is incomplete" ;;
+        4) echo "an input was refused" ;;
+        *) echo "unexpected status" ;;
+    esac
+}
+
+run_audit() {
+    local args=()
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --tally-session-id | --public-key-sha512 | --electoral-log-system-public-key)
+                [ $# -ge 2 ] || die "$1 needs a value"
+                args+=("$1" "$2"); shift 2 ;;
+            --) shift; args+=("$@"); break ;;
+            *) usage >&2; die "unknown option: $1" ;;
+        esac
+    done
+    start_copies
+    if [ -n "$(ls -A "$WORK/b3-blobs")" ]; then
+        args+=(--b3-blob-root "$WORK/b3-blobs")
+    fi
+    # audit-tally makes its own output directory. Its files then move to the
+    # mounted output; their paths in the audit record are relative.
+    local status=0
+    env "$PASSWORD_ENV=$READER_IMMUDB_PASSWORD" audit-tally \
+        --connections "$PRIVATE/connections.json" \
+        --immudb-server-url "http://127.0.0.1:$IMMUDB_PORT" --immudb-username "$READER" \
+        --b3-server-url "http://127.0.0.1:$B3_PORT" \
+        --output "$WORK/tally" "${args[@]}" || status=$?
+    if [ -d "$WORK/tally" ]; then
+        cp -a "$WORK/tally/." "$OUTPUT/"
+    fi
+    info "exit status $status ($(status_meaning "$status"))"
+    exit "$status"
+}
+
+run_shell() {
+    start_copies
+    export "$PASSWORD_ENV=$READER_IMMUDB_PASSWORD"
+    export PGHOST=127.0.0.1 PGPORT="$PG_PORT" PGUSER="$READER" PGPASSWORD="$READER_PG_PASSWORD"
+    cat >&2 <<EOF
+ballot-audit: the copies run in this container until you leave the shell.
+  connections file    $PRIVATE/connections.json
+  PostgreSQL copies   psql hasura_copy | keycloak_copy | b3_copy (read only)
+  ImmuDB              http://127.0.0.1:$IMMUDB_PORT, user $READER (password in \$$PASSWORD_ENV)
+  B3 server           http://127.0.0.1:$B3_PORT
+  B3 blob directory   $WORK/b3-blobs
+EOF
+    cd "$OUTPUT"
+    local status=0
+    PGOPTIONS="-c default_transaction_read_only=on" bash -i || status=$?
+    exit "$status"
+}
+
+case "${1:-}" in
+    shell) run_shell ;;
+    help | -h | --help) usage ;;
+    "") usage >&2; exit 2 ;;
+    *) run_audit "$@" ;;
+esac

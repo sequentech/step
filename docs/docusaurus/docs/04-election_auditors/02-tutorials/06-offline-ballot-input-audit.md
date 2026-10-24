@@ -108,46 +108,48 @@ The trust anchors stay outside the copies: the tally ID, the two keys and the
 digests of the backups. Each command below can still run on its own to repeat
 or examine one step.
 
-## Restore the copies with the audit kit
+## Run the audit with the audit image
 
-`packages/ballot-audit/kit` restores the four backups into local copies and runs
-`audit-tally` on them, with Docker Compose. Build its image from `packages/`:
+`packages/ballot-audit/Dockerfile.prod` builds one image that restores the
+backups into copies inside the container and runs `audit-tally` on them. Build
+it from `packages/`:
 
 ```sh
 docker build -f ballot-audit/Dockerfile.prod -t ballot-audit:<commit> .
 ```
 
-The image holds the six ballot audit commands, the B3 server (`b3-server`), the
-Braid `verify` program and `immuclient`. Put the backups in `<dir>/backups`:
-`hasura.dump`, `keycloak.dump` and `b3.dump` (`pg_dump` custom format),
-`immudb.tar.gz` (the ImmuDB data directory) and, for file-backed boards,
-`b3-blobs.tar.gz`. Write the digests from the system operator into a file in
-`sha512sum` format, then:
+The image is based on `postgres:18-bookworm` and holds the six ballot audit
+commands, the B3 server (`b3-server`), the Braid `verify` program and ImmuDB
+1.9.6 (`immudb`, `immuadmin`, `immuclient`, pinned by SHA-256). Put the backups
+in one directory: `hasura.dump`, `keycloak.dump` and `b3.dump` (`pg_dump`
+custom format), `immudb.tar.gz` (the ImmuDB data directory), `b3-blobs.tar.gz`
+for file-backed boards, and `backup-digests.txt` with the digests from the
+system operator in `sha512sum` format. Then:
 
 ```sh
-audit-env up --dir <dir> --digests <digests file> --image ballot-audit:<commit> \
-  --postgres-version <source major version> --immudb-version <source version>
-audit-env tally --dir <dir> --tally-session-id "$TALLY_SESSION_ID" \
+docker run --rm --network none -v <backups>:/backups:ro -v <empty output>:/output \
+  ballot-audit:<commit> --tally-session-id "$TALLY_SESSION_ID" \
   --public-key-sha512 "$PUBLIC_KEY_SHA512" \
   --electoral-log-system-public-key "$ELECTORAL_LOG_SYSTEM_PUBLIC_KEY"
-audit-env down --dir <dir>
 ```
 
-`up` refuses a backup whose digest differs or is missing. It restores the
-PostgreSQL copies with `pg_restore --no-owner --no-privileges` and makes the
-role `ballot_audit_reader` with `pg_read_all_data`. It unpacks the ImmuDB data
-directory and starts ImmuDB with a new admin password
-(`IMMUDB_FORCE_ADMIN_PASSWORD`), so the password of the source is not needed.
-It then makes `ballot_audit_reader` with read access to each ImmuDB database,
-starts the B3 server on the B3 copy and writes `<dir>/private/connections.json`.
-Every container shares the network namespace of one container with
-`network_mode: none`. The copies reach each other only on `127.0.0.1`, which the
-loopback-only rules of the tools accept, and nothing reaches outside.
+The entry point (`image/run-audit`) refuses a backup whose digest differs or is
+missing, and an output directory that is not empty. It restores the PostgreSQL
+backups into one PostgreSQL 18 server with `pg_restore --no-owner
+--no-privileges` and makes the role `ballot_audit_reader` with
+`pg_read_all_data`. It unpacks the ImmuDB data directory and starts ImmuDB with
+a new admin password (`--force-admin-password`), so the password of the source
+is not needed, then gives `ballot_audit_reader` read access to each ImmuDB
+database. It starts the B3 server on the B3 copy, writes `connections.json` and
+runs `audit-tally`. With `--network none` the container has only `127.0.0.1`,
+which the loopback-only rules of the tools accept. The results of `audit-tally`
+go to the output directory, the messages of the restore to `<output>/restore`,
+and the files belong to the owner of `backup-digests.txt`. The exit status is
+the exit status of `audit-tally`. The copies are removed with the container.
 
-`tally` writes to `<dir>/results/<name>` (default `tally`). `exec` runs one
-command in the tools container, in `/audit/results`, to repeat one step. `down`
-removes the containers, the volumes and `<dir>/private`, and keeps `results`
-and `backups`.
+`shell` in place of the options restores the copies and opens a shell in
+`/output`, with read-only `psql` access to the copies, to run one command at a
+time.
 
 ## Existing checks and the gap addressed
 
