@@ -16,6 +16,7 @@ import java.util.Optional;
 import java.util.regex.Pattern;
 import lombok.experimental.UtilityClass;
 import lombok.extern.jbosslog.JBossLog;
+import sequent.keycloak.authenticator.diagnostics.ScanovateDiagnostics;
 
 /**
  * Interprets the responses of the on-premise Scanovate OCR service, see {@link OcrClient}.
@@ -62,12 +63,14 @@ public class OcrResults {
     for (JsonNode response : responses) {
       String status = response == null ? "" : response.path("status").asText("");
       if (!COMPLETED.equals(status)) {
-        throw new IOException("The OCR service could not process the image: " + status);
+        throw new ServiceFailure(ScanovateDiagnostics.ServiceError.PROVIDER_RESPONSE);
       }
       JsonNode result = processingResult(response);
       String resultStatus = result.path("status").asText("");
       if (!SUCCESS.equals(resultStatus)) {
-        log.warnv("combine: a side of the document could not be read: {0}", resultStatus);
+        log.warnv(
+            "combine: a side of the document could not be read: {0}",
+            ScanovateDiagnostics.status(resultStatus));
         return Optional.empty();
       }
       merge(fields, result.path("fields"));

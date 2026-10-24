@@ -84,6 +84,15 @@ class IdentityVerificationResourceTest {
     assertEquals(401, resource.livenessCallback(null, SECRET, body).getStatus());
     assertEquals(400, resource.livenessCallback(token, SECRET, "not json").getStatus());
     assertEquals(400, resource.livenessCallback(token, SECRET, "[]").getStatus());
+    assertEquals(400, resource.livenessCallback(token, SECRET, null).getStatus());
+    assertEquals(400, resource.livenessCallback(token, SECRET, "null").getStatus());
+    assertEquals(
+        401,
+        resource.livenessCallback(token, SECRET, body.replace("proc-1", "other-case")).getStatus());
+    assertTrue(sessions.awaitResult(token, 0).isEmpty());
+    // Rejected callbacks cannot poison the authorized result or weaken the secret check.
+    assertEquals(200, resource.livenessCallback(token, SECRET, body).getStatus());
+    assertTrue(sessions.awaitResult(token, 0).orElseThrow().passed());
   }
 
   // Keycloak's security headers turn a response without a media type into a 500, which Liveness
