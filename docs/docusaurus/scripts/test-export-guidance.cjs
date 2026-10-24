@@ -126,6 +126,11 @@ test('retains complete articles across physical PDF pages',()=>using(f=>{
 }));
 
 
+test('retains paragraphs split across physical PDF pages that also hold lists',()=>using(f=>{
+  const text=i=>`Paragraph ${i+1}: Check the identity of each delivered item before use and record the outcome, so that the next role continues from a known state. `.repeat(3);
+  changeArticle(f,Array.from({length:30},(_,i)=>`<p>${text(i)}</p><ul><li>Item ${i+1}</li><li><p>Loose item ${i+1}</p></li></ul>`).join(''));
+  const m=f.run();assert.ok(m.documents[0].page_count>3);
+}));
 test('prints warning callouts with compact decorative icons',()=>using(f=>{
   changeArticle(f,'<div class="theme-admonition"><div class="admonitionHeading_test"><span class="admonitionIcon_test"><svg viewBox="0 0 16 16"><path d="M0 0h16v16H0z"></path></svg></span>Warning</div><p>Read this preparation warning before proceeding.</p></div>');
   const m=f.run();assert.equal(m.documents[0].page_count,2);
