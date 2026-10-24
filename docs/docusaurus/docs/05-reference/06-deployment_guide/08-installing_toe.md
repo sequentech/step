@@ -190,7 +190,8 @@ before the trustee keys are installed:
 
    The first command must list two tenants: `90505c8a-23a9-4cdf-a26b-4e19f6a097d5`
    (the super-admin tenant) and the customer's tenant with the short name you
-   entered. Put its ID into the second command.
+   entered. Put its ID into the second command, and add the same line to
+   `/root/deploy/hosts.env` on the administration workstation.
 4. Ask the operator of the external authentication server to register the
    redirect URI `https://PORTAL_HOST/realms/CR/broker/IDP_ALIAS/endpoint`,
    with your value of CR (see

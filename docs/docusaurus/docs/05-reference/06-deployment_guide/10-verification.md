@@ -313,18 +313,21 @@ holds no election event), `0` (no personal account of the realm R is
 enabled), and the two realms R and CR, each followed by `t|t` (changes made
 through the administration interface are recorded with their details).
 
-Then check that no plugin is installed and that the object storage's bucket
-`election-event-documents`, which holds the realm templates, refuses access
-without credentials. Plugins would be files under `plugins/` in the bucket
-`public`, the only bucket that browsers may read. This one-off pod checks both
-with the object storage's command-line tool:
+Then check the buckets of the object storage: no plugin is installed, the
+bucket `election-event-documents`, which holds the realm templates, refuses
+access without credentials, the bucket `public` lets anyone read its files and
+allows nothing else without credentials, and the bucket
+`electoral-log-checkpoints`, which holds the checkpoints of the electoral log,
+has Object Lock. Plugins would be files under `plugins/` in the bucket
+`public`, the only bucket that browsers may read. This one-off pod makes the
+checks with the object storage's command-line tool:
 
 ```bash
-cat > /root/deploy/plugin-check.yaml <<'EOF'
+cat > /root/deploy/storage-check.yaml <<'EOF'
 apiVersion: v1
 kind: Pod
 metadata:
-  name: plugin-check
+  name: storage-check
   namespace: step-infra
 spec:
   restartPolicy: Never
@@ -335,11 +338,20 @@ spec:
       command: ["/bin/sh", "-c"]
       args:
         - |
-          aws s3api list-objects-v2 --bucket public --prefix plugins/ --query KeyCount
+          aws s3api list-objects-v2 --bucket public --prefix plugins/ \
+            --query 'length(Contents || `[]`)'
           aws --no-sign-request s3api list-objects-v2 \
             --bucket election-event-documents 2>&1 | grep -o AccessDenied
           aws s3api get-bucket-policy --bucket election-event-documents 2>&1 \
             | grep -o NoSuchBucketPolicy
+          p='{"Version":"2012-10-17","Statement":[{"Effect":"Allow",'
+          p="$p"'"Principal":{"AWS":["*"]},"Action":["s3:GetObject"],'
+          p="$p"'"Resource":["arn:aws:s3:::public/*"]}]}'
+          aws s3api get-bucket-policy --bucket public --query Policy \
+            --output text | tr -d ' \n' | grep -cxF "$p"
+          aws s3api get-object-lock-configuration \
+            --bucket electoral-log-checkpoints \
+            --query ObjectLockConfiguration.ObjectLockEnabled --output text
       env:
         - name: AWS_ENDPOINT_URL
           value: "http://rustfs.step-infra.svc.cluster.local:9000"
@@ -353,13 +365,40 @@ spec:
               name: step-secrets
               key: RUSTFS_ROOT_PASSWORD
 EOF
-k3s kubectl apply -f /root/deploy/plugin-check.yaml
-k3s kubectl -n step-infra wait pod/plugin-check --timeout=2m \
+k3s kubectl apply -f /root/deploy/storage-check.yaml
+k3s kubectl -n step-infra wait pod/storage-check --timeout=2m \
   --for=jsonpath='{.status.phase}'=Succeeded
-k3s kubectl -n step-infra logs plugin-check
-k3s kubectl -n step-infra delete pod plugin-check
+k3s kubectl -n step-infra logs storage-check
+k3s kubectl -n step-infra delete pod storage-check
 ```
 
-The `logs` command must print `0` (no plugin), `AccessDenied` (the bucket
-refuses a request without credentials) and `NoSuchBucketPolicy` (the bucket
-has no access policy). Never upload a file to the object storage by hand.
+The `logs` command must print five lines: `0` (no plugin), `AccessDenied`
+(the bucket `election-event-documents` refuses a request without
+credentials), `NoSuchBucketPolicy` (that bucket has no access policy), `1`
+(the access policy of `public` is exactly the one in the pod, which lets
+anyone read its files and allows nothing else) and `Enabled` (the bucket
+`electoral-log-checkpoints` has Object Lock). Never upload a file to the
+object storage by hand.
+
+The GraphQL engine accepts every token signed with a key in the file
+`certs.json` of the bucket `public`. Check from the administration
+workstation that each of these keys is a key of a realm of this installation:
+the realm R, the realm CR and the election event realms that you listed in
+[Election event realms](#election-event-realms) (none before the first
+import).
+
+```bash
+. /root/deploy/hosts.env
+E="<names of the election event realms, separated by spaces>"
+for r in $R $CR $E; do
+  curl -s "https://$PORTAL_HOST/realms/$r/protocol/openid-connect/certs" \
+    | jq -r '.keys[].kid'
+done > realm-kids.txt
+curl -s "https://$PORTAL_HOST/storage/public/certs.json" | jq -r '.keys[].kid' \
+  > certs-kids.txt
+wc -l < certs-kids.txt
+grep -vxFf realm-kids.txt certs-kids.txt
+```
+
+The `wc` command must print a number other than `0`, and the `grep` command
+must print nothing: the GraphQL engine accepts only keys of these realms.
