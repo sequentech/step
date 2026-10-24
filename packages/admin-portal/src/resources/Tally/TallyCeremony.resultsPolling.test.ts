@@ -659,12 +659,12 @@ it("opens certified numeric results while the overall tally is still rendering r
     expect(screen.getByTestId("ceremony-status").textContent).toBe("IN_PROGRESS")
     expect(pollingInterval()).toBe(1000)
     expect(screen.getByText("tally.numericResultsReportsPending")).toBeTruthy()
-    const generalPanel = screen.getByText("tally.generalInfoTitle").closest("button")!
+    const generalPanel = screen.getByRole("button", {name: "tally.generalInfoTitle"})
     expect(generalPanel.getAttribute("aria-expanded")).toBe("true")
     fireEvent.click(generalPanel)
     expect(generalPanel.getAttribute("aria-expanded")).toBe("false")
     expect(
-        screen.getByText("tally.resultsTitle").closest("button")?.getAttribute("aria-expanded")
+        screen.getByRole("button", {name: "tally.resultsTitle"}).getAttribute("aria-expanded")
     ).toBe("true")
 
     mockSession = {
@@ -720,7 +720,7 @@ it.each([
     expect(mockCompleteElections).toHaveBeenLastCalledWith([])
     expect(screen.queryByText("tally.numericResultsReportsPending")).toBeNull()
     expect(
-        screen.getByText("tally.resultsTitle").closest("button")?.getAttribute("aria-expanded")
+        screen.getByRole("button", {name: "tally.resultsTitle"}).getAttribute("aria-expanded")
     ).toBe("false")
     expect(screen.getByTestId("ceremony-status").textContent).toBe("IN_PROGRESS")
 })
@@ -736,6 +736,6 @@ it("preserves the legacy in-progress presentation", async () => {
     await act(async () => undefined)
     expect(screen.queryByText("tally.numericResultsReportsPending")).toBeNull()
     expect(
-        screen.getByText("tally.resultsTitle").closest("button")?.getAttribute("aria-expanded")
+        screen.getByRole("button", {name: "tally.resultsTitle"}).getAttribute("aria-expanded")
     ).toBe("false")
 })
