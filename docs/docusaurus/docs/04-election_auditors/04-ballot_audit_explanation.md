@@ -222,7 +222,6 @@ A batch is verified only when the verifier has signed its own recomputation; a p
 
 The `DECRYPTION_VALID` and `PLAINTEXTS_VALID` report fields establish reference consistency within plaintext records.
 The recomputation is a separate condition of the success.
-Revisions before `586cfe5e1b7` do not require it; do not use them to report verified decryption.
 The auditor uses public evidence rather than election private keys.
 
 `audit-tally` passes Braid the tally's batches together with every `Ballots` batch found on the board.
