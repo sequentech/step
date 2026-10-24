@@ -391,7 +391,48 @@ pub async fn create_tally_ceremony(
     let initial_status = generate_initial_tally_status(&election_ids, &keys_ceremony_status);
     let tally_session_id: String = Uuid::new_v4().to_string();
 
+    let styles =
+        get_ballot_styles_by_elections(transaction, &tenant_id, &election_event_id, &election_ids)
+            .await?;
+    let published_styles: Vec<sequent_core::ballot::BallotStyle> = styles
+        .iter()
+        .map(|style| {
+            deserialize_str(
+                style
+                    .ballot_eml
+                    .as_deref()
+                    .context("Published ballot style has no ballot EML")?,
+            )
+            .map_err(|error| anyhow!(error))
+        })
+        .collect::<Result<_>>()?;
+    let expected_pairs = relevant_area_contests
+        .iter()
+        .map(|pair| {
+            let contest = contests_map
+                .get(&pair.contest_id)
+                .context("Tally contest no longer exists")?;
+            Ok((
+                contest.election_id.clone(),
+                pair.contest_id.clone(),
+                pair.area_id.clone(),
+            ))
+        })
+        .collect::<Result<Vec<_>>>()?;
+    super::result_readiness::validate_published_pairs(&expected_pairs, &published_styles)?;
+    let mut election_areas =
+        std::collections::BTreeMap::<String, std::collections::BTreeSet<String>>::new();
+    for style in styles {
+        if let Some(area_id) = style.area_id {
+            election_areas
+                .entry(style.election_id)
+                .or_default()
+                .insert(area_id);
+        }
+    }
     let annotations: Value = json!({
+        "result_readiness_version": "1",
+        "election_areas": serde_json::to_string(&election_areas)?,
         "executer_username": username,
     });
 
@@ -479,6 +520,25 @@ pub async fn update_tally_ceremony(
     tally_session: TallySession,
     new_execution_status: TallyExecutionStatus,
 ) -> Result<()> {
+    crate::postgres::tally_session::lock_tally_session_for_update(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &tally_session.id,
+    )
+    .await?;
+    let tally_session = get_tally_session_by_id(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &tally_session.id,
+    )
+    .await?;
+    if super::result_readiness::uses_readiness_policy(tally_session.annotations.as_ref())
+        && tally_session.is_execution_completed
+    {
+        return Err(anyhow!("Cannot change a completed tally's status"));
+    }
     let current_status = tally_session
         .execution_status
         .map(|value| {
@@ -808,6 +868,14 @@ pub async fn set_tally_session_completed(
     election_event_id: String,
     tally_session_id: String,
 ) -> Result<()> {
+    let session = get_tally_session_by_id(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &tally_session_id,
+    )
+    .await?;
+    let strict = super::result_readiness::uses_readiness_policy(session.annotations.as_ref());
     let execution_status = TallyExecutionStatus::SUCCESS;
 
     let is_updated = match set_tally_session_completed_in_db(
@@ -820,9 +888,13 @@ pub async fn set_tally_session_completed(
     .await
     {
         Ok(_) => true,
+        Err(error) if strict => return Err(error),
         Err(_) => false,
     };
 
+    if strict {
+        hasura_transaction.execute("UPDATE sequent_backend.tally_session SET annotations=COALESCE(annotations,'{}'::jsonb) || '{\"is_post_task_completed\":\"true\"}'::jsonb WHERE tenant_id=$1 AND election_event_id=$2 AND id=$3", &[&sequent_core::services::uuid_validation::parse_uuid_v4(&tenant_id)?, &sequent_core::services::uuid_validation::parse_uuid_v4(&election_event_id)?, &sequent_core::services::uuid_validation::parse_uuid_v4(&tally_session_id)?]).await?;
+    }
     if is_updated {
         let election_event =
             get_election_event_by_id(hasura_transaction, &tenant_id, &election_event_id).await?;

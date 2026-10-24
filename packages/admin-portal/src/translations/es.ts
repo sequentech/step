@@ -1408,6 +1408,8 @@ const spanishTranslation: TranslationType = {
             },
         },
         tally: {
+            numericResultsReportsPending:
+                "Los resultados numéricos están completos. Los informes aún se están generando.",
             errorUploadingSignature: "Hubo un error al subir la firma",
             downloadTransmissionPackage: "Descargar paquete",
             transmissionPackage: {

@@ -51,7 +51,11 @@ function _useCachedDatabase(
     enabled: boolean = true
 ) {
     // DO NOT return early. All hooks must be called on every render.
-    const [dbData, setDbData] = useState<Uint8Array | null>(null)
+    const [loadedDatabase, setLoadedDatabase] = useState<{
+        electionEventId?: string
+        documentId: string
+        data: Uint8Array
+    } | null>(null)
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
@@ -71,22 +75,25 @@ function _useCachedDatabase(
     useEffect(() => {
         // ✅ The condition is now INSIDE the effect. This is allowed.
         // The useEffect hook itself is always called, but its logic only runs when enabled.
-        if (!enabled || !documentId || !remoteUrl) {
+        if (!enabled || !documentId || !remoteUrl || isLoadingUrl) {
             // If we are not enabled, ensure data is cleared for subsequent runs.
-            if (!enabled) setDbData(null)
+            if (!enabled) setLoadedDatabase(null)
+            setIsLoading(false)
             return
         }
 
+        let active = true
         const loadDatabase = async () => {
             setError(null)
+            setIsLoading(true)
             try {
                 const db = await initIdb()
                 const cachedData = await db.get(IDB_STORE_NAME, documentId)
 
                 if (cachedData) {
-                    setDbData(cachedData)
+                    if (active) setLoadedDatabase({electionEventId, documentId, data: cachedData})
                 } else {
-                    setIsLoading(true)
+                    if (!active) return
                     const response = await fetch(remoteUrl)
 
                     if (!response.ok) {
@@ -99,22 +106,33 @@ function _useCachedDatabase(
                     const data = new Uint8Array(arrayBuffer)
 
                     await db.put(IDB_STORE_NAME, data, documentId)
-                    setDbData(data)
+                    if (active) setLoadedDatabase({electionEventId, documentId, data})
                 }
             } catch (err: any) {
-                console.error("[_useCachedDatabase] CRITICAL ERROR:", err)
-                setError(err.message)
+                if (active) {
+                    console.error("[_useCachedDatabase] CRITICAL ERROR:", err)
+                    setError(err.message)
+                }
             } finally {
-                setIsLoading(false)
+                if (active) setIsLoading(false)
             }
         }
 
         loadDatabase()
-        // Add `enabled` to the dependency array
-    }, [enabled, documentId, remoteUrl])
+        return () => {
+            active = false
+        }
+    }, [enabled, electionEventId, documentId, remoteUrl, isLoadingUrl])
 
     return {
-        dbData,
+        // Never associate an earlier download with the currently selected document.
+        dbData:
+            loadedDatabase &&
+            enabled &&
+            loadedDatabase.documentId === documentId &&
+            loadedDatabase.electionEventId === electionEventId
+                ? loadedDatabase.data
+                : null,
         // The isLoading/error states should only be active if the hook is enabled
         isLoading: enabled && (isLoadingUrl || isLoading),
         error: enabled ? (urlError ? urlError.message : error) : null,
@@ -193,9 +211,12 @@ export function useManagedDatabase(documentId?: string, electionEventId?: string
     // It will only run if `shouldLoadDatabase` was true and `dbData` was successfully retrieved.
     useEffect(() => {
         if (!dbData || !documentId || databases.has(documentId)) {
+            setIsInitializing(false)
+            setInitError(null)
             return
         }
 
+        let active = true
         const initialize = async () => {
             setIsInitializing(true)
             setInitError(null)
@@ -203,16 +224,20 @@ export function useManagedDatabase(documentId?: string, electionEventId?: string
                 const sql = await initSqlJs({
                     locateFile: (file) => `/${file}`,
                 })
+                if (!active) return
                 const db = new sql.Database(dbData)
                 addDatabase(documentId, db)
             } catch (e) {
                 const errorMessage = e instanceof Error ? e.message : "Unknown initialization error"
-                setInitError(errorMessage)
+                if (active) setInitError(errorMessage)
             } finally {
-                setIsInitializing(false)
+                if (active) setIsInitializing(false)
             }
         }
         initialize()
+        return () => {
+            active = false
+        }
     }, [documentId, dbData, databases, addDatabase])
 
     // The final "ready" state is always derived directly from the context.
@@ -241,10 +266,14 @@ export function useSQLQuery<T = QueryResult>(
     const [data, setData] = useState<T[]>([])
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const [lastExecutedKey, setLastExecutedKey] = useState<string | null>(null)
+    const paramsKey = JSON.stringify(params)
+    const executionKey = `${databaseName ?? ""}\u0000${sql}\u0000${paramsKey}`
 
     const executeQuery = useCallback(async () => {
         // We now check for the databaseName and enabled status right at the start.
         if (!enabled || !databaseName) {
+            setIsLoading(false)
             return
         }
 
@@ -270,16 +299,26 @@ export function useSQLQuery<T = QueryResult>(
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : "Unknown query error"
             setError(errorMessage)
+            setData([])
         } finally {
+            setLastExecutedKey(executionKey)
             setIsLoading(false)
         }
         // By adding `databaseName` and `databases` here, this function is guaranteed
         // to be re-created and re-run when the name changes or when the DB is finally loaded.
-    }, [databaseName, databases, sql, JSON.stringify(params), enabled])
+    }, [databaseName, databases, sql, paramsKey, enabled, executionKey])
 
     useEffect(() => {
         executeQuery()
     }, [executeQuery])
 
-    return {data, isLoading, error, refetch: executeQuery}
+    const isReady =
+        !enabled ||
+        (!!databaseName &&
+            databases.has(databaseName) &&
+            lastExecutedKey === executionKey &&
+            !error &&
+            !isLoading)
+
+    return {data, isLoading, isReady, error, refetch: executeQuery}
 }
