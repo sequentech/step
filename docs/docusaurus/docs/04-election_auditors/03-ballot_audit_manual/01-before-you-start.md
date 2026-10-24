@@ -43,7 +43,7 @@ this in the audit report.
 | --- | --- |
 | Tally | One count of the votes. An election event can have more than one tally. |
 | Scope | One election, one area and one contest of a tally. `audit-tally` makes one scope for each area and contest of the tally. |
-| Electoral log | The signed log of the election events. It is stored in an ImmuDB database. Each cast vote has a signed `CastVote` record. |
+| Electoral log | The signed log of the election events, stored in ImmuDB. A `CastVote` record contains signed evidence of a cast ballot. A missing record makes the audit incomplete. |
 | Bulletin board | The B3 database of the cryptographic protocol. It holds the election public key and the encrypted ballots of each tally. |
 | Batch | A numbered group of encrypted ballots on the bulletin board. A tally of one area and one contest uses one or more batches. |
 | Receipt | The ballot ID that the voter gets after the vote. It is a hash of the encrypted ballot. |
@@ -59,6 +59,15 @@ this in the audit report.
 
 ## Versions
 
+This manual and the [technical explanation](../04-ballot_audit_explanation.md) describe proposed tools in
+[PR #3968](https://github.com/sequentech/step/pull/3968), reviewed at `820352256b8d`.
+The code and [manual PR #4048](https://github.com/sequentech/step/pull/4048) are drafts at the time of writing.
+This documentation does not establish release, deployment or availability of a published image.
+
+Before reporting verified decryption, use a verifier revision that requires successful plaintext recomputation for every batch.
+The reviewed revision does not enforce this requirement in its success condition.
+See [Check the cryptographic tally](../04-ballot_audit_explanation.md#6-check-the-cryptographic-tally) for the checks and their interpretation.
+
 | Item | Version |
 | --- | --- |
 | Election data | The release of the election platform that ran the election, for example `10.0.1-rc.1`. |
@@ -67,6 +76,20 @@ this in the audit report.
 
 Write the release of the data, the commit of the tools and the ID of the audit image in the audit
 notes.
+
+Record the actual source commit and image identity separately.
+The current output field `source_revision` names the baseline `d6d05a1`, not the executable's full commit.
+The image's reported tests cover Linux amd64. They do not establish support for arm64 or Docker Desktop on macOS.
+
+Earlier [synthetic tally tests](https://github.com/sequentech/meta/issues/14374#issuecomment-6365862832) include successful Braid checks on actually mixed tallies at `1fec078701b`.
+Those tests used individual commands on a development stack with test-specific configuration changes.
+The [restored-copy tests](https://github.com/sequentech/meta/issues/14374#issuecomment-6366819273) used manual restoration.
+Both predate `audit-tally` and the audit image.
+The current image's reported run used a never-mixed synthetic board, so real Braid verification failed as expected.
+A complete successful image run on an actually mixed tally remains to be demonstrated.
+
+Some orchestrator tests use a stand-in verifier to test command handling.
+These tests and the reported runs do not establish acceptance for a production election.
 
 ## Conventions
 
@@ -111,12 +134,17 @@ Do not change the original backups. Work on copies. If you change a backup, you 
 evidence.
 :::
 
-## What the audit proves
+## What the audit result means {#what-the-audit-proves}
 
-If `audit-tally` returns `0`, the selected ballots of each area and contest in the copies agree
-with the signed electoral log, with the frozen list of voters, with the saved tally and with the
-encrypted ballots on the bulletin board. Also, the Braid verifier passed all required checks of
-the mix and of the decryption.
+At the reviewed implementation, `audit-tally` returns `0` when all recorded steps report success.
+The checks connect the selected ballots to signed cast records, supplied eligibility and encrypted tally inputs.
+Braid checks the public key, mix evidence and references in the published plaintext records.
+Its decryption routine checks proofs and recomputes plaintexts when it runs, but the current success condition does not require its completion.
+The result depends on the trusted inputs, supported scope and available evidence.
+
+Read the restore logs and each report before reporting a pass.
+The image can continue after restore errors, and some saved annotation checks can be unavailable without failing the command.
+See [What a successful run establishes](../04-ballot_audit_explanation.md#what-a-successful-run-establishes) for the connection between the checks.
 
 The audit does not prove these points:
 
@@ -125,5 +153,19 @@ The audit does not prove these points:
   not the inclusion proofs of the database.
 - That a voter really voted. The audit cannot link a voter to a decrypted vote.
 - The final count of the results.
+- The validity of each ballot's proof of plaintext knowledge or any voter ballot signature; this workflow does not re-verify them.
+- The authorization of eligibility, weight, delegation or discard decisions. The supplied records must preserve the intended tally-time state.
 
 Write these limits in the audit report.
+
+The image checks the backups against `backup-digests.txt` in the same directory.
+Authenticate that file separately; a match alone does not establish the backups' origin.
+The audit record's restore references contain the three PostgreSQL dump digests.
+Record the ImmuDB and any blob archive digests separately in the audit notes.
+
+History reconciliation assumes the Hasura backup includes every cast recorded in the ImmuDB backup.
+A later ImmuDB backup can otherwise produce a contradiction without tampering.
+The source acquisition uses unsigned database metadata to find rows, so capture completeness still needs independent evidence.
+
+The exporter supports default key ceremonies and refuses combined voter-weighted and delegated voting.
+History verification uses one pinned system signing key; rotated-key records require separate handling.

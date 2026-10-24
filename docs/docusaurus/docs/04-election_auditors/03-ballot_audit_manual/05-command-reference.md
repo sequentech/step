@@ -60,6 +60,11 @@ The command gives `audit-tally` the options `--connections`, `--immudb-server-ur
 `--b3-blob-root`. It returns the exit status of `audit-tally`, and shows it in its last line, for
 example `ballot-audit: exit status 0 (all steps passed)`.
 
+Do not repeat the image-controlled options after `--`.
+At the reviewed revision, `--electoral-log-export` conflicts with the image's fixed ImmuDB option.
+These conflicts cause a usage error after restoration.
+Use the image's `shell` form to run a command separately when you need those options.
+
 Two other forms:
 
 | Command | Description |
@@ -214,8 +219,10 @@ writes the report to the standard output. See
 
 ## verify (Braid)
 
-Checks the signatures, the configuration, the mix and the decryption of each batch on the
-bulletin board. It reads the board through the B3 server. See
+Checks signatures, configuration, public keys, mix evidence and references in published plaintext records.
+Its decryption routine checks proofs and recomputes plaintexts when it runs.
+See [Versions](01-before-you-start.md#versions) for the decryption completion requirement.
+It reads the board through the B3 server. See
 [Verify the Bulletin Board](07-run-each-step/06-braid.md).
 
 | Option | Required | Description |

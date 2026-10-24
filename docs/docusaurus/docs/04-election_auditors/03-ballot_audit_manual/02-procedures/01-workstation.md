@@ -26,6 +26,12 @@ and the database servers that hold the copies.
 
 ## 1. Get the audit image
 
+:::note
+The shell examples use Linux or macOS syntax. The reviewed image was tested on Linux amd64 only.
+Confirm compatibility before using arm64 or Docker Desktop on macOS.
+See [Versions](../01-before-you-start.md#versions) for the implementation and test status.
+:::
+
 Do one of these two tasks.
 
 **If the election authority gives you the image as a file:**

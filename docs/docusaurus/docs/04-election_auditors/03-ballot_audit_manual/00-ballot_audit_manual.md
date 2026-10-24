@@ -21,6 +21,10 @@ not need the election application or access to the production systems.
 
 <ManualPdfLink manual="ballot-audit" />
 
+This manual explains **how** to run the audit. For **what** each check establishes, read
+[What the Ballot Audit Verifies](../04-ballot_audit_explanation.md).
+That explanation follows the checks from signed cast records through encrypted inputs, verified mixes and published plaintext records.
+
 ## What the audit checks
 
 The audit connects four records of each counted ballot:
@@ -31,9 +35,10 @@ The audit connects four records of each counted ballot:
    each voter.
 4. The encrypted ballots that went into the tally on the bulletin board.
 
-A separate check with the Braid verifier examines the cryptography of the mix and of the
-decryption. You must do both checks for a complete audit. The `audit-tally` command does both
-checks for all areas and contests of a tally.
+A separate check with Braid verifies the public key, mix evidence and references in published plaintext records.
+See [Versions](01-before-you-start.md#versions) for the decryption completion requirement.
+You must do both parts of this audit. The `audit-tally` command runs both
+parts for the areas and contests in the supplied tally mappings.
 
 ## How to use this manual
 
@@ -65,7 +70,8 @@ To repeat or examine one step of the audit, or to work without the audit image, 
 
 ## Scope of this manual
 
-This manual is for version **10.0** of the ballot audit tools. See
+This manual describes the proposed ballot audit tools for the **10.0** release line. See
 [Versions](01-before-you-start.md#versions). Each audit run covers one tally, with all its areas
-and contests. The manual does not cover the final count of the results, the history proofs of the
-electoral log database, or a link between a voter and a decrypted vote.
+and contests represented in the supplied mappings.
+The manual does not cover the final count or the electoral log database's history proofs.
+It does not establish a link between a voter and a decrypted vote.

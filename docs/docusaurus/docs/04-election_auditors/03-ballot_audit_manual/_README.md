@@ -9,6 +9,11 @@ This folder is the source of the **Ballot Audit Manual**, for election auditors 
 offline ballot audit tools (`packages/ballot-audit`) and the Braid verifier. This file is for
 authors. Docusaurus does not publish files whose name starts with `_`.
 
+The separate explanation is `../04-ballot_audit_explanation.md` (**What the Ballot Audit
+Verifies**). Keep its links from the auditor introduction and manual home. When the tools
+change, check its implementation pin, assurance limits and outcome interpretation against
+the code. Keep the explanation separate from this manual's procedural PDF guide.
+
 ## Structure
 
 | Folder or file | Content | Sidebar |

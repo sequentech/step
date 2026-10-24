@@ -1,7 +1,7 @@
 ---
 title: Verify the Bulletin Board
 sidebar_position: 6
-description: "Run the Braid verifier on the restored bulletin board to check the mix and the decryption of each batch."
+description: "Run Braid on the restored bulletin board to check public keys, mix evidence and references in published plaintext records."
 ---
 
 <!--
@@ -11,13 +11,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 # Verify the Bulletin Board
 
-This procedure checks the cryptography of the tally on the restored bulletin board. The auditor
-does it. The Braid verifier checks the signatures, the configuration, the mix and the decryption
-of each batch.
+This procedure checks the tally evidence on the restored bulletin board. The auditor does it.
+Braid checks signatures, configuration, public keys, mix evidence and references in published plaintext records.
+Its decryption routine checks proofs and recomputes plaintexts when it runs.
+See [Versions](../01-before-you-start.md#versions) for the decryption completion requirement before reporting verified decryption.
 
-The ballot audit and this check are different. The ballot audit checks the encrypted ballots that
-went into the tally. It does not check the mix or the decryption. A change to the mix or to the
-decrypted results is found only by this check. You must do both.
+The ballot audit checks the encrypted ballots that went into the tally.
+Braid checks the cryptographic evidence that follows those inputs. You must do both parts.
 
 ## Before you start
 

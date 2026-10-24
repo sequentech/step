@@ -12,6 +12,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 # Read the Results
 
 This page tells you what each result means and what to do next.
+For the evidence and the connection between the checks, read
+[What the Ballot Audit Verifies](../04-ballot_audit_explanation.md#what-a-successful-run-establishes).
 
 ## Exit statuses
 
@@ -26,6 +28,20 @@ All six ballot audit commands use the same exit statuses.
 | `4` | Input refused. A file is not valid, a pin is malformed, a connection is refused or the setup is not supported. | Correct the input, or write in the audit report that the tools cannot audit this setup. |
 
 The Braid verifier returns a status other than `0` when a required check fails or is incomplete.
+
+In the reviewed revision, a successful Braid status does not establish that plaintext recomputation ran for every batch.
+The `DECRYPTION_VALID` and `PLAINTEXTS_VALID` fields check references in plaintext records, not whether recomputation ran.
+Before reporting verified decryption, use a verifier revision that requires successful plaintext recomputation for every batch.
+See [Versions](01-before-you-start.md#versions).
+
+Read the restore logs and provenance reports even when the command returns `0`.
+The image can continue after restore errors; some older annotation fields can be unavailable without failing the command.
+Check that all required output files exist and cover the expected scope before reporting a pass.
+In the reviewed implementation, a report-save problem does not necessarily change the recorded child-command status.
+
+For `audit-tally`, a nonzero Braid exit becomes `verification_failed`, including connection failures.
+A child command crash can also have that status.
+The image itself can return `1` before the audit starts. Read the message before classifying the cause as a contradiction.
 
 :::caution CAUTION
 Do not count a `3` as a pass. An audit with an incomplete result did not pass.
