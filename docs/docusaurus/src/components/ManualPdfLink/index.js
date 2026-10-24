@@ -35,7 +35,7 @@ export default function ManualPdfLink({manual = 'admin'}) {
   const href = pdfLocale === locale ? localeHref : defaultHref;
   const label =
     pdfLocale === locale
-      ? labels[locale] || labels.en
+      ? entry.titles[locale]?.link || labels[locale] || labels.en
       : englishLabels[locale] || labels.en;
   return (
     <p className="manual-pdf-link">

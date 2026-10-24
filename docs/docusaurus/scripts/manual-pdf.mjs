@@ -47,6 +47,7 @@ const labels = {
     of: 'of',
     video: 'This page has a video in the online documentation.',
     watch: 'Watch the video',
+    next: 'Next',
   },
   es: {
     contents: 'Índice',
@@ -61,6 +62,7 @@ const labels = {
     of: 'de',
     video: 'Esta página tiene un vídeo en la documentación en línea.',
     watch: 'Ver el vídeo',
+    next: 'Siguiente',
   },
 };
 
@@ -248,12 +250,36 @@ async function collect(page, origin, tree) {
   return pages;
 }
 
+// The pages of a guide, in the order of `manual.pages`, without their children.
+function guidePages(tree, home, manual) {
+  const nodes = [];
+  const walk = (list) => list.forEach((n) => {
+    nodes.push(n);
+    walk(n.children);
+  });
+  walk(tree);
+  return manual.pages.map((p) => {
+    const node = nodes.find((n) => n.path === `${home}/${p}`);
+    if (!node) throw new Error(`No page ${p} in the sidebar of ${manual.id}`);
+    return {...node, children: []};
+  });
+}
+
 async function printManual(browser, origin, manual, locale) {
   const localePrefix = locale === defaultLocale ? '' : `${locale}/`;
   const page = await browser.newPage();
   await page.emulateMediaFeatures([{name: 'prefers-color-scheme', value: 'light'}]);
-  const tree = await readSidebar(page, origin, `${baseUrl}${localePrefix}${manual.home}`);
+  const home = `${baseUrl}${localePrefix}${manual.home}`;
+  let tree = await readSidebar(page, origin, home);
+  if (manual.pages) tree = guidePages(tree, home, manual);
   const pages = await collect(page, origin, tree);
+  const intro = manual.intro
+    ? fs
+        .readFileSync(path.join(siteDir, 'scripts', 'pdf-intros', `${manual.intro}.${locale}.html`), 'utf8')
+        .replace(/<!--[\s\S]*?-->/g, '')
+        .replaceAll('{{manual}}', `${publicOrigin}${home}`)
+    : '';
+  const guide = Boolean(manual.pages);
   const t = {
     ...(labels[locale] || labels[defaultLocale]),
     ...(manual.titles[locale] || manual.titles[defaultLocale]),
@@ -269,7 +295,7 @@ async function printManual(browser, origin, manual, locale) {
   // Rebuild the last visited page as the print document so the site's
   // stylesheets stay loaded.
   await page.evaluate(
-    ({tree, pages, t, label, locale, commit, publicOrigin, baseUrl}) => {
+    ({tree, pages, t, label, locale, commit, publicOrigin, baseUrl, intro, guide}) => {
       const index = new Map(pages.map((p, i) => [p.path, i]));
       const html = new Map(pages.map((p) => [p.path, p.html]));
       // The contents follow the sidebar: one numbered list item for each
@@ -366,6 +392,16 @@ async function printManual(browser, origin, manual, locale) {
         section.className = 'manual-print__page markdown';
         section.id = `p${i}`;
         section.innerHTML = p.html;
+        // The last page of a guide has no next page in the guide.
+        if (guide && i === pages.length - 1) {
+          const next = [...section.querySelectorAll('h2')].find(
+            (h) => h.textContent.replace(/\u200b/g, '').trim() === t.next,
+          );
+          if (next) {
+            while (next.nextElementSibling) next.nextElementSibling.remove();
+            next.remove();
+          }
+        }
         number(section.querySelector('h1'), n);
         namePage(section, n);
         // A screenshot alone in its paragraph is a numbered figure with its
@@ -407,6 +443,13 @@ async function printManual(browser, origin, manual, locale) {
         shiftHeadings(section, depth);
         body.appendChild(section);
       };
+      if (intro) {
+        const section = document.createElement('section');
+        section.className = 'manual-print__page markdown';
+        section.innerHTML = intro;
+        shiftHeadings(section, 0);
+        body.appendChild(section);
+      }
       emit(tree, 0);
       document.documentElement.lang = locale;
       const font = getComputedStyle(document.body).fontFamily;
@@ -485,7 +528,7 @@ async function printManual(browser, origin, manual, locale) {
       `;
       document.head.appendChild(style);
     },
-    {tree, pages, t, label, locale, commit, publicOrigin, baseUrl},
+    {tree, pages, t, label, locale, commit, publicOrigin, baseUrl, intro, guide},
   );
   // Expand collapsed <details> blocks so their content prints.
   await page.evaluate(() =>
