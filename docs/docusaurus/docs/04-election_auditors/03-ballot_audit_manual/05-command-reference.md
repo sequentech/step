@@ -58,7 +58,8 @@ that holds it.
 The command gives `audit-tally` the options `--connections`, `--immudb-server-url`,
 `--immudb-username`, `--b3-server-url`, `--output` and, if there is a blob archive,
 `--b3-blob-root`. It returns the exit status of `audit-tally`, and shows it in its last line, for
-example `ballot-audit: exit status 0 (all steps passed)`.
+example `ballot-audit: exit status 0 (all steps passed)`. When a backup is refused or does not
+restore without errors, it stops before the audit with exit status `4`.
 
 The options that the image sets cannot follow `--`: `--connections`, `--immudb-server-url`,
 `--immudb-username`, `--electoral-log-export`, `--b3-server-url`, `--b3-blob-root` and `--output`.

@@ -60,7 +60,7 @@ this in the audit report.
 ## Versions
 
 This manual and the [technical explanation](../04-ballot_audit_explanation.md) describe proposed tools in
-[PR #3968](https://github.com/sequentech/step/pull/3968), reviewed at `6591fc92339`.
+[PR #3968](https://github.com/sequentech/step/pull/3968), reviewed at `dc593d2e2f9`.
 The code and [manual PR #4048](https://github.com/sequentech/step/pull/4048) are drafts at the time of writing.
 This documentation does not establish release, deployment or availability of a published image.
 
@@ -143,7 +143,7 @@ It also checks the decryption proofs and recomputes the plaintexts of every batc
 The result depends on the trusted inputs, supported scope and available evidence.
 
 Read the restore logs and each report before reporting a pass.
-The image can continue after restore errors, and some saved annotation checks can be unavailable without failing the command.
+The image does not audit copies with restore errors, but some saved annotation checks can be unavailable without failing the command.
 See [What a successful run establishes](../04-ballot_audit_explanation.md#what-a-successful-run-establishes) for the connection between the checks.
 
 The audit does not prove these points:

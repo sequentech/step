@@ -34,7 +34,7 @@ The `DECRYPTION_VALID` and `PLAINTEXTS_VALID` fields check references in plainte
 See [Versions](01-before-you-start.md#versions) for the revisions that require it.
 
 Read the restore logs and provenance reports even when the command returns `0`.
-The image can continue after restore errors; some older annotation fields can be unavailable without failing the command.
+The image does not audit copies with restore errors, but some older annotation fields can be unavailable without failing the command.
 Check that all required output files exist and cover the expected scope before reporting a pass.
 In the reviewed implementation, a report-save problem does not necessarily change the recorded child-command status.
 

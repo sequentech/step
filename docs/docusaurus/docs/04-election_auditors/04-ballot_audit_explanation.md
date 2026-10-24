@@ -276,15 +276,15 @@ The manual explains workstation preparation, compatible versions and handling of
 
 This explanation describes proposed `release/10.0` code in
 [PR #3968](https://github.com/sequentech/step/pull/3968), at commit
-[`6591fc92339`](https://github.com/sequentech/step/commit/6591fc9233910589fc4676e38874b24a6962780d).
+[`dc593d2e2f9`](https://github.com/sequentech/step/commit/dc593d2e2f9c9b6eae7a13ca8b07025c6982ce1e).
 For release status, image validation and version selection, see
 [Versions](03-ballot_audit_manual/01-before-you-start.md#versions).
 
 The technical sources are the
-[ballot audit implementation and tests](https://github.com/sequentech/step/tree/6591fc9233910589fc4676e38874b24a6962780d/packages/ballot-audit),
-[Braid verification checks](https://github.com/sequentech/step/blob/6591fc9233910589fc4676e38874b24a6962780d/packages/braid/src/verify/verifier.rs),
-[success rules](https://github.com/sequentech/step/blob/6591fc9233910589fc4676e38874b24a6962780d/packages/braid/src/verify/datalog.rs),
-and [native receipt hashes](https://github.com/sequentech/step/blob/6591fc9233910589fc4676e38874b24a6962780d/packages/sequent-core/src/encrypt.rs).
+[ballot audit implementation and tests](https://github.com/sequentech/step/tree/dc593d2e2f9c9b6eae7a13ca8b07025c6982ce1e/packages/ballot-audit),
+[Braid verification checks](https://github.com/sequentech/step/blob/dc593d2e2f9c9b6eae7a13ca8b07025c6982ce1e/packages/braid/src/verify/verifier.rs),
+[success rules](https://github.com/sequentech/step/blob/dc593d2e2f9c9b6eae7a13ca8b07025c6982ce1e/packages/braid/src/verify/datalog.rs),
+and [native receipt hashes](https://github.com/sequentech/step/blob/dc593d2e2f9c9b6eae7a13ca8b07025c6982ce1e/packages/sequent-core/src/encrypt.rs).
 The [parent issue](https://github.com/sequentech/meta/issues/14374) records the acceptance work and synthetic test evidence.
 
 To run the process, use the [Ballot Audit Manual](03-ballot_audit_manual/00-ballot_audit_manual.md).
