@@ -24,9 +24,11 @@ PG_COPIES="hasura keycloak b3"
 IMMUDB_BACKUP=immudb.tar.gz
 B3_BLOBS_BACKUP=b3-blobs.tar.gz
 
+# Exit status 4, as audit-tally uses for a refused input: the backups or the
+# setup cannot be audited. 1 would read as a contradiction.
 die() {
     echo "ballot-audit: $*" >&2
-    exit 1
+    exit 4
 }
 
 # Exit status 2, as audit-tally uses for a usage error; 1 would read as a
@@ -57,15 +59,17 @@ for each backup, from the system operator. <output> must be empty.
 The container checks the backups, restores them into copies with read-only
 accounts, starts ImmuDB and the B3 server, and runs audit-tally. It writes the
 results of audit-tally to <output>, and the messages of the restore to
-<output>/restore. The exit status is the exit status of audit-tally. The copies
-are removed when the container stops.
+<output>/restore. The exit status is the exit status of audit-tally, or 4 when
+a backup is refused or does not restore without errors. The copies are removed
+when the container stops.
 
 The container sets these audit-tally options itself, so they cannot follow --:
 --connections, --immudb-server-url, --immudb-username, --electoral-log-export,
 --b3-server-url, --b3-blob-root and --output.
 
 shell   restores the copies and opens a shell in <output>, to run one command
-        of the audit at a time.
+        of the audit at a time. It opens the shell even after restore errors,
+        so that they can be examined.
 EOF
 }
 
@@ -114,8 +118,9 @@ psql_admin() {
     gosu postgres psql -q -v ON_ERROR_STOP=1 -h "$WORK/pg" -p "$PG_PORT" -d postgres "$@"
 }
 
+# restore_postgres audit|shell
 restore_postgres() {
-    local copy errors log
+    local mode="$1" copy errors log failed=""
     mkdir -p "$WORK/pg" "$LOGS"
     chown postgres:postgres "$WORK/pg"
     gosu postgres initdb -D "$WORK/pg/data" -U postgres --auth-local=trust \
@@ -136,8 +141,14 @@ restore_postgres() {
             errors="$(grep -c 'error:' "$log" || true)"
             info "WARNING: pg_restore reported $errors error(s) for $copy.dump." \
                 "Read restore/restore-$copy.log in the output and write each error in the audit notes."
+            failed="$failed $copy.dump"
         fi
     done
+    # Every copy is restored first, so that the logs show all the errors. A
+    # table that did not restore can be empty, and an audit of it can pass.
+    if [ -n "$failed" ] && [ "$mode" = audit ]; then
+        die "not auditing: the restore of$failed had errors"
+    fi
 }
 
 unpack() {
@@ -199,11 +210,20 @@ start_immudb() {
     [ "$first" -eq 0 ] || die "the ImmuDB copy has no databases"
     # The read permission lets the account open each database but not run SQL
     # on it. SELECT is granted after all permissions, which would otherwise
-    # replace it. Names that SQL cannot quote (the system databases) are not
-    # audited.
+    # replace it. SQL cannot name a database that starts with a digit, and
+    # audit-tally refuses such a board, so that failure is only logged. A
+    # failure on another database can stop the electoral-log export.
     for database in $databases; do
-        immuclient_admin exec "GRANT SELECT ON DATABASE $database TO USER $READER;" \
-            --database "$database" >/dev/null 2>&1 || true
+        if ! immuclient_admin exec "GRANT SELECT ON DATABASE $database TO USER $READER;" \
+            --database "$database" >>"$LOGS/immudb-grants.log" 2>&1; then
+            echo "GRANT SELECT failed on $database" >>"$LOGS/immudb-grants.log"
+            case "$database" in
+                systemdb | defaultdb | [!A-Za-z_]* | *[!A-Za-z0-9_]*) ;;
+                *) info "WARNING: the read-only account cannot run SQL on the ImmuDB database $database." \
+                    "If it is the electoral log of the event, the audit cannot export it." \
+                    "Read restore/immudb-grants.log in the output." ;;
+            esac
+        fi
     done
     immuadmin_admin logout >/dev/null
 }
@@ -248,6 +268,7 @@ give_output_back() {
     chown -R "$(stat -c %u:%g "$DIGESTS")" "$OUTPUT" 2>/dev/null || true
 }
 
+# start_copies audit|shell
 start_copies() {
     [ -d "$OUTPUT" ] || die "no output; mount an empty output directory at /output"
     [ -z "$(ls -A "$OUTPUT")" ] || die "the output directory is not empty; use a new one"
@@ -257,7 +278,7 @@ start_copies() {
     READER_PG_PASSWORD="$(new_password)"
     IMMUDB_ADMIN_PASSWORD="$(new_password)"
     READER_IMMUDB_PASSWORD="$(new_password)"
-    restore_postgres
+    restore_postgres "$1"
     unpack
     start_immudb
     start_b3
@@ -297,7 +318,7 @@ run_audit() {
                 usage_error "${arg%%=*} is set by the container" ;;
         esac
     done
-    start_copies
+    start_copies audit
     if [ -n "$(ls -A "$WORK/b3-blobs")" ]; then
         args+=(--b3-blob-root "$WORK/b3-blobs")
     fi
@@ -317,7 +338,7 @@ run_audit() {
 }
 
 run_shell() {
-    start_copies
+    start_copies shell
     export "$PASSWORD_ENV=$READER_IMMUDB_PASSWORD"
     export PGHOST=127.0.0.1 PGPORT="$PG_PORT" PGUSER="$READER" PGPASSWORD="$READER_PG_PASSWORD"
     cat >&2 <<EOF
