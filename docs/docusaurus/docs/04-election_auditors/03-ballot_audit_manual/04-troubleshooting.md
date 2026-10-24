@@ -99,10 +99,10 @@ other tables of this page.
 | `a selected voter has a signed cast vote that no stored cast vote holds ...` [1] | A stored ballot was removed or replaced. | Keep the evidence and report the finding. |
 | `a selected voter has a later signed revote held by a valid scoped cast vote ...` [1] | The stored vote order disagrees with the signed log. | If the times are seconds apart, ask for a check of the server clocks. Then report it. |
 | `cast-vote history does not hold a selected cast vote ...` [1] | The history and the ballots come from different moments, or one was changed. | Export both again in one export. |
-| `... ballot receipt(s) are shared by several selected cast votes ...` [1] | One encrypted ballot was counted for more than one voter. | Keep the evidence and report the finding. |
+| `... ballot receipt(s) are shared by several selected cast votes ...` [1] | Several selected cast rows share the same ballot receipt. | Keep the evidence and report the finding. |
 | `saved eligible voter count differs ...`, `saved cast ballot count differs ...`, `saved ballots without voter differ ...` [1] | The saved tally disagrees with the selection. | Ask about changes after the tally. See [Read the Results](03-read-the-results.md#contradiction-or-a-change-after-the-tally). |
 | `tally input multiset mismatch ...` [1] | The encrypted ballots on the bulletin board are not the selected ballots. | Keep the evidence and report the finding. |
-| `selected cast vote has no matching signed electoral-log evidence` [3] | The signed record of a counted ballot is missing. | Report it as incomplete. |
+| `selected cast vote has no matching signed electoral-log evidence` [3] | The signed record of a selected ballot is missing. | Report it as incomplete. |
 | `selected cast vote has ambiguous signed electoral-log evidence` [3] | Different signed records describe the same ballot. | Report it as incomplete. |
 | `scoped in-progress cast vote blocks preparation` [3] | A vote was in progress at the backup. | Get a backup from after the end of the voting period. |
 | `restored B3 board has no configuration or scoped ballots`, `missing B3 batch` [3] | The B3 copy or the blob directory does not have a batch. | Check the restore and `--b3-blob-root`. |

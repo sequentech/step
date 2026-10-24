@@ -22,7 +22,7 @@ directories of [Files of audit-tally](#files-of-audit-tally-tally).
 - A **message** is the original signed bytes of a bulletin board or electoral log record,
   encoded in base64 without padding. The commands check the signature of each message. Do not
   change a message.
-- **Personal data** in the tables shows if the file contains voter IDs, voter pseudonyms,
+- **Personal data** in the tables shows if the file contains voter IDs, hashed voter identifiers,
   user names or receipts. Keep these files private. See
   [Report and Remove the Copies](02-procedures/04-close.md).
 - Fields of the `limitations`, `limits`, `limitation` and `assurance` types are text. They tell
@@ -86,7 +86,7 @@ tally/
 | --- | --- | --- |
 | `tally-plan.json` | The scopes that the command made from the tally. See [tally-plan.json](#tally-planjson). | No |
 | `immudb-export/` | The files of `export-electoral-log`. See [Files of export-electoral-log](#files-of-export-electoral-log-immudb-export). | Yes |
-| `scopes/<NNN>/scope.json` | The scope of one area and contest. See [scope.json](05-command-reference.md#scopejson). | No |
+| `scopes/<NNN>/scope.json` | The scope of an election and area, with one contest or all contests for combined ballot formats. See [scope.json](05-command-reference.md#scopejson). | No |
 | `scopes/<NNN>/postgres-export/` | The files of `export-ballot-audit` for the scope. | Yes |
 | `scopes/<NNN>/prepared-audit/` | The audit bundle of the scope. | Yes |
 | `scopes/<NNN>/audit-report.json` | The report of `ballot-audit` for the scope. | Yes |
@@ -182,7 +182,7 @@ audit uses these fields:
 | `id` | The ID of the stored ballot. The reports call it `cast_vote_id`. |
 | `tenant_id`, `election_event_id`, `election_id`, `area_id` | The place of the ballot. |
 | `voter_id_string` | The voter ID. |
-| `ballot_id` | The receipt: the hash of the encrypted ballot. |
+| `ballot_id` | The receipt: the first half of the SHA-512 ballot hash. |
 | `content` | The encrypted ballot, as text. |
 | `status` | The status of the row, for example `valid` or `discarded`. |
 | `created_at` | The time that the platform stored the ballot. |
@@ -300,7 +300,7 @@ can contain changed anchors.
 | `rows[].cast_vote_id` | The ID of the stored ballot. |
 | `rows[].ballot_id` | The receipt, as stored. The command checked only the receipts of selected ballots. |
 | `rows[].reason` | `selected`, `superseded_revote`, `discarded`, `no_eligible_voter` or `outside_scope`. See [Read the Results](03-read-the-results.md#reasons-for-an-excluded-ballot). |
-| `rows[].latest_scoped_cast_vote_id` | For a revote: the ID of the last ballot of the same voter. |
+| `rows[].latest_scoped_cast_vote_id` | For a revote: the ID of the retained cast row for the same voter. |
 | `rows[].resolved_multiplicity` | The number of votes of the voter, if the voter is in the frozen list. |
 | `rows[].receipt_verification` | `selected_audit_verified` or `not_checked`. |
 | `limitation` | Text. What the selection does not prove. |
@@ -320,7 +320,7 @@ keep it in a file.
 | `receipts[]` | For each selected ballot: `cast_vote_id`, `ballot_id` and `locations`, the batch and the position of the ballot in the batch. |
 | `lookup` | Only with `--ballot-id`. The `outcome` (`selected`, `excluded`, `missing` or `ambiguous`) and its details. |
 | `duplicate_selected_receipts[]` | Receipts that more than one selected ballot has. A value here is a finding. |
-| `privacy_warnings[]` | Batches with fewer ballots than the anonymity threshold: `batch`, `ciphertexts` and `minimum_for_anonymity`. |
+| `privacy_warnings[]` | Weighted batches holding one to four ciphertexts: `batch`, `ciphertexts` and `minimum_for_anonymity`. |
 | `assurance` | Text. What the audit proves. |
 
 :::danger WARNING

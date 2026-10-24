@@ -43,7 +43,7 @@ authority and removes the copies.
 
 | Safe to publish | Do not publish |
 | --- | --- |
-| `public-summary.json`. | Voter IDs and voter pseudonyms. |
+| `public-summary.json`. | Voter IDs and hashed voter identifiers. |
 | The digests of the backups and of `audit-record.json`. | Ballot IDs and receipts that identify a voter. |
 | The commit of the tools. | Batch positions in a batch that `privacy_warnings` lists. |
 | The limits of the audit. | The copies, the evidence, the audit bundles and the reports. |

@@ -12,7 +12,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 # Check the Cast-Vote History
 
 This optional procedure compares all stored ballots of the election with the signed records of
-the electoral log. It covers all areas, all statuses and all revotes, not only the counted ballots
+the electoral log. It covers all areas, all statuses and all revotes, not only the selected ballots
 of the scope. The auditor does it.
 
 The command `audit-cast-history` finds two cases:

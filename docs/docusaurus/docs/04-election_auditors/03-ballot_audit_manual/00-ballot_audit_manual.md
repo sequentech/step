@@ -27,12 +27,11 @@ That explanation follows the checks from signed cast records through encrypted i
 
 ## What the audit checks
 
-The audit connects four records of each counted ballot:
+The audit connects four records of each selected ballot:
 
 1. The signed record in the electoral log that the voter cast the ballot.
 2. The stored ballot and its receipt.
-3. The list of voters that can vote in the area, and the rule that keeps the last valid vote of
-   each voter.
+3. The supplied eligibility list and the rule that selects each voter's latest cast row marked valid.
 4. The encrypted ballots that went into the tally on the bulletin board.
 
 A separate check with Braid verifies the public key, mix evidence and references in published plaintext records.

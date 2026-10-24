@@ -1,7 +1,7 @@
 ---
 title: Prepare the Audit Bundle
 sidebar_position: 4
-description: "Select the counted ballots of the scope from the evidence, check them against the signed electoral log and the saved tally, and write the audit bundle."
+description: "Select the ballots of the scope from the evidence, check them against the signed electoral log and the saved tally, and write the audit bundle."
 ---
 
 <!--
@@ -11,14 +11,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 # Prepare the Audit Bundle
 
-This procedure selects the ballots that the tally must count and writes them into an audit
+This procedure selects the ballots that the selection rules keep and writes them into an audit
 bundle. The auditor does it. The command `prepare-ballot-audit` works only on files. It does not
 connect to a database or to the network.
 
 The command does these checks:
 
 1. It checks the signature of each `CastVote` record of the election in the electoral log.
-2. It selects the last valid vote of each voter in the frozen list of voters.
+2. It selects each eligible voter's latest cast row marked valid in the application database.
 3. It finds the signed record of each selected ballot.
 4. It checks that no signed ballot of a selected voter was removed or replaced.
 5. It checks that no later signed revote was left out.
@@ -97,8 +97,8 @@ bundle can contain changed anchors.
 | Exit status `1`, `a selected voter has a signed cast vote that no stored cast vote holds` | A stored ballot was removed or replaced. Keep the evidence and report it. |
 | Exit status `1`, `a selected voter has a later signed revote ...` | The stored vote order disagrees with the signed log. If the times are seconds apart, ask the system operator to check the server clocks. Then report it. |
 | Exit status `1`, `saved ... count differs ...` | The saved tally disagrees with the selection. A voter or a ballot changed after the tally, or a backup is from another moment. Read [Read the Results](../03-read-the-results.md). |
-| Exit status `1`, `... ballot receipt(s) are shared by several selected cast votes` | One encrypted ballot was counted for more than one voter. Keep the evidence and report it. |
-| Exit status `3`, `selected cast vote has no matching signed electoral-log evidence` | The signed record of a counted ballot is missing. The log write can fail. Report it as incomplete, not as a change. |
+| Exit status `1`, `... ballot receipt(s) are shared by several selected cast votes` | Several selected cast rows share the same ballot receipt. Keep the evidence and report it. |
+| Exit status `3`, `selected cast vote has no matching signed electoral-log evidence` | The signed record of a selected ballot is missing. The log write can fail. Report it as incomplete, not as a change. |
 | Exit status `3`, `scoped in-progress cast vote blocks preparation` | A vote was still in progress at the backup. Get a backup from after the end of the voting period. |
 
 See [Troubleshooting](../04-troubleshooting.md) for all messages.

@@ -20,8 +20,7 @@ The command `ballot-audit` does these checks:
 2. It checks the signed electoral log record of each selected ballot.
 3. It checks the signatures of the configuration and of the encrypted ballots on the bulletin
    board.
-4. It compares the selected ballots with the encrypted ballots of each batch, with the number
-   of times that each ballot counts.
+4. It compares the selected ciphertexts with each batch, including the expected number of copies of each.
 
 ## Before you start
 
@@ -79,20 +78,21 @@ The command checks all ballots each time. The receipt only filters what the repo
 
 | `lookup.outcome` | Meaning | Exit status |
 | --- | --- | --- |
-| `selected` | The tally counted the ballot. The report gives its batch and its position. | `0` |
-| `excluded` | The ballot is stored, but the tally did not count it. The report gives the reason. | `3` |
-| `missing` | The ballot is not in the scope. | `3` |
-| `ambiguous` | More than one counted ballot has this receipt. The preparation refuses this case, so it shows only with a bundle from another source. | `1` |
+| `selected` | The selected ballot matches the checked encrypted tally inputs. The report lists its matching positions. | `0` |
+| `excluded` | The receipt appears in the selection file, but not among the selected ballots. The lookup reports the stored reason labels. | `3` |
+| `missing` | The receipt was not found in the selected bundle or the selection records searched. Check `selection_searched` before drawing a conclusion. | `3` |
+| `ambiguous` | More than one selected cast row has this receipt. Duplicate selected receipts make the audit fail. | `1` |
 
-An exit status `3` for a lookup is not a failure of the audit. It tells you that the tally did not
-count this receipt. See [Read the Results](../03-read-the-results.md) for the reasons.
+For an `excluded` or `missing` lookup outcome, exit status `3` comes from the lookup. The bundle check itself passed.
+The receipt is not among the selected ballots of the checked inputs.
+See [Read the Results](../03-read-the-results.md) for the stored reason labels and the limits of each outcome.
 
 :::danger WARNING
 Do not give a voter the batch and position of the ballot if the report lists the batch in
 `privacy_warnings`. In a small batch, the position can show how a person voted.
 :::
 
-**Expected result:** you know whether the tally counted the ballot, and why not if it did not.
+**Expected result:** you know whether the receipt matches a selected tally input, or which stored label explains its absence.
 
 ## If there is a problem
 

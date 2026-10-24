@@ -72,7 +72,7 @@ ballots.
 
 | Problem | Action |
 | --- | --- |
-| Exit status not `0`, `required checks failed or were incomplete` | Read the summary. A failed check of the mix or of the decryption is a finding: keep the evidence and report it. |
+| Exit status not `0`, `required checks failed or were incomplete` | Read the summary. Keep the evidence and report failed checks. See [Troubleshooting](../04-troubleshooting.md#evidence-messages) for completeness failures. |
 | The verifier fails when you give only the batches of your scope. | The board holds other batches. Give the complete list of the board. |
 | The verifier cannot connect. | Make sure that the B3 server runs and listens on `127.0.0.1:50051`. |
 

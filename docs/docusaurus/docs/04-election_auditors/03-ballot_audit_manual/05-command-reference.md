@@ -199,7 +199,7 @@ It writes the report to the standard output. See [Audit the Bundle](07-run-each-
 | `--messages <file>` | Yes | `messages.json` from the bundle. |
 | `--electoral-log <file>` | Yes | `electoral-log.json` from the bundle. |
 | `--ballot-id <receipt>` | No | Looks up one receipt. The command still checks all ballots. |
-| `--selection <file>` | No | `selection.json` from the bundle. With it, the lookup gives the reason when the tally did not count a ballot. |
+| `--selection <file>` | No | `selection.json` from the bundle. With it, the lookup reports stored reason labels for receipts absent from the selected inputs. |
 
 ## audit-cast-history
 

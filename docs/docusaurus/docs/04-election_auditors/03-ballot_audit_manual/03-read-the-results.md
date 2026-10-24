@@ -92,24 +92,29 @@ the answer in the audit report.
 
 ## Receipt lookup outcomes
 
+These outcomes describe the checked input bundle.
+Exclusion reasons come from stored labels and are not independently verified by the lookup.
+
 | Outcome | Meaning |
 | --- | --- |
-| `selected` | The tally counted the ballot. |
-| `excluded` | The ballot is stored, but the tally did not count it. The report gives a reason. |
-| `missing` | The ballot is not in the scope. It can be in another area or another election. |
-| `ambiguous` | More than one counted ballot has this receipt. |
+| `selected` | The selected ballot matches the checked encrypted tally inputs. The report lists its matching positions. |
+| `excluded` | The receipt appears in the selection file, but not among the selected ballots. The lookup reports the stored reason labels. |
+| `missing` | The receipt was not found in the selected bundle or the selection records searched. Check `selection_searched` before drawing a conclusion. |
+| `ambiguous` | More than one selected cast row has this receipt. Duplicate selected receipts make the audit fail. |
 
 ## Reasons for an excluded ballot
 
 | Reason | Meaning |
 | --- | --- |
-| `superseded_revote` | The voter voted again later. Only the last valid vote counts. |
-| `discarded` | An administrator discarded the ballot. |
-| `no_eligible_voter` | The voter is not in the frozen list of voters of the area. For example, the voter was disabled. |
-| `outside_scope` | The ballot belongs to another area or another election. |
+| `superseded_revote` | Another cast row is the one retained by the selection rules. |
+| `discarded` | The retained cast row is marked discarded in the application database. |
+| `no_eligible_voter` | The retained row's voter ID has no entry in the supplied eligibility list for this scope. |
+| `outside_scope` | The stored row is outside the scope, such as another area or election. |
 
 ## Results of the Braid verifier
 
-The verifier shows how many required checks passed. All checks must pass. A failed check of the
-mix or of the decryption is a finding, even if the ballot audit passed. The ballot audit does not
-check the mix or the decryption.
+The verifier shows how many required checks passed. All required checks must have successful results.
+A failed key, mix or plaintext-reference check is a finding, even if the ballot input audit passed.
+See [Versions](01-before-you-start.md#versions) for the requirement before reporting verified decryption.
+
+For completeness failures, see [Troubleshooting](04-troubleshooting.md#evidence-messages), including missing plaintext records in required batches.

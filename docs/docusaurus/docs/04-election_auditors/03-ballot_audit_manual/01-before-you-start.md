@@ -42,13 +42,13 @@ this in the audit report.
 | Term | Meaning |
 | --- | --- |
 | Tally | One count of the votes. An election event can have more than one tally. |
-| Scope | One election, one area and one contest of a tally. `audit-tally` makes one scope for each area and contest of the tally. |
+| Scope | An election and area of a tally, with one contest or all contests for combined ballot formats. `audit-tally` follows the saved tally mappings. |
 | Electoral log | The signed log of the election events, stored in ImmuDB. A `CastVote` record contains signed evidence of a cast ballot. A missing record makes the audit incomplete. |
 | Bulletin board | The B3 database of the cryptographic protocol. It holds the election public key and the encrypted ballots of each tally. |
-| Batch | A numbered group of encrypted ballots on the bulletin board. A tally of one area and one contest uses one or more batches. |
+| Batch | A numbered group of encrypted ballots on the bulletin board. A scope uses one or more batches. |
 | Receipt | The ballot ID that the voter gets after the vote. It is a hash of the encrypted ballot. |
-| Revote | A second or later vote of the same voter. Only the last valid vote counts. |
-| Pin | A SHA-512 digest of a file that you get from a trusted source. The tools refuse a file that does not match its pin. |
+| Revote | A second or later vote of the same voter. Only the latest row marked valid is selected. |
+| Pin | An expected SHA-512 digest of a file. The tools refuse a file that does not match its pin. `audit-tally` generates internal pins during the trusted run. |
 | Digest | The SHA-512 hash of a file: 128 lowercase hexadecimal characters. |
 | Evidence | The files that the export procedures write. |
 | Audit bundle | The files that **Prepare the Audit Bundle** writes. They contain only the ballots of the scope. |
