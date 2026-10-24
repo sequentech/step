@@ -29,6 +29,14 @@ die() {
     exit 1
 }
 
+# Exit status 2, as audit-tally uses for a usage error; 1 would read as a
+# contradiction.
+usage_error() {
+    usage >&2
+    echo "ballot-audit: $*" >&2
+    exit 2
+}
+
 info() {
     echo "ballot-audit: $*" >&2
 }
@@ -51,6 +59,10 @@ accounts, starts ImmuDB and the B3 server, and runs audit-tally. It writes the
 results of audit-tally to <output>, and the messages of the restore to
 <output>/restore. The exit status is the exit status of audit-tally. The copies
 are removed when the container stops.
+
+The container sets these audit-tally options itself, so they cannot follow --:
+--connections, --immudb-server-url, --immudb-username, --electoral-log-export,
+--b3-server-url, --b3-blob-root and --output.
 
 shell   restores the copies and opens a shell in <output>, to run one command
         of the audit at a time.
@@ -269,10 +281,20 @@ run_audit() {
     while [ $# -gt 0 ]; do
         case "$1" in
             --tally-session-id | --public-key-sha512 | --electoral-log-system-public-key)
-                [ $# -ge 2 ] || die "$1 needs a value"
+                [ $# -ge 2 ] || usage_error "$1 needs a value"
                 args+=("$1" "$2"); shift 2 ;;
             --) shift; args+=("$@"); break ;;
-            *) usage >&2; die "unknown option: $1" ;;
+            *) usage_error "unknown option: $1" ;;
+        esac
+    done
+    # Refused before the restore, which takes long; audit-tally would only
+    # refuse them afterwards.
+    local arg
+    for arg in "${args[@]}"; do
+        case "${arg%%=*}" in
+            --connections | --immudb-server-url | --immudb-username | --electoral-log-export \
+                | --b3-server-url | --b3-blob-root | --output)
+                usage_error "${arg%%=*} is set by the container" ;;
         esac
     done
     start_copies
@@ -315,6 +337,6 @@ EOF
 case "${1:-}" in
     shell) run_shell ;;
     help | -h | --help) usage ;;
-    "") usage >&2; exit 2 ;;
+    "") usage_error "no options" ;;
     *) run_audit "$@" ;;
 esac
