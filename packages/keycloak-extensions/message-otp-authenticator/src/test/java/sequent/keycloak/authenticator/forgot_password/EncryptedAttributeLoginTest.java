@@ -191,12 +191,64 @@ class EncryptedAttributeLoginTest {
       // Several candidates share these attributes, so the resolver reads the stored lockout state
       // instead of engaging BruteForceProtector for each of them - see meta#13460.
       lockTemporarily(other);
-      assertTrue(resolve(vector.get("plaintext")).authenticatedUser().isEmpty());
+      var failure = resolve(vector.get("plaintext"));
+      assertTrue(failure.authenticatedUser().isEmpty());
+      assertEquals(voter, failure.attributableUser().orElseThrow());
       config.getConfig().put("maxCandidates", "1");
       clearInvocations(voter, other);
       assertTrue(resolve(vector.get("plaintext")).authenticatedUser().isEmpty());
       verify(voter, never()).getAttributeStream(anyString());
       verify(other, never()).getAttributeStream(anyString());
+    }
+  }
+
+  @Test
+  void sharedTupleWrongSecretChargesEveryViableCandidate() {
+    identifiers = List.of("group");
+    var other = mock(UserModel.class);
+    when(other.getId()).thenReturn("other");
+    when(other.isEnabled()).thenReturn(true);
+    when(other.getAttributeStream("login-code")).thenAnswer(i -> Stream.empty());
+    when(users.searchForUserStream(eq(realm), anyMap(), eq(0), anyInt()))
+        .thenAnswer(i -> Stream.of(voter, other));
+    when(realm.isBruteForceProtected()).thenReturn(true);
+    when(session.loginFailures()).thenReturn(mock(UserLoginFailureProvider.class));
+    var protector = mock(BruteForceProtector.class);
+    when(session.getProvider(BruteForceProtector.class)).thenReturn(protector);
+    when(session.getContext()).thenReturn(mock(KeycloakContext.class));
+    try (var ignored = master(vector.get("master"))) {
+      var result = resolve("incorrect");
+      assertTrue(result.authenticatedUser().isEmpty());
+      assertTrue(result.attributableUser().isEmpty());
+      verify(protector).failedLogin(eq(realm), eq(voter), any(), any(), any());
+      verify(protector).failedLogin(eq(realm), eq(other), any(), any(), any());
+    }
+  }
+
+  @Test
+  void sharedTupleSecretOfLockedAccountFailsGenerically() {
+    identifiers = List.of("group");
+    var other = mock(UserModel.class);
+    when(other.getId()).thenReturn("other");
+    when(other.isEnabled()).thenReturn(true);
+    when(other.getAttributeStream("login-code")).thenAnswer(i -> Stream.empty());
+    when(users.searchForUserStream(eq(realm), anyMap(), eq(0), anyInt()))
+        .thenAnswer(i -> Stream.of(voter, other));
+    when(realm.isBruteForceProtected()).thenReturn(true);
+    lockTemporarily(voter);
+    try (var ignored = master(vector.get("master"))) {
+      for (var failurePolicy :
+          MultiAttributeCredentialResolver.SharedCandidateFailurePolicy.values()) {
+        config.getConfig().put(Utils.SHARED_CANDIDATE_FAILURE_POLICY, failurePolicy.name());
+        for (String secret : List.of(vector.get("plaintext"), "incorrect")) {
+          var result = resolve(secret);
+          assertTrue(result.authenticatedUser().isEmpty());
+          // The only account that can still log in takes the failure, as in PASSWORD mode.
+          assertEquals(other, result.attributableUser().orElseThrow());
+          assertEquals(MultiAttributeCredentialResolver.LockoutState.NONE, result.lockoutState());
+        }
+      }
+      verify(session, never()).getProvider(BruteForceProtector.class);
     }
   }
 
