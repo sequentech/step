@@ -308,10 +308,10 @@ export const ResultsDataLoader: React.FC<ResultsDataLoaderProps> = ({
     }, [databaseName, electionEventId, resultsEventId, setTallyQueryData])
 
     useEffect(() => {
-        if (allQueriesReady && !dbError) {
-            setTallyQueryData({...tallyData, sqliteDocumentId: databaseName})
-        }
-    }, [allQueriesReady, databaseName, dbError, setTallyQueryData, tallyData])
+        setTallyQueryData(
+            allQueriesReady && !queryError ? {...tallyData, sqliteDocumentId: databaseName} : null
+        )
+    }, [allQueriesReady, databaseName, queryError, setTallyQueryData, tallyData])
 
     return queryError ? <div role="alert">{translate("ra.message.error")}</div> : null
 }
