@@ -107,6 +107,15 @@ class CustomEventListenerProviderEventsTest {
     ((com.fasterxml.jackson.databind.node.ObjectNode) frozenInput)
         .set("body", om.readTree(frozenInput.get("body").asText()));
     assertEquals(actual, frozenInput);
+    JsonNode frozenEnvelope = fixture.get("queue_envelope");
+    assertEquals(
+        frozenEnvelope,
+        om.readTree(
+            new PgmqEventPublisher(sender, PublishFailurePolicy.FAIL_REQUEST)
+                .envelope(
+                    frozenEnvelope.at("/headers/id").asText(),
+                    "enqueue_electoral_log_event",
+                    Base64.getDecoder().decode(frozenEnvelope.get("body").asText()))));
     assertEquals("missing", actual.at("/body/details/scanovate_check_barcode_valid").asText());
     for (String forbidden :
         java.util.List.of(
