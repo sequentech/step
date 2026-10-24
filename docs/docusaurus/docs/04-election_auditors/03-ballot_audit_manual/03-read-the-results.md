@@ -31,7 +31,6 @@ The Braid verifier returns a status other than `0` when a required check fails o
 
 A successful Braid status includes the verifier's own recomputation of the plaintexts of every batch.
 The `DECRYPTION_VALID` and `PLAINTEXTS_VALID` fields check references in plaintext records; the recomputation is a separate condition of the success.
-See [Versions](01-before-you-start.md#versions) for the revisions that require it.
 
 Read the restore logs and provenance reports even when the command returns `0`.
 The image does not audit copies with restore errors, but some older annotation fields can be unavailable without failing the command.
