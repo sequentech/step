@@ -90,15 +90,17 @@ ballot-audit: exit status 0 (all steps passed)
 ## 3. Read the results
 
 1. If the command shows `WARNING: pg_restore reported ... error(s)`, read the log that the
-   warning names in `~/audit/output/restore`. Write each error in the audit notes.
+   warning names in `~/audit/output/restore`. Write each error in the audit notes. The command
+   then stops with `not auditing: the restore of ... had errors` and exit status `4`.
 2. Read the exit status in the last line of the command:
 
    | Exit status | Meaning |
    | --- | --- |
    | `0` | All steps passed. |
-   | `1` | A step found a contradiction, or the command stopped before the audit. Read the message. |
+   | `1` | A step found a contradiction. Read the message. |
+   | `2` | An option of the command is wrong. |
    | `3` | Evidence is missing, or a step did not run. The audit is incomplete. |
-   | `4` | An input was refused. |
+   | `4` | An input was refused. A refused backup or a restore with errors stops the command before the audit. A step of the audit can also return `4`: read the result files. |
 
 3. Open `~/audit/output/public-summary.json`. Read `status`, the `status` of each scope, of each
    `cast_vote_history` entry and of `braid`.
@@ -141,6 +143,7 @@ verifier.
 | `the output directory is not empty; use a new one` | Use a new, empty output directory. Do not delete evidence that you need. |
 | `missing backup: backups/...` or `no digest for ... in backup-digests.txt` | Put the backup in `~/audit/backups` with its file name, and its digest in the digests file. See [Prepare the Backups](02-restore.md). |
 | `... did not start` | The command shows the end of the log. Read the logs in `~/audit/output/restore`. |
+| `not auditing: the restore of ... had errors` | Write the errors in the audit notes and ask the system operator for a backup that restores without errors. See [Troubleshooting](../04-troubleshooting.md#messages-of-the-audit-image). |
 | Exit status `3`, `expected exactly one tally session row, found none` | The tally ID is wrong, or the backup is from before the tally. Check the tally ID with the election authority. |
 | You must repeat or examine one step. | Use [Run Each Step Separately](../07-run-each-step/00-run-each-step.md). |
 
