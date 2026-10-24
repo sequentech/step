@@ -2111,6 +2111,8 @@ const frenchTranslation: TranslationType = {
             },
         },
         tally: {
+            numericResultsReportsPending:
+                "Les résultats numériques sont complets. Les rapports sont encore en cours de génération.",
             errorUploadingSignature:
                 "Une erreur s'est produite lors du téléchargement de la signature",
             downloadTransmissionPackage: "Télécharger le paquet",
