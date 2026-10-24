@@ -217,13 +217,12 @@ Braid uses the public board records to verify:
 - The published plaintext records' references to the public key and final mix.
 
 Trustees publish **decryption factors**: partial decryptions used together to recover the plaintexts.
-When its decryption verification routine runs, Braid checks decryption proofs, recomputes plaintexts from these factors, and compares them with published plaintexts.
-At the reviewed revision, the success condition does not require this routine to have completed for every batch.
+Braid checks the decryption proofs, recomputes the plaintexts from these factors, and compares them with the published plaintexts.
+A batch is verified only when the verifier has signed its own recomputation; a published plaintext record alone is not enough.
 
 The `DECRYPTION_VALID` and `PLAINTEXTS_VALID` report fields establish reference consistency within plaintext records.
-They do not establish that recomputation ran.
-The current success condition establishes the other checks listed above.
-Before reporting verified decryption, use a verifier revision that requires successful recomputation for every batch.
+The recomputation is a separate condition of the success.
+Revisions before `586cfe5e1b7` do not require it; do not use them to report verified decryption.
 The auditor uses public evidence rather than election private keys.
 
 `audit-tally` passes Braid the tally's batches together with every `Ballots` batch found on the board.
@@ -235,7 +234,7 @@ Braid returns a nonzero exit status if any required report check fails or has no
 
 With authenticated inputs and the supported tool version, a successful run connects signed cast records to the selected encrypted tally inputs and verified mixes.
 The auditor can identify the checked scopes, reconcile the selection, and inspect the signed plaintext records associated with the final mix.
-Reporting verified decryption requires a verifier revision that enforces successful recomputation for every batch.
+Braid has recomputed the plaintexts of every batch and found that they match the published plaintexts.
 These are input and cryptographic checks; assessment of official candidate totals also requires the separate final counting and results-reconciliation steps.
 
 The overall status combines the individual steps:
@@ -277,14 +276,15 @@ The manual explains workstation preparation, compatible versions and handling of
 
 This explanation describes proposed `release/10.0` code in
 [PR #3968](https://github.com/sequentech/step/pull/3968), at commit
-[`820352256b8d`](https://github.com/sequentech/step/commit/820352256b8da1fe5b6c6e75e6b4928d58c1c319).
+[`6591fc92339`](https://github.com/sequentech/step/commit/6591fc9233910589fc4676e38874b24a6962780d).
 For release status, image validation and version selection, see
 [Versions](03-ballot_audit_manual/01-before-you-start.md#versions).
 
 The technical sources are the
-[ballot audit implementation and tests](https://github.com/sequentech/step/tree/820352256b8da1fe5b6c6e75e6b4928d58c1c319/packages/ballot-audit),
-[Braid verification checks](https://github.com/sequentech/step/blob/820352256b8da1fe5b6c6e75e6b4928d58c1c319/packages/braid/src/verify/verifier.rs),
-and [native receipt hashes](https://github.com/sequentech/step/blob/820352256b8da1fe5b6c6e75e6b4928d58c1c319/packages/sequent-core/src/encrypt.rs).
+[ballot audit implementation and tests](https://github.com/sequentech/step/tree/6591fc9233910589fc4676e38874b24a6962780d/packages/ballot-audit),
+[Braid verification checks](https://github.com/sequentech/step/blob/6591fc9233910589fc4676e38874b24a6962780d/packages/braid/src/verify/verifier.rs),
+[success rules](https://github.com/sequentech/step/blob/6591fc9233910589fc4676e38874b24a6962780d/packages/braid/src/verify/datalog.rs),
+and [native receipt hashes](https://github.com/sequentech/step/blob/6591fc9233910589fc4676e38874b24a6962780d/packages/sequent-core/src/encrypt.rs).
 The [parent issue](https://github.com/sequentech/meta/issues/14374) records the acceptance work and synthetic test evidence.
 
 To run the process, use the [Ballot Audit Manual](03-ballot_audit_manual/00-ballot_audit_manual.md).
