@@ -3236,6 +3236,8 @@ const englishTranslation = {
             },
         },
         tally: {
+            numericResultsReportsPending:
+                "Numeric results are complete. Reports are still being generated.",
             errorUploadingSignature: "There was an error uploading signature",
             downloadTransmissionPackage: "Download Transmission Package",
             resultsPublication: {

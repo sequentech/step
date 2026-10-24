@@ -39,4 +39,8 @@ test("surfaces a candidate-query failure and publishes only after recovery", () 
     expect(mockSetData).toHaveBeenLastCalledWith(
         expect.objectContaining({sqliteDocumentId: "document"})
     )
+    mockQueryError = true
+    rerender(React.createElement(ResultsDataLoader, props))
+    expect(screen.getByRole("alert").textContent).toBe("ra.message.error")
+    expect(mockSetData).toHaveBeenLastCalledWith(null)
 })

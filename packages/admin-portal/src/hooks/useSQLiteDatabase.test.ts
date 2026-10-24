@@ -191,3 +191,17 @@ test("a query error cannot certify the previous document rows as ready", async (
     expect(result.current.isReady).toBe(false)
     expect(result.current.data).toEqual([])
 })
+
+test("a failed current download cannot expose the previous database as ready", async () => {
+    global.fetch = jest.fn((url) =>
+        url === "A"
+            ? Promise.resolve(response(11))
+            : Promise.reject(new Error("download unavailable"))
+    ) as typeof fetch
+    const {result, rerender} = setup()
+    await waitFor(() => expect(result.current.isReady).toBe(true))
+    rerender({documentId: "B"})
+    await waitFor(() => expect(result.current.error).toBe("download unavailable"))
+    expect(result.current.isReady).toBe(false)
+    expect(result.current.databases.has("B")).toBe(false)
+})

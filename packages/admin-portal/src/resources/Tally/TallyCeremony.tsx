@@ -92,6 +92,7 @@ import {tallyQueryData} from "@/atoms/tally-candidates"
 import {
     getCompleteElectionIds,
     hasCompletedEmptyResults,
+    isNumericallyComplete,
     requiresCompleteResults,
 } from "./resultsCompleteness"
 import {AuthContext} from "@/providers/AuthContextProvider"
@@ -329,6 +330,11 @@ export const TallyCeremony: React.FC = () => {
                 tallySession?.election_ids?.length &&
                 tallySession.election_ids.every((id) => completeElectionIds.includes(id))
             ))
+    const numericResultsReady =
+        enforceCompleteness &&
+        !!tallySession &&
+        isNumericallyComplete(tallySession) &&
+        allNumericResultsComplete
     const displayedExecutionStatus =
         enforceCompleteness &&
         tally?.execution_status === ITallyExecutionStatus.SUCCESS &&
@@ -417,6 +423,15 @@ export const TallyCeremony: React.FC = () => {
 
     const isPostTallyPending =
         enforceCompleteness && tallySession?.annotations?.is_post_task_completed !== true
+
+    useEffect(() => {
+        if (!numericResultsReady) return
+        setExpandedData((previous) => ({
+            ...previous,
+            "tally-data-general": true,
+            "tally-data-results": true,
+        }))
+    }, [tallyId, numericResultsReady])
 
     useEffect(() => {
         // A successful poll may structurally share unchanged session data.
@@ -1027,6 +1042,11 @@ export const TallyCeremony: React.FC = () => {
 
                     {page === WizardSteps.Tally && (
                         <>
+                            {numericResultsReady && isPostTallyPending && (
+                                <Alert severity="info">
+                                    {t("tally.numericResultsReportsPending")}
+                                </Alert>
+                            )}
                             <Accordion
                                 sx={{width: "100%"}}
                                 expanded={expandedData["tally-data-progress"]}
@@ -1072,9 +1092,9 @@ export const TallyCeremony: React.FC = () => {
 
                             <Accordion
                                 sx={{width: "100%"}}
-                                expanded={expandedResults["tally-data-general"]}
+                                expanded={expandedData["tally-data-general"]}
                                 onChange={() =>
-                                    setExpandedResults((prev: IExpanded) => ({
+                                    setExpandedData((prev: IExpanded) => ({
                                         ...prev,
                                         "tally-data-general": !prev["tally-data-general"],
                                     }))

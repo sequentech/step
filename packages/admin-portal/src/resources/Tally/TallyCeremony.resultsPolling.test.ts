@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
-import {act, render, screen, waitFor} from "@testing-library/react"
+import {act, fireEvent, render, screen, waitFor} from "@testing-library/react"
 import {TallyCeremony} from "./TallyCeremony"
 
 const mockCreate = jest.fn()
@@ -676,3 +676,93 @@ it.each(["FAILED", "CANCELLED"])(
         expect(mockRefetch).not.toHaveBeenCalled()
     }
 )
+
+it("opens certified numeric results while the overall tally is still rendering reports", async () => {
+    setCompleteNumericSnapshot()
+    mockSession = {...mockSession, execution_status: "IN_PROGRESS"}
+    const {rerender} = render(React.createElement(TallyCeremony))
+    await waitFor(() => expect(mockCompleteElections).toHaveBeenLastCalledWith(["closed"]))
+    expect(screen.getByTestId("loaded-results").textContent).toBe("partial-results:partial-db")
+    expect(screen.getByTestId("ceremony-status").textContent).toBe("IN_PROGRESS")
+    expect(pollingInterval()).toBe(1000)
+    expect(screen.getByText("tally.numericResultsReportsPending")).toBeTruthy()
+    const generalPanel = screen.getByText("tally.generalInfoTitle").closest("button")!
+    expect(generalPanel.getAttribute("aria-expanded")).toBe("true")
+    fireEvent.click(generalPanel)
+    expect(generalPanel.getAttribute("aria-expanded")).toBe("false")
+    expect(
+        screen.getByText("tally.resultsTitle").closest("button")?.getAttribute("aria-expanded")
+    ).toBe("true")
+
+    mockSession = {
+        ...mockSession,
+        execution_status: "SUCCESS",
+        annotations: {result_readiness_version: 1, is_post_task_completed: true},
+    }
+    mockExecution = {...mockExecution, id: "reported", documents: {sqlite: "reported-db"}}
+    mockExecutionRefetch.mockResolvedValue({data: {data: [mockExecution], total: 1}})
+    rerender(React.createElement(TallyCeremony))
+    await waitFor(() => expect(pollingInterval()).toBeUndefined())
+    expect(screen.getByTestId("loaded-results").textContent).toBe("partial-results:reported-db")
+    expect(mockCompleteElections).toHaveBeenLastCalledWith([])
+    expect(screen.queryByText("tally.numericResultsReportsPending")).toBeNull()
+    expect(screen.getByTestId("ceremony-status").textContent).toBe("IN_PROGRESS")
+    mockTallyData = {...mockTallyData, sqliteDocumentId: "reported-db"}
+    rerender(React.createElement(TallyCeremony))
+    await waitFor(() => expect(mockCompleteElections).toHaveBeenLastCalledWith(["closed"]))
+    expect(screen.getByTestId("ceremony-status").textContent).toBe("SUCCESS")
+})
+
+it.each([
+    "partial",
+    "missing-document",
+    "stale-document",
+    "missing-certificate",
+    "wrong-results",
+    "wrong-tally",
+    "wrong-certificate",
+    "partial-progress",
+])("keeps %s numeric results closed while reports are pending", async (condition) => {
+    setCompleteNumericSnapshot()
+    mockSession = {...mockSession, execution_status: "IN_PROGRESS"}
+    if (condition === "partial") mockTallyData.sequent_backend_results_area_contest = []
+    if (condition === "missing-document") mockExecution.documents = null
+    if (condition === "stale-document") mockTallyData.sqliteDocumentId = "older-document"
+    if (condition === "missing-certificate") mockExecution.annotations = {}
+    if (condition === "wrong-results") mockExecution.results_event_id = "other-result"
+    if (condition === "wrong-tally") mockExecution.tally_session_id = "other-tally"
+    if (condition === "wrong-certificate")
+        mockExecution.annotations = {
+            result_readiness: {
+                complete_election_ids: ["other-election"],
+                expected_area_contests: [["closed", "contest", "area"]],
+            },
+        }
+    if (condition === "partial-progress")
+        mockExecution.status = {
+            elections_status: [{election_id: "closed", status: "DECRYPTING", progress: 99}],
+        }
+    render(React.createElement(TallyCeremony))
+    await act(async () => undefined)
+    expect(mockCompleteElections).toHaveBeenLastCalledWith([])
+    expect(screen.queryByText("tally.numericResultsReportsPending")).toBeNull()
+    expect(
+        screen.getByText("tally.resultsTitle").closest("button")?.getAttribute("aria-expanded")
+    ).toBe("false")
+    expect(screen.getByTestId("ceremony-status").textContent).toBe("IN_PROGRESS")
+})
+
+it("preserves the legacy in-progress presentation", async () => {
+    setCompleteNumericSnapshot()
+    mockSession = {
+        ...mockSession,
+        execution_status: "IN_PROGRESS",
+        annotations: {is_post_task_completed: false},
+    }
+    render(React.createElement(TallyCeremony))
+    await act(async () => undefined)
+    expect(screen.queryByText("tally.numericResultsReportsPending")).toBeNull()
+    expect(
+        screen.getByText("tally.resultsTitle").closest("button")?.getAttribute("aria-expanded")
+    ).toBe("false")
+})
