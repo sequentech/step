@@ -12,7 +12,7 @@ use electoral_log::adapters::ballot_box::{
 };
 use electoral_log::adapters::ballot_box_reads::{
     tally_ballots_query, BallotIdMatch, BucketRange, FirstValidVote, FirstValidVotes,
-    IpBallotsFilter, Participation, SEQUENCE_SETTLED_SECS,
+    IpBallotsFilter, Participation, SEQUENCE_SETTLED_SECS, TALLY_BALLOTS_SETTINGS,
 };
 use electoral_log::adapters::ballot_box_received::{
     ReceiveBallot, ReceiveOutcome, ReceivedSignature, ReceivedStatus,
@@ -805,7 +805,8 @@ fn cast_vote_record(event: &str, seq: i64) -> LogEntry {
 
 #[tokio::test]
 #[ignore = "requires ELECTORAL_LOG_TEST_DATABASE_URL"]
-async fn the_tally_reads_each_voters_latest_valid_recorded_ballot() -> Result<()> {
+async fn the_tally_reads_each_voters_latest_valid_or_else_discarded_recorded_ballot() -> Result<()>
+{
     let store = store().await?;
     let (event, election, area, other_area) = ids();
     store.create_ballot_box(&event).await?;
@@ -813,6 +814,8 @@ async fn the_tally_reads_each_voters_latest_valid_recorded_ballot() -> Result<()
     store.create_board(&board).await?;
 
     let mut sequenced = Vec::new();
+    let mut ids_by_content = std::collections::HashMap::new();
+    let other_election = Uuid::new_v4().to_string();
     for vote in [
         Vote::new(&event, &election, &area, "v1", 0).with_content("first"),
         Vote::new(&event, &election, &area, "v1", 0)
@@ -824,8 +827,27 @@ async fn the_tally_reads_each_voters_latest_valid_recorded_ballot() -> Result<()
             .with_status(BallotStatus::Rejected),
         Vote::new(&event, &election, &area, "v3", 0).with_status(BallotStatus::Pending),
         Vote::new(&event, &election, &other_area, "v4", 0),
+        // Discarded only: the latest discarded ballot is read, for the audit.
+        Vote::new(&event, &election, &area, "v6", 0)
+            .with_content("old discarded")
+            .with_status(BallotStatus::Rejected),
+        Vote::new(&event, &election, &area, "v6", 0)
+            .with_content("latest discarded")
+            .with_status(BallotStatus::Rejected),
+        // A valid ballot in another election doesn't hide this one's discarded one.
+        Vote::new(&event, &election, &area, "v7", 0)
+            .with_content("discarded here")
+            .with_status(BallotStatus::Rejected),
+        Vote::new(&event, &other_election, &area, "v7", 0).with_content("valid elsewhere"),
+        // An older valid ballot hides a later discarded one.
+        Vote::new(&event, &election, &area, "v8", 0).with_content("kept valid"),
+        Vote::new(&event, &election, &area, "v8", 0)
+            .with_content("later discarded")
+            .with_status(BallotStatus::Rejected),
     ] {
-        sequenced.push(vote.accept(&store).await?);
+        let (seq, id) = vote.accept_with_id(&store).await?;
+        sequenced.push(seq);
+        ids_by_content.insert(vote.content, (id, vote.ballot.clone()));
     }
     let waiting = Vote::new(&event, &election, &area, "v5", 0)
         .accept(&store)
@@ -859,19 +881,45 @@ async fn the_tally_reads_each_voters_latest_valid_recorded_ballot() -> Result<()
     );
 
     let query = tally_ballots_query(&event, &election, &area)?;
-    let rows: Vec<(String, String, String)> = store
-        .client()
-        .await?
+    let mut client = store.client().await?;
+    let transaction = client.transaction().await?;
+    transaction.batch_execute(TALLY_BALLOTS_SETTINGS).await?;
+    let rows: Vec<(String, String, String, String, String, String)> = transaction
         .query(&query, &[])
         .await?
         .iter()
-        .map(|row| (row.get(0), row.get(1), row.get(2)))
+        .map(|row| {
+            (
+                row.get(0),
+                row.get(1),
+                row.get(2),
+                row.get(3),
+                row.get(4),
+                row.get(5),
+            )
+        })
         .collect();
+    transaction.commit().await?;
+    drop(client);
+    let row = |voter: &str, content: &'static str, channel: &str, status: &str| {
+        let (id, ballot_id) = ids_by_content[content].clone();
+        (
+            voter.to_string(),
+            content.to_string(),
+            channel.to_string(),
+            status.to_string(),
+            id,
+            ballot_id,
+        )
+    };
     assert_eq!(
         rows,
         [
-            ("v1".to_string(), "second".to_string(), "KIOSK".to_string()),
-            ("v2".to_string(), "valid".to_string(), "ONLINE".to_string()),
+            row("v1", "second", "KIOSK", "valid"),
+            row("v2", "valid", "ONLINE", "valid"),
+            row("v6", "latest discarded", "ONLINE", "discarded"),
+            row("v7", "discarded here", "ONLINE", "discarded"),
+            row("v8", "kept valid", "ONLINE", "valid"),
         ]
     );
     assert!(tally_ballots_query(&event, &election, "x' OR '1'='1").is_err());

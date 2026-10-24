@@ -24,7 +24,7 @@ use electoral_log::adapters::ballot_box::{
     AcceptBallot, AcceptOutcome, BallotStatus, PendingBallot,
 };
 use electoral_log::adapters::ballot_box_reads::{
-    tally_ballots_query, BallotIdMatch, BucketRange, IpBallotsFilter,
+    tally_ballots_query, BallotIdMatch, BucketRange, IpBallotsFilter, TALLY_BALLOTS_SETTINGS,
 };
 use electoral_log::adapters::console::{ConsoleFilters, ConsoleTable, PageOrder, PageRequest};
 use electoral_log::adapters::postgres::{PostgresConnection, PostgresStore};
@@ -755,7 +755,10 @@ async fn reads(store: PostgresStore, args: ReadsArgs) -> Result<()> {
                 let store = store.clone();
                 let query = query.clone();
                 async move {
-                    let rows = store.client().await?.query(query.as_str(), &[]).await?;
+                    let mut client = store.client().await?;
+                    let transaction = client.transaction().await?;
+                    transaction.batch_execute(TALLY_BALLOTS_SETTINGS).await?;
+                    let rows = transaction.query(query.as_str(), &[]).await?;
                     anyhow::Ok(rows.len())
                 }
             },
@@ -771,9 +774,10 @@ async fn reads(store: PostgresStore, args: ReadsArgs) -> Result<()> {
     }
     if let Some(area) = areas.first() {
         let query = tally_ballots_query(event, &election, area)?;
-        let plan = store
-            .client()
-            .await?
+        let mut client = store.client().await?;
+        let transaction = client.transaction().await?;
+        transaction.batch_execute(TALLY_BALLOTS_SETTINGS).await?;
+        let plan = transaction
             .query(format!("EXPLAIN {query}").as_str(), &[])
             .await?;
         println!("tally input plan:");

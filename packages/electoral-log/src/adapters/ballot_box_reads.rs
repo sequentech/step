@@ -128,6 +128,8 @@ const STORED_BALLOT: &str = "id::text, ballot_id, election_id::text, area_id::te
 const VALID: &str = "valid";
 const PENDING: &str = "pending";
 const REJECTED: &str = "rejected";
+/// The status the tally input gives a rejected ballot.
+const DISCARDED: &str = "discarded";
 
 /// Seconds after a ballot's `accepted_at` by which every vote that took a lower
 /// sequence number has committed or failed. A vote is one statement, which takes
@@ -136,9 +138,17 @@ const REJECTED: &str = "rejected";
 /// too.
 pub const SEQUENCE_SETTLED_SECS: f64 = 60.0;
 
+/// The setting to run [`tally_ballots_query`] with, in its transaction. Without
+/// parallel workers its two ordered branches are merged as they stream; a parallel
+/// plan sorts every ballot of the area again, which spills to disk on large areas.
+pub const TALLY_BALLOTS_SETTINGS: &str = "SET LOCAL max_parallel_workers_per_gather = 0";
+
 /// Query of the tally input of an election's area, as rows `(voter_id, content,
-/// voting_channel)`: each voter's latest valid ballot among those the sequencer has
-/// appended to the board, ordered by voter ID. The IDs are checked and written as
+/// voting_channel, status, id, ballot_id)` among the ballots the sequencer has
+/// appended to the board, ordered by voter ID: each voter's latest valid ballot,
+/// with status `valid`, and, for a voter with no valid ballot in the area, the
+/// voter's latest rejected ballot, with status `discarded`, which the tally
+/// counts as auditable and never mixes. The IDs are checked and written as
 /// literals, so that the query can be streamed with `COPY`, which takes no
 /// parameters.
 pub fn tally_ballots_query(
@@ -149,15 +159,40 @@ pub fn tally_ballots_query(
     let event = canonical_uuid(election_event_id)?;
     let election = canonical_uuid(election_id)?;
     let area = canonical_uuid(area_id)?;
-    Ok(format!(
-        "SELECT DISTINCT ON (b.voter_id) b.voter_id, b.content, b.voting_channel \
-         FROM ballot_box_ballot b \
-         WHERE b.election_event_id = '{event}' AND b.election_id = '{election}' \
-           AND b.area_id = '{area}' AND b.status = '{VALID}' \
-           AND NOT EXISTS (SELECT 1 FROM ballot_box_pending p \
-                           WHERE p.election_event_id = b.election_event_id AND p.seq = b.seq) \
-         ORDER BY b.voter_id, b.seq DESC"
-    ))
+    let sequenced = |alias: &str| {
+        format!(
+            "{alias}.election_event_id = '{event}' AND {alias}.election_id = '{election}' \
+             AND {alias}.area_id = '{area}' \
+             AND NOT EXISTS (SELECT 1 FROM ballot_box_pending p \
+                             WHERE p.election_event_id = {alias}.election_event_id \
+                               AND p.seq = {alias}.seq)"
+        )
+    };
+    // Each branch reads an index of the area in voter order with a constant
+    // status, so the two ordered streams merge without sorting the ballots
+    // (see TALLY_BALLOTS_SETTINGS). Rejected ballots are few and have an index
+    // of their own, so checking each for a valid one is cheap.
+    let latest = |status: &str, label: &str, extra: &str| {
+        format!(
+            "(SELECT DISTINCT ON (b.voter_id) b.voter_id, b.content, b.voting_channel, \
+                     '{label}' AS status, b.id::text AS id, b.ballot_id \
+              FROM ballot_box_ballot b \
+              WHERE {} AND b.status = '{status}'{extra} \
+              ORDER BY b.voter_id, b.seq DESC)",
+            sequenced("b")
+        )
+    };
+    let valid = latest(VALID, VALID, "");
+    let discarded = latest(
+        REJECTED,
+        DISCARDED,
+        &format!(
+            " AND NOT EXISTS (SELECT 1 FROM ballot_box_ballot v \
+                              WHERE {} AND v.voter_id = b.voter_id AND v.status = '{VALID}')",
+            sequenced("v")
+        ),
+    );
+    Ok(format!("{valid} UNION ALL {discarded} ORDER BY voter_id"))
 }
 
 fn stored_ballot(row: &Row) -> Result<StoredBallot> {

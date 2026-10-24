@@ -224,7 +224,33 @@ Discarded Ballots that for some reason are not included in the tally. Possible r
 - The ballot was cast outside the Voting Period.
 - The voter is not authorized for the election of the ballot.
 - The voter is not assigned to the area of the ballot.
+- The ballot was discarded (stored as `rejected`, by Datafix voter release or
+  screening) and its voter has no valid ballot in the election and area.
 - The ballot is from a previous revote (only the last vote counts). (Note, this is not counted as a discarded ballot yet).
+
+The tally input of an area (`tally_ballots_query`) is each voter's latest valid
+ballot or, for a voter without one, the voter's latest rejected ballot, as rows
+`(voter_id, content, voting_channel, status, id, ballot_id)` with status `valid`
+or `discarded`. `merge_join_csv` counts a discarded ballot as without voter even
+when its voter is eligible, so it never enters the mix, and adds it to
+`casted_ballots` and the channel totals. A sealed ballot box applies the same
+rule to its manifest's `discarded` entries, with eligibility frozen at the seal.
+
+Both paths stream each auditable ballot to a JSON Lines file stored as a private
+document (`encrypted-ballots.jsonl`, fixed id per tally session contest), named by
+the `auditable_ballots_document_id` annotation. The results archive copies it to
+`auditable-ballots/election__<id>/[contest__<id>/]area__<id>/` (in the
+renamed archive, `election__<name>__<id>` and so on) with a `summary.json` (`format_version: 1`, `count`, `ballots_available`,
+`identity_mode`). Records carry `cast_vote_id`, `ballot_id`, `reason`
+(`discarded` or `no_eligible_voter`) and the unsigned ballot fields (`version`,
+`issue_date`, `contests`, `config`, `ballot_style_hash`). `voter_id` is the
+stored voter ID; in a pseudonymous event it is `null` and the stored pseudonym
+is in `voter_pseudonym`. A ballot that does not parse has `payload_error:
+"invalid_ballot_format"` and the `content_sha256` of its stored bytes instead of
+the ballot fields. Fields may be added; existing ones keep their meaning.
+
+Single-contest folders hold the complete unsigned ballot, so the same ballot can
+appear under several contests: do not sum per-contest counts as voters.
 
 ### Eligible Voters
 

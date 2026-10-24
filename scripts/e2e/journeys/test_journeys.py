@@ -16,6 +16,7 @@ import hashlib
 import json
 import re
 import subprocess
+import tarfile
 import unittest
 import uuid
 import zipfile
@@ -1807,6 +1808,252 @@ class BackendJourneys(unittest.TestCase):
             by_name, {"Alice": 3, "Bob": 5, "Carol": 0, "Dave": 3, "Erin": 5}
         )
         self.verify_public_transcripts(event_id)
+
+    def test_a2_datafix_released_ballots_are_auditable(self):
+        """Ballots a Datafix voter release discards are auditable and kept, encrypted, in the results archive."""
+        self.requires("journey 4")
+        datafix_id = f"datafix-{self.tag}-audit"
+        tag = f"{self.tag}x"
+        document = datafix.event_document(ENV["VOTING_PORTAL_URL"], tag, datafix_id)
+        event_id = self.import_event(document, "datafix-audit-event")
+        realm = event_realm(event_id)
+        ward = datafix.ward_of(tag)
+        voters = fixtures.census(f"{self.tag}-dfaudit", {"A": 3})
+        path = self.cli.directory / "datafix-audit-voters.csv"
+        with path.open("w", newline="") as handle:
+            writer = csv.writer(handle)
+            writer.writerow(
+                [
+                    "username",
+                    "area_name",
+                    "email",
+                    "email_verified",
+                    "password",
+                    "authorized-election-ids",
+                ]
+            )
+            for voter in voters:
+                writer.writerow(
+                    [
+                        voter.username,
+                        f"{ward}-000",
+                        f"{voter.username}@example.invalid",
+                        "true",
+                        voter.username,
+                        f"e2e-main-{tag}-datafix",
+                    ]
+                )
+        self.step(
+            "import-voters",
+            "--election-event-id",
+            event_id,
+            "--file-path",
+            str(path),
+            "--is-local",
+        )
+        # Voters marked as having voted via the Internet are validated without
+        # VoterView, which the isolated stack does not have.
+        profile = self.keycloak.admin("GET", f"{realm}/users/profile")
+        profile["unmanagedAttributePolicy"] = "ADMIN_EDIT"
+        self.keycloak.admin("PUT", f"{realm}/users/profile", profile)
+        users = {}
+        for voter in voters:
+            user = self.keycloak.user(realm, voter.username)
+            attributes = dict(user.get("attributes") or {})
+            attributes["voted-channel"] = ["Internet"]
+            self.keycloak.admin(
+                "PUT",
+                f"{realm}/users/{user['id']}",
+                {**user, "attributes": attributes},
+                expect=(204,),
+            )
+            users[voter.username] = user["id"]
+
+        ceremony = StepCli.last_id(
+            self.step(
+                "start-key-ceremony",
+                "--election-event-id",
+                event_id,
+                "--threshold",
+                "2",
+                "--automatic",
+            )
+        )
+
+        def keys_ready():
+            (row,) = self.admin.query(
+                "query ($id: uuid!) { sequent_backend_keys_ceremony(where: {id: {_eq: $id}}) { execution_status } }",
+                {"id": ceremony},
+            )["sequent_backend_keys_ceremony"]
+            self.assertNotIn(row["execution_status"], ("FAILED", "CANCELLED"))
+            return row["execution_status"] == "SUCCESS"
+
+        wait_until("Datafix event keys", keys_ready, timeout=600)
+        self.step("publish", "--election-event-id", event_id)
+        self.step(
+            "update-event-voting-status",
+            "--election-event-id",
+            event_id,
+            "--voting-status",
+            "OPEN",
+            "--voting-channel",
+            "ONLINE",
+        )
+        previous = self.state
+        self.state = State()
+        self.state.event_id = event_id
+        self.state.portal = Portal(event_id, self.cli)
+        self.state.accepted, self.state.rejected = [], 0
+        try:
+            receipts = {}
+            for voter, candidate in zip(voters, ("Alice", "Bob", "Carol")):
+                receipt, errors = self.vote(voter.username, candidate)
+                self.assertIsNone(errors)
+                receipts[voter.username] = receipt["ballot_id"]
+            for voter in voters:
+                wait_until(
+                    f"the Datafix review of {voter.username}'s ballot",
+                    lambda: [v["status"] for v in self.voter_votes(voter.username)]
+                    == ["valid"],
+                    timeout=180,
+                )
+
+            def edit(username, enabled):
+                """Disable or enable a voter as the admin portal does."""
+                # Actions take the administrator's token, not the admin secret.
+                task = Hasura(token=self.admin_token()).query(
+                    """mutation ($body: EditUsersInput!) {
+                      edit_user(body: $body) { task_execution { id } }
+                    }""",
+                    {
+                        "body": {
+                            "tenant_id": TENANT_ID,
+                            "election_event_id": event_id,
+                            "user_id": users[username],
+                            "enabled": enabled,
+                        }
+                    },
+                )["edit_user"]["task_execution"]["id"]
+
+                def done():
+                    (row,) = self.admin.query(
+                        "query ($id: uuid!) { sequent_backend_tasks_execution(where: {id: {_eq: $id}}) { execution_status logs } }",
+                        {"id": task},
+                    )["sequent_backend_tasks_execution"]
+                    self.assertNotEqual(row["execution_status"], "FAILED", row["logs"])
+                    return row["execution_status"] == "SUCCESS"
+
+                wait_until(f"the edit of {username}", done, timeout=120)
+
+            kept, released, reenabled = (voter.username for voter in voters)
+            # Releasing a voter discards their ballot; enabling them again
+            # does not bring it back.
+            edit(released, False)
+            edit(reenabled, False)
+            edit(reenabled, True)
+            self.assertEqual(
+                [v["status"] for v in self.voter_votes(reenabled)], ["discarded"]
+            )
+            self.step(
+                "update-event-voting-status",
+                "--election-event-id",
+                event_id,
+                "--voting-status",
+                "CLOSED",
+                "--voting-channel",
+                "ONLINE",
+            )
+            results_id = self.tally()
+        finally:
+            self.state = previous
+
+        # Importing replaces the document's ids: read the voters' contest back.
+        (link,) = self.admin.query(
+            """query ($event: uuid!, $area: String!) {
+              sequent_backend_area_contest(where: {election_event_id: {_eq: $event}, area: {name: {_eq: $area}}}) { contest_id }
+            }""",
+            {"event": event_id, "area": f"{ward}-000"},
+        )["sequent_backend_area_contest"]
+        contest_id = link["contest_id"]
+        (contest,) = self.admin.query(
+            """query ($results: uuid!, $contest: uuid!) {
+              sequent_backend_results_contest(where: {results_event_id: {_eq: $results}, contest_id: {_eq: $contest}}) {
+                elegible_census total_auditable_votes total_votes total_valid_votes
+              }
+            }""",
+            {"results": results_id, "contest": contest_id},
+        )["sequent_backend_results_contest"]
+        self.assertEqual(
+            (
+                contest["elegible_census"],
+                contest["total_auditable_votes"],
+                contest["total_votes"],
+                contest["total_valid_votes"],
+            ),
+            (2, 2, 1, 1),
+        )
+
+        def archive_id():
+            (results_event,) = self.admin.query(
+                "query ($id: uuid!) { sequent_backend_results_event(where: {id: {_eq: $id}}) { documents } }",
+                {"id": results_id},
+            )["sequent_backend_results_event"]
+            documents = results_event["documents"] or {}
+            return documents.get("tar_gz") or documents.get("tar_gz_pdfs")
+
+        document_id = wait_until("the tally results archive", archive_id, timeout=300)
+        url = Hasura(token=self.admin_token()).query(
+            """query ($event: String, $document: String!) {
+              fetchDocument(election_event_id: $event, document_id: $document) { url }
+            }""",
+            {"event": event_id, "document": document_id},
+        )["fetchDocument"]["url"]
+        response = http_get(url)
+        self.assertEqual(response.status, 200)
+        with tarfile.open(fileobj=io.BytesIO(response.body), mode="r:*") as archive:
+            members = {
+                member.name.split("auditable-ballots/", 1)[1]: archive.extractfile(
+                    member
+                ).read()
+                for member in archive.getmembers()
+                if member.isfile() and "auditable-ballots/" in member.name
+            }
+        folders = [
+            name.rsplit("/", 1)[0]
+            for name in members
+            # The downloaded archive names folders `contest__<name>__<id>`.
+            if name.endswith("summary.json") and f"{contest_id}/area__" in name
+        ]
+        self.assertEqual(len(folders), 1, sorted(members))
+        (area_folder,) = folders
+        self.assertEqual(
+            json.loads(members[f"{area_folder}/summary.json"]),
+            {
+                "format_version": 1,
+                "count": 2,
+                "ballots_available": True,
+                "identity_mode": "identity",
+            },
+        )
+        records = [
+            json.loads(line)
+            for line in members[f"{area_folder}/encrypted-ballots.jsonl"]
+            .decode()
+            .splitlines()
+        ]
+        self.assertEqual(
+            sorted((r["voter_id"], r["ballot_id"], r["reason"]) for r in records),
+            sorted(
+                (users[username], receipts[username], "discarded")
+                for username in (released, reenabled)
+            ),
+        )
+        for record in records:
+            uuid.UUID(record["cast_vote_id"])
+            self.assertTrue(record["contests"])
+            self.assertNotIn("voter_signing_pk", record)
+            self.assertNotIn("voter_ballot_signature", record)
+            self.assertNotIn("voter_pseudonym", record)
 
     def test_b_manual_key_ceremony_and_tally(self):
         """Each trustee proves local custody before publication and a manual tally."""

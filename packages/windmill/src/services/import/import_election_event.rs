@@ -12,6 +12,7 @@ use crate::postgres::reports::Report;
 use crate::postgres::trusted_write;
 use crate::postgres::trustee::get_all_trustees;
 use crate::services::approval_matrix::store::import_approval_matrix;
+use crate::services::ceremonies::auditable_ballots::AUDITABLE_BALLOTS_FILE;
 use crate::services::ceremonies::keys_ceremony::{
     ceremony_public_key_state, verify_keys_ceremony_public_key, CeremonyPublicKeyState,
 };
@@ -2096,7 +2097,7 @@ pub async fn process_document(
     let may_write_secret_attributes = object.may_write_secret_attributes;
     let secret_write_initiator = object.secret_write_initiator.clone();
     let privileges = object.privileges;
-    let (election_event_schema, replacement_map, notes) = process_election_event_file(
+    let (election_event_schema, mut replacement_map, notes) = process_election_event_file(
         hasura_transaction,
         &document_type,
         &file_election_event_schema,
@@ -2112,6 +2113,20 @@ pub async fn process_document(
         let message = format!("Error processing election event file: {err}");
         err.context(message)
     })?;
+
+    // Auditable ballots documents are referenced by the tally CSV, not the
+    // event JSON, and an export can carry them without it.
+    for (name, _) in &zip_entries {
+        if name.starts_with(&format!("{}/", EDocuments::S3_FILES.to_file_name()))
+            && name.ends_with(&format!("_{AUDITABLE_BALLOTS_FILE}"))
+        {
+            if let Some(id) = extract_document_uuid(name).await? {
+                replacement_map
+                    .entry(id.to_string())
+                    .or_insert_with(|| Uuid::new_v4().to_string());
+            }
+        }
+    }
 
     // Exports that carry the electoral logs with their identities replace the activity
     // logs file, which older exports carry alone.

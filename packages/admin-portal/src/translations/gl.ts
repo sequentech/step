@@ -3357,6 +3357,12 @@ const galegoTranslation: TranslationType = {
                 total_votes_percent: "Participación",
                 total_votes_counted: "Total de Votos Contabilizados",
                 total_auditable_votes: "Total de Votos Auditable",
+                total_auditable_votes_help:
+                    "Papeletas que quedan fóra do reconto, aínda cifradas: as de votantes que non son elixibles e a última papeleta descartada de cada votante sen unha papeleta válida. O arquivo de resultados do reconto inclúeas no seu cartafol auditable-ballots.",
+                total_auditable_votes_help_sealed:
+                    "As urnas sélanse ao peche: a elixibilidade é a rexistrada no selo, polo que un votante deshabilitado despois segue contando.",
+                total_auditable_votes_help_pseudonym:
+                    "Os votantes identifícanse polos seus pseudónimos, non polos seus ID de votante.",
                 total_valid_votes: "Total de Votos Válidos",
                 total_valid_votes_percent: "Porcentaxe de Votos Válidos",
                 total_invalid_votes: "Total de Votos Nulos",

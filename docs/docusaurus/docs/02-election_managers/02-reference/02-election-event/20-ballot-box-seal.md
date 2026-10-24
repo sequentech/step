@@ -489,7 +489,14 @@ the tally:
    voters, a weight of at least 1 on every counted ballot);
 5. recomputes the hash of every stored ballot and checks that the ballots are
    exactly the manifest's entries;
-6. counts the manifest's counted entries, with their weights.
+6. counts the manifest's counted entries, with their weights, and, as
+   [auditable ballots](./08-01-election_management_election-event_tally.md#auditable-ballots),
+   its not-eligible entries and, for each voter with no valid ballot in the
+   box, the voter's latest discarded one.
+
+Eligibility is the one recorded in the seal: a voter disabled after the seal
+stays counted. A tally without a seal reads eligibility when it runs, so the
+same voter's ballot would be auditable there.
 
 These checks run when the policy is Seal at close, **or** when the event's
 electoral-log database holds a seal, or its board a `BallotBoxSealed` entry,

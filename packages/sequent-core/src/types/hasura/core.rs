@@ -651,6 +651,11 @@ pub struct TallySession {
 pub struct TallySessionContestAnnotations {
     pub elegible_voters: u64,
     pub ballots_without_voter: u64,
+    /// The private document with the auditable ballots that
+    /// `ballots_without_voter` counts. Absent when there are none, and in
+    /// sessions tallied before they were kept.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub auditable_ballots_document_id: Option<String>,
     pub casted_ballots: u64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub votes_by_channel: Option<VotesByChannel>,
@@ -809,10 +814,12 @@ mod tally_session_contest_annotations_tests {
             .unwrap();
         assert_eq!(legacy.votes_by_channel, None);
         assert_eq!(legacy.ballot_box_seal_hash, None);
+        assert_eq!(legacy.auditable_ballots_document_id, None);
 
         let current = TallySessionContestAnnotations {
             elegible_voters: 0,
             ballots_without_voter: 0,
+            auditable_ballots_document_id: None,
             casted_ballots: 0,
             votes_by_channel: Some(VotesByChannel::new()),
             weight_bit_mask: None,
@@ -821,6 +828,7 @@ mod tally_session_contest_annotations_tests {
         let serialized = serde_json::to_value(current).unwrap();
         assert_eq!(serialized["votes_by_channel"], serde_json::json!({}));
         assert!(serialized.get("ballot_box_seal_hash").is_none());
+        assert!(serialized.get("auditable_ballots_document_id").is_none());
     }
 }
 

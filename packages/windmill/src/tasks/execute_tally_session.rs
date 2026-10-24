@@ -23,6 +23,9 @@ use crate::postgres::template::get_template_by_alias;
 use crate::services::ballot_box_reads::count_unresolved_votes;
 use crate::services::cast_votes::ElectionCastVotes;
 use crate::services::celery_app::get_celery_app;
+use crate::services::ceremonies::auditable_ballots::{
+    export_auditable_ballots, save_auditable_ballots,
+};
 use crate::services::ceremonies::results::populate_results_tables;
 use crate::services::ceremonies::serialize_logs::{append_tally_finished, append_tally_updated};
 use crate::services::ceremonies::tally_boards::{
@@ -68,6 +71,7 @@ use crate::services::temp_path::{
 };
 use crate::services::users::list_users;
 use crate::services::users::ListUsersFilter;
+use crate::services::vote_privacy::identity_mode;
 use crate::services::weight_batches::{collect_weighted_payloads, contest_weight_batches};
 use crate::tasks::signing_log_outbox::kick_signing_log_outbox;
 use crate::types::error::{Error, Result};
@@ -711,6 +715,9 @@ async fn create_tally_boards(
                 batch,
             });
         }
+        // Fixed per contest area: a rolled back run's upload is replaced by
+        // the retry's.
+        save_auditable_ballots(hasura_transaction, &area.contest, &area.auditable_ballots).await?;
         annotated_contests.push(area.contest);
     }
     update_tally_session_contests_annotations(hasura_transaction, &annotated_contests).await?;
@@ -1482,6 +1489,13 @@ pub async fn execute_tally_session_wrapped(
 
     // base temp folder
     let base_tempdir = tempdir()?;
+    export_auditable_ballots(
+        hasura_transaction,
+        base_tempdir.path(),
+        &tally_session_contests,
+        identity_mode(&election_event)?.into(),
+    )
+    .await?;
 
     let areas: Vec<Area> =
         get_event_areas(hasura_transaction, &tenant_id, &election_event_id).await?;

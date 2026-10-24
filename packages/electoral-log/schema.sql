@@ -109,6 +109,12 @@ CREATE INDEX IF NOT EXISTS ballot_box_ballot_area
 -- answers: few at a time, looked up by ID and listed for review.
 CREATE INDEX IF NOT EXISTS ballot_box_ballot_pending
     ON ballot_box_ballot (election_event_id, id) WHERE status = 'pending';
+-- Rejected ballots, which the tally input of an area reads for the voters without a
+-- valid ballot (`tally_ballots_query`): few, so it reads them without reading the
+-- area's other ballots again.
+CREATE INDEX IF NOT EXISTS ballot_box_ballot_rejected
+    ON ballot_box_ballot (election_event_id, election_id, area_id, voter_id, seq DESC)
+    WHERE status = 'rejected';
 CREATE TABLE IF NOT EXISTS ballot_box_voter (
     election_event_id UUID NOT NULL,
     election_id UUID NOT NULL,

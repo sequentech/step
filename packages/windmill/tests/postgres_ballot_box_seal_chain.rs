@@ -357,6 +357,7 @@ fn a_closed_box_is_sealed_published_verified_and_counted_from_its_seal() {
                 tally_session_id: SESSION,
             },
             WeightedVotingPolicy::default(),
+            |_| Ok(()),
         )
         .await
         .unwrap();
@@ -375,11 +376,12 @@ fn a_closed_box_is_sealed_published_verified_and_counted_from_its_seal() {
         expected.sort();
         assert_eq!(ballot_contents, expected);
         assert_eq!(counted.merge_result.eligible_voters, 3);
-        assert_eq!(counted.merge_result.ballots_without_voter, 1);
-        assert_eq!(counted.merge_result.casted_ballots, 3);
+        // Carol's ballot and Dave's discarded one are auditable.
+        assert_eq!(counted.merge_result.ballots_without_voter, 2);
+        assert_eq!(counted.merge_result.casted_ballots, 4);
         assert_eq!(
             counted.merge_result.casted_ballots_by_channel,
-            [(ParticipationChannel::from("ONLINE"), 3)]
+            [(ParticipationChannel::from("ONLINE"), 4)]
                 .into_iter()
                 .collect()
         );

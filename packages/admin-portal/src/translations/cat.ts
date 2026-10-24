@@ -3375,6 +3375,12 @@ const catalanTranslation: TranslationType = {
                 total_votes_percent: "Participació",
                 total_votes_counted: "Total de Vots Comptats",
                 total_auditable_votes: "Total de Vots Auditables",
+                total_auditable_votes_help:
+                    "Paperetes que queden fora del recompte, encara xifrades: les de votants que no són elegibles i l'última papereta descartada de cada votant sense una papereta vàlida. L'arxiu de resultats del recompte les inclou a la seva carpeta auditable-ballots.",
+                total_auditable_votes_help_sealed:
+                    "Les urnes se segellen en tancar: l'elegibilitat és la registrada al segell, de manera que un votant deshabilitat després continua comptant.",
+                total_auditable_votes_help_pseudonym:
+                    "Els votants s'identifiquen pels seus pseudònims, no pels seus ID de votant.",
                 total_valid_votes: "Total de vots vàlids",
                 total_valid_votes_percent: "Percentatge de vots vàlids",
                 total_invalid_votes: "Total de vots invàlids",

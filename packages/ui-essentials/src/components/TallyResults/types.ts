@@ -84,6 +84,8 @@ export interface ResultsAndParticipationLabels {
     turnout: string
     eligibleCensus: string
     totalAuditableVotes: string
+    /** Shown under the auditable votes' label; none by default. */
+    totalAuditableVotesHelp?: string
     totalVotesCounted: string
     totalValidVotes: string
     totalInvalidVotes: string

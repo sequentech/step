@@ -110,6 +110,20 @@ export const MissingValues: Story = {
         ).toEqual(["-", "-"])
     },
 }
+export const AuditableVotesHelp: Story = {
+    args: {
+        labels: {
+            totalAuditableVotesHelp:
+                "Ballots kept out of the count, still encrypted: those of voters who are not eligible, and the latest discarded ballot of each voter without a valid ballot. Ballot boxes are sealed at close: eligibility is the one recorded in the seal, so a voter disabled after it stays counted.",
+        },
+    },
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        const row = canvas.getByRole("row", {name: /Total Auditable Votes/})
+        await expect(within(row).getByText(/Ballots kept out of the count/)).toBeVisible()
+        await expect(row).toHaveTextContent("8750")
+    },
+}
 export const PreferentialRounds: Story = {
     args: {
         summary: null,
