@@ -12,7 +12,8 @@
     "serve": "docusaurus serve",
     "write-translations": "docusaurus write-translations",
     "write-heading-ids": "docusaurus write-heading-ids",
-    "prebuild": "node --test plugins/*.test.js"
+    "prebuild": "node --test plugins/*.test.js",
+    "pdf": "node scripts/manual-pdf.mjs"
   },
   "dependencies": {
     "@docusaurus/core": "^3.8.1",
@@ -26,7 +27,8 @@
   },
   "devDependencies": {
     "@docusaurus/module-type-aliases": "^3.8.1",
-    "@docusaurus/types": "^3.8.1"
+    "@docusaurus/types": "^3.8.1",
+    "puppeteer-core": "24.10.0"
   },
   "browserslist": {
     "production": [

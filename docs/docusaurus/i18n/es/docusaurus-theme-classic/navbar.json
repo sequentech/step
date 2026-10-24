@@ -1,0 +1,18 @@
+{
+  "logo.alt": {
+    "message": "Sequent Logo",
+    "description": "The alt text of navbar logo"
+  },
+  "item.label.Docs": {
+    "message": "Documentación",
+    "description": "Navbar item with label Docs"
+  },
+  "item.label.GraphQL API": {
+    "message": "GraphQL API",
+    "description": "Navbar item with label GraphQL API"
+  },
+  "item.label.GitHub": {
+    "message": "GitHub",
+    "description": "Navbar item with label GitHub"
+  }
+}
