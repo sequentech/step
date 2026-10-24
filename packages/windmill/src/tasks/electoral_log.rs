@@ -2029,6 +2029,7 @@ mod batch_build_tests {
             stored.user_id.as_deref(),
             Some("00000000-0000-4000-8000-000000000003")
         );
+        assert_eq!(stored.username.as_deref(), Some("synthetic-voter"));
         let decoded = Message::record_deserialize(&stored.message).unwrap();
         let actual_body = serde_json::to_value(&decoded.statement.body).unwrap();
         let actual_details: Value =

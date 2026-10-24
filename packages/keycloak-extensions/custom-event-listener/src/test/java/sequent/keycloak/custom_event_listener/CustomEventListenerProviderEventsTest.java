@@ -99,6 +99,14 @@ class CustomEventListenerProviderEventsTest {
     ((com.fasterxml.jackson.databind.node.ObjectNode) expected)
         .set("body", om.readTree(expected.get("body").asText()));
     assertEquals(expected, actual);
+    // Rust consumes this frozen envelope: tie every input field to the real Java publisher.
+    JsonNode frozenInput =
+        om.readTree(Base64.getDecoder().decode(fixture.at("/queue_envelope/body").asText()))
+            .get(1)
+            .get("input");
+    ((com.fasterxml.jackson.databind.node.ObjectNode) frozenInput)
+        .set("body", om.readTree(frozenInput.get("body").asText()));
+    assertEquals(actual, frozenInput);
     assertEquals("missing", actual.at("/body/details/scanovate_check_barcode_valid").asText());
     for (String forbidden :
         java.util.List.of(
