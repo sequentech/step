@@ -2097,6 +2097,8 @@ const galegoTranslation: TranslationType = {
             },
         },
         tally: {
+            numericResultsReportsPending:
+                "Os resultados numéricos están completos. Os informes aínda se están xerando.",
             errorUploadingSignature: "Houbo un erro ao cargar a sinatura",
             downloadTransmissionPackage: "Descargar Paquete de Transmisión",
             resultsPublication: {
