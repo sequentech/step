@@ -91,6 +91,9 @@ const tagalogTranslation = {
                 bytesToUtf8Conversion:
                     "Error sa pag-convert ng write-in mula sa bytes papuntang UTF-8 string: {{errorMessage}}",
                 ballotTooLarge: "Ang balota ay mas malaki kaysa sa inaasahan",
+                duplicatedSelection: "Ang parehong pagpipilian ay napili nang higit sa isang beses",
+                blankBallotWithSelections:
+                    "Ang balota ay minarkahang blangko ngunit may mga napili sa tanong",
             },
             explicit: {
                 notAllowed:
