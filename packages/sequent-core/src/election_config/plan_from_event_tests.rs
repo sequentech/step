@@ -225,6 +225,10 @@ fn admin_export() -> Value {
             },
             "presentation": {
                 "i18n": {"en": {"name": "Postqual", "common.next": "Onward"}},
+                "language_conf": {
+                    "enabled_language_codes": ["en", "fil"],
+                    "default_language_code": "en"
+                },
                 "audio_instructions_policy": "enabled",
                 "batch_anonymity_policy": "enabled",
                 "receipts": {"checks_period_policy": "enabled"},
@@ -469,7 +473,10 @@ fn the_export_becomes_the_plans_base() {
         base.pointer("/election_event/id"),
         Some(&serde_json::json!("event-uuid"))
     );
-    assert_eq!(base.get("version"), Some(&serde_json::json!("v11.0.0-rc.3")));
+    assert_eq!(
+        base.get("version"),
+        Some(&serde_json::json!("v11.0.0-rc.3"))
+    );
     assert!(base.pointer("/election_event/annotations").is_none());
     assert!(base.pointer("/election_event/description").is_none());
     assert!(base.pointer("/election_event/presentation/i18n").is_none());
@@ -545,7 +552,10 @@ fn an_admin_export_rebuilds_with_what_it_carried() {
     // The platform that exported it can import it back.
     assert_eq!(at("/version"), said("v11.0.0-rc.3"));
 
-    assert_eq!(at("/elections/0/annotations/miru:election-code"), said("E-1"));
+    assert_eq!(
+        at("/elections/0/annotations/miru:election-code"),
+        said("E-1")
+    );
     assert_eq!(
         at("/elections/0/presentation/start_screen_title_policy"),
         said("election")
@@ -582,6 +592,7 @@ fn an_admin_export_rebuilds_with_what_it_carried() {
         at("/keycloak_event_realm/authenticationFlows/0/alias"),
         said("scanovate")
     );
+    // The login page's languages follow the event's, as on any build.
     assert_eq!(
         at("/keycloak_event_realm/supportedLocales"),
         Some(serde_json::json!(["en", "fil"]))
