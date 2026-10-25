@@ -86,7 +86,7 @@ stated, to `trustee`). Remove each of them from the role `admin`:
 | Archiving and deletion of election events | "Archive Election Event" (`election-event-archive`), "Delete Election Event" (`election-event-delete`) |
 | Audit review and monitoring | "View Election Event Logs" (`election-event-logs-tab`), "Read Logs" (`logs-read`), "Audit Electoral Log" (`electoral-log-audit`), "Browse Electoral Log" (`electoral-log-console-read`), "Query Electoral Log" (`electoral-log-console-query`), "Read Electoral Log Personal Data" (`electoral-log-personal-data-read`), "View Election Event Tasks" (`election-event-tasks-tab`), "Read Tasks Execution" (`tasks-read`), "View Monitoring Dashboards" (`monitoring-view`) |
 | Read the voters' register, as a protected action where the Signatures tab requires it | "Read Voter" (`voter-read`), "View Election Event Voters" (`election-event-voters-tab`) |
-| Export of the electoral log and of election execution data | "Export Logs" (`logs-export`), "Edit Reports" (`report-write`), "Export Voter" (`voter-export`), "Read Document Passwords" (`document-password-read`) |
+| Export of the electoral log and of election execution data | "Export Logs" (`logs-export`), "Read Reports" (`report-read`), "Edit Reports" (`report-write`), "Read Documents" (`document-read`), "Download Documents" (`document-download`), "Export Voter" (`voter-export`), "Read Document Passwords" (`document-password-read`) |
 
 ### Permissions on election data and audit records
 
@@ -163,7 +163,9 @@ the election board, not deleted
      "Read Tally" (`tally-read`), "Start Tally" (`tally-start`), "Edit Tally"
      (`tally-write`), "Read Tally Results" (`tally-results-read`); "Read
      Logs" (`logs-read`), "Export Logs" (`logs-export`), "Edit Reports"
-     (`report-write`), "Export Voter" (`voter-export`), "Audit Electoral Log" (`electoral-log-audit`), "Browse
+     (`report-write`), "Read Reports" (`report-read`), "Read Documents"
+     (`document-read`), "Download Documents" (`document-download`),
+     "Export Voter" (`voter-export`), "Audit Electoral Log" (`electoral-log-audit`), "Browse
      Electoral Log" (`electoral-log-console-read`), "Query Electoral Log"
      (`electoral-log-console-query`); `self-test-run` and `self-test-read`;
      "Delete Election Event" (`election-event-delete`), "Archive Election
@@ -203,7 +205,12 @@ the election board, not deleted
 5. Select "Save", then reopen the role with its edit icon and check the
    permissions. "Export Logs" (`logs-export`) and "Edit Reports"
    (`report-write`) must both be in the role: exporting the electoral log
-   needs both. Changes to an existing role's permission checkboxes take effect
+   needs both. Also check "Read Reports" (`report-read`), "Read Documents"
+   (`document-read`) and "Download Documents" (`document-download`), which
+   let the board generate and download the initialization report and download
+   the exported electoral log. These permissions do not reveal secret voter
+   fields; the separate permission in step 3 remains necessary for those.
+   Changes to an existing role's permission checkboxes take effect
    immediately; close and reopen "Role Data" to check them.
 
 The evaluated configuration does not transmit results
