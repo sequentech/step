@@ -1,8 +1,18 @@
 {
   "auth_presets": [
     {
+      "deployment_settings": [
+        {
+          "config_alias": "scanovate-registration",
+          "key": "liveness-url",
+          "parameter": "scanovate_liveness_url"
+        }
+      ],
       "name": "biometric_authentication",
       "optional_parameters": [
+        "scanovate_ocr_url",
+        "scanovate_liveness_url",
+        "scanovate_face_match_url",
         "accepted_passport_countries",
         "scanovate_face_match_min_similarity",
         "otp_sender_id",
@@ -15,9 +25,8 @@
         "otp_sender_id": "Sequent",
         "otp_ttl_seconds": "300",
         "scanovate_face_match_min_similarity": "0.67",
-        "scanovate_face_match_url": "",
-        "scanovate_liveness_url": "",
-        "scanovate_ocr_url": ""
+        "scanovate_face_match_url": "http://scanovate-face-match:3000",
+        "scanovate_ocr_url": "http://scanovate-ocr:5040"
       },
       "patch": {
         "patch": {
@@ -221,11 +230,7 @@
         "sequent.read-only.id-card-number",
         "sequent.read-only.id-card-number-validated"
       ],
-      "required_parameters": [
-        "scanovate_ocr_url",
-        "scanovate_liveness_url",
-        "scanovate_face_match_url"
-      ],
+      "required_parameters": [],
       "requires": [
         {
           "kind": "authenticator",

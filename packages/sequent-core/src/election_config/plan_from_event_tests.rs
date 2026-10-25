@@ -305,7 +305,7 @@ fn admin_export() -> Value {
                     "enabled_language_codes": ["en", "fil"],
                     "default_language_code": "en"
                 },
-                "audio_instructions_policy": "enabled",
+                "audio_instructions_policy": "recorded-or-synthesized",
                 "batch_anonymity_policy": "enabled",
                 "receipts": {"checks_period_policy": "enabled"},
                 "voter_accessibility_settings_policy": "enabled",
@@ -852,7 +852,7 @@ fn an_admin_export_rebuilds_with_what_it_carried() {
         said("+15550100")
     );
     for (path, value) in [
-        ("audio_instructions_policy", "enabled"),
+        ("audio_instructions_policy", "recorded-or-synthesized"),
         ("batch_anonymity_policy", "enabled"),
         ("receipts/checks_period_policy", "enabled"),
         ("voter_accessibility_settings_policy", "enabled"),

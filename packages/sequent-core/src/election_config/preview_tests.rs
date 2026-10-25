@@ -696,6 +696,8 @@ fn two_areas() -> Blueprint {
             name: id.to_uppercase(),
             parent_external_id: None,
             allow_early_voting: false,
+            description: String::new(),
+            annotations: Default::default(),
         })
         .collect();
     plan.elections[0].contests[0].areas =

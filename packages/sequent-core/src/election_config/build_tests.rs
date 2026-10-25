@@ -2217,7 +2217,7 @@ fn biometric_workbook() -> Workbook {
 }
 
 /// A realm that already runs the biometric registration: its own flow under the
-/// same alias, and the liveness secret the deployment set.
+/// same alias, and the liveness secret and URL the deployment set.
 fn biometric_realm() -> Value {
     let mut realm = base_realm();
     realm["registrationFlow"] = json!("registration");
@@ -2238,7 +2238,10 @@ fn biometric_realm() -> Value {
         .unwrap()
         .push(json!({
             "alias": "scanovate-registration",
-            "config": {"liveness-secret": "kept-by-the-deployment"},
+            "config": {
+                "liveness-secret": "kept-by-the-deployment",
+                "liveness-url": "https://login.example.org/biometric",
+            },
         }));
     realm
 }
@@ -2334,6 +2337,11 @@ fn the_deployments_liveness_secret_survives_the_biometric_preset() {
         scanovate["config"]["ocr-url"],
         json!("https://ocr.example.org")
     );
+    // A parameter wins over the realm's own value.
+    assert_eq!(
+        scanovate["config"]["liveness-url"],
+        json!("https://liveness.example.org")
+    );
     // The flow under the same alias is the preset's now, whole.
     let registration = realm["authenticationFlows"]
         .as_array()
@@ -2356,9 +2364,8 @@ fn the_deployments_liveness_secret_survives_the_biometric_preset() {
             || problem.message.contains("has no authenticator")));
 }
 
-#[test]
-fn biometric_authentication_needs_its_service_urls() {
-    let report = refused(&with_sheet(
+fn biometric_workbook_without_urls() -> Workbook {
+    with_sheet(
         "Parameters",
         vec![
             vec![text("type"), text("key"), text("value")],
@@ -2368,17 +2375,60 @@ fn biometric_authentication_needs_its_service_urls() {
                 text("biometric_authentication"),
             ],
         ],
-    ));
-    for key in [
-        "scanovate_ocr_url",
-        "scanovate_liveness_url",
-        "scanovate_face_match_url",
-    ] {
-        assert!(
-            has_error_saying(&report, &format!("a '{key}' parameter")),
-            "{key}"
-        );
-    }
+    )
+}
+
+fn scanovate_config(bundle: &Bundle) -> &Value {
+    &bundle.export["keycloak_event_realm"]["authenticatorConfig"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|config| config["alias"] == json!("scanovate-registration"))
+        .unwrap()["config"]
+}
+
+#[test]
+fn biometric_authentication_builds_without_its_service_urls() {
+    let bundle = with_options(
+        &biometric_workbook_without_urls(),
+        BuildOptions {
+            base_export: Some(
+                json!({"keycloak_event_realm": biometric_realm()}),
+            ),
+            ..BuildOptions::default()
+        },
+    );
+    let scanovate = scanovate_config(&bundle);
+    assert_eq!(scanovate["ocr-url"], json!("http://scanovate-ocr:5040"));
+    assert_eq!(
+        scanovate["face-match-url"],
+        json!("http://scanovate-face-match:3000")
+    );
+    assert_eq!(
+        scanovate["liveness-url"],
+        json!("https://login.example.org/biometric")
+    );
+    assert!(!bundle
+        .warnings
+        .warnings()
+        .any(|problem| problem.message.contains("liveness-url")));
+}
+
+#[test]
+fn a_realm_without_a_liveness_url_is_warned_about() {
+    let bundle = with_options(
+        &biometric_workbook_without_urls(),
+        BuildOptions {
+            base_export: Some(json!({"keycloak_event_realm": base_realm()})),
+            ..BuildOptions::default()
+        },
+    );
+    assert!(bundle.warnings.warnings().any(|problem| problem
+        .message
+        .contains("needs 'liveness-url'")
+        && problem
+            .message
+            .contains("'scanovate_liveness_url' parameter")));
 }
 
 #[test]

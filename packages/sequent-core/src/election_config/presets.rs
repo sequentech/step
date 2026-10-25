@@ -89,6 +89,10 @@ pub const PASSPORT_COUNTRY_CHECK_FLOW: &str = "passport-country-check";
 /// merge by alias leaves that secret in place.
 pub const SCANOVATE_CONFIG_ALIAS: &str = "scanovate-registration";
 pub const SCANOVATE_LIVENESS_SECRET: &str = "liveness-secret";
+pub const SCANOVATE_LIVENESS_URL: &str = "liveness-url";
+pub const SCANOVATE_OCR_URL_DEFAULT: &str = "http://scanovate-ocr:5040";
+pub const SCANOVATE_FACE_MATCH_URL_DEFAULT: &str =
+    "http://scanovate-face-match:3000";
 pub const BIOMETRIC_OTP_CONFIG: &str = "biometric-registration-otp";
 pub const BIOMETRIC_USER_CREATION_CONFIG: &str = "biometric-registration-user";
 pub const BIOMETRIC_LOOKUP_CONFIG: &str = "biometric-lookup-register";
@@ -137,6 +141,17 @@ pub struct Requirement {
 pub struct ConfigSecret {
     pub config_alias: &'static str,
     pub key: &'static str,
+}
+
+/// An authenticator config value that depends on where the realm is deployed.
+///
+/// Written from `parameter` when the plan gives one; otherwise the target realm's
+/// own value is kept, and the build reports a realm that has none.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DeploymentSetting {
+    pub config_alias: &'static str,
+    pub key: &'static str,
+    pub parameter: &'static str,
 }
 
 /// What a preset asks of a realm: a merge, plus two things a merge cannot do.
@@ -222,6 +237,7 @@ pub struct AuthPreset {
     pub profile_attributes: &'static [&'static str],
 
     pub secrets: &'static [ConfigSecret],
+    pub deployment_settings: &'static [DeploymentSetting],
 
     build: fn(&PresetInput) -> RealmPatch,
 }
@@ -229,7 +245,34 @@ pub struct AuthPreset {
 impl AuthPreset {
     /// Turn the resolved parameters into what the realm needs.
     pub fn build(&self, input: &PresetInput) -> RealmPatch {
-        (self.build)(input)
+        let mut result = (self.build)(input);
+        for setting in self.deployment_settings {
+            let value = input.text(setting.parameter, "");
+            if value.is_empty() {
+                continue;
+            }
+            let configs = result
+                .patch
+                .get_mut("authenticatorConfig")
+                .and_then(Value::as_array_mut)
+                .into_iter()
+                .flatten()
+                .filter(|config| {
+                    config.get("alias").and_then(Value::as_str)
+                        == Some(setting.config_alias)
+                });
+            for config in configs {
+                if let Some(entries) =
+                    config.get_mut("config").and_then(Value::as_object_mut)
+                {
+                    entries.insert(
+                        setting.key.to_string(),
+                        Value::String(value.clone()),
+                    );
+                }
+            }
+        }
+        result
     }
 
     /// Every parameter key this preset reads.
@@ -640,11 +683,16 @@ fn biometric_patch(input: &PresetInput) -> RealmPatch {
             {
                 "alias": SCANOVATE_CONFIG_ALIAS,
                 "config": {
-                    "ocr-url": input.text(PARAM_SCANOVATE_OCR_URL, ""),
+                    "ocr-url": input.text(
+                        PARAM_SCANOVATE_OCR_URL,
+                        SCANOVATE_OCR_URL_DEFAULT,
+                    ),
                     "ocr-types": "{\"philippinePassport\": \"passport\"}",
                     "capture-sides": "{\"philippinePassport\": [\"front\"]}",
-                    "liveness-url": input.text(PARAM_SCANOVATE_LIVENESS_URL, ""),
-                    "face-match-url": input.text(PARAM_SCANOVATE_FACE_MATCH_URL, ""),
+                    "face-match-url": input.text(
+                        PARAM_SCANOVATE_FACE_MATCH_URL,
+                        SCANOVATE_FACE_MATCH_URL_DEFAULT,
+                    ),
                     "face-match-min-similarity":
                         format!("{{\"philippinePassport\": {similarity}}}"),
                     "doc-id-type": "sequent.read-only.id-card-type",
@@ -730,12 +778,11 @@ pub const PRESETS: &[AuthPreset] = &[
                   and is matched against the census.",
         uses_otp: true,
         build: biometric_patch,
-        required_parameters: &[
+        required_parameters: &[],
+        optional_parameters: &[
             PARAM_SCANOVATE_OCR_URL,
             PARAM_SCANOVATE_LIVENESS_URL,
             PARAM_SCANOVATE_FACE_MATCH_URL,
-        ],
-        optional_parameters: &[
             PARAM_ACCEPTED_PASSPORT_COUNTRIES,
             PARAM_SCANOVATE_FACE_MATCH_MIN_SIMILARITY,
             PARAM_OTP_SENDER_ID,
@@ -754,6 +801,12 @@ pub const PRESETS: &[AuthPreset] = &[
         secrets: &[ConfigSecret {
             config_alias: SCANOVATE_CONFIG_ALIAS,
             key: SCANOVATE_LIVENESS_SECRET,
+        }],
+        // The voter's browser calls it on the realm's own host.
+        deployment_settings: &[DeploymentSetting {
+            config_alias: SCANOVATE_CONFIG_ALIAS,
+            key: SCANOVATE_LIVENESS_URL,
+            parameter: PARAM_SCANOVATE_LIVENESS_URL,
         }],
         requires: &[
             Requirement {
@@ -781,6 +834,7 @@ pub const PRESETS: &[AuthPreset] = &[
                   platform's digital-certificates provider.",
         uses_otp: false,
         secrets: &[],
+        deployment_settings: &[],
         build: certificates_patch,
         required_parameters: &[],
         optional_parameters: &[],
@@ -798,6 +852,7 @@ pub const PRESETS: &[AuthPreset] = &[
                   whichever of email and mobile the census holds for them.",
         uses_otp: true,
         secrets: &[],
+        deployment_settings: &[],
         build: otp_patch,
         required_parameters: &[],
         optional_parameters: &[
@@ -820,6 +875,7 @@ pub const PRESETS: &[AuthPreset] = &[
                   mobile number.",
         uses_otp: false,
         secrets: &[],
+        deployment_settings: &[],
         build: saml_patch,
         // The identity provider authenticates; the assertion is matched against a
         // census voter by the principal attribute, which is a *parameter* rather than
@@ -843,6 +899,7 @@ pub const PRESETS: &[AuthPreset] = &[
                   types their date of birth, then a one-time code.",
         uses_otp: true,
         secrets: &[],
+        deployment_settings: &[],
         build: voter_link_dob_patch,
         // What `voter_link_dob_patch` configures, and what its `search-attributes`
         // and `hidden-profile-attributes` name. A census for this preset without a
@@ -1317,6 +1374,36 @@ mod tests {
     }
 
     #[test]
+    fn the_internal_services_default_to_their_deployed_names() {
+        let patch = get("biometric_authentication").unwrap().build(&input(&[]));
+        let scanovate = config(&patch, SCANOVATE_CONFIG_ALIAS);
+        assert_eq!(scanovate["ocr-url"], json!(SCANOVATE_OCR_URL_DEFAULT));
+        assert_eq!(
+            scanovate["face-match-url"],
+            json!(SCANOVATE_FACE_MATCH_URL_DEFAULT)
+        );
+    }
+
+    #[test]
+    fn the_liveness_url_is_left_to_the_realm_unless_given() {
+        // The voter's browser reaches it on the realm's own host, which a plan
+        // does not know, so a base realm's value survives the merge by alias.
+        let preset = get("biometric_authentication").unwrap();
+        let patch = preset.build(&input(&[]));
+        assert!(config(&patch, SCANOVATE_CONFIG_ALIAS)
+            .get(SCANOVATE_LIVENESS_URL)
+            .is_none());
+        assert_eq!(
+            preset.deployment_settings,
+            [DeploymentSetting {
+                config_alias: SCANOVATE_CONFIG_ALIAS,
+                key: SCANOVATE_LIVENESS_URL,
+                parameter: PARAM_SCANOVATE_LIVENESS_URL,
+            }]
+        );
+    }
+
+    #[test]
     fn an_unmatched_biometric_enrollment_waits_for_approval() {
         let patch = biometric(&[]);
         let lookup = config(&patch, BIOMETRIC_LOOKUP_CONFIG);
@@ -1371,17 +1458,22 @@ mod tests {
     }
 
     #[test]
-    fn biometric_authentication_needs_the_three_service_urls() {
+    fn biometric_authentication_needs_no_parameter_to_build() {
+        // The wizard has no field for one, so a required parameter would make
+        // the preset impossible to choose there.
         let preset = get("biometric_authentication").unwrap();
         assert!(preset.uses_otp);
-        assert_eq!(
-            preset.required_parameters,
-            [
-                PARAM_SCANOVATE_OCR_URL,
-                PARAM_SCANOVATE_LIVENESS_URL,
-                PARAM_SCANOVATE_FACE_MATCH_URL,
-            ]
-        );
+        assert!(preset.required_parameters.is_empty());
+        for parameter in [
+            PARAM_SCANOVATE_OCR_URL,
+            PARAM_SCANOVATE_LIVENESS_URL,
+            PARAM_SCANOVATE_FACE_MATCH_URL,
+        ] {
+            assert!(
+                preset.optional_parameters.contains(&parameter),
+                "{parameter}"
+            );
+        }
         for need in [
             SCANOVATE_AUTHENTICATOR,
             CONDITIONAL_AUTH_NOTE,
