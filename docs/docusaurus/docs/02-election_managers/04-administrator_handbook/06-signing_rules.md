@@ -182,10 +182,23 @@ trusted issuers yet. Staff can't sign until one is imported."
 1. Receive the CA certificates that issue the board members' signing
    certificates from the election organizer, with their SHA-256 fingerprints
    in writing, through a channel that protects their integrity.
-2. Select "Import issuer certificates", then "Choose a certificate file", and
-   "Import".
-3. Compare the "SHA-256" column with the fingerprints in writing. If one
-   differs, remove the issuer at once.
+2. Before importing, calculate the fingerprint of each received certificate
+   on your workstation. Replace `<issuer certificate>` with its file name:
+
+   ```sh
+   openssl x509 -in "<issuer certificate>" -noout -fingerprint -sha256
+   ```
+
+   Compare the entire SHA-256 fingerprint with the independently received
+   value. Colons and letter case only affect its display. If any digit
+   differs, stop and obtain the correct certificate; do not import it.
+3. Select "Import issuer certificates", then "Choose a certificate file",
+   choose the exact file you checked, and select "Import".
+4. Check the issuer name and validity, and compare the displayed beginning
+   and end of the "SHA-256" value with the verified fingerprint. The table
+   abbreviates its middle with an ellipsis; this display check does not
+   replace the full comparison in step 2. If a displayed value differs,
+   remove the issuer at once.
 
 To remove an issuer, confirm "Remove … from the trusted issuers? Certificates
 it issued can no longer sign." Remove an issuer only when the election
