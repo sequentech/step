@@ -111,11 +111,24 @@ async function awaitTaskSuccess(
 ): Promise<void> {
     const deadline = now() + TASK_TIMEOUT_MS
     for (;;) {
-        const {data} = await client.query({
-            query: GET_TASK_BY_ID,
-            variables: {task_id: taskId},
-            fetchPolicy: "network-only",
-        })
+        let data: {sequent_backend_tasks_execution?: Array<{execution_status?: string}>}
+        try {
+            ;({data} = await client.query({
+                query: GET_TASK_BY_ID,
+                variables: {task_id: taskId},
+                fetchPolicy: "network-only",
+            }))
+        } catch (error) {
+            // A transient poll failure must not lose the submitted task: surface it
+            // WITH the id so the UI reconciles/resumes rather than resubmitting blind.
+            throw new ComelecConfigError(
+                stage,
+                `lost contact while awaiting the import task; its outcome is unconfirmed (${
+                    error instanceof Error ? error.message : "poll failed"
+                })`,
+                taskId
+            )
+        }
         const status: string | undefined =
             data?.sequent_backend_tasks_execution?.[0]?.execution_status
         if (status === "SUCCESS") return
@@ -134,9 +147,21 @@ async function awaitTaskSuccess(
     }
 }
 
-export interface ComelecConfigDeps {
+/** The preview a confirmed apply acts on; produced by `prepareComelecConfig`. */
+export interface ComelecConfigPlan {
+    /** The generated tenant-config archive, ready to upload. */
+    file: File
+    preflight: TenantConfigPreflight
+    rolePreflight: RolePreflight
+    /** Existing approved trustees that would be reused, by id (never created here). */
+    reusedTrustees: ReusableTrustee[]
+}
+
+export interface ApplyComelecConfigDeps {
     client: ApolloClient<unknown>
     tenantId: string
+    /** A plan from `prepareComelecConfig`, after the operator confirmed it. */
+    plan: ComelecConfigPlan
     /** PUT the generated archive to the presigned URL (reuses the screen's uploader). */
     putFile: (url: string, file: File) => Promise<void>
     onStage?: (stage: ComelecConfigStage) => void
@@ -169,10 +194,17 @@ async function preflightTrustees(
         )
         .map((trustee) => ({id: trustee.id as string, name: trustee.name ?? ""}))
     if (reusable.length === 0) {
+        // Reuse-only is not full setup: when the tenant has no valid public trustee,
+        // name the exact missing public inputs. The flow never invents them, and the
+        // supplied SQL+XLSX contain no trustee identities/keys, so these must be
+        // supplied as approved public configuration (then registered via the existing
+        // public trustee CRUD — not done implicitly here).
         throw new ComelecConfigError(
             "preflight",
-            "the selected tenant has no trustee with both a signing and a share-encryption public key; " +
-                "approved public trustee keys are required before importing (none are invented here)"
+            "the selected tenant has no trustee with both public keys. Approved public trustee " +
+                "configuration is required before import and is never invented: for each trustee, a " +
+                "name/identity, a signing public key and a share-encryption public key. Register them " +
+                "via the trustee settings (public CRUD), then retry; the source files provide none."
         )
     }
     return reusable
@@ -230,24 +262,19 @@ async function preflightRealmRoles(
 }
 
 /**
- * Run the preflight and, only if it passes, the tenant-config stages for the selected
- * tenant. Throws `ComelecConfigError` with the failing stage (and any pending task id)
- * so the caller stops the whole flow and shows it; the event import must not proceed
- * when this throws.
+ * PREFLIGHT ONLY — makes no change. Generate the tenant-config archive, compute the
+ * exact realm-role additions/removals against the target realm, and confirm the tenant
+ * has approved public trustees. Throws `ComelecConfigError("preflight", …)`, naming the
+ * problem, when a role is missing or no valid trustee exists. The returned plan is what
+ * the UI shows for confirmation before `applyComelecConfig` mutates anything.
  */
-export async function runComelecConfigStages(
-    deps: ComelecConfigDeps
-): Promise<ComelecConfigResult> {
-    const {client, tenantId, putFile, onStage} = deps
-    const now = deps.now ?? (() => Date.now())
-    const sleep = deps.sleep ?? ((ms: number) => new Promise((resolve) => setTimeout(resolve, ms)))
-
-    // ---- Preflight (no mutation) ----
+export async function prepareComelecConfig(
+    client: ApolloClient<unknown>,
+    tenantId: string
+): Promise<ComelecConfigPlan> {
     const {file, preflight} = await buildComelecTenantConfig(tenantId)
     const rolePreflight = await preflightRealmRoles(client, tenantId)
     if (rolePreflight.missingRoles.length > 0) {
-        // A role the profile assigns is absent from the realm: the import would fail
-        // part-way. Stop here and name them, before any change.
         throw new ComelecConfigError(
             "preflight",
             `the target realm is missing ${rolePreflight.missingRoles.length} role(s) the profile ` +
@@ -255,21 +282,25 @@ export async function runComelecConfigStages(
         )
     }
     const reusedTrustees = await preflightTrustees(client, tenantId)
-    const removalCount = rolePreflight.changes.reduce(
-        (total, change) => total + change.removals.length,
-        0
-    )
-    onStage?.({
-        name: "preflight",
-        status: "success",
-        detail:
-            `Will apply ${preflight.groups.length} groups / ${preflight.roles.length} realm roles ` +
-            `(${removalCount} existing mapping(s) would be removed) and realm display ` +
-            `"${preflight.realmDisplayName}". Reusing ${reusedTrustees.length} existing trustee(s): ` +
-            `${reusedTrustees.map((trustee) => trustee.name || trustee.id).join(", ")}.`,
-    })
+    return {file, preflight, rolePreflight, reusedTrustees}
+}
 
-    // ---- Mutate: upload + import_tenant_config (roles + keycloak; tenant preserved) ----
+/**
+ * APPLY — only after the operator confirms a plan from `prepareComelecConfig`. Upload
+ * the archive and run import_tenant_config (roles + keycloak display/localization; the
+ * tenant id/slug/settings are preserved). Requires a valid task id and a terminal
+ * SUCCESS; a transport error, missing id, FAILED, timeout or lost poll is an error
+ * carrying any known task id for the caller to reconcile — never a silent success and
+ * never a blind retry.
+ */
+export async function applyComelecConfig(
+    deps: ApplyComelecConfigDeps
+): Promise<ComelecConfigResult> {
+    const {client, tenantId, plan, putFile, onStage} = deps
+    const now = deps.now ?? (() => Date.now())
+    const sleep = deps.sleep ?? ((ms: number) => new Promise((resolve) => setTimeout(resolve, ms)))
+    const {file, preflight, rolePreflight, reusedTrustees} = plan
+
     onStage?.({name: "tenant-config", status: "running", detail: "Uploading tenant configuration…"})
     let documentId: string
     try {
@@ -295,28 +326,41 @@ export async function runComelecConfigStages(
     }
 
     onStage?.({name: "tenant-config", status: "running", detail: "Importing tenant configuration…"})
-    const {data: importData, errors} = await client.mutate({
-        mutation: IMPORT_TENANT_CONFIG,
-        variables: {
-            tenantId,
-            documentId,
-            importConfigurations: {
-                include_roles: true,
-                include_keycloak: true,
-                include_tenant: false,
+    let importResult:
+        | {error?: string | null; task_execution?: {id?: string} | null}
+        | undefined
+    try {
+        const {data, errors} = await client.mutate({
+            mutation: IMPORT_TENANT_CONFIG,
+            variables: {
+                tenantId,
+                documentId,
+                importConfigurations: {
+                    include_roles: true,
+                    include_keycloak: true,
+                    include_tenant: false,
+                },
             },
-        },
-    })
-    const importResult = importData?.import_tenant_config
-    if (errors?.length || importResult?.error) {
+        })
+        if (errors?.length) {
+            throw new Error(errors.map((graphqlError) => graphqlError.message).join(", "))
+        }
+        importResult = data?.import_tenant_config
+    } catch (error) {
+        // Submitted but the transport failed before a task id came back: the outcome is
+        // explicitly unknown and must be reconciled, not blindly retried.
         throw new ComelecConfigError(
             "tenant-config-import",
-            importResult?.error || "the tenant-config import was refused"
+            `the tenant-config import submission outcome is unknown (${
+                error instanceof Error ? error.message : "transport error"
+            }); reconcile before retrying`
         )
+    }
+    if (importResult?.error) {
+        throw new ComelecConfigError("tenant-config-import", importResult.error)
     }
     const tenantConfigTaskId: string | undefined = importResult?.task_execution?.id
     if (!tenantConfigTaskId) {
-        // No task id means the submission outcome is unknown — never a success.
         throw new ComelecConfigError(
             "tenant-config-import",
             "the tenant-config import returned no task to confirm; its outcome is unknown"
@@ -329,6 +373,5 @@ export async function runComelecConfigStages(
         status: "reused",
         detail: `Reused ${reusedTrustees.length} existing trustee(s); no keys were created.`,
     })
-
     return {preflight, rolePreflight, reusedTrustees, tenantConfigTaskId}
 }
