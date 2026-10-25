@@ -97,6 +97,10 @@ Indications of attacks across several accounts appear in the Monitoring tab's
   the external authentication server for a fresh login, and the TOE accepts
   the action only within 60 seconds after it. No password is entered in the
   TOE ([Secure Use of the Admin Portal](03-admin_portal.md)).
+  An existing external single-sign-on session must not skip this fresh login.
+  If the 60-second interval expires while reviewing or signing, authenticate
+  again and review the same request before submitting it; a token refresh does
+  not restart the interval.
 
 ## Voter authentication settings of each election event
 

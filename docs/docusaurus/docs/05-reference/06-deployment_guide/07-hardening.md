@@ -542,7 +542,16 @@ def password(v): [{type: "password", value: v, temporary: false}];
 | .rememberMe = false
 | .requiredActions |= map(if .alias == "mfa-method-selector"
     then .enabled = false | .defaultAction = false else . end)
-| .identityProviders = $idp | .identityProviderMappers = []
+| .identityProviders = ($idp | if $doc == "event-template" then .
+    else map(.config.passMaxAge = "true") end) | .identityProviderMappers = []
+| if $doc == "event-template" then . else
+    client("admin-portal"; .protocolMappers =
+      ([.protocolMappers[]? | select(.config["claim.name"] != "auth_time")]
+      + [{name: "board-authentication-time", protocol: "openid-connect",
+          protocolMapper: "oidc-usersessionmodel-note-mapper", consentRequired: false,
+          config: {"user.session.note": "AUTH_TIME", "claim.name": "auth_time",
+            "jsonType.label": "long", "id.token.claim": "true",
+            "access.token.claim": "true", "introspection.token.claim": "true"}}])) end
 | .authenticatorConfig = [(.authenticatorConfig // [])[]
     | select(.alias != "redirect-to-idp")]
     + [{alias: "redirect-to-idp", config: {defaultProvider: $idp[0].alias}}]
@@ -656,6 +665,13 @@ for d in tenant tenant-template event-template; do
       | select(.flowAlias == "sequent browser flow forms") | .requirement],
     redirect: [.authenticatorConfig[] | select(.alias == "redirect-to-idp")
       | .config.defaultProvider],
+    broker_freshness: [.identityProviders[]
+      | {alias, passMaxAge: (.config.passMaxAge // "false"),
+         prompt: (.config.prompt // "")}],
+    admin_auth_time: [.clients[] | select(.clientId == "admin-portal")
+      | .protocolMappers[]? | select(.config["claim.name"] == "auth_time")
+      | [.protocolMapper, .config["user.session.note"], .config["jsonType.label"],
+         .config["id.token.claim"], .config["access.token.claim"]]],
     portals: [.clients[] | select(.clientId | test("^(admin|voting)-portal$"))
       | [.clientId, .directAccessGrantsEnabled,
          .attributes["pkce.code.challenge.method"]]],
@@ -682,6 +698,16 @@ Voter") and `admin_groups` (no excluded permission left in an administrator
 group) empty, every `forms` entry `DISABLED`, `redirect` IDP_ALIAS, each portal
 client must show `false` and `"S256"`, `admin_cli` must be `[false]` and
 `smart_link` (no sign-in flow with the smart-link authenticator) empty. For the
+tenant document and the tenant template, `broker_freshness` must name IDP_ALIAS
+with `passMaxAge` equal to `"true"` and `prompt` empty. The identity service
+then forwards the board's requested maximum authentication age to the external
+server, checks that server's signed `auth_time`, and preserves that time in the
+TOE session. `admin_auth_time` must be one entry containing
+`"oidc-usersessionmodel-note-mapper"`, `"AUTH_TIME"`, `"long"`, `"true"`, `"true"`:
+the admin client's ID and access tokens carry the actual session authentication
+time, never a constant or token refresh time. An empty provider `prompt` lets the portal's request for a fresh
+login reach the external server; do not override it with `none`. The election
+event template keeps its voter authentication policy. For the
 tenant document and the tenant template, `cli_account_admin` must be
 `[[false,false]]` (the command-line account client is disabled and has no
 password grant) and `admin_events` `[true,true]` (changes made through the

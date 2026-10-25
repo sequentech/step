@@ -27,8 +27,9 @@ with these properties:
 | Redirect URI of the super-admin tenant | `https://PORTAL_HOST/realms/R/broker/IDP_ALIAS/endpoint`, with the values of PORTAL_HOST, R and IDP_ALIAS |
 | Redirect URI of the customer's tenant | the same, with the name of the customer's realm (CR) in place of R; registered when the tenant is created (see [Create the customer's tenant](08-installing_toe.md#create-the-customers-tenant)) |
 | Redirect URI of each election event | the same, with the name of the event's realm in place of R; registered when the event is created (see [Self-Test and Handover](11-selftest_handover.md)) |
-| Claims | the user name and e-mail address of each person, as their account in the TOE will carry them |
+| Claims | the user name and e-mail address of each person, as their account in the TOE will carry them; the actual authentication time in the signed ID token (`auth_time`) |
 | Authentication | two factors for administrators and election board members |
+| Fresh authentication | honour `prompt=login` with a fresh login, including both factors for a board member, even when an upstream session exists; honour `max_age` and return the actual authentication time, not the token issue time |
 
 :::warning
 Register exact redirect URIs only, never a wildcard. The authentication
