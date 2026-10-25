@@ -4,6 +4,17 @@
 
 const englishTranslation = {
     translations: {
+        verificationExport: {
+            title: "Election verification",
+            anchors:
+                "Record these anchors from the election platform separately from the downloaded verification data. Downloading the data does not verify it.",
+            configurationHash: "Configuration hash",
+            tallyId: "Tally ID",
+            download: "Download verification data",
+            empty: "No verification boards are available for this tally.",
+            anchorError: "Verification anchors could not be loaded.",
+            downloadError: "Verification data could not be downloaded.",
+        },
         philippinePassport: "Passport",
         seamanBook: "Seafarer's Book",
         philSysID: "PhilSys ID",

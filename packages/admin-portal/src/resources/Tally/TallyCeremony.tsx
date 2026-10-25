@@ -80,6 +80,7 @@ import {ExportElectionMenu, IResultDocumentsData} from "@/components/tally/Expor
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {IResultDocuments} from "@/types/results"
 import {ResultsDataLoader} from "./ResultsDataLoader"
+import {VerificationExport} from "./VerificationExport"
 import {
     IMiruTallySessionData,
     IMiruTransmissionPackageData,
@@ -828,6 +829,17 @@ export const TallyCeremony: React.FC = () => {
                         />
                     </TallyStyles.StyledHeader>
 
+                    {record?.id && tallySession?.id && (
+                        <VerificationExport
+                            key={`${record.id}:${tallySession.id}`}
+                            eventId={record.id}
+                            tallySessionId={tallySession.id}
+                            completed={
+                                tallySession.execution_status === ITallyExecutionStatus.SUCCESS &&
+                                !!tallySession.is_execution_completed
+                            }
+                        />
+                    )}
                     {resultsEventId &&
                     record?.id &&
                     isArray(contests) &&
