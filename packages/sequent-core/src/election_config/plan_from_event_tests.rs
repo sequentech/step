@@ -920,6 +920,31 @@ fn an_admin_export_rebuilds_with_what_it_carried() {
     );
 }
 
+/// A preset's secret stays in the realm it came from, never in the plan.
+#[test]
+fn the_liveness_secret_is_not_copied_into_the_plan() {
+    let mut export = admin_export();
+    export["keycloak_event_realm"]["authenticatorConfig"] = serde_json::json!([{
+        "alias": "scanovate-registration",
+        "config": {
+            "liveness-secret": "do-not-copy",
+            "ocr-url": "https://ocr.example.org",
+        },
+    }]);
+    let read = plan_from_event(&export).expect("a readable export");
+    let base = read.plan.base_export.clone().expect("a base export");
+    let config =
+        &base["keycloak_event_realm"]["authenticatorConfig"][0]["config"];
+    assert!(config.get("liveness-secret").is_none());
+    assert_eq!(
+        config["ocr-url"],
+        serde_json::json!("https://ocr.example.org")
+    );
+    assert!(!serde_json::to_string(&read.plan)
+        .unwrap()
+        .contains("do-not-copy"));
+}
+
 /// An export with no realm and an otherwise empty event gives no base.
 #[test]
 fn a_bare_export_gives_no_base() {

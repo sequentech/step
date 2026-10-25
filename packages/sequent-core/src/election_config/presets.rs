@@ -44,6 +44,15 @@ pub const PARAM_SAML_PRINCIPAL_ATTRIBUTE: &str = "saml_principal_attribute";
 pub const PARAM_OTP_SENDER_ID: &str = "otp_sender_id";
 pub const PARAM_OTP_LENGTH: &str = "otp_length";
 pub const PARAM_OTP_TTL_SECONDS: &str = "otp_ttl_seconds";
+pub const PARAM_SCANOVATE_OCR_URL: &str = "scanovate_ocr_url";
+pub const PARAM_SCANOVATE_LIVENESS_URL: &str = "scanovate_liveness_url";
+pub const PARAM_SCANOVATE_FACE_MATCH_URL: &str = "scanovate_face_match_url";
+pub const PARAM_SCANOVATE_FACE_MATCH_MIN_SIMILARITY: &str =
+    "scanovate_face_match_min_similarity";
+/// ISO 3166 alpha-3 codes separated by `|`, as the regex alternation they
+/// become: a passport issued anywhere else is refused.
+pub const PARAM_ACCEPTED_PASSPORT_COUNTRIES: &str =
+    "accepted_passport_countries";
 
 /// The flow an imported SAML identity provider hands first-time logins to.
 ///
@@ -64,6 +73,32 @@ pub const DEFERRED_AUTHENTICATOR_CONFIG: &str = "deferred";
 
 /// The OTP config a preset registers under.
 pub const OTP_CONFIG_ALIAS: &str = "janitor-otp-by-availability";
+
+/// Shipped only by the `ovcs` branch's Keycloak image.
+pub const SCANOVATE_AUTHENTICATOR: &str = "scanovate-authenticator";
+pub const CONDITIONAL_AUTH_NOTE: &str = "conditional-auth-note";
+pub const DENY_ACCESS_AUTHENTICATOR: &str = "deny-access-authenticator";
+pub const LOOKUP_AND_UPDATE_USER: &str = "lookup-and-update-user";
+
+pub const BIOMETRIC_REGISTRATION_FLOW: &str = "biometric-registration";
+pub const BIOMETRIC_REGISTRATION_FORM_FLOW: &str =
+    "biometric-registration registration form";
+pub const PASSPORT_COUNTRY_CHECK_FLOW: &str = "passport-country-check";
+
+/// The alias a deployed realm already keeps its liveness secret under, so the
+/// merge by alias leaves that secret in place.
+pub const SCANOVATE_CONFIG_ALIAS: &str = "scanovate-registration";
+pub const SCANOVATE_LIVENESS_SECRET: &str = "liveness-secret";
+pub const BIOMETRIC_OTP_CONFIG: &str = "biometric-registration-otp";
+pub const BIOMETRIC_USER_CREATION_CONFIG: &str = "biometric-registration-user";
+pub const BIOMETRIC_LOOKUP_CONFIG: &str = "biometric-lookup-register";
+pub const PASSPORT_COUNTRY_CONDITION_CONFIG: &str =
+    "passport-country-not-accepted";
+pub const PASSPORT_COUNTRY_DENIED_CONFIG: &str = "passport-country-denied";
+
+/// The auth note the Scanovate step stores the passport's issuing country in.
+const ISSUING_COUNTRY_NOTE: &str = "issuingCountry";
+const PASSPORT_COUNTRY_NOT_ACCEPTED: &str = "passportCountryNotAccepted";
 
 /// Names the preset that leaves the realm alone, whatever the document declares.
 ///
@@ -92,6 +127,16 @@ pub struct Requirement {
     pub kind: RequirementKind,
     pub name: &'static str,
     pub why: &'static str,
+}
+
+/// An authenticator config value a preset needs and must never write.
+///
+/// Set in the target realm by whoever deploys it. The build reports a realm that
+/// lacks it, rather than carrying the secret through a plan or a bundle.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ConfigSecret {
+    pub config_alias: &'static str,
+    pub key: &'static str,
 }
 
 /// What a preset asks of a realm: a merge, plus two things a merge cannot do.
@@ -175,6 +220,8 @@ pub struct AuthPreset {
     /// area) are not listed: they are the platform's own, present in every realm, and
     /// repeating them per preset would be four chances to forget one.
     pub profile_attributes: &'static [&'static str],
+
+    pub secrets: &'static [ConfigSecret],
 
     build: fn(&PresetInput) -> RealmPatch,
 }
@@ -396,13 +443,344 @@ fn certificates_patch(_: &PresetInput) -> RealmPatch {
     }
 }
 
+// -- biometric_authentication ----------------------------------------------
+
+/// One execution of a flow, spelled the way a working realm export spells it.
+///
+/// `autheticatorFlow` is Keycloak's own legacy misspelling, still written by its
+/// exporter beside the correct key.
+fn execution(
+    step: &str,
+    requirement: &str,
+    priority: u32,
+    config: Option<&str>,
+) -> Value {
+    let mut execution = json!({
+        "authenticator": step,
+        "authenticatorFlow": false,
+        "autheticatorFlow": false,
+        "priority": priority,
+        "requirement": requirement,
+        "userSetupAllowed": false,
+    });
+    if let (Some(config), Some(execution)) = (config, execution.as_object_mut())
+    {
+        execution.insert("authenticatorConfig".to_string(), json!(config));
+    }
+    execution
+}
+
+fn subflow(alias: &str, requirement: &str, priority: u32) -> Value {
+    json!({
+        "authenticatorFlow": true,
+        "autheticatorFlow": true,
+        "flowAlias": alias,
+        "priority": priority,
+        "requirement": requirement,
+        "userSetupAllowed": false,
+    })
+}
+
+/// Self-registration verified by Scanovate: an enrollment form, a one-time code,
+/// a passport read and matched to the voter's face, and a census lookup.
+///
+/// Transcribed from the registration flow running on OVCS. A passport issued
+/// outside the accepted countries is refused by a conditional subflow rather than
+/// a Scanovate validation rule, so the voter is told why. The liveness secret is
+/// left out: see [`ConfigSecret`].
+fn biometric_patch(input: &PresetInput) -> RealmPatch {
+    let countries =
+        input.text(PARAM_ACCEPTED_PASSPORT_COUNTRIES, "ESP|PHL|ISR|NLD");
+    let similarity =
+        input.text(PARAM_SCANOVATE_FACE_MATCH_MIN_SIMILARITY, "0.67");
+
+    let validate = json!({
+        "philippinePassport": [{
+            "type": "isBeforeDateValue",
+            "isBeforeDateValue": "now",
+            "process": "ocr",
+            "attributePath": "/date_of_expiry",
+            "sourceDateFormat": "yyyy-MM-dd",
+            "errorMsg": "scanovateAttributesError",
+        }],
+    });
+    let store = json!({
+        "philippinePassport": [
+            {
+                "UserAttribute": "firstName",
+                "process": "ocr",
+                "attributePath": "/first_name_english",
+                "type": "text",
+            },
+            {
+                "UserAttribute": "lastName",
+                "process": "ocr",
+                "attributePath": "/last_name_english",
+                "type": "text",
+            },
+            {
+                "UserAttribute": "sequent.read-only.id-card-number",
+                "process": "ocr",
+                "attributePath": "/document_number",
+                "type": "text",
+            },
+            {
+                "UserAttribute": "dateOfBirth",
+                "process": "ocr",
+                "attributePath": "/date_of_birth",
+                "type": "date",
+                "sourceDateFormat": "yyyy-MM-dd",
+                "storeDateFormat": "yyyy-MM-dd",
+            },
+            {
+                "UserAttribute": ISSUING_COUNTRY_NOTE,
+                "process": "ocr",
+                "attributePath": "/issuing_country_code",
+                "type": "text",
+            },
+        ],
+    });
+
+    let patch = json!({
+        "registrationFlow": BIOMETRIC_REGISTRATION_FLOW,
+        "loginTheme": "sequent-ui-voting",
+        "authenticationFlows": [
+            {
+                "alias": BIOMETRIC_REGISTRATION_FLOW,
+                "description": "registration flow",
+                "providerId": "basic-flow",
+                "topLevel": true,
+                "builtIn": false,
+                "authenticationExecutions": [
+                    {
+                        "authenticator": "registration-page-form",
+                        "authenticatorFlow": true,
+                        "autheticatorFlow": true,
+                        "flowAlias": BIOMETRIC_REGISTRATION_FORM_FLOW,
+                        "priority": 10,
+                        "requirement": "REQUIRED",
+                        "userSetupAllowed": false,
+                    },
+                    execution(
+                        OTP_AUTHENTICATOR,
+                        "REQUIRED",
+                        17,
+                        Some(BIOMETRIC_OTP_CONFIG),
+                    ),
+                    execution(
+                        SCANOVATE_AUTHENTICATOR,
+                        "REQUIRED",
+                        18,
+                        Some(SCANOVATE_CONFIG_ALIAS),
+                    ),
+                    subflow(PASSPORT_COUNTRY_CHECK_FLOW, "CONDITIONAL", 19),
+                    execution(
+                        LOOKUP_AND_UPDATE_USER,
+                        "REQUIRED",
+                        20,
+                        Some(BIOMETRIC_LOOKUP_CONFIG),
+                    ),
+                ],
+            },
+            {
+                "alias": BIOMETRIC_REGISTRATION_FORM_FLOW,
+                "description": "registration form",
+                "providerId": "form-flow",
+                "topLevel": false,
+                "builtIn": false,
+                "authenticationExecutions": [
+                    execution("enrollment-window-check", "REQUIRED", 0, None),
+                    execution(
+                        "deferred-registration-user-creation",
+                        "REQUIRED",
+                        10,
+                        Some(BIOMETRIC_USER_CREATION_CONFIG),
+                    ),
+                ],
+            },
+            {
+                "alias": PASSPORT_COUNTRY_CHECK_FLOW,
+                "description": "refuse a passport issued outside the accepted countries",
+                "providerId": "basic-flow",
+                "topLevel": false,
+                "builtIn": false,
+                "authenticationExecutions": [
+                    execution(
+                        CONDITIONAL_AUTH_NOTE,
+                        "REQUIRED",
+                        0,
+                        Some(PASSPORT_COUNTRY_CONDITION_CONFIG),
+                    ),
+                    execution(
+                        DENY_ACCESS_AUTHENTICATOR,
+                        "REQUIRED",
+                        10,
+                        Some(PASSPORT_COUNTRY_DENIED_CONFIG),
+                    ),
+                ],
+            },
+        ],
+        "authenticatorConfig": [
+            {
+                "alias": BIOMETRIC_OTP_CONFIG,
+                "config": {
+                    "code-progress-policy": "SHOW",
+                    "messageCourierAttribute": "CHOSEN",
+                    "telUserAttribute": "sequent.read-only.mobile-number",
+                    // The voter does not exist yet: the code goes to the address
+                    // typed on the enrollment form.
+                    "deferredUserAttribute": "true",
+                    "one-time-link": "false",
+                    "length": input.text(PARAM_OTP_LENGTH, "6"),
+                    "ttl": input.text(PARAM_OTP_TTL_SECONDS, "300"),
+                    "resendCoudActivationTimer": "60",
+                    "senderId": input.text(PARAM_OTP_SENDER_ID, "Sequent"),
+                },
+            },
+            {
+                "alias": SCANOVATE_CONFIG_ALIAS,
+                "config": {
+                    "ocr-url": input.text(PARAM_SCANOVATE_OCR_URL, ""),
+                    "ocr-types": "{\"philippinePassport\": \"passport\"}",
+                    "capture-sides": "{\"philippinePassport\": [\"front\"]}",
+                    "liveness-url": input.text(PARAM_SCANOVATE_LIVENESS_URL, ""),
+                    "face-match-url": input.text(PARAM_SCANOVATE_FACE_MATCH_URL, ""),
+                    "face-match-min-similarity":
+                        format!("{{\"philippinePassport\": {similarity}}}"),
+                    "doc-id-type": "sequent.read-only.id-card-type",
+                    "user-status": "sequent.read-only.id-card-number-validated",
+                    "attributes-to-validate": validate.to_string(),
+                    "attributes-to-store": store.to_string(),
+                    "max-attempts": "3",
+                },
+            },
+            {
+                "alias": BIOMETRIC_USER_CREATION_CONFIG,
+                "config": {
+                    "user-status": "sequent.read-only.id-card-number-validated",
+                    "channel-choice-policy": "OTP_CHANNELS",
+                },
+            },
+            {
+                "alias": BIOMETRIC_LOOKUP_CONFIG,
+                "config": {
+                    "auto-login": "false",
+                    "auto-2fa": "true",
+                    "messageCourierAttribute": "CHOSEN",
+                    "telUserAttribute": "sequent.read-only.mobile-number",
+                    "search-attributes": "firstName,middleName,lastName,dateOfBirth",
+                    "update-attributes":
+                        "sequent.read-only.id-card-number-validated,email,\
+                         sequent.read-only.mobile-number,\
+                         sequent.read-only.id-card-number,\
+                         sequent.read-only.id-card-type",
+                    "unset-attributes":
+                        "email,sequent.read-only.mobile-number,\
+                         sequent.read-only.id-card-number-validated",
+                    // A voter the census does not match is held for an
+                    // administrator rather than refused.
+                    "no-matching-voter-policy": "PENDING_APPROVAL",
+                    "reply-by-hours": "72",
+                },
+            },
+            {
+                "alias": PASSPORT_COUNTRY_CONDITION_CONFIG,
+                "config": {
+                    "conditional-auth-note-key": ISSUING_COUNTRY_NOTE,
+                    "conditional-auth-note-value":
+                        format!(r"(?i)\s*({countries})\s*"),
+                    "value-is-regex": "true",
+                    "negate": "true",
+                },
+            },
+            {
+                "alias": PASSPORT_COUNTRY_DENIED_CONFIG,
+                "config": {"denyErrorMessage": PASSPORT_COUNTRY_NOT_ACCEPTED},
+            },
+        ],
+        "localizationTexts": {
+            "en": {
+                "philippinePassport": "Passport",
+                ISSUING_COUNTRY_NOTE: "Issuing country",
+                PASSPORT_COUNTRY_NOT_ACCEPTED:
+                    "Passports issued by this country can't be used to enroll.",
+            },
+            "tl": {
+                "philippinePassport": "Pasaporte",
+                ISSUING_COUNTRY_NOTE: "Bansang nag-isyu",
+                PASSPORT_COUNTRY_NOT_ACCEPTED:
+                    "Hindi maaaring gamitin sa pagpapatala ang pasaporteng \
+                     inisyu ng bansang ito.",
+            },
+        },
+    });
+
+    RealmPatch {
+        patch: object(patch),
+        ..RealmPatch::default()
+    }
+}
+
 /// Every preset, in the order a caller should see them listed.
 pub const PRESETS: &[AuthPreset] = &[
+    AuthPreset {
+        name: "biometric_authentication",
+        summary: "Biometric Authentication: the voter enrolls with their passport \
+                  and a live selfie verified by Scanovate, after a one-time code, \
+                  and is matched against the census.",
+        uses_otp: true,
+        build: biometric_patch,
+        required_parameters: &[
+            PARAM_SCANOVATE_OCR_URL,
+            PARAM_SCANOVATE_LIVENESS_URL,
+            PARAM_SCANOVATE_FACE_MATCH_URL,
+        ],
+        optional_parameters: &[
+            PARAM_ACCEPTED_PASSPORT_COUNTRIES,
+            PARAM_SCANOVATE_FACE_MATCH_MIN_SIMILARITY,
+            PARAM_OTP_SENDER_ID,
+            PARAM_OTP_LENGTH,
+            PARAM_OTP_TTL_SECONDS,
+        ],
+        // What the census lookup searches by, and what the flow writes back.
+        profile_attributes: &[
+            "middleName",
+            "dateOfBirth",
+            "mobile",
+            "sequent.read-only.id-card-type",
+            "sequent.read-only.id-card-number",
+            "sequent.read-only.id-card-number-validated",
+        ],
+        secrets: &[ConfigSecret {
+            config_alias: SCANOVATE_CONFIG_ALIAS,
+            key: SCANOVATE_LIVENESS_SECRET,
+        }],
+        requires: &[
+            Requirement {
+                kind: RequirementKind::Authenticator,
+                name: SCANOVATE_AUTHENTICATOR,
+                why: "the passport and selfie are verified by this provider, \
+                      which only the ovcs Keycloak image ships",
+            },
+            Requirement {
+                kind: RequirementKind::Authenticator,
+                name: CONDITIONAL_AUTH_NOTE,
+                why: "the passport's issuing country is checked by this condition",
+            },
+            Requirement {
+                kind: RequirementKind::Authenticator,
+                name: DENY_ACCESS_AUTHENTICATOR,
+                why: "a passport from a country that is not accepted is refused \
+                      by this step",
+            },
+        ],
+    },
     AuthPreset {
         name: "digital_certificates",
         summary: "The voter presents a digital certificate, brokered through the \
                   platform's digital-certificates provider.",
         uses_otp: false,
+        secrets: &[],
         build: certificates_patch,
         required_parameters: &[],
         optional_parameters: &[],
@@ -419,6 +797,7 @@ pub const PRESETS: &[AuthPreset] = &[
         summary: "The voter types their member id, then a one-time code sent to \
                   whichever of email and mobile the census holds for them.",
         uses_otp: true,
+        secrets: &[],
         build: otp_patch,
         required_parameters: &[],
         optional_parameters: &[
@@ -440,6 +819,7 @@ pub const PRESETS: &[AuthPreset] = &[
                   posts an assertion to Keycloak. Voters need no email address or \
                   mobile number.",
         uses_otp: false,
+        secrets: &[],
         build: saml_patch,
         // The identity provider authenticates; the assertion is matched against a
         // census voter by the principal attribute, which is a *parameter* rather than
@@ -462,6 +842,7 @@ pub const PRESETS: &[AuthPreset] = &[
         summary: "A voter-specific link carries the member id read-only; the voter \
                   types their date of birth, then a one-time code.",
         uses_otp: true,
+        secrets: &[],
         build: voter_link_dob_patch,
         // What `voter_link_dob_patch` configures, and what its `search-attributes`
         // and `hidden-profile-attributes` name. A census for this preset without a
@@ -542,6 +923,7 @@ mod tests {
         assert_eq!(
             names(),
             [
+                "biometric_authentication",
                 "digital_certificates",
                 "otp_email_or_sms",
                 "saml_sso_idp_initiated",
@@ -744,6 +1126,281 @@ mod tests {
         assert!(get("voter_link_plus_dob").unwrap().uses_otp);
         assert!(!get("saml_sso_idp_initiated").unwrap().uses_otp);
         assert!(!get("digital_certificates").unwrap().uses_otp);
+        assert!(get("biometric_authentication").unwrap().uses_otp);
+    }
+
+    fn biometric(values: &[(&str, &str)]) -> RealmPatch {
+        let mut given = vec![
+            (PARAM_SCANOVATE_OCR_URL, "https://ocr.example.org"),
+            (PARAM_SCANOVATE_LIVENESS_URL, "https://liveness.example.org"),
+            (PARAM_SCANOVATE_FACE_MATCH_URL, "https://match.example.org"),
+        ];
+        given.extend_from_slice(values);
+        get("biometric_authentication")
+            .unwrap()
+            .build(&input(&given))
+    }
+
+    fn flow<'a>(patch: &'a RealmPatch, alias: &str) -> &'a Value {
+        patch.patch["authenticationFlows"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|flow| flow["alias"] == json!(alias))
+            .unwrap_or_else(|| panic!("no flow '{alias}'"))
+    }
+
+    fn config<'a>(patch: &'a RealmPatch, alias: &str) -> &'a Value {
+        patch.patch["authenticatorConfig"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|config| config["alias"] == json!(alias))
+            .map(|config| &config["config"])
+            .unwrap_or_else(|| panic!("no authenticator config '{alias}'"))
+    }
+
+    fn steps(flow: &Value) -> Vec<&str> {
+        flow["authenticationExecutions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|execution| {
+                execution["authenticator"]
+                    .as_str()
+                    .or_else(|| execution["flowAlias"].as_str())
+                    .unwrap()
+            })
+            .collect()
+    }
+
+    #[test]
+    fn biometric_registration_runs_its_steps_in_order() {
+        let patch = biometric(&[]);
+        assert_eq!(
+            patch.patch["registrationFlow"],
+            json!(BIOMETRIC_REGISTRATION_FLOW)
+        );
+        assert_eq!(
+            steps(flow(&patch, BIOMETRIC_REGISTRATION_FLOW)),
+            [
+                "registration-page-form",
+                OTP_AUTHENTICATOR,
+                SCANOVATE_AUTHENTICATOR,
+                PASSPORT_COUNTRY_CHECK_FLOW,
+                LOOKUP_AND_UPDATE_USER,
+            ]
+        );
+        assert_eq!(
+            steps(flow(&patch, BIOMETRIC_REGISTRATION_FORM_FLOW)),
+            [
+                "enrollment-window-check",
+                "deferred-registration-user-creation"
+            ]
+        );
+    }
+
+    #[test]
+    fn a_passport_from_another_country_is_denied() {
+        let patch = biometric(&[]);
+        let check = flow(&patch, PASSPORT_COUNTRY_CHECK_FLOW);
+        assert_eq!(check["topLevel"], json!(false));
+        assert_eq!(
+            steps(check),
+            [CONDITIONAL_AUTH_NOTE, DENY_ACCESS_AUTHENTICATOR]
+        );
+
+        let registration = flow(&patch, BIOMETRIC_REGISTRATION_FLOW);
+        let subflow = registration["authenticationExecutions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|step| {
+                step["flowAlias"] == json!(PASSPORT_COUNTRY_CHECK_FLOW)
+            })
+            .unwrap();
+        assert_eq!(subflow["requirement"], json!("CONDITIONAL"));
+        assert_eq!(subflow["authenticatorFlow"], json!(true));
+
+        let condition = config(&patch, PASSPORT_COUNTRY_CONDITION_CONFIG);
+        assert_eq!(
+            condition["conditional-auth-note-key"],
+            json!("issuingCountry")
+        );
+        assert_eq!(
+            condition["conditional-auth-note-value"],
+            json!(r"(?i)\s*(ESP|PHL|ISR|NLD)\s*")
+        );
+        assert_eq!(condition["value-is-regex"], json!("true"));
+        assert_eq!(condition["negate"], json!("true"));
+        assert_eq!(
+            config(&patch, PASSPORT_COUNTRY_DENIED_CONFIG)["denyErrorMessage"],
+            json!("passportCountryNotAccepted")
+        );
+    }
+
+    #[test]
+    fn the_accepted_passport_countries_can_be_set() {
+        let patch =
+            biometric(&[(PARAM_ACCEPTED_PASSPORT_COUNTRIES, "PHL|JPN")]);
+        assert_eq!(
+            config(&patch, PASSPORT_COUNTRY_CONDITION_CONFIG)
+                ["conditional-auth-note-value"],
+            json!(r"(?i)\s*(PHL|JPN)\s*")
+        );
+    }
+
+    #[test]
+    fn the_scanovate_step_reads_a_passport_and_stores_its_country() {
+        let patch = biometric(&[]);
+        let scanovate = config(&patch, SCANOVATE_CONFIG_ALIAS);
+        assert_eq!(scanovate["ocr-url"], json!("https://ocr.example.org"));
+        assert_eq!(
+            scanovate["liveness-url"],
+            json!("https://liveness.example.org")
+        );
+        assert_eq!(
+            scanovate["face-match-url"],
+            json!("https://match.example.org")
+        );
+        assert_eq!(
+            scanovate["ocr-types"],
+            json!(r#"{"philippinePassport": "passport"}"#)
+        );
+
+        let rules: Value = serde_json::from_str(
+            scanovate["attributes-to-validate"].as_str().unwrap(),
+        )
+        .unwrap();
+        let rules = rules["philippinePassport"].as_array().unwrap();
+        assert_eq!(rules.len(), 1);
+        assert_eq!(rules[0]["type"], json!("isBeforeDateValue"));
+        assert_eq!(rules[0]["isBeforeDateValue"], json!("now"));
+        assert_eq!(rules[0]["attributePath"], json!("/date_of_expiry"));
+
+        let stored: Value = serde_json::from_str(
+            scanovate["attributes-to-store"].as_str().unwrap(),
+        )
+        .unwrap();
+        assert!(stored["philippinePassport"].as_array().unwrap().iter().any(
+            |attribute| attribute["UserAttribute"] == json!("issuingCountry")
+                && attribute["attributePath"] == json!("/issuing_country_code")
+        ));
+
+        let registration = flow(&patch, BIOMETRIC_REGISTRATION_FLOW);
+        let step = registration["authenticationExecutions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|step| {
+                step["authenticator"] == json!(SCANOVATE_AUTHENTICATOR)
+            })
+            .unwrap();
+        assert_eq!(step["authenticatorConfig"], json!(SCANOVATE_CONFIG_ALIAS));
+    }
+
+    #[test]
+    fn the_liveness_secret_is_never_written() {
+        // Left out rather than blanked, so a base realm's secret survives the
+        // merge by alias.
+        let patch = biometric(&[]);
+        assert!(config(&patch, SCANOVATE_CONFIG_ALIAS)
+            .get(SCANOVATE_LIVENESS_SECRET)
+            .is_none());
+        assert_eq!(
+            get("biometric_authentication").unwrap().secrets,
+            [ConfigSecret {
+                config_alias: SCANOVATE_CONFIG_ALIAS,
+                key: SCANOVATE_LIVENESS_SECRET,
+            }]
+        );
+    }
+
+    #[test]
+    fn an_unmatched_biometric_enrollment_waits_for_approval() {
+        let patch = biometric(&[]);
+        let lookup = config(&patch, BIOMETRIC_LOOKUP_CONFIG);
+        assert_eq!(
+            lookup["no-matching-voter-policy"],
+            json!("PENDING_APPROVAL")
+        );
+        assert_eq!(
+            lookup["update-attributes"],
+            json!(
+                "sequent.read-only.id-card-number-validated,email,\
+                 sequent.read-only.mobile-number,sequent.read-only.id-card-number,\
+                 sequent.read-only.id-card-type"
+            )
+        );
+        assert_eq!(patch.patch["loginTheme"], json!("sequent-ui-voting"));
+    }
+
+    #[test]
+    fn the_biometric_otp_settings_can_be_set() {
+        let patch = biometric(&[
+            (PARAM_OTP_SENDER_ID, "COMELEC"),
+            (PARAM_OTP_LENGTH, "8"),
+            (PARAM_OTP_TTL_SECONDS, "120"),
+        ]);
+        let otp = config(&patch, BIOMETRIC_OTP_CONFIG);
+        assert_eq!(otp["senderId"], json!("COMELEC"));
+        assert_eq!(otp["length"], json!("8"));
+        assert_eq!(otp["ttl"], json!("120"));
+        // Bound in the flow itself: binding every OTP execution in the realm
+        // would rewire the login flow too.
+        assert!(patch.bind_authenticator_config.is_none());
+    }
+
+    #[test]
+    fn the_new_messages_are_translated() {
+        let patch = biometric(&[]);
+        for locale in ["en", "tl"] {
+            let texts = &patch.patch["localizationTexts"][locale];
+            for key in [
+                "philippinePassport",
+                "issuingCountry",
+                "passportCountryNotAccepted",
+            ] {
+                assert!(texts[key].is_string(), "{locale}.{key}");
+            }
+        }
+        assert_eq!(
+            patch.patch["localizationTexts"]["en"]["philippinePassport"],
+            json!("Passport")
+        );
+    }
+
+    #[test]
+    fn biometric_authentication_needs_the_three_service_urls() {
+        let preset = get("biometric_authentication").unwrap();
+        assert!(preset.uses_otp);
+        assert_eq!(
+            preset.required_parameters,
+            [
+                PARAM_SCANOVATE_OCR_URL,
+                PARAM_SCANOVATE_LIVENESS_URL,
+                PARAM_SCANOVATE_FACE_MATCH_URL,
+            ]
+        );
+        for need in [
+            SCANOVATE_AUTHENTICATOR,
+            CONDITIONAL_AUTH_NOTE,
+            DENY_ACCESS_AUTHENTICATOR,
+        ] {
+            assert!(
+                preset.requires.iter().any(|requirement| requirement.kind
+                    == RequirementKind::Authenticator
+                    && requirement.name == need),
+                "{need}"
+            );
+        }
+        for attribute in [
+            "mobile",
+            "sequent.read-only.id-card-type",
+            "sequent.read-only.id-card-number",
+        ] {
+            assert!(preset.profile_attributes.contains(&attribute));
+        }
     }
 
     #[test]

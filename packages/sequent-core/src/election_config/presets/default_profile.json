@@ -1,6 +1,252 @@
 {
   "auth_presets": [
     {
+      "name": "biometric_authentication",
+      "optional_parameters": [
+        "accepted_passport_countries",
+        "scanovate_face_match_min_similarity",
+        "otp_sender_id",
+        "otp_length",
+        "otp_ttl_seconds"
+      ],
+      "parameter_defaults": {
+        "accepted_passport_countries": "ESP|PHL|ISR|NLD",
+        "otp_length": "6",
+        "otp_sender_id": "Sequent",
+        "otp_ttl_seconds": "300",
+        "scanovate_face_match_min_similarity": "0.67",
+        "scanovate_face_match_url": "",
+        "scanovate_liveness_url": "",
+        "scanovate_ocr_url": ""
+      },
+      "patch": {
+        "patch": {
+          "authenticationFlows": [
+            {
+              "alias": "biometric-registration",
+              "authenticationExecutions": [
+                {
+                  "authenticator": "registration-page-form",
+                  "authenticatorFlow": true,
+                  "autheticatorFlow": true,
+                  "flowAlias": "biometric-registration registration form",
+                  "priority": 10,
+                  "requirement": "REQUIRED",
+                  "userSetupAllowed": false
+                },
+                {
+                  "authenticator": "message-otp-authenticator",
+                  "authenticatorConfig": "biometric-registration-otp",
+                  "authenticatorFlow": false,
+                  "autheticatorFlow": false,
+                  "priority": 17,
+                  "requirement": "REQUIRED",
+                  "userSetupAllowed": false
+                },
+                {
+                  "authenticator": "scanovate-authenticator",
+                  "authenticatorConfig": "scanovate-registration",
+                  "authenticatorFlow": false,
+                  "autheticatorFlow": false,
+                  "priority": 18,
+                  "requirement": "REQUIRED",
+                  "userSetupAllowed": false
+                },
+                {
+                  "authenticatorFlow": true,
+                  "autheticatorFlow": true,
+                  "flowAlias": "passport-country-check",
+                  "priority": 19,
+                  "requirement": "CONDITIONAL",
+                  "userSetupAllowed": false
+                },
+                {
+                  "authenticator": "lookup-and-update-user",
+                  "authenticatorConfig": "biometric-lookup-register",
+                  "authenticatorFlow": false,
+                  "autheticatorFlow": false,
+                  "priority": 20,
+                  "requirement": "REQUIRED",
+                  "userSetupAllowed": false
+                }
+              ],
+              "builtIn": false,
+              "description": "registration flow",
+              "providerId": "basic-flow",
+              "topLevel": true
+            },
+            {
+              "alias": "biometric-registration registration form",
+              "authenticationExecutions": [
+                {
+                  "authenticator": "enrollment-window-check",
+                  "authenticatorFlow": false,
+                  "autheticatorFlow": false,
+                  "priority": 0,
+                  "requirement": "REQUIRED",
+                  "userSetupAllowed": false
+                },
+                {
+                  "authenticator": "deferred-registration-user-creation",
+                  "authenticatorConfig": "biometric-registration-user",
+                  "authenticatorFlow": false,
+                  "autheticatorFlow": false,
+                  "priority": 10,
+                  "requirement": "REQUIRED",
+                  "userSetupAllowed": false
+                }
+              ],
+              "builtIn": false,
+              "description": "registration form",
+              "providerId": "form-flow",
+              "topLevel": false
+            },
+            {
+              "alias": "passport-country-check",
+              "authenticationExecutions": [
+                {
+                  "authenticator": "conditional-auth-note",
+                  "authenticatorConfig": "passport-country-not-accepted",
+                  "authenticatorFlow": false,
+                  "autheticatorFlow": false,
+                  "priority": 0,
+                  "requirement": "REQUIRED",
+                  "userSetupAllowed": false
+                },
+                {
+                  "authenticator": "deny-access-authenticator",
+                  "authenticatorConfig": "passport-country-denied",
+                  "authenticatorFlow": false,
+                  "autheticatorFlow": false,
+                  "priority": 10,
+                  "requirement": "REQUIRED",
+                  "userSetupAllowed": false
+                }
+              ],
+              "builtIn": false,
+              "description": "refuse a passport issued outside the accepted countries",
+              "providerId": "basic-flow",
+              "topLevel": false
+            }
+          ],
+          "authenticatorConfig": [
+            {
+              "alias": "biometric-registration-otp",
+              "config": {
+                "code-progress-policy": "SHOW",
+                "deferredUserAttribute": "true",
+                "length": "{{otp_length}}",
+                "messageCourierAttribute": "CHOSEN",
+                "one-time-link": "false",
+                "resendCoudActivationTimer": "60",
+                "senderId": "{{otp_sender_id}}",
+                "telUserAttribute": "sequent.read-only.mobile-number",
+                "ttl": "{{otp_ttl_seconds}}"
+              }
+            },
+            {
+              "alias": "scanovate-registration",
+              "config": {
+                "attributes-to-store": "{\"philippinePassport\":[{\"UserAttribute\":\"firstName\",\"process\":\"ocr\",\"attributePath\":\"/first_name_english\",\"type\":\"text\"},{\"UserAttribute\":\"lastName\",\"process\":\"ocr\",\"attributePath\":\"/last_name_english\",\"type\":\"text\"},{\"UserAttribute\":\"sequent.read-only.id-card-number\",\"process\":\"ocr\",\"attributePath\":\"/document_number\",\"type\":\"text\"},{\"UserAttribute\":\"dateOfBirth\",\"process\":\"ocr\",\"attributePath\":\"/date_of_birth\",\"type\":\"date\",\"sourceDateFormat\":\"yyyy-MM-dd\",\"storeDateFormat\":\"yyyy-MM-dd\"},{\"UserAttribute\":\"issuingCountry\",\"process\":\"ocr\",\"attributePath\":\"/issuing_country_code\",\"type\":\"text\"}]}",
+                "attributes-to-validate": "{\"philippinePassport\":[{\"type\":\"isBeforeDateValue\",\"isBeforeDateValue\":\"now\",\"process\":\"ocr\",\"attributePath\":\"/date_of_expiry\",\"sourceDateFormat\":\"yyyy-MM-dd\",\"errorMsg\":\"scanovateAttributesError\"}]}",
+                "capture-sides": "{\"philippinePassport\": [\"front\"]}",
+                "doc-id-type": "sequent.read-only.id-card-type",
+                "face-match-min-similarity": "{\"philippinePassport\": {{scanovate_face_match_min_similarity}}}",
+                "face-match-url": "{{scanovate_face_match_url}}",
+                "liveness-url": "{{scanovate_liveness_url}}",
+                "max-attempts": "3",
+                "ocr-types": "{\"philippinePassport\": \"passport\"}",
+                "ocr-url": "{{scanovate_ocr_url}}",
+                "user-status": "sequent.read-only.id-card-number-validated"
+              }
+            },
+            {
+              "alias": "biometric-registration-user",
+              "config": {
+                "channel-choice-policy": "OTP_CHANNELS",
+                "user-status": "sequent.read-only.id-card-number-validated"
+              }
+            },
+            {
+              "alias": "biometric-lookup-register",
+              "config": {
+                "auto-2fa": "true",
+                "auto-login": "false",
+                "messageCourierAttribute": "CHOSEN",
+                "no-matching-voter-policy": "PENDING_APPROVAL",
+                "reply-by-hours": "72",
+                "search-attributes": "firstName,middleName,lastName,dateOfBirth",
+                "telUserAttribute": "sequent.read-only.mobile-number",
+                "unset-attributes": "email,sequent.read-only.mobile-number,sequent.read-only.id-card-number-validated",
+                "update-attributes": "sequent.read-only.id-card-number-validated,email,sequent.read-only.mobile-number,sequent.read-only.id-card-number,sequent.read-only.id-card-type"
+              }
+            },
+            {
+              "alias": "passport-country-not-accepted",
+              "config": {
+                "conditional-auth-note-key": "issuingCountry",
+                "conditional-auth-note-value": "(?i)\\s*({{accepted_passport_countries}})\\s*",
+                "negate": "true",
+                "value-is-regex": "true"
+              }
+            },
+            {
+              "alias": "passport-country-denied",
+              "config": {
+                "denyErrorMessage": "passportCountryNotAccepted"
+              }
+            }
+          ],
+          "localizationTexts": {
+            "en": {
+              "issuingCountry": "Issuing country",
+              "passportCountryNotAccepted": "Passports issued by this country can't be used to enroll.",
+              "philippinePassport": "Passport"
+            },
+            "tl": {
+              "issuingCountry": "Bansang nag-isyu",
+              "passportCountryNotAccepted": "Hindi maaaring gamitin sa pagpapatala ang pasaporteng inisyu ng bansang ito.",
+              "philippinePassport": "Pasaporte"
+            }
+          },
+          "loginTheme": "sequent-ui-voting",
+          "registrationFlow": "biometric-registration"
+        }
+      },
+      "profile_attributes": [
+        "middleName",
+        "dateOfBirth",
+        "mobile",
+        "sequent.read-only.id-card-type",
+        "sequent.read-only.id-card-number",
+        "sequent.read-only.id-card-number-validated"
+      ],
+      "required_parameters": [
+        "scanovate_ocr_url",
+        "scanovate_liveness_url",
+        "scanovate_face_match_url"
+      ],
+      "requires": [
+        {
+          "kind": "authenticator",
+          "name": "scanovate-authenticator",
+          "why": "the passport and selfie are verified by this provider, which only the ovcs Keycloak image ships"
+        },
+        {
+          "kind": "authenticator",
+          "name": "conditional-auth-note",
+          "why": "the passport's issuing country is checked by this condition"
+        },
+        {
+          "kind": "authenticator",
+          "name": "deny-access-authenticator",
+          "why": "a passport from a country that is not accepted is refused by this step"
+        }
+      ],
+      "summary": "Biometric Authentication: the voter enrolls with their passport and a live selfie verified by Scanovate, after a one-time code, and is matched against the census.",
+      "uses_otp": true
+    },
+    {
       "name": "digital_certificates",
       "optional_parameters": [],
       "parameter_defaults": {},
