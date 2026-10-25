@@ -1648,7 +1648,6 @@ type CustodyProofSignatureStatusOutput {
 type AuthorizeTallyCustodyOutput {
     is_valid: Boolean!
     signing_request: SigningRequestSummary
-    outcome: RestorePrivateKeyOutcome!
 }
 
 type InsertCastVoteOutput {
