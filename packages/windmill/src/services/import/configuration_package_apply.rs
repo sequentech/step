@@ -163,6 +163,12 @@ pub trait PackageTarget: Send + Sync {
     ) -> Result<SectionSubmission>;
     /// The state of a submission an earlier run began.
     async fn submission_state(&self, task_id: &str) -> Result<TaskState>;
+    /// Hold back the tenant's standalone package imports until the returned
+    /// value is dropped, so none commits between a section's re-preview (its
+    /// freshness check) and its application.
+    async fn hold_imports(&self) -> Result<Box<dyn std::any::Any + Send>> {
+        Ok(Box::new(()))
+    }
     /// Close a submission's task row once the section is decided, if its
     /// import left it open.
     async fn settle(&self, _task_id: &str, _succeeded: bool) -> Result<()> {
@@ -416,6 +422,28 @@ pub async fn run(
     for section in Section::APPLY_ORDER {
         let Some(files) = plan.payloads.get(&section) else {
             continue;
+        };
+        // Held across a tenant section's re-preview and application, so a
+        // standalone signed import cannot commit a newer revision in between
+        // and be rolled back. Not for the event: its own import takes the
+        // same lock, and is checked under it.
+        let _imports = if section == Section::ElectionEvent {
+            None
+        } else {
+            match target.hold_imports().await {
+                Ok(held) => Some(held),
+                Err(error) => {
+                    return stop(
+                        record,
+                        section,
+                        failed_or_refused(changed),
+                        format!("{error:#}"),
+                        None,
+                        store,
+                    )
+                    .await;
+                }
+            }
         };
         // An earlier submission left unsettled: settle it before anything
         // else, and never submit again while it may still be running.

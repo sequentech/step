@@ -280,6 +280,28 @@ fn the_census_is_read_as_the_importer_finds_it_and_ambiguity_is_refused() {
 }
 
 #[test]
+fn a_census_with_a_blank_or_repeated_username_is_refused_before_anything_applies() {
+    let repeated = event_zip(&[(
+        "export_voters-e1.csv",
+        b"area,username\nx,Ada\nx,bob\nx,ada\n",
+    )]);
+    assert_eq!(
+        census_usernames(&repeated).unwrap(),
+        Err("census row 4 repeats an earlier username (compared ignoring case)".to_string())
+    );
+    let blank = event_zip(&[("export_voters-e1.csv", b"area,username\nx,ada\nx,  \n")]);
+    assert_eq!(
+        census_usernames(&blank).unwrap(),
+        Err("census row 3 has no username".to_string())
+    );
+    // The refusal names the row, never the voter.
+    assert!(!census_usernames(&repeated)
+        .unwrap()
+        .unwrap_err()
+        .contains("ada"));
+}
+
+#[test]
 fn key_ceremony_trustees_must_resolve_to_one_current_or_planned_trustee() {
     let referenced = vec![
         "t1".to_string(),
@@ -371,6 +393,17 @@ fn a_package_may_not_change_the_tenants_signing_trust() {
     let preview = tenant_configuration_changes(&tenant(), &other);
     assert_eq!(preview.blockers.len(), 1);
     assert!(preview.blockers[0].contains("configuration_signing"));
+    // The locked write keeps the installed trust even if it changed after the
+    // preview, and never adds one the tenant does not have.
+    let merged = merged_tenant(&tenant(), &other);
+    assert_eq!(
+        merged.settings.unwrap()["configuration_signing"],
+        json!({"policy": "required"})
+    );
+    let mut untrusting = tenant();
+    untrusting.settings = Some(json!({"i18n": {}}));
+    let merged = merged_tenant(&untrusting, &other);
+    assert_eq!(merged.settings, Some(json!({"i18n": {}})));
 }
 
 #[test]
@@ -406,4 +439,48 @@ fn blank_or_repeated_trustee_names_block() {
     assert!(preview
         .blockers
         .contains(&"a trustee in the package has no name".to_string()));
+}
+
+#[test]
+fn a_package_already_imported_is_admitted_only_into_this_applications_event() {
+    use sequent_core::election_config::package_verify::{already_imported, Freshness};
+    let derived = "00000000-0000-4000-8000-0000000000e1";
+    assert_eq!(admission_problem(None, derived), None);
+    assert_eq!(
+        admission_problem(Some((Ok(Freshness::New), "other")), derived),
+        None
+    );
+    // Resuming: this application imported it, into its own event.
+    assert_eq!(
+        admission_problem(Some((Ok(Freshness::AlreadyImported), derived)), derived),
+        None
+    );
+    // Imported standalone, into another event: the event section would be
+    // refused after the tenant sections had changed.
+    let elsewhere = admission_problem(
+        Some((Ok(Freshness::AlreadyImported), "e-standalone")),
+        derived,
+    )
+    .unwrap();
+    assert!(elsewhere.contains("already imported into event e-standalone"));
+    let older = admission_problem(Some((Err(already_imported(3)), "e")), derived).unwrap();
+    assert!(older.starts_with("manifest.configuration.revision: revision 3"));
+}
+
+#[test]
+fn messaging_configuration_without_its_permission_blocks() {
+    use crate::services::messaging::config::MessagingConfigPermission;
+    assert!(
+        messaging_problem(true, &MessagingConfigPermission::NOT_PERMITTED)
+            .unwrap()
+            .contains("messaging-config-write")
+    );
+    assert_eq!(
+        messaging_problem(true, &MessagingConfigPermission::PERMITTED),
+        None
+    );
+    assert_eq!(
+        messaging_problem(false, &MessagingConfigPermission::NOT_PERMITTED),
+        None
+    );
 }

@@ -138,9 +138,32 @@ pub fn merged_tenant(current: &Tenant, wanted: &TenantConfiguration) -> Tenant {
             current.voting_channels.as_ref(),
             wanted.voting_channels.as_ref(),
         ),
-        settings: merged_object(current.settings.as_ref(), wanted.settings.as_ref()),
+        settings: merged_settings(current.settings.as_ref(), wanted.settings.as_ref()),
         ..current.clone()
     }
+}
+
+/// The settings field merged like the others, except that a reserved setting
+/// is always the installed one. The preview blocks a package that would change
+/// it; this keeps it even when the installed value changed after that preview.
+fn merged_settings(
+    current: Option<&Value>,
+    wanted: Option<&serde_json::Map<String, Value>>,
+) -> Option<Value> {
+    let mut merged = merged_object(current, wanted)?;
+    if let Value::Object(map) = &mut merged {
+        for key in RESERVED_SETTINGS {
+            match current.and_then(|settings| settings.get(key)) {
+                Some(installed) => {
+                    map.insert(key.to_string(), installed.clone());
+                }
+                None => {
+                    map.remove(key);
+                }
+            }
+        }
+    }
+    Some(merged)
 }
 
 /// Tenant settings a package may not change: they decide what the tenant
@@ -521,10 +544,22 @@ pub fn census_usernames(event_zip: &[u8]) -> Result<std::result::Result<BTreeSet
     let Some(column) = column else {
         return Ok(Err("the census has no username column".to_string()));
     };
+    // The user insert is all-or-nothing and fails on a repeated username, and
+    // the event is applied last: refused here, before any section changes.
+    // Rows are named by number, never by the voter's username.
     let mut usernames = BTreeSet::new();
-    for record in reader.records() {
+    for (index, record) in reader.records().enumerate() {
         let record = record.context("Error reading the census")?;
-        usernames.insert(record.get(column).unwrap_or_default().to_lowercase());
+        let row = index + 2;
+        let username = record.get(column).unwrap_or_default();
+        if username.trim().is_empty() {
+            return Ok(Err(format!("census row {row} has no username")));
+        }
+        if !usernames.insert(username.to_lowercase()) {
+            return Ok(Err(format!(
+                "census row {row} repeats an earlier username (compared ignoring case)"
+            )));
+        }
     }
     Ok(Ok(usernames))
 }
@@ -576,3 +611,41 @@ pub fn trustee_reference_problems(
 #[cfg(test)]
 #[path = "configuration_package_sections_tests.rs"]
 mod tests;
+
+/// Why a signed package may not be applied, given how it compares with the
+/// tenant's last import of its configuration (`None` when never imported)
+/// and the event this application imports it into.
+pub fn admission_problem(
+    last: Option<(
+        std::result::Result<
+            sequent_core::election_config::package_verify::Freshness,
+            sequent_core::election_config::problem::Problem,
+        >,
+        &str,
+    )>,
+    derived_event_id: &str,
+) -> Option<String> {
+    use sequent_core::election_config::package_verify::Freshness;
+    match last? {
+        (Ok(Freshness::New), _) => None,
+        (Ok(Freshness::AlreadyImported), imported_into) if imported_into == derived_event_id => {
+            None
+        }
+        (Ok(Freshness::AlreadyImported), imported_into) => Some(format!(
+            "this package was already imported into event {imported_into}, not by this application; it cannot be applied again"
+        )),
+        (Err(problem), _) => Some(format!("{}: {}", problem.path, problem.message)),
+    }
+}
+
+/// The importer skips a messaging configuration its caller may not write and
+/// still reports the event imported, so that is a blocker beforehand.
+pub fn messaging_problem(
+    carries_messaging_config: bool,
+    permission: &crate::services::messaging::config::MessagingConfigPermission,
+) -> Option<String> {
+    use crate::services::messaging::config::MessagingConfigPermission;
+    (carries_messaging_config && *permission != MessagingConfigPermission::PERMITTED).then(|| {
+        "the event carries a messaging configuration, which the import would skip without messaging-config-write".to_string()
+    })
+}

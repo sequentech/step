@@ -130,6 +130,19 @@ jobs:
         submodules: recursive
         persist-credentials: false
 
+    # The Architect image takes its sources and WASM from this step's
+    # packages/, while its recipe says they are the step the beyond release
+    # pins. Build only when the two packages/ trees are the same tree.
+    - name: Check this step's packages/ is the one beyond pins
+      if: matrix.service == 'election-architect'
+      run: |
+        pinned=$(git -C beyond rev-parse HEAD:step)
+        git fetch --no-tags --depth 1 origin "$pinned"
+        ours=$(git rev-parse HEAD:packages)
+        theirs=$(git rev-parse "$pinned:packages")
+        echo "step $GITHUB_SHA packages $ours; beyond pins step $pinned packages $theirs"
+        test "$ours" = "$theirs"
+
     - name: Set short SHA
       run: echo "SHORT_SHA=$(echo $GITHUB_SHA | cut -c 1-7)" >> $GITHUB_ENV
 

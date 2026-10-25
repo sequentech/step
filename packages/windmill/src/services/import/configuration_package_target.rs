@@ -16,7 +16,8 @@ use super::configuration_package_sections::{
     tenant_settings_changes, trustee_changes,
 };
 use super::configuration_package_sections::{
-    census_usernames, event_document, trustee_reference_problems, EventState,
+    admission_problem, census_usernames, event_document, messaging_problem,
+    trustee_reference_problems, EventState,
 };
 use crate::postgres::election_event::get_election_event_by_id_if_exist;
 use crate::postgres::keycloak_realm::{realm_usernames, user_groups};
@@ -153,7 +154,7 @@ impl PlatformTarget {
     /// event other than the one this application imports (then the event
     /// section would be refused after the tenant sections had changed).
     async fn admission_blocker(&self) -> Result<Option<String>> {
-        use sequent_core::election_config::package_verify::{freshness, Freshness};
+        use sequent_core::election_config::package_verify::freshness;
         let Some(verified) = &self.context.verified else {
             return Ok(None);
         };
@@ -166,17 +167,12 @@ impl PlatformTarget {
         )
         .await?;
         let event_id = derived_event_id(&self.context.tenant_id, &self.context.package_sha256);
-        Ok(match last {
-            None => None,
-            Some((last, imported_into)) => match freshness(verified, Some(&last)) {
-                Ok(Freshness::New) => None,
-                Ok(Freshness::AlreadyImported) if imported_into == event_id => None,
-                Ok(Freshness::AlreadyImported) => Some(format!(
-                    "this package was already imported into event {imported_into}, not by this application; it cannot be applied again"
-                )),
-                Err(problem) => Some(format!("{}: {}", problem.path, problem.message)),
-            },
-        })
+        Ok(admission_problem(
+            last.as_ref().map(|(last, imported_into)| {
+                (freshness(verified, Some(last)), imported_into.as_str())
+            }),
+            &event_id,
+        ))
     }
 
     async fn tenant(&self) -> Result<sequent_core::types::hasura::core::Tenant> {
@@ -392,14 +388,10 @@ impl PlatformTarget {
                     Ok((schema, _)) => {
                         // The importer skips a messaging configuration its caller
                         // may not write and still reports the event imported.
-                        if schema.messaging_config.is_some()
-                            && self.context.event_import.messaging_config_permission
-                                != crate::services::messaging::config::MessagingConfigPermission::PERMITTED
-                        {
-                            problems.push(
-                                "the event carries a messaging configuration, which the import would skip without messaging-config-write".to_string(),
-                            );
-                        }
+                        problems.extend(messaging_problem(
+                            schema.messaging_config.is_some(),
+                            &self.context.event_import.messaging_config_permission,
+                        ));
                         let referenced: Vec<String> = schema
                             .keys_ceremonies
                             .iter()
@@ -456,6 +448,15 @@ impl PlatformTarget {
 
 #[async_trait]
 impl PackageTarget for PlatformTarget {
+    async fn hold_imports(&self) -> Result<Box<dyn std::any::Any + Send>> {
+        let held = crate::postgres::configuration_packages::hold_imports(
+            get_hasura_pool().await.as_ref(),
+            &self.context.tenant_id,
+        )
+        .await?;
+        Ok(Box::new(held))
+    }
+
     async fn preview(&self, section: Section, files: &[Artifact]) -> Result<SectionPreview> {
         let mut preview = self.preview_section(section, files).await?;
         if let Some(blocker) = self.admission_blocker().await? {

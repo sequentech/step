@@ -6,7 +6,8 @@ use super::*;
 use sequent_core::election_config::package_contract::CensusRequirement;
 use serde_json::json;
 use std::collections::{BTreeMap, BTreeSet};
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 
 fn zip(members: &[(&str, &[u8])]) -> Vec<u8> {
     use std::io::Write;
@@ -73,12 +74,29 @@ struct Fake {
     /// What an earlier run's task rows say.
     tasks: Mutex<BTreeMap<String, TaskState>>,
     settled: Mutex<Vec<(String, bool)>>,
+    /// Whether the tenant's imports are held, and what each call saw.
+    imports_held: Arc<AtomicBool>,
+    calls: Mutex<Vec<(Section, &'static str, bool)>>,
+}
+
+/// Releases the fake's import hold when dropped.
+struct Release(Arc<AtomicBool>);
+
+impl Drop for Release {
+    fn drop(&mut self) {
+        self.0.store(false, Ordering::SeqCst);
+    }
 }
 
 #[async_trait]
 impl PackageTarget for Fake {
     async fn preview(&self, section: Section, files: &[Artifact]) -> Result<SectionPreview> {
         assert!(!files.is_empty(), "a section is previewed with its files");
+        self.calls.lock().unwrap().push((
+            section,
+            "preview",
+            self.imports_held.load(Ordering::SeqCst),
+        ));
         if self.unreachable == Some(section) {
             return Err(anyhow!("target unreachable"));
         }
@@ -97,6 +115,14 @@ impl PackageTarget for Fake {
 
     async fn begin(&self, section: Section) -> Result<Option<String>> {
         Ok(Some(format!("task-{section:?}")))
+    }
+
+    async fn hold_imports(&self) -> Result<Box<dyn std::any::Any + Send>> {
+        assert!(
+            !self.imports_held.swap(true, Ordering::SeqCst),
+            "the hold is released before the next section takes it"
+        );
+        Ok(Box::new(Release(self.imports_held.clone())))
     }
 
     async fn settle(&self, task_id: &str, succeeded: bool) -> Result<()> {
@@ -128,6 +154,11 @@ impl PackageTarget for Fake {
             "begun before applied"
         );
         self.submissions.lock().unwrap().push(section);
+        self.calls.lock().unwrap().push((
+            section,
+            "apply",
+            self.imports_held.load(Ordering::SeqCst),
+        ));
         if self.fail == Some(section) {
             return Err(anyhow!("import failed"));
         }
@@ -1028,4 +1059,84 @@ fn two_files_for_one_section_are_refused_before_the_target_is_asked() {
     assert!(error
         .to_string()
         .contains("2 files for the RolePermissions section"));
+}
+
+#[tokio::test]
+async fn standalone_imports_are_held_across_each_tenant_sections_preview_and_apply() {
+    let target = Fake::default();
+    let record = run(
+        &plan(),
+        "t1",
+        ApplyMode::Apply,
+        None,
+        &target,
+        &Saved::default(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(record.outcome, Outcome::Applied);
+    let calls = target.calls.lock().unwrap();
+    // The first pass previews every section before anything is held; from
+    // the first section's re-preview on, every tenant section is held.
+    let first_apply = calls.iter().position(|c| c.1 == "apply").unwrap();
+    assert!(!calls[..first_apply - 1].iter().any(|c| c.2));
+    for (section, call, held) in &calls[first_apply - 1..] {
+        // The event's own import takes the lock, so it is never held there.
+        assert_eq!(
+            *held,
+            *section != Section::ElectionEvent,
+            "{section:?} {call} held={held}"
+        );
+    }
+    assert!(
+        !target.imports_held.load(Ordering::SeqCst),
+        "released at the end"
+    );
+}
+
+#[tokio::test]
+async fn an_interrupted_submission_that_landed_settles_as_success_without_resubmitting() {
+    let target = Fake::default();
+    let mut interrupted = interrupted_at_event(&target).await;
+    interrupt(&mut interrupted, Section::Trustees);
+    target
+        .tasks
+        .lock()
+        .unwrap()
+        .insert("task-ElectionEvent".into(), TaskState::Interrupted);
+    target
+        .tasks
+        .lock()
+        .unwrap()
+        .insert("task-Trustees".into(), TaskState::Interrupted);
+    // The event's import landed after all; the trustees' did not.
+    target
+        .applied
+        .lock()
+        .unwrap()
+        .insert(Section::ElectionEvent);
+    target.applied.lock().unwrap().remove(&Section::Trustees);
+    let rerun = run(
+        &plan(),
+        "t1",
+        ApplyMode::Apply,
+        Some(&interrupted),
+        &target,
+        &Saved::default(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(rerun.outcome, Outcome::Applied);
+    // Only the one that did not land is submitted again, after its row closed.
+    assert_eq!(*target.submissions.lock().unwrap(), [Section::Trustees]);
+    let settled = target.settled.lock().unwrap();
+    assert_eq!(settled[0], ("task-Trustees".to_string(), false));
+    assert!(settled.contains(&("task-ElectionEvent".to_string(), true)));
+    assert!(matches!(
+        status(&rerun, Section::ElectionEvent),
+        SectionStatus::Applied {
+            reconciled: true,
+            ..
+        }
+    ));
 }
