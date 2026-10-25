@@ -161,6 +161,29 @@ the CLI with explicitly reviewed, source-hash-bound associations when necessary.
 The drawer never picks the first context or invents essential election settings.
 Voter exclusion is reported in the summary and stored in provenance.
 
+### Preserving the source voters as the census
+
+Census policy is an enum with three reviewed options:
+
+- `require-reviewed-mapping` (default) — refuse while the source lists voters, so
+  the choice below is always explicit.
+- `configuration-only` — count the voters and drop them (no census is built).
+- `preserve-source-voters` — import every source voter as the event census.
+
+Under `preserve-source-voters` each voter is emitted into the `Voters` sheet and
+flows through the shared voters builder into the `export_voters-*.csv` native
+member. A voter joins to an area through the same precinct crosswalk the areas are
+built from, keyed by the whole location tuple
+`(COUNTRY = pop.PROV_CODE, EMBASSY = pop.MUN_CODE, PRECINCT = pop.PRECINCT)`; the
+same precinct under different embassies therefore resolves to different areas. The
+source identity (id → `username`, first/last name) and the raw source attributes
+(maternal name, suffix, date-of-birth parts, country/embassy/precinct codes and the
+abroad status) are preserved verbatim — the abroad status is carried through with no
+eligibility inference. Email, mobile and password are left unset; enrollment collects
+them later. A voter whose location tuple has no in-scope area is a blocking per-row
+error, never a silent drop. The preserved count is reported in the summary and stored
+in provenance as `preservedVoters`.
+
 The advanced CLI decisions contract remains available: limited post/precinct
 coverage, explicit associations and preserving unresolved affiliation codes
 require both source SHA-256 values. Changed bytes invalidate those decisions.
@@ -224,7 +247,8 @@ workbook matches and reports excluded rows. Optional affiliation mode
 The source, decision and profile provenance is carried in the event's
 `import:provenance` annotation. The native ZIP contains the existing event JSON
 and scheduled-event CSV members. Configuration-only conversion emits no voter
-CSV. Keep original source files in controlled local storage; hashes do not
+CSV; `preserve-source-voters` adds an `export_voters-*.csv` census member.
+Keep original source files in controlled local storage; hashes do not
 replace the originals.
 
 ## Verification and limits
