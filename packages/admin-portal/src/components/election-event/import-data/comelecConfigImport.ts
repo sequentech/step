@@ -29,7 +29,13 @@ import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 import {IMPORT_TENANT_CONFIG} from "@/queries/ImportTenantConfig"
 import {GET_TASK_BY_ID} from "@/queries/GetTaskById"
 import {GET_TENANT_TRUSTEES} from "@/queries/GetTenantTrustees"
-import {buildComelecTenantConfig, type TenantConfigPreflight} from "@/services/ComelecTenantConfig"
+import {getPermissions} from "@/queries/GetPermissions"
+import {getRoles} from "@/queries/GetRoles"
+import {
+    buildComelecTenantConfig,
+    comelecGroups,
+    type TenantConfigPreflight,
+} from "@/services/ComelecTenantConfig"
 
 export type ComelecConfigStageName =
     | "preflight"
@@ -53,6 +59,23 @@ export interface ReusableTrustee {
     name: string
 }
 
+export interface GroupRoleChange {
+    group: string
+    /** Whether the group already exists in the target realm. */
+    exists: boolean
+    /** Realm roles this import would add to the group. */
+    additions: string[]
+    /** Existing realm-role mappings this import would REMOVE from the group. */
+    removals: string[]
+}
+
+export interface RolePreflight {
+    /** Profile roles absent from the realm; the import would fail, so the flow stops. */
+    missingRoles: string[]
+    /** Per profile group, the exact additions and removals against the current realm. */
+    changes: GroupRoleChange[]
+}
+
 export interface ComelecConfigStage {
     name: "preflight" | "tenant-config" | "trustees"
     status: "running" | "success" | "reused"
@@ -61,6 +84,8 @@ export interface ComelecConfigStage {
 
 export interface ComelecConfigResult {
     preflight: TenantConfigPreflight
+    /** The realm-role diff computed before mutating (additions/removals per group). */
+    rolePreflight: RolePreflight
     /** Existing approved trustees reused, by id; the flow never creates or invents keys. */
     reusedTrustees: ReusableTrustee[]
     /** The import task that completed SUCCESS, recorded for provenance. */
@@ -154,6 +179,57 @@ async function preflightTrustees(
 }
 
 /**
+ * Preflight the realm roles BEFORE mutating: confirm every role the profile assigns
+ * exists in the target realm (a missing one would fail the import mid-apply), and
+ * compute, per profile group, the exact additions and the existing mappings that the
+ * import would REMOVE — so the operator previews real changes, not just desired counts.
+ */
+async function preflightRealmRoles(
+    client: ApolloClient<unknown>,
+    tenantId: string
+): Promise<RolePreflight> {
+    const permsResult = await client.query({
+        query: getPermissions({tenant_id: tenantId}),
+        fetchPolicy: "network-only",
+    })
+    const available = new Set<string>(
+        (permsResult.data?.get_permissions?.items ?? [])
+            .map((item: {name?: string | null}) => item.name ?? "")
+            .filter((name: string) => name.length > 0)
+    )
+    const rolesResult = await client.query({
+        query: getRoles({tenant_id: tenantId}),
+        fetchPolicy: "network-only",
+    })
+    const currentByGroup = new Map<string, Set<string>>()
+    for (const group of rolesResult.data?.get_roles?.items ?? []) {
+        if (group?.name) {
+            currentByGroup.set(group.name, new Set<string>(group.permissions ?? []))
+        }
+    }
+    const desiredRoles = new Set<string>()
+    const changes: GroupRoleChange[] = comelecGroups.map((group) => {
+        const desired = new Set(group.realmRoles)
+        group.realmRoles.forEach((role) => desiredRoles.add(role))
+        const current = currentByGroup.get(group.name)
+        return {
+            group: group.name,
+            exists: current !== undefined,
+            additions: group.realmRoles.filter((role) => !current?.has(role)).sort(),
+            removals: current
+                ? Array.from(current)
+                      .filter((role) => !desired.has(role))
+                      .sort()
+                : [],
+        }
+    })
+    const missingRoles = Array.from(desiredRoles)
+        .filter((role) => !available.has(role))
+        .sort()
+    return {missingRoles, changes}
+}
+
+/**
  * Run the preflight and, only if it passes, the tenant-config stages for the selected
  * tenant. Throws `ComelecConfigError` with the failing stage (and any pending task id)
  * so the caller stops the whole flow and shows it; the event import must not proceed
@@ -168,16 +244,29 @@ export async function runComelecConfigStages(
 
     // ---- Preflight (no mutation) ----
     const {file, preflight} = await buildComelecTenantConfig(tenantId)
+    const rolePreflight = await preflightRealmRoles(client, tenantId)
+    if (rolePreflight.missingRoles.length > 0) {
+        // A role the profile assigns is absent from the realm: the import would fail
+        // part-way. Stop here and name them, before any change.
+        throw new ComelecConfigError(
+            "preflight",
+            `the target realm is missing ${rolePreflight.missingRoles.length} role(s) the profile ` +
+                `assigns, so the import would fail: ${rolePreflight.missingRoles.join(", ")}`
+        )
+    }
     const reusedTrustees = await preflightTrustees(client, tenantId)
+    const removalCount = rolePreflight.changes.reduce(
+        (total, change) => total + change.removals.length,
+        0
+    )
     onStage?.({
         name: "preflight",
         status: "success",
         detail:
             `Will apply ${preflight.groups.length} groups / ${preflight.roles.length} realm roles ` +
-            `and realm display "${preflight.realmDisplayName}". ` +
-            `Reusing ${reusedTrustees.length} existing trustee(s): ${reusedTrustees
-                .map((trustee) => trustee.name || trustee.id)
-                .join(", ")}.`,
+            `(${removalCount} existing mapping(s) would be removed) and realm display ` +
+            `"${preflight.realmDisplayName}". Reusing ${reusedTrustees.length} existing trustee(s): ` +
+            `${reusedTrustees.map((trustee) => trustee.name || trustee.id).join(", ")}.`,
     })
 
     // ---- Mutate: upload + import_tenant_config (roles + keycloak; tenant preserved) ----
@@ -241,5 +330,5 @@ export async function runComelecConfigStages(
         detail: `Reused ${reusedTrustees.length} existing trustee(s); no keys were created.`,
     })
 
-    return {preflight, reusedTrustees, tenantConfigTaskId}
+    return {preflight, rolePreflight, reusedTrustees, tenantConfigTaskId}
 }

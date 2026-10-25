@@ -14,6 +14,10 @@
 import JSZip from "jszip"
 import profile from "./comelec-tenant-profile.json"
 
+/** The canonical groups and their exact realm-role mappings, for preflight/preview. */
+export const comelecGroups: ReadonlyArray<{name: string; realmRoles: string[]}> =
+    profile.groups
+
 export interface TenantConfigPreflight {
     /** Each canonical group and how many realm roles it grants. */
     groups: Array<{name: string; roleCount: number}>
