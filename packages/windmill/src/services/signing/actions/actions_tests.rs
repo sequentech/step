@@ -115,6 +115,63 @@ fn canonical_text_orders_keys_and_keeps_array_order() {
     );
 }
 
+#[tokio::test]
+async fn publication_approval_binds_the_complete_runtime_receipt_key() {
+    use super::configuration::publication_digest_of;
+    use crate::adapters::memory::publication_files::{MemoryPublicationRows, PublicationRecord};
+
+    let tenant = Uuid::from_u128(1);
+    let event = Uuid::from_u128(2);
+    let publication = Uuid::from_u128(3);
+    let receipt_key = json!({"key_id": "receipt-key-a", "public_key": "public-key-a"});
+    let rows = |key: serde_json::Value| {
+        MemoryPublicationRows::default()
+            .with_event(tenant, event, json!({"id": event}), None)
+            .with_publication(
+                tenant,
+                event,
+                publication,
+                PublicationRecord {
+                    elections: vec![json!({"id": "election"})],
+                    styles: vec![json!({
+                        "id": "style",
+                        "ballot_eml": {
+                            "ballot_box_key": key,
+                            "public_key": {"public_key": "encryption-key"},
+                            "contests": [{"title": "Unchanged ballot"}]
+                        }
+                    })],
+                    ..Default::default()
+                },
+            )
+    };
+    let approved = publication_digest_of(&rows(receipt_key.clone()), tenant, event, publication)
+        .await
+        .unwrap();
+    assert_eq!(
+        approved,
+        publication_digest_of(&rows(receipt_key), tenant, event, publication)
+            .await
+            .unwrap()
+    );
+    // Stable authored-design comparison may omit this runtime receipt key.
+    // The separately signed full publication must still bind both fields.
+    for changed in [
+        json!({"key_id": "receipt-key-b", "public_key": "public-key-a"}),
+        json!({"key_id": "receipt-key-a", "public_key": "public-key-b"}),
+        json!({"key_id": "receipt-key-b", "public_key": "public-key-b"}),
+        serde_json::Value::Null,
+    ] {
+        assert_ne!(
+            approved,
+            publication_digest_of(&rows(changed), tenant, event, publication)
+                .await
+                .unwrap(),
+            "A changed or removed receipt key cannot retain publication approval"
+        );
+    }
+}
+
 #[test]
 fn the_ballots_change_compares_the_two_sides_of_the_diff() {
     let side = |styles| json!({"ballot_publication_id": "x", "ballot_styles": styles});

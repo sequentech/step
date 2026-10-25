@@ -426,3 +426,64 @@ fn a_contest_list_that_is_not_a_list_is_hashed_as_it_is() {
         r#"{"candidates":"none","contests":null}"#
     );
 }
+
+#[test]
+fn runtime_ballot_box_keys_do_not_change_the_authored_design() {
+    let keys = event_keys();
+    let preview = style("preview", "a1", "e1");
+    let expected = ballot_design_digest(&preview, &keys).unwrap();
+    // Baseline author-preview digest before runtime receipt-key normalization.
+    assert_eq!(
+        expected.sha256,
+        "a50e4bf0d8efdde99521e46c201e412742eca51514e9c0a4f282d0ec9dbf41db"
+    );
+    for key in [
+        json!(null),
+        json!({"key_id": "first-runtime-key", "public_key": "first-public-key"}),
+        json!({"key_id": "rotated-runtime-key", "public_key": "second-public-key"}),
+    ] {
+        let mut value = serde_json::to_value(&preview).unwrap();
+        value["ballot_box_key"] = key;
+        let published: BallotStyle = serde_json::from_value(value).unwrap();
+        assert_eq!(expected, ballot_design_digest(&published, &keys).unwrap());
+    }
+    let mut absent = serde_json::to_value(&preview).unwrap();
+    absent.as_object_mut().unwrap().remove("ballot_box_key");
+    let absent: BallotStyle = serde_json::from_value(absent).unwrap();
+    assert_eq!(expected, ballot_design_digest(&absent, &keys).unwrap());
+}
+
+#[test]
+fn runtime_key_exclusion_keeps_authored_policy_changes_protected() {
+    let keys = event_keys();
+    let original = style("preview", "a1", "e1");
+    let approved =
+        versioned(&[], vec![ballot_design_digest(&original, &keys).unwrap()]);
+    let mut value = serde_json::to_value(&original).unwrap();
+    value["election_presentation"] =
+        json!({"initialization_report_policy": "required"});
+    value["ballot_box_key"] =
+        json!({"key_id": "runtime-key", "public_key": "public-key"});
+    let changed: BallotStyle = serde_json::from_value(value).unwrap();
+    assert_eq!(
+        mismatches(
+            &approved,
+            &[ballot_design_digest(&changed, &keys).unwrap()]
+        )
+        .len(),
+        1
+    );
+}
+
+#[test]
+fn authored_annotations_named_ballot_box_key_remain_part_of_the_design() {
+    let keys = event_keys();
+    let original = style("preview", "a1", "e1");
+    let mut value = serde_json::to_value(&original).unwrap();
+    value["election_annotations"] = json!({"ballot_box_key": "authored text"});
+    let changed: BallotStyle = serde_json::from_value(value).unwrap();
+    assert_ne!(
+        ballot_design_digest(&original, &keys).unwrap(),
+        ballot_design_digest(&changed, &keys).unwrap()
+    );
+}

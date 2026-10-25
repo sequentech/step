@@ -17,10 +17,10 @@
 //!   external id, and an image document's file name. Only in the fields that
 //!   hold ids and urls ([`FieldKind`]): what voters read is hashed as written,
 //!   so a name that spells an id is not taken for one.
-//! * The tenant, the event id, the public key, timestamps and the election's
-//!   dates. The schedule is configuration, and the manifest covers it through
-//!   the scheduled events file; the dates a style carries also record when
-//!   voting actually started, which is not.
+//! * The tenant, the event id, runtime public and receipt-signing keys,
+//!   timestamps and the election's dates. The schedule is configuration, and
+//!   the manifest covers it through the scheduled events file; the dates a
+//!   style carries also record when voting actually started, which is not.
 //! * The order of contests and candidates. A style lists them in database id
 //!   order, which the renumbering shuffles; voters see `sort_order` and the
 //!   ordering policy, which stay in.
@@ -275,6 +275,13 @@ pub fn ballot_design_digest(
     if let Value::Object(map) = &mut normalised {
         // The style's own id: windmill mints a v4 one per publication.
         map.remove("id");
+        // The receipt-signing key is selected by the running ballot box, after
+        // authoring. It is not ballot design. The complete style, including this
+        // key, remains bound by the separate publication-approval digest.
+        // The author's absent key is omitted by BallotStyle serialization, so
+        // removing this root field preserves existing signed design digests.
+        // Similarly named authored text remains part of the design.
+        map.remove("ballot_box_key");
     }
 
     let mut bytes = Vec::new();
