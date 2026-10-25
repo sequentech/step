@@ -469,6 +469,11 @@ services:
     profiles: ["full", "base"]
     image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/messaging-webhooks:STEP_VERSION
     platform: linux/amd64
+    # Built from this checkout rather than pulled, under the tag the bundle
+    # names, so preparing a bundle needs no registry access for it.
+    build:
+      context: ../packages
+      dockerfile: messaging-webhooks/Dockerfile.prod
     depends_on:
       - harvest
     environment:

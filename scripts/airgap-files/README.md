@@ -143,3 +143,42 @@ at their endpoints:
 The services publish their ports on `127.0.0.1` only, so they are reachable
 from the machine running the environment and not from other hosts. To publish
 them on a different address, set `BIND_ADDRESS` in `.env`.
+### Offline services
+
+- **Messages are simulated.** This offline demo sets
+  `MESSAGING_FAKE_PROVIDER_ROUTES=ENABLED` and points every messaging provider
+  address at harvest's fake provider (`.env`). A message is accepted and shown
+  in the admin portal's Sent messages, with a simulated delivery report through
+  `messaging-webhooks`, and delivered to nobody: no message ever reaches a real
+  provider or a voter. A hosted deployment never sets these.
+- **monitoring-renderer** draws the monitoring widgets for harvest, on an
+  internal network with no route out.
+- **messaging-webhooks** receives the (simulated) providers' callbacks and
+  relays them, signed, to harvest.
+- `up` generates the secrets these services share (`MESSAGING_RELAY_SECRET`,
+  `MONITORING_RENDERER_TOKEN` and the Scanovate keys) on its first run, in
+  `.env`. The bundle carries none.
+
+### Biometric enrollment (Scanovate)
+
+A full bundle always carries the four Scanovate images (OCR, Face Match,
+Liveness Plus and its presentation attack detection), pinned by digest to the
+ones approved for the platform, in `images/scanovate-oci.tar`; `biometric.json`
+records `"biometric": "included"`. Whether they **start** is a choice in `.env`:
+
+- `BIOMETRIC_SERVICES="start"`: the full system; `up` starts them (the
+  `biometric` compose profile).
+- `BIOMETRIC_SERVICES="stopped"`: a lighter machine; they are not started, and
+  biometric enrollment does not work there.
+
+`up` prints the choice every time. The images are named by digest, which needs
+Docker's containerd image store (the default in Docker 29). A realm whose
+registration uses a Scanovate step needs, as its liveness secret,
+`SCANOVATE_LIVENESS_CALLBACK_SECRET` from `.env`.
+
+A bundle built with `ALLOW_MISSING_BIOMETRIC=1` is a **developer partial**
+bundle without the images (`biometric.json` says `"absent"`): `up` refuses to
+start biometric services from it, and it is not the full offline bundle.
+Building a full bundle needs `SCANOVATE_OCI_DIR`, an OCI image layout holding
+the four images; every blob is checked against its digest before anything is
+built.

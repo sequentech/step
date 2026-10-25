@@ -456,6 +456,13 @@ services:
       MESSAGING_WEBHOOKS_PUBLIC_URL: ${MESSAGING_WEBHOOKS_PUBLIC_URL}
       MESSAGING_WEBHOOKS_MAX_BODY_BYTES: ${MESSAGING_WEBHOOKS_MAX_BODY_BYTES:-262144}
       MESSAGING_CALLBACK_CONNECTIONS: ${MESSAGING_CALLBACK_CONNECTIONS:-4}
+      # OFFLINE DEMO ONLY: harvest's simulated provider. The provider addresses
+      # below point at it, so every message is SIMULATED (accepted and shown in
+      # Sent messages, delivered to nobody) and nothing leaves this machine.
+      MESSAGING_FAKE_PROVIDER_ROUTES: ${MESSAGING_FAKE_PROVIDER_ROUTES:-DISABLED}
+      MESSAGING_META_GRAPH_URL: ${MESSAGING_META_GRAPH_URL:-}
+      MESSAGING_INFOBIP_URL: ${MESSAGING_INFOBIP_URL:-}
+      MESSAGING_AWS_ENDPOINT_URL: ${MESSAGING_AWS_ENDPOINT_URL:-}
     networks:
       - default
       - monitoring-renderer
@@ -480,6 +487,13 @@ services:
       MESSAGING_WEBHOOKS_MAX_IN_FLIGHT: ${MESSAGING_WEBHOOKS_MAX_IN_FLIGHT:-16}
     ports:
      - "${BIND_ADDRESS:-127.0.0.1}:${MESSAGING_WEBHOOKS_PORT}:${MESSAGING_WEBHOOKS_PORT}"
+    # The image has bash but no HTTP client: /healthz over bash's /dev/tcp.
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/$${ROCKET_PORT} && printf 'GET /healthz HTTP/1.0\\r\\n\\r\\n' >&3 && grep -q ' 200 ' <&3"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
 
   # Draws monitoring widgets with dbt Charts. Internal only: no published
   # ports, on a network with no route out, shared with harvest alone.
@@ -507,6 +521,68 @@ services:
       timeout: 5s
       retries: 10
       start_period: 30s
+
+  # Biometric enrollment (Scanovate): the vendor's images, pinned by digest to
+  # the ones approved for the platform (GitOps
+  # f1205a4ef9aaadb329e63e10d777058ce298eb39 docs/ovcs-scanovate/source-images.json:
+  # Sequent's ECR mirror copied unchanged, same digests). The bundle always
+  # carries them (images/scanovate-oci.tar); whether they START is the
+  # BIOMETRIC_SERVICES choice in .env, which `up` turns into the `biometric`
+  # profile. Without it they are never started.
+  scanovate-presentation-detection:
+    profiles: ["biometric"]
+    image: us-east1-docker.pkg.dev/sequent-production/sequent/scanovate/liveness-presentation-detection-service@sha256:56d62785f400536085eaf6b4dfecb5fa42e462c95c2e2c43120b7c7a37fb501b
+    pull_policy: never
+    restart: unless-stopped
+    environment:
+      SERVER_ALLOW_CORS: "true"
+      # Must match the pipelines of the Liveness Plus service_config.json.
+      IDFACE_SERVER_AVAILABLE_PIPELINES: pad-r-2,dfd-3
+
+  # Serves the Liveness Plus API to Keycloak's capture page.
+  scanovate-liveness:
+    profiles: ["biometric"]
+    image: us-east1-docker.pkg.dev/sequent-production/sequent/scanovate/liveness-plus-service@sha256:75500fbeefefa3417ba38838daf222d6a9fb1460970df3c5da853e8813200b49
+    pull_policy: never
+    restart: unless-stopped
+    environment:
+      MODE: onprem
+      # The capture page sends plain JPEG frames: no injection attack detection.
+      LIVENESS_MODE: PRESENTATION
+      JWT_SECRET_KEY: ${SCANOVATE_LIVENESS_JWT_SECRET_KEY:?run up, which generates it}
+      PRESENTATION_DETECTION_SERVER_URL: http://scanovate-presentation-detection:8080
+      CLIENT_BASE_URL_PREFIX: biometric/
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${SCANOVATE_LIVENESS_PORT}:5050"
+    # Rendered by `up` from scanovate/liveness/service_config.json.tmpl with
+    # the generated callback secret Keycloak's realm also needs.
+    volumes:
+      - ./scanovate/liveness/service_config.json:/app/config/service_config.json:ro
+    depends_on:
+      - scanovate-presentation-detection
+
+  # Keycloak calls its 1:1 API (/facematch11/) on the compose network.
+  scanovate-face-match:
+    profiles: ["biometric"]
+    image: us-east1-docker.pkg.dev/sequent-production/sequent/scanovate/ngfacematch@sha256:13dadfa795f5b52667b488ad0d3d248dcf9f4bf825e5f44ff90436ddb8c178e7
+    pull_policy: never
+    restart: unless-stopped
+    environment:
+      MODE: onprem
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${SCANOVATE_FACE_MATCH_PORT}:3000"
+
+  # Keycloak calls its single image API (/single_image_ocr) on the network.
+  scanovate-ocr:
+    profiles: ["biometric"]
+    image: us-east1-docker.pkg.dev/sequent-production/sequent/scanovate/ocr@sha256:b305c844377682e33866cdca0b43a80249ef175697e885301f4026f0975c2246
+    pull_policy: never
+    restart: unless-stopped
+    environment:
+      MODE: onprem
+      JWT_SECRET_KEY: ${SCANOVATE_OCR_JWT_SECRET_KEY:?run up, which generates it}
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${SCANOVATE_OCR_PORT}:5040"
 
   postgres-b4v6:
     profiles: ["full", "base"]
@@ -727,6 +803,10 @@ services:
       MASTER_SECRET: ${MASTER_SECRET}
       AWS_SM_KEY_PREFIX: ${AWS_SM_KEY_PREFIX}
       MESSAGING_WEBHOOKS_PUBLIC_URL: ${MESSAGING_WEBHOOKS_PUBLIC_URL}
+      # Senders reach the simulated provider through these (see harvest).
+      MESSAGING_META_GRAPH_URL: ${MESSAGING_META_GRAPH_URL:-}
+      MESSAGING_INFOBIP_URL: ${MESSAGING_INFOBIP_URL:-}
+      MESSAGING_AWS_ENDPOINT_URL: ${MESSAGING_AWS_ENDPOINT_URL:-}
       VAULT_SERVER_URL: ${VAULT_SERVER_URL}
       VAULT_TOKEN: ${VAULT_TOKEN}
 
@@ -829,8 +909,12 @@ services:
       BEAT_PROBE_READY_PATH: ${BEAT_PROBE_READY_PATH}
       ELECTORAL_LOG_CHECKPOINT_INTERVAL_SECS: ${ELECTORAL_LOG_CHECKPOINT_INTERVAL_SECS:-300}
       QUEUE_ARCHIVE_PURGE_INTERVAL_SECS: ${QUEUE_ARCHIVE_PURGE_INTERVAL_SECS:-3600}
-      # Messaging, the same callback base as harvest and windmill.
+      # Messaging, the same callback base and provider addresses as harvest
+      # and windmill.
       MESSAGING_WEBHOOKS_PUBLIC_URL: ${MESSAGING_WEBHOOKS_PUBLIC_URL}
+      MESSAGING_META_GRAPH_URL: ${MESSAGING_META_GRAPH_URL:-}
+      MESSAGING_INFOBIP_URL: ${MESSAGING_INFOBIP_URL:-}
+      MESSAGING_AWS_ENDPOINT_URL: ${MESSAGING_AWS_ENDPOINT_URL:-}
 
 networks:
   # Harvest and the monitoring renderer only; no route out.
