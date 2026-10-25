@@ -39,6 +39,25 @@ function fakeClient(state: FakeState): {client: ApolloClient<unknown>; mutations
             if (name === "getRoles") return {data: {get_roles: {items: state.roles}}}
             if (name === "TenantTrustees")
                 return {data: {sequent_backend_trustee: state.trustees}}
+            if (name === "TenantState")
+                return {
+                    data: {
+                        sequent_backend_tenant: [
+                            {
+                                id: "tenant-1",
+                                slug: "comelec",
+                                created_at: "2027-01-01T00:00:00+00:00",
+                                updated_at: "2027-01-01T00:00:00+00:00",
+                                labels: null,
+                                annotations: null,
+                                is_active: true,
+                                voting_channels: null,
+                                settings: {existing: "kept"},
+                                test: null,
+                            },
+                        ],
+                    },
+                }
             if (name === "GetTaskById") {
                 if (state.taskQueryThrows) throw new Error("network blip")
                 return {

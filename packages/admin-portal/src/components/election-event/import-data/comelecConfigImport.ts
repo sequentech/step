@@ -29,12 +29,14 @@ import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 import {IMPORT_TENANT_CONFIG} from "@/queries/ImportTenantConfig"
 import {GET_TASK_BY_ID} from "@/queries/GetTaskById"
 import {GET_TENANT_TRUSTEES} from "@/queries/GetTenantTrustees"
+import {GET_TENANT_STATE} from "@/queries/GetTenantState"
 import {getPermissions} from "@/queries/GetPermissions"
 import {getRoles} from "@/queries/GetRoles"
 import {
     buildComelecTenantConfig,
     comelecGroups,
     type TenantConfigPreflight,
+    type TenantState,
 } from "@/services/ComelecTenantConfig"
 
 export type ComelecConfigStageName =
@@ -268,11 +270,41 @@ async function preflightRealmRoles(
  * problem, when a role is missing or no valid trustee exists. The returned plan is what
  * the UI shows for confirmation before `applyComelecConfig` mutates anything.
  */
+async function fetchTenantState(
+    client: ApolloClient<unknown>,
+    tenantId: string
+): Promise<TenantState> {
+    const {data} = await client.query({
+        query: GET_TENANT_STATE,
+        variables: {tenantId},
+        fetchPolicy: "network-only",
+    })
+    const row = data?.sequent_backend_tenant?.[0]
+    if (!row?.id) {
+        throw new ComelecConfigError("preflight", "the selected tenant was not found")
+    }
+    return {
+        id: row.id,
+        slug: row.slug,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        labels: row.labels ?? null,
+        annotations: row.annotations ?? null,
+        is_active: !!row.is_active,
+        voting_channels: row.voting_channels ?? null,
+        settings: (row.settings as Record<string, unknown> | null) ?? null,
+        test: row.test ?? null,
+    }
+}
+
 export async function prepareComelecConfig(
     client: ApolloClient<unknown>,
     tenantId: string
 ): Promise<ComelecConfigPlan> {
-    const {file, preflight} = await buildComelecTenantConfig(tenantId)
+    // Read the target tenant so the generated tenant_configuration preserves its id/slug
+    // and unrelated state while applying only the approved public display_name.
+    const targetTenant = await fetchTenantState(client, tenantId)
+    const {file, preflight} = await buildComelecTenantConfig(tenantId, targetTenant)
     const rolePreflight = await preflightRealmRoles(client, tenantId)
     if (rolePreflight.missingRoles.length > 0) {
         throw new ComelecConfigError(
@@ -338,7 +370,9 @@ export async function applyComelecConfig(
                 importConfigurations: {
                     include_roles: true,
                     include_keycloak: true,
-                    include_tenant: false,
+                    // The archive carries a tenant_configuration that preserves the
+                    // target id/slug and applies only the approved display_name.
+                    include_tenant: true,
                 },
             },
         })
