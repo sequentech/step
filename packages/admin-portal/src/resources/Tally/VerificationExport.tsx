@@ -8,6 +8,7 @@ import {downloadUrl} from "@sequentech/ui-core"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {IPermissions} from "@/types/keycloak"
+import {ETallyType} from "@/types/ceremonies"
 import {loadBrowserTrustee} from "@/services/BrowserTrustee"
 import {
     ProtocolBoardRecord,
@@ -48,15 +49,24 @@ export interface VerificationExportProps {
     eventId: string
     tallySessionId: string
     completed: boolean
+    tallyType: string | null | undefined
 }
 
 /** Public export and independently sourced anchors; no trustee keys or board-service access. */
-export function VerificationExport({eventId, tallySessionId, completed}: VerificationExportProps) {
+export function VerificationExport({
+    eventId,
+    tallySessionId,
+    completed,
+    tallyType,
+}: VerificationExportProps) {
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
     const auth = useContext(AuthContext)
     const enabled =
-        completed && !!tenantId && auth.isAuthorized(true, tenantId, IPermissions.ADMIN_CEREMONY)
+        completed &&
+        tallyType === ETallyType.ELECTORAL_RESULTS &&
+        !!tenantId &&
+        auth.isAuthorized(true, tenantId, IPermissions.ADMIN_CEREMONY)
     const scope = JSON.stringify([tenantId, eventId, tallySessionId, enabled])
     const activeScope = useRef(scope)
     activeScope.current = scope

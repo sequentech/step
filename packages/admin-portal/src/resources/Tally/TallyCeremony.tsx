@@ -834,6 +834,7 @@ export const TallyCeremony: React.FC = () => {
                             key={`${record.id}:${tallySession.id}`}
                             eventId={record.id}
                             tallySessionId={tallySession.id}
+                            tallyType={tallySession.tally_type}
                             completed={
                                 tallySession.execution_status === ITallyExecutionStatus.SUCCESS &&
                                 !!tallySession.is_execution_completed

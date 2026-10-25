@@ -55,7 +55,12 @@ const board = {
     batch: 0,
 }
 const hash = "ab".repeat(64)
-const props = {eventId: event, tallySessionId: session, completed: true}
+const props = {
+    eventId: event,
+    tallySessionId: session,
+    completed: true,
+    tallyType: "ELECTORAL_RESULTS",
+}
 beforeEach(() => {
     jest.clearAllMocks()
     mockAuthorized.mockReturnValue(true)
@@ -203,3 +208,13 @@ it.each([
     expect(await screen.findByText("Verification data could not be downloaded.")).toBeVisible()
     expect(mockDownload).not.toHaveBeenCalled()
 })
+
+it.each(["INITIALIZATION_REPORT", "unknown", "", null, undefined])(
+    "does not query anchors or export a completed non-results tally of type %s",
+    (tallyType) => {
+        render(<VerificationExport {...props} tallyType={tallyType} />)
+        expect(mockQuery.mock.calls[0][1].skip).toBe(true)
+        expect(mockLoad).not.toHaveBeenCalled()
+        expect(screen.queryByRole("button")).not.toBeInTheDocument()
+    }
+)
