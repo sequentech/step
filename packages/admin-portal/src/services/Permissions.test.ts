@@ -251,6 +251,8 @@ const electionBoardRoles: Array<string> = [
     "admin-ceremony",
     "area-read",
     "create-ceremony",
+    "document-read",
+    "document-download",
     "election-dashboard-tab",
     "election-data-tab",
     "election-event-archive",
@@ -286,6 +288,7 @@ const electionBoardRoles: Array<string> = [
     "publish-stop-voting",
     "publish-write",
     "report-write",
+    "report-read",
     "role-read",
     "scheduled-event-create",
     "scheduled-event-delete",
@@ -400,4 +403,79 @@ describe("scoped configuration archive operations", () => {
         expect(roleFor("GetUploadUrl", roles)).toBe(IPermissions.PUBLISH_READ)
         expect(roleFor("ImportElectionEvent", roles)).toBe(IPermissions.PUBLISH_READ)
     })
+})
+
+describe("board document and task reads", () => {
+    it.each([
+        ["FetchDocument", IPermissions.DOCUMENT_DOWNLOAD],
+        ["GetDocument", IPermissions.DOCUMENT_READ],
+        ["GetTaskById", IPermissions.TASKS_READ],
+    ])("uses only the held permission for %s", (name, permission) => {
+        for (const roles of [electionBoardRoles, boardTrusteeRoles]) {
+            expect(roleFor(name, roles)).toBe(permission)
+        }
+        expect(roleFor(name, [IPermissions.PUBLISH_READ])).toBe(IPermissions.PUBLISH_READ)
+        expect(roleFor(name, [IPermissions.TRUSTEE_CEREMONY])).toBe(IPermissions.TRUSTEE_CEREMONY)
+    })
+
+    it("preserves the administrator's scoped tenant-backup download path", () => {
+        expect(roleFor("FetchDocument", [IPermissions.ADMIN_USER, IPermissions.TENANT_READ])).toBe(
+            IPermissions.ADMIN_USER
+        )
+        expect(roleFor("GetDocument", [IPermissions.ADMIN_USER])).toBe(IPermissions.ADMIN_USER)
+        expect(roleFor("GetTaskById", [IPermissions.ADMIN_USER])).toBe(IPermissions.ADMIN_USER)
+    })
+})
+
+describe("board publication and ceremony operations", () => {
+    it.each([
+        ["PublishBallot", IPermissions.PUBLISH_WRITE],
+        ["GenerateBallotPublication", IPermissions.PUBLISH_CREATE],
+        ["UpdateEventVotingStatus", IPermissions.ELECTION_STATE_WRITE],
+        ["UpdateElectionVotingStatus", IPermissions.ELECTION_STATE_WRITE],
+        ["CreateTallyCeremony", IPermissions.ADMIN_CEREMONY],
+        ["UpdateTallyCeremony", IPermissions.ADMIN_CEREMONY],
+        ["GetLifecycleSnapshots", IPermissions.ELECTION_EVENT_READ],
+        ["GetTallyData", IPermissions.TALLY_RESULTS_READ],
+    ])("uses the existing held role for %s", (name, permission) => {
+        for (const roles of [electionBoardRoles, boardTrusteeRoles]) {
+            expect(roleFor(name, roles)).toBe(permission)
+        }
+        expect(roleFor(name, [IPermissions.PUBLISH_READ])).toBe(IPermissions.PUBLISH_READ)
+        expect(roleFor(name, [IPermissions.ADMIN_USER])).toBe(IPermissions.ADMIN_USER)
+    })
+
+    it("uses an available publication role without inventing another grant", () => {
+        expect(roleFor("GenerateBallotPublication", [IPermissions.PUBLISH_REGENERATE])).toBe(
+            IPermissions.PUBLISH_REGENERATE
+        )
+        expect(roleFor("GenerateBallotPublication", [IPermissions.PUBLISH_WRITE])).toBe(
+            IPermissions.PUBLISH_WRITE
+        )
+    })
+
+    it("does not turn ordinary tally access into permission to recount", () => {
+        expect(roleFor("RecountTallySession", electionBoardRoles)).toBe(IPermissions.PUBLISH_READ)
+        expect(
+            roleFor("RecountTallySession", [
+                ...electionBoardRoles,
+                IPermissions.TALLY_RECOUNT_EXECUTE,
+            ])
+        ).toBe(IPermissions.TALLY_RECOUNT_EXECUTE)
+    })
+})
+
+it("keeps trustee execution reads on the ceremony role and board reads on admin-ceremony", () => {
+    expect(roleFor("TrusteeNames", electionBoardRoles)).toBe(IPermissions.ADMIN_CEREMONY)
+    expect(roleFor("TrusteeNames", boardTrusteeRoles)).toBe(IPermissions.TRUSTEE_CEREMONY)
+    expect(roleFor("GetTallySessionExecution", electionBoardRoles)).toBe(
+        IPermissions.ADMIN_CEREMONY
+    )
+    expect(roleFor("GetTallySessionExecution", boardTrusteeRoles)).toBe(
+        IPermissions.TRUSTEE_CEREMONY
+    )
+    expect(roleFor("TrusteeNames", [IPermissions.TRUSTEE_CEREMONY])).toBe(
+        IPermissions.TRUSTEE_CEREMONY
+    )
+    expect(roleFor("TrusteeNames", [IPermissions.TRUSTEE_READ])).toBe(IPermissions.TRUSTEE_READ)
 })
