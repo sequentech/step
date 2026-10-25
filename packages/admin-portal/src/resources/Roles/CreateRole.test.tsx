@@ -6,6 +6,7 @@ import React from "react"
 import {fireEvent, render, screen, waitFor} from "@testing-library/react"
 import "@testing-library/jest-dom"
 import {CreateRole} from "./CreateRole"
+import type {IPermission} from "@sequentech/ui-core"
 
 const mockCreateRole = jest.fn()
 const translate = (key: string) => key.replace("usersAndRolesScreen.permissions.", "")
@@ -70,9 +71,9 @@ jest.mock("@mui/x-data-grid", () => ({
     ),
 }))
 
-const permissions = [
-    {id: "role-read-id", name: "role-read"},
-    {id: "user-read-id", name: "user-read"},
+const permissions: IPermission[] = [
+    {id: "role-read-id", name: "role-read", attributes: {}},
+    {id: "user-read-id", name: "user-read", attributes: {}},
 ]
 const checkbox = (name: string) => {
     const row = screen.getByText(name).closest("tr")!
