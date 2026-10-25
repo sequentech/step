@@ -259,6 +259,13 @@ const TrusteeOperationMap: Record<string, IPermissions> = {
  * the rest: navigating to an event, the sidebar tree and the tenant. Hasura grants that
  * role no writes, so an operation it can't serve fails instead of borrowing `admin-user`.
  */
+const AccountReadOperationMap: Record<string, IPermissions> = {
+    getRoles: IPermissions.ROLE_READ,
+    getPermissions: IPermissions.USER_PERMISSION_READ,
+    getUsers: IPermissions.USER_READ,
+    GetUserProfileConfiguration: IPermissions.USER_READ,
+}
+
 const NonAdminOperationMap: Record<string, IPermissions> = {
     ...AdminOperationMap,
     sequent_backend_tenant: IPermissions.ELECTION_EVENT_READ,
@@ -267,11 +274,9 @@ const NonAdminOperationMap: Record<string, IPermissions> = {
     contest_tree: IPermissions.ELECTION_EVENT_READ,
     candidate_tree: IPermissions.ELECTION_EVENT_READ,
     // Users and Roles: Harvest checks the permission again
-    getRoles: IPermissions.ROLE_READ,
-    getPermissions: IPermissions.USER_PERMISSION_READ,
+    ...AccountReadOperationMap,
     SetRolePermission: IPermissions.ROLE_WRITE,
     DeleteRolePermission: IPermissions.ROLE_WRITE,
-    getUsers: IPermissions.USER_READ,
     // Post > Publish: Start and Stop voting, and Initialize voting (its report)
     UpdateElectionVotingStatus: IPermissions.ELECTION_STATE_WRITE,
     CreateTallyCeremony: IPermissions.ADMIN_CEREMONY,
@@ -297,6 +302,21 @@ export const getOperationRole = (
     hasRole: (role: IPermissions) => boolean
 ): IPermissions => {
     const operationName = operation?.operationName
+    // A publication or trustee fallback cannot serve the Users and Roles
+    // queries. Prefer the precise held read permission without broadening
+    // either staff's grants or the legacy admin-user routing.
+    if (!hasRole(IPermissions.ADMIN_USER)) {
+        let readRole = mappedRoleOf(AccountReadOperationMap, operationName)
+        if (
+            (operationName === "getUsers" || operationName === "GetUserProfileConfiguration") &&
+            (operation.variables?.election_event_id || operation.variables?.electionEventId)
+        ) {
+            readRole = IPermissions.VOTER_READ
+        }
+        if (readRole && hasRole(readRole)) {
+            return readRole
+        }
+    }
     const defaultRole = DEFAULT_OPERATION_ROLES.find(hasRole)
     if (!defaultRole) {
         return mappedRoleOf(NonAdminOperationMap, operationName) ?? IPermissions.ELECTION_EVENT_READ
