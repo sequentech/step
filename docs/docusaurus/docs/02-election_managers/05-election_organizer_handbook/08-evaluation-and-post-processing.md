@@ -205,17 +205,25 @@ says so.
 
 ## Downloading the verification data
 
-In the post-processing phase, for each election whose tally is complete, the
-election board downloads the verification data on the Tally tab with "Download
-verification data". The file holds the public record of the key generation,
-the mixing and the decryption, and the configuration hash of the election.
-Next to
-the button the Tally tab shows the election's "Configuration hash" and "Tally
-ID". The election board writes both into its minutes and hands them, with the
-file, to the election organizer. The election organizer publishes the file,
-the configuration hash and the Tally ID so that voters and observers can check
-the result with the election-verifier (see
-[Publishing the verification data](10-election-verifier.md#publishing-the-verification-data)).
+In the post-processing phase, after voting has closed for every election in
+the tally, open the completed **results tally** from the Tally tab. In
+**Election verification**, each listed protocol board represents one batch.
+For every batch, record the full **Configuration hash** and **Tally ID** from
+that board's section, then select its **Download verification data** button.
+The control does not export initialization reports or key-ceremony-only data.
+
+Each `verification-<protocol-board UUID>.json` file contains the public protocol
+messages for that batch's key generation, mixing and decryption. Obtain its
+trusted anchors separately from the platform's stored configuration and board
+record; do not choose them from the downloaded transcript. The displayed
+**Tally ID** is that protocol-board UUID written as a complete unsigned decimal
+number, not the tally-session ID. Keep every file paired with its own anchors
+in the board's minutes and hand all batches to the election organizer.
+
+Verify every expected batch and publish every file with its matching anchors,
+including a second, independent publication of the anchors, as
+[Verifying the Result with the Election Verifier](10-election-verifier.md)
+describes. A successful check of one batch does not verify the complete tally.
 
 ## Deleting the election execution data
 

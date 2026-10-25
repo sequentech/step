@@ -113,15 +113,17 @@ proofs (proofs of a correct shuffle and of a correct decryption).
 When the result has been determined, in the post-processing phase of the
 election, the election organizer:
 
-- publishes the verification data of each election, with its configuration
-  hash and its Tally ID, at a public place it names to the voters (for
-  example its own website);
-- publishes the configuration hash and the Tally ID a second time on another
-  channel, for example in an official notice;
+- publishes a verification JSON file for every batch of the completed results
+  tally, with each file's matching full configuration hash and Tally ID, at a
+  public place it names to the voters (for example its own website);
+- publishes each batch's configuration hash and Tally ID a second time on
+  another channel, for example in an official notice;
 - makes the election verifier available to voters and observers.
 
 Before the election period, the election organizer tells you where this will
-be published and how to run the check.
+be published and how to run the check. Keep each batch file paired with its
+own anchors. The Tally ID identifies that batch's protocol board; copy the
+complete decimal value as text, not a rounded number or a tally-session ID.
 
 The election verifier checks your copy of your encrypted ballot against the
 verification data. The check succeeds only if your ballot is in the ballot box
@@ -129,16 +131,19 @@ that was mixed, and every mixing step and the decryption are proven correct.
 Give the election verifier the file with your copy as the election organizer's
 instructions say, and run it as they describe. If you do not want to run it
 yourself, give your file to an observer you trust and ask them to run the
-check for you.
+check for you. If there are several batch files and you do not know which one
+contains your ballot, verify every file first, then search each otherwise
+verified batch using its own anchors. Absence from one batch alone does not
+mean your ballot is absent from the complete tally.
 
 :::warning
 
 **Take the verification data and the election verifier from the place the
 election organizer names, and the configuration hash and the Tally ID from
 their second publication.** Values taken from the same place as the file
-prove nothing if that place was manipulated. If the check does not
-succeed, note what the election verifier reported and tell the election
-organizer. You can also report it as a security problem (see
+prove nothing if that place was manipulated. If any batch fails its proof
+checks, or your ballot is absent from every relevant verified batch, note what
+the election verifier reported and tell the election organizer. You can also report it as a security problem (see
 [Election States and Problems for Voters](10-states_and_problems.md)).
 
 :::

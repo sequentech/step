@@ -42,9 +42,12 @@ can run it on the data that the election organizer publishes.
 
 ## Downloading the verification data
 
-In the post-processing phase, an election board member opens the completed
-results tally from the election event's **Tally** tab. In **Election
-verification**, for every listed tally board:
+In the post-processing phase, after voting has closed for every election in
+the tally, an election board member opens the completed results tally from the
+election event's **Tally** tab. This export requires closed voting and a
+successfully completed results tally; it does not export initialization
+reports or key-ceremony-only data. In **Election verification**, for every
+listed tally board:
 
 1. Record its board name, full **Configuration hash** and **Tally ID** in the
    board's minutes. These values come from the election platform's stored
@@ -86,7 +89,7 @@ trustee tool (`trustee verify`) with the options you append:
 |---|---|
 | `--transcript` | The verification data file. |
 | `--configuration-hash` | The full configuration hash recorded for this batch: 128 lowercase hexadecimal digits. Required. |
-| `--tally-id` | The protocol-board Tally ID for this file, copied from **Tally ID** as an unsigned decimal number. The tool also accepts the corresponding protocol-board UUID; the tally-session UUID is not this identifier. Required for the verification data of a counted election: without it the status is `invalid` ("tally evidence requires an independently supplied tally identifier"), and a different identifier makes the check fail. Leave it out only for an election that was not counted: its file holds no tally, `--tally-id` then gives `invalid` with the same message, and without it the verifier checks the key ceremony only ("Public DKG commitments, proofs and derived keys verified"). |
+| `--tally-id` | The protocol-board Tally ID for this file, copied from **Tally ID** as an unsigned decimal number. The tool also accepts the corresponding protocol-board UUID; the tally-session UUID is not this identifier. Required for every file downloaded by this results-tally procedure: without it the status is `invalid` ("tally evidence requires an independently supplied tally identifier"), and a different identifier makes the check fail. |
 | `--ballots-hash` | Optional: the hash of the batch of encrypted ballots that entered the counting, if the election organizer publishes it. A different batch makes the check fail. |
 | `--ballot-ciphertext` | Optional, may be repeated: an encrypted ballot to look for among the counted ballots (see [Checking that a ballot was counted](#checking-that-a-ballot-was-counted)). |
 

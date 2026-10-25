@@ -63,7 +63,7 @@ name for the same thing, the table gives it.
 | electoral phase | "Electoral phase" on the election event's Dashboard |
 | audit records | electoral log records |
 | re-voting | "Number of allowed votes" of an election |
-| configuration hash and Tally ID of an election | "Configuration hash" and "Tally ID", shown next to "Download verification data" on the Tally tab |
+| configuration hash and Tally ID of a tally batch | Full "Configuration hash" and decimal "Tally ID" beside that protocol board's "Download verification data" button in "Election verification", in the completed results tally on the Tally tab. This is the protocol-board identifier, not the tally-session ID. |
 | operators | the administrators in their task of installing and running the TOE and its operational environment, as the Deployment Guide (AGD-04) describes |
 | trustee server | the part of the TOE (`braid`) that takes part in the ceremonies for one trustee on the protected server, with that trustee's keys file; one instance per trustee |
 

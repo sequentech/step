@@ -144,8 +144,8 @@ organizer's own channels:
   election), and that only the last vote they cast counts;
 - that the voting portal offers "Audit ballot", with which they can check that
   their ballot was encrypted as they chose;
-- where the verification data, the configuration hash and the Tally ID of
-  each election will be published after the election, and how voters or
+- where every tally batch's verification file and matching configuration hash
+  and Tally ID will be published after the election, and how voters or
   observers check that a ballot was counted (see
   [Publishing the verification data](10-election-verifier.md#publishing-the-verification-data));
 - how to contact the election organizer if anything looks wrong, and the
@@ -171,9 +171,10 @@ suspected security problem that you receive from voters.
 
 ## After the election
 
-- In the post-processing phase, publish for each election the verification
-  data, its configuration hash and its Tally ID on a public channel that you
-  have named to the voters, and make the election-verifier available to
+- In the post-processing phase, after voting has closed and the results tally
+  is complete, publish every batch's verification JSON file with its matching
+  full configuration hash and Tally ID on the public channel named to voters.
+  Publish the anchors independently on a second channel and make the verifier available to
   voters and observers, as
   [Publishing the verification data](10-election-verifier.md#publishing-the-verification-data)
   describes.
@@ -191,7 +192,7 @@ suspected security problem that you receive from voters.
 |---|---|---|---|
 | Credentials reach only the entitled voter | Distribute voters' credentials before the election period by a channel suited to the protection needs, so that only the entitled voter receives them; tell voters never to disclose them or pass them on | Election organizer | Procedural |
 | Unobserved voting | Instruct voters to vote where no one can observe them; provide the Handbook for Voters | Election organizer | Procedural |
-| Voters can verify their vote | Tell voters about "Audit ballot" and about the check that a ballot was counted; publish the verification data, the configuration hash and the Tally ID after the election | Election organizer | Procedural |
+| Voters can verify their vote | Tell voters about "Audit ballot" and about the check that a ballot was counted; publish every tally batch's verification data and matching configuration hash and Tally ID after the election, with the anchors independently on a second channel | Election organizer | Procedural |
 | Trustworthy, instructed personnel | Appoint trustworthy administrators and board members; train them with this handbook and the Handbook for Election Administrators before they first act; administrators do not misuse their privileges; one personal account per person, never shared | Election organizer | Personnel |
 | Sessions closed when not in use | Log out ("Logout" in the profile menu) whenever you stop working; lock the screen when you step away | Board members, administrators | Procedural |
 | Universal election | Check the voters' register in the package before approving it, and after the import, against the organizer's own register (number of voters and samples, see [Checking the imported data and the settings](06-preparation.md#checking-the-imported-data-and-the-settings)); distribute credentials to every eligible voter | Election board, election organizer | Procedural |
