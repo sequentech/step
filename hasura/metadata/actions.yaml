@@ -1550,6 +1550,8 @@ actions:
       permissions:
           - role: document-upload
           - role: admin-user
+          - role: tenant-write
+          - role: election-event-create
     - name: get_user
       definition:
           kind: synchronous
@@ -1679,6 +1681,7 @@ actions:
           - role: election-event-write
           - role: area-write
           - role: admin-user
+          - role: election-event-create
       comment: import_election_event
     - name: import_templates
       definition:
