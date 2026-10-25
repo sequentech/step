@@ -878,6 +878,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         if (!beginSave()) {
             return
         }
+        const refreshPermissions = authContext.preparePermissionRefresh()
         try {
             const result = await handleEditUser()
 
@@ -920,7 +921,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
             // idempotently, so re-applying what already landed is harmless.
             baselineRoleIdsRef.current = selectedRoleIds
             if (authContext.userId === user?.id) {
-                authContext.updateTokenAndPermissionLabels()
+                await refreshPermissions()
             }
             // A launched task reports its own outcome in the widget, so a
             // premature success toast would contradict it.

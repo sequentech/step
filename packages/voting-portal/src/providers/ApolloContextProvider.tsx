@@ -13,7 +13,8 @@ import {voterSessionScope} from "../utils/voterSessionScope"
 
 export const ApolloWrapper: React.FC<PropsWithChildren> = ({children}) => {
     const {globalSettings} = useContext(SettingsContext)
-    const {keycloakAccessToken, isAuthContextInitialized} = useContext(AuthContext)
+    const {keycloakAccessToken, isAuthContextInitialized, getAccessTokenForRequest} =
+        useContext(AuthContext)
     const scope = globalSettings.DISABLE_AUTH ? "demo" : voterSessionScope(keycloakAccessToken)
     const previousScope = useRef<string | undefined>(undefined)
     const [loadedScope, setLoadedScope] = useState<string | undefined>(undefined)
@@ -37,13 +38,16 @@ export const ApolloWrapper: React.FC<PropsWithChildren> = ({children}) => {
             uri: globalSettings.HASURA_URL,
         })
 
-        const authLink = setContext((_, {headers}) => {
-            // get the authentication token from local storage if it exists
+        const authLink = setContext(async (_, {headers}) => {
+            const token = await getAccessTokenForRequest()
+            if (!token && !globalSettings.DISABLE_AUTH)
+                throw new Error("No active authentication token")
+            // Request-time lookup checks the inactivity deadline even after suspension.
             // return the headers to the context so httpLink can read them
             return {
                 headers: {
                     ...headers,
-                    authorization: keycloakAccessToken ? `Bearer ${keycloakAccessToken}` : "",
+                    authorization: token ? `Bearer ${token}` : "",
                 },
             }
         })

@@ -24,7 +24,14 @@ export const keycloakSession = signedInVoter()
 export default class FakeKeycloak {
     static instances: FakeKeycloak[] = []
 
+    readonly subject = "synthetic-voter"
+    readonly tokenParsed = {sid: "synthetic-session"}
+    get realm() {
+        return "realm" in this.config ? this.config.realm : undefined
+    }
     token?: string
+    onTokenExpired?: () => void
+    readonly isTokenExpired = jest.fn((_minValidity?: number) => false)
     readonly init = jest.fn(async (_options: KeycloakInitOptions) => {
         const {authenticated, token} = keycloakSession
         if (authenticated instanceof Error) throw authenticated

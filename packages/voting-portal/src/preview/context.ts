@@ -43,6 +43,7 @@ export const previewAuth = (
     email: "",
     firstName: "",
     keycloakAccessToken: undefined,
+    getAccessTokenForRequest: async () => undefined,
     logout,
     getExpiry: () => undefined,
     setTenantEvent: () => undefined,

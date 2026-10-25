@@ -4,8 +4,15 @@
 import React, {useContext} from "react"
 
 import Keycloak, {KeycloakConfig, KeycloakInitOptions} from "keycloak-js"
-import {createContext, useEffect, useState} from "react"
-import {getValueFromCookie, sleep, toBCP47, USER_LANGUAGE_COOKIE_NAME} from "@sequentech/ui-core"
+import {createContext, useEffect, useRef, useState} from "react"
+import {
+    getValueFromCookie,
+    toBCP47,
+    USER_LANGUAGE_COOKIE_NAME,
+    startSessionActivity,
+    sessionActivityStorageKey,
+    SessionActivity,
+} from "@sequentech/ui-core"
 import {SettingsContext} from "./SettingsContextProvider"
 
 /**
@@ -16,6 +23,7 @@ export interface AuthContextValues {
      * Whether or not a user is currently authenticated
      */
     isAuthenticated: boolean
+    getAccessTokenForRequest: () => Promise<string | undefined>
     /**
      * The id of the authenticated user
      */
@@ -59,6 +67,7 @@ export interface AuthContextValues {
  */
 const defaultAuthContextValues: AuthContextValues = {
     isAuthenticated: false,
+    getAccessTokenForRequest: async () => undefined,
     userId: "",
     username: "",
     email: "",
@@ -98,6 +107,9 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
 
     // Create the local state in which we will keep track if a user is authenticated
     const [isAuthenticated, setAuthenticated] = useState<boolean>(false)
+    const sessionActivity = useRef<SessionActivity | null>(null)
+    const sessionClient = useRef<Keycloak | null>(null)
+    const [sessionKeycloak, setSessionKeycloak] = useState<Keycloak | null>(null)
     // Local state that will contain the users name once it is loaded
     const [userId, setUserId] = useState<string>("")
     const [username, setUsername] = useState<string>("")
@@ -107,9 +119,6 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     const [eventId, setEventId] = useState<string | null>(null)
 
     const [defaultLocale, setDefaultLocale] = useState<string | undefined>(undefined)
-
-    const sleepSecs = 50
-    const bufferSecs = 10
 
     const getLanguageFromURL = () => {
         const params = new URLSearchParams(window.location.search)
@@ -189,7 +198,6 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
             // If we get here the user is authenticated and we can update the state accordingly
             localStorage.setItem("token", keycloak.token)
             setAuthenticated(true)
-            setTimeout(updateTokenPeriodically, 4e3)
             console.log("user is authenticated")
             setIsKeycloakInitialized(true)
         } catch (error) {
@@ -220,21 +228,6 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         initializeKeycloak()
     }, [isKeycloakInitialized, keycloak])
 
-    const updateTokenPeriodically = async () => {
-        if (keycloak) {
-            const refreshed = await keycloak.updateToken(sleepSecs + bufferSecs)
-            if (!keycloak.token) {
-                console.log(`error updating token`)
-                return
-            }
-            if (refreshed) {
-                localStorage.setItem("token", keycloak.token)
-            }
-        }
-        await sleep(sleepSecs * 1e3)
-        updateTokenPeriodically()
-    }
-
     // This effect loads the users profile in order to extract the username
     useEffect(() => {
         /**
@@ -246,6 +239,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
             }
             try {
                 const profile = await keycloak.loadUserProfile()
+                if (!sessionActivity.current?.isActive()) return
 
                 if (profile.id) {
                     setUserId(profile.id)
@@ -272,21 +266,68 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
             }
         }
 
-        // Only load the profile if a user is authenticated
-        if (isAuthenticated) {
+        // Only load the profile after the persisted session deadline was checked.
+        if (
+            isAuthenticated &&
+            sessionKeycloak === keycloak &&
+            sessionActivity.current?.isActive()
+        ) {
             loadProfile()
         }
-    }, [isAuthenticated, keycloak])
+    }, [isAuthenticated, keycloak, sessionKeycloak])
 
     /**
      * Initiate the logout
      */
+    useEffect(() => {
+        if (!keycloak || !isAuthenticated || !isKeycloakInitialized) return
+        const session = startSessionActivity({
+            storageKey: sessionActivityStorageKey(
+                keycloak.realm,
+                keycloak.subject,
+                keycloak.tokenParsed?.sid ??
+                    keycloak.tokenParsed?.session_state ??
+                    keycloak.tokenParsed?.auth_time
+            ),
+            refresh: async (force) => {
+                const refreshed = await keycloak.updateToken(force ? -1 : 60)
+                if (!keycloak.token) throw new Error("Session ended")
+                return refreshed
+            },
+            onRefreshed: () => {
+                localStorage.setItem("token", keycloak.token || "")
+            },
+            onExpire: () => logout(),
+        })
+        sessionActivity.current = session
+        sessionClient.current = keycloak
+        setSessionKeycloak(keycloak)
+        return () => {
+            session.dispose()
+            if (sessionActivity.current === session) {
+                sessionActivity.current = null
+                sessionClient.current = null
+            }
+            setSessionKeycloak(null)
+        }
+    }, [keycloak, isAuthenticated, isKeycloakInitialized])
+
+    const getAccessTokenForRequest = async () => {
+        const session = sessionActivity.current
+        if (sessionClient.current !== keycloak || !session?.isActive()) return undefined
+        await session.refresh()
+        if (!session.isActive() || !keycloak?.token || keycloak.isTokenExpired(0)) return undefined
+        return keycloak.token
+    }
+
     const logout = () => {
+        sessionActivity.current?.dispose()
+        setAuthenticated(false)
         if (!keycloak) {
             return
         }
         localStorage.removeItem("token")
-        keycloak.logout()
+        return keycloak.logout()
     }
 
     const login = (tenantId: string, eventId: string, defaultLocale?: string) => {
@@ -307,7 +348,10 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         return keycloak.hasRealmRole(role)
     }
 
-    const getAccessToken = () => keycloak?.token
+    const getAccessToken = () =>
+        sessionClient.current === keycloak && sessionActivity.current?.isActive()
+            ? keycloak?.token
+            : undefined
 
     const openProfileLink = async () => {
         if (!keycloak) {
@@ -320,7 +364,8 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     return (
         <AuthContext.Provider
             value={{
-                isAuthenticated,
+                isAuthenticated: isAuthenticated && sessionKeycloak === keycloak,
+                getAccessTokenForRequest,
                 userId,
                 username,
                 email,

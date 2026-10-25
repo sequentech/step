@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext} from "react"
+import {sessionActivityStorageKey} from "../../../ui-core/src/services/sessionActivity"
 import {act, render, screen} from "@testing-library/react"
 import AuthContextProvider, {AuthContext, AuthContextValues} from "./AuthContextProvider"
 import {GlobalSettings, SettingsContext} from "./SettingsContextProvider"
@@ -25,9 +26,12 @@ const settings: GlobalSettings = {
 }
 const realm = `tenant-${IDS.tenant}-event-${IDS.event}`
 
+let observedTokens: Array<string | undefined>
+let input: (event: Event) => void
 let auth: AuthContextValues
 const Voter = () => {
     auth = useContext(AuthContext)
+    if (auth.isAuthenticated) observedTokens.push(auth.getAccessToken())
     return (
         <p>
             {auth.isAuthenticated
@@ -76,6 +80,12 @@ const setLanguageCookie = (language: string) => {
 
 beforeEach(() => {
     jest.useFakeTimers()
+    const original = window.addEventListener.bind(window)
+    jest.spyOn(window, "addEventListener").mockImplementation((type, listener, options) => {
+        if (type === "pointerdown") input = listener as (event: Event) => void
+        original(type, listener, options)
+    })
+    observedTokens = []
     resetKeycloak()
     resetSequentCore()
     localStorage.clear()
@@ -109,6 +119,8 @@ describe("signing in", () => {
             locale: "en",
         })
         expect(client().login).not.toHaveBeenCalled()
+        expect(observedTokens.length).toBeGreaterThan(0)
+        expect(observedTokens).not.toContain(undefined)
         expect(auth.getAccessToken()).toBe("voter-access-token")
         expect(localStorage.getItem("token")).toBe("voter-access-token")
         expect(auth.hasRole("voter")).toBe(true)
@@ -217,44 +229,36 @@ describe("the Keycloak login language", () => {
 })
 
 describe("keeping the session", () => {
-    it("refreshes the access token before it can expire and exposes the new one", async () => {
+    it("refreshes after actual input and exposes the new token", async () => {
         const {openEvent} = renderProvider()
         await openEvent()
         await screen.findByText(signedIn)
-        const signedInAt = Date.now()
-        const checks: Array<{at: number; minValidity: number}> = []
-        client().updateToken.mockImplementation(async (minValidity: number) => {
-            checks.push({at: Date.now(), minValidity})
-            client().token = `refreshed-token-${checks.length}`
+        client().updateToken.mockImplementation(async () => {
+            client().token = "refreshed-token"
             return true
         })
-
-        await act(async () => jest.advanceTimersByTimeAsync(3 * 60_000))
-
-        expect(checks.length).toBeGreaterThanOrEqual(3)
-        // Each check must come before the validity the previous one asked for
-        // runs out, so the token can never lapse between two checks.
-        checks.forEach(({at, minValidity}, index) => {
-            const previous = index ? checks[index - 1] : {at: signedInAt, minValidity}
-            expect(at - previous.at).toBeLessThan(previous.minValidity * 1000)
+        await act(async () => {
+            jest.advanceTimersByTime(1000)
+            input({isTrusted: true} as Event)
         })
-        const latest = `refreshed-token-${checks.length}`
-        expect(auth.getAccessToken()).toBe(latest)
-        expect(localStorage.getItem("token")).toBe(latest)
+        expect(client().updateToken).toHaveBeenCalledWith(60)
+        expect(auth.getAccessToken()).toBe("refreshed-token")
+        expect(localStorage.getItem("token")).toBe("refreshed-token")
     })
 
-    it("keeps the stored token while Keycloak has nothing to refresh", async () => {
+    it("ends an idle session at fifteen minutes without background refresh", async () => {
         const {openEvent} = renderProvider()
         await openEvent()
         await screen.findByText(signedIn)
-
-        await act(async () => jest.advanceTimersByTimeAsync(2 * 60_000))
-
-        expect(client().updateToken).toHaveBeenCalled()
-        expect(localStorage.getItem("token")).toBe("voter-access-token")
+        await act(async () => jest.advanceTimersByTimeAsync(15 * 60_000))
+        expect(client().updateToken).not.toHaveBeenCalled()
+        expect(client().logout).toHaveBeenCalledTimes(1)
+        expect(auth.getAccessToken()).toBeUndefined()
+        expect(localStorage.getItem("token")).toBeNull()
+        expect(screen.getByText("Signed out")).toBeVisible()
     })
 
-    it("stops refreshing once Keycloak holds no token", async () => {
+    it("clears authentication when Keycloak no longer has a token", async () => {
         const {openEvent} = renderProvider()
         await openEvent()
         await screen.findByText(signedIn)
@@ -262,11 +266,14 @@ describe("keeping the session", () => {
             client().token = undefined
             return false
         })
-
+        await act(async () => {
+            jest.advanceTimersByTime(1000)
+            input({isTrusted: true} as Event)
+        })
         await act(async () => jest.advanceTimersByTimeAsync(5 * 60_000))
-
         expect(client().updateToken).toHaveBeenCalledTimes(1)
-        expect(localStorage.getItem("token")).toBe("voter-access-token")
+        expect(localStorage.getItem("token")).toBeNull()
+        expect(screen.getByText("Signed out")).toBeVisible()
     })
 })
 
@@ -276,7 +283,9 @@ describe("account actions", () => {
         await openEvent()
         await screen.findByText(signedIn)
 
-        act(() => auth.logout())
+        await act(async () => {
+            await auth.logout()
+        })
 
         expect(client().logout).toHaveBeenCalledTimes(1)
         expect(localStorage.getItem("token")).toBeNull()
@@ -295,11 +304,36 @@ describe("account actions", () => {
     it("does nothing before a Keycloak client exists", async () => {
         renderProvider()
 
-        act(() => auth.logout())
+        await act(async () => {
+            await auth.logout()
+        })
         await act(() => auth.openProfileLink())
 
         expect(auth.hasRole("voter")).toBe(false)
         expect(auth.getAccessToken()).toBeUndefined()
         expect(FakeKeycloak.instances).toHaveLength(0)
     })
+})
+
+it("checks suspended-tab request expiry before attaching its access token", async () => {
+    const {openEvent} = renderProvider()
+    await openEvent()
+    await act(async () => {
+        jest.setSystemTime(Date.now() + 15 * 60_000)
+        expect(await auth.getAccessTokenForRequest()).toBeUndefined()
+    })
+    expect(client().updateToken).not.toHaveBeenCalled()
+    expect(client().logout).toHaveBeenCalledTimes(1)
+})
+
+it("does not load a profile from a persisted session that already expired", async () => {
+    localStorage.setItem(
+        sessionActivityStorageKey(realm, "synthetic-voter", "synthetic-session")!,
+        String(Date.now() - 15 * 60_000)
+    )
+    const {openEvent} = renderProvider()
+    await openEvent()
+    expect(auth.isAuthenticated).toBe(false)
+    expect(client().loadUserProfile).not.toHaveBeenCalled()
+    expect(client().logout).toHaveBeenCalledTimes(1)
 })
