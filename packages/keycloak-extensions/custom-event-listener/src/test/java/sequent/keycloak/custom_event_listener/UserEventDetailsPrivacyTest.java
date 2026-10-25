@@ -10,6 +10,30 @@ import org.keycloak.events.Event;
 
 class UserEventDetailsPrivacyTest {
   @Test
+  void scanovateBarcodeExceptionOnlyAcceptsBoundedCheckValues() {
+    Event event = new Event();
+    event.setError("scanovate_verification_failed");
+    for (String value : java.util.List.of("true", "false", "missing", "invalid")) {
+      event.setDetails(
+          Map.of("scanovate_check_barcode_valid", value, "access_token", "synthetic-secret"));
+      assertEquals(
+          Map.of(
+              "error",
+              "scanovate_verification_failed",
+              "details",
+              Map.of("scanovate_check_barcode_valid", value)),
+          UserEventDetails.of(event, UserEventDetails.Account.KNOWN));
+    }
+    event.setDetails(Map.of("scanovate_check_barcode_valid", "synthetic-secret"));
+    assertEquals(
+        Map.of(), UserEventDetails.of(event, UserEventDetails.Account.KNOWN).get("details"));
+    event.setError("invalid_user_credentials");
+    event.setDetails(Map.of("scanovate_check_barcode_valid", "true"));
+    assertEquals(
+        Map.of(), UserEventDetails.of(event, UserEventDetails.Account.KNOWN).get("details"));
+  }
+
+  @Test
   void authenticationAuditDropsNetworkDataBeforeTheDurableQueue() {
     Event event = new Event();
     event.setIpAddress("198.51.100.7");
