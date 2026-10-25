@@ -14,7 +14,7 @@ import {IPermissions} from "@/types/keycloak"
 import {DecryptHelp, PasswordDialog} from "@/components/election-event/export-data/PasswordDialog"
 
 export const reportDecryptionCommand =
-    "openssl enc -d -aes-256-cbc -in <encrypted_file> -out <decrypted_file> -pass pass:<password> -md md5"
+    "openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -md sha256 -in <encrypted_file> -out <decrypted_file> -pass pass:<password>"
 
 export interface ReportDocumentAccess {
     password_secret_id?: string

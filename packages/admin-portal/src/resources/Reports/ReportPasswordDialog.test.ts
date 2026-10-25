@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
+import {spawnSync} from "node:child_process"
 import {render, screen, fireEvent} from "@testing-library/react"
 import {useQuery} from "@apollo/client"
 import {ReportPasswordDialog} from "./ReportPasswordDialog"
@@ -101,4 +102,34 @@ it("shows a recoverable error without exposing a failed query payload", () => {
     )
     expect(screen.getByText("tasksScreen.documentAccess.passwordError")).toBeTruthy()
     expect(screen.queryByText("private backend detail")).toBeNull()
+})
+
+it("shows instructions that decrypt the current PBKDF2 export format", () => {
+    render(
+        React.createElement(ReportPasswordDialog, {
+            documentId: "document",
+            access: {password_secret_id: "vault-id"},
+            onClose: jest.fn(),
+        })
+    )
+    const command = screen.getByText(/openssl enc/).textContent!
+    // Independent OpenSSL fixture also used by the export writer's Rust tests:
+    // AES-256-CBC, PBKDF2-SHA256/600000, salt 0102030405060708.
+    const encrypted = Buffer.from(
+        "53616c7465645f5f0102030405060708" +
+            "cb6a2ad1a7ef6c3e139df954fc17d73cb91a0d45285b22482d8bddcaf0f589105cc" +
+            "565a036e0e9ef77e65b6550450d4b",
+        "hex"
+    )
+    const args = command
+        .replace("-in <encrypted_file>", "")
+        .replace("-out <decrypted_file>", "")
+        .replace("pass:<password>", "pass:correct-horse")
+        .trim()
+        .split(/\s+/)
+        .slice(1)
+    const result = spawnSync("openssl", args, {input: encrypted})
+    expect(result.status).toBe(0)
+    expect(result.stdout.toString()).toBe("The quick brown fox jumps over the lazy dog")
+    expect(args).toEqual(expect.arrayContaining(["-pbkdf2", "-iter", "600000", "-md", "sha256"]))
 })
