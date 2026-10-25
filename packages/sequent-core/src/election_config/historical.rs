@@ -734,7 +734,8 @@ fn map(
             Code::InvalidValue,
             "SQL schema",
             "unrecognized table in the declared source profile",
-        ).into());
+        )
+        .into());
     }
     // Verify every declared primary/unique key without emitting its contents.
     for (name, table) in &dump.tables {
@@ -759,7 +760,8 @@ fn map(
                         column,
                         Code::MissingField,
                         "primary key is null",
-                    ).into());
+                    )
+                    .into());
                 }
             }
         }
@@ -794,7 +796,8 @@ fn map(
                         "key",
                         Code::DuplicateId,
                         "declared source key is duplicated",
-                    ).into());
+                    )
+                    .into());
                 }
             }
         }
@@ -834,7 +837,8 @@ fn map(
                 Code::InvalidValue,
                 format!("sheet {}", sheet.name),
                 "unrecognized supplemental sheet",
-            ).into());
+            )
+            .into());
         }
     }
     if workbook.rows("electionevent").len() != 1 {
@@ -842,7 +846,8 @@ fn map(
             Code::InvalidValue,
             "sheet ElectionEvent",
             "exactly one event row is required",
-        ).into());
+        )
+        .into());
     }
     let mut event = workbook.rows("electionevent")[0].clone();
     localize(&mut event)?;
@@ -1027,7 +1032,8 @@ fn map(
                 Code::IntegrityMismatch,
                 "historical decisions sourceDigests",
                 "decisions describe different source bytes",
-            ).into());
+            )
+            .into());
         }
     }
     for mapping in &options.election_mappings {
@@ -1048,7 +1054,8 @@ fn map(
                     Code::InvalidValue,
                     "historical decisions electionMappings",
                     "seat row is out of range or repeated",
-                ).into());
+                )
+                .into());
             }
             indices.push(n - 1);
         }
@@ -1057,7 +1064,8 @@ fn map(
                 Code::DuplicateId,
                 "historical decisions electionMappings",
                 "workbook row is mapped twice",
-            ).into());
+            )
+            .into());
         }
     }
     if associations.is_empty() && ei.values().any(|group| group.len() > 1) {
@@ -1068,7 +1076,8 @@ fn map(
             Code::BallotCoverage,
             "historical decisions electionMappings",
             "every workbook election row must have an explicit association",
-        ).into());
+        )
+        .into());
     }
     if summary.excluded_polling_centers > 0
         && options.post_coverage != PostCoverage::WorkbookPostsOnly
@@ -1094,7 +1103,8 @@ fn map(
                 Code::InvalidValue,
                 "historical decisions areaMappings",
                 "area mapping has no precinct rows",
-            ).into());
+            )
+            .into());
         }
         for &n in &mapping.precinct_rows {
             if n == 0
@@ -1105,7 +1115,8 @@ fn map(
                     Code::InvalidValue,
                     "historical decisions areaMappings",
                     "precinct row is out of range or mapped twice",
-                ).into());
+                )
+                .into());
             }
         }
     }
@@ -1228,7 +1239,8 @@ fn map(
                         area.origin(Some("annotations.miru_ccs_server_tags"))
                             .to_string(),
                         "CCS tags must be scalar references",
-                    ).into())
+                    )
+                    .into())
                 }
             };
             let mut resolved = Vec::new();
@@ -1251,7 +1263,8 @@ fn map(
                             Code::InvalidValue,
                             server.origin(Some("send_logs")).to_string(),
                             "send_logs must be true or false",
-                        ).into())
+                        )
+                        .into())
                     }
                 };
                 resolved.push(json!({"name":text(server,"name")?,"tag":tag.parse::<i64>().map_err(|_|Problem::error(Code::InvalidValue,"sheet CcsServers column tag","CCS tag must be an integer"))?.to_string(),"address":text(server,"address")?,"public_key_pem":text(server,"public_key")?,"send_logs":send_logs}));
@@ -1305,7 +1318,8 @@ fn map(
                     Code::ConflictingColumns,
                     "sheet Areas",
                     "precinct rows provide conflicting area metadata",
-                ).into());
+                )
+                .into());
             }
         }
         for &context_index in contexts {
@@ -1373,7 +1387,8 @@ fn map(
                         "ELIGIBLEAMOUNT",
                         Code::InvalidValue,
                         "seat count must be positive",
-                    ).into());
+                    )
+                    .into());
                 }
                 let order = contests
                     .text(contest, "SORT_ORDER")?
@@ -1525,7 +1540,8 @@ fn map(
             Code::BallotCoverage,
             "supplemental workbook",
             "election/area workbook rows and source-derived coverage differ",
-        ).into());
+        )
+        .into());
     }
     let dates = historical_dates(xlsx, options.schedule_offset_minutes)?;
     let mut schedules = Vec::new();

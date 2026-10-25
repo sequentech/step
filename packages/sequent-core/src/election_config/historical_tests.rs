@@ -503,7 +503,10 @@ fn every_failing_voter_row_is_reported_not_only_the_first() {
     assert_eq!(
         found,
         vec![
-            (Code::DanglingReference, "SQL table voters row 81 column PRECINCT"),
+            (
+                Code::DanglingReference,
+                "SQL table voters row 81 column PRECINCT"
+            ),
             (Code::DuplicateId, "SQL table voters row 82 column ID"),
             (Code::InvalidValue, "SQL table voters row 83 column DOBYEAR"),
         ]
@@ -538,7 +541,10 @@ fn preserving_voters_without_a_join_decision_is_not_approved() {
     };
     let refused = adapt(&sql, &xlsx, &options).unwrap_err();
     assert_eq!(refused.report.problems[0].code, Code::NotApproved);
-    assert_eq!(refused.report.problems[0].path, "historical voter area join");
+    assert_eq!(
+        refused.report.problems[0].path,
+        "historical voter area join"
+    );
     assert!(refused.summary.generated_rows.is_empty());
 }
 #[test]

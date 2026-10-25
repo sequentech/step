@@ -937,7 +937,9 @@ mod tests {
         // writes and `package_contract` does not know would be shown to the
         // operator as unknown and never applied. Built from a real bundle,
         // with a tenant package, through `delivery` and the manifest reader.
-        use crate::election_config::package_contract::{coverage, Disposition, Section};
+        use crate::election_config::package_contract::{
+            coverage, CensusRequirement, Disposition, Requirements, Section,
+        };
         use crate::election_config::tenant_package;
         let source = portal_bundle();
         let mut layout = layout(&source);
@@ -949,12 +951,23 @@ mod tests {
             "trustees": [{"name": "t", "signingPublicKey": "AAAA", "shareEncryptionPublicKey": "AAAA"}]
         }))
         .unwrap();
-        tenant_package::add_to_layout(&mut layout, &package, &source.tenant_id).unwrap();
+        tenant_package::add_to_layout(&mut layout, &package, &source.tenant_id)
+            .unwrap();
         let delivered = delivery(&layout).unwrap();
-        let members =
-            crate::election_config::manifest::read_zip(&delivered.bytes, "delivery").unwrap();
-        let entries = crate::election_config::manifest::file_entries(&members).unwrap();
-        let covered = coverage(&entries, &Section::APPLY_ORDER);
+        let members = crate::election_config::manifest::read_zip(
+            &delivered.bytes,
+            "delivery",
+        )
+        .unwrap();
+        let entries =
+            crate::election_config::manifest::file_entries(&members).unwrap();
+        let covered = coverage(
+            &entries,
+            &Requirements {
+                sections: Section::APPLY_ORDER.to_vec(),
+                census: CensusRequirement::Optional,
+            },
+        );
         let unknown: Vec<&str> = covered
             .members
             .iter()

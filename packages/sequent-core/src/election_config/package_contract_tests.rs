@@ -45,6 +45,13 @@ fn complete_delivery() -> Vec<FileEntry> {
     ]
 }
 
+fn sections(sections: &[Section]) -> Requirements {
+    Requirements {
+        sections: sections.to_vec(),
+        census: CensusRequirement::Optional,
+    }
+}
+
 fn disposition_of(coverage: &Coverage, path: &str) -> Disposition {
     coverage
         .members
@@ -56,20 +63,42 @@ fn disposition_of(coverage: &Coverage, path: &str) -> Disposition {
 
 #[test]
 fn every_member_of_a_complete_delivery_has_its_documented_disposition() {
-    let coverage = coverage(&complete_delivery(), &Section::APPLY_ORDER);
+    let coverage =
+        coverage(&complete_delivery(), &sections(&Section::APPLY_ORDER));
     let expected = [
-        ("admin_users.csv", Disposition::Applied(Section::AdminAccounts)),
-        ("export_permissions-t1.csv", Disposition::Applied(Section::RolePermissions)),
+        (
+            "admin_users.csv",
+            Disposition::Applied(Section::AdminAccounts),
+        ),
+        (
+            "export_permissions-t1.csv",
+            Disposition::Applied(Section::RolePermissions),
+        ),
         ("export_templates-t1.csv", Disposition::Manual),
-        ("keycloak_admin-t1.json", Disposition::Applied(Section::TenantSettings)),
+        (
+            "keycloak_admin-t1.json",
+            Disposition::Applied(Section::TenantSettings),
+        ),
         ("templates/templates.json", Disposition::Manual),
-        ("trustees_public.json", Disposition::Applied(Section::Trustees)),
+        (
+            "trustees_public.json",
+            Disposition::Applied(Section::Trustees),
+        ),
         ("blueprint.json", Disposition::RecordOnly),
         ("historical_conversion.json", Disposition::RecordOnly),
         ("keycloak_event_realm_patch.json", Disposition::Manual),
-        ("export_election_event-e1.json", Disposition::Applied(Section::ElectionEvent)),
-        ("export_scheduled_events-e1.csv", Disposition::Applied(Section::ElectionEvent)),
-        ("export_voters-e1.csv", Disposition::Applied(Section::ElectionEvent)),
+        (
+            "export_election_event-e1.json",
+            Disposition::Applied(Section::ElectionEvent),
+        ),
+        (
+            "export_scheduled_events-e1.csv",
+            Disposition::Applied(Section::ElectionEvent),
+        ),
+        (
+            "export_voters-e1.csv",
+            Disposition::Applied(Section::ElectionEvent),
+        ),
         ("trustees_list.json", Disposition::RecordOnly),
     ];
     assert_eq!(coverage.members.len(), expected.len());
@@ -84,12 +113,12 @@ fn a_required_section_that_is_absent_is_missing_and_an_unrequired_one_is_not() {
     // Control: the complete delivery has nothing missing. Remove trustees and
     // administrators; only the required one is reported.
     let mut delivery = complete_delivery();
-    delivery[0]
-        .members
-        .retain(|m| m.path != "trustees_public.json" && m.path != "admin_users.csv");
+    delivery[0].members.retain(|m| {
+        m.path != "trustees_public.json" && m.path != "admin_users.csv"
+    });
     let coverage = coverage(
         &delivery,
-        &[Section::Trustees, Section::ElectionEvent],
+        &sections(&[Section::Trustees, Section::ElectionEvent]),
     );
     assert_eq!(coverage.missing(), vec![Section::Trustees]);
     assert_eq!(
@@ -104,8 +133,11 @@ fn unknown_members_are_shown_not_dropped_or_applied() {
     delivery.push(leaf("future_feature.json"));
     delivery[0].members.push(leaf("future_portal_setting.csv"));
     delivery.push(entry("other.zip", vec![leaf("inner.json")]));
-    let coverage = coverage(&delivery, &[]);
-    assert_eq!(disposition_of(&coverage, "future_feature.json"), Disposition::Unknown);
+    let coverage = coverage(&delivery, &sections(&[]));
+    assert_eq!(
+        disposition_of(&coverage, "future_feature.json"),
+        Disposition::Unknown
+    );
     assert_eq!(
         disposition_of(&coverage, "future_portal_setting.csv"),
         Disposition::Unknown
@@ -121,9 +153,15 @@ fn a_realm_patch_is_never_mistaken_for_tenant_settings() {
     // `keycloak_admin_realm_patch.json` shares a prefix with the importer's
     // `keycloak_admin` match; at the root it is a manual patch, inside the
     // portal zip it is not tenant settings either.
-    assert_eq!(root_disposition("keycloak_admin_realm_patch.json"), Disposition::Manual);
     assert_eq!(
-        nested_disposition("admin_portal_settings.zip", "keycloak_admin_realm_patch.json"),
+        root_disposition("keycloak_admin_realm_patch.json"),
+        Disposition::Manual
+    );
+    assert_eq!(
+        nested_disposition(
+            "admin_portal_settings.zip",
+            "keycloak_admin_realm_patch.json"
+        ),
         Disposition::Unknown
     );
 }
@@ -152,7 +190,8 @@ fn the_apply_order_puts_tenant_configuration_before_the_event() {
 #[test]
 fn dispositions_serialize_as_a_stable_wire_shape() {
     assert_eq!(
-        serde_json::to_value(Disposition::Applied(Section::RolePermissions)).unwrap(),
+        serde_json::to_value(Disposition::Applied(Section::RolePermissions))
+            .unwrap(),
         serde_json::json!({"kind": "applied", "section": "role-permissions"})
     );
     assert_eq!(
@@ -167,6 +206,59 @@ fn an_event_zip_without_its_event_document_is_not_an_event() {
     delivery[4]
         .members
         .retain(|m| !m.path.starts_with("export_election_event-"));
-    let coverage = coverage(&delivery, &[Section::ElectionEvent]);
+    let coverage = coverage(&delivery, &sections(&[Section::ElectionEvent]));
     assert_eq!(coverage.missing(), vec![Section::ElectionEvent]);
+}
+
+#[test]
+fn an_unconsumed_member_of_the_event_zip_is_unknown_not_applied() {
+    // Control: the event document and census are applied. A sidecar the event
+    // importer does not dispatch on is ignored by it, so it must not look
+    // configured.
+    let mut delivery = complete_delivery();
+    delivery[4].members.push(leaf("future_event_sidecar.json"));
+    delivery[4].members.push(leaf("images/document_x_logo.png"));
+    let coverage = coverage(&delivery, &sections(&[]));
+    assert_eq!(
+        disposition_of(&coverage, "future_event_sidecar.json"),
+        Disposition::Unknown
+    );
+    assert_eq!(
+        disposition_of(&coverage, "images/document_x_logo.png"),
+        Disposition::Applied(Section::ElectionEvent)
+    );
+    assert_eq!(
+        disposition_of(&coverage, "export_voters-e1.csv"),
+        Disposition::Applied(Section::ElectionEvent)
+    );
+}
+
+#[test]
+fn a_required_census_is_missing_when_the_event_has_no_voters_file() {
+    let required = Requirements {
+        sections: vec![Section::ElectionEvent],
+        census: CensusRequirement::Required,
+    };
+    // Control: with the voters file the package is complete.
+    let complete = coverage(&complete_delivery(), &required);
+    assert!(complete.is_complete());
+    assert_eq!(
+        complete.census,
+        SectionState::Present {
+            members: vec!["export_voters-e1.csv".into()]
+        }
+    );
+    let mut delivery = complete_delivery();
+    delivery[4]
+        .members
+        .retain(|m| !m.path.starts_with("export_voters-"));
+    let without = coverage(&delivery, &required);
+    assert_eq!(without.census, SectionState::Missing);
+    assert!(without.missing().is_empty(), "the event itself is present");
+    assert!(!without.is_complete());
+    // Optional census: absent is simply not included.
+    assert_eq!(
+        coverage(&delivery, &sections(&[])).census,
+        SectionState::NotIncluded
+    );
 }

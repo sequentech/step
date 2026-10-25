@@ -17,8 +17,12 @@
 //!
 //! [`archive::delivery`]: super::archive::delivery
 
-use super::archive::{ADMIN_PORTAL_MEMBER, IMPORTABLE_MEMBER, PLAN_MEMBER, WORKBOOK_MEMBER};
-use super::manifest::{FileEntry, CHAIN_MEMBER, MANIFEST_MEMBER, SIGNATURE_MEMBER};
+use super::archive::{
+    ADMIN_PORTAL_MEMBER, IMPORTABLE_MEMBER, PLAN_MEMBER, WORKBOOK_MEMBER,
+};
+use super::manifest::{
+    FileEntry, CHAIN_MEMBER, MANIFEST_MEMBER, SIGNATURE_MEMBER,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -39,6 +43,7 @@ pub const ADMIN_USERS_MEMBER: &str = "admin_users.csv";
 pub const HISTORICAL_SUMMARY_MEMBER: &str = "historical_conversion.json";
 
 const EVENT_DOCUMENT_PREFIX: &str = "export_election_event-";
+const VOTERS_PREFIX: &str = "export_voters-";
 const PERMISSIONS_PREFIX: &str = "export_permissions-";
 const TEMPLATES_PREFIX: &str = "export_templates-";
 const TEMPLATES_DIR: &str = "templates/";
@@ -51,7 +56,16 @@ const EVENT_REALM_PATCH: &str = "keycloak_event_realm_patch.json";
 /// roles gate the administrators, and the key ceremony resolves trustees by
 /// name.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum Section {
@@ -112,12 +126,34 @@ pub enum SectionState {
     NotIncluded,
 }
 
+/// Whether the event must carry its census. A profile that delivers voters
+/// requires it; the event section alone does not say whether voters came.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize,
+)]
+#[serde(rename_all = "kebab-case")]
+pub enum CensusRequirement {
+    #[default]
+    Optional,
+    Required,
+}
+
+/// What the caller's profile expects a delivery to contain.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields, rename_all = "camelCase")]
+pub struct Requirements {
+    pub sections: Vec<Section>,
+    pub census: CensusRequirement,
+}
+
 /// Every member's disposition and every section's state.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Coverage {
     pub members: Vec<MemberDisposition>,
     pub sections: BTreeMap<Section, SectionState>,
+    /// The event's voters file, the same three states as a section.
+    pub census: SectionState,
 }
 
 impl Coverage {
@@ -129,12 +165,19 @@ impl Coverage {
             .map(|(section, _)| *section)
             .collect()
     }
+
+    /// Whether everything required is present.
+    pub fn is_complete(&self) -> bool {
+        self.missing().is_empty() && self.census != SectionState::Missing
+    }
 }
 
 /// The disposition of a root member.
 pub fn root_disposition(path: &str) -> Disposition {
     match path {
-        MANIFEST_MEMBER | SIGNATURE_MEMBER | CHAIN_MEMBER => Disposition::Verification,
+        MANIFEST_MEMBER | SIGNATURE_MEMBER | CHAIN_MEMBER => {
+            Disposition::Verification
+        }
         ADMIN_REALM_PATCH | EVENT_REALM_PATCH => Disposition::Manual,
         PLAN_MEMBER
         | WORKBOOK_MEMBER
@@ -143,7 +186,9 @@ pub fn root_disposition(path: &str) -> Disposition {
         | "points_of_contact.json"
         | "trustees_list.json"
         | "voter_messaging.json"
-        | "admin_portal/communication_templates.json" => Disposition::RecordOnly,
+        | "admin_portal/communication_templates.json" => {
+            Disposition::RecordOnly
+        }
         _ => Disposition::Unknown,
     }
 }
@@ -151,11 +196,42 @@ pub fn root_disposition(path: &str) -> Disposition {
 /// The disposition of a member inside one of the two nested zips.
 pub fn nested_disposition(container: &str, path: &str) -> Disposition {
     match container {
-        // The event importer reads every member of its zip; which ones it
-        // understands is its own contract, versioned with the event export.
-        IMPORTABLE_MEMBER => Disposition::Applied(Section::ElectionEvent),
+        IMPORTABLE_MEMBER => event_disposition(path),
         ADMIN_PORTAL_MEMBER => portal_disposition(path),
         _ => Disposition::Unknown,
+    }
+}
+
+/// The member families the election-event importer dispatches on, matched
+/// the way it matches them (`process_document`: a name containing the
+/// family). Anything else in the event zip is ignored by the importer, so it
+/// is unknown here rather than applied.
+const EVENT_FAMILIES: [&str; 13] = [
+    "export_election_event",
+    "export_voters",
+    "export_scheduled_events",
+    "export_reports",
+    "export_bulletin_boards",
+    "export_publications",
+    "election_event_config",
+    "export_protocol_manager_keys",
+    "export_activity_logs",
+    "electoral_log_manifest",
+    "electoral_log_records",
+    "export_certificates",
+    "export_staff_issuers",
+];
+/// Directory families, matched with their trailing slash as the importer does.
+const EVENT_DIRECTORIES: [&str; 3] =
+    ["export_S3_files/", "images/", "export_tally_data/"];
+
+fn event_disposition(path: &str) -> Disposition {
+    if EVENT_FAMILIES.iter().any(|family| path.contains(family))
+        || EVENT_DIRECTORIES.iter().any(|dir| path.contains(dir))
+    {
+        Disposition::Applied(Section::ElectionEvent)
+    } else {
+        Disposition::Unknown
     }
 }
 
@@ -166,9 +242,13 @@ fn portal_disposition(path: &str) -> Disposition {
         Disposition::Applied(Section::Trustees)
     } else if path.starts_with(PERMISSIONS_PREFIX) && path.ends_with(".csv") {
         Disposition::Applied(Section::RolePermissions)
-    } else if path.starts_with(TENANT_SETTINGS_PREFIX) && path.ends_with(".json") {
+    } else if path.starts_with(TENANT_SETTINGS_PREFIX)
+        && path.ends_with(".json")
+    {
         Disposition::Applied(Section::TenantSettings)
-    } else if path.starts_with(TEMPLATES_PREFIX) || path.starts_with(TEMPLATES_DIR) {
+    } else if path.starts_with(TEMPLATES_PREFIX)
+        || path.starts_with(TEMPLATES_DIR)
+    {
         // A templates importer exists in the Admin Portal; applying a package
         // does not drive it.
         Disposition::Manual
@@ -177,13 +257,14 @@ fn portal_disposition(path: &str) -> Disposition {
     }
 }
 
-/// Every member's disposition and each section's state. `required` names the
-/// sections the caller (a client profile) expects; an absent one is
+/// Every member's disposition and each section's state. `required` names
+/// what the caller (a client profile) expects; an absent one is
 /// [`SectionState::Missing`].
-pub fn coverage(entries: &[FileEntry], required: &[Section]) -> Coverage {
+pub fn coverage(entries: &[FileEntry], required: &Requirements) -> Coverage {
     let mut members = Vec::new();
     for entry in entries {
-        let nested = entry.path == IMPORTABLE_MEMBER || entry.path == ADMIN_PORTAL_MEMBER;
+        let nested = entry.path == IMPORTABLE_MEMBER
+            || entry.path == ADMIN_PORTAL_MEMBER;
         if nested {
             for inner in &entry.members {
                 members.push(MemberDisposition {
@@ -214,21 +295,41 @@ pub fn coverage(entries: &[FileEntry], required: &[Section]) -> Coverage {
         // The event importer refuses a zip without its event document, so
         // other members alone do not make the section present.
         let usable = match section {
-            Section::ElectionEvent => present
-                .iter()
-                .any(|p| p.starts_with(EVENT_DOCUMENT_PREFIX) && p.ends_with(".json")),
+            Section::ElectionEvent => present.iter().any(|p| {
+                p.starts_with(EVENT_DOCUMENT_PREFIX) && p.ends_with(".json")
+            }),
             _ => !present.is_empty(),
         };
         let state = if usable {
             SectionState::Present { members: present }
-        } else if required.contains(&section) {
+        } else if required.sections.contains(&section) {
             SectionState::Missing
         } else {
             SectionState::NotIncluded
         };
         sections.insert(section, state);
     }
-    Coverage { members, sections }
+    let voters: Vec<String> = members
+        .iter()
+        .filter(|m| {
+            m.container.as_deref() == Some(IMPORTABLE_MEMBER)
+                && m.path.starts_with(VOTERS_PREFIX)
+                && m.path.ends_with(".csv")
+        })
+        .map(|m| m.path.clone())
+        .collect();
+    let census = if !voters.is_empty() {
+        SectionState::Present { members: voters }
+    } else if required.census == CensusRequirement::Required {
+        SectionState::Missing
+    } else {
+        SectionState::NotIncluded
+    };
+    Coverage {
+        members,
+        sections,
+        census,
+    }
 }
 
 #[cfg(test)]

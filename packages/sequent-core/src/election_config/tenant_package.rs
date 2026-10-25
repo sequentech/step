@@ -19,7 +19,7 @@ use super::package_contract::{
 };
 use super::problem::{Code, Problem, Report};
 use serde::{Deserialize, Serialize};
-use serde_json::{Map, Value};
+use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
 
 /// Field names that would carry a secret. Refused anywhere in the document.
@@ -238,7 +238,10 @@ pub fn check(package: &TenantPackage) -> Result<(), Report> {
         }
         for (field, value) in [
             ("signingPublicKey", &trustee.signing_public_key),
-            ("shareEncryptionPublicKey", &trustee.share_encryption_public_key),
+            (
+                "shareEncryptionPublicKey",
+                &trustee.share_encryption_public_key,
+            ),
         ] {
             if !is_base64(value) {
                 report.push(Problem::error(
@@ -338,7 +341,9 @@ fn json_artifact(name: String, value: &Value) -> Artifact {
 
 fn csv(header: &[&str], rows: &[Vec<String>]) -> Result<Vec<u8>, Problem> {
     let mut writer = csv::Writer::from_writer(Vec::new());
-    let fail = |_| Problem::error(Code::InvalidValue, "tenant package", "cannot write CSV");
+    let fail = |_| {
+        Problem::error(Code::InvalidValue, "tenant package", "cannot write CSV")
+    };
     writer.write_record(header).map_err(fail)?;
     for row in rows {
         writer.write_record(row).map_err(fail)?;
@@ -369,13 +374,80 @@ pub fn add_to_layout(
     Ok(())
 }
 
-/// The tenant package as a JSON object with only its present sections; used
-/// to record what a delivery was built from.
-pub fn to_value(package: &TenantPackage) -> Map<String, Value> {
-    match serde_json::to_value(package) {
-        Ok(Value::Object(map)) => map,
-        _ => Map::new(),
+/// A delivery with the tenant package's sections and a record of how it was
+/// produced, and the coverage of what it contains.
+///
+/// `record` is a root member kept for review (for a historical conversion,
+/// its source digests, counts and decisions); `required` names the sections
+/// the caller's profile expects, so an absent one is reported missing rather
+/// than silently left out.
+pub fn complete_delivery(
+    mut layout: super::archive::Layout,
+    package: Option<&TenantPackage>,
+    tenant_id: &str,
+    record: Option<Artifact>,
+    required: &super::package_contract::Requirements,
+    expected_voters: Option<usize>,
+) -> Result<(Artifact, super::package_contract::Coverage), Problem> {
+    if let Some(expected) = expected_voters {
+        check_census_rows(&layout, expected)?;
     }
+    if let Some(package) = package {
+        add_to_layout(&mut layout, package, tenant_id)?;
+    }
+    if let Some(record) = record {
+        layout.auxiliary.push(record);
+    }
+    let delivery = super::archive::delivery(&layout)?;
+    let members = super::manifest::read_zip(&delivery.bytes, "delivery")?;
+    let entries = super::manifest::file_entries(&members)?;
+    Ok((
+        delivery,
+        super::package_contract::coverage(&entries, required),
+    ))
+}
+
+/// The voters file in the event zip has exactly `expected` rows: the count
+/// the source conversion preserved. A difference means a voter was lost or
+/// invented between conversion and packaging.
+fn check_census_rows(
+    layout: &super::archive::Layout,
+    expected: usize,
+) -> Result<(), Problem> {
+    let voters = layout.importable.iter().find(|a| {
+        a.name.starts_with("export_voters-") && a.name.ends_with(".csv")
+    });
+    let rows = match voters {
+        Some(file) => csv::Reader::from_reader(file.bytes.as_slice())
+            .records()
+            .try_fold(0usize, |n, record| record.map(|_| n + 1))
+            .map_err(|_| {
+                Problem::error(
+                    Code::Unreadable,
+                    file.name.clone(),
+                    "the voters file cannot be read back",
+                )
+            })?,
+        None => 0,
+    };
+    if rows != expected {
+        return Err(Problem::error(
+            Code::InvalidValue,
+            "census",
+            format!(
+                "the package's voters file has {rows} voters but the source conversion preserved {expected}"
+            ),
+        ));
+    }
+    Ok(())
+}
+
+/// The record member of a historical conversion.
+pub fn historical_record(summary: &Value) -> Artifact {
+    json_artifact(
+        super::package_contract::HISTORICAL_SUMMARY_MEMBER.to_string(),
+        summary,
+    )
 }
 
 #[cfg(test)]
