@@ -290,8 +290,9 @@ Steps for the board member who runs the ceremony (permission "Admin
 Ceremony"):
 
 1. Open the election event's Keys tab and select "Create Key Ceremony".
-2. Enter a "Key Ceremony Name". Under "Trustees", select both trustees. Set
-   the "Threshold" to 2.
+2. Select the intended election, or "All Elections" if the ceremony covers
+   the whole election event. The ceremony name is derived from that selection.
+   Under "Trustees", select both trustees. Set the "Threshold" to 2.
 3. Leave "Automatic Ceremony" switched off.
 4. Select "Create Key Ceremony" and confirm "Are you sure you want to Create
    Key Ceremony?" with "Yes, Create Key Ceremony".
