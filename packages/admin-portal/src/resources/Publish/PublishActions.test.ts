@@ -4,6 +4,7 @@
 import React from "react"
 import {fireEvent, render, screen, within} from "@testing-library/react"
 import {PublishActions, PublishActionsProps} from "./PublishActions"
+import {PublishGenerate} from "./PublishGenerate"
 import {PublishStatus} from "./EPublishStatus"
 import {EPublishActionsType, EPublishType} from "./EPublishType"
 
@@ -15,6 +16,7 @@ jest.mock("react-admin", () => ({
     }: React.ButtonHTMLAttributes<HTMLButtonElement> & {label: string}) =>
         require("react").createElement("button", props, label, children),
     useRecordContext: () => ({}),
+    useNotify: () => jest.fn(),
     useGetList: () => ({data: undefined}),
 }))
 jest.mock("@apollo/client", () => ({
@@ -36,7 +38,12 @@ jest.mock("@/providers/AuthContextProvider", () => ({
     }),
 }))
 jest.mock("./usePublishPermissions", () => ({
-    usePublishPermissions: () => ({canPublishChanges: true, canPublishStopVoting: true}),
+    usePublishPermissions: () => ({
+        canPublishChanges: true,
+        canPublishStopVoting: true,
+        canPublishRegenerate: true,
+        canWritePublish: true,
+    }),
 }))
 let mockEventPresentation: Record<string, unknown> | undefined
 jest.mock("@/hooks/useZonedFormat", () => ({
@@ -183,4 +190,77 @@ describe("the Post's Stop menu (R10 B1)", () => {
         expect(text).toContain("publish.dialog.sealNotEnabled")
         expect(text).not.toContain("publish.dialog.sealHolding")
     })
+})
+
+it("disables configuration publication under lockdown without disabling initialization", () => {
+    mockEventPresentation = {locked_down: "locked-down"}
+    const onGenerate = jest.fn()
+    const channel = {is_channel_enabled: false} as PublishActionsProps["onlineModeEnabled"]
+    render(
+        React.createElement(PublishActions, {
+            status: PublishStatus.Generated,
+            publishType: EPublishType.Election,
+            type: EPublishActionsType.List,
+            electionStatus: null,
+            electionPresentation: null,
+            changingStatus: false,
+            onlineModeEnabled: channel,
+            kioskModeEnabled: channel,
+            earlyVotingEnabled: channel,
+            telephoneVotingEnabled: channel,
+            onGenerate,
+            onInitialize: jest.fn(),
+            initializationReportPolicy:
+                "required" as PublishActionsProps["initializationReportPolicy"],
+        })
+    )
+    const publish = screen.getByRole("button", {
+        name: "publish.action.publish",
+    }) as HTMLButtonElement
+    expect(publish.disabled).toBe(true)
+    fireEvent.click(publish)
+    expect(onGenerate).not.toHaveBeenCalled()
+    expect(
+        (
+            screen.getByRole("button", {
+                name: "publish.action.generateInitializationReport",
+            }) as HTMLButtonElement
+        ).disabled
+    ).toBe(false)
+    mockEventPresentation = undefined
+})
+
+jest.mock("@/components/DiffView", () => ({DiffView: () => null}))
+it("disables regenerating and publishing an existing configuration while locked", () => {
+    mockEventPresentation = {locked_down: "locked-down"}
+    const channel = {is_channel_enabled: false} as PublishActionsProps["onlineModeEnabled"]
+    const onGenerate = jest.fn()
+    const onPublish = jest.fn()
+    render(
+        React.createElement(PublishGenerate, {
+            status: PublishStatus.Generated,
+            publishType: EPublishType.Event,
+            readOnly: false,
+            changingStatus: false,
+            data: {current: {}},
+            onlineModeEnabled: channel,
+            kioskModeEnabled: channel,
+            earlyVotingEnabled: channel,
+            telephoneVotingEnabled: channel,
+            onGenerate,
+            onPublish,
+            onBack: jest.fn(),
+            onPreview: jest.fn(),
+            electionEventId: "event",
+            fetchAllPublishChanges: async () => {},
+        })
+    )
+    for (const name of ["publish.action.generate", "publish.action.publish"]) {
+        const button = screen.getByRole("button", {name}) as HTMLButtonElement
+        expect(button.disabled).toBe(true)
+        fireEvent.click(button)
+    }
+    expect(onGenerate).not.toHaveBeenCalled()
+    expect(onPublish).not.toHaveBeenCalled()
+    mockEventPresentation = undefined
 })

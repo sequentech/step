@@ -37,6 +37,7 @@ import {VotingStatusChannel} from "@/gql/graphql"
 import {Sequent_Backend_Election} from "@/gql/graphql"
 import {
     EBallotBoxSealPolicy,
+    EElectionEventLockedDown,
     EGracePeriodPolicy,
     EInitializeReportPolicy,
     EVotingPeriodEnd,
@@ -166,6 +167,8 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         authContext.isAuthorized(true, tenantId, IPermissions.ADMIN_CEREMONY)
     // const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
     const eventPresentation = useEventPresentation()
+    const configurationLocked =
+        eventPresentation?.locked_down === EElectionEventLockedDown.LOCKED_DOWN
     const aliasRenderer = useAliasRenderer()
     const [showDialog, setShowDialog] = useState(false)
     const [dialogText, setDialogText] = useState("")
@@ -655,6 +658,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
      * re-authentication logic for actions that require fresh external authentication.
      */
     const handlePublish = (is_generate: boolean) => {
+        if (configurationLocked) return
         const actionText = t(`publish.action.publish`)
         const dialogMessage = isFreshBoardAuthentication()
             ? is_generate
@@ -1111,7 +1115,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                     st={PublishStatus.Generated}
                                     label={String(t("publish.action.publish"))}
                                     disabledStatus={[]}
-                                    disabled={changingStatus}
+                                    disabled={changingStatus || configurationLocked}
                                 />
                             )}
                         </>
@@ -1124,6 +1128,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                         disabledStatus={[]}
                                         st={PublishStatus.Generated}
                                         label={String(t("publish.action.generate"))}
+                                        disabled={configurationLocked}
                                         onClick={() => handlePublish(true)}
                                     />
                                 </div>

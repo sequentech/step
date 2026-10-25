@@ -57,6 +57,7 @@ jest.mock("@/providers/SettingsContextProvider", () => ({
 }))
 jest.mock("@/lib/helpers", () => ({convertToNumber: () => undefined}))
 jest.mock("@sequentech/ui-core", () => ({
+    EElectionEventLockedDown: {LOCKED_DOWN: "locked-down"},
     ETaskExecutionStatus: {SUCCESS: "SUCCESS", FAILED: "FAILED"},
     EVotingStatus: {NOT_STARTED: "NOT_STARTED"},
     EInitializationScope: {POST_AND_COUNTRY: "post-and-country"},

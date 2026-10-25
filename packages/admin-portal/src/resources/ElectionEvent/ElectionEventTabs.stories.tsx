@@ -267,10 +267,13 @@ export const LockedDownEvent: Story = {
     play: async ({canvasElement}) => {
         expect(await tabNames(canvasElement)).toEqual([
             "Dashboard",
+            "Data",
             "IVR",
             "Voters",
             "Signatures",
             "Certificates",
+            "Tally",
+            "Publish",
             "Logs",
             "Reports",
         ])

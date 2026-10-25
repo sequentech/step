@@ -16,7 +16,8 @@ import {EPublishActionsType, EPublishType} from "./EPublishType"
 import {PublishStatus} from "./EPublishStatus"
 import {usePublishPermissions} from "./usePublishPermissions"
 import PublishExport from "./PublishExport"
-import {IChannelButtonInfo} from "@sequentech/ui-core"
+import {EElectionEventLockedDown, IChannelButtonInfo} from "@sequentech/ui-core"
+import {useEventPresentation} from "@/hooks/useZonedFormat"
 
 const PublishGenerateStyled = {
     Container: styled("div")`
@@ -99,6 +100,9 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
 }): React.JSX.Element => {
     const {t} = useTranslation()
     const notify = useNotify()
+    const eventPresentation = useEventPresentation()
+    const configurationLocked =
+        eventPresentation?.locked_down === EElectionEventLockedDown.LOCKED_DOWN
 
     const {
         canReadPublish,
@@ -205,7 +209,11 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
                             {!readOnly && canWritePublish && (
                                 <Button
                                     onClick={onPublish}
-                                    disabled={status !== PublishStatus.Generated || !data}
+                                    disabled={
+                                        configurationLocked ||
+                                        status !== PublishStatus.Generated ||
+                                        !data
+                                    }
                                     label={String(t("publish.action.publish"))}
                                     className="publish-publish-button"
                                     style={{

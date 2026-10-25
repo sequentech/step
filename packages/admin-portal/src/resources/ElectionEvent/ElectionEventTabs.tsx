@@ -27,7 +27,7 @@ import {
     EVoterCertificatePolicy,
     IVotingChannelsConfig,
 } from "@sequentech/ui-core"
-import {Box, CircularProgress} from "@mui/material"
+import {Box, CircularProgress, Typography} from "@mui/material"
 import {Tabs} from "@/components/Tabs"
 import {useNavigate, useLocation} from "react-router-dom"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
@@ -134,11 +134,29 @@ const DashboardTab: React.FC<ITabProps> = ({refreshRef, handleChildMount}) => {
     )
 }
 
-const DataTab: React.FC = () => (
-    <Suspense fallback={<div>Loading Data...</div>}>
-        <EditElectionEventData />
-    </Suspense>
-)
+const DataTab: React.FC = () => {
+    const record = useRecordContext<Sequent_Backend_Election_Event>()
+    const {t} = useTranslation()
+    if (record?.presentation?.locked_down === EElectionEventLockedDown.LOCKED_DOWN) {
+        // Keep the documented state readable without mounting the configuration form.
+        return (
+            <Box>
+                <Typography variant="h6">
+                    {t("electionEventScreen.edit.advancedConfigurations")}
+                </Typography>
+                <Typography>{t("electionEventScreen.field.lockdownState.policyLabel")}</Typography>
+                <Typography>
+                    {t("electionEventScreen.field.lockdownState.options.locked-down")}
+                </Typography>
+            </Box>
+        )
+    }
+    return (
+        <Suspense fallback={<div>Loading Data...</div>}>
+            <EditElectionEventData />
+        </Suspense>
+    )
+}
 
 const LocalizationTab: React.FC = () => (
     <Suspense fallback={<div>Loading Localization...</div>}>
@@ -339,9 +357,11 @@ export const ElectionEventTabs: React.FC = () => {
         authContext.tenantId,
         IPermissions.ADMIN_DASHBOARD_VIEW
     )
-    const showData =
-        !isElectionEventLocked &&
-        authContext.isAuthorized(true, authContext.tenantId, IPermissions.ELECTION_EVENT_DATA_TAB)
+    const showData = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.ELECTION_EVENT_DATA_TAB
+    )
     const showTextData =
         !isElectionEventLocked &&
         authContext.isAuthorized(true, authContext.tenantId, IPermissions.ELECTION_EVENT_DATA_TAB)
@@ -365,8 +385,8 @@ export const ElectionEventTabs: React.FC = () => {
             IPermissions.TRUSTEE_CEREMONY,
         ]) &&
         authContext.isAuthorized(true, authContext.tenantId, IPermissions.ELECTION_EVENT_KEYS_TAB)
+    // Lockdown freezes configuration; it must not block authorized counting operations.
     const showTally =
-        !isElectionEventLocked &&
         authContext.isAuthorized(true, authContext.tenantId, [
             IPermissions.TALLY_READ,
             IPermissions.TALLY_START,
@@ -375,13 +395,12 @@ export const ElectionEventTabs: React.FC = () => {
     const showTallySheetImports =
         !isElectionEventLocked &&
         authContext.isAuthorized(true, authContext.tenantId, IPermissions.TALLY_SHEET_IMPORT_VIEW)
-    const showPublish =
-        !isElectionEventLocked &&
-        authContext.isAuthorized(
-            true,
-            authContext.tenantId,
-            IPermissions.ELECTION_EVENT_PUBLISH_TAB
-        )
+    // Publish also contains initialization and voting-state controls.
+    const showPublish = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.ELECTION_EVENT_PUBLISH_TAB
+    )
     const showLogs = authContext.isAuthorized(
         true,
         authContext.tenantId,
