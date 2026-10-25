@@ -399,6 +399,7 @@ impl TallyPatch {
             && self.counting_algorithm.is_none()
             && self.min_votes.is_none()
             && self.is_encrypted.is_none()
+            && self.tie_breaking_policy.is_none()
     }
 }
 

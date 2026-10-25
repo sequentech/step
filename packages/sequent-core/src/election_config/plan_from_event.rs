@@ -33,10 +33,15 @@ use super::architect::{
     Blueprint, IvrPhase, PlannedArea, PlannedCandidate, PlannedContest,
     PlannedElection, PlannedIvr, PlannedVoter, Translated, BLUEPRINT_VERSION,
 };
+use super::build::{
+    IVR_CONFIG_COLUMN, IVR_I18N_COLUMN, IVR_PHONE_COLUMN, IVR_PROMPTS_COLUMN,
+};
 use super::plan_from_workbook::ReadPlan;
 use super::policy::{Behaviour, Overrides};
 use super::problem::{Code, Problem, Report};
+use super::validate::ALLOW_EARLY_VOTING;
 use crate::types::ceremonies::CeremoniesPolicy;
+use crate::util::version::VERSION_KEY;
 
 /// Where a value was, for a problem that has to name it.
 const AT: &str = "plan";
@@ -110,6 +115,17 @@ pub fn plan_from_event(document: &Value) -> Result<ReadPlan, Report> {
             .and_then(Value::as_object)
             .and_then(|materials| materials.get("activated"))
             .and_then(Value::as_bool),
+        materials_title: translated(&presentation, "materialsTitle"),
+        materials_subtitle: translated(&presentation, "materialsSubtitle"),
+        i18n: wording(&presentation),
+        // A string rather than an enum: the platform owns the value space, and
+        // this repository knows only `RSA256` of it — an enum here would refuse
+        // the `WBRAID` events it exists to carry.
+        encryption_protocol: Some(text(event, "encryption_protocol"))
+            .filter(|protocol| !protocol.is_empty()),
+        annotations: annotations(event, EVENT_ANNOTATIONS_READ),
+        ivr_prompt: ivr_prompt(event),
+        base_export: base_export(document, event),
         // The telephone channel's configuration, back out of the annotations.
         //
         // Each is a JSON string, so each is parsed rather than deserialised in
@@ -169,9 +185,15 @@ pub fn plan_from_event(document: &Value) -> Result<ReadPlan, Report> {
         ));
     }
 
-    plan.areas = areas(document, &mut report);
-    plan.elections =
-        elections(document, &plan.defaults, &language, &mut report);
+    let (areas, area_names) = areas(document, &mut report);
+    plan.areas = areas;
+    plan.elections = elections(
+        document,
+        &area_names,
+        &plan.defaults,
+        &language,
+        &mut report,
+    );
 
     // Said once, plainly, rather than left for somebody to discover on the
     // Contacts screen. An export is an election event; these are the architect's
@@ -210,18 +232,68 @@ pub fn plan_from_event(document: &Value) -> Result<ReadPlan, Report> {
 /// The same bag is handed to all three groups on purpose: each picks out the keys
 /// it knows and ignores the rest, so a rule added to the platform arrives here
 /// without a second list of rule names to keep in step.
+///
+/// **Each key is tried on its own.** An Admin Portal export writes
+/// `presentation.columns: null`, which `Layout` refuses — and one refused key used
+/// to fail the whole document, so `unwrap_or_default` turned every rule of the
+/// contest into the default. A key a group refuses is now left out and the rest
+/// still count.
 fn behaviour_from(flat: &Map<String, Value>) -> Behaviour {
+    let policies = policies_by_field(flat);
     serde_json::from_value(Value::Object(
         [
-            ("policies", flat.clone()),
-            ("tally", flat.clone()),
-            ("layout", flat.clone()),
+            ("policies", accepted("policies", &policies)),
+            ("tally", accepted("tally", flat)),
+            ("layout", accepted("layout", flat)),
         ]
         .into_iter()
         .map(|(group, keys)| (group.to_string(), Value::Object(keys)))
         .collect(),
     ))
     .unwrap_or_default()
+}
+
+/// The ballot rules, renamed from the export's keys to `Policies`' fields.
+///
+/// The export says `over_vote_policy` where `Policies` says `over_vote`. Both
+/// names are read off `Policies` itself — its fields and its columns — so this
+/// is not a second list of the rules.
+fn policies_by_field(flat: &Map<String, Value>) -> Map<String, Value> {
+    let defaults = super::policy::Policies::default();
+    let Ok(Value::Object(fields)) = serde_json::to_value(defaults) else {
+        return Map::new();
+    };
+    let keys: Vec<&str> = defaults
+        .columns()
+        .into_iter()
+        .map(|(column, _)| column.rsplit('.').next().unwrap_or(column))
+        .collect();
+    fields
+        .keys()
+        .filter_map(|field| {
+            let key = keys.iter().find(|key| {
+                **key == field.as_str() || **key == format!("{field}_policy")
+            })?;
+            flat.get(*key).map(|value| (field.clone(), value.clone()))
+        })
+        .collect()
+}
+
+/// The keys of `flat` that `group` of a `Behaviour` takes.
+///
+/// A null is a value nobody stated, so it is dropped rather than tried.
+fn accepted(group: &str, flat: &Map<String, Value>) -> Map<String, Value> {
+    flat.iter()
+        .filter(|(_, value)| !value.is_null())
+        .filter(|(key, value)| {
+            let mut one = Map::new();
+            one.insert((*key).clone(), (*value).clone());
+            let mut groups = Map::new();
+            groups.insert(group.to_string(), Value::Object(one));
+            serde_json::from_value::<Behaviour>(Value::Object(groups)).is_ok()
+        })
+        .map(|(key, value)| (key.clone(), value.clone()))
+        .collect()
 }
 
 /// The languages an event offers, and which one it falls back to.
@@ -265,7 +337,14 @@ fn languages(presentation: &Map<String, Value>) -> Languages {
     }
 }
 
-fn areas(document: &Value, report: &mut Report) -> Vec<PlannedArea> {
+/// The areas, and each one's export `id` → the `external_id` the plan gives it.
+///
+/// The map goes to [`elections`], so a contest names its areas by the identifier
+/// derived here rather than by the export's own, which is usually blank.
+fn areas(
+    document: &Value,
+    report: &mut Report,
+) -> (Vec<PlannedArea>, BTreeMap<String, String>) {
     let rows = array(document, "areas");
     let mut named: BTreeMap<String, String> = BTreeMap::new();
 
@@ -312,9 +391,16 @@ fn areas(document: &Value, report: &mut Report) -> Vec<PlannedArea> {
             derived += 1;
         }
         named.insert(id, external.clone());
+        let presentation = object(row, "presentation");
         areas.push(PlannedArea {
             external_id: external,
             name,
+            description: text(row, "description"),
+            allow_early_voting: presentation
+                .get("allow_early_voting")
+                .and_then(Value::as_str)
+                == Some(ALLOW_EARLY_VOTING),
+            annotations: annotations(row, &[]),
             ..PlannedArea::default()
         });
     }
@@ -356,27 +442,22 @@ fn areas(document: &Value, report: &mut Report) -> Vec<PlannedArea> {
         }
     }
 
-    areas
+    (areas, named)
 }
 
+/// `area_names` is `id` → `external_id` as [`areas`] settled it, so a contest
+/// says which areas it serves in the words a plan uses — including an identifier
+/// that was derived because the export had none.
 fn elections(
     document: &Value,
+    area_names: &BTreeMap<String, String>,
     defaults: &Behaviour,
     language: &Languages,
     report: &mut Report,
 ) -> Vec<PlannedElection> {
-    let areas = array(document, "areas");
     let contests = array(document, "contests");
     let candidates = array(document, "candidates");
     let links = array(document, "area_contests");
-
-    // `id` → `external_id`, so a contest can say which areas it serves in the
-    // words a plan uses rather than in the platform's identifiers.
-    let area_names: BTreeMap<String, String> = areas
-        .iter()
-        .filter_map(Value::as_object)
-        .map(|row| (text(row, "id"), text(row, "external_id")))
-        .collect();
 
     let mut serves: BTreeMap<String, Vec<String>> = BTreeMap::new();
     for link in links.iter().filter_map(Value::as_object) {
@@ -408,7 +489,14 @@ fn elections(
                     "contests_order",
                     "custom",
                 ),
+                start_screen_title_policy: string_or(
+                    &presentation,
+                    "start_screen_title_policy",
+                    &PlannedElection::default().start_screen_title_policy,
+                ),
                 permission_label: text(row, "permission_label"),
+                annotations: annotations(row, ENTITY_ANNOTATIONS_READ),
+                ivr_prompt: ivr_prompt(row),
                 contests: contests_of(
                     &id,
                     &contests,
@@ -456,6 +544,8 @@ fn contests_of(
                 areas: serves.get(&id).cloned().unwrap_or_default(),
                 overrides: overrides_of(row, &presentation, defaults),
                 candidates: candidates_of(&id, candidates, language),
+                annotations: annotations(row, ENTITY_ANNOTATIONS_READ),
+                ivr_prompt: ivr_prompt(row),
                 ..PlannedContest::default()
             }
         })
@@ -575,6 +665,8 @@ fn candidates_of(
                 explicit_blank: flag(&presentation, "is_explicit_blank"),
                 explicit_invalid: flag(&presentation, "is_explicit_invalid"),
                 disabled: flag(&presentation, "is_disabled"),
+                annotations: annotations(row, ENTITY_ANNOTATIONS_READ),
+                ivr_prompt: ivr_prompt(row),
                 // The photograph is deliberately absent here. `image_document_id`
                 // on the row names a file that travels *beside* the JSON, as an
                 // `export_S3_files/` member of the archive — so only the archive
@@ -644,6 +736,151 @@ fn translated(presentation: &Map<String, Value>, field: &str) -> Translated {
         }
     }
     Translated { by_language }
+}
+
+/// The annotation key a sheet column writes, without its `annotations.` prefix.
+fn annotation_key(column: &str) -> &str {
+    column.strip_prefix("annotations.").unwrap_or(column)
+}
+
+/// The event annotations a plan has fields for, which it reads and writes again.
+const EVENT_ANNOTATIONS_READ: &[&str] = &[
+    IVR_CONFIG_COLUMN,
+    IVR_PROMPTS_COLUMN,
+    IVR_PHONE_COLUMN,
+    IVR_I18N_COLUMN,
+];
+
+/// The same, for an election, a contest or a candidate.
+const ENTITY_ANNOTATIONS_READ: &[&str] = &[IVR_I18N_COLUMN];
+
+/// Every annotation on `row` except the ones the plan reads into fields of its
+/// own (`read`, as sheet columns).
+///
+/// Carried rather than interpreted: an integration such as Miru transmission
+/// keys its configuration by annotation, and the plan has no business knowing
+/// which. The platform's annotations are `string: string`, so anything else is
+/// kept as its JSON text.
+fn annotations(
+    row: &Map<String, Value>,
+    read: &[&str],
+) -> BTreeMap<String, String> {
+    let Some(found) = row.get("annotations").and_then(Value::as_object) else {
+        return BTreeMap::new();
+    };
+    found
+        .iter()
+        .filter(|(key, _)| {
+            !read.iter().any(|column| annotation_key(column) == key.as_str())
+        })
+        .filter_map(|(key, value)| {
+            let text = match value {
+                Value::Null => return None,
+                Value::String(text) => text.clone(),
+                other => other.to_string(),
+            };
+            Some((key.clone(), text))
+        })
+        .collect()
+}
+
+/// What a caller hears for this entity, out of its `ivr:i18n` annotation.
+///
+/// `{lang: {prompt}}`, as a JSON string — the shape `ivr_prompt_cell` writes.
+fn ivr_prompt(row: &Map<String, Value>) -> Translated {
+    let raw = row
+        .get("annotations")
+        .and_then(|found| found.get(annotation_key(IVR_I18N_COLUMN)))
+        .and_then(Value::as_str)
+        .and_then(|raw| serde_json::from_str::<Value>(raw).ok());
+    let mut by_language = BTreeMap::new();
+    if let Some(Value::Object(languages)) = raw {
+        for (language, said) in languages {
+            if let Some(prompt) = said
+                .get("prompt")
+                .and_then(Value::as_str)
+                .filter(|prompt| !prompt.trim().is_empty())
+            {
+                by_language.insert(language, prompt.to_string());
+            }
+        }
+    }
+    Translated { by_language }
+}
+
+/// The fields of `presentation.i18n.<lang>` the plan has a field of its own for.
+const I18N_FIELDS: &[&str] =
+    &["name", "description", "materialsTitle", "materialsSubtitle"];
+
+/// The event's wording overrides, per language: everything in
+/// `presentation.i18n.<lang>` that is not one of [`I18N_FIELDS`].
+fn wording(
+    presentation: &Map<String, Value>,
+) -> BTreeMap<String, BTreeMap<String, String>> {
+    let Some(i18n) = presentation.get("i18n").and_then(Value::as_object)
+    else {
+        return BTreeMap::new();
+    };
+    i18n.iter()
+        .filter_map(|(language, keys)| {
+            let keys: BTreeMap<String, String> = keys
+                .as_object()?
+                .iter()
+                .filter(|(key, _)| !I18N_FIELDS.contains(&key.as_str()))
+                .filter_map(|(key, value)| {
+                    Some((key.clone(), value.as_str()?.to_string()))
+                })
+                .collect();
+            (!keys.is_empty()).then(|| (language.clone(), keys))
+        })
+        .collect()
+}
+
+/// Parts of the event the plan models, so the base export must not carry them:
+/// a base is merged *under* the build, and a blank cell is skipped rather than
+/// written, so a description the wizard cleared would come back from the base.
+const BASE_EVENT_MODELED: &[&str] = &["annotations", "description"];
+
+/// The export's event row and realm, as the build's base export.
+///
+/// That is the mechanism `build` already has for "an existing export to inherit
+/// platform defaults from": the event's presentation rules the plan has no field
+/// for — audio instructions, receipts, accessibility settings and whatever the
+/// platform adds next — fill in under the template, and the realm is patched
+/// rather than replaced, so its custom authentication flows and locales survive.
+///
+/// The event, not the other entities: `build` takes the first row of each kind
+/// as a base for all of them, which would spread one contest's settings over
+/// every contest. The event's `id` stays, because `build_realm` swaps it out of
+/// the realm's URLs. The export's `version` stays too, so the rebuilt bundle
+/// declares the version the target platform exported, not the build default.
+fn base_export(document: &Value, event: &Map<String, Value>) -> Option<Value> {
+    let mut event = event.clone();
+    for field in BASE_EVENT_MODELED {
+        event.remove(*field);
+    }
+    if let Some(Value::Object(presentation)) = event.get_mut("presentation") {
+        presentation.remove("i18n");
+    }
+
+    let mut base = Map::new();
+    if let Some(realm) = document
+        .get("keycloak_event_realm")
+        .filter(|realm| realm.as_object().is_some_and(|realm| !realm.is_empty()))
+    {
+        base.insert("keycloak_event_realm".to_string(), realm.clone());
+    }
+    if !event.is_empty() {
+        base.insert("election_event".to_string(), Value::Object(event));
+    }
+    if let Some(version) = document
+        .get(VERSION_KEY)
+        .and_then(Value::as_str)
+        .filter(|version| !version.is_empty())
+    {
+        base.insert(VERSION_KEY.to_string(), Value::from(version));
+    }
+    (!base.is_empty()).then_some(Value::Object(base))
 }
 
 #[cfg(test)]
