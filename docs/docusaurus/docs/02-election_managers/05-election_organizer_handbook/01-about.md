@@ -15,7 +15,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 | Document ID | AGD-03 |
 | Title | Handbook for Election Organizers |
 | TOE reference | Sequent Voting Platform - uniWAHL Version, v10.0.0 |
-| Version of this handbook | v10.0.0, the release it ships with |
+| Document version | 1.0 |
+| Software release | v10.0.0 |
 
 This handbook is the operational user guidance for the election organizer and
 for the election board, including the trustees. It applies to the evaluated

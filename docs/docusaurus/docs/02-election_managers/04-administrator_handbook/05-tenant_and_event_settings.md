@@ -25,8 +25,8 @@ SPDX-License-Identifier: AGPL-3.0-only
    authentication settings
    ([Authentication and Session Settings](08-authentication_and_sessions.md))
    of the election event.
-5. Tell the election board that the settings are complete. The board publishes
-   the configuration version and approves it
+5. Tell the election board that the settings are complete. After completing
+   the key ceremony, the board publishes the configuration version and approves it
    ([Publishing the configuration version](#publishing-the-configuration-version)).
 
 All of these steps belong to the preparation phase.

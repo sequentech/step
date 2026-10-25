@@ -15,7 +15,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 | Document ID | AGD-01 |
 | Title | Handbook for Voters |
 | TOE reference (TOE: target of evaluation, the product as evaluated) | `Sequent Voting Platform - uniWAHL Version, v10.0.0` |
-| Version of this handbook | v10.0.0 (it ships with this release) |
+| Document version | 1.0 |
+| Software release | v10.0.0 |
 | Role | Voter |
 
 This handbook is for voters. It tells you how to vote safely with the

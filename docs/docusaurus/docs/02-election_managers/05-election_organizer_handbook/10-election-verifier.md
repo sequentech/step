@@ -101,7 +101,13 @@ place prove nothing if that place has been manipulated.
 A voter who copied their encrypted ballot in the voting portal ("Locate your
 ballot") during the execution phase can check that it was counted. The voter
 saves the encrypted ballot, exactly as "Locate your ballot" shows it, to a text
-file, and passes the content of that file to the election-verifier:
+file, and passes the content of that file to the election-verifier. If the
+voter voted again, use only the copy for the last vote cast: earlier votes are
+not counted. Checking an earlier ciphertext can therefore report it absent
+without indicating a fault in the tally. Obtain the final ciphertext before
+the ballot locator closes.
+
+Run:
 
 ```sh
 podman run --rm --network none -v <directory>:/data:ro <election-verifier image> \

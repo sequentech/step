@@ -242,10 +242,37 @@ checks the electoral log. To restore:
 4. Deploy again with the commands of [Deploy](08-installing_toe.md#deploy) on
    C1, then make every check of [Verifying the Installation](10-verification.md).
 
-The backup does not hold the cluster's own state. If a server has to be
-installed again, install it as [Installing the Servers](03-installation_kit.md)
-describes before the restore. Restore one backup on the installed servers
-before the handover, to show that the procedure works.
+The backup does not hold the cluster's own state or the container image store.
+If a server has to be installed again, install it as
+[Installing the Servers](03-installation_kit.md) describes before the restore.
+After extracting the backup and before step 4, load the delivered TOE images
+onto each reinstalled node as
+[Load the TOE images](08-installing_toe.md#load-the-toe-images) describes.
+
+If C1 was reinstalled and the cluster state was lost, recreate the resources
+that the manifests do not carry, using the restored files and original keys:
+
+- apply the namespaces and recreate the two `step-tls-cert` Secrets as in
+  [Install the certificate](05-certificates_tls.md#install-the-certificate);
+- reinstall the TLS endpoint's files as in
+  [Set up the TLS endpoint](05-certificates_tls.md#set-up-the-tls-endpoint);
+- recreate `auth-server-ca` as in
+  [Install the trust anchor](06-authentication_server.md#install-the-trust-anchor);
+- recreate `keycloak-bootstrap-admin` and `keycloak-service-credentials` with
+  the first block of [Create the service credentials](07-hardening.md#create-the-service-credentials),
+  loading the restored `secrets.env`; never generate new deployment secrets
+  or repeat the manifest transformations;
+- with each trustee present, recreate `trustee1-keys`, `trustee2-keys` and
+  their authentication Secrets as in
+  [Install the trustee keys](08-installing_toe.md#install-the-trustee-keys).
+  Use the original keys from the trustees' own protected media or backups,
+  which must match the restored protocol state; do not generate new keys.
+  Defer the rollout commands until after step 4.
+
+Stop if an original key or restored credential is unavailable. Deploying
+alone cannot recreate these resources. Restore one backup on the installed
+servers before the handover, to show that the procedure works. If the recovery
+plan includes replacement of C1, rehearse that case with a new cluster too.
 
 Report every failed check and every security problem to
 [security@sequentech.io](mailto:security@sequentech.io).

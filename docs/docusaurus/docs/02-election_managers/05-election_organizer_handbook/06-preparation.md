@@ -9,16 +9,16 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 In the preparation phase the board approves the configuration packages and
-imports them, the administrators make the settings, the board publishes and
-approves the configuration version and sets the lockdown period, the trustees
-generate the election key, and the board checks that everything is ready for
+imports them, the administrators make the settings, the trustees generate the
+election key, the board publishes and approves the configuration version and
+sets the lockdown period, and the board checks that everything is ready for
 the execution phase. Carry out the steps in this order:
 
 1. [Importing the election data](#importing-the-election-data).
 2. [Checking the imported data and the settings](#checking-the-imported-data-and-the-settings).
-3. [Approving the configuration](#approving-the-configuration).
-4. [Setting the lockdown period](#setting-the-lockdown-period).
-5. [The key ceremony](#the-key-ceremony).
+3. [The key ceremony](#the-key-ceremony).
+4. [Approving the configuration](#approving-the-configuration).
+5. [Setting the lockdown period](#setting-the-lockdown-period).
 6. [The initialization report](#the-initialization-report).
 7. [The self-test before the start](#the-self-test-before-the-start).
 8. [Checklist before the execution phase](#checklist-before-the-execution-phase).
@@ -183,7 +183,8 @@ Administrators describes. The election board checks these settings with them:
 | Each election, Data tab | "Number of allowed votes" | As the electoral regulation fixes it (1 means no re-voting) |
 | Election event and each election, Data tab | "Voting Channels Allowed" | "Online" only |
 | Tenant (set by the administrators, who show it to the board) | Required number of package approvals for imports | As the electoral regulation fixes it, at least 2 |
-| Election event, Signatures tab | "Signatures needed" of every protected action | As the electoral regulation fixes it, at least 2 recommended (see [Security-critical actions](05-electoral-phases.md#security-critical-actions)) |
+| Election event, Signatures tab | "Signatures needed" of every non-trustee protected action | As the electoral regulation fixes it, at least 2 recommended (see [Security-critical actions](05-electoral-phases.md#security-critical-actions)) |
+| Election event, Signatures tab | "Trustees sign this step" for both trustee custody actions | On; each trustee signs their own step, with no configurable signature count |
 | Election event, Signatures tab, "Certificates" | "Registering a certificate to a person" | "Only when someone who can register certificates registers it" (the default "When its holder first signs with it" is not allowed) |
 | Election event, Signatures tab, "Certificates" | "Check revocation lists" and "When a list can't be downloaded" | If the election organizer's certification authority publishes revocation lists that the server can download: on, with "Don't accept signatures". Otherwise certificates are withdrawn with "Revoke" |
 | Users and Roles | "Signatures: register certificates" (`signing-certificates-register`) | Held by administrators only |
@@ -199,11 +200,19 @@ configuration until the administrators have corrected the setting.
 ## Approving the configuration
 
 Who: the election board. Phase: preparation, after the administrators have
-made the settings and told the board that they are complete. Permission:
+made the settings and told the board that they are complete, and after the
+key ceremony has completed with every trustee's custody confirmed. Permission:
 "Read Publish" (`publish-read`), "Edit Publish" (`publish-write`), "Create
 Publish" (`publish-create`), "Regenerate Publish" (`publish-regenerate`),
 "Publish Changes" (`publish-changes`) and "Sign: approve a configuration
 version" (`sign-approve-configuration`).
+
+Generate the final publication only after the key ceremony, so that the
+ballots carry its verified election key. A publication generated before the
+ceremony can contain a demo key and is not updated when the ceremony finishes.
+If one was generated earlier, regenerate it after the ceremony and obtain the
+board's approval before starting lockdown or generating the initialization
+report.
 
 A board member publishes the configuration of the election event on its
 Publish tab: select "Generate Publication" ("Regenerate" once a publication

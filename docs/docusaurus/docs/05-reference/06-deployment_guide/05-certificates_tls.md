@@ -67,7 +67,9 @@ store of a current browser installation (on Debian and Ubuntu,
 scp root@$C1:/root/deploy/tls/tls.crt .
 openssl x509 -in tls.crt -out leaf.pem
 awk '/BEGIN CERTIFICATE/{n++} n>1' tls.crt > chain.pem
-openssl verify -CAfile /etc/ssl/certs/ca-certificates.crt -untrusted chain.pem leaf.pem
+chain_args=()
+[ ! -s chain.pem ] || chain_args=(-untrusted chain.pem)
+openssl verify -CAfile /etc/ssl/certs/ca-certificates.crt "${chain_args[@]}" leaf.pem
 ```
 
 The result must be `leaf.pem: OK`. A certificate that is self-signed, chains

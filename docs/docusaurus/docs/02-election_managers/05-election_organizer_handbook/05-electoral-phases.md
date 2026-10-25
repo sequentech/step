@@ -17,7 +17,7 @@ directly. The phase decides which functions the TOE allows.
 
 | Electoral phase | Begins when | What happens | Pages |
 |---|---|---|---|
-| Preparation | The election event is created by an import of election data | The election board approves and imports the election data, publishes and approves the configuration version and sets the lockdown period; the administrators make the settings; the key ceremony is held and the initialization report is generated. Voters cannot vote. | [Preparation Phase Procedures](06-preparation.md) |
+| Preparation | The election event is created by an import of election data | The election board approves and imports the election data; the administrators make the settings; the key ceremony is held; the board publishes and approves the configuration version and sets the lockdown period; the initialization report is generated. Voters cannot vote. | [Preparation Phase Procedures](06-preparation.md) |
 | Execution | The election period start time is reached (scheduled start), or the election board selects "Start Voting" at or after that time | Voters cast their votes. The election board monitors the election, interrupts and resumes it when needed. | [Execution Phase Procedures](07-execution.md) |
 | Evaluation | The end of election time is reached (scheduled end), or the election board terminates the election execution with "Stop Voting" | The ballot boxes are sealed. The election board checks the audit records, counts the votes and determines the result. | [Evaluation and Post-Processing Procedures](08-evaluation-and-post-processing.md) |
 | Post-processing | The election board selects "Start post-processing" on the Dashboard after the result has been determined | The election board exports and keeps the election execution data, publishes the verification data, and deletes the data when the regulation allows. | [Evaluation and Post-Processing Procedures](08-evaluation-and-post-processing.md) |
@@ -53,7 +53,8 @@ cause has been removed, the election board starts the election execution with
 | Change the settings and the signing rules (administrators) | Yes | No | No | No |
 | Publish a configuration version ("Generate Publication" and "Publish Changes" on the Publish tab, election board) | Yes, approved by the board ("Approve a configuration version") | No | No | No |
 | Enter or change election data in any other way | No | No | No | No |
-| Voters log in, vote and check their ballots | No | Yes | No | No |
+| Voters log in (subject to account and audit-storage restrictions) | Yes | Yes | Yes | Yes |
+| Voters vote and check their cast ballots in the ballot locator | No | Yes | No | No |
 | Interrupt ("Pause Voting"), resume ("Resume Voting") | No | Yes; the resumption with the required authorisations | No | No |
 | Terminate the election execution ("Stop Voting") | No | Yes, with the required authorisations | No | No |
 | Run a self-test on request ("Run self-test") | Yes | Yes | Yes | Yes |
@@ -118,11 +119,14 @@ offers in its catalogue on the same tab:
 
 Rules that apply to every security-critical action:
 
-- The administrators set "Signatures needed" in the preparation phase, as the
+- Except for the two trustee custody rows, the administrators set "Signatures
+  needed" in the preparation phase, as the
   electoral regulation fixes it. A protected action whose number has not been
   set cannot be performed: the TOE refuses it. For the imports they set the
   tenant's number of package approvals before the first import, and never
   change it afterwards; while it is not set, the TOE refuses every import.
+  For the two trustee custody rows, "Trustees sign this step" is on: each
+  trustee signs their own step, with no configurable signature count.
 - Each authorisation must come from a different board member. The TOE accepts
   each signing certificate only once per request.
 - Any board member can abort a security-critical action before it runs
@@ -135,10 +139,11 @@ Rules that apply to every security-critical action:
 
 :::warning
 Check on the Signatures tab before the preparation phase ends that every
-action in the two tables above, apart from the imports, has "Signatures
-needed" set to the number in the electoral regulation, and that the board has
+action in the two tables above, apart from the imports and the two trustee
+custody rows, has "Signatures needed" set to the number in the electoral regulation, and that the board has
 at least that many members who can sign. For the imports, have the
-administrators show the tenant's number of package approvals. If a protected
+administrators show the tenant's number of package approvals. For the trustee
+custody rows, check that "Trustees sign this step" is on. If a protected
 action shows "Off", or a lower number than the regulation fixes, a single
 person could perform it: stop and have the administrators correct it before
 the execution phase.

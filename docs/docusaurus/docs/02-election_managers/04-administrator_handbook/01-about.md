@@ -15,7 +15,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 | Document ID | AGD-02 |
 | Title | Handbook for Election Administrators |
 | TOE reference | Sequent Voting Platform - uniWAHL Version, v10.0.0 |
-| Version of this handbook | v10.0.0, the release it ships with |
+| Document version | 1.0 |
+| Software release | v10.0.0 |
 
 This handbook is the operational user guidance for the **administrator** role
 of the TOE. It applies to the evaluated configuration only: the one

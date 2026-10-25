@@ -28,6 +28,7 @@ k3s kubectl get pods -A -o json > pods.json
 grep -E '^(b4|ballot-verifier|braid|harvest|keycloak|windmill) sha256:' \
   image-digests.txt | while read -r p d; do
   jq -r --arg p "$p" --arg d "$d" '[.items[].status.containerStatuses[]?
+    | select(.state.running != null and .ready == true)
     | select(.imageID | endswith($d))] | "\($p) \(length)"' pods.json
 done
 jq -r '.items[].spec.containers[].image' pods.json \

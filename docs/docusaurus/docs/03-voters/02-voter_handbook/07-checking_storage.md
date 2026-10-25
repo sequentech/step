@@ -86,8 +86,12 @@ not cast.
 ## Keep a copy of your encrypted ballot
 
 If you want to check after the election that your vote was counted, keep a copy
-of your encrypted ballot. You can copy it only while the ballot locator shows
-it, and at the latest until the end of the election period.
+of your encrypted ballot. If you voted again, use the Ballot ID of the last
+vote you cast and copy that ballot: only your last vote is counted. Earlier
+ballots can still be found by the locator but are absent from the counted
+ballots, so checking one of them does not verify your final vote. You can copy
+the final ballot only while the ballot locator shows it, and at the latest
+until the end of the election period.
 
 1. Find your ballot with the ballot locator, as described above.
 2. Select all the text shown under "This is your Ballot content:" and copy it.

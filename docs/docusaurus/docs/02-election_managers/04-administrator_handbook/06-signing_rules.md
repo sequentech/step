@@ -75,9 +75,10 @@ members inside the package, at least the number that the tenant's signed
 configuration packages require
 ([Tenant and Election Event Settings](05-tenant_and_event_settings.md#signed-configuration-packages)).
 
-A protected action whose "Signatures needed" has not been set cannot be
-performed: the TOE refuses it. Set "Signatures needed" for every protected
-action that the tab lists, before the election board starts any of them.
+For protected actions other than the two trustee custody rows, an unset
+"Signatures needed" prevents the action: the TOE refuses it. Set it before
+the election board starts the action. The trustee rows require each trustee
+to sign their own step and have no configurable signature count.
 
 ## Protected actions to switch on
 
@@ -117,11 +118,16 @@ election board approves the configuration version.
    "Request expires" and "Waiting". A rule that is not switched on shows
    "Off".
 2. Select the edit icon of the action. The drawer opens.
-3. Set the fields:
+3. For "Confirm custody (key ceremony)" and "Authorize tally custody (tally)",
+   switch on "Trustees sign this step" and save. These two rows have no
+   "Who can sign", "Signatures needed", requester or expiry controls: each
+   trustee signs their own custody step, with the permissions given to the
+   `trustee` role in [Users, Roles and Role Separation](04-users_and_roles.md).
+   For every other protected action, set the following fields:
 
 | Field | Required value |
 |---|---|
-| "Needs signatures", or "Trustees sign this step" for the trustee rows | on |
+| "Needs signatures" | on |
 | "Who can sign" | only "Election board". Never the administrator role. Its help text says: "These roles get the permission “Sign: …” in Users and Roles, for every election event. Signers must also have access to the Post." |
 | "Signatures needed" | the number the electoral regulation fixes, at least 2 |
 | "The person who starts it can also sign" | off, unless the electoral regulation counts the person who starts the action as one of the authorising members |
