@@ -148,7 +148,7 @@ the election board, not deleted
 
 1. In "Users and Roles", open the tab "Roles" and select "Add". Name
    the role, for example `Election board`.
-2. In "Role Data", give it these permissions:
+2. In the new role's "Permission" table, give it these permissions:
    - the board functions: "Create Election Event" (`election-event-create`);
      the configuration version permissions of the table above; the lockdown
      period permissions of the table above; every "Sign:"
@@ -200,9 +200,11 @@ the election board, not deleted
    election events only by importing signed configuration packages. Each
    such import writes every part of the package itself and needs no other
    permission of the importing member.
-5. Check that "Export Logs" (`logs-export`) and "Edit Reports"
-   (`report-write`) are both in the role: exporting the electoral log needs
-   both.
+5. Select "Save", then reopen the role with its edit icon and check the
+   permissions. "Export Logs" (`logs-export`) and "Edit Reports"
+   (`report-write`) must both be in the role: exporting the electoral log
+   needs both. Changes to an existing role's permission checkboxes take effect
+   immediately; close and reopen "Role Data" to check them.
 
 The evaluated configuration does not transmit results
 ([Configuring Protected Actions](06-signing_rules.md)); no transmission
@@ -236,7 +238,8 @@ sign their custody steps as protected actions.
 ### Registering the trustees' public keys
 
 Before the key ceremony, register each trustee in Settings > "TRUSTEES" with
-"Create Trustee". You need "Create Trustee" (`trustee-create`), "Read Trustee"
+"Create Trustee" if the list is empty, or "Add" if it already contains a
+trustee. You need "Create Trustee" (`trustee-create`), "Read Trustee"
 (`trustee-read`) and "Edit Trustee" (`trustee-write`).
 
 1. Receive the trustee's two public keys from the trustee in person, or on a
@@ -274,7 +277,9 @@ trustee whom the election organizer has appointed in writing.
    the administrator role, or "Election board". For a trustee, also add
    `trustee` and, in "Act as Trustee", select the trustee whose key share the
    person holds.
-5. Check the summary in "Review changes" and confirm.
+5. Select "Save". This creates the account directly. Reopen it through its
+   "Actions" menu > "Edit" and check the identity fields, "Enabled", roles
+   and, for a trustee, "Act as Trustee".
 6. Ask the person to sign in once. The external authentication server must
    accept them with two factors, and the TOE must link the sign-in to this
    account. If the person ends up in an account you did not create, or in none,
