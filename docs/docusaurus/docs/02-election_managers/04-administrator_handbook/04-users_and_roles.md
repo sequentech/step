@@ -21,9 +21,10 @@ SPDX-License-Identifier: AGPL-3.0-only
   permissions of every role it is a member of.
 
 You manage accounts and roles in the side menu "Users and Roles". The tab
-"Users" lists the accounts; "Create user" creates one, and "User Data" shows
-and edits one. The tab "Roles" lists the roles; "Create role" creates one, and
-"Role Data" shows and edits its permissions. The menu entry needs "View users
+"Users" lists the accounts. Select "Add" to create one, or open the account's
+"Actions" menu and select "Edit" to view or edit it. The tab "Roles" lists the
+roles. Select "Add" to create one, or the edit icon in a role's row to open
+"Role Data" and view or edit its permissions. The menu entry needs "View users
 and roles" (`users-menu`), the "Users" tab needs "Read User" (`user-read`) and
 the "Roles" tab needs "Read Role" (`role-read`).
 
@@ -81,7 +82,7 @@ stated, to `trustee`). Remove each of them from the role `admin`:
 | Trustee steps (role `trustee` only) | "Sign: confirm custody" (`sign-key-ceremony`), "Sign: authorize tally custody" (`sign-tally-key`), "Trustee Ceremony" (`trustee-ceremony`) |
 | Start, interrupt, resume and end the election execution | "Edit Election State" (`election-state-write`), "Start Voting" (`publish-start-voting`), "Pause Voting" (`publish-pause-voting`), "Stop Voting" (`publish-stop-voting`) |
 | Signing requests | "Signatures: read requests" (`signing-requests-read`), "Signatures: cancel requests" (`signing-requests-cancel`), "Signatures: export requests" (`signing-requests-export`) |
-| Key and tally ceremonies, counting | "View Election Event Keys" (`election-event-keys-tab`), "Read Keys" (`keys-read`), "Admin Ceremony" (`admin-ceremony`), "Create Ceremony" (`create-ceremony`), "Export Ceremony" (`export-ceremony`), "Transmission Ceremony" (`transmition-ceremony`), "View Election Event Tally" (`election-event-tally-tab`), "Read Tally" (`tally-read`), "Start Tally" (`tally-start`), "Edit Tally" (`tally-write`), "Read Tally Results" (`tally-results-read`) |
+| Key and tally ceremonies, counting | "View Election Event Keys" (`election-event-keys-tab`), "Read Keys" (`keys-read`), "Admin Ceremony" (`admin-ceremony`), "Create Ceremony" (`create-ceremony`), "Export Ceremony" (`export-ceremony`), "View Election Event Tally" (`election-event-tally-tab`), "Read Tally" (`tally-read`), "Start Tally" (`tally-start`), "Edit Tally" (`tally-write`), "Read Tally Results" (`tally-results-read`) |
 | Archiving and deletion of election events | "Archive Election Event" (`election-event-archive`), "Delete Election Event" (`election-event-delete`) |
 | Audit review and monitoring | "View Election Event Logs" (`election-event-logs-tab`), "Read Logs" (`logs-read`), "Audit Electoral Log" (`electoral-log-audit`), "Browse Electoral Log" (`electoral-log-console-read`), "Query Electoral Log" (`electoral-log-console-query`), "Read Electoral Log Personal Data" (`electoral-log-personal-data-read`), "View Election Event Tasks" (`election-event-tasks-tab`), "Read Tasks Execution" (`tasks-read`), "View Monitoring Dashboards" (`monitoring-view`) |
 | Read the voters' register, as a protected action where the Signatures tab requires it | "Read Voter" (`voter-read`), "View Election Event Voters" (`election-event-voters-tab`) |
@@ -145,7 +146,7 @@ the election board, not deleted
 
 ### Create the "Election board" role
 
-1. In "Users and Roles", open the tab "Roles" and select "Create role". Name
+1. In "Users and Roles", open the tab "Roles" and select "Add". Name
    the role, for example `Election board`.
 2. In "Role Data", give it these permissions:
    - the board functions: "Create Election Event" (`election-event-create`);
@@ -159,8 +160,7 @@ the election board, not deleted
      (`signing-requests-cancel`), "Signatures: export requests"
      (`signing-requests-export`); "Admin Ceremony" (`admin-ceremony`), "Create
      Ceremony" (`create-ceremony`), "Export Ceremony" (`export-ceremony`),
-     "Transmission Ceremony" (`transmition-ceremony`), "Read
-     Tally" (`tally-read`), "Start Tally" (`tally-start`), "Edit Tally"
+     "Read Tally" (`tally-read`), "Start Tally" (`tally-start`), "Edit Tally"
      (`tally-write`), "Read Tally Results" (`tally-results-read`); "Read
      Logs" (`logs-read`), "Export Logs" (`logs-export`), "Edit Reports"
      (`report-write`), "Export Voter" (`voter-export`), "Audit Electoral Log" (`electoral-log-audit`), "Browse
@@ -203,6 +203,10 @@ the election board, not deleted
 5. Check that "Export Logs" (`logs-export`) and "Edit Reports"
    (`report-write`) are both in the role: exporting the electoral log needs
    both.
+
+The evaluated configuration does not transmit results
+([Configuring Protected Actions](06-signing_rules.md)); no transmission
+ceremony permission is needed.
 
 :::warning
 Give "Signatures: cancel requests" (`signing-requests-cancel`) to the whole
@@ -258,12 +262,13 @@ started.
 Create one personal account for each administrator, each board member and each
 trustee whom the election organizer has appointed in writing.
 
-1. In "Users and Roles", tab "Users", select "Create user".
+1. In "Users and Roles", tab "Users", select "Add".
 2. Enter the person's "Username" and "Email" exactly as the external
    authentication server knows them: at the person's first sign-in, the TOE
    links the sign-in to the existing account with the same username or email.
-   The TOE also sends its email notifications to the administrators and the
-   election board at these addresses.
+   Enter the person's required "First Name" and "Last Name" as well. The TOE
+   sends its email notifications to the administrators and the election board
+   at these addresses.
 3. Tick "Enabled".
 4. Make the account a member of exactly one of the roles of the table above:
    the administrator role, or "Election board". For a trustee, also add
@@ -299,8 +304,8 @@ contains accounts that are not personal accounts:
 - **The seeded account `admin`.** It is created with the tenant, has no
   password and holds the permissions of the seeded administrator group. As
   soon as your own personal administrator account works, delete it: in
-  "Users", open it, delete it and confirm "Are you sure you want to delete
-  this user?". Check that it no longer appears in the "Users" list.
+  "Users", open the "Actions" menu in the exact `admin` row, select "Delete",
+  and confirm "Are you sure you want to delete this user?" with "Delete". Check that it no longer appears in the "Users" list.
 - **The trustees' service accounts `trustee1` and `trustee2`.** They are the
   machine identities of the two instances of the trustee server. The
   Deployment Guide gives them random passwords. They are not personal
