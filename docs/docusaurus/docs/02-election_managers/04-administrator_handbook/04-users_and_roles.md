@@ -259,6 +259,12 @@ trustee. You need "Create Trustee" (`trustee-create`), "Read Trustee"
    character.
 4. In the trustee's personal account, select this trustee name in "Act as
    Trustee".
+5. Give the server operator the registered name and checked public-key pair
+   for the corresponding native instance, `trustee1` or `trustee2`. The
+   operator must bind that machine account to this registered name before
+   starting it, as [Bind each native account to its registered trustee](../../05-reference/06-deployment_guide/08-installing_toe.md#bind-each-native-account-to-its-registered-trustee)
+   describes. A correct personal-account binding alone does not configure the
+   native instance.
 
 :::warning
 A wrong public key lets someone other than the trustee act for the trustee's
@@ -321,8 +327,9 @@ contains accounts that are not personal accounts:
 - **The trustees' service accounts `trustee1` and `trustee2`.** They are the
   machine identities of the two instances of the trustee server. The
   Deployment Guide gives them random passwords. They are not personal
-  accounts: never sign in with them, never use them for a board member, and do
-  not delete or change them.
+  accounts: never sign in with them or use them for a board member. The server
+  operator sets their trustee binding as described above; preserve their
+  login names, passwords and roles, and do not delete them.
 - **Technical service accounts of the TOE** (their names start with
   `service-account-`). Do not change or delete them.
 

@@ -263,6 +263,70 @@ describes. The trustee then hands over the keys file for their instance of
 the trustee server: `trustee1` for the first trustee, `trustee2` for the
 second.
 
+### Bind each native account to its registered trustee
+
+Before starting either instance, agree with the election administrator which
+registered trustee and public keys belong to each instance. The machine login
+names remain `trustee1` and `trustee2`; they can differ from the names registered
+in Settings > "TRUSTEES". Each machine account's `trustee` attribute must name
+exactly its registered trustee. The person's separate account uses "Act as
+Trustee" for the same registered name.
+
+On C1, run the following for `N=1`, replacing `T` with the registered name
+whose keys will be installed in `trustee1`. Repeat with `N=2` and the second
+registered name. This changes only the native account's trustee binding; it
+preserves its login name, password, roles and all other attributes. Do not use
+the personal trustee account or add a password to it.
+
+```bash
+(
+set +x
+set -e
+umask 077
+. /root/deploy/hosts.env && . /root/deploy/secrets.env
+N=1
+T='<registered-trustee-name>'
+case "$N" in 1|2) ;; *) exit 1 ;; esac
+[ -n "$T" ] && [ "$T" != '<registered-trustee-name>' ]
+MATCHES=$(k3s kubectl -n step-infra exec -i deploy/postgres -- \
+  psql -U postgres -tA -d hasura -v ON_ERROR_STOP=1 \
+  -v tenant="${CR#tenant-}" -v trustee="$T" <<'SQL'
+SELECT count(*) FROM sequent_backend.trustee
+WHERE tenant_id = :'tenant' AND name = :'trustee';
+SQL
+)
+[ "$MATCHES" = 1 ]
+W=$(mktemp -d /root/deploy/.trustee-map.XXXXXXXX)
+trap 'rm -rf "$W"; k3s kubectl -n step-infra exec deploy/keycloak -- rm -f /tmp/kcadm-trustee-map.config >/dev/null 2>&1 || true' EXIT
+kc() { k3s kubectl -n step-infra exec -i deploy/keycloak -- \
+  /opt/keycloak/bin/kcadm.sh "$@" --config /tmp/kcadm-trustee-map.config; }
+kc config credentials --server http://localhost:8090 --realm master \
+  --user "$KC_ADMIN_USER" --password "$KC_ADMIN_PASSWORD" < /dev/null > "$W/auth.log" 2>&1
+kc get users -r "$CR" -q username="trustee$N" -q exact=true \
+  --fields id,username < /dev/null > "$W/users.json"
+I=$(jq -er --arg n "trustee$N" '[.[] | select(.username==$n)] |
+  if length==1 then .[0].id else error("Expected one native account") end' "$W/users.json")
+kc get "users/$I" -r "$CR" < /dev/null > "$W/before.json"
+jq --arg t "$T" '{attributes:(.attributes + {trustee:[$t]})}' \
+  "$W/before.json" > "$W/binding.json"
+kc update "users/$I" -r "$CR" -f - < "$W/binding.json" > "$W/update.log" 2>&1
+kc get "users/$I" -r "$CR" < /dev/null > "$W/after.json"
+jq -e --slurpfile before "$W/before.json" --slurpfile expected "$W/binding.json" \
+  '.attributes==$expected[0].attributes and
+   (del(.attributes)==($before[0]|del(.attributes)))' "$W/after.json" > /dev/null
+echo "Native trustee binding verified"
+)
+```
+
+Each run must print "Native trustee binding verified". Record the native
+account, registered trustee name and checked public-key pair in the protected
+installation record. The binding is persistent customer-realm state; verify it
+again after restoring a customer backup. The process's `TRUSTEE_NAME` also
+selects its native login, so keep it as `trustee1` or `trustee2`. That display
+alias does not replace verification of the trustee's signing public key.
+
+### Transfer the matching keys and start the instances
+
 :::warning
 The keys file holds the trustee's private keys. Take it over only in person,
 with the trustee watching every step, directly from the trustee's own medium.
@@ -299,8 +363,9 @@ k3s kubectl -n step-infra rollout restart deployment/trustee$N
 k3s kubectl -n step-infra rollout status deployment/trustee$N --timeout=5m
 ```
 
-The last command must report that the rollout finished. Repeat both blocks
-with `N=2` for the second trustee.
+The last command must report that the rollout finished. Repeat both transfer
+and start blocks with `N=2` for the second trustee, using its matching keys
+and the native-account binding checked above.
 
 Before the key ceremony and before each tally ceremony, check on C1 that both
 instances are ready, and confirm it to the election board, which waits for
