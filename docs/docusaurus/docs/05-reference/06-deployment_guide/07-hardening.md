@@ -55,6 +55,32 @@ grep -A1 'name: KEYCLOAK_URL$' */deployment.yaml
 The three values shown must be `"https://PORTAL_HOST"` with your voting portal
 host.
 
+## Set the displayed software identity
+
+The portals display the software release and the Step source revision that
+produced the images. Set both from the installed provenance of the verified
+installation kit, before the first deployment:
+
+```bash
+cd /root/deploy/kubernetes
+P=/var/lib/sequent-install/provenance.json
+APP_VERSION=$(jq -er '.release | select(type == "string")
+  | select(test("^[0-9]+[.][0-9]+[.][0-9]+$"))' "$P") &&
+APP_HASH=$(jq -er '.images.manifest.stepRevision | select(type == "string")
+  | select(test("^[0-9a-f]{40}$"))' "$P") &&
+[ -f config/step-env.yaml ] &&
+! grep -qE '^  APP_(VERSION|HASH):' config/step-env.yaml &&
+printf '  APP_VERSION: "%s"\n  APP_HASH: "%s"\n' "$APP_VERSION" "$APP_HASH" \
+  >> config/step-env.yaml &&
+grep -E '^  APP_(VERSION|HASH):' config/step-env.yaml
+```
+
+The block must print the two public values. For release `v10.0.0`,
+`APP_VERSION` must be `10.0.0`; `APP_HASH` must be the 40-character Step
+revision in the verified image provenance. Stop if either value is missing,
+or if the block prints nothing. The portal may display the hash in upper
+case. Keep the file in YAML format: later sections check its keys.
+
 ## Generate the deployment secrets
 
 :::warning
