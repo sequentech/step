@@ -166,12 +166,66 @@ You need "Edit Tenant" (`tenant-write`) and "View settings" (`settings-menu`).
    "Import Roles & Permissions Configurations"; "Restore" is available only
    when all three are ticked. Select "Restore".
 7. In the drawer "Import Tenant Configurations", upload the new ZIP file and
-   enter its digest in "Integrity Check (SHA-256)". Start the import.
-8. Check the result: make a new backup (step 2), extract it and confirm that
-   `settings` contains `configuration_signing` with exactly your values, and
-   that the other two files are the same as the ones you restored. If the
-   restore reported an error, parts of it may already have been applied:
-   repeat steps 6 to 8 with the same file until this check passes.
+   enter its digest in "Integrity Check (SHA-256)". Start the import. Wait for
+   the specific task "Import Tenant Config" to show "SUCCESS" before making
+   another backup. The success of an earlier export does not confirm that
+   this import has finished.
+8. Make a fresh backup (step 2), save it as `fresh-tenant-config.zip`, and run
+   the check below against `new-tenant-config.zip`, the exact file you restored.
+   It compares the entire intended settings object, the identity configuration
+   and every role-permission row. JSON object-key order and whitespace, and
+   CSV row order, can change during export; array order, scalar types, headers,
+   duplicate rows and all values must stay the same. The script prints only
+   "PASS" or "FAIL", without showing private backup contents.
+
+   ```sh
+   python3 - new-tenant-config.zip fresh-tenant-config.zip <<'PY'
+   import csv, io, json, sys, zipfile
+   from collections import Counter
+
+   def rows(data):
+       return list(csv.reader(io.StringIO(data.decode("utf-8"))))
+
+   def canonical(data):
+       return json.dumps(json.loads(data), sort_keys=True, separators=(",", ":"))
+
+   def settings(data):
+       records = rows(data)
+       assert len(records) == 2
+       header, row = records
+       value = json.loads(row[header.index("settings")])
+       assert isinstance(value, dict)
+       return json.dumps(value, sort_keys=True, separators=(",", ":"))
+
+   try:
+       with zipfile.ZipFile(sys.argv[1]) as intended, zipfile.ZipFile(sys.argv[2]) as fresh:
+           names = intended.namelist()
+           assert len(names) == len(set(names)) == len(fresh.namelist()) == 3
+           assert set(names) == set(fresh.namelist())
+           prefixes = ("tenant_configuration-", "keycloak_admin-", "export_permissions-")
+           assert all(sum(name.startswith(prefix) for name in names) == 1 for prefix in prefixes)
+           for name in names:
+               before, after = intended.read(name), fresh.read(name)
+               if name.startswith("tenant_configuration-"):
+                   assert settings(before) == settings(after)
+               elif name.startswith("keycloak_admin-"):
+                   assert canonical(before) == canonical(after)
+               else:
+                   left, right = rows(before), rows(after)
+                   assert left and right and left[0] == right[0]
+                   assert Counter(map(tuple, left[1:])) == Counter(map(tuple, right[1:]))
+   except Exception:
+       print("FAIL")
+       sys.exit(1)
+   print("PASS")
+   PY
+   ```
+
+   Continue only after "PASS". If the import task fails, parts of the restore
+   may already have been applied: repeat steps 6 to 8 with the same intended
+   file. If the import succeeds but the check prints "FAIL", keep both files
+   protected and investigate the difference before continuing or restoring
+   again.
 
 :::danger
 If the `settings` value in the file you restore is not valid JSON, the TOE does
