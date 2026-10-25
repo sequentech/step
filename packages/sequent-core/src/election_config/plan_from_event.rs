@@ -38,6 +38,7 @@ use super::build::{
 };
 use super::plan_from_workbook::ReadPlan;
 use super::policy::{Behaviour, Overrides};
+use super::presets::PRESETS;
 use super::problem::{Code, Problem, Report};
 use super::validate::ALLOW_EARLY_VOTING;
 use crate::types::ceremonies::CeremoniesPolicy;
@@ -868,7 +869,9 @@ fn base_export(document: &Value, event: &Map<String, Value>) -> Option<Value> {
     if let Some(realm) = document.get("keycloak_event_realm").filter(|realm| {
         realm.as_object().is_some_and(|realm| !realm.is_empty())
     }) {
-        base.insert("keycloak_event_realm".to_string(), realm.clone());
+        let mut realm = realm.clone();
+        drop_preset_secrets(&mut realm);
+        base.insert("keycloak_event_realm".to_string(), realm);
     }
     if !event.is_empty() {
         base.insert("election_event".to_string(), Value::Object(event));
@@ -881,6 +884,31 @@ fn base_export(document: &Value, event: &Map<String, Value>) -> Option<Value> {
         base.insert(VERSION_KEY.to_string(), Value::from(version));
     }
     (!base.is_empty()).then_some(Value::Object(base))
+}
+
+/// The secrets a preset leaves to the deployment, removed from a realm.
+///
+/// A plan is a file people download and share, so the secret an export's realm
+/// carries stays in that realm's Keycloak and is never copied into the plan.
+fn drop_preset_secrets(realm: &mut Value) {
+    let Some(configs) = realm
+        .get_mut("authenticatorConfig")
+        .and_then(Value::as_array_mut)
+    else {
+        return;
+    };
+    for secret in PRESETS.iter().flat_map(|preset| preset.secrets) {
+        for config in configs.iter_mut().filter(|config| {
+            config.get("alias").and_then(Value::as_str)
+                == Some(secret.config_alias)
+        }) {
+            if let Some(values) =
+                config.get_mut("config").and_then(Value::as_object_mut)
+            {
+                values.remove(secret.key);
+            }
+        }
+    }
 }
 
 #[cfg(test)]

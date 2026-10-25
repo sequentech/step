@@ -106,6 +106,19 @@ fn fallbacks(name: &str) -> Map<String, Value> {
             Value::Object(map) => map,
             _ => Map::new(),
         },
+        "biometric_authentication" => match json!({
+            presets::PARAM_SCANOVATE_OCR_URL: "",
+            presets::PARAM_SCANOVATE_LIVENESS_URL: "",
+            presets::PARAM_SCANOVATE_FACE_MATCH_URL: "",
+            presets::PARAM_SCANOVATE_FACE_MATCH_MIN_SIMILARITY: "0.67",
+            presets::PARAM_ACCEPTED_PASSPORT_COUNTRIES: "ESP|PHL|ISR|NLD",
+            presets::PARAM_OTP_LENGTH: "6",
+            presets::PARAM_OTP_TTL_SECONDS: "300",
+            presets::PARAM_OTP_SENDER_ID: "Sequent",
+        }) {
+            Value::Object(map) => map,
+            _ => Map::new(),
+        },
         "otp_email_or_sms" | "voter_link_plus_dob" => match json!({
             presets::PARAM_OTP_LENGTH: "6",
             presets::PARAM_OTP_TTL_SECONDS: "900",

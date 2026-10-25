@@ -2039,6 +2039,186 @@ fn a_preset_whose_flow_the_realm_lacks_is_warned_about_rather_than_applied_blind
         .contains("has no flow 'certificate-first-login-flow'")));
 }
 
+fn biometric_workbook() -> Workbook {
+    let setting =
+        |key: &str, value: &str| vec![text("settings"), text(key), text(value)];
+    with_sheet(
+        "Parameters",
+        vec![
+            vec![text("type"), text("key"), text("value")],
+            setting("auth_type", "biometric_authentication"),
+            setting("scanovate_ocr_url", "https://ocr.example.org"),
+            setting("scanovate_liveness_url", "https://liveness.example.org"),
+            setting("scanovate_face_match_url", "https://match.example.org"),
+        ],
+    )
+}
+
+/// A realm that already runs the biometric registration: its own flow under the
+/// same alias, and the liveness secret the deployment set.
+fn biometric_realm() -> Value {
+    let mut realm = base_realm();
+    realm["registrationFlow"] = json!("registration");
+    realm["supportedLocales"] = json!(["en", "tl"]);
+    realm["authenticationFlows"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!({
+            "alias": "biometric-registration",
+            "authenticationExecutions": [
+                {"authenticator": "scanovate-authenticator"},
+                {"authenticator": "conditional-auth-note"},
+                {"authenticator": "deny-access-authenticator"},
+            ],
+        }));
+    realm["authenticatorConfig"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!({
+            "alias": "scanovate-registration",
+            "config": {"liveness-secret": "kept-by-the-deployment"},
+        }));
+    realm
+}
+
+#[test]
+fn biometric_authentication_switches_the_realm_to_its_registration_flow() {
+    let bundle = with_options(
+        &biometric_workbook(),
+        BuildOptions {
+            base_export: Some(json!({"keycloak_event_realm": base_realm()})),
+            ..BuildOptions::default()
+        },
+    );
+    assert_eq!(bundle.auth_preset, Some("biometric_authentication"));
+
+    let realm = &bundle.export["keycloak_event_realm"];
+    assert_eq!(realm["registrationFlow"], json!("biometric-registration"));
+    assert_eq!(realm["loginTheme"], json!("sequent-ui-voting"));
+    let flows: Vec<&str> = realm["authenticationFlows"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|flow| flow["alias"].as_str().unwrap())
+        .collect();
+    // Added beside the environment's flows, not in place of them.
+    for alias in [
+        "browser",
+        "saml-first-broker-flow",
+        "biometric-registration",
+        "biometric-registration registration form",
+        "passport-country-check",
+    ] {
+        assert!(flows.contains(&alias), "{alias} in {flows:?}");
+    }
+    // The login flow's own OTP step is left alone.
+    assert!(
+        realm["authenticationFlows"][0]["authenticationExecutions"][0]
+            .get("authenticatorConfig")
+            .is_none()
+    );
+}
+
+#[test]
+fn a_realm_that_lacks_the_biometric_providers_is_warned_about() {
+    let bundle = with_options(
+        &biometric_workbook(),
+        BuildOptions {
+            base_export: Some(json!({"keycloak_event_realm": base_realm()})),
+            ..BuildOptions::default()
+        },
+    );
+    for provider in [
+        "scanovate-authenticator",
+        "conditional-auth-note",
+        "deny-access-authenticator",
+    ] {
+        assert!(
+            bundle.warnings.warnings().any(|problem| problem
+                .message
+                .contains(&format!("has no authenticator '{provider}'"))),
+            "{provider}"
+        );
+    }
+    assert!(bundle
+        .warnings
+        .warnings()
+        .any(|problem| problem.message.contains("needs 'liveness-secret'")));
+}
+
+#[test]
+fn the_deployments_liveness_secret_survives_the_biometric_preset() {
+    let bundle = with_options(
+        &biometric_workbook(),
+        BuildOptions {
+            base_export: Some(
+                json!({"keycloak_event_realm": biometric_realm()}),
+            ),
+            ..BuildOptions::default()
+        },
+    );
+    let realm = &bundle.export["keycloak_event_realm"];
+    let scanovate = realm["authenticatorConfig"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|config| config["alias"] == json!("scanovate-registration"))
+        .unwrap();
+    assert_eq!(
+        scanovate["config"]["liveness-secret"],
+        json!("kept-by-the-deployment")
+    );
+    assert_eq!(
+        scanovate["config"]["ocr-url"],
+        json!("https://ocr.example.org")
+    );
+    // The flow under the same alias is the preset's now, whole.
+    let registration = realm["authenticationFlows"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|flow| flow["alias"] == json!("biometric-registration"))
+        .unwrap();
+    assert_eq!(
+        registration["authenticationExecutions"]
+            .as_array()
+            .unwrap()
+            .len(),
+        5
+    );
+    assert_eq!(realm["supportedLocales"], json!(["en", "tl"]));
+    assert!(!bundle
+        .warnings
+        .warnings()
+        .any(|problem| problem.message.contains("liveness-secret")
+            || problem.message.contains("has no authenticator")));
+}
+
+#[test]
+fn biometric_authentication_needs_its_service_urls() {
+    let report = refused(&with_sheet(
+        "Parameters",
+        vec![
+            vec![text("type"), text("key"), text("value")],
+            vec![
+                text("settings"),
+                text("auth_type"),
+                text("biometric_authentication"),
+            ],
+        ],
+    ));
+    for key in [
+        "scanovate_ocr_url",
+        "scanovate_liveness_url",
+        "scanovate_face_match_url",
+    ] {
+        assert!(
+            has_error_saying(&report, &format!("a '{key}' parameter")),
+            "{key}"
+        );
+    }
+}
+
 #[test]
 fn a_preset_missing_a_required_parameter_refuses_the_build() {
     // The SEIU document's own case: it declares SAML and leaves the IdP metadata
