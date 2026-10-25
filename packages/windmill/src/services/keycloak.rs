@@ -244,8 +244,8 @@ fn require_ordinary_permissions(csv_path: &Path) -> anyhow::Result<()> {
 /// Both the create-group and update-group paths grant exactly the roles a CSV
 /// row names, reusing the realm's existing `RoleRepresentation` (and its id)
 /// rather than a freshly minted placeholder. Any requested role the realm does
-/// not define is surfaced as an error — never silently dropped — so the preview
-/// and the applied mapping stay identical. Repeated names collapse to one role.
+/// not define is surfaced as an error — never silently dropped — so the applied
+/// mapping is exactly what the CSV requested. Repeated names collapse to one role.
 fn resolve_requested_roles(
     existing_roles_map: &HashMap<String, RoleRepresentation>,
     requested: &[String],
@@ -451,8 +451,10 @@ mod tests {
         .collect()
     }
 
-    // Over-grant regression: a row resolves to ONLY its own permissions, using the
-    // realm's canonical role ids — never earlier rows' roles or synthetic UUIDs.
+    // Regression: a row resolves to ONLY its own permissions, using the realm's
+    // canonical role ids — never earlier rows' accumulated roles, and never a
+    // synthetic placeholder with a generated id (which the old create-group path
+    // used and which either over-grants or fails the Keycloak role assignment).
     #[test]
     fn resolves_only_requested_roles_to_canonical_values() {
         let map = existing_roles_map();
@@ -474,9 +476,11 @@ mod tests {
     // Duplicate names collapse to a single role.
     #[test]
     fn deduplicates_repeated_requested_roles() {
-        let granted =
-            resolve_requested_roles(&existing_roles_map(), &["tally".to_string(), "tally".to_string()])
-                .expect("role known");
+        let granted = resolve_requested_roles(
+            &existing_roles_map(),
+            &["tally".to_string(), "tally".to_string()],
+        )
+        .expect("role known");
         assert_eq!(granted.len(), 1);
     }
 

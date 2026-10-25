@@ -166,19 +166,23 @@ fn preserving() -> HistoricalOptions {
         ..HistoricalOptions::default()
     }
 }
-/// A representative overseas source: two areas (`MUN_CODE` 06 and 02) reached
-/// through one post, and 80 unique voters spread over four
-/// `(COUNTRY=PROV_CODE, EMBASSY=MUN_CODE, PRECINCT)` tuples, 20 per tuple, with the
-/// abroad status cycling `O/P/S/X` (20 of each). Precinct `0001A` appears under
-/// BOTH embassies and must resolve to different areas — the full-tuple join. `extra`
-/// lets a test append more voter value rows.
-fn overseas_voter_fixture(extra: &str) -> (Vec<u8>, Vec<u8>) {
+/// A representative overseas source: three areas reached through one post, and 80
+/// unique voters over four `(COUNTRY=PROV_CODE, EMBASSY=MUN_CODE, PRECINCT)` tuples,
+/// 20 per tuple, status cycling `O/P/S/X` (20 of each). Precinct `0001A` appears
+/// under two embassies AND two countries, so it must resolve to three different
+/// areas — the full-tuple join. Every voter carries maternal name, suffix and a
+/// full date of birth, so the optional-attribute mapping is exercised. `extra` lets
+/// a test append raw pop rows and voter rows (`(extra_pop, extra_voters)`).
+fn overseas_voter_fixture(
+    extra_pop: &str,
+    extra_voters: &str,
+) -> (Vec<u8>, Vec<u8>) {
     let mut sql = String::new();
-    sql.push_str("CREATE TABLE `allbgy` (`ID_BARANGAY` text, `AREANAME` text); INSERT INTO `allbgy` VALUES ('B06','Area A'),('B02','Area B');\n");
-    sql.push_str("CREATE TABLE `allmun` (`ID_CITY` text, `AREANAME` text); INSERT INTO `allmun` VALUES ('9006','City A'),('9002','City B');\n");
+    sql.push_str("CREATE TABLE `allbgy` (`ID_BARANGAY` text, `AREANAME` text); INSERT INTO `allbgy` VALUES ('B06','KINGDOM OF THAILAND'),('B02','PEOPLES REPUBLIC OF BANGLADESH'),('B91','UNITED STATES');\n");
+    sql.push_str("CREATE TABLE `allmun` (`ID_CITY` text, `AREANAME` text); INSERT INTO `allmun` VALUES ('9006','City A'),('9002','City B'),('9101','City C');\n");
     sql.push_str("CREATE TABLE `polling_centers` (`ID` text, `POLLING_PLACE` text); INSERT INTO `polling_centers` VALUES ('P01','Post One');\n");
-    sql.push_str("CREATE TABLE `pop` (`CLUSTERPOLLCENTER` text, `POLLCENTER_CODE` text, `PROV_CODE` text, `MUN_CODE` text, `BRGY_CODE` text, `PRECINCT` text); INSERT INTO `pop` VALUES ('B06','P01','90','06','001','0001A'),('B06','P01','90','06','001','0002A'),('B06','P01','90','06','001','0003A'),('B02','P01','90','02','001','0001A');\n");
-    sql.push_str("CREATE TABLE `trans_route` (`TRANS_SOURCE_ID` text, `TRANS_DEST_ID` text); INSERT INTO `trans_route` VALUES ('90060001','DESTA'),('90020001','DESTB');\n");
+    sql.push_str(&format!("CREATE TABLE `pop` (`CLUSTERPOLLCENTER` text, `POLLCENTER_CODE` text, `PROV_CODE` text, `MUN_CODE` text, `BRGY_CODE` text, `PRECINCT` text); INSERT INTO `pop` VALUES ('B06','P01','90','06','001','0001A'),('B06','P01','90','06','001','0002A'),('B02','P01','90','02','001','0001A'),('B91','P01','91','01','001','0001A'){extra_pop};\n"));
+    sql.push_str("CREATE TABLE `trans_route` (`TRANS_SOURCE_ID` text, `TRANS_DEST_ID` text); INSERT INTO `trans_route` VALUES ('90060001','DESTA'),('90020001','DESTB'),('91010001','DESTC');\n");
     sql.push_str("CREATE TABLE `seat` (`DISTRICTCODE` text, `CONTEST` text, `ELIGIBLEAMOUNT` int, `GEOCODE` text); INSERT INTO `seat` VALUES ('S01','Example Seat',1,'G01');\n");
     sql.push_str("CREATE TABLE `contest` (`POSTCODE` text, `POSTNAME` text, `SORT_ORDER` int); INSERT INTO `contest` VALUES ('C01','Example Seat',1);\n");
     sql.push_str("CREATE TABLE `candidate` (`CAND_CODE` text, `NAMEONBALLOT` text, `POST_CODE` text, `DISTRICTCODE` text, `NOMINATEDBY` text); INSERT INTO `candidate` VALUES ('0007','Example Candidate','C01','S01','PR01');\n");
@@ -187,29 +191,37 @@ fn overseas_voter_fixture(extra: &str) -> (Vec<u8>, Vec<u8>) {
     let tuples = [
         ("90", "06", "0001A"),
         ("90", "06", "0002A"),
-        ("90", "06", "0003A"),
         ("90", "02", "0001A"),
+        ("91", "01", "0001A"),
     ];
     let statuses = ["O", "P", "S", "X"];
     let mut values: Vec<String> = (0..80usize)
         .map(|i| {
             let (country, embassy, precinct) = tuples[i / 20];
             let status = statuses[i % 4];
-            format!("('v-{i:04}','First{i}','Last{i}','{country}','{embassy}','{precinct}','{status}')")
+            let suffix = if i % 2 == 0 { "Jr" } else { "" };
+            let month = (i % 12) + 1;
+            let day = (i % 28) + 1;
+            format!("('v-{i:04}','First{i}','Last{i}','Mid{i}','{suffix}','1990','{month}','{day}','{country}','{embassy}','{precinct}','{status}')")
         })
         .collect();
-    if !extra.is_empty() {
-        values.push(extra.to_string());
+    if !extra_voters.is_empty() {
+        values.push(extra_voters.to_string());
     }
-    sql.push_str(&format!("CREATE TABLE `voters` (`ID` text, `FIRSTNAME` text, `LASTNAME` text, `COUNTRY` text, `EMBASSY` text, `PRECINCT` text, `ABROADSTATUS` text); INSERT INTO `voters` VALUES {};\n", values.join(",")));
-    for name in ["allprov", "canvass_center", "district_type", "ref_typeboard"] {
+    sql.push_str(&format!("CREATE TABLE `voters` (`ID` text, `FIRSTNAME` text, `LASTNAME` text, `MATERNALNAME` text, `SUFFIX` text, `DOBYEAR` text, `DOBMONTH` text, `DOBDAY` text, `COUNTRY` text, `EMBASSY` text, `PRECINCT` text, `ABROADSTATUS` text); INSERT INTO `voters` VALUES {};\n", values.join(",")));
+    for name in [
+        "allprov",
+        "canvass_center",
+        "district_type",
+        "ref_typeboard",
+    ] {
         sql.push_str(&format!("CREATE TABLE `{name}` (`ID` text);\n"));
     }
-    let area = |n: usize, name: &str| {
+    let area = |n: usize, name: &str, description: &str| {
         row(
             "Areas",
             n,
-            vec![("name", json!(name)), ("description", json!("Test"))],
+            vec![("name", json!(name)), ("description", json!(description))],
         )
     };
     let schedule = |n: usize, kind: &str, date: &str| {
@@ -249,7 +261,14 @@ fn overseas_voter_fixture(extra: &str) -> (Vec<u8>, Vec<u8>) {
                 ],
             )],
         ),
-        rows_sheet("Areas", vec![area(0, "Area A"), area(1, "Area B")]),
+        rows_sheet(
+            "Areas",
+            vec![
+                area(0, "KINGDOM OF THAILAND", "BANGKOK PE"),
+                area(1, "PEOPLES REPUBLIC OF BANGLADESH", "DHAKA PE"),
+                area(2, "UNITED STATES", "WASHINGTON D.C."),
+            ],
+        ),
         rows_sheet("CcsServers", vec![]),
         rows_sheet(
             "ScheduledEvents",
@@ -265,7 +284,7 @@ fn overseas_voter_fixture(extra: &str) -> (Vec<u8>, Vec<u8>) {
 #[test]
 fn preserve_source_voters_builds_the_full_census_joined_by_the_whole_location_tuple(
 ) {
-    let (sql, xlsx) = overseas_voter_fixture("");
+    let (sql, xlsx) = overseas_voter_fixture("", "");
     let adapted = adapt(&sql, &xlsx, &preserving()).unwrap();
     assert_eq!(adapted.summary.preserved_voters, 80);
     assert_eq!(adapted.summary.excluded_voters, 0);
@@ -286,28 +305,103 @@ fn preserve_source_voters_builds_the_full_census_joined_by_the_whole_location_tu
         v.column(name)
             .unwrap_or_else(|| panic!("census column {name} is missing"))
     };
-    let (username, area_name, status, embassy, precinct, email) = (
+    // Canonical COMELEC attribute keys the enrollment matcher reads must be present
+    // (not source_* variants), so imported voters match at enrollment.
+    let (username, area_name, status, email) = (
         col("username"),
         col("area_name"),
         col("source_abroad_status"),
-        col("source_embassy"),
-        col("source_precinct"),
         col("email"),
     );
+    // Canonical enrollment keys AND raw source codes both present.
+    let (country, embassy) = (col("country"), col("embassy"));
+    let (src_country, src_embassy, src_precinct) = (
+        col("source_country"),
+        col("source_embassy"),
+        col("source_precinct"),
+    );
+    let (middle, suffix, dob) =
+        (col("middleName"), col("suffix"), col("dateOfBirth"));
+
     // 80 unique ids, exactly the source ids.
     let ids: std::collections::BTreeSet<&str> =
         v.rows.iter().map(|r| r[username].as_str()).collect();
     assert_eq!(ids.len(), 80);
     assert!(ids.contains("v-0000") && ids.contains("v-0079"));
-    // Full-tuple join: precinct 0001A resolves to a DIFFERENT area per embassy.
-    for r in &v.rows {
-        if r[precinct] == "0001A" && r[embassy] == "06" {
-            assert_eq!(r[area_name], "Area A");
-        }
-        if r[precinct] == "0001A" && r[embassy] == "02" {
-            assert_eq!(r[area_name], "Area B");
-        }
+
+    // Full-tuple join: every source tuple has exactly 20 voters, all mapped to the
+    // right area, with the canonical embassy/country derived from that area (the same
+    // normalization the registration option lists use). Source precinct 0001A under
+    // embassy 06 / embassy 02 / country 91 resolves to three different areas.
+    // Count-based so a non-matching tuple fails loudly.
+    for (c, e, p, area, emb, cty) in [
+        (
+            "90",
+            "06",
+            "0001A",
+            "KINGDOM OF THAILAND",
+            "Bangkok PE",
+            "Kingdom Of Thailand/Bangkok PE",
+        ),
+        (
+            "90",
+            "06",
+            "0002A",
+            "KINGDOM OF THAILAND",
+            "Bangkok PE",
+            "Kingdom Of Thailand/Bangkok PE",
+        ),
+        (
+            "90",
+            "02",
+            "0001A",
+            "PEOPLES REPUBLIC OF BANGLADESH",
+            "Dhaka PE",
+            "Peoples Republic Of Bangladesh/Dhaka PE",
+        ),
+        (
+            "91",
+            "01",
+            "0001A",
+            "UNITED STATES",
+            "Washington D.C.",
+            "United States/Washington D.C.",
+        ),
+    ] {
+        let matching: Vec<_> = v
+            .rows
+            .iter()
+            .filter(|r| {
+                r[src_country] == c
+                    && r[src_embassy] == e
+                    && r[src_precinct] == p
+            })
+            .collect();
+        assert_eq!(
+            matching.len(),
+            20,
+            "tuple {c}/{e}/{p} should have 20 voters"
+        );
+        assert!(
+            matching
+                .iter()
+                .all(|r| r[area_name] == area && r[embassy] == emb && r[country] == cty),
+            "tuple {c}/{e}/{p} must map to area {area} / embassy {emb} / country {cty}"
+        );
     }
+
+    // Optional attributes are preserved with fidelity under the canonical keys, and
+    // the raw source components are kept alongside for audit.
+    let first = v.rows.iter().find(|r| r[username] == "v-0000").unwrap();
+    assert_eq!(first[middle], "Mid0");
+    assert_eq!(first[suffix], "Jr");
+    assert_eq!(first[dob], "1990-01-01", "DOB parts compose to yyyy-MM-dd");
+    assert_eq!(first[col("source_maternal_name")], "Mid0");
+    assert_eq!(first[col("source_suffix")], "Jr");
+    assert_eq!(first[col("source_dob_year")], "1990");
+    assert_eq!(first[col("source_dob_month")], "1");
+    assert_eq!(first[col("source_dob_day")], "1");
+
     // Raw O/P/S/X preserved verbatim, 20 of each; status never reinterpreted.
     for s in ["O", "P", "S", "X"] {
         assert_eq!(v.rows.iter().filter(|r| r[status] == s).count(), 20);
@@ -348,11 +442,63 @@ fn a_voter_with_no_in_scope_area_is_surfaced_not_dropped() {
     // An 81st voter whose precinct no pop row provides must raise a visible per-row
     // error rather than being silently excluded.
     let (sql, xlsx) = overseas_voter_fixture(
-        "('v-9999','Orphan','Voter','90','06','9999','O')",
+        "",
+        "('v-9999','Orphan','Voter','Mid','','1990','1','1','90','06','9999','O')",
     );
     let refused = adapt(&sql, &xlsx, &preserving()).unwrap_err();
     assert_eq!(refused.report.problems[0].code, Code::DanglingReference);
     assert!(refused.report.problems[0].path.contains("voters"));
+}
+#[test]
+fn a_precinct_key_shared_by_two_areas_is_a_conflict_not_a_guess() {
+    // A second pop row with the same (province, municipality, precinct) key but a
+    // different barangay/area must be rejected, so voters are never misassigned.
+    let (sql, xlsx) =
+        overseas_voter_fixture(",('B02','P01','90','06','001','0001A')", "");
+    let refused = adapt(&sql, &xlsx, &preserving()).unwrap_err();
+    assert_eq!(refused.report.problems[0].code, Code::DuplicateId);
+    assert!(refused.report.problems[0].path.contains("pop"));
+}
+#[test]
+fn a_duplicate_voter_id_is_rejected() {
+    let (sql, xlsx) = overseas_voter_fixture(
+        "",
+        "('v-0000','Dup','Licate','Mid','','1990','1','1','90','06','0001A','O')",
+    );
+    let refused = adapt(&sql, &xlsx, &preserving()).unwrap_err();
+    assert_eq!(refused.report.problems[0].code, Code::DuplicateId);
+    assert!(refused.report.problems[0].path.contains("voters"));
+}
+#[test]
+fn an_incomplete_or_impossible_date_of_birth_is_surfaced() {
+    // Month/day 99 parse as numbers but are not a real date: a visible problem, not
+    // a silently blank canonical identity.
+    let (sql, xlsx) = overseas_voter_fixture(
+        "",
+        "('v-9000','Bad','Date','Mid','','1990','99','99','90','06','0001A','O')",
+    );
+    let refused = adapt(&sql, &xlsx, &preserving()).unwrap_err();
+    assert_eq!(refused.report.problems[0].code, Code::InvalidValue);
+    assert!(refused.report.problems[0].path.contains("voters"));
+}
+#[test]
+fn a_voter_with_no_date_of_birth_imports_with_it_left_blank() {
+    let (sql, xlsx) = overseas_voter_fixture(
+        "",
+        "('v-9001','No','Dob','Mid','','','','','90','06','0001A','O')",
+    );
+    let adapted = adapt(&sql, &xlsx, &preserving()).unwrap();
+    assert_eq!(adapted.summary.preserved_voters, 81);
+    let voters = adapted.workbook.rows("voters");
+    let voter = voters
+        .iter()
+        .find(|r| r.text("username") == Some("v-9001"))
+        .unwrap();
+    assert_eq!(
+        voter.get("dateOfBirth").and_then(Value::as_str),
+        Some(""),
+        "a fully-absent DOB is left unset, never guessed"
+    );
 }
 #[test]
 fn refuses_a_dangling_precinct_reference_before_building() {

@@ -787,7 +787,9 @@ fn map(
         // Voters are imported as the census below (see build_source_voter_rows);
         // none are excluded.
         CensusPolicy::PreserveSourceVoters => {}
-        CensusPolicy::ConfigurationOnly => summary.excluded_voters = voter_count,
+        CensusPolicy::ConfigurationOnly => {
+            summary.excluded_voters = voter_count
+        }
         CensusPolicy::RequireReviewedMapping => {
             if voter_count > 0 {
                 return Err(Problem::error(Code::NotApproved,"SQL table voters","this profile does not define historical eligibility; explicitly choose configuration-only to drop them, or preserve-source-voters to import them through an independently reviewed census workflow"));
@@ -1095,11 +1097,28 @@ fn map(
     let mut output_links = BTreeMap::new();
     let mut used_candidates = BTreeSet::new();
     let mut unresolved_affiliations = BTreeSet::new();
-    // (PROV_CODE, MUN_CODE, PRECINCT) -> area external_id, recorded from the same
-    // crosswalk the areas are built from, so source voters can join to an area.
-    let mut precinct_area_index: BTreeMap<(String, String, String), String> =
-        BTreeMap::new();
+    // (PROV_CODE, MUN_CODE, PRECINCT) -> area external_id for an in-scope pop row,
+    // or None for an out-of-scope one, recorded from the same crosswalk the areas
+    // are built from so source voters can join to an area. EVERY pop row is recorded
+    // (before the scope filters) so a key shared by an excluded row is caught as a
+    // conflict instead of silently assigning its voters to the in-scope area.
+    let mut precinct_area_index: BTreeMap<
+        (String, String, String),
+        Option<VoterArea>,
+    > = BTreeMap::new();
     for pop in 0..populations.table.rows.len() {
+        // Only the voter-preserving census needs this crosswalk (and the source
+        // PRECINCT column); other policies leave the pop schema untouched.
+        let precinct_key =
+            if options.census == CensusPolicy::PreserveSourceVoters {
+                Some((
+                    populations.text(pop, "PROV_CODE")?,
+                    populations.text(pop, "MUN_CODE")?,
+                    populations.text(pop, "PRECINCT")?,
+                ))
+            } else {
+                None
+            };
         let center = centers.lookup(
             &ci,
             &populations.text(pop, "POLLCENTER_CODE")?,
@@ -1130,6 +1149,9 @@ fn map(
             barangay
         };
         let Some(contexts) = ei.get(&post) else {
+            if let Some(key) = &precinct_key {
+                record_precinct_area(&mut precinct_area_index, key, None, pop)?;
+            }
             summary.excluded_precinct_rows += 1;
             continue;
         };
@@ -1137,6 +1159,9 @@ fn map(
             && !ai.contains_key(&area_name)
             && options.precinct_coverage == PostCoverage::WorkbookPostsOnly
         {
+            if let Some(key) = &precinct_key {
+                record_precinct_area(&mut precinct_area_index, key, None, pop)?;
+            }
             summary.excluded_precinct_rows += 1;
             continue;
         }
@@ -1149,27 +1174,18 @@ fn map(
         let area_id =
             format!("barangay:{}", barangays.text(bgy, "ID_BARANGAY")?);
         set(&mut area, "external_id", json!(area_id));
-        // Only the voter-preserving census needs the precinct->area crosswalk (and
-        // the source PRECINCT column); other policies leave the pop schema untouched.
-        if options.census == CensusPolicy::PreserveSourceVoters {
-            if let Some(previous) = precinct_area_index.insert(
-                (
-                    populations.text(pop, "PROV_CODE")?,
-                    populations.text(pop, "MUN_CODE")?,
-                    populations.text(pop, "PRECINCT")?,
-                ),
-                area_id.clone(),
-            ) {
-                if previous != area_id {
-                    return Err(problem(
-                        "pop",
-                        pop,
-                        "PRECINCT",
-                        Code::DuplicateId,
-                        "a (province, municipality, precinct) maps to two different areas",
-                    ));
-                }
-            }
+        if let Some(key) = &precinct_key {
+            let (country, embassy) = voter_location(&area);
+            record_precinct_area(
+                &mut precinct_area_index,
+                key,
+                Some(VoterArea {
+                    external_id: area_id.clone(),
+                    country,
+                    embassy,
+                }),
+                pop,
+            )?;
         }
         set(
             &mut area,
@@ -1575,20 +1591,155 @@ fn map(
     Workbook::new(sheets)
 }
 
+/// The area a source voter joins, with the canonical COMELEC location values the
+/// registration selects and the enrollment approval matrix compare, derived from
+/// the area the same way the registration option lists are (see `format_embassy`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct VoterArea {
+    external_id: String,
+    /// The `country` attribute value: `"<country>/<embassy>"`, matching a
+    /// `country_list` option.
+    country: String,
+    /// The `embassy` attribute value, matching an `embassy_list` option.
+    embassy: String,
+}
+
+/// Title-case one word the way Python's `str.title()` does: the first letter after
+/// any non-letter is upper-cased, the rest lower-cased.
+fn title_word(word: &str) -> String {
+    let mut out = String::with_capacity(word.len());
+    let mut prev_alpha = false;
+    for c in word.chars() {
+        if c.is_alphabetic() {
+            if prev_alpha {
+                out.extend(c.to_lowercase());
+            } else {
+                out.extend(c.to_uppercase());
+            }
+            prev_alpha = true;
+        } else {
+            out.push(c);
+            prev_alpha = false;
+        }
+    }
+    out
+}
+
+/// Format a country/embassy label exactly as the janitor's `get_embassy` does, so a
+/// derived voter attribute matches the registration option list built from the same
+/// areas: drop parenthetical segments, title-case every word, upper-case the last
+/// word when it is at most three characters, and keep `D.C./DC/SAR/ROC` upper-cased.
+fn format_embassy(value: &str) -> String {
+    let mut without_parens = String::with_capacity(value.len());
+    let mut depth = 0u32;
+    for c in value.chars() {
+        match c {
+            '(' => depth += 1,
+            ')' if depth > 0 => depth -= 1,
+            _ if depth == 0 => without_parens.push(c),
+            _ => {}
+        }
+    }
+    let words: Vec<&str> = without_parens.split_whitespace().collect();
+    let Some((last, head)) = words.split_last() else {
+        return String::new();
+    };
+    const SPECIAL: [&str; 4] = ["D.C.", "DC", "SAR", "ROC"];
+    let mut out: Vec<String> = head
+        .iter()
+        .map(|w| {
+            if SPECIAL.contains(&w.to_uppercase().as_str()) {
+                w.to_uppercase()
+            } else {
+                title_word(w)
+            }
+        })
+        .collect();
+    out.push(if last.chars().count() <= 3 {
+        last.to_uppercase()
+    } else {
+        title_word(last)
+    });
+    out.join(" ")
+}
+
+/// Derive the canonical `(country, embassy)` attribute values from a resolved area
+/// row, matching the registration option lists (`gen_keycloak_context`): the embassy
+/// is `format_embassy(area.description)` and the country is
+/// `format_embassy(area.name)` up to a dash, joined to the embassy with `/`.
+fn voter_location(area: &Row) -> (String, String) {
+    let embassy = format_embassy(
+        area.get("description")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+    );
+    let country_head =
+        format_embassy(area.get("name").and_then(Value::as_str).unwrap_or(""));
+    let country_head = country_head.split('-').next().unwrap_or("").trim();
+    (format!("{country_head}/{embassy}"), embassy)
+}
+
+/// Record a pop row's `(PROV_CODE, MUN_CODE, PRECINCT)` key against the area it
+/// resolves to (`Some`) or against being out of scope (`None`). Every pop row is
+/// recorded, so a key that two rows share with different outcomes (two areas, or an
+/// in-scope and an out-of-scope row) is a conflict rather than a silent
+/// misassignment.
+fn record_precinct_area(
+    index: &mut BTreeMap<(String, String, String), Option<VoterArea>>,
+    key: &(String, String, String),
+    area: Option<VoterArea>,
+    row: usize,
+) -> Result<(), Problem> {
+    match index.get(key) {
+        Some(existing) if *existing != area => Err(problem(
+            "pop",
+            row,
+            "PRECINCT",
+            Code::DuplicateId,
+            "a (province, municipality, precinct) maps to two different areas or scopes",
+        )),
+        _ => {
+            index.insert(key.clone(), area);
+            Ok(())
+        }
+    }
+}
+
 /// Build the census rows for `CensusPolicy::PreserveSourceVoters`.
 ///
-/// Every source voter is preserved. Identity (`username` from the source ID, plus
-/// first/last name) and the raw source attributes (maternal name, suffix,
-/// date-of-birth parts, country/embassy/precinct codes and the abroad status) are
-/// carried through verbatim — no eligibility is inferred from the status, and the
-/// values are not reinterpreted. Email, mobile and password are intentionally left
-/// unset; enrollment collects them later. Each voter joins to an area through the
-/// same `(PROV_CODE, MUN_CODE, PRECINCT)` crosswalk recorded while the areas were
-/// built. A voter whose `(COUNTRY, EMBASSY, PRECINCT)` has no in-scope area raises a
-/// visible per-row error rather than being silently dropped.
+/// Every source voter is preserved and written under the canonical COMELEC user
+/// attribute keys that enrollment matching reads (the registration user profile in
+/// keycloak.hbs and `approvalMatrix.json`, which compares
+/// firstName/middleName/lastName/dateOfBirth/embassy):
+/// - `username` ← source `ID`; `first_name`/`last_name` ← `FIRSTNAME`/`LASTNAME`
+///   (build_voters maps these to Keycloak `firstName`/`lastName`);
+/// - `middleName` ← `MATERNALNAME` (Philippine naming: the mother's maiden surname
+///   is the middle name — an explicit, documented mapping);
+/// - `suffix` ← `SUFFIX`;
+/// - `dateOfBirth` ← `DOBYEAR`/`DOBMONTH`/`DOBDAY` composed as `yyyy-MM-dd` (the
+///   Scanovate store format); a partial date stays blank, never guessed;
+/// - `country`/`embassy` are the display values the registration selects use and the
+///   matrix compares, derived from the voter's resolved area the same way the option
+///   lists are (`embassy = format_embassy(area.description)`,
+///   `country = format_embassy(area.name)` up to a dash, joined to the embassy) — so
+///   they match. The raw source post/country codes are kept as
+///   `source_country`/`source_embassy` for audit.
+/// Alongside the canonical fields, the raw source values are kept for audit:
+/// `source_maternal_name`, `source_suffix`, `source_dob_year`/`_month`/`_day`,
+/// `source_country`/`source_embassy` (the SQL codes) and `source_precinct`. The
+/// abroad status is kept raw as `source_abroad_status` with no eligibility inference.
+/// A supplied date of birth that is incomplete or not a real calendar date, and an
+/// area with no embassy/country label, each raise a visible per-row problem rather
+/// than a silent blank. Email, mobile and password are intentionally left unset;
+/// enrollment collects them later. Source columns outside this mapping are not carried.
+///
+/// Each voter joins to an area through the same `(PROV_CODE, MUN_CODE, PRECINCT)`
+/// crosswalk recorded while the areas were built. A voter whose
+/// `(COUNTRY, EMBASSY, PRECINCT)` has no in-scope area raises a visible per-row error
+/// rather than being silently dropped.
 fn build_source_voter_rows(
     dump: &SqlDump,
-    precinct_area_index: &BTreeMap<(String, String, String), String>,
+    precinct_area_index: &BTreeMap<(String, String, String), Option<VoterArea>>,
     summary: &mut Summary,
 ) -> Result<Vec<Row>, Problem> {
     let voters = Data::new(
@@ -1620,50 +1771,126 @@ fn build_source_voter_rows(
         let country = voters.text(v, "COUNTRY")?;
         let embassy = voters.text(v, "EMBASSY")?;
         let precinct = voters.text(v, "PRECINCT")?;
-        let area_id = precinct_area_index
+        let area = match precinct_area_index
             .get(&(country.clone(), embassy.clone(), precinct.clone()))
-            .ok_or_else(|| {
-                problem(
+        {
+            Some(Some(area)) => area,
+            // Absent key or an out-of-scope (None) row: surface, never guess.
+            _ => {
+                return Err(problem(
                     "voters",
                     v,
                     "PRECINCT",
                     Code::DanglingReference,
                     "voter (country, embassy, precinct) has no in-scope area; the matching source polling row is absent or out of scope",
-                )
-            })?;
+                ))
+            }
+        };
+        // The area must carry a usable embassy/country label, or enrollment matching
+        // would compare against a blank value. Surface it instead of emitting one.
+        if area.embassy.is_empty()
+            || area.country.split('/').next().unwrap_or("").is_empty()
+        {
+            return Err(problem(
+                "voters",
+                v,
+                "EMBASSY",
+                Code::MissingField,
+                "the voter's area has no embassy/country label (its source name or description is blank)",
+            ));
+        }
         // Optional source columns: carry the value when present, blank when the row
         // (or, for other clients, the whole column) is absent. build_voters drops a
         // column that is blank for every voter.
-        let optional = |column: &str| -> Result<Value, Problem> {
+        let optional = |column: &str| -> Result<String, Problem> {
             if voters.table.columns.iter().any(|c| c == column) {
-                Ok(json!(voters.optional(v, column)?.unwrap_or_default()))
+                Ok(voters.optional(v, column)?.unwrap_or_default())
             } else {
-                Ok(json!(""))
+                Ok(String::new())
             }
         };
+        let (dob_year, dob_month, dob_day) = (
+            optional("DOBYEAR")?,
+            optional("DOBMONTH")?,
+            optional("DOBDAY")?,
+        );
+        let date_of_birth = compose_date_of_birth(&dob_year, &dob_month, &dob_day)
+            .map_err(|()| {
+                problem(
+                    "voters",
+                    v,
+                    "DOBYEAR",
+                    Code::InvalidValue,
+                    "voter date of birth is incomplete or is not a real calendar date",
+                )
+            })?
+            .unwrap_or_default();
         rows.push(row(
             "Voters",
             v,
             vec![
                 ("username", json!(username)),
-                ("area.external_id", json!(area_id)),
+                ("area.external_id", json!(area.external_id)),
+                // Canonical COMELEC identity attributes, named exactly as the
+                // registration user profile and the enrollment approval matrix read
+                // them (keycloak.hbs user profile; approvalMatrix.json compares
+                // firstName/middleName/lastName/dateOfBirth/embassy). first_name and
+                // last_name become Keycloak firstName/lastName in build_voters.
                 ("first_name", json!(voters.text(v, "FIRSTNAME")?)),
                 ("last_name", json!(voters.text(v, "LASTNAME")?)),
-                // Raw source attributes, preserved verbatim as Keycloak user attributes.
-                ("source_maternal_name", optional("MATERNALNAME")?),
-                ("source_suffix", optional("SUFFIX")?),
-                ("source_dob_year", optional("DOBYEAR")?),
-                ("source_dob_month", optional("DOBMONTH")?),
-                ("source_dob_day", optional("DOBDAY")?),
+                ("middleName", json!(optional("MATERNALNAME")?)),
+                ("suffix", json!(optional("SUFFIX")?)),
+                ("dateOfBirth", json!(date_of_birth)),
+                // Location under the canonical keys the registration selects and the
+                // matrix compare. The values are derived from the voter's resolved
+                // area the same way the registration option lists are, so they match.
+                ("country", json!(area.country)),
+                ("embassy", json!(area.embassy)),
+                // Raw source values kept for audit (parent asked for raw preservation):
+                // the identity components as supplied, the post/country codes and
+                // precinct as they appear in the SQL, and the abroad status verbatim
+                // (never turned into eligibility). build_voters drops any all-blank one.
+                ("source_maternal_name", json!(optional("MATERNALNAME")?)),
+                ("source_suffix", json!(optional("SUFFIX")?)),
+                ("source_dob_year", json!(dob_year)),
+                ("source_dob_month", json!(dob_month)),
+                ("source_dob_day", json!(dob_day)),
                 ("source_country", json!(country)),
                 ("source_embassy", json!(embassy)),
                 ("source_precinct", json!(precinct)),
-                ("source_abroad_status", json!(voters.text(v, "ABROADSTATUS")?)),
+                (
+                    "source_abroad_status",
+                    json!(voters.text(v, "ABROADSTATUS")?),
+                ),
             ],
         ));
     }
     summary.preserved_voters = rows.len();
     Ok(rows)
+}
+
+/// Compose a `dateOfBirth` in the `yyyy-MM-dd` form the Scanovate authenticator
+/// stores (`storeDateFormat`) and the approval matrix compares.
+///
+/// `Ok(None)` when no part is supplied (the census leaves it unset); `Ok(Some(..))`
+/// for a real calendar date validated by `chrono`; `Err(())` when the source supplies
+/// an incomplete or impossible date (e.g. month 99), so the caller raises a visible
+/// per-row problem rather than silently emitting a blank or wrong identity value.
+fn compose_date_of_birth(
+    year: &str,
+    month: &str,
+    day: &str,
+) -> Result<Option<String>, ()> {
+    let (y, m, d) = (year.trim(), month.trim(), day.trim());
+    if y.is_empty() && m.is_empty() && d.is_empty() {
+        return Ok(None);
+    }
+    match (y.parse::<i32>(), m.parse::<u32>(), d.parse::<u32>()) {
+        (Ok(y), Ok(m), Ok(d)) => chrono::NaiveDate::from_ymd_opt(y, m, d)
+            .map(|date| Some(date.format("%Y-%m-%d").to_string()))
+            .ok_or(()),
+        _ => Err(()),
+    }
 }
 
 fn historical_dates(
