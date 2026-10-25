@@ -11,15 +11,18 @@ use super::configuration_package_apply::{
     PackageTarget, SectionPreview, SectionSubmission, TaskState,
 };
 use super::configuration_package_sections::{
-    absent_admin_rows, admin_changes, event_changes, read_admin_rows, read_group_roles,
-    role_changes, tenant_settings_changes, trustee_changes,
+    absent_admin_rows, admin_changes, event_changes, merged_tenant, read_admin_rows,
+    read_group_roles, role_changes, tenant_configuration_changes, tenant_settings_changes,
+    trustee_changes,
 };
 use crate::postgres::election_event::get_election_event_by_id_if_exist;
 use crate::postgres::tasks_execution::get_task_by_id;
+use crate::postgres::tenant::get_tenant_by_id;
 use crate::postgres::trustee::{get_all_trustees, insert_trustee};
 use crate::services::audit_log::AuditActor;
 use crate::services::database::get_hasura_pool;
 use crate::services::documents::upload_and_return_document;
+use crate::services::export::export_tenant::tenant_csv;
 use crate::services::keycloak::map_realm_data;
 use crate::services::tasks_execution::{post, update_fail};
 use crate::tasks::import_election_event::ImportElectionEventBody;
@@ -32,6 +35,7 @@ use deadpool_postgres::Client as DbClient;
 use sequent_core::election_config::archive::Artifact;
 use sequent_core::election_config::manifest::read_zip;
 use sequent_core::election_config::package_contract::Section;
+use sequent_core::election_config::tenant_package::TenantConfiguration;
 use sequent_core::election_config::tenant_package::TrusteePublic;
 use sequent_core::services::keycloak::{get_tenant_realm, KeycloakAdminClient};
 use sequent_core::types::hasura::core::TasksExecution;
@@ -125,6 +129,17 @@ impl PlatformTarget {
         }
         let realm_roles = roles.into_iter().filter_map(|r| r.name).collect();
         Ok((current, realm_roles))
+    }
+
+    async fn tenant(&self) -> Result<sequent_core::types::hasura::core::Tenant> {
+        let mut db: DbClient = get_hasura_pool().await.get().await?;
+        let transaction = db.transaction().await?;
+        get_tenant_by_id(&transaction, &self.context.tenant_id).await
+    }
+
+    fn tenant_configuration(&self, files: &[Artifact]) -> Result<TenantConfiguration> {
+        serde_json::from_slice(&one(files, "tenant configuration")?.bytes)
+            .context("the tenant configuration is not the package's tenant record")
     }
 
     async fn existing_usernames(&self, usernames: &[String]) -> Result<BTreeSet<String>> {
@@ -239,6 +254,10 @@ impl PlatformTarget {
 impl PackageTarget for PlatformTarget {
     async fn preview(&self, section: Section, files: &[Artifact]) -> Result<SectionPreview> {
         match section {
+            Section::TenantConfiguration => {
+                let wanted = self.tenant_configuration(files)?;
+                Ok(tenant_configuration_changes(&self.tenant().await?, &wanted))
+            }
             Section::TenantSettings => {
                 let wanted: Value = serde_json::from_slice(&one(files, "tenant settings")?.bytes)
                     .context("tenant settings are not JSON")?;
@@ -307,7 +326,7 @@ impl PackageTarget for PlatformTarget {
 
     async fn begin(&self, section: Section) -> Result<Option<String>> {
         let task_type = match section {
-            Section::TenantSettings | Section::RolePermissions => {
+            Section::TenantConfiguration | Section::TenantSettings | Section::RolePermissions => {
                 ETasksExecution::IMPORT_TENANT_CONFIG
             }
             Section::AdminAccounts => ETasksExecution::IMPORT_USERS,
@@ -356,6 +375,24 @@ impl PackageTarget for PlatformTarget {
         task_id: Option<&str>,
     ) -> Result<SectionSubmission> {
         match section {
+            Section::TenantConfiguration => {
+                let wanted = self.tenant_configuration(files)?;
+                let merged = merged_tenant(&self.tenant().await?, &wanted);
+                let file = Artifact {
+                    name: "tenant_configuration.csv".to_string(),
+                    bytes: tenant_csv(merged)?,
+                };
+                self.import_tenant_config(
+                    &file,
+                    ImportOptions {
+                        include_tenant: Some(true),
+                        include_keycloak: Some(false),
+                        include_roles: Some(false),
+                    },
+                    task_id,
+                )
+                .await
+            }
             Section::TenantSettings => {
                 self.import_tenant_config(
                     one(files, "tenant settings")?,

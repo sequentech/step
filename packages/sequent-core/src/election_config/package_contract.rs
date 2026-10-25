@@ -26,6 +26,11 @@ use super::manifest::{
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
+/// The platform's tenant record: what the tenant shows and offers (labels,
+/// annotations, voting channels, settings). Named so the generic tenant CSV
+/// import never mistakes it for its own file.
+pub const TENANT_CONFIGURATION_PREFIX: &str = "tenant_platform-";
+
 /// Tenant settings: a Keycloak admin-realm representation of which the
 /// tenant-configuration importer applies the display name and localization
 /// only. Named after the tenant like the permissions file.
@@ -69,6 +74,7 @@ const EVENT_REALM_PATCH: &str = "keycloak_event_realm_patch.json";
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum Section {
+    TenantConfiguration,
     TenantSettings,
     RolePermissions,
     AdminAccounts,
@@ -77,7 +83,8 @@ pub enum Section {
 }
 
 impl Section {
-    pub const APPLY_ORDER: [Section; 5] = [
+    pub const APPLY_ORDER: [Section; 6] = [
+        Section::TenantConfiguration,
         Section::TenantSettings,
         Section::RolePermissions,
         Section::AdminAccounts,
@@ -242,6 +249,10 @@ fn portal_disposition(path: &str) -> Disposition {
         Disposition::Applied(Section::Trustees)
     } else if path.starts_with(PERMISSIONS_PREFIX) && path.ends_with(".csv") {
         Disposition::Applied(Section::RolePermissions)
+    } else if path.starts_with(TENANT_CONFIGURATION_PREFIX)
+        && path.ends_with(".json")
+    {
+        Disposition::Applied(Section::TenantConfiguration)
     } else if path.starts_with(TENANT_SETTINGS_PREFIX)
         && path.ends_with(".json")
     {

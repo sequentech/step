@@ -31,29 +31,9 @@ pub async fn write_export_document(
     document_id: &str,
     tenant_id: &str,
 ) -> Result<(TempPath)> {
-    let headers = vec![
-        "id".to_string(),
-        "slug".to_string(),
-        "created_at".to_string(),
-        "updated_at".to_string(),
-        "labels".to_string(),
-        "annotations".to_string(),
-        "is_active".to_string(),
-        "voting_channels".to_string(),
-        "settings".to_string(),
-        "test".to_string(),
-    ];
-
     let name = format!("{}-{}", EDocuments::TENANT_CONFIG, tenant_id);
 
-    let mut writer = Writer::from_writer(vec![]);
-    writer.write_record(&headers)?;
-
-    writer.write_record(&tenant_export_values(data)?)?;
-
-    let data_bytes = writer
-        .into_inner()
-        .map_err(|e| anyhow!("Error converting writer into inner: {e:?}"))?;
+    let data_bytes = tenant_csv(data)?;
 
     // Write the serialized data into a temporary file
     let (temp_path, temp_path_string, file_size) =
@@ -62,6 +42,31 @@ pub async fn write_export_document(
 
     Ok(temp_path)
 }
+
+/// The tenant row in the import's CSV format: a header and one record, as
+/// written by an export.
+pub fn tenant_csv(data: Tenant) -> Result<Vec<u8>> {
+    let mut writer = Writer::from_writer(Vec::new());
+    writer.write_record(TENANT_COLUMNS)?;
+    writer.write_record(&tenant_export_values(data)?)?;
+    writer
+        .into_inner()
+        .map_err(|e| anyhow!("Error writing the tenant CSV: {e}"))
+}
+
+/// The tenant CSV's columns, in the order `parse_tenant_record` reads.
+const TENANT_COLUMNS: [&str; 10] = [
+    "id",
+    "slug",
+    "created_at",
+    "updated_at",
+    "labels",
+    "annotations",
+    "is_active",
+    "voting_channels",
+    "settings",
+    "test",
+];
 
 fn tenant_export_values(mut data: Tenant) -> Result<Vec<String>> {
     if let Some(settings) = data.settings.as_mut() {

@@ -8,8 +8,8 @@
 
 use super::configuration_package_apply::SectionPreview;
 use anyhow::{anyhow, Context, Result};
-use sequent_core::election_config::tenant_package::TrusteePublic;
-use sequent_core::types::hasura::core::Trustee;
+use sequent_core::election_config::tenant_package::{TenantConfiguration, TrusteePublic};
+use sequent_core::types::hasura::core::{Tenant, Trustee};
 use sequent_core::types::permissions::RealmRolePolicy;
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
@@ -106,6 +106,79 @@ pub fn role_changes(
         needs_apply,
         changes: Value::Array(changes),
         blockers,
+    }
+}
+
+/// One object field of the tenant record with the package's keys over the
+/// current ones: keys the package does not name are kept.
+fn merged_object(
+    current: Option<&Value>,
+    wanted: Option<&serde_json::Map<String, Value>>,
+) -> Option<Value> {
+    let Some(wanted) = wanted else {
+        return current.cloned();
+    };
+    let mut merged = match current {
+        Some(Value::Object(map)) => map.clone(),
+        _ => serde_json::Map::new(),
+    };
+    for (key, value) in wanted {
+        merged.insert(key.clone(), value.clone());
+    }
+    Some(Value::Object(merged))
+}
+
+/// The tenant record after applying the package: its id, slug, active state
+/// and test flag are the target's own.
+pub fn merged_tenant(current: &Tenant, wanted: &TenantConfiguration) -> Tenant {
+    Tenant {
+        labels: wanted.labels.clone().or_else(|| current.labels.clone()),
+        annotations: merged_object(current.annotations.as_ref(), wanted.annotations.as_ref()),
+        voting_channels: merged_object(
+            current.voting_channels.as_ref(),
+            wanted.voting_channels.as_ref(),
+        ),
+        settings: merged_object(current.settings.as_ref(), wanted.settings.as_ref()),
+        ..current.clone()
+    }
+}
+
+/// The tenant record's changes: each field whose merged value differs, with
+/// the keys that change.
+pub fn tenant_configuration_changes(
+    current: &Tenant,
+    wanted: &TenantConfiguration,
+) -> SectionPreview {
+    let merged = merged_tenant(current, wanted);
+    let mut changes = Vec::new();
+    for (field, before, after) in [
+        ("labels", &current.labels, &merged.labels),
+        ("annotations", &current.annotations, &merged.annotations),
+        (
+            "voting_channels",
+            &current.voting_channels,
+            &merged.voting_channels,
+        ),
+        ("settings", &current.settings, &merged.settings),
+    ] {
+        if before == after {
+            continue;
+        }
+        let keys: Vec<&String> = match (before, after) {
+            (Some(Value::Object(b)), Some(Value::Object(a))) => a
+                .iter()
+                .filter(|(key, value)| b.get(*key) != Some(*value))
+                .map(|(key, _)| key)
+                .collect(),
+            (_, Some(Value::Object(a))) => a.keys().collect(),
+            _ => vec![],
+        };
+        changes.push(json!({"field": field, "action": "update", "keys": keys}));
+    }
+    SectionPreview {
+        needs_apply: !changes.is_empty(),
+        changes: Value::Array(changes),
+        blockers: vec![],
     }
 }
 

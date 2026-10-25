@@ -266,6 +266,8 @@ fn admin_portal_member(name: &str) -> bool {
     name == "admin_users.csv"
         || name == super::package_contract::TRUSTEES_MEMBER
         || name.starts_with(super::package_contract::TENANT_SETTINGS_PREFIX)
+        || name
+            .starts_with(super::package_contract::TENANT_CONFIGURATION_PREFIX)
         || name.starts_with("export_permissions-")
         || name.starts_with("export_templates-")
         || name.starts_with("templates/")
@@ -944,9 +946,10 @@ mod tests {
         let source = portal_bundle();
         let mut layout = layout(&source);
         // The bundle already writes administrators and roles from its sheets;
-        // the package adds the two sections no sheet carries.
+        // the package adds the three sections no sheet carries.
         let package = tenant_package::read(&serde_json::json!({
             "format": "sequent.tenant-package/1",
+            "tenantConfiguration": {"votingChannels": {"online": true}},
             "tenantSettings": {"displayName": "Example"},
             "trustees": [{"name": "t", "signingPublicKey": "AAAA", "shareEncryptionPublicKey": "AAAA"}]
         }))

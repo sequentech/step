@@ -26,6 +26,7 @@ fn complete_delivery() -> Vec<FileEntry> {
                 leaf("export_permissions-t1.csv"),
                 leaf("export_templates-t1.csv"),
                 leaf("keycloak_admin-t1.json"),
+                leaf("tenant_platform-t1.json"),
                 leaf("templates/templates.json"),
                 leaf("trustees_public.json"),
             ],
@@ -78,6 +79,10 @@ fn every_member_of_a_complete_delivery_has_its_documented_disposition() {
         (
             "keycloak_admin-t1.json",
             Disposition::Applied(Section::TenantSettings),
+        ),
+        (
+            "tenant_platform-t1.json",
+            Disposition::Applied(Section::TenantConfiguration),
         ),
         ("templates/templates.json", Disposition::Manual),
         (
@@ -178,6 +183,7 @@ fn the_apply_order_puts_tenant_configuration_before_the_event() {
     assert_eq!(
         Section::APPLY_ORDER,
         [
+            Section::TenantConfiguration,
             Section::TenantSettings,
             Section::RolePermissions,
             Section::AdminAccounts,

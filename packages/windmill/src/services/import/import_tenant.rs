@@ -65,7 +65,7 @@ pub async fn upsert_tenant(
 /// `0 id, 1 slug, 2 created_at, 3 updated_at, 4 labels, 5 annotations,`
 /// `6 is_active, 7 voting_channels, 8 settings, 9 test`. In particular `test`
 /// is column 9 — distinct from `settings` at column 8.
-fn parse_tenant_record(
+pub(crate) fn parse_tenant_record(
     old_tenant_id: &str,
     record: &StringRecord,
 ) -> Result<(Tenant, Option<JsonValue>)> {

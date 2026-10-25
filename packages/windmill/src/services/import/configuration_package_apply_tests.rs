@@ -30,6 +30,10 @@ fn delivery() -> Vec<u8> {
         ("export_voters-e1.csv", b"username\nv1\n"),
     ]);
     let portal = zip(&[
+        (
+            "tenant_platform-t1.json",
+            br#"{"votingChannels":{"online":true}}"#,
+        ),
         ("keycloak_admin-t1.json", br#"{"displayName":"X"}"#),
         ("export_permissions-t1.csv", b"role,permissions\nadmin,a\n"),
         ("admin_users.csv", b"username,group_name\nop,admin\n"),
@@ -155,6 +159,10 @@ fn a_delivery_is_read_into_each_sections_files() {
     let plan = plan();
     let names =
         |s: Section| -> Vec<String> { plan.payloads[&s].iter().map(|f| f.name.clone()).collect() };
+    assert_eq!(
+        names(Section::TenantConfiguration),
+        ["tenant_platform-t1.json"]
+    );
     assert_eq!(names(Section::TenantSettings), ["keycloak_admin-t1.json"]);
     assert_eq!(
         names(Section::RolePermissions),
@@ -311,13 +319,14 @@ async fn a_failure_stops_later_sections_and_a_rerun_resumes_without_resubmitting
     assert_eq!(
         *failing.submissions.lock().unwrap(),
         [
+            Section::TenantConfiguration,
             Section::TenantSettings,
             Section::RolePermissions,
             Section::AdminAccounts
         ]
     );
 
-    // The same target, fixed: the first two sections are already in place
+    // The same target, fixed: the first three sections are already in place
     // and must not be submitted again.
     let fixed = Fake::default();
     *fixed.applied.lock().unwrap() = failing.applied.lock().unwrap().clone();

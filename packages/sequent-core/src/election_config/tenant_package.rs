@@ -15,7 +15,8 @@
 
 use super::archive::Artifact;
 use super::package_contract::{
-    ADMIN_USERS_MEMBER, TENANT_SETTINGS_PREFIX, TRUSTEES_MEMBER,
+    ADMIN_USERS_MEMBER, TENANT_CONFIGURATION_PREFIX, TENANT_SETTINGS_PREFIX,
+    TRUSTEES_MEMBER,
 };
 use super::problem::{Code, Problem, Report};
 use serde::{Deserialize, Serialize};
@@ -23,7 +24,7 @@ use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
 
 /// Field names that would carry a secret. Refused anywhere in the document.
-const SECRET_FIELDS: [&str; 9] = [
+const SECRET_FIELDS: [&str; 10] = [
     "password",
     "passwordSalt",
     "password_salt",
@@ -33,12 +34,31 @@ const SECRET_FIELDS: [&str; 9] = [
     "private_key",
     "signingPrivateKey",
     "shareEncryptionPrivateKey",
+    // The Google service-account key the platform keeps in tenant settings.
+    "gapi_key",
 ];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TenantPackageFormat {
     #[serde(rename = "sequent.tenant-package/1")]
     V1,
+}
+
+/// The platform's tenant record fields a package may set. The target
+/// tenant's id, slug, active state and test flag are its own and never part
+/// of a package. Applying merges each object over the target's current one,
+/// so keys the package does not name are kept.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct TenantConfiguration {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub labels: Option<Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub annotations: Option<serde_json::Map<String, Value>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub voting_channels: Option<serde_json::Map<String, Value>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub settings: Option<serde_json::Map<String, Value>>,
 }
 
 /// What the tenant's administration realm shows: the two fields the
@@ -93,6 +113,8 @@ pub type Provenance = BTreeMap<String, String>;
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct TenantPackage {
     pub format: TenantPackageFormat,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tenant_configuration: Option<TenantConfiguration>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tenant_settings: Option<TenantSettings>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -275,6 +297,12 @@ pub fn artifacts(
     tenant_id: &str,
 ) -> Result<Vec<Artifact>, Problem> {
     let mut written = Vec::new();
+    if let Some(configuration) = &package.tenant_configuration {
+        written.push(json_artifact(
+            format!("{TENANT_CONFIGURATION_PREFIX}{tenant_id}.json"),
+            &serde_json::to_value(configuration).map_err(encode)?,
+        ));
+    }
     if let Some(settings) = &package.tenant_settings {
         // A RealmRepresentation of which the importer reads displayName and
         // localizationTexts.

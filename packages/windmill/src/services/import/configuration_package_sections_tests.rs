@@ -183,3 +183,94 @@ fn an_imported_event_is_not_imported_again() {
     assert!(!existing.needs_apply);
     assert_eq!(existing.changes[0]["action"], "exists");
 }
+
+fn tenant() -> Tenant {
+    serde_json::from_value(json!({
+        "id": "00000000-0000-4000-8000-000000000002",
+        "slug": "target-slug",
+        "is_active": true,
+        "annotations": {"css": "old", "keep": 1},
+        "voting_channels": {"online": true},
+        "settings": {"configuration_signing": {"policy": "required"}, "i18n": {}},
+        "test": 0
+    }))
+    .unwrap()
+}
+
+#[test]
+fn the_tenant_record_keeps_its_identity_and_unnamed_keys() {
+    let wanted: TenantConfiguration = serde_json::from_value(json!({
+        "annotations": {"css": "new"},
+        "votingChannels": {"kiosk": true},
+        "settings": {"i18n": {"en": {"x": "y"}}}
+    }))
+    .unwrap();
+    let merged = merged_tenant(&tenant(), &wanted);
+    assert_eq!(merged.id, tenant().id);
+    assert_eq!(merged.slug, "target-slug");
+    assert!(merged.is_active);
+    assert_eq!(merged.test, Some(0));
+    assert_eq!(merged.annotations, Some(json!({"css": "new", "keep": 1})));
+    assert_eq!(
+        merged.voting_channels,
+        Some(json!({"online": true, "kiosk": true}))
+    );
+    // The signing trust the package does not name stays.
+    assert_eq!(
+        merged.settings,
+        Some(json!({"configuration_signing": {"policy": "required"}, "i18n": {"en": {"x": "y"}}}))
+    );
+    let preview = tenant_configuration_changes(&tenant(), &wanted);
+    assert!(preview.needs_apply);
+    assert_eq!(
+        preview.changes,
+        json!([
+            {"field": "annotations", "action": "update", "keys": ["css"]},
+            {"field": "voting_channels", "action": "update", "keys": ["kiosk"]},
+            {"field": "settings", "action": "update", "keys": ["i18n"]},
+        ])
+    );
+    // Converged once applied.
+    assert!(!tenant_configuration_changes(&merged, &wanted).needs_apply);
+}
+
+#[test]
+fn the_merged_tenant_is_written_in_the_importers_csv_format() {
+    // Read back through the same parser the tenant import uses.
+    let merged = merged_tenant(&tenant(), &TenantConfiguration::default());
+    let csv = crate::services::export::export_tenant::tenant_csv(merged.clone()).unwrap();
+    let mut reader = csv::Reader::from_reader(csv.as_slice());
+    let header: Vec<String> = reader
+        .headers()
+        .unwrap()
+        .iter()
+        .map(str::to_string)
+        .collect();
+    assert_eq!(
+        header,
+        [
+            "id",
+            "slug",
+            "created_at",
+            "updated_at",
+            "labels",
+            "annotations",
+            "is_active",
+            "voting_channels",
+            "settings",
+            "test"
+        ]
+    );
+    let record = reader.records().next().unwrap().unwrap();
+    let (parsed, key) =
+        crate::services::import::import_tenant::parse_tenant_record(&merged.id, &record).unwrap();
+    assert!(key.is_none());
+    // The slug is not compared: the exporter writes it JSON-quoted and the
+    // parser keeps the quotes, and update_tenant never writes the slug, so the
+    // target's own is kept either way.
+    assert_eq!(parsed.settings, merged.settings);
+    assert_eq!(parsed.annotations, merged.annotations);
+    assert_eq!(parsed.voting_channels, merged.voting_channels);
+    assert_eq!(parsed.is_active, merged.is_active);
+    assert_eq!(parsed.test, merged.test);
+}

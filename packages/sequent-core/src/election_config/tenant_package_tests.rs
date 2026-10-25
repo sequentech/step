@@ -11,6 +11,11 @@ const SHARE: &str = "c3ludGhldGljLXNoYXJl";
 fn complete() -> Value {
     json!({
         "format": "sequent.tenant-package/1",
+        "tenantConfiguration": {
+            "annotations": {"css": ".x{}"},
+            "votingChannels": {"online": true, "kiosk": false},
+            "settings": {"language_conf": {"default_language_code": "en"}}
+        },
         "tenantSettings": {"displayName": "Example Commission"},
         "roleMappings": [
             {"group": "admin", "roles": ["election-event-read", "election-event-write"]},
@@ -48,8 +53,19 @@ fn a_complete_package_writes_each_section_in_its_importers_format() {
             "admin_users.csv",
             "export_permissions-t1.csv",
             "keycloak_admin-t1.json",
+            "tenant_platform-t1.json",
             "trustees_public.json"
         ]
+    );
+    let platform: Value =
+        serde_json::from_str(&by_name["tenant_platform-t1.json"]).unwrap();
+    assert_eq!(
+        platform,
+        json!({
+            "annotations": {"css": ".x{}"},
+            "votingChannels": {"online": true, "kiosk": false},
+            "settings": {"language_conf": {"default_language_code": "en"}}
+        })
     );
     // The roles file is exactly what read_roles_config_file parses.
     assert_eq!(
@@ -276,4 +292,27 @@ fn a_census_count_that_differs_from_the_conversion_is_refused() {
     .unwrap_err();
     assert_eq!(problem.code, Code::InvalidValue);
     assert_eq!(problem.path, "census");
+}
+
+#[test]
+fn a_package_never_sets_the_tenants_identity_or_its_service_account_key() {
+    // Control: the complete package reads.
+    assert!(read(&complete()).is_ok());
+    for field in ["slug", "isActive", "id", "test"] {
+        let mut doc = complete();
+        doc["tenantConfiguration"][field] = json!("x");
+        assert_eq!(
+            read(&doc).unwrap_err().problems[0].code,
+            Code::InvalidValue,
+            "{field}"
+        );
+    }
+    let mut doc = complete();
+    doc["tenantConfiguration"]["settings"]["gapi_key"] = json!({"k": "v"});
+    let report = read(&doc).unwrap_err();
+    assert_eq!(
+        report.problems[0].path,
+        "tenant package.tenantConfiguration.settings.gapi_key"
+    );
+    assert_eq!(report.problems[0].code, Code::NotApproved);
 }
