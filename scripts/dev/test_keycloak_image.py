@@ -78,7 +78,14 @@ class KeycloakImageTests(unittest.TestCase):
         self.assertRegex(
             dockerfile,
             rf"COPY [^\n]*--from=themes-build [^\n]*/{re.escape(str(THEMES))}/ "
-            r"/opt/keycloak/themes/",
+            r"/\s*\n",
+        )
+        # The intermediate context lets controlled builds omit React themes;
+        # ordinary builds must still install its contents in Keycloak.
+        self.assertIn("FROM scratch AS keycloak-ui-themes", dockerfile)
+        self.assertRegex(
+            dockerfile,
+            r"COPY [^\n]*--from=keycloak-ui-themes / /opt/keycloak/themes/",
         )
 
     def test_the_theme_build_provides_the_sequent_core_peer_dependency(self):
