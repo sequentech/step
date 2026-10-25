@@ -58,14 +58,17 @@ pub async fn upsert_tenant(
     Ok(())
 }
 
-#[instrument(err, skip_all)]
-pub async fn process_record(
-    hasura_transaction: &Transaction<'_>,
+/// Parse one tenant-config CSV row into a [`Tenant`], extracting the Google
+/// service-account key out of `settings`.
+///
+/// Columns mirror the exporter header order in `export_tenant.rs`:
+/// `0 id, 1 slug, 2 created_at, 3 updated_at, 4 labels, 5 annotations,`
+/// `6 is_active, 7 voting_channels, 8 settings, 9 test`. In particular `test`
+/// is column 9 — distinct from `settings` at column 8.
+fn parse_tenant_record(
     old_tenant_id: &str,
     record: &StringRecord,
-) -> Result<()> {
-    info!("record: {:?}", record);
-
+) -> Result<(Tenant, Option<JsonValue>)> {
     let slug = record
         .get(1)
         .ok_or_else(|| anyhow!("Missing Report Type"))?
@@ -95,7 +98,7 @@ pub async fn process_record(
         .and_then(|s| deserialize_str::<JsonValue>(s).ok());
     let service_account_key = settings.as_mut().and_then(take_service_account_key);
     let test = record
-        .get(8)
+        .get(9)
         .map(|val| deserialize_str::<i32>(val).ok())
         .ok_or_else(|| anyhow!("Error deserializing test"))?;
 
@@ -112,6 +115,19 @@ pub async fn process_record(
         test,
     };
 
+    Ok((tenant, service_account_key))
+}
+
+#[instrument(err, skip_all)]
+pub async fn process_record(
+    hasura_transaction: &Transaction<'_>,
+    old_tenant_id: &str,
+    record: &StringRecord,
+) -> Result<()> {
+    info!("record: {:?}", record);
+
+    let (tenant, service_account_key) = parse_tenant_record(old_tenant_id, record)?;
+
     update_tenant(hasura_transaction, tenant, old_tenant_id)
         .await
         .map_err(|e| anyhow!("Error upserting tenant into the database: {e:?}"))?;
@@ -123,4 +139,40 @@ pub async fn process_record(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    // Columns mirror the exporter header order in `export_tenant.rs`:
+    // 0 id, 1 slug, 2 created_at, 3 updated_at, 4 labels, 5 annotations,
+    // 6 is_active, 7 voting_channels, 8 settings, 9 test.
+    //
+    // Regression: `test` must be read from column 9, not column 8 (`settings`).
+    // The old code read `.get(8)` for both, so `test` parsed the settings JSON
+    // object as an i32 and silently collapsed to `None`.
+    #[test]
+    fn parses_exporter_row_keeping_settings_and_test_distinct() {
+        let record = StringRecord::from(vec![
+            "ignored-source-id",
+            "my-slug",
+            "",
+            "",
+            "",
+            "",
+            "true",
+            "",
+            r#"{"theme":"dark"}"#,
+            "7",
+        ]);
+
+        let (tenant, _key) = parse_tenant_record("tenant-id", &record).expect("record parses");
+
+        assert_eq!(tenant.settings, Some(json!({ "theme": "dark" })));
+        assert_eq!(tenant.test, Some(7));
+        assert_eq!(tenant.slug, "my-slug");
+        assert!(tenant.is_active);
+    }
 }
