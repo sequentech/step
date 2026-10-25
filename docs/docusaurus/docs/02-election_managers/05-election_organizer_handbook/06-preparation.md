@@ -358,16 +358,24 @@ names:
    you sure you want to continue?".
 3. The TOE creates a signing request for "Initialize voting". Read its
    "Signing code" to the witnesses; the required board members sign.
-4. The report is produced as an initialization report on the Tally tab. When
-   it is complete, release it: if "Generate other election reports" needs
-   signatures, the required board members sign it.
-5. Show or print the report. The witnesses check:
+4. On the Tally tab, open the initialization ceremony created by that
+   approval. Ask the selected trustees to confirm custody for this tally,
+   following [the trustee procedure](09-trustee-procedures.md#authorising-the-counting).
+   Each trustee creates a fresh proof with this tally's identifier and signs
+   their own confirmation. A proof from the key ceremony or another tally
+   cannot be reused.
+5. Check that the required trustees have confirmed custody and that their
+   trustee servers are running. Select "Start Tally" and confirm with "Start
+   Tally". Wait for the initialization tally to complete.
+6. Release the initialization report: if "Generate other election reports"
+   needs signatures, the required board members sign it.
+7. Show or print the report. The witnesses check:
    - the name of the election and the time it was generated;
    - the number of registered voters;
    - that zero ballots were counted and every candidate has zero votes;
    - that the "Report hash" equals the hash in the `ElectionInitialized`
      records of the election on the Logs tab.
-6. Repeat for every election of the election event.
+8. Repeat for every election of the election event.
 
 :::warning
 If the report counts any ballot, or its hash differs from the

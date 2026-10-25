@@ -148,13 +148,17 @@ trustee.
 
 ## Authorising the counting
 
-Who: each trustee the tally needs. Phase: evaluation. Permission: the role
+Who: each trustee the tally needs. Phase: preparation for an initialization
+report, or evaluation for counting the votes. Permission: the role
 `trustee` with "Trustee Ceremony" (`trustee-ceremony`), and "Sign: authorize
 tally custody" (`sign-tally-key`) where that protected action needs
 signatures.
 
-When the election board has started the tally ceremony, the admin portal shows
-you: "You have been invited to participate in a Tally ceremony."
+When the election board has created the tally ceremony, the admin portal shows
+you: "You have been invited to participate in a Tally ceremony." Check its
+purpose with the board: an initialization report checks that the ballot box
+is empty before voting; an electoral-results tally counts votes after voting
+has closed. Both require a new custody proof bound to their own tally.
 
 1. Sign in with your personal account, open the election event's Tally tab and
    select the tally's action.
@@ -184,9 +188,11 @@ A tally proof is bound to its tally: a proof from the key ceremony or from
 another tally is not accepted.
 
 :::warning
-Authorise only a tally that the election board decided, in the evaluation
-phase, after the audit records were checked. If you are asked to authorise a
-tally at any other time, or the identifier does not match, do not run the
+Authorise only a tally that the election board decided. For counting votes,
+this must be in the evaluation phase, after voting has closed and the audit
+records were checked. For an initialization report, this must be in the
+preparation phase, after the configuration was approved and before voting
+starts. If the purpose, phase or identifier does not match, do not run the
 command and tell the election board.
 :::
 
