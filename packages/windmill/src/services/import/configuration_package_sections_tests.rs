@@ -205,39 +205,97 @@ fn structurally_valid_but_non_native_keys_block() {
 
 #[test]
 fn an_imported_event_is_confirmed_with_its_census_and_a_partial_one_blocks() {
-    let absent = event_changes("e1", EventState::Absent, 3);
+    let census = set(&["a", "b", "c"]);
+    let absent = event_changes("e1", &EventState::Absent, &census, vec![]);
     assert!(absent.needs_apply);
     assert!(absent.blockers.is_empty());
-    let done = event_changes("e1", EventState::Present { voters: 3 }, 3);
+    let done = event_changes(
+        "e1",
+        &EventState::Present {
+            voters: census.clone(),
+        },
+        &census,
+        vec![],
+    );
     assert!(!done.needs_apply);
     assert!(done.blockers.is_empty());
     assert_eq!(done.changes[0]["action"], "exists");
-    let short = event_changes("e1", EventState::Present { voters: 2 }, 3);
-    assert!(!short.needs_apply, "never imported twice");
-    assert_eq!(
-        short.blockers,
-        vec!["event e1 holds 2 voters but the package's census has 3"]
+    // Same count, other people: still a difference.
+    let swapped = event_changes(
+        "e1",
+        &EventState::Present {
+            voters: set(&["a", "b", "x"]),
+        },
+        &census,
+        vec![],
     );
-    let partial = event_changes("e1", EventState::RealmOnly, 3);
+    assert!(!swapped.needs_apply, "never imported twice");
+    assert_eq!(swapped.changes[0]["action"], "census-differs");
+    assert!(swapped.blockers[0].contains("1 of the census are not in the event and 1 people"));
+    let partial = event_changes("e1", &EventState::RealmOnly, &census, vec![]);
     assert!(!partial.needs_apply);
-    assert_eq!(partial.changes[0]["action"], "partial");
     assert_eq!(partial.blockers.len(), 1);
+    // The event's own preflight problems block an import that is otherwise due.
+    let invalid = event_changes("e1", &EventState::Absent, &census, vec!["bad".into()]);
+    assert_eq!(invalid.blockers, vec!["bad"]);
 }
 
-#[test]
-fn the_census_is_counted_from_the_event_zip() {
+fn event_zip(members: &[(&str, &[u8])]) -> Vec<u8> {
     use std::io::Write;
     let mut out = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
-    for (name, bytes) in [
-        ("export_election_event-e1.json", &b"{}"[..]),
-        ("export_voters-e1.csv", &b"username,area\na,x\nb,x\n"[..]),
-    ] {
-        out.start_file(name, zip::write::SimpleFileOptions::default())
+    for (name, bytes) in members {
+        out.start_file(*name, zip::write::SimpleFileOptions::default())
             .unwrap();
         out.write_all(bytes).unwrap();
     }
-    let bytes = out.finish().unwrap().into_inner();
-    assert_eq!(census_rows(&bytes).unwrap(), 2);
+    out.finish().unwrap().into_inner()
+}
+
+#[test]
+fn the_census_is_read_as_the_importer_finds_it_and_ambiguity_is_refused() {
+    let one = event_zip(&[
+        ("export_election_event-e1.json", b"{}"),
+        ("export_voters-e1.csv", b"area,username\nx,Ada\nx,bob\n"),
+        ("export_S3_files/export_voters/photo.png", b"png"),
+    ]);
+    assert_eq!(census_usernames(&one).unwrap(), Ok(set(&["ada", "bob"])));
+    let none = event_zip(&[("export_election_event-e1.json", b"{}")]);
+    assert_eq!(census_usernames(&none).unwrap(), Ok(set(&[])));
+    // The importer reads every member containing the family, any extension.
+    let two = event_zip(&[
+        ("export_voters-e1.csv", b"username\na\n"),
+        ("more_export_voters.tsv", b"username\nb\n"),
+    ]);
+    let refused = census_usernames(&two).unwrap().unwrap_err();
+    assert!(refused.starts_with("the event carries 2 census files"));
+    let tsv = event_zip(&[("export_voters-e1.tsv", b"username\na\n")]);
+    assert!(census_usernames(&tsv).unwrap().is_err());
+    assert_eq!(event_document(&one).unwrap(), b"{}");
+}
+
+#[test]
+fn key_ceremony_trustees_must_resolve_to_one_current_or_planned_trustee() {
+    let referenced = vec![
+        "t1".to_string(),
+        "t2".to_string(),
+        "t3".to_string(),
+        "t1".to_string(),
+    ];
+    let registered = vec!["t1".to_string(), "t3".to_string(), "t3".to_string()];
+    let planned = set(&["t2"]);
+    assert_eq!(
+        trustee_reference_problems(&referenced, &registered, &planned),
+        vec!["the key ceremony names trustee 't3', which 2 registered trustees share"]
+    );
+    let problems = trustee_reference_problems(&["t9".to_string()], &registered, &planned);
+    assert_eq!(
+        problems,
+        vec!["the key ceremony names trustee 't9', which neither the tenant nor the package registers"]
+    );
+    // Control: all resolve.
+    assert!(
+        trustee_reference_problems(&["t1".into(), "t2".into()], &registered, &planned).is_empty()
+    );
 }
 
 fn tenant() -> Tenant {
@@ -288,45 +346,4 @@ fn the_tenant_record_keeps_its_identity_and_unnamed_keys() {
     );
     // Converged once applied.
     assert!(!tenant_configuration_changes(&merged, &wanted).needs_apply);
-}
-
-#[test]
-fn the_merged_tenant_is_written_in_the_importers_csv_format() {
-    // Read back through the same parser the tenant import uses.
-    let merged = merged_tenant(&tenant(), &TenantConfiguration::default());
-    let csv = crate::services::export::export_tenant::tenant_csv(merged.clone()).unwrap();
-    let mut reader = csv::Reader::from_reader(csv.as_slice());
-    let header: Vec<String> = reader
-        .headers()
-        .unwrap()
-        .iter()
-        .map(str::to_string)
-        .collect();
-    assert_eq!(
-        header,
-        [
-            "id",
-            "slug",
-            "created_at",
-            "updated_at",
-            "labels",
-            "annotations",
-            "is_active",
-            "voting_channels",
-            "settings",
-            "test"
-        ]
-    );
-    let record = reader.records().next().unwrap().unwrap();
-    let (parsed, key) =
-        crate::services::import::import_tenant::parse_tenant_record(&merged.id, &record).unwrap();
-    assert!(key.is_none());
-    // The slug is not compared: the exporter writes it JSON-quoted and the
-    // parser keeps the quotes, and update_tenant never writes the slug, so the
-    // target's own is kept either way.
-    assert_eq!(parsed.settings, merged.settings);
-    assert_eq!(parsed.annotations, merged.annotations);
-    assert_eq!(parsed.voting_channels, merged.voting_channels);
-    assert_eq!(parsed.is_active, merged.is_active);
-    assert_eq!(parsed.test, merged.test);
 }

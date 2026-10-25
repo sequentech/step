@@ -378,7 +378,7 @@ pub fn trustee_changes(wanted: &[TrusteePublic], existing: &[Trustee]) -> Sectio
 }
 
 /// What the target holds of the package's event.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EventState {
     /// Neither the event nor its realm.
     Absent,
@@ -386,14 +386,21 @@ pub enum EventState {
     /// after creating it. Importing again would meet that realm.
     RealmOnly,
     /// The event exists. The import commits the event last, after its
-    /// census, so its existence means the import finished; `voters` is the
+    /// census, so its existence means the import finished; `voters` are the
     /// realm's people, compared with the package's census.
-    Present { voters: i64 },
+    Present { voters: BTreeSet<String> },
 }
 
-/// The event: imported once, and confirmed with its census.
-pub fn event_changes(event_id: &str, state: EventState, expected_voters: usize) -> SectionPreview {
-    let mut blockers = Vec::new();
+/// The event: imported once, and confirmed with its census by username.
+/// `problems` are the event's own preflight blockers (validation, trustee
+/// references), reported before anything is applied.
+pub fn event_changes(
+    event_id: &str,
+    state: &EventState,
+    census: &BTreeSet<String>,
+    problems: Vec<String>,
+) -> SectionPreview {
+    let mut blockers = problems;
     let action = match state {
         EventState::Absent => "import",
         EventState::RealmOnly => {
@@ -402,38 +409,113 @@ pub fn event_changes(event_id: &str, state: EventState, expected_voters: usize) 
             ));
             "partial"
         }
-        EventState::Present { voters } if voters == expected_voters as i64 => "exists",
+        EventState::Present { voters } if voters == census => "exists",
         EventState::Present { voters } => {
+            let missing = census.difference(voters).count();
+            let extra = voters.difference(census).count();
             blockers.push(format!(
-                "event {event_id} holds {voters} voters but the package's census has {expected_voters}"
+                "event {event_id}'s voters differ from the package's census: {missing} of the census are not in the event and {extra} people in the event are not in the census; reconcile them by hand"
             ));
             "census-differs"
         }
     };
     SectionPreview {
-        needs_apply: state == EventState::Absent,
-        changes: json!([{"electionEventId": event_id, "action": action, "expectedVoters": expected_voters}]),
+        needs_apply: *state == EventState::Absent,
+        changes: json!([{"electionEventId": event_id, "action": action, "censusSize": census.len()}]),
         blockers,
     }
 }
 
-/// The rows of the event zip's voters file: the census the package carries.
-pub fn census_rows(event_zip: &[u8]) -> Result<usize> {
+/// Whether the event importer would read `name` as the census: the same
+/// family match it dispatches on (`process_document`), outside the S3 files.
+fn is_census_member(name: &str) -> bool {
+    name.contains("export_voters") && !name.starts_with("export_S3_files/")
+}
+
+/// The usernames of the event zip's census, read the way the importer would
+/// find it. More than one census file, or one that is not CSV, is ambiguous
+/// and refused rather than guessed.
+pub fn census_usernames(event_zip: &[u8]) -> Result<std::result::Result<BTreeSet<String>, String>> {
     let members = sequent_core::election_config::manifest::read_zip(event_zip, "election event")
         .map_err(|p| anyhow!("{p}"))?;
-    let Some(voters) = members
+    let census: Vec<_> = members
         .iter()
-        .find(|m| m.name.starts_with("export_voters-") && m.name.ends_with(".csv"))
-    else {
-        return Ok(0);
+        .filter(|m| is_census_member(&m.name))
+        .collect();
+    let voters = match census.as_slice() {
+        [] => return Ok(Ok(BTreeSet::new())),
+        [one] if one.name.ends_with(".csv") => one,
+        _ => {
+            return Ok(Err(format!(
+                "the event carries {} census files ({}); exactly one CSV is applied",
+                census.len(),
+                census
+                    .iter()
+                    .map(|m| m.name.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )))
+        }
     };
     let mut reader = csv::Reader::from_reader(voters.bytes.as_slice());
-    let mut rows = 0;
+    let column = reader
+        .headers()
+        .context("Error reading the census")?
+        .iter()
+        .position(|h| h == "username");
+    let Some(column) = column else {
+        return Ok(Err("the census has no username column".to_string()));
+    };
+    let mut usernames = BTreeSet::new();
     for record in reader.records() {
-        record.context("Error reading the census")?;
-        rows += 1;
+        let record = record.context("Error reading the census")?;
+        usernames.insert(record.get(column).unwrap_or_default().to_lowercase());
     }
-    Ok(rows)
+    Ok(Ok(usernames))
+}
+
+/// The event document of an event zip.
+pub fn event_document(event_zip: &[u8]) -> Result<Vec<u8>> {
+    let members = sequent_core::election_config::manifest::read_zip(event_zip, "election event")
+        .map_err(|p| anyhow!("{p}"))?;
+    members
+        .into_iter()
+        .find(|m| m.name.contains("export_election_event") && m.name.ends_with(".json"))
+        .map(|m| m.bytes)
+        .ok_or_else(|| anyhow!("the event zip has no event document"))
+}
+
+/// The key ceremonies' trustee references, resolved the way the importer
+/// resolves them (by name) against the trustees the tenant has and those
+/// the package registers. The importer maps an unknown name to an empty id,
+/// so an unresolved or ambiguous name blocks before anything is applied.
+pub fn trustee_reference_problems(
+    referenced: &[String],
+    registered: &[String],
+    planned: &BTreeSet<String>,
+) -> Vec<String> {
+    let mut counts: BTreeMap<&str, usize> = BTreeMap::new();
+    for name in registered {
+        *counts.entry(name.as_str()).or_default() += 1;
+    }
+    let mut problems = Vec::new();
+    let mut seen = BTreeSet::new();
+    for name in referenced {
+        if !seen.insert(name) {
+            continue;
+        }
+        match counts.get(name.as_str()) {
+            Some(n) if *n > 1 => problems.push(format!(
+                "the key ceremony names trustee '{name}', which {n} registered trustees share"
+            )),
+            Some(_) => {}
+            None if planned.contains(name) => {}
+            None => problems.push(format!(
+                "the key ceremony names trustee '{name}', which neither the tenant nor the package registers"
+            )),
+        }
+    }
+    problems
 }
 
 #[cfg(test)]

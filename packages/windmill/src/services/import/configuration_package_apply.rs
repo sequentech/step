@@ -24,7 +24,7 @@ use async_trait::async_trait;
 use sequent_core::election_config::archive::{Artifact, ADMIN_PORTAL_MEMBER, IMPORTABLE_MEMBER};
 use sequent_core::election_config::manifest::{file_entries, read_zip};
 use sequent_core::election_config::package_contract::{
-    coverage, nested_disposition, Coverage, Disposition, Requirements, Section,
+    coverage, nested_disposition, Coverage, Disposition, Requirements, Section, SectionState,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -64,9 +64,16 @@ pub fn plan_members(
     let entries = file_entries(members).map_err(|p| anyhow!("{p}"))?;
     let coverage = coverage(&entries, requirements);
     let mut payloads: BTreeMap<Section, Vec<Artifact>> = BTreeMap::new();
+    let present = |section: Section| {
+        matches!(
+            coverage.sections.get(&section),
+            Some(SectionState::Present { .. })
+        )
+    };
     for member in members {
-        if member.name == IMPORTABLE_MEMBER {
-            // The event importer takes its zip whole.
+        if member.name == IMPORTABLE_MEMBER && present(Section::ElectionEvent) {
+            // The event importer takes its zip whole. A zip without its event
+            // document is not an event and is never submitted.
             payloads
                 .entry(Section::ElectionEvent)
                 .or_default()
@@ -80,6 +87,16 @@ pub fn plan_members(
                     payloads.entry(section).or_default().push(file);
                 }
             }
+        }
+    }
+    // Each section is applied from exactly one file; two is a package defect,
+    // refused before anything is asked of the target.
+    for (section, files) in &payloads {
+        if files.len() != 1 {
+            return Err(anyhow!(
+                "the package carries {} files for the {section:?} section; exactly one is applied",
+                files.len()
+            ));
         }
     }
     Ok(PackagePlan {
@@ -143,12 +160,22 @@ pub trait PackageTarget: Send + Sync {
     ) -> Result<SectionSubmission>;
     /// The state of a submission an earlier run began.
     async fn submission_state(&self, task_id: &str) -> Result<TaskState>;
+    /// Close a submission's task row once the section is decided, if its
+    /// import left it open.
+    async fn settle(&self, _task_id: &str, _succeeded: bool) -> Result<()> {
+        Ok(())
+    }
 }
 
 /// Where progress is saved: the task row of the application.
 #[async_trait]
 pub trait ProgressStore: Send + Sync {
     async fn save(&self, record: &ApplicationRecord) -> Result<()>;
+    /// Confirm the run still holds its claim. Asked before every step that
+    /// submits or decides a submission, so a run that lost it stops.
+    async fn hold(&self) -> Result<()> {
+        Ok(())
+    }
 }
 
 /// Where one section stands.
@@ -389,6 +416,7 @@ pub async fn run(
         };
         // An earlier submission left unsettled: settle it before anything
         // else, and never submit again while it may still be running.
+        store.hold().await?;
         if let Some(task_id) = record.history_of(section).in_flight {
             match target.submission_state(&task_id).await {
                 Ok(TaskState::Running) => {
@@ -463,6 +491,7 @@ pub async fn run(
             store.save(&record).await?;
             continue;
         }
+        store.hold().await?;
         let task_id = match target.begin(section).await {
             Ok(task_id) => task_id,
             Err(error) => {
@@ -493,6 +522,7 @@ pub async fn run(
         }
         store.save(&record).await?;
         changed = true;
+        store.hold().await?;
         let submitted = target.apply(section, files, task_id.as_deref()).await;
         // Success is what the target now says, not what the submission said;
         // a submission can also fail after its effect landed (a lost reply).
@@ -547,6 +577,13 @@ pub async fn run(
                 // The submission returned: its task is over, whatever it did.
                 SectionStatus::Failed { .. } => history.in_flight = None,
                 // Not settled: the next run asks its task first.
+                _ => {}
+            }
+        }
+        if let Some(task_id) = &task_id {
+            match &status {
+                SectionStatus::Applied { .. } => target.settle(task_id, true).await?,
+                SectionStatus::Failed { .. } => target.settle(task_id, false).await?,
                 _ => {}
             }
         }

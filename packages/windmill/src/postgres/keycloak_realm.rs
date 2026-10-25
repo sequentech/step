@@ -55,28 +55,32 @@ pub async fn get_realm_id(
         .clone())
 }
 
-/// How many people a realm holds (service accounts excluded), or `None` when
-/// no realm has that name.
+/// The usernames of a realm's people (service accounts excluded), or `None`
+/// when no realm has that name.
 #[instrument(err, skip(keycloak_transaction))]
-pub async fn realm_user_count(
+pub async fn realm_usernames(
     keycloak_transaction: &Transaction<'_>,
     realm_name: &str,
-) -> Result<Option<i64>> {
-    let row = keycloak_transaction
-        .query_opt(
-            r#"
-            SELECT
-                (SELECT count(*) FROM user_entity
-                 WHERE user_entity.realm_id = realm.id
-                   AND user_entity.service_account_client_link IS NULL) AS users
-            FROM realm
-            WHERE realm.name = $1;
-            "#,
-            &[&realm_name],
+) -> Result<Option<std::collections::BTreeSet<String>>> {
+    let realm = keycloak_transaction
+        .query_opt("SELECT id FROM realm WHERE name = $1", &[&realm_name])
+        .await
+        .map_err(|err| anyhow!("Error reading the realm: {err}"))?;
+    let Some(realm) = realm else {
+        return Ok(None);
+    };
+    let realm_id: String = realm.get("id");
+    let rows = keycloak_transaction
+        .query(
+            "SELECT username FROM user_entity
+             WHERE realm_id = $1 AND service_account_client_link IS NULL",
+            &[&realm_id],
         )
         .await
-        .map_err(|err| anyhow!("Error counting the realm's users: {err}"))?;
-    Ok(row.map(|row| row.get("users")))
+        .map_err(|err| anyhow!("Error reading the realm's users: {err}"))?;
+    Ok(Some(
+        rows.into_iter().map(|row| row.get("username")).collect(),
+    ))
 }
 
 /// The groups of each of `usernames` that exists in the realm, by lower-cased

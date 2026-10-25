@@ -15,19 +15,24 @@ use super::configuration_package_sections::{
     read_group_roles, role_changes, tenant_configuration_changes, tenant_settings_changes,
     trustee_changes,
 };
-use super::configuration_package_sections::{census_rows, EventState};
+use super::configuration_package_sections::{
+    census_usernames, event_document, trustee_reference_problems, EventState,
+};
 use crate::postgres::election_event::get_election_event_by_id_if_exist;
-use crate::postgres::keycloak_realm::{realm_user_count, user_groups};
+use crate::postgres::keycloak_realm::{realm_usernames, user_groups};
 use crate::postgres::tasks_execution::get_task_by_id;
 use crate::postgres::tenant::get_tenant_by_id;
+use crate::postgres::tenant::{lock_tenant, update_tenant_configuration};
 use crate::postgres::trustee::{get_all_trustees, insert_trustee};
+use crate::services::audit_log::AdminAction;
 use crate::services::audit_log::AuditActor;
 use crate::services::database::get_hasura_pool;
 use crate::services::database::get_keycloak_pool;
 use crate::services::documents::upload_and_return_document;
-use crate::services::export::export_tenant::tenant_csv;
+use crate::services::import::import_election_event::get_election_event_schema;
 use crate::services::keycloak::map_realm_data;
-use crate::services::tasks_execution::{post, update_fail};
+use crate::services::task_audit;
+use crate::services::tasks_execution::{post, update_complete, update_fail};
 use crate::tasks::import_election_event::ImportElectionEventBody;
 use crate::tasks::import_tenant_config::ImportOptions;
 use crate::tasks::import_users::ImportUsersBody;
@@ -38,6 +43,7 @@ use deadpool_postgres::Client as DbClient;
 use sequent_core::election_config::archive::Artifact;
 use sequent_core::election_config::manifest::read_zip;
 use sequent_core::election_config::package_contract::Section;
+use sequent_core::election_config::tenant_package::secret_field_paths;
 use sequent_core::election_config::tenant_package::TenantConfiguration;
 use sequent_core::election_config::tenant_package::TrusteePublic;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm, KeycloakAdminClient};
@@ -66,6 +72,13 @@ pub struct ApplyContext {
     /// Groups the package's roles section defines, so administrators may name
     /// them before that section has run.
     pub package_groups: BTreeSet<String>,
+    /// Trustees the package registers, so the event's key ceremony may name
+    /// them before that section has run.
+    pub package_trustees: BTreeSet<String>,
+    /// Why the package itself may not be applied (a signed revision older
+    /// than the tenant's last import). It blocks every section, so nothing
+    /// is changed.
+    pub admission_blocker: Option<String>,
 }
 
 /// The event's id on this tenant: derived from the tenant and the package, so
@@ -257,13 +270,24 @@ impl PlatformTarget {
     }
 }
 
-#[async_trait]
-impl PackageTarget for PlatformTarget {
-    async fn preview(&self, section: Section, files: &[Artifact]) -> Result<SectionPreview> {
+impl PlatformTarget {
+    async fn preview_section(
+        &self,
+        section: Section,
+        files: &[Artifact],
+    ) -> Result<SectionPreview> {
         match section {
             Section::TenantConfiguration => {
                 let wanted = self.tenant_configuration(files)?;
-                Ok(tenant_configuration_changes(&self.tenant().await?, &wanted))
+                let mut preview = tenant_configuration_changes(&self.tenant().await?, &wanted);
+                let raw: Value =
+                    serde_json::from_slice(&one(files, "tenant configuration")?.bytes)?;
+                for path in secret_field_paths(&raw, "tenant configuration") {
+                    preview.blockers.push(format!(
+                        "{path}: credentials never travel in a package; set them on the installed system"
+                    ));
+                }
+                Ok(preview)
             }
             Section::TenantSettings => {
                 let wanted: Value = serde_json::from_slice(&one(files, "tenant settings")?.bytes)
@@ -312,13 +336,51 @@ impl PackageTarget for PlatformTarget {
                 Ok(trustee_changes(&wanted, &existing))
             }
             Section::ElectionEvent => {
-                // Validated by the import itself; the preview answers whether
-                // this package's event is already on the tenant.
-                self.event_document(files)?;
+                let event_zip = &one(files, "election event")?.bytes;
                 let event_id =
                     derived_event_id(&self.context.tenant_id, &self.context.package_sha256);
+                let mut problems = Vec::new();
                 let mut db: DbClient = get_hasura_pool().await.get().await?;
                 let transaction = db.transaction().await?;
+                // The importer's own validation of the event, before anything
+                // is applied rather than when the import runs last.
+                let document = String::from_utf8(event_document(event_zip)?)
+                    .context("the event document is not UTF-8")?;
+                match get_election_event_schema(
+                    &document,
+                    Some(event_id.clone()),
+                    self.context.tenant_id.clone(),
+                )
+                .await
+                {
+                    Ok((schema, _)) => {
+                        let referenced: Vec<String> = schema
+                            .keys_ceremonies
+                            .iter()
+                            .flatten()
+                            .flat_map(|ceremony| ceremony.trustee_ids.iter().cloned())
+                            .collect();
+                        let registered: Vec<String> =
+                            get_all_trustees(&transaction, &self.context.tenant_id)
+                                .await?
+                                .into_iter()
+                                .filter_map(|t| t.name)
+                                .collect();
+                        problems.extend(trustee_reference_problems(
+                            &referenced,
+                            &registered,
+                            &self.context.package_trustees,
+                        ));
+                    }
+                    Err(error) => problems.push(format!("the event would be refused: {error:#}")),
+                }
+                let census = match census_usernames(event_zip)? {
+                    Ok(census) => census,
+                    Err(problem) => {
+                        problems.push(problem);
+                        BTreeSet::new()
+                    }
+                };
                 let exists = get_election_event_by_id_if_exist(
                     &transaction,
                     &self.context.tenant_id,
@@ -326,24 +388,34 @@ impl PackageTarget for PlatformTarget {
                 )
                 .await?
                 .is_some();
-                let expected = census_rows(&one(files, "election event")?.bytes)?;
                 let mut keycloak: DbClient = get_keycloak_pool().await.get().await?;
                 let keycloak = keycloak.transaction().await?;
-                let voters = realm_user_count(
+                let voters = realm_usernames(
                     &keycloak,
                     &get_event_realm(&self.context.tenant_id, &event_id),
                 )
                 .await?;
                 let state = match (exists, voters) {
                     (true, voters) => EventState::Present {
-                        voters: voters.unwrap_or(0),
+                        voters: voters.unwrap_or_default(),
                     },
                     (false, Some(_)) => EventState::RealmOnly,
                     (false, None) => EventState::Absent,
                 };
-                Ok(event_changes(&event_id, state, expected))
+                Ok(event_changes(&event_id, &state, &census, problems))
             }
         }
+    }
+}
+
+#[async_trait]
+impl PackageTarget for PlatformTarget {
+    async fn preview(&self, section: Section, files: &[Artifact]) -> Result<SectionPreview> {
+        let mut preview = self.preview_section(section, files).await?;
+        if let Some(blocker) = &self.context.admission_blocker {
+            preview.blockers.insert(0, blocker.clone());
+        }
+        Ok(preview)
     }
 
     async fn begin(&self, section: Section) -> Result<Option<String>> {
@@ -390,6 +462,20 @@ impl PackageTarget for PlatformTarget {
         )
     }
 
+    async fn settle(&self, task_id: &str, succeeded: bool) -> Result<()> {
+        let task = get_task_by_id(task_id).await?;
+        let open = task.execution_status != TasksExecutionStatus::SUCCESS.to_string()
+            && task.execution_status != TasksExecutionStatus::FAILED.to_string();
+        if open {
+            if succeeded {
+                update_complete(&task, None).await?;
+            } else {
+                update_fail(&task, "the section did not converge").await?;
+            }
+        }
+        Ok(())
+    }
+
     async fn apply(
         &self,
         section: Section,
@@ -399,21 +485,29 @@ impl PackageTarget for PlatformTarget {
         match section {
             Section::TenantConfiguration => {
                 let wanted = self.tenant_configuration(files)?;
-                let merged = merged_tenant(&self.tenant().await?, &wanted);
-                let file = Artifact {
-                    name: "tenant_configuration.csv".to_string(),
-                    bytes: tenant_csv(merged)?,
-                };
-                self.import_tenant_config(
-                    &file,
-                    ImportOptions {
-                        include_tenant: Some(true),
-                        include_keycloak: Some(false),
-                        include_roles: Some(false),
-                    },
-                    task_id,
-                )
-                .await
+                let task = self.task(task_id).await?;
+                let mut db: DbClient = get_hasura_pool().await.get().await?;
+                let transaction = db.transaction().await?;
+                // Merged over the row as it is now, locked until committed, and
+                // only the four fields written: keys the package does not name
+                // (a legacy service-account key, the signing trust) stay.
+                let current = lock_tenant(&transaction, &self.context.tenant_id).await?;
+                let merged = merged_tenant(&current, &wanted);
+                update_tenant_configuration(&transaction, &merged).await?;
+                transaction.commit().await?;
+                let changes = tenant_configuration_changes(&current, &wanted).changes;
+                task_audit::record(task_audit::tenant_config(
+                    self.context.audit_actor.clone(),
+                    &self.context.tenant_id,
+                    AdminAction::Import,
+                    json!({"section": "tenant-configuration", "changes": changes}),
+                )?)
+                .await?;
+                update_complete(&task, None).await?;
+                Ok(SectionSubmission {
+                    task_id: Some(task.id.clone()),
+                    detail: json!({"changes": changes}),
+                })
             }
             Section::TenantSettings => {
                 self.import_tenant_config(
@@ -469,6 +563,14 @@ impl PackageTarget for PlatformTarget {
                     serde_json::from_slice(&one(files, "trustees")?.bytes)?;
                 let mut db: DbClient = get_hasura_pool().await.get().await?;
                 let transaction = db.transaction().await?;
+                // Registrations of one tenant's trustees by name are serialized,
+                // so two writers cannot both find a name absent and insert it.
+                transaction
+                    .query_one(
+                        "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
+                        &[&format!("trustee-registration:{}", self.context.tenant_id)],
+                    )
+                    .await?;
                 let existing = get_all_trustees(&transaction, &self.context.tenant_id).await?;
                 let mut registered = Vec::new();
                 for trustee in &wanted {

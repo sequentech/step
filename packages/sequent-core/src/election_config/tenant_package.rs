@@ -146,6 +146,14 @@ pub fn read(json: &Value) -> Result<TenantPackage, Report> {
     Ok(package)
 }
 
+/// The paths of credential or private-key fields anywhere in `value`, for a
+/// consumer that re-checks a package's section before applying it.
+pub fn secret_field_paths(value: &Value, at: &str) -> Vec<String> {
+    let mut report = Report::default();
+    find_secret_fields(value, at, &mut report);
+    report.problems.into_iter().map(|p| p.path).collect()
+}
+
 fn find_secret_fields(value: &Value, at: &str, report: &mut Report) {
     match value {
         Value::Object(map) => {

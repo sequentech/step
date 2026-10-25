@@ -72,6 +72,7 @@ struct Fake {
     blocked_after_submit: Option<Section>,
     /// What an earlier run's task rows say.
     tasks: Mutex<BTreeMap<String, TaskState>>,
+    settled: Mutex<Vec<(String, bool)>>,
 }
 
 #[async_trait]
@@ -96,6 +97,14 @@ impl PackageTarget for Fake {
 
     async fn begin(&self, section: Section) -> Result<Option<String>> {
         Ok(Some(format!("task-{section:?}")))
+    }
+
+    async fn settle(&self, task_id: &str, succeeded: bool) -> Result<()> {
+        self.settled
+            .lock()
+            .unwrap()
+            .push((task_id.to_string(), succeeded));
+        Ok(())
     }
 
     async fn submission_state(&self, task_id: &str) -> Result<TaskState> {
@@ -142,6 +151,27 @@ struct Saved(Mutex<Vec<ApplicationRecord>>);
 impl ProgressStore for Saved {
     async fn save(&self, record: &ApplicationRecord) -> Result<()> {
         self.0.lock().unwrap().push(record.clone());
+        Ok(())
+    }
+}
+
+/// A store whose claim is lost after `keep` checks.
+struct Losing {
+    saved: Saved,
+    keep: Mutex<usize>,
+}
+
+#[async_trait]
+impl ProgressStore for Losing {
+    async fn save(&self, record: &ApplicationRecord) -> Result<()> {
+        self.saved.save(record).await
+    }
+    async fn hold(&self) -> Result<()> {
+        let mut keep = self.keep.lock().unwrap();
+        if *keep == 0 {
+            return Err(anyhow!("claim lost"));
+        }
+        *keep -= 1;
         Ok(())
     }
 }
@@ -933,4 +963,69 @@ async fn an_in_flight_submission_stays_in_flight_through_a_preview() {
     .unwrap();
     assert_eq!(rerun.outcome, Outcome::Unknown);
     assert!(target.submissions.lock().unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn a_run_that_loses_its_claim_submits_nothing_more() {
+    // Two holds pass (tenant configuration's begin and apply), the third
+    // (before the next section) fails: the run stops with an error.
+    let target = Fake::default();
+    let store = Losing {
+        saved: Saved::default(),
+        keep: Mutex::new(3),
+    };
+    let result = run(&plan(), "t1", ApplyMode::Apply, None, &target, &store).await;
+    assert!(result.is_err());
+    assert_eq!(
+        *target.submissions.lock().unwrap(),
+        [Section::TenantConfiguration]
+    );
+}
+
+#[tokio::test]
+async fn decided_sections_settle_their_task_rows() {
+    let target = Fake {
+        fail: Some(Section::RolePermissions),
+        ..Fake::default()
+    };
+    run(
+        &plan(),
+        "t1",
+        ApplyMode::Apply,
+        None,
+        &target,
+        &Saved::default(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        *target.settled.lock().unwrap(),
+        [
+            ("task-TenantConfiguration".to_string(), true),
+            ("task-TenantSettings".to_string(), true),
+            ("task-RolePermissions".to_string(), false),
+        ]
+    );
+}
+
+#[test]
+fn an_event_zip_without_its_event_document_is_never_submitted() {
+    let event = zip(&[("export_voters-e1.csv", b"username\nv1\n")]);
+    let delivery = zip(&[("official_election_setup.zip", &event)]);
+    let optional = Requirements::default();
+    let plan = plan_package(&delivery, &optional).unwrap();
+    assert!(plan.payloads.get(&Section::ElectionEvent).is_none());
+}
+
+#[test]
+fn two_files_for_one_section_are_refused_before_the_target_is_asked() {
+    let portal = zip(&[
+        ("export_permissions-t1.csv", b"role,permissions\n"),
+        ("export_permissions-t2.csv", b"role,permissions\n"),
+    ]);
+    let delivery = zip(&[("admin_portal_settings.zip", &portal)]);
+    let error = plan_package(&delivery, &Requirements::default()).unwrap_err();
+    assert!(error
+        .to_string()
+        .contains("2 files for the RolePermissions section"));
 }

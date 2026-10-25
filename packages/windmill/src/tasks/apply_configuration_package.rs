@@ -28,7 +28,8 @@ use celery::error::TaskError;
 use deadpool_postgres::Client as DbClient;
 use sequent_core::election_config::manifest::read_zip;
 use sequent_core::election_config::package_contract::{Requirements, Section};
-use sequent_core::election_config::package_verify::{admit_at, Admission};
+use sequent_core::election_config::package_verify::{admit_at, freshness, Admission, Freshness};
+use sequent_core::election_config::tenant_package::TrusteePublic;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::hasura::extra::TasksExecutionStatus;
 use serde::{Deserialize, Serialize};
@@ -41,6 +42,9 @@ use tracing::instrument;
 /// same package on the same tenant finds it.
 pub const PACKAGE_SHA256_KEY: &str = "packageSha256";
 pub const APPLICATION_KEY: &str = "application";
+/// Set on the task row as soon as its run holds the claim, before anything
+/// else: a redelivery that finds it knows the row is a live run's.
+pub const CLAIMED_KEY: &str = "claimed";
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ApplyConfigurationPackageBody {
@@ -60,43 +64,60 @@ pub struct ApplyConfigurationPackageBody {
 }
 
 /// Saves the record on the task row, keeping it in progress until the run
-/// ends.
-struct TaskRowStore {
+/// ends, and keeps the run's claim.
+struct TaskRowStore<'a> {
     task: TasksExecution,
+    claim: &'a deadpool_postgres::Transaction<'a>,
+    logs: tokio::sync::Mutex<Option<serde_json::Value>>,
 }
 
 #[async_trait]
-impl ProgressStore for TaskRowStore {
+impl ProgressStore for TaskRowStore<'_> {
     async fn save(&self, record: &ApplicationRecord) -> anyhow::Result<()> {
         let status = match record.outcome {
             Outcome::Running => TasksExecutionStatus::IN_PROGRESS,
             Outcome::Previewed | Outcome::Applied => TasksExecutionStatus::SUCCESS,
             Outcome::Refused | Outcome::Failed | Outcome::Unknown => TasksExecutionStatus::FAILED,
         };
-        let logs =
+        let mut logs = self.logs.lock().await;
+        let updated =
             serde_json::to_value(crate::services::serialize_tasks_logs::append_general_log(
-                &self.task.logs,
+                &logs,
                 &format!("{:?}", record.outcome),
             ))?;
         update_with_annotations(
             &self.task.tenant_id,
             &self.task.id,
             status,
-            logs,
+            updated.clone(),
             json!({
                 PACKAGE_SHA256_KEY: record.package_sha256,
+                CLAIMED_KEY: true,
                 APPLICATION_KEY: record,
             }),
         )
-        .await
+        .await?;
+        *logs = Some(updated);
+        Ok(())
+    }
+
+    /// The claim is the open transaction's lock: if its connection is gone,
+    /// so is the claim, and the run must not decide anything more.
+    async fn hold(&self) -> anyhow::Result<()> {
+        self.claim
+            .query_one("SELECT 1", &[])
+            .await
+            .map(|_| ())
+            .context("the application lost its claim; stopping without further changes")
     }
 }
 
-/// The newest earlier record of this package on this tenant, if any.
+/// The newest record of this package on this tenant, the current task's
+/// own first when a redelivery already saved one. A record that cannot be
+/// read stops the run rather than falling back to an older one.
 async fn prior_record(
     tenant_id: &str,
     package_sha256: &str,
-    current_task: &str,
 ) -> anyhow::Result<Option<ApplicationRecord>> {
     let mut db: DbClient = get_hasura_pool().await.get().await?;
     let transaction = db.transaction().await?;
@@ -108,16 +129,28 @@ async fn prior_record(
         package_sha256,
     )
     .await?;
-    let others: Vec<TasksExecution> = rows
-        .into_iter()
-        .filter(|row| row.id != current_task)
-        .collect();
-    Ok(others.into_iter().find_map(|row| {
-        row.annotations
-            .and_then(|a| a.get(APPLICATION_KEY).cloned())
-            .and_then(|record| serde_json::from_value(record).ok())
-    }))
+    let Some(newest) = rows.into_iter().find_map(|row| {
+        let record = row.annotations.as_ref()?.get(APPLICATION_KEY)?.clone();
+        Some((row.id, record))
+    }) else {
+        return Ok(None);
+    };
+    serde_json::from_value(newest.1)
+        .map(Some)
+        .with_context(|| format!("the saved application of task {} cannot be read", newest.0))
 }
+
+/// Why a run stopped before it held the claim.
+#[derive(Debug)]
+struct ClaimHeld;
+
+impl std::fmt::Display for ClaimHeld {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("another configuration package application on this tenant is running; wait for it to finish")
+    }
+}
+
+impl std::error::Error for ClaimHeld {}
 
 async fn execute(
     body: &ApplyConfigurationPackageBody,
@@ -135,13 +168,31 @@ async fn execute(
     let setting = tenant_setting(&transaction, &body.tenant_id).await?;
     let lists = configuration_packages::revocation_lists(&transaction, &body.tenant_id).await?;
     transaction.commit().await?;
+    let mut admission_blocker = None;
     let (members, signed_package) =
         match admit_at(&bytes, setting.as_ref(), lists, chrono::Utc::now()) {
             Ok(Admission::Unsigned) => (
                 read_zip(&bytes, "package").map_err(|p| anyhow!("{p}"))?,
                 None,
             ),
-            Ok(Admission::Verified(verified)) => (verified.members.clone(), Some(bytes.clone())),
+            Ok(Admission::Verified(verified)) => {
+                // The signed-package freshness rule of a standalone import,
+                // checked before any section changes: an older revision may not
+                // roll the tenant back. Resuming this exact package is allowed.
+                let mut db: DbClient = get_hasura_pool().await.get().await?;
+                let transaction = db.transaction().await?;
+                let last = configuration_packages::last_import(
+                    &transaction,
+                    &body.tenant_id,
+                    &verified.manifest.configuration.external_id,
+                )
+                .await?;
+                admission_blocker = match freshness(&verified, last.as_ref()) {
+                    Ok(Freshness::New | Freshness::AlreadyImported) => None,
+                    Err(problem) => Some(format!("{}: {}", problem.path, problem.message)),
+                };
+                (verified.members.clone(), Some(bytes.clone()))
+            }
             Err(report) => {
                 return Err(anyhow::Error::new(
                     sequent_core::election_config::Rejected::new("configuration package", report),
@@ -161,6 +212,18 @@ async fn execute(
             .collect(),
         None => BTreeSet::new(),
     };
+    let package_trustees: BTreeSet<String> = match plan.payloads.get(&Section::Trustees) {
+        Some(files) => files
+            .iter()
+            .map(|f| serde_json::from_slice::<Vec<TrusteePublic>>(&f.bytes))
+            .collect::<std::result::Result<Vec<_>, _>>()
+            .context("the trustees file is not the public trustee list")?
+            .into_iter()
+            .flatten()
+            .map(|t| t.name)
+            .collect(),
+        None => BTreeSet::new(),
+    };
     let target = PlatformTarget {
         context: ApplyContext {
             tenant_id: body.tenant_id.clone(),
@@ -170,32 +233,46 @@ async fn execute(
             package_sha256: package_sha256.clone(),
             signed_package,
             package_groups,
+            package_trustees,
+            admission_blocker,
         },
     };
-    // The application's claim: one run of a package on a tenant at a time.
-    // Held by an open transaction on a connection of its own, so it ends with
-    // the run, or with the worker if that dies; an earlier submission still
-    // marked in progress then cannot be running any more.
+    // The application's claim: one package application per tenant at a time,
+    // whatever the package. Held by an open transaction on a connection of its
+    // own, so it ends with the run, or with the worker if that dies; while it
+    // is held, an earlier submission still marked in progress cannot be
+    // running any more. Checked again before every submission.
     let mut claim_db: DbClient = get_hasura_pool().await.get().await?;
     let claim = claim_db.transaction().await?;
     let claimed: bool = claim
         .query_one(
             "SELECT pg_try_advisory_xact_lock(hashtextextended($1, 0))",
-            &[&format!(
-                "package-application:{}:{package_sha256}",
-                body.tenant_id
-            )],
+            &[&format!("package-application:{}", body.tenant_id)],
         )
         .await?
         .get(0);
     if !claimed {
-        return Err(anyhow!(
-            "another application of this package to this tenant is running; wait for it to finish"
-        ));
+        return Err(anyhow::Error::new(ClaimHeld));
     }
-    let prior = prior_record(&body.tenant_id, &package_sha256, &task_execution.id).await?;
+    let mut annotations = task_execution
+        .annotations
+        .clone()
+        .unwrap_or_else(|| json!({}));
+    annotations[PACKAGE_SHA256_KEY] = json!(package_sha256);
+    annotations[CLAIMED_KEY] = json!(true);
+    update_with_annotations(
+        &task_execution.tenant_id,
+        &task_execution.id,
+        TasksExecutionStatus::IN_PROGRESS,
+        task_execution.logs.clone().unwrap_or(json!([])),
+        annotations,
+    )
+    .await?;
+    let prior = prior_record(&body.tenant_id, &package_sha256).await?;
     let store = TaskRowStore {
         task: task_execution.clone(),
+        claim: &claim,
+        logs: tokio::sync::Mutex::new(task_execution.logs.clone()),
     };
     let record = run(
         &plan,
@@ -206,13 +283,16 @@ async fn execute(
         &store,
     )
     .await;
+    drop(store);
     claim.rollback().await?;
     record
 }
 
 #[instrument(err, skip(body))]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task]
+// Never retried by the queue: a run that stops is resumed by an operator
+// running it again, which settles what the last one left first.
+#[celery::task(max_retries = 0)]
 pub async fn apply_configuration_package(
     body: ApplyConfigurationPackageBody,
     task_execution: TasksExecution,
@@ -222,6 +302,23 @@ pub async fn apply_configuration_package(
             Outcome::Previewed | Outcome::Applied => Ok(()),
             outcome => Err(anyhow!("configuration package {outcome:?}").into()),
         },
+        Err(error) if error.is::<ClaimHeld>() => {
+            // A redelivery of a run that holds the claim must leave that run's
+            // row alone; a new request that met another run is refused.
+            let live = crate::postgres::tasks_execution::get_task_by_id(&task_execution.id)
+                .await
+                .ok()
+                .and_then(|row| row.annotations)
+                .is_some_and(|a| a.get(CLAIMED_KEY).is_some());
+            if !live {
+                let _ = crate::services::tasks_execution::update_fail(
+                    &task_execution,
+                    &error.to_string(),
+                )
+                .await;
+            }
+            Err(anyhow!("{error}").into())
+        }
         Err(error) => {
             let message = format!("Error applying the configuration package: {error:#}");
             let _ = crate::services::tasks_execution::update_fail(&task_execution, &message).await;
