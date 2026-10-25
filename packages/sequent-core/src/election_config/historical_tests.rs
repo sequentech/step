@@ -178,6 +178,16 @@ fn overseas_voter_fixture(
     extra_pop: &str,
     extra_voters: &str,
 ) -> (Vec<u8>, Vec<u8>) {
+    overseas_voter_fixture_with(extra_pop, extra_voters, "WASHINGTON D.C.")
+}
+
+/// The overseas fixture with the description (the embassy label) of its
+/// `UNITED STATES` area replaced.
+fn overseas_voter_fixture_with(
+    extra_pop: &str,
+    extra_voters: &str,
+    us_description: &str,
+) -> (Vec<u8>, Vec<u8>) {
     let mut sql = String::new();
     sql.push_str("CREATE TABLE `allbgy` (`ID_BARANGAY` text, `AREANAME` text); INSERT INTO `allbgy` VALUES ('B06','KINGDOM OF THAILAND'),('B02','PEOPLES REPUBLIC OF BANGLADESH'),('B91','UNITED STATES');\n");
     sql.push_str("CREATE TABLE `allmun` (`ID_CITY` text, `AREANAME` text); INSERT INTO `allmun` VALUES ('9006','City A'),('9002','City B'),('9101','City C');\n");
@@ -267,7 +277,7 @@ fn overseas_voter_fixture(
             vec![
                 area(0, "KINGDOM OF THAILAND", "BANGKOK PE"),
                 area(1, "PEOPLES REPUBLIC OF BANGLADESH", "DHAKA PE"),
-                area(2, "UNITED STATES", "WASHINGTON D.C."),
+                area(2, "UNITED STATES", us_description),
             ],
         ),
         rows_sheet("CcsServers", vec![]),
@@ -2168,4 +2178,20 @@ fn a_report_lists_each_problem_on_its_own_line() {
     assert_eq!(text.lines().count(), 2);
     assert!(text.lines().all(|line| line.starts_with("  ")));
     assert!(text.contains("first") && text.contains("second"));
+}
+
+#[test]
+fn a_voter_whose_area_has_no_embassy_label_is_refused() {
+    // Enrollment matches the voter's embassy against the registration options;
+    // an area without a label would match against a blank, so it is refused.
+    let (sql, xlsx) = overseas_voter_fixture_with("", "", "");
+    let refused = adapt(&sql, &xlsx, &preserving()).unwrap_err();
+    let problems = &refused.report.problems;
+    assert!(!problems.is_empty());
+    assert!(problems
+        .iter()
+        .all(|p| p.code == Code::MissingField
+            && p.path.ends_with("column EMBASSY")));
+    // Only the 20 voters of the unlabelled area, each by its own row.
+    assert_eq!(problems.len(), 20);
 }

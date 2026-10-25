@@ -268,3 +268,11 @@ fn a_required_census_is_missing_when_the_event_has_no_voters_file() {
         SectionState::NotIncluded
     );
 }
+
+#[test]
+fn a_member_of_a_container_nobody_reads_is_unknown() {
+    assert_eq!(
+        nested_disposition("other.zip", "anything.json"),
+        Disposition::Unknown
+    );
+}
