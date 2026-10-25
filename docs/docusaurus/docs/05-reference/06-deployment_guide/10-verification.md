@@ -282,6 +282,27 @@ k3s kubectl get service -A -o json | jq -r '.items[]
 The results must be `Encryption Status: Enabled`, `ClusterIP`, `0` and
 `kube-system/traefik` alone.
 
+Check that the application uses the kit's environment-backed secret store and
+that its master key is present with the required length. Run this on C1; the
+command checks the key inside each container and prints only its result:
+
+```bash
+for app in harvest windmill; do
+  k3s kubectl -n step-apps exec "deploy/$app" -c "$app" -- sh -eu -c '
+    test "${SECRETS_BACKEND:-}" = EnvVarMasterSecret
+    test "${#MASTER_SECRET}" -eq 64
+    printf "Secret-store configuration: PASS\n"
+  ' || exit 1
+done
+```
+
+There must be two `Secret-store configuration: PASS` lines and no error.
+`SECRETS_BACKEND` is case-sensitive: `env` is not a supported value. If this
+check fails, correct the configuration from the installation kit, restart the
+affected deployments and repeat it before importing an election event. Keep
+the existing master key unchanged: replacing it makes previously encrypted
+application data unreadable. Never print the key or enable shell tracing.
+
 ## Election event realms
 
 Each election event has its own realm, named `tenant-`, the tenant ID,
