@@ -5,6 +5,7 @@
 pub mod configuration_package;
 pub mod configuration_package_apply;
 pub mod configuration_package_sections;
+pub mod configuration_package_target;
 pub mod import_bulletin_boards;
 pub mod import_election_event;
 pub mod import_publications;

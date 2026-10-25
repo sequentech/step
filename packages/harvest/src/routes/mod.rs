@@ -43,6 +43,7 @@ pub mod import_areas;
 pub mod import_candidates;
 pub mod import_certificate_authority;
 pub mod import_templates;
+pub mod apply_configuration_package;
 pub mod import_tenant_config;
 pub mod insert_cast_vote;
 pub mod insert_election_event;

@@ -21,15 +21,13 @@
 
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
-use sequent_core::election_config::archive::{
-    Artifact, ADMIN_PORTAL_MEMBER, IMPORTABLE_MEMBER,
-};
+use sequent_core::election_config::archive::{Artifact, ADMIN_PORTAL_MEMBER, IMPORTABLE_MEMBER};
 use sequent_core::election_config::manifest::{file_entries, read_zip};
 use sequent_core::election_config::package_contract::{
     coverage, nested_disposition, Coverage, Disposition, Requirements, Section,
 };
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 
@@ -53,10 +51,7 @@ pub struct PackagePlan {
 
 /// Read a delivery (the outer zip; a signed package's verified members are
 /// passed the same way) into the files each section applies.
-pub fn plan_package(
-    bytes: &[u8],
-    requirements: &Requirements,
-) -> Result<PackagePlan> {
+pub fn plan_package(bytes: &[u8], requirements: &Requirements) -> Result<PackagePlan> {
     let members = read_zip(bytes, "package").map_err(|p| anyhow!("{p}"))?;
     plan_members(&members, sha256_hex(bytes), requirements)
 }
@@ -77,8 +72,7 @@ pub fn plan_members(
                 .or_default()
                 .push(member.clone());
         } else if member.name == ADMIN_PORTAL_MEMBER {
-            let inner = read_zip(&member.bytes, ADMIN_PORTAL_MEMBER)
-                .map_err(|p| anyhow!("{p}"))?;
+            let inner = read_zip(&member.bytes, ADMIN_PORTAL_MEMBER).map_err(|p| anyhow!("{p}"))?;
             for file in inner {
                 if let Disposition::Applied(section) =
                     nested_disposition(ADMIN_PORTAL_MEMBER, &file.name)
@@ -121,20 +115,34 @@ pub struct SectionSubmission {
     pub detail: Value,
 }
 
+/// What became of a submission an earlier run began, as its task row says.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum TaskState {
+    /// Still running: it may yet change the target.
+    Running,
+    Succeeded,
+    /// Ended without succeeding, or interrupted with the run that held it.
+    Failed,
+}
+
 /// The platform side: previewing and applying each section through the
 /// existing importers and with the requesting administrator's permissions.
 #[async_trait]
 pub trait PackageTarget: Send + Sync {
-    async fn preview(
-        &self,
-        section: Section,
-        files: &[Artifact],
-    ) -> Result<SectionPreview>;
+    async fn preview(&self, section: Section, files: &[Artifact]) -> Result<SectionPreview>;
+    /// Record a submission before it starts (its task row), so an
+    /// interruption leaves its identity behind. `None` for a section whose
+    /// submission is one transaction with nothing to wait for.
+    async fn begin(&self, section: Section) -> Result<Option<String>>;
     async fn apply(
         &self,
         section: Section,
         files: &[Artifact],
+        task_id: Option<&str>,
     ) -> Result<SectionSubmission>;
+    /// The state of a submission an earlier run began.
+    async fn submission_state(&self, task_id: &str) -> Result<TaskState>;
 }
 
 /// Where progress is saved: the task row of the application.
@@ -159,19 +167,26 @@ pub enum SectionStatus {
     Blocked { preview: SectionPreview },
     /// The target already matches; nothing was submitted.
     Unchanged { preview: SectionPreview },
-    /// Submitted and not yet confirmed. Saved before submitting, so an
-    /// interrupted run finds it.
-    Submitting,
-    /// Submitted, and a preview afterwards found nothing left to apply.
-    /// `reconciled` when it was confirmed from the target on a later run
-    /// rather than by the submission that applied it.
+    /// Begun and not yet confirmed. Saved before the submission starts, with
+    /// its task, so an interrupted run finds it.
+    Submitting { task_id: Option<String> },
+    /// The target matches the package after a submission. `reconciled` when
+    /// that was confirmed from the target rather than by the submission's own
+    /// reply (a later run, or a reply that was lost).
     Applied {
         submission: Option<SectionSubmission>,
         reconciled: bool,
     },
-    Failed { error: String },
-    /// The target could not be asked; nothing was submitted.
-    Unknown { error: String },
+    Failed {
+        error: String,
+        task_id: Option<String>,
+    },
+    /// The target, or an earlier submission, could not be settled. Nothing
+    /// further is submitted for it until a later run settles it.
+    Unknown {
+        error: String,
+        task_id: Option<String>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -187,6 +202,7 @@ pub struct SectionRecord {
 #[serde(rename_all = "camelCase")]
 pub struct ApplicationRecord {
     pub format: String,
+    pub tenant_id: String,
     pub package_sha256: String,
     pub mode: ApplyMode,
     pub coverage: Coverage,
@@ -203,13 +219,14 @@ pub enum Outcome {
     Previewed,
     /// Every included section matches the package.
     Applied,
-    /// A required section is missing or a preview found a blocker; nothing
-    /// was changed.
+    /// A required section is missing or a preview found a blocker before
+    /// anything was submitted; nothing was changed.
     Refused,
-    /// A section failed; later sections were not started.
+    /// The run stopped at a section after earlier sections may have been
+    /// applied; each section's status says which were.
     Failed,
-    /// A section's state could not be determined; later sections were not
-    /// started.
+    /// A section, or an earlier submission of it, could not be settled;
+    /// later sections were not started.
     Unknown,
 }
 
@@ -222,35 +239,70 @@ impl ApplicationRecord {
     }
 
     fn set(&mut self, section: Section, status: SectionStatus) {
-        if let Some(record) =
-            self.sections.iter_mut().find(|r| r.section == section)
-        {
+        if let Some(record) = self.sections.iter_mut().find(|r| r.section == section) {
             record.status = status;
         }
+    }
+}
+
+/// The target matches the package: nothing left to apply and nothing that
+/// would prevent it.
+fn converged(preview: &SectionPreview) -> bool {
+    !preview.needs_apply && preview.blockers.is_empty()
+}
+
+/// The submission an earlier run made of a section, to keep its identity
+/// when the section is confirmed again.
+fn earlier_submission(
+    prior: Option<&ApplicationRecord>,
+    section: Section,
+) -> Option<SectionSubmission> {
+    match prior?.status(section)? {
+        SectionStatus::Applied { submission, .. } => submission.clone(),
+        SectionStatus::Submitting { task_id }
+        | SectionStatus::Failed { task_id, .. }
+        | SectionStatus::Unknown { task_id, .. } => task_id.as_ref().map(|id| SectionSubmission {
+            task_id: Some(id.clone()),
+            detail: Value::Null,
+        }),
+        _ => None,
+    }
+}
+
+/// The earlier run's unsettled submission of a section, if any.
+fn in_flight(prior: Option<&ApplicationRecord>, section: Section) -> Option<String> {
+    match prior?.status(section)? {
+        SectionStatus::Submitting { task_id } | SectionStatus::Unknown { task_id, .. } => {
+            task_id.clone()
+        }
+        _ => None,
     }
 }
 
 /// Preview, and in [`ApplyMode::Apply`] apply, every section in order.
 ///
 /// `prior` is the saved record of an earlier run of the same package on the
-/// same tenant; it only changes how a confirmed section is labelled, since
-/// every section is previewed against the target again.
+/// same tenant. A submission it left unsettled is never repeated while its
+/// task may still be running: the caller holds the application's claim, so
+/// the target can tell a running task from one interrupted with its run.
 pub async fn run(
     plan: &PackagePlan,
+    tenant_id: &str,
     mode: ApplyMode,
     prior: Option<&ApplicationRecord>,
     target: &dyn PackageTarget,
     store: &dyn ProgressStore,
 ) -> Result<ApplicationRecord> {
     if let Some(prior) = prior {
-        if prior.package_sha256 != plan.package_sha256 {
+        if prior.package_sha256 != plan.package_sha256 || prior.tenant_id != tenant_id {
             return Err(anyhow!(
-                "the saved application is of a different package; start a new one"
+                "the saved application is of a different package or tenant; start a new one"
             ));
         }
     }
     let mut record = ApplicationRecord {
         format: APPLICATION_FORMAT.to_string(),
+        tenant_id: tenant_id.to_string(),
         package_sha256: plan.package_sha256.clone(),
         mode,
         coverage: plan.coverage.clone(),
@@ -271,6 +323,8 @@ pub async fn run(
 
     // Every section is previewed before anything is applied, so the operator
     // sees the whole plan and one blocker stops the run before any change.
+    // The target answers each preview knowing what earlier sections of the
+    // same package will create (the groups the roles section adds).
     let mut refused = !plan.coverage.is_complete();
     for section in Section::APPLY_ORDER {
         let Some(files) = plan.payloads.get(&section) else {
@@ -290,14 +344,13 @@ pub async fn run(
                 refused = true;
                 record.set(section, SectionStatus::Blocked { preview });
             }
-            Ok(preview) => {
-                record.set(section, SectionStatus::Previewed { preview })
-            }
+            Ok(preview) => record.set(section, SectionStatus::Previewed { preview }),
             Err(error) => {
                 record.set(
                     section,
                     SectionStatus::Unknown {
                         error: format!("{error:#}"),
+                        task_id: None,
                     },
                 );
                 record.outcome = Outcome::Unknown;
@@ -318,108 +371,148 @@ pub async fn run(
     }
     store.save(&record).await?;
 
+    let mut changed = false;
     for section in Section::APPLY_ORDER {
         let Some(files) = plan.payloads.get(&section) else {
             continue;
         };
+        // An earlier submission left unsettled: settle it before anything
+        // else, and never submit again while it may still be running.
+        if let Some(task_id) = in_flight(prior, section) {
+            match target.submission_state(&task_id).await {
+                Ok(TaskState::Running) => {
+                    return stop(
+                        record,
+                        section,
+                        Outcome::Unknown,
+                        format!("an earlier submission (task {task_id}) is still running"),
+                        Some(task_id),
+                        store,
+                    )
+                    .await;
+                }
+                Ok(TaskState::Succeeded | TaskState::Failed) => {}
+                Err(error) => {
+                    return stop(
+                        record,
+                        section,
+                        Outcome::Unknown,
+                        format!(
+                            "the earlier submission (task {task_id}) cannot be checked: {error:#}"
+                        ),
+                        Some(task_id),
+                        store,
+                    )
+                    .await;
+                }
+            }
+        }
         // Re-preview: an earlier section may have changed what this one
-        // needs (administrators in a group the roles section created).
+        // needs.
         let preview = match target.preview(section, files).await {
             Ok(preview) => preview,
             Err(error) => {
-                return stop_unknown(record, section, error, store).await;
+                let task_id = in_flight(prior, section);
+                return stop(
+                    record,
+                    section,
+                    Outcome::Unknown,
+                    format!("{error:#}"),
+                    task_id,
+                    store,
+                )
+                .await;
             }
         };
         if !preview.blockers.is_empty() {
             record.set(section, SectionStatus::Blocked { preview });
-            record.outcome = Outcome::Refused;
+            record.outcome = if changed {
+                Outcome::Failed
+            } else {
+                Outcome::Refused
+            };
             store.save(&record).await?;
             return Ok(record);
         }
         if !preview.needs_apply {
-            let was_in_flight = prior.is_some_and(|prior| {
-                matches!(
-                    prior.status(section),
-                    Some(SectionStatus::Submitting)
-                        | Some(SectionStatus::Applied { .. })
-                )
-            });
-            record.set(
-                section,
-                if was_in_flight {
-                    SectionStatus::Applied {
-                        submission: None,
-                        reconciled: true,
-                    }
-                } else {
-                    SectionStatus::Unchanged { preview }
+            let status = match earlier_submission(prior, section) {
+                Some(submission) => SectionStatus::Applied {
+                    submission: Some(submission),
+                    reconciled: true,
                 },
-            );
+                None => SectionStatus::Unchanged { preview },
+            };
+            record.set(section, status);
             store.save(&record).await?;
             continue;
         }
-        record.set(section, SectionStatus::Submitting);
-        store.save(&record).await?;
-        let submission = match target.apply(section, files).await {
-            Ok(submission) => submission,
+        let task_id = match target.begin(section).await {
+            Ok(task_id) => task_id,
             Err(error) => {
-                // A submission can fail after its effect landed (a lost
-                // reply). Ask the target before calling it a failure.
-                let status = match target.preview(section, files).await {
-                    Ok(after) if !after.needs_apply => SectionStatus::Applied {
-                        submission: None,
-                        reconciled: true,
-                    },
-                    Ok(_) => SectionStatus::Failed {
-                        error: format!("{error:#}"),
-                    },
-                    Err(check) => SectionStatus::Unknown {
-                        error: format!(
-                            "{error:#}; the target could not be checked afterwards: {check:#}"
-                        ),
-                    },
-                };
-                let stop = match status {
-                    SectionStatus::Applied { .. } => None,
-                    SectionStatus::Unknown { .. } => Some(Outcome::Unknown),
-                    _ => Some(Outcome::Failed),
-                };
-                record.set(section, status);
-                if let Some(outcome) = stop {
-                    record.outcome = outcome;
-                    store.save(&record).await?;
-                    return Ok(record);
-                }
-                store.save(&record).await?;
-                continue;
+                return stop(
+                    record,
+                    section,
+                    failed_or_refused(changed),
+                    format!("{error:#}"),
+                    None,
+                    store,
+                )
+                .await;
             }
         };
-        // Success is what the target now says, not what the submission said.
-        match target.preview(section, files).await {
-            Ok(after) if !after.needs_apply => {
-                record.set(
-                    section,
-                    SectionStatus::Applied {
-                        submission: Some(submission),
-                        reconciled: false,
-                    },
-                );
-                store.save(&record).await?;
-            }
-            Ok(_) => {
-                record.set(
-                    section,
-                    SectionStatus::Failed {
-                        error: "the import finished but the target still differs from the package".to_string(),
-                    },
-                );
-                record.outcome = Outcome::Failed;
-                store.save(&record).await?;
-                return Ok(record);
-            }
-            Err(error) => {
-                return stop_unknown(record, section, error, store).await;
-            }
+        record.set(
+            section,
+            SectionStatus::Submitting {
+                task_id: task_id.clone(),
+            },
+        );
+        store.save(&record).await?;
+        changed = true;
+        let submitted = target.apply(section, files, task_id.as_deref()).await;
+        // Success is what the target now says, not what the submission said;
+        // a submission can also fail after its effect landed (a lost reply).
+        let after = target.preview(section, files).await;
+        let status = match (submitted, after) {
+            (Ok(submission), Ok(after)) if converged(&after) => SectionStatus::Applied {
+                submission: Some(submission),
+                reconciled: false,
+            },
+            (Err(error), Ok(after)) if converged(&after) => SectionStatus::Applied {
+                submission: Some(SectionSubmission {
+                    task_id: task_id.clone(),
+                    detail: json!({"reply": format!("{error:#}")}),
+                }),
+                reconciled: true,
+            },
+            (Ok(_), Ok(_)) => SectionStatus::Failed {
+                error: "the import finished but the target still differs from the package".into(),
+                task_id: task_id.clone(),
+            },
+            (Err(error), Ok(_)) => SectionStatus::Failed {
+                error: format!("{error:#}"),
+                task_id: task_id.clone(),
+            },
+            (submitted, Err(check)) => SectionStatus::Unknown {
+                error: match submitted {
+                    Ok(_) => format!("the target could not be checked afterwards: {check:#}"),
+                    Err(error) => {
+                        format!("{error:#}; the target could not be checked afterwards: {check:#}")
+                    }
+                },
+                task_id: task_id.clone(),
+            },
+        };
+        let stop_with = match status {
+            SectionStatus::Applied { .. } => None,
+            SectionStatus::Unknown { .. } => Some(Outcome::Unknown),
+            _ => Some(Outcome::Failed),
+        };
+        record.set(section, status);
+        store.save(&record).await?;
+        if let Some(outcome) = stop_with {
+            record.outcome = outcome;
+            store.save(&record).await?;
+            return Ok(record);
         }
     }
     record.outcome = Outcome::Applied;
@@ -427,19 +520,30 @@ pub async fn run(
     Ok(record)
 }
 
-async fn stop_unknown(
+fn failed_or_refused(changed: bool) -> Outcome {
+    if changed {
+        Outcome::Failed
+    } else {
+        Outcome::Refused
+    }
+}
+
+async fn stop(
     mut record: ApplicationRecord,
     section: Section,
-    error: anyhow::Error,
+    outcome: Outcome,
+    error: String,
+    task_id: Option<String>,
     store: &dyn ProgressStore,
 ) -> Result<ApplicationRecord> {
     record.set(
         section,
-        SectionStatus::Unknown {
-            error: format!("{error:#}"),
+        match outcome {
+            Outcome::Unknown => SectionStatus::Unknown { error, task_id },
+            _ => SectionStatus::Failed { error, task_id },
         },
     );
-    record.outcome = Outcome::Unknown;
+    record.outcome = outcome;
     store.save(&record).await?;
     Ok(record)
 }

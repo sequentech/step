@@ -66,7 +66,11 @@ pub fn role_changes(
             blockers.push(format!(
                 "group '{}' requests roles the realm does not define: {}",
                 row.group,
-                unknown.iter().map(|r| r.as_str()).collect::<Vec<_>>().join(", ")
+                unknown
+                    .iter()
+                    .map(|r| r.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ")
             ));
         }
         for role in &row.roles {
@@ -149,7 +153,10 @@ pub struct AdminRow {
 
 pub fn read_admin_rows(csv_bytes: &[u8]) -> Result<Vec<AdminRow>> {
     let mut reader = csv::Reader::from_reader(csv_bytes);
-    let headers = reader.headers().context("Error reading the administrators file")?.clone();
+    let headers = reader
+        .headers()
+        .context("Error reading the administrators file")?
+        .clone();
     let column = |name: &str| {
         headers
             .iter()
@@ -243,7 +250,9 @@ pub fn trustee_changes(wanted: &[TrusteePublic], existing: &[Trustee]) -> Sectio
         })
         .collect();
     if let Err(error) = protocol_board::Committee::new(&records) {
-        blockers.push(format!("trustee public keys are not valid native keys: {error:#}"));
+        blockers.push(format!(
+            "trustee public keys are not valid native keys: {error:#}"
+        ));
     }
     let mut changes = Vec::new();
     let mut needs_apply = false;

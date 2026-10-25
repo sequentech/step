@@ -14,7 +14,8 @@ fn realm_roles() -> BTreeSet<String> {
 
 #[test]
 fn the_roles_file_is_read_as_the_importer_reads_it() {
-    let rows = read_group_roles(b"role,permissions\nadmin,tally|election-event-read\nempty,\n").unwrap();
+    let rows =
+        read_group_roles(b"role,permissions\nadmin,tally|election-event-read\nempty,\n").unwrap();
     assert_eq!(
         rows,
         vec![
@@ -43,7 +44,10 @@ fn a_listed_group_gets_exactly_its_roles() {
         },
     ];
     let current = BTreeMap::from([
-        ("admin".to_string(), set(&["election-event-read", "election-event-write"])),
+        (
+            "admin".to_string(),
+            set(&["election-event-read", "election-event-write"]),
+        ),
         ("unlisted".to_string(), set(&["tally"])),
     ]);
     let preview = role_changes(&wanted, &current, &realm_roles());
@@ -124,7 +128,9 @@ fn an_administrator_in_an_undefined_group_blocks() {
 }
 
 fn native_trustee(name: &str) -> TrusteePublic {
-    let keys = protocol_board::TrusteeSecrets::generate().public_keys().unwrap();
+    let keys = protocol_board::TrusteeSecrets::generate()
+        .public_keys()
+        .unwrap();
     TrusteePublic {
         name: name.into(),
         signing_public_key: keys.signing_public_key,

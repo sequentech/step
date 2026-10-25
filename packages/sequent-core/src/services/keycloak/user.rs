@@ -344,6 +344,42 @@ impl KeycloakAdminClient {
         Ok((users, count))
     }
 
+    /// Whether a user with exactly this username exists in `realm`.
+    #[instrument(skip(self), err)]
+    pub async fn username_exists(
+        &self,
+        realm: &str,
+        username: &str,
+    ) -> Result<bool> {
+        validate_keycloak_path_segment(realm)?;
+        let found: Vec<UserRepresentation> = self
+            .client
+            .realm_users_get(
+                realm,
+                Some(true),
+                None,
+                None,
+                None,
+                Some(true),
+                None,
+                None,
+                None,
+                None,
+                None,
+                Some(2),
+                None,
+                None,
+                Some(username.to_string()),
+            )
+            .await
+            .map_err(|err| anyhow!("{:?}", err))?;
+        Ok(found.iter().any(|user| {
+            user.username
+                .as_deref()
+                .is_some_and(|name| name.eq_ignore_ascii_case(username))
+        }))
+    }
+
     #[instrument(skip(self), err)]
     pub async fn get_user(&self, realm: &str, user_id: &str) -> Result<User> {
         validate_keycloak_path_segment(realm)?;
