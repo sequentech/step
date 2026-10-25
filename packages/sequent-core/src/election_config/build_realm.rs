@@ -297,7 +297,11 @@ impl Builder<'_> {
             self.check_realm_requirements(&realm);
         }
 
-        for key in ["identityProviders", "authenticatorConfig"] {
+        for key in [
+            "identityProviders",
+            "authenticatorConfig",
+            "authenticationFlows",
+        ] {
             if let Some(Value::Array(additions)) = patch.remove(key) {
                 if additions.is_empty() {
                     continue;
@@ -328,7 +332,46 @@ impl Builder<'_> {
             self.patch_user_profile(&mut realm, &profile);
         }
         self.declare_census_attributes(&mut realm);
+        self.warn_missing_secrets(&realm);
         realm
+    }
+
+    /// Report each secret or deployment setting the preset needs and the realm
+    /// does not hold.
+    ///
+    /// A preset never writes one, so the only place it can come from is the
+    /// target realm itself: whoever deploys the event sets it in Keycloak.
+    fn warn_missing_secrets(&mut self, realm: &Map<String, Value>) {
+        let Some(preset) = self.auth_preset else {
+            return;
+        };
+        let mut warnings = Vec::new();
+        for secret in preset.secrets {
+            if !holds_config_value(realm, secret.config_alias, secret.key) {
+                warnings.push(format!(
+                    "the '{}' preset needs '{}' on the realm's '{}' authenticator \
+                     config, and it is never written into a plan or a bundle. Set \
+                     it in Keycloak after the import.",
+                    preset.name, secret.key, secret.config_alias
+                ));
+            }
+        }
+        for setting in preset.deployment_settings {
+            if !holds_config_value(realm, setting.config_alias, setting.key) {
+                warnings.push(format!(
+                    "the '{}' preset needs '{}' on the realm's '{}' authenticator \
+                     config. Give the '{}' parameter, or set it in Keycloak after \
+                     the import.",
+                    preset.name,
+                    setting.key,
+                    setting.config_alias,
+                    setting.parameter
+                ));
+            }
+        }
+        for warning in warnings {
+            self.warn("keycloak_event_realm", warning);
+        }
     }
 
     /// Report anything the preset needs that the target realm lacks.
@@ -940,6 +983,25 @@ fn bind_authenticator_config(
             }
         }
     }
+}
+
+/// Whether the realm's `config_alias` authenticator config sets `key`.
+fn holds_config_value(
+    realm: &Map<String, Value>,
+    config_alias: &str,
+    key: &str,
+) -> bool {
+    realm
+        .get("authenticatorConfig")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter(|config| {
+            config.get("alias").and_then(Value::as_str) == Some(config_alias)
+        })
+        .filter_map(|config| config.get("config")?.get(key))
+        .filter_map(Value::as_str)
+        .any(|value| !value.trim().is_empty())
 }
 
 /// The values of `key` across a list of objects.

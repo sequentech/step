@@ -452,6 +452,8 @@ fn read_areas(workbook: &Workbook, report: &mut Report) -> Vec<PlannedArea> {
                     (!parent.is_empty()).then_some(parent)
                 },
                 allow_early_voting: early_voting(row),
+                description: String::new(),
+                annotations: Default::default(),
             })
         })
         .collect()
@@ -623,6 +625,7 @@ fn read_candidates(
                 // here is the platform's, derived from the candidate, so there is
                 // nothing to keep: a photograph has to be chosen again.
                 image: None,
+                annotations: Default::default(),
             },
         );
     }
