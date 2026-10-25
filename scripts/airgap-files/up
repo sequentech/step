@@ -2,62 +2,19 @@
 # SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 # SPDX-License-Identifier: AGPL-3.0-only
 
-# Secrets the bundle never carries: each placeholder is replaced with a
-# generated value once, before anything is removed or started, and none may be
-# left blank. MESSAGING_RELAY_SECRET is shared by messaging-webhooks and
-# harvest; the renderer token by harvest and the renderer; the Scanovate keys by
-# its services (and the callback secret by the realm's Scanovate step).
-SECRET_PLACEHOLDER="generate-on-first-up"
-for key in MESSAGING_RELAY_SECRET MONITORING_RENDERER_TOKEN \
-    SCANOVATE_LIVENESS_JWT_SECRET_KEY SCANOVATE_OCR_JWT_SECRET_KEY SCANOVATE_LIVENESS_CALLBACK_SECRET; do
-    if grep -q "^${key}=\"${SECRET_PLACEHOLDER}\"" .env; then
-        sed -i "s|^${key}=.*|${key}=\"$(openssl rand -hex 32)\"|" .env
-        echo "Generated ${key} in .env"
-    fi
-    value=$(sed -n "s/^${key}=\"\{0,1\}\([^\"]*\)\"\{0,1\}$/\1/p" .env)
-    if [ -z "$value" ] || [ "$value" = "$SECRET_PLACEHOLDER" ]; then
-        echo "Error: ${key} in .env is blank; set it to the output of 'openssl rand -hex 32'."
-        exit 1
-    fi
-done
-unset value
-
-# Biometric services: carried by every full bundle (biometric.json says so),
-# started only when BIOMETRIC_SERVICES is "start".
-BIOMETRIC_SERVICES=$(sed -n 's/^BIOMETRIC_SERVICES="\{0,1\}\([^"]*\)"\{0,1\}$/\1/p' .env)
-BIOMETRIC_IN_BUNDLE=$(jq -r '.biometric // "absent"' biometric.json 2>/dev/null || echo absent)
-PROFILES=(--profile full)
-case "$BIOMETRIC_SERVICES" in
-    start)
-        if [ "$BIOMETRIC_IN_BUNDLE" != "included" ]; then
-            echo "Error: this bundle is a DEVELOPER PARTIAL build without the Scanovate images;"
-            echo "set BIOMETRIC_SERVICES=\"stopped\" in .env. Biometric enrollment does not work here."
-            exit 1
-        fi
-        # The images are named by digest, which only Docker's containerd
-        # image store keeps when loading an OCI archive.
-        if ! docker info --format '{{.DriverStatus}}' 2>/dev/null | grep -q 'io.containerd.snapshotter'; then
-            echo "Error: the biometric images need Docker's containerd image store (Docker 29's default)."
-            exit 1
-        fi
-        mkdir -p scanovate/liveness
-        CALLBACK=$(sed -n 's/^SCANOVATE_LIVENESS_CALLBACK_SECRET="\{0,1\}\([^"]*\)"\{0,1\}$/\1/p' .env)
-        sed "s|__LIVENESS_CALLBACK_SECRET__|${CALLBACK}|g" scanovate/liveness/service_config.json.tmpl \
-            > scanovate/liveness/service_config.json
-        chmod 600 scanovate/liveness/service_config.json
-        unset CALLBACK
-        PROFILES+=(--profile biometric)
-        echo "Biometric services (Scanovate): START."
-        ;;
-    stopped)
-        echo "Biometric services (Scanovate): NOT STARTED (BIOMETRIC_SERVICES=stopped). Their images"
-        echo "are in the bundle (${BIOMETRIC_IN_BUNDLE}), but biometric enrollment does not work here."
-        ;;
-    *)
-        echo "Error: BIOMETRIC_SERVICES in .env must be \"start\" or \"stopped\"."
-        exit 1
-        ;;
-esac
+# The relay secret shared by messaging-webhooks and harvest: generated once,
+# before anything is removed or started, and never left blank.
+RELAY_SECRET_PLACEHOLDER="generate-on-first-up"
+if grep -q "^MESSAGING_RELAY_SECRET=\"${RELAY_SECRET_PLACEHOLDER}\"" .env; then
+    sed -i "s|^MESSAGING_RELAY_SECRET=.*|MESSAGING_RELAY_SECRET=\"$(openssl rand -hex 32)\"|" .env
+    echo "Generated MESSAGING_RELAY_SECRET in .env"
+fi
+RELAY_SECRET_VALUE=$(sed -n 's/^MESSAGING_RELAY_SECRET="\{0,1\}\([^"]*\)"\{0,1\}$/\1/p' .env)
+if [ -z "$RELAY_SECRET_VALUE" ] || [ "$RELAY_SECRET_VALUE" = "$RELAY_SECRET_PLACEHOLDER" ]; then
+    echo "Error: MESSAGING_RELAY_SECRET in .env is blank; set it to the output of 'openssl rand -hex 32'."
+    exit 1
+fi
+unset RELAY_SECRET_VALUE
 
 # Add two optional input params: <ezip_path> <password>
 # With an empty <password> or "-", the password is read without echo.
@@ -207,7 +164,7 @@ update_trustee_public_keys() {
 }
 
 echo "Starting environment..."
-docker compose "${PROFILES[@]}" up -d
+docker compose --profile full up -d
 
 if [[ -n "$ezip_path" && -n "$password" ]]; then
     # Wait until GraphQL is up

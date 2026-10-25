@@ -161,38 +161,24 @@ class AirgapBundleTest(unittest.TestCase):
 
     def test_up_generates_the_relay_secret_once_and_refuses_a_blank_one(self):
         self.assertIn(f'MESSAGING_RELAY_SECRET="{PLACEHOLDER}"', self.env)
-        # Biometric services are decided in the same preamble; not starting
-        # them keeps this check about the generated secrets alone.
-        env = self.env.replace(
-            'BIOMETRIC_SERVICES="start"', 'BIOMETRIC_SERVICES="stopped"'
-        )
-        result, generated = self.run_preamble(env)
+        result, generated = self.run_preamble(self.env)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         secret = re.search(
             r'^MESSAGING_RELAY_SECRET="([0-9a-f]{64})"$', generated, re.M
         )
         self.assertIsNotNone(secret, generated)
-        # Other lines are left as they were, apart from the other generated
-        # secrets (test_airgap_offline_services.py covers those).
-        generated_keys = (
-            "MONITORING_RENDERER_TOKEN",
-            "SCANOVATE_LIVENESS_JWT_SECRET_KEY",
-            "SCANOVATE_OCR_JWT_SECRET_KEY",
-            "SCANOVATE_LIVENESS_CALLBACK_SECRET",
+        # Other lines are left as they were.
+        self.assertEqual(
+            generated.replace(
+                secret.group(0), f'MESSAGING_RELAY_SECRET="{PLACEHOLDER}"'
+            ),
+            self.env,
         )
-        restored = generated.replace(
-            secret.group(0), f'MESSAGING_RELAY_SECRET="{PLACEHOLDER}"'
-        )
-        for key in generated_keys:
-            restored = re.sub(
-                rf'^{key}="[0-9a-f]{{64}}"$', f'{key}="{PLACEHOLDER}"', restored, flags=re.M
-            )
-        self.assertEqual(restored, env)
         result, again = self.run_preamble(generated)
         self.assertEqual(result.returncode, 0)
         self.assertEqual(again, generated)
 
-        blank = env.replace(
+        blank = self.env.replace(
             f'MESSAGING_RELAY_SECRET="{PLACEHOLDER}"', 'MESSAGING_RELAY_SECRET=""'
         )
         result, _ = self.run_preamble(blank)
