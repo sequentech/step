@@ -28,21 +28,49 @@ can run it on the data that the election organizer publishes.
 
 ## What you need
 
-- The verification data of the election: the file that the election board
-  downloads on the Tally tab with "Download verification data", or the copy
-  the election organizer publishes.
-- The configuration hash and the Tally ID of the election ("Configuration
-  hash" and "Tally ID" on the Tally tab), obtained independently of that file:
-  from the election organizer's publication, read from the board's minutes,
-  or confirmed by the election board.
+- The verification data for each batch of the completed tally: the files that
+  the election board downloads as described below, or the copies the election
+  organizer publishes. One file contains one tally board's batch and its key
+  ceremony evidence; a tally can have several batches.
+- The full "Configuration hash" and "Tally ID" for each file, obtained
+  independently of that file: from the election organizer's publication,
+  read from the board's minutes, or confirmed by the election board. Keep each
+  file paired with its own anchors.
 - The election-verifier image from the accepted TOE delivery (the Deployment
   Guide describes how the delivery is checked), and a computer with a container
   runtime.
 
+## Downloading the verification data
+
+In the post-processing phase, an election board member opens the completed
+results tally from the election event's **Tally** tab. In **Election
+verification**, for every listed tally board:
+
+1. Record its board name, full **Configuration hash** and **Tally ID** in the
+   board's minutes. These values come from the election platform's stored
+   public configuration and board record, separately from the transcript.
+2. Choose **Download verification data** in that same board's section. Keep the
+   downloaded `verification-<protocol-board UUID>.json` paired with the values
+   recorded in step 1. Downloading the file does not verify it.
+3. Repeat for every listed batch. Do not substitute another batch's identifier,
+   even when the batches use the same configuration hash.
+
+The displayed **Tally ID** is the protocol board's identifier written as an
+unsigned decimal number with up to 39 digits. It is **not** the tally-session
+ID in the event's tally list or URL. Copy the complete displayed value as text;
+do not round it in a spreadsheet or convert it through a floating-point
+number. A recount has its own board identifiers and must be recorded and
+verified separately.
+
+If a completed results tally has no listed verification boards, or its anchors
+or download cannot be loaded, stop and report the problem. Do not substitute a
+file or identifier from an earlier tally.
+
 ## Running the election-verifier
 
-Put the verification data file in a directory of its own and run the image on
-it, without network access and with the directory read-only:
+Put a verification data file in a directory of its own and run the image on
+it with that file's independently recorded anchors, without network access
+and with the directory read-only:
 
 ```sh
 podman run --rm --network none -v <directory>:/data:ro <election-verifier image> \
@@ -57,10 +85,15 @@ trustee tool (`trustee verify`) with the options you append:
 | Option | Value |
 |---|---|
 | `--transcript` | The verification data file. |
-| `--configuration-hash` | The configuration hash of the election, as hexadecimal digits. Required. |
-| `--tally-id` | The Tally ID of the election, as a UUID or as an unsigned decimal number. Required for the verification data of a counted election: without it the status is `invalid` ("tally evidence requires an independently supplied tally identifier"), and a different identifier makes the check fail. Leave it out only for an election that was not counted: its file holds no tally, `--tally-id` then gives `invalid` with the same message, and without it the verifier checks the key ceremony only ("Public DKG commitments, proofs and derived keys verified"). |
+| `--configuration-hash` | The full configuration hash recorded for this batch: 128 lowercase hexadecimal digits. Required. |
+| `--tally-id` | The protocol-board Tally ID for this file, copied from **Tally ID** as an unsigned decimal number. The tool also accepts the corresponding protocol-board UUID; the tally-session UUID is not this identifier. Required for the verification data of a counted election: without it the status is `invalid` ("tally evidence requires an independently supplied tally identifier"), and a different identifier makes the check fail. Leave it out only for an election that was not counted: its file holds no tally, `--tally-id` then gives `invalid` with the same message, and without it the verifier checks the key ceremony only ("Public DKG commitments, proofs and derived keys verified"). |
 | `--ballots-hash` | Optional: the hash of the batch of encrypted ballots that entered the counting, if the election organizer publishes it. A different batch makes the check fail. |
 | `--ballot-ciphertext` | Optional, may be repeated: an encrypted ballot to look for among the counted ballots (see [Checking that a ballot was counted](#checking-that-a-ballot-was-counted)). |
+
+Run this command separately for every batch, using each file's own anchors.
+Keep the reports and exit codes with the board's record. The complete tally is
+not verified until every expected batch has status `verified`; a successful
+check of one file does not cover the others.
 
 ## Reading the result
 
@@ -79,7 +112,7 @@ The tool prints a report in JSON and ends with exit code 0 only if the status is
 
 | Status | Exit code | What it means | What to do |
 |---|---|---|---|
-| `verified` | 0 | Every check passed. With the counting, `detail` reads "DKG, ballot proofs, ordered shuffles, endorsements, threshold decryption and plaintexts verified". | Compare `ballot_count` with the number of votes counted for the election. |
+| `verified` | 0 | Every check passed. With the counting, `detail` reads "DKG, ballot proofs, ordered shuffles, endorsements, threshold decryption and plaintexts verified". | Compare `ballot_count` with the recorded number of encrypted ballots counted in this batch. |
 | `incomplete` | not 0 | The record ends before the counting is complete ("public verification incomplete: …"). | Check that you have the file of the completed tally. If it persists, report it to the election board. |
 | `invalid` | not 0 | A check failed, for example "invalid shuffle proof", "published plaintexts differ from independently verified decryption", "ballots do not match the trusted batch hash" ("public verification failed: …"). | Report it at once to the election board, with the report. The election board treats it as a security-relevant event. |
 
@@ -125,26 +158,35 @@ data and the second the saved encrypted ballot:
   --ballot-ciphertext "$(cat <file>)"
 ```
 
-Several ballots can be checked at once by repeating `--ballot-ciphertext`.
+Several ballots from the same batch can be checked at once by repeating
+`--ballot-ciphertext`. If the organizer publishes several batch files and the
+voter does not know which one contains their ballot, first verify every file
+without this option. Then look for the ciphertext in each batch using that
+batch's own configuration hash and Tally ID. Absence from one batch alone does
+not mean the ballot is absent from the complete tally.
 
 The status is `verified` only if the ballot is among the counted ballots and
 every shuffle and decryption proof holds; `ballot_inclusions` then shows it
 with at least one occurrence. If the ballot is not among them, the status is
 `invalid` with "requested ballot ciphertext is absent from the verified tally
-input". A voter who cannot run the tool can ask an observer they trust to run
-it for them.
+input". If it is absent from every relevant, otherwise verified batch, report
+the problem to the election board. A voter who cannot run the tool can ask an
+observer they trust to run it for them.
 
 ## Publishing the verification data
 
 In the post-processing phase the election organizer, for each election:
 
-1. obtains the verification data file from the election board ("Download
-   verification data" on the Tally tab);
-2. publishes the file, its configuration hash and its Tally ID on a public
-   channel that it names to the voters, for example its own website;
-3. publishes the configuration hash and the Tally ID a second time on another
-   channel, for example the board's published minutes or an official notice,
-   so that voters and observers can take them independently of the file;
+1. obtains every batch's verification data file and the separately recorded
+   anchors from the election board, using
+   [Downloading the verification data](#downloading-the-verification-data);
+2. publishes every file with its board name, full configuration hash and Tally
+   ID on a public channel that it names to the voters, for example its own
+   website; make the file-to-batch pairing explicit;
+3. publishes each batch's configuration hash and Tally ID a second time on
+   another channel, for example the board's published minutes or an official
+   notice, so that voters and observers can take them independently of the
+   files;
 4. makes the election-verifier available to voters and observers;
 5. tells the voters, in its own words, where the data is and how to check
    their ballot with the command in
