@@ -117,7 +117,7 @@ you: "You have been invited to participate in a Key Ceremony."
    `<trustee name>-custody-request.json` (your trustee name, with spaces and
    special characters replaced by "-") is public: it holds identifiers and
    your registered public keys.
-4. The dialog "Back Up Your Local Trustee Keys" asks you to back up
+4. Select "Next". The dialog "Back Up Your Local Trustee Keys" asks you to back up
    `trustee.toml` in at least two secure locations. Tick "First backup secured"
    and "Second backup secured" only when both backups exist, then select
    "Confirm Backups and Continue".
@@ -132,7 +132,8 @@ you: "You have been invited to participate in a Key Ceremony."
    ```
 
 6. Move `custody-proof.json` back. On the step "Confirm Trustee Custody",
-   upload it and select "Verify Custody Proof". If the protected action
+   upload it. The admin portal checks the proof when you select the file.
+   If the protected action
    "Confirm custody (key ceremony)" needs signatures, sign it with your signing
    certificate.
 7. The admin portal shows "Trustee custody confirmed successfully." On the Keys
