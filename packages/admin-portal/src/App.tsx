@@ -29,8 +29,7 @@ import {Messages} from "./screens/Messages"
 import {Navigate, Route} from "react-router-dom"
 import {ShowDocument} from "./resources/Document/ShowDocument"
 import {UserAndRoles} from "./screens/UserAndRoles"
-import buildHasuraProvider from "ra-data-hasura"
-import {customBuildQuery} from "./queries/customBuildQuery"
+import {createHasuraDataProvider} from "./services/createHasuraDataProvider"
 import {fullAdminTheme} from "./services/AdminTheme"
 import {SettingsScreen} from "./screens/SettingsScreen"
 import {ElectoralLogConsole} from "./screens/ElectoralLogConsole"
@@ -66,15 +65,7 @@ interface AppProps {}
 
 // This function builds and wraps your Hasura data provider.
 export const buildWrappedHasuraProvider = async (apolloClient: any): Promise<DataProvider> => {
-    const options = {
-        client: apolloClient,
-        buildQuery: customBuildQuery,
-    }
-    const buildGqlQueryOverrides = {}
-    const dataProviderHasura: DataProvider = await buildHasuraProvider(
-        options,
-        buildGqlQueryOverrides
-    )
+    const dataProviderHasura = await createHasuraDataProvider(apolloClient)
 
     // Override the getList method to apply custom sort logic.
     const wrappedDataProvider: DataProvider = {
