@@ -412,6 +412,57 @@ mod tests {
     }
 
     /// Needs the PostgreSQL server `HASURA_DB__*` names; rolls back.
+    /// Whether another connection could take the tenant's import lock now.
+    async fn import_lock_is_free(pool: &deadpool_postgres::Pool, tenant: &str) -> bool {
+        let key = crate::postgres::configuration_packages::import_lock_key(tenant).unwrap();
+        let mut client = pool.get().await.unwrap();
+        let tx = client.transaction().await.unwrap();
+        let free: bool = tx
+            .query_one(
+                "SELECT pg_try_advisory_xact_lock(hashtextextended($1, 0))",
+                &[&key],
+            )
+            .await
+            .unwrap()
+            .get(0);
+        tx.rollback().await.unwrap();
+        free
+    }
+
+    #[tokio::test]
+    async fn holding_imports_blocks_other_connections_until_dropped_and_never_returns_to_the_pool()
+    {
+        use crate::postgres::configuration_packages::hold_imports;
+        let pool = super::apply_test_schema::pool().await;
+        let tenant = uuid::Uuid::new_v4().to_string();
+        assert!(import_lock_is_free(&pool, &tenant).await);
+
+        let size = pool.status().size;
+        let held = hold_imports(&pool, &tenant).await.unwrap();
+        // Its connection left the pool: nothing else can be handed it, held.
+        assert_eq!(pool.status().size, size.saturating_sub(1));
+        assert!(!import_lock_is_free(&pool, &tenant).await);
+        // Another tenant's imports are not held back.
+        assert!(import_lock_is_free(&pool, &uuid::Uuid::new_v4().to_string()).await);
+
+        // Dropping it closes the connection, and the server releases the lock.
+        drop(held);
+        let mut free = false;
+        for _ in 0..50 {
+            if import_lock_is_free(&pool, &tenant).await {
+                free = true;
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        }
+        assert!(free, "the lock outlived its hold");
+
+        // A refused hold takes no connection at all.
+        let size = pool.status().size;
+        assert!(hold_imports(&pool, "not-a-uuid").await.is_err());
+        assert_eq!(pool.status().size, size);
+    }
+
     #[tokio::test]
     async fn the_tenant_record_update_writes_only_its_four_fields_under_a_lock() {
         use crate::postgres::tenant::{lock_tenant, update_tenant_configuration};

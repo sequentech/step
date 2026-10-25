@@ -32,7 +32,7 @@ pub async fn lock_imports(hasura_transaction: &Transaction<'_>, tenant_id: &str)
     Ok(())
 }
 
-fn import_lock_key(tenant_id: &str) -> Result<String> {
+pub(crate) fn import_lock_key(tenant_id: &str) -> Result<String> {
     Ok(format!(
         "{IMPORT_LOCK_NAMESPACE}:{}",
         parse_uuid_v4(tenant_id)?
