@@ -55,6 +55,94 @@ grep -A1 'name: KEYCLOAK_URL$' */deployment.yaml
 The three values shown must be `"https://PORTAL_HOST"` with your voting portal
 host.
 
+## Set the browser storage endpoint
+
+Backups, uploads and election files use signed storage URLs that the browser
+must reach over HTTPS. The public endpoint is the voting portal host, without
+a path suffix; the private endpoint stays inside the cluster. Preserve the
+bucket path, host and query of each signed request: stripping `/storage`
+from a signed URL would invalidate its signature.
+
+```bash
+cd /root/deploy/kubernetes
+sed -i 's|^  AWS_S3_PUBLIC_URI:.*|  AWS_S3_PUBLIC_URI: "https://'"$PORTAL_HOST"'"|' config/step-env.yaml
+cat > rustfs/browser-ingress.yaml <<EOF
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-License-Identifier: LicenseRef-Proprietary
+# Presigned S3 URLs include the bucket path; never strip or rewrite it.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: storage-browser-cors
+  namespace: step-infra
+spec:
+  headers:
+    accessControlAllowOriginList:
+      - "https://$PORTAL_HOST"
+      - "https://$ADMIN_HOST"
+      - "https://$VERIFIER_HOST"
+    accessControlAllowMethods:
+      - GET
+      - HEAD
+      - PUT
+      - OPTIONS
+    accessControlAllowHeaders:
+      - "*"
+    accessControlExposeHeaders:
+      - ETag
+    addVaryHeader: true
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: storage-browser-ingress
+  namespace: step-infra
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.middlewares: step-infra-storage-browser-cors@kubernetescrd
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - $PORTAL_HOST
+        - $ADMIN_HOST
+        - $VERIFIER_HOST
+      secretName: step-tls-cert
+  rules:
+    - host: $PORTAL_HOST
+      http: &browser-storage
+        paths:
+          - path: /public
+            pathType: Prefix
+            backend:
+              service:
+                name: rustfs
+                port:
+                  number: 9000
+          - path: /election-event-documents
+            pathType: Prefix
+            backend:
+              service:
+                name: rustfs
+                port:
+                  number: 9000
+    - host: $ADMIN_HOST
+      http: *browser-storage
+    - host: $VERIFIER_HOST
+      http: *browser-storage
+EOF
+grep '^  AWS_S3_PUBLIC_URI:' config/step-env.yaml
+grep -A3 'accessControlAllowOriginList:' rustfs/browser-ingress.yaml
+```
+
+The public endpoint must be `https://PORTAL_HOST` with your voting portal
+host and no trailing path. The origin list must contain exactly the three
+portal HTTPS origins. This adds only the public and election-document bucket
+paths; keep the existing `/storage` ingress for public assets. The new ingress
+preserves signed paths and handles browser preflights without exposing the
+storage administration console. Private objects still require valid signed
+URLs; this configuration grants no anonymous access to them.
+
 ## Set the displayed software identity
 
 The portals display the software release and the Step source revision that
