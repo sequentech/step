@@ -54,10 +54,11 @@ evaluated configuration.
 On each server:
 
 ```bash
-sshd -T | grep -E '^(passwordauthentication|pubkeyauthentication|permitrootlogin) '
+sshd -T | grep -iE '^(passwordauthentication|pubkeyauthentication|permitrootlogin) '
 ```
 
-The output must show `passwordauthentication no` and
+Option names may be printed with different capitalization; compare the names
+without regard to case. The output must show `passwordauthentication no` and
 `pubkeyauthentication yes`, and `permitrootlogin` must not be `yes`.
 
 ## Authenticated time

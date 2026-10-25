@@ -40,12 +40,13 @@ umount "$M" && cryptsetup close temenos-delivery
 ```
 
 On C1, and then on C2, import them and check that each one is present under
-its delivered digest:
+its delivered digest. Use `--local` so the digest-qualified names identify the
+delivered image manifests:
 
 ```bash
 cd /root/toe-images
 for p in b4 ballot-verifier braid harvest keycloak windmill; do
-  k3s ctr -n k8s.io images import --base-name sequentech.local/$p --digests $p.tar
+  k3s ctr -n k8s.io images import --local --base-name sequentech.local/$p --digests $p.tar
 done
 grep -E '^(b4|ballot-verifier|braid|harvest|keycloak|windmill) sha256:' \
   image-digests.txt | while read -r p d; do
