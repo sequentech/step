@@ -36,6 +36,14 @@ holds the permission for the import, "Create Election Event"
 no other permission: it writes every part of the package itself. The voting
 system accepts election data only as a signed configuration package.
 
+Before asking the board to approve the package, include the required event and
+election Data-tab settings from [the administrator's tables](../04-administrator_handbook/05-tenant_and_event_settings.md#settings-of-the-election-event).
+They can affect the approved ballot design, even where administrators can edit
+them. Produce the package's ballot-design digests and report settings with the
+package tool from that complete configuration. The package tool must include
+ballot designs for every area and election. Administrators check these values after import. A difference requires
+a corrected signed package and a new event, rather than an edit before publication.
+
 The required authorisations of an import are the number of package approvals
 that the administrators set for the tenant before the first import, as the
 electoral regulation fixes it and at least two, and never change afterwards.
@@ -166,7 +174,9 @@ data against the electoral regulation:
   election, in the election's time zone.
 
 The administrators configure the election event as the Handbook for Election
-Administrators describes. The election board checks these settings with them:
+Administrators describes. Its Data-tab values must already match the signed
+package; the administrators verify them and configure the separate protected
+actions and certificates. The election board checks these settings with them:
 
 | Where | Setting | Required value |
 |---|---|---|
@@ -194,7 +204,10 @@ Administrators describes. The election board checks these settings with them:
 :::warning
 If any setting differs from this table, the TOE is not in its evaluated
 configuration and some of its protections do not apply. Do not approve the
-configuration until the administrators have corrected the setting.
+configuration. If an imported Data-tab value differs, obtain a corrected signed
+package and import a new event as described above. For the separate signing,
+certificate and self-test settings, wait for the administrators to complete their
+procedures.
 :::
 
 ## Approving the configuration

@@ -16,9 +16,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 2. In the preparation phase, a member of the election board imports the
    election data of each election event as a signed configuration package
    ([Import of election data](#import-of-election-data)).
-3. After each import, when the election board tells you, check every setting of the new election event and of its
-   elections against the tables on this page, and set the
-   required value wherever a setting differs.
+3. After each import, when the election board tells you, check every setting
+   of the new election event and its elections against the tables on this
+   page. The signed package must already carry the required Data-tab values;
+   retain them. If one differs, use [Correcting imported election
+   data](#correcting-imported-election-data) before continuing.
 4. Set the protected actions
    ([Configuring Protected Actions](06-signing_rules.md)), the self-test
    settings ([Self-Test Settings](07-self_tests.md)) and check the
@@ -268,9 +270,10 @@ Your part:
 
 1. Before the first import, set `configuration_signing`
    ([Signed configuration packages](#signed-configuration-packages)).
-2. After each import, when the election board names the new election event,
-   check and set its settings, and those of its elections, with the
-   tables of this page. You see the settings, not the election data.
+2. Before the package is approved, give the election organizer the required
+   Data-tab values in the tables of this page. After each import, when the
+   election board names the new election event, check that those values are
+   present and retain them. You see the settings, not the election data.
 3. If the election board reports that an import was refused although the
    package is the one the election organizer released, check with a backup
    (steps 2 and 8 of [Set it](#set-it)) that `configuration_signing` still has
@@ -283,9 +286,13 @@ Event", the "Import" of the Voters tab and of Areas, "Import Candidates",
 register, the candidate list, the display data of the ballot, the set of
 election rules, the election dates and the election period end time).
 
-The settings of this page are not election data: you set them in the forms of
-the election event and its elections, where the TOE shows you only the settings
-and refuses changes of election data. Areas are election data.
+Some settings available to administrators also affect the ballot design that
+is approved in the signed package. The election organizer includes the required
+event and election Data-tab values before the package approvals. Administrators
+verify those imported values; they do not change them to repair a package.
+Otherwise publication can refuse the changed ballot design. The tenant settings,
+protected-action rules, certificate registrations and self-test settings are
+configured separately as their procedures describe. Areas remain election data.
 
 ### Correcting imported election data
 
@@ -337,17 +344,16 @@ Notes:
   refuses with "The Ballot Box Seal Policy can't be changed after voting has
   opened." "Ballot Box Seal Record" is locked at the same time.
 - "Receipts signed by the ballot box" cannot be changed once voting has
-  started ("This cannot be changed once voting has started."). After changing
-  it, tell the election board, which publishes and approves the configuration
-  version again.
-- "Checks available until" is entered in the time zone that the field shows.
-  Use the end of the election period as the election organizer states it to
-  you in writing, with its time zone.
-- "Show User Profile", "Enrollment" and "OTP" count as on or "Enabled" while
-  they have never been saved. Select the required value explicitly: switch
-  "Show User Profile" on and off again, and select "Disabled" in "Enrollment"
-  and in "OTP", then save the election event and reopen it to check the
-  values.
+  started ("This cannot be changed once voting has started."). The required
+  value must already be in the signed package; a different imported value
+  requires a corrected package and a new election event.
+- Check "Checks available until" in the time zone that the field shows.
+  It must match the end of the election period as the election organizer
+  states it to you in writing, with its time zone.
+- "Show User Profile", "Enrollment" and "OTP" count as on or "Enabled" when
+  their values are not set. The signed package must contain explicit off or
+  "Disabled" values. Reopen the imported event to check them; do not toggle
+  these controls to repair an incomplete package.
 - "Results Website" is not one of your settings: the admin portal shows it
   only to accounts with "Edit Results Publication" (`publish-results-write`),
   which no role holds, and the TOE refuses the import of a package that enables
@@ -403,9 +409,9 @@ Open each election of the election event and its tab "Data".
 
 :::warning
 In "Number of allowed votes", the value 0 means **unlimited** votes, not "no
-re-voting". Enter 1 if the electoral regulation does not allow re-voting. If
-re-voting is allowed, only the last vote of each voter is counted; enter the
-number of votes the regulation allows. The value cannot be changed once voting
+re-voting". The signed package must use 1 if the electoral regulation does
+not allow re-voting. If re-voting is allowed, only the last vote of each voter
+is counted; check that the imported value is the number the regulation allows. The value cannot be changed once voting
 has started on any voting channel.
 :::
 
@@ -461,10 +467,10 @@ preparation phase and refuses it in every other phase.
    worked when the board confirms the approval; from then on change no setting
    without telling the board.
 
-If you find a setting that differs from the tables after an import, correct
-it before the board approves the configuration version, and tell the election
-board and the election organizer which setting you changed, so that the next
-package carries the required value. A setting you change after the approval
-takes effect for voting only with a new configuration version that the board
-publishes and approves. Do not change the settings after the preparation
-phase.
+If an imported Data-tab setting differs from the tables, stop before the board
+approves the configuration version and ask the election organizer for a corrected
+signed package. The board imports it as a new election event and archives the
+wrong one ([Correcting imported election data](#correcting-imported-election-data)).
+Do not repair its approved ballot design by editing settings in the TOE.
+Complete the separate protected-action and certificate settings before the board
+publishes and approves the new event. Do not change settings after preparation.

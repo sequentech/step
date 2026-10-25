@@ -35,14 +35,15 @@ This handbook is for the persons whom the election organizer appoints as
 administrators. An administrator:
 
 - configures the tenant;
-- sets up the signed configuration packages of the tenant, and checks and sets
-  the security settings of each election event that the election board has
-  imported: as administrator you see an election event's settings, not its
-  election data or its audit records;
+- sets up the tenant's policy for signed configuration packages and verifies
+  the imported event and election Data-tab settings against the required values:
+  as administrator you see an election event's settings, not its election data
+  or its audit records;
 - manages the user accounts and roles of the tenant, and keeps the
   administrator role and the election board role apart;
 - sets the protected actions and their required authorisations, the self-test
-  settings, the re-voting setting and the authentication settings;
+  settings and realm authentication settings, and checks the imported re-voting
+  setting;
 - acts on the TOE's notifications and supports the election board when a
   failure occurs;
 - operates the servers of the TOE as the Deployment Guide describes.
@@ -94,7 +95,7 @@ uses another name, the table gives it.
 |---|---|
 | election | election event (an election event contains elections, an election contains contests, a contest contains candidates); the Signatures tab calls an election a "Post" |
 | tenant | the organisation's space in the TOE; it holds the administrators', board members' and trustees' accounts and the election events |
-| election data | the voters' register (the voters of the election event, with its areas), the candidate list and the display data of the ballot, the set of election rules (the counting and voting rules of the contests) and the election dates (the scheduled opening and closing of voting, with the end of the election period). The settings that the administrators make are not election data: the rules and required authorisations of the Signatures tab, the self-test settings, re-voting, the authentication and session settings, and the settings on the Data tabs of the election event and of its elections |
+| election data | the voters' register (the voters of the election event, with its areas), the candidate list and the display data of the ballot, the set of election rules (the counting and voting rules of the contests) and the election dates (the scheduled opening and closing of voting, with the end of the election period). The signed package also contains event and election Data-tab settings, including presentation and re-voting settings, which administrators verify after import. Some of these settings affect the approved ballot design and must not be changed to repair an imported package. Administrators separately configure the rules and required authorisations of the Signatures tab, certificate registrations, self-test settings and realm authentication and session settings |
 | election execution data | the cast votes, the electoral log (Logs tab, Electoral Log console), the tally and results data, and the voting records |
 | intermediate ballot box | the ballot boxes that receive the cast votes during the execution phase |
 | ballot box | the anonymised boards of the bulletin board that the trustees mix and decrypt when the votes are counted |
