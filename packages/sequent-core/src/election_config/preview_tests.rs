@@ -108,6 +108,7 @@ fn sound() -> Blueprint {
                         disabled: false,
 
                         image: None,
+                        annotations: Default::default(),
                     },
                     PlannedCandidate {
                         external_id: "bob".to_string(),
@@ -119,10 +120,12 @@ fn sound() -> Blueprint {
                         disabled: false,
 
                         image: None,
+                        annotations: Default::default(),
                     },
                 ],
                 areas: Vec::new(),
                 overrides: Overrides::default(),
+                annotations: Default::default(),
             }],
             ..Default::default()
         }],
@@ -338,18 +341,24 @@ fn each_area_gets_the_contests_it_and_its_parents_vote_on() {
             name: "National".to_string(),
             parent_external_id: None,
             allow_early_voting: false,
+            description: String::new(),
+            annotations: Default::default(),
         },
         PlannedArea {
             external_id: "north".to_string(),
             name: "North".to_string(),
             parent_external_id: Some("national".to_string()),
             allow_early_voting: false,
+            description: String::new(),
+            annotations: Default::default(),
         },
         PlannedArea {
             external_id: "south".to_string(),
             name: "South".to_string(),
             parent_external_id: Some("national".to_string()),
             allow_early_voting: false,
+            description: String::new(),
+            annotations: Default::default(),
         },
     ];
 
@@ -375,9 +384,11 @@ fn each_area_gets_the_contests_it_and_its_parents_vote_on() {
             disabled: false,
 
             image: None,
+            annotations: Default::default(),
         }],
         areas: vec!["north".to_string()],
         overrides: Overrides::default(),
+        annotations: Default::default(),
     });
 
     let bundle = built(&plan);
@@ -487,6 +498,8 @@ fn a_plan_nobody_would_get_a_ballot_for_says_so() {
         name: "North".to_string(),
         parent_external_id: None,
         allow_early_voting: false,
+        description: String::new(),
+        annotations: Default::default(),
     }];
     // A contest assigned to an area that is not North: no area votes on it.
     plan.elections[0].contests[0].areas = vec!["north".to_string()];
@@ -524,12 +537,16 @@ fn the_areas_come_back_named_without_changing_the_document() {
             name: "North".to_string(),
             parent_external_id: None,
             allow_early_voting: false,
+            description: String::new(),
+            annotations: Default::default(),
         },
         PlannedArea {
             external_id: "south".to_string(),
             name: "South".to_string(),
             parent_external_id: None,
             allow_early_voting: false,
+            description: String::new(),
+            annotations: Default::default(),
         },
     ];
     plan.elections[0].contests[0].areas =
