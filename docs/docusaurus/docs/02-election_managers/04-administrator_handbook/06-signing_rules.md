@@ -246,8 +246,17 @@ Only the administrator role holds "Signatures: register certificates".
 4. Check the registered certificate together with the board member.
 
 The list shows each registration with its status: "Active", "Expires soon",
-"Expired" or "Revoked". Before each security-critical action that is due, make
-sure that enough registrations of each rule's signers are "Active".
+"Expired" or "Revoked". Before each security-critical action, make sure that
+enough signers have unrevoked registrations and that their certificates and
+issuing certificates remain valid throughout the election and its required
+signing actions. Check "Valid until" against the planned completion date.
+
+"Expires soon" warns that an otherwise unexpired, unrevoked personal
+certificate has fewer than 30 days remaining; this warning alone does not
+prevent it from signing. It may be used if its validity and its issuer's
+validity cover the whole required period. Arrange and register a renewal
+before expiry when further signing will be needed. Never use "Expired" or
+"Revoked" registrations.
 
 To revoke a registration, select "Revoke" and enter the "Reason". "A revoked
 certificate can't sign anymore. Signatures it already made still count."
