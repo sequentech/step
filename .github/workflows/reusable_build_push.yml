@@ -31,7 +31,7 @@ jobs:
     environment: release
     timeout-minutes: 360
     strategy:
-      max-parallel: 13
+      max-parallel: 14
       matrix:
         include:
           - service: keycloak
@@ -87,6 +87,13 @@ jobs:
             context: .
             file: packages/loadtesting/Dockerfile
 
+          # Beyond's Delivery Orchestrator, from the pinned beyond gitlink.
+          - service: delivery-orchestrator
+            context: beyond/packages/delivery-orchestrator
+            file: beyond/packages/delivery-orchestrator/Dockerfile
+            build_contexts: |
+              guide_source=./beyond/docs/docusaurus
+
           # - service: mock_server
           #   context: packages/e2e/src/mock_server
           #   file: packages/e2e/src/mock_server/Dockerfile.prod
@@ -98,12 +105,12 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Resolve beyond submodule commit
-      if: matrix.service == 'keycloak'
+      if: matrix.service == 'keycloak' || matrix.service == 'delivery-orchestrator'
       id: beyond
       run: echo "sha=$(git rev-parse HEAD:beyond)" >> "$GITHUB_OUTPUT"
 
     - name: Check out beyond submodule
-      if: matrix.service == 'keycloak'
+      if: matrix.service == 'keycloak' || matrix.service == 'delivery-orchestrator'
       uses: actions/checkout@v4
       with:
         repository: sequentech/beyond
