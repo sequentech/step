@@ -2,6 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import {useTenantStore} from "@/providers/TenantContextProvider"
+import {savePendingBoardAction} from "@/lib/boardAuthentication"
+import {useNotify} from "react-admin"
 import React, {ReactElement, useState, useContext, useEffect, useCallback} from "react"
 import {useTranslation} from "react-i18next"
 import {Add, Visibility, Preview} from "@mui/icons-material"
@@ -88,29 +91,36 @@ export const PublishList: React.FC<TPublishList> = ({
     onPreview = () => null,
 }) => {
     const {t} = useTranslation()
+    const [tenantId] = useTenantStore()
+    const notify = useNotify()
     const authContext = useContext(AuthContext)
-    const {isGoldUser, reauthWithGold} = authContext
+    const {isFreshBoardAuthentication, reauthenticateBoard} = authContext
 
     const {canReadPublish, canPublishCreate, showPublishPreview, showPublishView} =
         usePublishPermissions()
 
     /**
      * Specific Handler for "Publish Changes" Button: Incorporates
-     * re-authentication logic for actions that require Gold-level permissions.
+     * re-authentication logic for actions that require fresh external authentication.
      */
     const handlePublish = async () => {
         try {
-            if (!isGoldUser()) {
+            if (!isFreshBoardAuthentication()) {
                 const baseUrl = new URL(window.location.href)
                 // The event and election tabs select Publish by id; its position depends on permissions.
                 baseUrl.searchParams.set("tabId", "publish")
-                sessionStorage.setItem(EPublishActions.PENDING_PUBLISH_ACTION, "true")
-                await reauthWithGold(baseUrl.toString())
+                savePendingBoardAction(sessionStorage, EPublishActions.PENDING_PUBLISH_ACTION, {
+                    tenantId: tenantId ?? "",
+                    userId: authContext.userId,
+                    eventId: String(electionEventId ?? ""),
+                    electionId: electionId == null ? null : String(electionId),
+                })
+                await reauthenticateBoard(baseUrl.toString())
             } else {
                 onGenerate()
             }
         } catch (error) {
-            console.error("Re-authentication failed:", error)
+            notify(t("publish.dialog.errorReauth"), {type: "error"})
         }
     }
 

@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import {requiresFreshBoardAuthentication, saveBoardSigningResume} from "@/lib/boardAuthentication"
 import React, {useCallback, useContext, useEffect, useId, useReducer, useRef} from "react"
 import {useTranslation} from "react-i18next"
 import {
@@ -761,11 +762,13 @@ export const SigningDialog: React.FC<ISigningDialogProps> = ({
 }) => {
     const {t} = useTranslation()
     const titleId = useId()
+    const auth = useContext(AuthContext)
     const [state, dispatch] = useReducer(reducer, INITIAL)
     // Results of work started for an earlier file or dialog are dropped.
     const generation = useRef(0)
     // One approval at a time, whatever the rendering does with fast clicks.
     const signing = useRef(false)
+    const reauthenticating = useRef(false)
     const requestId = data.request.id
     const signedView = useSignedView(data)
 
@@ -796,7 +799,33 @@ export const SigningDialog: React.FC<ISigningDialogProps> = ({
         [api, requestId]
     )
 
+    const ensureFreshAuthentication = async (): Promise<boolean> => {
+        if (
+            !requiresFreshBoardAuthentication(data.request.action) ||
+            auth.isFreshBoardAuthentication()
+        )
+            return true
+        if (reauthenticating.current) return false
+        reauthenticating.current = true
+        // Discard the file, password and opened key before leaving this page.
+        generation.current += 1
+        dispatch({type: "reset"})
+        try {
+            saveBoardSigningResume(window.sessionStorage, data.request, auth.userId)
+            await auth.reauthenticateBoard(window.location.href)
+        } catch {
+            reauthenticating.current = false
+            dispatch({type: "signFailed", error: "publish.dialog.errorReauth"})
+            return false
+        }
+        reauthenticating.current = false
+        // A normal login navigates away; a failed/no-op return never proceeds to a private file.
+        dispatch({type: "signFailed", error: "publish.dialog.errorReauth"})
+        return false
+    }
+
     const openCertificate = async () => {
+        if (!(await ensureFreshAuthentication())) return
         const {file, password} = state
         if (!file) return
         const current = generation.current
@@ -838,6 +867,7 @@ export const SigningDialog: React.FC<ISigningDialogProps> = ({
     }
 
     const sign = async () => {
+        if (!(await ensureFreshAuthentication())) return
         const {certificate} = state
         if (!certificate || !allPassed(state.checks) || state.closed || signing.current) return
         signing.current = true
@@ -852,7 +882,15 @@ export const SigningDialog: React.FC<ISigningDialogProps> = ({
                 dispatch({type: "closed", closed: fresh})
                 return
             }
-            const result = await crypto.signAndApprove(api, fresh, certificate)
+            const guardedApi: ISigningApi = {
+                ...api,
+                approve: async (...args: Parameters<ISigningApi["approve"]>) => {
+                    if (!(await ensureFreshAuthentication()))
+                        throw new Error("Fresh board authentication required")
+                    return api.approve(...args)
+                },
+            }
+            const result = await crypto.signAndApprove(guardedApi, fresh, certificate)
             if (current !== generation.current) return
             dispatch({type: "signed", result, at: new Date()})
             onSigned?.(result)
@@ -900,6 +938,9 @@ export const SigningDialog: React.FC<ISigningDialogProps> = ({
                 {t("signing.dialog.title", {object: actionObject(t, data.request.action)})}
             </DialogTitle>
             <DialogContent>
+                {state.step === SigningDialogStep.Check && state.error ? (
+                    <Alert severity="error">{t(state.error)}</Alert>
+                ) : null}
                 <Stepper activeStep={state.signed ? steps.length : state.step} sx={{mb: 3, mt: 1}}>
                     {steps.map((label) => (
                         <Step key={label}>
@@ -947,9 +988,10 @@ export const SigningDialog: React.FC<ISigningDialogProps> = ({
                             disabled={
                                 !signedView.verified || (needsConfirmation && !state.confirmed)
                             }
-                            onClick={() =>
-                                dispatch({type: "goto", step: SigningDialogStep.Certificate})
-                            }
+                            onClick={async () => {
+                                if (await ensureFreshAuthentication())
+                                    dispatch({type: "goto", step: SigningDialogStep.Certificate})
+                            }}
                         >
                             {t("signing.widget.continue")}
                         </Button>

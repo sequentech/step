@@ -47,7 +47,7 @@ jest.mock("@/providers/TenantContextProvider", () => ({useTenantStore: () => ["t
 jest.mock("@/providers/AuthContextProvider", () => ({
     AuthContext: require("react").createContext({
         isAuthorized: () => true,
-        isGoldUser: () => false,
+        isFreshBoardAuthentication: () => false,
     }),
 }))
 jest.mock("@/providers/SettingsContextProvider", () => ({

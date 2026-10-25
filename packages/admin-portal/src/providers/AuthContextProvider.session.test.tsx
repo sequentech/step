@@ -177,3 +177,33 @@ it("does not send profile reads when a persisted session was already idle", asyn
     expect(FakeKeycloak.instances[0].loadUserProfile).not.toHaveBeenCalled()
     expect(FakeKeycloak.instances[0].logout).toHaveBeenCalledTimes(1)
 })
+
+it.each([0, 59])("accepts external board auth_time age %s without Gold", async (age) => {
+    await mount()
+    Object.assign(FakeKeycloak.instances[0].tokenParsed, {
+        auth_time: Math.floor(Date.now() / 1000) - age,
+        acr: "0",
+    })
+    expect(auth.isFreshBoardAuthentication()).toBe(true)
+})
+it.each([undefined, -1, 60, 61])(
+    "rejects missing, future or stale board authentication (%s)",
+    async (age) => {
+        await mount()
+        Object.assign(FakeKeycloak.instances[0].tokenParsed, {
+            auth_time: age === undefined ? undefined : Math.floor(Date.now() / 1000) - age,
+            acr: "gold",
+            iat: Math.floor(Date.now() / 1000),
+        })
+        expect(auth.isFreshBoardAuthentication()).toBe(false)
+    }
+)
+it("forces an upstream fresh login with a bounded nonzero maxAge", async () => {
+    await mount()
+    await auth.reauthenticateBoard("https://admin.example.test/request")
+    expect(FakeKeycloak.instances[0].login).toHaveBeenCalledWith({
+        redirectUri: "https://admin.example.test/request",
+        prompt: "login",
+        maxAge: 60,
+    })
+})

@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import {consumePendingBoardAction} from "@/lib/boardAuthentication"
 import React, {ComponentType, useCallback, useContext, useEffect, useRef, useState} from "react"
 import {Alert, AlertTitle, Box} from "@mui/material"
 import {useMutation, useQuery} from "@apollo/client"
@@ -108,7 +109,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         const [publishError, setPublishError] = useState<string | null>(null)
         const {globalSettings} = useContext(SettingsContext)
         const authContext = useContext(AuthContext)
-        const {isGoldUser} = authContext
+        const {isFreshBoardAuthentication} = authContext
         const canWrite = authContext.isAuthorized(true, tenantId, IPermissions.PUBLISH_WRITE)
         const canRead = authContext.isAuthorized(true, tenantId, IPermissions.PUBLISH_READ)
 
@@ -581,27 +582,30 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
          * If a pending action is found, it executes the action and removes the flag.
          */
         useEffect(() => {
-            const executePendingActions = async () => {
-                let isGold = isGoldUser()
-
-                if (isGold) {
-                    const pendingPublish = sessionStorage.getItem(
-                        EPublishActions.PENDING_PUBLISH_ACTION
-                    )
-                    if (pendingPublish) {
-                        onGenerate()
-                    }
-                }
-            }
-            const cleanup = () => {
-                sessionStorage.removeItem(EPublishActions.PENDING_PUBLISH_ACTION)
-            }
-
-            if (electionEventId || electionId) {
-                executePendingActions()
-                cleanup()
-            }
-        }, [onChangeStatus, onGenerate])
+            if (!electionEventId || !tenantId || !authContext.userId) return
+            const result = consumePendingBoardAction(
+                sessionStorage,
+                EPublishActions.PENDING_PUBLISH_ACTION,
+                {
+                    tenantId,
+                    userId: authContext.userId,
+                    eventId: electionEventId,
+                    electionId: electionId ?? null,
+                },
+                isFreshBoardAuthentication()
+            )
+            if (result.status === "ready") onGenerate()
+            else if (result.status === "waiting" || result.status === "refused")
+                setPublishError(t("publish.dialog.errorReauth"))
+        }, [
+            onGenerate,
+            electionEventId,
+            electionId,
+            tenantId,
+            authContext.userId,
+            isFreshBoardAuthentication,
+            t,
+        ])
 
         useEffect(() => {
             if (showList) {
@@ -719,7 +723,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                 {viewMode === ViewMode.List && type === EPublishType.Election && electionId ? (
                     <FiredTransitions electionEventId={electionEventId} electionId={electionId} />
                 ) : null}
-                {viewMode !== ViewMode.List && publishError ? (
+                {publishError ? (
                     <Alert severity="error" onClose={() => setPublishError(null)} sx={{mb: 2}}>
                         <AlertTitle>{t("publish.dialog.error_publish")}</AlertTitle>
                         <Box sx={{whiteSpace: "pre-line"}}>{publishError}</Box>

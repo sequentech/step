@@ -117,7 +117,7 @@ function Fixture({election, voting, votingStatus}: Scenario) {
                     ...auth,
                     tenantId: TENANT_ID,
                     isAuthenticated: true,
-                    isGoldUser: () => true,
+                    isFreshBoardAuthentication: () => true,
                     isAuthorized: (_super, tenant, permission) =>
                         tenant === TENANT_ID &&
                         (Array.isArray(permission) ? permission : [permission]).every((p) =>

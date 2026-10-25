@@ -108,8 +108,8 @@ function PublicationFixture(props: Props) {
                     ...auth,
                     isAuthenticated: true,
                     tenantId: TENANT_ID,
-                    isGoldUser: () => props.gold,
-                    reauthWithGold: props.reauthenticate,
+                    isFreshBoardAuthentication: () => props.gold,
+                    reauthenticateBoard: props.reauthenticate,
                     hasRole: (role) => props.roles.includes(role),
                     isAuthorized: (_superAdmin, tenant, permission) =>
                         tenant === TENANT_ID &&

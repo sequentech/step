@@ -2,6 +2,8 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import {savePendingBoardAction} from "@/lib/boardAuthentication"
+import {EPublishActions} from "@/types/publishActions"
 import React from "react"
 import {act, fireEvent, render, screen, within} from "@testing-library/react"
 import {Publish} from "./Publish"
@@ -14,6 +16,7 @@ const mockNotify = jest.fn()
 const mockRefetch = jest.fn()
 const mockRefresh = jest.fn()
 const mockRecord = {id: "event", status: {}, presentation: {}}
+let mockFresh = false
 const mockT = (key: string) => key
 let mockPublication: {id: string; is_generated: boolean} | undefined
 let mockTask: {id: string; execution_status: string; logs: Array<{log_text: string}>} | undefined
@@ -45,7 +48,9 @@ jest.mock("@/providers/TenantContextProvider", () => ({useTenantStore: () => ["t
 jest.mock("@/providers/AuthContextProvider", () => ({
     AuthContext: require("react").createContext({
         isAuthorized: () => true,
-        isGoldUser: () => false,
+        isFreshBoardAuthentication: () => mockFresh,
+        userId: "board",
+        tenantId: "tenant",
     }),
 }))
 jest.mock("@/providers/SettingsContextProvider", () => ({
@@ -89,6 +94,8 @@ jest.mock("@/components/FormDialog", () => ({__esModule: true, default: () => nu
 const props = {electionEventId: "event", type: EPublishType.Event}
 
 beforeEach(() => {
+    mockFresh = false
+    sessionStorage.clear()
     jest.clearAllMocks()
     sessionStorage.clear()
     mockTask = undefined
@@ -226,4 +233,41 @@ it("keeps a generated publication ready to retry after publishing fails", async 
     const readyState = screen.getByTestId("detail-state").textContent
     await act(async () => fireEvent.click(screen.getByText("Publish ballot")))
     expect(screen.getByTestId("detail-state").textContent).toEqual(readyState)
+})
+
+it("retains a scoped publication after a nonfresh return and generates once after fresh return", async () => {
+    const key = EPublishActions.PENDING_PUBLISH_ACTION
+    savePendingBoardAction(sessionStorage, key, {
+        tenantId: "tenant",
+        userId: "board",
+        eventId: props.electionEventId,
+        electionId: null,
+    })
+    const view = render(React.createElement(Publish, props))
+    expect(mockGenerate).not.toHaveBeenCalled()
+    expect(sessionStorage.getItem(key)).not.toBeNull()
+    expect((await screen.findByRole("alert")).textContent).toContain("publish.dialog.errorReauth")
+    view.unmount()
+    mockFresh = true
+    render(React.createElement(Publish, props))
+    await act(async () => {
+        await Promise.resolve()
+    })
+    expect(mockGenerate).toHaveBeenCalledTimes(1)
+    expect(sessionStorage.getItem(key)).toBeNull()
+})
+it("does not resume a publication under a different person", async () => {
+    mockFresh = true
+    savePendingBoardAction(sessionStorage, EPublishActions.PENDING_PUBLISH_ACTION, {
+        tenantId: "tenant",
+        userId: "other",
+        eventId: props.electionEventId,
+        electionId: null,
+    })
+    render(React.createElement(Publish, props))
+    await act(async () => {
+        await Promise.resolve()
+    })
+    expect(mockGenerate).not.toHaveBeenCalled()
+    expect((await screen.findByRole("alert")).textContent).toContain("publish.dialog.errorReauth")
 })

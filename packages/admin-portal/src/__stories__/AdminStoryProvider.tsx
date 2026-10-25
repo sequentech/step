@@ -240,7 +240,7 @@ export function AdminStoryProvider({
     role?: EStoryPermissions
     /** Replaces the group's roles, for a story about one permission. */
     roles?: string[]
-    /** Further signed-in user values, e.g. `isGoldUser` or `permissionLabels`. */
+    /** Further signed-in user values, e.g. `isFreshBoardAuthentication` or `permissionLabels`. */
     auth?: Partial<AuthContextValues>
     /** Applies this tenant's branding, typically the story's `tenant` global. */
     tenant?: EStoryTenant

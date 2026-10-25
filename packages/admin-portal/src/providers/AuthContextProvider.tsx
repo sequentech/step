@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext} from "react"
 
+import {hasFreshBoardAuthentication, boardLoginOptions} from "@/lib/boardAuthentication"
 import Keycloak, {KeycloakConfig, KeycloakInitOptions} from "keycloak-js"
 import {createContext, useEffect, useRef, useState} from "react"
 import {
@@ -95,9 +96,9 @@ export interface AuthContextValues {
      */
     openProfileLink: () => Promise<void>
 
-    isGoldUser: () => boolean
+    isFreshBoardAuthentication: () => boolean
 
-    reauthWithGold: (redirectUri: string) => Promise<void>
+    reauthenticateBoard: (redirectUri: string) => Promise<void>
 }
 
 /**
@@ -119,8 +120,8 @@ const defaultAuthContextValues: AuthContextValues = {
     openProfileLink: () => new Promise(() => undefined),
     permissionLabels: [],
     preparePermissionRefresh: () => async () => {},
-    isGoldUser: () => false,
-    reauthWithGold: async () => {},
+    isFreshBoardAuthentication: () => false,
+    reauthenticateBoard: async () => {},
     initKeycloak: async (tenantId: string) => {
         return false
     },
@@ -329,31 +330,16 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     }
 
     /**
-     * Returns true only if the JWT has gold permissions and the JWT
-     * authentication is fresh, i.e. performed less than 60 seconds ago.
+     * Board actions use the external authentication time, never a Gold marker
+     * or the issue time of a refreshed token. The server enforces the same boundary.
      */
     // TODO: This is duplicated from jwt.rs in sequent-core, we should just use
     // the same WASM function if possible
-    const isGoldUser = () => {
-        const acr = keycloak?.tokenParsed?.acr ?? null
-        const isGold = acr === IPermissions.GOLD_PERMISSION
+    const isFreshBoardAuthentication = () => hasFreshBoardAuthentication(keycloak?.tokenParsed)
 
-        const authTimeTimestamp = keycloak?.tokenParsed?.auth_time ?? 0
-        const authTime = new Date(authTimeTimestamp * 1000)
-        const freshnessLimit = new Date(Date.now().valueOf() - 60 * 1000)
-        const isFresh = authTime > freshnessLimit
-        return isGold && isFresh
-    }
-
-    const reauthWithGold = async (redirectUri: string): Promise<void> => {
-        try {
-            await keycloak?.login({
-                acr: {essential: true, values: [IPermissions.GOLD_PERMISSION]},
-                redirectUri: redirectUri || window.location.href, // Use the passed URL or fallback to current URL
-            })
-        } catch (error) {
-            console.error("Re-authentication failed:", error)
-        }
+    const reauthenticateBoard = async (redirectUri: string): Promise<void> => {
+        if (!keycloak) throw new Error("Authentication client unavailable")
+        await keycloak.login(boardLoginOptions(redirectUri || window.location.href))
     }
 
     const createKeycloak = (tenantId?: string) => {
@@ -646,8 +632,8 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 openProfileLink,
                 permissionLabels,
                 preparePermissionRefresh,
-                isGoldUser,
-                reauthWithGold,
+                isFreshBoardAuthentication,
+                reauthenticateBoard,
                 initKeycloak,
             }}
         >
