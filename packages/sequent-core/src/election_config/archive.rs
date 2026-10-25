@@ -264,6 +264,8 @@ fn templates_csv(templates: &[CommunicationTemplate]) -> String {
 /// asserts they have not.
 fn admin_portal_member(name: &str) -> bool {
     name == "admin_users.csv"
+        || name == super::package_contract::TRUSTEES_MEMBER
+        || name.starts_with(super::package_contract::TENANT_SETTINGS_PREFIX)
         || name.starts_with("export_permissions-")
         || name.starts_with("export_templates-")
         || name.starts_with("templates/")
@@ -927,6 +929,40 @@ mod tests {
         );
         // Applied by hand against a realm, not imported into anything.
         assert_eq!(loose, ["keycloak_event_realm_patch.json"]);
+    }
+
+    #[test]
+    fn every_member_a_delivery_writes_has_a_known_disposition() {
+        // **The guard on the shared consumer table.** A member this module
+        // writes and `package_contract` does not know would be shown to the
+        // operator as unknown and never applied. Built from a real bundle,
+        // with a tenant package, through `delivery` and the manifest reader.
+        use crate::election_config::package_contract::{coverage, Disposition, Section};
+        use crate::election_config::tenant_package;
+        let source = portal_bundle();
+        let mut layout = layout(&source);
+        // The bundle already writes administrators and roles from its sheets;
+        // the package adds the two sections no sheet carries.
+        let package = tenant_package::read(&serde_json::json!({
+            "format": "sequent.tenant-package/1",
+            "tenantSettings": {"displayName": "Example"},
+            "trustees": [{"name": "t", "signingPublicKey": "AAAA", "shareEncryptionPublicKey": "AAAA"}]
+        }))
+        .unwrap();
+        tenant_package::add_to_layout(&mut layout, &package, &source.tenant_id).unwrap();
+        let delivered = delivery(&layout).unwrap();
+        let members =
+            crate::election_config::manifest::read_zip(&delivered.bytes, "delivery").unwrap();
+        let entries = crate::election_config::manifest::file_entries(&members).unwrap();
+        let covered = coverage(&entries, &Section::APPLY_ORDER);
+        let unknown: Vec<&str> = covered
+            .members
+            .iter()
+            .filter(|m| m.disposition == Disposition::Unknown)
+            .map(|m| m.path.as_str())
+            .collect();
+        assert!(unknown.is_empty(), "unclassified members: {unknown:?}");
+        assert!(covered.missing().is_empty(), "{:?}", covered.missing());
     }
 
     #[test]
