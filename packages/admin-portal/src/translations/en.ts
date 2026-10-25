@@ -4,6 +4,59 @@
 
 const englishTranslation = {
     translations: {
+        configurationPackage: {
+            tab: "Configuration package",
+            title: "Import a configuration package",
+            description:
+                "Apply a complete delivery exported by Election Architect: tenant configuration and settings, roles, administrators, trustees and the election event with its census. Nothing changes until the preview is applied.",
+            tenant: "Tenant: {{tenantId}}",
+            notPermitted:
+                "Importing a configuration package needs tenant-write, user-write, role-write, trustee-create, trustee-write and election-event-create on this tenant.",
+            requirements: "The package must carry",
+            censusRequired: "The election event's census",
+            sections: {
+                "tenant-configuration": "Tenant configuration",
+                "tenant-settings": "Tenant settings",
+                "role-permissions": "Role permissions",
+                "admin-accounts": "Administrator accounts",
+                "trustees": "Trustees",
+                "election-event": "Election event",
+            },
+            upload: "Upload package",
+            uploadTitle: "Upload a configuration package",
+            uploadSubtitle: "The delivery zip from removable media",
+            uploadParagraph: "It is previewed first; nothing is applied from the upload itself.",
+            documentId: "Or an uploaded document id",
+            preview: "Preview",
+            apply: "Apply",
+            blocked:
+                "The preview found blockers: fix the package or the tenant, then preview again.",
+            noTask: "The platform returned no task.",
+            mode: {preview: "Preview", apply: "Application"},
+            task: "Task {{taskId}}",
+            running: "Running…",
+            toChange: "Preview only, nothing changed: {{count}} section(s) would change.",
+            outcome: {
+                running: "Running",
+                previewed: "Previewed: nothing was changed",
+                applied: "Applied: the tenant matches the package",
+                refused:
+                    "Refused before this run applied anything; sections an earlier run applied stay applied, as their states say",
+                failed: "Failed part-way: the sections before it may be applied, as their states say",
+                unknown:
+                    "Unknown: a section could not be settled, and nothing further was submitted; check it again before retrying",
+            },
+            columns: {section: "Section", state: "State", task: "Task", details: "Details"},
+            reconciled: "reconciled",
+            blocker: "Blocked",
+            needsApply: "Would change",
+            members: "Members",
+            history: "Earlier applications",
+            applyRechecks:
+                "Applying previews the package again on the platform before anything changes, and stops at any blocker.",
+            earlierApplied: "Applied by an earlier run (tasks: {{tasks}})",
+            inFlight: "A submission is not settled yet (task {{taskId}})",
+        },
         ballotPrivacy: {
             title: "Ballot box log",
             subtitle:
@@ -1100,6 +1153,7 @@ const englishTranslation = {
                 EXPORT_APPLICATION: "Export Applications",
                 EXPORT_TENANT_CONFIG: "Export Tenant Config",
                 IMPORT_TENANT_CONFIG: "Import Tenant Config",
+                APPLY_CONFIGURATION_PACKAGE: "Apply Configuration Package",
                 RENDER_DOCUMENT_PDF: "Render Document PDF",
                 CREATE_TENANT: "Create Tenant",
                 EXPORT_TEMPLATES: "Export Templates",

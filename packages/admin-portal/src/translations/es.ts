@@ -5,6 +5,59 @@ import englishTranslation, {TranslationType} from "./en"
 
 const spanishTranslation: TranslationType = {
     translations: {
+        configurationPackage: {
+            tab: "Paquete de configuración",
+            title: "Importar un paquete de configuración",
+            description:
+                "Aplica una entrega completa exportada por Election Architect: configuración y ajustes del cliente, roles, administradores, autoridades y el evento electoral con su censo. Nada cambia hasta que se aplica la vista previa.",
+            tenant: "Cliente: {{tenantId}}",
+            notPermitted:
+                "Importar un paquete de configuración requiere tenant-write, user-write, role-write, trustee-create, trustee-write y election-event-create en este cliente.",
+            requirements: "El paquete debe incluir",
+            censusRequired: "El censo del evento electoral",
+            sections: {
+                "tenant-configuration": "Configuración del cliente",
+                "tenant-settings": "Ajustes del cliente",
+                "role-permissions": "Permisos de roles",
+                "admin-accounts": "Cuentas de administración",
+                "trustees": "Autoridades",
+                "election-event": "Evento electoral",
+            },
+            upload: "Subir paquete",
+            uploadTitle: "Subir un paquete de configuración",
+            uploadSubtitle: "El zip de la entrega, desde un medio extraíble",
+            uploadParagraph: "Primero se previsualiza; la subida por sí sola no aplica nada.",
+            documentId: "O el id de un documento ya subido",
+            preview: "Vista previa",
+            apply: "Aplicar",
+            blocked:
+                "La vista previa encontró bloqueos: corrige el paquete o el cliente y vuelve a previsualizar.",
+            noTask: "La plataforma no devolvió ninguna tarea.",
+            mode: {preview: "Vista previa", apply: "Aplicación"},
+            task: "Tarea {{taskId}}",
+            running: "En curso…",
+            toChange: "Solo vista previa, nada ha cambiado: {{count}} sección(es) cambiarían.",
+            outcome: {
+                running: "En curso",
+                previewed: "Previsualizado: no se cambió nada",
+                applied: "Aplicado: el cliente coincide con el paquete",
+                refused:
+                    "Rechazado antes de que esta ejecución aplicara nada; las secciones que aplicó una ejecución anterior siguen aplicadas, según su estado",
+                failed: "Falló a mitad: las secciones anteriores pueden estar aplicadas, según su estado",
+                unknown:
+                    "Desconocido: una sección no pudo resolverse y no se envió nada más; compruébela antes de reintentar",
+            },
+            columns: {section: "Sección", state: "Estado", task: "Tarea", details: "Detalles"},
+            reconciled: "conciliado",
+            blocker: "Bloqueado",
+            needsApply: "Cambiaría",
+            members: "Miembros",
+            history: "Aplicaciones anteriores",
+            applyRechecks:
+                "Aplicar vuelve a previsualizar el paquete en la plataforma antes de cambiar nada, y se detiene ante cualquier bloqueo.",
+            earlierApplied: "Aplicado por una ejecución anterior (tareas: {{tasks}})",
+            inFlight: "Hay un envío sin resolver (tarea {{taskId}})",
+        },
         ballotPrivacy: englishTranslation.translations.ballotPrivacy,
         readiness: {
             close: "Cerrar",
@@ -944,6 +997,7 @@ const spanishTranslation: TranslationType = {
                 EXPORT_APPLICATION: "Exportar Solicitudes",
                 EXPORT_TENANT_CONFIG: "Exportar Configuración del Cliente",
                 IMPORT_TENANT_CONFIG: "Importar Configuración del Cliente",
+                APPLY_CONFIGURATION_PACKAGE: "Aplicar Paquete de Configuración",
                 RENDER_DOCUMENT_PDF: "Renderizar el documento PDF",
                 CREATE_TENANT: "Crear Inquilino",
                 EXPORT_TEMPLATES: "Exportar Plantillas",
