@@ -136,6 +136,7 @@ fn operator(event: &Event) -> Claims {
 fn signer(event: &Event, user: &str, labels: &[&str]) -> Claims {
     Claims::new(&event.tenant_id, user)
         .username(user)
+        .auth_time(chrono::Utc::now().timestamp())
         .roles([ACTION.sign_permission()])
         .permission_labels(labels)
 }
@@ -783,4 +784,40 @@ async fn a_signer_prepares_the_pdf_of_a_waiting_request() {
     )
     .await;
     assert_eq!((status, &again), (Status::Ok, &prepared));
+}
+
+#[rocket::async_test]
+async fn board_approval_rejects_stale_missing_and_future_authentication() {
+    let services = Services::on_test_database().await;
+    let client = services.client().await;
+    let (event, request_id) = waiting_request(&services.hasura).await;
+    let original_steps = steps(&services.hasura, &event).await;
+    for auth_time in [
+        None,
+        Some(chrono::Utc::now().timestamp() - 60),
+        Some(chrono::Utc::now().timestamp() + 300),
+    ] {
+        let claims = Claims::new(&event.tenant_id, "maria")
+            .username("maria")
+            .roles([ACTION.sign_permission()])
+            .permission_labels(&[LABEL]);
+        let claims = match auth_time {
+            Some(time) => claims.auth_time(time),
+            None => claims,
+        };
+        let (status, body) = json(
+            post(
+                &client,
+                "/signing-requests/approve",
+                &claims,
+                &approval(request_id),
+            )
+            .await,
+        )
+        .await;
+        assert_eq!(status, Status::Forbidden, "{body}");
+        assert_eq!(body["extensions"]["code"], "forbidden");
+        assert_eq!(body["extensions"]["reason"], "reauthentication-required");
+        assert_eq!(steps(&services.hasura, &event).await, original_steps);
+    }
 }
