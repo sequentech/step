@@ -54,3 +54,61 @@ pub async fn get_realm_id(
         .ok_or(anyhow!("realm not found: {realm_name}"))?
         .clone())
 }
+
+/// How many people a realm holds (service accounts excluded), or `None` when
+/// no realm has that name.
+#[instrument(err, skip(keycloak_transaction))]
+pub async fn realm_user_count(
+    keycloak_transaction: &Transaction<'_>,
+    realm_name: &str,
+) -> Result<Option<i64>> {
+    let row = keycloak_transaction
+        .query_opt(
+            r#"
+            SELECT
+                (SELECT count(*) FROM user_entity
+                 WHERE user_entity.realm_id = realm.id
+                   AND user_entity.service_account_client_link IS NULL) AS users
+            FROM realm
+            WHERE realm.name = $1;
+            "#,
+            &[&realm_name],
+        )
+        .await
+        .map_err(|err| anyhow!("Error counting the realm's users: {err}"))?;
+    Ok(row.map(|row| row.get("users")))
+}
+
+/// The groups of each of `usernames` that exists in the realm, by lower-cased
+/// username; a username with no account is absent from the map.
+#[instrument(err, skip(keycloak_transaction, usernames))]
+pub async fn user_groups(
+    keycloak_transaction: &Transaction<'_>,
+    realm_name: &str,
+    usernames: &[String],
+) -> Result<std::collections::BTreeMap<String, std::collections::BTreeSet<String>>> {
+    let lowered: Vec<String> = usernames.iter().map(|u| u.to_lowercase()).collect();
+    let rows = keycloak_transaction
+        .query(
+            r#"
+            SELECT user_entity.username, keycloak_group.name AS group_name
+            FROM user_entity
+            JOIN realm ON realm.id = user_entity.realm_id
+            LEFT JOIN user_group_membership ON user_group_membership.user_id = user_entity.id
+            LEFT JOIN keycloak_group ON keycloak_group.id = user_group_membership.group_id
+            WHERE realm.name = $1 AND user_entity.username = ANY($2);
+            "#,
+            &[&realm_name, &lowered],
+        )
+        .await
+        .map_err(|err| anyhow!("Error reading the accounts' groups: {err}"))?;
+    let mut groups: std::collections::BTreeMap<String, std::collections::BTreeSet<String>> =
+        Default::default();
+    for row in rows {
+        let entry = groups.entry(row.get::<_, String>("username")).or_default();
+        if let Some(group) = row.get::<_, Option<String>>("group_name") {
+            entry.insert(group);
+        }
+    }
+    Ok(groups)
+}

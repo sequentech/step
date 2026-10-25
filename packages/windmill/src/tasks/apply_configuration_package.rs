@@ -98,7 +98,10 @@ async fn prior_record(
     package_sha256: &str,
     current_task: &str,
 ) -> anyhow::Result<Option<ApplicationRecord>> {
+    let mut db: DbClient = get_hasura_pool().await.get().await?;
+    let transaction = db.transaction().await?;
     let rows = get_tasks_by_annotation(
+        &transaction,
         tenant_id,
         &ETasksExecution::APPLY_CONFIGURATION_PACKAGE.to_string(),
         PACKAGE_SHA256_KEY,
@@ -224,5 +227,69 @@ pub async fn apply_configuration_package(
             let _ = crate::services::tasks_execution::update_fail(&task_execution, &message).await;
             Err(anyhow!(message).into())
         }
+    }
+}
+
+#[cfg(test)]
+#[path = "../../tests/support/schema.rs"]
+mod apply_test_schema;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::postgres::trustee::{get_all_trustees, insert_trustee};
+
+    /// Needs the PostgreSQL server `HASURA_DB__*` names (see
+    /// tests/support/schema.rs); rolls back everything it writes.
+    #[tokio::test]
+    async fn earlier_runs_and_registered_trustees_are_read_back_per_tenant() {
+        let pool = super::apply_test_schema::pool().await;
+        let mut client = pool.get().await.unwrap();
+        let tx = client.transaction().await.unwrap();
+        let (tenant, other) = (uuid::Uuid::new_v4(), uuid::Uuid::new_v4());
+        for id in [tenant, other] {
+            tx.execute(
+                "INSERT INTO sequent_backend.tenant (id, slug) VALUES ($1, $2)",
+                &[&id, &format!("apply-{id}")],
+            )
+            .await
+            .unwrap();
+        }
+        let kind = ETasksExecution::APPLY_CONFIGURATION_PACKAGE.to_string();
+        for (id, owner, sha) in [
+            (uuid::Uuid::new_v4(), tenant, "aaaa"),
+            (uuid::Uuid::new_v4(), tenant, "bbbb"),
+            (uuid::Uuid::new_v4(), other, "aaaa"),
+        ] {
+            tx.execute(
+                "INSERT INTO sequent_backend.tasks_execution (id, tenant_id, name, type, execution_status, executed_by_user, annotations) VALUES ($1, $2, 'Apply', $3, 'SUCCESS', 'ada', $4)",
+                &[&id, &owner, &kind, &serde_json::json!({PACKAGE_SHA256_KEY: sha})],
+            )
+            .await
+            .unwrap();
+        }
+        let found =
+            get_tasks_by_annotation(&tx, &tenant.to_string(), &kind, PACKAGE_SHA256_KEY, "aaaa")
+                .await
+                .unwrap();
+        assert_eq!(found.len(), 1, "only this tenant's runs of this package");
+        assert_eq!(found[0].tenant_id, tenant.to_string());
+
+        let id = insert_trustee(&tx, &tenant.to_string(), "t1", "c2lnbg==", "c2hhcmU=")
+            .await
+            .unwrap();
+        let trustees = get_all_trustees(&tx, &tenant.to_string()).await.unwrap();
+        assert_eq!(trustees.len(), 1);
+        assert_eq!(trustees[0].id, id);
+        assert_eq!(trustees[0].public_key.as_deref(), Some("c2lnbg=="));
+        assert_eq!(
+            trustees[0].share_encryption_public_key.as_deref(),
+            Some("c2hhcmU=")
+        );
+        assert!(get_all_trustees(&tx, &other.to_string())
+            .await
+            .unwrap()
+            .is_empty());
+        tx.rollback().await.unwrap();
     }
 }

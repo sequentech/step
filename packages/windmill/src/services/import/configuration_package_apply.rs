@@ -194,7 +194,25 @@ pub enum SectionStatus {
 pub struct SectionRecord {
     pub section: Section,
     pub members: Vec<String>,
+    /// This run's view of the section.
     pub status: SectionStatus,
+    /// What every run so far has done to it.
+    #[serde(default)]
+    pub history: SectionHistory,
+}
+
+/// What every run of the package on the tenant has done to a section. Each
+/// record starts from the previous one's, so a preview, refusal or error in
+/// between never hides a submission or an applied section.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct SectionHistory {
+    /// Every submission begun, oldest first.
+    pub submissions: Vec<SectionSubmission>,
+    /// The last submission's task while it is not settled.
+    pub in_flight: Option<String>,
+    /// Whether a run confirmed the target matching after a submission.
+    pub applied: bool,
 }
 
 /// The saved state of one application of one package to one tenant.
@@ -220,7 +238,8 @@ pub enum Outcome {
     /// Every included section matches the package.
     Applied,
     /// A required section is missing or a preview found a blocker before
-    /// anything was submitted; nothing was changed.
+    /// this run submitted anything. Sections' history shows what earlier runs
+    /// of the package applied.
     Refused,
     /// The run stopped at a section after earlier sections may have been
     /// applied; each section's status says which were.
@@ -243,40 +262,29 @@ impl ApplicationRecord {
             record.status = status;
         }
     }
+
+    fn history(&mut self, section: Section) -> &mut SectionHistory {
+        &mut self
+            .sections
+            .iter_mut()
+            .find(|r| r.section == section)
+            .expect("every section has a record")
+            .history
+    }
+
+    fn history_of(&self, section: Section) -> SectionHistory {
+        self.sections
+            .iter()
+            .find(|r| r.section == section)
+            .map(|r| r.history.clone())
+            .unwrap_or_default()
+    }
 }
 
 /// The target matches the package: nothing left to apply and nothing that
 /// would prevent it.
 fn converged(preview: &SectionPreview) -> bool {
     !preview.needs_apply && preview.blockers.is_empty()
-}
-
-/// The submission an earlier run made of a section, to keep its identity
-/// when the section is confirmed again.
-fn earlier_submission(
-    prior: Option<&ApplicationRecord>,
-    section: Section,
-) -> Option<SectionSubmission> {
-    match prior?.status(section)? {
-        SectionStatus::Applied { submission, .. } => submission.clone(),
-        SectionStatus::Submitting { task_id }
-        | SectionStatus::Failed { task_id, .. }
-        | SectionStatus::Unknown { task_id, .. } => task_id.as_ref().map(|id| SectionSubmission {
-            task_id: Some(id.clone()),
-            detail: Value::Null,
-        }),
-        _ => None,
-    }
-}
-
-/// The earlier run's unsettled submission of a section, if any.
-fn in_flight(prior: Option<&ApplicationRecord>, section: Section) -> Option<String> {
-    match prior?.status(section)? {
-        SectionStatus::Submitting { task_id } | SectionStatus::Unknown { task_id, .. } => {
-            task_id.clone()
-        }
-        _ => None,
-    }
 }
 
 /// Preview, and in [`ApplyMode::Apply`] apply, every section in order.
@@ -316,6 +324,9 @@ pub async fn run(
                     .map(|files| files.iter().map(|f| f.name.clone()).collect())
                     .unwrap_or_default(),
                 status: SectionStatus::Pending,
+                history: prior
+                    .map(|prior| prior.history_of(*section))
+                    .unwrap_or_default(),
             })
             .collect(),
         outcome: Outcome::Running,
@@ -378,7 +389,7 @@ pub async fn run(
         };
         // An earlier submission left unsettled: settle it before anything
         // else, and never submit again while it may still be running.
-        if let Some(task_id) = in_flight(prior, section) {
+        if let Some(task_id) = record.history_of(section).in_flight {
             match target.submission_state(&task_id).await {
                 Ok(TaskState::Running) => {
                     return stop(
@@ -391,7 +402,10 @@ pub async fn run(
                     )
                     .await;
                 }
-                Ok(TaskState::Succeeded | TaskState::Failed) => {}
+                Ok(TaskState::Succeeded | TaskState::Failed) => {
+                    record.history(section).in_flight = None;
+                    store.save(&record).await?;
+                }
                 Err(error) => {
                     return stop(
                         record,
@@ -412,7 +426,7 @@ pub async fn run(
         let preview = match target.preview(section, files).await {
             Ok(preview) => preview,
             Err(error) => {
-                let task_id = in_flight(prior, section);
+                let task_id = record.history_of(section).in_flight;
                 return stop(
                     record,
                     section,
@@ -435,13 +449,16 @@ pub async fn run(
             return Ok(record);
         }
         if !preview.needs_apply {
-            let status = match earlier_submission(prior, section) {
+            let status = match record.history_of(section).submissions.last() {
                 Some(submission) => SectionStatus::Applied {
-                    submission: Some(submission),
+                    submission: Some(submission.clone()),
                     reconciled: true,
                 },
                 None => SectionStatus::Unchanged { preview },
             };
+            if matches!(status, SectionStatus::Applied { .. }) {
+                record.history(section).applied = true;
+            }
             record.set(section, status);
             store.save(&record).await?;
             continue;
@@ -466,6 +483,14 @@ pub async fn run(
                 task_id: task_id.clone(),
             },
         );
+        {
+            let history = record.history(section);
+            history.submissions.push(SectionSubmission {
+                task_id: task_id.clone(),
+                detail: Value::Null,
+            });
+            history.in_flight = task_id.clone();
+        }
         store.save(&record).await?;
         changed = true;
         let submitted = target.apply(section, files, task_id.as_deref()).await;
@@ -507,6 +532,24 @@ pub async fn run(
             SectionStatus::Unknown { .. } => Some(Outcome::Unknown),
             _ => Some(Outcome::Failed),
         };
+        {
+            let history = record.history(section);
+            match &status {
+                SectionStatus::Applied { submission, .. } => {
+                    history.applied = true;
+                    history.in_flight = None;
+                    if let (Some(last), Some(submission)) =
+                        (history.submissions.last_mut(), submission)
+                    {
+                        *last = submission.clone();
+                    }
+                }
+                // The submission returned: its task is over, whatever it did.
+                SectionStatus::Failed { .. } => history.in_flight = None,
+                // Not settled: the next run asks its task first.
+                _ => {}
+            }
+        }
         record.set(section, status);
         store.save(&record).await?;
         if let Some(outcome) = stop_with {

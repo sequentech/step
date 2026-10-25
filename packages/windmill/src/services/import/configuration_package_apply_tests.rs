@@ -368,13 +368,7 @@ async fn an_interrupted_submission_is_reconciled_from_the_target_not_resubmitted
         .await
         .unwrap();
     let mut interrupted = completed.clone();
-    interrupted.set(
-        Section::ElectionEvent,
-        SectionStatus::Submitting {
-            task_id: Some("task-ElectionEvent".into()),
-        },
-    );
-    interrupted.outcome = Outcome::Running;
+    interrupt(&mut interrupted, Section::ElectionEvent);
     let rerun_target = Fake::default();
     *rerun_target.applied.lock().unwrap() = target.applied.lock().unwrap().clone();
     rerun_target
@@ -562,6 +556,27 @@ async fn a_lost_reply_with_a_contradictory_preview_is_not_applied() {
     ));
 }
 
+/// Make `record` look as a run leaves it when it stops right after saving the
+/// submission of `section`: submitting, with its task in flight and not yet
+/// known to have applied.
+fn interrupt(record: &mut ApplicationRecord, section: Section) {
+    let task = format!("task-{section:?}");
+    record.set(
+        section,
+        SectionStatus::Submitting {
+            task_id: Some(task.clone()),
+        },
+    );
+    let history = record.history(section);
+    history.in_flight = Some(task.clone());
+    history.applied = false;
+    history.submissions = vec![SectionSubmission {
+        task_id: Some(task),
+        detail: Value::Null,
+    }];
+    record.outcome = Outcome::Running;
+}
+
 /// A record whose run stopped while the event's import was submitted.
 async fn interrupted_at_event(target: &Fake) -> ApplicationRecord {
     let failing = Fake {
@@ -578,13 +593,7 @@ async fn interrupted_at_event(target: &Fake) -> ApplicationRecord {
     )
     .await
     .unwrap();
-    record.set(
-        Section::ElectionEvent,
-        SectionStatus::Submitting {
-            task_id: Some("task-ElectionEvent".into()),
-        },
-    );
-    record.outcome = Outcome::Running;
+    interrupt(&mut record, Section::ElectionEvent);
     let mut applied = failing.applied.lock().unwrap().clone();
     applied.remove(&Section::ElectionEvent);
     *target.applied.lock().unwrap() = applied;
@@ -774,4 +783,154 @@ async fn a_blocker_after_earlier_sections_changed_is_a_partial_failure_not_a_ref
         status(&record, Section::AdminAccounts),
         SectionStatus::Blocked { .. }
     ));
+}
+
+#[tokio::test]
+async fn history_survives_a_preview_a_refusal_and_an_error_between_applications() {
+    // Run 1 applies the first three sections and stops at administrators.
+    let failing = Fake {
+        fail: Some(Section::AdminAccounts),
+        ..Fake::default()
+    };
+    let first = run(
+        &plan(),
+        "t1",
+        ApplyMode::Apply,
+        None,
+        &failing,
+        &Saved::default(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(first.outcome, Outcome::Failed);
+    let target = Fake::default();
+    *target.applied.lock().unwrap() = failing.applied.lock().unwrap().clone();
+
+    // Run 2 only previews; run 3 is refused by a blocker; run 4 cannot reach
+    // the target. None of them may lose what run 1 did.
+    let preview = run(
+        &plan(),
+        "t1",
+        ApplyMode::Preview,
+        Some(&first),
+        &target,
+        &Saved::default(),
+    )
+    .await
+    .unwrap();
+    let blocked = Fake {
+        blocked: Some(Section::Trustees),
+        ..Fake::default()
+    };
+    *blocked.applied.lock().unwrap() = target.applied.lock().unwrap().clone();
+    let refused = run(
+        &plan(),
+        "t1",
+        ApplyMode::Apply,
+        Some(&preview),
+        &blocked,
+        &Saved::default(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(refused.outcome, Outcome::Refused);
+    let unreachable = Fake {
+        unreachable: Some(Section::Trustees),
+        ..Fake::default()
+    };
+    let unknown = run(
+        &plan(),
+        "t1",
+        ApplyMode::Apply,
+        Some(&refused),
+        &unreachable,
+        &Saved::default(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(unknown.outcome, Outcome::Unknown);
+    for record in [&preview, &refused, &unknown] {
+        let roles = record.history_of(Section::RolePermissions);
+        assert!(roles.applied);
+        assert_eq!(
+            roles.submissions[0].task_id.as_deref(),
+            Some("task-RolePermissions")
+        );
+        let admins = record.history_of(Section::AdminAccounts);
+        assert!(!admins.applied);
+        assert_eq!(admins.submissions.len(), 1, "the failed submission is kept");
+    }
+
+    // Run 5 resumes: only what is missing is submitted, and the applied
+    // sections keep the task ids run 1 gave them.
+    let resumed = run(
+        &plan(),
+        "t1",
+        ApplyMode::Apply,
+        Some(&unknown),
+        &target,
+        &Saved::default(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(resumed.outcome, Outcome::Applied);
+    assert_eq!(
+        *target.submissions.lock().unwrap(),
+        [
+            Section::AdminAccounts,
+            Section::Trustees,
+            Section::ElectionEvent
+        ]
+    );
+    assert!(matches!(
+        status(&resumed, Section::RolePermissions),
+        SectionStatus::Applied {
+            submission: Some(SectionSubmission { task_id: Some(id), .. }),
+            reconciled: true
+        } if id == "task-RolePermissions"
+    ));
+    assert_eq!(
+        resumed.history_of(Section::AdminAccounts).submissions.len(),
+        2
+    );
+}
+
+#[tokio::test]
+async fn an_in_flight_submission_stays_in_flight_through_a_preview() {
+    let target = Fake::default();
+    let interrupted = interrupted_at_event(&target).await;
+    let preview = run(
+        &plan(),
+        "t1",
+        ApplyMode::Preview,
+        Some(&interrupted),
+        &target,
+        &Saved::default(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        preview
+            .history_of(Section::ElectionEvent)
+            .in_flight
+            .as_deref(),
+        Some("task-ElectionEvent")
+    );
+    target
+        .tasks
+        .lock()
+        .unwrap()
+        .insert("task-ElectionEvent".into(), TaskState::Running);
+    let rerun = run(
+        &plan(),
+        "t1",
+        ApplyMode::Apply,
+        Some(&preview),
+        &target,
+        &Saved::default(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(rerun.outcome, Outcome::Unknown);
+    assert!(target.submissions.lock().unwrap().is_empty());
 }

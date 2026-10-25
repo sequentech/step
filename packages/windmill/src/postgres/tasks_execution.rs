@@ -487,19 +487,15 @@ pub async fn get_tasks_by_election_event_id(
 
 /// The tenant's task rows of one type whose annotations record `key = value`,
 /// newest first: earlier runs of the same operation on the same input.
-#[instrument(err)]
+#[instrument(err, skip(hasura_transaction))]
 pub async fn get_tasks_by_annotation(
+    hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     task_type: &str,
     key: &str,
     value: &str,
 ) -> Result<Vec<TasksExecution>> {
-    let db_client: DbClient = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .map_err(|err| anyhow!("Error getting hasura db pool: {err}"))?;
-    let statement = db_client
+    let statement = hasura_transaction
         .prepare(
             r#"
                 SELECT *
@@ -509,7 +505,7 @@ pub async fn get_tasks_by_annotation(
             "#,
         )
         .await?;
-    let rows = db_client
+    let rows = hasura_transaction
         .query(
             &statement,
             &[&parse_uuid_v4(tenant_id)?, &task_type, &key, &value],

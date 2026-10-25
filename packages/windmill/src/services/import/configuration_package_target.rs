@@ -15,12 +15,15 @@ use super::configuration_package_sections::{
     read_group_roles, role_changes, tenant_configuration_changes, tenant_settings_changes,
     trustee_changes,
 };
+use super::configuration_package_sections::{census_rows, EventState};
 use crate::postgres::election_event::get_election_event_by_id_if_exist;
+use crate::postgres::keycloak_realm::{realm_user_count, user_groups};
 use crate::postgres::tasks_execution::get_task_by_id;
 use crate::postgres::tenant::get_tenant_by_id;
 use crate::postgres::trustee::{get_all_trustees, insert_trustee};
 use crate::services::audit_log::AuditActor;
 use crate::services::database::get_hasura_pool;
+use crate::services::database::get_keycloak_pool;
 use crate::services::documents::upload_and_return_document;
 use crate::services::export::export_tenant::tenant_csv;
 use crate::services::keycloak::map_realm_data;
@@ -37,7 +40,7 @@ use sequent_core::election_config::manifest::read_zip;
 use sequent_core::election_config::package_contract::Section;
 use sequent_core::election_config::tenant_package::TenantConfiguration;
 use sequent_core::election_config::tenant_package::TrusteePublic;
-use sequent_core::services::keycloak::{get_tenant_realm, KeycloakAdminClient};
+use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm, KeycloakAdminClient};
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::hasura::extra::TasksExecutionStatus;
 use serde_json::{json, Value};
@@ -142,16 +145,20 @@ impl PlatformTarget {
             .context("the tenant configuration is not the package's tenant record")
     }
 
-    async fn existing_usernames(&self, usernames: &[String]) -> Result<BTreeSet<String>> {
-        let client = KeycloakAdminClient::new().await?;
-        let realm = get_tenant_realm(&self.context.tenant_id);
-        let mut existing = BTreeSet::new();
-        for username in usernames {
-            if client.username_exists(&realm, username).await? {
-                existing.insert(username.to_lowercase());
-            }
-        }
-        Ok(existing)
+    /// Each existing administrator account's groups, from the Keycloak
+    /// database the user import writes to.
+    async fn existing_usernames(
+        &self,
+        usernames: &[String],
+    ) -> Result<BTreeMap<String, BTreeSet<String>>> {
+        let mut db: DbClient = get_keycloak_pool().await.get().await?;
+        let transaction = db.transaction().await?;
+        user_groups(
+            &transaction,
+            &get_tenant_realm(&self.context.tenant_id),
+            usernames,
+        )
+        .await
     }
 
     fn event_document(&self, files: &[Artifact]) -> Result<Vec<u8>> {
@@ -319,7 +326,22 @@ impl PackageTarget for PlatformTarget {
                 )
                 .await?
                 .is_some();
-                Ok(event_changes(&event_id, exists, vec![]))
+                let expected = census_rows(&one(files, "election event")?.bytes)?;
+                let mut keycloak: DbClient = get_keycloak_pool().await.get().await?;
+                let keycloak = keycloak.transaction().await?;
+                let voters = realm_user_count(
+                    &keycloak,
+                    &get_event_realm(&self.context.tenant_id, &event_id),
+                )
+                .await?;
+                let state = match (exists, voters) {
+                    (true, voters) => EventState::Present {
+                        voters: voters.unwrap_or(0),
+                    },
+                    (false, Some(_)) => EventState::RealmOnly,
+                    (false, None) => EventState::Absent,
+                };
+                Ok(event_changes(&event_id, state, expected))
             }
         }
     }

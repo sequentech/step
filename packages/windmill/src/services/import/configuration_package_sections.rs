@@ -248,13 +248,16 @@ pub fn read_admin_rows(csv_bytes: &[u8]) -> Result<Vec<AdminRow>> {
     Ok(rows)
 }
 
-/// Administrators: an account that already exists is left as it is (never
-/// re-created, never given credentials); only absent ones are created.
-/// `groups` are the groups the realm has or the package's roles section
-/// creates.
+/// Administrators: an account that already exists is never re-created or
+/// given credentials. It counts as in place only when it is in its package
+/// group; an existing account outside that group (an earlier import that
+/// created it but did not assign it, or someone else's account) blocks the
+/// section rather than being changed or passed over. `existing` maps each
+/// existing username (lower-cased) to its groups; `groups` are the groups the
+/// realm has or the package's roles section creates.
 pub fn admin_changes(
     wanted: &[AdminRow],
-    existing_usernames: &BTreeSet<String>,
+    existing: &BTreeMap<String, BTreeSet<String>>,
     groups: &BTreeSet<String>,
 ) -> SectionPreview {
     let mut blockers = Vec::new();
@@ -267,12 +270,24 @@ pub fn admin_changes(
                 row.username, row.group
             ));
         }
-        let exists = existing_usernames.contains(&row.username.to_lowercase());
-        needs_apply |= !exists;
+        let action = match existing.get(&row.username.to_lowercase()) {
+            None => {
+                needs_apply = true;
+                "create"
+            }
+            Some(member_of) if member_of.contains(&row.group) => "exists",
+            Some(_) => {
+                blockers.push(format!(
+                    "administrator '{}' exists but is not in group '{}'; assign it by hand or remove the account, then apply again",
+                    row.username, row.group
+                ));
+                "conflict"
+            }
+        };
         changes.push(json!({
             "username": row.username,
             "group": row.group,
-            "action": if exists { "exists" } else { "create" },
+            "action": action,
         }));
     }
     SectionPreview {
@@ -286,7 +301,7 @@ pub fn admin_changes(
 /// header, so applying never touches an existing account.
 pub fn absent_admin_rows(
     csv_bytes: &[u8],
-    existing_usernames: &BTreeSet<String>,
+    existing_usernames: &BTreeMap<String, BTreeSet<String>>,
 ) -> Result<Vec<u8>> {
     let mut reader = csv::Reader::from_reader(csv_bytes);
     let headers = reader.headers()?.clone();
@@ -299,7 +314,7 @@ pub fn absent_admin_rows(
     for record in reader.records() {
         let record = record?;
         let name = record.get(username).unwrap_or_default().to_lowercase();
-        if !existing_usernames.contains(&name) {
+        if !existing_usernames.contains_key(&name) {
             writer.write_record(&record)?;
         }
     }
@@ -362,17 +377,63 @@ pub fn trustee_changes(wanted: &[TrusteePublic], existing: &[Trustee]) -> Sectio
     }
 }
 
-/// The event: imported once. An existing event with the package's id is the
-/// package's event already imported.
-pub fn event_changes(event_id: &str, exists: bool, problems: Vec<String>) -> SectionPreview {
+/// What the target holds of the package's event.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EventState {
+    /// Neither the event nor its realm.
+    Absent,
+    /// The event's realm exists without the event: an earlier import stopped
+    /// after creating it. Importing again would meet that realm.
+    RealmOnly,
+    /// The event exists. The import commits the event last, after its
+    /// census, so its existence means the import finished; `voters` is the
+    /// realm's people, compared with the package's census.
+    Present { voters: i64 },
+}
+
+/// The event: imported once, and confirmed with its census.
+pub fn event_changes(event_id: &str, state: EventState, expected_voters: usize) -> SectionPreview {
+    let mut blockers = Vec::new();
+    let action = match state {
+        EventState::Absent => "import",
+        EventState::RealmOnly => {
+            blockers.push(format!(
+                "the realm of event {event_id} exists without the event: an earlier import stopped part-way; remove that realm before applying again"
+            ));
+            "partial"
+        }
+        EventState::Present { voters } if voters == expected_voters as i64 => "exists",
+        EventState::Present { voters } => {
+            blockers.push(format!(
+                "event {event_id} holds {voters} voters but the package's census has {expected_voters}"
+            ));
+            "census-differs"
+        }
+    };
     SectionPreview {
-        needs_apply: !exists,
-        changes: json!([{
-            "electionEventId": event_id,
-            "action": if exists { "exists" } else { "import" },
-        }]),
-        blockers: problems,
+        needs_apply: state == EventState::Absent,
+        changes: json!([{"electionEventId": event_id, "action": action, "expectedVoters": expected_voters}]),
+        blockers,
     }
+}
+
+/// The rows of the event zip's voters file: the census the package carries.
+pub fn census_rows(event_zip: &[u8]) -> Result<usize> {
+    let members = sequent_core::election_config::manifest::read_zip(event_zip, "election event")
+        .map_err(|p| anyhow!("{p}"))?;
+    let Some(voters) = members
+        .iter()
+        .find(|m| m.name.starts_with("export_voters-") && m.name.ends_with(".csv"))
+    else {
+        return Ok(0);
+    };
+    let mut reader = csv::Reader::from_reader(voters.bytes.as_slice());
+    let mut rows = 0;
+    for record in reader.records() {
+        record.context("Error reading the census")?;
+        rows += 1;
+    }
+    Ok(rows)
 }
 
 #[cfg(test)]

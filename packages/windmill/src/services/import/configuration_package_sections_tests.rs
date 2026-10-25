@@ -102,27 +102,54 @@ fn tenant_settings_compare_only_the_fields_the_importer_applies() {
     );
 }
 
+fn members(entries: &[(&str, &[&str])]) -> BTreeMap<String, BTreeSet<String>> {
+    entries
+        .iter()
+        .map(|(user, groups)| (user.to_string(), set(groups)))
+        .collect()
+}
+
 #[test]
 fn existing_administrators_are_left_alone_and_only_absent_ones_created() {
     let csv = b"username,email,first_name,last_name,group_name\nOne,,,,admin\ntwo,,,,admin\n";
     let rows = read_admin_rows(csv).unwrap();
-    let existing = set(&["one"]);
+    let existing = members(&[("one", &["admin"])]);
     let preview = admin_changes(&rows, &existing, &set(&["admin"]));
     assert!(preview.needs_apply);
+    assert!(preview.blockers.is_empty());
     assert_eq!(preview.changes[0]["action"], "exists");
     assert_eq!(preview.changes[1]["action"], "create");
     assert_eq!(
         String::from_utf8(absent_admin_rows(csv, &existing).unwrap()).unwrap(),
         "username,email,first_name,last_name,group_name\ntwo,,,,admin\n"
     );
-    // Converged once both exist.
-    assert!(!admin_changes(&rows, &set(&["one", "two"]), &set(&["admin"])).needs_apply);
+    // Converged once both exist in their group.
+    let both = members(&[("one", &["admin"]), ("two", &["admin", "other"])]);
+    assert!(!admin_changes(&rows, &both, &set(&["admin"])).needs_apply);
+}
+
+#[test]
+fn an_existing_account_outside_its_group_blocks_instead_of_counting_as_applied() {
+    // An earlier import created `one` but did not assign it, or the name
+    // belongs to someone else: neither is in place, neither is changed.
+    let rows = read_admin_rows(b"username,group_name\none,admin\n").unwrap();
+    for groups in [&[][..], &["auditor"][..]] {
+        let preview = admin_changes(
+            &rows,
+            &members(&[("one", groups)]),
+            &set(&["admin", "auditor"]),
+        );
+        assert!(!preview.needs_apply, "never re-created");
+        assert_eq!(preview.changes[0]["action"], "conflict");
+        assert_eq!(preview.blockers.len(), 1);
+        assert!(preview.blockers[0].contains("not in group 'admin'"));
+    }
 }
 
 #[test]
 fn an_administrator_in_an_undefined_group_blocks() {
     let rows = read_admin_rows(b"username,group_name\na,ghost\n").unwrap();
-    let preview = admin_changes(&rows, &set(&[]), &set(&["admin"]));
+    let preview = admin_changes(&rows, &BTreeMap::new(), &set(&["admin"]));
     assert_eq!(preview.blockers.len(), 1);
     assert!(preview.blockers[0].contains("ghost"));
 }
@@ -177,11 +204,40 @@ fn structurally_valid_but_non_native_keys_block() {
 }
 
 #[test]
-fn an_imported_event_is_not_imported_again() {
-    assert!(event_changes("e1", false, vec![]).needs_apply);
-    let existing = event_changes("e1", true, vec![]);
-    assert!(!existing.needs_apply);
-    assert_eq!(existing.changes[0]["action"], "exists");
+fn an_imported_event_is_confirmed_with_its_census_and_a_partial_one_blocks() {
+    let absent = event_changes("e1", EventState::Absent, 3);
+    assert!(absent.needs_apply);
+    assert!(absent.blockers.is_empty());
+    let done = event_changes("e1", EventState::Present { voters: 3 }, 3);
+    assert!(!done.needs_apply);
+    assert!(done.blockers.is_empty());
+    assert_eq!(done.changes[0]["action"], "exists");
+    let short = event_changes("e1", EventState::Present { voters: 2 }, 3);
+    assert!(!short.needs_apply, "never imported twice");
+    assert_eq!(
+        short.blockers,
+        vec!["event e1 holds 2 voters but the package's census has 3"]
+    );
+    let partial = event_changes("e1", EventState::RealmOnly, 3);
+    assert!(!partial.needs_apply);
+    assert_eq!(partial.changes[0]["action"], "partial");
+    assert_eq!(partial.blockers.len(), 1);
+}
+
+#[test]
+fn the_census_is_counted_from_the_event_zip() {
+    use std::io::Write;
+    let mut out = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+    for (name, bytes) in [
+        ("export_election_event-e1.json", &b"{}"[..]),
+        ("export_voters-e1.csv", &b"username,area\na,x\nb,x\n"[..]),
+    ] {
+        out.start_file(name, zip::write::SimpleFileOptions::default())
+            .unwrap();
+        out.write_all(bytes).unwrap();
+    }
+    let bytes = out.finish().unwrap().into_inner();
+    assert_eq!(census_rows(&bytes).unwrap(), 2);
 }
 
 fn tenant() -> Tenant {
