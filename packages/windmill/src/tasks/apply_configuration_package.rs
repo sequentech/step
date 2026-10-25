@@ -411,7 +411,6 @@ mod tests {
         assert!(choose_prior(vec![broken], "own").is_err());
     }
 
-    /// Needs the PostgreSQL server `HASURA_DB__*` names; rolls back.
     /// Whether another connection could take the tenant's import lock now.
     async fn import_lock_is_free(pool: &deadpool_postgres::Pool, tenant: &str) -> bool {
         let key = crate::postgres::configuration_packages::import_lock_key(tenant).unwrap();
@@ -429,6 +428,7 @@ mod tests {
         free
     }
 
+    /// Needs the PostgreSQL server `HASURA_DB__*` names.
     #[tokio::test]
     async fn holding_imports_blocks_other_connections_until_dropped_and_never_returns_to_the_pool()
     {
@@ -463,6 +463,7 @@ mod tests {
         assert_eq!(pool.status().size, size);
     }
 
+    /// Needs the PostgreSQL server `HASURA_DB__*` names; rolls back.
     #[tokio::test]
     async fn the_tenant_record_update_writes_only_its_four_fields_under_a_lock() {
         use crate::postgres::tenant::{lock_tenant, update_tenant_configuration};

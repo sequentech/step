@@ -316,3 +316,95 @@ fn a_package_never_sets_the_tenants_identity_or_its_service_account_key() {
     );
     assert_eq!(report.problems[0].code, Code::NotApproved);
 }
+
+#[test]
+fn blank_and_repeated_names_are_each_reported() {
+    let mut doc = complete();
+    doc["roleMappings"] = json!([
+        {"group": " ", "roles": ["r"]},
+        {"group": "admin", "roles": ["r", "r"]}
+    ]);
+    doc["adminAccounts"] = json!([
+        {"username": "", "group": "admin"},
+        {"username": "y", "group": ""}
+    ]);
+    doc["trustees"] = json!([
+        {"name": "", "signingPublicKey": SIGNING, "shareEncryptionPublicKey": SHARE},
+        {"name": "t", "signingPublicKey": SIGNING, "shareEncryptionPublicKey": SHARE},
+        {"name": "t", "signingPublicKey": SIGNING, "shareEncryptionPublicKey": SHARE}
+    ]);
+    let report = read(&doc).unwrap_err();
+    assert_eq!(
+        paths(&report),
+        vec![
+            (Code::MissingField, "roleMappings[0].group".to_string()),
+            (Code::DuplicateId, "roleMappings[1].roles[1]".to_string()),
+            (Code::MissingField, "adminAccounts[0].username".to_string()),
+            (Code::MissingField, "adminAccounts[1].group".to_string()),
+            (Code::MissingField, "trustees[0].name".to_string()),
+            (Code::DuplicateId, "trustees[2].name".to_string()),
+        ]
+    );
+}
+
+#[test]
+fn a_consumer_finds_secret_fields_at_any_depth() {
+    let value = json!({
+        "settings": {"nested": [{"password": "x"}, {"ok": 1}]},
+        "privateKey": "k"
+    });
+    let mut found = secret_field_paths(&value, "section");
+    found.sort();
+    assert_eq!(
+        found,
+        vec![
+            "section.privateKey".to_string(),
+            "section.settings.nested[0].password".to_string(),
+        ]
+    );
+    assert!(
+        secret_field_paths(&json!({"settings": {"ok": true}}), "s").is_empty()
+    );
+}
+
+#[test]
+fn an_ambiguous_or_unreadable_census_is_refused_before_counting() {
+    use super::super::package_contract::{CensusRequirement, Requirements};
+    let layout = |members: Vec<(&str, &str)>| super::super::archive::Layout {
+        importable: members
+            .into_iter()
+            .map(|(name, bytes)| Artifact {
+                name: name.into(),
+                bytes: bytes.as_bytes().to_vec(),
+            })
+            .collect(),
+        archive_name: "delivery.zip".into(),
+        auxiliary: vec![],
+    };
+    let required = Requirements {
+        sections: vec![],
+        census: CensusRequirement::Required,
+    };
+    let two = layout(vec![
+        ("export_election_event-e1.json", "{}"),
+        ("export_voters-e1.csv", "username\na\n"),
+        ("more_export_voters.csv", "username\nb\n"),
+    ]);
+    let problem = complete_delivery(two, None, "t1", None, &required, Some(2))
+        .unwrap_err();
+    assert_eq!(
+        (problem.code, problem.path.as_str()),
+        (Code::InvalidValue, "census")
+    );
+    assert!(problem.message.contains("more than one census file"));
+    // A row with more fields than the header cannot be read back.
+    let broken = layout(vec![
+        ("export_election_event-e1.json", "{}"),
+        ("export_voters-e1.csv", "username,area_name\na,x,extra\n"),
+    ]);
+    let problem =
+        complete_delivery(broken, None, "t1", None, &required, Some(1))
+            .unwrap_err();
+    assert_eq!(problem.code, Code::Unreadable);
+    assert_eq!(problem.path, "export_voters-e1.csv");
+}

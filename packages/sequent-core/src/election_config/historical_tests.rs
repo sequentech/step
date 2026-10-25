@@ -2068,3 +2068,104 @@ fn names_and_descriptions_survive_the_native_schema_and_a_reopened_archive() {
         "center:P01:context:e1:seat:S01:candidate:0007"
     );
 }
+
+#[test]
+fn embassy_labels_are_formatted_as_the_registration_options_are() {
+    // Parenthetical segments drop, a short last word is upper-cased, and the
+    // special abbreviations stay upper-case wherever they appear.
+    assert_eq!(
+        format_embassy("washington (embassy) d.c. usa"),
+        "Washington D.C. USA"
+    );
+    assert_eq!(format_embassy("hong kong sar china"), "Hong Kong SAR China");
+    assert_eq!(
+        format_embassy("taipei roc (teco) office"),
+        "Taipei ROC Office"
+    );
+    assert_eq!(format_embassy("  ((nested) note)  "), "");
+    assert_eq!(format_embassy(""), "");
+}
+
+#[test]
+fn a_date_of_birth_is_composed_only_from_a_valid_complete_date() {
+    assert_eq!(compose_date_of_birth("1981", "2", "29"), Err(()));
+    assert_eq!(
+        compose_date_of_birth(" 1984 ", "02", "29"),
+        Ok(Some("1984-02-29".to_string()))
+    );
+    assert_eq!(compose_date_of_birth("", " ", ""), Ok(None));
+    assert_eq!(compose_date_of_birth("1984", "", "1"), Err(()));
+    assert_eq!(compose_date_of_birth("19x4", "1", "1"), Err(()));
+}
+
+/// The overseas fixture's SQL with its `voters` statement replaced by `voters`.
+fn with_voters(sql: Vec<u8>, voters: &str) -> Vec<u8> {
+    let sql = String::from_utf8(sql).unwrap();
+    let kept: Vec<&str> = sql
+        .lines()
+        .filter(|line| !line.starts_with("CREATE TABLE `voters`"))
+        .collect();
+    (kept.join("\n") + "\n" + voters + "\n").into_bytes()
+}
+
+#[test]
+fn a_source_without_the_optional_identity_columns_imports_them_blank() {
+    // Another client's census carries no maternal name, suffix or date of birth
+    // columns at all: the voters import, those attributes left blank.
+    let (sql, xlsx) = overseas_voter_fixture("", "");
+    let values: Vec<String> = (0..4)
+        .map(|i| {
+            format!("('w-{i}','First{i}','Last{i}','90','06','0001A','O')")
+        })
+        .collect();
+    let sql = with_voters(
+        sql,
+        &format!(
+            "CREATE TABLE `voters` (`ID` text, `FIRSTNAME` text, `LASTNAME` text, `COUNTRY` text, `EMBASSY` text, `PRECINCT` text, `ABROADSTATUS` text); INSERT INTO `voters` VALUES {};",
+            values.join(",")
+        ),
+    );
+    let adapted = adapt(&sql, &xlsx, &preserving()).unwrap();
+    assert_eq!(adapted.summary.preserved_voters, 4);
+    let voters = adapted.workbook.rows("voters");
+    let voter = voters
+        .iter()
+        .find(|r| r.text("username") == Some("w-0"))
+        .unwrap();
+    for attribute in ["middleName", "suffix", "dateOfBirth"] {
+        assert_eq!(
+            voter.get(attribute).and_then(Value::as_str),
+            Some(""),
+            "{attribute}"
+        );
+    }
+}
+
+#[test]
+fn preserving_voters_needs_the_population_precinct_column() {
+    // The voter area join reads pop's PRECINCT; a source without it is refused
+    // by name rather than joined on a guess.
+    let (sql, xlsx) = overseas_voter_fixture("", "");
+    let sql = String::from_utf8(sql).unwrap();
+    let start = sql.find("CREATE TABLE `pop`").unwrap();
+    let end = start + sql[start..].find('\n').unwrap();
+    let pop = "CREATE TABLE `pop` (`CLUSTERPOLLCENTER` text, `POLLCENTER_CODE` text, `PROV_CODE` text, `MUN_CODE` text, `BRGY_CODE` text); INSERT INTO `pop` VALUES ('B06','P01','90','06','001');";
+    let sql = format!("{}{}{}", &sql[..start], pop, &sql[end..]);
+    let refused = adapt(sql.as_bytes(), &xlsx, &preserving()).unwrap_err();
+    let problem = &refused.report.problems[0];
+    assert!(
+        problem.path.contains("pop") && problem.path.contains("PRECINCT"),
+        "{problem:?}"
+    );
+}
+
+#[test]
+fn a_report_lists_each_problem_on_its_own_line() {
+    let mut report =
+        Report::from(Problem::error(Code::MissingField, "a.b", "first"));
+    report.push(Problem::error(Code::InvalidValue, "c", "second"));
+    let text = report.to_string();
+    assert_eq!(text.lines().count(), 2);
+    assert!(text.lines().all(|line| line.starts_with("  ")));
+    assert!(text.contains("first") && text.contains("second"));
+}

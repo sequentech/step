@@ -984,11 +984,10 @@ mod tests {
                 census: CensusRequirement::Optional,
             },
         );
-        let unknown: Vec<&str> = covered
+        let unknown: Vec<_> = covered
             .members
             .iter()
             .filter(|m| m.disposition == Disposition::Unknown)
-            .map(|m| m.path.as_str())
             .collect();
         assert!(unknown.is_empty(), "unclassified members: {unknown:?}");
         assert!(covered.missing().is_empty(), "{:?}", covered.missing());
