@@ -50,6 +50,11 @@ pub enum CensusPolicy {
     #[default]
     RequireReviewedMapping,
     ConfigurationOnly,
+    /// Import every source voter as the event census, joining each voter to an
+    /// in-scope area through the same precinct crosswalk the areas are built from.
+    /// Raw source location and status are preserved verbatim; no eligibility is
+    /// inferred from them.
+    PreserveSourceVoters,
 }
 #[derive(
     Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq,
@@ -160,6 +165,7 @@ pub struct Summary {
     pub selected_candidates: usize,
     pub outside_scope_candidates: usize,
     pub excluded_voters: usize,
+    pub preserved_voters: usize,
     pub excluded_polling_centers: usize,
     pub excluded_precinct_rows: usize,
     pub election_contexts: Vec<ElectionContext>,
@@ -776,11 +782,18 @@ fn map(
             }
         }
     }
-    let voters = dump.tables.get("voters").map_or(0, |t| t.rows.len());
-    if voters > 0 && options.census != CensusPolicy::ConfigurationOnly {
-        return Err(Problem::error(Code::NotApproved,"SQL table voters","this profile does not define historical eligibility; explicitly choose configuration-only and use an independently reviewed census workflow"));
+    let voter_count = dump.tables.get("voters").map_or(0, |t| t.rows.len());
+    match options.census {
+        // Voters are imported as the census below (see build_source_voter_rows);
+        // none are excluded.
+        CensusPolicy::PreserveSourceVoters => {}
+        CensusPolicy::ConfigurationOnly => summary.excluded_voters = voter_count,
+        CensusPolicy::RequireReviewedMapping => {
+            if voter_count > 0 {
+                return Err(Problem::error(Code::NotApproved,"SQL table voters","this profile does not define historical eligibility; explicitly choose configuration-only to drop them, or preserve-source-voters to import them through an independently reviewed census workflow"));
+            }
+        }
     }
-    summary.excluded_voters = voters;
     if options.ballot != BallotPolicy::SeatPluralityAtLarge {
         return Err(Problem::error(Code::NotApproved,"historical ballot policy","review and explicitly select seat-plurality-at-large semantics before generating ballots"));
     }
@@ -1082,6 +1095,10 @@ fn map(
     let mut output_links = BTreeMap::new();
     let mut used_candidates = BTreeSet::new();
     let mut unresolved_affiliations = BTreeSet::new();
+    // (PROV_CODE, MUN_CODE, PRECINCT) -> area external_id, recorded from the same
+    // crosswalk the areas are built from, so source voters can join to an area.
+    let mut precinct_area_index: BTreeMap<(String, String, String), String> =
+        BTreeMap::new();
     for pop in 0..populations.table.rows.len() {
         let center = centers.lookup(
             &ci,
@@ -1132,6 +1149,28 @@ fn map(
         let area_id =
             format!("barangay:{}", barangays.text(bgy, "ID_BARANGAY")?);
         set(&mut area, "external_id", json!(area_id));
+        // Only the voter-preserving census needs the precinct->area crosswalk (and
+        // the source PRECINCT column); other policies leave the pop schema untouched.
+        if options.census == CensusPolicy::PreserveSourceVoters {
+            if let Some(previous) = precinct_area_index.insert(
+                (
+                    populations.text(pop, "PROV_CODE")?,
+                    populations.text(pop, "MUN_CODE")?,
+                    populations.text(pop, "PRECINCT")?,
+                ),
+                area_id.clone(),
+            ) {
+                if previous != area_id {
+                    return Err(problem(
+                        "pop",
+                        pop,
+                        "PRECINCT",
+                        Code::DuplicateId,
+                        "a (province, municipality, precinct) maps to two different areas",
+                    ));
+                }
+            }
+        }
         set(
             &mut area,
             "annotations.miru:area-station-id",
@@ -1485,6 +1524,11 @@ fn map(
             ],
         ));
     }
+    let voter_rows = if options.census == CensusPolicy::PreserveSourceVoters {
+        build_source_voter_rows(dump, &precinct_area_index, summary)?
+    } else {
+        Vec::new()
+    };
     let provenance = json!({
         "profile": PROFILE,
         "sqlSha256": summary.sql_sha256,
@@ -1493,6 +1537,7 @@ fn map(
         "sourceRows": summary.source_rows,
         "selectedCandidates": summary.selected_candidates,
         "excludedVoters": summary.excluded_voters,
+        "preservedVoters": summary.preserved_voters,
         "excludedPollingCenters": summary.excluded_polling_centers,
         "excludedPrecinctRows": summary.excluded_precinct_rows,
         "unresolvedAffiliations": summary.unresolved_affiliations,
@@ -1511,7 +1556,7 @@ fn map(
         "annotations.import:provenance",
         json!(provenance),
     );
-    let sheets = vec![
+    let mut sheets = vec![
         rows_sheet("ElectionEvent", vec![event]),
         rows_sheet("Elections", output_elections.into_values().collect()),
         rows_sheet("Areas", output_areas.into_values().collect()),
@@ -1520,11 +1565,105 @@ fn map(
         rows_sheet("AreaContests", output_links.into_values().collect()),
         rows_sheet("ScheduledEvents", schedules),
     ];
+    if !voter_rows.is_empty() {
+        sheets.push(rows_sheet("Voters", voter_rows));
+    }
     summary.generated_rows = sheets
         .iter()
         .map(|s| (s.name.clone(), s.rows.len()))
         .collect();
     Workbook::new(sheets)
+}
+
+/// Build the census rows for `CensusPolicy::PreserveSourceVoters`.
+///
+/// Every source voter is preserved. Identity (`username` from the source ID, plus
+/// first/last name) and the raw source attributes (maternal name, suffix,
+/// date-of-birth parts, country/embassy/precinct codes and the abroad status) are
+/// carried through verbatim — no eligibility is inferred from the status, and the
+/// values are not reinterpreted. Email, mobile and password are intentionally left
+/// unset; enrollment collects them later. Each voter joins to an area through the
+/// same `(PROV_CODE, MUN_CODE, PRECINCT)` crosswalk recorded while the areas were
+/// built. A voter whose `(COUNTRY, EMBASSY, PRECINCT)` has no in-scope area raises a
+/// visible per-row error rather than being silently dropped.
+fn build_source_voter_rows(
+    dump: &SqlDump,
+    precinct_area_index: &BTreeMap<(String, String, String), String>,
+    summary: &mut Summary,
+) -> Result<Vec<Row>, Problem> {
+    let voters = Data::new(
+        dump,
+        "voters",
+        &[
+            "ID",
+            "FIRSTNAME",
+            "LASTNAME",
+            "COUNTRY",
+            "EMBASSY",
+            "PRECINCT",
+            "ABROADSTATUS",
+        ],
+    )?;
+    let mut rows = Vec::with_capacity(voters.table.rows.len());
+    let mut usernames = BTreeSet::new();
+    for v in 0..voters.table.rows.len() {
+        let username = voters.name(v, "ID")?;
+        if !usernames.insert(username.clone()) {
+            return Err(problem(
+                "voters",
+                v,
+                "ID",
+                Code::DuplicateId,
+                "voter id is duplicated",
+            ));
+        }
+        let country = voters.text(v, "COUNTRY")?;
+        let embassy = voters.text(v, "EMBASSY")?;
+        let precinct = voters.text(v, "PRECINCT")?;
+        let area_id = precinct_area_index
+            .get(&(country.clone(), embassy.clone(), precinct.clone()))
+            .ok_or_else(|| {
+                problem(
+                    "voters",
+                    v,
+                    "PRECINCT",
+                    Code::DanglingReference,
+                    "voter (country, embassy, precinct) has no in-scope area; the matching source polling row is absent or out of scope",
+                )
+            })?;
+        // Optional source columns: carry the value when present, blank when the row
+        // (or, for other clients, the whole column) is absent. build_voters drops a
+        // column that is blank for every voter.
+        let optional = |column: &str| -> Result<Value, Problem> {
+            if voters.table.columns.iter().any(|c| c == column) {
+                Ok(json!(voters.optional(v, column)?.unwrap_or_default()))
+            } else {
+                Ok(json!(""))
+            }
+        };
+        rows.push(row(
+            "Voters",
+            v,
+            vec![
+                ("username", json!(username)),
+                ("area.external_id", json!(area_id)),
+                ("first_name", json!(voters.text(v, "FIRSTNAME")?)),
+                ("last_name", json!(voters.text(v, "LASTNAME")?)),
+                // Raw source attributes, preserved verbatim as Keycloak user attributes.
+                ("source_maternal_name", optional("MATERNALNAME")?),
+                ("source_suffix", optional("SUFFIX")?),
+                ("source_dob_year", optional("DOBYEAR")?),
+                ("source_dob_month", optional("DOBMONTH")?),
+                ("source_dob_day", optional("DOBDAY")?),
+                ("source_country", json!(country)),
+                ("source_embassy", json!(embassy)),
+                ("source_precinct", json!(precinct)),
+                ("source_abroad_status", json!(voters.text(v, "ABROADSTATUS")?)),
+            ],
+        ));
+    }
+    summary.preserved_voters = rows.len();
+    Ok(rows)
 }
 
 fn historical_dates(
