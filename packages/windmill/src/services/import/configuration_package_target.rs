@@ -11,9 +11,9 @@ use super::configuration_package_apply::{
     PackageTarget, SectionPreview, SectionSubmission, TaskState,
 };
 use super::configuration_package_sections::{
-    absent_admin_rows, admin_changes, event_changes, merged_tenant, read_admin_rows,
-    read_group_roles, role_changes, tenant_configuration_changes, tenant_settings_changes,
-    trustee_changes,
+    absent_admin_rows, admin_changes, admin_column_problems, event_changes, merged_tenant,
+    read_admin_rows, read_group_roles, role_changes, tenant_configuration_changes,
+    tenant_settings_changes, trustee_changes,
 };
 use super::configuration_package_sections::{
     census_usernames, event_document, trustee_reference_problems, EventState,
@@ -75,10 +75,11 @@ pub struct ApplyContext {
     /// Trustees the package registers, so the event's key ceremony may name
     /// them before that section has run.
     pub package_trustees: BTreeSet<String>,
-    /// Why the package itself may not be applied (a signed revision older
-    /// than the tenant's last import). It blocks every section, so nothing
-    /// is changed.
-    pub admission_blocker: Option<String>,
+    /// The verified package when the delivery was signed. Its freshness
+    /// against the tenant's imports is checked in every section's preview,
+    /// so it is checked again right before each section is applied.
+    pub verified:
+        Option<std::sync::Arc<sequent_core::election_config::package_verify::VerifiedPackage>>,
 }
 
 /// The event's id on this tenant: derived from the tenant and the package, so
@@ -145,6 +146,37 @@ impl PlatformTarget {
         }
         let realm_roles = roles.into_iter().filter_map(|r| r.name).collect();
         Ok((current, realm_roles))
+    }
+
+    /// Why a signed package may not be applied now: a revision not newer
+    /// than the tenant's last import, or this same package imported into an
+    /// event other than the one this application imports (then the event
+    /// section would be refused after the tenant sections had changed).
+    async fn admission_blocker(&self) -> Result<Option<String>> {
+        use sequent_core::election_config::package_verify::{freshness, Freshness};
+        let Some(verified) = &self.context.verified else {
+            return Ok(None);
+        };
+        let mut db: DbClient = get_hasura_pool().await.get().await?;
+        let transaction = db.transaction().await?;
+        let last = crate::postgres::configuration_packages::last_import_with_event(
+            &transaction,
+            &self.context.tenant_id,
+            &verified.manifest.configuration.external_id,
+        )
+        .await?;
+        let event_id = derived_event_id(&self.context.tenant_id, &self.context.package_sha256);
+        Ok(match last {
+            None => None,
+            Some((last, imported_into)) => match freshness(verified, Some(&last)) {
+                Ok(Freshness::New) => None,
+                Ok(Freshness::AlreadyImported) if imported_into == event_id => None,
+                Ok(Freshness::AlreadyImported) => Some(format!(
+                    "this package was already imported into event {imported_into}, not by this application; it cannot be applied again"
+                )),
+                Err(problem) => Some(format!("{}: {}", problem.path, problem.message)),
+            },
+        })
     }
 
     async fn tenant(&self) -> Result<sequent_core::types::hasura::core::Tenant> {
@@ -324,7 +356,11 @@ impl PlatformTarget {
                 let mut known: BTreeSet<String> =
                     groups.into_iter().filter_map(|g| g.name).collect();
                 known.extend(self.context.package_groups.iter().cloned());
-                Ok(admin_changes(&rows, &existing, &known))
+                let mut preview = admin_changes(&rows, &existing, &known);
+                preview
+                    .blockers
+                    .extend(admin_column_problems(&one(files, "administrators")?.bytes)?);
+                Ok(preview)
             }
             Section::Trustees => {
                 let wanted: Vec<TrusteePublic> =
@@ -354,6 +390,16 @@ impl PlatformTarget {
                 .await
                 {
                     Ok((schema, _)) => {
+                        // The importer skips a messaging configuration its caller
+                        // may not write and still reports the event imported.
+                        if schema.messaging_config.is_some()
+                            && self.context.event_import.messaging_config_permission
+                                != crate::services::messaging::config::MessagingConfigPermission::PERMITTED
+                        {
+                            problems.push(
+                                "the event carries a messaging configuration, which the import would skip without messaging-config-write".to_string(),
+                            );
+                        }
                         let referenced: Vec<String> = schema
                             .keys_ceremonies
                             .iter()
@@ -412,8 +458,8 @@ impl PlatformTarget {
 impl PackageTarget for PlatformTarget {
     async fn preview(&self, section: Section, files: &[Artifact]) -> Result<SectionPreview> {
         let mut preview = self.preview_section(section, files).await?;
-        if let Some(blocker) = &self.context.admission_blocker {
-            preview.blockers.insert(0, blocker.clone());
+        if let Some(blocker) = self.admission_blocker().await? {
+            preview.blockers.insert(0, blocker);
         }
         Ok(preview)
     }
@@ -452,12 +498,9 @@ impl PackageTarget for PlatformTarget {
             } else if task.execution_status == TasksExecutionStatus::FAILED.to_string() {
                 TaskState::Failed
             } else {
-                update_fail(
-                    &task,
-                    "interrupted: the package application that ran it stopped",
-                )
-                .await?;
-                TaskState::Failed
+                // Open, under the claim: its run stopped. The next preview
+                // says whether its import landed, and settles the row.
+                TaskState::Interrupted
             },
         )
     }
@@ -572,12 +615,12 @@ impl PackageTarget for PlatformTarget {
                     )
                     .await?;
                 let existing = get_all_trustees(&transaction, &self.context.tenant_id).await?;
+                let mut names: BTreeSet<String> =
+                    existing.into_iter().filter_map(|t| t.name).collect();
                 let mut registered = Vec::new();
                 for trustee in &wanted {
-                    if existing
-                        .iter()
-                        .any(|t| t.name.as_deref() == Some(trustee.name.as_str()))
-                    {
+                    // Each name once, even if the file repeats it.
+                    if !names.insert(trustee.name.clone()) {
                         continue;
                     }
                     let id = insert_trustee(

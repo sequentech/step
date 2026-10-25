@@ -450,9 +450,19 @@ fn check_census_rows(
     layout: &super::archive::Layout,
     expected: usize,
 ) -> Result<(), Problem> {
-    let voters = layout.importable.iter().find(|a| {
-        a.name.starts_with("export_voters-") && a.name.ends_with(".csv")
-    });
+    let census: Vec<&Artifact> = layout
+        .importable
+        .iter()
+        .filter(|a| super::package_contract::is_census_member(&a.name))
+        .collect();
+    if census.len() > 1 {
+        return Err(Problem::error(
+            Code::InvalidValue,
+            "census",
+            "the event carries more than one census file; the importer would read them all",
+        ));
+    }
+    let voters = census.first().copied();
     let rows = match voters {
         Some(file) => csv::Reader::from_reader(file.bytes.as_slice())
             .records()

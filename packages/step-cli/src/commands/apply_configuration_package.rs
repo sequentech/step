@@ -115,11 +115,12 @@ impl ApplyConfigurationPackage {
         for line in summary(&annotations) {
             println!("{line}");
         }
-        if status == "SUCCESS" {
-            println!("{}", "The package matches the tenant.".green());
-            Ok(())
-        } else {
-            Err(format!("the application ended as {status}; see the sections above").into())
+        match (status.as_str(), conclusion(&annotations)) {
+            ("SUCCESS", Some(text)) => {
+                println!("{}", text.green());
+                Ok(())
+            }
+            _ => Err(format!("the application ended as {status}; see the sections above").into()),
         }
     }
 }
@@ -205,6 +206,27 @@ fn wait_for_task(
     }
 }
 
+/// What a finished run says about the tenant: a preview counts the sections
+/// that would change; only an application says the tenant matches.
+fn conclusion(annotations: &Value) -> Option<String> {
+    let record = &annotations["application"];
+    match record["outcome"].as_str()? {
+        "applied" => Some("The tenant matches the package.".to_string()),
+        "previewed" => {
+            let changing = record["sections"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter(|s| s["status"]["preview"]["needsApply"].as_bool() == Some(true))
+                .count();
+            Some(format!(
+                "Preview only, nothing changed: {changing} section(s) would change."
+            ))
+        }
+        _ => None,
+    }
+}
+
 /// One line per section of the application record: its state, and the task
 /// that applied it when there is one.
 fn summary(annotations: &Value) -> Vec<String> {
@@ -266,6 +288,27 @@ mod tests {
                 "  admin-accounts         blocked\n      blocked: group vanished".to_string(),
                 "  election-event         failed (task t-2): boom".to_string(),
             ]
+        );
+    }
+
+    #[test]
+    fn a_preview_never_says_the_tenant_matches() {
+        let previewed = json!({"application": {"outcome": "previewed", "sections": [
+            {"section": "trustees", "status": {"state": "previewed", "preview": {"needsApply": true}}},
+            {"section": "election-event", "status": {"state": "previewed", "preview": {"needsApply": false}}},
+        ]}});
+        assert_eq!(
+            conclusion(&previewed).as_deref(),
+            Some("Preview only, nothing changed: 1 section(s) would change.")
+        );
+        let applied = json!({"application": {"outcome": "applied", "sections": []}});
+        assert_eq!(
+            conclusion(&applied).as_deref(),
+            Some("The tenant matches the package.")
+        );
+        assert_eq!(
+            conclusion(&json!({"application": {"outcome": "failed"}})),
+            None
         );
     }
 

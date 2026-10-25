@@ -149,3 +149,30 @@ pub async fn remember_revocation_lists(
     }
     Ok(())
 }
+
+/// The newest package imported for a configuration, with the event it was
+/// imported into.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn last_import_with_event(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    external_id: &str,
+) -> Result<Option<(LastImport, String)>> {
+    let row = hasura_transaction
+        .query_opt(
+            "SELECT revision, manifest_sha256, election_event_id FROM sequent_backend.configuration_package
+             WHERE tenant_id = $1 AND external_id = $2
+             ORDER BY revision DESC LIMIT 1",
+            &[&parse_uuid_v4(tenant_id)?, &external_id],
+        )
+        .await?;
+    Ok(row.map(|row| {
+        (
+            LastImport {
+                revision: row.get::<_, i64>(0) as u64,
+                manifest_sha256: row.get(1),
+            },
+            row.get::<_, uuid::Uuid>(2).to_string(),
+        )
+    }))
+}

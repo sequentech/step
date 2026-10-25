@@ -28,7 +28,7 @@ use celery::error::TaskError;
 use deadpool_postgres::Client as DbClient;
 use sequent_core::election_config::manifest::read_zip;
 use sequent_core::election_config::package_contract::{Requirements, Section};
-use sequent_core::election_config::package_verify::{admit_at, freshness, Admission, Freshness};
+use sequent_core::election_config::package_verify::{admit_at, Admission};
 use sequent_core::election_config::tenant_package::TrusteePublic;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::hasura::extra::TasksExecutionStatus;
@@ -112,12 +112,14 @@ impl ProgressStore for TaskRowStore<'_> {
     }
 }
 
-/// The newest record of this package on this tenant, the current task's
-/// own first when a redelivery already saved one. A record that cannot be
-/// read stops the run rather than falling back to an older one.
+/// The record a run resumes from: the current task's own when it has saved
+/// one (a redelivery), otherwise the newest record of this package on this
+/// tenant. A record that cannot be read stops the run rather than falling
+/// back to an older one.
 async fn prior_record(
     tenant_id: &str,
     package_sha256: &str,
+    own_task: &str,
 ) -> anyhow::Result<Option<ApplicationRecord>> {
     let mut db: DbClient = get_hasura_pool().await.get().await?;
     let transaction = db.transaction().await?;
@@ -129,33 +131,89 @@ async fn prior_record(
         package_sha256,
     )
     .await?;
-    let Some(newest) = rows.into_iter().find_map(|row| {
-        let record = row.annotations.as_ref()?.get(APPLICATION_KEY)?.clone();
-        Some((row.id, record))
-    }) else {
-        return Ok(None);
-    };
-    serde_json::from_value(newest.1)
-        .map(Some)
-        .with_context(|| format!("the saved application of task {} cannot be read", newest.0))
+    choose_prior(rows, own_task)
 }
 
-/// Why a run stopped before it held the claim.
-#[derive(Debug)]
-struct ClaimHeld;
+/// The record to resume from among the package's task rows, newest first:
+/// the own row's when it has one, else the newest that has one.
+fn choose_prior(
+    rows: Vec<TasksExecution>,
+    own_task: &str,
+) -> anyhow::Result<Option<ApplicationRecord>> {
+    let with_record: Vec<(String, serde_json::Value)> = rows
+        .into_iter()
+        .filter_map(|row| {
+            let record = row.annotations.as_ref()?.get(APPLICATION_KEY)?.clone();
+            Some((row.id, record))
+        })
+        .collect();
+    let chosen = with_record
+        .iter()
+        .find(|(id, _)| id == own_task)
+        .or_else(|| with_record.first());
+    let Some((id, record)) = chosen else {
+        return Ok(None);
+    };
+    serde_json::from_value(record.clone())
+        .map(Some)
+        .with_context(|| format!("the saved application of task {id} cannot be read"))
+}
 
-impl std::fmt::Display for ClaimHeld {
+/// A run that stopped before it held the claim: the row may be a live run's.
+#[derive(Debug)]
+struct Unclaimed(anyhow::Error);
+
+impl std::fmt::Display for Unclaimed {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("another configuration package application on this tenant is running; wait for it to finish")
+        write!(f, "{:#}", self.0)
     }
 }
 
-impl std::error::Error for ClaimHeld {}
+impl std::error::Error for Unclaimed {}
+
+fn unclaimed(error: impl Into<anyhow::Error>) -> anyhow::Error {
+    anyhow::Error::new(Unclaimed(error.into()))
+}
 
 async fn execute(
     body: &ApplyConfigurationPackageBody,
     task_execution: &TasksExecution,
 ) -> anyhow::Result<ApplicationRecord> {
+    // The application's claim first: one package application per tenant at a
+    // time, whatever the package. Held by an open transaction on a connection
+    // of its own, so it ends with the run, or with the worker if that dies;
+    // while it is held, an earlier submission still marked in progress cannot
+    // be running any more. Checked again before every submission. Anything
+    // that fails before it is held leaves the task row to its owner.
+    let mut claim_db: DbClient = get_hasura_pool().await.get().await.map_err(unclaimed)?;
+    let claim = claim_db.transaction().await.map_err(unclaimed)?;
+    let claimed: bool = claim
+        .query_one(
+            "SELECT pg_try_advisory_xact_lock(hashtextextended($1, 0))",
+            &[&format!("package-application:{}", body.tenant_id)],
+        )
+        .await
+        .map_err(unclaimed)?
+        .get(0);
+    if !claimed {
+        return Err(unclaimed(anyhow!(
+            "another configuration package application on this tenant is running; wait for it to finish"
+        )));
+    }
+    let mut annotations = task_execution
+        .annotations
+        .clone()
+        .unwrap_or_else(|| json!({}));
+    annotations[CLAIMED_KEY] = json!(true);
+    update_with_annotations(
+        &task_execution.tenant_id,
+        &task_execution.id,
+        TasksExecutionStatus::IN_PROGRESS,
+        task_execution.logs.clone().unwrap_or(json!([])),
+        annotations,
+    )
+    .await?;
+
     let mut db: DbClient = get_hasura_pool().await.get().await?;
     let transaction = db.transaction().await?;
     let document = get_document(&transaction, &body.tenant_id, None, &body.document_id)
@@ -163,36 +221,23 @@ async fn execute(
         .ok_or_else(|| anyhow!("document {} not found", body.document_id))?;
     let file = get_document_as_temp_file(&body.tenant_id, &document).await?;
     let bytes = std::fs::read(file.path()).context("could not read the package")?;
-    // Verified against the tenant's signing trust. Whether the event was
-    // already imported is the event section's own question.
+    // Verified against the tenant's signing trust. Its freshness against the
+    // tenant's imports is the target's to check, before each section.
     let setting = tenant_setting(&transaction, &body.tenant_id).await?;
     let lists = configuration_packages::revocation_lists(&transaction, &body.tenant_id).await?;
     transaction.commit().await?;
-    let mut admission_blocker = None;
-    let (members, signed_package) =
+    let (members, signed_package, verified) =
         match admit_at(&bytes, setting.as_ref(), lists, chrono::Utc::now()) {
             Ok(Admission::Unsigned) => (
                 read_zip(&bytes, "package").map_err(|p| anyhow!("{p}"))?,
                 None,
+                None,
             ),
-            Ok(Admission::Verified(verified)) => {
-                // The signed-package freshness rule of a standalone import,
-                // checked before any section changes: an older revision may not
-                // roll the tenant back. Resuming this exact package is allowed.
-                let mut db: DbClient = get_hasura_pool().await.get().await?;
-                let transaction = db.transaction().await?;
-                let last = configuration_packages::last_import(
-                    &transaction,
-                    &body.tenant_id,
-                    &verified.manifest.configuration.external_id,
-                )
-                .await?;
-                admission_blocker = match freshness(&verified, last.as_ref()) {
-                    Ok(Freshness::New | Freshness::AlreadyImported) => None,
-                    Err(problem) => Some(format!("{}: {}", problem.path, problem.message)),
-                };
-                (verified.members.clone(), Some(bytes.clone()))
-            }
+            Ok(Admission::Verified(verified)) => (
+                verified.members.clone(),
+                Some(bytes.clone()),
+                Some(std::sync::Arc::new(*verified)),
+            ),
             Err(report) => {
                 return Err(anyhow::Error::new(
                     sequent_core::election_config::Rejected::new("configuration package", report),
@@ -234,41 +279,10 @@ async fn execute(
             signed_package,
             package_groups,
             package_trustees,
-            admission_blocker,
+            verified,
         },
     };
-    // The application's claim: one package application per tenant at a time,
-    // whatever the package. Held by an open transaction on a connection of its
-    // own, so it ends with the run, or with the worker if that dies; while it
-    // is held, an earlier submission still marked in progress cannot be
-    // running any more. Checked again before every submission.
-    let mut claim_db: DbClient = get_hasura_pool().await.get().await?;
-    let claim = claim_db.transaction().await?;
-    let claimed: bool = claim
-        .query_one(
-            "SELECT pg_try_advisory_xact_lock(hashtextextended($1, 0))",
-            &[&format!("package-application:{}", body.tenant_id)],
-        )
-        .await?
-        .get(0);
-    if !claimed {
-        return Err(anyhow::Error::new(ClaimHeld));
-    }
-    let mut annotations = task_execution
-        .annotations
-        .clone()
-        .unwrap_or_else(|| json!({}));
-    annotations[PACKAGE_SHA256_KEY] = json!(package_sha256);
-    annotations[CLAIMED_KEY] = json!(true);
-    update_with_annotations(
-        &task_execution.tenant_id,
-        &task_execution.id,
-        TasksExecutionStatus::IN_PROGRESS,
-        task_execution.logs.clone().unwrap_or(json!([])),
-        annotations,
-    )
-    .await?;
-    let prior = prior_record(&body.tenant_id, &package_sha256).await?;
+    let prior = prior_record(&body.tenant_id, &package_sha256, &task_execution.id).await?;
     let store = TaskRowStore {
         task: task_execution.clone(),
         claim: &claim,
@@ -302,9 +316,10 @@ pub async fn apply_configuration_package(
             Outcome::Previewed | Outcome::Applied => Ok(()),
             outcome => Err(anyhow!("configuration package {outcome:?}").into()),
         },
-        Err(error) if error.is::<ClaimHeld>() => {
-            // A redelivery of a run that holds the claim must leave that run's
-            // row alone; a new request that met another run is refused.
+        Err(error) if error.is::<Unclaimed>() => {
+            // A duplicate delivery of a run that holds the claim must leave
+            // that run's row alone; a new request that met another run, or
+            // could not even try, is refused on its own row.
             let live = crate::postgres::tasks_execution::get_task_by_id(&task_execution.id)
                 .await
                 .ok()
@@ -335,6 +350,104 @@ mod apply_test_schema;
 mod tests {
     use super::*;
     use crate::postgres::trustee::{get_all_trustees, insert_trustee};
+    use crate::services::import::configuration_package_apply::{ApplyMode, Outcome};
+    use sequent_core::election_config::package_contract::Coverage;
+    use std::collections::BTreeMap;
+
+    fn row(id: &str, record: Option<&ApplicationRecord>) -> TasksExecution {
+        serde_json::from_value(json!({
+            "id": id, "tenant_id": "t", "name": "Apply", "task_type": "APPLY_CONFIGURATION_PACKAGE",
+            "execution_status": "SUCCESS", "executed_by_user": "ada",
+            "created_at": "2026-10-25T00:00:00Z",
+            "annotations": record.map(|r| json!({APPLICATION_KEY: r})),
+        }))
+        .unwrap()
+    }
+
+    fn record(outcome: Outcome) -> ApplicationRecord {
+        ApplicationRecord {
+            format: "sequent.package-application/1".into(),
+            tenant_id: "t".into(),
+            package_sha256: "p".into(),
+            mode: ApplyMode::Apply,
+            coverage: Coverage {
+                members: vec![],
+                sections: BTreeMap::new(),
+                census: sequent_core::election_config::package_contract::SectionState::NotIncluded,
+            },
+            sections: vec![],
+            outcome,
+        }
+    }
+
+    #[test]
+    fn a_run_resumes_from_its_own_record_before_a_newer_one() {
+        let own = record(Outcome::Unknown);
+        let newer = record(Outcome::Applied);
+        // Newest first, as the lookup orders them.
+        let rows = vec![
+            row("newer", Some(&newer)),
+            row("own", Some(&own)),
+            row("fresh", None),
+        ];
+        assert_eq!(
+            choose_prior(rows.clone(), "own").unwrap().unwrap().outcome,
+            Outcome::Unknown
+        );
+        // A new run (its row has no record yet) takes the newest record.
+        assert_eq!(
+            choose_prior(rows, "fresh").unwrap().unwrap().outcome,
+            Outcome::Applied
+        );
+        assert!(choose_prior(vec![row("fresh", None)], "fresh")
+            .unwrap()
+            .is_none());
+    }
+
+    #[test]
+    fn an_unreadable_record_stops_the_run() {
+        let mut broken = row("own", None);
+        broken.annotations = Some(json!({APPLICATION_KEY: {"format": 1}}));
+        assert!(choose_prior(vec![broken], "own").is_err());
+    }
+
+    /// Needs the PostgreSQL server `HASURA_DB__*` names; rolls back.
+    #[tokio::test]
+    async fn the_tenant_record_update_writes_only_its_four_fields_under_a_lock() {
+        use crate::postgres::tenant::{lock_tenant, update_tenant_configuration};
+        let pool = super::apply_test_schema::pool().await;
+        let mut client = pool.get().await.unwrap();
+        let tx = client.transaction().await.unwrap();
+        let tenant = uuid::Uuid::new_v4();
+        tx.execute(
+            "INSERT INTO sequent_backend.tenant (id, slug, is_active, settings, test) VALUES ($1, $2, true, $3, 1)",
+            &[&tenant, &format!("keep-{tenant}"), &json!({"configuration_signing": {"policy": "required"}, "gapi_key": {"k": "v"}})],
+        )
+        .await
+        .unwrap();
+        let mut current = lock_tenant(&tx, &tenant.to_string()).await.unwrap();
+        current.slug = "ignored".into();
+        current.is_active = false;
+        current.test = Some(9);
+        current.settings = Some(
+            json!({"configuration_signing": {"policy": "required"}, "gapi_key": {"k": "v"}, "i18n": {}}),
+        );
+        current.voting_channels = Some(json!({"online": true}));
+        update_tenant_configuration(&tx, &current).await.unwrap();
+        let row = tx
+            .query_one("SELECT slug, is_active, test, settings, voting_channels FROM sequent_backend.tenant WHERE id = $1", &[&tenant])
+            .await
+            .unwrap();
+        assert_eq!(row.get::<_, String>(0), format!("keep-{tenant}"));
+        assert!(row.get::<_, bool>(1));
+        assert_eq!(row.get::<_, Option<i32>>(2), Some(1));
+        assert_eq!(
+            row.get::<_, serde_json::Value>(3)["gapi_key"],
+            json!({"k": "v"})
+        );
+        assert_eq!(row.get::<_, serde_json::Value>(4), json!({"online": true}));
+        tx.rollback().await.unwrap();
+    }
 
     /// Needs the PostgreSQL server `HASURA_DB__*` names (see
     /// tests/support/schema.rs); rolls back everything it writes.

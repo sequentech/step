@@ -33,8 +33,9 @@ pub struct ApplyConfigurationPackageInput {
     tenant_id: String,
     document_id: String,
     mode: ApplyMode,
+    /// The action declares it nullable: absent and null both mean none.
     #[serde(default)]
-    requirements: Requirements,
+    requirements: Option<Requirements>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -117,7 +118,7 @@ pub async fn apply_configuration_package_route(
         tenant_id: input.tenant_id.clone(),
         document_id: input.document_id.clone(),
         mode: input.mode,
-        requirements: input.requirements,
+        requirements: input.requirements.unwrap_or_default(),
         event_import,
         audit_actor: Some(audit::actor(&claims)),
         executed_by,
@@ -152,6 +153,21 @@ mod tests {
         let roles: Vec<String> = held.iter().map(|p| p.to_string()).collect();
         let roles: Vec<&str> = roles.iter().map(String::as_str).collect();
         admin_claims(CALLER_TENANT_ID, &roles)
+    }
+
+    #[test]
+    fn requirements_may_be_absent_or_null() {
+        for body in [
+            json!({"tenant_id": "t", "document_id": "d", "mode": "preview"}),
+            json!({"tenant_id": "t", "document_id": "d", "mode": "preview", "requirements": null}),
+        ] {
+            let input: ApplyConfigurationPackageInput =
+                serde_json::from_value(body).unwrap();
+            assert_eq!(
+                input.requirements.unwrap_or_default(),
+                Requirements::default()
+            );
+        }
     }
 
     #[test]

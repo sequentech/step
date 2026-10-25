@@ -256,9 +256,15 @@ fn the_census_is_read_as_the_importer_finds_it_and_ambiguity_is_refused() {
     let one = event_zip(&[
         ("export_election_event-e1.json", b"{}"),
         ("export_voters-e1.csv", b"area,username\nx,Ada\nx,bob\n"),
-        ("export_S3_files/export_voters/photo.png", b"png"),
     ]);
     assert_eq!(census_usernames(&one).unwrap(), Ok(set(&["ada", "bob"])));
+    // The importer reads a file under export_S3_files/export_voters/ as census
+    // too, so with the CSV beside it the census is ambiguous.
+    let with_s3 = event_zip(&[
+        ("export_voters-e1.csv", b"username\na\n"),
+        ("export_S3_files/export_voters/photo.png", b"png"),
+    ]);
+    assert!(census_usernames(&with_s3).unwrap().is_err());
     let none = event_zip(&[("export_election_event-e1.json", b"{}")]);
     assert_eq!(census_usernames(&none).unwrap(), Ok(set(&[])));
     // The importer reads every member containing the family, any extension.
@@ -346,4 +352,58 @@ fn the_tenant_record_keeps_its_identity_and_unnamed_keys() {
     );
     // Converged once applied.
     assert!(!tenant_configuration_changes(&merged, &wanted).needs_apply);
+}
+
+#[test]
+fn a_package_may_not_change_the_tenants_signing_trust() {
+    // Control: naming an equal value is no change and no blocker.
+    let same: TenantConfiguration = serde_json::from_value(json!({
+        "settings": {"configuration_signing": {"policy": "required"}}
+    }))
+    .unwrap();
+    assert!(tenant_configuration_changes(&tenant(), &same)
+        .blockers
+        .is_empty());
+    let other: TenantConfiguration = serde_json::from_value(json!({
+        "settings": {"configuration_signing": {"policy": "optional"}}
+    }))
+    .unwrap();
+    let preview = tenant_configuration_changes(&tenant(), &other);
+    assert_eq!(preview.blockers.len(), 1);
+    assert!(preview.blockers[0].contains("configuration_signing"));
+}
+
+#[test]
+fn administrator_files_carry_only_the_producers_columns() {
+    let csv = b"username,email,group_name,password,hashed_password\na,,admin,secret,h\n";
+    assert_eq!(
+        admin_column_problems(csv).unwrap(),
+        vec![
+            "the administrators file carries column 'password', which a package may not set",
+            "the administrators file carries column 'hashed_password', which a package may not set",
+        ]
+    );
+    // Even so, the import file never carries them.
+    let written = String::from_utf8(absent_admin_rows(csv, &BTreeMap::new()).unwrap()).unwrap();
+    assert_eq!(
+        written,
+        "username,email,first_name,last_name,group_name\na,,,,admin\n"
+    );
+    assert!(admin_column_problems(b"username,group_name\na,admin\n")
+        .unwrap()
+        .is_empty());
+}
+
+#[test]
+fn blank_or_repeated_trustee_names_block() {
+    let a = native_trustee("a");
+    let mut blank = native_trustee("x");
+    blank.name = " ".into();
+    let preview = trustee_changes(&[a.clone(), a.clone(), blank], &[]);
+    assert!(preview
+        .blockers
+        .contains(&"trustee 'a' appears more than once in the package".to_string()));
+    assert!(preview
+        .blockers
+        .contains(&"a trustee in the package has no name".to_string()));
 }

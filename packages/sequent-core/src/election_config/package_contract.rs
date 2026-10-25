@@ -20,25 +20,14 @@
 use super::archive::{
     ADMIN_PORTAL_MEMBER, IMPORTABLE_MEMBER, PLAN_MEMBER, WORKBOOK_MEMBER,
 };
+pub use super::archive::{
+    TENANT_CONFIGURATION_PREFIX, TENANT_SETTINGS_PREFIX, TRUSTEES_MEMBER,
+};
 use super::manifest::{
     FileEntry, CHAIN_MEMBER, MANIFEST_MEMBER, SIGNATURE_MEMBER,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-
-/// The platform's tenant record: what the tenant shows and offers (labels,
-/// annotations, voting channels, settings). Named so the generic tenant CSV
-/// import never mistakes it for its own file.
-pub const TENANT_CONFIGURATION_PREFIX: &str = "tenant_platform-";
-
-/// Tenant settings: a Keycloak admin-realm representation of which the
-/// tenant-configuration importer applies the display name and localization
-/// only. Named after the tenant like the permissions file.
-pub const TENANT_SETTINGS_PREFIX: &str = "keycloak_admin-";
-
-/// Native trustees' public material: names with signing and share-encryption
-/// public keys. Never private keys; see [`super::trustee_public`].
-pub const TRUSTEES_MEMBER: &str = "trustees_public.json";
 
 /// Administrator accounts, without credentials.
 pub const ADMIN_USERS_MEMBER: &str = "admin_users.csv";
@@ -48,7 +37,7 @@ pub const ADMIN_USERS_MEMBER: &str = "admin_users.csv";
 pub const HISTORICAL_SUMMARY_MEMBER: &str = "historical_conversion.json";
 
 const EVENT_DOCUMENT_PREFIX: &str = "export_election_event-";
-const VOTERS_PREFIX: &str = "export_voters-";
+const VOTERS_FAMILY: &str = "export_voters";
 const PERMISSIONS_PREFIX: &str = "export_permissions-";
 const TEMPLATES_PREFIX: &str = "export_templates-";
 const TEMPLATES_DIR: &str = "templates/";
@@ -268,6 +257,14 @@ fn portal_disposition(path: &str) -> Disposition {
     }
 }
 
+/// Whether the event importer reads this member of the event zip as the
+/// census: any name containing the voters family, as `process_document`
+/// matches it (including files under `export_S3_files/`). The one rule the
+/// contract, the application's preview and the importer share.
+pub fn is_census_member(path: &str) -> bool {
+    path.contains(VOTERS_FAMILY)
+}
+
 /// Every member's disposition and each section's state. `required` names
 /// what the caller (a client profile) expects; an absent one is
 /// [`SectionState::Missing`].
@@ -324,8 +321,7 @@ pub fn coverage(entries: &[FileEntry], required: &Requirements) -> Coverage {
         .iter()
         .filter(|m| {
             m.container.as_deref() == Some(IMPORTABLE_MEMBER)
-                && m.path.starts_with(VOTERS_PREFIX)
-                && m.path.ends_with(".csv")
+                && is_census_member(&m.path)
         })
         .map(|m| m.path.clone())
         .collect();

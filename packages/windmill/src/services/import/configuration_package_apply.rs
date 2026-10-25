@@ -139,8 +139,11 @@ pub enum TaskState {
     /// Still running: it may yet change the target.
     Running,
     Succeeded,
-    /// Ended without succeeding, or interrupted with the run that held it.
+    /// Ended without succeeding.
     Failed,
+    /// Still open, but the run that held it stopped: it cannot continue.
+    /// Whether its effect landed is for the next preview to say.
+    Interrupted,
 }
 
 /// The platform side: previewing and applying each section through the
@@ -417,6 +420,9 @@ pub async fn run(
         // An earlier submission left unsettled: settle it before anything
         // else, and never submit again while it may still be running.
         store.hold().await?;
+        // A submission an interrupted run left open, settled by what the
+        // target shows below.
+        let mut interrupted = None;
         if let Some(task_id) = record.history_of(section).in_flight {
             match target.submission_state(&task_id).await {
                 Ok(TaskState::Running) => {
@@ -434,6 +440,7 @@ pub async fn run(
                     record.history(section).in_flight = None;
                     store.save(&record).await?;
                 }
+                Ok(TaskState::Interrupted) => interrupted = Some(task_id),
                 Err(error) => {
                     return stop(
                         record,
@@ -466,6 +473,14 @@ pub async fn run(
                 .await;
             }
         };
+        if let Some(task_id) = interrupted.take() {
+            // Converged: the interrupted import landed. Otherwise it did not,
+            // and its row closes before anything is submitted again.
+            let landed = converged(&preview);
+            target.settle(&task_id, landed).await?;
+            record.history(section).in_flight = None;
+            store.save(&record).await?;
+        }
         if !preview.blockers.is_empty() {
             record.set(section, SectionStatus::Blocked { preview });
             record.outcome = if changed {

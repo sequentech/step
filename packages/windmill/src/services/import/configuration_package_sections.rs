@@ -143,12 +143,34 @@ pub fn merged_tenant(current: &Tenant, wanted: &TenantConfiguration) -> Tenant {
     }
 }
 
+/// Tenant settings a package may not change: they decide what the tenant
+/// trusts, so they are set on the installed system only.
+pub const RESERVED_SETTINGS: [&str; 1] =
+    [sequent_core::election_config::package_verify::CONFIGURATION_SIGNING_SETTING];
+
 /// The tenant record's changes: each field whose merged value differs, with
-/// the keys that change.
+/// the keys that change. Changing a reserved setting blocks the section.
 pub fn tenant_configuration_changes(
     current: &Tenant,
     wanted: &TenantConfiguration,
 ) -> SectionPreview {
+    let reserved: Vec<String> = RESERVED_SETTINGS
+        .iter()
+        .filter(|key| {
+            wanted
+                .settings
+                .as_ref()
+                .and_then(|s| s.get(**key))
+                .is_some_and(|value| {
+                    current.settings.as_ref().and_then(|s| s.get(**key)) != Some(value)
+                })
+        })
+        .map(|key| {
+            format!(
+                "the package would change the tenant's {key}, which only the installed system sets"
+            )
+        })
+        .collect();
     let merged = merged_tenant(current, wanted);
     let mut changes = Vec::new();
     for (field, before, after) in [
@@ -178,7 +200,7 @@ pub fn tenant_configuration_changes(
     SectionPreview {
         needs_apply: !changes.is_empty(),
         changes: Value::Array(changes),
-        blockers: vec![],
+        blockers: reserved,
     }
 }
 
@@ -215,6 +237,26 @@ pub fn tenant_settings_changes(
         changes: Value::Array(changes),
         blockers: vec![],
     }
+}
+
+/// The columns the producer writes for administrators. Anything else, a
+/// credential column above all, is refused: the user import would accept a
+/// `password` or a hash.
+pub const ADMIN_COLUMNS: [&str; 5] = ["username", "email", "first_name", "last_name", "group_name"];
+
+/// Columns of `admin_users.csv` the package may not carry.
+pub fn admin_column_problems(csv_bytes: &[u8]) -> Result<Vec<String>> {
+    let mut reader = csv::Reader::from_reader(csv_bytes);
+    let headers = reader
+        .headers()
+        .context("Error reading the administrators file")?;
+    Ok(headers
+        .iter()
+        .filter(|h| !ADMIN_COLUMNS.contains(h))
+        .map(|h| {
+            format!("the administrators file carries column '{h}', which a package may not set")
+        })
+        .collect())
 }
 
 /// One administrator row of `admin_users.csv`.
@@ -305,17 +347,23 @@ pub fn absent_admin_rows(
 ) -> Result<Vec<u8>> {
     let mut reader = csv::Reader::from_reader(csv_bytes);
     let headers = reader.headers()?.clone();
-    let username = headers
+    let positions: Vec<Option<usize>> = ADMIN_COLUMNS
         .iter()
-        .position(|h| h == "username")
-        .ok_or_else(|| anyhow!("the administrators file has no `username` column"))?;
+        .map(|column| headers.iter().position(|h| h == *column))
+        .collect();
+    let username =
+        positions[0].ok_or_else(|| anyhow!("the administrators file has no `username` column"))?;
     let mut writer = csv::Writer::from_writer(Vec::new());
-    writer.write_record(&headers)?;
+    writer.write_record(ADMIN_COLUMNS)?;
     for record in reader.records() {
         let record = record?;
         let name = record.get(username).unwrap_or_default().to_lowercase();
         if !existing_usernames.contains_key(&name) {
-            writer.write_record(&record)?;
+            writer.write_record(
+                positions
+                    .iter()
+                    .map(|p| p.and_then(|p| record.get(p)).unwrap_or_default()),
+            )?;
         }
     }
     writer
@@ -329,6 +377,19 @@ pub fn absent_admin_rows(
 /// registered.
 pub fn trustee_changes(wanted: &[TrusteePublic], existing: &[Trustee]) -> SectionPreview {
     let mut blockers = Vec::new();
+    // The key ceremony and the importer resolve trustees by name, so a name
+    // must be present and appear once.
+    let mut names = BTreeSet::new();
+    for trustee in wanted {
+        if trustee.name.trim().is_empty() {
+            blockers.push("a trustee in the package has no name".to_string());
+        } else if !names.insert(trustee.name.as_str()) {
+            blockers.push(format!(
+                "trustee '{}' appears more than once in the package",
+                trustee.name
+            ));
+        }
+    }
     let records: Vec<protocol_board::RawTrusteeRecord> = wanted
         .iter()
         .map(|t| protocol_board::RawTrusteeRecord {
@@ -426,12 +487,6 @@ pub fn event_changes(
     }
 }
 
-/// Whether the event importer would read `name` as the census: the same
-/// family match it dispatches on (`process_document`), outside the S3 files.
-fn is_census_member(name: &str) -> bool {
-    name.contains("export_voters") && !name.starts_with("export_S3_files/")
-}
-
 /// The usernames of the event zip's census, read the way the importer would
 /// find it. More than one census file, or one that is not CSV, is ambiguous
 /// and refused rather than guessed.
@@ -440,7 +495,7 @@ pub fn census_usernames(event_zip: &[u8]) -> Result<std::result::Result<BTreeSet
         .map_err(|p| anyhow!("{p}"))?;
     let census: Vec<_> = members
         .iter()
-        .filter(|m| is_census_member(&m.name))
+        .filter(|m| sequent_core::election_config::package_contract::is_census_member(&m.name))
         .collect();
     let voters = match census.as_slice() {
         [] => return Ok(Ok(BTreeSet::new())),

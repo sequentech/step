@@ -251,6 +251,20 @@ fn templates_csv(templates: &[CommunicationTemplate]) -> String {
     plain_csv(&columns, &rows)
 }
 
+/// The platform's tenant record: what the tenant shows and offers (labels,
+/// annotations, voting channels, settings). Named so the generic tenant CSV
+/// import never mistakes it for its own file.
+pub const TENANT_CONFIGURATION_PREFIX: &str = "tenant_platform-";
+
+/// Tenant settings: a Keycloak admin-realm representation of which the
+/// tenant-configuration importer applies the display name and localization
+/// only. Named after the tenant like the permissions file.
+pub const TENANT_SETTINGS_PREFIX: &str = "keycloak_admin-";
+
+/// Native trustees' public material: names with signing and share-encryption
+/// public keys. Never private keys.
+pub const TRUSTEES_MEMBER: &str = "trustees_public.json";
+
 /// Whether an auxiliary member is something the **Admin Portal imports**.
 ///
 /// The split [`delivery`] nests on, and it is a split by *who acts on the file*
@@ -264,10 +278,9 @@ fn templates_csv(templates: &[CommunicationTemplate]) -> String {
 /// asserts they have not.
 fn admin_portal_member(name: &str) -> bool {
     name == "admin_users.csv"
-        || name == super::package_contract::TRUSTEES_MEMBER
-        || name.starts_with(super::package_contract::TENANT_SETTINGS_PREFIX)
-        || name
-            .starts_with(super::package_contract::TENANT_CONFIGURATION_PREFIX)
+        || name == TRUSTEES_MEMBER
+        || name.starts_with(TENANT_SETTINGS_PREFIX)
+        || name.starts_with(TENANT_CONFIGURATION_PREFIX)
         || name.starts_with("export_permissions-")
         || name.starts_with("export_templates-")
         || name.starts_with("templates/")
