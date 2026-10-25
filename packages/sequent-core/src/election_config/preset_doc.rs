@@ -123,6 +123,11 @@ pub struct AuthPresetDoc {
     #[serde(default)]
     pub parameter_defaults: Map<String, Value>,
 
+    /// Authenticator config values written only when their parameter is given,
+    /// so that otherwise the target realm keeps its own.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub deployment_settings: Vec<DeploymentSettingDoc>,
+
     /// The realm configuration, before substitution.
     #[serde(default)]
     pub patch: PatchDoc,
@@ -151,6 +156,14 @@ pub struct PatchDoc {
     pub user_profile: Option<Map<String, Value>>,
 }
 
+/// The owned twin of [`super::presets::DeploymentSetting`].
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DeploymentSettingDoc {
+    pub config_alias: String,
+    pub key: String,
+    pub parameter: String,
+}
+
 /// Named fields rather than a tuple, because a JSON pair `["a", "b"]` is two
 /// strings nobody can tell apart in a file somebody is editing by hand.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -172,11 +185,37 @@ impl AuthPresetDoc {
     pub fn build(&self, input: &PresetInput) -> RealmPatch {
         let fill = |value: &Value| self.substituted(value, input);
 
+        let mut patch = match fill(&Value::Object(self.patch.patch.clone())) {
+            Value::Object(map) => map,
+            _ => Map::new(),
+        };
+        for setting in &self.deployment_settings {
+            if self
+                .value_of(&setting.parameter, input)
+                .is_some_and(|value| !value.is_empty())
+            {
+                continue;
+            }
+            let configs = patch
+                .get_mut("authenticatorConfig")
+                .and_then(Value::as_array_mut)
+                .into_iter()
+                .flatten()
+                .filter(|config| {
+                    config.get("alias").and_then(Value::as_str)
+                        == Some(setting.config_alias.as_str())
+                });
+            for config in configs {
+                if let Some(entries) =
+                    config.get_mut("config").and_then(Value::as_object_mut)
+                {
+                    entries.remove(&setting.key);
+                }
+            }
+        }
+
         RealmPatch {
-            patch: match fill(&Value::Object(self.patch.patch.clone())) {
-                Value::Object(map) => map,
-                _ => Map::new(),
-            },
+            patch,
             bind_authenticator_config: self
                 .patch
                 .bind_authenticator_config
