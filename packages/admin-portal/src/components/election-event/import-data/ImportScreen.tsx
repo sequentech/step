@@ -20,12 +20,19 @@ import React, {useEffect, useRef, memo, useState} from "react"
 import {useTranslation} from "react-i18next"
 import {GetUploadUrlMutation} from "@/gql/graphql"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
-import {useMutation} from "@apollo/client"
+import {useMutation, useApolloClient} from "@apollo/client"
 import {SimpleForm, useNotify} from "react-admin"
 import {EFileIntegrityPolicy} from "@sequentech/ui-core"
 import {selectImportFiles} from "@/services/ImportFileSelection"
 import {ImportRequestError} from "@/services/ImportRequestError"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
+import {useTenantStore} from "@/providers/TenantContextProvider"
+import {
+    prepareComelecConfig,
+    applyComelecConfig,
+    ComelecConfigError,
+    type ComelecConfigPlan,
+} from "./comelecConfigImport"
 
 const DOWNLOAD_URL_LIFETIME_MS = 1000
 
@@ -130,6 +137,13 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
         const [historicalFiles, setHistoricalFiles] = useState<File[]>([])
         const previousConverterUrl = useRef(converterUrl)
         const [stage, setStage] = useState<keyof typeof stageLabels>("select")
+        // COMELEC two-file flow: the tenant-config preflight plan (no mutation) and the
+        // apply-stage feedback shown in this same drawer before the event import.
+        const apolloClient = useApolloClient()
+        const [tenantId] = useTenantStore()
+        const [configPlan, setConfigPlan] = useState<ComelecConfigPlan | null>(null)
+        const [configError, setConfigError] = useState<string>("")
+        const [configStageMsg, setConfigStageMsg] = useState<string>("")
 
         useEffect(() => {
             setShaField("")
@@ -330,6 +344,42 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
             if (requiresSha && !validSha) return
             if (generatedHash && !historicalEnabled) return
             if (generatedHash && theFile && !documentId) {
+                // COMELEC flow: apply the previewed tenant configuration (roles +
+                // display + reused trustees), awaiting its terminal success, BEFORE
+                // importing the event. The generic native path skips this.
+                if (historicalEnabled) {
+                    if (!configPlan) {
+                        setConfigError(
+                            "Prepare and review the tenant configuration before importing."
+                        )
+                        return
+                    }
+                    setLoading(true)
+                    setStage("creating")
+                    try {
+                        await applyComelecConfig({
+                            client: apolloClient,
+                            tenantId: String(tenantId),
+                            plan: configPlan,
+                            putFile: uploadFile,
+                            onStage: (update) => setConfigStageMsg(update.detail),
+                        })
+                    } catch (error) {
+                        setConfigError(
+                            error instanceof ComelecConfigError
+                                ? `${error.message}${
+                                      error.pendingTaskId
+                                          ? ` (pending task ${error.pendingTaskId}; reconcile before retrying)`
+                                          : ""
+                                  }`
+                                : "The tenant-configuration apply failed; the event was not imported."
+                        )
+                        setLoading(false)
+                        setStage("creation-error")
+                        return
+                    }
+                    setLoading(false)
+                }
                 const id = await uploadFileToS3(theFile, "", generatedHash)
                 if (id) await submitImport(id)
                 return
@@ -420,6 +470,9 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                                 setShaField("")
                                 setGeneratedHash(null)
                                 setTheFile(undefined)
+                                setConfigPlan(null)
+                                setConfigError("")
+                                setConfigStageMsg("")
                             }}
                             onAccepted={async (file, hash) => {
                                 setPassword("")
@@ -427,6 +480,25 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                                 setShaField(hash)
                                 setGeneratedHash(hash)
                                 setStage("local-ready")
+                                // Preflight the tenant configuration (no mutation) so the
+                                // operator previews the role/trustee/display changes in
+                                // this drawer before the Import action applies them.
+                                setConfigError("")
+                                setConfigPlan(null)
+                                setConfigStageMsg("")
+                                try {
+                                    const plan = await prepareComelecConfig(
+                                        apolloClient,
+                                        String(tenantId)
+                                    )
+                                    setConfigPlan(plan)
+                                } catch (error) {
+                                    setConfigError(
+                                        error instanceof ComelecConfigError
+                                            ? error.message
+                                            : "The tenant-configuration preflight failed; no change was made."
+                                    )
+                                }
                             }}
                         />
                     ) : (
@@ -442,6 +514,58 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                                 )}
                         </Typography>
                     ))}
+
+                {historicalEnabled && configError && (
+                    <Typography role="alert" color="error" sx={{mt: 1}}>
+                        {configError}
+                    </Typography>
+                )}
+                {historicalEnabled && configPlan && (
+                    <Box component="details" sx={{mt: 1}} data-testid="config-preview">
+                        <summary>
+                            {String(
+                                t("electionEventScreen.import.configPreview", {
+                                    defaultValue:
+                                        "Tenant configuration to apply (preview — nothing changed yet)",
+                                })
+                            )}
+                        </summary>
+                        <Typography variant="body2">
+                            Realm display: {configPlan.preflight.realmDisplayName}
+                            {configPlan.preflight.appliedTenantDisplayName
+                                ? `; tenant display: ${configPlan.preflight.appliedTenantDisplayName}`
+                                : ""}
+                            . Roles: {configPlan.preflight.roles.length} across{" "}
+                            {configPlan.preflight.groups.length} groups. Trustees reused:{" "}
+                            {configPlan.reusedTrustees
+                                .map((trustee) => trustee.name || trustee.id)
+                                .join(", ") || "none"}
+                            .
+                        </Typography>
+                        <Box component="ul" sx={{m: 0, pl: 3}}>
+                            {configPlan.rolePreflight.changes
+                                .filter(
+                                    (change) =>
+                                        change.additions.length || change.removals.length
+                                )
+                                .map((change) => (
+                                    <li key={change.group}>
+                                        {change.group}
+                                        {change.exists ? "" : " (new)"}: +
+                                        {change.additions.length} / -{change.removals.length}
+                                        {change.removals.length
+                                            ? ` (removing ${change.removals.join(", ")})`
+                                            : ""}
+                                    </li>
+                                ))}
+                        </Box>
+                        {configStageMsg && (
+                            <Typography variant="body2" sx={{mt: 0.5}}>
+                                {configStageMsg}
+                            </Typography>
+                        )}
+                    </Box>
+                )}
 
                 {stage !== "select" && (
                     <Typography
