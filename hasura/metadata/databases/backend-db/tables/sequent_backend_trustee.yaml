@@ -49,6 +49,16 @@ insert_permissions:
               - tenant_id
       role: trustee-write
 select_permissions:
+    -   comment: ''
+        permission:
+            columns:
+            - id
+            - name
+            - tenant_id
+            filter:
+                tenant_id:
+                    _eq: X-Hasura-Tenant-Id
+        role: admin-ceremony
     - comment: ""
       permission:
           allow_aggregations: true

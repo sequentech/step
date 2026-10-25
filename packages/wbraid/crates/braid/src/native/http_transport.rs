@@ -100,6 +100,50 @@ impl HttpTransport {
         Ok(out)
     }
 
+    /// Export with explicit limits. Existing protocol callers retain their
+    /// original fetch behavior; operator exports bound metadata and total raw
+    /// message bytes before buffering each response.
+    pub async fn fetch_raw_bounded(
+        &self,
+        metadata_bytes: usize,
+        message_bytes: usize,
+        message_count: usize,
+        allowed_blob_prefix: &str,
+    ) -> Result<Vec<Vec<u8>>> {
+        let url = format!("{}/boards/{}/messages", self.base_url, self.board);
+        let client = reqwest::Client::builder()
+            .redirect(reqwest::redirect::Policy::none())
+            .build()?;
+        let response = client.get(&url).send().await?;
+        let body: GetBlobsResponse =
+            serde_json::from_slice(&bounded_body(response, metadata_bytes).await?)?;
+        if body.messages.len() > message_count {
+            bail!("public transcript exceeds the message count limit");
+        }
+        let mut remaining = message_bytes;
+        let mut out = Vec::with_capacity(body.messages.len());
+        for message in body.messages {
+            if message.message.version != schema_version() {
+                bail!("public transcript message version mismatch");
+            }
+            let bytes = match message.message.content_type {
+                ContentType::Inline { data } => data,
+                ContentType::S3 { key } => {
+                    let url = message
+                        .download_url
+                        .ok_or_else(|| anyhow!("S3 message missing download_url"))?;
+                    let url = scoped_blob_url(&url, allowed_blob_prefix, &self.board, &key)?;
+                    bounded_body(client.get(url).send().await?, remaining).await?
+                }
+            };
+            remaining = remaining
+                .checked_sub(bytes.len())
+                .ok_or_else(|| anyhow!("public transcript exceeds the byte limit"))?;
+            out.push(bytes);
+        }
+        Ok(out)
+    }
+
     /// Stage bytes (§6.4): `initiate` to reserve an id and a presigned URL, then
     /// upload the body to S3. Nothing is visible on the board yet — b4 records
     /// no row until `confirm` — so a failure here has published nothing and
@@ -200,4 +244,55 @@ impl<C: Context> Transport<C> for HttpTransport {
     async fn commit(&self, staged: &StagedRef) -> Result<()> {
         self.commit_staged(staged).await
     }
+}
+
+/// Reject oversized HTTP bodies before accumulating them, including chunked
+/// responses with no Content-Length. Dropping this future cancels the read.
+async fn bounded_body(mut response: reqwest::Response, limit: usize) -> Result<Vec<u8>> {
+    if !response.status().is_success() {
+        bail!("public transcript fetch failed: HTTP {}", response.status());
+    }
+    if response
+        .content_length()
+        .is_some_and(|size| size > limit as u64)
+    {
+        bail!("public transcript response exceeds the byte limit");
+    }
+    let mut bytes = Vec::new();
+    while let Some(chunk) = response.chunk().await? {
+        if chunk.len() > limit.saturating_sub(bytes.len()) {
+            bail!("public transcript response exceeds the byte limit");
+        }
+        bytes.extend_from_slice(&chunk);
+    }
+    Ok(bytes)
+}
+
+/// The untrusted listing may select only one message object in the configured
+/// private bucket, under this board. Presigned query parameters are retained.
+fn scoped_blob_url(raw: &str, prefix: &str, board: &str, key: &str) -> Result<reqwest::Url> {
+    let allowed = reqwest::Url::parse(prefix)?;
+    let url = reqwest::Url::parse(raw)?;
+    let object = key
+        .strip_prefix(&format!("{board}/messages/"))
+        .ok_or_else(|| anyhow!("blob key is outside the selected board"))?;
+    let canonical_id = object.len() == 36
+        && object.bytes().enumerate().all(|(i, ch)| {
+            if [8, 13, 18, 23].contains(&i) {
+                ch == b'-'
+            } else {
+                ch.is_ascii_digit() || (b'a'..=b'f').contains(&ch)
+            }
+        });
+    if !canonical_id
+        || !matches!(allowed.scheme(), "http" | "https")
+        || url.origin() != allowed.origin()
+        || !url.username().is_empty()
+        || url.password().is_some()
+        || url.fragment().is_some()
+        || url.path() != format!("{}{object}", allowed.path())
+    {
+        bail!("blob URL is outside the configured board storage");
+    }
+    Ok(url)
 }

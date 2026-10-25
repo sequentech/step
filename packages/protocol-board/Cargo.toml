@@ -29,7 +29,7 @@ strum_macros = "0.27"
 toml = "0.8"
 uuid = "1.5"
 # `spawn_blocking` and the current runtime handle, for the board I/O bridge.
-tokio = { version = "1.40", features = ["rt"], optional = true }
+tokio = { version = "1.40", features = ["rt", "time", "sync"], optional = true }
 tracing = "0.1"
 
 async-trait = "0.1"

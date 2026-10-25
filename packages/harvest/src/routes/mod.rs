@@ -87,3 +87,5 @@ pub mod scheduled_outcomes;
 pub mod signing;
 pub mod signing_certificates;
 pub mod task_queues;
+
+pub mod export_verification_transcript;

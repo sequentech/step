@@ -9,6 +9,18 @@ use tempfile::NamedTempFile;
 /// The object storage that holds uploaded documents.
 #[rocket::async_trait]
 pub trait DocumentStorage: Send + Sync {
+    /// Store a new private event JSON document with a server-selected name.
+    async fn save_json(
+        &self,
+        _transaction: &Transaction<'_>,
+        _tenant_id: &str,
+        _event_id: &str,
+        _name: &str,
+        _content: &[u8],
+    ) -> anyhow::Result<Document> {
+        anyhow::bail!("JSON export storage is unavailable")
+    }
+
     async fn download(
         &self,
         tenant_id: &str,

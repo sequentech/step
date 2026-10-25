@@ -124,6 +124,46 @@ impl BoardHandle {
         .await
     }
 
+    /// A bounded operator export. The timeout is polled INSIDE the I/O
+    /// worker, so expiry drops the HTTP future instead of leaving a detached
+    /// blocking worker downloading data after its caller has returned.
+    pub async fn export_messages_bounded(
+        &self,
+        timeout: std::time::Duration,
+        metadata_bytes: usize,
+        message_bytes: usize,
+        message_count: usize,
+        allowed_blob_prefix: String,
+    ) -> Result<Vec<Vec<u8>>> {
+        static EXPORTS: std::sync::OnceLock<Arc<tokio::sync::Semaphore>> =
+            std::sync::OnceLock::new();
+        let permit = EXPORTS
+            .get_or_init(|| Arc::new(tokio::sync::Semaphore::new(2)))
+            .clone()
+            .try_acquire_owned()
+            .map_err(|_| anyhow!("public transcript exports are busy"))?;
+        let base_url = self.base_url.clone();
+        let board = self.board.clone();
+        run_board_io(move || async move {
+            // This permit lives in the actual I/O worker. Dropping the caller
+            // cannot free capacity while its HTTP fetch still runs.
+            let _permit = permit;
+            tokio::time::timeout(
+                timeout,
+                HttpTransport::new(&base_url, board.as_str())
+                    .fetch_raw_bounded(
+                        metadata_bytes,
+                        message_bytes,
+                        message_count,
+                        &allowed_blob_prefix,
+                    ),
+            )
+            .await
+            .map_err(|_| anyhow!("public transcript fetch timed out"))?
+        })
+        .await
+    }
+
     /// Restore canonical protocol bytes through wbraid's publication tooling.
     pub async fn import_message(&self, bytes: &[u8]) -> Result<()> {
         use cryptography::utils::serialization::Deserializable;

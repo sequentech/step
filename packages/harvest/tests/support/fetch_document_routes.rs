@@ -412,3 +412,21 @@ async fn tenant_backup_metadata_cannot_change_while_its_url_is_generated() {
         &[&uuid::Uuid::parse_str(&id).unwrap()],
     ).await.unwrap(), 1);
 }
+
+#[rocket::async_test]
+async fn transcript_export_rejects_callers_without_ceremony_permission_before_io(
+) {
+    let services = Services::without_database();
+    let claims = Claims::new(&uuid::Uuid::new_v4().to_string(), "not-board")
+        .roles([Permissions::DOCUMENT_DOWNLOAD]);
+    let client = services.client().await;
+    let response = post(
+        &client,
+        "/export-verification-transcript",
+        &claims,
+        &json!({"election_event_id": uuid::Uuid::new_v4().to_string(),
+                "protocol_board_id": uuid::Uuid::new_v4().to_string()}),
+    )
+    .await;
+    assert_eq!(response.status(), Status::Unauthorized);
+}

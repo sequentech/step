@@ -28,6 +28,29 @@ impl MemoryDocumentStorage {
 
 #[rocket::async_trait]
 impl DocumentStorage for MemoryDocumentStorage {
+    async fn save_json(
+        &self,
+        transaction: &Transaction<'_>,
+        tenant_id: &str,
+        event_id: &str,
+        name: &str,
+        content: &[u8],
+    ) -> anyhow::Result<Document> {
+        let document = windmill::postgres::document::insert_document(
+            transaction,
+            tenant_id,
+            Some(event_id.to_string()),
+            name,
+            "application/json",
+            content.len().try_into()?,
+            false,
+            None,
+        )
+        .await?;
+        self.store(&document.id, content);
+        Ok(document)
+    }
+
     async fn download(
         &self,
         _tenant_id: &str,

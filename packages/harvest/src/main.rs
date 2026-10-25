@@ -121,6 +121,7 @@ fn build_application_with(
                 routes::receive_ballot::receive_ballot,
                 routes::cast_ballot::cast_ballot,
                 routes::fetch_document::fetch_document,
+                routes::export_verification_transcript::export_verification_transcript,
                 routes::document_password::get_document_password,
                 routes::elections::create_election,
                 routes::areas::upsert_area,

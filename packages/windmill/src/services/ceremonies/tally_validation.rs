@@ -53,34 +53,7 @@ pub fn validate_tally_elections(
                         Some("tallying is disabled by its configuration")
                     }
                     AllowTallyStatus::REQUIRES_VOTING_PERIOD_END => {
-                        let channels = election
-                            .voting_channels
-                            .clone()
-                            .map(serde_json::from_value::<VotingChannels>)
-                            .transpose()
-                            .map_err(|error| {
-                                TallyValidationError::new(format!(
-                                    "Election {id} has invalid voting_channels: {error}"
-                                ))
-                            })?;
-                        let secondary_closed = match channels {
-                            None => {
-                                status.kiosk_voting_status.is_closed_or_never_started()
-                                    && status.early_voting_status.is_closed_or_never_started()
-                                    && status.telephone_voting_status.is_closed_or_never_started()
-                            }
-                            Some(channels) => {
-                                (channels.kiosk != Some(true)
-                                    || status.kiosk_voting_status.is_closed_or_never_started())
-                                    && (channels.early_voting != Some(true)
-                                        || status.early_voting_status.is_closed_or_never_started())
-                                    && (channels.telephone != Some(true)
-                                        || status
-                                            .telephone_voting_status
-                                            .is_closed_or_never_started())
-                            }
-                        };
-                        if status.voting_status.is_closed() && secondary_closed {
+                        if voting_channels_closed(election, &status)? {
                             None
                         } else {
                             Some("end its voting period and stop all active voting channels before tallying")
@@ -96,6 +69,41 @@ pub fn validate_tally_elections(
         }
     }
     Ok(())
+}
+
+/// Existing closed-voting predicate shared by tally creation and public
+/// transcript export; it is not an electoral-phase state machine.
+pub fn voting_channels_closed(
+    election: &Election,
+    status: &ElectionStatus,
+) -> Result<bool, TallyValidationError> {
+    let id = &election.id;
+    let channels = election
+        .voting_channels
+        .clone()
+        .map(serde_json::from_value::<VotingChannels>)
+        .transpose()
+        .map_err(|error| {
+            TallyValidationError::new(format!(
+                "Election {id} has invalid voting_channels: {error}"
+            ))
+        })?;
+    let secondary_closed = match channels {
+        None => {
+            status.kiosk_voting_status.is_closed_or_never_started()
+                && status.early_voting_status.is_closed_or_never_started()
+                && status.telephone_voting_status.is_closed_or_never_started()
+        }
+        Some(channels) => {
+            (channels.kiosk != Some(true)
+                || status.kiosk_voting_status.is_closed_or_never_started())
+                && (channels.early_voting != Some(true)
+                    || status.early_voting_status.is_closed_or_never_started())
+                && (channels.telephone != Some(true)
+                    || status.telephone_voting_status.is_closed_or_never_started())
+        }
+    };
+    Ok(status.voting_status.is_closed() && secondary_closed)
 }
 
 /// A ballot box the tally counts: one area of one election, with the names

@@ -1,4 +1,26 @@
 actions:
+    - name: export_verification_transcript
+      definition:
+          kind: synchronous
+          handler: 'http://{{HARVEST_DOMAIN}}/export-verification-transcript'
+          forward_client_headers: true
+          headers:
+              - name: X-Hasura-Admin-Secret
+                value_from_env: ACTIONS_ADMIN_SECRET
+          timeout: 120
+          request_transform:
+              body:
+                  action: transform
+                  template: |-
+                      {
+                        "election_event_id": {{$body.input.election_event_id}},
+                        "protocol_board_id": {{$body.input.protocol_board_id}}
+                      }
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-ceremony
+      comment: Export public protocol evidence from the internal board service
     - name: list_trustee_boards
       definition:
           type: query
@@ -1266,6 +1288,7 @@ actions:
               template_engine: Kriti
               version: 2
       permissions:
+          - role: document-download
           - role: admin-user
       comment: fetch document
     - name: generate_ballot_publication
@@ -2104,6 +2127,7 @@ actions:
               template_engine: Kriti
               version: 2
       permissions:
+          - role: admin-ceremony
           - role: trustee-read
           - role: admin-user
     - name: recount_tally_session
@@ -3029,6 +3053,7 @@ custom_types:
         - name: CountUsersInput
         - name: SigningRoleChangesInput
     objects:
+        - name: ExportVerificationTranscriptOutput
         - name: TrusteeBoard
         - name: TrusteeBoardsOutput
         - name: TrusteeReportOutput

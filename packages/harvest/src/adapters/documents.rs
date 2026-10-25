@@ -15,6 +15,33 @@ pub struct S3DocumentStorage;
 
 #[rocket::async_trait]
 impl DocumentStorage for S3DocumentStorage {
+    async fn save_json(
+        &self,
+        transaction: &Transaction<'_>,
+        tenant_id: &str,
+        event_id: &str,
+        name: &str,
+        content: &[u8],
+    ) -> anyhow::Result<Document> {
+        use std::io::Write;
+        let mut file = NamedTempFile::new()?;
+        file.write_all(content)?;
+        windmill::services::documents::upload_and_return_document(
+            transaction,
+            file.path()
+                .to_str()
+                .ok_or_else(|| anyhow::anyhow!("invalid temporary path"))?,
+            content.len() as u64,
+            "application/json",
+            tenant_id,
+            Some(event_id.to_string()),
+            name,
+            None,
+            false,
+        )
+        .await
+    }
+
     async fn download(
         &self,
         tenant_id: &str,
