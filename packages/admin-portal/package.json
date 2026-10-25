@@ -42,6 +42,7 @@
     "intl-tel-input": "^24.5.0",
     "jotai": "^2.6.0",
     "json-edit-react": "^1.17.1",
+    "jszip": "^3.10.1",
     "keycloak-js": "^26.2.1",
     "lodash": "^4.18.1",
     "moment-timezone": "^0.5.46",

@@ -20,6 +20,7 @@ interface Summary {
     selectedCandidates: number
     outsideScopeCandidates: number
     excludedVoters: number
+    preservedVoters?: number
     opaqueBinaryValues: number
     excludedPollingCenters: number
     excludedPrecinctRows: number
@@ -99,10 +100,15 @@ export const HistoricalSourcePanel: React.FC<Props> = (props) => {
                     return
                 }
                 if (!active) return
+                // The COMELEC SQL+XLSX import preserves every source voter as the
+                // event census (meta#14593). The census decision is supplied by this
+                // flow (the historical converter is itself the opt-in); the shared
+                // historical defaults preset is otherwise reused unchanged.
+                const decisions = {...defaults, census: "preserve-source-voters"}
                 const prepared = (await api.buildFromHistorical(
                     new Uint8Array(sqlBytes),
                     new Uint8Array(workbookBytes),
-                    defaults,
+                    decisions,
                     {baseExport: {version: appVersion}}
                 )) as HistoricalOutput
                 if (!active) return
@@ -189,8 +195,8 @@ export const HistoricalSourcePanel: React.FC<Props> = (props) => {
             {result && (
                 <>
                     <Typography variant="body2">
-                        Historical profile: configuration only, seat plurality, complete coverage.
-                        No voter eligibility or timezone is inferred.
+                        Historical profile: source voters preserved as the census, seat plurality,
+                        complete coverage. No voter eligibility or timezone is inferred.
                     </Typography>
                     <Box component="details">
                         <summary>Source details and exclusions</summary>
@@ -203,6 +209,8 @@ export const HistoricalSourcePanel: React.FC<Props> = (props) => {
                             {result.summary.decisionsSha256}
                         </Typography>
                         <Typography variant="body2">
+                            {label("preservedVoters", "Preserved voters")}:{" "}
+                            {result.summary.preservedVoters ?? 0}.{" "}
                             {label("exclusions", "Explicit exclusions")}:{" "}
                             {result.summary.excludedVoters} {label("voters", "voters")};{" "}
                             {result.summary.outsideScopeCandidates}{" "}
