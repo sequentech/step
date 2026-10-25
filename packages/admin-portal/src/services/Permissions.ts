@@ -302,6 +302,21 @@ export const getOperationRole = (
     hasRole: (role: IPermissions) => boolean
 ): IPermissions => {
     const operationName = operation?.operationName
+    if (operationName === "ImportElectionEvent" && hasRole(IPermissions.ELECTION_EVENT_CREATE)) {
+        return IPermissions.ELECTION_EVENT_CREATE
+    }
+    if (operationName === "GetUploadUrl") {
+        // The server limits the tenant-write/create fallbacks to fresh private
+        // configuration archives; they never grant generic document uploads.
+        const uploadRole = [
+            IPermissions.DOCUMENT_UPLOAD,
+            IPermissions.TENANT_WRITE,
+            IPermissions.ELECTION_EVENT_CREATE,
+        ].find(hasRole)
+        if (uploadRole) {
+            return uploadRole
+        }
+    }
     // A publication or trustee fallback cannot serve the Users and Roles
     // queries. Prefer the precise held read permission without broadening
     // either staff's grants or the legacy admin-user routing.

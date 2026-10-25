@@ -364,3 +364,40 @@ it("does not borrow an account-read permission for a publisher who lacks it", ()
 it("keeps the legacy administrator profile-read fallback", () => {
     expect(roleOf("GetUserProfileConfiguration")).toBe(IPermissions.ADMIN_USER)
 })
+
+describe("scoped configuration archive operations", () => {
+    it.each([
+        ["election board", electionBoardRoles],
+        ["board trustee", boardTrusteeRoles],
+    ])(
+        "imports signed election packages using the held create permission for %s",
+        (_name, roles) => {
+            expect(roleFor("ImportElectionEvent", roles as Array<string>)).toBe(
+                IPermissions.ELECTION_EVENT_CREATE
+            )
+        }
+    )
+
+    it("uploads a board's private configuration archive without borrowing document-upload", () => {
+        expect(electionBoardRoles).not.toContain(IPermissions.DOCUMENT_UPLOAD)
+        expect(roleFor("GetUploadUrl", electionBoardRoles)).toBe(IPermissions.ELECTION_EVENT_CREATE)
+    })
+
+    it("uploads a tenant restore archive using the administrator's held tenant-write", () => {
+        const roles = [IPermissions.ADMIN_USER, IPermissions.TENANT_READ, IPermissions.TENANT_WRITE]
+        expect(roleFor("GetUploadUrl", roles)).toBe(IPermissions.TENANT_WRITE)
+    })
+
+    it("preserves document-upload for a caller holding the generic permission", () => {
+        expect(roleFor("GetUploadUrl", boardTrusteeRoles)).toBe(IPermissions.DOCUMENT_UPLOAD)
+        expect(
+            roleFor("GetUploadUrl", [IPermissions.ADMIN_USER, IPermissions.DOCUMENT_UPLOAD])
+        ).toBe(IPermissions.DOCUMENT_UPLOAD)
+    })
+
+    it("does not select archive permissions that the caller does not hold", () => {
+        const roles = [IPermissions.PUBLISH_READ]
+        expect(roleFor("GetUploadUrl", roles)).toBe(IPermissions.PUBLISH_READ)
+        expect(roleFor("ImportElectionEvent", roles)).toBe(IPermissions.PUBLISH_READ)
+    })
+})
