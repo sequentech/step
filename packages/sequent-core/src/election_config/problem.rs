@@ -320,6 +320,12 @@ impl fmt::Debug for Rejected {
 
 impl std::error::Error for Rejected {}
 
+impl From<Problem> for Report {
+    fn from(problem: Problem) -> Self {
+        Report::from_problem(problem)
+    }
+}
+
 impl Report {
     pub fn from_problem(problem: Problem) -> Self {
         Report {

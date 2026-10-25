@@ -160,6 +160,7 @@ fn preserves_codes_reconciles_explicit_exclusions_and_builds_repeatable_native_a
 fn preserving() -> HistoricalOptions {
     HistoricalOptions {
         census: CensusPolicy::PreserveSourceVoters,
+        voter_area_join: Some(VoterAreaJoin::PopulationPrecinctTuple),
         ballot: BallotPolicy::SeatPluralityAtLarge,
         scope: ScopePolicy::ConfiguredSeatsOnly,
         schedule_offset_minutes: None,
@@ -480,6 +481,65 @@ fn an_incomplete_or_impossible_date_of_birth_is_surfaced() {
     let refused = adapt(&sql, &xlsx, &preserving()).unwrap_err();
     assert_eq!(refused.report.problems[0].code, Code::InvalidValue);
     assert!(refused.report.problems[0].path.contains("voters"));
+}
+#[test]
+fn every_failing_voter_row_is_reported_not_only_the_first() {
+    // Three independent failures (orphan location, duplicate id, impossible date)
+    // must each be identified by its own row, so an operator can fix the whole
+    // source in one pass. Valid voters are never silently dropped either way.
+    let (sql, xlsx) = overseas_voter_fixture(
+        "",
+        "('v-9999','Orphan','Voter','Mid','','1990','1','1','90','06','9999','O'),\
+         ('v-0000','Dup','Licate','Mid','','1990','1','1','90','06','0001A','O'),\
+         ('v-9000','Bad','Date','Mid','','1990','99','99','90','06','0001A','O')",
+    );
+    let refused = adapt(&sql, &xlsx, &preserving()).unwrap_err();
+    let found: Vec<(Code, &str)> = refused
+        .report
+        .problems
+        .iter()
+        .map(|p| (p.code, p.path.as_str()))
+        .collect();
+    assert_eq!(
+        found,
+        vec![
+            (Code::DanglingReference, "SQL table voters row 81 column PRECINCT"),
+            (Code::DuplicateId, "SQL table voters row 82 column ID"),
+            (Code::InvalidValue, "SQL table voters row 83 column DOBYEAR"),
+        ]
+    );
+}
+#[test]
+fn the_voter_area_join_is_an_explicit_recorded_decision() {
+    // The location join is a named contract, recorded in the event provenance so a
+    // reviewer can see which source columns were equated.
+    let (sql, xlsx) = overseas_voter_fixture("", "");
+    let adapted = adapt(&sql, &xlsx, &preserving()).unwrap();
+    let event = &adapted.workbook.rows("electionevent")[0];
+    let provenance: Value = serde_json::from_str(
+        event
+            .get("annotations.import:provenance")
+            .and_then(Value::as_str)
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(
+        provenance["decisions"]["voterAreaJoin"],
+        json!("population-precinct-tuple")
+    );
+}
+#[test]
+fn preserving_voters_without_a_join_decision_is_not_approved() {
+    // Control: preserving() succeeds; only the join decision is removed.
+    let (sql, xlsx) = overseas_voter_fixture("", "");
+    let options = HistoricalOptions {
+        voter_area_join: None,
+        ..preserving()
+    };
+    let refused = adapt(&sql, &xlsx, &options).unwrap_err();
+    assert_eq!(refused.report.problems[0].code, Code::NotApproved);
+    assert_eq!(refused.report.problems[0].path, "historical voter area join");
+    assert!(refused.summary.generated_rows.is_empty());
 }
 #[test]
 fn a_voter_with_no_date_of_birth_imports_with_it_left_blank() {

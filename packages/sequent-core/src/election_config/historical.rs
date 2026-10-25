@@ -92,6 +92,19 @@ pub enum AffiliationPolicy {
     RequireKnownParty,
     PreserveUnresolvedCode,
 }
+/// How a preserved source voter is joined to the area it votes in.
+///
+/// The join is a named contract rather than an implicit assumption, and the
+/// chosen variant is recorded in the event's `import:provenance` decisions.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum VoterAreaJoin {
+    /// `voters.(COUNTRY, EMBASSY, PRECINCT)` equals
+    /// `pop.(PROV_CODE, MUN_CODE, PRECINCT)` of exactly one in-scope polling row.
+    /// A voter matching no in-scope row, or a key shared by rows with different
+    /// outcomes, is a visible per-row problem.
+    PopulationPrecinctTuple,
+}
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct SourceDigests {
@@ -135,6 +148,10 @@ pub struct SeatSummary {
 pub struct HistoricalOptions {
     #[serde(default)]
     pub census: CensusPolicy,
+    /// Required when `census` preserves source voters; absent otherwise, so
+    /// earlier reviewed decisions keep their exact encoding and digest.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub voter_area_join: Option<VoterAreaJoin>,
     #[serde(default)]
     pub ballot: BallotPolicy,
     #[serde(default)]
@@ -321,7 +338,7 @@ pub fn adapt(
             workbook,
             summary: summary.clone(),
         })
-        .map_err(|p| fail(summary, p))
+        .map_err(|report| Refused { summary, report })
 }
 
 struct Data<'a> {
@@ -708,7 +725,7 @@ fn map(
     xlsx: &[u8],
     options: &HistoricalOptions,
     summary: &mut Summary,
-) -> Result<Workbook, Problem> {
+) -> Result<Workbook, Report> {
     for name in TABLES {
         Data::new(dump, name, &[])?;
     }
@@ -717,7 +734,7 @@ fn map(
             Code::InvalidValue,
             "SQL schema",
             "unrecognized table in the declared source profile",
-        ));
+        ).into());
     }
     // Verify every declared primary/unique key without emitting its contents.
     for (name, table) in &dump.tables {
@@ -742,7 +759,7 @@ fn map(
                         column,
                         Code::MissingField,
                         "primary key is null",
-                    ));
+                    ).into());
                 }
             }
         }
@@ -777,7 +794,7 @@ fn map(
                         "key",
                         Code::DuplicateId,
                         "declared source key is duplicated",
-                    ));
+                    ).into());
                 }
             }
         }
@@ -786,18 +803,22 @@ fn map(
     match options.census {
         // Voters are imported as the census below (see build_source_voter_rows);
         // none are excluded.
-        CensusPolicy::PreserveSourceVoters => {}
+        CensusPolicy::PreserveSourceVoters => {
+            if options.voter_area_join.is_none() {
+                return Err(Problem::error(Code::NotApproved,"historical voter area join","preserving source voters requires an explicit voter area join decision").into());
+            }
+        }
         CensusPolicy::ConfigurationOnly => {
             summary.excluded_voters = voter_count
         }
         CensusPolicy::RequireReviewedMapping => {
             if voter_count > 0 {
-                return Err(Problem::error(Code::NotApproved,"SQL table voters","this profile does not define historical eligibility; explicitly choose configuration-only to drop them, or preserve-source-voters to import them through an independently reviewed census workflow"));
+                return Err(Problem::error(Code::NotApproved,"SQL table voters","this profile does not define historical eligibility; explicitly choose configuration-only to drop them, or preserve-source-voters to import them through an independently reviewed census workflow").into());
             }
         }
     }
     if options.ballot != BallotPolicy::SeatPluralityAtLarge {
-        return Err(Problem::error(Code::NotApproved,"historical ballot policy","review and explicitly select seat-plurality-at-large semantics before generating ballots"));
+        return Err(Problem::error(Code::NotApproved,"historical ballot policy","review and explicitly select seat-plurality-at-large semantics before generating ballots").into());
     }
     for sheet in workbook.sheets() {
         if ![
@@ -813,7 +834,7 @@ fn map(
                 Code::InvalidValue,
                 format!("sheet {}", sheet.name),
                 "unrecognized supplemental sheet",
-            ));
+            ).into());
         }
     }
     if workbook.rows("electionevent").len() != 1 {
@@ -821,7 +842,7 @@ fn map(
             Code::InvalidValue,
             "sheet ElectionEvent",
             "exactly one event row is required",
-        ));
+        ).into());
     }
     let mut event = workbook.rows("electionevent")[0].clone();
     localize(&mut event)?;
@@ -925,7 +946,7 @@ fn map(
         .iter()
         .any(|context| context.center_rows.len() > 1)
     {
-        return Err(Problem::error(Code::NotApproved,"sheet Elections election_post","one workbook context matches multiple SQL centers; provide unambiguous post identities before associating schedules"));
+        return Err(Problem::error(Code::NotApproved,"sheet Elections election_post","one workbook context matches multiple SQL centers; provide unambiguous post identities before associating schedules").into());
     }
     summary.seats = (0..seats.table.rows.len())
         .map(|i| {
@@ -1006,7 +1027,7 @@ fn map(
                 Code::IntegrityMismatch,
                 "historical decisions sourceDigests",
                 "decisions describe different source bytes",
-            ));
+            ).into());
         }
     }
     for mapping in &options.election_mappings {
@@ -1017,7 +1038,7 @@ fn map(
                 Code::InvalidValue,
                 "historical decisions electionMappings",
                 "each mapping must name an existing workbook row and at least one SQL seat row",
-            ));
+            ).into());
         }
         let mut seen = BTreeSet::new();
         let mut indices = Vec::new();
@@ -1027,7 +1048,7 @@ fn map(
                     Code::InvalidValue,
                     "historical decisions electionMappings",
                     "seat row is out of range or repeated",
-                ));
+                ).into());
             }
             indices.push(n - 1);
         }
@@ -1036,23 +1057,23 @@ fn map(
                 Code::DuplicateId,
                 "historical decisions electionMappings",
                 "workbook row is mapped twice",
-            ));
+            ).into());
         }
     }
     if associations.is_empty() && ei.values().any(|group| group.len() > 1) {
-        return Err(Problem::error(Code::NotApproved,"sheet Elections election_post + alias","distinct election contexts share a post; specify the SQL seat rows for each workbook row, bound to source hashes"));
+        return Err(Problem::error(Code::NotApproved,"sheet Elections election_post + alias","distinct election contexts share a post; specify the SQL seat rows for each workbook row, bound to source hashes").into());
     }
     if !associations.is_empty() && associations.len() != erows.len() {
         return Err(Problem::error(
             Code::BallotCoverage,
             "historical decisions electionMappings",
             "every workbook election row must have an explicit association",
-        ));
+        ).into());
     }
     if summary.excluded_polling_centers > 0
         && options.post_coverage != PostCoverage::WorkbookPostsOnly
     {
-        return Err(Problem::error(Code::BallotCoverage,"sheet Elections election_post","SQL polling centers have no workbook context; provide coverage or explicitly choose workbook-posts-only with source hashes"));
+        return Err(Problem::error(Code::BallotCoverage,"sheet Elections election_post","SQL polling centers have no workbook context; provide coverage or explicitly choose workbook-posts-only with source hashes").into());
     }
     let mut used_workbook_rows = BTreeSet::new();
 
@@ -1073,7 +1094,7 @@ fn map(
                 Code::InvalidValue,
                 "historical decisions areaMappings",
                 "area mapping has no precinct rows",
-            ));
+            ).into());
         }
         for &n in &mapping.precinct_rows {
             if n == 0
@@ -1084,7 +1105,7 @@ fn map(
                     Code::InvalidValue,
                     "historical decisions areaMappings",
                     "precinct row is out of range or mapped twice",
-                ));
+                ).into());
             }
         }
     }
@@ -1207,7 +1228,7 @@ fn map(
                         area.origin(Some("annotations.miru_ccs_server_tags"))
                             .to_string(),
                         "CCS tags must be scalar references",
-                    ))
+                    ).into())
                 }
             };
             let mut resolved = Vec::new();
@@ -1230,7 +1251,7 @@ fn map(
                             Code::InvalidValue,
                             server.origin(Some("send_logs")).to_string(),
                             "send_logs must be true or false",
-                        ))
+                        ).into())
                     }
                 };
                 resolved.push(json!({"name":text(server,"name")?,"tag":tag.parse::<i64>().map_err(|_|Problem::error(Code::InvalidValue,"sheet CcsServers column tag","CCS tag must be an integer"))?.to_string(),"address":text(server,"address")?,"public_key_pem":text(server,"public_key")?,"send_logs":send_logs}));
@@ -1284,7 +1305,7 @@ fn map(
                     Code::ConflictingColumns,
                     "sheet Areas",
                     "precinct rows provide conflicting area metadata",
-                ));
+                ).into());
             }
         }
         for &context_index in contexts {
@@ -1352,7 +1373,7 @@ fn map(
                         "ELIGIBLEAMOUNT",
                         Code::InvalidValue,
                         "seat count must be positive",
-                    ));
+                    ).into());
                 }
                 let order = contests
                     .text(contest, "SORT_ORDER")?
@@ -1468,7 +1489,7 @@ fn map(
                             if options.affiliation
                                 != AffiliationPolicy::PreserveUnresolvedCode
                             {
-                                return Err(problem("candidate",candidate,"NOMINATEDBY",Code::DanglingReference,"affiliation has no party row; explicitly preserve the unresolved code or provide an authoritative reference"));
+                                return Err(problem("candidate",candidate,"NOMINATEDBY",Code::DanglingReference,"affiliation has no party row; explicitly preserve the unresolved code or provide an authoritative reference").into());
                             }
                             set(
                                 &mut candidate_row,
@@ -1495,7 +1516,7 @@ fn map(
             Code::NotApproved,
             "SQL table candidate",
             "candidate rows lie outside configured seats; review source scope explicitly",
-        ));
+        ).into());
     }
     if used_workbook_rows.len() != erows.len()
         || output_areas.len() != arows.len()
@@ -1504,7 +1525,7 @@ fn map(
             Code::BallotCoverage,
             "supplemental workbook",
             "election/area workbook rows and source-derived coverage differ",
-        ));
+        ).into());
     }
     let dates = historical_dates(xlsx, options.schedule_offset_minutes)?;
     let mut schedules = Vec::new();
@@ -1588,7 +1609,7 @@ fn map(
         .iter()
         .map(|s| (s.name.clone(), s.rows.len()))
         .collect();
-    Workbook::new(sheets)
+    Ok(Workbook::new(sheets)?)
 }
 
 /// The area a source voter joins, with the canonical COMELEC location values the
@@ -1741,7 +1762,7 @@ fn build_source_voter_rows(
     dump: &SqlDump,
     precinct_area_index: &BTreeMap<(String, String, String), Option<VoterArea>>,
     summary: &mut Summary,
-) -> Result<Vec<Row>, Problem> {
+) -> Result<Vec<Row>, Report> {
     let voters = Data::new(
         dump,
         "voters",
@@ -1756,8 +1777,32 @@ fn build_source_voter_rows(
         ],
     )?;
     let mut rows = Vec::with_capacity(voters.table.rows.len());
+    let mut report = Report::default();
     let mut usernames = BTreeSet::new();
+    // Every row is checked, so the refusal names each failing voter rather than
+    // only the first one.
     for v in 0..voters.table.rows.len() {
+        match source_voter_row(&voters, v, precinct_area_index, &mut usernames)
+        {
+            Ok(voter) => rows.push(voter),
+            Err(p) => report.push(p),
+        }
+    }
+    if report.has_errors() {
+        return Err(report);
+    }
+    summary.preserved_voters = rows.len();
+    Ok(rows)
+}
+
+/// One source voter as a census row, or the first problem in that row.
+fn source_voter_row(
+    voters: &Data<'_>,
+    v: usize,
+    precinct_area_index: &BTreeMap<(String, String, String), Option<VoterArea>>,
+    usernames: &mut BTreeSet<String>,
+) -> Result<Row, Problem> {
+    {
         let username = voters.name(v, "ID")?;
         if !usernames.insert(username.clone()) {
             return Err(problem(
@@ -1825,7 +1870,7 @@ fn build_source_voter_rows(
                 )
             })?
             .unwrap_or_default();
-        rows.push(row(
+        Ok(row(
             "Voters",
             v,
             vec![
@@ -1863,10 +1908,8 @@ fn build_source_voter_rows(
                     json!(voters.text(v, "ABROADSTATUS")?),
                 ),
             ],
-        ));
+        ))
     }
-    summary.preserved_voters = rows.len();
-    Ok(rows)
 }
 
 /// Compose a `dateOfBirth` in the `yyyy-MM-dd` form the Scanovate authenticator
