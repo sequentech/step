@@ -661,8 +661,10 @@ fn external_requests_bind_subjects_while_descriptions_omit_private_details() -> 
             direction,
             ExtApiName::Other,
             "SetVoted Failed: private details".into(),
+            None,
         )?;
         assert_record(&message, &public, "ExternalApiRequest", Some(ELECTION))?;
+        assert_eq!(message.area_id, None);
         assert_eq!(
             message.statement.head.description,
             format!("{name} request SetVoted Failed.")
@@ -676,6 +678,33 @@ fn external_requests_bind_subjects_while_descriptions_omit_private_details() -> 
             _ => panic!("wrong external request body"),
         }
     }
+    Ok(())
+}
+
+#[test]
+fn external_requests_record_the_voter_area() -> Result<()> {
+    let (data, public) = signer()?;
+    let message = Message::external_api_request_message(
+        event(),
+        ElectionIdString(None),
+        &data,
+        Some("voter-id".to_string()),
+        Some("voter-name".to_string()),
+        ExtApiRequestDirection::Inbound,
+        ExtApiName::Datafix,
+        r#"voter_id="voter-name"; ReplacePin Succeeded (temporary=false)"#.into(),
+        Some("area-id".to_string()),
+    )?;
+    assert_record(&message, &public, "ExternalApiRequest", None)?;
+    assert_eq!(message.area_id.as_deref(), Some("area-id"));
+    assert_eq!(
+        ElectoralLogMessage::try_from(&message)?.area_id.as_deref(),
+        Some("area-id")
+    );
+    assert_eq!(
+        message.statement.head.description,
+        "Inbound request ReplacePin Succeeded."
+    );
     Ok(())
 }
 

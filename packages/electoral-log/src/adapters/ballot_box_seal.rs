@@ -96,6 +96,8 @@ pub struct StoredSeal {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BoxBallot {
     pub seq: i64,
+    /// The stored ballot's id (`ballot_box_ballot.id`).
+    pub id: String,
     pub voter_id: String,
     pub status: BallotStatus,
     pub format: String,
@@ -213,6 +215,7 @@ fn box_ballot(row: &Row) -> Result<BoxBallot> {
         content: row.try_get(4)?,
         ballot_id: row.try_get(5)?,
         voting_channel: row.try_get(6)?,
+        id: row.try_get(7)?,
     })
 }
 
@@ -246,7 +249,8 @@ where
     let portal = tx
         .bind(
             &format!(
-                "SELECT seq, voter_id, status, format, content, ballot_id, voting_channel \
+                "SELECT seq, voter_id, status, format, content, ballot_id, voting_channel, \
+                 id::text \
                  FROM ballot_box_ballot WHERE {BOX} ORDER BY seq"
             ),
             &box_parameters(&ballot_box),

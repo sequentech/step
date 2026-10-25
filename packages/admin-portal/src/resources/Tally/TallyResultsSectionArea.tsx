@@ -22,7 +22,7 @@ import {
     TallySheetVotingChannel,
     VotingStatusChannel,
 } from "@sequentech/ui-core"
-import {parseProcessResults, parseResultAnnotations} from "./utils"
+import {auditableVotesHelp, parseProcessResults, parseResultAnnotations} from "./utils"
 import {LoadingResults} from "./TallyElectionsResults"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {useDefaultElectionLang} from "@/hooks/useDefaultElectionLang"
@@ -56,6 +56,7 @@ export const TallyResultsSectionArea: React.FC<TallyResultsCandidatesProps> = (p
     } = props
     const {t} = useTranslation()
     const tallyData = useAtomValue(tallyQueryData)
+    const eventPresentation = tallyData?.sequent_backend_election_event?.[0]?.presentation
     const aliasRenderer = useAliasRenderer()
     const defaultElectionLang = useDefaultElectionLang(electionId, electionEventId)
     const contest = useMemo(
@@ -190,6 +191,7 @@ export const TallyResultsSectionArea: React.FC<TallyResultsCandidatesProps> = (p
             turnout: t("tally.table.turnout"),
             eligibleCensus: t("tally.table.elegible_census"),
             totalAuditableVotes: t("tally.table.total_auditable_votes"),
+            totalAuditableVotesHelp: auditableVotesHelp(t, eventPresentation),
             totalVotesCounted: t("tally.table.total_votes_counted"),
             totalValidVotes: t("tally.table.total_valid_votes"),
             totalInvalidVotes: t("tally.table.total_invalid_votes"),
@@ -225,7 +227,7 @@ export const TallyResultsSectionArea: React.FC<TallyResultsCandidatesProps> = (p
                 [TallySheetVotingChannel.InPerson]: t("tally.table.channel_in_person"),
             },
         }),
-        [t]
+        [t, eventPresentation]
     )
 
     const eventRecord = useRecordContext<Sequent_Backend_Election_Event>()

@@ -3361,6 +3361,12 @@ const spanishTranslation: TranslationType = {
                 total_votes_percent: "Participación",
                 total_votes_counted: "Total de Votos Contados",
                 total_auditable_votes: "Total de Votos Auditables",
+                total_auditable_votes_help:
+                    "Papeletas que quedan fuera del recuento, aún cifradas: las de votantes que no son elegibles y la última papeleta descartada de cada votante sin una papeleta válida. El archivo de resultados del recuento las incluye en su carpeta auditable-ballots.",
+                total_auditable_votes_help_sealed:
+                    "Las urnas se sellan al cierre: la elegibilidad es la registrada en el sello, por lo que un votante deshabilitado después sigue contando.",
+                total_auditable_votes_help_pseudonym:
+                    "Los votantes se identifican por sus seudónimos, no por sus ID de votante.",
                 total_valid_votes: "Total de votos válidos",
                 total_valid_votes_percent: "Porcentaje de votos válidos",
                 total_invalid_votes: "Total de votos inválidos",

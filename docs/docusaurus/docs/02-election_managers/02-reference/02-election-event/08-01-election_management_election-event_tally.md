@@ -99,6 +99,8 @@ After tally completion, results become available under the **Tally** tab:
 - **By Area**: Results segmented by geographic or organizational divisions.
 - **Participation Summary**:
   - **Eligible Voters**: Total number eligible to vote.
+  - **Total Auditable Votes**: Ballots kept out of the count. See
+    [Auditable ballots](#auditable-ballots).
   - **Total Voters**: Number who cast a vote.
   - **Total Valid Votes**: Count of valid ballots, including blank ballots.
   - **Total Invalid Votes**: Count of invalid ballots, subdivided into:
@@ -106,6 +108,49 @@ After tally completion, results become available under the **Tally** tab:
     - **Implicitly Invalid Votes**: Invalid due to configuration (e.g., multiple selections where only one is allowed).
   - **Blank Votes**: Explicit and implicit blank ballots. Blank ballots are
     included in total valid votes.
+
+### Auditable ballots
+
+Some ballots are kept out of the count but not thrown away. They are the
+**auditable ballots**:
+
+- the ballot of a voter who is not eligible when the tally reads the ballots,
+  for example a voter who was disabled or is no longer assigned to the area;
+- a ballot discarded by voter reconciliation (Datafix), when its voter has no
+  valid ballot in that election and area. Only the voter's latest discarded
+  ballot counts. A discarded ballot stays out of the count even if the voter is
+  enabled again.
+
+Auditable ballots are added to the total of cast ballots and to the
+participation by channel. They are never decrypted.
+
+The tally results archive has an `auditable-ballots` folder, with a folder per
+election, contest (when each contest is encrypted on its own) and area. Each
+one holds:
+
+- `summary.json`: how many auditable ballots there are (`count`), whether the
+  ballots are in the archive (`ballots_available`), and how voters are
+  identified (`identity_mode`);
+- `encrypted-ballots.jsonl`: one line per auditable ballot, with its ID, its
+  Ballot ID, its voter, the reason (`discarded` or `no_eligible_voter`) and
+  the encrypted ballot without the voter's signature.
+
+How voters are identified depends on the event's
+[ballot privacy](../21-ballot-privacy.md):
+
+- **Voter ID** (`identity_mode: "identity"`): each line has the voter's ID in
+  `voter_id`.
+- **Pseudonym** (`identity_mode: "pseudonym"`): `voter_id` is empty (`null`)
+  and the voter's pseudonym is in `voter_pseudonym`.
+
+The archive needs the permission to read tally results. Tallies made before
+auditable ballots were kept report their count with
+`ballots_available: false`, as do event imports without their documents.
+
+When the event [seals its ballot boxes at close](./20-ballot-box-seal.md), the
+tally takes eligibility from the seal. A voter disabled after the seal stays
+counted, and is not auditable. The **Total Auditable Votes** row explains this,
+and the identity mode, for the event's configuration.
 
 ### Candidate Results
 For each Contest, display:

@@ -378,6 +378,7 @@ fn get_insert_user_query(
     realm_id: String,
     voters_table: String,
     voters_table_columns: &Vec<String>,
+    duplicate_emails_allowed: bool,
 ) -> anyhow::Result<String> {
     parse_uuid_v4(&tenant_id)
         .with_context(|| format!("invalid v4 UUID for tenant_id: {}", tenant_id))?;
@@ -420,8 +421,12 @@ fn get_insert_user_query(
                         "NULL".to_string()
                     }
                 }
+                // Keycloak stores a fresh id here when the realm allows
+                // duplicate emails, so the unique constraint never applies.
                 "email_constraint" => {
-                    if voters_table_columns.contains(&"email".to_string()) {
+                    if duplicate_emails_allowed {
+                        "gen_random_uuid()::text".to_string()
+                    } else if voters_table_columns.contains(&"email".to_string()) {
                         "NULLIF(LOWER(email), '')".to_string()
                     } else {
                         "NULL".to_string()
@@ -833,11 +838,19 @@ pub async fn import_users_file(
         }
     };
 
+    let duplicate_emails_allowed =
+        keycloak_realm::get_duplicate_emails_allowed(&keycloak_transaction, &realm_id)
+            .await
+            .map_err(|err| {
+                Error::String(format!("Error obtaining duplicate_emails_allowed: {err}"))
+            })?;
+
     let insert_user_query = match get_insert_user_query(
         tenant_id.clone(),
         realm_id,
         voters_table,
         &voters_table_processed_columns_names,
+        duplicate_emails_allowed,
     ) {
         Ok(query) => query,
         Err(err) => {
@@ -1142,6 +1155,10 @@ mod tests {
     const REALM_ID: &str = "33f18502-a67c-4853-8333-a58630663559";
 
     fn insert_query_for(columns: &[&str]) -> String {
+        insert_query_with(columns, false)
+    }
+
+    fn insert_query_with(columns: &[&str], duplicate_emails_allowed: bool) -> String {
         let columns = columns
             .iter()
             .map(|column| column.to_string())
@@ -1151,8 +1168,40 @@ mod tests {
             REALM_ID.to_string(),
             "temp_voters_1".to_string(),
             &columns,
+            duplicate_emails_allowed,
         )
         .expect("query builds")
+    }
+
+    /// `user_entity`'s `email` and `email_constraint` are selected next to
+    /// each other. Keycloak enforces unique emails through the constraint
+    /// column; with duplicates allowed it stores a fresh id there instead.
+    #[test]
+    fn duplicate_emails_allowed_gives_each_voter_its_own_email_constraint() {
+        let query = insert_query_with(&[USERNAME_COL_NAME, EMAIL_COL_NAME], true);
+        assert!(
+            query.contains("NULLIF(LOWER(email), ''), gen_random_uuid()::text,"),
+            "email stays lowercased, blank → NULL; constraint is unique per row:\n{query}"
+        );
+
+        let without_email = insert_query_with(&[USERNAME_COL_NAME], true);
+        assert!(
+            without_email.contains("NULL, gen_random_uuid()::text,"),
+            "{without_email}"
+        );
+    }
+
+    #[test]
+    fn unique_emails_keep_the_lowercased_email_as_the_constraint() {
+        let query = insert_query_with(&[USERNAME_COL_NAME, EMAIL_COL_NAME], false);
+        assert!(
+            query.contains("NULLIF(LOWER(email), ''), NULLIF(LOWER(email), ''),"),
+            "case variants and blanks stay constrained as before:\n{query}"
+        );
+        assert!(!query.contains("gen_random_uuid()::text"), "{query}");
+
+        let without_email = insert_query_with(&[USERNAME_COL_NAME], false);
+        assert!(without_email.contains("NULL, NULL,"), "{without_email}");
     }
 
     fn privileges(

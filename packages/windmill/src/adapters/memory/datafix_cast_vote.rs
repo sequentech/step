@@ -517,6 +517,7 @@ pub struct DatafixAuditEntry {
     pub election_event_id: String,
     pub voter_id: String,
     pub username: String,
+    pub area_id: Option<String>,
     pub operation: String,
 }
 
@@ -536,6 +537,7 @@ impl DatafixAudit for InMemoryDatafixAudit {
         election_event_id: &str,
         voter_id: &str,
         username: &str,
+        area_id: Option<&str>,
         operation: String,
     ) {
         self.0.lock().expect("audit lock").push(DatafixAuditEntry {
@@ -543,6 +545,7 @@ impl DatafixAudit for InMemoryDatafixAudit {
             election_event_id: election_event_id.to_string(),
             voter_id: voter_id.to_string(),
             username: username.to_string(),
+            area_id: area_id.map(str::to_string),
             operation,
         });
     }

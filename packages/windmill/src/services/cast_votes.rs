@@ -8,11 +8,12 @@ use crate::services::electoral_log::ElectoralLog;
 use crate::services::external::utils::{
     is_datafix_election_event_by_id, voted_via_not_internet_channel,
 };
+use crate::services::join::AuditColumns;
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, Utc};
 use deadpool_postgres::Transaction;
 use electoral_log::adapters::ballot_box_reads::{
-    tally_ballots_query, BucketRange, IpBallotsFilter,
+    tally_ballots_query, BucketRange, IpBallotsFilter, TALLY_BALLOTS_SETTINGS,
 };
 use electoral_log::adapters::postgres::PostgresStore;
 use futures::TryStreamExt;
@@ -61,8 +62,16 @@ pub struct CastVote {
     pub status: CastVoteStatus,
 }
 
+/// The columns of the tally input that identify its auditable ballots.
+pub const TALLY_AUDIT_COLUMNS: AuditColumns = AuditColumns {
+    status: 3,
+    cast_vote_id: 4,
+    ballot_id: 5,
+};
+
 /// The tally input of an election's area, as CSV rows `(voter_id, content,
-/// voting_channel)`, once every ballot the area accepted is in the electoral log.
+/// voting_channel, status, id, ballot_id)` (see `tally_ballots_query`), once
+/// every ballot the area accepted is in the electoral log.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn find_area_ballots(
     hasura_transaction: &Transaction<'_>,
@@ -98,11 +107,15 @@ pub async fn find_area_ballots(
         ));
     }
     let query = tally_ballots_query(election_event_id, election_id, area_id)?;
-    let client = store.client().await?;
-    let reader = client
+    let mut client = store.client().await?;
+    let transaction = client.build_transaction().read_only(true).start().await?;
+    transaction.batch_execute(TALLY_BALLOTS_SETTINGS).await?;
+    let reader = transaction
         .copy_out(&format!("COPY ({query}) TO STDOUT WITH (FORMAT CSV)"))
         .await?;
-    write_copy_out(reader, output_file).await
+    write_copy_out(reader, output_file).await?;
+    transaction.commit().await?;
+    Ok(())
 }
 
 async fn write_copy_out(

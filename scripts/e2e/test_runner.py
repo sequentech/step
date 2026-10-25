@@ -22,6 +22,7 @@ with patch.dict(
         "KEYCLOAK_URL": "https://identity.invalid",
         "AWS_S3_PRIVATE_URI": "https://storage.invalid",
         "B4_URL": "https://board.invalid",
+        "HARVEST_URL": "https://api.invalid",
     },
 ):
     driver = importlib.import_module("scripts.e2e.journeys.__main__")

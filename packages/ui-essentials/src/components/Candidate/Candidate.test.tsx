@@ -51,6 +51,11 @@ const show = (props: Record<string, unknown>) =>
         </I18nextProvider>
     )
 
+const opacity = (container: HTMLElement) => {
+    const value = getComputedStyle(container.querySelector(".candidate-item")!).opacity || "1"
+    return parseFloat(value) / (value.endsWith("%") ? 100 : 1)
+}
+
 describe("a candidate a voter can choose", () => {
     it("shows the name, and a box to tick", () => {
         show({isSelectable: true})
@@ -112,8 +117,9 @@ describe("a candidate a voter can choose", () => {
     it("goes quiet when it must not be chosen", () => {
         // `shouldDisable` is what the over-vote-and-disable policy reaches for
         // once a voter is at the limit.
-        show({isSelectable: true, shouldDisable: true})
+        const {container} = show({isSelectable: true, shouldDisable: true})
         expect(screen.getByRole("checkbox")).toBeDisabled()
+        expect(opacity(container)).toBe(0.5)
     })
 
     it("offers nothing to click when it is not selectable", () => {
@@ -122,6 +128,13 @@ describe("a candidate a voter can choose", () => {
 
         expect(screen.queryByRole("checkbox")).toBeNull()
         expect(screen.getByText("Alice Okonjo")).toBeInTheDocument()
+    })
+
+    it("keeps full contrast when it is only shown, even if it could not be chosen", () => {
+        // An acclaimed contest's review rows carry `shouldDisable`; with nothing
+        // to click, dimming them would only make them harder to read.
+        const {container} = show({isSelectable: false, shouldDisable: true})
+        expect(opacity(container)).toBe(1)
     })
 })
 

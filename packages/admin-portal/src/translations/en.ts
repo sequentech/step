@@ -3507,6 +3507,12 @@ const englishTranslation = {
                 total_votes_percent: "Participation",
                 total_votes_counted: "Total Votes Counted",
                 total_auditable_votes: "Total Auditable Votes",
+                total_auditable_votes_help:
+                    "Ballots kept out of the count, still encrypted: those of voters who are not eligible, and the latest discarded ballot of each voter without a valid ballot. The tally results archive has them in its auditable-ballots folder.",
+                total_auditable_votes_help_sealed:
+                    "Ballot boxes are sealed at close: eligibility is the one recorded in the seal, so a voter disabled after it stays counted.",
+                total_auditable_votes_help_pseudonym:
+                    "Voters are identified by their pseudonyms, not by their voter IDs.",
                 total_valid_votes: "Total Valid Votes",
                 total_valid_votes_percent: "Valid Votes Percent",
                 total_invalid_votes: "Total Invalid Votes",

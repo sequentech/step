@@ -10,9 +10,11 @@
 //! box; it checks the record against the stored manifest and that the
 //! stored ballots are exactly the sealed ones, then counts the manifest's
 //! entries. The manifest is authoritative, so a voter disabled after the
-//! seal does not change the counts. The database's guard refuses writes to
-//! a sealed box, but the role that owns the database can disable it: this
-//! check is what detects a box changed that way.
+//! seal does not change the counts. Discarded entries count as auditable by
+//! the rule of the unsealed tally: a voter's latest discarded ballot, when
+//! the voter has no valid ballot in the box. The database's guard refuses
+//! writes to a sealed box, but the role that owns the database can disable
+//! it: this check is what detects a box changed that way.
 
 use crate::ports::tally_ceremony::BallotBoxSealState;
 use crate::postgres::ballot_box_seal::{get_for_box, list_for_elections, BallotBoxSealStatus};
@@ -25,7 +27,7 @@ use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log_board::{
     get_board_signing_key, get_event_databases, get_event_store,
 };
-use crate::services::join::MergeJoinResult;
+use crate::services::join::{AuditableBallot, AuditableBallotReason, MergeJoinResult};
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use electoral_log::adapters::ballot_box_seal::{BallotBoxId, SealOutcome, StoredSeal};
@@ -35,7 +37,7 @@ use electoral_log::messages::newtypes::EventIdString;
 use electoral_log::messages::statement::StatementType;
 use electoral_log::ports::ElectoralLogStore;
 use electoral_log::seal::{
-    ballot_hash, check_statement, compare_stored, BallotBoxSealManifest, SealDisposition,
+    ballot_hash, check_statement, compare_stored, BallotBoxSealManifest, SealDisposition, SealEntry,
 };
 use electoral_log::{
     ElectoralLogMessage, Filter, LogEntry, LogQuery, SqlCompOperators, TextColumn,
@@ -151,12 +153,27 @@ pub struct SealedBoxBallots {
 /// A box that doesn't match its seal, and how.
 struct Rejection(String);
 
+/// A ballot of a box, by (ballot hash, Ballot ID), as the manifest names it.
+type BallotKey = (Hash, String);
+
+/// What the count needs of a stored ballot besides its content.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct StoredBallot {
+    /// The stored ballot's id (`ballot_box_ballot.id`).
+    id: String,
+    seq: i64,
+    voter_id: String,
+}
+
 /// What the checks established about a box that matches its seal.
 struct VerifiedBox {
     manifest: BallotBoxSealManifest,
     seal_hash: Hash,
-    /// The stored content of each counted (ballot hash, Ballot ID).
-    contents: HashMap<(Hash, String), String>,
+    /// The stored content of each (ballot hash, Ballot ID) the manifest
+    /// counts or may audit.
+    contents: HashMap<BallotKey, String>,
+    /// Every stored ballot.
+    ballots: HashMap<BallotKey, StoredBallot>,
 }
 
 /// Checks the ballot box against its seal and counts it from the manifest.
@@ -165,12 +182,13 @@ struct VerifiedBox {
 /// tally session, however many contests read it. Like any other box, it is
 /// not counted while ballots it accepted are missing from the electoral
 /// log.
-#[instrument(skip(hasura_transaction, log, ballot_box), fields(election_id = ballot_box.election_id, area_id = ballot_box.area_id), err)]
+#[instrument(skip(hasura_transaction, log, ballot_box, audit_sink), fields(election_id = ballot_box.election_id, area_id = ballot_box.area_id), err)]
 pub async fn sealed_box_ballots(
     hasura_transaction: &Transaction<'_>,
     log: &SealedBoxLog,
     ballot_box: &SealedBox<'_>,
     weighted_voting_policy: WeightedVotingPolicy,
+    audit_sink: impl FnMut(AuditableBallot) -> Result<()>,
 ) -> Result<SealedBoxBallots> {
     check_recorded(log, ballot_box).await?;
     let verified = match verify_box(hasura_transaction, log, ballot_box).await? {
@@ -193,8 +211,15 @@ pub async fn sealed_box_ballots(
         manifest,
         seal_hash,
         contents,
+        ballots,
     } = verified;
-    let merge_result = count_manifest(&manifest, contents, weighted_voting_policy)?;
+    let merge_result = count_manifest(
+        &manifest,
+        contents,
+        &ballots,
+        weighted_voting_policy,
+        audit_sink,
+    )?;
     post_verified(log, ballot_box, seal_hash, manifest.ballots_counted()).await?;
     info!(
         election_id = ballot_box.election_id,
@@ -270,10 +295,11 @@ async fn verify_box(
     )
     .await?;
 
-    // The ballots the manifest counts, to keep their content while the box
-    // streams. Seals are permanent, so the snapshot below reads this seal.
+    // The ballots the manifest counts or may audit, to keep their content
+    // while the box streams. Seals are permanent, so the snapshot below reads
+    // this seal.
     let first = with_board_retries(|| log.store.ballot_box_seal(ids)).await?;
-    let counted: HashSet<(Hash, String)> = match &first {
+    let kept: HashSet<BallotKey> = match &first {
         Some(StoredSeal {
             outcome: SealOutcome::Sealed { manifest, .. },
             ..
@@ -282,7 +308,7 @@ async fn verify_box(
                 manifest
                     .entries
                     .iter()
-                    .filter(|entry| entry.disposition == SealDisposition::Counted)
+                    .filter(|entry| entry.disposition != SealDisposition::Replaced)
                     .map(|entry| (entry.ballot_hash, entry.ballot_id.clone()))
                     .collect()
             })
@@ -292,6 +318,7 @@ async fn verify_box(
     let mut stored = StoredBallots {
         keys: Vec::new(),
         contents: HashMap::new(),
+        ballots: HashMap::new(),
         incomplete: false,
     };
     let read = log
@@ -302,7 +329,15 @@ async fn verify_box(
                 return Ok(());
             }
             let key = (ballot_hash(&ballot.content)?, ballot.ballot_id);
-            if counted.contains(&key) && !stored.contents.contains_key(&key) {
+            stored
+                .ballots
+                .entry(key.clone())
+                .or_insert_with(|| StoredBallot {
+                    id: ballot.id,
+                    seq: ballot.seq,
+                    voter_id: ballot.voter_id,
+                });
+            if kept.contains(&key) && !stored.contents.contains_key(&key) {
                 stored.contents.insert(key.clone(), ballot.content);
             }
             stored.keys.push(key);
@@ -431,6 +466,7 @@ async fn verify_box(
         manifest,
         seal_hash,
         contents: stored.contents,
+        ballots: stored.ballots,
     }))
 }
 
@@ -639,28 +675,74 @@ pub async fn check_sealed_boxes_tallied(
 /// Every stored ballot of a box, as the manifest identifies them.
 struct StoredBallots {
     /// (ballot hash, Ballot ID) of every ballot, in any status.
-    keys: Vec<(Hash, String)>,
-    /// The content of the ballots the manifest counts, once per key.
-    contents: HashMap<(Hash, String), String>,
+    keys: Vec<BallotKey>,
+    /// The content of the ballots the manifest counts or may audit, once
+    /// per key.
+    contents: HashMap<BallotKey, String>,
+    /// Every ballot, once per key.
+    ballots: HashMap<BallotKey, StoredBallot>,
     /// Whether a ballot has no content or no Ballot ID.
     incomplete: bool,
+}
+
+/// The discarded entries the count audits, by the rule of the unsealed
+/// tally: each voter's latest discarded ballot (by acceptance order), when the
+/// voter has no valid ballot in the box, that is, no entry that is not
+/// discarded.
+fn audited_discards(
+    manifest: &BallotBoxSealManifest,
+    ballots: &HashMap<BallotKey, StoredBallot>,
+) -> Result<HashSet<BallotKey>> {
+    let stored = |entry: &SealEntry| {
+        let key = (entry.ballot_hash, entry.ballot_id.clone());
+        ballots
+            .get(&key)
+            .map(|ballot| (key, ballot))
+            .ok_or_else(|| anyhow!("The ballot {} of the seal is not stored", entry.ballot_id))
+    };
+    let mut with_valid: HashSet<&str> = HashSet::new();
+    for entry in &manifest.entries {
+        if entry.disposition != SealDisposition::Discarded {
+            with_valid.insert(stored(entry)?.1.voter_id.as_str());
+        }
+    }
+    let mut latest: HashMap<&str, (i64, BallotKey)> = HashMap::new();
+    for entry in &manifest.entries {
+        if entry.disposition != SealDisposition::Discarded {
+            continue;
+        }
+        let (key, ballot) = stored(entry)?;
+        if with_valid.contains(ballot.voter_id.as_str()) {
+            continue;
+        }
+        match latest.get(ballot.voter_id.as_str()) {
+            Some((seq, _)) if *seq >= ballot.seq => {}
+            _ => {
+                latest.insert(ballot.voter_id.as_str(), (ballot.seq, key));
+            }
+        }
+    }
+    Ok(latest.into_values().map(|(_, key)| key).collect())
 }
 
 /// What the ballot dump reports, from the manifest, with the semantics of
 /// `merge_join_csv`: a counted ballot enters the mix `weight` times and
 /// counts `weight` towards its channel and towards the cast ballots (one,
 /// under voter-weighted voting, where the weight isn't a number of voters);
-/// a ballot of a voter who is not eligible counts once as cast, once towards
-/// its channel and once as without voter; replaced and discarded ballots
-/// don't count.
+/// a ballot of a voter who is not eligible, and an audited discarded one
+/// (see [`audited_discards`]), counts once as cast, once towards its channel
+/// and once as without voter, and goes to `audit_sink`; replaced ballots and
+/// the other discarded ones don't count.
 fn count_manifest(
     manifest: &BallotBoxSealManifest,
-    mut contents: HashMap<(Hash, String), String>,
+    mut contents: HashMap<BallotKey, String>,
+    ballots: &HashMap<BallotKey, StoredBallot>,
     weighted_voting_policy: WeightedVotingPolicy,
+    mut audit_sink: impl FnMut(AuditableBallot) -> Result<()>,
 ) -> Result<MergeJoinResult> {
     // How many counted entries still need each content: the last one takes
     // it, the others (identical entries, never in practice) copy it.
-    let mut uses: HashMap<(Hash, String), usize> = HashMap::new();
+    let mut uses: HashMap<BallotKey, usize> = HashMap::new();
     for entry in &manifest.entries {
         if entry.disposition == SealDisposition::Counted {
             *uses
@@ -668,20 +750,16 @@ fn count_manifest(
                 .or_default() += 1;
         }
     }
+    let audited_discards = audited_discards(manifest, ballots)?;
     let mut ballot_contents = Vec::with_capacity(uses.values().sum());
     let mut ballots_without_voter: u64 = 0;
     let mut casted_ballots: u64 = 0;
     let mut casted_ballots_by_channel = VotesByChannel::new();
     for entry in &manifest.entries {
-        match entry.disposition {
+        let key = (entry.ballot_hash, entry.ballot_id.clone());
+        let not_stored = || anyhow!("The ballot {} of the seal is not stored", entry.ballot_id);
+        let reason = match entry.disposition {
             SealDisposition::Counted => {
-                let key = (entry.ballot_hash, entry.ballot_id.clone());
-                let not_stored = || {
-                    anyhow!(
-                        "The counted ballot {} of the seal is not stored",
-                        entry.ballot_id
-                    )
-                };
                 let remaining = uses.get_mut(&key).ok_or_else(not_stored)?;
                 *remaining -= 1;
                 let content = if *remaining == 0 {
@@ -698,16 +776,27 @@ fn count_manifest(
                 *casted_ballots_by_channel
                     .entry(ParticipationChannel::from(entry.channel.as_str()))
                     .or_default() += entry.weight;
+                continue;
             }
-            SealDisposition::NotEligible => {
-                ballots_without_voter += 1;
-                casted_ballots += 1;
-                *casted_ballots_by_channel
-                    .entry(ParticipationChannel::from(entry.channel.as_str()))
-                    .or_default() += 1;
+            SealDisposition::NotEligible => AuditableBallotReason::NoEligibleVoter,
+            SealDisposition::Discarded if audited_discards.contains(&key) => {
+                AuditableBallotReason::Discarded
             }
-            SealDisposition::Replaced | SealDisposition::Discarded => {}
-        }
+            SealDisposition::Replaced | SealDisposition::Discarded => continue,
+        };
+        ballots_without_voter += 1;
+        casted_ballots += 1;
+        *casted_ballots_by_channel
+            .entry(ParticipationChannel::from(entry.channel.as_str()))
+            .or_default() += 1;
+        let stored = ballots.get(&key).ok_or_else(not_stored)?;
+        audit_sink(AuditableBallot {
+            reason,
+            cast_vote_id: Some(stored.id.clone()),
+            ballot_id: Some(entry.ballot_id.clone()),
+            voter_id: stored.voter_id.clone(),
+            content: contents.get(&key).cloned().ok_or_else(not_stored)?,
+        })?;
     }
     Ok(MergeJoinResult {
         ballot_contents,

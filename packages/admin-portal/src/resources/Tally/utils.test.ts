@@ -10,6 +10,7 @@ import {
     ITallyTrusteeStatus,
 } from "@/types/ceremonies"
 import {
+    auditableVotesHelp,
     convertContestsArray,
     convertSequentContestToIContest,
     getTallyKeyRestoreEligibility,
@@ -18,9 +19,10 @@ import {
     parseResultAnnotations,
 } from "./utils"
 
-jest.mock("@sequentech/ui-core", () =>
-    jest.requireActual("../../../../ui-core/src/types/CoreTypes")
-)
+jest.mock("@sequentech/ui-core", () => ({
+    ...jest.requireActual("../../../../ui-core/src/types/CoreTypes"),
+    ...jest.requireActual("../../../../ui-core/src/types/ElectionEventPresentation"),
+}))
 
 describe("getTallyKeyRestoreEligibility", () => {
     it.each([ITallyExecutionStatus.STARTED, ITallyExecutionStatus.CONNECTED])(
@@ -231,5 +233,39 @@ describe("tally result annotations", () => {
         } finally {
             log.mockRestore()
         }
+    })
+})
+
+describe("auditableVotesHelp", () => {
+    const t = (key: string) => key.replace("tally.table.", "")
+
+    it("explains the auditable votes of an event that neither seals nor uses pseudonyms", () => {
+        for (const presentation of [undefined, null, "not an object", {}]) {
+            expect(auditableVotesHelp(t, presentation)).toBe("total_auditable_votes_help")
+        }
+        expect(
+            auditableVotesHelp(t, {
+                ballot_box_seal_policy: "do-not-seal",
+                ballot_identity: "voter-id",
+            })
+        ).toBe("total_auditable_votes_help")
+    })
+
+    it("adds what sealing and pseudonyms change", () => {
+        expect(auditableVotesHelp(t, {ballot_box_seal_policy: "seal-at-close"})).toBe(
+            "total_auditable_votes_help total_auditable_votes_help_sealed"
+        )
+        expect(auditableVotesHelp(t, {ballot_identity: "pseudonym"})).toBe(
+            "total_auditable_votes_help total_auditable_votes_help_pseudonym"
+        )
+        expect(
+            auditableVotesHelp(t, {
+                ballot_box_seal_policy: "seal-at-close",
+                ballot_identity: "pseudonym",
+            })
+        ).toBe(
+            "total_auditable_votes_help total_auditable_votes_help_sealed " +
+                "total_auditable_votes_help_pseudonym"
+        )
     })
 })

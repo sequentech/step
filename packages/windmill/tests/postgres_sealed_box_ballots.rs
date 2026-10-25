@@ -58,6 +58,7 @@ use windmill::services::ceremonies::sealed_box_ballots::{
 use windmill::services::ceremonies::tally_boards::sealed_boxes_for_execution;
 use windmill::services::election::get_election_event_elections;
 use windmill::services::electoral_log_board::create_protocol_manager_keys;
+use windmill::services::join::{AuditableBallot, AuditableBallotReason};
 
 const SESSION: &str = "tally-session";
 const ELECTION_NAME: &str = "Mayor";
@@ -365,6 +366,15 @@ impl World {
     }
 
     async fn count(&self, tx: &Transaction<'_>) -> anyhow::Result<SealedBoxBallots> {
+        Ok(self.count_audited(tx).await?.0)
+    }
+
+    /// The count, with the ballots it audits.
+    async fn count_audited(
+        &self,
+        tx: &Transaction<'_>,
+    ) -> anyhow::Result<(SealedBoxBallots, Vec<AuditableBallot>)> {
+        let mut audited = Vec::new();
         let (tenant, event, election, area) = (
             self.tenant.to_string(),
             self.event.to_string(),
@@ -384,8 +394,13 @@ impl World {
                 tally_session_id: SESSION,
             },
             WeightedVotingPolicy::default(),
+            |ballot| {
+                audited.push(ballot);
+                Ok(())
+            },
         )
         .await
+        .map(|counted| (counted, audited))
     }
 
     /// The tally's entries of `kind` for this box.
@@ -462,7 +477,7 @@ impl Stored {
 }
 
 /// A box with every disposition: alice voted twice, bob is not in the
-/// census, carol's ballot was discarded.
+/// census, carol's only ballot was discarded.
 fn ballots() -> Vec<(Stored, SealDisposition, u64)> {
     vec![
         (
@@ -513,7 +528,7 @@ fn a_box_that_matches_its_seal_is_counted_from_the_manifest_and_verified_once() 
         let entries = cast_all(&w).await;
         let message = w.seal(&tx, w.manifest(entries, 7), &w.key).await;
 
-        let counted = w.count(&tx).await.unwrap();
+        let (counted, mut audited) = w.count_audited(&tx).await.unwrap();
         let mut contents = counted.merge_result.ballot_contents.clone();
         contents.sort();
         assert_eq!(
@@ -522,17 +537,49 @@ fn a_box_that_matches_its_seal_is_counted_from_the_manifest_and_verified_once() 
         );
         // Eligible voters come from the manifest: no census is read.
         assert_eq!(counted.merge_result.eligible_voters, 7);
-        assert_eq!(counted.merge_result.ballots_without_voter, 1);
-        assert_eq!(counted.merge_result.casted_ballots, 3);
+        // Bob's ballot and carol's discarded one, as the unsealed tally
+        // counts them.
+        assert_eq!(counted.merge_result.ballots_without_voter, 2);
+        assert_eq!(counted.merge_result.casted_ballots, 4);
         assert_eq!(
             counted.merge_result.casted_ballots_by_channel,
             [
                 (ParticipationChannel::from("KIOSK"), 1),
-                (ParticipationChannel::from("ONLINE"), 2),
+                (ParticipationChannel::from("ONLINE"), 3),
             ]
             .into_iter()
             .collect()
         );
+        audited.sort_by(|a, b| a.voter_id.cmp(&b.voter_id));
+        assert_eq!(
+            audited
+                .iter()
+                .map(|ballot| (
+                    ballot.reason,
+                    ballot.voter_id.as_str(),
+                    ballot.content.as_str(),
+                    ballot.ballot_id.as_deref()
+                ))
+                .collect::<Vec<_>>(),
+            [
+                (
+                    AuditableBallotReason::NoEligibleVoter,
+                    "bob",
+                    "bob",
+                    Some("id-bob")
+                ),
+                (
+                    AuditableBallotReason::Discarded,
+                    "carol",
+                    "carol",
+                    Some("id-carol")
+                ),
+            ]
+        );
+        // The stored ballots' ids.
+        for ballot in &audited {
+            Uuid::parse_str(ballot.cast_vote_id.as_deref().unwrap()).unwrap();
+        }
         assert_eq!(counted.seal_hash, seal_hash_of(&message));
 
         // A second contest of the same box (SINGLE_CONTEST) verifies it again

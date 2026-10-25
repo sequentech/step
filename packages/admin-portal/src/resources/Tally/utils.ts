@@ -4,7 +4,14 @@
 
 import {ParsedAnnotations, RunoffStatus} from "./types"
 import {Sequent_Backend_Candidate, Sequent_Backend_Contest} from "@/gql/graphql"
-import {ICandidate, IContest, ICountingAlgorithm} from "@sequentech/ui-core"
+import {
+    EBallotBoxSealPolicy,
+    EBallotIdentity,
+    ICandidate,
+    IContest,
+    ICountingAlgorithm,
+    IElectionEventPresentation,
+} from "@sequentech/ui-core"
 import {
     ETallyKeyRestoreEligibility,
     ITallyExecutionStatus,
@@ -24,6 +31,29 @@ export const getTallyKeyRestoreEligibility = (
         tallyExecutionStatus === ITallyExecutionStatus.CONNECTED)
         ? ETallyKeyRestoreEligibility.ALLOWED
         : ETallyKeyRestoreEligibility.DENIED
+
+/**
+ * The help text of the auditable votes, for the event's configuration: what
+ * they are, and what sealing ballot boxes and voter pseudonyms change.
+ */
+export const auditableVotesHelp = (
+    t: (key: string) => string,
+    eventPresentation: unknown
+): string => {
+    const presentation: Partial<IElectionEventPresentation> =
+        eventPresentation && typeof eventPresentation === "object" ? eventPresentation : {}
+    return [
+        t("tally.table.total_auditable_votes_help"),
+        presentation.ballot_box_seal_policy === EBallotBoxSealPolicy.SEAL_AT_CLOSE
+            ? t("tally.table.total_auditable_votes_help_sealed")
+            : null,
+        presentation.ballot_identity === EBallotIdentity.PSEUDONYM
+            ? t("tally.table.total_auditable_votes_help_pseudonym")
+            : null,
+    ]
+        .filter((sentence): sentence is string => !!sentence)
+        .join(" ")
+}
 
 /**
  * Safely extracts the value from a GraphQL 'Maybe<T>' type.

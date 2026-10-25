@@ -69,7 +69,7 @@ import {
     parseParticipationChannel,
 } from "@sequentech/ui-core"
 import {ParticipationByChannel} from "./ParticipationByChannel"
-import {ParticipationSummaryChart} from "./ParticipationSummary"
+import {ParticipationSummary, ParticipationSummaryChart} from "./ParticipationSummary"
 import type {ResultsParticipationSummary} from "./types"
 
 const MARKUP_LABEL = "<b>Label</b> & more"
@@ -135,6 +135,36 @@ describe("ParticipationSummaryChart", () => {
         expect(mockChartOptions).toHaveLength(1)
         expect(mockChartOptions[0].labels).toEqual([MARKUP_LABEL])
         expectEscapedChartText(mockChartOptions[0])
+    })
+})
+
+describe("ParticipationSummary", () => {
+    const result: ResultsParticipationSummary = {eligibleCensus: 10, totalAuditableVotes: 2}
+
+    it("explains the auditable votes when given a help text", () => {
+        const markup = renderToStaticMarkup(
+            <ParticipationSummary
+                result={result}
+                chartName="Election - Contest"
+                labels={{totalAuditableVotesHelp: "Kept out of the count."}}
+            />
+        )
+
+        const row = markup.slice(
+            markup.indexOf("seq-tally-results-participation-summary__row--total-auditable-votes")
+        )
+        expect(row).toContain("seq-tally-results-participation-summary__label-help")
+        expect(row.indexOf("Kept out of the count.")).toBeLessThan(
+            row.indexOf("seq-tally-results-participation-summary__row--total-votes-counted")
+        )
+    })
+
+    it("shows no help text by default", () => {
+        const markup = renderToStaticMarkup(
+            <ParticipationSummary result={result} chartName="Election - Contest" />
+        )
+
+        expect(markup).not.toContain("seq-tally-results-participation-summary__label-help")
     })
 })
 

@@ -981,6 +981,7 @@ mod tests {
         let (content, ballot_id) = ballot(seed);
         BoxBallot {
             seq,
+            id: format!("id-{seq}"),
             voter_id: voter.to_string(),
             status,
             format: SINGLE.to_string(),
@@ -1235,6 +1236,8 @@ mod tests {
                 1,
                 Some(2),
                 source,
+                None,
+                |_| Ok(()),
             )
             .unwrap();
             assert_eq!(census.len() as u64, joined.eligible_voters, "{column:?}");
@@ -1291,6 +1294,8 @@ mod tests {
             1,
             None,
             Some(MultiplicitySource::VoteWeight(1)),
+            None,
+            |_| Ok(()),
         )
         .unwrap();
         let weights: HashMap<String, u64> = joined.ballot_contents.into_iter().collect();

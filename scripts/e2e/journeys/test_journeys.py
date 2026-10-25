@@ -16,13 +16,14 @@ import hashlib
 import json
 import re
 import subprocess
+import tarfile
 import unittest
 import uuid
 import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 
-from . import bootstrap, fixtures, transmission
+from . import bootstrap, datafix, fixtures, transmission
 from .client import (
     B4_URL,
     ENV,
@@ -49,6 +50,13 @@ query ($eventId: String) {
   listElectoralLog(election_event_id: $eventId, limit: 500, offset: 0) {
     total { aggregate { count } }
     items { statement_kind user_id }
+  }
+}"""
+
+ELECTORAL_LOG_MESSAGES = """
+query ($eventId: String) {
+  listElectoralLog(election_event_id: $eventId, limit: 500, offset: 0) {
+    items { id statement_kind user_id username message }
   }
 }"""
 
@@ -320,6 +328,191 @@ class BackendJourneys(unittest.TestCase):
         )
         self.assertEqual([e["extensions"]["code"] for e in errors], ["invalid-jwt"])
         self.passed("journey 1")
+
+    def datafix_log(self, event_id, expected, timeout=120):
+        """Wait until the event's log holds `expected` inbound Datafix entries."""
+
+        def entries():
+            items = Hasura(token=self.admin_token()).query(
+                ELECTORAL_LOG_MESSAGES, {"eventId": event_id}
+            )["listElectoralLog"]["items"]
+            found = datafix.inbound_entries(items)
+            return found if len(found) >= expected else None
+
+        try:
+            return wait_until(
+                f"{expected} inbound Datafix log entries", entries, timeout, interval=3
+            )
+        except TimeoutError as error:
+            raise AssertionError(f"{error}; found {entries()}") from error
+
+    def test_1b_datafix_api_records_voter_changes(self):
+        """The Datafix API applies voter changes and logs what changed or why it failed."""
+        self.requires("journey 1")
+        secret = datafix.ensure_client(self.keycloak)
+        datafix_id = f"datafix-{self.tag}"
+        document = datafix.event_document(
+            ENV["VOTING_PORTAL_URL"], self.tag, datafix_id
+        )
+        event_id = self.import_event(document, "datafix-event")
+        realm = event_realm(event_id)
+        areas = {
+            area["name"]: area["id"]
+            for area in self.admin.query(
+                "query ($event: uuid!) { sequent_backend_area(where: {election_event_id: {_eq: $event}}) { id name } }",
+                {"event": event_id},
+            )["sequent_backend_area"]
+        }
+        ward = datafix.ward_of(self.tag)
+        registry = datafix.Registry(datafix_id, secret)
+        voter = f"df{self.tag}1"
+        add_body = {"voter_id": voter, "ward": ward, "birthdate": "1990-01-02"}
+
+        def user():
+            return self.keycloak.user(realm, voter)
+
+        # A realm that would drop a written attribute refuses before writing.
+        profile = self.keycloak.admin("GET", f"{realm}/users/profile")
+        self.keycloak.admin(
+            "PUT",
+            f"{realm}/users/profile",
+            datafix.profile_without(profile, {"dateOfBirth"}),
+        )
+        self.assertEqual(
+            registry.call("add-voter", add_body),
+            (500, {"code": 500, "message": "Internal Server Error", "error_code": "internal-error"}),
+        )
+        self.assertEqual(
+            self.keycloak.admin("GET", f"{realm}/users?exact=true&username={voter}"),
+            [],
+        )
+        (refused,) = self.datafix_log(event_id, 1)
+        self.assertEqual(
+            refused["operation"],
+            f'voter_id="{voter}"; AddVoter Failed: Realm user profile does not store attributes [dateOfBirth]: '
+            "declare them in the election event user profile or allow administrators to edit unmanaged attributes "
+            "(error_code=internal-error)",
+        )
+        self.assertEqual(refused["description"], "Inbound request AddVoter Failed.")
+        self.assertIsNone(refused["user_id"])
+
+        # Administrators may now write every attribute the API writes.
+        allowing = datafix.profile_without(profile, set())
+        allowing["unmanagedAttributePolicy"] = "ADMIN_EDIT"
+        self.keycloak.admin("PUT", f"{realm}/users/profile", allowing)
+
+        ok = (200, {"code": 200, "message": "OK"})
+        self.assertEqual(registry.call("add-voter", add_body), ok)
+        created = user()
+        user_id = created["id"]
+        self.assertTrue(created["enabled"])
+        self.assertEqual(created["attributes"]["area-id"], [areas[f"{ward}-000"]])
+        self.assertEqual(created["attributes"]["dateOfBirth"], ["1990-01-02"])
+        self.assertEqual(
+            registry.call("add-voter", add_body),
+            (409, {"code": 409, "message": "Conflict", "error_code": "voter-already-exists"}),
+        )
+        self.assertEqual(
+            registry.call("add-voter", {"voter_id": f"{voter}x", "ward": "NOWARD"}),
+            (422, {"code": 422, "message": "Unprocessable Entity", "error_code": "area-not-found"}),
+        )
+
+        # Moving the voter keeps the birthdate it does not send.
+        self.assertEqual(
+            registry.call(
+                "update-voter", {"voter_id": voter, "ward": ward, "schoolboard": "SB1"}
+            ),
+            ok,
+        )
+        moved = user()
+        self.assertEqual(moved["attributes"]["area-id"], [areas[f"{ward}-SB1-000"]])
+        self.assertEqual(moved["attributes"]["dateOfBirth"], ["1990-01-02"])
+
+        status, body = registry.call("replace-pin", {"voter_id": voter})
+        self.assertEqual(status, 200, body)
+        pin = body["pin"]
+        self.assertRegex(pin, r"^[0-9]{6}$")
+        # Not temporary: the policy leaves `temporary` unset.
+        self.assertNotIn("UPDATE_PASSWORD", user().get("requiredActions") or [])
+
+        self.assertEqual(
+            registry.call("mark-voted", {"voter_id": voter, "channel": "PAPER"}), ok
+        )
+        marked = user()
+        self.assertFalse(marked["enabled"])
+        self.assertEqual(marked["attributes"]["voted-channel"], ["PAPER"])
+        self.assertEqual(
+            registry.call("replace-pin", {"voter_id": voter}),
+            (400, {"code": 400, "message": "Bad Request", "error_code": "invalid-request"}),
+        )
+        self.assertEqual(registry.call("unmark-voted", {"voter_id": voter}), ok)
+        unmarked = user()
+        self.assertTrue(unmarked["enabled"])
+        self.assertEqual(unmarked["attributes"]["voted-channel"], ["NONE"])
+        self.assertEqual(registry.call("delete-voter", {"voter_id": voter}), ok)
+        self.assertFalse(user()["enabled"])
+        self.assertEqual(
+            registry.call("update-voter", {"voter_id": f"{voter}x", "ward": ward}),
+            (404, {"code": 404, "message": "Not Found", "error_code": "voter-not-found"}),
+        )
+
+        entries = self.datafix_log(event_id, 11)
+        operations = [entry["operation"] for entry in entries]
+        area_1, area_2 = areas[f"{ward}-000"], areas[f"{ward}-SB1-000"]
+        self.assertEqual(
+            operations[1:],
+            [
+                f'voter_id="{voter}"; AddVoter Succeeded (area="{ward}-000", area_id="{area_1}", birthdate=1990-01-02, enabled=true)',
+                f'voter_id="{voter}"; AddVoter Failed: Voter already exists (error_code=voter-already-exists)',
+                f'voter_id="{voter}x"; AddVoter Failed: Area not found for NOWARD-000 (error_code=area-not-found)',
+                f'voter_id="{voter}"; UpdateVoter Succeeded (previous_area="{ward}-000", previous_area_id="{area_1}", '
+                f'area="{ward}-SB1-000", area_id="{area_2}", previous_birthdate="1990-01-02", birthdate=unchanged, '
+                "previous_enabled=true, enabled=unchanged)",
+                f'voter_id="{voter}"; ReplacePin Succeeded (temporary=false)',
+                f'voter_id="{voter}"; MarkVoted Succeeded (channel="PAPER", enabled=false, '
+                "disable_comment=Disable reason: Voter marked as voted via other channel)",
+                f'voter_id="{voter}"; ReplacePin Failed: Cannot replace pin because the user is disabled (error_code=invalid-request)',
+                f'voter_id="{voter}"; UnmarkVoted Succeeded (previous_channel="PAPER", channel=NONE, enabled=true, disable_comment=NONE)',
+                f'voter_id="{voter}"; DeleteVoter Succeeded (enabled=false, '
+                "disable_comment=Disable reason: datafix call to delete-voter endpoint)",
+                f'voter_id="{voter}x"; UpdateVoter Failed: Voter not found (error_code=voter-not-found)',
+            ],
+        )
+        self.assertNotIn(pin, json.dumps(entries))
+        for entry in entries:
+            self.assertEqual(entry["username"], entry["subject"]["username"])
+        # AddVoter knows the voter only once Keycloak created it; every other
+        # operation on an existing voter records its Keycloak id and area.
+        self.assertEqual(
+            [(entry["user_id"], entry["area_id"]) for entry in entries],
+            [(None, None), (user_id, area_1), (None, None), (None, None)]
+            + [(user_id, area_2)] * 6
+            + [(None, None)],
+        )
+
+        # A second event with the same datafix:id makes every request ambiguous:
+        # refused before touching a voter and logged in both events.
+        twin = datafix.event_document(ENV["VOTING_PORTAL_URL"], f"{self.tag}b", datafix_id)
+        twin_id = self.import_event(twin, "datafix-twin-event")
+        self.assertEqual(
+            registry.call("replace-pin", {"voter_id": voter}),
+            (500, {"code": 500, "message": "Internal Server Error", "error_code": "internal-error"}),
+        )
+        for logged_event in (event_id, twin_id):
+            last = self.datafix_log(
+                logged_event, 12 if logged_event == event_id else 1
+            )[-1]
+            self.assertTrue(
+                last["operation"].startswith(
+                    f'voter_id="{voter}"; ReplacePin Failed: '
+                ),
+                last,
+            )
+            self.assertIn(event_id, last["operation"])
+            self.assertIn(twin_id, last["operation"])
+            self.assertIsNone(last["user_id"])
+            self.assertIsNone(last["area_id"])
+        self.passed("journey 1b")
 
     def test_2_import_election_event(self):
         """Importing an event creates its elections, contests, areas, board and electoral log."""
@@ -1615,6 +1808,252 @@ class BackendJourneys(unittest.TestCase):
             by_name, {"Alice": 3, "Bob": 5, "Carol": 0, "Dave": 3, "Erin": 5}
         )
         self.verify_public_transcripts(event_id)
+
+    def test_a2_datafix_released_ballots_are_auditable(self):
+        """Ballots a Datafix voter release discards are auditable and kept, encrypted, in the results archive."""
+        self.requires("journey 4")
+        datafix_id = f"datafix-{self.tag}-audit"
+        tag = f"{self.tag}x"
+        document = datafix.event_document(ENV["VOTING_PORTAL_URL"], tag, datafix_id)
+        event_id = self.import_event(document, "datafix-audit-event")
+        realm = event_realm(event_id)
+        ward = datafix.ward_of(tag)
+        voters = fixtures.census(f"{self.tag}-dfaudit", {"A": 3})
+        path = self.cli.directory / "datafix-audit-voters.csv"
+        with path.open("w", newline="") as handle:
+            writer = csv.writer(handle)
+            writer.writerow(
+                [
+                    "username",
+                    "area_name",
+                    "email",
+                    "email_verified",
+                    "password",
+                    "authorized-election-ids",
+                ]
+            )
+            for voter in voters:
+                writer.writerow(
+                    [
+                        voter.username,
+                        f"{ward}-000",
+                        f"{voter.username}@example.invalid",
+                        "true",
+                        voter.username,
+                        f"e2e-main-{tag}-datafix",
+                    ]
+                )
+        self.step(
+            "import-voters",
+            "--election-event-id",
+            event_id,
+            "--file-path",
+            str(path),
+            "--is-local",
+        )
+        # Voters marked as having voted via the Internet are validated without
+        # VoterView, which the isolated stack does not have.
+        profile = self.keycloak.admin("GET", f"{realm}/users/profile")
+        profile["unmanagedAttributePolicy"] = "ADMIN_EDIT"
+        self.keycloak.admin("PUT", f"{realm}/users/profile", profile)
+        users = {}
+        for voter in voters:
+            user = self.keycloak.user(realm, voter.username)
+            attributes = dict(user.get("attributes") or {})
+            attributes["voted-channel"] = ["Internet"]
+            self.keycloak.admin(
+                "PUT",
+                f"{realm}/users/{user['id']}",
+                {**user, "attributes": attributes},
+                expect=(204,),
+            )
+            users[voter.username] = user["id"]
+
+        ceremony = StepCli.last_id(
+            self.step(
+                "start-key-ceremony",
+                "--election-event-id",
+                event_id,
+                "--threshold",
+                "2",
+                "--automatic",
+            )
+        )
+
+        def keys_ready():
+            (row,) = self.admin.query(
+                "query ($id: uuid!) { sequent_backend_keys_ceremony(where: {id: {_eq: $id}}) { execution_status } }",
+                {"id": ceremony},
+            )["sequent_backend_keys_ceremony"]
+            self.assertNotIn(row["execution_status"], ("FAILED", "CANCELLED"))
+            return row["execution_status"] == "SUCCESS"
+
+        wait_until("Datafix event keys", keys_ready, timeout=600)
+        self.step("publish", "--election-event-id", event_id)
+        self.step(
+            "update-event-voting-status",
+            "--election-event-id",
+            event_id,
+            "--voting-status",
+            "OPEN",
+            "--voting-channel",
+            "ONLINE",
+        )
+        previous = self.state
+        self.state = State()
+        self.state.event_id = event_id
+        self.state.portal = Portal(event_id, self.cli)
+        self.state.accepted, self.state.rejected = [], 0
+        try:
+            receipts = {}
+            for voter, candidate in zip(voters, ("Alice", "Bob", "Carol")):
+                receipt, errors = self.vote(voter.username, candidate)
+                self.assertIsNone(errors)
+                receipts[voter.username] = receipt["ballot_id"]
+            for voter in voters:
+                wait_until(
+                    f"the Datafix review of {voter.username}'s ballot",
+                    lambda: [v["status"] for v in self.voter_votes(voter.username)]
+                    == ["valid"],
+                    timeout=180,
+                )
+
+            def edit(username, enabled):
+                """Disable or enable a voter as the admin portal does."""
+                # Actions take the administrator's token, not the admin secret.
+                task = Hasura(token=self.admin_token()).query(
+                    """mutation ($body: EditUsersInput!) {
+                      edit_user(body: $body) { task_execution { id } }
+                    }""",
+                    {
+                        "body": {
+                            "tenant_id": TENANT_ID,
+                            "election_event_id": event_id,
+                            "user_id": users[username],
+                            "enabled": enabled,
+                        }
+                    },
+                )["edit_user"]["task_execution"]["id"]
+
+                def done():
+                    (row,) = self.admin.query(
+                        "query ($id: uuid!) { sequent_backend_tasks_execution(where: {id: {_eq: $id}}) { execution_status logs } }",
+                        {"id": task},
+                    )["sequent_backend_tasks_execution"]
+                    self.assertNotEqual(row["execution_status"], "FAILED", row["logs"])
+                    return row["execution_status"] == "SUCCESS"
+
+                wait_until(f"the edit of {username}", done, timeout=120)
+
+            kept, released, reenabled = (voter.username for voter in voters)
+            # Releasing a voter discards their ballot; enabling them again
+            # does not bring it back.
+            edit(released, False)
+            edit(reenabled, False)
+            edit(reenabled, True)
+            self.assertEqual(
+                [v["status"] for v in self.voter_votes(reenabled)], ["discarded"]
+            )
+            self.step(
+                "update-event-voting-status",
+                "--election-event-id",
+                event_id,
+                "--voting-status",
+                "CLOSED",
+                "--voting-channel",
+                "ONLINE",
+            )
+            results_id = self.tally()
+        finally:
+            self.state = previous
+
+        # Importing replaces the document's ids: read the voters' contest back.
+        (link,) = self.admin.query(
+            """query ($event: uuid!, $area: String!) {
+              sequent_backend_area_contest(where: {election_event_id: {_eq: $event}, area: {name: {_eq: $area}}}) { contest_id }
+            }""",
+            {"event": event_id, "area": f"{ward}-000"},
+        )["sequent_backend_area_contest"]
+        contest_id = link["contest_id"]
+        (contest,) = self.admin.query(
+            """query ($results: uuid!, $contest: uuid!) {
+              sequent_backend_results_contest(where: {results_event_id: {_eq: $results}, contest_id: {_eq: $contest}}) {
+                elegible_census total_auditable_votes total_votes total_valid_votes
+              }
+            }""",
+            {"results": results_id, "contest": contest_id},
+        )["sequent_backend_results_contest"]
+        self.assertEqual(
+            (
+                contest["elegible_census"],
+                contest["total_auditable_votes"],
+                contest["total_votes"],
+                contest["total_valid_votes"],
+            ),
+            (2, 2, 1, 1),
+        )
+
+        def archive_id():
+            (results_event,) = self.admin.query(
+                "query ($id: uuid!) { sequent_backend_results_event(where: {id: {_eq: $id}}) { documents } }",
+                {"id": results_id},
+            )["sequent_backend_results_event"]
+            documents = results_event["documents"] or {}
+            return documents.get("tar_gz") or documents.get("tar_gz_pdfs")
+
+        document_id = wait_until("the tally results archive", archive_id, timeout=300)
+        url = Hasura(token=self.admin_token()).query(
+            """query ($event: String, $document: String!) {
+              fetchDocument(election_event_id: $event, document_id: $document) { url }
+            }""",
+            {"event": event_id, "document": document_id},
+        )["fetchDocument"]["url"]
+        response = http_get(url)
+        self.assertEqual(response.status, 200)
+        with tarfile.open(fileobj=io.BytesIO(response.body), mode="r:*") as archive:
+            members = {
+                member.name.split("auditable-ballots/", 1)[1]: archive.extractfile(
+                    member
+                ).read()
+                for member in archive.getmembers()
+                if member.isfile() and "auditable-ballots/" in member.name
+            }
+        folders = [
+            name.rsplit("/", 1)[0]
+            for name in members
+            # The downloaded archive names folders `contest__<name>__<id>`.
+            if name.endswith("summary.json") and f"{contest_id}/area__" in name
+        ]
+        self.assertEqual(len(folders), 1, sorted(members))
+        (area_folder,) = folders
+        self.assertEqual(
+            json.loads(members[f"{area_folder}/summary.json"]),
+            {
+                "format_version": 1,
+                "count": 2,
+                "ballots_available": True,
+                "identity_mode": "identity",
+            },
+        )
+        records = [
+            json.loads(line)
+            for line in members[f"{area_folder}/encrypted-ballots.jsonl"]
+            .decode()
+            .splitlines()
+        ]
+        self.assertEqual(
+            sorted((r["voter_id"], r["ballot_id"], r["reason"]) for r in records),
+            sorted(
+                (users[username], receipts[username], "discarded")
+                for username in (released, reenabled)
+            ),
+        )
+        for record in records:
+            uuid.UUID(record["cast_vote_id"])
+            self.assertTrue(record["contests"])
+            self.assertNotIn("voter_signing_pk", record)
+            self.assertNotIn("voter_ballot_signature", record)
+            self.assertNotIn("voter_pseudonym", record)
 
     def test_b_manual_key_ceremony_and_tally(self):
         """Each trustee proves local custody before publication and a manual tally."""

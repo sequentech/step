@@ -3363,6 +3363,12 @@ const dutchTranslation: TranslationType = {
                 total_votes_percent: "Deelnamepercentage",
                 total_votes_counted: "Totaal Getelde Stemmen",
                 total_auditable_votes: "Totaal Controleerbare Stemmen",
+                total_auditable_votes_help:
+                    "Stembiljetten die buiten de telling blijven, nog versleuteld: die van kiezers die niet stemgerechtigd zijn, en het laatste afgewezen stembiljet van elke kiezer zonder geldig stembiljet. Het archief met de telresultaten bevat ze in de map auditable-ballots.",
+                total_auditable_votes_help_sealed:
+                    "Stembussen worden bij sluiting verzegeld: de stemgerechtigdheid is die in het zegel, dus een kiezer die daarna wordt uitgeschakeld, blijft meetellen.",
+                total_auditable_votes_help_pseudonym:
+                    "Kiezers worden geïdentificeerd met hun pseudoniemen, niet met hun kiezers-ID's.",
                 total_valid_votes: "Totaal Geldige Stemmen",
                 total_valid_votes_percent: "Percentage Geldige Stemmen",
                 total_invalid_votes: "Totaal Ongeldige Stemmen",

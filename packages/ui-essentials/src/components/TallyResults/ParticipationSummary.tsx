@@ -50,6 +50,7 @@ interface SummaryRow {
     value?: NumericValue
     percent?: NumericValue
     showPercent?: boolean
+    help?: string
 }
 
 const buildParticipationChartData = (
@@ -119,6 +120,7 @@ const buildSummaryRows = (
             label: labels.totalAuditableVotes,
             value: result.totalAuditableVotes,
             percent: result.totalAuditableVotesPercent,
+            help: labels.totalAuditableVotesHelp,
         },
         {
             key: "total-votes-counted",
@@ -334,6 +336,16 @@ export const ParticipationSummary: React.FC<ParticipationSummaryProps> = ({
                                                     sx={{overflowWrap: "anywhere"}}
                                                 >
                                                     {row.label}
+                                                    {row.help ? (
+                                                        <Typography
+                                                            className="seq-tally-results-participation-summary__label-help"
+                                                            variant="caption"
+                                                            component="div"
+                                                            color="text.secondary"
+                                                        >
+                                                            {row.help}
+                                                        </Typography>
+                                                    ) : null}
                                                 </TableCell>
                                                 <TableCell
                                                     className="seq-tally-results-participation-summary__value-cell"

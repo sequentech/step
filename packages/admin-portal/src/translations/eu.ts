@@ -3349,6 +3349,12 @@ const basqueTranslation: TranslationType = {
                 total_votes_percent: "Parte-hartzea",
                 total_votes_counted: "Zenbatutako Boto Guztiak",
                 total_auditable_votes: "Auditatu daitezkeen Boto Guztiak",
+                total_auditable_votes_help:
+                    "Zenbaketatik kanpo geratzen diren botoak, oraindik zifratuta: hautagarriak ez diren hautesleenak, eta boto baliodunik ez duen hautesle bakoitzaren baztertutako azken botoa. Zenbaketaren emaitzen artxiboak auditable-ballots karpetan ditu.",
+                total_auditable_votes_help_sealed:
+                    "Hautetsontziak ixtean zigilatzen dira: hautagarritasuna zigiluan erregistratutakoa da, beraz, ondoren desgaitutako hautesleak zenbatzen jarraitzen du.",
+                total_auditable_votes_help_pseudonym:
+                    "Hautesleak beren ezizenen bidez identifikatzen dira, ez beren hautesle IDen bidez.",
                 total_valid_votes: "Baliozko Boto Guztiak",
                 total_valid_votes_percent: "Baliozko Boto Ehunekoa",
                 total_invalid_votes: "Baliogabeko Boto Guztiak",

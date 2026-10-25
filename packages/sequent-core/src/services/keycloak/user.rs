@@ -30,6 +30,30 @@ pub struct GroupInfo {
     pub group_name: String,
 }
 
+/// Keycloak's names for a user profile's unmanaged-attribute policy and the
+/// variants the generated `UnmanagedAttributePolicy` type expects instead.
+const UNMANAGED_ATTRIBUTE_POLICY_NAMES: [(&str, &str); 3] = [
+    ("ENABLED", "Enabled"),
+    ("ADMIN_VIEW", "AdminView"),
+    ("ADMIN_EDIT", "AdminEdit"),
+];
+
+/// Decodes a realm user profile as Keycloak returns it.
+pub fn user_profile_from_json(mut profile: Value) -> Result<UPConfig> {
+    if let Some(policy) = profile.get_mut("unmanagedAttributePolicy") {
+        let variant = policy.as_str().and_then(|name| {
+            UNMANAGED_ATTRIBUTE_POLICY_NAMES
+                .iter()
+                .find(|(keycloak, _)| *keycloak == name)
+                .map(|(_, variant)| *variant)
+        });
+        if let Some(variant) = variant {
+            *policy = Value::String(variant.to_string());
+        }
+    }
+    serde_json::from_value(profile).context("Error decoding the user profile")
+}
+
 async fn error_check(
     response: reqwest::Response,
 ) -> Result<reqwest::Response, KeycloakError> {
@@ -551,17 +575,53 @@ impl KeycloakAdminClient {
         Ok(self.get_user_profile_configuration(realm).await?.attributes)
     }
 
+    /// The realm's user profile as Keycloak returns it: every declared
+    /// attribute, whoever may edit it, plus the unmanaged-attribute policy.
+    /// `get_user_profile_configuration` keeps only the attributes shown to
+    /// administrators in the portals.
+    #[instrument(skip(self), err)]
+    pub async fn get_user_profile(
+        self: &KeycloakAdminClient,
+        realm: &str,
+    ) -> Result<UPConfig> {
+        validate_keycloak_path_segment(realm)?;
+        match self.client.realm_users_profile_get(realm).await {
+            Ok(profile) => Ok(profile),
+            // The generated `UPConfig` cannot decode a profile that sets the
+            // unmanaged-attribute policy, which Keycloak spells `ADMIN_EDIT`;
+            // read such a profile as JSON instead.
+            Err(KeycloakError::ReqwestFailure(err)) if err.is_decode() => {
+                let admin = Self::pub_new().await?;
+                let mut endpoint = reqwest::Url::parse(&format!(
+                    "{}/admin/realms/",
+                    admin.url
+                ))?;
+                endpoint
+                    .path_segments_mut()
+                    .map_err(|_| anyhow!("Invalid Keycloak URL"))?
+                    .pop_if_empty()
+                    .extend([realm, "users", "profile"]);
+                let response = admin
+                    .client
+                    .get(endpoint)
+                    .bearer_auth(admin.token_supplier.get(&admin.url).await?)
+                    .send()
+                    .await?;
+                let response = error_check(response)
+                    .await
+                    .map_err(|err| anyhow!("{:?}", err))?;
+                user_profile_from_json(response.json().await?)
+            }
+            Err(err) => Err(anyhow!("{:?}", err)),
+        }
+    }
+
     #[instrument(skip(self), err)]
     pub async fn get_user_profile_configuration(
         self: &KeycloakAdminClient,
         realm: &str,
     ) -> Result<UserProfileConfiguration> {
-        validate_keycloak_path_segment(realm)?;
-        let response: UPConfig = self
-            .client
-            .realm_users_profile_get(&realm)
-            .await
-            .map_err(|err| anyhow!("{:?}", err))?;
+        let response = self.get_user_profile(realm).await?;
         Ok(Self::get_formatted_user_profile_configuration(response))
     }
 
@@ -692,6 +752,38 @@ impl KeycloakAdminClient {
 
 #[cfg(test)]
 mod tests {
+    use keycloak::types::UnmanagedAttributePolicy;
+    use serde_json::json;
+
+    /// Keycloak sends the policy as `ADMIN_EDIT`, which the generated
+    /// `UPConfig` type does not accept on its own.
+    #[test]
+    fn a_profile_reads_keycloaks_unmanaged_attribute_policy_names() {
+        for (wire, policy) in [
+            ("ENABLED", UnmanagedAttributePolicy::Enabled),
+            ("ADMIN_VIEW", UnmanagedAttributePolicy::AdminView),
+            ("ADMIN_EDIT", UnmanagedAttributePolicy::AdminEdit),
+        ] {
+            let profile = super::user_profile_from_json(json!({
+                "attributes": [{"name": "area-id"}],
+                "unmanagedAttributePolicy": wire,
+            }))
+            .unwrap();
+            assert_eq!(profile.unmanaged_attribute_policy, Some(policy));
+            assert_eq!(
+                profile.attributes.unwrap()[0].name.as_deref(),
+                Some("area-id")
+            );
+        }
+        let without =
+            super::user_profile_from_json(json!({"attributes": []})).unwrap();
+        assert_eq!(without.unmanaged_attribute_policy, None);
+        assert!(super::user_profile_from_json(json!({
+            "unmanagedAttributePolicy": "SOMETHING_ELSE"
+        }))
+        .is_err());
+    }
+
     #[test]
     fn created_voter_id_comes_only_from_a_valid_location() {
         use reqwest::header::{HeaderMap, LOCATION};

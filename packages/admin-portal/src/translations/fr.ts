@@ -3389,6 +3389,12 @@ const frenchTranslation: TranslationType = {
                 total_votes_percent: "Participation",
                 total_votes_counted: "Total des Votes Comptés",
                 total_auditable_votes: "Total des Votes Contrôlables",
+                total_auditable_votes_help:
+                    "Bulletins exclus du dépouillement, toujours chiffrés : ceux des électeurs qui ne sont pas éligibles, et le dernier bulletin écarté de chaque électeur sans bulletin valide. L'archive des résultats du dépouillement les contient dans son dossier auditable-ballots.",
+                total_auditable_votes_help_sealed:
+                    "Les urnes sont scellées à la clôture : l'éligibilité est celle enregistrée dans le scellé, donc un électeur désactivé ensuite reste compté.",
+                total_auditable_votes_help_pseudonym:
+                    "Les électeurs sont identifiés par leurs pseudonymes, et non par leurs identifiants d'électeur.",
                 total_valid_votes: "Total de votes valides",
                 total_valid_votes_percent: "Pourcentage de votes valides",
                 total_invalid_votes: "Total de votes invalides",

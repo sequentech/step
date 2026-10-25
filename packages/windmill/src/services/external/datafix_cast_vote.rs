@@ -354,6 +354,7 @@ where
                 &cast_vote.election_event_id,
                 voter_id,
                 username,
+                cast_vote.area_id.as_deref(),
                 operation,
             )
             .await;

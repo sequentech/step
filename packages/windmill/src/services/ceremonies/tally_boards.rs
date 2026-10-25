@@ -12,8 +12,11 @@ use crate::postgres::area::get_event_areas;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::tally_session::merge_tally_session_annotation;
 use crate::services::ballot_box_reads::count_unresolved_votes;
-use crate::services::cast_votes::find_area_ballots;
+use crate::services::cast_votes::{find_area_ballots, TALLY_AUDIT_COLUMNS};
 use crate::services::celery_app::get_worker_threads;
+use crate::services::ceremonies::auditable_ballots::{
+    auditable_ballots_document_id, AuditableBallotsFile, AuditableBallotsWriter,
+};
 use crate::services::ceremonies::batch_anonymity::{
     enforce_batch_anonymity, session_divergences, small_batch, PostedBatch,
 };
@@ -82,6 +85,7 @@ pub fn contest_annotations(
         votes_by_channel: Some(merge_result.casted_ballots_by_channel.clone()),
         weight_bit_mask,
         ballot_box_seal_hash,
+        auditable_ballots_document_id: None,
     }
 }
 
@@ -465,12 +469,15 @@ pub async fn sealed_boxes_for_execution(
 }
 
 /// One contest area's ballots, split into the batches its tally boards carry.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct ExtractedContestArea {
     /// The contest area, with the annotations the extraction recorded.
     pub contest: TallySessionContest,
     /// Every batch the area owns, by batch number, with its ballots.
     pub batches: Vec<(i64, Vec<BallotCiphertext>)>,
+    /// The ballots the annotations count as without voter, to store as the
+    /// document the annotations name.
+    pub auditable_ballots: AuditableBallotsFile,
 }
 
 /// The ballot of one stored cast vote the contest area counts.
@@ -648,6 +655,10 @@ pub async fn extract_tally_boards(
                             .election_ids
                             .contains(&tally_session_contest.election_id)
                     });
+                    let mut auditable_ballots = AuditableBallotsWriter::new(
+                        contest_encryption_policy_clone.clone(),
+                        identity_mode.into(),
+                    )?;
                     let (merge_result, ballot_box_seal_hash) = match sealed_boxes {
                         Some(sealed_boxes) => {
                             let election_name = sealed_boxes
@@ -671,6 +682,7 @@ pub async fn extract_tally_boards(
                                     tally_session_id: &tally_session_contest.tally_session_id,
                                 },
                                 weighted_voting_policy_clone,
+                                |ballot| auditable_ballots.write(ballot),
                             )
                             .await?;
                             (sealed.merge_result, Some(sealed.seal_hash))
@@ -782,6 +794,8 @@ pub async fn extract_tally_boards(
                                 ballots_output_index,
                                 Some(ballots_channel_index),
                                 multiplicity_source,
+                                Some(TALLY_AUDIT_COLUMNS),
+                                |ballot| auditable_ballots.write(ballot),
                             )?;
                             (merge_result, None)
                         }
@@ -840,8 +854,13 @@ pub async fn extract_tally_boards(
                         None
                     };
 
-                    let annotations =
+                    let auditable_ballots = auditable_ballots.finish()?;
+                    let mut annotations =
                         contest_annotations(&merge_result, weight_bit_mask, ballot_box_seal_hash);
+                    if auditable_ballots.count > 0 {
+                        annotations.auditable_ballots_document_id =
+                            Some(auditable_ballots_document_id(&tally_session_contest.id));
+                    }
 
                     let annotations = serde_json::to_value(&annotations)?;
 
@@ -942,6 +961,7 @@ pub async fn extract_tally_boards(
                     Ok(ExtractedContestArea {
                         contest: updated_tally_session_contest,
                         batches: area_batches,
+                        auditable_ballots,
                     })
                 })
             });
@@ -963,9 +983,10 @@ fn voters_replacing_their_delegation(
     ballots_file: &std::fs::File,
 ) -> Result<Vec<String>> {
     match column {
-        // find_area_ballots selects valid ballots in PostgreSQL and emits
-        // only voter id, content and channel; there is no status column.
-        VoterMultiplicityColumn::DelegateCount => read_ballot_voter_ids(ballots_file, 0),
+        // A discarded ballot is not the delegator's own vote.
+        VoterMultiplicityColumn::DelegateCount => {
+            read_ballot_voter_ids(ballots_file, 0, Some(TALLY_AUDIT_COLUMNS))
+        }
         VoterMultiplicityColumn::VoteWeight | VoterMultiplicityColumn::None => Ok(Vec::new()),
     }
 }
@@ -1040,8 +1061,9 @@ mod tests {
         let mut ballots = tempfile::NamedTempFile::new().unwrap();
         writeln!(
             ballots,
-            "alice,content-a,ONLINE\n\
-             bob,content-b,KIOSK"
+            "alice,content-a,ONLINE,valid,id-a,ballot-a\n\
+             bob,content-b,KIOSK,valid,id-b,ballot-b\n\
+             carol,content-c,ONLINE,discarded,id-c,ballot-c"
         )
         .unwrap();
         ballots.flush().unwrap();

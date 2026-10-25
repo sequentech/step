@@ -421,6 +421,17 @@ describe("the review screen's rendering of the same contest", () => {
         )
     })
 
+    it.each([false, true])(
+        "describes the answer group with the contest's error region (review: %s)",
+        (isReview) => {
+            mountContest(aContest(), {isReview})
+            const group = document.querySelector(".candidates-container")!
+            const describedBy = group.getAttribute("aria-describedby")
+            expect(describedBy).not.toBeNull()
+            expect(document.getElementById(describedBy!)).toBe(screen.getByRole("status"))
+        }
+    )
+
     it("hands the encoder's report for this contest up to the screen", () => {
         const contest = aContest()
         const report = marks(contest, {a: 0})
@@ -466,6 +477,31 @@ describe("an acclaimed contest", () => {
         expect(document.querySelector(".candidates-review-blank-ballot")).toBeNull()
         expect(document.querySelector(".candidates-review-blank")).toBeNull()
         expect(screen.getByText("Alice Okonjo")).toBeInTheDocument()
+    })
+
+    it.each([false, true])(
+        "points the answer group at no error region, since it draws none (review: %s)",
+        (isReview) => {
+            mountContest(acclaimed(), {isReview})
+            expect(screen.queryByRole("status")).toBeNull()
+            expect(document.querySelector(".candidates-container")).not.toHaveAttribute(
+                "aria-describedby"
+            )
+        }
+    )
+
+    it("dims its candidates where they are disabled, but not on review", () => {
+        const opacity = (name: string) => {
+            const row = screen.getByText(name).closest(".candidate-item")!
+            const value = getComputedStyle(row).opacity || "1"
+            return parseFloat(value) / (value.endsWith("%") ? 100 : 1)
+        }
+        const vote = mountContest(acclaimed())
+        expect(opacity("Alice Okonjo")).toBe(0.5)
+        vote.unmount()
+
+        mountContest(acclaimed(), {isReview: true})
+        expect(opacity("Alice Okonjo")).toBe(1)
     })
 })
 

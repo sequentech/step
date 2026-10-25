@@ -3382,6 +3382,12 @@ const tagalogTranslation: TranslationType = {
                 total_votes_percent: "Pakikilahok",
                 total_votes_counted: "Kabuuang mga Botong Nabilang",
                 total_auditable_votes: "Kabuuang Mga Botong Maaaring Ma-audit",
+                total_auditable_votes_help:
+                    "Mga balotang hindi isinama sa bilang, naka-encrypt pa rin: ang mga balota ng mga botanteng hindi kwalipikado, at ang huling itinapong balota ng bawat botanteng walang balidong balota. Nasa folder na auditable-ballots ng archive ng mga resulta ng tally ang mga ito.",
+                total_auditable_votes_help_sealed:
+                    "Sinesele ang mga ballot box sa pagsasara: ang pagiging kwalipikado ay ang nakatala sa selyo, kaya patuloy na binibilang ang botanteng na-disable pagkatapos nito.",
+                total_auditable_votes_help_pseudonym:
+                    "Kinikilala ang mga botante sa kanilang mga pseudonym, hindi sa kanilang mga voter ID.",
                 total_valid_votes: "Kabuuang mga balidong boto",
                 total_valid_votes_percent: "Porsyento ng balidong boto",
                 total_invalid_votes: "Kabuuang mga di-balidong boto",
