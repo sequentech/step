@@ -20,25 +20,89 @@ until every check on this page has passed.
 
 ## Running images
 
-On C1:
+On C1, after importing all delivered images on both nodes, use the verified
+`/root/deploy/image-digests.txt`. A runtime image ID may identify an OCI index
+instead of the delivered manifest. The following check hashes each referenced
+content blob, resolves an index only when it has exactly one child, and
+compares the image configuration digest. That configuration binds the image
+settings and the root filesystem layer hashes. Each running, ready container
+must also name the delivered manifest digest in its pod specification.
 
 ```bash
+(
+set -euo pipefail
 cd /root/deploy
-k3s kubectl get pods -A -o json > pods.json
-grep -E '^(b4|ballot-verifier|braid|harvest|keycloak|windmill) sha256:' \
-  image-digests.txt | while read -r p d; do
-  jq -r --arg p "$p" --arg d "$d" '[.items[].status.containerStatuses[]?
-    | select(.state.running != null and .ready == true)
-    | select(.imageID | endswith($d))] | "\($p) \(length)"' pods.json
-done
-jq -r '.items[].spec.containers[].image' pods.json \
+D=$(mktemp -d /root/deploy/image-check.XXXXXX)
+trap 'rm -rf "$D"' EXIT
+blob() {
+  local d=$1 f
+  [[ $d =~ ^sha256:[0-9a-f]{64}$ ]] || return 1
+  f=$D/${d#sha256:}
+  [ -s "$f" ] || k3s ctr -n k8s.io content get "$d" > "$f" || return
+  [ "$(sha256sum "$f" | cut -d' ' -f1)" = "${d#sha256:}" ] || return 1
+  printf '%s\n' "$f"
+}
+config() {
+  local d=$1 f c depth
+  for depth in 1 2 3 4; do
+    f=$(blob "$d") || return
+    c=$(jq -r '.config.digest // empty' "$f") || return
+    if [ -n "$c" ]; then
+      blob "$c" > /dev/null || return
+      printf '%s\n' "$c"
+      return
+    fi
+    d=$(jq -er 'select((.manifests | length) == 1) | .manifests[0].digest' "$f") || return
+  done
+  return 1
+}
+grep -E '^(b4|ballot-verifier|braid|harvest|keycloak|windmill) sha256:' image-digests.txt > "$D/expected.txt"
+[ "$(wc -l < "$D/expected.txt")" -eq 6 ]
+[ "$(cut -d' ' -f1 "$D/expected.txt" | sort -u | wc -l)" -eq 6 ]
+k3s kubectl get pods -A -o json > "$D/pods.json"
+awk '{print "sequentech.local/" $1 "@" $2}' "$D/expected.txt" > "$D/refs.txt"
+jq -e --rawfile refs "$D/refs.txt" '
+  ($refs | split("\n") | map(select(length > 0))) as $expected
+  | all(.items[]; . as $pod | all(.spec.containers[];
+      if (.image | test("^sequentech\\.local/(b4|ballot-verifier|braid|harvest|keycloak|windmill)(@|:)"))
+      then . as $container
+        | (($expected | index($container.image)) != null)
+        and ($pod.status.phase == "Succeeded" or any($pod.status.containerStatuses[]?;
+          .name == $container.name and .ready == true and .state.running != null))
+      else true end))' "$D/pods.json" > /dev/null
+while read -r p d; do
+  expected=$(config "$d")
+  mapfile -t actual < <(jq -r --arg ref "sequentech.local/$p@$d" '
+    .items[] as $pod | $pod.spec.containers[] | select(.image == $ref)
+    | .name as $name | $pod.status.containerStatuses[]?
+    | select(.name == $name and .ready == true and .state.running != null)
+    | .imageID' "$D/pods.json")
+  minimum=1; case "$p" in braid|windmill) minimum=2;; esac
+  [ "${#actual[@]}" -ge "$minimum" ]
+  for id in "${actual[@]}"; do
+    observed=$(config "${id##*@}")
+    [ "$observed" = "$expected" ]
+  done
+  printf '%s %s verified\n' "$p" "${#actual[@]}"
+done < "$D/expected.txt"
+if jq -r '.items[].spec.containers[].image' "$D/pods.json" \
   | grep -E 'sequentech\.local/(b4|ballot|braid|harvest|keycloak|windmill)' \
-  | grep -v '@sha256:'
+  | grep -v '@sha256:'; then
+  echo 'FAIL: a TOE container uses an unpinned image' >&2
+  exit 1
+fi
+)
 ```
 
-Each TOE part must show at least one running container (`braid` two, one for
-each trustee instance), and the last command must print nothing: no TOE
-container runs an image by tag.
+The block must exit successfully and print six `verified` lines: at least one
+running container for each TOE part, at least two for `windmill` (the worker
+and beat services), and at least two for `braid`, one for each trustee
+instance. Every active TOE container must be ready; completed setup jobs may
+remain. It also rejects unexpected or tag-only TOE image references. Stop
+if a blob is unavailable, an index has multiple children, a digest differs,
+or a required container is missing; do not substitute a pod-specification-only
+check. The check reads the imported content cache on C1, so keep that cache
+until verification completes.
 
 ## Version
 

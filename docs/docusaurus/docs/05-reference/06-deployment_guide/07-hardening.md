@@ -245,17 +245,26 @@ other origin, a web page on another site could call the TOE with a voter's
 browser.
 :::
 
-Only the three portal origins may make cross-origin requests:
+Set the same three allowed origins on the ingress and on the GraphQL
+backend. The ingress allowlist alone does not remove an allow-origin header
+returned by the backend:
 
 ```bash
 printf '      - "https://%s"\n' "$PORTAL_HOST" "$VERIFIER_HOST" "$ADMIN_HOST" \
   > /root/deploy/origins.txt
 sed -i -e '/accessControlAllowOriginList:/r /root/deploy/origins.txt' \
   -e '/accessControlAllowOriginList:/{n;/- "\*"/d}' voting-portal/middleware.yaml
+k3s kubectl set env --local --containers=hasura -f hasura/deployment.yaml \
+  HASURA_GRAPHQL_CORS_DOMAIN="https://$PORTAL_HOST,https://$VERIFIER_HOST,https://$ADMIN_HOST" \
+  -o yaml > /root/deploy/hasura-cors.yaml &&
+mv /root/deploy/hasura-cors.yaml hasura/deployment.yaml
 grep -A3 'accessControlAllowOriginList:' voting-portal/middleware.yaml
+grep -A1 'name: HASURA_GRAPHQL_CORS_DOMAIN$' hasura/deployment.yaml
 ```
 
-The list must hold the three `https://` origins and no `"*"`.
+The ingress list and the comma-separated backend value must contain the
+same three `https://` origins and no `"*"`. The backend setting applies only
+to the `hasura` container; preserve the other deployment settings.
 
 ## Block the master realm
 
@@ -378,6 +387,10 @@ the same sign-in settings:
 - the external authentication server is the only identity provider, every
   sign-in is redirected to it, the local sign-in forms are disabled, and a
   first sign-in only links to an existing account;
+- the local `mfa-method-selector` required action is disabled, including its
+  default action, so it does not request a second enrollment after external
+  authentication; the external server's required factors remain enforced and
+  the other required actions remain unchanged;
 - the administration and voting portals use the authorization code flow with
   PKCE (S256), no password grant, and redirect only to their own hosts; the
   command-line client `admin-cli` has no password grant either.
@@ -435,6 +448,8 @@ def password(v): [{type: "password", value: v, temporary: false}];
 | .eventsListeners = ((.eventsListeners // []) + ["custom-event-listener"] | unique)
 | .registrationAllowed = false | .resetPasswordAllowed = false
 | .rememberMe = false
+| .requiredActions |= map(if .alias == "mfa-method-selector"
+    then .enabled = false | .defaultAction = false else . end)
 | .identityProviders = $idp | .identityProviderMappers = []
 | .authenticatorConfig = [(.authenticatorConfig // [])[]
     | select(.alias != "redirect-to-idp")]
@@ -515,6 +530,8 @@ The loop must print `done` for the three documents. Then check them:
 for d in tenant tenant-template event-template; do
   jq -c '{sslRequired, ssoSessionIdleTimeout, bruteForceProtected, failureFactor,
     eventsEnabled, registrationAllowed, resetPasswordAllowed, rememberMe,
+    mfa_selector: [.requiredActions[] | select(.alias == "mfa-method-selector")
+      | [.enabled, .defaultAction]],
     idps: [.identityProviders[].alias],
     users: [.users[]? | select(.credentials) | .username],
     disabled: [.clients[] | select(.enabled == false) | .clientId]}' \
@@ -524,8 +541,9 @@ done
 
 Each line must show `"sslRequired":"external"`, `"ssoSessionIdleTimeout":900`,
 `"bruteForceProtected":true`, `"failureFactor":5`, `"eventsEnabled":true`,
-`false` for the three self-service settings, and IDP_ALIAS as the only
-identity provider. Only the tenant document lists users with a credential:
+`false` for the three self-service settings, `"mfa_selector":[[false,false]]`,
+and IDP_ALIAS as the only identity provider. Only the tenant document lists
+users with a credential:
 `trustee1` and `trustee2`. The tenant document and the tenant template list
 the disabled client `cli-account-admin`; the event template lists
 `account-console`, `ivr-service`, `ivr-voting`, `onsite-voting-portal`,
