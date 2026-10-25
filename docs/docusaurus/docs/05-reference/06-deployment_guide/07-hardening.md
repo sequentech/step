@@ -63,6 +63,8 @@ a path suffix; the private endpoint stays inside the cluster. Preserve the
 bucket path, host and query of each signed request: stripping `/storage`
 from a signed URL would invalidate its signature.
 
+<!-- REUSE-IgnoreStart -->
+
 ```bash
 cd /root/deploy/kubernetes
 sed -i 's|^  AWS_S3_PUBLIC_URI:.*|  AWS_S3_PUBLIC_URI: "https://'"$PORTAL_HOST"'"|' config/step-env.yaml
@@ -134,6 +136,8 @@ EOF
 grep '^  AWS_S3_PUBLIC_URI:' config/step-env.yaml
 grep -A3 'accessControlAllowOriginList:' rustfs/browser-ingress.yaml
 ```
+
+<!-- REUSE-IgnoreEnd -->
 
 The public endpoint must be `https://PORTAL_HOST` with your voting portal
 host and no trailing path. The origin list must contain exactly the three
