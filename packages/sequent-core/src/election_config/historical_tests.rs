@@ -768,7 +768,8 @@ fn source_charsets_and_nullable_affiliations_preserve_text_without_invention() {
     sql.splice(start..start + marker.len(), [0x80, 0xe9]);
     let adapted = adapt(&sql, &xlsx, &reviewed()).unwrap();
     assert_eq!(
-        adapted.workbook.rows("candidates")[0].text("name"),
+        adapted.workbook.rows("candidates")[0]
+            .text("presentation.i18n.en.name"),
         Some("€é")
     );
     assert!(adapted.workbook.rows("candidates")[0]
@@ -806,7 +807,7 @@ fn source_charsets_and_nullable_affiliations_preserve_text_without_invention() {
             .unwrap()
             .workbook
             .rows("candidates")[0]
-            .text("name"),
+            .text("presentation.i18n.en.name"),
         Some("Résumé")
     );
 }
@@ -1381,4 +1382,280 @@ fn each_required_source_table_reports_its_missing_column_before_conversion() {
         assert!(problem.path.contains(table), "{table}: {}", problem.path);
         assert!(problem.path.contains(column), "{column}: {}", problem.path);
     }
+}
+#[test]
+fn every_name_lands_in_the_localized_presentation_the_importer_keeps() {
+    let (sql, xlsx) = fixture();
+    let adapted = adapt(&sql, &xlsx, &reviewed()).unwrap();
+    let built = build(
+        &adapted.workbook,
+        &TemplateSet::builtin().unwrap(),
+        &BuildOptions::default(),
+        &Sources::default(),
+    )
+    .unwrap();
+    let export = &built.export;
+    for (entity, expected) in [
+        (&export["election_event"], "Synthetic Event"),
+        (&export["elections"][0], "Example Election"),
+        (&export["contests"][0], "Example Seat"),
+        (&export["candidates"][0], "Example Candidate"),
+    ] {
+        assert_eq!(
+            entity["presentation"]["i18n"]["en"]["name"],
+            json!(expected)
+        );
+        assert!(entity.get("name").is_none(), "{entity}");
+    }
+}
+#[test]
+fn a_plain_workbook_name_must_agree_with_its_localized_name() {
+    let (sql, xlsx) = fixture();
+    for sheet in ["electionevent", "elections"] {
+        let localized = changed_workbook(&xlsx, |sheets| {
+            let target = sheets.iter_mut().find(|s| s.key == sheet).unwrap();
+            target.rows[0].cells.retain(|(c, _)| c != "name");
+            set(
+                &mut target.rows[0],
+                "presentation.i18n.en.name",
+                json!("Localized"),
+            );
+        });
+        let adapted = adapt(&sql, &localized, &reviewed()).unwrap();
+        assert_eq!(
+            adapted.workbook.rows(sheet)[0].text("presentation.i18n.en.name"),
+            Some("Localized")
+        );
+        assert!(adapted.workbook.rows(sheet)[0].get("name").is_none());
+
+        let agreeing = changed_workbook(&xlsx, |sheets| {
+            let target = sheets.iter_mut().find(|s| s.key == sheet).unwrap();
+            let plain = target.rows[0].text("name").unwrap().to_string();
+            set(
+                &mut target.rows[0],
+                "presentation.i18n.en.name",
+                json!(plain),
+            );
+        });
+        adapt(&sql, &agreeing, &reviewed()).unwrap();
+
+        let conflicting = changed_workbook(&xlsx, |sheets| {
+            let target = sheets.iter_mut().find(|s| s.key == sheet).unwrap();
+            set(
+                &mut target.rows[0],
+                "presentation.i18n.en.name",
+                json!("Another name"),
+            );
+        });
+        refused_code(&sql, &conflicting, &reviewed(), Code::ConflictingColumns);
+    }
+}
+fn built_export(sql: &[u8], xlsx: &[u8]) -> Value {
+    let adapted = adapt(sql, xlsx, &reviewed()).unwrap();
+    build(
+        &adapted.workbook,
+        &TemplateSet::builtin().unwrap(),
+        &BuildOptions::default(),
+        &Sources::default(),
+    )
+    .unwrap()
+    .export
+}
+fn localized<'a>(entity: &'a Value, language: &str, field: &str) -> &'a Value {
+    &entity["presentation"]["i18n"][language][field]
+}
+#[test]
+fn workbook_descriptions_land_in_the_localized_presentation_the_admin_portal_edits(
+) {
+    let (sql, xlsx) = fixture();
+    let export = built_export(&sql, &xlsx);
+    for entity in [&export["election_event"], &export["elections"][0]] {
+        assert_eq!(localized(entity, "en", "description"), &json!("Test"));
+        assert_eq!(entity["description"], json!("Test"), "{entity}");
+    }
+}
+#[test]
+fn a_plain_workbook_description_must_agree_with_its_localized_description() {
+    let (sql, xlsx) = fixture();
+    let description = "presentation.i18n.en.description";
+    for sheet in ["electionevent", "elections"] {
+        let localized_only = changed_workbook(&xlsx, |sheets| {
+            let target = sheets.iter_mut().find(|s| s.key == sheet).unwrap();
+            target.rows[0].cells.retain(|(c, _)| c != "description");
+            set(&mut target.rows[0], description, json!("Localized"));
+        });
+        let adapted = adapt(&sql, &localized_only, &reviewed()).unwrap();
+        assert_eq!(
+            adapted.workbook.rows(sheet)[0].text(description),
+            Some("Localized")
+        );
+
+        let agreeing = changed_workbook(&xlsx, |sheets| {
+            let target = sheets.iter_mut().find(|s| s.key == sheet).unwrap();
+            set(&mut target.rows[0], description, json!("Test"));
+        });
+        adapt(&sql, &agreeing, &reviewed()).unwrap();
+
+        let conflicting = changed_workbook(&xlsx, |sheets| {
+            let target = sheets.iter_mut().find(|s| s.key == sheet).unwrap();
+            set(&mut target.rows[0], description, json!("Another text"));
+        });
+        let problem = refused_code(
+            &sql,
+            &conflicting,
+            &reviewed(),
+            Code::ConflictingColumns,
+        );
+        assert!(
+            problem.path.ends_with("column 'description'"),
+            "{}",
+            problem.path
+        );
+    }
+}
+#[test]
+fn names_go_to_each_rows_default_language_beside_its_existing_translations() {
+    let (sql, xlsx) = fixture();
+    let xlsx = changed_workbook(&xlsx, |sheets| {
+        for sheet in sheets.iter_mut().filter(|s| {
+            ["electionevent", "elections"].contains(&s.key.as_str())
+        }) {
+            let row = &mut sheet.rows[0];
+            set(
+                row,
+                "presentation.language_conf.default_language_code",
+                json!("es"),
+            );
+            set(row, "presentation.i18n.tl.name", json!("Pangalan"));
+        }
+    });
+    let export = built_export(&sql, &xlsx);
+    for (entity, name, description) in [
+        (&export["election_event"], "Synthetic Event", Some("Test")),
+        (&export["elections"][0], "Example Election", Some("Test")),
+        (&export["contests"][0], "Example Seat", None),
+        (&export["candidates"][0], "Example Candidate", None),
+    ] {
+        assert_eq!(localized(entity, "es", "name"), &json!(name), "{entity}");
+        if let Some(description) = description {
+            assert_eq!(
+                localized(entity, "es", "description"),
+                &json!(description)
+            );
+            assert_eq!(localized(entity, "tl", "name"), &json!("Pangalan"));
+        }
+        assert!(localized(entity, "en", "name").is_null(), "{entity}");
+        assert!(localized(entity, "en", "description").is_null(), "{entity}");
+    }
+}
+#[test]
+fn an_entity_left_without_a_name_in_its_default_language_is_refused_where_it_is(
+) {
+    let (sql, xlsx) = fixture();
+    for sheet in ["electionevent", "elections"] {
+        let nameless = changed_workbook(&xlsx, |sheets| {
+            let target = sheets.iter_mut().find(|s| s.key == sheet).unwrap();
+            target.rows[0].cells.retain(|(c, _)| c != "name");
+        });
+        let problem =
+            refused_code(&sql, &nameless, &reviewed(), Code::MissingField);
+        assert!(problem.path.ends_with("column 'name'"), "{}", problem.path);
+
+        let blank = changed_workbook(&xlsx, |sheets| {
+            let target = sheets.iter_mut().find(|s| s.key == sheet).unwrap();
+            set(&mut target.rows[0], "name", json!("  "));
+        });
+        refused_code(&sql, &blank, &reviewed(), Code::MissingField);
+
+        let other_language_only = changed_workbook(&xlsx, |sheets| {
+            let target = sheets.iter_mut().find(|s| s.key == sheet).unwrap();
+            target.rows[0].cells.retain(|(c, _)| c != "name");
+            set(&mut target.rows[0], "presentation.i18n.tl.name", json!("X"));
+        });
+        let problem = refused_code(
+            &sql,
+            &other_language_only,
+            &reviewed(),
+            Code::MissingField,
+        );
+        assert!(problem.message.contains("en"), "{}", problem.message);
+    }
+    let source = String::from_utf8(sql).unwrap();
+    for (replacements, path) in [
+        (
+            vec![
+                ("('S01','Example Seat',1,'G01')", "('S01',' ',1,'G01')"),
+                ("('C01','Example Seat',1)", "('C01',' ',1)"),
+            ],
+            "seat row 1 column CONTEST",
+        ),
+        (
+            vec![("'Example Candidate','C01'", "'','C01'")],
+            "candidate row 1 column NAMEONBALLOT",
+        ),
+    ] {
+        let mut modified = source.clone();
+        for (from, to) in replacements {
+            assert!(modified.contains(from), "fixture replacement {from}");
+            modified = modified.replace(from, to);
+        }
+        let problem = refused_code(
+            modified.as_bytes(),
+            &xlsx,
+            &reviewed(),
+            Code::MissingField,
+        );
+        assert!(problem.path.ends_with(path), "{path}: {}", problem.path);
+    }
+}
+#[test]
+fn names_and_descriptions_survive_the_native_schema_and_a_reopened_archive() {
+    let (sql, xlsx) = fixture();
+    let adapted = adapt(&sql, &xlsx, &reviewed()).unwrap();
+    let built = build(
+        &adapted.workbook,
+        &TemplateSet::builtin().unwrap(),
+        &BuildOptions::default(),
+        &Sources::default(),
+    )
+    .unwrap();
+    let native: crate::election_config::ImportElectionEventSchema =
+        serde_json::from_value(built.export.clone()).unwrap();
+    let reserialized = serde_json::to_value(&native).unwrap();
+    for (collection, name) in [
+        ("elections", "Example Election"),
+        ("contests", "Example Seat"),
+        ("candidates", "Example Candidate"),
+    ] {
+        assert_eq!(
+            localized(&reserialized[collection][0], "en", "name"),
+            &json!(name)
+        );
+    }
+    assert_eq!(
+        localized(&reserialized["election_event"], "en", "name"),
+        &json!("Synthetic Event")
+    );
+
+    let zip = archive::zip(&archive::layout(&built).importable).unwrap();
+    let opened = crate::election_config::open::open(&zip).unwrap();
+    let plan = &opened.plan;
+    let en = |translated: &crate::election_config::architect::Translated| {
+        translated.by_language.get("en").cloned()
+    };
+    assert_eq!(en(&plan.name).as_deref(), Some("Synthetic Event"));
+    assert_eq!(en(&plan.description).as_deref(), Some("Test"));
+    let election = &plan.elections[0];
+    assert_eq!(en(&election.name).as_deref(), Some("Example Election"));
+    assert_eq!(en(&election.description).as_deref(), Some("Test"));
+    let contest = &election.contests[0];
+    assert_eq!(en(&contest.name).as_deref(), Some("Example Seat"));
+    assert_eq!(
+        en(&contest.candidates[0].name).as_deref(),
+        Some("Example Candidate")
+    );
+    assert_eq!(
+        contest.candidates[0].external_id,
+        "center:P01:context:e1:seat:S01:candidate:0007"
+    );
 }

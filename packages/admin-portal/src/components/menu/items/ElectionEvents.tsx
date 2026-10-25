@@ -54,6 +54,7 @@ import {
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {sortCandidatesInContest, sortContestList, sortElectionList} from "@sequentech/ui-core"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
+import {configuredLanguage} from "@/hooks/usePresentationName"
 
 const MenuItem = styled(Menu.Item)`
     color: ${adminTheme.palette.brandColor};
@@ -458,29 +459,44 @@ export default function ElectionEvents() {
         openImportDrawer?.()
     }
 
+    // A name in the interface language, else in the default language the record
+    // or its election or event configures, else in English.
+    const nameIn = (record: object, language?: string) =>
+        translateFromPresentation(record, "name", i18n.language, {defaultLanguageCode: language}) ??
+        translateFromPresentation(record, "name", "en") ??
+        "-"
+
     const transformElectionEvent = (electionEvent: ElectionEventType): ElectionEventType => {
         return {
             ...electionEvent,
-            name: translateFromPresentation(electionEvent, "name", i18n.language) ?? "-",
+            name: nameIn(electionEvent, configuredLanguage(electionEvent)),
             alias: aliasRenderer(electionEvent),
         }
     }
 
-    const transformElectionsForSort = (elections: ElectionType[]): IElection[] => {
+    const transformElectionsForSort = (
+        elections: ElectionType[],
+        eventLanguage?: string
+    ): IElection[] => {
         return elections.map((election) => {
+            const language = configuredLanguage(election) ?? eventLanguage
             return {
                 ...election,
                 tenant_id: tenantId || "",
                 image_document_id: election.image_document_id ?? "",
                 contests: [],
-                name: translateFromPresentation(election, "name", i18n.language) ?? "-",
-                alias: aliasRenderer(election),
+                name: nameIn(election, language),
+                alias: aliasRenderer(election, language),
             }
         })
     }
 
-    const transformContestsForSort = (contests: ContestType[]): IContest[] => {
+    const transformContestsForSort = (
+        contests: ContestType[],
+        electionLanguage?: string
+    ): IContest[] => {
         return contests.map((contest): IContest => {
+            const language = configuredLanguage(contest) ?? electionLanguage
             return {
                 ...contest,
                 tenant_id: tenantId || "",
@@ -489,21 +505,25 @@ export default function ElectionEvents() {
                 min_votes: 0,
                 winning_candidates_num: 0,
                 is_encrypted: false,
-                name: translateFromPresentation(contest, "name", i18n.language) ?? "-",
-                alias: aliasRenderer(contest),
+                name: nameIn(contest, language),
+                alias: aliasRenderer(contest, language),
             }
         })
     }
 
-    const transformCandidatesForSort = (candidates: ICandidate[]): ICandidate[] => {
+    const transformCandidatesForSort = (
+        candidates: ICandidate[],
+        contestLanguage?: string
+    ): ICandidate[] => {
         return candidates.map((candidate: ICandidate) => {
+            const language = configuredLanguage(candidate) ?? contestLanguage
             return {
                 ...candidate,
                 id: candidate.id,
                 election_id: electionId || "",
                 tenant_id: tenantId || "",
-                name: translateFromPresentation(candidate, "name", i18n.language) ?? "-",
-                alias: aliasRenderer(candidate),
+                name: nameIn(candidate, language),
+                alias: aliasRenderer(candidate, language),
             }
         })
     }
@@ -519,6 +539,7 @@ export default function ElectionEvents() {
             electionEvents: cloneDeep(resultData?.electionEvents ?? [])?.map(
                 (electionEvent: ElectionEventType) => {
                     const electionOrderType = electionEvent?.presentation?.elections_order
+                    const eventLanguage = configuredLanguage(electionEvent)
 
                     return {
                         ...transformElectionEvent(electionEvent),
@@ -528,11 +549,14 @@ export default function ElectionEvents() {
                                   elections:
                                       sortElectionList(
                                           transformElectionsForSort(
-                                              electionTreeData?.sequent_backend_election || []
+                                              electionTreeData?.sequent_backend_election || [],
+                                              eventLanguage
                                           ),
                                           electionOrderType
                                       )?.map?.((e: any) => {
                                           const contestOrderType = e?.presentation?.contests_order
+                                          const electionLanguage =
+                                              configuredLanguage(e) ?? eventLanguage
                                           return {
                                               ...e,
                                               ...(e.id === electionId
@@ -542,12 +566,16 @@ export default function ElectionEvents() {
                                                             sortContestList(
                                                                 transformContestsForSort(
                                                                     contestTreeData?.sequent_backend_contest ||
-                                                                        []
+                                                                        [],
+                                                                    electionLanguage
                                                                 ),
                                                                 contestOrderType
                                                             )?.map?.((c: any) => {
                                                                 let orderType =
                                                                     c.presentation?.candidates_order
+                                                                const contestLanguage =
+                                                                    configuredLanguage(c) ??
+                                                                    electionLanguage
                                                                 return {
                                                                     ...c,
                                                                     ...(c.id === contestId
@@ -557,7 +585,8 @@ export default function ElectionEvents() {
                                                                                   sortCandidatesInContest(
                                                                                       transformCandidatesForSort(
                                                                                           candidateTreeData?.sequent_backend_candidate ||
-                                                                                              []
+                                                                                              [],
+                                                                                          contestLanguage
                                                                                       ),
                                                                                       orderType
                                                                                   )
@@ -588,7 +617,8 @@ export default function ElectionEvents() {
                                                                                   sortCandidatesInContest(
                                                                                       transformCandidatesForSort(
                                                                                           candidateTreeData?.sequent_backend_candidate ||
-                                                                                              []
+                                                                                              [],
+                                                                                          contestLanguage
                                                                                       ),
                                                                                       orderType
                                                                                   )?.map(
