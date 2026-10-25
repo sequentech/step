@@ -112,6 +112,17 @@ pub async fn import_election_event(
     tenant_id: String,
     task_execution: TasksExecution,
 ) -> Result<()> {
+    execute(object, election_event_id, tenant_id, task_execution).await
+}
+
+/// The task's work, also run in-process by the package application, which
+/// must not wait on another task in its own queue.
+pub async fn execute(
+    object: ImportElectionEventBody,
+    election_event_id: String,
+    tenant_id: String,
+    task_execution: TasksExecution,
+) -> Result<()> {
     // What the import left out, with its reason, for the task's log.
     let notes = std::sync::Arc::new(std::sync::Mutex::new(Vec::<String>::new()));
     let result = provide_hasura_transaction(|hasura_transaction| {
