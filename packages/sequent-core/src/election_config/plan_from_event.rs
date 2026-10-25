@@ -771,7 +771,9 @@ fn annotations(
     found
         .iter()
         .filter(|(key, _)| {
-            !read.iter().any(|column| annotation_key(column) == key.as_str())
+            !read
+                .iter()
+                .any(|column| annotation_key(column) == key.as_str())
         })
         .filter_map(|(key, value)| {
             let text = match value {
@@ -817,8 +819,7 @@ const I18N_FIELDS: &[&str] =
 fn wording(
     presentation: &Map<String, Value>,
 ) -> BTreeMap<String, BTreeMap<String, String>> {
-    let Some(i18n) = presentation.get("i18n").and_then(Value::as_object)
-    else {
+    let Some(i18n) = presentation.get("i18n").and_then(Value::as_object) else {
         return BTreeMap::new();
     };
     i18n.iter()
@@ -864,10 +865,9 @@ fn base_export(document: &Value, event: &Map<String, Value>) -> Option<Value> {
     }
 
     let mut base = Map::new();
-    if let Some(realm) = document
-        .get("keycloak_event_realm")
-        .filter(|realm| realm.as_object().is_some_and(|realm| !realm.is_empty()))
-    {
+    if let Some(realm) = document.get("keycloak_event_realm").filter(|realm| {
+        realm.as_object().is_some_and(|realm| !realm.is_empty())
+    }) {
         base.insert("keycloak_event_realm".to_string(), realm.clone());
     }
     if !event.is_empty() {
