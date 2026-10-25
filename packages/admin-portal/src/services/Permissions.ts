@@ -259,6 +259,29 @@ const TrusteeOperationMap: Record<string, IPermissions> = {
  * the rest: navigating to an event, the sidebar tree and the tenant. Hasura grants that
  * role no writes, so an operation it can't serve fails instead of borrowing `admin-user`.
  */
+const AccountReadOperationMap: Record<string, IPermissions> = {
+    getRoles: IPermissions.ROLE_READ,
+    getPermissions: IPermissions.USER_PERMISSION_READ,
+    getUsers: IPermissions.USER_READ,
+    GetUserProfileConfiguration: IPermissions.USER_READ,
+}
+
+// Select a precise held permission before publication/trustee defaults.
+// No grant is inferred; admin-user retains its existing scoped backup fallback.
+const HeldOperationMap: Record<string, IPermissions> = {
+    FetchDocument: IPermissions.DOCUMENT_DOWNLOAD,
+    GetDocument: IPermissions.DOCUMENT_READ,
+    GetTaskById: IPermissions.TASKS_READ,
+    PublishBallot: IPermissions.PUBLISH_WRITE,
+    UpdateEventVotingStatus: IPermissions.ELECTION_STATE_WRITE,
+    UpdateElectionVotingStatus: IPermissions.ELECTION_STATE_WRITE,
+    CreateTallyCeremony: IPermissions.ADMIN_CEREMONY,
+    UpdateTallyCeremony: IPermissions.ADMIN_CEREMONY,
+    GetLifecycleSnapshots: IPermissions.ELECTION_EVENT_READ,
+    GetTallyData: IPermissions.TALLY_RESULTS_READ,
+    RecountTallySession: IPermissions.TALLY_RECOUNT_EXECUTE,
+}
+
 const NonAdminOperationMap: Record<string, IPermissions> = {
     ...AdminOperationMap,
     sequent_backend_tenant: IPermissions.ELECTION_EVENT_READ,
@@ -267,11 +290,9 @@ const NonAdminOperationMap: Record<string, IPermissions> = {
     contest_tree: IPermissions.ELECTION_EVENT_READ,
     candidate_tree: IPermissions.ELECTION_EVENT_READ,
     // Users and Roles: Harvest checks the permission again
-    getRoles: IPermissions.ROLE_READ,
-    getPermissions: IPermissions.USER_PERMISSION_READ,
+    ...AccountReadOperationMap,
     SetRolePermission: IPermissions.ROLE_WRITE,
     DeleteRolePermission: IPermissions.ROLE_WRITE,
-    getUsers: IPermissions.USER_READ,
     // Post > Publish: Start and Stop voting, and Initialize voting (its report)
     UpdateElectionVotingStatus: IPermissions.ELECTION_STATE_WRITE,
     CreateTallyCeremony: IPermissions.ADMIN_CEREMONY,
@@ -297,6 +318,62 @@ export const getOperationRole = (
     hasRole: (role: IPermissions) => boolean
 ): IPermissions => {
     const operationName = operation?.operationName
+    if (operationName === "TrusteeNames" || operationName === "GetTallySessionExecution") {
+        const readRoles =
+            operationName === "TrusteeNames"
+                ? [
+                      IPermissions.TRUSTEE_CEREMONY,
+                      IPermissions.TRUSTEE_READ,
+                      IPermissions.ADMIN_CEREMONY,
+                  ]
+                : [IPermissions.TRUSTEE_CEREMONY, IPermissions.ADMIN_CEREMONY]
+        const readRole = readRoles.find(hasRole)
+        if (readRole) return readRole
+    }
+    const heldOperationRole = mappedRoleOf(HeldOperationMap, operationName)
+    if (heldOperationRole && hasRole(heldOperationRole)) {
+        return heldOperationRole
+    }
+    if (operationName === "ImportElectionEvent" && hasRole(IPermissions.ELECTION_EVENT_CREATE)) {
+        return IPermissions.ELECTION_EVENT_CREATE
+    }
+    if (operationName === "GenerateBallotPublication") {
+        const publicationRole = [
+            IPermissions.PUBLISH_CREATE,
+            IPermissions.PUBLISH_REGENERATE,
+            IPermissions.PUBLISH_WRITE,
+        ].find(hasRole)
+        if (publicationRole) {
+            return publicationRole
+        }
+    }
+    if (operationName === "GetUploadUrl") {
+        // The server limits the tenant-write/create fallbacks to fresh private
+        // configuration archives; they never grant generic document uploads.
+        const uploadRole = [
+            IPermissions.DOCUMENT_UPLOAD,
+            IPermissions.TENANT_WRITE,
+            IPermissions.ELECTION_EVENT_CREATE,
+        ].find(hasRole)
+        if (uploadRole) {
+            return uploadRole
+        }
+    }
+    // A publication or trustee fallback cannot serve the Users and Roles
+    // queries. Prefer the precise held read permission without broadening
+    // either staff's grants or the legacy admin-user routing.
+    if (!hasRole(IPermissions.ADMIN_USER)) {
+        let readRole = mappedRoleOf(AccountReadOperationMap, operationName)
+        if (
+            (operationName === "getUsers" || operationName === "GetUserProfileConfiguration") &&
+            (operation.variables?.election_event_id || operation.variables?.electionEventId)
+        ) {
+            readRole = IPermissions.VOTER_READ
+        }
+        if (readRole && hasRole(readRole)) {
+            return readRole
+        }
+    }
     const defaultRole = DEFAULT_OPERATION_ROLES.find(hasRole)
     if (!defaultRole) {
         return mappedRoleOf(NonAdminOperationMap, operationName) ?? IPermissions.ELECTION_EVENT_READ

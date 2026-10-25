@@ -5,6 +5,7 @@ import englishTranslation, {TranslationType} from "./en"
 
 const frenchTranslation: TranslationType = {
     translations: {
+        verificationExport: englishTranslation.translations.verificationExport,
         philippinePassport: "Passeport philippin",
         seamanBook: "Livret de marin",
         philSysID: "Carte d'identité PhilSys",

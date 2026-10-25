@@ -6,17 +6,20 @@ use crate::services::access::document_extra_permissions;
 use crate::services::authorization::authorize;
 use crate::services::dependencies::HarvestServices;
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use rocket::State;
 use sequent_core::services::jwt::JwtClaims;
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::DocumentAnnotations;
+use sequent_core::types::hasura::extra::TasksExecutionStatus;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use windmill::postgres::document::get_document;
+use windmill::types::tasks::ETasksExecution;
 
 #[derive(Deserialize, Debug)]
 pub struct GetDocumentUrlBody {
@@ -74,14 +77,27 @@ async fn fetch_document_url(
     claims: JwtClaims,
     services: &HarvestServices,
 ) -> Result<Json<GetDocumentUrlResponse>, (Status, String)> {
-    authorize(
+    let input = body.into_inner();
+    let document_access = authorize(
         &claims,
         true,
         Some(claims.hasura_claims.tenant_id.clone()),
         vec![Permissions::DOCUMENT_DOWNLOAD],
-    )?;
-
-    let input = body.into_inner();
+    );
+    if let Err(ref denied) = document_access {
+        // Exporting tenant configuration already requires TENANT_READ. This
+        // alternative never permits an election-scoped or arbitrary document.
+        if input.election_event_id.is_some() {
+            return Err(denied.clone());
+        }
+        authorize(
+            &claims,
+            true,
+            Some(claims.hasura_claims.tenant_id.clone()),
+            vec![Permissions::TENANT_READ],
+        )
+        .map_err(|_| denied.clone())?;
+    }
 
     let mut hasura_db_client: DbClient = services
         .databases
@@ -104,6 +120,24 @@ async fn fetch_document_url(
             )
         },
     )?;
+
+    if let Err(denied) = document_access {
+        let backup = lock_completed_tenant_backup(
+            &hasura_transaction,
+            &claims.hasura_claims.tenant_id,
+            &input.document_id,
+        )
+        .await
+        .map_err(|error| {
+            (
+                Status::InternalServerError,
+                format!("Error checking tenant backup: {error}"),
+            )
+        })?;
+        if !backup {
+            return Err(denied);
+        }
+    }
 
     let document = get_document(
         &hasura_transaction,
@@ -159,6 +193,41 @@ async fn fetch_document_url(
     })?;
 
     Ok(Json(GetDocumentUrlResponse { url }))
+}
+
+/// Only the worker's successful tenant-export result grants the narrower
+/// download. Document metadata is mutable through Hasura, so require its
+/// exact private ZIP key shape and lock the row until the URL is generated.
+/// The storage adapter re-reads this row in the same transaction.
+async fn lock_completed_tenant_backup(
+    transaction: &Transaction<'_>,
+    tenant_id: &str,
+    document_id: &str,
+) -> Result<bool> {
+    let tenant_uuid = parse_uuid_v4(tenant_id)?;
+    let document_uuid = parse_uuid_v4(document_id)?;
+    // This is the filename written by process_export_zip, not a caller hint.
+    let name = format!("export-tenant-config-{tenant_id}.zip");
+    let task_type = ETasksExecution::EXPORT_TENANT_CONFIG.to_string();
+    let status = TasksExecutionStatus::SUCCESS.to_string();
+    let row = transaction
+        .query_opt(
+            "SELECT d.id FROM sequent_backend.document d
+         WHERE d.tenant_id = $1 AND d.id = $2
+           AND d.election_event_id IS NULL
+           AND d.name = $3 AND d.media_type = 'application/zip'
+           AND d.is_public IS FALSE
+           AND EXISTS (
+               SELECT 1 FROM sequent_backend.tasks_execution t
+               WHERE t.tenant_id = d.tenant_id
+                 AND t.election_event_id IS NULL
+                 AND t.type = $4 AND t.execution_status = $5
+                 AND t.annotations->>'document_id' = d.id::text)
+         FOR SHARE OF d",
+            &[&tenant_uuid, &document_uuid, &name, &task_type, &status],
+        )
+        .await?;
+    Ok(row.is_some())
 }
 
 #[cfg(test)]

@@ -310,7 +310,10 @@ export function usePeopleSearch(search: string) {
     const username = search.trim()
     const {data, isLoading} = useGetList<IStaffPerson>(
         "user",
-        {filter: {tenant_id: tenantId, username}, pagination: {page: 1, perPage: 20}},
+        {
+            filter: {tenant_id: tenantId, username: {IsLike: username}},
+            pagination: {page: 1, perPage: 20},
+        },
         {enabled: username.length > 0}
     )
     return {people: username ? (data ?? []) : [], loading: username.length > 0 && isLoading}

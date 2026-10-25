@@ -18,13 +18,14 @@ import {
 import InputAdornment from "@mui/material/InputAdornment"
 import {
     CreateKeysCeremonyMutation,
+    ListKeysCeremonyQuery,
+    TrusteeNamesQuery,
     Sequent_Backend_Election,
     Sequent_Backend_Election_Event,
     Sequent_Backend_Keys_Ceremony,
     Sequent_Backend_Trustee,
 } from "@/gql/graphql"
 import {
-    useGetList,
     useRefresh,
     SimpleForm,
     TextInput,
@@ -40,22 +41,22 @@ import {
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos"
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
 import {FieldValues, SubmitHandler} from "react-hook-form"
-import {useMutation} from "@apollo/client"
+import {useApolloClient, useMutation, useQuery} from "@apollo/client"
 import {useTranslation} from "react-i18next"
 import {CREATE_KEYS_CEREMONY} from "@/queries/CreateKeysCeremony"
+import {GET_TRUSTEES_NAMES} from "@/queries/GetTrusteesNames"
+import {LIST_KEYS_CEREMONY} from "@/queries/ListKeysCeremonies"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {Dialog} from "@sequentech/ui-essentials"
-import {
-    EElectionEventCeremoniesPolicy,
-    IElectionEventPresentation,
-    isNull,
-} from "@sequentech/ui-core"
+import {EElectionEventCeremoniesPolicy, IElectionEventPresentation} from "@sequentech/ui-core"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {IPermissions} from "@/types/keycloak"
 import {Clear} from "@mui/icons-material"
 import {CreateKeysError} from "@/types/ceremonies"
 import {electionSearchFilter} from "@/services/ElectionSearch"
+
+type TrusteeChoice = Pick<Sequent_Backend_Trustee, "id" | "name">
 
 const ITEM_HEIGHT = 48
 const ITEM_PADDING_TOP = 8
@@ -86,13 +87,13 @@ export interface ConfigureStepProps {
 }
 
 export const ConfigureStep: React.FC<ConfigureStepProps> = ({
-    currentCeremony,
     setCurrentCeremony,
     electionEvent,
     openCeremonyStep,
     goBack,
 }) => {
     const {t, i18n} = useTranslation()
+    const client = useApolloClient()
     const [tenantId] = useTenantStore()
     const notify = useNotify()
     const translate = useTranslate()
@@ -116,16 +117,17 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
     const [trusteeNames, setTrusteeNames] = useState<string[]>([])
     const refresh = useRefresh()
     const aliasRenderer = useAliasRenderer()
-    const {data: trusteeList, error} = useGetList<Sequent_Backend_Trustee>(
-        "sequent_backend_trustee",
-        {
-            pagination: {page: 1, perPage: 200},
-            sort: {field: "last_updated_at", order: "DESC"},
-            filter: {
-                tenant_id: electionEvent.tenant_id,
-            },
-        }
-    )
+    // These choices only need public names/IDs. The generic resource is not
+    // exposed by the board's default introspection role.
+    const {
+        data: trusteesData,
+        loading: trusteesLoading,
+        error: trusteesError,
+    } = useQuery<TrusteeNamesQuery>(GET_TRUSTEES_NAMES, {
+        variables: {tenantId: electionEvent.tenant_id},
+        context: {headers: {"x-hasura-role": IPermissions.ADMIN_CEREMONY}},
+    })
+    const trusteeList = trusteesData?.sequent_backend_trustee
     const {data: electionById} = useGetOne<Sequent_Backend_Election>(
         "sequent_backend_election",
         {
@@ -141,21 +143,8 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
         },
         {enabled: !!electionId}
     )
-    const {data: keysCeremony, isLoading: isOneLoading} = useGetOne<Sequent_Backend_Keys_Ceremony>(
-        "sequent_backend_keys_ceremony",
-        {
-            id: newId,
-            meta: {
-                tenant_id: tenantId,
-                election_event_id: electionEvent.id,
-            },
-        }
-    )
-
     const [filterTrustees, setFilterTrustees] = useState<string>("")
-    const [filteredTrustees, setFilteredTrustees] = useState<
-        Sequent_Backend_Trustee[] | undefined
-    >()
+    const [filteredTrustees, setFilteredTrustees] = useState<TrusteeChoice[] | undefined>()
 
     const filteredTrusteesSorted = useMemo(
         () =>
@@ -171,37 +160,11 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
 
     useEffect(() => {
         setFilteredTrustees(
-            trusteeList?.filter((trustee: Sequent_Backend_Trustee) =>
+            trusteeList?.filter((trustee: TrusteeChoice) =>
                 trustee?.name?.toLowerCase().includes(filterTrustees)
             ) ?? []
         )
     }, [filterTrustees, trusteeList])
-
-    useEffect(() => {
-        if (isNull(newId)) {
-            return
-        }
-        if (isLoading && error && !isOneLoading) {
-            setIsLoading(false)
-            notify(t("keysGeneration.configureStep.errorCreatingCeremony", {error: error + ""}), {
-                type: "error",
-            })
-            refresh()
-            return
-        }
-        if (isLoading && !error && !isOneLoading && !currentCeremony && keysCeremony) {
-            setIsLoading(false)
-            setCurrentCeremony(keysCeremony)
-            openCeremonyStep()
-            notify(t("keysGeneration.configureStep.createCeremonySuccess"), {type: "success"})
-            refresh()
-            return
-        }
-    }, [isLoading, keysCeremony, isOneLoading, error])
-
-    if (isLoading || error) {
-        return null
-    }
 
     // called by confirmCreateKeysCeremony() to create the Keys Ceremony
     const createKeysCeremony: (input: {
@@ -236,18 +199,15 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
             }
         }
         if (errors) {
-            setErrors(t("keysGeneration.configureStep.errorCreatingCeremony", {code: error + ""}))
+            setErrors(t("keysGeneration.configureStep.errorCreatingCeremony", {error: "error"}))
             return null
-        }
-        if (data) {
-            console.log(data)
         }
         return data?.create_keys_ceremony?.keys_ceremony_id ?? null
     }
 
     // Called by the confirmation dialog to create the Keys Ceremony
     const confirmCreateKeysCeremony = async () => {
-        if (isLoading) {
+        if (isLoading || newId || trusteesLoading || trusteesError || !trusteeList) {
             return
         }
         setErrors(null)
@@ -266,16 +226,42 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                 electionId: electionId ?? undefined,
                 isAutomaticCeremony: isAutomaticCeremony,
             })
-            if (keysCeremonyId) {
-                setNewId(keysCeremonyId)
-            } else {
+            if (!keysCeremonyId) {
                 notify(t("keysGeneration.configureStep.errorCreatingCeremony", {error: "error"}), {
                     type: "error",
                 })
-                setIsLoading(false)
+                return
             }
+            // The mutation has committed. Keep its ID even if the follow-up read
+            // fails, so submitting again cannot create a second ceremony.
+            setNewId(keysCeremonyId)
+            const {data} = await client.query<ListKeysCeremonyQuery>({
+                query: LIST_KEYS_CEREMONY,
+                variables: {electionEventId: electionEvent.id},
+                context: {headers: {"x-hasura-role": IPermissions.ADMIN_CEREMONY}},
+                fetchPolicy: "network-only",
+            })
+            const created =
+                data.list_keys_ceremony?.items.filter(
+                    (ceremony) =>
+                        ceremony?.id === keysCeremonyId &&
+                        ceremony.tenant_id === electionEvent.tenant_id &&
+                        ceremony.election_event_id === electionEvent.id
+                ) ?? []
+            if (created.length !== 1) {
+                throw new Error("The created ceremony could not be loaded for this election event.")
+            }
+            setCurrentCeremony(created[0] as Sequent_Backend_Keys_Ceremony)
+            openCeremonyStep()
+            notify(t("keysGeneration.configureStep.createCeremonySuccess"), {type: "success"})
+            refresh()
         } catch (error) {
-            setErrors(t("keysGeneration.configureStep.errorCreatingCeremony", {error: error + ""}))
+            setErrors(
+                t("keysGeneration.configureStep.errorCreatingCeremony", {
+                    error: error instanceof Error ? error.message : "error",
+                })
+            )
+        } finally {
             setIsLoading(false)
         }
     }
@@ -342,6 +328,14 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
         electionEvent.presentation?.ceremonies_policy ===
         EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES
 
+    const visibleError =
+        errors ??
+        (trusteesError
+            ? t("keysGeneration.configureStep.errorCreatingCeremony", {
+                  error: trusteesError.message,
+              })
+            : null)
+
     return (
         <>
             <WizardStyles.ContentBox>
@@ -360,6 +354,13 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                             </WizardStyles.BackButton>
                             <WizardStyles.CreateButton
                                 className="keys-create-button"
+                                disabled={
+                                    isLoading ||
+                                    !!newId ||
+                                    trusteesLoading ||
+                                    !!trusteesError ||
+                                    !trusteeList
+                                }
                                 icon={<ArrowForwardIosIcon />}
                                 label={String(t("keysGeneration.configureStep.create"))}
                             />
@@ -475,12 +476,12 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                             />
                         </ReferenceInput>
 
-                        {errors ? (
+                        {visibleError ? (
                             <WizardStyles.ErrorMessage variant="body2" className="keys-error">
-                                {errors}
+                                {visibleError}
                             </WizardStyles.ErrorMessage>
                         ) : null}
-                        {isLoading ? <CircularProgress /> : null}
+                        {isLoading || trusteesLoading ? <CircularProgress /> : null}
                     </WizardStyles.MainContent>
                 </SimpleForm>
                 <Dialog

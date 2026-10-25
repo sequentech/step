@@ -40,6 +40,9 @@ COPY ./keycloak-extensions/ /build/context/packages/keycloak-extensions/
 COPY ./sequent-core/src/types/messaging.rs /build/context/packages/sequent-core/src/types/
 COPY ./sequent-core/src/types/dial_codes.rs /build/context/packages/sequent-core/src/types/
 WORKDIR /build/context
+# The private extension profile contains the HMAC login endpoint, which is not
+# part of the evaluated configuration. Disable its file-based activation while
+# retaining the public login bridge, IdP linking and ordinary authentication SPIs.
 RUN --mount=from=beyond,source=.,target=/build/beyond-context,readonly \
     set -eux; \
     reproducible="${SOURCE_DATE_EPOCH:+-Dproject.build.outputTimestamp=${SOURCE_DATE_EPOCH}}"; \
@@ -54,7 +57,7 @@ RUN --mount=from=beyond,source=.,target=/build/beyond-context,readonly \
     if [ -d "${beyond_keycloak_extensions_dir}" ]; then \
         find "${beyond_keycloak_extensions_dir}" -name target -type d -prune -exec rm -rf {} +; \
     fi; \
-    mvn -B ${offline} ${reproducible} -f "${keycloak_extensions_dir}/pom.xml" clean package; \
+    mvn -B ${offline} ${reproducible} -P '!beyond-keycloak-extensions' -f "${keycloak_extensions_dir}/pom.xml" clean package; \
     mkdir -p /build/keycloak-provider-jars /build/keycloak-provider-conf; \
     cp "${keycloak_extensions_dir}/quarkus.properties" /build/keycloak-provider-conf/quarkus.properties; \
     provider_dirs="${keycloak_extensions_dir}"; \
@@ -65,7 +68,8 @@ RUN --mount=from=beyond,source=.,target=/build/beyond-context,readonly \
         -path '*/target/*.jar' \
         ! -name 'original-*.jar' \
         ! -name '*-tests.jar' \
-        -exec cp -t /build/keycloak-provider-jars/ {} +
+        -exec cp -t /build/keycloak-provider-jars/ {} +; \
+    test -z "$(find /build/keycloak-provider-jars -maxdepth 1 -iname '*smart-link-hmac*' -print -quit)"
 
 # The source archive of the oid4vp extension. The controlled production build supplies it
 # from the accepted external inputs with `--build-context oid4vp-src=<directory holding

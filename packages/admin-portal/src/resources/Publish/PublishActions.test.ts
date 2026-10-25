@@ -30,7 +30,10 @@ jest.mock("react-i18next", () => ({
 }))
 jest.mock("@/providers/TenantContextProvider", () => ({useTenantStore: () => ["tenant"]}))
 jest.mock("@/providers/AuthContextProvider", () => ({
-    AuthContext: require("react").createContext({isAuthorized: () => true, isGoldUser: () => true}),
+    AuthContext: require("react").createContext({
+        isAuthorized: () => true,
+        isFreshBoardAuthentication: () => true,
+    }),
 }))
 jest.mock("./usePublishPermissions", () => ({
     usePublishPermissions: () => ({canPublishChanges: true, canPublishStopVoting: true}),

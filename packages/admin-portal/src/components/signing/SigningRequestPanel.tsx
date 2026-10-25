@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import {matchesBoardSigningResume, type BoardSigningResume} from "@/lib/boardAuthentication"
 import React, {useCallback, useContext, useEffect, useId, useRef, useState} from "react"
 import {useTranslation} from "react-i18next"
 import {
@@ -66,6 +67,8 @@ export interface ISigningRequestPanelProps {
     onChange?: (data: ISigningPanelData) => void
     /** Where a handover leaves its note; session storage by default. */
     storage?: Storage
+    /** Same-person public request binding retained across external authentication. */
+    authenticationBinding?: BoardSigningResume
     /** A request of another election event than this is closed instead of shown (handover notes). */
     expectedEventId?: string
 }
@@ -232,6 +235,7 @@ export const SigningRequestPanel: React.FC<ISigningRequestPanelProps> = ({
     onChange,
     storage,
     expectedEventId,
+    authenticationBinding,
 }) => {
     const {t} = useTranslation()
     const {userId} = useContext(AuthContext)
@@ -247,13 +251,21 @@ export const SigningRequestPanel: React.FC<ISigningRequestPanelProps> = ({
         setLoadFailed(false)
         try {
             const loaded = validatePanel(await api.getRequest(requestId))
+            if (
+                authenticationBinding &&
+                (authenticationBinding.userId !== userId ||
+                    !matchesBoardSigningResume(authenticationBinding, loaded.request))
+            ) {
+                setData(null)
+                throw new Error("Authentication return request changed")
+            }
             setData(loaded)
             return loaded
         } catch {
             setLoadFailed(true)
             return null
         }
-    }, [api, requestId])
+    }, [api, requestId, authenticationBinding, userId])
 
     useEffect(() => {
         setData(null)

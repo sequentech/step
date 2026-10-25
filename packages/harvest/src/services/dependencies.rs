@@ -58,6 +58,7 @@ pub struct HarvestServices {
     pub cast_votes: Arc<dyn CastVotes>,
     pub databases: Arc<dyn DatabasePools>,
     pub documents: Arc<dyn DocumentStorage>,
+    pub transcripts: Arc<dyn super::transcript_export::TranscriptSource>,
     pub electoral_log: Arc<dyn ElectoralLogs>,
     pub identity: Arc<dyn IdentityAdmin>,
     /// How provider callbacks relayed by the webhook component are
@@ -117,6 +118,9 @@ impl HarvestServices {
             cast_votes: Arc::new(WindmillCastVotes),
             databases: databases.clone(),
             documents: Arc::new(S3DocumentStorage),
+            transcripts: Arc::new(
+                super::transcript_export::InternalTranscriptSource,
+            ),
             electoral_log: Arc::new(BoardElectoralLogs),
             identity: Arc::new(KeycloakIdentityAdmin),
             messaging_relay: MessagingRelay::from_env(),

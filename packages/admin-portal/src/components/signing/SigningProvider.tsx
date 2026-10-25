@@ -2,6 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import {
+    BOARD_SIGNING_RESUME_KEY,
+    readBoardSigningResume,
+    type BoardSigningResume,
+} from "@/lib/boardAuthentication"
 import React, {
     createContext,
     useCallback,
@@ -31,6 +36,7 @@ export interface IOpenSigningRequestOptions {
     onChange?: (data: ISigningPanelData) => void
     /** Only a request of this election event is shown (a handover note names it). */
     eventId?: string
+    authenticationBinding?: BoardSigningResume
 }
 
 export interface ISigningRequestContext {
@@ -121,7 +127,8 @@ export const SigningProvider: React.FC<ISigningProviderProps> = ({
     storage,
 }) => {
     const client = useApolloClient()
-    const {isAuthenticated, userId, isAuthorized} = useContext(AuthContext)
+    const {isAuthenticated, userId, isAuthorized, isFreshBoardAuthentication} =
+        useContext(AuthContext)
     const [tenantId] = useTenantStore()
     // Read at each call, so the api (and the actions it remembers) outlives a token refresh.
     const holdsRef = useRef<(permission: IPermissions) => boolean>(() => false)
@@ -136,6 +143,8 @@ export const SigningProvider: React.FC<ISigningProviderProps> = ({
     )
     const [opened, setOpened] = useState<IOpened | null>(null)
     const [visible, setVisible] = useState(false)
+    const [authenticationFailed, setAuthenticationFailed] = useState(false)
+    const {t} = useTranslation()
 
     const open = useCallback((requestId: string, options: IOpenSigningRequestOptions = {}) => {
         setOpened((previous) => ({requestId, ...options, nonce: (previous?.nonce ?? 0) + 1}))
@@ -151,11 +160,31 @@ export const SigningProvider: React.FC<ISigningProviderProps> = ({
         } catch {
             return
         }
+        try {
+            const authenticationResume = readBoardSigningResume(target, tenantId, userId)
+            if (authenticationResume) {
+                if (!isFreshBoardAuthentication()) {
+                    setAuthenticationFailed(true)
+                    return
+                }
+                setAuthenticationFailed(false)
+                target.removeItem(BOARD_SIGNING_RESUME_KEY)
+                open(authenticationResume.requestId, {
+                    sign: true,
+                    eventId: authenticationResume.eventId,
+                    authenticationBinding: authenticationResume,
+                })
+                return
+            }
+        } catch {
+            setAuthenticationFailed(true)
+            return
+        }
         const resume = takeResume(target, {tenantId})
         if (resume) {
             open(resume.requestId, {sign: true, eventId: resume.eventId})
         }
-    }, [isAuthenticated, userId, tenantId, storage, open])
+    }, [isAuthenticated, userId, tenantId, storage, open, isFreshBoardAuthentication])
 
     const context = useMemo(
         () => ({open, close, requestId: visible ? (opened?.requestId ?? null) : null}),
@@ -169,6 +198,11 @@ export const SigningProvider: React.FC<ISigningProviderProps> = ({
     return (
         <SigningContext.Provider value={context}>
             {children}
+            {authenticationFailed ? (
+                <Alert severity="error" onClose={() => setAuthenticationFailed(false)}>
+                    {t("publish.dialog.errorReauth")}
+                </Alert>
+            ) : null}
             {opened ? (
                 <SigningErrorBoundary key={opened.nonce} open={visible} onClose={close}>
                     <SigningRequestPanel
@@ -181,6 +215,7 @@ export const SigningProvider: React.FC<ISigningProviderProps> = ({
                         onChange={opened.onChange}
                         storage={storage}
                         expectedEventId={opened.eventId}
+                        authenticationBinding={opened.authenticationBinding}
                     />
                 </SigningErrorBoundary>
             ) : null}

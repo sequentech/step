@@ -97,7 +97,11 @@ const meta = {
         return () => expect(storyGraphql.unexpected).toEqual([])
     },
     render: (args) => (
-        <AdminStoryProvider boundary={graphql} roles={args.roles} auth={{isGoldUser: () => true}}>
+        <AdminStoryProvider
+            boundary={graphql}
+            roles={args.roles}
+            auth={{isFreshBoardAuthentication: () => true}}
+        >
             <WidgetsContextProvider>
                 <RecordContextProvider value={eventRecord()}>
                     <PublishGenerate

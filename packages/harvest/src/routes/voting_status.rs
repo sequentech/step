@@ -15,7 +15,7 @@ use rocket::http::Status;
 use rocket::serde::json::Json;
 use rocket::State;
 use sequent_core::ballot::{VotingStatus, VotingStatusChannel};
-use sequent_core::services::jwt::{has_gold_permission, JwtClaims};
+use sequent_core::services::jwt::{has_fresh_board_authentication, JwtClaims};
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
@@ -92,11 +92,13 @@ async fn update_event_status_response(
     claims: JwtClaims,
     services: &HarvestServices,
 ) -> Result<Json<UpdateEventVotingStatusOutput>, Guarded<(Status, String)>> {
-    // Check if the user has the required "Gold" role
-    if !has_gold_permission(&claims) {
-        return Err(
-            (Status::Forbidden, "Insufficient privileges".to_string()).into()
-        );
+    // Require a fresh external login before accepting the board action.
+    if !has_fresh_board_authentication(&claims) {
+        return Err((
+            Status::Forbidden,
+            "Fresh external authentication required".to_string(),
+        )
+            .into());
     }
 
     authorize(
@@ -201,11 +203,13 @@ async fn update_election_status_response(
     claims: JwtClaims,
     services: &HarvestServices,
 ) -> Result<Json<UpdateElectionVotingStatusOutput>, Guarded<(Status, String)>> {
-    // Check if the user has the required "Gold" role
-    if !has_gold_permission(&claims) {
-        return Err(
-            (Status::Forbidden, "Insufficient privileges".to_string()).into()
-        );
+    // Require a fresh external login before accepting the board action.
+    if !has_fresh_board_authentication(&claims) {
+        return Err((
+            Status::Forbidden,
+            "Fresh external authentication required".to_string(),
+        )
+            .into());
     }
 
     authorize(

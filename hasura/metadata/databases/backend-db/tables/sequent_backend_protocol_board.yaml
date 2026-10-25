@@ -39,6 +39,7 @@ select_permissions:
       permission:
           allow_aggregations: true
           columns:
+              - manager_message
               - id
               - tenant_id
               - election_event_id

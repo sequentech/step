@@ -3,9 +3,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext} from "react"
 
+import {hasFreshBoardAuthentication, boardLoginOptions} from "@/lib/boardAuthentication"
 import Keycloak, {KeycloakConfig, KeycloakInitOptions} from "keycloak-js"
-import {createContext, useEffect, useState} from "react"
-import {isNull, isString, sleep} from "@sequentech/ui-core"
+import {createContext, useEffect, useRef, useState} from "react"
+import {
+    isNull,
+    isString,
+    startSessionActivity,
+    sessionActivityStorageKey,
+    SessionActivity,
+} from "@sequentech/ui-core"
 import {IPermissions} from "@/types/keycloak"
 import {SettingsContext} from "./SettingsContextProvider"
 import {ExecutionResult} from "graphql"
@@ -23,6 +30,7 @@ export interface AuthContextValues {
      * Whether or not a user is currently authenticated
      */
     isAuthenticated: boolean
+    getAccessTokenForRequest: () => Promise<string | undefined>
     /**
      * The id of the authenticated user
      */
@@ -65,7 +73,7 @@ export interface AuthContextValues {
      */
     getAccessToken: () => string | undefined
 
-    updateTokenAndPermissionLabels: () => void
+    preparePermissionRefresh: () => () => Promise<void>
 
     initKeycloak: (tenantId: string) => Promise<boolean>
 
@@ -88,9 +96,9 @@ export interface AuthContextValues {
      */
     openProfileLink: () => Promise<void>
 
-    isGoldUser: () => boolean
+    isFreshBoardAuthentication: () => boolean
 
-    reauthWithGold: (redirectUri: string) => Promise<void>
+    reauthenticateBoard: (redirectUri: string) => Promise<void>
 }
 
 /**
@@ -98,6 +106,7 @@ export interface AuthContextValues {
  */
 const defaultAuthContextValues: AuthContextValues = {
     isAuthenticated: false,
+    getAccessTokenForRequest: async () => undefined,
     userId: "",
     username: "",
     email: "",
@@ -110,9 +119,9 @@ const defaultAuthContextValues: AuthContextValues = {
     isAuthorized: () => false,
     openProfileLink: () => new Promise(() => undefined),
     permissionLabels: [],
-    updateTokenAndPermissionLabels: () => {},
-    isGoldUser: () => false,
-    reauthWithGold: async () => {},
+    preparePermissionRefresh: () => async () => {},
+    isFreshBoardAuthentication: () => false,
+    reauthenticateBoard: async () => {},
     initKeycloak: async (tenantId: string) => {
         return false
     },
@@ -167,6 +176,9 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
 
     // Create the local state in which we will keep track if a user is authenticated
     const [isAuthenticated, setAuthenticated] = useState<boolean>(false)
+    const sessionActivity = useRef<SessionActivity | null>(null)
+    const sessionClient = useRef<Keycloak | null>(null)
+    const [sessionKeycloak, setSessionKeycloak] = useState<Keycloak | null>(null)
     // Local state that will contain the users name once it is loaded
     const [userId, setUserId] = useState<string>("")
     const [username, setUsername] = useState<string>("")
@@ -190,9 +202,6 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
 
     const [openModal, setOpenModal] = React.useState(false)
     const {t, i18n} = useTranslation()
-
-    const sleepSecs = 50
-    const bufferSecs = 10
 
     const navigate = useNavigate()
     const location = useLocation()
@@ -282,7 +291,6 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 localStorage.setItem("token", generateTokenStorage(newKeycloak))
                 setAuthenticated(true)
                 setIsKeycloakInitialized(true)
-                setTimeout(updateTokenPeriodically, 4e3)
                 navigate("/")
                 return true
             } catch (initError) {
@@ -302,7 +310,6 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                     localStorage.setItem("token", generateTokenStorage(newKeycloak))
                     setAuthenticated(true)
                     setIsKeycloakInitialized(true)
-                    setTimeout(updateTokenPeriodically, 4e3)
                     return true
                 } else {
                     // User is not authenticated, but we have a Keycloak instance
@@ -323,31 +330,16 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     }
 
     /**
-     * Returns true only if the JWT has gold permissions and the JWT
-     * authentication is fresh, i.e. performed less than 60 seconds ago.
+     * Board actions use the external authentication time, never a Gold marker
+     * or the issue time of a refreshed token. The server enforces the same boundary.
      */
     // TODO: This is duplicated from jwt.rs in sequent-core, we should just use
     // the same WASM function if possible
-    const isGoldUser = () => {
-        const acr = keycloak?.tokenParsed?.acr ?? null
-        const isGold = acr === IPermissions.GOLD_PERMISSION
+    const isFreshBoardAuthentication = () => hasFreshBoardAuthentication(keycloak?.tokenParsed)
 
-        const authTimeTimestamp = keycloak?.tokenParsed?.auth_time ?? 0
-        const authTime = new Date(authTimeTimestamp * 1000)
-        const freshnessLimit = new Date(Date.now().valueOf() - 60 * 1000)
-        const isFresh = authTime > freshnessLimit
-        return isGold && isFresh
-    }
-
-    const reauthWithGold = async (redirectUri: string): Promise<void> => {
-        try {
-            await keycloak?.login({
-                acr: {essential: true, values: [IPermissions.GOLD_PERMISSION]},
-                redirectUri: redirectUri || window.location.href, // Use the passed URL or fallback to current URL
-            })
-        } catch (error) {
-            console.error("Re-authentication failed:", error)
-        }
+    const reauthenticateBoard = async (redirectUri: string): Promise<void> => {
+        if (!keycloak) throw new Error("Authentication client unavailable")
+        await keycloak.login(boardLoginOptions(redirectUri || window.location.href))
     }
 
     const createKeycloak = (tenantId?: string) => {
@@ -412,7 +404,6 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
             // If we get here the user is authenticated and we can update the state accordingly
             localStorage.setItem("token", generateTokenStorage(keycloak))
             setAuthenticated(true)
-            setTimeout(updateTokenPeriodically, 4e3)
             setIsKeycloakInitialized(true)
         } catch (error) {
             setAuthenticated(false)
@@ -437,20 +428,6 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         initializeKeycloak()
     }, [isKeycloakInitialized, keycloak])
 
-    const updateTokenPeriodically = async () => {
-        if (keycloak) {
-            const refreshed = await keycloak.updateToken(sleepSecs + bufferSecs)
-            if (!keycloak.token) {
-                return
-            }
-            if (refreshed) {
-                localStorage.setItem("token", generateTokenStorage(keycloak))
-            }
-        }
-        await sleep(sleepSecs * 1e3)
-        updateTokenPeriodically()
-    }
-
     const extractPermissionLabels = (input: string): string[] => {
         const regex = /"(.*?)"/g
         const matches = []
@@ -473,6 +450,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
 
             try {
                 const profile = await keycloak.loadUserProfile()
+                if (!sessionActivity.current?.isActive()) return
                 if (profile.id) {
                     setUserId(profile.id)
                 }
@@ -510,16 +488,63 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
             }
         }
 
-        // Only load the profile if a user is authenticated
-        if (isAuthenticated) {
+        // Only load the profile after the persisted session deadline was checked.
+        if (
+            isAuthenticated &&
+            sessionKeycloak === keycloak &&
+            sessionActivity.current?.isActive()
+        ) {
             loadProfile()
         }
-    }, [isAuthenticated, keycloak])
+    }, [isAuthenticated, keycloak, sessionKeycloak])
 
     /**
      * Initiate the logout
      */
+    useEffect(() => {
+        if (!keycloak || !isAuthenticated || !isKeycloakInitialized) return
+        const session = startSessionActivity({
+            storageKey: sessionActivityStorageKey(
+                keycloak.realm,
+                keycloak.subject,
+                keycloak.tokenParsed?.sid ??
+                    keycloak.tokenParsed?.session_state ??
+                    keycloak.tokenParsed?.auth_time
+            ),
+            refresh: async (force) => {
+                const refreshed = await keycloak.updateToken(force ? -1 : 60)
+                if (!keycloak.token) throw new Error("Session ended")
+                return refreshed
+            },
+            onRefreshed: () => {
+                localStorage.setItem("token", generateTokenStorage(keycloak))
+            },
+            onExpire: () => logout(),
+        })
+        sessionActivity.current = session
+        sessionClient.current = keycloak
+        setSessionKeycloak(keycloak)
+        return () => {
+            session.dispose()
+            if (sessionActivity.current === session) {
+                sessionActivity.current = null
+                sessionClient.current = null
+            }
+            setSessionKeycloak(null)
+        }
+    }, [keycloak, isAuthenticated, isKeycloakInitialized])
+
+    const getAccessTokenForRequest = async () => {
+        const session = sessionActivity.current
+        if (sessionClient.current !== keycloak || !session?.isActive()) return undefined
+        await session.refresh()
+        if (!session.isActive() || !keycloak?.token || keycloak.isTokenExpired(0)) return undefined
+        return keycloak.token
+    }
+
     const logout = (redirectUri?: string) => {
+        sessionActivity.current?.dispose()
+        setAuthenticated(false)
         if (!keycloak) {
             return
         }
@@ -529,7 +554,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         let redirect = redirectUri ? redirectUri : window.location.origin
 
         // Redirect to the main route after logout
-        keycloak.logout({
+        return keycloak.logout({
             redirectUri: redirect,
         })
     }
@@ -548,7 +573,10 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         ].includes(role)
     }
 
-    const getAccessToken = () => keycloak?.token
+    const getAccessToken = () =>
+        sessionClient.current === keycloak && sessionActivity.current?.isActive()
+            ? keycloak?.token
+            : undefined
 
     const isAuthorized = (
         checkSuperAdmin: boolean,
@@ -571,23 +599,17 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         await keycloak.accountManagement()
     }
 
-    const updateTokenAndPermissionLabels = () => {
-        if (keycloak) {
-            const refresh = keycloak.updateToken(keycloak.tokenParsed?.exp || 30)
-            refresh
-                .then(() => {
-                    const tokenPermissionLabels =
-                        keycloak.tokenParsed?.["https://hasura.io/jwt/claims"]?.[
-                            "x-hasura-permission-labels"
-                        ]
-                    if (tokenPermissionLabels) {
-                        const permissionLabelsArray = extractPermissionLabels(tokenPermissionLabels)
-                        setPermissionLabels(permissionLabelsArray)
-                    }
-                })
-                .catch((error) => {
-                    console.log("error updating token", error)
-                })
+    const preparePermissionRefresh = () => {
+        const session = sessionActivity.current
+        const refresh = session?.captureActionRefresh()
+        return async () => {
+            await refresh?.()
+            if (!session?.isActive()) return
+            const labels =
+                keycloak?.tokenParsed?.["https://hasura.io/jwt/claims"]?.[
+                    "x-hasura-permission-labels"
+                ]
+            if (labels) setPermissionLabels(extractPermissionLabels(labels))
         }
     }
 
@@ -595,7 +617,8 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     return (
         <AuthContext.Provider
             value={{
-                isAuthenticated,
+                isAuthenticated: isAuthenticated && sessionKeycloak === keycloak,
+                getAccessTokenForRequest,
                 userId,
                 username,
                 email,
@@ -608,9 +631,9 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 isAuthorized,
                 openProfileLink,
                 permissionLabels,
-                updateTokenAndPermissionLabels,
-                isGoldUser,
-                reauthWithGold,
+                preparePermissionRefresh,
+                isFreshBoardAuthentication,
+                reauthenticateBoard,
                 initKeycloak,
             }}
         >

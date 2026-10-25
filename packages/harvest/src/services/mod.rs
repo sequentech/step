@@ -17,3 +17,5 @@ pub mod signing_gate;
 pub mod signing_http;
 pub mod user_tasks;
 pub mod worker;
+
+pub mod transcript_export;

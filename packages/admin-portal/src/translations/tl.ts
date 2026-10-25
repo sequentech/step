@@ -5,6 +5,7 @@ import englishTranslation, {TranslationType} from "./en"
 
 const tagalogTranslation: TranslationType = {
     translations: {
+        verificationExport: englishTranslation.translations.verificationExport,
         philSysID: "PhilSys ID",
         iBP: "Integrated Bar of the Philippines (IBP)",
         philippinePassport: "Pasaporte ng Pilipinas",

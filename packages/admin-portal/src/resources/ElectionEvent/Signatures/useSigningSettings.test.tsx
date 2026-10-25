@@ -13,11 +13,13 @@ import {
     type MutationTuple,
 } from "@apollo/client"
 import {getOperationRole} from "@/services/Permissions"
+import {customBuildGetUsersVariables} from "@/queries/GetUsers"
 import {IPermissions} from "@/types/keycloak"
 import {
     useDeleteIssuer,
     useExportRequests,
     useImportIssuers,
+    usePeopleSearch,
     usePutChecks,
     usePutRule,
     useRegisterCertificate,
@@ -35,7 +37,14 @@ jest.mock("@sequentech/ui-core", () => ({
     ...jest.requireActual("../../../../../ui-core/src/utils/typechecks"),
 }))
 const mockNotify = jest.fn()
-jest.mock("react-admin", () => ({useGetList: () => ({data: []}), useNotify: () => mockNotify}))
+const mockGetList = jest.fn((..._args: unknown[]) => ({
+    data: [] as Array<{id: string; username: string}>,
+    isLoading: false,
+}))
+jest.mock("react-admin", () => ({
+    useGetList: (...args: unknown[]) => mockGetList(...args),
+    useNotify: () => mockNotify,
+}))
 jest.mock("react-i18next", () => ({useTranslation: () => ({t: (key: string) => key})}))
 jest.mock("@/hooks/useAliasRenderer", () => ({useAliasRenderer: () => () => ""}))
 jest.mock("@/providers/TenantContextProvider", () => ({useTenantStore: () => ["tenant"]}))
@@ -300,5 +309,49 @@ describe("signing write explanations", () => {
                 "signing.rule.saveError"
             )
         ).toBe("signing.errors.invalid")
+    })
+})
+
+describe("certificate registration person search", () => {
+    beforeEach(() => {
+        mockGetList.mockClear()
+        mockGetList.mockReturnValue({data: [], isLoading: false})
+    })
+
+    it("sends a trimmed username substring as the backend FilterOption object", () => {
+        const {rerender} = renderHook(({search}) => usePeopleSearch(search), {
+            initialProps: {search: "  board1  "},
+        })
+        const [resource, params, options] = mockGetList.mock.calls.at(-1)!
+        expect(resource).toBe("user")
+        expect(options).toEqual({enabled: true})
+        const variables = customBuildGetUsersVariables({})(resource, "GET_LIST", params, null)
+        // GetUsersBody.username deserializes a map with a FilterOption variant,
+        // not a JSON string. Preserve tenant isolation and bounded pagination.
+        expect(JSON.parse(JSON.stringify(variables)).username).toEqual({IsLike: "board1"})
+        expect(variables.tenant_id).toBe("tenant")
+        expect(variables.election_event_id).toBeNull()
+        expect(variables.limit).toBe(20)
+        expect(variables.offset).toBe(0)
+        rerender({search: "trustee-"})
+        const [, next] = mockGetList.mock.calls.at(-1)!
+        expect(customBuildGetUsersVariables({})(resource, "GET_LIST", next, null).username).toEqual(
+            {
+                IsLike: "trustee-",
+            }
+        )
+    })
+
+    it("returns the matching people and suppresses stale choices after clearing the search", () => {
+        const people = [{id: "customer-user", username: "board1"}]
+        mockGetList.mockReturnValue({data: people, isLoading: false})
+        const {result, rerender} = renderHook(({search}) => usePeopleSearch(search), {
+            initialProps: {search: "board"},
+        })
+        expect(result.current.people).toEqual(people)
+        rerender({search: "   "})
+        expect(mockGetList.mock.calls.at(-1)![2]).toEqual({enabled: false})
+        expect(result.current.people).toEqual([])
+        expect(result.current.loading).toBe(false)
     })
 })

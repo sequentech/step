@@ -18,7 +18,7 @@ use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::permissions::Permissions;
 use sequent_core::{
     ballot::{ElectionEventPresentation, LockedDown},
-    services::jwt::{has_gold_permission, JwtClaims},
+    services::jwt::{has_fresh_board_authentication, JwtClaims},
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -105,8 +105,11 @@ async fn generate_ballot_publication_response(
     claims: JwtClaims,
     services: &HarvestServices,
 ) -> Result<Json<GenerateBallotPublicationOutput>, (Status, String)> {
-    if !has_gold_permission(&claims) {
-        return Err((Status::Forbidden, "Insufficient privileges".into()));
+    if !has_fresh_board_authentication(&claims) {
+        return Err((
+            Status::Forbidden,
+            "Fresh external authentication required".into(),
+        ));
     }
 
     authorize(

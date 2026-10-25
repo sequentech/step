@@ -16,6 +16,8 @@ import {IPermissions} from "@/types/keycloak"
 import {getEnumValues} from "./EditRole"
 //import {CreateRoleMutationVariables} from "@/gql/graphql"
 
+const validPermissions = getEnumValues(IPermissions)
+
 interface CreateRoleProps {
     close?: () => void
     permissions?: Array<IPermission>
@@ -38,7 +40,6 @@ export const CreateRole: React.FC<CreateRoleProps> = ({close, permissions}) => {
     const [createRole] = useMutation(CREATE_ROLE) //<CreateRoleMutationVariables>(CREATE_ROLE)
     const notify = useNotify()
     const refresh = useRefresh()
-    let validPermissions = getEnumValues(IPermissions)
 
     const onSubmit: SubmitHandler<any> = async () => {
         console.log("creating role")
@@ -94,7 +95,7 @@ export const CreateRole: React.FC<CreateRoleProps> = ({close, permissions}) => {
                             t(`usersAndRolesScreen.permissions.${permission.name}`),
                     }
                 })
-        }, [rolePermissions])
+        }, [permissions, rolePermissions, t])
 
     const editRolePermission = (props: GridRenderCellParams<any, boolean>) => async () => {
         const exsitPermmistion = rolePermissions.find((p) => p === props.row.name)

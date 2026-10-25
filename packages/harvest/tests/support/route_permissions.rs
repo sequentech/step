@@ -292,6 +292,8 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/get-roles", {"tenant_id": TENANT_ID}, [ROLE_READ], BACKEND_TEXT, UNAUTHORIZED),
         case!(Voter, "/get-support-materials-acknowledgment", {"election_event_id": EVENT_ID}, [ACK_SUPPORT_MATERIALS], BACKEND_TEXT, UNAUTHORIZED),
         case!(Admin, "/get-upload-url", {"name": "test.csv", "media_type": "text/csv", "size": 1, "is_public": false}, [DOCUMENT_UPLOAD], BACKEND, UNAUTHORIZED),
+        case!(Admin, "/get-upload-url", {"name": "restore.zip", "media_type": "application/zip", "size": 1, "is_public": false}, [TENANT_WRITE], BACKEND, UNAUTHORIZED),
+        case!(Admin, "/get-upload-url", {"name": "configuration.ezip", "media_type": "application/ezip", "size": 1, "is_public": false}, [ELECTION_EVENT_CREATE], BACKEND, UNAUTHORIZED),
         case!(Admin, "/get-user", {"tenant_id": TENANT_ID, "user_id": USER_ID}, [USER_READ], BACKEND_TEXT, UNAUTHORIZED),
         case!(Admin, "/get-user", {"tenant_id": TENANT_ID, "election_event_id": UUID_EVENT_ID, "user_id": USER_ID}, [VOTER_READ], BACKEND_TEXT, UNAUTHORIZED),
         case!(Admin, "/get-user-profile-attributes", {"tenant_id": TENANT_ID}, [USER_READ], BACKEND_TEXT, UNAUTHORIZED),
@@ -730,5 +732,147 @@ async fn signing_settings_routes_refuse_without_their_permission() {
             .dispatch()
             .await;
         assert_eq!(response.status(), Status::Unauthorized, "{method} {path}");
+    }
+}
+
+#[rocket::async_test]
+async fn scoped_archive_uploads_preserve_permission_and_path_boundaries() {
+    if !is_isolated_child() {
+        let peer = http::HttpServer::start(vec![]);
+        run_isolated(
+            "request_boundaries::route_permissions::scoped_archive_uploads_preserve_permission_and_path_boundaries",
+            &peer.url,
+        );
+        peer.finish();
+        return;
+    }
+    let client = client().await;
+    for permission in [
+        Permissions::TENANT_WRITE,
+        Permissions::ELECTION_EVENT_CREATE,
+    ] {
+        let baseline = Case {
+            identity: Identity::Admin,
+            path: "/get-upload-url",
+            body: json!({"name":"configuration.zip", "media_type":"application/zip", "size":1, "is_public":false}),
+            permissions: vec![permission.to_string()],
+            answer: BACKEND,
+            denied: Some(UNAUTHORIZED),
+        };
+        assert_eq!(baseline.send(&client, &baseline.permissions).await, Ok(BACKEND), "{permission}: valid archive reaches the existing fresh-document backend");
+        assert_eq!(baseline.send(&client, &[]).await, Ok(UNAUTHORIZED));
+        for (name, mime) in [
+            ("configuration.ezip", "application/ezip"),
+            ("restore.zip", "application/x-zip-compressed"),
+            ("restore.zip", "application/octet-stream"),
+            ("restore.zip", ""),
+        ] {
+            let mut body = baseline.body.clone();
+            body["name"] = json!(name);
+            body["media_type"] = json!(mime);
+            let case = Case {
+                body,
+                ..Case {
+                    identity: Identity::Admin,
+                    path: baseline.path,
+                    body: Value::Null,
+                    permissions: baseline.permissions.clone(),
+                    answer: BACKEND,
+                    denied: Some(UNAUTHORIZED),
+                }
+            };
+            assert_eq!(
+                case.send(&client, &case.permissions).await,
+                Ok(BACKEND),
+                "{permission}: {name}/{mime}"
+            );
+        }
+        for (field, value) in [
+            ("is_public", json!(true)),
+            ("is_local", json!(true)),
+            ("election_event_id", json!(UUID_EVENT_ID)),
+            ("election_event_id", json!("")),
+            ("name", json!("../configuration.zip")),
+            ("name", json!("dir/configuration.zip")),
+            ("name", json!("dir\\configuration.zip")),
+            ("name", json!("%2e%2e%2fconfiguration.zip")),
+            ("name", json!(".zip")),
+            ("name", json!("configuration.csv")),
+            ("name", json!("configuration.zip?other")),
+            ("name", json!("configuration\n.zip")),
+            ("media_type", json!("text/csv")),
+            ("media_type", json!("application/ezip")),
+        ] {
+            let mut body = baseline.body.clone();
+            body[field] = value.clone();
+            let case = Case {
+                identity: Identity::Admin,
+                path: baseline.path,
+                body,
+                permissions: baseline.permissions.clone(),
+                answer: UNAUTHORIZED,
+                denied: Some(UNAUTHORIZED),
+            };
+            assert_eq!(
+                case.send(&client, &case.permissions).await,
+                Ok(UNAUTHORIZED),
+                "{permission}: {field}={value}"
+            );
+        }
+    }
+    // The established generic-upload contract is unchanged.
+    let generic = cases()
+        .into_iter()
+        .find(|case| {
+            case.path == "/get-upload-url"
+                && case.permissions
+                    == [Permissions::DOCUMENT_UPLOAD.to_string()]
+        })
+        .unwrap();
+    assert_eq!(
+        generic.send(&client, &generic.permissions).await,
+        Ok(BACKEND)
+    );
+}
+
+#[test]
+fn scoped_archive_actions_expose_only_the_required_permission_roles() {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../hasura/metadata/actions.yaml");
+    let actions: Value =
+        serde_yaml::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+    for (action, expected) in [
+        (
+            "get_upload_url",
+            vec![
+                "admin-user",
+                "document-upload",
+                "tenant-write",
+                "election-event-create",
+            ],
+        ),
+        (
+            "import_election_event",
+            vec![
+                "admin-user",
+                "election-event-write",
+                "area-write",
+                "election-event-create",
+            ],
+        ),
+    ] {
+        let record = actions["actions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|item| item["name"] == action)
+            .unwrap();
+        let roles: BTreeSet<_> = record["permissions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|item| item["role"].as_str().unwrap())
+            .collect();
+        assert_eq!(roles, expected.into_iter().collect(), "{action}");
     }
 }

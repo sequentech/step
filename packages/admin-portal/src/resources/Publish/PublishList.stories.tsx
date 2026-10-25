@@ -123,7 +123,10 @@ const meta = {
             boundary={graphql}
             dataProvider={data.provider}
             roles={args.roles}
-            auth={{isGoldUser: () => args.gold, reauthWithGold: args.reauthenticate}}
+            auth={{
+                isFreshBoardAuthentication: () => args.gold,
+                reauthenticateBoard: args.reauthenticate,
+            }}
         >
             <PublishList
                 status={PublishStatus.Published}

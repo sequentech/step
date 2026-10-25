@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import {savePendingBoardAction, consumePendingBoardAction} from "@/lib/boardAuthentication"
 import React, {useContext, useEffect, useState} from "react"
 import {styled} from "@mui/material/styles"
 import {CircularProgress, Typography, Menu, MenuItem} from "@mui/material"
@@ -144,7 +145,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
     const {t, i18n} = useTranslation()
     const [tenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
-    const {isGoldUser, reauthWithGold} = authContext
+    const {isFreshBoardAuthentication, reauthenticateBoard} = authContext
     const canWrite = authContext.isAuthorized(true, tenantId, IPermissions.PUBLISH_WRITE)
     const record = useRecordContext<Sequent_Backend_Election>()
     const isVotingPeriodEndDisallowed =
@@ -248,19 +249,21 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
     ) => {
         // The event and election tabs select Publish by id; its position depends on permissions.
         baseUrl.searchParams.set("tabId", "publish")
-        sessionStorage.setItem(action, "true")
-        if (
-            voting_channels &&
-            (action === EPublishActions.PENDING_START_VOTING ||
-                action === EPublishActions.PENDING_PAUSE_VOTING ||
-                action === EPublishActions.PENDING_STOP_VOTING)
-        ) {
-            try {
-                sessionStorage.setItem(`${action}_CHANNELS`, JSON.stringify(voting_channels))
-            } catch (e) {
-                console.warn("Could not persist selected channels for re-auth", e)
-            }
-        }
+        savePendingBoardAction(
+            sessionStorage,
+            action,
+            {
+                tenantId: tenantId ?? "",
+                userId: authContext.userId,
+                eventId: String(
+                    publishType === EPublishType.Event
+                        ? (record?.id ?? "")
+                        : (record?.election_event_id ?? "")
+                ),
+                electionId: publishType === EPublishType.Election ? String(record?.id ?? "") : null,
+            },
+            voting_channels
+        )
     }
 
     const sealsAtClose =
@@ -585,7 +588,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
 
     /**
      * Specific Handler for Start/Pause/Stop Buttons:
-     * Incorporates re-authentication logic for actions that require Gold-level permissions.
+     * Incorporates re-authentication logic for actions that require fresh external authentication.
      */
     const handleChangeVotingPeriod = (
         action: EPublishActions,
@@ -608,7 +611,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                 : action === EPublishActions.PENDING_START_VOTING
                   ? startSealNote(voting_channels)
                   : null
-        const dialogMessage = isGoldUser()
+        const dialogMessage = isFreshBoardAuthentication()
             ? action === EPublishActions.PENDING_START_VOTING
                 ? [t("publish.dialog.startInfo"), sealText].filter(Boolean).join(" ")
                 : action === EPublishActions.PENDING_STOP_VOTING
@@ -621,15 +624,16 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
 
         setCurrentCallback(() => async () => {
             try {
-                if (!isGoldUser()) {
+                if (!isFreshBoardAuthentication()) {
                     const baseUrl = new URL(window.location.href)
                     reauthCallback(baseUrl, action, voting_channels)
-                    await reauthWithGold(baseUrl.toString())
+                    await reauthenticateBoard(baseUrl.toString())
                 } else {
                     onChangeStatus(status, voting_channels)
                 }
             } catch (error) {
-                console.error("Re-authentication failed:", error)
+                setDialogText(t("publish.dialog.errorReauth"))
+                setShowDialog(true)
             }
         })
     }
@@ -648,11 +652,11 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
 
     /**
      * Specific Handler for "Publish Changes" Button: Incorporates
-     * re-authentication logic for actions that require Gold-level permissions.
+     * re-authentication logic for actions that require fresh external authentication.
      */
     const handlePublish = (is_generate: boolean) => {
         const actionText = t(`publish.action.publish`)
-        const dialogMessage = isGoldUser()
+        const dialogMessage = isFreshBoardAuthentication()
             ? is_generate
                 ? t("publish.dialog.info")
                 : t("publish.dialog.publishInfo", {action: actionText})
@@ -661,15 +665,16 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
 
         setCurrentCallback(() => async () => {
             try {
-                if (!isGoldUser()) {
+                if (!isFreshBoardAuthentication()) {
                     const baseUrl = new URL(window.location.href)
                     reauthCallback(baseUrl, EPublishActions.PENDING_PUBLISH_ACTION)
-                    await reauthWithGold(baseUrl.toString())
+                    await reauthenticateBoard(baseUrl.toString())
                 } else {
                     onGenerate()
                 }
             } catch (error) {
-                console.error("Re-authentication failed:", error)
+                setDialogText(t("publish.dialog.errorReauth"))
+                setShowDialog(true)
                 setDialogText(t("publish.dialog.errorReauth"))
                 setShowDialog(true)
             }
@@ -683,78 +688,46 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
      * component.
      */
     useEffect(() => {
-        const executePendingActions = async () => {
-            if (!record) {
-                return
-            }
-
-            let isGold = isGoldUser()
-
-            const pendingStart = sessionStorage.getItem(EPublishActions.PENDING_START_VOTING)
-            if (pendingStart) {
-                let selectedChannels: VotingStatusChannel[] | undefined = undefined
-                try {
-                    const channelsStr = sessionStorage.getItem(
-                        `${EPublishActions.PENDING_START_VOTING}_CHANNELS`
-                    )
-                    if (channelsStr) {
-                        selectedChannels = JSON.parse(channelsStr) as VotingStatusChannel[]
-                    }
-                } catch (e) {
-                    console.warn("Could not restore selected channels after re-auth", e)
-                }
-                isGold && onChangeStatus(ElectionEventStatus.Open, selectedChannels)
-                sessionStorage.removeItem(EPublishActions.PENDING_START_VOTING)
-                sessionStorage.removeItem(`${EPublishActions.PENDING_START_VOTING}_CHANNELS`)
-            }
-
-            const pendingPause = sessionStorage.getItem(EPublishActions.PENDING_PAUSE_VOTING)
-            if (pendingPause) {
-                let selectedPauseChannels: VotingStatusChannel[] | undefined = undefined
-                try {
-                    const channelsStr = sessionStorage.getItem(
-                        `${EPublishActions.PENDING_PAUSE_VOTING}_CHANNELS`
-                    )
-                    if (channelsStr) {
-                        selectedPauseChannels = JSON.parse(channelsStr) as VotingStatusChannel[]
-                    }
-                } catch (e) {
-                    console.warn("Could not restore selected pause channels after re-auth", e)
-                }
-                isGold && onChangeStatus(ElectionEventStatus.Paused, selectedPauseChannels)
-                sessionStorage.removeItem(EPublishActions.PENDING_PAUSE_VOTING)
-                sessionStorage.removeItem(`${EPublishActions.PENDING_PAUSE_VOTING}_CHANNELS`)
-            }
-
-            const pendingStop = sessionStorage.getItem(EPublishActions.PENDING_STOP_VOTING)
-            if (pendingStop) {
-                let selectedStopChannels: VotingStatusChannel[] | undefined = undefined
-                try {
-                    const channelsStr = sessionStorage.getItem(
-                        `${EPublishActions.PENDING_STOP_VOTING}_CHANNELS`
-                    )
-                    if (channelsStr) {
-                        selectedStopChannels = JSON.parse(channelsStr) as VotingStatusChannel[]
-                    }
-                } catch (e) {
-                    console.warn("Could not restore selected stop channels after re-auth", e)
-                }
-                isGold && onChangeStatus(ElectionEventStatus.Closed, selectedStopChannels)
-                sessionStorage.removeItem(EPublishActions.PENDING_STOP_VOTING)
-                sessionStorage.removeItem(`${EPublishActions.PENDING_STOP_VOTING}_CHANNELS`)
-            }
-
-            const pendingStopKiosk = sessionStorage.getItem(
-                EPublishActions.PENDING_STOP_KIOSK_ACTION
+        if (!record?.id || !tenantId || !authContext.userId) return
+        const scope = {
+            tenantId,
+            userId: authContext.userId,
+            eventId: String(
+                publishType === EPublishType.Event ? record.id : (record.election_event_id ?? "")
+            ),
+            electionId: publishType === EPublishType.Election ? String(record.id) : null,
+        }
+        for (const [action, status] of [
+            [EPublishActions.PENDING_START_VOTING, ElectionEventStatus.Open],
+            [EPublishActions.PENDING_PAUSE_VOTING, ElectionEventStatus.Paused],
+            [EPublishActions.PENDING_STOP_VOTING, ElectionEventStatus.Closed],
+            [EPublishActions.PENDING_STOP_KIOSK_ACTION, ElectionEventStatus.Closed],
+        ] as const) {
+            const result = consumePendingBoardAction(
+                sessionStorage,
+                action,
+                scope,
+                isFreshBoardAuthentication()
             )
-            if (pendingStopKiosk) {
-                isGold && onChangeStatus(ElectionEventStatus.Closed, [VotingStatusChannel.Kiosk])
-                sessionStorage.removeItem(EPublishActions.PENDING_STOP_KIOSK_ACTION)
+            if (result.status === "ready" && result.channels?.length)
+                onChangeStatus(status, result.channels as VotingStatusChannel[])
+            else if (result.status === "ready") {
+                setDialogText(t("publish.dialog.errorReauth"))
+                setShowDialog(true)
+            } else if (result.status === "waiting" || result.status === "refused") {
+                setDialogText(t("publish.dialog.errorReauth"))
+                setShowDialog(true)
             }
         }
-
-        executePendingActions()
-    }, [isGoldUser, onChangeStatus, onGenerate, record])
+    }, [
+        isFreshBoardAuthentication,
+        onChangeStatus,
+        record,
+        tenantId,
+        authContext.userId,
+        publishType,
+        t,
+    ])
 
     // Per-channel menu item disable logic
     const isStartChannelDisabled = (info?: IChannelButtonInfo): boolean => {

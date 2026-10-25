@@ -6,6 +6,9 @@ from __future__ import annotations
 
 import json
 import re
+import shlex
+import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -119,6 +122,30 @@ class ComelecThemeTests(unittest.TestCase):
         # the FreeMarker theme the realm used before, which still owns accounts.
         realm = comelec_realm()
         self.assertEqual(react_themes()["sequent-ui-voting"], realm["accountTheme"])
+
+
+class KeycloakEvaluatedProviderTests(unittest.TestCase):
+    def test_production_reactor_does_not_activate_the_hmac_provider(self):
+        # The private reactor currently consists solely of the HMAC login route.
+        # Its file-activated profile must be explicitly disabled in production.
+        command = next(line.strip().rstrip("; \\") for line in DOCKERFILE.read_text().splitlines()
+                       if line.strip().startswith("mvn -B") and "keycloak_extensions_dir" in line)
+        arguments = shlex.split(command)
+        self.assertIn("-P", arguments)
+        self.assertEqual(arguments[arguments.index("-P") + 1], "!beyond-keycloak-extensions")
+
+    def test_provider_assembly_rejects_a_reintroduced_hmac_jar(self):
+        # Run the actual assembly guard against a clean directory and one bad input.
+        guard = next((line.strip().rstrip("; \\") for line in DOCKERFILE.read_text().splitlines()
+                      if line.strip().startswith("test -z") and "smart-link-hmac" in line), None)
+        self.assertIsNotNone(guard, "The delivered provider set needs a fail-closed HMAC guard")
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            command = guard.replace("/build/keycloak-provider-jars", str(root))
+            (root / "sequent.idp-linking-authenticator.jar").write_bytes(b"retained provider")
+            self.assertEqual(subprocess.run(["sh", "-c", command]).returncode, 0)
+            (root / "sequent.smart-link-hmac-authenticator.jar").write_bytes(b"forbidden provider")
+            self.assertNotEqual(subprocess.run(["sh", "-c", command]).returncode, 0)
 
 
 if __name__ == "__main__":

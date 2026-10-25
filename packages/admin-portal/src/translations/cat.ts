@@ -5,6 +5,7 @@ import englishTranslation, {TranslationType} from "./en"
 
 const catalanTranslation: TranslationType = {
     translations: {
+        verificationExport: englishTranslation.translations.verificationExport,
         philippinePassport: "Passaport filipí",
         seamanBook: "Llibreta de mariner",
         philSysID: "Identificació PhilSys",

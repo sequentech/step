@@ -94,6 +94,7 @@ const auth = (values: Partial<AuthContextValues> = {}): AuthContextValues => ({
     email: "",
     firstName: "Voter",
     keycloakAccessToken: "token",
+    getAccessTokenForRequest: async () => "token",
     logout: jest.fn(),
     getExpiry: () => undefined,
     setTenantEvent: jest.fn(),

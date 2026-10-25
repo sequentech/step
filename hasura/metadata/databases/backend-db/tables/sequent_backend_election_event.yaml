@@ -109,6 +109,16 @@ insert_permissions:
               - voting_channels
       role: service-account
 select_permissions:
+    -   comment: ''
+        permission:
+            columns:
+            - id
+            - presentation
+            - tenant_id
+            filter:
+                tenant_id:
+                    _eq: X-Hasura-Tenant-Id
+        role: tally-results-read
     - comment: ""
       permission:
           columns:

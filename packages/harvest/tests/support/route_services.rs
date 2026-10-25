@@ -75,6 +75,8 @@ pub struct Services {
     pub hasura: Arc<Pool>,
     pub keycloak: Arc<Pool>,
     pub documents: Arc<MemoryDocumentStorage>,
+    pub transcripts:
+        Arc<dyn crate::services::transcript_export::TranscriptSource>,
     pub electoral_log: Arc<MemoryElectoralLogs>,
     pub identity: Arc<LocalIdentityAdmin>,
     pub monitoring_audit: Arc<MemoryConfigAudit>,
@@ -119,6 +121,9 @@ impl Services {
             hasura: pool.clone(),
             keycloak: pool,
             documents: Default::default(),
+            transcripts: Arc::new(
+                crate::services::transcript_export::InternalTranscriptSource,
+            ),
             electoral_log: Default::default(),
             identity: Default::default(),
             monitoring_audit: Default::default(),
@@ -285,6 +290,7 @@ impl Services {
             cast_votes: self.cast_votes.clone(),
             databases,
             documents: self.documents.clone(),
+            transcripts: self.transcripts.clone(),
             electoral_log: self.electoral_log.clone(),
             identity: self.identity.clone(),
             messaging_relay: self.messaging_relay.clone(),

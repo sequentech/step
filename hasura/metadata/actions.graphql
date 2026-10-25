@@ -3,6 +3,11 @@ type Query {
 }
 
 type Mutation {
+  export_verification_transcript(
+    election_event_id: String!
+    protocol_board_id: String!
+  ): ExportVerificationTranscriptOutput!
+
     report_trustee_board(report: jsonb!): TrusteeReportOutput!
 }
 
@@ -1648,7 +1653,6 @@ type CustodyProofSignatureStatusOutput {
 type AuthorizeTallyCustodyOutput {
     is_valid: Boolean!
     signing_request: SigningRequestSummary
-    outcome: RestorePrivateKeyOutcome!
 }
 
 type InsertCastVoteOutput {
@@ -3192,4 +3196,9 @@ type TestMessagingAccountOutput {
 
 type UpdateEventMessagingConfigOutput {
     errors: jsonb!
+}
+
+type ExportVerificationTranscriptOutput {
+  document_id: String!
+  url: String!
 }

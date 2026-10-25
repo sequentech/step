@@ -41,7 +41,9 @@ use deadpool_postgres::{Client, Transaction};
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use rocket::State;
-use sequent_core::services::jwt::JwtClaims;
+use sequent_core::services::jwt::{
+    has_fresh_board_authentication_at, JwtClaims,
+};
 use sequent_core::signing::{
     CertificateCheckId, CertificateOpenFailure, RequesterSigning,
     SignatureAlgorithm, SigningAction, SigningRequestStatus,
@@ -198,6 +200,27 @@ async fn writer(
     Ok(caller)
 }
 
+/// Board approval needs a fresh external login at submission. Trustee custody
+/// actions retain their own authentication, proof and certificate requirements.
+fn require_fresh_board_approval(
+    claims: &JwtClaims,
+    action: SigningAction,
+    now: chrono::DateTime<Utc>,
+) -> Result<(), SigningFailure> {
+    if !matches!(
+        action,
+        SigningAction::ConfirmCustodyProof
+            | SigningAction::ContributeCustodyProof
+    ) && !has_fresh_board_authentication_at(claims, now)
+    {
+        return Err(SigningFailure::forbidden(
+            "Fresh external authentication required",
+        )
+        .with("reason", "reauthentication-required"));
+    }
+    Ok(())
+}
+
 /// Ends a cancel, handover or open-failure report: commits it when it was
 /// taken, and when it was refused with a logged refusal (see
 /// [`refusal_is_logged`]); any other failure rolls it back.
@@ -319,7 +342,7 @@ pub async fn approve_signing_request(
             .await
             .map_err(internal)?
     };
-    if let Some(request) = request {
+    if let Some(request) = request.as_ref() {
         if let Err(error) = refresh_chain_crls(
             &mut client,
             tenant_id,
@@ -333,13 +356,19 @@ pub async fn approve_signing_request(
             warn!("Refreshing the signer's revocation lists failed: {error:?}");
         }
     }
+    // CRL retrieval can take time. Check immediately before accepting the
+    // approval, rather than trusting freshness measured before that work.
+    let now = Utc::now();
+    if let Some(request) = request.as_ref() {
+        require_fresh_board_approval(&claims, request.action, now)?;
+    }
     let outcome = approve(
         &mut client,
         &services.signing,
         &caller,
         tenant_id,
         &input,
-        Utc::now(),
+        now,
     )
     .await
     .map_err(signing_failure)?;
@@ -708,3 +737,7 @@ pub async fn prepare_signing_pdf(
 #[cfg(test)]
 #[path = "../../tests/support/signing_routes.rs"]
 mod route_tests;
+
+#[cfg(test)]
+#[path = "../../tests/support/board_freshness.rs"]
+mod board_freshness_tests;

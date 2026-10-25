@@ -44,7 +44,8 @@ export const ApolloContextProvider = ({children, role}: ApolloContextProviderPro
     const [apolloClient, setApolloClient] = useState<ApolloClient<NormalizedCacheObject> | null>(
         null
     )
-    const {isAuthenticated, getAccessToken, hasRole} = useContext(AuthContext)
+    const {isAuthenticated, getAccessToken, getAccessTokenForRequest, hasRole} =
+        useContext(AuthContext)
     const {globalSettings} = useContext(SettingsContext)
 
     const createApolloClient = (): ApolloClient<NormalizedCacheObject> => {
@@ -52,12 +53,11 @@ export const ApolloContextProvider = ({children, role}: ApolloContextProviderPro
             uri: globalSettings.HASURA_URL,
         })
 
-        const authLink = setContext((operation, {headers}) => {
+        const authLink = setContext(async (operation, {headers}) => {
             // get the authentication token from local storage if it exists
-            const token = getAccessToken()
+            const token = await getAccessTokenForRequest()
             if (!token) {
-                console.error("No access token available")
-                return {}
+                throw new Error("No active authentication token")
             }
             // return the headers to the context so httpLink can read them
             const operationRole = getOperationRole(operation, hasRole)

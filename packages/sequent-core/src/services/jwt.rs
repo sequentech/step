@@ -158,6 +158,26 @@ pub fn has_gold_permission_at(
     is_fresh && is_gold
 }
 
+/// Fresh external authentication for board actions, after bearer verification.
+/// The administrative realm's broker must preserve the upstream `auth_time`.
+/// Token issue/refresh time and the voter Gold assurance label are not proof
+/// that this person has just authenticated at the external provider.
+#[instrument(skip_all)]
+pub fn has_fresh_board_authentication(claims: &JwtClaims) -> bool {
+    has_fresh_board_authentication_at(claims, chrono::Utc::now())
+}
+
+/// The board freshness check at a supplied time, including its strict boundary.
+pub fn has_fresh_board_authentication_at(
+    claims: &JwtClaims,
+    now: DateTime<chrono::Utc>,
+) -> bool {
+    claims
+        .auth_time
+        .and_then(|auth_time| now.timestamp().checked_sub(auth_time))
+        .is_some_and(|age| (0..60).contains(&age))
+}
+
 #[cfg(test)]
 mod tests {
     use crate::services::jwt::*;
@@ -206,5 +226,64 @@ mod tests {
         assert_eq!(claims.iss, "https://issuer.example.invalid");
         assert_eq!(claims.sub, "synthetic-subject");
         assert_eq!(decode_header(&token).unwrap().alg, Algorithm::RS256);
+    }
+    fn board_claims(auth_time: Option<i64>) -> JwtClaims {
+        let mut claims = decode_jwt(&synthetic_rs256_token()).unwrap();
+        claims.auth_time = auth_time;
+        claims.iat = 1_800_000_000;
+        claims.acr = "silver".into();
+        claims
+    }
+
+    #[test]
+    fn board_freshness_accepts_fresh_external_login_without_gold() {
+        let now = chrono::DateTime::from_timestamp(1_800_000_000, 0).unwrap();
+        for age in [0, 1, 59] {
+            assert!(has_fresh_board_authentication_at(
+                &board_claims(Some(now.timestamp() - age)),
+                now
+            ));
+        }
+    }
+
+    #[test]
+    fn board_freshness_refuses_sixty_seconds_and_older() {
+        let now = chrono::DateTime::from_timestamp(1_800_000_000, 0).unwrap();
+        for age in [60, 61, 900] {
+            let mut claims = board_claims(Some(now.timestamp() - age));
+            claims.acr = Permissions::GOLD.to_string();
+            assert!(!has_fresh_board_authentication_at(&claims, now));
+        }
+    }
+
+    #[test]
+    fn board_freshness_requires_auth_time_even_after_token_refresh() {
+        let now = chrono::DateTime::from_timestamp(1_800_000_000, 0).unwrap();
+        let mut claims = board_claims(None);
+        claims.acr = Permissions::GOLD.to_string();
+        assert!(!has_fresh_board_authentication_at(&claims, now));
+    }
+
+    #[test]
+    fn board_freshness_refuses_future_and_out_of_range_times() {
+        let now = chrono::DateTime::from_timestamp(1_800_000_000, 0).unwrap();
+        for auth_time in [now.timestamp() + 1, i64::MIN, i64::MAX] {
+            let mut claims = board_claims(Some(auth_time));
+            claims.acr = Permissions::GOLD.to_string();
+            assert!(!has_fresh_board_authentication_at(&claims, now));
+        }
+    }
+
+    #[test]
+    fn voter_gold_policy_still_requires_gold_acr() {
+        let now = chrono::DateTime::from_timestamp(1_800_000_000, 0)
+            .unwrap()
+            .with_timezone(&Local);
+        let mut claims = board_claims(Some(now.timestamp()));
+        assert!(!has_gold_permission_at(&claims, now));
+        claims.acr = Permissions::GOLD.to_string();
+        assert!(has_gold_permission_at(&claims, now));
+        claims.auth_time = Some(now.timestamp() - 60);
+        assert!(!has_gold_permission_at(&claims, now));
     }
 }

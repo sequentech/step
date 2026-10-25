@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React from "react"
+import {gql} from "@apollo/client"
+import {useApolloClient} from "@apollo/client/react"
 import {act, render, screen, waitFor} from "@testing-library/react"
 import {Provider, useSelector} from "react-redux"
 import {ApolloWrapper} from "./ApolloContextProvider"
@@ -31,7 +33,12 @@ function Participation() {
     )
 }
 
-function tree(accessToken?: string) {
+let requestClient: ReturnType<typeof useApolloClient>
+const RequestClient = () => {
+    requestClient = useApolloClient()
+    return null
+}
+function tree(accessToken?: string, requestToken = async () => accessToken) {
     const authContext: React.ContextType<typeof AuthContext> = {
         isAuthContextInitialized: true,
         isAuthenticated: Boolean(accessToken),
@@ -44,6 +51,7 @@ function tree(accessToken?: string) {
         isKiosk: () => false,
         getExpiry: () => undefined,
         keycloakAccessToken: accessToken,
+        getAccessTokenForRequest: requestToken,
         setTenantEvent: jest.fn(),
         openProfileLink: jest.fn().mockResolvedValue(undefined),
         isGoldUser: () => false,
@@ -54,6 +62,7 @@ function tree(accessToken?: string) {
             <AuthContext.Provider value={authContext}>
                 <ApolloWrapper>
                     <Participation />
+                    <RequestClient />
                 </ApolloWrapper>
             </AuthContext.Provider>
         </Provider>
@@ -102,4 +111,30 @@ test("refresh retains ballot state, while scope changes and logout clear it", as
     expect(screen.queryByTestId("participation")).toBeNull()
     expect(store.getState().castVotes).toEqual({})
     mounted.unmount()
+})
+
+test("checks current authentication at request dispatch before calling HTTP", async () => {
+    const fetch = jest.spyOn(globalThis, "fetch").mockRejectedValue(new Error("transport boundary"))
+    const requestToken = jest.fn<Promise<string | undefined>, []>().mockResolvedValue(undefined)
+    const mounted = render(tree(token("first-area", 100), requestToken))
+    await screen.findByTestId("participation")
+    const query = gql`
+        query IdleGuardProbe {
+            __typename
+        }
+    `
+    await expect(requestClient.query({query, fetchPolicy: "network-only"})).rejects.toThrow(
+        "No active authentication token"
+    )
+    expect(fetch).not.toHaveBeenCalled()
+    requestToken.mockResolvedValue("fresh-token")
+    await expect(requestClient.query({query, fetchPolicy: "network-only"})).rejects.toThrow(
+        "transport boundary"
+    )
+    expect(fetch).toHaveBeenCalledTimes(1)
+    expect(new Headers(fetch.mock.calls[0][1]?.headers).get("authorization")).toBe(
+        "Bearer fresh-token"
+    )
+    mounted.unmount()
+    fetch.mockRestore()
 })
