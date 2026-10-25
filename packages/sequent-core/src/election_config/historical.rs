@@ -1717,7 +1717,8 @@ fn record_precinct_area(
 ///   is the middle name — an explicit, documented mapping);
 /// - `suffix` ← `SUFFIX`;
 /// - `dateOfBirth` ← `DOBYEAR`/`DOBMONTH`/`DOBDAY` composed as `yyyy-MM-dd` (the
-///   Scanovate store format); a partial date stays blank, never guessed;
+///   Scanovate store format); a fully-absent date stays unset, while a partial or
+///   impossible one is a visible per-row error rather than a guess;
 /// - `country`/`embassy` are the display values the registration selects use and the
 ///   matrix compares, derived from the voter's resolved area the same way the option
 ///   lists are (`embassy = format_embassy(area.description)`,
