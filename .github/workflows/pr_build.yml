@@ -18,7 +18,36 @@ on:
         default: false
 
 jobs:
+  # Runs before anything with credentials. Publishing is refused, not turned
+  # into a dry run, outside the integration branches; a tag must be one Docker
+  # tag. The inputs reach the script through env, never inline.
+  preflight:
+    runs-on: ubuntu-24.04
+    permissions: {}
+    steps:
+      - name: Check the publish target and tag
+        env:
+          PUSH: ${{ inputs.push }}
+          TAG: ${{ inputs.tag }}
+          REF: ${{ github.ref }}
+        run: |
+          set -eu
+          if [ "$PUSH" = "true" ]; then
+            case "$REF" in
+              refs/heads/main|refs/heads/ovcs) ;;
+              *) echo "::error::push=true is allowed only from main or ovcs, not $REF"; exit 1 ;;
+            esac
+          fi
+          if [ -n "$TAG" ]; then
+            if ! printf '%s' "$TAG" | grep -Eqx '[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}' \
+              || [ "$(printf '%s' "$TAG" | wc -l)" -ne 0 ]; then
+              echo "::error::tag must be one Docker tag: a letter, digit or underscore, then up to 127 letters, digits, underscores, dots or dashes"
+              exit 1
+            fi
+          fi
+
   build-and-push:
+    needs: preflight
     uses: ./.github/workflows/reusable_build_push.yml
     secrets:
       PAT: ${{ secrets.PAT }}
