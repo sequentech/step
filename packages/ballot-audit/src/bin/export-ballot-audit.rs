@@ -4,6 +4,7 @@
 use anyhow::{bail, ensure, Context, Result};
 use b3::messages::{message::Message, statement::StatementType};
 use ballot_audit::{
+    board::{read_ceremony_sources, resolve_boards, validate_scope_election, CeremonySources},
     digest, incomplete, invalid_input,
     source::{
         board_identifier, board_relation_name, connect, into_invalid_input, local_config,
@@ -133,6 +134,9 @@ struct Args {
     /// Private JSON connection file with per-database restore provenance.
     #[arg(long)]
     connections: PathBuf,
+    /// Independently authenticated producer environment slug, required for non-default ceremonies.
+    #[arg(long)]
+    environment_slug: Option<String>,
     /// Restored B3 blob root, required when a row has no message bytes.
     #[arg(long)]
     b3_blob_root: Option<PathBuf>,
@@ -251,19 +255,25 @@ fn validate_mapping(saved: &SavedScope, mapping: &Value) -> Result<String> {
             && ceremony["election_event_id"].as_str() == Some(scope.election_event_id.as_str()),
         "saved keys ceremony differs from pinned session"
     );
-    let default_ceremony = match ceremony.get("is_default") {
-        Some(Value::Null) | Some(Value::Bool(true)) => true,
-        Some(Value::Bool(false)) => false,
-        _ => bail!(invalid_input(
-            "saved keys ceremony lacks its default-board predicate"
-        )),
+    let sources = CeremonySources {
+        ceremony: ceremony.clone(),
+        elections: mapping["ceremony_elections"]
+            .as_array()
+            .cloned()
+            .ok_or_else(|| {
+                invalid_input("saved mapping lacks complete ceremony election sources")
+            })?,
     };
-    ensure!(default_ceremony, invalid_input(
-        "non-default keys-ceremony boards require separately authenticated environment-slug mapping; this exporter refuses to infer it"));
+    let boards = resolve_boards(
+        &mapping["tally_session"],
+        &mapping["election_event"],
+        &sources,
+        mapping["environment_slug"].as_str(),
+    )?;
+    validate_scope_election(&scope.election_id, &sources, &boards)?;
     ensure!(
-        mapping["election_event"]["bulletin_board_reference"]["database_name"].as_str()
-            == Some(scope.board_name.as_str()),
-        "saved event board differs from pinned scope"
+        boards.bulletin_board == scope.board_name,
+        "saved ceremony board differs from pinned scope"
     );
     for (key, expected) in [
         ("election_event", &scope.election_event_id),
@@ -313,6 +323,7 @@ async fn export_hasura(
     source: &ConnectionSource,
     saved: &SavedScope,
     statement_timeout_seconds: u32,
+    environment_slug: Option<&str>,
 ) -> Result<HasuraExport> {
     let mut client = connect(config).await?;
     let transaction = start_snapshot(&mut client, statement_timeout_seconds).await?;
@@ -343,21 +354,11 @@ async fn export_hasura(
         &[&s.tenant_id, &s.election_event_id, &s.tally_session_id],
     )
     .await?;
-    let ceremony_id = session["keys_ceremony_id"]
-        .as_str()
-        .ok_or_else(|| incomplete("saved session lacks a keys ceremony"))?;
-    let ceremony = one(
-        &transaction,
-        "keys ceremony",
-        "SELECT jsonb_build_object('id', id, 'tenant_id', tenant_id,
-        'election_event_id', election_event_id, 'is_default', is_default) AS data
-        FROM sequent_backend.keys_ceremony WHERE tenant_id = $1::text::uuid
-          AND election_event_id = $2::text::uuid AND id = $3::text::uuid",
-        &[&s.tenant_id, &s.election_event_id, &ceremony_id],
-    )
-    .await?;
+    let sources = read_ceremony_sources(&transaction, &session).await?;
     let mapping = json!({"election_event":event, "election":election, "tally_session":session,
-        "tally_session_contest":contest, "tally_session_executions":executions, "keys_ceremony":ceremony});
+        "tally_session_contest":contest, "tally_session_executions":executions,
+        "keys_ceremony":sources.ceremony, "ceremony_elections":sources.elections,
+        "environment_slug":environment_slug});
     let election_alias = validate_mapping(saved, &mapping)?;
     let cast_votes = rows(
         &transaction,
@@ -883,7 +884,14 @@ async fn run(args: Args) -> Result<()> {
         local_config(&connections.b3, APPLICATION_NAME).map_err(into_invalid_input)?;
     new_private_directory(&args.output).map_err(into_invalid_input)?;
     let timeout = args.statement_timeout_seconds;
-    let hasura = export_hasura(hasura_config, &connections.hasura, &saved, timeout).await?;
+    let hasura = export_hasura(
+        hasura_config,
+        &connections.hasura,
+        &saved,
+        timeout,
+        args.environment_slug.as_deref(),
+    )
+    .await?;
     let keycloak = export_keycloak(
         keycloak_config,
         &connections.keycloak,
@@ -1151,6 +1159,7 @@ mod tests {
                 "annotations": annotations},
             "keys_ceremony": {"id": CEREMONY, "tenant_id": TENANT,
                 "election_event_id": EVENT, "is_default": true},
+            "ceremony_elections": [{"id": ELECTION, "tenant_id": TENANT, "election_event_id": EVENT}],
         })
     }
 
@@ -1226,6 +1235,30 @@ mod tests {
             "delegated_voting_policy": "enabled"});
         let error = validate_mapping(&scope, &mapping(0, combined, json!({}))).unwrap_err();
         assert_eq!(ExitStatus::of(&error), ExitStatus::InvalidInput);
+    }
+
+    #[test]
+    fn authenticated_nondefault_election_board_preserves_real_ids() {
+        let mut scope = saved(0, MultiplicityPolicy::Unweighted, vec![0]);
+        let mut data = mapping(0, multiple_contests(), json!({}));
+        let tenant = TENANT.replace('-', "");
+        let event_board = format!("testtenant{}event{}", &tenant[..17], EVENT.replace('-', ""));
+        let election_board = format!(
+            "testtenant{}election{}",
+            &tenant[..17],
+            ELECTION.replace('-', "")
+        );
+        data["environment_slug"] = json!("test");
+        data["election_event"]["bulletin_board_reference"]["database_name"] = json!(event_board);
+        data["keys_ceremony"]["is_default"] = json!(false);
+        data["election"]["keys_ceremony_id"] = json!(CEREMONY);
+        data["ceremony_elections"] = json!([data["election"].clone()]);
+        scope.scope.board_name = election_board;
+        assert_eq!(validate_mapping(&scope, &data).unwrap(), "alias");
+        assert_eq!(scope.scope.election_id, ELECTION);
+        assert_eq!(scope.scope.election_event_id, EVENT);
+        data["environment_slug"] = Value::Null;
+        assert!(validate_mapping(&scope, &data).is_err());
     }
 
     #[test]
