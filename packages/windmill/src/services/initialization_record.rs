@@ -95,33 +95,39 @@ fn annotation(annotations: &Option<Value>, key: &str) -> Option<String> {
 }
 
 /// The hash and document of the Post's report in the session's newest
-/// results; `(None, None)` with a warning when there is none (the log
-/// entry then says the hash is missing).
+/// results, keeping the signed PDF separate from the legacy PDF-first
+/// preference. Unsigned HTML cannot replace a PDF held for signatures.
 async fn report_of(
     hasura_transaction: &Transaction<'_>,
     tenant: Uuid,
     election: Uuid,
     results_event_id: Option<Uuid>,
-) -> Result<(Option<String>, Option<Uuid>)> {
+) -> Result<(Option<String>, Option<Uuid>, Option<Uuid>)> {
     let Some(results_event_id) = results_event_id else {
         warn!("Initialization of {election}: the tally has no results, so no report hash");
-        return Ok((None, None));
+        return Ok((None, None, None));
     };
     let Some((annotations, documents)) =
         find_post_report(hasura_transaction, tenant, election, results_event_id).await?
     else {
         warn!("Initialization of {election}: results {results_event_id} have no report of it");
-        return Ok((None, None));
+        return Ok((None, None, None));
     };
     let report_hash = annotation(&annotations, "results_hash");
-    let document_id = documents
-        .and_then(|documents| serde_json::from_value::<ResultDocuments>(documents).ok())
-        .and_then(|documents| documents.pdf.or(documents.html))
-        .and_then(|id| Uuid::parse_str(&id).ok());
+    let documents =
+        documents.and_then(|value| serde_json::from_value::<ResultDocuments>(value).ok());
+    let pdf = documents
+        .as_ref()
+        .and_then(|value| value.pdf.as_ref())
+        .and_then(|id| Uuid::parse_str(id).ok());
+    let unprotected = documents
+        .as_ref()
+        .and_then(|value| value.pdf.as_ref().or(value.html.as_ref()))
+        .and_then(|id| Uuid::parse_str(id).ok());
     if report_hash.is_none() {
         warn!("Initialization of {election}: the report has no hash");
     }
-    Ok((report_hash, document_id))
+    Ok((report_hash, pdf, unprotected))
 }
 
 /// Stores the initialization of `election_id` by the completed
@@ -129,8 +135,9 @@ async fn report_of(
 /// [`initialization_plan`]) and the Post's flag. Under a lock on the Post,
 /// so reports of its countries completing at once see each other's rows. A
 /// session already recorded for the Post (a re-run of its tally) records
-/// nothing again. The electoral log entries are staged after the commit
-/// ([`stage_initialization_log`]).
+/// nothing again. Callers stage the electoral log after the tally commits
+/// ([`stage_initialization_log`]), or in the protected report-release
+/// transaction ([`stage_initialization_log_locked`]).
 #[instrument(skip(hasura_transaction), err)]
 pub async fn store_initialization(
     hasura_transaction: &Transaction<'_>,
@@ -199,8 +206,40 @@ pub async fn store_initialization(
         initialization_area_filter(&tally_session).is_some(),
         &already_initialized,
     );
-    let (report_hash, document_id) =
+    let (report_hash, pdf, unprotected) =
         report_of(hasura_transaction, tenant, election, results_event_id).await?;
+    use crate::postgres::signing_report_release::{
+        initialization_report_signing_state, InitializationReportSigningState,
+    };
+    let signing = match results_event_id {
+        Some(results) => {
+            initialization_report_signing_state(
+                hasura_transaction,
+                tenant,
+                event,
+                results,
+                election,
+            )
+            .await?
+        }
+        None => InitializationReportSigningState::Unprotected,
+    };
+    let document_id = match signing {
+        InitializationReportSigningState::AwaitingSignatures if report_hash.is_some() => {
+            // Commit the tally/hold first. Neither unsigned HTML nor JSON can
+            // initialize the Post while the required PDF awaits approval.
+            return Ok(Vec::new());
+        }
+        InitializationReportSigningState::AwaitingSignatures => None,
+        InitializationReportSigningState::Released(document) => {
+            anyhow::ensure!(
+                pdf == Some(document),
+                "The initialized report is not the released signed PDF"
+            );
+            pdf
+        }
+        InitializationReportSigningState::Unprotected => unprotected,
+    };
     anyhow::ensure!(
         report_hash.is_some() && document_id.is_some(),
         "The initialization report is missing its hash or document; voting remains uninitialized"
@@ -328,15 +367,29 @@ pub async fn stage_initialization_log(
 ) -> Result<usize> {
     let transaction = hasura_client.transaction().await?;
     lock_signing_event(&transaction, tenant_id, election_event_id).await?;
-    let rows = lock_unstaged_initializations(&transaction, tenant_id, election_event_id).await?;
+    let count = stage_initialization_log_locked(&transaction, tenant_id, election_event_id).await?;
+    transaction.commit().await?;
+    Ok(count)
+}
+
+/// Stage committed report-release initialization under the already-held
+/// event signing lock, atomically with its released document and flag.
+#[instrument(skip(transaction), err)]
+pub async fn stage_initialization_log_locked(
+    transaction: &Transaction<'_>,
+    tenant_id: Uuid,
+    election_event_id: Uuid,
+) -> Result<usize> {
+    let rows = lock_unstaged_initializations(transaction, tenant_id, election_event_id).await?;
     for row in &rows {
-        stage_step(&transaction, &initialization_log_step(row), row.id).await?;
-        mark_initialization_log_staged(&transaction, row.id).await?;
+        stage_step(transaction, &initialization_log_step(row), row.id).await?;
+        mark_initialization_log_staged(transaction, row.id).await?;
     }
     if let Some(row) = rows.first() {
-        // This after-commit transaction holds no tally locks; signing always comes first.
+        // The event signing lock was acquired before any tally/Post locks;
+        // predictions change in this same transaction.
         crate::services::scheduled_outcome::recompute_predictions(
-            &transaction,
+            transaction,
             &tenant_id.to_string(),
             &election_event_id.to_string(),
             &Actor {
@@ -352,7 +405,6 @@ pub async fn stage_initialization_log(
         )
         .await?;
     }
-    transaction.commit().await?;
     Ok(rows.len())
 }
 

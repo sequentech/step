@@ -1643,3 +1643,220 @@ async fn report_creation_inputs_are_guarded_while_progress_and_annotations_remai
     w.store(&tx, session, w.p1).await;
     assert!(!w.initialized(&tx, w.p1).await);
 }
+
+/// A required initialization PDF is deliberately absent from the public
+/// results row until its signatures arrive. Its exact hold must survive
+/// the tally transaction without making any country ready to open.
+#[tokio::test]
+async fn a_held_initialization_commits_without_marking_the_post_initialized() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let w = World::new(&tx, "post").await;
+    let (session, document) = w.report(&tx, w.p1, &[w.a, w.b], false, "held-hash").await;
+    let results: Uuid = tx.query_one(
+        "SELECT results_event_id FROM sequent_backend.tally_session_execution WHERE tally_session_id=$1",
+        &[&session],
+    ).await.unwrap().get(0);
+    execute(
+        &tx,
+        "UPDATE sequent_backend.results_election SET documents = $2 WHERE results_event_id=$1",
+        &[&results, &json!({"json": Uuid::new_v4()})],
+    )
+    .await;
+    execute(&tx, "INSERT INTO sequent_backend.document (id,tenant_id,election_event_id,name,media_type,size) VALUES ($1,$2,$3,'held.pdf','application/pdf',100)",
+        &[&document,&w.tenant,&w.event]).await;
+    execute(&tx, "INSERT INTO sequent_backend.signing_tally_hold (tenant_id,election_event_id,results_event_id,action,report_type,election_id,file_name,base_document_id,base_sha256,requested_by,requested_by_username) VALUES ($1,$2,$3,'generate-reports','INITIALIZATION_REPORT',$4,'report.pdf',$5,$6,'board1','board1')",
+        &[&w.tenant,&w.event,&results,&w.p1,&document,&"a".repeat(64)]).await;
+    let rows = store_initialization(
+        &tx,
+        &w.tenant.to_string(),
+        &w.event.to_string(),
+        &session.to_string(),
+        &w.p1.to_string(),
+    )
+    .await
+    .expect("the exact held report must commit so its signing request can start");
+    assert!(rows.is_empty());
+    execute(
+        &tx,
+        "UPDATE sequent_backend.results_election SET documents=$2 WHERE results_event_id=$1",
+        &[
+            &results,
+            &json!({"json":Uuid::new_v4(),"html":Uuid::new_v4()}),
+        ],
+    )
+    .await;
+    assert!(
+        store_initialization(
+            &tx,
+            &w.tenant.to_string(),
+            &w.event.to_string(),
+            &session.to_string(),
+            &w.p1.to_string()
+        )
+        .await
+        .unwrap()
+        .is_empty(),
+        "unsigned HTML must not bypass the held PDF"
+    );
+    execute(
+        &tx,
+        "UPDATE sequent_backend.results_election SET documents=$2 WHERE results_event_id=$1",
+        &[&results, &json!({"json":Uuid::new_v4()})],
+    )
+    .await;
+    assert!(!w.initialized(&tx, w.p1).await);
+    assert!(list_election_initializations(&tx, w.tenant, w.event)
+        .await
+        .unwrap()
+        .is_empty());
+    // The absence remains an error if the hold belongs to another Post.
+    execute(
+        &tx,
+        "UPDATE sequent_backend.signing_tally_hold SET election_id=$2 WHERE results_event_id=$1",
+        &[&results, &w.p2],
+    )
+    .await;
+    assert!(store_initialization(
+        &tx,
+        &w.tenant.to_string(),
+        &w.event.to_string(),
+        &session.to_string(),
+        &w.p1.to_string()
+    )
+    .await
+    .is_err());
+    execute(
+        &tx,
+        "UPDATE sequent_backend.signing_tally_hold SET election_id=$2 WHERE results_event_id=$1",
+        &[&results, &w.p1],
+    )
+    .await;
+    execute(
+        &tx,
+        "UPDATE sequent_backend.results_election SET annotations='{}' WHERE results_event_id=$1",
+        &[&results],
+    )
+    .await;
+    assert!(
+        store_initialization(
+            &tx,
+            &w.tenant.to_string(),
+            &w.event.to_string(),
+            &session.to_string(),
+            &w.p1.to_string()
+        )
+        .await
+        .is_err(),
+        "a hold cannot replace the actual result hash"
+    );
+    execute(
+        &tx,
+        "UPDATE sequent_backend.results_election SET annotations=$2 WHERE results_event_id=$1",
+        &[&results, &json!({"results_hash":"held-hash"})],
+    )
+    .await;
+    execute(
+        &tx,
+        "UPDATE sequent_backend.signing_tally_hold SET area_id=$2 WHERE results_event_id=$1",
+        &[&results, &w.a],
+    )
+    .await;
+    assert!(
+        store_initialization(
+            &tx,
+            &w.tenant.to_string(),
+            &w.event.to_string(),
+            &session.to_string(),
+            &w.p1.to_string()
+        )
+        .await
+        .is_err(),
+        "a country hold is not the Post initialization PDF"
+    );
+    execute(
+        &tx,
+        "UPDATE sequent_backend.signing_tally_hold SET area_id=NULL WHERE results_event_id=$1",
+        &[&results],
+    )
+    .await;
+    execute(
+        &tx,
+        "DELETE FROM sequent_backend.document WHERE id=$1",
+        &[&document],
+    )
+    .await;
+    assert!(
+        store_initialization(
+            &tx,
+            &w.tenant.to_string(),
+            &w.event.to_string(),
+            &session.to_string(),
+            &w.p1.to_string()
+        )
+        .await
+        .is_err(),
+        "a dangling hold is still a missing report"
+    );
+    tx.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn an_unprotected_html_initialization_keeps_its_existing_completion_path() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let w = World::new(&tx, "post").await;
+    let (session, document) = w
+        .report(&tx, w.p1, &[w.a, w.b], false, "html-results-hash")
+        .await;
+    execute(
+        &tx,
+        "UPDATE sequent_backend.results_election SET documents=$2 WHERE election_id=$1",
+        &[&w.p1, &json!({"html":document})],
+    )
+    .await;
+    let rows = store_initialization(
+        &tx,
+        &w.tenant.to_string(),
+        &w.event.to_string(),
+        &session.to_string(),
+        &w.p1.to_string(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(rows.len(), 2);
+    assert!(w.initialized(&tx, w.p1).await);
+    assert!(rows.iter().all(|row| row.document_id == Some(document)
+        && row.report_hash.as_deref() == Some("html-results-hash")));
+    tx.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn an_invalid_preferred_pdf_does_not_fall_back_to_unsigned_html() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let w = World::new(&tx, "post").await;
+    let (session, document) = w
+        .report(&tx, w.p1, &[w.a, w.b], false, "invalid-pdf-hash")
+        .await;
+    execute(
+        &tx,
+        "UPDATE sequent_backend.results_election SET documents=$2 WHERE election_id=$1",
+        &[&w.p1, &json!({"pdf":"invalid-document-id","html":document})],
+    )
+    .await;
+    assert!(
+        store_initialization(
+            &tx,
+            &w.tenant.to_string(),
+            &w.event.to_string(),
+            &session.to_string(),
+            &w.p1.to_string()
+        )
+        .await
+        .is_err(),
+        "a malformed preferred PDF must remain an error, not select the HTML instead"
+    );
+    assert!(!w.initialized(&tx, w.p1).await);
+    tx.rollback().await.unwrap();
+}

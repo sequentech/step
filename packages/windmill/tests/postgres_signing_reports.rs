@@ -968,6 +968,8 @@ async fn the_tally_holds_the_election_returns_of_each_post_and_country() {
         }
         tx.commit().await.unwrap();
         signing_tx.rollback().await.unwrap();
+        drop(signing);
+        drop(client);
         // Nothing starts before the tally committed.
         assert!(holds(&w).await.iter().all(|hold| hold.2.is_none()));
 
@@ -1467,7 +1469,7 @@ async fn a_tally_report_is_released_to_its_results_row() {
         results_event_id: Uuid::new_v4(),
         election_id: Uuid::new_v4(),
         area_id: None,
-        report_type: "INITIALIZATION_REPORT".into(),
+        report_type: "ELECTORAL_RESULTS".into(),
     };
     let s = signed_to(preset, None, Some(target.clone())).await;
     let publications = Arc::new(Publications::new(s.documents.clone(), false));
@@ -1544,4 +1546,410 @@ async fn the_sweeper_mails_what_no_task_did_and_fails_stale_sends() {
             .filter(|row| row.3 == "ERROR")
             .count();
     assert_eq!(errors, 1);
+}
+
+/// Uses the normal result-row publication boundary while keeping object
+/// storage in memory. Signature/quorum, release and initialization are real.
+struct InitializationPublisher {
+    publications: Arc<Publications>,
+    result_document_override: Option<Uuid>,
+}
+
+#[async_trait]
+impl ReportPublisher for InitializationPublisher {
+    async fn publish(
+        &self,
+        tx: &Transaction<'_>,
+        request: &SigningRequestRow,
+        release: &ReportRelease,
+        pdf: &[u8],
+    ) -> anyhow::Result<ReleasedDocument> {
+        let document = self.publications.publish(tx, request, release, pdf).await?;
+        let ReleaseTarget::TallyResult {
+            results_event_id,
+            election_id,
+            area_id,
+            ..
+        } = release.target
+        else {
+            anyhow::bail!("expected tally result")
+        };
+        set_result_pdf(
+            tx,
+            request.tenant_id,
+            request.election_event_id,
+            results_event_id,
+            election_id,
+            area_id,
+            self.result_document_override
+                .unwrap_or(document.document_id),
+        )
+        .await?;
+        Ok(document)
+    }
+    async fn mail(
+        &self,
+        email: &ReportEmail,
+        released: &ReleasedDocument,
+        content: &[u8],
+    ) -> anyhow::Result<()> {
+        self.publications.mail(email, released, content).await
+    }
+}
+
+struct InitializationEffects {
+    documents: Arc<Documents>,
+    publisher: InitializationPublisher,
+}
+#[async_trait]
+impl SignedActionEffects for InitializationEffects {
+    async fn run(
+        &self,
+        tx: &Transaction<'_>,
+        request: &SigningRequestRow,
+        _approvals: &[SigningApprovalRow],
+        progress: &EffectProgress,
+    ) -> anyhow::Result<Value> {
+        release_report(
+            tx,
+            self.documents.as_ref(),
+            &self.publisher,
+            request,
+            progress,
+        )
+        .await
+    }
+}
+
+async fn initialization_state(w: &World) -> (bool, i64, i64) {
+    let client = w.pool.get().await.unwrap();
+    let row = client.query_one(
+        "SELECT COALESCE(initialization_report_generated,false),
+          (SELECT count(*) FROM sequent_backend.election_initialization WHERE tenant_id=$1 AND election_event_id=$2),
+          (SELECT count(*) FROM sequent_backend.signing_log_outbox WHERE tenant_id=$1 AND election_event_id=$2 AND statement_kind='ElectionInitialized')
+         FROM sequent_backend.election WHERE tenant_id=$1 AND election_event_id=$2 AND id=$3",
+        &[&w.tenant,&w.event,&w.post],
+    ).await.unwrap();
+    (row.get(0), row.get(1), row.get(2))
+}
+
+#[tokio::test]
+async fn initialization_waits_for_two_signatures_then_records_the_released_report_once() {
+    use windmill::services::initialization_record::store_initialization;
+    let w = world("initialization-release").await;
+    w.rule(ACTION, 2, RequesterSigning::NotAllowed, None).await;
+    let (session, keys, results) = (Uuid::new_v4(), Uuid::new_v4(), Uuid::new_v4());
+    let mut client = w.pool.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    windmill::postgres::trusted_write(&tx).await.unwrap();
+    tx.execute(
+        "UPDATE sequent_backend.election SET presentation=presentation || $2 WHERE id=$1",
+        &[&w.post, &json!({"initialization_report_policy":"required"})],
+    )
+    .await
+    .unwrap();
+    tx.execute("INSERT INTO sequent_backend.keys_ceremony (id,tenant_id,election_event_id,trustee_ids,threshold) VALUES ($1,$2,$3,'{}',2)",&[&keys,&w.tenant,&w.event]).await.unwrap();
+    tx.execute("INSERT INTO sequent_backend.tally_session (id,tenant_id,election_event_id,keys_ceremony_id,threshold,election_ids,area_ids,annotations,tally_type,execution_status,is_execution_completed) VALUES ($1,$2,$3,$4,2,$5,'{}',$6,'INITIALIZATION_REPORT','SUCCESS',true)",&[&session,&w.tenant,&w.event,&keys,&vec![w.post],&json!({"executer_user_id":"operator","executer_username":"operator"})]).await.unwrap();
+    windmill::postgres::election_initialization::insert_initialization_report_coverage(
+        &tx,
+        w.tenant,
+        w.event,
+        session,
+        &[(w.post.to_string(), Vec::<String>::new())]
+            .into_iter()
+            .collect(),
+    )
+    .await
+    .unwrap();
+    tx.execute("INSERT INTO sequent_backend.results_event (id,tenant_id,election_event_id) VALUES ($1,$2,$3)",&[&results,&w.tenant,&w.event]).await.unwrap();
+    tx.execute("INSERT INTO sequent_backend.results_election (id,tenant_id,election_event_id,results_event_id,election_id,total_voters_percent,annotations,documents) VALUES ($1,$2,$3,$4,$5,0,$6,$7)",&[&Uuid::new_v4(),&w.tenant,&w.event,&results,&w.post,&json!({"results_hash":"exact-results-hash"}),&json!({"json":Uuid::new_v4()})]).await.unwrap();
+    tx.execute("INSERT INTO sequent_backend.tally_session_execution (id,tenant_id,election_event_id,tally_session_id,current_message_id,results_event_id) VALUES ($1,$2,$3,$4,1,$5)",&[&Uuid::new_v4(),&w.tenant,&w.event,&session,&results]).await.unwrap();
+    let documents = Arc::new(Documents::default());
+    let requester = TallyRequester {
+        user_id: "operator".into(),
+        username: "operator".into(),
+    };
+    let pdf = report_pdf("Initialization: five voters, zero ballots");
+    let hold = hold_tally_report(
+        &tx,
+        documents.as_ref(),
+        &TallyReport {
+            tenant_id: w.tenant,
+            election_event_id: w.event,
+            results_event_id: results,
+            action: ACTION,
+            report_type: "INITIALIZATION_REPORT",
+            election_id: w.post,
+            area_id: None,
+            file_name: "report.pdf",
+            pdf: &pdf,
+            requester: &requester,
+            configuration: None,
+        },
+    )
+    .await
+    .unwrap();
+    let document: Uuid = tx
+        .query_one(
+            "SELECT base_document_id FROM sequent_backend.signing_tally_hold WHERE id=$1",
+            &[&hold],
+        )
+        .await
+        .unwrap()
+        .get(0);
+    tx.execute("INSERT INTO sequent_backend.document (id,tenant_id,election_event_id,name,media_type,size) VALUES ($1,$2,$3,'held.pdf','application/pdf',100)",&[&document,&w.tenant,&w.event]).await.unwrap();
+    assert!(store_initialization(
+        &tx,
+        &w.tenant.to_string(),
+        &w.event.to_string(),
+        &session.to_string(),
+        &w.post.to_string()
+    )
+    .await
+    .unwrap()
+    .is_empty());
+    tx.commit().await.unwrap();
+    assert_eq!(initialization_state(&w).await, (false, 0, 0));
+    assert_eq!(
+        start_held_tally_reports(&mut client, w.tenant, w.event)
+            .await
+            .unwrap(),
+        1
+    );
+    let request = holds(&w).await[0].2.unwrap();
+    let publications = Arc::new(Publications::new(documents.clone(), false));
+    let effects = InitializationEffects {
+        documents: documents.clone(),
+        publisher: InitializationPublisher {
+            publications: publications.clone(),
+            result_document_override: None,
+        },
+    };
+    let tx = client.transaction().await.unwrap();
+    let row = get_signing_request(&tx, w.tenant, w.event, request)
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(release_report(
+        &tx,
+        documents.as_ref(),
+        &effects.publisher,
+        &row,
+        &EffectProgress::default()
+    )
+    .await
+    .is_err());
+    assert!(publications.published.lock().unwrap().is_empty());
+    tx.rollback().await.unwrap();
+    let mut signers = vec![];
+    for name in ["board-one", "board-two"] {
+        let certificate = cert(name, name, name);
+        w.register(name, &certificate, None).await;
+        signers.push((w.signer(name, ACTION), certificate));
+    }
+    let dispatcher = RecordingDispatcher::default();
+    let sent = dispatcher.0.clone();
+    let services = SigningServices {
+        documents: Arc::new(SignedRevisions(documents.clone())),
+        ..signing::services(
+            FakeVerifier::knowing(&[&signers[0].1, &signers[1].1]),
+            executors(Arc::new(dispatcher)),
+        )
+    };
+    assert_eq!(
+        w.sign(&services, &signers[0].0, request, &signers[0].1, at(1))
+            .await
+            .unwrap()
+            .status,
+        SigningRequestStatus::Waiting
+    );
+    assert!(sent.lock().unwrap().is_empty());
+    assert_eq!(initialization_state(&w).await, (false, 0, 0));
+    let tx = client.transaction().await.unwrap();
+    let row = get_signing_request(&tx, w.tenant, w.event, request)
+        .await
+        .unwrap()
+        .unwrap();
+    let error = release_report(
+        &tx,
+        documents.as_ref(),
+        &effects.publisher,
+        &row,
+        &EffectProgress::default(),
+    )
+    .await
+    .unwrap_err();
+    assert_eq!(
+        error
+            .downcast_ref::<EffectRefused>()
+            .map(|refused| refused.code.as_str()),
+        Some("signatures-missing")
+    );
+    assert!(publications.published.lock().unwrap().is_empty());
+    tx.rollback().await.unwrap();
+    assert_eq!(
+        w.sign(&services, &signers[1].0, request, &signers[1].1, at(1))
+            .await
+            .unwrap()
+            .status,
+        SigningRequestStatus::Completed
+    );
+    assert_eq!(initialization_state(&w).await, (false, 0, 0));
+    let task = sent.lock().unwrap()[0];
+    // A signed report still cannot initialize a different Post,
+    // an unfinished tally, or an earlier result superseded by an execution.
+    for sql in [
+        format!("UPDATE sequent_backend.signing_report_release SET election_id='{}' WHERE request_id='{request}'",Uuid::new_v4()),
+        format!("UPDATE sequent_backend.signing_tally_hold SET results_event_id='{}' WHERE id='{hold}'",Uuid::new_v4()),
+        format!("UPDATE sequent_backend.signing_tally_hold SET base_sha256='{}' WHERE id='{hold}'", "b".repeat(64)),
+        format!("UPDATE sequent_backend.tally_session SET execution_status='IN_PROGRESS' WHERE id='{session}'"),
+        format!("INSERT INTO sequent_backend.tally_session_execution (id,tenant_id,election_event_id,tally_session_id,current_message_id,created_at) VALUES ('{}','{}','{}','{session}',2,clock_timestamp()+interval '1 second')",Uuid::new_v4(),w.tenant,w.event),
+    ] {
+        let tx=client.transaction().await.unwrap();
+        lock_signing_event(&tx,w.tenant,w.event).await.unwrap();
+        tx.batch_execute(&sql).await.unwrap();
+        let row=get_signing_request(&tx,w.tenant,w.event,request).await.unwrap().unwrap();
+        assert!(release_report(&tx,effects.documents.as_ref(),&effects.publisher,&row,&EffectProgress::default()).await.is_err());
+        assert!(publications.published.lock().unwrap().is_empty());
+        tx.rollback().await.unwrap();
+        assert_eq!(initialization_state(&w).await,(false,0,0));
+    }
+    // A direct database change to a country target skips the Post-only
+    // initialization hook. Even if publication is attempted, no Post flag
+    // or initialization log may survive the failed country write.
+    let country_publications = Arc::new(Publications::new(effects.documents.clone(), false));
+    let country_publisher = InitializationPublisher {
+        publications: country_publications,
+        result_document_override: None,
+    };
+    let tx = client.transaction().await.unwrap();
+    lock_signing_event(&tx, w.tenant, w.event).await.unwrap();
+    tx.execute(
+        "UPDATE sequent_backend.signing_report_release SET area_id=$1 WHERE request_id=$2",
+        &[&w.area, &request],
+    )
+    .await
+    .unwrap();
+    let row = get_signing_request(&tx, w.tenant, w.event, request)
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(release_report(
+        &tx,
+        effects.documents.as_ref(),
+        &country_publisher,
+        &row,
+        &EffectProgress::default(),
+    )
+    .await
+    .is_err());
+    tx.rollback().await.unwrap();
+    assert_eq!(initialization_state(&w).await, (false, 0, 0));
+    assert!(publications.published.lock().unwrap().is_empty());
+    // Even full quorum cannot initialize using a different stored PDF.
+    let wrong_publications = Arc::new(Publications::new(effects.documents.clone(), false));
+    let wrong_publisher = InitializationPublisher {
+        publications: wrong_publications,
+        result_document_override: Some(Uuid::new_v4()),
+    };
+    let tx = client.transaction().await.unwrap();
+    lock_signing_event(&tx, w.tenant, w.event).await.unwrap();
+    let row = get_signing_request(&tx, w.tenant, w.event, request)
+        .await
+        .unwrap()
+        .unwrap();
+    let error = release_report(
+        &tx,
+        effects.documents.as_ref(),
+        &wrong_publisher,
+        &row,
+        &EffectProgress::default(),
+    )
+    .await
+    .unwrap_err();
+    assert!(error.to_string().contains("not the released signed PDF"));
+    tx.rollback().await.unwrap();
+    assert_eq!(initialization_state(&w).await, (false, 0, 0));
+    let outcome = run_dispatched(&mut client, &effects, &NoSeal, &task)
+        .await
+        .unwrap();
+    assert!(matches!(outcome, RunOutcome::Executed(_)), "{outcome:?}");
+    assert_eq!(initialization_state(&w).await, (true, 1, 2));
+    let row=client.query_one("SELECT i.report_hash,i.document_id,r.documents->>'pdf' FROM sequent_backend.election_initialization i JOIN sequent_backend.results_election r ON r.results_event_id=i.results_event_id AND r.election_id=i.election_id WHERE i.tally_session_id=$1",&[&session]).await.unwrap();
+    assert_eq!(row.get::<_, String>(0), "exact-results-hash");
+    assert_eq!(row.get::<_, Uuid>(1).to_string(), row.get::<_, String>(2));
+    run_dispatched(&mut client, &effects, &NoSeal, &task)
+        .await
+        .unwrap();
+    assert_eq!(initialization_state(&w).await, (true, 1, 2));
+    let tx = client.transaction().await.unwrap();
+    lock_signing_event(&tx, w.tenant, w.event).await.unwrap();
+    let row = get_signing_request(&tx, w.tenant, w.event, request)
+        .await
+        .unwrap()
+        .unwrap();
+    release_report(
+        &tx,
+        effects.documents.as_ref(),
+        &effects.publisher,
+        &row,
+        &EffectProgress::default(),
+    )
+    .await
+    .unwrap();
+    tx.commit().await.unwrap();
+    assert_eq!(initialization_state(&w).await, (true, 1, 2));
+    assert_eq!(publications.published.lock().unwrap().len(), 1);
+}
+
+#[tokio::test]
+async fn a_signed_country_initialization_report_releases_without_initializing_the_post() {
+    let preset = &PRESETS[1];
+    let w = world("country-report-only").await;
+    w.rule(ACTION, 2, RequesterSigning::NotAllowed, None).await;
+    let documents = Arc::new(Documents::default());
+    let mut report = to_sign(&w, preset, Uuid::new_v4());
+    report.area_id = Some(w.area);
+    report.report_type = "INITIALIZATION_REPORT".into();
+    report.release.email = None;
+    report.release.target = ReleaseTarget::TallyResult {
+        results_event_id: Uuid::new_v4(),
+        election_id: w.post,
+        area_id: Some(w.area),
+        report_type: "INITIALIZATION_REPORT".into(),
+    };
+    let summary = start(&w, &operator(&w), &report).await.unwrap();
+    let mut signers = vec![];
+    for name in ["country-board-one", "country-board-two"] {
+        let certificate = cert(name, name, name);
+        w.register(name, &certificate, None).await;
+        signers.push((w.signer(name, ACTION), certificate));
+    }
+    let dispatcher = RecordingDispatcher::default();
+    let sent = dispatcher.0.clone();
+    let services = SigningServices {
+        documents: Arc::new(SignedRevisions(documents.clone())),
+        ..signing::services(
+            FakeVerifier::knowing(&[&signers[0].1, &signers[1].1]),
+            executors(Arc::new(dispatcher)),
+        )
+    };
+    for (signer, certificate) in &signers {
+        w.sign(&services, signer, summary.id, certificate, at(1))
+            .await
+            .unwrap();
+    }
+    let task = sent.lock().unwrap()[0];
+    let publications = Arc::new(Publications::new(documents.clone(), false));
+    let effects = ReleaseEffects {
+        documents,
+        publications: publications.clone(),
+    };
+    let mut client = w.pool.get().await.unwrap();
+    let outcome = run_dispatched(&mut client, &effects, &NoSeal, &task)
+        .await
+        .unwrap();
+    assert!(matches!(outcome, RunOutcome::Executed(_)), "{outcome:?}");
+    assert_eq!(publications.published.lock().unwrap().len(), 1);
+    assert_eq!(initialization_state(&w).await, (false, 0, 0));
 }

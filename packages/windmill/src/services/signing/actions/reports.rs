@@ -588,6 +588,35 @@ pub async fn release_report(
         ));
     }
 
+    // Only a real completed initialization tally may turn its released
+    // report into readiness. Validate before publishing outside the database.
+    let initialization = match &release.release.target {
+        ReleaseTarget::TallyResult {
+            results_event_id,
+            election_id,
+            area_id,
+            report_type,
+        } if report_type == "INITIALIZATION_REPORT" && area_id.is_none() => {
+            anyhow::ensure!(
+                request.action == SigningAction::GenerateReports
+                    && request.election_id == Some(*election_id)
+                    && request.area_id == *area_id,
+                "The initialization report release scope differs from its request"
+            );
+            let session =
+                crate::postgres::signing_report_release::initialization_report_release_session(
+                    hasura_transaction,
+                    tenant_id,
+                    event_id,
+                    request.id,
+                    *results_event_id,
+                    *election_id,
+                )
+                .await?;
+            Some((session, *election_id))
+        }
+        _ => None,
+    };
     progress.reach_outside();
     let released = publisher
         .publish(hasura_transaction, request, &release.release, &pdf)
@@ -600,6 +629,22 @@ pub async fn release_report(
         &released,
     )
     .await?;
+    if let Some((session, election)) = initialization {
+        crate::services::initialization_record::store_initialization(
+            hasura_transaction,
+            &tenant_id.to_string(),
+            &event_id.to_string(),
+            &session.to_string(),
+            &election.to_string(),
+        )
+        .await?;
+        crate::services::initialization_record::stage_initialization_log_locked(
+            hasura_transaction,
+            tenant_id,
+            event_id,
+        )
+        .await?;
+    }
     Ok(json!({
         "document_id": released.document_id,
         "sha256": latest.sha256,

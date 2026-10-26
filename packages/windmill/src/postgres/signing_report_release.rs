@@ -627,3 +627,98 @@ pub async fn fail_stale_mail_claims(
         .map(|row| Ok((row.try_get(0)?, row.try_get(1)?, row.try_get(2)?)))
         .collect()
 }
+
+/// Whether the exact Post initialization PDF is awaiting signatures or
+/// already released. The unsigned HTML never substitutes for that PDF.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InitializationReportSigningState {
+    Unprotected,
+    AwaitingSignatures,
+    Released(Uuid),
+}
+
+#[instrument(skip(transaction), err)]
+pub async fn initialization_report_signing_state(
+    transaction: &Transaction<'_>,
+    tenant: Uuid,
+    event: Uuid,
+    results: Uuid,
+    election: Uuid,
+) -> Result<InitializationReportSigningState> {
+    let row = transaction
+        .query_opt(
+            "SELECT h.error,
+           (d.id IS NOT NULL AND d.media_type='application/pdf' AND d.size>0
+             AND h.base_sha256 ~ '^[0-9a-f]{64}$') AS valid_document,
+           r.released_at, r.released_document_id
+         FROM sequent_backend.signing_tally_hold h
+         LEFT JOIN sequent_backend.document d ON d.id=h.base_document_id
+           AND d.tenant_id=h.tenant_id AND d.election_event_id=h.election_event_id
+         LEFT JOIN sequent_backend.signing_report_release r ON r.request_id=h.request_id
+           AND r.tenant_id=h.tenant_id AND r.election_event_id=h.election_event_id
+           AND r.target='tally-result' AND r.results_event_id=h.results_event_id
+           AND r.election_id=h.election_id AND r.area_id IS NULL
+           AND r.report_type='INITIALIZATION_REPORT'
+         WHERE h.tenant_id=$1 AND h.election_event_id=$2 AND h.results_event_id=$3
+           AND h.election_id=$4 AND h.area_id IS NULL
+           AND h.action='generate-reports' AND h.report_type='INITIALIZATION_REPORT'",
+            &[&tenant, &event, &results, &election],
+        )
+        .await
+        .context("Error checking the exact held initialization report")?;
+    let Some(row) = row else {
+        return Ok(InitializationReportSigningState::Unprotected);
+    };
+    anyhow::ensure!(
+        row.get::<_, Option<String>>("error").is_none()
+            && row.get::<_, Option<bool>>("valid_document") == Some(true),
+        "The held initialization report has no valid signing document"
+    );
+    let released_at: Option<DateTime<Utc>> = row.get("released_at");
+    let released: Option<Uuid> = row.get("released_document_id");
+    match (released_at, released) {
+        (None, None) => Ok(InitializationReportSigningState::AwaitingSignatures),
+        (Some(_), Some(document)) => Ok(InitializationReportSigningState::Released(document)),
+        _ => Err(anyhow!("The initialization report release is incomplete")),
+    }
+}
+
+/// Binds a released initialization report to its own latest, completed tally.
+/// The signing caller already holds the event lock; take the tally row next.
+#[instrument(skip(transaction), err)]
+pub async fn initialization_report_release_session(
+    transaction: &Transaction<'_>,
+    tenant: Uuid,
+    event: Uuid,
+    request: Uuid,
+    results: Uuid,
+    election: Uuid,
+) -> Result<Uuid> {
+    transaction.query_opt(
+        "SELECT t.id FROM sequent_backend.tally_session t
+         JOIN LATERAL (
+           SELECT x.results_event_id FROM sequent_backend.tally_session_execution x
+           WHERE x.tenant_id=t.tenant_id AND x.election_event_id=t.election_event_id
+             AND x.tally_session_id=t.id
+           ORDER BY x.created_at DESC NULLS LAST,x.id DESC LIMIT 1
+         ) latest ON latest.results_event_id=$4
+         WHERE t.tenant_id=$1 AND t.election_event_id=$2
+           AND t.tally_type='INITIALIZATION_REPORT' AND t.execution_status='SUCCESS'
+           AND t.is_execution_completed IS TRUE AND $5=ANY(t.election_ids)
+           AND EXISTS (
+             SELECT 1 FROM sequent_backend.signing_tally_hold h
+             JOIN sequent_backend.signing_request q ON q.id=h.request_id
+               AND q.tenant_id=h.tenant_id AND q.election_event_id=h.election_event_id
+               AND q.document_id=h.base_document_id AND q.document_sha256=h.base_sha256
+               AND q.election_id=h.election_id AND q.area_id IS NOT DISTINCT FROM h.area_id
+               AND q.action=h.action
+             WHERE h.tenant_id=$1 AND h.election_event_id=$2 AND h.request_id=$3
+               AND h.results_event_id=$4 AND h.election_id=$5 AND h.area_id IS NULL
+               AND h.action='generate-reports' AND h.report_type='INITIALIZATION_REPORT'
+               AND h.error IS NULL)
+         FOR UPDATE OF t",
+        &[&tenant,&event,&request,&results,&election],
+    ).await.context("Error binding the released initialization report")?
+      .map(|row| row.get(0))
+      .ok_or_else(|| anyhow!("The initialization report does not name its exact completed tally and latest results"))
+}
