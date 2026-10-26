@@ -45,8 +45,62 @@ for (const operation of ["update", "delete"]) {
         for (const {role, permission} of permissions) {
             assert.deepEqual(
                 permission.filter,
-                role === "service-account" ? {} : protectedFilter
+                role === "service-account"
+                    ? {}
+                    : role === "admin-user"
+                      ? {
+                            _and: [
+                                ...protectedFilter._and,
+                                {election_event_id: {_is_null: true}},
+                            ],
+                        }
+                      : protectedFilter
             )
         }
     })
 }
+
+const tenantDocumentScope = {
+    tenant_id: {_eq: "X-Hasura-Tenant-Id"},
+    election_event_id: {_is_null: true},
+}
+
+test("the default admin role sees and inserts only tenant-level documents", () => {
+    assert.deepEqual(
+        metadata.select_permissions.find(({role}) => role === "admin-user")
+            .permission.filter,
+        tenantDocumentScope
+    )
+    assert.deepEqual(
+        metadata.insert_permissions.find(({role}) => role === "admin-user")
+            .permission.check,
+        tenantDocumentScope
+    )
+})
+
+test("the admin update cannot move a tenant backup into an election", () => {
+    assert.deepEqual(
+        metadata.update_permissions.find(({role}) => role === "admin-user")
+            .permission.check,
+        tenantDocumentScope
+    )
+})
+
+test("board document roles retain their existing event scope", () => {
+    for (const role of [
+        "document-read",
+        "document-write",
+        "trustee-ceremony",
+    ]) {
+        assert.deepEqual(
+            metadata.select_permissions.find((entry) => entry.role === role)
+                .permission.filter,
+            {tenant_id: {_eq: "X-Hasura-Tenant-Id"}}
+        )
+    }
+    assert.deepEqual(
+        metadata.insert_permissions.find(({role}) => role === "document-write")
+            .permission.check,
+        {tenant_id: {_eq: "X-Hasura-Tenant-Id"}}
+    )
+})

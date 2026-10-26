@@ -7,6 +7,8 @@ insert_permissions:
           check:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+              election_event_id:
+                  _is_null: true
           columns:
               - annotations
               - created_at
@@ -72,6 +74,8 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+              election_event_id:
+                  _is_null: true
           allow_aggregations: true
       role: admin-user
     - comment: ""
@@ -195,9 +199,13 @@ update_permissions:
                                   _contains:
                                       access:
                                           voter_secret_attributes: true
+                  - election_event_id:
+                        _is_null: true
           check:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+              election_event_id:
+                  _is_null: true
       role: admin-user
     - permission:
           columns:
@@ -259,6 +267,8 @@ delete_permissions:
                                   _contains:
                                       access:
                                           voter_secret_attributes: true
+                  - election_event_id:
+                        _is_null: true
       role: admin-user
     - permission:
           filter:

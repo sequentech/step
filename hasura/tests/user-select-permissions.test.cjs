@@ -75,8 +75,12 @@ test("user role can select only public documents in its own tenant", () => {
     assert.equal(Object.hasOwn(permission.filter, "election_event_id"), false)
 })
 
-test("existing administrative document access remains tenant scoped", () => {
-    for (const role of ["admin-user", "document-read", "document-write"]) {
+test("board document access remains tenant scoped and default admin stays outside events", () => {
+    assert.deepEqual(documentSelect("admin-user").filter, {
+        tenant_id: {_eq: "X-Hasura-Tenant-Id"},
+        election_event_id: {_is_null: true},
+    })
+    for (const role of ["document-read", "document-write"]) {
         const permission = documentSelect(role)
         assert.deepEqual(permission.filter, {
             tenant_id: {_eq: "X-Hasura-Tenant-Id"},

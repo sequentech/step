@@ -46,8 +46,9 @@ must not grant themselves those permissions to perform this check.
 If the task fails, the board records its identifier and details and asks the
 administrator and server operator to investigate. Do not delete records,
 regenerate checkpoints or repeatedly press Audit to make the error disappear.
-An already-running audit of the same event is refused to prevent duplicate
-full-tree scans; wait for that task's result before requesting another.
+The worker refuses a concurrent scan of the same event. A queued request can
+run after the earlier scan finishes; wait for the existing task's result before
+requesting another.
 
 ## Configure regular background audits
 
@@ -76,7 +77,8 @@ used by the `beat` and `windmill` Deployments. Invalid values prevent Beat from
 starting; a worker with invalid values fails the requested audit. Confirm both
 Deployments are ready and inspect the first scheduled task after changing them.
 
-Each periodic sweep scans events **one at a time**. A database lock prevents
+Each periodic sweep scans events **one at a time**; manual audits of different
+events may run concurrently. A database lock prevents
 overlapping sweeps, and an old queued sweep expires after one minute. These
 controls limit duplicate work; they do not guarantee that a long queue or a
 large event finishes within the configured interval. Check the actual task
