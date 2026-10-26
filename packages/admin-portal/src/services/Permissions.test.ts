@@ -479,3 +479,31 @@ it("keeps trustee execution reads on the ceremony role and board reads on admin-
     )
     expect(roleFor("TrusteeNames", [IPermissions.TRUSTEE_READ])).toBe(IPermissions.TRUSTEE_READ)
 })
+
+it.each(["sequent_backend_scheduled_event", "sequent_backend_scheduled_events"])(
+    "routes %s only through an actually held scheduled-event read permission",
+    (name) => {
+        expect(roleFor(name, [IPermissions.PUBLISH_READ, IPermissions.SCHEDULED_EVENT_WRITE])).toBe(
+            IPermissions.SCHEDULED_EVENT_WRITE
+        )
+        expect(roleFor(name, [IPermissions.PUBLISH_READ])).toBe(IPermissions.PUBLISH_READ)
+    }
+)
+it("does not derive scheduled writes from the scheduled read permission", () => {
+    expect(
+        roleFor("insert_sequent_backend_scheduled_event", [
+            IPermissions.PUBLISH_READ,
+            IPermissions.SCHEDULED_EVENT_WRITE,
+        ])
+    ).toBe(IPermissions.PUBLISH_READ)
+})
+
+it.each([
+    IPermissions.SCHEDULED_EVENT_WRITE,
+    IPermissions.SCHEDULED_EVENT_CREATE,
+    IPermissions.SCHEDULED_EVENT_DELETE,
+])("uses the held %s role that already grants scheduled-event reads", (permission) =>
+    expect(
+        roleFor("sequent_backend_scheduled_event", [IPermissions.PUBLISH_READ, permission])
+    ).toBe(permission)
+)

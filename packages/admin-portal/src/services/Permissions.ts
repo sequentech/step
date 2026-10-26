@@ -330,6 +330,19 @@ export const getOperationRole = (
         const readRole = readRoles.find(hasRole)
         if (readRole) return readRole
     }
+    if (
+        operationName === "sequent_backend_scheduled_event" ||
+        operationName === "sequent_backend_scheduled_events"
+    ) {
+        // Each existing schedule permission grants tenant-scoped SELECT and
+        // aggregation. Choose a held role for reads without inferring a grant.
+        const scheduleReadRole = [
+            IPermissions.SCHEDULED_EVENT_WRITE,
+            IPermissions.SCHEDULED_EVENT_CREATE,
+            IPermissions.SCHEDULED_EVENT_DELETE,
+        ].find(hasRole)
+        if (scheduleReadRole) return scheduleReadRole
+    }
     const heldOperationRole = mappedRoleOf(HeldOperationMap, operationName)
     if (heldOperationRole && hasRole(heldOperationRole)) {
         return heldOperationRole

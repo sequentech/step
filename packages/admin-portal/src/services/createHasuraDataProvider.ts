@@ -8,17 +8,21 @@ import buildHasuraProvider from "ra-data-hasura"
 import {customBuildQuery} from "../queries/customBuildQuery"
 
 const bundled = schema.__schema as unknown as IntrospectionSchema
-const tallyReads = ["sequent_backend_tally_session", "sequent_backend_tally_session_execution"]
+const routedReads = [
+    "sequent_backend_tally_session",
+    "sequent_backend_tally_session_execution",
+    "sequent_backend_scheduled_event",
+]
 
-/** Keep the current role's schema; supplement only absent, separately routed tally reads. */
-export function supplementTallyReadSchema(live: IntrospectionSchema): IntrospectionSchema {
+/** Keep the current role's schema; supplement only absent, separately routed reads. */
+export function supplementRoutedReadSchema(live: IntrospectionSchema): IntrospectionSchema {
     const liveQuery = live.types.find((type) => type.name === live.queryType?.name)
     const bundledQuery = bundled.types.find((type) => type.name === bundled.queryType?.name)
     if (liveQuery?.kind !== "OBJECT" || bundledQuery?.kind !== "OBJECT") {
         throw new Error("Query schema is unavailable")
     }
     const names = new Set(liveQuery.fields.map((field) => field.name))
-    const missing = tallyReads.filter((resource) => !names.has(resource))
+    const missing = routedReads.filter((resource) => !names.has(resource))
     const additions = bundledQuery.fields.filter(
         (field) =>
             missing.some((resource) => [resource, `${resource}_aggregate`].includes(field.name)) &&
@@ -39,7 +43,7 @@ export function supplementTallyReadSchema(live: IntrospectionSchema): Introspect
         const reference = value as {kind?: string; name?: string}
         if (reference.kind && reference.name && !known.has(reference.name)) {
             const dependency = bundled.types.find((type) => type.name === reference.name)
-            if (!dependency) throw new Error("Tally schema dependency is unavailable")
+            if (!dependency) throw new Error("Read schema dependency is unavailable")
             known.add(dependency.name)
             types.push(dependency)
             addReferences(dependency)
@@ -74,7 +78,7 @@ export const createHasuraDataProvider = async (
             buildQuery: customBuildQuery,
             // This constructs queries only. Existing per-operation role routing
             // and server-side authorization still govern every request.
-            introspection: {schema: supplementTallyReadSchema(data.__schema)},
+            introspection: {schema: supplementRoutedReadSchema(data.__schema)},
         },
         {}
     )

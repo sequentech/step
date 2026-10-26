@@ -9,7 +9,7 @@ import {
 } from "graphql"
 import {readFileSync} from "node:fs"
 import {resolve} from "node:path"
-import {createHasuraDataProvider, supplementTallyReadSchema} from "./createHasuraDataProvider"
+import {createHasuraDataProvider, supplementRoutedReadSchema} from "./createHasuraDataProvider"
 import {getOperationRole} from "./Permissions"
 import {IPermissions} from "../types/keycloak"
 
@@ -17,18 +17,22 @@ const schema = JSON.parse(
     readFileSync(resolve(__dirname, "../../graphql.schema.json"), "utf8")
 ).__schema
 const resources = ["sequent_backend_tally_session", "sequent_backend_tally_session_execution"]
+const scheduled = "sequent_backend_scheduled_event"
+const readResources = [...resources, scheduled]
 const ID = "30000000-0000-4000-8000-000000000001"
 const EVENT = "40000000-0000-4000-8000-000000000001"
 const TENANT = "50000000-0000-4000-8000-000000000001"
 
-// Reproduce startup under publish-read: its schema has no tally resources.
+// Reproduce startup under publish-read: tally and scheduled-event reads are absent.
 const defaultRoleSchema = {
     ...schema,
     types: schema.types.map((type: {name: string; fields?: {name: string}[]}) =>
         type.name === schema.queryType.name || type.name === schema.mutationType.name
             ? {
                   ...type,
-                  fields: type.fields?.filter((field) => !field.name.includes("tally_session")),
+                  fields: type.fields?.filter(
+                      (field) => !readResources.some((resource) => field.name.includes(resource))
+                  ),
               }
             : type.name === "sequent_backend_tenant"
               ? {...type, fields: type.fields?.filter((field) => field.name !== "test")}
@@ -74,7 +78,7 @@ function introspectionResponse(value: unknown, kind = "__Schema"): unknown {
     }
 }
 
-function fixture(deny = false, trustee = false, live = defaultRoleSchema) {
+function fixture(deny = false, trustee = false, live = defaultRoleSchema, scheduleRead = true) {
     const requests: {
         name: string
         role: string
@@ -89,6 +93,7 @@ function fixture(deny = false, trustee = false, live = defaultRoleSchema) {
                     (permission) =>
                         permission === IPermissions.ADMIN_CEREMONY ||
                         permission === IPermissions.PUBLISH_READ ||
+                        (scheduleRead && permission === IPermissions.SCHEDULED_EVENT_WRITE) ||
                         (trustee && permission === IPermissions.TRUSTEE_CEREMONY)
                 )
                 if (operation.operationName === "IntrospectionQuery") {
@@ -217,9 +222,9 @@ it("preserves a restricted live resource instead of adding bundled private colum
     client.stop()
 })
 
-it("supplements only missing tally reads and never changes live fields or mutation roots", () => {
+it("supplements only missing routed reads and never changes live fields or mutation roots", () => {
     const live = defaultRoleSchema as IntrospectionSchema
-    const combined = supplementTallyReadSchema(live)
+    const combined = supplementRoutedReadSchema(live)
     for (const type of live.types) {
         const result = combined.types.find((value) => value.name === type.name)!
         if (type.name !== live.queryType?.name) expect(result).toBe(type)
@@ -233,19 +238,19 @@ it("supplements only missing tally reads and never changes live fields or mutati
             .slice(before.fields.length)
             .map((field) => field.name)
             .sort()
-    ).toEqual(resources.flatMap((resource) => [resource, `${resource}_aggregate`]).sort())
+    ).toEqual(readResources.flatMap((resource) => [resource, `${resource}_aggregate`]).sort())
 })
 
-it("does not broaden tally columns when the live role already exposes the resource", () => {
+it("does not broaden routed resource columns when the live role already exposes the resource", () => {
     const live = {
         ...schema,
         types: schema.types.map((type: {name: string; fields?: {name: string}[]}) =>
-            resources.includes(type.name)
+            readResources.includes(type.name)
                 ? {...type, fields: type.fields?.filter((field) => field.name === "id")}
                 : type
         ),
     } as IntrospectionSchema
-    expect(supplementTallyReadSchema(live)).toBe(live)
+    expect(supplementRoutedReadSchema(live)).toBe(live)
 })
 
 it("imports missing tally type dependencies while keeping tenant reads live", async () => {
@@ -273,3 +278,79 @@ it("fails closed when live introspection is denied instead of falling back to th
     query.mockRestore()
     client.stop()
 })
+
+it("constructs the complete scheduled-event list with its held read permission", async () => {
+    const {client, requests} = fixture()
+    const provider = await createHasuraDataProvider(client)
+    await expect(
+        provider.getList(scheduled, {
+            pagination: {page: 1, perPage: 9999},
+            sort: {field: "id", order: "ASC"},
+            filter: {
+                tenant_id: TENANT,
+                election_event_id: EVENT,
+                archived_at: {format: "hasura-raw-query", value: {_is_null: true}},
+            },
+        })
+    ).resolves.toEqual({data: [], total: 0})
+    expect(requests).toHaveLength(2)
+    expect(requests[0]).toMatchObject({name: "IntrospectionQuery", role: IPermissions.PUBLISH_READ})
+    expect(requests[1]).toMatchObject({
+        name: scheduled,
+        role: IPermissions.SCHEDULED_EVENT_WRITE,
+        variables: {limit: 9999, offset: 0},
+    })
+    expect(requests[1].fields).toEqual(
+        expect.arrayContaining([
+            "id",
+            "tenant_id",
+            "election_event_id",
+            "event_processor",
+            "cron_config",
+            "event_payload",
+            "stopped_at",
+        ])
+    )
+    expect(requests[1].variables).toMatchObject({
+        where: {
+            _and: [
+                {tenant_id: {_eq: TENANT}},
+                {election_event_id: {_eq: EVENT}},
+                {archived_at: {_is_null: true}},
+            ],
+        },
+    })
+    client.stop()
+})
+
+it("constructs exact scheduled-event details without importing mutation roots", async () => {
+    const live = {
+        ...defaultRoleSchema,
+        types: defaultRoleSchema.types.filter(
+            (type: {name: string}) => !type.name.startsWith(scheduled)
+        ),
+    }
+    const {client, requests} = fixture(false, false, live)
+    const provider = await createHasuraDataProvider(client)
+    await expect(provider.getOne(scheduled, {id: ID})).resolves.toMatchObject({data: {id: ID}})
+    expect(requests[1]).toMatchObject({
+        name: scheduled,
+        role: IPermissions.SCHEDULED_EVENT_WRITE,
+        variables: {where: {id: {_eq: ID}}},
+    })
+    client.stop()
+})
+
+it.each([true, false])(
+    "retains scheduled-read server denial without escalating roles (held=%s)",
+    async (held) => {
+        const {client, requests} = fixture(true, false, defaultRoleSchema, held)
+        const provider = await createHasuraDataProvider(client)
+        await expect(provider.getOne(scheduled, {id: ID})).rejects.toThrow("permission denied")
+        expect(requests).toHaveLength(2)
+        expect(requests[1].role).toBe(
+            held ? IPermissions.SCHEDULED_EVENT_WRITE : IPermissions.PUBLISH_READ
+        )
+        client.stop()
+    }
+)
