@@ -125,10 +125,12 @@ export const BlockedPreview: Story = {
         await expect(await canvas.findByTestId("section-tenant-configuration")).toHaveTextContent(
             "Unknown role: synthetic-reviewer"
         )
+        await expect(await canvas.findByText(i18n.t("configurationPackage.blocked"))).toBeVisible()
         await expect(canvas.getByTestId("package-apply")).toBeDisabled()
         expect(graphql.calls.filter(({name}) => name === "ApplyConfigurationPackage")).toHaveLength(
             1
         )
+        expect(graphql.unexpected).toEqual([])
     },
 }
 
@@ -148,6 +150,7 @@ export const TaskUnavailable: Story = {
         expect(graphql.calls.filter(({name}) => name === "ApplyConfigurationPackage")).toHaveLength(
             1
         )
+        expect(graphql.unexpected).toEqual([])
     },
 }
 
