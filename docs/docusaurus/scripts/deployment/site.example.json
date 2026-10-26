@@ -18,14 +18,7 @@
   },
   "toe": {
     "directory": "/media/toe",
-    "archive_sha256": {
-      "b4": "REPLACE",
-      "ballot-verifier": "REPLACE",
-      "braid": "REPLACE",
-      "harvest": "REPLACE",
-      "keycloak": "REPLACE",
-      "windmill": "REPLACE"
-    },
+    "format": "oci",
     "manifest_sha256": "REPLACE_WITH_ACCEPTED_IMAGE_MANIFEST_SHA256"
   },
   "tls": {

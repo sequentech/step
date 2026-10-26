@@ -162,9 +162,11 @@ def main():
         need(not m.get('test_only'), 'Test-only bundle cannot install a platform')
         import install
         install.main(sys.argv[1],sys.argv[2]); return
-    p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument('command', choices=['check', 'list', 'show', 'configure', 'session', 'prepare'])
-    p.add_argument('value', nargs='?'); a = p.parse_args(); m = manifest()
+    p = argparse.ArgumentParser(description='Install from the administration workstation: ./deploy check site.json; ./deploy install site.json; ./deploy commission site.json. Repeat automated checks with ./deploy verify site.json. Legacy diagnostic commands are listed below.', formatter_class=argparse.RawDescriptionHelpFormatter)
+    p.add_argument('command', choices=['check', 'install', 'verify', 'commission', 'list', 'show', 'configure', 'session', 'prepare'])
+    p.add_argument('value', nargs='?'); a = p.parse_args()
+    if a.command in ('install','verify','commission'):p.error('Provide the configuration path: ./deploy '+a.command+' site.json')
+    m = manifest()
     if a.command == 'check': print('Package hashes match. Independently verify its delivery signature and source identity.'); return
     if a.command == 'list':
         for e in m['steps']: print(e['id'], '/'.join(e['roles']), e['heading'])

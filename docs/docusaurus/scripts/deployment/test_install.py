@@ -13,11 +13,18 @@ class InstallerTests(unittest.TestCase):
     def config(self):
         d=json.loads(Path(__file__).with_name('site.example.json').read_text())
         d['kit']['signing_fingerprint']='SHA256:'+'a'*43
+        d['toe']['format']='tar'
         d['toe']['archive_sha256']={p:'a'*64 for p in install.PARTS}
         d['toe']['manifest_sha256']='a'*64
         d['tls']['ca_sha256']=d['identity_provider']['ca_sha256']='a'*64
         d['release']['step_commit']='a'*40
         return d
+    def test_oci_profile_needs_no_user_created_archive_hashes(self):
+        d=self.config();d['toe'].pop('archive_sha256');d['toe']['format']='oci'
+        install.validate(d)
+        d['toe']['archive_sha256']={part:'a'*64 for part in install.PARTS}
+        with self.assertRaisesRegex(ValueError,'unknown field'):install.validate(d)
+
     def test_config_rejects_unknown_keys_and_shell_host(self):
         d=self.config();install.validate(d)
         for mutation in [lambda x:x.update(secret='wrong'),lambda x:x['nodes'].update(c1='host;id'),lambda x:x['hosts'].update(voting='x$(id).test')]:

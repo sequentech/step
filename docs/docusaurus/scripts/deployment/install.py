@@ -19,6 +19,7 @@ from step_names import STEP_NAMES
 
 ROOT = Path(__file__).resolve().parent
 PARTS = ('b4', 'ballot-verifier', 'braid', 'harvest', 'keycloak', 'windmill')
+TOE_PARTS = PARTS + ('election-verifier',)
 R = 'tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5'
 
 def require(ok, message):
@@ -41,11 +42,15 @@ def validate(d):
     require(isinstance(d['idp_alias'],str) and re.fullmatch(r'[A-Za-z0-9_-]+',d['idp_alias']), 'Invalid identity-provider alias')
     keys(d['kit'],('directory','signing_fingerprint'),'kit')
     require(re.fullmatch(r'SHA256:[A-Za-z0-9+/]{43}',d['kit']['signing_fingerprint']) is not None, 'Independently received kit fingerprint required')
-    keys(d['toe'],('directory','archive_sha256','manifest_sha256'),'toe')
-    keys(d['toe']['archive_sha256'],PARTS,'TOE archive hashes')
+    require(isinstance(d['toe'],dict),'Invalid TOE input configuration')
+    image_format=d['toe'].get('format','tar')
+    require(image_format in ('oci','tar'),'TOE format must be oci or tar')
+    fields=('directory','manifest_sha256') + (('format',) if 'format' in d['toe'] else ()) + (('archive_sha256',) if image_format=='tar' else ())
+    keys(d['toe'],fields,'toe')
+    if image_format=='tar':keys(d['toe']['archive_sha256'],PARTS,'TOE archive hashes')
     keys(d['tls'],('certificate','private_key','ca','ca_sha256'),'TLS inputs')
     keys(d['identity_provider'],('definition','ca','ca_sha256'),'identity-provider inputs')
-    for digest in list(d['toe']['archive_sha256'].values())+[d['toe']['manifest_sha256'],d['tls']['ca_sha256'],d['identity_provider']['ca_sha256']]:
+    for digest in list(d['toe'].get('archive_sha256',{}).values())+[d['toe']['manifest_sha256'],d['tls']['ca_sha256'],d['identity_provider']['ca_sha256']]:
         require(isinstance(digest,str) and re.fullmatch('[0-9a-fA-F]{64}',digest), 'A SHA-256 digest must have 64 hexadecimal characters')
     keys(d['operator'],('username','email','service_administrator'),'operator')
     for value in d['operator'].values():
@@ -61,11 +66,11 @@ def validate(d):
         commission.validate(d['commissioning'])
     return d
 
-def checked_path(name, private=False, directory=False):
+def checked_path(name, private=False, directory=False, label="Input"):
     p=Path(name)
-    require(not p.is_symlink() and (p.is_dir() if directory else p.is_file()), 'Missing input or symbolic link refused')
-    require(p.stat().st_uid == os.geteuid(), 'Input must be owned by the installation operator')
-    if private: require(not stat.S_IMODE(p.stat().st_mode) & 0o077, 'Private input must have mode 600 (directory 700)')
+    require(not p.is_symlink() and (p.is_dir() if directory else p.is_file()), label + ': file or directory is missing, or a symbolic link was supplied')
+    require(p.stat().st_uid == os.geteuid(), label + ': must be owned by the installation operator')
+    if private: require(not stat.S_IMODE(p.stat().st_mode) & 0o077, label + ': private input must have mode 600 (directory 700)')
     return p
 
 def digest(path):
@@ -99,7 +104,7 @@ def verify_checksums(root, text):
     require(bool(seen),'Empty kit checksum list')
 
 def verify_kit(d):
-    root=checked_path(d['kit']['directory'],directory=True)
+    root=checked_path(d['kit']['directory'],directory=True,label='Accepted kit directory')
     public=checked_path(str(root/'release/signing-key.pub'))
     fingerprint=run(['ssh-keygen','-l','-E','sha256','-f',str(public)],'Kit signing-key check').decode().split()
     require(len(fingerprint)>1 and fingerprint[1] == d['kit']['signing_fingerprint'],'Kit signing fingerprint differs from the independently received value')
@@ -121,12 +126,9 @@ def validate_idp(d, alias):
     require(isinstance(c.get('clientSecret'),str) and bool(c['clientSecret']) and isinstance(c.get('clientId'),str) and bool(c['clientId']),'Identity-provider registration is incomplete')
 
 def verify_inputs(d):
-    checked_path(d['ssh_identity'],private=True)
+    checked_path(d['ssh_identity'],private=True,label='SSH identity')
     verify_kit(d)
-    toe=checked_path(d['toe']['directory'],directory=True)
-    for part in PARTS:
-        p=checked_path(str(toe/'images'/(part+'.tar')))
-        require(digest(p)==d['toe']['archive_sha256'][part].lower(),'TOE archive differs from the accepted delivery digest')
+    toe=checked_path(d['toe']['directory'],directory=True,label='Accepted TOE directory')
     manifest=checked_path(str(toe/'image-digests.txt'))
     require(digest(manifest)==d['toe']['manifest_sha256'].lower(),'TOE image manifest differs from accepted delivery')
     image_digests=manifest.read_text()
@@ -136,19 +138,29 @@ def verify_inputs(d):
         if not line.strip() or line.startswith(('toe_reference:','tag:','commit:','production_run:','generated:')):continue
         m=re.fullmatch(r'(\S+) (sha256:[0-9a-f]{64})',line)
         require(m is not None and m[1] not in found,'Invalid or duplicate image digest entry');found[m[1]]=m[2]
-    require(set(PARTS).issubset(found),'Image digest manifest is incomplete')
+    require(set(TOE_PARTS)==set(found),'Image digest manifest must contain exactly the seven TOE parts')
+    if d['toe'].get('format','tar')=='oci':
+        checked_path(str(toe/'images'),directory=True,label='TOE OCI image directory')
+        import oci
+        for part in TOE_PARTS:
+            try:oci.validate(toe/'images'/part,found[part])
+            except ValueError as error:raise ValueError('TOE image '+part+': '+str(error)) from None
+    else:
+        for part in PARTS:
+            p=checked_path(str(toe/'images'/(part+'.tar')),label='TOE archive '+part)
+            require(digest(p)==d['toe']['archive_sha256'][part].lower(),'TOE archive '+part+' differs from the accepted delivery digest')
     for group in ('tls','identity_provider'):
-        ca=checked_path(d[group]['ca'])
+        ca=checked_path(d[group]['ca'],label=group+' CA certificate')
         der=run(['openssl','x509','-in',str(ca),'-outform','DER'],'CA certificate parsing')
         require(hashlib.sha256(der).hexdigest()==d[group]['ca_sha256'].lower(),'CA fingerprint differs from independently received value')
-    cert=checked_path(d['tls']['certificate']);key=checked_path(d['tls']['private_key'],private=True)
+    cert=checked_path(d['tls']['certificate'],label='TLS certificate');key=checked_path(d['tls']['private_key'],private=True,label='TLS private key')
     for host in [d['hosts'][name] for name in ('voting','administration','verifier')]:
         run(['openssl','verify','-purpose','sslserver','-verify_hostname',host,'-CAfile',d['tls']['ca'],str(cert)],'TLS certificate chain and hostname check')
     pub=run(['openssl','x509','-in',str(cert),'-noout','-pubkey'],'TLS public-key check')
     require(pub==run(['openssl','pkey','-in',str(key),'-pubout'],'TLS private-key match'),'TLS certificate and key do not match')
     detail=run(['openssl','x509','-in',str(cert),'-text','-noout'],'TLS curve check')
     require(b'NIST CURVE: P-384' in detail,'TLS certificate must use P-384')
-    provider=checked_path(d['identity_provider']['definition'],private=True)
+    provider=checked_path(d['identity_provider']['definition'],private=True,label='Identity-provider registration')
     validate_idp(json.loads(provider.read_text()),d['idp_alias'])
 
 def environment(d):
@@ -204,7 +216,7 @@ if systemctl is-active --quiet k3s; then
     return base+'fi\n'
 
 def check(d,fresh=True):
-    print('CHECK: verifying accepted media, archive hashes and certificate inputs',flush=True)
+    print('CHECK: verifying accepted media, image integrity and certificate inputs',flush=True)
     verify_inputs(d)
     provenance=json.loads((Path(d['kit']['directory'])/'release/provenance.json').read_text())
     d['_kit_identity']={'version':provenance['release'],'step_commit':provenance['images']['manifest']['stepRevision']}
@@ -280,8 +292,26 @@ def upload(d,node,files):
     run(ssh_args(d,node)+['bash','-c',shlex.quote('set -e; umask 077; test ! -e /root/deploy; mkdir -m 700 /root/deploy; tar -C /root/deploy -xf -')],node+' protected input transfer',buffer.getvalue())
 
 
+def transports(d,folder):
+    root=Path(d['toe']['directory']);paths={};hashes={}
+    if d['toe'].get('format','tar')=='tar':
+        return ({part:root/'images'/(part+'.tar') for part in PARTS},d['toe']['archive_sha256'])
+    import oci
+    manifests={line.split()[0]:line.split()[1] for line in (root/'image-digests.txt').read_text().splitlines() if re.fullmatch(r'\S+ sha256:[0-9a-f]{64}',line)}
+    print('INSTALL: preparing private transport archives from the verified OCI images',flush=True)
+    for part in PARTS:
+        path=Path(folder)/(part+'.tar');hashes[part]=oci.archive(root/'images'/part,manifests[part],path);paths[part]=path
+    return paths,hashes
+
+
 def install(d):
     check(d,fresh=True)
+    with tempfile.TemporaryDirectory(prefix='uniwahl-image-transfer-') as folder:
+        paths,hashes=transports(d,folder)
+        install_prepared(d,paths,hashes)
+
+
+def install_prepared(d,archives,archive_hashes):
     print('INSTALL 1/4: transfer verified images to both nodes',flush=True)
     env=environment(d).encode()
     for node in ('c1','c2'):
@@ -294,8 +324,8 @@ def install(d):
         upload(d,node,files)
         ssh(d,node,'test ! -e /root/toe-images\nmkdir -m 700 /root/toe-images\n',node+' image directory creation')
         for name in [p+'.tar' for p in PARTS]+['image-digests.txt']:
-            run(['scp','-q','-o','BatchMode=yes','-o','StrictHostKeyChecking=yes','-i',d['ssh_identity'],str(Path(d['toe']['directory'])/('images/'+name if name.endswith('.tar') else name)),'root@'+d['nodes'][node]+':/root/toe-images/'+name],node+' verified image transfer',timeout=900)
-        sums=''.join(d['toe']['archive_sha256'][p]+'  '+p+'.tar\n' for p in PARTS)
+            run(['scp','-q','-o','BatchMode=yes','-o','StrictHostKeyChecking=yes','-i',d['ssh_identity'],str(archives[name.removesuffix('.tar')] if name.endswith('.tar') else Path(d['toe']['directory'])/name),'root@'+d['nodes'][node]+':/root/toe-images/'+name],node+' verified image transfer',timeout=900)
+        sums=''.join(archive_hashes[p]+'  '+p+'.tar\n' for p in PARTS)+d['toe']['manifest_sha256']+'  image-digests.txt\n'
         script='cd /root/toe-images\nsha256sum -c /dev/stdin <<\'ARCHIVE_HASHES\'\n'+sums+'ARCHIVE_HASHES\n'
         script+=command_source('08-002',d)
         script+='\nwhile read -r part hash; do case "$part" in b4|ballot-verifier|braid|harvest|keycloak|windmill) k3s ctr -n k8s.io images ls -q | grep -qx "sequentech.local/$part@$hash";; esac; done < /root/toe-images/image-digests.txt\n'
