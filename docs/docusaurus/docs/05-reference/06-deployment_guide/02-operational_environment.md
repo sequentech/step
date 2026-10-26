@@ -33,7 +33,8 @@ physical access to a server or its disks can read or change the election data.
 ## Administration workstation
 
 The operator works from one administration workstation. It runs Linux with
-bash, the OpenSSH client, curl, OpenSSL 3, jq, GnuPG, cryptsetup, skopeo and the
+Python 3.10 or later, bash, the OpenSSH client, curl, OpenSSL 3, jq, GnuPG,
+cryptsetup, skopeo and the
 GNU coreutils, diffutils and findutils.
 
 - Its SSH public key is the only key in the site file's `admin.authorizedKeys`
@@ -90,6 +91,14 @@ The servers take their time from the site's time servers, given in the site
 file by IP address. A time server must offer NTS (Network Time Security), so
 that the servers accept only authenticated time. Election phases, token
 lifetimes and the timestamps in the electoral log depend on it.
+
+The time server’s NTS certificate must cover that IP address and chain to a CA
+trusted by the delivered server operating system. Confirm this trust requirement
+when the site kit is prepared, including any private site CA. The matching kit
+must configure every time source with NTS; plain NTP is not an acceptable
+fallback. If the authenticated-time check fails, obtain a corrected kit or time
+service rather than disabling certificate verification or editing the installed
+time configuration.
 
 ## External authentication server
 

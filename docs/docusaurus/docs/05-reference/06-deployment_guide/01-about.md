@@ -74,7 +74,8 @@ browsers.
 Start here. The normal platform installation is **two commands on the administration
 workstation**. The `deploy` program is an actual file in the delivered
 `deployment/` directory; it is not a command that must already be installed or a
-function hidden in a special shell.
+function hidden in a special shell. Customer and trustee commissioning then uses
+one further command, with checkpoints for the responsible people.
 
 The first command checks the supplied configuration, files and servers. The second
 prepares the hardened configuration, installs the platform and checks the result.
@@ -92,6 +93,9 @@ Complete these preparations once:
    installation kit and boot C1 and C2 from it as described in
    [Installing the Servers](03-installation_kit.md#install-c1-and-c2). The operator
    confirms the disk at each server console before it is erased.
+   Use the administration SSH key authorized by the site file, and verify each
+   server’s SSH host key through the server console before recording it in the
+   workstation’s `known_hosts`. The installer refuses unknown or changed SSH host keys.
 3. Obtain the site TLS certificate and private key from your certificate process,
    and the external identity provider's registration and CA certificate. The
    [certificate requirements](05-certificates_tls.md) and
@@ -118,11 +122,12 @@ Fill the configuration from the approved site plan and verified delivery records
 | `hosts` | Voting, administration, ballot-verifier and external-authentication host names |
 | `idp_alias` | The external provider's alias in the TOE |
 | `kit` | Verified kit directory and the signing fingerprint received independently |
-| `toe` | Verified TOE-image directory and the six archive hashes from the accepted delivery |
+| `toe` | Verified delivery root containing `images/` and `image-digests.txt`; its six archive hashes and manifest hash from the accepted delivery |
 | `tls` | Paths to the issued site certificate, protected private key and CA, plus the independently checked CA fingerprint |
 | `identity_provider` | Paths to the protected provider definition and CA, plus the independently checked CA fingerprint |
 | `operator` | The installation operator's existing identity-provider user name and e-mail; the separate service-administrator name |
 | `release` | Software version and exact Step source revision from the accepted image provenance |
+| `commissioning` | Customer slug, first administrator identity, and two trustee names with paths to their independently held key files; used by the commissioning command |
 
 Use absolute paths. The example's addresses, hash placeholders and names are
 examples only. The installer refuses unknown fields and invalid values. A
@@ -148,14 +153,16 @@ is your working configuration. From another directory, use the full paths to bot
 files instead.
 
 **Expected result.** The checks finish with
-`CHECK PASSED — ready to install platform`. Read the individual check results:
+`CHECK PASSED — ready to install the platform`. Read the individual check results:
 the file paths, certificates, server identities and policies must match this site.
 
 **If the result differs.** Correct the configuration or the named prerequisite and
 run this read-only check again. Do not change a certificate fingerprint to match
 an unexpected certificate, suppress an error, or proceed after a failed check.
 A missing `deploy` means the terminal is not in the extracted directory; it does
-not mean a package must be downloaded from the Internet.
+not mean a package must be downloaded from the Internet. If existing platform
+state is detected, stop: this fresh-install workflow is not an upgrade or an
+instruction to clear an occupied cluster.
 
 ### Install the platform
 
@@ -170,7 +177,7 @@ network with the configured SSH identities; you do not log into each server to
 paste a sequence of shell fragments.
 
 **Expected result.** The installer reports its stages and ends with
-`PLATFORM INSTALLED — customer commissioning pending`. This means the platform
+`INSTALL 4/4: platform installed; customer and trustee commissioning still required`. This means the platform
 installation finished; it does not mean the customer accounts, trustee custody or
 election handover have been approved.
 
@@ -179,6 +186,51 @@ may already have written files or started services: do not erase its state, repe
 secret generation or rerun a write blindly. Diagnose the named stage using the
 corresponding reference chapter and Sequent's support procedure. Never put a
 partially configured installation into operation.
+
+### Commission the customer and trustees
+
+Platform installation is followed by one commissioning command. First, create the
+customer's tenant through the portal using the installation account, as described
+in [Create the customer's tenant](08-installing_toe.md#create-the-customers-tenant).
+Use the customer's agreed short name; do not create a second tenant if one already
+exists.
+
+Fill the `commissioning` section in the same `site.json`. It names that customer
+slug, the first administrator's existing external identity, and the two trustees'
+registered names and private key-file paths. Each trustee generates and retains
+their own keys; this command does not generate election trustees' keys or take over
+their custody decisions.
+
+```bash
+./deploy commission site.json
+```
+
+The command resolves the customer tenant and performs the account and server
+configuration. Follow its checkpoints for the external identity-provider
+registration, public-key registration in the portal and the trustees' physical
+handover of their media. Type `CONTINUE` only after the stated action is complete.
+These are actions by the responsible people; do not mark
+them done merely to make the command continue.
+
+**Expected result.** The configured customer administrator and both native trustee
+instances pass their checks. The command ends with
+`COMMISSIONING COMMANDS COMPLETE — perform the browser, client-network and board handover checks in AGD-04.` Complete the
+remaining browser, MFA, client-network and board self-test checks; a server check
+alone cannot establish those conditions.
+
+**If the result differs.** Stop at the reported stage. Check the customer slug,
+registered trustee names and key media with their owners. Never choose a different
+tenant, substitute another trustee's keys, repeat account creation blindly or give
+a personal account a local password.
+
+Then complete the personal-account and role checks in [Initial Accounts](09-accounts.md)
+and the browser, self-test and handover checks in
+[Verifying the Installation](10-verification.md) and
+[Self-Test and Handover](11-selftest_handover.md). Keep the operator's confirmation
+and the election board's decisions as actual records. Each person authenticates
+at the external identity provider; the installer does not impersonate them.
+
+### Repeat a check later
 
 To repeat the read-only installation checks later, use:
 
@@ -189,23 +241,9 @@ To repeat the read-only installation checks later, use:
 A verification result describes the checks that ran. It is not an authorization
 to hold an election or a record of evaluator acceptance.
 
-### Finish customer commissioning
-
-Installation and commissioning have different owners. After platform installation:
-
-1. Create the customer's tenant and first administrator, register its exact
-   identity-provider redirect URI, and install the trustees' independently held
-   key material under [Installing the TOE](08-installing_toe.md#create-the-customers-tenant).
-2. Complete the personal-account and role checks in
-   [Initial Accounts](09-accounts.md). Each person authenticates at the external
-   identity provider; the installer does not impersonate them.
-3. Perform the browser, trustee, self-test and handover checks in
-   [Verifying the Installation](10-verification.md) and
-   [Self-Test and Handover](11-selftest_handover.md). Keep the operator's confirmation
-   and the election board's decisions as actual records.
-
 Backup, restore and trustee-key removal are later lifecycle operations. They are
-not performed by the installation command.
+not performed by the installation command. Their explicit commands remain in the
+relevant reference sections for use at the authorized lifecycle stage.
 
 ## Detailed operations and acceptance criteria
 

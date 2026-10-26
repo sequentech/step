@@ -14,6 +14,7 @@ import stat
 import subprocess
 import tarfile
 import tempfile
+from urllib.parse import urlencode, urlsplit, parse_qs
 
 ROOT = Path(__file__).resolve().parent
 PARTS = ('b4', 'ballot-verifier', 'braid', 'harvest', 'keycloak', 'windmill')
@@ -26,7 +27,7 @@ def keys(value, expected, label):
     require(isinstance(value, dict) and set(value) == set(expected), label + ': missing or unknown field')
 
 def validate(d):
-    keys(d, ('schema','nodes','ssh_identity','hosts','idp_alias','kit','toe','tls','identity_provider','operator','release'), 'configuration')
+    keys(d, ('schema','nodes','ssh_identity','hosts','idp_alias','kit','toe','tls','identity_provider','operator','release') + (('commissioning',) if isinstance(d,dict) and 'commissioning' in d else ()), 'configuration')
     require(d['schema'] == 1, 'Unsupported configuration schema')
     keys(d['nodes'], ('c1','c2'), 'nodes')
     for address in d['nodes'].values():
@@ -54,6 +55,9 @@ def validate(d):
     require(re.fullmatch('[0-9a-f]{40}',d['release']['step_commit']) is not None, 'Exact release source commit required')
     for value in [d['ssh_identity'],d['kit']['directory'],d['toe']['directory'],d['tls']['certificate'],d['tls']['private_key'],d['tls']['ca'],d['identity_provider']['definition'],d['identity_provider']['ca']]:
         require(isinstance(value,str) and Path(value).is_absolute() and '\n' not in value and '\x00' not in value, 'Use absolute input paths')
+    if 'commissioning' in d:
+        import commission
+        commission.validate(d['commissioning'])
     return d
 
 def checked_path(name, private=False, directory=False):
@@ -73,6 +77,9 @@ def run(argv, label, data=None, timeout=120):
     if r.returncode:
         stage=re.findall(rb'^AGD_STAGE_FAILED ([0-9]{2}-[0-9]{3})$',r.stderr,re.M)
         suffix=(' (reviewed operation '+stage[-1].decode()+')') if stage else ''
+        checks={b'TIME_AUTHENTICATION': 'NTS-authenticated time is required; correct the accepted site time configuration', b'SSH_POLICY': 'SSH must allow administrator keys only', b'FRESH_CLUSTER': 'A fresh cluster and empty installation workspace are required', b'SOURCE_IDENTITY': 'Installed operating-system source differs from the accepted kit', b'TOOLS': 'An offline-kit prerequisite is unavailable'}
+        code=re.findall(rb'^AGD_CHECK_FAILED ([A-Z_]+)$',r.stderr,re.M)
+        if code and code[-1] in checks: suffix=': '+checks[code[-1]]
         raise ValueError(label + ' failed'+suffix+'; stop and inspect this stage privately before any retry')
     return r.stdout
 
@@ -150,20 +157,26 @@ def ssh_args(d,node):
 def ssh(d,node,script,label,timeout=120):
     return run(ssh_args(d,node)+['bash','-s'],label,('set -Eeuo pipefail\nset +x\numask 077\n'+script).encode(),timeout)
 
-def preflight_script(d,fresh):
-    base='''for x in bash k3s openssl jq chronyc sshd sequent tar; do command -v "$x" >/dev/null; done
+def preflight_script(d,fresh,node="c1"):
+    base='''AGD_CHECK=TOOLS
+trap 'printf "AGD_CHECK_FAILED %s\\n" "$AGD_CHECK" >&2' ERR
+for x in bash k3s openssl jq chronyc sshd sequent tar; do command -v "$x" >/dev/null; done
+AGD_CHECK=SSH_POLICY
 policy=$(sshd -T)
 printf '%s\\n' "$policy" | grep -qi '^passwordauthentication no$'
 printf '%s\\n' "$policy" | grep -qi '^pubkeyauthentication yes$'
 printf '%s\\n' "$policy" | grep -qiE '^permitrootlogin (prohibit-password|without-password)$'
+AGD_CHECK=TIME_AUTHENTICATION
 auth=$(chronyc -N authdata)
 printf '%s\\n' "$auth" | awk 'NR>2 {n++; if ($2 != "NTS") bad=1} END {exit !(n>0 && !bad)}'
 chronyc tracking | grep -qE 'Leap status *: Normal'
 chronyc sources | grep -qE '^.\\*'
 '''
+    base+='AGD_CHECK=SOURCE_IDENTITY\n'
     base+='test "$(jq -r .release /var/lib/sequent-install/provenance.json)" = '+shlex.quote(d.get('_kit_identity',d['release'])['version'])+'\n'
     base+='test "$(jq -r .images.manifest.stepRevision /var/lib/sequent-install/provenance.json)" = '+shlex.quote(d.get('_kit_identity',d['release'])['step_commit'])+'\n'
-    if fresh:base+='test ! -e /root/deploy\n'
+    if fresh:base+='AGD_CHECK=FRESH_CLUSTER\ntest ! -e /root/deploy\n'
+    if node=='c2':return base
     base+='''if systemctl is-active --quiet k3s; then
   k3s secrets-encrypt status | grep -q '^Encryption Status: Enabled$'
 '''
@@ -178,7 +191,7 @@ def check(d,fresh=True):
     d['_kit_identity']={'version':provenance['release'],'step_commit':provenance['images']['manifest']['stepRevision']}
     print('PASS: configuration, accepted media and certificate inputs',flush=True)
     for node in ('c1','c2'):
-        ssh(d,node,preflight_script(d,fresh),'Node '+node+' preflight');print('PASS: '+node+' SSH policy, authenticated time and installed source',flush=True)
+        ssh(d,node,preflight_script(d,fresh,node=node),'Node '+node+' preflight');print('PASS: '+node+' SSH policy, authenticated time and installed source',flush=True)
     raw=ssh(d,'c1','k3s kubectl get nodes -o json\n','Cluster readiness')
     nodes=json.loads(raw)['items'];require(len(nodes)==2,'Exactly two cluster nodes are required')
     addresses=set()
@@ -197,7 +210,7 @@ def command_source(ident,d):
     s=path.read_text()
     if ident=='07-004':
         return "cd /root/deploy/kubernetes\n! grep -qE '^  APP_(VERSION|HASH):' config/step-env.yaml\nprintf '  APP_VERSION: \"%s\"\\n  APP_HASH: \"%s\"\\n' " + shlex.quote(d['release']['version']) + ' ' + shlex.quote(d['release']['step_commit']) + " >> config/step-env.yaml\n"
-    values={'name-of-the-service-administrator':d['operator']['service_administrator'],'operator-user-name-at-the-authentication-server':d['operator']['username'],'e-mail-address':d['operator']['email']}
+    values={'name-of-the-service-administrator':d['operator']['service_administrator'],'operator-user-name-at-the-authentication-server':d['operator']['username'],'e-mail-address':d['operator']['email'],'user-name-at-the-authentication-server':d['operator']['username'],'registered-trustee-name':d.get('_trustee',{}).get('name',''),'native-trustee-number':d.get('_trustee',{}).get('number','')}
     for key,value in values.items():s=s.replace('<'+key+'>',value)
     require(not re.search(r'<[a-z][a-z0-9 -]*>',s),'Unresolved installation input in reviewed command')
     return s
@@ -283,6 +296,9 @@ def verify(d):
 test -f /root/deploy/.platform-installed
 k3s secrets-encrypt status | grep -q '^Encryption Status: Enabled$'
 for namespace in step-apps step-infra; do
+  names=$(k3s kubectl -n "$namespace" get deploy -o json | jq -r '.items[] | select(.metadata.name != "trustee1" and .metadata.name != "trustee2") | .metadata.name')
+  test -n "$names"
+  while IFS= read -r name; do k3s kubectl -n "$namespace" rollout status "deployment/$name" --timeout=10m; done <<< "$names"
   k3s kubectl -n "$namespace" get deploy -o json | jq -e '
     [.items[] | select(.metadata.name != "trustee1" and .metadata.name != "trustee2") |
       (.status.availableReplicas // 0) >= (.spec.replicas // 1)] | length>0 and all' >/dev/null
@@ -302,14 +318,35 @@ for part in harvest windmill ballot-verifier; do
  k3s kubectl -n step-apps get deploy "$part" -o json | jq -e --arg expected "sequentech.local/$part@$expected" '.spec.template.spec.containers | any(.image==$expected)' >/dev/null
 done
 '''
-    ssh(d,'c1',script,'Installed platform policy verification',timeout=300)
+    ssh(d,'c1',script,'Installed platform policy verification',timeout=1800)
     for host in list(d['hosts'].values())[:3]:
         issuer=json.loads(run(['curl','--silent','--show-error','--fail','--cacert',d['tls']['ca'],'https://'+host+'/realms/'+R+'/.well-known/openid-configuration'],'External HTTPS discovery',timeout=30))['issuer']
         require(issuer=='https://'+d['hosts']['voting']+'/realms/'+R,'Published issuer differs from configured realm')
         status=run(['curl','--silent','--show-error','--cacert',d['tls']['ca'],'-o','/dev/null','-w','%{http_code}','https://'+host+'/realms/master/.well-known/openid-configuration'],'External master-realm restriction',timeout=30)
         require(status==b'403','Master realm is externally reachable or not verifiable')
+    verify_login(d,R)
     print('PASS: installed platform readiness, restricted services, secret store and HTTPS discovery',flush=True)
     print('Customer sign-in, external MFA, client firewall and trustee custody remain commissioning checks.',flush=True)
+
+
+def verify_login(d,realm):
+    host=d['hosts']['voting'];admin=d['hosts']['administration']
+    endpoint='https://'+host+'/realms/'+realm+'/protocol/openid-connect'
+    base=['curl','--silent','--show-error','--cacert',d['tls']['ca']]
+    query={'client_id':'admin-portal','response_type':'code','scope':'openid','redirect_uri':'https://'+admin+'/'}
+    pkce={**query,'code_challenge':'x'*43,'code_challenge_method':'S256'}
+    redirect=run(base+['-o','/dev/null','-w','%{redirect_url}',endpoint+'/auth?'+urlencode(pkce)],'Identity-provider redirect check',timeout=30).decode()
+    location=urlsplit(redirect)
+    require(location.scheme=='https' and location.hostname==host and '/broker/'+d['idp_alias']+'/login' in location.path,'Authorization flow did not redirect to the configured external identity provider')
+    rejected=run(base+['-o','/dev/null','-w','%{redirect_url}',endpoint+'/auth?'+urlencode(query)],'PKCE rejection check',timeout=30).decode()
+    location=urlsplit(rejected)
+    require(location.scheme=='https' and location.hostname==admin and parse_qs(location.query).get('error')==['invalid_request'],'A missing PKCE challenge was not rejected')
+    other={**pkce,'redirect_uri':'https://other.invalid/'}
+    require(run(base+['-o','/dev/null','-w','%{http_code}',endpoint+'/auth?'+urlencode(other)],'Unregistered redirect rejection',timeout=30)==b'400','An unregistered redirect URI was not rejected')
+    for client,expected in [('admin-portal','unauthorized_client'),('admin-cli','unauthorized_client'),('cli-account-admin','invalid_client')]:
+        response=json.loads(run(base+['-d','grant_type=password','-d','client_id='+client,'-d','username=agd-negative-check','-d','password=invalid-negative-check',endpoint+'/token'],'Password-grant rejection',timeout=30))
+        require(response.get('error')==expected and 'access_token' not in response,'A forbidden password grant was not rejected')
+    print('PASS: external login redirect, PKCE, exact redirect allowlist and forbidden password grants',flush=True)
 
 
 def main(command,path):
@@ -319,4 +356,7 @@ def main(command,path):
     if command=='check':check(d)
     elif command=='install':install(d)
     elif command=='verify':verify(d)
+    elif command=='commission':
+        import commission
+        commission.main(d)
     else:raise ValueError('Unknown installation command')

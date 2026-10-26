@@ -64,53 +64,12 @@ def build(repo,out,commit,working=False):
             e={'id':STEP_NAMES[ident],'legacy_id':ident,'language':'bash' if command.suffix=='.sh' else 'jq','heading':heading,'source':rel,'line':line_number,'source_sha256':sha(raw),'roles':HOSTS.get(ident,['c1']),'destination':DATA.get(ident),'destructive':ident in ('08-014','11-003'),'file':name,'sha256':sha(body),'command_source':command_rel,'transformation':'none'}
             steps.append(e);sources.append({'path':command_rel,'sha256':sha(body)})
     if len({s['id'] for s in steps})!=len(steps):raise ValueError('Duplicate step identifier')
-    for name in ('runner.py','session.sh','build.py','step_names.py','install.py','site.example.json'):
+    for name in ('runner.py','session.sh','build.py','step_names.py','install.py','commission.py','site.example.json'):
         p=HERE/name;rel=str(p.relative_to(repo));raw=p.read_bytes()
         if not working and subprocess.check_output(['git','-C',str(repo),'show',commit+':'+rel])!=raw:raise ValueError('Runner differs from selected commit')
         files[name]=raw;sources.append({'path':rel,'sha256':sha(raw)})
     files['deploy']=b'#!/bin/sh\n# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>\n# SPDX-License-Identifier: AGPL-3.0-only\nexec python3 "$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)/runner.py" "$@"\n'
-    files['README.md']=('''# AGD-04 deployment commands
-
-Use this folder from the verified delivery ZIP. It is self-contained: Python 3,
-Bash and the handbook's operational tools are needed; no repository, package
-installation or network download is performed by this launcher.
-
-1. Finish Verifying the Delivery for this command package first. The separate
-   installation kit is then checked in AGD-04 section 3 using this launcher. The
-   hash check below detects changed files; it does not authenticate a delivery.
-2. Copy this whole folder onto each named machine. On each machine, as root,
-   run `./deploy check`, then `./deploy configure ROLE` and
-   `./deploy session ROLE`. Roles: admin, c1, c2, client, trustee. The client
-   network machine is distinct from the administration workstation. Trustees
-   remain offline. Configuration is public, validated data in operator.json;
-   never enter a password, token or private key there. The guide's hidden
-   prompts and root-only secret files retain secret input handling.
-3. Follow AGD-04 in order. `steps` lists readable command names (legacy numeric
-   IDs remain supported aliases), `show 07-configure-storage-route` displays the exact
-   reviewed command, and `step 07-configure-storage-route` runs only that block on its allowed host.
-   Read its preconditions and compare all outputs with the guide before moving
-   on. jq steps install the exact bundled filter; text steps are expected output.
-4. Keep the same shell open for dependent commands: variables, functions and
-   working directories persist. If disconnected, inspect the current state and
-   re-establish the variables the guide requires; never rerun a write blindly.
-   The runner neither retries nor bulk-runs steps and records no secret output.
-   An exit status is not an acceptance decision; negative checks may deliberately
-   return nonzero. No installation, handover or approval is inferred by the runner.
-5. Public placeholders are prompted when needed; supplied values are retained
-   per step. Node sessions check the configured IP against local addresses.
-   Each workstation's configured machine identity is checked. This does not
-   replace the guide's network-position, physical custody or role checks.
-
-`manifest.json` binds the source commit, source pages and every bundled byte.
-`SHA256SUMS` supports an independent `sha256sum --check SHA256SUMS`.
-Read the corresponding PDF before each command; all security and acceptance
-checks, receipt confirmation, account procedures and browser operations remain
-in the handbook. Never pipe `step` output to a transcript or run with shell tracing.
-
-These commands are not an unattended installer. In particular backup, restore
-and trustee-key removal require their stated lifecycle and board authorization.
-The confirmation prompt does not itself confer that authorization.
-''').encode()
+    files['README.md']=("# AGD-04 configuration-driven installation\n\nUse this complete verified folder on the administration workstation, after delivery acceptance and installation of the two site-specific server images.\n\n1. Copy `site.example.json` to `site.json` and fill its public site values and protected input-file paths. Use hashes and fingerprints from the independently accepted delivery records; do not copy an observed mismatch into the expected fields. JSON is the same configuration format as the offline kit and requires no additional parser package. Keep private keys and client secrets in their protected input files, never in this configuration.\n2. Run `./deploy check site.json`. It checks the delivery inputs, certificates, SSH/time policy and the two fresh cluster nodes. It performs no installation or disk erasure.\n3. Run `./deploy install site.json`. It imports the verified images, applies the reviewed hardened configuration and verifies the platform. It refuses an occupied cluster and does not automatically retry failed writes. The operator does not run the internal numbered operations.\n4. Create the customer tenant in the administration portal as the guide explains. Add the `commissioning` configuration described in AGD-04 and run `./deploy commission site.json`. Follow its pauses for identity-provider registration, trustee registration and physical key custody. It automates the remaining account and native-trustee commands; it does not authorize an election or board handover.\n\n`./deploy verify site.json` repeats the automated platform checks. Browser authentication/MFA, client-network filtering, offline trustee operations and board handover remain explicit human checks in the guide. The installer never claims these passed merely because a command exited successfully.\n\nRead AGD-04 before executing these commands. Python 3 and the listed administration-workstation tools are required; nodes use the tools of the accepted offline kit. No repository checkout, Internet download or developer build is performed during installation. SSH host keys must already be verified in the workstation's known_hosts.\n\n`manifest.json` binds this folder to its exact source revision; `SHA256SUMS` detects changed files. The legacy `session`, `step` and `show` interfaces are retained only for existing procedures and diagnostics, not the installation workflow. Backup, restore and trustee removal are separate authorized maintenance operations, never automatic installation stages.\n").encode()
     m={'schema':1,'source_commit':commit,'test_only':working,'document':'AGD-04','document_version':'1.0','sources':sources,'steps':steps,'files':{n:sha(b) for n,b in files.items()}}
     files['manifest.json']=(json.dumps(m,indent=2)+'\n').encode();files['SHA256SUMS']=''.join(f'{sha(b)}  {n}\n' for n,b in sorted(files.items())).encode()
     for name,data in files.items():

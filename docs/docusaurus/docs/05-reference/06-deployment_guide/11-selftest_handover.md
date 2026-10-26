@@ -195,13 +195,18 @@ execution phase and after its post-processing phase, never during the
 execution phase. The TOE is not available while the backup runs. From the
 administration workstation, with a backup medium mounted at the path you give:
 
+Run the following backup commands in the same root terminal in the extracted
+`deployment` directory, with the installation’s `site.json`. The first command
+reads C1’s address from that file; keep the terminal open so the selected backup
+path remains available for the next command.
+
 <!-- deployment-step: 11-001 -->
 
 **Operation reference:** `11-stop-services-for-backup` on `admin`.
 
 ```bash
 set -e -o pipefail
-. /root/deploy/hosts.env
+C1=$(jq -er '.nodes.c1' site.json)
 read -r -p "Mounted backup directory: " BACKUP_DIRECTORY
 B="$BACKUP_DIRECTORY"/sequent-$(date -u +%Y%m%dT%H%MZ).tar.gpg
 ssh root@$C1 'set -e -o pipefail; for ns in step-apps step-infra; do
@@ -269,7 +274,7 @@ checks the electoral log. To restore:
 
    ```bash
    set -e -o pipefail
-   . /root/deploy/hosts.env
+   C1=$(jq -er '.nodes.c1' site.json)
    read -r -p "Type RESTORE AUTHORIZED BACKUP to confirm: " CONFIRM
    test "$CONFIRM" = "RESTORE AUTHORIZED BACKUP"
    read -r -p "Absolute path to the authorized backup: " B

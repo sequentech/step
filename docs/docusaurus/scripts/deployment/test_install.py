@@ -59,6 +59,32 @@ class InstallerTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             p=Path(folder);(p/'ok').write_bytes(b'ok')
             with self.assertRaises(ValueError):install.verify_checksums(p,'a'*64+'  ../escape\n')
+    def test_agent_preflight_does_not_run_control_plane_commands(self):
+        s=install.preflight_script(self.config(),True,node='c2')
+        self.assertNotIn('secrets-encrypt',s);self.assertNotIn('kubectl get namespace',s)
+        self.assertIn('chronyc',s);self.assertIn('test ! -e /root/deploy',s)
+    def test_modified_manifest_is_rejected_before_any_certificate_or_network_check(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder);(root/'images').mkdir();key=root/'key';key.write_text('private');key.chmod(0o600)
+            d=self.config();d['ssh_identity']=str(key);d['toe']['directory']=str(root)
+            for part in install.PARTS:
+                p=root/'images'/(part+'.tar');p.write_bytes(part.encode());d['toe']['archive_sha256'][part]=install.digest(p)
+            (root/'image-digests.txt').write_text('tampered')
+            with patch('install.verify_kit'),patch('install.run') as run:
+                with self.assertRaisesRegex(ValueError,'manifest differs'):install.verify_inputs(d)
+                run.assert_not_called()
+    def test_source_identity_comes_from_toe_release_not_os_kit(self):
+        d=self.config();d['_kit_identity']={'version':'1.2.3','step_commit':'b'*40}
+        script=install.command_source('07-004',d)
+        self.assertIn('a'*40,script);self.assertNotIn('b'*40,script)
+        import subprocess
+        self.assertEqual(subprocess.run(['bash','-n'],input=install.install_script(d),text=True,capture_output=True).returncode,0)
+    def test_only_allowlisted_failure_reason_is_shown(self):
+        import subprocess
+        with patch('install.subprocess.run',return_value=subprocess.CompletedProcess([],1,b'SECRET',b'SECRET\nAGD_CHECK_FAILED TIME_AUTHENTICATION\n')):
+            with self.assertRaisesRegex(ValueError,'NTS-authenticated time') as error:install.run(['false'],'Node c1')
+            self.assertNotIn('SECRET',str(error.exception))
+
     def test_idp_policy_cannot_disable_signature_or_pkce(self):
         d={'alias':'external-login','providerId':'oidc','enabled':True,'trustEmail':False,'storeToken':False,'linkOnly':False,'firstBrokerLoginFlowAlias':'certificate-first-login-flow','config':{'issuer':'https://login.example.org','authorizationUrl':'https://login.example.org/auth','tokenUrl':'https://login.example.org/token','jwksUrl':'https://login.example.org/jwks','logoutUrl':'https://login.example.org/logout','clientId':'platform','clientSecret':'not-printed','clientAuthMethod':'client_secret_post','validateSignature':'true','useJwksUrl':'true','pkceEnabled':'true','pkceMethod':'S256'}}
         install.validate_idp(d,'external-login')

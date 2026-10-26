@@ -116,28 +116,19 @@ Keycloak trusts the authentication server's TLS certificate only through this
 CA certificate. Check its fingerprint before installing it.
 :::
 
-Save the CA certificate as `/root/deploy/auth-server-ca.pem` on C1. **Before installing
-it**, run this short read-only check in the C1 session:
-
-```bash
-openssl x509 -in /root/deploy/auth-server-ca.pem -noout -subject -fingerprint -sha256
-```
-
-Expected: the subject and SHA-256 fingerprint supplied independently by the
-authentication-server operator. Compare every fingerprint byte. If they differ,
-stop and obtain the correct CA certificate through that operator's verified channel.
-The installation command below repeats the fingerprint and then immediately creates
-the ConfigMap; it does not pause to ask you to approve the fingerprint.
-
-Only after that independent comparison passes, install the trust anchor:
+Set `identity_provider.ca` to the independently supplied CA certificate and
+`identity_provider.ca_sha256` to its separately received fingerprint. The
+configuration check computes the actual certificate fingerprint and compares it
+before installation. A mismatch stops the process; do not replace the configured
+fingerprint with a value copied from the untrusted file.
 
 <!-- deployment-step: 06-002 -->
 
 **Operation reference:** `06-install-idp-ca` on `c1`.
 
-**Expected result.** The certificate subject and SHA-256 fingerprint match the independently received CA certificate details, followed by `configmap/auth-server-ca created`. The fingerprint must already have passed the separate precheck above before this command is run.
+**Expected result.** The certificate subject and SHA-256 fingerprint match the independently received CA certificate details, followed by `configmap/auth-server-ca created`. The fingerprint must have passed the configuration check before this operation runs.
 
-**If the result differs.** If the precheck differs, do not run this step. If creation says `AlreadyExists`, inspect whether this is a partial earlier setup and verify the existing trusted certificate before replacing anything. A missing namespace means the certificate/namespace installation stage is incomplete; return to it first.
+**If the result differs.** If the configuration check reports a fingerprint mismatch, do not install. If creation says `AlreadyExists`, inspect whether this is a partial earlier setup and verify the existing trusted certificate before replacing anything. A missing namespace means the certificate/namespace installation stage is incomplete; return to it first.
 
 
 The fingerprint must be the one you received. [Configuring the

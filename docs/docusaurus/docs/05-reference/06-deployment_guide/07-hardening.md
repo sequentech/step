@@ -121,7 +121,7 @@ again. Keep `/root/deploy/secrets.env` readable by root only, and never print
 it.
 :::
 
-At the public input prompt, enter a name for the identity
+The `operator.service_administrator` value in `site.json` names the identity
 service's administrator account, used only by the TOE's services:
 
 <!-- deployment-step: 07-005 -->

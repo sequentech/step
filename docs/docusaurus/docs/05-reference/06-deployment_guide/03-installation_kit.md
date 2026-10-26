@@ -153,8 +153,9 @@ Check from the administration workstation that both nodes are in the cluster:
 ## Prepare the deployment directory
 
 All later configuration is made in `/root/deploy` on C1, a directory that only
-root can read. Start the configured C1 session and check the public file of
-shell variables created by `./deploy configure c1`:
+root can read. The installer creates this directory and its public `hosts.env`
+from the validated site configuration; the operator does not configure a separate
+shell session on every machine:
 
 <!-- deployment-step: 03-005 -->
 
@@ -162,7 +163,7 @@ shell variables created by `./deploy configure c1`:
 
 **Expected result.** The two permission lines are `700 root /root/deploy` and `600 root /root/deploy/hosts.env`. All preceding checks are silent on success; their absence alone does not establish success if the command stopped.
 
-**If the result differs.** If a variable check stops or the file is missing, check the public configuration created on this same machine with `./deploy configure c1`. If permissions or owner differ, stop and reconcile that machine’s root-only deployment directory before proceeding. Preserve any existing customer realm value (`CR`); do not replace the configuration blindly.
+**If the result differs.** If a variable check stops or the file is missing, compare the reported installation stage with the validated `site.json`. If permissions or owner differ, stop and reconcile that machine’s root-only deployment directory before proceeding. Preserve any existing customer realm value (`CR`); do not replace the configuration blindly.
 
 
 - PORTAL_HOST, ADMIN_HOST and VERIFIER_HOST are the full host names of the
@@ -175,9 +176,9 @@ shell variables created by `./deploy configure c1`:
   [Create the customer's tenant](08-installing_toe.md#create-the-customers-tenant)
   later adds CR, the name of the customer's realm.
 
-Configure each other machine with the same public site values. Its session
-loads its own `hosts.env` automatically. The directory must be mode 700 and the
-file mode 600, both owned by root. Keep any later CR addition when reopening a session.
+The installer transfers the same public site values to the nodes. The directory
+must be mode 700 and the file mode 600, both owned by root. Commissioning adds the
+customer realm; preserve it during later maintenance.
 
 Then make a working copy of the cluster manifests that the `sequent` command
 carries. All later changes are made to this copy:

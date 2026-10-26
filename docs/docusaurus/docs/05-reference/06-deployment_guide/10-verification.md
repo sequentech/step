@@ -121,20 +121,11 @@ The six results must be:
 
 Once the customer's tenant exists
 ([Create the customer's tenant](08-installing_toe.md#create-the-customers-tenant)),
-run both checks again in the administration session:
-
-```bash
-step 10-check-login-discovery
-step 10-check-login-redirects
-```
-
-Each command asks `Realm to check [installation/customer] (installation):`.
-For the original installation-realm checks, press Enter or type `installation`.
-For this repeat, type `customer` at **both** prompts. The results must be the
-same, with your customer realm in the issuers. If the launcher says that `CR`
-is missing, add the public customer-realm line recorded during tenant creation
-to this workstation's `/root/deploy/hosts.env` before repeating. Do not edit
-the bundled commands or substitute a different realm.
+the same discovery and redirect conditions must also hold for its realm. The
+issuer must name the customer realm, and all six redirect/grant results above
+must match. Check both realm results during commissioning; an installation-realm
+result alone does not establish the customer realm's configuration. Do not edit
+the bundled scripts or substitute an unrelated realm to obtain a passing result.
 
 Then open `https://ADMIN_HOST` in a browser: it must show the sign-in page of
 the external authentication server, never a sign-in form of the TOE.
@@ -285,7 +276,7 @@ authentication failure threshold that the administrator set (5 unless the
 administrator set another value) and `custom-event-listener`: TLS
 required, idle sessions end after 15 minutes, brute-force protection on with
 that threshold, and authentication events recorded and passed to the TOE.
-Then check each realm listed from the same C1 deployment session:
+The check must cover each listed realm on C1:
 
 <!-- deployment-step: 10-013 -->
 

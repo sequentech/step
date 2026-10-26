@@ -112,8 +112,9 @@ On C1:
 The deployment must print `step-tls-cert already exists; keeping it.` and end
 without an error. After a few minutes every pod must be `Running` or
 `Completed`, except `trustee1` and `trustee2`: they stay not ready until their
-keys are installed below. Run the same commands again after every later change
-to `/root/deploy/kubernetes`.
+keys are installed during commissioning. Later configuration changes require a
+reviewed maintenance procedure; do not rerun the fresh-install command against an
+occupied cluster.
 
 ## Remove the secrets from the realm manifest
 
@@ -159,35 +160,32 @@ before the trustee keys are installed:
    that [Configure the realms](07-hardening.md#configure-the-realms) has
    hardened, with the service accounts and a seeded `admin` account without a
    password.
-3. On C1, list the tenants and record the realm name of the customer's tenant:
+3. Put the customer slug and administrator identity in `commissioning` in
+   `site.json`, then run `./deploy commission site.json` from the administration
+   workstation. The command resolves the customer tenant on C1:
 
    <!-- deployment-step: 08-007 -->
 
    **Operation reference:** `08-select-customer-tenant` on `c1`.
 
-   **Expected result.** Two tenant ID/slug rows: the installation tenant and your customer tenant. After listing those rows, the step asks for the customer UUID and prints `Customer realm selected: tenant-` followed by that UUID.
+   **Required result.** The lookup identifies exactly the installation tenant and the customer tenant matching the configured slug. The customer realm is `tenant-` followed by that customer UUID.
 
    **If the result differs.** If the customer row is absent, finish its creation in the portal first. If more than two tenants appear, stop and reconcile the installation state; never choose an arbitrary tenant or repeat creation.
 
 
-   The first command must list two tenants: `90505c8a-23a9-4cdf-a26b-4e19f6a097d5`
-   (the super-admin tenant) and the customer's tenant with the short name you
-   entered. At the prompt after that listing, enter the customer row's UUID.
-   The step records `export CR=tenant-` followed by that UUID in
-   `/root/deploy/hosts.env` on C1. Add the same public line to
-   `/root/deploy/hosts.env` on the administration workstation before its
-   customer-realm checks.
-4. Ask the operator of the external authentication server to register the
-   redirect URI `https://PORTAL_HOST/realms/CR/broker/IDP_ALIAS/endpoint`,
+   The installation tenant is `90505c8a-23a9-4cdf-a26b-4e19f6a097d5`; the
+   other tenant must have the customer slug you supplied. The commissioning
+   command records the resolved customer realm. Do not type or guess a UUID or
+   edit a shell environment file to select a different tenant.
+4. At the commissioning checkpoint, ask the operator of the external
+   authentication server to register the exact redirect URI `https://PORTAL_HOST/realms/CR/broker/IDP_ALIAS/endpoint`,
    with your value of CR (see
    [Connecting the Authentication Server](06-authentication_server.md)).
-5. On C1, add the customer's first administrator and the two trustee accounts
-   to the realm CR, give its client `api-key-client` the trustees' client
-   secret, and disable every personal account of the realm R. The
-   identity service's own administration tool does this inside the identity
-   service. At the public prompts, enter the user name and e-mail address
-   that the external authentication server holds for the customer's first
-   administrator:
+5. The commissioning command adds the customer's first administrator and the
+   two native trustee accounts, configures the trustee client secret, and disables
+   the personal accounts of the installation realm. The administrator's user name
+   and e-mail must match the identity supplied by the external authentication
+   server; they come from the same configuration file:
 
    <!-- deployment-step: 08-008 -->
 
@@ -206,7 +204,7 @@ before the trustee keys are installed:
    The installation account is now disabled: no later step of this guide
    needs an account of the super-admin tenant.
 6. Make the checks of
-   [Identity service](10-verification.md#identity-service) using the customer-realm command sequence given there, and of
+   [Identity service](10-verification.md#identity-service) for the customer realm, and of
    [Data correction, telephone channel, plugins and tenants](10-verification.md#data-correction-telephone-channel-plugins-and-tenants).
 
 ## Install the trustee keys
@@ -231,22 +229,24 @@ in Settings > "TRUSTEES". Each machine account's `trustee` attribute must name
 exactly its registered trustee. The person's separate account uses "Act as
 Trustee" for the same registered name.
 
-On C1, answer the public prompts with native trustee number `1` and the registered
-name whose keys will be installed in `trustee1`. Repeat with number `2` and the second
-registered name. This changes only the native account's trustee binding; it
-preserves its login name, password, roles and all other attributes. Do not use
-the personal trustee account or add a password to it.
+The commissioning configuration associates the first trustee entry with native
+instance `trustee1` and the second with `trustee2`. At its checkpoint, the
+administrator registers the two public keys in the portal and each trustee
+provides the corresponding private key file on their own medium. Before importing
+either file, the command compares its public-key pair with the registered trustee
+record. It changes only the native account's trustee binding; personal trustee
+accounts remain separate and receive no local password.
 
 <!-- deployment-step: 08-009 -->
 
 **Operation reference:** `08-register-native-trustee` on `c1`.
 
-**Expected result.** `Native trustee binding verified` for the chosen instance. Repeat separately for the second instance with its own registered name.
+**Required result.** Each native account is bound to its configured registered trustee name, and the installed key file matches that record’s public keys. Both instances must pass.
 
 **If the result differs.** If there is no success line, check the exact registered name, customer tenant and instance number with the administrator and trustee. Do not start either server with an uncertain key-to-account mapping.
 
 
-Each run must print "Native trustee binding verified". Record the native
+Record the native
 account, registered trustee name and checked public-key pair in the protected
 installation record. The binding is persistent customer-realm state; verify it
 again after restoring a customer backup. The process's `TRUSTEE_NAME` also
@@ -262,8 +262,9 @@ No copy may remain on the administration workstation or on C1: it is kept
 only in the cluster's encrypted Secret.
 :::
 
-On the administration workstation, with the trustee's medium mounted, set N
-to the trustee's instance number and the path to their keys file:
+With each trustee present and their medium mounted at the configured key-file
+path, continue the commissioning checkpoint. It transfers the corresponding file
+to C1 and installs it in that instance’s encrypted cluster Secret:
 
 <!-- deployment-step: 08-010 -->
 
@@ -287,9 +288,9 @@ details and start it:
 **If the result differs.** If rollout fails, check its operating log and the previously verified native-account binding. Keep the trustee's existing keys and password; do not generate replacements to make the service start.
 
 
-The last command must report that the rollout finished. Repeat both transfer
-and start blocks, answering native trustee number `2` for the second trustee, using its matching keys
-and the native-account binding checked above.
+Both trustee instances must finish their rollout. Commissioning handles their
+transfer and sign-in configuration separately, using each instance’s matching
+key file and verified native-account binding.
 
 Before the key ceremony and before each tally ceremony, check on C1 that both
 instances are ready, and confirm it to the election board, which waits for
@@ -318,13 +319,16 @@ Keep the backup and its passphrase in separate locked places.
 After the key ceremony, from the administration workstation, with a backup
 medium mounted at the path you give:
 
+Run from the extracted `deployment` directory on the administration workstation,
+with the same `site.json`. The first line reads C1’s address from that file.
+
 <!-- deployment-step: 08-013 -->
 
 **Operation reference:** `08-backup-trustee-state` on `admin`.
 
 ```bash
 set -e -o pipefail
-. /root/deploy/hosts.env
+C1=$(jq -er '.nodes.c1' site.json)
 read -r -p "Mounted backup directory: " BACKUP_DIRECTORY
 B="$BACKUP_DIRECTORY"/trustee-state-$(date +%F).tar.gpg
 ssh root@$C1 'k3s kubectl -n step-infra scale --replicas=0 \

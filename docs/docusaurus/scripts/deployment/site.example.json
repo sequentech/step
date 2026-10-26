@@ -47,5 +47,22 @@
   "release": {
     "version": "10.0.0",
     "step_commit": "REPLACE_WITH_40_CHARACTER_SOURCE_REVISION"
+  },
+  "commissioning": {
+    "customer_slug": "example-election",
+    "administrator": {
+      "username": "election-admin",
+      "email": "election-admin@example.org"
+    },
+    "trustees": [
+      {
+        "name": "Trustee One",
+        "keys_file": "/media/trustee-one/trustee.toml"
+      },
+      {
+        "name": "Trustee Two",
+        "keys_file": "/media/trustee-two/trustee.toml"
+      }
+    ]
   }
 }
