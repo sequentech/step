@@ -40,8 +40,13 @@ DEVCONTAINER=$ROOT/.devcontainer
 SERVICES=(
     devcontainer postgres postgres-keycloak postgres-b4v6 minio configure-minio task-queues-setup
     data-connector-agent graphql-engine keycloak harvest messaging-webhooks windmill beat b4v6
-    trustee1 trustee2 localstack configure-localstack
+    localstack configure-localstack
 )
+# Started once bootstrap has enrolled them: a trustee daemon signs in as soon
+# as it starts, and before bootstrap enables its client and sets its password
+# those attempts fail until Keycloak temporarily disables the account.
+# Bootstrap reads their public keys with the trustee CLI, not the daemons.
+TRUSTEES=(trustee1 trustee2)
 IMAGES=(postgres postgres-b4v6 minio configure-minio keycloak harvest)
 # Services with an LLVM_PROFILE_FILE in docker-compose-ci-coverage.yml.
 INSTRUMENTED=(harvest messaging-webhooks windmill beat b4v6 trustee1 trustee2)
@@ -141,7 +146,7 @@ compose() {
 
 collect_logs() {
     compose ps --all > "$OUTPUT/logs/services.txt" 2>&1 || true
-    for service in "${SERVICES[@]}"; do
+    for service in "${SERVICES[@]}" "${TRUSTEES[@]}"; do
         compose logs --no-color --timestamps "$service" > "$OUTPUT/logs/$service.log" 2>&1 || true
     done
 }
@@ -215,6 +220,9 @@ if ((bootstrapped == 3)); then
 elif ((bootstrapped != 0)); then
     exit "$bootstrapped"
 fi
+
+phase "Starting the trustees"
+compose up --detach --wait --wait-timeout 300 "${TRUSTEES[@]}"
 
 if $bootstrap_only; then
     phase "Bootstrap complete"
