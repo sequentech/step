@@ -535,8 +535,24 @@ const ProposedChanges: React.FC<{view: ApplicationView}> = ({view}) => {
     )
 }
 
+/** The kinds the package contract gives a member (package_contract.rs Disposition). */
+const DISPOSITIONS = ["applied", "manual", "record-only", "verification", "unknown"]
+
 const ApplicationTable: React.FC<{view: ApplicationView}> = ({view}) => {
     const {t} = useTranslation()
+    // What handles the member, not what this run did: a refused or failed run
+    // applied nothing, whatever its members' kinds. The table above says what
+    // each section's run did.
+    const dispositionLabel = (member: ApplicationView["members"][number]): string =>
+        !DISPOSITIONS.includes(member.disposition)
+            ? member.disposition
+            : member.disposition === "applied"
+              ? String(
+                    t("configurationPackage.disposition.applied", {
+                        section: member.section ?? "?",
+                    })
+                )
+              : String(t(`configurationPackage.disposition.${member.disposition}`))
     return (
         <>
             <Table size="small" data-testid="package-sections">
@@ -606,9 +622,9 @@ const ApplicationTable: React.FC<{view: ApplicationView}> = ({view}) => {
             <List dense data-testid="package-members">
                 {view.members.map((member, index) => (
                     <ListItem key={`${member.container ?? ""}:${member.path}:${index}`}>
-                        {`${member.container ? `${member.container} › ` : ""}${member.path} — ${
-                            member.disposition
-                        }${member.section ? ` (${member.section})` : ""}`}
+                        {`${member.container ? `${member.container} › ` : ""}${
+                            member.path
+                        } — ${dispositionLabel(member)}`}
                     </ListItem>
                 ))}
             </List>

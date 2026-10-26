@@ -55,6 +55,14 @@ const englishTranslation = {
             applyRechecks:
                 "Applying previews the package again on the platform before anything changes, and stops at any blocker.",
             earlierApplied: "Applied by an earlier run",
+            // What handles a member (the package contract), not what a run did.
+            disposition: {
+                "applied": "handled by the {{section}} section",
+                "manual": "applied by hand, outside the platform",
+                "record-only": "kept as a record",
+                "verification": "checked to verify the package",
+                "unknown": "not a member this version knows; not applied",
+            },
             earlierTasks: "Tasks begun for this section: {{tasks}}",
             inFlight: "A submission is not settled yet (task {{taskId}})",
             stoppedWithoutRecord:

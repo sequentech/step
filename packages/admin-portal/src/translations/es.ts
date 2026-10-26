@@ -56,6 +56,13 @@ const spanishTranslation: TranslationType = {
             applyRechecks:
                 "Aplicar vuelve a previsualizar el paquete en la plataforma antes de cambiar nada, y se detiene ante cualquier bloqueo.",
             earlierApplied: "Aplicado por una ejecución anterior",
+            disposition: {
+                "applied": "lo gestiona la sección {{section}}",
+                "manual": "se aplica a mano, fuera de la plataforma",
+                "record-only": "se conserva como registro",
+                "verification": "se comprueba para verificar el paquete",
+                "unknown": "no es un miembro que esta versión conozca; no se aplica",
+            },
             earlierTasks: "Tareas iniciadas para esta sección: {{tasks}}",
             inFlight: "Hay un envío sin resolver (tarea {{taskId}})",
             stoppedWithoutRecord:
