@@ -19,6 +19,43 @@ class InstallerTests(unittest.TestCase):
         d['tls']['ca_sha256']=d['identity_provider']['ca_sha256']='a'*64
         d['release']['step_commit']='a'*40
         return d
+    def test_supporting_payload_requires_signed_complete_and_bound_metadata(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder);(root/'release').mkdir()
+            revision='a'*40
+            assets={'schema_version':1,'step_revision':revision,'bucket':'public','prefix':'public-assets','file_count':1,'files':[{'path':'report.hbs'}]}
+            asset_path=root/'release/public-assets.json';asset_path.write_text(json.dumps(assets))
+            inputs={'schemaVersion':1,'stepRevision':revision,'publicAssetsInventorySha256':install.digest(asset_path)}
+            input_path=root/'release/setup-image-inputs.json';input_path.write_text(json.dumps(inputs))
+            entry={'ref':'sequentech.local/trustee:latest','kind':'sequent','dockerfile':'beyond:airgap/docker/trustee-setup.Dockerfile','imageId':'sha256:'+'b'*64}
+            images={'schemaVersion':1,'stepRevision':revision,'images':[entry]}
+            image_path=root/'release/images.json';image_path.write_text(json.dumps(images))
+            signed={'release/provenance.json','release/images.json','release/public-assets.json','release/setup-image-inputs.json'}
+            self.assertEqual(install.verify_setup_payload(root,signed),entry['imageId'])
+            for missing in signed:
+                with self.assertRaisesRegex(ValueError,'missing signed'):install.verify_setup_payload(root,signed-{missing})
+            assets['step_revision']='c'*40;asset_path.write_text(json.dumps(assets))
+            with self.assertRaisesRegex(ValueError,'revisions differ'):install.verify_setup_payload(root,signed)
+            assets['step_revision']=revision;assets['files'][0]['path']='altered.hbs';asset_path.write_text(json.dumps(assets))
+            with self.assertRaisesRegex(ValueError,'different public-asset'):install.verify_setup_payload(root,signed)
+            inputs['publicAssetsInventorySha256']=install.digest(asset_path);input_path.write_text(json.dumps(inputs))
+            images['images'].append(entry);image_path.write_text(json.dumps(images))
+            with self.assertRaisesRegex(ValueError,'exactly one'):install.verify_setup_payload(root,signed)
+
+    def test_supporting_image_identity_is_checked_on_each_node_without_writes(self):
+        d=self.config();d['_setup_image_id']='sha256:'+'b'*64
+        for node in ('c1','c2'):
+            with patch('install.ssh',return_value=json.dumps({'status':{'id':d['_setup_image_id']}}).encode()) as ssh:
+                install.verify_setup_image(d,node)
+                self.assertEqual(ssh.call_args.args[1],node)
+                self.assertEqual(ssh.call_args.args[2],'k3s crictl inspecti sequentech.local/trustee:latest\n')
+            with patch('install.ssh',return_value=json.dumps({'status':{'id':'sha256:'+'c'*64,'repoDigests':['sequentech.local/trustee@'+d['_setup_image_id']]}}).encode()):
+                install.verify_setup_image(d,node)
+            with patch('install.ssh',return_value=json.dumps({'status':{'id':'sha256:'+'c'*64,'repoDigests':['unrelated.invalid/image@'+d['_setup_image_id']]}}).encode()):
+                with self.assertRaisesRegex(ValueError,'differs from the accepted kit'):install.verify_setup_image(d,node)
+            with patch('install.ssh',return_value=json.dumps({'status':{'id':'sha256:'+'c'*64}}).encode()):
+                with self.assertRaisesRegex(ValueError,'differs from the accepted kit'):install.verify_setup_image(d,node)
+
     def test_oci_profile_needs_no_user_created_archive_hashes(self):
         d=self.config();d['toe'].pop('archive_sha256');d['toe']['format']='oci'
         install.validate(d)

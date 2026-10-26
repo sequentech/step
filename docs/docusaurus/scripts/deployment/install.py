@@ -102,6 +102,7 @@ def verify_checksums(root, text):
         require(digest(p)==m[1].lower(),'Kit file checksum mismatch')
         seen.add(str(rel))
     require(bool(seen),'Empty kit checksum list')
+    return seen
 
 def verify_kit(d):
     root=checked_path(d['kit']['directory'],directory=True,label='Accepted kit directory')
@@ -112,7 +113,36 @@ def verify_kit(d):
     with tempfile.TemporaryDirectory() as folder:
         allowed=Path(folder)/'allowed';allowed.write_text('release '+public.read_text().strip()+'\n')
         run(['ssh-keygen','-Y','verify','-f',str(allowed),'-I','release','-n','sequent-release','-s',str(signature)],'Kit signature check',checksums.read_bytes())
-    verify_checksums(root,checksums.read_text())
+    signed_paths=verify_checksums(root,checksums.read_text())
+    d['_setup_image_id']=verify_setup_payload(root,signed_paths)
+
+def verify_setup_payload(root, signed_paths):
+    required={'release/provenance.json','release/images.json','release/public-assets.json','release/setup-image-inputs.json'}
+    require(required <= signed_paths, 'Accepted kit is missing signed supporting setup-image or public-asset metadata; obtain the complete current kit')
+    images=json.loads((root/'release/images.json').read_text())
+    inputs=json.loads((root/'release/setup-image-inputs.json').read_text())
+    assets=json.loads((root/'release/public-assets.json').read_text())
+    require(images.get('schemaVersion')==1 and inputs.get('schemaVersion')==1 and assets.get('schema_version')==1,'Unsupported supporting-image metadata schema')
+    revision=images.get('stepRevision','')
+    require(re.fullmatch('[0-9a-f]{40}',revision) is not None and inputs.get('stepRevision')==revision and assets.get('step_revision')==revision,'Supporting-image and asset source revisions differ')
+    require(inputs.get('publicAssetsInventorySha256')==digest(root/'release/public-assets.json'),'Supporting image references a different public-asset inventory')
+    require(assets.get('file_count',0)>0 and assets.get('file_count')==len(assets.get('files',[])) and assets.get('bucket')=='public' and assets.get('prefix')=='public-assets','Supporting-image public-asset inventory is empty or invalid')
+    matches=[entry for entry in images.get('images',[]) if entry.get('ref')=='sequentech.local/trustee:latest']
+    require(len(matches)==1,'Accepted kit must identify exactly one supporting setup image')
+    entry=matches[0]
+    require(entry.get('kind')=='sequent' and entry.get('dockerfile')=='beyond:airgap/docker/trustee-setup.Dockerfile','Accepted kit lacks the supporting setup-image recipe')
+    image_id=entry.get('imageId','')
+    require(re.fullmatch('sha256:[0-9a-f]{64}',image_id) is not None,'Invalid supporting setup-image identity')
+    return image_id
+
+def verify_setup_image(d,node):
+    raw=ssh(d,node,'k3s crictl inspecti sequentech.local/trustee:latest\n','Node '+node+' supporting-image inspection')
+    status=json.loads(raw).get('status',{})
+    # Docker records its config ID; some accepted engine exports record the
+    # repository manifest digest. CRI reports both immutable identities.
+    expected=d['_setup_image_id']
+    matches=status.get('id')==expected or 'sequentech.local/trustee@'+expected in status.get('repoDigests',[])
+    require(matches,'Node '+node+' supporting setup image differs from the accepted kit; install the complete accepted image payload before retrying')
 
 def validate_idp(d, alias):
     require(isinstance(d,dict) and d.get('alias')==alias and d.get('providerId')=='oidc','Identity-provider definition or alias differs')
@@ -222,7 +252,9 @@ def check(d,fresh=True):
     d['_kit_identity']={'version':provenance['release'],'step_commit':provenance['images']['manifest']['stepRevision']}
     print('PASS: configuration, accepted media and certificate inputs',flush=True)
     for node in ('c1','c2'):
-        ssh(d,node,preflight_script(d,fresh,node=node),'Node '+node+' preflight');print('PASS: '+node+' SSH policy, authenticated time and installed source',flush=True)
+        ssh(d,node,preflight_script(d,fresh,node=node),'Node '+node+' preflight')
+        verify_setup_image(d,node)
+        print('PASS: '+node+' SSH policy, authenticated time, installed source and supporting image',flush=True)
     raw=ssh(d,'c1','k3s kubectl get nodes -o json\n','Cluster readiness')
     nodes=json.loads(raw)['items'];require(len(nodes)==2,'Exactly two cluster nodes are required')
     addresses=set()
