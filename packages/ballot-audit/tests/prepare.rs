@@ -370,6 +370,93 @@ impl Fixture {
         self.logs.push(log);
     }
 
+    /// One election and one area with `voters` eligible voters who each cast
+    /// one valid ballot and never revote, then `disabled` voters who cast one
+    /// valid ballot and were disabled afterwards, so the frozen list and the
+    /// tally leave them out, then `abstainers` eligible voters who did not
+    /// vote. The electoral log lost the CastVote records of the voters at the
+    /// `lost` positions.
+    fn single_cast_per_voter(
+        voters: usize,
+        disabled: usize,
+        abstainers: usize,
+        lost: &[usize],
+    ) -> Self {
+        let mut f = Self::new(MultiplicityPolicy::Unweighted, 1);
+        let template = f.rows[1].clone();
+        let mut rows = Vec::new();
+        let mut ciphertexts = Vec::new();
+        let mut logs = Vec::new();
+        for index in 0..voters + disabled {
+            let voter = format!("{VOTER}-{index:03}");
+            let ballot = other_ballot();
+            if index < voters {
+                ciphertexts.push(
+                    ballot.deserialize_contests::<RistrettoCtx>().unwrap()[0]
+                        .ciphertext
+                        .clone(),
+                );
+            }
+            let mut row = template.clone();
+            row["id"] = format!("00000000-0000-4000-8000-{:012x}", 0x100 + index).into();
+            row["voter_id_string"] = voter.clone().into();
+            row["created_at"] = format!("2026-10-01T00:{:02}:00Z", index % 60).into();
+            row["content"] = serde_json::to_string(&ballot).unwrap().into();
+            row["ballot_id"] = hash_ballot(&ballot).unwrap().into();
+            rows.push(row);
+            if lost.contains(&index) {
+                continue;
+            }
+            let mut log = ElectoralMessage::strand_deserialize(&f.logs[0]).unwrap();
+            if let StatementBody::CastVoteWithChannel(_, pseudonym, hash, _, _, _) =
+                &mut log.statement.body
+            {
+                *pseudonym = PseudonymHash::new(
+                    strand::hash::hash_to_array(&voter.strand_serialize().unwrap()).unwrap(),
+                );
+                *hash = CastVoteHash::new(hash_ballot_sha512(&ballot).unwrap());
+            }
+            logs.push(
+                ElectoralMessage::sign(
+                    log.statement,
+                    log.artifact,
+                    &f.pm.signing_key,
+                    "synthetic",
+                    &f.pm.signing_key,
+                    log.user_id,
+                    log.username,
+                    log.election_id,
+                    log.area_id,
+                    log.ballot_id,
+                )
+                .unwrap()
+                .strand_serialize()
+                .unwrap(),
+            );
+        }
+        let mut trustees = [NULL_TRUSTEE; MAX_TRUSTEES];
+        trustees[0] = 1;
+        trustees[1] = 2;
+        f.board[1] = Message::ballots_msg(
+            &f.configuration,
+            10,
+            &Ballots::new(ciphertexts),
+            trustees,
+            PublicKeyHash([7; 64]),
+            &f.pm,
+        )
+        .unwrap()
+        .strand_serialize()
+        .unwrap();
+        f.voters = (0..voters)
+            .chain(voters + disabled..voters + disabled + abstainers)
+            .map(|index| json!({"voter_id":format!("{VOTER}-{index:03}"),"multiplicity":1}))
+            .collect();
+        f.rows = Value::Array(rows);
+        f.logs = logs;
+        f
+    }
+
     /// The exporter's saved-mapping.json for this scope, with `annotations`.
     fn mapping_command(
         &self,
@@ -569,20 +656,122 @@ fn cli_weighted_and_delegated_multiplicities_are_audited() {
 }
 
 #[test]
-fn missing_ambiguous_or_wrong_voter_logs_are_incomplete_before_writing() {
-    for variant in 0..3 {
+fn selected_vote_without_log_is_prepared_and_listed_to_audit() {
+    for history in [History::FromRows, History::Skipped] {
         let dir = TempDir::new();
         let mut f = Fixture::new(MultiplicityPolicy::Unweighted, 1);
-        match variant {
-            0 => f.logs.clear(),
-            1 => f.logs.push(f.resigned_log("different-unsigned-metadata")),
-            _ => {
-                f.voters[0]["voter_id"] = "different-voter".into();
-                f.rows[1]["voter_id_string"] = "different-voter".into();
-            }
+        f.logs.clear();
+        f.history = history;
+        let output = f.command(&dir.0).output().unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_private_output(&output);
+        let manifest: Manifest =
+            serde_json::from_slice(&fs::read(dir.0.join("bundle/manifest.json")).unwrap()).unwrap();
+        assert_eq!(manifest.selected[0].electoral_log_message_sha512, None);
+        assert_eq!(provenance(&dir.0)["votes_to_audit"], 1);
+        assert_eq!(provenance(&dir.0)["checked_electoral_log_messages"], 0);
+        let audited = audit_bundle(&dir.0, &[]);
+        assert_eq!(audited.status.code(), Some(0));
+        let report = stdout_json(&audited);
+        assert_eq!(report["votes_to_audit"][0]["cast_vote_id"], f.rows[1]["id"]);
+        assert_eq!(
+            report["votes_to_audit"][0]["reason"],
+            "no_signed_cast_vote_record"
+        );
+    }
+}
+
+/// Every voter cast once and the history is otherwise consistent, but the
+/// electoral log lost two CastVote records. Each check passes and lists the
+/// same two votes to audit.
+#[test]
+fn lost_cast_vote_records_pass_every_check_and_are_listed_to_audit() {
+    let dir = TempDir::new();
+    let f = Fixture::single_cast_per_voter(20, 4, 3, &[6, 13, 21]);
+    let ids = |indexes: &[usize]| -> Vec<Value> {
+        indexes
+            .iter()
+            .map(|index| f.rows[index]["id"].clone())
+            .collect()
+    };
+    let output = f.command(&dir.0).output().unwrap();
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let provenance = provenance(&dir.0);
+    assert_eq!(provenance["checked_cast_votes"], 20);
+    assert_eq!(provenance["checked_electoral_log_messages"], 18);
+    assert_eq!(provenance["votes_to_audit"], 2);
+    let accounting = &provenance["selection_accounting"];
+    assert_eq!(accounting["rows_by_reason"]["selected"]["rows"], 20);
+    assert_eq!(accounting["stage_exclusions"]["no_eligible_voter"], 4);
+    assert_eq!(accounting["frozen_eligible_voters_without_valid_vote"], 3);
+
+    let audited = audit_bundle(&dir.0, &[]);
+    assert_eq!(audited.status.code(), Some(0));
+    let report = stdout_json(&audited);
+    assert_eq!(report["checked_cast_votes"], 20);
+    assert_eq!(report["checked_electoral_log_messages"], 18);
+    let listed: Vec<Value> = report["votes_to_audit"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|vote| vote["cast_vote_id"].clone())
+        .collect();
+    assert_eq!(listed, ids(&[6, 13]));
+
+    let pin = |name: &str| digest(&fs::read(dir.0.join(format!("{name}.json"))).unwrap()).unwrap();
+    let history = Command::new(env!("CARGO_BIN_EXE_audit-cast-history"))
+        .arg("--scope")
+        .arg(dir.0.join("scope.json"))
+        .args(["--scope-sha512", &pin("scope")])
+        .arg("--cast-vote-history")
+        .arg(dir.0.join("cast-vote-history.json"))
+        .args(["--cast-vote-history-sha512", &pin("cast-vote-history")])
+        .arg("--electoral-log")
+        .arg(dir.0.join("electoral-log.json"))
+        .args(["--electoral-log-sha512", &pin("electoral-log")])
+        .output()
+        .unwrap();
+    assert_eq!(history.status.code(), Some(0));
+    let history = stdout_json(&history);
+    assert_eq!(history["outcome"], "success");
+    assert_eq!(history["checked_hasura_rows"], 24);
+    assert_eq!(history["checked_signed_cast_vote_log_records"], 21);
+    assert_eq!(history["signed_log_records_without_hasura_row"], 0);
+    assert_eq!(history["hasura_rows_without_signed_log"], 3);
+    let mut listed: Vec<Value> = history["receipts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|group| group["classification"] == "hasura_row_without_signed_log")
+        .flat_map(|group| group["cast_vote_ids"].as_array().unwrap().clone())
+        .collect();
+    listed.sort_by(|a, b| a.as_str().cmp(&b.as_str()));
+    // The history also lists the disabled voter's vote, which the tally left out.
+    assert_eq!(listed, ids(&[6, 13, 21]));
+}
+
+#[test]
+fn ambiguous_logs_are_incomplete_and_a_ballot_signed_for_another_voter_contradicts() {
+    for (variant, expected) in [(0, 3), (1, 1)] {
+        let dir = TempDir::new();
+        let mut f = Fixture::new(MultiplicityPolicy::Unweighted, 1);
+        if variant == 0 {
+            f.logs.push(f.resigned_log("different-unsigned-metadata"));
+        } else {
+            f.voters[0]["voter_id"] = "different-voter".into();
+            f.rows[1]["voter_id_string"] = "different-voter".into();
         }
         let output = f.command(&dir.0).output().unwrap();
-        assert_eq!(output.status.code(), Some(3), "variant {variant}");
+        assert_eq!(output.status.code(), Some(expected), "variant {variant}");
         assert_private_output(&output);
         assert!(!dir.0.join("bundle").exists());
     }
@@ -686,17 +875,13 @@ fn removed_later_revote_is_a_contradiction_only_with_history() {
 }
 
 #[test]
-fn history_keeps_missing_logs_incomplete_and_must_hold_selected_rows() {
+fn history_must_hold_selected_rows() {
     let mut f = Fixture::new(MultiplicityPolicy::Unweighted, 1);
     f.history = History::Rows(json!([]));
     let dir = TempDir::new();
     let output = f.command(&dir.0).output().unwrap();
     assert_eq!(output.status.code(), Some(1));
     assert!(String::from_utf8_lossy(&output.stderr).contains("does not hold a selected cast vote"));
-    let mut f = Fixture::new(MultiplicityPolicy::Unweighted, 1);
-    f.logs.clear();
-    let dir = TempDir::new();
-    assert_eq!(f.command(&dir.0).output().unwrap().status.code(), Some(3));
 }
 
 #[test]
@@ -1264,4 +1449,15 @@ fn export_synthetic_preparation_inputs() {
         .unwrap(),
     )
     .unwrap();
+}
+
+#[test]
+#[ignore = "writes the lost CastVote record inputs only when explicitly requested"]
+fn export_lost_cast_vote_record_inputs() {
+    let dir = PathBuf::from(
+        std::env::var("BALLOT_AUDIT_LOST_LOG_FIXTURE_DIR")
+            .expect("set BALLOT_AUDIT_LOST_LOG_FIXTURE_DIR"),
+    );
+    fs::create_dir(&dir).unwrap();
+    Fixture::single_cast_per_voter(20, 4, 3, &[6, 13, 21]).write_sources(&dir);
 }

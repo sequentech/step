@@ -43,7 +43,7 @@ this in the audit report.
 | --- | --- |
 | Tally | One count of the votes. An election event can have more than one tally. |
 | Scope | An election and area of a tally, with one contest or all contests for combined ballot formats. `audit-tally` follows the saved tally mappings. |
-| Electoral log | The signed log of the election events, stored in ImmuDB. A `CastVote` record contains signed evidence of a cast ballot. A missing record makes the audit incomplete. |
+| Electoral log | The signed log of the election events, stored in ImmuDB. A `CastVote` record contains signed evidence of a cast ballot. A ballot that the tally counted without this record is a vote to audit. See [Votes to audit](03-read-the-results.md#votes-to-audit). |
 | Bulletin board | The B3 database of the cryptographic protocol. It holds the election public key and the encrypted ballots of each tally. |
 | Batch | A numbered group of encrypted ballots on the bulletin board. A scope uses one or more batches. |
 | Receipt | The ballot ID that the voter gets after the vote. It is a hash of the encrypted ballot. |
@@ -54,6 +54,7 @@ this in the audit report.
 | Audit bundle | The files that **Prepare the Audit Bundle** writes. They contain only the ballots of the scope. |
 | Exit status | The number that a command returns when it stops. It tells the result. See [Read the Results](03-read-the-results.md). |
 | Audit record | The file `audit-record.json` that `audit-tally` writes. It records each command, its result and the digests of its files. |
+| Audit output | The file `audit-output.log` that the audit image writes: a copy of everything that the audit showed on the console. |
 | Audit notes | The text file `audit-notes.txt` in which you write the values that the procedures tell you to record. |
 | Audit image | The Docker image with all tools of the audit and the database servers of the copies. One `docker run` command restores the backups into copies inside the container, runs the audit and removes the copies. |
 

@@ -976,31 +976,49 @@ fn prepare_bundle(
         }
         None => HistoryCheck::Skipped,
     };
+    let signed_ballots: BTreeSet<_> = indexed_logs.keys().map(|(_, ballot)| ballot).collect();
     for (selected, voter_id, content, ballot_id, key) in hashed {
         let raw = selected.row;
-        // A lost log write (meta#13796) or Windmill's best-effort post-cast
-        // logging leaves an accepted vote without evidence, not a contradiction.
-        let matches = indexed_logs.get(&key).ok_or_else(|| {
-            incomplete("selected cast vote has no matching signed electoral-log evidence")
-        })?;
-        let distinct: BTreeSet<_> = matches.iter().map(|evidence| evidence.bytes).collect();
-        if distinct.len() != 1 {
-            return Err(incomplete(
-                "selected cast vote has ambiguous signed electoral-log evidence",
-            ));
-        }
-        collapsed_identical_electoral_log_records += matches.len() - 1;
-        let log = &matches[0];
         let channel = voting_channel(raw)?;
-        ensure!(
-            channel == log.channel,
-            "selected cast vote channel differs from signed electoral log"
-        );
+        // A lost log write (meta#13796) or Windmill's best-effort post-cast
+        // logging leaves an accepted vote without evidence, not a
+        // contradiction: the vote is still checked and listed to audit.
+        let log = match indexed_logs.get(&key) {
+            Some(matches) => {
+                let distinct: BTreeSet<_> = matches.iter().map(|evidence| evidence.bytes).collect();
+                if distinct.len() != 1 {
+                    return Err(incomplete(
+                        "selected cast vote has ambiguous signed electoral-log evidence",
+                    ));
+                }
+                collapsed_identical_electoral_log_records += matches.len() - 1;
+                let log = &matches[0];
+                ensure!(
+                    channel == log.channel,
+                    "selected cast vote channel differs from signed electoral log"
+                );
+                Some(log)
+            }
+            None => {
+                ensure!(
+                    !signed_ballots.contains(&key.1),
+                    "a selected cast vote's ballot is signed in the electoral log for another voter"
+                );
+                if matches!(history, HistoryCheck::Skipped)
+                    && voter_logs(&indexed_logs, &key.0).next().is_some()
+                {
+                    return Err(incomplete(
+                        "selected cast vote has no signed record while its voter has another signed ballot; without the cast-vote history a replaced ballot looks like a lost log",
+                    ));
+                }
+                None
+            }
+        };
         manifest.selected.push(SelectedVote {
             cast_vote_id: raw.id.clone(),
             ballot_id: ballot_id.clone(),
             content_sha512: digest(content.as_bytes())?,
-            electoral_log_message_sha512: digest(log.bytes)?,
+            electoral_log_message_sha512: log.map(|log| digest(log.bytes)).transpose()?,
             multiplicity: selected.multiplicity,
         });
         rows.push(CastVote {
@@ -1010,7 +1028,9 @@ fn prepare_bundle(
             ballot_id: ballot_id.clone(),
             content: content.clone(),
         });
-        logs.push(log.bytes.to_vec());
+        if let Some(log) = log {
+            logs.push(log.bytes.to_vec());
+        }
     }
     let manifest = serde_json::to_vec_pretty(&manifest)?;
     let report = audit(
@@ -1095,6 +1115,7 @@ fn write_bundle(args: &Args, bundle: &PreparedBundle) -> Result<()> {
         "checked_cast_votes": bundle.report.checked_cast_votes,
         "checked_batches": bundle.report.checked_batches,
         "checked_electoral_log_messages": bundle.report.checked_electoral_log_messages,
+        "votes_to_audit": bundle.report.votes_to_audit.len(),
         "legacy_online_channel_inferences": bundle.report.legacy_online_channel_inferences,
         "limitations": [
             "Source digests were supplied by the operator. This program does not independently authenticate those pins or establish export completeness and snapshot consistency.",
@@ -1125,7 +1146,7 @@ fn write_bundle(args: &Args, bundle: &PreparedBundle) -> Result<()> {
                 "scope_sha512": args.scope_sha512,
                 "accounting": bundle.selection_accounting,
                 "rows": bundle.row_decisions,
-                "limitation": "Reconstructed selection and exclusion references from the pinned cast_vote source and externally authenticated frozen eligibility. Only selected receipts have their hashes and signed electoral-log links verified. Other ballot_id values are stored receipt labels, not verified receipt hashes. The archived stage exclusion JSONL is not authenticated by this reconstruction."
+                "limitation": "Reconstructed selection and exclusion references from the pinned cast_vote source and externally authenticated frozen eligibility. Only selected receipts have their hashes verified, and their signed electoral-log links except for the votes to audit, which have no signed CastVote record. Other ballot_id values are stored receipt labels, not verified receipt hashes. The archived stage exclusion JSONL is not authenticated by this reconstruction."
             }))?,
         ),
     ];

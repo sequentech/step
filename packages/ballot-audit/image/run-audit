@@ -4,7 +4,8 @@
 #
 # Entry point of the ballot audit image. It checks the backups in /backups,
 # restores them into copies inside this container, runs the audit on them,
-# writes the results to /output and exits. The copies are lost when the
+# shows every result on the console, keeps a copy of the console output in
+# /output and exits. The copies and the files of the audit are lost when the
 # container stops. See `help`.
 
 set -euo pipefail
@@ -13,7 +14,8 @@ BACKUPS=/backups
 DIGESTS="$BACKUPS/backup-digests.txt"
 OUTPUT=/output
 WORK=/var/lib/ballot-audit
-LOGS="$OUTPUT/restore"
+LOGS="$WORK/restore"
+AUDIT_LOG=audit-output.log
 PRIVATE="$WORK/private"
 READER=ballot_audit_reader
 PG_PORT=5432
@@ -57,11 +59,12 @@ messages in files, and backup-digests.txt: one line "<SHA-512>  <file name>"
 for each backup, from the system operator. <output> must be empty.
 
 The container checks the backups, restores them into copies with read-only
-accounts, starts ImmuDB and the B3 server, and runs audit-tally. It writes the
-results of audit-tally to <output>, and the messages of the restore to
-<output>/restore. The exit status is the exit status of audit-tally, or 4 when
-a backup is refused or does not restore without errors. The copies are removed
-when the container stops.
+accounts, starts ImmuDB and the B3 server, and runs audit-tally. It shows the
+restore logs and every result of audit-tally on the console, and writes a copy
+of the console output to <output>/audit-output.log and its SHA-512 to
+<output>/audit-output.log.sha512. No other file is kept. The exit status is the
+exit status of audit-tally, or 4 when a backup is refused or does not restore
+without errors. The copies are removed when the container stops.
 
 The container sets these audit-tally options itself, so they cannot follow --:
 --connections, --immudb-server-url, --immudb-username, --electoral-log-export,
@@ -101,13 +104,36 @@ new_password() {
     printf '%s%s' "$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 24)" 'Aa1!'
 }
 
+# show_log <what> <file>: copies a log to the console, so that the console
+# output holds it, without the passwords of the copies. PostgreSQL diagnostics
+# can quote the rows of a failed COPY, which hold voter IDs and ballots, so
+# their DETAIL and STATEMENT text, the row of a COPY context and the value of
+# an invalid input are left out.
+show_log() {
+    local password redact=()
+    for password in "${POSTGRES_PASSWORD:-}" "${READER_PG_PASSWORD:-}" \
+        "${IMMUDB_ADMIN_PASSWORD:-}" "${READER_IMMUDB_PASSWORD:-}"; do
+        [ -z "$password" ] || redact+=(-e "s|$password|<password of the copy>|g")
+    done
+    info "log of $1:"
+    if [ -s "$2" ]; then
+        sed "${redact[@]}" \
+            -e 's/\(\(DETAIL\|STATEMENT\): *\).*/\1<left out>/' \
+            -e 's/\(COPY [^,]*, line [0-9]*\).*/\1/' \
+            -e 's/\(invalid input syntax for type [^:]*\):.*/\1/' \
+            -e 's/^/    /' "$2" >&2
+    else
+        echo "    (empty)" >&2
+    fi
+}
+
 wait_for() {
     local what="$1" log="$2" tries=60
     shift 2
     until "$@" >/dev/null 2>&1; do
         tries=$((tries - 1))
         if [ "$tries" -le 0 ]; then
-            tail -n 20 "$log" >&2 || true
+            show_log "$what" "$log"
             die "$what did not start"
         fi
         sleep 1
@@ -125,6 +151,7 @@ restore_postgres() {
     chown postgres:postgres "$WORK/pg"
     gosu postgres initdb -D "$WORK/pg/data" -U postgres --auth-local=trust \
         --auth-host=scram-sha-256 >"$LOGS/postgres-init.log"
+    show_log "the PostgreSQL initialization" "$LOGS/postgres-init.log"
     gosu postgres pg_ctl -D "$WORK/pg/data" -l "$WORK/pg/server.log" -w \
         -o "-c listen_addresses=127.0.0.1 -p $PG_PORT -k $WORK/pg" start >/dev/null
     psql_admin -c "ALTER ROLE postgres PASSWORD '$POSTGRES_PASSWORD'" \
@@ -139,9 +166,12 @@ restore_postgres() {
         if ! gosu postgres pg_restore -h "$WORK/pg" -p "$PG_PORT" --no-owner --no-privileges \
             -d "${copy}_copy" <"$BACKUPS/$copy.dump" >"$log" 2>&1; then
             errors="$(grep -c 'error:' "$log" || true)"
+            show_log "pg_restore of $copy.dump" "$log"
             info "WARNING: pg_restore reported $errors error(s) for $copy.dump." \
-                "Read restore/restore-$copy.log in the output and write each error in the audit notes."
+                "Write each error shown above in the audit notes."
             failed="$failed $copy.dump"
+        else
+            show_log "pg_restore of $copy.dump" "$log"
         fi
     done
     # Every copy is restored first, so that the logs show all the errors. A
@@ -221,11 +251,12 @@ start_immudb() {
                 systemdb | defaultdb | [!A-Za-z_]* | *[!A-Za-z0-9_]*) ;;
                 *) info "WARNING: the read-only account cannot run SQL on the ImmuDB database $database." \
                     "If it is the electoral log of the event, the audit cannot export it." \
-                    "Read restore/immudb-grants.log in the output." ;;
+                    "The log of the grants is shown below." ;;
             esac
         fi
     done
     immuadmin_admin logout >/dev/null
+    show_log "the grants of the ImmuDB read-only account" "$LOGS/immudb-grants.log"
 }
 
 b3_listening() {
@@ -265,15 +296,18 @@ write_connections() {
 
 # The output belongs to the owner of the backups, not to root.
 give_output_back() {
+    [ -f "$DIGESTS" ] || return 0
     chown -R "$(stat -c %u:%g "$DIGESTS")" "$OUTPUT" 2>/dev/null || true
+}
+
+check_output() {
+    [ -d "$OUTPUT" ] || die "no output; mount an empty output directory at /output"
+    [ -z "$(ls -A "$OUTPUT")" ] || die "the output directory is not empty; use a new one"
 }
 
 # start_copies audit|shell
 start_copies() {
-    [ -d "$OUTPUT" ] || die "no output; mount an empty output directory at /output"
-    [ -z "$(ls -A "$OUTPUT")" ] || die "the output directory is not empty; use a new one"
     check_backups
-    trap give_output_back EXIT
     POSTGRES_PASSWORD="$(new_password)"
     READER_PG_PASSWORD="$(new_password)"
     IMMUDB_ADMIN_PASSWORD="$(new_password)"
@@ -318,26 +352,55 @@ run_audit() {
                 usage_error "${arg%%=*} is set by the container" ;;
         esac
     done
+    check_output
+    # Everything that the audit shows also goes to the log. The digest of the
+    # log is written after it is closed, so it is not in the log.
+    local status
+    set +e
+    audit "${args[@]}" 2>&1 | tee "$OUTPUT/$AUDIT_LOG"
+    status="${PIPESTATUS[0]}"
+    set -e
+    rm -rf "$WORK/tally" "$PRIVATE"
+    (cd "$OUTPUT" && sha512sum "$AUDIT_LOG" >"$AUDIT_LOG.sha512")
+    give_output_back
+    info "$AUDIT_LOG SHA-512: $(cut -d' ' -f1 "$OUTPUT/$AUDIT_LOG.sha512")"
+    exit "$status"
+}
+
+audit() {
+    # The pipeline in run_audit turns errexit off for its own status.
+    set -e
+    local args=("$@")
+    trap give_output_back EXIT
     start_copies audit
     if [ -n "$(ls -A "$WORK/b3-blobs")" ]; then
         args+=(--b3-blob-root "$WORK/b3-blobs")
     fi
-    # audit-tally makes its own output directory. Its files then move to the
-    # mounted output; their paths in the audit record are relative.
+    # audit-tally writes its files inside the container; only the console
+    # output is kept.
     local status=0
     env "$PASSWORD_ENV=$READER_IMMUDB_PASSWORD" audit-tally \
         --connections "$PRIVATE/connections.json" \
         --immudb-server-url "http://127.0.0.1:$IMMUDB_PORT" --immudb-username "$READER" \
         --b3-server-url "http://127.0.0.1:$B3_PORT" \
         --output "$WORK/tally" "${args[@]}" || status=$?
-    if [ -d "$WORK/tally" ]; then
-        cp -a "$WORK/tally/." "$OUTPUT/"
+    show_log "the PostgreSQL server" "$WORK/pg/server.log"
+    show_log "ImmuDB" "$LOGS/immudb.log"
+    show_log "the B3 server" "$LOGS/b3-server.log"
+    local meaning votes
+    meaning="$(status_meaning "$status")"
+    votes="$(sed -n 's/^  "tallied_votes_to_audit": *\([0-9]*\).*/\1/p' \
+        "$WORK/tally/public-summary.json" 2>/dev/null)"
+    if [ "$status" -eq 0 ] && [ "${votes:-0}" -gt 0 ]; then
+        meaning="$meaning; $votes tallied votes to audit, listed above"
     fi
-    info "exit status $status ($(status_meaning "$status"))"
+    info "exit status $status ($meaning)"
     exit "$status"
 }
 
 run_shell() {
+    check_output
+    trap give_output_back EXIT
     start_copies shell
     export "$PASSWORD_ENV=$READER_IMMUDB_PASSWORD"
     export PGHOST=127.0.0.1 PGPORT="$PG_PORT" PGUSER="$READER" PGPASSWORD="$READER_PG_PASSWORD"
@@ -348,6 +411,7 @@ ballot-audit: the copies run in this container until you leave the shell.
   ImmuDB              http://127.0.0.1:$IMMUDB_PORT, user $READER (password in \$$PASSWORD_ENV)
   B3 server           http://127.0.0.1:$B3_PORT
   B3 blob directory   $WORK/b3-blobs
+  restore logs        $LOGS
 EOF
     cd "$OUTPUT"
     local status=0

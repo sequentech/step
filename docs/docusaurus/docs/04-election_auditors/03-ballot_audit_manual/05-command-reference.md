@@ -117,7 +117,8 @@ and all batches with `Ballots` statements on the board. The verifier runs in the
 `braid`.
 
 **Output files:** `tally-plan.json`, `audit-record.json`, `public-summary.json` and one directory
-for each scope, for the histories and for the Braid verifier. See
+for each scope, for the histories and for the Braid verifier. The console output shows each step
+and the content of these files, without voter IDs. See
 [File Reference](06-file-reference.md#files-of-audit-tally-tally).
 
 ## export-ballot-audit

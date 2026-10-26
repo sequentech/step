@@ -17,7 +17,8 @@ looks up the receipts of voters. The auditor does it.
 The command `ballot-audit` does these checks:
 
 1. It calculates the receipt of each selected ballot again.
-2. It checks the signed electoral log record of each selected ballot.
+2. It checks the signed electoral log record of each selected ballot. It lists a selected ballot
+   without a record as a vote to audit and checks the rest of that ballot.
 3. It checks the signatures of the configuration and of the encrypted ballots on the bulletin
    board.
 4. It compares the selected ciphertexts with each batch, including the expected number of copies of each.
@@ -51,7 +52,8 @@ The command `ballot-audit` does these checks:
 4. Write the exit status and the `checked_*` counts of `audit-report.json` in the audit notes.
 
 **Expected result:** the exit status is `0`. The report shows the number of checked ballots,
-batches and electoral log records.
+batches and electoral log records. If `votes_to_audit` is not empty, review each vote. See
+[Votes to audit](../03-read-the-results.md#votes-to-audit).
 
 ## 2. Look up a receipt
 

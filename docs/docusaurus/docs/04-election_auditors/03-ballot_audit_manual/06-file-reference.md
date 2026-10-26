@@ -46,23 +46,57 @@ The audit image reads the backups directory at `/backups` and writes to the outp
 │   ├── hasura.dump, keycloak.dump, b3.dump, immudb.tar.gz
 │   └── b3-blobs.tar.gz      only for a board that stores messages in files
 └── output/                  must be empty before the audit
-    ├── restore/             the messages of the restore
-    └── the files of audit-tally
+    ├── audit-output.log         a copy of the console output
+    └── audit-output.log.sha512  the digest of audit-output.log
 ```
 
-| File in `output/restore` | Content | Personal data |
+| File in `output` | Content | Personal data |
 | --- | --- | --- |
-| `restore-hasura.log`, `restore-keycloak.log`, `restore-b3.log` | The messages of `pg_restore` for each copy. | No |
-| `immudb-grants.log` | The messages of the read permissions on each ImmuDB database. A failure on a name that starts with a digit is expected: no audited board has such a name. | No |
-| `postgres-init.log`, `immudb.log`, `b3-server.log` | The messages of the database servers of the copies. `b3-server.log` shows the password of the PostgreSQL copy, which the container removed. | No |
+| `audit-output.log` | Everything that the command showed, except the last line. See [audit-output.log](#audit-outputlog). | Yes: cast vote IDs and receipts. No voter IDs. |
+| `audit-output.log.sha512` | The SHA-512 digest of `audit-output.log`, in the format of `shasum -a 512 -c`. | No |
 
-The copies are inside the container. Docker removes them when the command stops. The files of
-`output` belong to the owner of `backup-digests.txt`.
+The copies and the files of `audit-tally` are inside the container. Docker removes them when the
+command stops. The files of `output` belong to the owner of `backup-digests.txt`.
+
+### audit-output.log
+
+The console output of the audit image, in this order:
+
+1. `SHA-512 matches` for each backup.
+2. The logs of the restore: `pg_restore` for each copy, the initialization of PostgreSQL and the
+   read permissions on each ImmuDB database. A failure of a permission on a database whose name
+   starts with a digit is expected: no audited board has such a name.
+3. `Ballot audit of tally session <ID>`: `Inputs` and `Tally plan`, the content of
+   `tally-plan.json`.
+4. One `Step` section for each step of `audit-tally`, with `Status`, `Exit code`, `Messages` and
+   `Output digests (SHA-512)`. Below it, the content of the files of the step:
+   - `export-electoral-log`: `Electoral log records`, the number of records.
+   - `export-ballot-audit`: `Acquisition`, `Eligibility reasons`, `Eligible voters` (a number),
+     `Board source`, `Saved mapping`, `Stored votes of the election` (a number) and `Cast votes`,
+     each stored vote of the area.
+   - `prepare-ballot-audit`: `Provenance`, `Anchors`, `Manifest` and `Selection`.
+   - `ballot-audit`: `Audit report`.
+   - `audit-cast-history`: `Cast-vote history report`.
+   - `verify`: `Braid verifier output`.
+5. `Results`: `Tallied votes to audit`, `Public summary`, one line for each scope
+   and each election history, `Overall:` and `Audit record SHA-512`.
+6. The logs of the PostgreSQL server, ImmuDB and the B3 server of the copies.
+7. The exit status.
+
+The console output leaves out these fields at any depth: `voter_id`, `voter_id_string`, `voters`,
+`decisions`, `content`, `users`, `assurance`, `note`, `limitations`, `limitation` and `limits`. So
+it contains no voter ID, no ballot content and no Keycloak user. What each check proves and does
+not prove is in
+[What the Ballot Audit Verifies](../04-ballot_audit_explanation.md). It shows each file by its title, not by its file name: `Cast votes` is `cast-votes.json`.
+The passwords of the copies are replaced with `<password of the copy>`. PostgreSQL messages can quote the
+data of a backup, so the restore logs leave out the text of `DETAIL` and `STATEMENT` lines, the row
+of a `COPY` context and the value of an invalid input.
 
 ## Files of audit-tally (tally)
 
-`audit-tally` writes all files of the audit in its output directory. With the audit image, it is
-`~/audit/output`:
+`audit-tally` writes all files of the audit in its output directory, and shows their content on
+the console as [audit-output.log](#audit-outputlog) describes. With the audit image, the
+directory is inside the container and is removed with it:
 
 ```text
 tally/
@@ -117,7 +151,7 @@ The scopes are numbered from `001`, in the order of election, area and contest.
 | `source_revision` | The source code revision of the command. |
 | `started_at`, `finished_at` | The time of the start and of the end of the audit. |
 | `inputs` | The tally ID, the two keys, the restore reference of each copy, and the addresses and directories that you gave. |
-| `tally_plan`, `public_summary` | The digest (`sha512`) and the size (`bytes`) of `tally-plan.json` and of `public-summary.json`. |
+| `tally_plan`, `public_summary`, `tallied_votes_to_audit` | The digest (`sha512`) and the size (`bytes`) of `tally-plan.json`, of `public-summary.json` and of `tallied-votes-to-audit.json`. |
 | `status` | The status of the full audit. See [Read the Results](03-read-the-results.md#statuses-of-audit-tally). |
 | `steps[]` | One object for each step. See the table below. |
 | `braid_batches` | The batches that the command gave to the Braid verifier. |
@@ -152,11 +186,26 @@ receipts and no batch positions.
 | `source_revision` | The source code revision of the command. |
 | `tenant_id`, `election_event_id`, `tally_session_id`, `policy` | The tally. |
 | `status` | The status of the full audit. |
-| `scopes[]` | For each scope: `election_id`, `area_id`, `contest_id`, `batches`, `status`, `checked_cast_votes`, `checked_batches`, `checked_electoral_log_messages`, the number of `duplicate_selected_receipts` and of `privacy_warnings`, and `selection_accounting`, the counts of the selection. |
+| `tallied_votes_to_audit` | The number of votes in `tallied-votes-to-audit.json`. |
+| `scopes[]` | For each scope: `election_id`, `area_id`, `contest_id`, `batches`, `status`, `checked_cast_votes`, `checked_batches`, `checked_electoral_log_messages`, the number of `tallied_votes_to_audit`, of `duplicate_selected_receipts` and of `privacy_warnings`, and `selection_accounting`, the counts of the selection without the `frozen_eligible_*` counts. `selection.json` of the scope has them. |
 | `cast_vote_history[]` | For each election: `election_id`, `status`, `outcome`, `checked_hasura_rows`, `checked_signed_cast_vote_log_records`, `signed_log_records_without_hasura_row` and `hasura_rows_without_signed_log`. |
 | `braid` | The `status` of the Braid verifier, the `board_name`, `tally_batches` and `board_ballot_batches`. |
 
 A count is `null` when its step did not run.
+
+### tallied-votes-to-audit.json
+
+The ballots that a scope selected for the tally and that have no signed `CastVote` record, one
+object for each cast vote. A stored ballot without a record that no scope selected is only in the
+history report of its election. See
+[Votes to audit](03-read-the-results.md#votes-to-audit). The file contains voter IDs. Do not
+publish it.
+
+| Field | Content |
+| --- | --- |
+| `election_id`, `cast_vote_id` | The stored ballot. |
+| `voter_id`, `ballot_id`, `area_id`, `status`, `created_at` | From the stored ballot in `cast-vote-history.json`. `null` if the export has no such row. |
+| `found_by` | The reports that list the vote: the directory of the scope and, if the history check of the election ran, `cast-vote history`. |
 
 ## Files of export-ballot-audit (postgres-export)
 
@@ -274,7 +323,7 @@ can contain changed anchors.
 | `selected[].cast_vote_id` | The ID of the stored ballot. |
 | `selected[].ballot_id` | The receipt. |
 | `selected[].content_sha512` | The digest of the encrypted ballot. |
-| `selected[].electoral_log_message_sha512` | The digest of the signed record of this ballot in the electoral log. |
+| `selected[].electoral_log_message_sha512` | The digest of the signed record of this ballot in the electoral log. `null` for a vote to audit, which has no signed record. |
 | `selected[].multiplicity` | The number of votes that this ballot counts for. |
 
 ### provenance.json
@@ -289,6 +338,7 @@ can contain changed anchors.
 | `board_public_key` | The check of the public key hash of the scope against the bulletin board. `status` is `matched` with the number of signed statements, or `not_on_board`. |
 | `collapsed_identical_electoral_log_records` | The number of identical signed records that the command counted once. |
 | `checked_cast_votes`, `checked_batches`, `checked_electoral_log_messages` | The numbers of checked items. |
+| `votes_to_audit` | The number of selected ballots without a signed record. |
 | `legacy_online_channel_inferences` | The number of signed records in the earlier format, without a voting channel. The command used the online channel for them. |
 | `limitations` | Text. What the preparation does not prove. |
 
@@ -318,6 +368,7 @@ keep it in a file.
 | `scope` | The scope of the bundle. |
 | `checked_cast_votes`, `checked_batches`, `checked_electoral_log_messages` | The numbers of checked items. |
 | `legacy_online_channel_inferences` | The number of signed records in the earlier format, without a voting channel. |
+| `votes_to_audit[]` | The selected ballots without a signed record: `cast_vote_id`, `ballot_id` and `reason` (`no_signed_cast_vote_record`). See [Votes to audit](03-read-the-results.md#votes-to-audit). |
 | `receipts[]` | For each selected ballot: `cast_vote_id`, `ballot_id` and `locations`, the batch and the position of the ballot in the batch. |
 | `lookup` | Only with `--ballot-id`. The `outcome` (`selected`, `excluded`, `missing` or `ambiguous`) and its details. |
 | `duplicate_selected_receipts[]` | Receipts that more than one selected ballot has. A value here is a finding. |
@@ -333,12 +384,12 @@ the position can show how a person voted.
 
 | Field | Content |
 | --- | --- |
-| `outcome` | `consistent`, `contradicted`, `incomplete` or `ambiguous`. |
+| `outcome` | `consistent`, `success` (some stored ballots have no signed record), `contradicted`, `incomplete` or `ambiguous`. |
 | `checked_hasura_rows` | The number of stored ballots that the command checked. |
 | `checked_signed_cast_vote_log_records` | The number of signed records that the command checked. |
 | `ignored_other_log_records` | The number of records of other elections. |
 | `signed_log_records_without_hasura_row` | Signed records without a stored ballot. A value other than `0` is a finding. |
-| `hasura_rows_without_signed_log` | Stored ballots without a signed record. This is incomplete evidence. |
+| `hasura_rows_without_signed_log` | Stored ballots without a signed record, in all areas and statuses. Only those that the tally counted are votes to audit: `audit-tally` lists them in [tallied-votes-to-audit.json](#tallied-votes-to-auditjson) and counts them in `tallied_votes_to_audit` of [public-summary.json](#public-summaryjson). |
 | `ambiguous_row_attribution_groups`, `ambiguous_log_occurrence_groups` | The numbers of ambiguous groups. |
 | `report_filtered`, `requested_receipt_found` | Only with `--ballot-id`: the report shows one receipt, and if the command found it. |
 | `receipts[]` | One group for each receipt: `ballot_id`, `cast_vote_ids`, the counts of signed records, and the `classification`. See [Check the Cast-Vote History](07-run-each-step/07-history.md#2-read-the-groups). |

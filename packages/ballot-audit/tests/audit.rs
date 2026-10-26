@@ -10,7 +10,7 @@ use b3::messages::{
 use ballot_audit::{
     audit, audit_with_selection, digest, AuditReport, CastVote, ExitStatus, Manifest,
     MultiplicityPolicy, ReceiptLookup, Scope, SelectedVote, Selection, SelectionReason,
-    SelectionRow,
+    SelectionRow, VoteToAuditReason,
 };
 use sequent_core::{
     ballot::{HashableBallot, SignedHashableBallot},
@@ -116,7 +116,7 @@ impl Fixture {
                 cast_vote_id: "cast-1".into(),
                 ballot_id: receipt.clone(),
                 content_sha512: digest(content.as_bytes()).unwrap(),
-                electoral_log_message_sha512: String::new(),
+                electoral_log_message_sha512: None,
                 multiplicity,
             }],
         };
@@ -140,7 +140,7 @@ impl Fixture {
     fn refresh_log(&mut self) {
         self.logs = (0..self.rows.len()).map(|i| self.signed_log(i)).collect();
         for (selected, log) in self.manifest.selected.iter_mut().zip(&self.logs) {
-            selected.electoral_log_message_sha512 = digest(log).unwrap();
+            selected.electoral_log_message_sha512 = Some(digest(log).unwrap());
         }
     }
     fn signed_log(&self, index: usize) -> Vec<u8> {
@@ -188,7 +188,7 @@ impl Fixture {
             cast_vote_id: cast_vote_id.clone(),
             ballot_id: receipt.clone(),
             content_sha512: digest(content.as_bytes()).unwrap(),
-            electoral_log_message_sha512: String::new(),
+            electoral_log_message_sha512: None,
             multiplicity,
         });
         self.rows.push(CastVote {
@@ -261,7 +261,8 @@ impl Fixture {
         )
         .unwrap();
         self.logs[0] = signed.strand_serialize().unwrap();
-        self.manifest.selected[0].electoral_log_message_sha512 = digest(&self.logs[0]).unwrap();
+        self.manifest.selected[0].electoral_log_message_sha512 =
+            Some(digest(&self.logs[0]).unwrap());
     }
     fn sign_batch(
         &self,
@@ -1082,7 +1083,7 @@ fn independently_invalid_sender_or_system_signature_fails() {
             log.system_signature = invalid;
         }
         f.logs[0] = log.strand_serialize().unwrap();
-        f.manifest.selected[0].electoral_log_message_sha512 = digest(&f.logs[0]).unwrap();
+        f.manifest.selected[0].electoral_log_message_sha512 = Some(digest(&f.logs[0]).unwrap());
         assert!(f
             .run()
             .unwrap_err()
@@ -1093,7 +1094,7 @@ fn independently_invalid_sender_or_system_signature_fails() {
 #[test]
 fn changed_log_digest_anchor_fails() {
     let mut f = Fixture::new(MultiplicityPolicy::Unweighted, 1);
-    f.manifest.selected[0].electoral_log_message_sha512 = "wrong".into();
+    f.manifest.selected[0].electoral_log_message_sha512 = Some("wrong".into());
     assert!(f.run().is_err());
 }
 #[test]
@@ -1121,6 +1122,70 @@ fn public_report_does_not_include_voter_identity() {
     let report = f.run().unwrap();
     assert_eq!(report.legacy_online_channel_inferences, 0);
     assert_eq!(report.checked_electoral_log_messages, 1);
+    assert!(!serde_json::to_string(&report)
+        .unwrap()
+        .contains(&f.rows[0].voter_id));
+}
+/// Two selected votes; the second has no signed CastVote record.
+fn fixture_with_vote_to_audit() -> Fixture {
+    let mut f = Fixture::new(MultiplicityPolicy::Unweighted, 1);
+    f.add_vote(
+        "second-voter",
+        serde_json::to_string(&encrypted_ballot()).unwrap(),
+        1,
+    );
+    f.logs.pop();
+    f.manifest.selected[1].electoral_log_message_sha512 = None;
+    f
+}
+#[test]
+fn vote_without_signed_log_is_checked_and_listed_to_audit() {
+    let f = fixture_with_vote_to_audit();
+    let report = f.run().unwrap();
+    assert_eq!(report.status(), ExitStatus::Success);
+    assert_eq!(report.checked_cast_votes, 2);
+    assert_eq!(report.checked_electoral_log_messages, 1);
+    assert_eq!(report.receipts.len(), 2);
+    assert_eq!(report.votes_to_audit.len(), 1);
+    let vote = &report.votes_to_audit[0];
+    assert_eq!(vote.cast_vote_id, "cast-2");
+    assert_eq!(vote.ballot_id, f.rows[1].ballot_id);
+    assert_eq!(vote.reason, VoteToAuditReason::NoSignedCastVoteRecord);
+}
+#[test]
+fn vote_to_audit_must_still_be_in_the_tally_input() {
+    let mut f = fixture_with_vote_to_audit();
+    f.messages = vec![f.sign_batch(10, vec![f.ciphertext(0)])];
+    assert_eq!(status(f.run()), ExitStatus::VerificationFailed);
+    let mut f = fixture_with_vote_to_audit();
+    f.messages = vec![f.sign_batch(10, vec![f.ciphertext(0), f.ciphertext(0)])];
+    assert_eq!(status(f.run()), ExitStatus::VerificationFailed);
+}
+#[test]
+fn vote_to_audit_must_still_match_its_receipt_and_content() {
+    let mut f = fixture_with_vote_to_audit();
+    f.rows[1].content.push(' ');
+    assert_eq!(status(f.run()), ExitStatus::VerificationFailed);
+    let mut f = fixture_with_vote_to_audit();
+    f.rows[1].ballot_id = f.rows[0].ballot_id.clone();
+    f.manifest.selected[1].ballot_id = f.rows[0].ballot_id.clone();
+    assert_eq!(status(f.run()), ExitStatus::VerificationFailed);
+}
+#[test]
+fn named_log_record_that_is_missing_stays_incomplete() {
+    let mut f = fixture_with_vote_to_audit();
+    f.logs.clear();
+    assert_eq!(status(f.run()), ExitStatus::Incomplete);
+}
+#[test]
+fn every_selected_vote_without_a_log_is_listed() {
+    let mut f = Fixture::new(MultiplicityPolicy::Unweighted, 1);
+    f.logs.clear();
+    f.manifest.selected[0].electoral_log_message_sha512 = None;
+    let report = f.run().unwrap();
+    assert_eq!(report.status(), ExitStatus::Success);
+    assert_eq!(report.checked_electoral_log_messages, 0);
+    assert_eq!(report.votes_to_audit.len(), 1);
     assert!(!serde_json::to_string(&report)
         .unwrap()
         .contains(&f.rows[0].voter_id));

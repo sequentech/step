@@ -93,6 +93,9 @@ enum Outcome {
     Contradicted,
     Incomplete,
     Ambiguous,
+    /// Every signed CastVote matches a row, but some rows have no signed
+    /// record. Those rows are listed in `receipts`.
+    Success,
 }
 
 #[derive(Debug, Serialize)]
@@ -254,10 +257,12 @@ fn audit_history(
     let unfiltered_receipt_groups = receipts.len();
     let outcome = if missing_rows != 0 {
         Outcome::Contradicted
-    } else if missing_logs != 0 || requested_receipt_found == Some(false) {
+    } else if requested_receipt_found == Some(false) {
         Outcome::Incomplete
     } else if ambiguous != 0 || ambiguous_logs != 0 {
         Outcome::Ambiguous
+    } else if missing_logs != 0 {
+        Outcome::Success
     } else {
         Outcome::Consistent
     };
@@ -276,7 +281,7 @@ fn audit_history(
         ambiguous_log_occurrence_groups: ambiguous_logs,
         unfiltered_receipt_groups, report_filtered: requested_receipt.is_some(), requested_receipt_found,
         receipts, source_sha512: BTreeMap::new(),
-        assurance: "Coverage comparison of the supplied pinned tenant/event/election Hasura history against signed successful CastVote statements, across all areas/statuses/revotes. Only signed event/election/pseudonym/full ballot hashes are matched; unsigned log area/user/receipt metadata is not authority. Repeated logs and repeated identical ballots do not establish a one-to-one row/event attribution. Multiple rows or distinct complete log messages sharing a tuple are ambiguous and return exit 3; byte-identical log duplicates are reported without assuming independent occurrences. Distinct signed statement counts are also reported: differing unsigned metadata does not prove another signing event. All input records are signature-verified before scope filtering; foreign or rotated system keys are unsupported without an independently trusted key set. Exported messages lack database row IDs; exact byte duplicates are reported, not treated as unique events. A signed log without a row contradicts the history and returns exit 1: Windmill posts the success log only after the row commits, so the row was later removed or its content replaced. A row without a log is incomplete evidence, not proof of tampering: native success logging is best effort. This does not establish historical completeness, contemporaneous source authenticity, ImmuDB inclusion/consistency proofs, eligibility, tally inclusion, or integrity of metadata omitted from the native receipt hash.",
+        assurance: "Coverage comparison of the supplied pinned tenant/event/election Hasura history against signed successful CastVote statements, across all areas/statuses/revotes. Only signed event/election/pseudonym/full ballot hashes are matched; unsigned log area/user/receipt metadata is not authority. Repeated logs and repeated identical ballots do not establish a one-to-one row/event attribution. Multiple rows or distinct complete log messages sharing a tuple are ambiguous and return exit 3; byte-identical log duplicates are reported without assuming independent occurrences. Distinct signed statement counts are also reported: differing unsigned metadata does not prove another signing event. All input records are signature-verified before scope filtering; foreign or rotated system keys are unsupported without an independently trusted key set. Exported messages lack database row IDs; exact byte duplicates are reported, not treated as unique events. A signed log without a row contradicts the history and returns exit 1: Windmill posts the success log only after the row commits, so the row was later removed or its content replaced. A row without a log is not proof of tampering, since native success logging is best effort: it is listed with classification hasura_row_without_signed_log, gives the outcome success and does not change the exit status. It is a vote to audit only if the tally counted it, which this history comparison does not establish. This does not establish historical completeness, contemporaneous source authenticity, ImmuDB inclusion/consistency proofs, eligibility, tally inclusion, or integrity of metadata omitted from the native receipt hash.",
     })
 }
 
@@ -326,7 +331,7 @@ fn main() {
             }
             println!();
             match report.outcome {
-                Outcome::Consistent => {}
+                Outcome::Consistent | Outcome::Success => {}
                 Outcome::Contradicted => std::process::exit(ExitStatus::VerificationFailed.code()),
                 Outcome::Incomplete | Outcome::Ambiguous => {
                     std::process::exit(ExitStatus::Incomplete.code())

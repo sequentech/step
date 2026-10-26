@@ -18,6 +18,7 @@ use serde::Serialize;
 use serde_json::{json, Value};
 use std::{
     collections::{BTreeMap, BTreeSet},
+    ffi::OsStr,
     fs,
     path::{Path, PathBuf},
     process::Command,
@@ -41,7 +42,32 @@ const PREPARED_AUDIT_DIR: &str = "prepared-audit";
 const IMMUDB_EXPORT_DIR: &str = "immudb-export";
 const SCOPES_DIR: &str = "scopes";
 const HISTORY_DIR: &str = "history";
+const HISTORY_FOUND_BY: &str = "cast-vote history";
 const BRAID_DIR: &str = "braid";
+const TALLIED_VOTES_TO_AUDIT_FILE: &str = "tallied-votes-to-audit.json";
+const HASURA_ROW_WITHOUT_SIGNED_LOG: &str = "hasura_row_without_signed_log";
+/// Keys that the console output leaves out at any depth: voter IDs, ballot
+/// contents, Keycloak users and the assurance, note and limitation texts of
+/// the reports.
+const NOT_PRINTED: [&str; 11] = [
+    "voter_id",
+    "voter_id_string",
+    "voters",
+    "decisions",
+    "content",
+    "users",
+    "assurance",
+    "note",
+    "limitations",
+    "limitation",
+    "limits",
+];
+const RULE_WIDTH: usize = 78;
+const ACCOUNTING_NOT_IN_SUMMARY: [&str; 3] = [
+    "frozen_eligible_voters",
+    "frozen_eligible_voters_without_valid_vote",
+    "frozen_eligible_multiplicity_without_valid_vote",
+];
 const SESSION_SQL: &str = "SELECT to_jsonb(t) AS data FROM sequent_backend.tally_session t
     WHERE id = $1::text::uuid";
 const EVENT_SQL: &str = "SELECT to_jsonb(e) AS data FROM sequent_backend.election_event e
@@ -437,7 +463,7 @@ impl Runner<'_> {
         message = message.trim().to_string();
         outputs.retain(|path| path.exists());
         let outputs = self.digests(&outputs);
-        self.steps.push(StepRecord {
+        self.push(StepRecord {
             step,
             scope: scope.map(str::to_string),
             election_id: election_id.map(str::to_string),
@@ -450,6 +476,11 @@ impl Runner<'_> {
         status
     }
 
+    fn push(&mut self, record: StepRecord) {
+        print_step(&record);
+        self.steps.push(record);
+    }
+
     fn not_run(
         &mut self,
         step: &'static str,
@@ -457,7 +488,7 @@ impl Runner<'_> {
         election_id: Option<&str>,
         message: &str,
     ) {
-        self.steps.push(StepRecord {
+        self.push(StepRecord {
             step,
             scope: scope.map(str::to_string),
             election_id: election_id.map(str::to_string),
@@ -488,6 +519,184 @@ fn read_json(path: &Path) -> Value {
         .unwrap_or(Value::Null)
 }
 
+fn scalar(value: &Value) -> String {
+    match value {
+        Value::String(text) => text.clone(),
+        other => other.to_string(),
+    }
+}
+
+/// Gives the title shown on the console for an output file, so that the
+/// console output names no file.
+fn file_title(path: &str) -> String {
+    let path = Path::new(path);
+    if path.parent().and_then(Path::file_name) == Some(OsStr::new(HISTORY_DIR)) {
+        return "Cast-vote history report".to_string();
+    }
+    let name = path.file_stem().and_then(OsStr::to_str).unwrap_or_default();
+    let mut title = match name {
+        "verify" => "Braid verifier output".to_string(),
+        _ => name.replace(['-', '_'], " "),
+    };
+    if let Some(first) = title.get_mut(..1) {
+        first.make_ascii_uppercase();
+    }
+    title
+}
+
+/// Renders a JSON value as indented `key: value` lines, without the
+/// `NOT_PRINTED` keys. Keys that name a file are shown by their title.
+fn render(lines: &mut Vec<String>, indent: usize, key: &str, value: &Value) {
+    let pad = " ".repeat(indent);
+    match value {
+        Value::Object(map) => {
+            lines.push(format!("{pad}{key}:"));
+            for (name, value) in map {
+                if NOT_PRINTED.contains(&name.as_str()) {
+                    continue;
+                }
+                if name.ends_with(".json") {
+                    render(lines, indent + 2, &file_title(name), value);
+                } else {
+                    render(lines, indent + 2, name, value);
+                }
+            }
+        }
+        Value::Array(items) if items.is_empty() => lines.push(format!("{pad}{key}: none")),
+        Value::Array(items)
+            if items
+                .iter()
+                .all(|item| !item.is_object() && !item.is_array()) =>
+        {
+            let items: Vec<String> = items.iter().map(scalar).collect();
+            if items.iter().any(|item| item.contains(' ')) {
+                lines.push(format!("{pad}{key}:"));
+                lines.extend(items.iter().map(|item| format!("{pad}  - {item}")));
+            } else {
+                lines.push(format!("{pad}{key}: {}", items.join(", ")));
+            }
+        }
+        Value::Array(items) => {
+            lines.push(format!("{pad}{key} ({}):", items.len()));
+            for (index, item) in items.iter().enumerate() {
+                render(lines, indent + 2, &format!("#{}", index + 1), item);
+            }
+        }
+        _ => lines.push(format!("{pad}{key}: {}", scalar(value))),
+    }
+}
+
+fn print_value(key: &str, value: &Value) {
+    let mut lines = vec![];
+    render(&mut lines, 0, key, value);
+    for line in lines {
+        println!("{line}");
+    }
+}
+
+fn print_heading(title: &str) {
+    println!();
+    println!("{}", "=".repeat(RULE_WIDTH));
+    println!("{title}");
+    println!("{}", "=".repeat(RULE_WIDTH));
+}
+
+fn print_file(directory: &Path, name: &str) {
+    let path = directory.join(name);
+    let title = file_title(name);
+    if path.is_file() {
+        print_value(&title, &read_json(&path));
+    } else {
+        println!("{title}: not written");
+    }
+}
+
+fn print_text_file(directory: &Path, name: &str) {
+    let title = file_title(name);
+    match fs::read(directory.join(name)) {
+        Ok(bytes) => {
+            println!("{title}:");
+            for line in String::from_utf8_lossy(&bytes).lines() {
+                println!("  {line}");
+            }
+        }
+        Err(_) => println!("{title}: not written"),
+    }
+}
+
+fn print_count(directory: &Path, name: &str, field: Option<&str>, what: &str) {
+    let value = read_json(&directory.join(name));
+    let items = field.map_or(&value, |field| &value[field]);
+    match items.as_array() {
+        Some(items) => println!("{what}: {}", items.len()),
+        None => println!("{what}: not readable"),
+    }
+}
+
+fn print_step(record: &StepRecord) {
+    let target = record
+        .scope
+        .as_deref()
+        .map(|scope| format!(" {scope}"))
+        .or_else(|| {
+            record
+                .election_id
+                .as_deref()
+                .map(|election| format!(" election {election}"))
+        })
+        .unwrap_or_default();
+    println!();
+    println!("{}", "-".repeat(RULE_WIDTH));
+    println!("Step {}{target}", record.step);
+    println!("{}", "-".repeat(RULE_WIDTH));
+    println!("Status: {:?}", record.status);
+    println!(
+        "Exit code: {}",
+        record
+            .exit_code
+            .map_or_else(|| "none".to_string(), |code| code.to_string())
+    );
+    if !record.message.is_empty() {
+        println!("Messages:");
+        for line in record.message.lines() {
+            println!("  {line}");
+        }
+    }
+    if !record.outputs.is_empty() {
+        println!("Output digests (SHA-512):");
+        for (path, sha) in &record.outputs {
+            println!("  {}: {sha}", file_title(path));
+        }
+    }
+}
+
+fn print_export(export: &Path) {
+    print_file(export, "acquisition.json");
+    print_file(export, "eligibility-reasons.json");
+    print_count(
+        export,
+        "eligible-voters.json",
+        Some("voters"),
+        "Eligible voters",
+    );
+    print_file(export, "board-source.json");
+    print_file(export, "saved-mapping.json");
+    print_count(
+        export,
+        "cast-vote-history.json",
+        None,
+        "Stored votes of the election",
+    );
+    print_file(export, "cast-votes.json");
+}
+
+fn print_prepared(prepared: &Path) {
+    print_file(prepared, "provenance.json");
+    print_file(prepared, "anchors.json");
+    print_file(prepared, "manifest.json");
+    print_file(prepared, "selection.json");
+}
+
 /// Keeps only numbers and booleans, so that no ID, receipt or name can reach
 /// the public summary.
 fn counts_only(value: &Value) -> Value {
@@ -503,6 +712,14 @@ fn counts_only(value: &Value) -> Value {
     }
 }
 
+fn summary_accounting(accounting: &Value) -> Value {
+    let mut counts = counts_only(accounting);
+    if let Some(map) = counts.as_object_mut() {
+        map.retain(|key, _| !ACCOUNTING_NOT_IN_SUMMARY.contains(&key.as_str()));
+    }
+    counts
+}
+
 fn length(value: &Value) -> Value {
     value
         .as_array()
@@ -515,6 +732,7 @@ fn public_summary(
     output: &Path,
     histories: &BTreeMap<String, String>,
     status: StepStatus,
+    tallied_votes_to_audit: usize,
 ) -> Value {
     let scope_status = |directory: &str| {
         overall_status(
@@ -541,9 +759,10 @@ fn public_summary(
                 "checked_cast_votes":report["checked_cast_votes"],
                 "checked_batches":report["checked_batches"],
                 "checked_electoral_log_messages":report["checked_electoral_log_messages"],
+                "tallied_votes_to_audit":length(&report["votes_to_audit"]),
                 "duplicate_selected_receipts":length(&report["duplicate_selected_receipts"]),
                 "privacy_warnings":length(&report["privacy_warnings"]),
-                "selection_accounting":counts_only(&selection["accounting"])})
+                "selection_accounting":summary_accounting(&selection["accounting"])})
         })
         .collect();
     let history: Vec<Value> = histories
@@ -576,10 +795,77 @@ fn public_summary(
     json!({"format_version":1, "source_revision":SOURCE_REVISION,
         "tenant_id":plan.tenant_id, "election_event_id":plan.election_event_id,
         "tally_session_id":plan.tally_session_id, "policy":plan.policy, "status":status,
-        "scopes":scopes, "cast_vote_history":history,
+        "tallied_votes_to_audit":tallied_votes_to_audit, "scopes":scopes, "cast_vote_history":history,
         "braid":{"status":braid, "board_name":plan.board_name,
             "tally_batches":plan.tally_batches,
             "board_ballot_batches":plan.board_ballot_batches}})
+}
+
+/// Collects the tallied votes with no signed CastVote record, one entry per
+/// cast vote. A vote is tallied when a scope selected it; the cast-vote history
+/// reports only add `HISTORY_FOUND_BY` to `found_by`. Entries carry voter IDs, so the
+/// list is private.
+fn tallied_votes_to_audit(
+    scopes: &[PlannedScope],
+    output: &Path,
+    histories: &BTreeMap<String, String>,
+    history_sources: &BTreeMap<String, (String, PathBuf)>,
+) -> Vec<Value> {
+    let mut found: BTreeMap<(String, String), Vec<String>> = BTreeMap::new();
+    for scope in scopes {
+        let report = read_json(&output.join(&scope.directory).join("audit-report.json"));
+        for vote in report["votes_to_audit"].as_array().into_iter().flatten() {
+            if let Some(id) = vote["cast_vote_id"].as_str() {
+                found
+                    .entry((scope.election_id.clone(), id.to_string()))
+                    .or_default()
+                    .push(scope.directory.clone());
+            }
+        }
+    }
+    for (election_id, file) in histories {
+        let report = read_json(&output.join(file));
+        for receipt in report["receipts"].as_array().into_iter().flatten() {
+            if receipt["classification"] != HASURA_ROW_WITHOUT_SIGNED_LOG {
+                continue;
+            }
+            for id in receipt["cast_vote_ids"].as_array().into_iter().flatten() {
+                if let Some(found_by) = id
+                    .as_str()
+                    .and_then(|id| found.get_mut(&(election_id.clone(), id.to_string())))
+                {
+                    found_by.push(HISTORY_FOUND_BY.to_string());
+                }
+            }
+        }
+    }
+    let rows: BTreeMap<&String, Vec<Value>> = history_sources
+        .iter()
+        .map(|(election_id, (directory, _))| {
+            let history = read_json(
+                &output
+                    .join(directory)
+                    .join(POSTGRES_EXPORT_DIR)
+                    .join("cast-vote-history.json"),
+            );
+            let rows = history.as_array().cloned().unwrap_or_default();
+            (election_id, rows)
+        })
+        .collect();
+    found
+        .into_iter()
+        .map(|((election_id, cast_vote_id), found_by)| {
+            let row = rows
+                .get(&election_id)
+                .and_then(|rows| rows.iter().find(|row| row["id"] == cast_vote_id.as_str()))
+                .cloned()
+                .unwrap_or(Value::Null);
+            json!({"election_id":election_id, "cast_vote_id":cast_vote_id,
+                "voter_id":row["voter_id_string"], "ballot_id":row["ballot_id"],
+                "area_id":row["area_id"], "status":row["status"],
+                "created_at":row["created_at"], "found_by":found_by})
+        })
+        .collect()
 }
 
 fn tools_directory() -> Result<PathBuf> {
@@ -640,6 +926,22 @@ async fn run(args: Args) -> Result<ExitStatus> {
     new_private_directory(&output.join(SCOPES_DIR)).map_err(into_invalid_input)?;
     let started_at = chrono::Utc::now().to_rfc3339();
     let plan_file = save_json(output, "tally-plan.json", &plan)?;
+    print_heading(&format!(
+        "Ballot audit of tally session {}",
+        args.tally_session_id
+    ));
+    println!("Source revision: {SOURCE_REVISION}");
+    println!("Started at: {started_at}");
+    print_value(
+        "Inputs",
+        &json!({"tally_session_id":args.tally_session_id,
+            "public_key_sha512":args.public_key_sha512,
+            "electoral_log_system_public_key":args.electoral_log_system_public_key,
+            "restore_references":{"hasura":connections.hasura.restore_reference,
+                "keycloak":connections.keycloak.restore_reference,
+                "b3":connections.b3.restore_reference}}),
+    );
+    print_value("Tally plan", &read_json(&output.join("tally-plan.json")));
     let mut runner = Runner {
         output,
         tools,
@@ -654,7 +956,7 @@ async fn run(args: Args) -> Result<ExitStatus> {
             } else {
                 StepStatus::InvalidInput
             };
-            runner.steps.push(StepRecord {
+            runner.push(StepRecord {
                 step: EXPORT_ELECTORAL_LOG,
                 scope: None,
                 election_id: None,
@@ -695,6 +997,10 @@ async fn run(args: Args) -> Result<ExitStatus> {
             (status == StepStatus::Success).then(|| directory.join(ELECTORAL_LOG_FILE))
         }
     };
+    if let Some(log) = &electoral_log {
+        let directory = log.parent().unwrap_or(output);
+        print_count(directory, ELECTORAL_LOG_FILE, None, "Electoral log records");
+    }
     let log_pin = electoral_log.as_deref().and_then(file_pin);
 
     let mut history_sources: BTreeMap<String, (String, PathBuf)> = BTreeMap::new();
@@ -745,6 +1051,7 @@ async fn run(args: Args) -> Result<ExitStatus> {
             runner.not_run(BALLOT_AUDIT, label, None, "the export did not succeed");
             continue;
         }
+        print_export(&export);
         let history = export.join("cast-vote-history.json");
         history_sources
             .entry(scope.election_id.clone())
@@ -807,6 +1114,7 @@ async fn run(args: Args) -> Result<ExitStatus> {
             vec![prepared.clone()],
             StepStatus::from_exit_code,
         );
+        print_prepared(&prepared);
         if status != StepStatus::Success {
             runner.not_run(BALLOT_AUDIT, label, None, "the preparation did not succeed");
             continue;
@@ -841,6 +1149,7 @@ async fn run(args: Args) -> Result<ExitStatus> {
             vec![],
             StepStatus::from_exit_code,
         );
+        print_file(&directory, "audit-report.json");
     }
 
     let elections: BTreeSet<&String> = plan.scopes.iter().map(|scope| &scope.election_id).collect();
@@ -886,6 +1195,7 @@ async fn run(args: Args) -> Result<ExitStatus> {
             vec![],
             StepStatus::from_exit_code,
         );
+        print_file(&history_directory, &name);
         histories.insert(election_id.clone(), format!("{HISTORY_DIR}/{name}"));
     }
 
@@ -932,12 +1242,22 @@ async fn run(args: Args) -> Result<ExitStatus> {
                     }
                 },
             );
+            print_text_file(&braid_directory, "verify.log");
         }
         None => runner.not_run(BRAID_VERIFY, None, None, "no B3 server address"),
     }
 
     let status = overall_status(runner.steps.iter().map(|step| &step.status));
-    let summary = public_summary(&plan, &runner.steps, output, &histories, status);
+    let votes = tallied_votes_to_audit(&plan.scopes, output, &histories, &history_sources);
+    let votes_file = save_json(output, TALLIED_VOTES_TO_AUDIT_FILE, &votes)?;
+    let summary = public_summary(
+        &plan,
+        &runner.steps,
+        output,
+        &histories,
+        status,
+        votes.len(),
+    );
     let summary_file = save_json(output, "public-summary.json", &summary)?;
     let record = json!({"format_version":1, "source_revision":SOURCE_REVISION,
     "started_at":started_at, "finished_at":chrono::Utc::now().to_rfc3339(),
@@ -952,12 +1272,19 @@ async fn run(args: Args) -> Result<ExitStatus> {
         "b3_server_url":args.b3_server_url},
     "tally_plan":plan_file, "status":status, "steps":runner.steps,
     "braid_batches":braid_batches, "public_summary":summary_file,
+    "tallied_votes_to_audit":votes_file,
     "limitations":[
         "The tally session ID, the public key hash, the electoral log system public key and the backup digests must come from the election authority, not from the restored copies.",
         "Each step keeps the limitations that its own command writes in its output files.",
-        "Steps that did not run make the audit incomplete."
+        "Steps that did not run make the audit incomplete.",
+        "Tallied votes to audit have no signed CastVote record and do not change the status: the audit is not finished until each listed vote is reviewed. Stored votes without a signed record that no scope selected are listed only in the cast-vote history reports."
     ]});
     let record_file = save_json(output, "audit-record.json", &record)?;
+    print_heading("Results");
+    print_value("Tallied votes to audit", &Value::Array(votes));
+    print_value("Public summary", &summary);
+    println!("Finished at: {}", scalar(&record["finished_at"]));
+    println!();
     for scope in &plan.scopes {
         let scope_status = overall_status(
             runner
@@ -975,9 +1302,23 @@ async fn run(args: Args) -> Result<ExitStatus> {
             scope_status
         );
     }
+    for (election_id, file) in &histories {
+        let history_status = overall_status(
+            runner
+                .steps
+                .iter()
+                .filter(|step| step.election_id.as_deref() == Some(election_id.as_str()))
+                .map(|step| &step.status),
+        );
+        let report = read_json(&output.join(file));
+        println!(
+            "Cast-vote history of election {election_id}: {history_status:?} (outcome {})",
+            scalar(&report["outcome"])
+        );
+    }
     println!("Overall: {status:?}");
     println!(
-        "audit-record.json SHA-512: {}",
+        "Audit record SHA-512: {}",
         record_file["sha512"]
             .as_str()
             .context("missing audit record digest")?
@@ -1155,6 +1496,64 @@ mod tests {
     }
 
     #[test]
+    fn tallied_votes_to_audit_leave_out_votes_no_scope_selected() {
+        let output = std::env::temp_dir().join(format!(
+            "audit-tally-votes-{}-{}",
+            std::process::id(),
+            chrono::Utc::now().timestamp_nanos_opt().unwrap()
+        ));
+        let scope = |directory: &str| PlannedScope {
+            directory: directory.to_string(),
+            election_id: ELECTION.to_string(),
+            area_id: AREA.to_string(),
+            contest_id: None,
+            tally_session_contest_id: String::new(),
+            base_batch: 10,
+            batches: vec![10],
+            scope_sha512: String::new(),
+            scope_bytes: vec![],
+        };
+        let scopes = [scope("scopes/001"), scope("scopes/002")];
+        let write = |path: PathBuf, value: Value| {
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(path, serde_json::to_vec(&value).unwrap()).unwrap();
+        };
+        write(
+            output.join("scopes/001/audit-report.json"),
+            json!({"votes_to_audit":[{"cast_vote_id":"cv-1","ballot_id":"b1",
+                "reason":"no_signed_cast_vote_record"}]}),
+        );
+        write(
+            output.join("scopes/001/postgres-export/cast-vote-history.json"),
+            json!([{"id":"cv-1","voter_id_string":"voter-1","ballot_id":"b1",
+                "area_id":AREA,"status":"valid","created_at":"2026-10-01T00:00:00Z"},
+                {"id":"cv-2","voter_id_string":"voter-2","ballot_id":"b2"}]),
+        );
+        write(
+            output.join("history/election.json"),
+            json!({"receipts":[
+                {"cast_vote_ids":["cv-1"],"classification":"hasura_row_without_signed_log"},
+                {"cast_vote_ids":["cv-2"],"classification":"hasura_row_without_signed_log"},
+                {"cast_vote_ids":["cv-3"],"classification":"matched"}]}),
+        );
+        let histories = BTreeMap::from([(ELECTION.to_string(), "history/election.json".into())]);
+        let sources = BTreeMap::from([(
+            ELECTION.to_string(),
+            ("scopes/001".to_string(), PathBuf::new()),
+        )]);
+        let votes = tallied_votes_to_audit(&scopes, &output, &histories, &sources);
+        fs::remove_dir_all(&output).unwrap();
+        assert_eq!(votes.len(), 1);
+        assert_eq!(votes[0]["cast_vote_id"], "cv-1");
+        assert_eq!(votes[0]["voter_id"], "voter-1");
+        assert_eq!(votes[0]["created_at"], "2026-10-01T00:00:00Z");
+        assert_eq!(
+            votes[0]["found_by"],
+            json!(["scopes/001", "cast-vote history"])
+        );
+    }
+
+    #[test]
     fn runner_saves_the_report_and_records_the_step() {
         let output = std::env::temp_dir().join(format!(
             "audit-tally-runner-{}-{}",
@@ -1206,6 +1605,53 @@ mod tests {
     }
 
     #[test]
+    fn console_output_leaves_out_voter_ids_and_ballot_contents() {
+        let mut lines = vec![];
+        render(
+            &mut lines,
+            0,
+            "report",
+            &json!({"checked":2, "batches":[10, 11], "empty":[], "cast-votes.json":"pin",
+                "reasons":["First one.", "Second one."], "limitations":["Not proven."],
+                "assurance":"What the check proves.", "note":"A note.",
+                "rows":[{"cast_vote_id":"cv-1", "voter_id_string":"voter-1",
+                    "content":"ballot"}],
+                "voters":[{"voter_id":"voter-1"}]}),
+        );
+        assert_eq!(
+            lines,
+            [
+                "report:",
+                "  batches: 10, 11",
+                "  Cast votes: pin",
+                "  checked: 2",
+                "  empty: none",
+                "  reasons:",
+                "    - First one.",
+                "    - Second one.",
+                "  rows (1):",
+                "    #1:",
+                "      cast_vote_id: cv-1",
+            ]
+        );
+    }
+
+    #[test]
+    fn console_titles_name_no_file() {
+        assert_eq!(
+            file_title("scopes/001/postgres-export/cast-vote-history.json"),
+            "Cast vote history"
+        );
+        assert_eq!(
+            file_title("history/00000000-0000-4000-8000-000000000030.json"),
+            "Cast-vote history report"
+        );
+        assert_eq!(file_title("braid/verify.log"), "Braid verifier output");
+        assert_eq!(file_title("audit-report.json"), "Audit report");
+        assert_eq!(file_title(""), "");
+    }
+
+    #[test]
     fn public_counts_drop_every_text_value() {
         let accounting = json!({"exported_rows":5, "voter":"alice",
             "rows_by_reason":{"selected":{"rows":1, "ballot_id":"receipt"}},
@@ -1214,6 +1660,12 @@ mod tests {
             counts_only(&accounting),
             json!({"exported_rows":5, "rows_by_reason":{"selected":{"rows":1}},
                 "complete":true})
+        );
+        assert_eq!(
+            summary_accounting(&json!({"exported_rows":5, "frozen_eligible_voters":3,
+                "frozen_eligible_voters_without_valid_vote":1,
+                "frozen_eligible_multiplicity_without_valid_vote":1})),
+            json!({"exported_rows":5})
         );
         assert_eq!(length(&json!(["a", "b"])), json!(2));
         assert_eq!(length(&Value::Null), Value::Null);

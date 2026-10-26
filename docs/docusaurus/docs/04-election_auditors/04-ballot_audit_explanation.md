@@ -148,7 +148,10 @@ It lets the auditor match records without relying on unsigned outer message labe
 For newer messages, the tool also compares the signed voting channel.
 For legacy messages without a channel, it infers `ONLINE` and reports that inference.
 
-Preparation requires one distinct signed message for each selected ballot and collapses byte-identical repetitions.
+Preparation looks for one distinct signed message for each selected ballot and collapses byte-identical repetitions.
+A selected ballot without a signed message is a **vote to audit**: the log write can fail after acceptance, so the absence is not proof of a change.
+The tools still check its receipt, content and tally input, list it, and leave the status unchanged; the auditor reviews each one.
+A signed message that names the ballot for another voter is a contradiction.
 It rejects several selected cast votes that share a receipt.
 These checks establish agreement between the selected encrypted ballots and the authenticated cast statements.
 
@@ -173,7 +176,7 @@ It includes superseded and discarded ballots across all areas.
 | --- | --- |
 | Matching hashed voter identifiers and full ballot hashes in both sources | Consistent coverage of the supplied records. |
 | Signed cast record without a stored ballot | Contradiction, assuming the Hasura backup includes every cast recorded in the ImmuDB backup. |
-| Stored ballot without a signed cast record | Incomplete evidence; the log write can fail after acceptance. |
+| Stored ballot without a signed cast record | Vote to audit; the log write can fail after acceptance. |
 | Several rows or distinct messages for the same pair of hashes | Ambiguous attribution; the history result is incomplete. |
 | Byte-identical repeated signed messages | Reported repetitions, rather than separate proven casts. |
 
@@ -240,7 +243,7 @@ The overall status combines the individual steps:
 
 | Exit status | Interpretation |
 | --- | --- |
-| `0` | All recorded steps reported success. Read their evidence and qualifications before reporting a pass. |
+| `0` | All recorded steps reported success. Read their evidence and qualifications, and review every listed vote to audit, before reporting a pass. |
 | `1` | A step failed verification or crashed, Braid failed, or image setup failed. Investigate the recorded cause. |
 | `3` | Evidence was incomplete, attribution was ambiguous, or a required step did not run. |
 | `4` | The input or setup was invalid or unsupported. Command-line usage errors can instead return `2`. |

@@ -244,13 +244,14 @@ fn signed_receipt_without_hasura_row_is_a_contradiction() {
 }
 
 #[test]
-fn row_without_success_log_is_incomplete_not_tampering() {
+fn row_without_success_log_is_a_vote_to_audit_not_tampering() {
     let dir = TempDir::new();
     let mut f = Fixture::new();
     f.logs.clear();
     let output = f.command(&dir.0).output().unwrap();
-    assert_eq!(output.status.code(), Some(3));
+    assert_eq!(output.status.code(), Some(0));
     let report = report(&output);
+    assert_eq!(report["outcome"], "success");
     assert_eq!(report["hasura_rows_without_signed_log"], 1);
     assert_eq!(
         report["receipts"][0]["classification"],
@@ -337,8 +338,9 @@ fn wrong_signed_event_or_election_does_not_match() {
             }
         });
         let output = f.command(&dir.0).output().unwrap();
-        assert_eq!(output.status.code(), Some(3));
+        assert_eq!(output.status.code(), Some(0));
         let report = report(&output);
+        assert_eq!(report["outcome"], "success");
         assert_eq!(report["ignored_other_log_records"], 1);
         assert_eq!(report["hasura_rows_without_signed_log"], 1);
     }
