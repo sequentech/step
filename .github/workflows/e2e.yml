@@ -20,9 +20,9 @@ jobs:
   e2e:
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v4
-    - uses: cachix/install-nix-action@v26
-    - uses: cachix/cachix-action@v14
+    - uses: actions/checkout@v7
+    - uses: cachix/install-nix-action@v31
+    - uses: cachix/cachix-action@v17
       with:
         name: devenv
     - name: Install devenv.sh
@@ -32,7 +32,7 @@ jobs:
     - name: Set loadtestingImage variable with default fallback
       run: echo "LOADTESTING_IMAGE=loadtesting:${{ github.event.inputs.tag }}" >> $GITHUB_ENV
     - name: Build image
-      uses: docker/build-push-action@v5
+      uses: docker/build-push-action@v7
       with:
         context: .
         file: packages/loadtesting/Dockerfile
