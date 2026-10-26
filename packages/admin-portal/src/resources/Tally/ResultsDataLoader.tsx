@@ -21,10 +21,18 @@ import {
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {useSetAtom} from "jotai"
-import React, {useEffect, useMemo} from "react"
+import React, {useContext, useEffect, useMemo} from "react"
 import {useManagedDatabase, useSQLQuery} from "@/hooks/useSQLiteDatabase"
 import {isString} from "@sequentech/ui-core"
 import {IResultDocuments} from "@/types/results"
+import {useQuery} from "@apollo/client"
+import {AuthContext} from "@/providers/AuthContextProvider"
+import {IPermissions} from "@/types/keycloak"
+import {
+    GET_CURRENT_TALLY_DOCUMENTS,
+    CurrentTallyDocuments,
+    overlayCurrentDocuments,
+} from "./currentTallyDocuments"
 
 export interface ResultsDataLoaderProps {
     resultsEventId: string
@@ -45,6 +53,31 @@ export const ResultsDataLoader: React.FC<ResultsDataLoaderProps> = ({
 }) => {
     const [tenantId] = useTenantStore()
     const setTallyQueryData = useSetAtom(tallyQueryData)
+    const auth = useContext(AuthContext)
+    const {globalSettings} = useContext(SettingsContext)
+    const canReadDocuments = auth.isAuthorized(true, tenantId, IPermissions.TALLY_RESULTS_READ)
+    const {data: currentDocuments, error: documentsError} = useQuery<CurrentTallyDocuments>(
+        GET_CURRENT_TALLY_DOCUMENTS,
+        {
+            variables: {tenantId, electionEventId, resultsEventId, electionIds},
+            context: {headers: {"x-hasura-role": IPermissions.TALLY_RESULTS_READ}},
+            skip:
+                !canReadDocuments ||
+                !isTallyCompleted ||
+                !tenantId ||
+                !electionEventId ||
+                !resultsEventId ||
+                electionIds.length === 0,
+            fetchPolicy: "network-only",
+            pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+        }
+    )
+    const liveDocuments =
+        canReadDocuments && isTallyCompleted && !documentsError ? currentDocuments : undefined
+    const documentScope = useMemo(
+        () => ({tenantId, electionEventId, resultsEventId, electionIds}),
+        [tenantId, electionEventId, resultsEventId, electionIds]
+    )
 
     const contestIds = useMemo(() => contests.map((c) => c.id), [contests])
 
@@ -188,8 +221,11 @@ export const ResultsDataLoader: React.FC<ResultsDataLoaderProps> = ({
             sequent_backend_candidate: candidate as Sequent_Backend_Candidate[],
             sequent_backend_contest: contest as Sequent_Backend_Contest[],
             sequent_backend_results_event: results_event as Sequent_Backend_Results_Event[],
-            sequent_backend_results_election:
-                results_election as Sequent_Backend_Results_Election[],
+            sequent_backend_results_election: overlayCurrentDocuments(
+                results_election,
+                liveDocuments?.sequent_backend_results_election,
+                documentScope
+            ) as Sequent_Backend_Results_Election[],
             sequent_backend_results_contest_candidate:
                 results_contest_candidate as Sequent_Backend_Results_Contest_Candidate[],
             sequent_backend_results_contest: results_contest.map((contest) => {
@@ -214,8 +250,11 @@ export const ResultsDataLoader: React.FC<ResultsDataLoaderProps> = ({
                 }
                 return contest
             }) as Sequent_Backend_Results_Area_Contest[],
-            sequent_backend_results_election_area:
-                results_election_area as Sequent_Backend_Results_Election_Area[],
+            sequent_backend_results_election_area: overlayCurrentDocuments(
+                results_election_area,
+                liveDocuments?.sequent_backend_results_election_area,
+                documentScope
+            ) as Sequent_Backend_Results_Election_Area[],
         }),
         [
             area,
@@ -231,6 +270,8 @@ export const ResultsDataLoader: React.FC<ResultsDataLoaderProps> = ({
             results_area_contest_candidate,
             results_area_contest,
             results_election_area,
+            liveDocuments,
+            documentScope,
         ]
     )
 
