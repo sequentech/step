@@ -399,3 +399,190 @@ fn registered_voters_without_a_cast_timestamp_still_render_in_the_voter_report()
         rendered.as_ref().err()
     );
 }
+
+// Exercise the complete default document, not just the time/header excerpt.
+// The consolidated Post starts with an election summary; an area report has
+// only contest sections. Counts come from typed results, never annotations.
+fn initialization_content_variables(
+    census: u64,
+    area: bool,
+    contests: usize,
+) -> Map<String, Value> {
+    use sequent_core::ballot::{Candidate, Contest};
+    use velvet::pipes::do_tally::{CandidateResult, ContestResult};
+    use velvet::pipes::generate_reports::{
+        BasicArea, ElectionResultReport, ReportDataComputed, TemplateData,
+    };
+
+    let mut vars = variables(
+        &CANARY_OFFICE,
+        "2028-04-08T23:00:00Z",
+        "2028-05-08T22:30:00Z",
+    );
+    let dates = serde_json::from_value(vars["reports"][0]["election_dates"].clone()).unwrap();
+    let base = ReportDataComputed {
+        election_name: "Post".into(),
+        election_alias: "Event".into(),
+        election_id: POST_ID.into(),
+        election_event_id: "event".into(),
+        tenant_id: "tenant".into(),
+        election_description: String::new(),
+        election_dates: Some(dates),
+        election_annotations: HashMap::new(),
+        election_event_annotations: HashMap::new(),
+        contest: None,
+        area: area.then(|| BasicArea {
+            id: "area".into(),
+            name: "Area".into(),
+        }),
+        // Deliberately inconsistent metadata must not replace the result census.
+        area_annotations: HashMap::from([("registered_voters".into(), "99".into())]),
+        is_aggregate: false,
+        tally_sheet_id: None,
+        contest_result: None,
+        candidate_result: vec![],
+        show_candidate_results: false,
+        channel_type: None,
+        election_results: None,
+        participation_by_channel: vec![],
+    };
+    let mut reports = Vec::new();
+    if !area {
+        reports.push(ReportDataComputed {
+            election_results: Some(ElectionResultReport {
+                census,
+                ..Default::default()
+            }),
+            ..base.clone()
+        });
+    }
+    for index in 0..contests {
+        let contest = Contest {
+            id: format!("contest-{index}"),
+            name: Some(format!("Position {index}")),
+            ..Default::default()
+        };
+        let candidate_result = ["A", "B", "C"]
+            .into_iter()
+            .map(|name| CandidateResult {
+                candidate: Candidate {
+                    id: format!("candidate-{index}-{name}"),
+                    name: Some(format!("Candidate {index}-{name}")),
+                    ..Default::default()
+                },
+                percentage_votes: 0.0,
+                total_count: 0,
+            })
+            .collect();
+        reports.push(ReportDataComputed {
+            contest: Some(contest.clone()),
+            contest_result: Some(ContestResult {
+                contest,
+                census,
+                candidate_result,
+                ..Default::default()
+            }),
+            ..base.clone()
+        });
+    }
+    let data = TemplateData {
+        execution_annotations: HashMap::from([
+            ("date_printed".into(), GENERATED.into()),
+            ("results_hash".into(), "report-hash".into()),
+            ("configuration_revision".into(), "3".into()),
+            (
+                "configuration_manifest_sha256".into(),
+                "manifest-digest".into(),
+            ),
+        ]),
+        reports,
+    };
+    vars.extend(
+        serde_json::to_value(data)
+            .unwrap()
+            .as_object()
+            .unwrap()
+            .clone(),
+    );
+    vars
+}
+
+fn render_complete_initialization(vars: Map<String, Value>) -> String {
+    let assets =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../.devcontainer/minio/public-assets");
+    let user = std::fs::read_to_string(assets.join("initialization_report_user.hbs")).unwrap();
+    let system = std::fs::read_to_string(assets.join("initialization_report_system.hbs")).unwrap();
+    let rendered = render_template_text(&user, vars.clone()).unwrap();
+    let mut vars = vars;
+    vars.insert("rendered_user_template".into(), json!(rendered));
+    vars.insert(
+        "file_qrcode_lib".into(),
+        json!("file:///assets/qrcode.min.js"),
+    );
+    render_template_text(&system, vars)
+        .unwrap()
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+fn assert_initialization_content(census: u64, area: bool, contests: usize) {
+    let html =
+        render_complete_initialization(initialization_content_variables(census, area, contests));
+    assert!(
+        html.contains(&format!(
+            "Number of Registered Voters:</strong> </td> <td class=\"value\">{census}</td>"
+        )),
+        "result census missing"
+    );
+    assert!(
+        html.contains("Number of Ballots Counted:</strong> </td> <td class=\"value\"> 0 </td>"),
+        "zero ballot count missing"
+    );
+    assert_eq!(
+        html.matches("class=\"contest-title\"").count(),
+        contests,
+        "summary must not produce an empty contest heading"
+    );
+    assert_eq!(
+        html.matches("<td class=\"votes\">0</td>").count(),
+        contests * 3
+    );
+    for index in 0..contests {
+        assert!(html.contains(&format!("Position {index}")));
+        for name in ["A", "B", "C"] {
+            assert!(html.contains(&format!("Candidate {index}-{name}")));
+        }
+    }
+    assert!(html.contains("Report hash: report-hash"));
+    assert!(html.contains("Configuration revision 3, manifest SHA-256 manifest-digest"));
+    assert!(html.contains("Generated April 08, 2028 20:41 WEST (April 08, 2028 21:41 CEST)"));
+    assert!(html.contains("Voting Period: 09 April 2028 00:00 WEST - 09 May 2028 00:30 CEST"));
+    assert!(html.contains("<html lang=\"en-US\">"));
+}
+
+#[test]
+fn initialization_content_post_summary_counts_and_multiple_contests() {
+    assert_initialization_content(5, false, 2);
+}
+
+#[test]
+fn initialization_content_area_uses_typed_contest_counts() {
+    assert_initialization_content(5, true, 2);
+}
+
+#[test]
+fn initialization_content_zero_census_is_a_valid_result() {
+    assert_initialization_content(0, false, 1);
+    assert_initialization_content(0, true, 1);
+}
+
+#[test]
+fn initialization_content_final_report_system_font_is_offline() {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../.devcontainer/minio/public-assets/electoral_results_system.hbs");
+    let html = render_template_text(&std::fs::read_to_string(path).unwrap(), Map::new()).unwrap();
+    assert!(!html.contains("fonts.googleapis.com"));
+    assert!(!html.contains("@import"));
+    assert!(html.contains("font-family: Arial, sans-serif"));
+}

@@ -100,18 +100,20 @@
             <col class="first-col">
             <col class="second-col">
           </colgroup>
+          {{!-- Post reports start with an election summary; area reports contain
+          contest sections only. Use result counts, not optional annotations. --}}
           <tr>
             <td class="key">
               <strong>Number of Registered Voters:</strong>
             </td>
-            <td class="value">{{format_u64 reports.0.area_annotations.registered_voters}}</td>
+            <td class="value">{{#if reports.0.election_results}}{{format_u64 reports.0.election_results.census}}{{else}}{{format_u64 reports.0.contest_result.census}}{{/if}}</td>
           </tr>
           <tr>
             <td class="key">
               <strong>Number of Ballots Counted:</strong>
             </td>
             <td class="value">
-              {{format_u64 reports.0.contest_result.total_votes}}
+              {{#if reports.0.election_results}}{{format_u64 reports.0.election_results.total_votes}}{{else}}{{format_u64 reports.0.contest_result.total_votes}}{{/if}}
             </td>
           </tr>
         </table>
@@ -136,6 +138,7 @@
         </thead>
         <tbody>
           {{#each reports}}
+          {{#if contest_result}}
           <tr class="contest-title">
             <td colspan="2">{{contest_result.contest.name}}</td>
           </tr>
@@ -145,6 +148,7 @@
             <td class="votes">{{format_u64 candidate.total_count}}</td>
           </tr>
           {{/each}}
+          {{/if}}
           {{/each}}
         </tbody>
       </table>
