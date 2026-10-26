@@ -35,7 +35,7 @@
     "webpack-dev-server": "^5.2.6",
     "micromatch": "^4.0.8",
     "ws": "^8.21.0",
-    "follow-redirects": "^1.16.0",
+    "follow-redirects": "^1.16.2",
     "semver": "^7.6.4",
     "path-to-regexp": "^0.1.13"
   },
