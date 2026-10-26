@@ -156,6 +156,14 @@ files instead.
 `CHECK PASSED — ready to install the platform`. Read the individual check results:
 the file paths, certificates, server identities and policies must match this site.
 
+![Actual terminal running the configuration check against two fresh rehearsal VMs](./assets/installation/installer-preflight.png)
+
+*Actual terminal capture from the VM rehearsal on 2026-10-26. The check verifies
+its media and certificate inputs, each server’s SSH and authenticated-time policy,
+and both nodes’ readiness before printing the success line. This rehearsal used
+an explicitly recorded time-service configuration correction; it does not show a
+freshly rebuilt delivery kit.*
+
 **If the result differs.** Correct the configuration or the named prerequisite and
 run this read-only check again. Do not change a certificate fingerprint to match
 an unexpected certificate, suppress an error, or proceed after a failed check.

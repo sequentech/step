@@ -15,6 +15,7 @@ import subprocess
 import tarfile
 import tempfile
 from urllib.parse import urlencode, urlsplit, parse_qs
+from step_names import STEP_NAMES
 
 ROOT = Path(__file__).resolve().parent
 PARTS = ('b4', 'ballot-verifier', 'braid', 'harvest', 'keycloak', 'windmill')
@@ -68,7 +69,10 @@ def checked_path(name, private=False, directory=False):
     return p
 
 def digest(path):
-    with Path(path).open('rb') as f: return hashlib.file_digest(f,'sha256').hexdigest()
+    result=hashlib.sha256()
+    with Path(path).open('rb') as f:
+        for block in iter(lambda:f.read(1024*1024),b''):result.update(block)
+    return result.hexdigest()
 
 def run(argv, label, data=None, timeout=120):
     try:
@@ -76,8 +80,8 @@ def run(argv, label, data=None, timeout=120):
     except (OSError,subprocess.TimeoutExpired): raise ValueError(label + ' failed: unavailable command or timeout; no automatic retry') from None
     if r.returncode:
         stage=re.findall(rb'^AGD_STAGE_FAILED ([0-9]{2}-[0-9]{3})$',r.stderr,re.M)
-        suffix=(' (reviewed operation '+stage[-1].decode()+')') if stage else ''
-        checks={b'TIME_AUTHENTICATION': 'NTS-authenticated time is required; correct the accepted site time configuration', b'SSH_POLICY': 'SSH must allow administrator keys only', b'FRESH_CLUSTER': 'A fresh cluster and empty installation workspace are required', b'SOURCE_IDENTITY': 'Installed operating-system source differs from the accepted kit', b'TOOLS': 'An offline-kit prerequisite is unavailable'}
+        suffix=(' (operation '+STEP_NAMES.get(stage[-1].decode(),stage[-1].decode())+')') if stage else ''
+        checks={b'TIME_AUTHENTICATION': 'NTS-authenticated time is required; correct the accepted site time configuration', b'SSH_POLICY': 'SSH must allow administrator keys only', b'FRESH_CLUSTER': 'A fresh cluster and empty installation workspace are required', b'SOURCE_IDENTITY': 'Installed operating-system source differs from the accepted kit', b'TOOLS': 'An offline-kit prerequisite is unavailable', b'TLS_ENDPOINT': 'The accepted server kit must provide the nginx TLS endpoint before application installation', b'PRIVATE_INGRESS': 'Traefik must use loopback-only entrypoints with ClusterIP service; public plaintext HTTP is not allowed'}
         code=re.findall(rb'^AGD_CHECK_FAILED ([A-Z_]+)$',r.stderr,re.M)
         if code and code[-1] in checks: suffix=': '+checks[code[-1]]
         raise ValueError(label + ' failed'+suffix+'; stop and inspect this stage privately before any retry')
@@ -138,7 +142,7 @@ def verify_inputs(d):
         der=run(['openssl','x509','-in',str(ca),'-outform','DER'],'CA certificate parsing')
         require(hashlib.sha256(der).hexdigest()==d[group]['ca_sha256'].lower(),'CA fingerprint differs from independently received value')
     cert=checked_path(d['tls']['certificate']);key=checked_path(d['tls']['private_key'],private=True)
-    for host in list(d['hosts'].values())[:3]:
+    for host in [d['hosts'][name] for name in ('voting','administration','verifier')]:
         run(['openssl','verify','-purpose','sslserver','-verify_hostname',host,'-CAfile',d['tls']['ca'],str(cert)],'TLS certificate chain and hostname check')
     pub=run(['openssl','x509','-in',str(cert),'-noout','-pubkey'],'TLS public-key check')
     require(pub==run(['openssl','pkey','-in',str(key),'-pubout'],'TLS private-key match'),'TLS certificate and key do not match')
@@ -177,7 +181,21 @@ chronyc sources | grep -qE '^.\\*'
     base+='test "$(jq -r .images.manifest.stepRevision /var/lib/sequent-install/provenance.json)" = '+shlex.quote(d.get('_kit_identity',d['release'])['step_commit'])+'\n'
     if fresh:base+='AGD_CHECK=FRESH_CLUSTER\ntest ! -e /root/deploy\n'
     if node=='c2':return base
-    base+='''if systemctl is-active --quiet k3s; then
+    base+='''AGD_CHECK=TLS_ENDPOINT
+command -v nginx >/dev/null
+systemctl cat nginx.service >/dev/null
+AGD_CHECK=PRIVATE_INGRESS
+k3s kubectl -n kube-system get deployment traefik -o json | jq -e '
+ .spec.template.spec.hostNetwork == true and
+ .spec.template.spec.nodeSelector["node-role.kubernetes.io/control-plane"] == "true" and
+ ([.spec.template.spec.containers[].args[] | ascii_downcase | select(startswith("--entrypoints.") and contains(".address="))] | sort) ==
+ (["--entrypoints.metrics.address=127.0.0.1:9100/tcp",
+   "--entrypoints.traefik.address=127.0.0.1:9000/tcp",
+   "--entrypoints.web.address=127.0.0.1:10080/tcp",
+   "--entrypoints.websecure.address=127.0.0.1:10443/tcp"] | sort)' >/dev/null
+k3s kubectl -n kube-system get service traefik -o json | jq -e '.spec.type == "ClusterIP"' >/dev/null
+test -z "$(ss -H -ltn 'sport = :80')"
+if systemctl is-active --quiet k3s; then
   k3s secrets-encrypt status | grep -q '^Encryption Status: Enabled$'
 '''
     if fresh:base+='''  ns=$(k3s kubectl get namespace -o json)
@@ -186,6 +204,7 @@ chronyc sources | grep -qE '^.\\*'
     return base+'fi\n'
 
 def check(d,fresh=True):
+    print('CHECK: verifying accepted media, archive hashes and certificate inputs',flush=True)
     verify_inputs(d)
     provenance=json.loads((Path(d['kit']['directory'])/'release/provenance.json').read_text())
     d['_kit_identity']={'version':provenance['release'],'step_commit':provenance['images']['manifest']['stepRevision']}
@@ -268,9 +287,10 @@ def install(d):
     for node in ('c1','c2'):
         files={'hosts.env':env,'.installation-config.sha256':hashlib.sha256(json.dumps(d,sort_keys=True).encode()).hexdigest().encode()}
         if node=='c1':
+            files['tls/hosts.json']=(json.dumps([d['hosts'][name] for name in ('voting','administration','verifier')])+'\n').encode()
             for ident in ('03-006','05-004','05-005','06-002','07-001','07-002','07-003','07-004','07-005','07-006','07-007','07-008','07-009','07-010','07-011','07-012','07-013','07-014','07-015','07-016','07-017','07-020','07-021','08-003','08-005'):
                 suffix='.jq' if ident in ('07-008','07-015','07-016') else '.sh';files['installation-commands/'+ident+suffix]=command_source(ident,d).encode()
-            for key,path in [('tls/tls.crt',d['tls']['certificate']),('tls/tls.key',d['tls']['private_key']),('auth-server-ca.pem',d['identity_provider']['ca']),('idp.json',d['identity_provider']['definition'])]:files[key]=Path(path).read_bytes()
+            for key,path in [('tls/tls.crt',d['tls']['certificate']),('tls/tls.key',d['tls']['private_key']),('tls/ca.pem',d['tls']['ca']),('auth-server-ca.pem',d['identity_provider']['ca']),('idp.json',d['identity_provider']['definition'])]:files[key]=Path(path).read_bytes()
         upload(d,node,files)
         ssh(d,node,'test ! -e /root/toe-images\nmkdir -m 700 /root/toe-images\n',node+' image directory creation')
         for name in [p+'.tar' for p in PARTS]+['image-digests.txt']:
@@ -285,6 +305,7 @@ def install(d):
     ssh(d,'c1',install_script(d),'Hardened platform deployment',timeout=2400)
     print('INSTALL 3/4: verify running platform configuration',flush=True)
     verify(d)
+    cleanup_import(d)
     print('INSTALL 4/4: platform installed; customer and trustee commissioning still required',flush=True)
 
 
@@ -313,13 +334,30 @@ for app in harvest windmill; do
   test "${SECRETS_BACKEND:-}" = EnvVarMasterSecret
   test "${#MASTER_SECRET}" -eq 64'
 done
-for part in harvest windmill ballot-verifier; do
+deployments=$(k3s kubectl get deployments,jobs -A -o json)
+pods=$(k3s kubectl get pods -A -o json)
+for part in b4 ballot-verifier braid harvest keycloak windmill; do
  expected=$(sed -n "s/^$part //p" /root/toe-images/image-digests.txt)
- k3s kubectl -n step-apps get deploy "$part" -o json | jq -e --arg expected "sequentech.local/$part@$expected" '.spec.template.spec.containers | any(.image==$expected)' >/dev/null
+ test -n "$expected"
+ image="sequentech.local/$part@$expected"
+ printf '%s' "$deployments" | jq -e --arg part "$part" --arg image "$image" '
+   [.items[].spec.template.spec | (.containers[]?, .initContainers[]?) | .image |
+    select(startswith("sequentech.local/"+$part+":") or startswith("sequentech.local/"+$part+"@"))] |
+    length>0 and all(.==$image)' >/dev/null
+ ids=$(printf '%s' "$pods" | jq -r --arg image "$image" '
+   .items[].status | (.containerStatuses[]?, .initContainerStatuses[]?) |
+   select(.image==$image and .imageID!="" and .imageID!=null) | .imageID' | sort -u)
+ if test "$part" != braid; then test -n "$ids"; fi
+ while IFS= read -r image_id; do
+   if test -n "$image_id"; then
+     k3s crictl inspecti "${image_id#containerd://}" | jq -e --arg image "$image" '.status.repoDigests | index($image)!=null' >/dev/null
+   fi
+ done <<< "$ids"
 done
 '''
+    print('VERIFY: waiting for platform services and checking their security settings',flush=True)
     ssh(d,'c1',script,'Installed platform policy verification',timeout=1800)
-    for host in list(d['hosts'].values())[:3]:
+    for host in [d['hosts'][name] for name in ('voting','administration','verifier')]:
         issuer=json.loads(run(['curl','--silent','--show-error','--fail','--cacert',d['tls']['ca'],'https://'+host+'/realms/'+R+'/.well-known/openid-configuration'],'External HTTPS discovery',timeout=30))['issuer']
         require(issuer=='https://'+d['hosts']['voting']+'/realms/'+R,'Published issuer differs from configured realm')
         status=run(['curl','--silent','--show-error','--cacert',d['tls']['ca'],'-o','/dev/null','-w','%{http_code}','https://'+host+'/realms/master/.well-known/openid-configuration'],'External master-realm restriction',timeout=30)
@@ -329,8 +367,27 @@ done
     print('Customer sign-in, external MFA, client firewall and trustee custody remain commissioning checks.',flush=True)
 
 
+def cleanup_import(d):
+    body=command_source('08-006',d)
+    lines=body.splitlines()
+    body='\n'.join(line for line in lines if not line.startswith('curl -s '))+'\n'
+    guard="test \"$(curl --silent --show-error --fail --cacert /root/deploy/tls/ca.pem -o /dev/null -w '%{http_code}' https://"+d['hosts']['voting']+'/realms/'+R+")\" = 200\n"
+    assertion=r'''k3s kubectl -n step-infra get secret keycloak-realm -o json | jq -e --arg key "$R.json" '
+ .data[$key] | @base64d | fromjson |
+ ([.users[]? | select(.credentials != null)] | length==0) and
+ ([.identityProviders[]?.config.clientSecret // empty] | length==0) and
+ ([.clients[] | select(.clientId=="service-account" or .clientId=="api-key-client") | .secret] | sort)==["CHANGE_ME_API_KEY_CLIENT_SECRET","CHANGE_ME_SERVICE_ACCOUNT_SECRET"]' >/dev/null
+ test ! -e /root/deploy/realm-tenant.new.json
+'''
+    ssh(d,'c1',guard+body+assertion,'Imported realm credential cleanup',timeout=120)
+    print('PASS: imported realm credentials removed from its stored manifest and verified in the cluster',flush=True)
+
+
 def verify_login(d,realm):
     host=d['hosts']['voting'];admin=d['hosts']['administration']
+    for portal in (host,admin):
+        discovery=json.loads(run(['curl','--silent','--show-error','--fail','--cacert',d['tls']['ca'],'https://'+portal+'/realms/'+realm+'/.well-known/openid-configuration'],'Realm discovery identity',timeout=30))
+        require(discovery.get('issuer')=='https://'+host+'/realms/'+realm,'Realm discovery issuer differs from site configuration')
     endpoint='https://'+host+'/realms/'+realm+'/protocol/openid-connect'
     base=['curl','--silent','--show-error','--cacert',d['tls']['ca']]
     query={'client_id':'admin-portal','response_type':'code','scope':'openid','redirect_uri':'https://'+admin+'/'}

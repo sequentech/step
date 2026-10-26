@@ -72,23 +72,25 @@ def accounts(d,c,realm):
     install.ssh(d,'c1',script,'Customer account creation',timeout=600)
 
 
-def public_keys(d,number):
+def public_keys(d,number,remote):
     image_hash=next(line.split()[1] for line in (Path(d['toe']['directory'])/'image-digests.txt').read_text().splitlines() if line.startswith('braid '))
-    script='k3s ctr -n k8s.io run --rm --mount '+shlex.quote('type=bind,src=/root/deploy/.commission-key'+str(number)+'.toml,dst=/keys,options=rbind:ro')+' '+shlex.quote('sequentech.local/braid@'+image_hash)+' '+shlex.quote('agd-public-key-check-'+str(number))+' /usr/bin/trustee public-keys --trustee-config /keys\n'
+    script='k3s ctr -n k8s.io run --rm --mount '+shlex.quote('type=bind,src='+remote+',dst=/keys,options=rbind:ro')+' '+shlex.quote('sequentech.local/braid@'+image_hash)+' '+shlex.quote('agd-public-key-check-'+str(number))+' /usr/bin/trustee public-keys --trustee-config /keys\n'
     return json.loads(install.ssh(d,'c1',script,'Trustee public-key derivation',timeout=120))
 
 
 def import_trustee(d,c,realm,number,apply=False,expected_hash=None):
     trustee=c['trustees'][number-1]
     key=install.checked_path(trustee['keys_file'],private=True)
-    remote='/root/deploy/.commission-key'+str(number)+'.toml'
     if not apply:ask('Trustee '+str(number)+': be present and confirm this mounted medium contains your registered private keys. Keep your original medium in your custody.')
     body=key.read_bytes();key_hash=hashlib.sha256(body).hexdigest()
     install.require(expected_hash is None or key_hash==expected_hash,'Trustee medium changed after the two-key precheck')
+    folder=install.ssh(d,'c1','mktemp -d /root/deploy/.commission-key.XXXXXXXX\n','Private trustee transfer directory').decode().strip()
+    install.require(re.fullmatch(r'/root/deploy/\.commission-key\.[A-Za-z0-9]{8}',folder) is not None,'Unexpected private transfer directory')
+    remote=folder+'/keys.toml'
     transfer='set -e; set +x; umask 077; set -C; cat > '+shlex.quote(remote)
-    install.run(install.ssh_args(d,'c1')+['bash','-c',shlex.quote(transfer)],'Protected trustee key transfer',body)
     try:
-        actual=public_keys(d,number)
+        install.run(install.ssh_args(d,'c1')+['bash','-c',shlex.quote(transfer)],'Protected trustee key transfer',body)
+        actual=public_keys(d,number,remote)
         registered=json.loads(sql(d,"SELECT coalesce(json_agg(json_build_object('signing_public_key',public_key,'share_encryption_public_key',share_encryption_public_key)), '[]'::json) FROM sequent_backend.trustee WHERE tenant_id = :'tenant' AND name = :'name';",{'tenant':realm.removeprefix('tenant-'),'name':trustee['name']}))
         install.require(len(registered)==1 and actual==registered[0],'Trustee private keys do not match the exact registered public-key pair; import refused')
         if not apply:return key_hash
@@ -99,7 +101,7 @@ def import_trustee(d,c,realm,number,apply=False,expected_hash=None):
         install.ssh(d,'c1',script,'Native trustee '+str(number)+' binding and startup',timeout=600)
     finally:
         # The private original is never changed. Remove this transfer copy even on refusal.
-        install.ssh(d,'c1','test ! -L '+shlex.quote(remote)+'\nif test -f '+shlex.quote(remote)+'; then shred -u '+shlex.quote(remote)+'; fi\n','Temporary trustee key cleanup')
+        install.ssh(d,'c1','test ! -L '+shlex.quote(remote)+'\nif test -f '+shlex.quote(remote)+'; then shred -u '+shlex.quote(remote)+'; fi\nrmdir '+shlex.quote(folder)+'\n','Temporary trustee key cleanup')
     print('PASS: trustee '+str(number)+' public-key pair, native binding and startup; transfer copy removed',flush=True)
 
 
@@ -125,9 +127,9 @@ def main(d):
         print('PASS: customer administrator and native accounts configured; installation personal accounts disabled',flush=True)
     ask('Sign in to the customer administration portal with the external administrator account. Register both trustees with their two public keys. Confirm that the registered names match site.json and both trustees have their own key media.')
     # A single attempt owns all native imports; a failed partial import is never replayed.
-    install.ssh(d,'c1','test ! -e /root/deploy/.commission-imports-started\nprintf started > /root/deploy/.commission-imports-started\n','Native trustee import boundary')
     hashes={number:import_trustee(d,c,realm,number) for number in (1,2)}
     print('PASS: both trustee media match their registered public-key pairs before either import',flush=True)
+    install.ssh(d,'c1','test ! -e /root/deploy/.commission-imports-started\nprintf started > /root/deploy/.commission-imports-started\n','Native trustee import boundary')
     for number in (1,2):import_trustee(d,c,realm,number,apply=True,expected_hash=hashes[number])
     verify(d,realm)
     install.ssh(d,'c1','printf %s '+shlex.quote(digest)+' > /root/deploy/.commissioned\n','Commissioning record')
