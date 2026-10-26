@@ -28,9 +28,9 @@ use celery::error::TaskError;
 use deadpool_postgres::Client as DbClient;
 use sequent_core::election_config::manifest::read_zip;
 use sequent_core::election_config::package_contract::{Requirements, Section};
-use sequent_core::election_config::package_verify::{admit_at, Admission};
+use sequent_core::election_config::package_verify::{admit_at, Admission, ConfigurationSigning};
 use sequent_core::election_config::tenant_package::TrusteePublic;
-use sequent_core::types::hasura::core::TasksExecution;
+use sequent_core::types::hasura::core::{Document, TasksExecution};
 use sequent_core::types::hasura::extra::TasksExecutionStatus;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -159,6 +159,41 @@ fn choose_prior(
         .with_context(|| format!("the saved application of task {id} cannot be read"))
 }
 
+/// What a run reads before it decides anything: the package's document row,
+/// and the tenant's signing trust and revocation lists, against which the
+/// package is verified (its freshness against the tenant's imports is the
+/// target's to check, before each section).
+struct Inputs {
+    document: Document,
+    setting: Option<ConfigurationSigning>,
+    revocation_lists: Vec<Vec<u8>>,
+}
+
+/// Reads the [`Inputs`] on one connection and gives it back to the pool before
+/// returning. The run keeps only its claim's connection after this; holding
+/// this one too, while every later step takes another, left a run waiting
+/// forever on a pool sized from a small CPU quota.
+async fn read_inputs(
+    pool: &deadpool_postgres::Pool,
+    tenant_id: &str,
+    document_id: &str,
+) -> anyhow::Result<Inputs> {
+    let mut db: DbClient = pool.get().await?;
+    let transaction = db.transaction().await?;
+    let document = get_document(&transaction, tenant_id, None, document_id)
+        .await?
+        .ok_or_else(|| anyhow!("document {document_id} not found"))?;
+    let setting = tenant_setting(&transaction, tenant_id).await?;
+    let revocation_lists =
+        configuration_packages::revocation_lists(&transaction, tenant_id).await?;
+    transaction.commit().await?;
+    Ok(Inputs {
+        document,
+        setting,
+        revocation_lists,
+    })
+}
+
 /// A run that stopped before it held the claim: the row may be a live run's.
 #[derive(Debug)]
 struct Unclaimed(anyhow::Error);
@@ -175,7 +210,10 @@ fn unclaimed(error: impl Into<anyhow::Error>) -> anyhow::Error {
     anyhow::Error::new(Unclaimed(error.into()))
 }
 
-async fn execute(
+/// One application of a package, as the task runs it: the claim, the inputs,
+/// the plan and the run, with its record saved on the task row. Public so the
+/// whole path can be exercised against a synthetic database and storage.
+pub async fn execute(
     body: &ApplyConfigurationPackageBody,
     task_execution: &TasksExecution,
 ) -> anyhow::Result<ApplicationRecord> {
@@ -214,18 +252,15 @@ async fn execute(
     )
     .await?;
 
-    let mut db: DbClient = get_hasura_pool().await.get().await?;
-    let transaction = db.transaction().await?;
-    let document = get_document(&transaction, &body.tenant_id, None, &body.document_id)
-        .await?
-        .ok_or_else(|| anyhow!("document {} not found", body.document_id))?;
-    let file = get_document_as_temp_file(&body.tenant_id, &document).await?;
+    let inputs = read_inputs(
+        &*get_hasura_pool().await,
+        &body.tenant_id,
+        &body.document_id,
+    )
+    .await?;
+    let file = get_document_as_temp_file(&body.tenant_id, &inputs.document).await?;
     let bytes = std::fs::read(file.path()).context("could not read the package")?;
-    // Verified against the tenant's signing trust. Its freshness against the
-    // tenant's imports is the target's to check, before each section.
-    let setting = tenant_setting(&transaction, &body.tenant_id).await?;
-    let lists = configuration_packages::revocation_lists(&transaction, &body.tenant_id).await?;
-    transaction.commit().await?;
+    let (setting, lists) = (inputs.setting, inputs.revocation_lists);
     let (members, signed_package, verified) =
         match admit_at(&bytes, setting.as_ref(), lists, chrono::Utc::now()) {
             Ok(Admission::Unsigned) => (
@@ -499,6 +534,109 @@ mod tests {
         );
         assert_eq!(row.get::<_, serde_json::Value>(4), json!({"online": true}));
         tx.rollback().await.unwrap();
+    }
+
+    /// A pool of two connections with one held for the whole run, as the
+    /// claim holds it: every step must give its own back before the next asks.
+    /// The rehearsal of the airgap release found a run waiting forever on a
+    /// worker whose pool deadpool had sized from a 0.5 CPU quota.
+    async fn claimed_small_pool() -> (deadpool_postgres::Pool, deadpool_postgres::Object) {
+        let pool = super::apply_test_schema::pool().await;
+        pool.resize(2);
+        let claim = pool.get().await.unwrap();
+        (pool, claim)
+    }
+
+    /// The next step's connection, at once: a step that kept its own would
+    /// leave none, and the run would wait forever.
+    async fn next_connection(pool: &deadpool_postgres::Pool, step: &str) {
+        let next = tokio::time::timeout(std::time::Duration::from_secs(5), pool.get())
+            .await
+            .unwrap_or_else(|_| panic!("{step} kept its connection: the run would wait forever"))
+            .unwrap();
+        drop(next);
+    }
+
+    /// A tenant (and its package document) of the test's own, committed so the
+    /// step's connection sees them; unique ids in the binary's private
+    /// database (tests/support/schema.rs), so a failed test leaves nothing
+    /// another reads.
+    async fn committed_tenant(claim: &deadpool_postgres::Object) -> (uuid::Uuid, uuid::Uuid) {
+        let (tenant, document) = (uuid::Uuid::new_v4(), uuid::Uuid::new_v4());
+        claim
+            .execute(
+                "INSERT INTO sequent_backend.tenant (id, slug) VALUES ($1, $2)",
+                &[&tenant, &format!("small-pool-{tenant}")],
+            )
+            .await
+            .unwrap();
+        claim
+            .execute(
+                "INSERT INTO sequent_backend.document (id, tenant_id, name) VALUES ($1, $2, 'package.zip')",
+                &[&document, &tenant],
+            )
+            .await
+            .unwrap();
+        (tenant, document)
+    }
+
+    /// Needs the PostgreSQL server `HASURA_DB__*` names (see
+    /// tests/support/schema.rs).
+    #[tokio::test]
+    async fn reading_the_inputs_gives_the_connection_back_before_the_next_step() {
+        let (pool, claim) = claimed_small_pool().await;
+        let (tenant, document) = committed_tenant(&claim).await;
+        // Bounded too: a step that waited on the pool itself would hang here.
+        let inputs = tokio::time::timeout(
+            std::time::Duration::from_secs(5),
+            read_inputs(&pool, &tenant.to_string(), &document.to_string()),
+        )
+        .await
+        .expect("read_inputs waited on the pool")
+        .unwrap();
+        assert_eq!(inputs.document.id, document.to_string());
+        assert!(inputs.setting.is_none());
+        assert!(inputs.revocation_lists.is_empty());
+        next_connection(&pool, "read_inputs").await;
+    }
+
+    /// Needs the PostgreSQL server `HASURA_DB__*` names (see
+    /// tests/support/schema.rs).
+    #[tokio::test]
+    async fn applying_the_tenant_configuration_gives_the_connection_back_before_the_audit() {
+        let (pool, claim) = claimed_small_pool().await;
+        let (tenant, _) = committed_tenant(&claim).await;
+        let wanted = sequent_core::election_config::tenant_package::TenantConfiguration {
+            settings: Some(serde_json::Map::from_iter([(
+                "display_name".to_owned(),
+                serde_json::json!("Synthetic"),
+            )])),
+            ..Default::default()
+        };
+        let before = tokio::time::timeout(
+            std::time::Duration::from_secs(5),
+            crate::services::import::configuration_package_target::write_tenant_configuration(
+                &pool,
+                &tenant.to_string(),
+                &wanted,
+            ),
+        )
+        .await
+        .expect("write_tenant_configuration waited on the pool")
+        .unwrap();
+        assert_eq!(before.id, tenant.to_string());
+        // The audit record and the task's status come next, each on a
+        // connection of its own.
+        next_connection(&pool, "write_tenant_configuration").await;
+        let written: Option<serde_json::Value> = claim
+            .query_one(
+                "SELECT settings FROM sequent_backend.tenant WHERE id = $1",
+                &[&tenant],
+            )
+            .await
+            .unwrap()
+            .get(0);
+        assert_eq!(written.unwrap()["display_name"], "Synthetic");
     }
 
     /// Needs the PostgreSQL server `HASURA_DB__*` names (see

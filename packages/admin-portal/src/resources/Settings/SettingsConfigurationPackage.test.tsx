@@ -479,6 +479,46 @@ it("names a nested member's container", async () => {
     )
 })
 
+it("says what handles each member, never that a refused run applied it", async () => {
+    // A member's disposition is the contract's classification (which section
+    // applies it, or that a person does, or that it is a record), not what this
+    // run did: a refused preview applied nothing.
+    mockApply.mockResolvedValue(accepted("task-x"))
+    const {rerender} = render(<SettingsConfigurationPackage />)
+    await upload()
+    const refused = record("refused") as any
+    // The fixture's coverage is shared between records: this test's own copy.
+    refused.application.coverage = JSON.parse(JSON.stringify(refused.application.coverage))
+    refused.application.coverage.members.push(
+        {
+            path: "keycloak_event_realm_patch.json",
+            sha256: "44".repeat(32),
+            size: 1,
+            disposition: {kind: "manual"},
+        },
+        {
+            path: "blueprint.json",
+            sha256: "55".repeat(32),
+            size: 1,
+            disposition: {kind: "record-only"},
+        },
+        {path: "notes.bin", sha256: "66".repeat(32), size: 1, disposition: {kind: "unknown"}}
+    )
+    mockTask = task("task-x", "FAILED", refused)
+    rerender(<SettingsConfigurationPackage />)
+    const members = screen.getByTestId("package-members").textContent ?? ""
+    expect(members).not.toMatch(/— applied\b/)
+    expect(members).toContain(
+        'tenant_platform-t1.json — configurationPackage.disposition.applied {"section":"configurationPackage.sections.tenant-configuration"}'
+    )
+    expect(members).toContain("manifest.json — configurationPackage.disposition.verification")
+    expect(members).toContain(
+        "keycloak_event_realm_patch.json — configurationPackage.disposition.manual"
+    )
+    expect(members).toContain("blueprint.json — configurationPackage.disposition.record-only")
+    expect(members).toContain("notes.bin — configurationPackage.disposition.unknown")
+})
+
 it("shows what applying would change before the confirmation, names and keys only", async () => {
     mockApply.mockResolvedValueOnce(accepted("task-p"))
     const {rerender} = render(<SettingsConfigurationPackage />)

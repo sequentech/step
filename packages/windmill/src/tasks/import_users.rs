@@ -338,6 +338,11 @@ async fn run_import_users(
     tx.commit()
         .await
         .context("Users committed but completed-import receipt could not be committed")?;
+    // Back to the pool before maintenance takes one of its own: a package
+    // application runs this while holding its claim's connection, and with a
+    // two-connection pool (sized from a small CPU quota) keeping this one
+    // would leave maintenance waiting forever.
+    drop(client);
     kick_audit_log_outbox();
     // Maintenance cannot turn an already-committed, certified import into a
     // failed task or cause the worker to insert its users again on retry.

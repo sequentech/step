@@ -530,15 +530,12 @@ impl PackageTarget for PlatformTarget {
             Section::TenantConfiguration => {
                 let wanted = self.tenant_configuration(files)?;
                 let task = self.task(task_id).await?;
-                let mut db: DbClient = get_hasura_pool().await.get().await?;
-                let transaction = db.transaction().await?;
-                // Merged over the row as it is now, locked until committed, and
-                // only the four fields written: keys the package does not name
-                // (a legacy service-account key, the signing trust) stay.
-                let current = lock_tenant(&transaction, &self.context.tenant_id).await?;
-                let merged = merged_tenant(&current, &wanted);
-                update_tenant_configuration(&transaction, &merged).await?;
-                transaction.commit().await?;
+                let current = write_tenant_configuration(
+                    &*get_hasura_pool().await,
+                    &self.context.tenant_id,
+                    &wanted,
+                )
+                .await?;
                 let changes = tenant_configuration_changes(&current, &wanted).changes;
                 task_audit::record(task_audit::tenant_config(
                     self.context.audit_actor.clone(),
@@ -673,6 +670,27 @@ impl PackageTarget for PlatformTarget {
             }
         }
     }
+}
+
+/// Writes a package's tenant configuration over the tenant's row as it is now,
+/// locked until committed, and only the four fields: keys the package does not
+/// name (a legacy service-account key, the signing trust) stay. Returns the row
+/// as it was. Its connection goes back to the pool before this returns: the run
+/// still holds its claim, and what follows (the audit record, the task's
+/// status) takes connections of its own, so keeping this one could leave a
+/// small pool with none (the airgap rehearsal's hang).
+pub(crate) async fn write_tenant_configuration(
+    pool: &deadpool_postgres::Pool,
+    tenant_id: &str,
+    wanted: &TenantConfiguration,
+) -> Result<sequent_core::types::hasura::core::Tenant> {
+    let mut db: DbClient = pool.get().await?;
+    let transaction = db.transaction().await?;
+    let current = lock_tenant(&transaction, tenant_id).await?;
+    let merged = merged_tenant(&current, wanted);
+    update_tenant_configuration(&transaction, &merged).await?;
+    transaction.commit().await?;
+    Ok(current)
 }
 
 #[cfg(test)]
