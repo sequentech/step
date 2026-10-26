@@ -142,6 +142,10 @@ class RunSafety(unittest.TestCase):
     def compose_calls(self, verb):
         return [args for args in self.calls() if args[0] == "compose" and verb in args]
 
+    def platform_starts(self):
+        """The compose up of each run's platform; the trustees start after bootstrap."""
+        return [args for args in self.compose_calls("up") if "trustee1" not in args]
+
     def run_browser_script(self, **environment):
         script = self.root / "scripts/e2e/run-browser-trustees.sh"
         shutil.copyfile(ROOT / "scripts/e2e/run-browser-trustees.sh", script)
@@ -240,6 +244,35 @@ class RunSafety(unittest.TestCase):
             files = [call[i + 1] for i, arg in enumerate(call) if arg == "-f"]
             self.assertEqual(files[-1], str(overlay))
 
+    def test_trustee_daemons_start_only_after_bootstrap_enrolls_them(self):
+        # A trustee daemon signs in as soon as it starts. Started with the
+        # platform, before bootstrap had enabled the client it signs in with
+        # and set its password, its failed attempts got it temporarily
+        # disabled, and bootstrap's own sign-in for it failed (backend journey
+        # run 40275816861). Bootstrap needs no daemon: it reads the public
+        # keys with the trustee CLI.
+        for args in (("--skip-images", "--skip-build"),
+                     ("--skip-images", "--skip-build", "--bootstrap-only")):
+            with self.subTest(args=args):
+                self.log.unlink(missing_ok=True)
+                result = self.run_script(*args)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                compose = [call for call in self.calls() if call[0] == "compose"]
+
+                def first(test):
+                    return next(i for i, call in enumerate(compose) if test(call))
+
+                platform = first(lambda call: "up" in call)
+                self.assertNotIn("trustee1", compose[platform])
+                self.assertNotIn("trustee2", compose[platform])
+                bootstrap = first(lambda call: call[-2:] == ["driver", "bootstrap"])
+                trustees = first(
+                    lambda call: "up" in call and "trustee1" in call and "trustee2" in call
+                )
+                self.assertLess(platform, bootstrap)
+                self.assertLess(bootstrap, trustees)
+                self.assertIn("--wait", compose[trustees])
+
     def test_missing_optional_overlay_fails_before_docker(self):
         result = self.run_script(
             "--skip-images",
@@ -270,7 +303,7 @@ class RunSafety(unittest.TestCase):
             check=False,
         )
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(len(self.compose_calls("up")), 1)
+        self.assertEqual(len(self.platform_starts()), 1)
         self.assertEqual(self.compose_calls("down"), [])
         driver = [call for call in self.compose_calls("run") if "test" in call]
         self.assertEqual(len(driver), 1)
@@ -452,7 +485,7 @@ class RunSafety(unittest.TestCase):
         for _ in range(2):
             result = self.run_script("--skip-images", "--skip-build")
             self.assertEqual(result.returncode, 0, result.stderr)
-        starts, stops = self.compose_calls("up"), self.compose_calls("down")
+        starts, stops = self.platform_starts(), self.compose_calls("down")
         self.assertEqual(len(starts), 2)
         self.assertEqual(len(stops), 2)
         projects = [args[args.index("--project-name") + 1] for args in starts]
@@ -551,7 +584,7 @@ class RunSafety(unittest.TestCase):
             release.touch()
             stdout, stderr = process.communicate(timeout=10)
         self.assertEqual(process.returncode, 0, stdout + stderr)
-        self.assertEqual(len(self.compose_calls("up")), 1)
+        self.assertEqual(len(self.platform_starts()), 1)
         self.assertEqual(len(self.compose_calls("down")), 1)
         # Completion releases the lock, including after ordinary owned cleanup.
         result = self.run_script(
@@ -613,7 +646,7 @@ class RunSafety(unittest.TestCase):
                 )
                 self.assertEqual(result.returncode, status, result.stderr)
                 calls = self.calls()
-                (up,) = self.compose_calls("up")
+                (up,) = self.platform_starts()
                 (stop,) = self.compose_calls("stop")
                 (down,) = self.compose_calls("down")
                 (report,) = [
