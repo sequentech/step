@@ -17,6 +17,8 @@
 // The import is one deeply nested future.
 #![recursion_limit = "256"]
 
+#[path = "support/s3_stub.rs"]
+mod s3_stub;
 #[path = "support/schema.rs"]
 mod schema;
 
@@ -24,10 +26,8 @@ use deadpool_postgres::{Pool, PoolError, Timeouts};
 use serde_json::json;
 use std::ffi::OsString;
 use std::future::Future;
-use std::sync::{Arc, LazyLock, Mutex};
+use std::sync::LazyLock;
 use std::time::Duration;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::TcpListener;
 use tokio::runtime::Runtime;
 use tokio::sync::OnceCell;
 use windmill::postgres::tasks_execution::get_task_by_id;
@@ -128,46 +128,6 @@ async fn fixture() -> &'static Pool {
         .await
 }
 
-/// A loopback S3 that answers every GET with `body`, recording the paths asked.
-async fn s3_stub(body: &'static [u8]) -> (String, Arc<Mutex<Vec<String>>>) {
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let address = listener.local_addr().unwrap();
-    let asked = Arc::new(Mutex::new(Vec::new()));
-    let seen = asked.clone();
-    tokio::spawn(async move {
-        loop {
-            let Ok((mut socket, _)) = listener.accept().await else {
-                return;
-            };
-            let seen = seen.clone();
-            tokio::spawn(async move {
-                let mut request = Vec::new();
-                let mut buffer = [0u8; 4096];
-                while !request.windows(4).any(|w| w == b"\r\n\r\n") {
-                    match socket.read(&mut buffer).await {
-                        Ok(0) | Err(_) => return,
-                        Ok(n) => request.extend_from_slice(&buffer[..n]),
-                    }
-                }
-                let line = String::from_utf8_lossy(&request)
-                    .lines()
-                    .next()
-                    .unwrap_or_default()
-                    .to_owned();
-                seen.lock().unwrap().push(line);
-                let head = format!(
-                    "HTTP/1.1 200 OK\r\nContent-Type: text/csv\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
-                    body.len()
-                );
-                let _ = socket.write_all(head.as_bytes()).await;
-                let _ = socket.write_all(body).await;
-                let _ = socket.shutdown().await;
-            });
-        }
-    });
-    (format!("http://{address}"), asked)
-}
-
 const ACCOUNTS: &[u8] = b"username,email,first_name,last_name\n\
 synthetic-operator,operator@example.invalid,Synthetic,Operator\n";
 
@@ -175,7 +135,7 @@ synthetic-operator,operator@example.invalid,Synthetic,Operator\n";
 fn the_admin_accounts_import_finishes_on_a_two_connection_pool_with_the_claim_held() {
     run(async {
         let pool = fixture().await;
-        let (endpoint, asked) = s3_stub(ACCOUNTS).await;
+        let (endpoint, asked) = s3_stub::serve(ACCOUNTS).await;
         // The worker's S3 settings, at the stub; fake credentials.
         std::env::set_var("AWS_REGION", "us-east-1");
         std::env::set_var("AWS_S3_PRIVATE_URI", &endpoint);

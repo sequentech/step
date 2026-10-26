@@ -210,7 +210,10 @@ fn unclaimed(error: impl Into<anyhow::Error>) -> anyhow::Error {
     anyhow::Error::new(Unclaimed(error.into()))
 }
 
-async fn execute(
+/// One application of a package, as the task runs it: the claim, the inputs,
+/// the plan and the run, with its record saved on the task row. Public so the
+/// whole path can be exercised against a synthetic database and storage.
+pub async fn execute(
     body: &ApplyConfigurationPackageBody,
     task_execution: &TasksExecution,
 ) -> anyhow::Result<ApplicationRecord> {
