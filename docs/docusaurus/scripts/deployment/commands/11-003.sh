@@ -10,5 +10,5 @@ gpg -d "$B" | tar -tf - | awk '
   /^var\/lib\/sequent-data\// {data=1}
   /^\// || /(^|\/)\.\.(\/|$)/ {unsafe=1}
   END {exit !(deployment && data && !unsafe)}'
-ssh root@$C1 'find /var/lib/sequent-data -mindepth 1 -delete'
-gpg -d "$B" | ssh root@$C1 'tar -C / -xf -'      # asks for the passphrase
+ssh root@$C1 'set -e -o pipefail; find /var/lib/sequent-data -mindepth 1 -delete'
+gpg -d "$B" | ssh root@$C1 'set -e -o pipefail; tar -C / -xf -'      # asks for the passphrase

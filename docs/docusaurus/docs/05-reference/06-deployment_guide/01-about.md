@@ -103,13 +103,36 @@ and enter that folder. The workstation needs Python 3.10 or later, Bash, and the
 operational tools named in this guide; the corresponding installation kit supplies
 Python 3 and Bash on C1 and C2. Check these prerequisites before starting.
 
-1. Run `./deploy check`. This detects changed package files; the delivery signature
-   and independent source verification establish their authenticity.
-2. Run `./deploy configure admin` on the administration workstation. Enter the
-   seven public site values and the absolute directory containing the installation
-   kit to be checked. Passwords, keys and client secrets never belong in this form.
-3. Run `./deploy session admin`. The prompt shows the selected session and directory.
-   Follow the handbook's short `step` commands in order, reading the stated checks.
+On the administration workstation, with a root terminal already open in the
+delivered `deployment` folder, enter these commands **one at a time**:
+
+```bash
+./deploy check
+```
+
+Expected: `Package hashes match. Independently verify its delivery signature and source identity.`
+This detects changed package files; the delivery signature and independent source
+verification establish their authenticity. If the package check stops, obtain the
+verified complete folder; do not change its checksums to suppress the error.
+
+```bash
+./deploy configure admin
+```
+
+Enter the seven public site values and the absolute directory containing the
+installation kit to be checked. Expected: `Public configuration saved. No passwords,
+keys or client secrets belong in operator.json.` Passwords, keys and client secrets
+never belong in this form. If an existing configuration differs, inspect and
+reconcile the machine's approved site values before continuing; do not overwrite
+them blindly.
+
+```bash
+./deploy session admin
+```
+
+Expected: a new interactive prompt identifying the `admin` deployment session.
+If the machine-identity or role check stops, confirm that you configured this
+workstation for this role; never copy another machine's `operator.json` to bypass it.
 
 Repeat configure and session on each other machine with its role below, using the
 same public site values. Each machine has its own root-only public configuration
@@ -125,14 +148,46 @@ address and machine identity are checked before a command runs.
 | `client` | Separate machine in the client network, for reachability checks |
 | `trustee` | Offline trustee workstation under the trustee's physical custody |
 
-For example, run `./deploy configure c1`, then `./deploy session c1` on C1.
+For example, in a root terminal in the copied `deployment` folder **on C1**, enter
+these separately:
+
+```bash
+./deploy configure c1
+./deploy session c1
+```
+
 The launcher never changes machines or opens an SSH session automatically.
 A session label does not replace verifying network position or physical custody.
 
-Inside a session, `steps` lists the available commands; `show 07-003` displays the
-exact implementation and source reference; `step 07-003` runs that one block.
+`step`, `show` and `steps` are commands provided **inside this deployment session**;
+they are not installed as ordinary system commands. If your terminal says
+`step: command not found`, open the appropriate `./deploy session ROLE` from the
+delivered folder first (replace ROLE with the session name in the table).
+
+Inside a session, enter `steps` to list the available named commands. Each procedure
+below provides the exact command to run, its expected result and the response to an
+unexpected result. For example, when you reach the cluster-secret encryption check
+on C1, the command is:
+
+```bash
+step 04-check-secret-encryption
+```
+
+It must include `Encryption Status: Enabled` in its output. This is a readable name
+for that single check, not an instruction to execute all of chapter 4. The old
+numeric names remain compatibility aliases; use the descriptive names in this guide.
+
+To inspect the implementation without executing it, the optional command is:
+
+```bash
+show 04-check-secret-encryption
+```
+
 Long implementations are in `deployment/steps/`, outside the main procedure text.
-Review the relevant implementation and prerequisites before running it. Public
+The reference screenshots show the command preview and documented acceptance
+checks; they are examples for comparison, not evidence that your installation has
+passed. Site addresses, host names, timestamps and table layout can vary; the stated
+security conditions must still match. Read the prerequisites before running a step. Public
 values needed later are prompted when used. Existing private password prompts
 and private input files remain unchanged; command output is not recorded.
 

@@ -35,7 +35,19 @@ the certificate.
 
 <!-- deployment-step: 07-001 -->
 
-**Session: c1.** Run `step 07-001`. Review its implementation with `show 07-001`.
+**Run on C1, in the `c1` deployment session:**
+
+```bash
+step 07-set-site-hostnames
+```
+
+**Expected result.** No output after the command; no demonstration portal host names remain.
+
+**If the result differs.** If a matching file or host name is printed, check the three configured host names and the clean working copy. Do not deploy partially substituted manifests; restart this chapter from a fresh copy as described above.
+
+![Command preview for deployment step 07-set-site-hostnames](assets/steps/07-set-site-hostnames.png)
+
+*Command preview only: this image shows the bundled command, without executing it. Compare your actual result with the expectations above.*
 
 The last command must print nothing.
 
@@ -44,7 +56,19 @@ voting portal's:
 
 <!-- deployment-step: 07-002 -->
 
-**Session: c1.** Run `step 07-002`. Review its implementation with `show 07-002`.
+**Run on C1, in the `c1` deployment session:**
+
+```bash
+step 07-set-login-url
+```
+
+**Expected result.** Three `KEYCLOAK_URL` entries, all with your voting portal origin, for example `value: "https://vote.example.org"`. The example domain is not a value to enter.
+
+**If the result differs.** If an entry is absent or still uses another host, check that all three portal manifests came from the verified kit. Rebuild the working copy; do not redirect a portal to a different identity service.
+
+![Command preview for deployment step 07-set-login-url](assets/steps/07-set-login-url.png)
+
+*Command preview only: this image shows the bundled command, without executing it. Compare your actual result with the expectations above.*
 
 The three values shown must be `"https://PORTAL_HOST"` with your voting portal
 host.
@@ -61,7 +85,19 @@ from a signed URL would invalidate its signature.
 
 <!-- deployment-step: 07-003 -->
 
-**Session: c1.** Run `step 07-003`. Review its implementation with `show 07-003`.
+**Run on C1, in the `c1` deployment session:**
+
+```bash
+step 07-configure-storage-route
+```
+
+**Expected result.** An `AWS_S3_PUBLIC_URI` line with your voting portal HTTPS origin, followed by the three portal HTTPS origins under `accessControlAllowOriginList`.
+
+**If the result differs.** If an origin is missing, contains a demonstration host or includes a path, correct the public host inputs and recreate the working copy. Do not remove bucket paths or query strings to work around a failed signed URL.
+
+![Command preview for deployment step 07-configure-storage-route](assets/steps/07-configure-storage-route.png)
+
+*Command preview only: this image shows the bundled command, without executing it. Compare your actual result with the expectations above.*
 
 <!-- REUSE-IgnoreEnd -->
 
@@ -81,7 +117,19 @@ installation kit, before the first deployment:
 
 <!-- deployment-step: 07-004 -->
 
-**Session: c1.** Run `step 07-004`. Review its implementation with `show 07-004`.
+**Run on C1, in the `c1` deployment session:**
+
+```bash
+step 07-set-release-identity
+```
+
+**Expected result.** Two lines: `APP_VERSION: "10.0.0"` and `APP_HASH: "…"`, where the hash is exactly the 40-character Step revision from the verified kit provenance.
+
+**If the result differs.** If nothing prints, a value is missing or either key already exists, stop. Check the kit provenance and whether this one-time step already ran; do not guess a version or append duplicate keys.
+
+![Command preview for deployment step 07-set-release-identity](assets/steps/07-set-release-identity.png)
+
+*Command preview only: this image shows the bundled command, without executing it. Compare your actual result with the expectations above.*
 
 The block must print the two public values. For release `v10.0.0`,
 `APP_VERSION` must be `10.0.0`; `APP_HASH` must be the 40-character Step
@@ -103,7 +151,19 @@ service's administrator account, used only by the TOE's services:
 
 <!-- deployment-step: 07-005 -->
 
-**Session: c1.** Run `step 07-005`. Review its implementation with `show 07-005`.
+**Run on C1, in the `c1` deployment session:**
+
+```bash
+step 07-generate-service-secrets
+```
+
+**Expected result.** The final two lines are `600 root` and `19`. No password or secret value is printed.
+
+**If the result differs.** If `secrets.env` already exists, do not overwrite it or generate another set of passwords. Check the installation record. Any mode other than `600` or owner other than root must be corrected before continuing; never inspect the file by printing it.
+
+![Command preview for deployment step 07-generate-service-secrets](assets/steps/07-generate-service-secrets.png)
+
+*Command preview only: this image shows the bundled command, without executing it. Compare your actual result with the expectations above.*
 
 `S3_SECRET` must equal `RUSTFS_PASSWORD`: the services use the object
 storage's root account. Every later command that needs a secret loads this
@@ -122,7 +182,19 @@ also get the secret of their own client in the tenant realm.
 
 <!-- deployment-step: 07-006 -->
 
-**Session: c1.** Run `step 07-006`. Review its implementation with `show 07-006`.
+**Run on C1, in the `c1` deployment session:**
+
+```bash
+step 07-install-service-secrets
+```
+
+**Expected result.** Creation messages for `keycloak-bootstrap-admin` and `keycloak-service-credentials`, followed by the six key names listed below. Values are not displayed.
+
+**If the result differs.** If creation reports `AlreadyExists`, stop and establish whether this installation step was already completed; do not delete or replace credentials blindly. For a missing namespace, return to the namespace preparation step.
+
+![Command preview for deployment step 07-install-service-secrets](assets/steps/07-install-service-secrets.png)
+
+*Command preview only: this image shows the bundled command, without executing it. Compare your actual result with the expectations above.*
 
 The output must list `KC_BOOTSTRAP_ADMIN_PASSWORD` and
 `KC_BOOTSTRAP_ADMIN_USERNAME`, then `KEYCLOAK_ADMIN_CLIENT_ID`,
@@ -132,7 +204,19 @@ second Secret:
 
 <!-- deployment-step: 07-007 -->
 
-**Session: c1.** Run `step 07-007`. Review its implementation with `show 07-007`.
+**Run on C1, in the `c1` deployment session:**
+
+```bash
+step 07-connect-service-credentials
+```
+
+**Expected result.** Three file/count lines ending in `:1`: one for harvest and one for each windmill manifest.
+
+**If the result differs.** A count of `0` means the expected insertion point is missing; a count above `1` usually means the transformation ran twice. Recreate the clean working copy and repeat the chapter once.
+
+![Command preview for deployment step 07-connect-service-credentials](assets/steps/07-connect-service-credentials.png)
+
+*Command preview only: this image shows the bundled command, without executing it. Compare your actual result with the expectations above.*
 
 Each of the three files must count 1.
 
@@ -150,13 +234,37 @@ connections. The following step installs the reviewed filter at `/root/deploy/ke
 
 <!-- deployment-step: 07-008 -->
 
-**Session: c1.** Run `step 07-008`. Review its implementation with `show 07-008`.
+**Run on C1, in the `c1` deployment session:**
+
+```bash
+step 07-install-keycloak-filter
+```
+
+**Expected result.** The launcher reports that the reviewed filter was installed at `/root/deploy/keycloak.jq`. It does not change the running identity service.
+
+**If the result differs.** If the package check fails or the destination is refused, re-check the verified command package and root session. Do not paste a replacement filter from another source.
+
+![Command preview for deployment step 07-install-keycloak-filter](assets/steps/07-install-keycloak-filter.png)
+
+*Command preview only: this image shows the bundled command, without executing it. Compare your actual result with the expectations above.*
 
 Then apply it to the manifest, which becomes a JSON file:
 
 <!-- deployment-step: 07-009 -->
 
-**Session: c1.** Run `step 07-009`. Review its implementation with `show 07-009`.
+**Run on C1, in the `c1` deployment session:**
+
+```bash
+step 07-configure-keycloak
+```
+
+**Expected result.** `start --import-realm`, the four environment setting names and `keycloak-realm`, exactly as listed below; no `KC_HOSTNAME_STRICT` line.
+
+**If the result differs.** A missing `deployment.yaml` can mean this one-time conversion already ran. Do not rerun against the resulting JSON or deploy incomplete files; check the previous result and recreate the working copy if necessary.
+
+![Command preview for deployment step 07-configure-keycloak](assets/steps/07-configure-keycloak.png)
+
+*Command preview only: this image shows the bundled command, without executing it. Compare your actual result with the expectations above.*
 
 The output must be `start --import-realm` followed by `KC_HOSTNAME`,
 `KC_HTTP_ENABLED`, `KC_TRUSTSTORE_PATHS`, `JAVA_OPTS_APPEND` and
@@ -176,7 +284,19 @@ development mode, no metadata or other API.
 
 <!-- deployment-step: 07-010 -->
 
-**Session: c1.** Run `step 07-010`. Review its implementation with `show 07-010`.
+**Run on C1, in the `c1` deployment session:**
+
+```bash
+step 07-restrict-graphql
+```
+
+**Expected result.** The console and development-mode values are both `"false"`; each of the three ingress paths is `/hasura/v1/graphql` with `pathType: Exact`.
+
+**If the result differs.** If any value is `true`, a path is shorter, or its type is `Prefix`, do not deploy. Check the kit manifests and rebuild the hardening transformations; do not expose the metadata API to make troubleshooting easier.
+
+![Command preview for deployment step 07-restrict-graphql](assets/steps/07-restrict-graphql.png)
+
+*Command preview only: this image shows the bundled command, without executing it. Compare your actual result with the expectations above.*
 
 Both values must be `"false"`, and each of the three ingress files must show
 `path: /hasura/v1/graphql` with `pathType: Exact`.
@@ -195,7 +315,19 @@ returned by the backend:
 
 <!-- deployment-step: 07-011 -->
 
-**Session: c1.** Run `step 07-011`. Review its implementation with `show 07-011`.
+**Run on C1, in the `c1` deployment session:**
+
+```bash
+step 07-restrict-browser-origins
+```
+
+**Expected result.** Both allowlists contain exactly your three HTTPS portal origins; neither contains `*`.
+
+**If the result differs.** If origins differ between ingress and backend, check the configured host names and the current working directory. Recreate the affected manifests from the verified kit; a wildcard is not an acceptable workaround.
+
+![Command preview for deployment step 07-restrict-browser-origins](assets/steps/07-restrict-browser-origins.png)
+
+*Command preview only: this image shows the bundled command, without executing it. Compare your actual result with the expectations above.*
 
 The ingress list and the comma-separated backend value must contain the
 same three `https://` origins and no `"*"`. The backend setting applies only
@@ -213,7 +345,19 @@ not be reachable from outside the cluster:
 
 <!-- deployment-step: 07-012 -->
 
-**Session: c1.** Run `step 07-012`. Review its implementation with `show 07-012`.
+**Run on C1, in the `c1` deployment session:**
+
+```bash
+step 07-block-master-realm
+```
+
+**Expected result.** Exactly three `- host:` lines, matching your voting, administration and verifier hosts.
+
+**If the result differs.** If a host is absent or unexpected, correct the public input and recreate this ingress before deploying. After deployment, the master-realm HTTP checks must still pass.
+
+![Command preview for deployment step 07-block-master-realm](assets/steps/07-block-master-realm.png)
+
+*Command preview only: this image shows the bundled command, without executing it. Compare your actual result with the expectations above.*
 
 The last command must list the three host names. The only address allowed,
 192.0.2.1, is reserved for documentation and is never a client's, so the
@@ -229,7 +373,19 @@ Service, reachable only inside the cluster:
 
 <!-- deployment-step: 07-013 -->
 
-**Session: c1.** Run `step 07-013`. Review its implementation with `show 07-013`.
+**Run on C1, in the `c1` deployment session:**
+
+```bash
+step 07-restrict-harvest-route
+```
+
+**Expected result.** No terminal output. The step writes `harvest/service.yaml` for internal port 8400. Later deployment and service checks verify it in the cluster.
+
+**If the result differs.** If a file or directory error appears, check that the session is in `/root/deploy/kubernetes` and the working copy includes the harvest directory. Do not substitute a public or NodePort service.
+
+![Command preview for deployment step 07-restrict-harvest-route](assets/steps/07-restrict-harvest-route.png)
+
+*Command preview only: this image shows the bundled command, without executing it. Compare your actual result with the expectations above.*
 
 ## Keep the results and kiosk portals off
 
@@ -242,10 +398,22 @@ configuration. Their addresses stay unset:
 
 <!-- deployment-step: 07-014 -->
 
-**Session: c1.** Run `step 07-014`. Review its implementation with `show 07-014`.
+**Run on C1, in the `c1` deployment session:**
 
-The command must print nothing. The realm settings below also disable the
-results portal's client.
+```bash
+step 07-check-excluded-portals
+```
+
+**Expected result.** `Neither excluded-portal setting is present.` Both results-portal and kiosk-portal addresses remain unset.
+
+**If the result differs.** If either name and a value are printed, stop and return to the verified kit configuration. Do not deploy the results or kiosk portal in this configuration.
+
+![Command preview for deployment step 07-check-excluded-portals](assets/steps/07-check-excluded-portals.png)
+
+*Command preview only: this image shows the bundled command, without executing it. Compare your actual result with the expectations above.*
+
+The command confirms that neither excluded-portal setting is present. The realm
+settings below also disable the results portal's client.
 
 ## Configure the realms
 
@@ -297,25 +465,73 @@ as `/root/deploy/board.jq`:
 
 <!-- deployment-step: 07-015 -->
 
-**Session: c1.** Run `step 07-015`. Review its implementation with `show 07-015`.
+**Run on C1, in the `c1` deployment session:**
+
+```bash
+step 07-install-board-role-filter
+```
+
+**Expected result.** The launcher reports that `/root/deploy/board.jq` was installed. This copies the reviewed permissions filter; it does not yet change accounts.
+
+**If the result differs.** If installation is refused, verify the package and destination permissions. Do not shorten the exclusion list to make a later check pass.
+
+![Command preview for deployment step 07-install-board-role-filter](assets/steps/07-install-board-role-filter.png)
+
+*Command preview only: this image shows the bundled command, without executing it. Compare your actual result with the expectations above.*
 
 Then install the reviewed filter at `/root/deploy/realm.jq`:
 
 <!-- deployment-step: 07-016 -->
 
-**Session: c1.** Run `step 07-016`. Review its implementation with `show 07-016`.
+**Run on C1, in the `c1` deployment session:**
+
+```bash
+step 07-install-realm-filter
+```
+
+**Expected result.** The launcher reports that `/root/deploy/realm.jq` was installed. Apply it only with the next step.
+
+**If the result differs.** If the file cannot be installed or the package hash differs, stop and recover the verified package. Do not use an unreviewed realm filter.
+
+![Command preview for deployment step 07-install-realm-filter](assets/steps/07-install-realm-filter.png)
+
+*Command preview only: this image shows the bundled command, without executing it. Compare your actual result with the expectations above.*
 
 Extract the three documents and apply the filter to each:
 
 <!-- deployment-step: 07-017 -->
 
-**Session: c1.** Run `step 07-017`. Review its implementation with `show 07-017`.
+**Run on C1, in the `c1` deployment session:**
+
+```bash
+step 07-prepare-realms
+```
+
+**Expected result.** Three lines: `tenant done`, `tenant-template done` and `event-template done`.
+
+**If the result differs.** If jq reports an error or one line is absent, check that the IdP definition, all three reviewed filters and the original realm manifests are present. Keep the incomplete output out of the cluster; recreate the working copy before repeating transformations.
+
+![Command preview for deployment step 07-prepare-realms](assets/steps/07-prepare-realms.png)
+
+*Command preview only: this image shows the bundled command, without executing it. Compare your actual result with the expectations above.*
 
 The loop must print `done` for the three documents. Then check them:
 
 <!-- deployment-step: 07-018 -->
 
-**Session: c1.** Run `step 07-018`. Review its implementation with `show 07-018`.
+**Run on C1, in the `c1` deployment session:**
+
+```bash
+step 07-check-realm-security
+```
+
+**Expected result.** Three compact JSON records with the exact security values listed below, including a 900-second idle timeout, failure factor 5 and disabled local MFA selector.
+
+**If the result differs.** If a record is missing or any setting differs, do not write the realm documents back. Check the external IdP inputs and filter application; do not weaken a required value merely to pass the comparison.
+
+![Command preview for deployment step 07-check-realm-security](assets/steps/07-check-realm-security.png)
+
+*Command preview only: this image shows the bundled command, without executing it. Compare your actual result with the expectations above.*
 
 Each line must show `"sslRequired":"external"`, `"ssoSessionIdleTimeout":900`,
 `"bruteForceProtected":true`, `"failureFactor":5`, `"eventsEnabled":true`,
@@ -331,7 +547,19 @@ Check the sign-in settings in detail:
 
 <!-- deployment-step: 07-019 -->
 
-**Session: c1.** Run `step 07-019`. Review its implementation with `show 07-019`.
+**Run on C1, in the `c1` deployment session:**
+
+```bash
+step 07-check-role-separation
+```
+
+**Expected result.** Each document has the detailed sign-in, role, PKCE and authentication-time values listed below. The final record shows messaging absent, code step disabled and offline access null.
+
+**If the result differs.** If any forbidden role, enabled local form, smart-link flow or missing authentication-time mapper appears, stop before first deployment. Recreate and re-check all realm transformations; do not approve only the fields that happened to match.
+
+![Command preview for deployment step 07-check-role-separation](assets/steps/07-check-role-separation.png)
+
+*Command preview only: this image shows the bundled command, without executing it. Compare your actual result with the expectations above.*
 
 For each document, `listener` must be `true`, `results` (no group or account
 with "Edit Results Publication", "Datafix account" or "Manually Verify
@@ -370,7 +598,19 @@ the external authentication server holds for the operator:
 
 <!-- deployment-step: 07-020 -->
 
-**Session: c1.** Run `step 07-020`. Review its implementation with `show 07-020`.
+**Run on C1, in the `c1` deployment session:**
+
+```bash
+step 07-add-bootstrap-operator
+```
+
+**Expected result.** The listed administrator entries include `admin`, `api-user` and your installation user name, each paired with `false` for stored credentials.
+
+**If the result differs.** If the user name is wrong or appears twice, do not create more accounts by rerunning. Recreate the tenant document and enter the external authentication server's exact user name and e-mail; never add a local password.
+
+![Command preview for deployment step 07-add-bootstrap-operator](assets/steps/07-add-bootstrap-operator.png)
+
+*Command preview only: this image shows the bundled command, without executing it. Compare your actual result with the expectations above.*
 
 The last command must list `admin`, `api-user` and the new user name, each
 with `false`.
@@ -388,7 +628,19 @@ of the object storage read the templates from them:
 
 <!-- deployment-step: 07-021 -->
 
-**Session: c1.** Run `step 07-021`. Review its implementation with `show 07-021`.
+**Run on C1, in the `c1` deployment session:**
+
+```bash
+step 07-package-realm-secrets
+```
+
+**Expected result.** The six keycloak manifest files, `Secret` type lines, and the two secret-backed template references listed below. Only the two permitted ConfigMap paths may appear in the final scan.
+
+**If the result differs.** If realm files remain ConfigMaps or another ConfigMap is listed as containing secrets, do not deploy or copy the directory. Re-check conversion from the protected working copy; never print the secret-bearing documents.
+
+![Command preview for deployment step 07-package-realm-secrets](assets/steps/07-package-realm-secrets.png)
+
+*Command preview only: this image shows the bundled command, without executing it. Compare your actual result with the expectations above.*
 
 The `ls` command must list `deployment.json`, `ingress.yaml`,
 `master-blocked.yaml`, `realm-templates.json`, `realm.json` and

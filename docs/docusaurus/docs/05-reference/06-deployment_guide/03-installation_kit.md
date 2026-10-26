@@ -32,7 +32,19 @@ own check with the fingerprint you received separately:
 
 <!-- deployment-step: 03-001 -->
 
-**Session: admin.** Run `step 03-001`. Review its implementation with `show 03-001`.
+**Run on: `admin`.** In that machine’s deployment session, enter:
+
+```bash
+step 03-verify-kit-signature
+```
+
+**Expected result.** The launcher asks for the signing-key fingerprint received separately. Compare the displayed fingerprint with that independent value. The check must finish with `Fingerprint matches the expected value.`, `Signature over checksums.txt is valid.` and `All N files match checksums.txt. Bundle verified.` (`N` is the kit file count).
+
+**If the result differs.** If the fingerprint differs, do not replace your expected value with the one from the USB drive. If a signature or file check fails, keep the kit unused and obtain a corrected delivery. A missing `sequent` means the session is not in the kit’s top directory; check the configured kit path before retrying this read-only check.
+
+![Command and expected-result reference for 03-verify-kit-signature](./assets/steps/03-verify-kit-signature.png)
+
+*Reference screenshot of the command and its documented checks; it is not a record of a successful run on your servers.*
 
 It must print, in this order, the lines `Signing key fingerprint: ...` (the
 fingerprint you received), `Fingerprint matches the expected value.`,
@@ -44,7 +56,19 @@ does not depend only on a program from the kit:
 
 <!-- deployment-step: 03-002 -->
 
-**Session: admin.** Run `step 03-002`. Review its implementation with `show 03-002`.
+**Run on: `admin`.** In that machine’s deployment session, enter:
+
+```bash
+step 03-verify-kit-files
+```
+
+**Expected result.** The first line shows the same independently received fingerprint. Signature verification reports a good signature for `sequent-release`; the final line is `all kit files verified`. No file is reported missing or changed.
+
+**If the result differs.** If the fingerprint differs or signature verification fails, reject the kit. For a missing file, verify that you opened the complete kit directory; do not remove entries from `checksums.txt`. A checksum mismatch requires a replacement verified kit, not a regenerated checksum.
+
+![Command and expected-result reference for 03-verify-kit-files](./assets/steps/03-verify-kit-files.png)
+
+*Reference screenshot of the command and its documented checks; it is not a record of a successful run on your servers.*
 
 `ssh-keygen -Y verify` must report a good signature for `sequent-release`, and
 the last command must print `all kit files verified`.
@@ -56,7 +80,19 @@ must describe your site exactly:
 
 <!-- deployment-step: 03-003 -->
 
-**Session: admin.** Run `step 03-003`. Review its implementation with `show 03-003`.
+**Run on: `admin`.** In that machine’s deployment session, enter:
+
+```bash
+step 03-check-site-config
+```
+
+**Expected result.** A JSON site definition is printed, followed by `site file valid`. Compare its actual values with the network plan and the required values below; the final message validates its structure, not your site choices.
+
+**If the result differs.** If JSON parsing or the site check fails, obtain a corrected kit. If any network, node, disk or administration-key value differs from your approved site plan, do not install and do not edit the delivered file in place.
+
+![Command and expected-result reference for 03-check-site-config](./assets/steps/03-check-site-config.png)
+
+*Reference screenshot of the command and its documented checks; it is not a record of a successful run on your servers.*
 
 Compare each value with your network plan: `site.domain`; under `network` the
 interface, prefix length, gateway, `dns` and `ntp` (IP addresses of your DNS
@@ -96,7 +132,19 @@ Check from the administration workstation that both nodes are in the cluster:
 
 <!-- deployment-step: 03-004 -->
 
-**Session: admin.** Run `step 03-004`. Review its implementation with `show 03-004`.
+**Run on: `admin`.** In that machine’s deployment session, enter:
+
+```bash
+step 03-check-installed-nodes
+```
+
+**Expected result.** A node table lists both site host names, C1 and C2, with `Ready` in the STATUS column. The C1 control-plane role and the C2 worker must match the site file.
+
+**If the result differs.** For an SSH refusal or timeout, check the administration workstation’s source network and the C1 address. For `Permission denied`, check that you are using its authorized SSH key. For a missing C2 or `NotReady`, inspect the installer/boot logs and the allowed inter-node connections; do not deploy the TOE until both nodes are Ready.
+
+![Command and expected-result reference for 03-check-installed-nodes](./assets/steps/03-check-installed-nodes.png)
+
+*Reference screenshot of the command and its documented checks; it is not a record of a successful run on your servers.*
 
 ## Prepare the deployment directory
 
@@ -106,7 +154,19 @@ shell variables created by `./deploy configure c1`:
 
 <!-- deployment-step: 03-005 -->
 
-**Session: c1.** Run `step 03-005`. Review its implementation with `show 03-005`.
+**Run on: `c1`.** In that machine’s deployment session, enter:
+
+```bash
+step 03-load-site-values
+```
+
+**Expected result.** The two permission lines are `700 root /root/deploy` and `600 root /root/deploy/hosts.env`. All preceding checks are silent on success; their absence alone does not establish success if the command stopped.
+
+**If the result differs.** If a variable check stops or the file is missing, check the public configuration created on this same machine with `./deploy configure c1`. If permissions or owner differ, stop and reconcile that machine’s root-only deployment directory before proceeding. Preserve any existing customer realm value (`CR`); do not replace the configuration blindly.
+
+![Command and expected-result reference for 03-load-site-values](./assets/steps/03-load-site-values.png)
+
+*Reference screenshot of the command and its documented checks; it is not a record of a successful run on your servers.*
 
 - PORTAL_HOST, ADMIN_HOST and VERIFIER_HOST are the full host names of the
   voting portal, the administration portal and the ballot verifier.
@@ -127,4 +187,16 @@ carries. All later changes are made to this copy:
 
 <!-- deployment-step: 03-006 -->
 
-**Session: c1.** Run `step 03-006`. Review its implementation with `show 03-006`.
+**Run on: `c1`.** In that machine’s deployment session, enter:
+
+```bash
+step 03-copy-service-manifests
+```
+
+**Expected result.** The listing contains `namespaces.yaml` and the service directories from the verified kit. No `cp`, `chmod` or missing-file error appears.
+
+**If the result differs.** If `sequent` or its manifest directory cannot be found, confirm that this is the installed C1 system from the verified kit. If `/root/deploy/kubernetes` already existed, stop and inspect it before retrying: repeating a recursive copy can create a nested copy instead of the intended working tree.
+
+![Command and expected-result reference for 03-copy-service-manifests](./assets/steps/03-copy-service-manifests.png)
+
+*Reference screenshot of the command and its documented checks; it is not a record of a successful run on your servers.*

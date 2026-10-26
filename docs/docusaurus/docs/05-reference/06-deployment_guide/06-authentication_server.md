@@ -55,7 +55,19 @@ secret without showing it:
 
 <!-- deployment-step: 06-001 -->
 
-**Session: c1.** Run `step 06-001`. Review its implementation with `show 06-001`.
+**Run on: `c1`.** In that machine’s deployment session, enter:
+
+```bash
+step 06-configure-external-login
+```
+
+**Expected result.** Public endpoint/client values are prompted as needed, then `Client secret:` accepts hidden input. The printed JSON contains the expected issuer, HTTPS endpoint URLs, client ID, signature-validation settings and `certificate-first-login-flow`; it omits `clientSecret`.
+
+**If the result differs.** If the public values differ from the independently supplied registration, stop before applying the provider definition. If the command fails or is interrupted, treat `idp.json` as potentially incomplete and inspect it through a redacted view only. Never paste its unredacted contents into a report or enter the client secret in a public-value prompt.
+
+![Command and expected-result reference for 06-configure-external-login](./assets/steps/06-configure-external-login.png)
+
+*Reference screenshot of the command and its documented checks; it is not a record of a successful run on your servers.*
 
 Check the output against the values you received. `validateSignature` and
 `useJwksUrl` make the TOE accept only ID tokens signed with the server's
@@ -70,11 +82,36 @@ Keycloak trusts the authentication server's TLS certificate only through this
 CA certificate. Check its fingerprint before installing it.
 :::
 
-Save the CA certificate as `/root/deploy/auth-server-ca.pem` on C1, then:
+Save the CA certificate as `/root/deploy/auth-server-ca.pem` on C1. **Before installing
+it**, run this short read-only check in the C1 session:
+
+```bash
+openssl x509 -in /root/deploy/auth-server-ca.pem -noout -subject -fingerprint -sha256
+```
+
+Expected: the subject and SHA-256 fingerprint supplied independently by the
+authentication-server operator. Compare every fingerprint byte. If they differ,
+stop and obtain the correct CA certificate through that operator's verified channel.
+The installation command below repeats the fingerprint and then immediately creates
+the ConfigMap; it does not pause to ask you to approve the fingerprint.
+
+Only after that independent comparison passes, install the trust anchor:
 
 <!-- deployment-step: 06-002 -->
 
-**Session: c1.** Run `step 06-002`. Review its implementation with `show 06-002`.
+**Run on: `c1`.** In that machine’s deployment session, enter:
+
+```bash
+step 06-install-idp-ca
+```
+
+**Expected result.** The certificate subject and SHA-256 fingerprint match the independently received CA certificate details, followed by `configmap/auth-server-ca created`. The fingerprint must already have passed the separate precheck above before this command is run.
+
+**If the result differs.** If the precheck differs, do not run this step. If creation says `AlreadyExists`, inspect whether this is a partial earlier setup and verify the existing trusted certificate before replacing anything. A missing namespace means the certificate/namespace installation stage is incomplete; return to it first.
+
+![Command and expected-result reference for 06-install-idp-ca](./assets/steps/06-install-idp-ca.png)
+
+*Reference screenshot of the command and its documented checks; it is not a record of a successful run on your servers.*
 
 The fingerprint must be the one you received. [Configuring the
 Deployment](07-hardening.md) makes Keycloak use this certificate and limits
@@ -86,7 +123,19 @@ On C1:
 
 <!-- deployment-step: 06-003 -->
 
-**Session: c1.** Run `step 06-003`. Review its implementation with `show 06-003`.
+**Run on: `c1`.** In that machine’s deployment session, enter:
+
+```bash
+step 06-check-idp-tls
+```
+
+**Expected result.** The allowed handshake reports TLS 1.3, `TLS_AES_256_GCM_SHA384`, a `secp384r1` temporary key, a 384-bit server public key and `Verify return code: 0 (ok)`. The TLS 1.2, AES-128 and X25519 attempts each say `refused`.
+
+**If the result differs.** If the allowed handshake fails, check the independently verified CA file, DNS, endpoint host name and firewall path. If a prohibited attempt is accepted, have the external authentication-server operator correct its TLS profile before connecting the TOE. Do not disable certificate or host-name verification.
+
+![Command and expected-result reference for 06-check-idp-tls](./assets/steps/06-check-idp-tls.png)
+
+*Reference screenshot of the command and its documented checks; it is not a record of a successful run on your servers.*
 
 The first command must show `New, TLSv1.3, Cipher is TLS_AES_256_GCM_SHA384`,
 a temporary key on `secp384r1`, `Server public key is 384 bit` and
@@ -95,4 +144,16 @@ check that the server is reachable, since Keycloak can run on either node:
 
 <!-- deployment-step: 06-004 -->
 
-**Session: c2.** Run `step 06-004`. Review its implementation with `show 06-004`.
+**Run on: `c2`.** In that machine’s deployment session, enter:
+
+```bash
+step 06-check-c2-idp-access
+```
+
+**Expected result.** The single success message is `reachable`. This is a TCP reachability check from C2, not an authentication or certificate validation result.
+
+**If the result differs.** If no `reachable` message appears or the command times out, check C2’s DNS and outbound TCP-443 route to the configured authentication host. Resolve the network problem before allowing Keycloak to run there; do not change the host to an unrelated reachable server.
+
+![Command and expected-result reference for 06-check-c2-idp-access](./assets/steps/06-check-c2-idp-access.png)
+
+*Reference screenshot of the command and its documented checks; it is not a record of a successful run on your servers.*

@@ -32,7 +32,19 @@ On C1:
 
 <!-- deployment-step: 05-001 -->
 
-**Session: c1.** Run `step 05-001`. Review its implementation with `show 05-001`.
+**Run on: `c1`.** In that machine’s deployment session, enter:
+
+```bash
+step 05-create-tls-request
+```
+
+**Expected result.** The certificate request summary shows `NIST CURVE: P-384` and DNS entries for all three configured web host names. The private key is saved locally; it is not printed.
+
+**If the result differs.** If a host name is wrong, correct the controlled site configuration before requesting a certificate. If key generation or request creation fails, inspect the root-only TLS directory and installed OpenSSL prerequisites. Do not blindly rerun this step after submitting a CSR: it replaces the private key, invalidating the relationship to that request.
+
+![Command and expected-result reference for 05-create-tls-request](./assets/steps/05-create-tls-request.png)
+
+*Reference screenshot of the command and its documented checks; it is not a record of a successful run on your servers.*
 
 The last command must show `NIST CURVE: P-384` and the three host names.
 
@@ -47,7 +59,19 @@ On C1:
 
 <!-- deployment-step: 05-002 -->
 
-**Session: c1.** Run `step 05-002`. Review its implementation with `show 05-002`.
+**Run on: `c1`.** In that machine’s deployment session, enter:
+
+```bash
+step 05-check-tls-certificate
+```
+
+**Expected result.** The certificate summary lists the intended subject, issuer, all three DNS names and a future expiry date. It shows `NIST CURVE: P-384`, then `certificate matches the key`.
+
+**If the result differs.** If the certificate cannot be parsed, check that the CA response and chain were saved in PEM format. For missing names, expiry, a wrong curve or a key mismatch, obtain the correct certificate for the existing CSR. Never replace or export the private key to make an unrelated certificate fit.
+
+![Command and expected-result reference for 05-check-tls-certificate](./assets/steps/05-check-tls-certificate.png)
+
+*Reference screenshot of the command and its documented checks; it is not a record of a successful run on your servers.*
 
 Then check the chain on the administration workstation, against the trust
 store of a current browser installation (on Debian and Ubuntu,
@@ -55,7 +79,19 @@ store of a current browser installation (on Debian and Ubuntu,
 
 <!-- deployment-step: 05-003 -->
 
-**Session: admin.** Run `step 05-003`. Review its implementation with `show 05-003`.
+**Run on: `admin`.** In that machine’s deployment session, enter:
+
+```bash
+step 05-verify-certificate-chain
+```
+
+**Expected result.** The final verification line is `leaf.pem: OK`. The certificate chain reaches the administration workstation’s current public browser-compatible CA trust store.
+
+**If the result differs.** For `unable to get local issuer certificate`, check the supplied intermediate chain. For expiry or an untrusted/private CA, obtain a suitable certificate from the CA. Do not add a private CA to this check’s trust store merely to force `OK`; voters’ ordinary browsers must trust the chain.
+
+![Command and expected-result reference for 05-verify-certificate-chain](./assets/steps/05-verify-certificate-chain.png)
+
+*Reference screenshot of the command and its documented checks; it is not a record of a successful run on your servers.*
 
 The result must be `leaf.pem: OK`. A certificate that is self-signed, chains
 to a private CA, has an RSA key or a curve other than P-384 must not be used:
@@ -71,7 +107,19 @@ On C1:
 
 <!-- deployment-step: 05-004 -->
 
-**Session: c1.** Run `step 05-004`. Review its implementation with `show 05-004`.
+**Run on: `c1`.** In that machine’s deployment session, enter:
+
+```bash
+step 05-install-tls-secrets
+```
+
+**Expected result.** Namespace apply messages are followed by creation of `step-tls-cert` in each namespace. The final table lists that TLS Secret in both `step-apps` and `step-infra` (type `kubernetes.io/tls`).
+
+**If the result differs.** If a Secret already exists, stop and establish whether this is a renewal or a partial earlier installation; do not delete it blindly. For a certificate/key error, return to certificate verification. If only one namespace succeeded, inspect both namespaces and reconcile the partial state before proceeding.
+
+![Command and expected-result reference for 05-install-tls-secrets](./assets/steps/05-install-tls-secrets.png)
+
+*Reference screenshot of the command and its documented checks; it is not a record of a successful run on your servers.*
 
 The last command must list `step-tls-cert` in `step-apps` and in
 `step-infra`.
@@ -97,7 +145,19 @@ On C1, install the certificate and the key, and restart the TLS endpoint:
 
 <!-- deployment-step: 05-005 -->
 
-**Session: c1.** Run `step 05-005`. Review its implementation with `show 05-005`.
+**Run on: `c1`.** In that machine’s deployment session, enter:
+
+```bash
+step 05-start-tls-endpoint
+```
+
+**Expected result.** The last two output lines are `active` and `nginx`. The second line identifies the sole process listening on TCP 443; no other process name may appear.
+
+**If the result differs.** If nginx fails to restart, inspect its service status and journal for certificate-path or configuration errors; retain private key confidentiality. If another process occupies port 443, stop and reconcile the installed kit’s endpoint arrangement. Do not bypass nginx or expose the ingress directly.
+
+![Command and expected-result reference for 05-start-tls-endpoint](./assets/steps/05-start-tls-endpoint.png)
+
+*Reference screenshot of the command and its documented checks; it is not a record of a successful run on your servers.*
 
 The last two commands must print `active` and `nginx` alone. Repeat this
 section each time the certificate is renewed, together with
@@ -113,7 +173,19 @@ has its certificate, and again in
 
 <!-- deployment-step: 05-006 -->
 
-**Session: admin.** Run `step 05-006`. Review its implementation with `show 05-006`.
+**Run on: `admin`.** In that machine’s deployment session, enter:
+
+```bash
+step 05-check-tls-profile
+```
+
+**Expected result.** For each of the three host names, the successful handshake reports TLS 1.3, `TLS_AES_256_GCM_SHA384`, a `secp384r1` temporary key, a 384-bit server public key and `Verify return code: 0 (ok)`. All prohibited protocol/cipher/group and wrong-or-missing-name attempts say `refused`. The final C1 port-80 line says `closed`.
+
+**If the result differs.** Any `ACCEPTED`, `open`, missing positive-handshake field or certificate verification error fails this check. Verify DNS/SNI host names, certificate chain and the controlled TLS endpoint configuration. A disconnected endpoint can refuse everything, so negative results never replace the successful allowed handshake.
+
+![Command and expected-result reference for 05-check-tls-profile](./assets/steps/05-check-tls-profile.png)
+
+*Reference screenshot of the command and its documented checks; it is not a record of a successful run on your servers.*
 
 For each host, the first command must print four lines:
 `Peer Temp Key: ECDH, secp384r1, 384 bits` (older OpenSSL versions say

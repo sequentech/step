@@ -35,6 +35,6 @@ PS1='AGD[${AGD_ROLE}] \w # '
 if [[ -n ${AGD_BUNDLE:-} ]]; then
     source /root/deploy/hosts.env || return
     set +x
-    printf 'Local %s session. Use steps, show ID, step ID, and exit. No command output is recorded.\n' "$AGD_ROLE"
+    printf 'Local %s session. Use steps, show NAME, step NAME, and exit. No command output is recorded.\n' "$AGD_ROLE"
     printf 'Keep this session open for dependent commands; read the handbook between steps.\n'
 fi

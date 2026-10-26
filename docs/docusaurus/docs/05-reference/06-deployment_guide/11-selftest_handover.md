@@ -197,14 +197,46 @@ administration workstation, with a backup medium mounted at the path you give:
 
 <!-- deployment-step: 11-001 -->
 
-**Session: admin.** Run `step 11-001`. Review its implementation with `show 11-001`.
+**Run on the administration workstation, in the `admin` deployment session:**
 
-Repeat the last command until it prints `0`. Then write the backup and start
-the TOE again:
+```bash
+step 11-stop-services-for-backup
+```
+
+**Expected result.** Deployment scale-down messages followed by a running-pod count. Continue to the backup only when the count is `0`, with no SSH or Kubernetes error.
+
+**If the result differs.** A positive count means shutdown is still in progress: repeat only the read-only pod listing shown below, not the whole backup preparation. On any SSH or Kubernetes error, stop and check the connection and actual pod state before doing anything else.
+
+![Command preview for deployment step 11-stop-services-for-backup](assets/steps/11-stop-services-for-backup.png)
+
+*Command preview only: this image shows the bundled command, without executing it. Compare your actual result with the expectations above.*
+
+To check shutdown again, copy this read-only command in the same administration
+session; it lists running pods:
+
+```bash
+ssh root@"$C1" 'k3s kubectl get pods -A --field-selector=status.phase=Running'
+```
+
+Wait until no row has a namespace starting with `step-`; system pods may still
+run. Any SSH or Kubernetes error is a failed check, not evidence of shutdown.
+Then write the backup and start the TOE again:
 
 <!-- deployment-step: 11-002 -->
 
-**Session: admin.** Run `step 11-002`. Review its implementation with `show 11-002`.
+**Run on the administration workstation, in the `admin` deployment session:**
+
+```bash
+step 11-create-encrypted-backup
+```
+
+**Expected result.** Private passphrase prompts, deployment scale-up messages, and two nonzero archive-entry counts for `root/deploy/` and `var/lib/sequent-data/`.
+
+**If the result differs.** On an encryption or validation failure, retain the original data and establish whether the services remain stopped. Do not accept a partial archive or overwrite the only known good backup; recover service operation through the documented deploy/check procedure.
+
+![Command preview for deployment step 11-create-encrypted-backup](assets/steps/11-create-encrypted-backup.png)
+
+*Command preview only: this image shows the bundled command, without executing it. Compare your actual result with the expectations above.*
 
 The last command must print two lines, one with `root/deploy/` and one with
 `var/lib/sequent-data/`, each after the number of entries it holds. Then make the checks of
@@ -219,12 +251,25 @@ checks the electoral log. To restore:
 
 1. Make a backup of the current state as above, and keep it.
 2. Scale the deployments to 0 as above and wait until the count is `0`.
-3. Set B to the backup to restore (step 1 has set it to the new backup),
-   empty the data directory and extract the backup on C1:
+3. At the public prompts, select the backup medium and the existing backup
+   file to restore, not the new backup just created. After validation, this step
+   empties the data directory and extracts the selected backup on C1:
 
    <!-- deployment-step: 11-003 -->
 
-   **Session: admin.** Run `step 11-003`. Review its implementation with `show 11-003`.
+   **Run on the administration workstation, in the `admin` deployment session:**
+
+   ```bash
+   step 11-restore-authorized-backup
+   ```
+
+   **Expected result.** An explicit restore confirmation, private decryption prompts and completion without an archive or SSH error. Successful extraction itself is normally silent; deployment and all verification checks are still required next.
+
+   **If the result differs.** If preflight fails, current data must not be removed: check the chosen archive and passphrase. If extraction fails after deletion began, keep the TOE stopped, preserve the current-state backup, and recover from a validated archive before redeploying.
+
+   ![Command preview for deployment step 11-restore-authorized-backup](assets/steps/11-restore-authorized-backup.png)
+
+   *Command preview only: this image shows the bundled command, without executing it. Compare your actual result with the expectations above.*
 
 The step asks for explicit restore authorization, then validates decryption and
 the complete archive before deleting any current data. Plaintext is streamed,

@@ -9,6 +9,7 @@ from pathlib import Path
 import re
 import subprocess
 import textwrap
+from step_names import STEP_NAMES
 
 HERE = Path(__file__).resolve().parent
 GUIDE = Path('docs/docusaurus/docs/05-reference/06-deployment_guide')
@@ -60,10 +61,10 @@ def build(repo,out,commit,working=False):
             command=candidates[0];body=command.read_bytes();command_rel=str(command.relative_to(repo))
             if not working and subprocess.check_output(['git','-C',str(repo),'show',commit+':'+command_rel])!=body:raise ValueError('Command differs from selected commit')
             name='steps/'+command.name;files[name]=body
-            e={'id':ident,'language':'bash' if command.suffix=='.sh' else 'jq','heading':heading,'source':rel,'line':line_number,'source_sha256':sha(raw),'roles':HOSTS.get(ident,['c1']),'destination':DATA.get(ident),'destructive':ident in ('08-014','11-003'),'file':name,'sha256':sha(body),'command_source':command_rel,'transformation':'none'}
+            e={'id':STEP_NAMES[ident],'legacy_id':ident,'language':'bash' if command.suffix=='.sh' else 'jq','heading':heading,'source':rel,'line':line_number,'source_sha256':sha(raw),'roles':HOSTS.get(ident,['c1']),'destination':DATA.get(ident),'destructive':ident in ('08-014','11-003'),'file':name,'sha256':sha(body),'command_source':command_rel,'transformation':'none'}
             steps.append(e);sources.append({'path':command_rel,'sha256':sha(body)})
     if len({s['id'] for s in steps})!=len(steps):raise ValueError('Duplicate step identifier')
-    for name in ('runner.py','session.sh','build.py'):
+    for name in ('runner.py','session.sh','build.py','step_names.py'):
         p=HERE/name;rel=str(p.relative_to(repo));raw=p.read_bytes()
         if not working and subprocess.check_output(['git','-C',str(repo),'show',commit+':'+rel])!=raw:raise ValueError('Runner differs from selected commit')
         files[name]=raw;sources.append({'path':rel,'sha256':sha(raw)})
@@ -84,8 +85,9 @@ installation or network download is performed by this launcher.
    remain offline. Configuration is public, validated data in operator.json;
    never enter a password, token or private key there. The guide's hidden
    prompts and root-only secret files retain secret input handling.
-3. Follow AGD-04 in order. `steps` lists IDs, `show 07-003` displays the exact
-   reviewed command, and `step 07-003` runs only that block on its allowed host.
+3. Follow AGD-04 in order. `steps` lists readable command names (legacy numeric
+   IDs remain supported aliases), `show 07-configure-storage-route` displays the exact
+   reviewed command, and `step 07-configure-storage-route` runs only that block on its allowed host.
    Read its preconditions and compare all outputs with the guide before moving
    on. jq steps install the exact bundled filter; text steps are expected output.
 4. Keep the same shell open for dependent commands: variables, functions and

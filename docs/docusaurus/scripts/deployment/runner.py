@@ -42,6 +42,21 @@ def validate_value(name, value):
     else: need(' ' not in value or name == 'names of the election event realms, separated by spaces', 'This identifier cannot contain spaces')
     return value
 
+def numeric_id(entry):
+    return entry.get('legacy_id', entry['id'])
+
+def step_entries(m):
+    entries = {}
+    for entry in m['steps']:
+        for name in {entry['id'], numeric_id(entry)}:
+            need(name not in entries, 'Duplicate step name or alias')
+            entries[name] = entry
+    return entries
+
+def confirmation_for(entry):
+    return {'08-014': 'REMOVE TRUSTEE KEYS',
+            '11-003': 'RESTORE AUTHORIZED BACKUP'}.get(numeric_id(entry))
+
 def require_role(entry, role):
     need(role in entry['roles'], 'Wrong session: use ' + '/'.join(entry['roles']))
 
@@ -123,16 +138,17 @@ def prepare(entry, d, role):
             p.chmod(0o600)
         body = 'printf "%s\\n" "Reviewed filter installed: ' + str(p) + '"\n'
     else:
-        values = {**d['site'], **d['parameters'].get(entry['id'], {})}
+        values = {**d['site'], **d['parameters'].get(numeric_id(entry), {}), **d['parameters'].get(entry['id'], {})}
         for name in sorted(set(TOKENS.findall(original))):
             if name not in d['site']:
                 values[name] = validate_value(name, prompt(name + ' (public)', values.get(name, '')))
         d['parameters'][entry['id']] = {n: values[n] for n in TOKENS.findall(original) if n not in d['site']}; write_config(d)
         body = substitute(original, values)
-    if entry['id'] == '08-014':
-        need(prompt('Only after retention and board authorization; type REMOVE TRUSTEE KEYS') == 'REMOVE TRUSTEE KEYS', 'Removal cancelled')
-    elif entry['id'] == '11-003':
-        need(prompt('Only with board restore authorization and stopped services; type RESTORE AUTHORIZED BACKUP') == 'RESTORE AUTHORIZED BACKUP', 'Restore cancelled')
+    confirmation = confirmation_for(entry)
+    if confirmation:
+        reason = ('Only after retention and board authorization' if numeric_id(entry) == '08-014'
+                  else 'Only with board restore authorization and stopped services')
+        need(prompt(reason + '; type ' + confirmation) == confirmation, 'Destructive operation cancelled')
     target = WORK / '.commands'; target.mkdir(mode=0o700, exist_ok=True)
     need(not target.is_symlink() and target.stat().st_uid == 0 and not (target.stat().st_mode & 0o077), 'Private command directory required')
     p = target / (entry['id'] + '.sh'); need(not p.is_symlink(), 'Command path is a symlink')
@@ -148,7 +164,7 @@ def main():
     if a.command == 'list':
         for e in m['steps']: print(e['id'], '/'.join(e['roles']), e['heading'])
         return
-    entries = {e['id']: e for e in m['steps']}
+    entries = step_entries(m)
     if a.command == 'show':
         need(a.value in entries, 'Unknown step'); e = entries[a.value]
         print(e['id'], '/'.join(e['roles']), e['heading'], '\nSource:', e['source'], 'line', e['line'])

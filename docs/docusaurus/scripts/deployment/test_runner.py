@@ -11,6 +11,123 @@ import runner
 import build
 
 class RunnerTests(unittest.TestCase):
+    def test_descriptive_names_and_numeric_aliases_resolve_identically(self):
+        m = {'steps': [{'id': '04-check-secret-encryption', 'legacy_id': '04-005', 'roles': ['c1']}]}
+        names = runner.step_entries(m)
+        self.assertIs(names['04-check-secret-encryption'], names['04-005'])
+        self.assertEqual(runner.numeric_id(names['04-check-secret-encryption']), '04-005')
+        with self.assertRaises(ValueError):
+            runner.step_entries({'steps': m['steps'] + [{'id': '04-005'}]})
+
+    def test_destructive_confirmations_survive_readable_names(self):
+        self.assertEqual(runner.confirmation_for({'id': '08-remove-trustee-keys', 'legacy_id': '08-014'}), 'REMOVE TRUSTEE KEYS')
+        self.assertEqual(runner.confirmation_for({'id': '11-restore-authorized-backup', 'legacy_id': '11-003'}), 'RESTORE AUTHORIZED BACKUP')
+        self.assertIsNone(runner.confirmation_for({'id': '04-check-secret-encryption', 'legacy_id': '04-005'}))
+
+
+    def test_service_isolation_zero_public_routes_continues(self):
+        command = (Path(__file__).parent/'commands/10-009.sh').read_text()
+        with tempfile.TemporaryDirectory() as folder:
+            f=Path(folder)/'body.sh';f.write_text(command)
+            stub = r'''source "$1"
+k3s(){
+ case "$*" in
+ 'secrets-encrypt status') printf 'Encryption Status: Enabled\n';;
+ *'get service b4'*) printf 'ClusterIP\n';;
+ *'get ingress'*) printf '{"items": []}\n';;
+ *'get service -A'*) printf '{"items": []}\n'; printf reached-service-check >&2;;
+ esac
+}
+agd_source "$2"
+'''
+            result=subprocess.run(['bash','-c',stub,'test',str(Path(__file__).with_name('session.sh')),str(f)],capture_output=True,text=True)
+            self.assertEqual(result.returncode,0,result.stderr)
+            self.assertIn('reached-service-check',result.stderr)
+            self.assertIn('0',result.stdout)
+
+    def test_excluded_portal_absence_is_readable_but_missing_file_stops(self):
+        command = (Path(__file__).parent/'commands/07-014.sh').read_text()
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder);(root/'config').mkdir()
+            f=root/'body.sh';f.write_text(command)
+            config=root/'config/step-env.yaml';config.write_text('OTHER_SETTING: value\n')
+            args=['bash','-c','source "$1"; agd_source "$2"','test',str(Path(__file__).with_name('session.sh').resolve()),str(f)]
+            result=subprocess.run(args,cwd=root,capture_output=True,text=True)
+            self.assertEqual(result.returncode,0,result.stderr)
+            self.assertIn('Neither excluded-portal setting is present.',result.stdout)
+            config.unlink()
+            result=subprocess.run(args,cwd=root,capture_output=True,text=True)
+            self.assertNotEqual(result.returncode,0)
+            self.assertNotIn('Neither excluded-portal',result.stdout)
+
+    def test_trustee_import_failure_preserves_temporary_key(self):
+        import re
+        source=(Path(__file__).parent/'commands/08-010.sh').read_text()
+        remote=re.search(r'ssh root@\$C1 "(.*)"\s*$',source,re.S).group(1)
+        for failure in [True,False]:
+            code=('k3s(){ return '+('1' if failure else '0')+'; }; '
+                  'shred(){ printf DELETED; }; N=1; '+remote)
+            result=subprocess.run(['bash','-c',code],capture_output=True,text=True)
+            if failure:
+                self.assertNotEqual(result.returncode,0)
+                self.assertNotIn('DELETED',result.stdout)
+            else:
+                self.assertEqual(result.returncode,0,result.stderr)
+                self.assertIn('Trustee key import complete; temporary key file removed.',result.stdout)
+
+    def test_backup_quiescence_propagates_remote_failures(self):
+        original=(Path(__file__).parent/'commands/11-001.sh').read_text()
+        for failed in ['scale','get']:
+            with self.subTest(failed=failed), tempfile.TemporaryDirectory() as folder:
+                f=Path(folder)/'body.sh'
+                f.write_text(original.replace('. /root/deploy/hosts.env','C1=example.invalid').replace('<backup-medium>',folder))
+                code = '''source "$1"
+k3s(){ case "$*" in *" $FAILED "*) return 3;; *) printf reached >&2;; esac; }
+ssh(){ bash -c "$2"; }
+export -f k3s
+export FAILED="$3"
+agd_source "$2"
+'''
+                result=subprocess.run(['bash','-c',code,'test',str(Path(__file__).with_name('session.sh')),str(f),failed],capture_output=True,text=True)
+                self.assertNotEqual(result.returncode,0)
+                self.assertNotIn('0',result.stdout)
+                if failed == 'scale': self.assertNotIn('reached',result.stderr)
+
+    def test_tenant_selection_prompts_after_listing_and_rejects_bad_uuid(self):
+        original=(Path(__file__).parent/'commands/08-007.sh').read_text()
+        tenant='01234567-89ab-cdef-0123-456789abcdef'
+        for value in [tenant, 'not-a-uuid', '$(id)']:
+            with self.subTest(value=value), tempfile.TemporaryDirectory() as folder:
+                hosts=Path(folder)/'hosts.env';hosts.write_text('')
+                f=Path(folder)/'body.sh';f.write_text(original.replace('/root/deploy/hosts.env',str(hosts)).replace('cd /root/deploy','cd '+folder))
+                code='''source "$1"; k3s(){ printf "LISTED\\n"; }; agd_source "$2"; result=$?; printf "CR=%s\\n" "$CR"; exit "$result"'''
+                result=subprocess.run(['bash','-c',code,'test',str(Path(__file__).with_name('session.sh')),str(f)],input=value+'\n',capture_output=True,text=True)
+                self.assertIn('LISTED',result.stdout)
+                if value == tenant:
+                    self.assertEqual(result.returncode,0,result.stderr)
+                    self.assertIn('export CR=tenant-'+tenant,hosts.read_text())
+                    self.assertIn('CR=tenant-'+tenant,result.stdout)
+                else:
+                    self.assertNotEqual(result.returncode,0)
+                    self.assertEqual(hosts.read_text(),'')
+
+    def test_discovery_and_redirect_checks_select_realm_explicitly(self):
+        for name in ['10-002.sh','10-003.sh']:
+            original=(Path(__file__).parent/'commands'/name).read_text()
+            for choice in ['', 'customer', 'invalid']:
+                with self.subTest(name=name,choice=choice), tempfile.TemporaryDirectory() as folder:
+                    f=Path(folder)/'body.sh'
+                    setup='R=tenant-installation; CR=tenant-customer; PORTAL_HOST=portal.test; ADMIN_HOST=admin.test; VERIFIER_HOST=verifier.test'
+                    f.write_text(original.replace('. /root/deploy/hosts.env',setup))
+                    code='''source "$1"; curl(){ printf '%s\\n' "$*" >&2; printf '{}'; }; agd_source "$2"'''
+                    result=subprocess.run(['bash','-c',code,'test',str(Path(__file__).with_name('session.sh')),str(f)],input=choice+'\n',capture_output=True,text=True)
+                    if choice == 'invalid':
+                        self.assertNotEqual(result.returncode,0)
+                        self.assertNotIn('https://',result.stderr)
+                    else:
+                        self.assertEqual(result.returncode,0,result.stderr)
+                        self.assertIn('/realms/tenant-'+('customer' if choice == 'customer' else 'installation'),result.stderr)
+
     def test_public_values_refuse_shell_injection(self):
         for value in ["$(id)", "x;id", "x'", 'x"', "x`id`", "x\ny"]:
             with self.subTest(value=value), self.assertRaises(ValueError):
@@ -108,6 +225,13 @@ class RunnerTests(unittest.TestCase):
             m=build.build(repo,out,'0'*40,True)
             result=subprocess.run([str(out/'deploy'),'check'],capture_output=True,text=True)
             self.assertEqual(result.returncode,0,result.stderr)
+            self.assertEqual(len(m['steps']), 78)
+            for e in m['steps']:
+                self.assertRegex(e['id'], r'^[0-9]{2}-[a-z]+(?:-[a-z0-9]+)+$')
+                modern=subprocess.run([str(out/'deploy'),'show',e['id']],capture_output=True,text=True)
+                legacy=subprocess.run([str(out/'deploy'),'show',e['legacy_id']],capture_output=True,text=True)
+                self.assertEqual(modern.returncode,0,modern.stderr)
+                self.assertEqual(modern.stdout,legacy.stdout)
             result=subprocess.run([str(out/'deploy'),'configure','c1'],capture_output=True,text=True)
             self.assertNotEqual(result.returncode,0)
             self.assertIn('Test-only',result.stderr)

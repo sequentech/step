@@ -3,6 +3,6 @@
 k3s secrets-encrypt status | grep 'Encryption Status'
 k3s kubectl -n step-apps get service b4 -o jsonpath='{.spec.type}{"\n"}'
 k3s kubectl get ingress -A -o json \
-  | jq -r '.items[].spec.rules[].http.paths[].backend.service.name' | grep -cx b4
+  | jq '[.items[].spec.rules[].http.paths[].backend.service.name | select(. == "b4")] | length'
 k3s kubectl get service -A -o json | jq -r '.items[]
   | select(.spec.type != "ClusterIP") | "\(.metadata.namespace)/\(.metadata.name)"'
