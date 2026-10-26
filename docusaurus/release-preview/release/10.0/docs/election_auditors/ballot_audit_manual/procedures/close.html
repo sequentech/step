@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Report and Remove the Copies | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/release-preview/release/10.0/docs/election_auditors/ballot_audit_manual/procedures/close"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Report and Remove the Copies | Sequent Online Voting"><meta data-rh="true" name="description" content="Write the audit report, publish only the safe summary, and remove the restored copies and the private files."><meta data-rh="true" property="og:description" content="Write the audit report, publish only the safe summary, and remove the restored copies and the private files."><link data-rh="true" rel="icon" href="/docusaurus/release-preview/release/10.0/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/release-preview/release/10.0/docs/election_auditors/ballot_audit_manual/procedures/close"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/release-preview/release/10.0/docs/election_auditors/ballot_audit_manual/procedures/close" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/release-preview/release/10.0/docs/election_auditors/ballot_audit_manual/procedures/close" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Ballot Audit Manual","item":"https://sequentech.github.io/docusaurus/release-preview/release/10.0/docs/election_auditors/ballot_audit_manual"},{"@type":"ListItem","position":2,"name":"Procedures","item":"https://sequentech.github.io/docusaurus/release-preview/release/10.0/docs/election_auditors/ballot_audit_manual/procedures"},{"@type":"ListItem","position":3,"name":"Report and Remove the Copies","item":"https://sequentech.github.io/docusaurus/release-preview/release/10.0/docs/election_auditors/ballot_audit_manual/procedures/close"}]}</script><link rel="stylesheet" href="/docusaurus/release-preview/release/10.0/assets/css/styles.fc78c976.css">
-<script src="/docusaurus/release-preview/release/10.0/assets/js/runtime~main.6deede74.js" defer="defer"></script>
+<script src="/docusaurus/release-preview/release/10.0/assets/js/runtime~main.ca5e131c.js" defer="defer"></script>
 <script src="/docusaurus/release-preview/release/10.0/assets/js/main.1874175a.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -25,9 +25,10 @@ signature.</li>
 <li class="">Write the tally ID, the public key hash and the electoral log system public key.</li>
 <li class="">Write the source commit of the tools.</li>
 <li class="">Write the identity and the digest of each backup.</li>
-<li class="">Write the digest of <code>audit-record.json</code>.</li>
+<li class="">Write the digest of <code>audit-output.log</code>.</li>
 <li class="">Write the overall status, and the status and the counts of each scope, of each election history
-and of the Braid verifier. Copy them from <code>public-summary.json</code>.</li>
+and of the Braid verifier. Copy them from <code>Public summary</code> in the <code>Results</code> section of
+<code>audit-output.log</code>.</li>
 <li class="">For each status that is not <code>success</code>, write the message of the step and your conclusion.</li>
 <li class="">If you ran a step separately, write its pins, its exit status and its counts.</li>
 <li class="">Write the limits of the audit. See <a class="" href="/docusaurus/release-preview/release/10.0/docs/election_auditors/ballot_audit_manual/before-you-start#what-the-audit-proves">Before You Start</a>.</li>
@@ -35,22 +36,24 @@ and of the Braid verifier. Copy them from <code>public-summary.json</code>.</li>
 <p><strong>Expected result:</strong> the audit report is complete.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="2-publish-the-safe-summary">2. Publish the safe summary<a href="#2-publish-the-safe-summary" class="hash-link" aria-label="Direct link to 2. Publish the safe summary" title="Direct link to 2. Publish the safe summary" translate="no">​</a></h2>
 <ol>
-<li class="">Publish <code>~/audit/output/public-summary.json</code>. It contains only IDs of the election,
-statuses and counts. See <a class="" href="/docusaurus/release-preview/release/10.0/docs/election_auditors/ballot_audit_manual/file-reference#public-summaryjson">File Reference</a>.</li>
-<li class="">Publish the digest of <code>audit-record.json</code>, the commit of the tools and the limits of the audit.</li>
+<li class="">Publish the <code>Public summary</code>, from the <code>Results</code> section of
+<code>audit-output.log</code>. It contains only IDs of the election, statuses and counts. See
+<a class="" href="/docusaurus/release-preview/release/10.0/docs/election_auditors/ballot_audit_manual/file-reference#public-summaryjson">File Reference</a>.</li>
+<li class="">Publish the digest of <code>audit-output.log</code>, the commit of the tools and the limits of the audit.</li>
 <li class="">Do not publish other information. Use this table:</li>
 </ol>
-<table><thead><tr><th>Safe to publish</th><th>Do not publish</th></tr></thead><tbody><tr><td><code>public-summary.json</code>.</td><td>Voter IDs and hashed voter identifiers.</td></tr><tr><td>The digests of the backups and of <code>audit-record.json</code>.</td><td>Ballot IDs and receipts that identify a voter.</td></tr><tr><td>The commit of the tools.</td><td>Batch positions in a batch that <code>privacy_warnings</code> lists.</td></tr><tr><td>The limits of the audit.</td><td>The copies, the evidence, the audit bundles and the reports.</td></tr></tbody></table>
-<div class="theme-admonition theme-admonition-danger admonition_xJq3 alert alert--danger"><div class="admonitionHeading_Gvgb"><span class="admonitionIcon_Rf37"><svg viewBox="0 0 12 16"><path fill-rule="evenodd" d="M5.05.31c.81 2.17.41 3.38-.52 4.31C3.55 5.67 1.98 6.45.9 7.98c-1.45 2.05-1.7 6.53 3.53 7.7-2.2-1.16-2.67-4.52-.3-6.61-.61 2.03.53 3.33 1.94 2.86 1.39-.47 2.3.53 2.27 1.67-.02.78-.31 1.44-1.13 1.81 3.42-.59 4.78-3.42 4.78-5.56 0-2.84-2.53-3.22-1.25-5.61-1.52.13-2.03 1.13-1.89 2.75.09 1.08-1.02 1.8-1.86 1.33-.67-.41-.66-1.19-.06-1.78C8.18 5.31 8.68 2.45 5.05.32L5.03.3l.02.01z"></path></svg></span>WARNING</div><div class="admonitionContent_BuS1"><p>Do not publish the files in <code>output/scopes/</code>, <code>output/history/</code> or <code>output/immudb-export/</code>.
-They contain personal data, for example <code>selection.json</code>, <code>cast-votes.json</code>,
-<code>cast-vote-history.json</code>, <code>keycloak-source.json</code>, <code>eligibility-reasons.json</code> and
-<code>audit-report.json</code>.</p></div></div>
+<table><thead><tr><th>Safe to publish</th><th>Do not publish</th></tr></thead><tbody><tr><td>The <code>Public summary</code>.</td><td>Voter IDs and hashed voter identifiers.</td></tr><tr><td>The digests of the backups and of <code>audit-output.log</code>.</td><td>Ballot IDs and receipts that identify a voter.</td></tr><tr><td></td><td><code>audit-output.log</code>. It contains cast vote IDs and receipts.</td></tr><tr><td>The commit of the tools.</td><td>Batch positions in a batch that <code>privacy_warnings</code> lists.</td></tr><tr><td>The limits of the audit.</td><td>The copies, the evidence, the audit bundles and the reports.</td></tr></tbody></table>
+<div class="theme-admonition theme-admonition-danger admonition_xJq3 alert alert--danger"><div class="admonitionHeading_Gvgb"><span class="admonitionIcon_Rf37"><svg viewBox="0 0 12 16"><path fill-rule="evenodd" d="M5.05.31c.81 2.17.41 3.38-.52 4.31C3.55 5.67 1.98 6.45.9 7.98c-1.45 2.05-1.7 6.53 3.53 7.7-2.2-1.16-2.67-4.52-.3-6.61-.61 2.03.53 3.33 1.94 2.86 1.39-.47 2.3.53 2.27 1.67-.02.78-.31 1.44-1.13 1.81 3.42-.59 4.78-3.42 4.78-5.56 0-2.84-2.53-3.22-1.25-5.61-1.52.13-2.03 1.13-1.89 2.75.09 1.08-1.02 1.8-1.86 1.33-.67-.41-.66-1.19-.06-1.78C8.18 5.31 8.68 2.45 5.05.32L5.03.3l.02.01z"></path></svg></span>WARNING</div><div class="admonitionContent_BuS1"><p>Do not publish <code>audit-output.log</code>. It contains the cast vote IDs and the receipts of all stored
+votes. If you ran steps separately, do not publish their files either: for example
+<code>selection.json</code>, <code>cast-votes.json</code>, <code>cast-vote-history.json</code>, <code>keycloak-source.json</code>,
+<code>eligibility-reasons.json</code> and <code>audit-report.json</code> contain personal data.</p></div></div>
 <p><strong>Expected result:</strong> the election authority has the audit report. The public summary contains no
 personal data.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="3-keep-the-evidence">3. Keep the evidence<a href="#3-keep-the-evidence" class="hash-link" aria-label="Direct link to 3. Keep the evidence" title="Direct link to 3. Keep the evidence" translate="no">​</a></h2>
 <ol>
 <li class="">Ask the election authority how long to keep the evidence.</li>
-<li class="">Put the directory <code>~/audit/output</code> and the audit notes in an encrypted archive.</li>
+<li class="">Put the directory <code>~/audit/output</code>, which contains <code>audit-output.log</code> and
+<code>audit-output.log.sha512</code>, and the audit notes in an encrypted archive.</li>
 <li class="">Give the archive to the election authority.</li>
 </ol>
 <p><strong>Expected result:</strong> the election authority keeps the evidence.</p>

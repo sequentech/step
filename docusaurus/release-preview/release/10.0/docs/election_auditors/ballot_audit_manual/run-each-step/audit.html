@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Audit the Bundle | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/release-preview/release/10.0/docs/election_auditors/ballot_audit_manual/run-each-step/audit"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Audit the Bundle | Sequent Online Voting"><meta data-rh="true" name="description" content="Check the audit bundle independently against the encrypted ballots on the bulletin board, and look up the receipts of voters."><meta data-rh="true" property="og:description" content="Check the audit bundle independently against the encrypted ballots on the bulletin board, and look up the receipts of voters."><link data-rh="true" rel="icon" href="/docusaurus/release-preview/release/10.0/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/release-preview/release/10.0/docs/election_auditors/ballot_audit_manual/run-each-step/audit"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/release-preview/release/10.0/docs/election_auditors/ballot_audit_manual/run-each-step/audit" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/release-preview/release/10.0/docs/election_auditors/ballot_audit_manual/run-each-step/audit" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Ballot Audit Manual","item":"https://sequentech.github.io/docusaurus/release-preview/release/10.0/docs/election_auditors/ballot_audit_manual"},{"@type":"ListItem","position":2,"name":"Appendix: Run Each Step Separately","item":"https://sequentech.github.io/docusaurus/release-preview/release/10.0/docs/election_auditors/ballot_audit_manual/run-each-step/run_each_step"},{"@type":"ListItem","position":3,"name":"Audit the Bundle","item":"https://sequentech.github.io/docusaurus/release-preview/release/10.0/docs/election_auditors/ballot_audit_manual/run-each-step/audit"}]}</script><link rel="stylesheet" href="/docusaurus/release-preview/release/10.0/assets/css/styles.fc78c976.css">
-<script src="/docusaurus/release-preview/release/10.0/assets/js/runtime~main.6deede74.js" defer="defer"></script>
+<script src="/docusaurus/release-preview/release/10.0/assets/js/runtime~main.ca5e131c.js" defer="defer"></script>
 <script src="/docusaurus/release-preview/release/10.0/assets/js/main.1874175a.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -17,7 +17,8 @@ looks up the receipts of voters. The auditor does it.</p>
 <p>The command <code>ballot-audit</code> does these checks:</p>
 <ol>
 <li class="">It calculates the receipt of each selected ballot again.</li>
-<li class="">It checks the signed electoral log record of each selected ballot.</li>
+<li class="">It checks the signed electoral log record of each selected ballot. It lists a selected ballot
+without a record as a vote to audit and checks the rest of that ballot.</li>
 <li class="">It checks the signatures of the configuration and of the encrypted ballots on the bulletin
 board.</li>
 <li class="">It compares the selected ciphertexts with each batch, including the expected number of copies of each.</li>
@@ -45,7 +46,8 @@ board.</li>
 </li>
 </ol>
 <p><strong>Expected result:</strong> the exit status is <code>0</code>. The report shows the number of checked ballots,
-batches and electoral log records.</p>
+batches and electoral log records. If <code>votes_to_audit</code> is not empty, review each vote. See
+<a class="" href="/docusaurus/release-preview/release/10.0/docs/election_auditors/ballot_audit_manual/read-the-results#votes-to-audit">Votes to audit</a>.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="2-look-up-a-receipt">2. Look up a receipt<a href="#2-look-up-a-receipt" class="hash-link" aria-label="Direct link to 2. Look up a receipt" title="Direct link to 2. Look up a receipt" translate="no">​</a></h2>
 <p>Do this step when a voter, an observer or the election authority asks about one receipt.</p>
 <ol>
