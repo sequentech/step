@@ -328,7 +328,10 @@ async fn verify_private_acceptance(
             pseudonym,
             ballot_id: Some(ballot_id),
             ip: "198.51.100.73",
-            country: Some("AQ"),
+            // Distinctive, like the address and device: a two-letter code
+            // occurs by chance in this run's fresh base64 keys and signatures
+            // ("…/AQ=="), which the artifact scan cannot tell from a leak.
+            country: Some("synthetic-private-country"),
             user_agent: Some("synthetic-private-browser"),
             recorded_at: Utc::now(),
         })
@@ -538,7 +541,7 @@ async fn verify_private_acceptance(
     std::fs::write(
         &forbidden_path,
         serde_json::to_vec(
-            &serde_json::json!({"voter_id":[real_voter],"username":["synthetic-account-name"],"ip":["198.51.100.73"],"device":["synthetic-private-browser"],"country":["AQ"]}),
+            &serde_json::json!({"voter_id":[real_voter],"username":["synthetic-account-name"],"ip":["198.51.100.73"],"device":["synthetic-private-browser"],"country":["synthetic-private-country"]}),
         )?,
     )?;
     let scanner = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
