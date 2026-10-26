@@ -19,6 +19,24 @@ pub fn command(
     args: &[&str],
     token_response: Option<Value>,
 ) -> (Output, Value, Vec<(String, Vec<u8>)>) {
+    command_with_responses(args, token_response, None)
+}
+
+/// A finite queue of GraphQL replies for an isolated CLI command. Requests are
+/// still captured and asserted by the caller; unexpected extra calls fail.
+pub fn command_with_graphql_responses(
+    args: &[&str],
+    token_response: Option<Value>,
+    responses: Vec<Value>,
+) -> (Output, Value, Vec<(String, Vec<u8>)>) {
+    command_with_responses(args, token_response, Some(responses))
+}
+
+fn command_with_responses(
+    args: &[&str],
+    token_response: Option<Value>,
+    responses: Option<Vec<Value>>,
+) -> (Output, Value, Vec<(String, Vec<u8>)>) {
     let directory = tempfile::tempdir().unwrap();
     let binary = directory.path().join("step-cli");
     fs::hard_link(env!("CARGO_BIN_EXE_step-cli"), &binary)
@@ -47,6 +65,7 @@ pub fn command(
     let peer = thread::spawn(move || {
         let deadline = Instant::now() + Duration::from_secs(15);
         let mut requests = Vec::new();
+        let mut responses = responses.map(std::collections::VecDeque::from);
         while !done.load(Ordering::Relaxed) && Instant::now() < deadline {
             let (mut stream, _) = match listener.accept() {
                 Ok(value) => value,
@@ -84,7 +103,13 @@ pub fn command(
             let mut body = vec![0; length];
             reader.read_exact(&mut body).unwrap();
             let response = if first.starts_with("POST /graphql ") {
-                json!({"data":{"get_upload_url":{"url":format!("{endpoint}/blob?signature=literal"),"document_id":"document"}}})
+                if let Some(replies) = responses.as_mut() {
+                    replies
+                        .pop_front()
+                        .expect("unexpected extra GraphQL request")
+                } else {
+                    json!({"data":{"get_upload_url":{"url":format!("{endpoint}/blob?signature=literal"),"document_id":"document"}}})
+                }
             } else if first.starts_with("PUT /blob?signature=literal ") {
                 json!({})
             } else {
@@ -97,6 +122,12 @@ pub fn command(
             requests.push((first, body));
             let body = response.to_string();
             write!(stream, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len()).unwrap();
+        }
+        if let Some(replies) = responses {
+            assert!(
+                replies.is_empty(),
+                "expected GraphQL requests were not made"
+            );
         }
         requests
     });
