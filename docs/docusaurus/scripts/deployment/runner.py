@@ -157,6 +157,11 @@ def prepare(entry, d, role):
 
 def main():
     os.umask(0o077)
+    if len(sys.argv)==3 and sys.argv[1] in ('check','install','verify','commission'):
+        m=manifest()
+        need(not m.get('test_only'), 'Test-only bundle cannot install a platform')
+        import install
+        install.main(sys.argv[1],sys.argv[2]); return
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('command', choices=['check', 'list', 'show', 'configure', 'session', 'prepare'])
     p.add_argument('value', nargs='?'); a = p.parse_args(); m = manifest()

@@ -64,7 +64,7 @@ def build(repo,out,commit,working=False):
             e={'id':STEP_NAMES[ident],'legacy_id':ident,'language':'bash' if command.suffix=='.sh' else 'jq','heading':heading,'source':rel,'line':line_number,'source_sha256':sha(raw),'roles':HOSTS.get(ident,['c1']),'destination':DATA.get(ident),'destructive':ident in ('08-014','11-003'),'file':name,'sha256':sha(body),'command_source':command_rel,'transformation':'none'}
             steps.append(e);sources.append({'path':command_rel,'sha256':sha(body)})
     if len({s['id'] for s in steps})!=len(steps):raise ValueError('Duplicate step identifier')
-    for name in ('runner.py','session.sh','build.py','step_names.py'):
+    for name in ('runner.py','session.sh','build.py','step_names.py','install.py','site.example.json'):
         p=HERE/name;rel=str(p.relative_to(repo));raw=p.read_bytes()
         if not working and subprocess.check_output(['git','-C',str(repo),'show',commit+':'+rel])!=raw:raise ValueError('Runner differs from selected commit')
         files[name]=raw;sources.append({'path':rel,'sha256':sha(raw)})

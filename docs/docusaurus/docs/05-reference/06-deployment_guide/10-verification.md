@@ -8,6 +8,11 @@ SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
+Read this chapter for the requirements and expected results behind the
+[configuration-driven installation](01-about.md#install-from-one-configuration-file).
+Operation references identify implementation details and troubleshooting checks;
+they are not additional shell commands to type after a successful installation.
+
 Make every check of this page after the deployment and before anyone else
 signs in, and again after every later deployment. If a check fails, the
 installation is not in the evaluated configuration: stop and report it to
@@ -30,19 +35,12 @@ must also name the delivered manifest digest in its pod specification.
 
 <!-- deployment-step: 10-001 -->
 
-**Run on C1, in the `c1` deployment session:**
-
-```bash
-step 10-verify-running-images
-```
+**Operation reference:** `10-verify-running-images` on `c1`.
 
 **Expected result.** Six lines ending in `verified`, with the minimum ready-container counts described below; no error.
 
 **If the result differs.** A missing blob, ambiguous index or unequal digest means verification failed. Check the delivered cache and pod readiness, then repeat this read-only check; do not accept only the pod specification as proof.
 
-![Command preview for deployment step 10-verify-running-images](assets/steps/10-verify-running-images.png)
-
-*Command preview only: this image shows the bundled command, without executing it. Compare your actual result with the expectations above.*
 
 The block must exit successfully and print six `verified` lines: at least one
 running container for each TOE part, at least two for `windmill` (the worker
@@ -85,19 +83,12 @@ From the administration workstation:
 
 <!-- deployment-step: 10-002 -->
 
-**Run on the administration workstation, in the `admin` deployment session:**
-
-```bash
-step 10-check-login-discovery
-```
+**Operation reference:** `10-check-login-discovery` on `admin`.
 
 **Expected result.** After choosing `installation` at the realm prompt, two matching issuer URLs on the voting portal host, then three master-realm responses ending in `403`. Select `customer` when repeating this check for that tenant.
 
 **If the result differs.** A `000` status, blank issuer or TLS error is a connectivity failure, not a successful denial. Check DNS and certificate trust first. Any reachable master realm requires correcting the ingress before handover.
 
-![Command preview for deployment step 10-check-login-discovery](assets/steps/10-check-login-discovery.png)
-
-*Command preview only: this image shows the bundled command, without executing it. Compare your actual result with the expectations above.*
 
 Both issuers must be `https://PORTAL_HOST/realms/R` with your values, and the
 master realm must answer `403` on all three hosts.
@@ -110,19 +101,12 @@ goes to the external authentication server.
 
 <!-- deployment-step: 10-003 -->
 
-**Run on the administration workstation, in the `admin` deployment session:**
-
-```bash
-step 10-check-login-redirects
-```
+**Operation reference:** `10-check-login-redirects` on `admin`.
 
 **Expected result.** After choosing the same realm as the preceding check, six results in the order below: IdP redirect, PKCE error redirect, `400`, two `unauthorized_client` responses and `invalid_client`.
 
 **If the result differs.** Blank results, network errors or successful password-grant responses fail this check. Check the correct realm and its imported client/IdP settings; do not enable a password grant to continue.
 
-![Command preview for deployment step 10-check-login-redirects](assets/steps/10-check-login-redirects.png)
-
-*Command preview only: this image shows the bundled command, without executing it. Compare your actual result with the expectations above.*
 
 The six results must be:
 
@@ -166,19 +150,12 @@ On C1:
 
 <!-- deployment-step: 10-004 -->
 
-**Run on C1, in the `c1` deployment session:**
-
-```bash
-step 10-check-login-providers
-```
+**Operation reference:** `10-check-login-providers` on `c1`.
 
 **Expected result.** The provider file listing contains no `smart-link-hmac` file; its final count is `0`.
 
 **If the result differs.** A nonzero count means the wrong identity-service build or extension set is installed. Check the delivered image identity; do not manually delete files inside a running container.
 
-![Command preview for deployment step 10-check-login-providers](assets/steps/10-check-login-providers.png)
-
-*Command preview only: this image shows the bundled command, without executing it. Compare your actual result with the expectations above.*
 
 The first command lists the identity service's extension files; none of them
 may have `smart-link-hmac` in its name, so the second command must print `0`.
@@ -190,38 +167,24 @@ uses, with the flows they call:
 
 <!-- deployment-step: 10-005 -->
 
-**Run on C1, in the `c1` deployment session:**
-
-```bash
-step 10-check-login-flows
-```
+**Operation reference:** `10-check-login-flows` on `c1`.
 
 **Expected result.** Exactly `0`: no used authentication flow invokes smart-link.
 
 **If the result differs.** A nonzero result or SQL error is not acceptable. Check the imported realm templates and actual used flows; do not delete built-in flows or alter the database directly.
 
-![Command preview for deployment step 10-check-login-flows](assets/steps/10-check-login-flows.png)
-
-*Command preview only: this image shows the bundled command, without executing it. Compare your actual result with the expectations above.*
 
 The command must print `0`.
 Then, from the administration workstation:
 
 <!-- deployment-step: 10-006 -->
 
-**Run on the administration workstation, in the `admin` deployment session:**
-
-```bash
-step 10-check-public-login-disabled
-```
+**Operation reference:** `10-check-public-login-disabled` on `admin`.
 
 **Expected result.** Three lines, one per portal host, each ending in `404`.
 
 **If the result differs.** A `000` response indicates a network/TLS problem, not a blocked endpoint. Restore connectivity and repeat; any reachable smart-link endpoint blocks handover.
 
-![Command preview for deployment step 10-check-public-login-disabled](assets/steps/10-check-public-login-disabled.png)
-
-*Command preview only: this image shows the bundled command, without executing it. Compare your actual result with the expectations above.*
 
 All three lines must end in `404`: the identity service has no smart-link
 sign-in address.
@@ -232,19 +195,12 @@ On C1:
 
 <!-- deployment-step: 10-007 -->
 
-**Run on C1, in the `c1` deployment session:**
-
-```bash
-step 10-check-graphql-settings
-```
+**Operation reference:** `10-check-graphql-settings` on `c1`.
 
 **Expected result.** `/hasura/v1/graphql Exact`, followed by `HASURA_GRAPHQL_ENABLE_CONSOLE false` and `HASURA_GRAPHQL_DEV_MODE false`.
 
 **If the result differs.** If a broader path, console or development mode is present, correct the protected manifests and redeploy through the documented procedure. Do not expose the console for diagnosis.
 
-![Command preview for deployment step 10-check-graphql-settings](assets/steps/10-check-graphql-settings.png)
-
-*Command preview only: this image shows the bundled command, without executing it. Compare your actual result with the expectations above.*
 
 The first command must print `/hasura/v1/graphql Exact` alone, and the second
 `HASURA_GRAPHQL_ENABLE_CONSOLE false` and `HASURA_GRAPHQL_DEV_MODE false`.
@@ -252,19 +208,12 @@ From the administration workstation:
 
 <!-- deployment-step: 10-008 -->
 
-**Run on the administration workstation, in the `admin` deployment session:**
-
-```bash
-step 10-check-metadata-and-cors
-```
+**Operation reference:** `10-check-metadata-and-cors` on `admin`.
 
 **Expected result.** Six `0` results: two checks for each portal host. There must also be no curl/TLS error; an unreachable server is not proof that access is restricted.
 
 **If the result differs.** A nonzero result means metadata or foreign-origin access is exposed. Check the ingress exact path and both CORS allowlists, redeploy through the guide, and repeat before handover.
 
-![Command preview for deployment step 10-check-metadata-and-cors](assets/steps/10-check-metadata-and-cors.png)
-
-*Command preview only: this image shows the bundled command, without executing it. Compare your actual result with the expectations above.*
 
 Every result must be `0`: the metadata API does not answer, and a foreign
 origin gets no cross-origin permission.
@@ -275,19 +224,12 @@ On C1:
 
 <!-- deployment-step: 10-009 -->
 
-**Run on C1, in the `c1` deployment session:**
-
-```bash
-step 10-check-service-isolation
-```
+**Operation reference:** `10-check-service-isolation` on `c1`.
 
 **Expected result.** `Encryption Status: Enabled`, `ClusterIP`, `0`, and only `kube-system/traefik` in the external-service list.
 
 **If the result differs.** If encryption is disabled, the bulletin board has ingress, or another service is externally exposed, stop. Check the verified cluster and service configuration; do not create more Secrets on an unencrypted cluster.
 
-![Command preview for deployment step 10-check-service-isolation](assets/steps/10-check-service-isolation.png)
-
-*Command preview only: this image shows the bundled command, without executing it. Compare your actual result with the expectations above.*
 
 The results must be `Encryption Status: Enabled`, `ClusterIP`, `0` and
 `kube-system/traefik` alone.
@@ -298,19 +240,12 @@ command checks the key inside each container and prints only its result:
 
 <!-- deployment-step: 10-010 -->
 
-**Run on C1, in the `c1` deployment session:**
-
-```bash
-step 10-check-secret-store
-```
+**Operation reference:** `10-check-secret-store` on `c1`.
 
 **Expected result.** Two identical `Secret-store configuration: PASS` lines. No key value is shown.
 
 **If the result differs.** If either is missing, check `SECRETS_BACKEND` and the existing master key configuration as described below. Never generate a replacement master key or print it to diagnose this failure.
 
-![Command preview for deployment step 10-check-secret-store](assets/steps/10-check-secret-store.png)
-
-*Command preview only: this image shows the bundled command, without executing it. Compare your actual result with the expectations above.*
 
 There must be two `Secret-store configuration: PASS` lines and no error.
 `SECRETS_BACKEND` is case-sensitive: `env` is not a supported value. If this
@@ -327,37 +262,23 @@ the first election event, list the realms of the election events on C1:
 
 <!-- deployment-step: 10-011 -->
 
-**Run on C1, in the `c1` deployment session:**
-
-```bash
-step 10-list-event-realms
-```
+**Operation reference:** `10-list-event-realms` on `c1`.
 
 **Expected result.** One realm name per imported election event. Before the first import, an empty result is expected, but it does not complete the required post-import checks.
 
 **If the result differs.** If an imported event's realm is absent or an unfamiliar realm appears, compare with the board's import record. Do not approve the event configuration until the mismatch is resolved.
 
-![Command preview for deployment step 10-list-event-realms](assets/steps/10-list-event-realms.png)
-
-*Command preview only: this image shows the bundled command, without executing it. Compare your actual result with the expectations above.*
 
 Then show the sign-in settings of each of these realms, on C1:
 
 <!-- deployment-step: 10-012 -->
 
-**Run on C1, in the `c1` deployment session:**
-
-```bash
-step 10-check-live-realm-policy
-```
+**Operation reference:** `10-check-live-realm-policy` on `c1`.
 
 **Expected result.** One row per event realm with the TLS, timeout, brute-force and event-listener values described below.
 
 **If the result differs.** If a row is absent or a security setting differs, hold the board's configuration approval. Check the imported event realm against its hardened template; do not dismiss an empty result as a pass.
 
-![Command preview for deployment step 10-check-live-realm-policy](assets/steps/10-check-live-realm-policy.png)
-
-*Command preview only: this image shows the bundled command, without executing it. Compare your actual result with the expectations above.*
 
 Each line must show the realm name, `EXTERNAL`, `900`, `t`, `true`, the
 authentication failure threshold that the administrator set (5 unless the
@@ -368,19 +289,12 @@ Then check each realm listed from the same C1 deployment session:
 
 <!-- deployment-step: 10-013 -->
 
-**Run on C1, in the `c1` deployment session:**
-
-```bash
-step 10-check-event-login-policy
-```
+**Operation reference:** `10-check-event-login-policy` on `c1`.
 
 **Expected result.** Three results for the selected realm: `[]`, its HTTPS issuer URL and `unauthorized_client`.
 
 **If the result differs.** If an issuer is missing, a message channel appears or password login succeeds, do not let voters use that event. Check the selected realm name and its import configuration and tell the administrator.
 
-![Command preview for deployment step 10-check-event-login-policy](assets/steps/10-check-event-login-policy.png)
-
-*Command preview only: this image shows the bundled command, without executing it. Compare your actual result with the expectations above.*
 
 The first command must print `[]`: voters get no sign-in code and no message
 channel, and the voting portal offers no "Contact method". The second must
@@ -407,19 +321,12 @@ version:
 
 <!-- deployment-step: 10-014 -->
 
-**Run on C1, in the `c1` deployment session:**
-
-```bash
-step 10-check-prohibited-roles
-```
+**Operation reference:** `10-check-prohibited-roles` on `c1`.
 
 **Expected result.** The zero counts, exactly two tenant IDs, and `t|t` administration-audit flags described below.
 
 **If the result differs.** Any extra tenant, enabled installation account or forbidden permission blocks handover. Compare with the customer setup and role assignments; do not delete database rows or unrelated accounts to force the counts.
 
-![Command preview for deployment step 10-check-prohibited-roles](assets/steps/10-check-prohibited-roles.png)
-
-*Command preview only: this image shows the bundled command, without executing it. Compare your actual result with the expectations above.*
 
 The results must be `0` (no account, group or role holds "Datafix account"
 or "Manually Verify Voter"),
@@ -443,19 +350,12 @@ checks with the object storage's command-line tool:
 
 <!-- deployment-step: 10-015 -->
 
-**Run on C1, in the `c1` deployment session:**
-
-```bash
-step 10-check-storage-policy
-```
+**Operation reference:** `10-check-storage-policy` on `c1`.
 
 **Expected result.** The temporary check pod completes; its five log values are `0`, `AccessDenied`, `NoSuchBucketPolicy`, `1`, and `Enabled`, then the pod is deleted.
 
 **If the result differs.** A timeout, missing line or other policy result is a failure. Inspect the check pod's operating log and kit storage setup; do not upload or remove objects by hand or accept public access to private buckets.
 
-![Command preview for deployment step 10-check-storage-policy](assets/steps/10-check-storage-policy.png)
-
-*Command preview only: this image shows the bundled command, without executing it. Compare your actual result with the expectations above.*
 
 The `logs` command must print five lines: `0` (no plugin), `AccessDenied`
 (the bucket `election-event-documents` refuses a request without
@@ -475,19 +375,12 @@ import).
 
 <!-- deployment-step: 10-016 -->
 
-**Run on C1, in the `c1` deployment session:**
-
-```bash
-step 10-check-published-signing-keys
-```
+**Operation reference:** `10-check-published-signing-keys` on `c1`.
 
 **Expected result.** A nonzero count of published keys and no subsequent unmatched key ID.
 
 **If the result differs.** If the count is zero, first check retrieval and realm names. If an unmatched key appears, compare all published keys with the installation's known realms; withhold handover and do not edit `certs.json` by hand.
 
-![Command preview for deployment step 10-check-published-signing-keys](assets/steps/10-check-published-signing-keys.png)
-
-*Command preview only: this image shows the bundled command, without executing it. Compare your actual result with the expectations above.*
 
 The `wc` command must print a number other than `0`, and the `grep` command
 must print nothing: the GraphQL engine accepts only keys of these realms.

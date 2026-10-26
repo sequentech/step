@@ -1,0 +1,51 @@
+{
+  "schema": 1,
+  "nodes": {
+    "c1": "192.0.2.11",
+    "c2": "192.0.2.12"
+  },
+  "ssh_identity": "/root/.ssh/id_ed25519",
+  "hosts": {
+    "voting": "vote.example.org",
+    "administration": "admin.example.org",
+    "verifier": "verify.example.org",
+    "authentication": "login.example.org"
+  },
+  "idp_alias": "external-login",
+  "kit": {
+    "directory": "/media/kit",
+    "signing_fingerprint": "SHA256:REPLACE_WITH_INDEPENDENT_VALUE"
+  },
+  "toe": {
+    "directory": "/media/toe",
+    "archive_sha256": {
+      "b4": "REPLACE",
+      "ballot-verifier": "REPLACE",
+      "braid": "REPLACE",
+      "harvest": "REPLACE",
+      "keycloak": "REPLACE",
+      "windmill": "REPLACE"
+    },
+    "manifest_sha256": "REPLACE_WITH_ACCEPTED_IMAGE_MANIFEST_SHA256"
+  },
+  "tls": {
+    "certificate": "/root/installation-inputs/tls.crt",
+    "private_key": "/root/installation-inputs/tls.key",
+    "ca": "/root/installation-inputs/tls-ca.pem",
+    "ca_sha256": "REPLACE_WITH_CA_CERTIFICATE_SHA256_FINGERPRINT"
+  },
+  "identity_provider": {
+    "definition": "/root/installation-inputs/idp.json",
+    "ca": "/root/installation-inputs/idp-ca.pem",
+    "ca_sha256": "REPLACE_WITH_CA_CERTIFICATE_SHA256_FINGERPRINT"
+  },
+  "operator": {
+    "username": "installation-operator",
+    "email": "operator@example.org",
+    "service_administrator": "service-admin"
+  },
+  "release": {
+    "version": "10.0.0",
+    "step_commit": "REPLACE_WITH_40_CHARACTER_SOURCE_REVISION"
+  }
+}

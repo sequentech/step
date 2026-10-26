@@ -69,164 +69,167 @@ database, the object storage, the GraphQL engine, the two web portals, the
 network, the time server, the external authentication server and the web
 browsers.
 
-## Order of the procedures
+## Install from one configuration file
 
-Carry out the procedures in this order. Each one assumes that the previous
-ones are complete and that all of their checks passed.
+Start here. The normal platform installation is **two commands on the administration
+workstation**. The `deploy` program is an actual file in the delivered
+`deployment/` directory; it is not a command that must already be installed or a
+function hidden in a special shell.
 
-1. [Verifying the Delivery](../08-delivery_verification.md): accept the
-   delivered TOE. This is the first procedure. Nothing is installed or
-   deployed before its step 7, the confirmation of receipt, is complete.
-2. [Operational Environment](02-operational_environment.md): provide what the
-   TOE needs around it.
-3. [Installing the Servers](03-installation_kit.md): accept the installation
-   kit and install the two servers.
-4. [Network, Time and Cluster Checks](04-hosts_network_time.md).
-5. [Certificates and TLS](05-certificates_tls.md).
-6. [Connecting the Authentication Server](06-authentication_server.md).
-7. [Configuring the Deployment](07-hardening.md).
-8. [Installing the TOE](08-installing_toe.md), including the trustee keys and
-   the trustee workstations.
-9. [Initial Accounts](09-accounts.md).
-10. [Verifying the Installation](10-verification.md).
-11. [Self-Test and Handover](11-selftest_handover.md).
+The first command checks the supplied configuration, files and servers. The second
+prepares the hardened configuration, installs the platform and checks the result.
+The detailed chapters explain those operations and their security conditions;
+they are not a second list to repeat after the installer has run.
 
-## Use the bundled deployment commands
+### Before running the installer
 
-After accepting the delivered guidance package under **Verifying the Delivery**,
-use its sibling **deployment** folder. It contains the complete reviewed command
-sources and their hashes; no repository checkout or online download is needed.
-The separate installation kit is checked in section 3 before installing servers.
+Complete these preparations once:
 
-Copy the whole folder to each machine that will execute a step. Use a root shell
-and enter that folder. The workstation needs Python 3.10 or later, Bash, and the
-operational tools named in this guide; the corresponding installation kit supplies
-Python 3 and Bash on C1 and C2. Check these prerequisites before starting.
+1. Accept the delivered TOE and guidance using
+   [Verifying the Delivery](../08-delivery_verification.md), including its
+   confirmation of receipt. The installation command does not authorize acceptance.
+2. Provide the [Operational Environment](02-operational_environment.md), verify the
+   installation kit and boot C1 and C2 from it as described in
+   [Installing the Servers](03-installation_kit.md#install-c1-and-c2). The operator
+   confirms the disk at each server console before it is erased.
+3. Obtain the site TLS certificate and private key from your certificate process,
+   and the external identity provider's registration and CA certificate. The
+   [certificate requirements](05-certificates_tls.md) and
+   [identity-provider requirements](06-authentication_server.md) remain mandatory.
+   The installer cannot issue a trusted certificate or register an application at
+   another organization's identity provider for you.
+4. Extract the verified guidance package. Open its `deployment/site.example.json`
+   in a text editor, save a private working copy as `site.json`, and fill in the
+   site's public values and file paths. Keep passwords, tokens and private keys
+   out of this JSON file: it refers to protected files where those are needed.
 
-On the administration workstation, with a root terminal already open in the
-delivered `deployment` folder, enter these commands **one at a time**:
+The configuration is JSON, matching the installation kit's existing site-file
+format. JSON makes the site values explicit without adding a YAML interpreter to
+an offline workstation. The file is data; the installer does not execute it as
+shell code.
 
-```bash
-./deploy check
-```
 
-Expected: `Package hashes match. Independently verify its delivery signature and source identity.`
-This detects changed package files; the delivery signature and independent source
-verification establish their authenticity. If the package check stops, obtain the
-verified complete folder; do not change its checksums to suppress the error.
+Fill the configuration from the approved site plan and verified delivery records:
 
-```bash
-./deploy configure admin
-```
-
-Enter the seven public site values and the absolute directory containing the
-installation kit to be checked. Expected: `Public configuration saved. No passwords,
-keys or client secrets belong in operator.json.` Passwords, keys and client secrets
-never belong in this form. If an existing configuration differs, inspect and
-reconcile the machine's approved site values before continuing; do not overwrite
-them blindly.
-
-```bash
-./deploy session admin
-```
-
-Expected: a new interactive prompt identifying the `admin` deployment session.
-If the machine-identity or role check stops, confirm that you configured this
-workstation for this role; never copy another machine's `operator.json` to bypass it.
-
-Repeat configure and session on each other machine with its role below, using the
-same public site values. Each machine has its own root-only public configuration
-in `/root/deploy/operator.json`; `hosts.env` is loaded automatically in every session.
-An existing different configuration is refused instead of overwritten. The server
-address and machine identity are checked before a command runs.
-
-| Session | Where to start it |
+| Field | What to supply |
 | --- | --- |
-| `admin` | Administration workstation, initially in the installation kit directory |
-| `c1` | Root shell on C1, initially in `/root/deploy` |
-| `c2` | Root shell on C2, initially in `/root/deploy` |
-| `client` | Separate machine in the client network, for reachability checks |
-| `trustee` | Offline trustee workstation under the trustee's physical custody |
+| `nodes` | C1 and C2 administration-network addresses |
+| `ssh_identity` | Path to the administration workstation's protected SSH key |
+| `hosts` | Voting, administration, ballot-verifier and external-authentication host names |
+| `idp_alias` | The external provider's alias in the TOE |
+| `kit` | Verified kit directory and the signing fingerprint received independently |
+| `toe` | Verified TOE-image directory and the six archive hashes from the accepted delivery |
+| `tls` | Paths to the issued site certificate, protected private key and CA, plus the independently checked CA fingerprint |
+| `identity_provider` | Paths to the protected provider definition and CA, plus the independently checked CA fingerprint |
+| `operator` | The installation operator's existing identity-provider user name and e-mail; the separate service-administrator name |
+| `release` | Software version and exact Step source revision from the accepted image provenance |
 
-For example, in a root terminal in the copied `deployment` folder **on C1**, enter
-these separately:
+Use absolute paths. The example's addresses, hash placeholders and names are
+examples only. The installer refuses unknown fields and invalid values. A
+successful schema check does not prove that the values describe your approved site.
 
-```bash
-./deploy configure c1
-./deploy session c1
-```
+Keep the `identity_provider.definition` file private: it contains the client
+secret. Its format and required settings are described in
+[Connecting the Authentication Server](06-authentication_server.md#write-the-provider-definition).
+The certificate and CA inputs are checked before they are installed. Do not put
+private-key contents, client secrets or passwords into `site.json`.
 
-The launcher never changes machines or opens an SSH session automatically.
-A session label does not replace verifying network position or physical custody.
+### Check the site
 
-`step`, `show` and `steps` are commands provided **inside this deployment session**;
-they are not installed as ordinary system commands. If your terminal says
-`step: command not found`, open the appropriate `./deploy session ROLE` from the
-delivered folder first (replace ROLE with the session name in the table).
-
-Inside a session, enter `steps` to list the available named commands. Each procedure
-below provides the exact command to run, its expected result and the response to an
-unexpected result. For example, when you reach the cluster-secret encryption check
-on C1, the command is:
-
-```bash
-step 04-check-secret-encryption
-```
-
-It must include `Encryption Status: Enabled` in its output. This is a readable name
-for that single check, not an instruction to execute all of chapter 4. The old
-numeric names remain compatibility aliases; use the descriptive names in this guide.
-
-To inspect the implementation without executing it, the optional command is:
+Open a root terminal on the administration workstation, in the extracted
+`deployment` directory, and run:
 
 ```bash
-show 04-check-secret-encryption
+./deploy check site.json
 ```
 
-Long implementations are in `deployment/steps/`, outside the main procedure text.
-The reference screenshots show the command preview and documented acceptance
-checks; they are examples for comparison, not evidence that your installation has
-passed. Site addresses, host names, timestamps and table layout can vary; the stated
-security conditions must still match. Read the prerequisites before running a step. Public
-values needed later are prompted when used. Existing private password prompts
-and private input files remain unchanged; command output is not recorded.
+Here `./deploy` means the file named `deploy` in this directory, and `site.json`
+is your working configuration. From another directory, use the full paths to both
+files instead.
 
-Keep the session open: variables, helper functions and working-directory changes
-are needed by later steps. Use `exit` when changing machine or finishing. After a
-failure, inspect the current state and the stated check; never replay a write
-blindly. A successful command exit is **not** acceptance of the step. Compare
-its actual output with every condition in this guide before continuing. Do not
-record these sessions with shell tracing or terminal transcripts.
+**Expected result.** The checks finish with
+`CHECK PASSED — ready to install platform`. Read the individual check results:
+the file paths, certificates, server identities and policies must match this site.
 
-## Conventions
+**If the result differs.** Correct the configuration or the named prerequisite and
+run this read-only check again. Do not change a certificate fingerprint to match
+an unexpected certificate, suppress an error, or proceed after a failed check.
+A missing `deploy` means the terminal is not in the extracted directory; it does
+not mean a package must be downloaded from the Internet.
 
-- Commands are for bash and run as root. Each command block says where it runs:
-  on C1 (the cluster server), on C2 (the second node), on the administration
-  workstation or on a trustee workstation.
-- Words in angle brackets in the bundled source identify public inputs. The
-  launcher prompts for these values; do not edit the verified command package.
-- The commands use the shell variables that
-  [Installing the Servers](03-installation_kit.md#prepare-the-deployment-directory)
-  defines in the file `/root/deploy/hosts.env`: PORTAL_HOST, ADMIN_HOST,
-  VERIFIER_HOST, AUTH_HOST, IDP_ALIAS, C1, C2, R and, once
-  [the customer's tenant](08-installing_toe.md#create-the-customers-tenant)
-  exists, CR. The launcher loads this file in every new session; outside the
-  launcher, load it with `. /root/deploy/hosts.env`.
-- Every step ends with a check. Do not go on until the check gives the result
-  stated. If a check fails, stop, do not put the TOE into operation, and
-  report it to [security@sequentech.io](mailto:security@sequentech.io), as the
-  section "Reporting a security problem" of the
-  [Handbook for Election Administrators (AGD-02)](../../02-election_managers/04-administrator_handbook/01-about.md)
-  describes.
+### Install the platform
 
-:::warning
-Steps marked like this one are security relevant. Skipping one, or changing a
-value it sets, leaves the TOE outside its evaluated configuration.
-:::
+After the check passes, run:
 
-- Never copy, print or send the value of a password, key or secret. The
-  commands generate them into root-only files and pass them on without showing
-  them.
+```bash
+./deploy install site.json
+```
+
+Use the same configuration file. The installer works over the administration
+network with the configured SSH identities; you do not log into each server to
+paste a sequence of shell fragments.
+
+**Expected result.** The installer reports its stages and ends with
+`PLATFORM INSTALLED — customer commissioning pending`. This means the platform
+installation finished; it does not mean the customer accounts, trustee custody or
+election handover have been approved.
+
+**If the result differs.** Keep the reported stage and error. A stopped installation
+may already have written files or started services: do not erase its state, repeat
+secret generation or rerun a write blindly. Diagnose the named stage using the
+corresponding reference chapter and Sequent's support procedure. Never put a
+partially configured installation into operation.
+
+To repeat the read-only installation checks later, use:
+
+```bash
+./deploy verify site.json
+```
+
+A verification result describes the checks that ran. It is not an authorization
+to hold an election or a record of evaluator acceptance.
+
+### Finish customer commissioning
+
+Installation and commissioning have different owners. After platform installation:
+
+1. Create the customer's tenant and first administrator, register its exact
+   identity-provider redirect URI, and install the trustees' independently held
+   key material under [Installing the TOE](08-installing_toe.md#create-the-customers-tenant).
+2. Complete the personal-account and role checks in
+   [Initial Accounts](09-accounts.md). Each person authenticates at the external
+   identity provider; the installer does not impersonate them.
+3. Perform the browser, trustee, self-test and handover checks in
+   [Verifying the Installation](10-verification.md) and
+   [Self-Test and Handover](11-selftest_handover.md). Keep the operator's confirmation
+   and the election board's decisions as actual records.
+
+Backup, restore and trustee-key removal are later lifecycle operations. They are
+not performed by the installation command.
+
+## Detailed operations and acceptance criteria
+
+The following chapters preserve the configuration requirements, expected outputs
+and fault handling needed to inspect an installation. An operation identifier such
+as `04-check-secret-encryption` names a check in that reference; normal installation
+uses the two commands above.
+
+| Reference | Purpose |
+| --- | --- |
+| [Installing the Servers](03-installation_kit.md) | Kit acceptance, disk confirmation and installed-node checks |
+| [Network, Time and Cluster Checks](04-hosts_network_time.md) | Firewall, root-key access, authenticated time and encrypted cluster secrets |
+| [Certificates and TLS](05-certificates_tls.md) | Trusted site certificate and required TLS profile |
+| [Connecting the Authentication Server](06-authentication_server.md) | Trusted external identity provider and its registration |
+| [Configuring the Deployment](07-hardening.md) | Generated secrets, production identity settings, routes and role templates |
+| [Installing the TOE](08-installing_toe.md) | Delivered image identities, customer tenant and trustee commissioning |
+| [Initial Accounts](09-accounts.md) | Personal accounts, role separation and first sign-in |
+| [Verifying the Installation](10-verification.md) | Runtime and browser acceptance checks |
+| [Self-Test and Handover](11-selftest_handover.md) | Operator confirmation, board self-test, backups and recovery |
+
+Never copy, print or send a password, private key, token or client secret. Do not
+record an installation with shell tracing or an indiscriminate terminal transcript.
+The real VM screenshots in this guide show only the stated, non-secret operations;
+their example addresses and identifiers are not values to enter at your site.
 
 ## Document history
 

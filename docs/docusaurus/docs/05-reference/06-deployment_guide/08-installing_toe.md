@@ -8,6 +8,11 @@ SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
+Read this chapter for the requirements and expected results behind the
+[configuration-driven installation](01-about.md#install-from-one-configuration-file).
+Operation references identify implementation details and troubleshooting checks;
+they are not additional shell commands to type after a successful installation.
+
 This page loads the TOE images from the verified delivery medium onto both
 servers, pins every TOE container to its delivered digest, deploys, and
 installs the trustees' keys. It also covers the trustee workstations, which
@@ -28,19 +33,12 @@ then copy the six images that run on the servers to C1 and C2:
 
 <!-- deployment-step: 08-001 -->
 
-**Run on the administration workstation, in the `admin` deployment session:**
-
-```bash
-step 08-copy-toe-images
-```
+**Operation reference:** `08-copy-toe-images` on `admin`.
 
 **Expected result.** The copy completes for C1 and C2 without SSH, tar or disk errors, and the verified delivery medium is unmounted. This transfer does not itself verify the imported images; the next step does.
 
 **If the result differs.** If either host is unreachable or the target is full, fix connectivity or capacity before importing. Keep the source medium protected; do not substitute images from the installation kit.
 
-![Command preview for deployment step 08-copy-toe-images](assets/steps/08-copy-toe-images.png)
-
-*Command preview only: this image shows the bundled command, without executing it. Compare your actual result with the expectations above.*
 
 On C1, and then on C2, import them and check that each one is present under
 its delivered digest. Use `--local` so the digest-qualified names identify the
@@ -48,19 +46,12 @@ delivered image manifests:
 
 <!-- deployment-step: 08-002 -->
 
-**Run on C1, then separately on C2, in the `c1/c2` deployment session:**
-
-```bash
-step 08-import-toe-images
-```
+**Operation reference:** `08-import-toe-images` on `c1/c2`.
 
 **Expected result.** Six final lines ending in `loaded`, one for each delivered image, on each server.
 
 **If the result differs.** If any line ends in `MISSING`, compare the delivery digest list and transferred archives, then repair the transfer/import on that server. Do not continue because the other server passed.
 
-![Command preview for deployment step 08-import-toe-images](assets/steps/08-import-toe-images.png)
-
-*Command preview only: this image shows the bundled command, without executing it. Compare your actual result with the expectations above.*
 
 The last command must print `loaded` for all six images on both servers. If
 one is `MISSING`, do not continue.
@@ -77,19 +68,12 @@ On C1:
 
 <!-- deployment-step: 08-003 -->
 
-**Run on C1, in the `c1` deployment session:**
-
-```bash
-step 08-pin-image-digests
-```
+**Operation reference:** `08-pin-image-digests` on `c1`.
 
 **Expected result.** The seven reference/count lines shown below, with every TOE image pinned to `@sha256:`.
 
 **If the result differs.** If a count differs or a TOE image still uses a tag, stop and check that the working manifests and digest list match this delivery. Do not replace a missing digest with `latest`.
 
-![Command preview for deployment step 08-pin-image-digests](assets/steps/08-pin-image-digests.png)
-
-*Command preview only: this image shows the bundled command, without executing it. Compare your actual result with the expectations above.*
 
 The output must be exactly:
 
@@ -118,19 +102,12 @@ On C1:
 
 <!-- deployment-step: 08-005 -->
 
-**Run on C1, in the `c1` deployment session:**
-
-```bash
-step 08-start-services
-```
+**Operation reference:** `08-start-services` on `c1`.
 
 **Expected result.** `step-tls-cert already exists; keeping it.`, successful identity-service rollout, and pods `Running` or `Completed`. Only the two trustee instances may remain not ready until their keys are installed.
 
 **If the result differs.** On a rollout timeout or `CrashLoopBackOff`, inspect that component's operating log using the server operations section and check the verified manifests. Keep the original secrets; do not rerun secret generation or use demonstration credentials.
 
-![Command preview for deployment step 08-start-services](assets/steps/08-start-services.png)
-
-*Command preview only: this image shows the bundled command, without executing it. Compare your actual result with the expectations above.*
 
 The deployment must print `step-tls-cert already exists; keeping it.` and end
 without an error. After a few minutes every pod must be `Running` or
@@ -150,19 +127,12 @@ On C1:
 
 <!-- deployment-step: 08-006 -->
 
-**Run on C1, in the `c1` deployment session:**
-
-```bash
-step 08-remove-import-secrets
-```
+**Operation reference:** `08-remove-import-secrets` on `c1`.
 
 **Expected result.** HTTP `200` for the imported realm, then the exact zero-credential summary below after updating its stored manifest.
 
 **If the result differs.** If the realm is not available or the summary differs, stop: confirm its first import completed before removing import material. Do not print client secrets or recreate the realm to work around the error.
 
-![Command preview for deployment step 08-remove-import-secrets](assets/steps/08-remove-import-secrets.png)
-
-*Command preview only: this image shows the bundled command, without executing it. Compare your actual result with the expectations above.*
 
 The last command must print
 `{"credentials":0,"idp_secret":0,"secrets":["CHANGE_ME_API_KEY_CLIENT_SECRET","CHANGE_ME_SERVICE_ACCOUNT_SECRET"]}`.
@@ -193,19 +163,12 @@ before the trustee keys are installed:
 
    <!-- deployment-step: 08-007 -->
 
-   **Run on C1, in the `c1` deployment session:**
-
-   ```bash
-   step 08-select-customer-tenant
-   ```
+   **Operation reference:** `08-select-customer-tenant` on `c1`.
 
    **Expected result.** Two tenant ID/slug rows: the installation tenant and your customer tenant. After listing those rows, the step asks for the customer UUID and prints `Customer realm selected: tenant-` followed by that UUID.
 
    **If the result differs.** If the customer row is absent, finish its creation in the portal first. If more than two tenants appear, stop and reconcile the installation state; never choose an arbitrary tenant or repeat creation.
 
-   ![Command preview for deployment step 08-select-customer-tenant](assets/steps/08-select-customer-tenant.png)
-
-   *Command preview only: this image shows the bundled command, without executing it. Compare your actual result with the expectations above.*
 
    The first command must list two tenants: `90505c8a-23a9-4cdf-a26b-4e19f6a097d5`
    (the super-admin tenant) and the customer's tenant with the short name you
@@ -228,19 +191,12 @@ before the trustee keys are installed:
 
    <!-- deployment-step: 08-008 -->
 
-   **Run on C1, in the `c1` deployment session:**
-
-   ```bash
-   step 08-add-customer-operator
-   ```
+   **Operation reference:** `08-add-customer-operator` on `c1`.
 
    **Expected result.** The customer realm lists the new administrator and trustees enabled; the installation realm lists all personal accounts disabled, as detailed below.
 
    **If the result differs.** If account creation reports a conflict or a user remains enabled in the installation realm, stop and inspect the account state with the administrator. Do not rerun the entire creation block or give these accounts local passwords.
 
-   ![Command preview for deployment step 08-add-customer-operator](assets/steps/08-add-customer-operator.png)
-
-   *Command preview only: this image shows the bundled command, without executing it. Compare your actual result with the expectations above.*
 
    For the realm CR the list must show `admin`, the first administrator's
    user name, `trustee1` and `trustee2`, each with `true`. For the realm R
@@ -283,19 +239,12 @@ the personal trustee account or add a password to it.
 
 <!-- deployment-step: 08-009 -->
 
-**Run on C1, in the `c1` deployment session:**
-
-```bash
-step 08-register-native-trustee
-```
+**Operation reference:** `08-register-native-trustee` on `c1`.
 
 **Expected result.** `Native trustee binding verified` for the chosen instance. Repeat separately for the second instance with its own registered name.
 
 **If the result differs.** If there is no success line, check the exact registered name, customer tenant and instance number with the administrator and trustee. Do not start either server with an uncertain key-to-account mapping.
 
-![Command preview for deployment step 08-register-native-trustee](assets/steps/08-register-native-trustee.png)
-
-*Command preview only: this image shows the bundled command, without executing it. Compare your actual result with the expectations above.*
 
 Each run must print "Native trustee binding verified". Record the native
 account, registered trustee name and checked public-key pair in the protected
@@ -318,19 +267,12 @@ to the trustee's instance number and the path to their keys file:
 
 <!-- deployment-step: 08-010 -->
 
-**Run on the administration workstation, in the `admin` deployment session:**
-
-```bash
-step 08-install-trustee-keys
-```
+**Operation reference:** `08-install-trustee-keys` on `admin`.
 
 **Expected result.** A creation message for the chosen trustee key Secret, then `Trustee key import complete; temporary key file removed.` No nonzero status is expected.
 
 **If the result differs.** Any Secret-creation or transfer error is a failure; do not continue without the completion message. Keep the trustee present, verify the chosen instance and Secret before starting it, and do not overwrite an existing Secret or leave an extra private-key copy.
 
-![Command preview for deployment step 08-install-trustee-keys](assets/steps/08-install-trustee-keys.png)
-
-*Command preview only: this image shows the bundled command, without executing it. Compare your actual result with the expectations above.*
 
 The completion message confirms that the temporary copy was removed. Unmount the
 trustee's medium and give it back. Then, on C1, give the instance its sign-in
@@ -338,19 +280,12 @@ details and start it:
 
 <!-- deployment-step: 08-011 -->
 
-**Run on C1, in the `c1` deployment session:**
-
-```bash
-step 08-configure-trustee-login
-```
+**Operation reference:** `08-configure-trustee-login` on `c1`.
 
 **Expected result.** The authentication Secret is created and the selected trustee deployment reports `successfully rolled out`.
 
 **If the result differs.** If rollout fails, check its operating log and the previously verified native-account binding. Keep the trustee's existing keys and password; do not generate replacements to make the service start.
 
-![Command preview for deployment step 08-configure-trustee-login](assets/steps/08-configure-trustee-login.png)
-
-*Command preview only: this image shows the bundled command, without executing it. Compare your actual result with the expectations above.*
 
 The last command must report that the rollout finished. Repeat both transfer
 and start blocks, answering native trustee number `2` for the second trustee, using its matching keys
@@ -362,19 +297,12 @@ this confirmation:
 
 <!-- deployment-step: 08-012 -->
 
-**Run on C1, in the `c1` deployment session:**
-
-```bash
-step 08-check-trustee-health
-```
+**Operation reference:** `08-check-trustee-health` on `c1`.
 
 **Expected result.** Two rows, `trustee1` and `trustee2`, each with `READY` equal to `1/1`.
 
 **If the result differs.** If either is `0/1`, missing or restarting, do not authorize a key or tally ceremony. Resolve the failed instance and repeat this read-only check before confirming readiness to the board.
 
-![Command preview for deployment step 08-check-trustee-health](assets/steps/08-check-trustee-health.png)
-
-*Command preview only: this image shows the bundled command, without executing it. Compare your actual result with the expectations above.*
 
 ## Back up the trustee state
 
@@ -392,19 +320,26 @@ medium mounted at the path you give:
 
 <!-- deployment-step: 08-013 -->
 
-**Run on the administration workstation, in the `admin` deployment session:**
+**Operation reference:** `08-backup-trustee-state` on `admin`.
 
 ```bash
-step 08-backup-trustee-state
+set -e -o pipefail
+. /root/deploy/hosts.env
+read -r -p "Mounted backup directory: " BACKUP_DIRECTORY
+B="$BACKUP_DIRECTORY"/trustee-state-$(date +%F).tar.gpg
+ssh root@$C1 'k3s kubectl -n step-infra scale --replicas=0 \
+  deployment/trustee1 deployment/trustee2'
+ssh root@$C1 'tar -C /var/lib/sequent-data -cf - trustee1 trustee2' \
+  | gpg --symmetric --cipher-algo AES256 -o "$B"
+ssh root@$C1 'k3s kubectl -n step-infra scale --replicas=1 \
+  deployment/trustee1 deployment/trustee2'
+gpg -d "$B" | tar -tf - | cut -d/ -f1 | sort -u    # trustee1 and trustee2
 ```
 
 **Expected result.** The encrypted backup can be decrypted with its passphrase and the final listing contains both `trustee1` and `trustee2`. The deployments are scaled back to one replica.
 
 **If the result differs.** If encryption or archive validation fails, keep the original state, verify whether trustees remain stopped, and restore their intended running state only outside a ceremony. Do not delete state or accept a partial backup.
 
-![Command preview for deployment step 08-backup-trustee-state](assets/steps/08-backup-trustee-state.png)
-
-*Command preview only: this image shows the bundled command, without executing it. Compare your actual result with the expectations above.*
 
 ## Remove the trustee keys at the end of the election
 
@@ -420,19 +355,30 @@ only at the end of the retention period, with the election board present.
 
 <!-- deployment-step: 08-014 -->
 
-**Run on C1, in the `c1` deployment session:**
+**Operation reference:** `08-remove-trustee-keys` on `c1`.
 
 ```bash
-step 08-remove-trustee-keys
+set -e -o pipefail
+read -r -p "Type REMOVE TRUSTEE KEYS to confirm: " CONFIRM
+test "$CONFIRM" = "REMOVE TRUSTEE KEYS"
+k3s kubectl -n step-infra scale --replicas=0 deployment/trustee1 deployment/trustee2
+k3s kubectl -n step-infra delete secret trustee1-keys trustee2-keys \
+  trustee1-auth trustee2-auth
+find /var/lib/sequent-data/trustee1 /var/lib/sequent-data/trustee2 -mindepth 1 -delete
+if _agd_absent=$(k3s kubectl -n step-infra get secret trustee1-keys trustee2-keys 2>&1); then
+  printf 'Unexpected trustee key secret remains\n' >&2
+  false
+else
+  printf '%s\n' "$_agd_absent" | grep -c NotFound
+fi
+unset _agd_absent
+find /var/lib/sequent-data/trustee1 /var/lib/sequent-data/trustee2 -mindepth 1 | wc -l
 ```
 
 **Expected result.** After the explicit destruction confirmation, deletion messages are followed by `2` (both key Secrets absent) and `0` (no remaining state entries).
 
 **If the result differs.** If either count differs, stop and establish exactly what remains; do not destroy the backups yet or start another ceremony. Record the partial outcome and have the board direct completion of the authorized removal.
 
-![Command preview for deployment step 08-remove-trustee-keys](assets/steps/08-remove-trustee-keys.png)
-
-*Command preview only: this image shows the bundled command, without executing it. Compare your actual result with the expectations above.*
 
 The last two commands must print `2` and `0`. Then destroy every backup of
 the trustee state, and record the removal and the destruction in the election
@@ -455,19 +401,25 @@ with the commands of step 3 of
 
 <!-- deployment-step: 08-015 -->
 
-**Run on the offline trustee workstation, in the `trustee` deployment session:**
+**Operation reference:** `08-load-offline-trustee-image` on `trustee`.
 
 ```bash
-step 08-load-offline-trustee-image
+set -e -o pipefail
+M=/mnt/temenos-delivery
+D=$(sed -n 's/^braid \(sha256:[0-9a-f]*\)$/\1/p' "$M/image-digests.txt")
+[ "$(skopeo inspect --format '{{.Digest}}' "oci:$M/images/braid:v10.0.0")" = "$D" ]
+echo "braid image verified"
+skopeo copy "oci:$M/images/braid:v10.0.0" containers-storage:localhost/braid:v10.0.0
+[ "$(podman image inspect --format '{{.Digest}}' localhost/braid:v10.0.0)" = "$D" ]
+echo "braid image loaded"
+umount "$M" && cryptsetup close temenos-delivery
+echo "D=$D" > ~/braid-digest
 ```
 
 **Expected result.** Both `braid image verified` and `braid image loaded` appear. The delivery medium is unmounted and the checked digest is retained locally.
 
 **If the result differs.** If either line is absent or a digest check fails, do not use the trustee tool. Re-check the verified delivery and local image import while keeping the workstation offline.
 
-![Command preview for deployment step 08-load-offline-trustee-image](assets/steps/08-load-offline-trustee-image.png)
-
-*Command preview only: this image shows the bundled command, without executing it. Compare your actual result with the expectations above.*
 
 Both checks must print their line; if one does not, do not use the
 workstation.
@@ -484,19 +436,20 @@ Define the `trustee` command in each new shell:
 
 <!-- deployment-step: 08-016 -->
 
-**Run on the offline trustee workstation, in the `trustee` deployment session:**
+**Operation reference:** `08-check-offline-trustee-tool` on `trustee`.
 
 ```bash
-step 08-check-offline-trustee-tool
+set -e -o pipefail
+. ~/braid-digest
+trustee() { podman run --rm --network none --entrypoint /usr/bin/trustee \
+  -v "$PWD":/work:Z -w /work "localhost/braid@$D" "$@"; }
+trustee --help
 ```
 
 **Expected result.** The trustee help screen lists `generate`, `public-keys`, `attest` and `verify`, among its subcommands.
 
 **If the result differs.** If the command is missing or starts a server instead, stop. Check the verified braid image and this wrapper; do not run the image's default entry point or enable network access.
 
-![Command preview for deployment step 08-check-offline-trustee-tool](assets/steps/08-check-offline-trustee-tool.png)
-
-*Command preview only: this image shows the bundled command, without executing it. Compare your actual result with the expectations above.*
 
 `trustee --help` lists, among others, the subcommands `generate`,
 `public-keys`, `attest` and `verify`. The program sees only the current

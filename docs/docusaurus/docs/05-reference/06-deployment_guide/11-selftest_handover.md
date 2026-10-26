@@ -197,19 +197,24 @@ administration workstation, with a backup medium mounted at the path you give:
 
 <!-- deployment-step: 11-001 -->
 
-**Run on the administration workstation, in the `admin` deployment session:**
+**Operation reference:** `11-stop-services-for-backup` on `admin`.
 
 ```bash
-step 11-stop-services-for-backup
+set -e -o pipefail
+. /root/deploy/hosts.env
+read -r -p "Mounted backup directory: " BACKUP_DIRECTORY
+B="$BACKUP_DIRECTORY"/sequent-$(date -u +%Y%m%dT%H%MZ).tar.gpg
+ssh root@$C1 'set -e -o pipefail; for ns in step-apps step-infra; do
+  k3s kubectl -n $ns scale deployment --all --replicas=0; done'
+ssh root@$C1 'set -e -o pipefail; pods=$(k3s kubectl get pods -A --no-headers \
+  --field-selector=status.phase=Running)
+printf "%s\n" "$pods" | awk '\''/^step-/ {n++} END {print n+0}'\'''
 ```
 
 **Expected result.** Deployment scale-down messages followed by a running-pod count. Continue to the backup only when the count is `0`, with no SSH or Kubernetes error.
 
 **If the result differs.** A positive count means shutdown is still in progress: repeat only the read-only pod listing shown below, not the whole backup preparation. On any SSH or Kubernetes error, stop and check the connection and actual pod state before doing anything else.
 
-![Command preview for deployment step 11-stop-services-for-backup](assets/steps/11-stop-services-for-backup.png)
-
-*Command preview only: this image shows the bundled command, without executing it. Compare your actual result with the expectations above.*
 
 To check shutdown again, copy this read-only command in the same administration
 session; it lists running pods:
@@ -224,19 +229,22 @@ Then write the backup and start the TOE again:
 
 <!-- deployment-step: 11-002 -->
 
-**Run on the administration workstation, in the `admin` deployment session:**
+**Operation reference:** `11-create-encrypted-backup` on `admin`.
 
 ```bash
-step 11-create-encrypted-backup
+set -e -o pipefail
+ssh root@$C1 'set -e -o pipefail; tar -C / -cf - var/lib/sequent-data root/deploy' \
+  | gpg --symmetric --cipher-algo AES256 -o "$B"    # asks for a new passphrase twice
+ssh root@$C1 'set -e -o pipefail; for ns in step-apps step-infra; do
+  k3s kubectl -n $ns scale deployment --all --replicas=1; done'
+gpg -d "$B" | tar -tf - | grep -o -e '^root/deploy/' -e '^var/lib/sequent-data/' \
+  | sort | uniq -c                                   # asks for the passphrase
 ```
 
 **Expected result.** Private passphrase prompts, deployment scale-up messages, and two nonzero archive-entry counts for `root/deploy/` and `var/lib/sequent-data/`.
 
 **If the result differs.** On an encryption or validation failure, retain the original data and establish whether the services remain stopped. Do not accept a partial archive or overwrite the only known good backup; recover service operation through the documented deploy/check procedure.
 
-![Command preview for deployment step 11-create-encrypted-backup](assets/steps/11-create-encrypted-backup.png)
-
-*Command preview only: this image shows the bundled command, without executing it. Compare your actual result with the expectations above.*
 
 The last command must print two lines, one with `root/deploy/` and one with
 `var/lib/sequent-data/`, each after the number of entries it holds. Then make the checks of
@@ -251,25 +259,36 @@ checks the electoral log. To restore:
 
 1. Make a backup of the current state as above, and keep it.
 2. Scale the deployments to 0 as above and wait until the count is `0`.
-3. At the public prompts, select the backup medium and the existing backup
-   file to restore, not the new backup just created. After validation, this step
+3. At the path prompt, select the existing backup file to restore, not the
+   new backup just created. After validation, this step
    empties the data directory and extracts the selected backup on C1:
 
    <!-- deployment-step: 11-003 -->
 
-   **Run on the administration workstation, in the `admin` deployment session:**
+   **Operation reference:** `11-restore-authorized-backup` on `admin`.
 
    ```bash
-   step 11-restore-authorized-backup
+   set -e -o pipefail
+   . /root/deploy/hosts.env
+   read -r -p "Type RESTORE AUTHORIZED BACKUP to confirm: " CONFIRM
+   test "$CONFIRM" = "RESTORE AUTHORIZED BACKUP"
+   read -r -p "Absolute path to the authorized backup: " B
+   test -f "$B" && test -r "$B"
+   # Validate decryption and the complete tar stream before deleting anything.
+   # Plaintext flows through a pipe only; GPG obtains the passphrase privately.
+   gpg -d "$B" | tar -tf - | awk '
+     /^root\/deploy\// {deployment=1}
+     /^var\/lib\/sequent-data\// {data=1}
+     /^\// || /(^|\/)\.\.(\/|$)/ {unsafe=1}
+     END {exit !(deployment && data && !unsafe)}'
+   ssh root@$C1 'set -e -o pipefail; find /var/lib/sequent-data -mindepth 1 -delete'
+   gpg -d "$B" | ssh root@$C1 'set -e -o pipefail; tar -C / -xf -'      # asks for the passphrase
    ```
 
    **Expected result.** An explicit restore confirmation, private decryption prompts and completion without an archive or SSH error. Successful extraction itself is normally silent; deployment and all verification checks are still required next.
 
    **If the result differs.** If preflight fails, current data must not be removed: check the chosen archive and passphrase. If extraction fails after deletion began, keep the TOE stopped, preserve the current-state backup, and recover from a validated archive before redeploying.
 
-   ![Command preview for deployment step 11-restore-authorized-backup](assets/steps/11-restore-authorized-backup.png)
-
-   *Command preview only: this image shows the bundled command, without executing it. Compare your actual result with the expectations above.*
 
 The step asks for explicit restore authorization, then validates decryption and
 the complete archive before deleting any current data. Plaintext is streamed,
