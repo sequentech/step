@@ -48,7 +48,6 @@ For every event:
 
 | Event | Where it shows | What the election board does |
 |---|---|---|
-| Maintenance mode entered (`MaintenanceModeEntered`) | Dashboard "Maintenance mode" with the reason, email to the board and administrators, Logs tab | Follow [Maintenance mode](12-modes-and-failures.md#maintenance-mode). |
 | Suspected ballot-box integrity failure | Audit/seal verification or other observed evidence | Preserve evidence and follow [An unrecoverable failure](12-modes-and-failures.md#an-unrecoverable-failure); no automatic self-test response is implemented. |
 | Background audit failed, missing or delayed | **Tasks → Audit Electoral Log** | Preserve the result, request investigation and decide under the regulation. A missing result is not success; the complete ST suite remains unimplemented. |
 | An account reached the authentication failure threshold | Record `AuthenticationFailureThresholdReached` on the Logs tab for voters' accounts; for board members' and administrators' accounts, in the tenant's electoral log | The TOE locks the account for a while. For a voter: watch for more such records. For a board member or administrator: ask the person whether it was them; if not, treat it as an attack on that account. |

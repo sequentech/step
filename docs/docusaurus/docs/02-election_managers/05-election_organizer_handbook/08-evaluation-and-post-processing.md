@@ -32,8 +32,9 @@ election.
      (`ElectionVotingPeriodOpen`, `ElectionVotingPeriodPause`,
      `ElectionVotingPeriodClose` and their `ElectionEvent…` forms) matches a
      decision of the board or the election dates;
-   - every entry into and exit from maintenance mode (`MaintenanceModeEntered`,
-     `MaintenanceModeLeft`) has a recorded cause and a board decision;
+   - each operator-reported interruption has a recorded cause and board
+     decision; automatic maintenance-mode events are not implemented, so
+     their absence is not evidence that no failure occurred;
    - each scheduled **Audit Electoral Log** task completed without findings,
      and any missing or delayed run was investigated; this is not a complete
      ST self-test record;

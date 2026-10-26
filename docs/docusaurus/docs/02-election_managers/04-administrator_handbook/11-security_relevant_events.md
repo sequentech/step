@@ -53,7 +53,7 @@ For every event on this page:
 | Event | How you notice it | What you do |
 |---|---|---|
 | An electoral-log audit fails, is missing or is delayed | The board checks **Tasks → Audit Electoral Log** | Inform the board and operator; preserve the task result and investigate. A log audit is not the complete ST suite ([Self-Test Settings](07-self_tests.md)). |
-| The ballot box test fails: an unrecoverable failure | email | Support the election board; keep all server logs; report it ([Modes of Operation and Failure Handling](10-modes_of_operation.md#an-unrecoverable-failure)). |
+| Suspected ballot-box integrity failure | An audit/seal verification result or operator report; no automatic complete self-test response is implemented | Support the election board; keep all server logs; report it ([Modes of Operation and Failure Handling](10-modes_of_operation.md#an-unrecoverable-failure)). |
 | The server clock is not synchronised | AGD-04 synchronization check fails | Restore the time service as the Deployment Guide describes. |
 
 ## Evaluation and post-processing phases
