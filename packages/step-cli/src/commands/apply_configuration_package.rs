@@ -242,9 +242,11 @@ fn summary(annotations: &Value) -> Vec<String> {
             section["section"].as_str().unwrap_or("?"),
             status["state"].as_str().unwrap_or("?")
         );
+        // A SectionSubmission is camelCase; the fields inside a SectionStatus
+        // variant (Submitting, Failed, Unknown) keep their Rust name.
         let task = status["submission"]["taskId"]
             .as_str()
-            .or_else(|| status["taskId"].as_str());
+            .or_else(|| status["task_id"].as_str());
         if let Some(task) = task {
             line.push_str(&format!(" (task {task})"));
         }
@@ -277,7 +279,7 @@ mod tests {
             "sections": [
                 {"section": "role-permissions", "status": {"state": "applied", "submission": {"taskId": "t-1"}, "reconciled": false}},
                 {"section": "admin-accounts", "status": {"state": "blocked", "preview": {"blockers": ["group vanished"]}}},
-                {"section": "election-event", "status": {"state": "failed", "error": "boom", "taskId": "t-2"}},
+                {"section": "election-event", "status": {"state": "failed", "error": "boom", "task_id": "t-2"}},
             ]
         }});
         assert_eq!(
