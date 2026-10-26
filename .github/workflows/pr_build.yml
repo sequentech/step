@@ -40,7 +40,9 @@ jobs:
               refs/heads/main|refs/heads/ovcs) ;;
               *) echo "::error::push=true is allowed only from main or ovcs, not $REF"; exit 1 ;;
             esac
-            # A published pr_build tag never overwrites a release's or latest.
+            # The version tag a publication names is a candidate- one, so it is
+            # never a release's or latest. The reusable workflow still pushes
+            # the shared short-SHA tag and the shared buildcache tag too.
             case "$TAG" in
               candidate-?*) ;;
               *) echo "::error::push=true needs a tag starting with candidate-"; exit 1 ;;

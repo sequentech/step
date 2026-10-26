@@ -55,8 +55,11 @@ After step 2, the jobs above, including the build started by
 tags. Until step 5, they keep reading the repository secrets.
 
 `pr_build.yml` publishes only when started with `push` on, from `main` or
-`ovcs`, with a tag starting with `candidate-`, so it never overwrites a
-release's tags or `latest`. That check is in the workflow itself and guards
+`ovcs`, with a tag starting with `candidate-`, so the version tag it
+publishes is never a release's or `latest`. It does not protect the other
+tags the shared build workflow pushes on every publication: the image's
+short commit SHA tag and the `buildcache` tag, both shared with every other
+build of that image. That check is in the workflow itself and guards
 against an accidental publication only: anyone who can push a branch can
 change it there. Publishing from `ovcs` therefore also needs `ovcs` in step 2's
 list. Every `pr_build.yml` run, publishing or not, enters `release` and
