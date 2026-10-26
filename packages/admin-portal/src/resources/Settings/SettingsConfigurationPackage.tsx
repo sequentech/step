@@ -445,6 +445,8 @@ export const SettingsConfigurationPackage: React.FC = () => {
                     </Typography>
                     <ImportScreen
                         refresh="configurationPackage.upload"
+                        // The package is the delivery zip, whatever the drop area's default says.
+                        formatLabel="ZIP"
                         doCancel={() => setOpenUpload(false)}
                         doImport={async (document: string, sha256: string) => {
                             setOpenUpload(false)

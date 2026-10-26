@@ -70,13 +70,23 @@ jest.mock(
     "@sequentech/ui-essentials",
     () => ({
         ProblemList: () => null,
-        DropFile: ({handleFiles}: {handleFiles: (files: FileList | null) => Promise<void>}) =>
-            require("react").createElement("input", {
-                "aria-label": "Import file",
-                "type": "file",
-                "onChange": (event: React.ChangeEvent<HTMLInputElement>) =>
-                    handleFiles(event.target.files),
-            }),
+        DropFile: ({
+            handleFiles,
+            formatLabel,
+        }: {
+            handleFiles: (files: FileList | null) => Promise<void>
+            formatLabel?: string
+        }) =>
+            require("react").createElement(
+                "label",
+                {"data-format": formatLabel ?? "default"},
+                require("react").createElement("input", {
+                    "aria-label": "Import file",
+                    "type": "file",
+                    "onChange": (event: React.ChangeEvent<HTMLInputElement>) =>
+                        handleFiles(event.target.files),
+                })
+            ),
         Dialog: () => null,
     }),
     {virtual: true}
@@ -110,6 +120,8 @@ it("uploads the delivery through its own drawer and previews it, never the event
     render(<SettingsConfigurationPackage />)
     fireEvent.click(screen.getByText("configurationPackage.upload"))
     expect(screen.getByTestId("package-upload-drawer")).toBeTruthy()
+    // The drop area names the delivery zip, not the import screen's default.
+    expect(screen.getByLabelText("Import file").closest("label")?.dataset.format).toBe("ZIP")
     fireEvent.change(screen.getByLabelText("electionEventScreen.import.sha"), {
         target: {value: SHA},
     })
