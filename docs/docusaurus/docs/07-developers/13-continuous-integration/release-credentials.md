@@ -54,6 +54,16 @@ After step 2, the jobs above, including the build started by
 `Build Docker images` (`pr_build.yml`), run only from the allowed branches and
 tags. Until step 5, they keep reading the repository secrets.
 
+`pr_build.yml` publishes only when started with `push` on, from `main` or
+`ovcs`, with a tag starting with `candidate-`, so it never overwrites a
+release's tags or `latest`. That check is in the workflow itself and guards
+against an accidental publication only: anyone who can push a branch can
+change it there. Publishing from `ovcs` therefore also needs `ovcs` in step 2's
+list. Every `pr_build.yml` run, publishing or not, enters `release` and
+receives its credentials, so step 2 also decides from which branches it can
+build at all. Whether this repository's `release` environment is configured
+as above has not been verified.
+
 ## Build cache
 
 Image builds read the `<service>:buildcache` registry cache. Only builds that

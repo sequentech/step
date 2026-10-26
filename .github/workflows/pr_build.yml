@@ -18,9 +18,12 @@ on:
         default: false
 
 jobs:
-  # Runs before anything with credentials. Publishing is refused, not turned
-  # into a dry run, outside the integration branches; a tag must be one Docker
-  # tag. The inputs reach the script through env, never inline.
+  # Runs before anything with credentials. It guards against an accidental
+  # publication: publishing is refused, not turned into a dry run, outside the
+  # integration branches, and a published tag must be a candidate- tag; any tag
+  # must be one Docker tag. The inputs reach the script through env, never
+  # inline. It is not protection against someone who can push a branch: the
+  # release environment's settings are (see release-credentials.md).
   preflight:
     runs-on: ubuntu-24.04
     permissions: {}
@@ -37,6 +40,11 @@ jobs:
               refs/heads/main|refs/heads/ovcs) ;;
               *) echo "::error::push=true is allowed only from main or ovcs, not $REF"; exit 1 ;;
             esac
+            # A published pr_build tag never overwrites a release's or latest.
+            case "$TAG" in
+              candidate-?*) ;;
+              *) echo "::error::push=true needs a tag starting with candidate-"; exit 1 ;;
+            esac
           fi
           if [ -n "$TAG" ]; then
             if ! printf '%s' "$TAG" | grep -Eqx '[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}' \
@@ -48,6 +56,8 @@ jobs:
 
   build-and-push:
     needs: preflight
+    permissions:
+      contents: read
     uses: ./.github/workflows/reusable_build_push.yml
     secrets:
       PAT: ${{ secrets.PAT }}
