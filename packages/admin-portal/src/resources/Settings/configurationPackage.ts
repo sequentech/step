@@ -80,6 +80,8 @@ export interface SectionView {
 }
 
 export interface MemberView {
+    /** The nested zip the member is inside, or none for a root member. */
+    container?: string
     path: string
     disposition: string
     section?: string
@@ -138,6 +140,7 @@ export const readApplication = (annotations: unknown): ApplicationView | null =>
         const member = asObject(raw)
         const disposition = asObject(member.disposition)
         return {
+            container: typeof member.container === "string" ? member.container : undefined,
             path: String(member.path ?? "?"),
             disposition: String(disposition.kind ?? member.disposition ?? "?"),
             section: disposition.section ? String(disposition.section) : undefined,
@@ -172,25 +175,49 @@ const sameRequirements = (a: PackageRequirements, b: PackageRequirements): boole
     a.sections.every((section) => b.sections.includes(section))
 
 /**
+ * Whether the previewed package is the one whose SHA-256 the operator entered.
+ * No entered digest is no check; the record's packageSha256 is the digest of
+ * the bytes the platform read.
+ */
+export const shaMatches = (
+    view: ApplicationView,
+    expectedSha: string | null | undefined
+): boolean => !expectedSha || view.packageSha256?.toLowerCase() === expectedSha.toLowerCase()
+
+/**
  * An application is offered only for the document and requirements that were
- * just previewed, when that preview finished with nothing blocking it.
+ * just previewed, when that preview finished with nothing blocking it and, if
+ * the operator entered a SHA-256, the platform read exactly that package.
  */
 export const mayApply = (
     previewed: PreviewedPackage | null,
     tenantId: string | null | undefined,
     documentId: string | null,
-    requirements: PackageRequirements
+    requirements: PackageRequirements,
+    expectedSha?: string | null
 ): boolean =>
     !!previewed &&
     previewed.tenantId === tenantId &&
     previewed.documentId === documentId &&
     sameRequirements(previewed.requirements, requirements) &&
     previewed.view.outcome === "previewed" &&
-    previewed.view.blockers.length === 0
+    previewed.view.blockers.length === 0 &&
+    shaMatches(previewed.view, expectedSha)
 
-/** Whether a task's status is final. */
+/** Whether a task's status is final: it will not change again. */
 export const isFinished = (executionStatus: string | null | undefined): boolean =>
-    executionStatus === "SUCCESS" || executionStatus === "FAILED"
+    executionStatus === "SUCCESS" || executionStatus === "FAILED" || executionStatus === "CANCELLED"
+
+/**
+ * The last line of a task row's log. A task that stops before it saves a
+ * record (rejected signature, a missing document, another application on the
+ * tenant) leaves its reason only there, with annotations `{document_id: null}`.
+ */
+export const lastLogLine = (logs: unknown): string | undefined => {
+    const entries = Array.isArray(logs) ? logs : []
+    const last = asObject(entries[entries.length - 1])
+    return typeof last.log_text === "string" ? last.log_text : undefined
+}
 
 /** The submission a page is following, kept so a reload resumes it. */
 export interface ActiveSubmission {
@@ -198,6 +225,8 @@ export interface ActiveSubmission {
     mode: ApplyMode
     documentId: string
     requirements: PackageRequirements
+    /** The SHA-256 the operator entered for the upload, if any. */
+    expectedSha?: string | null
 }
 
 const storageKey = (tenantId: string) => `configurationPackage.active.${tenantId}`
@@ -227,4 +256,66 @@ export const recalledSubmission = (
     } catch {
         return null
     }
+}
+
+/** Stop following this tenant's submission: nothing is cancelled or resubmitted. */
+export const forgetSubmission = (tenantId: string): void => {
+    try {
+        sessionStorage.removeItem(storageKey(tenantId))
+    } catch {
+        // Nothing stored, nothing to forget.
+    }
+}
+
+const names = (value: unknown): string[] =>
+    Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : []
+
+/**
+ * One readable line per proposed change of a section's preview: what it
+ * names (a field, group, username, trustee or event), the action, and the
+ * keys, roles or files involved. Built from an allow-list, so a value the
+ * platform did not mean as a name (a setting's value, a record) is never
+ * shown; a display name's old and new text are the only values shown.
+ */
+export const changeLines = (changes: unknown): string[] => {
+    const entries = Array.isArray(changes) ? changes : changes ? [changes] : []
+    return entries.map((raw) => {
+        const change = asObject(raw)
+        const subject = ["field", "username", "group", "name", "electionEventId"]
+            .map((key) => change[key])
+            .filter((v): v is string => typeof v === "string")
+            .join(" / ")
+        const parts: string[] = []
+        if (subject) parts.push(subject)
+        if (typeof change.action === "string") parts.push(change.action)
+        const listed: Array<[string, string[]]> = [
+            ["keys", names(change.keys)],
+            ["add", names(change.add)],
+            ["remove", names(change.remove)],
+            ["files", names(change.files)],
+        ]
+        for (const [label, values] of listed) {
+            if (values.length) parts.push(`${label}: ${values.join(", ")}`)
+        }
+        if (typeof change.censusSize === "number") parts.push(`census: ${change.censusSize}`)
+        if (
+            change.field === "displayName" &&
+            (typeof change.to === "string" || change.to === null)
+        ) {
+            parts.push(`${String(change.from ?? "—")} → ${String(change.to ?? "—")}`)
+        }
+        return parts.join(" · ") || "—"
+    })
+}
+
+const SECRET_LIKE = /[A-Za-z0-9+/=_-]{32,}/g
+const MAX_TEXT = 300
+
+/**
+ * Text from the platform, safe to show: long token-like runs (keys, hashes,
+ * secrets) redacted, and the length bounded so a raw record is never echoed.
+ */
+export const safeText = (text: string): string => {
+    const redacted = text.replace(SECRET_LIKE, "[redacted]")
+    return redacted.length > MAX_TEXT ? `${redacted.slice(0, MAX_TEXT)}…` : redacted
 }

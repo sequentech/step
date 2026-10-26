@@ -44,13 +44,15 @@ export const LIST_PACKAGE_APPLICATIONS = gql`
     }
 `
 
-/** One package application's task row, looked up within the tenant only. */
+/** One package application's task row, looked up within the tenant only. Its
+ * logs carry the reason when the task stopped before saving a record. */
 export const GET_PACKAGE_TASK = gql`
     query GetPackageTask($taskId: uuid!, $tenantId: uuid!) {
         sequent_backend_tasks_execution(where: {id: {_eq: $taskId}, tenant_id: {_eq: $tenantId}}) {
             id
             execution_status
             annotations
+            logs
         }
     }
 `

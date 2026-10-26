@@ -1140,3 +1140,136 @@ async fn an_interrupted_submission_that_landed_settles_as_success_without_resubm
         }
     ));
 }
+
+/// The Admin Portal reads these records from the task row; this keeps its
+/// fixture the bytes serde writes, not a hand-written guess. Regenerate with
+/// SEQUENT_WRITE_PACKAGE_GOLDEN=1.
+#[tokio::test]
+async fn the_admin_portal_fixture_is_what_the_task_records() {
+    let applied = run(
+        &plan(),
+        "t1",
+        ApplyMode::Apply,
+        None,
+        &Fake::default(),
+        &Saved::default(),
+    )
+    .await
+    .unwrap();
+    let previewed = run(
+        &plan(),
+        "t1",
+        ApplyMode::Preview,
+        None,
+        &Fake::default(),
+        &Saved::default(),
+    )
+    .await
+    .unwrap();
+    let refused = run(
+        &plan(),
+        "t1",
+        ApplyMode::Apply,
+        None,
+        &Fake {
+            blocked: Some(Section::RolePermissions),
+            ..Fake::default()
+        },
+        &Saved::default(),
+    )
+    .await
+    .unwrap();
+    let failed = run(
+        &plan(),
+        "t1",
+        ApplyMode::Apply,
+        None,
+        &Fake {
+            fail: Some(Section::AdminAccounts),
+            ..Fake::default()
+        },
+        &Saved::default(),
+    )
+    .await
+    .unwrap();
+    // A run resumed while its earlier submission is still running: Unknown,
+    // with the task id inside the variant.
+    let target = Fake::default();
+    let interrupted = interrupted_at_event(&target).await;
+    target
+        .tasks
+        .lock()
+        .unwrap()
+        .insert("task-ElectionEvent".into(), TaskState::Running);
+    let unknown = run(
+        &plan(),
+        "t1",
+        ApplyMode::Apply,
+        Some(&interrupted),
+        &target,
+        &Saved::default(),
+    )
+    .await
+    .unwrap();
+    // A record saved mid-run, with a section Submitting.
+    let store = Saved::default();
+    run(
+        &plan(),
+        "t1",
+        ApplyMode::Apply,
+        None,
+        &Fake::default(),
+        &store,
+    )
+    .await
+    .unwrap();
+    let submitting = store
+        .0
+        .lock()
+        .unwrap()
+        .iter()
+        .find(|record| {
+            record
+                .sections
+                .iter()
+                .any(|section| matches!(section.status, SectionStatus::Submitting { .. }))
+        })
+        .cloned()
+        .unwrap();
+    // The synthetic delivery zip carries the time it was written, so its digest
+    // differs on every run; the field and its shape are what the portal reads.
+    let pin = |mut record: ApplicationRecord| {
+        record.package_sha256 = "ae".repeat(32);
+        record
+    };
+    let (applied, previewed, refused, failed, unknown, submitting) = (
+        pin(applied),
+        pin(previewed),
+        pin(refused),
+        pin(failed),
+        pin(unknown),
+        pin(submitting),
+    );
+    let golden = serde_json::to_string_pretty(&json!({
+        "applied": applied,
+        "previewed": previewed,
+        "refused": refused,
+        "failed": failed,
+        "unknown": unknown,
+        "submitting": submitting,
+    }))
+    .unwrap()
+        + "\n";
+    let path = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../admin-portal/src/resources/Settings/configurationPackage.golden.json"
+    );
+    if std::env::var("SEQUENT_WRITE_PACKAGE_GOLDEN").is_ok() {
+        std::fs::write(path, &golden).unwrap();
+    }
+    assert_eq!(
+        std::fs::read_to_string(path).unwrap(),
+        golden,
+        "the Admin Portal fixture is out of date; regenerate with SEQUENT_WRITE_PACKAGE_GOLDEN=1"
+    );
+}

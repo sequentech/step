@@ -55,8 +55,26 @@ const spanishTranslation: TranslationType = {
             history: "Aplicaciones anteriores",
             applyRechecks:
                 "Aplicar vuelve a previsualizar el paquete en la plataforma antes de cambiar nada, y se detiene ante cualquier bloqueo.",
-            earlierApplied: "Aplicado por una ejecución anterior (tareas: {{tasks}})",
+            earlierApplied: "Aplicado por una ejecución anterior",
+            earlierTasks: "Tareas iniciadas para esta sección: {{tasks}}",
             inFlight: "Hay un envío sin resolver (tarea {{taskId}})",
+            stoppedWithoutRecord:
+                "Detenido sin registro: esta ejecución o una anterior pueden haber aplicado secciones; previsualice de nuevo para ver el estado del cliente",
+            lastLog: "Último mensaje: {{message}}",
+            unreadable:
+                "No se puede leer la tarea ({{reason}}). Puede seguir en curso: compruebe las aplicaciones anteriores o deje de seguirla",
+            notFound: "no encontrada en este cliente",
+            stopFollowing: "Dejar de seguir",
+            mayHaveTask:
+                "Se desconoce el resultado de la petición, así que puede haberse creado una tarea: compruebe las aplicaciones anteriores antes de reintentar.",
+            shaMismatch:
+                "El paquete previsualizado no es el del SHA-256 introducido ({{expected}}); no se puede aplicar.",
+            confirmTitle: "¿Aplicar este paquete?",
+            confirmBody:
+                "Esto aplica el paquete previsualizado al cliente {{tenantId}}. La plataforma lo vuelve a previsualizar primero y se detiene ante cualquier bloqueo.",
+            cancel: "Cancelar",
+            proposedChanges: "Lo que cambiaría al aplicar",
+            nothingToChange: "Nada: el cliente ya coincide con el paquete.",
         },
         ballotPrivacy: englishTranslation.translations.ballotPrivacy,
         readiness: {

@@ -120,14 +120,6 @@ export const SettingsScreen: React.FC = () => {
                 <Resource name="sequent_backend_tenant" list={SettingsBackupRestore} />
             ),
         },
-        ...(showConfigurationPackage
-            ? [
-                  {
-                      label: t("configurationPackage.tab"),
-                      component: () => <SettingsConfigurationPackage />,
-                  },
-              ]
-            : []),
         {
             label: t("settings.previewScreen.label"),
             component: () => <Resource name="sequent_backend_preview" list={SettingsPreviews} />,
@@ -153,6 +145,15 @@ export const SettingsScreen: React.FC = () => {
                               {
                                   label: t("electionTypeScreen.tabs.logs"),
                                   component: () => <SettingsLogs />,
+                              },
+                          ]
+                        : []),
+                    // Last, so the tabs before it keep their tabIndex links.
+                    ...(showsConfiguration(access) && showConfigurationPackage
+                        ? [
+                              {
+                                  label: t("configurationPackage.tab"),
+                                  component: () => <SettingsConfigurationPackage />,
                               },
                           ]
                         : []),

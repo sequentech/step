@@ -54,8 +54,26 @@ const englishTranslation = {
             history: "Earlier applications",
             applyRechecks:
                 "Applying previews the package again on the platform before anything changes, and stops at any blocker.",
-            earlierApplied: "Applied by an earlier run (tasks: {{tasks}})",
+            earlierApplied: "Applied by an earlier run",
+            earlierTasks: "Tasks begun for this section: {{tasks}}",
             inFlight: "A submission is not settled yet (task {{taskId}})",
+            stoppedWithoutRecord:
+                "Stopped without a record: sections may have been applied by this or earlier runs; preview again to see the tenant's state",
+            lastLog: "Last message: {{message}}",
+            unreadable:
+                "The task cannot be read ({{reason}}). It may still be running: check the earlier applications, or stop following it",
+            notFound: "not found in this tenant",
+            stopFollowing: "Stop following",
+            mayHaveTask:
+                "The outcome of the request is unknown, so a task may have been created: check the earlier applications before retrying.",
+            shaMismatch:
+                "The previewed package is not the one whose SHA-256 was entered ({{expected}}); it cannot be applied.",
+            confirmTitle: "Apply this package?",
+            confirmBody:
+                "This applies the previewed package to tenant {{tenantId}}. The platform previews it again first and stops at any blocker.",
+            cancel: "Cancel",
+            proposedChanges: "What applying would change",
+            nothingToChange: "Nothing: the tenant already matches the package.",
         },
         ballotPrivacy: {
             title: "Ballot box log",
