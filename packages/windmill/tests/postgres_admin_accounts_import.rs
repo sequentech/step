@@ -14,6 +14,9 @@
 //! loopback S3 stub, and runs `import_users::execute` on a two-connection pool
 //! with the claim held. Everything is synthetic and local.
 
+// The import is one deeply nested future.
+#![recursion_limit = "256"]
+
 #[path = "support/schema.rs"]
 mod schema;
 
