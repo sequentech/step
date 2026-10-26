@@ -8,3 +8,9 @@ declare module "virtual:admin-graphql-schema" {
     const introspection: string
     export default introspection
 }
+
+// Public CA fixture text used by certificate-settings interaction stories.
+declare module "*.pem?raw" {
+    const pem: string
+    export default pem
+}

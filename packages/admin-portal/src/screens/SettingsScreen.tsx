@@ -23,6 +23,7 @@ import {SettingsIntegrations} from "@/resources/Settings/SettingsIntegrations"
 import {SettingsCountries} from "@/resources/Settings/SettingsCountries"
 import SettingsLocalization from "@/resources/Settings/SettingsLocalization"
 import {SettingsBackupRestore} from "@/resources/Settings/SettingsBackupRestore"
+import {SettingsConfigurationSigning} from "@/resources/Settings/SettingsConfigurationSigning"
 import {SettingsPreviews} from "@/resources/Settings/SettingsPreviews"
 
 export const SettingsScreen: React.FC = () => {
@@ -78,6 +79,10 @@ export const SettingsScreen: React.FC = () => {
                         component: () => (
                             <Resource name="sequent_backend_tenant" list={SettingsVotingChannels} />
                         ),
+                    },
+                    {
+                        label: t("configurationSigning.tab", "Configuration packages"),
+                        component: () => <SettingsConfigurationSigning />,
                     },
                     ...(showMessaging
                         ? [

@@ -198,7 +198,7 @@ actions and certificates. The election board checks these settings with them:
 | Election event, Signatures tab, "Certificates" | "Registering a certificate to a person" | "Only when someone who can register certificates registers it" (the default "When its holder first signs with it" is not allowed) |
 | Election event, Signatures tab, "Certificates" | "Check revocation lists" and "When a list can't be downloaded" | If the election organizer's certification authority publishes revocation lists that the server can download: on, with "Don't accept signatures". Otherwise certificates are withdrawn with "Revoke" |
 | Users and Roles | "Signatures: register certificates" (`signing-certificates-register`) | Held by administrators only |
-| Election event, "Self-tests" tab, section "Settings" | "Self-test interval (minutes)" and "Additional self-test conditions" | The interval as the electoral regulation fixes it, and all three additional conditions selected (see [Self-test intervals](11-security-relevant-events.md#self-test-intervals)) |
+| Operator configuration and Tasks | Background audit interval and results; the complete self-test controls are not implemented | The interval as the electoral regulation fixes it, and all three additional conditions selected (see [Self-test intervals](11-security-relevant-events.md#self-test-intervals)) |
 | Header of the admin portal | "Version" | `Sequent Voting Platform - uniWAHL Version, v10.0.0` |
 
 :::warning
@@ -206,7 +206,7 @@ If any setting differs from this table, the TOE is not in its evaluated
 configuration and some of its protections do not apply. Do not approve the
 configuration. If an imported Data-tab value differs, obtain a corrected signed
 package and import a new event as described above. For the separate signing,
-certificate and self-test settings, wait for the administrators to complete their
+certificate settings and background audit policy, wait for the administrators to complete their
 procedures.
 :::
 
@@ -398,15 +398,12 @@ the start means that votes may have been added outside the execution phase.
 
 ## The self-test before the start
 
-The TOE runs its self-test by itself when the start time is reached and before
-"Start Voting". Run it once more on request shortly before the start, so that a
-problem is found while there is time to correct it:
-
-1. On the election event's Dashboard, select "Run self-test".
-2. Open the "Self-tests" tab. The new run shows the time, the trigger and the
-   result of each of the six tests.
-3. Every test must have passed. What each test checks and what a failure means
-   is in [Self-test results](07-execution.md#self-test-results).
+The complete ST self-test and automatic start gate remain unimplemented.
+Do not look for a Self-tests tab or Run self-test action. A board member can
+run the narrower **Logs → Audit** check and inspect **Audit Electoral Log**
+in **Tasks**, as [Self-Test Settings](../04-administrator_handbook/07-self_tests.md)
+explains. A successful audit does not establish complete FPT_TST.1 coverage;
+keep that requirement open before approving the evaluated configuration.
 
 ## Checklist before the execution phase
 
@@ -419,5 +416,5 @@ problem is found while there is time to correct it:
 | "Start Lockdown Period" and "End Lockdown Period" created at the times the election organizer decided | [Setting the lockdown period](#setting-the-lockdown-period) |
 | Key ceremony complete, every trustee with "Custody Confirmed" | [The key ceremony](#the-key-ceremony) |
 | Initialization report of every election witnessed, zero ballots, hash matches the log | [The initialization report](#the-initialization-report) |
-| Last self-test passed | [The self-test before the start](#the-self-test-before-the-start) |
+| Complete ST self-test requirement resolved; available log audit reviewed | [The self-test before the start](#the-self-test-before-the-start) |
 | Voters have their credentials and the information the election organizer gives them | [Instruct the voters](02-organizer-duties.md#instruct-the-voters) |

@@ -130,8 +130,7 @@ They also include `attack-detection-write`, for the attack detection rates
 the trustee registration permissions; "View Election Dashboard"
 (`election-dashboard-tab`), where your Dashboard shows the election event's
 phase and settings, not election execution data such as turnout, cast votes or
-ballot boxes; and the self-test permissions `self-test-settings-write`,
-`self-test-run` and `self-test-read`.
+ballot boxes; and no `self-test-*` permissions: those controls are not implemented (see [Self-Test Settings](07-self_tests.md)).
 
 No role holds "Edit Results Publication" (`publish-results-write`), neither the
 administrator role nor the election board role. No account holds "Datafix
@@ -173,7 +172,7 @@ the election board, not deleted
      (`document-read`), "Download Documents" (`document-download`),
      "Export Voter" (`voter-export`), "Audit Electoral Log" (`electoral-log-audit`), "Browse
      Electoral Log" (`electoral-log-console-read`), "Query Electoral Log"
-     (`electoral-log-console-query`); `self-test-run` and `self-test-read`;
+     (`electoral-log-console-query`);
      "Delete Election Event" (`election-event-delete`), "Archive Election
      Event" (`election-event-archive`);
    - read-only access to the accounts and roles, so that the board can check
@@ -203,7 +202,7 @@ the election board, not deleted
    "Election board" role.
 4. Do not give the role any permission to create or change users, roles,
    elections, contests, candidates, areas, voters, signing
-   rules, trusted issuers, certificate checks or self-test settings, and never
+   rules, trusted issuers, certificate checks, and never
    "Edit Results Publication" (`publish-results-write`). The board creates
    election events only by importing signed configuration packages. Each
    such import writes every part of the package itself and needs no other

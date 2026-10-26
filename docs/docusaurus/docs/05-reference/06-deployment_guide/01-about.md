@@ -272,7 +272,7 @@ them done merely to make the command continue.
 **Expected result.** The configured customer administrator and both native trustee
 instances pass their checks. The command ends with
 `COMMISSIONING COMMANDS COMPLETE — perform the browser, client-network and board handover checks in AGD-04.` Complete the
-remaining browser, MFA, client-network and board self-test checks; a server check
+remaining browser, MFA, client-network and board integrity-audit checks; a server check
 alone cannot establish those conditions.
 
 ![Actual clean VM commissioning completing the customer and both native trustee checks](./assets/installation/installer-commission-complete.png)
@@ -290,7 +290,7 @@ tenant, substitute another trustee's keys, repeat account creation blindly or gi
 a personal account a local password.
 
 Then complete the personal-account and role checks in [Initial Accounts](09-accounts.md)
-and the browser, self-test and handover checks in
+and the browser, integrity-audit and handover checks in
 [Verifying the Installation](10-verification.md) and
 [Self-Test and Handover](11-selftest_handover.md). Keep the operator's confirmation
 and the election board's decisions as actual records. Each person authenticates
@@ -328,7 +328,7 @@ uses the two commands above.
 | [Installing the TOE](08-installing_toe.md) | Delivered image identities, customer tenant and trustee commissioning |
 | [Initial Accounts](09-accounts.md) | Personal accounts, role separation and first sign-in |
 | [Verifying the Installation](10-verification.md) | Runtime and browser acceptance checks |
-| [Self-Test and Handover](11-selftest_handover.md) | Operator confirmation, board self-test, backups and recovery |
+| [Self-Test and Handover](11-selftest_handover.md) | Operator confirmation, actual audit scope, backups and recovery |
 
 Never copy, print or send a password, private key, token or client secret. Do not
 record an installation with shell tracing or an indiscriminate terminal transcript.

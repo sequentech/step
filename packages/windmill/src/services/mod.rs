@@ -33,6 +33,8 @@ pub mod election_event_status;
 pub mod election_statistics;
 pub mod electoral_log;
 pub mod electoral_log_audit;
+pub mod electoral_log_audit_deadline;
+pub mod electoral_log_audit_policy;
 pub mod electoral_log_board;
 pub mod electoral_log_checkpoint_copies;
 pub mod electoral_log_dead_letter;

@@ -29,3 +29,16 @@ test("voter select on sequent_backend_tenant excludes settings", () => {
     assert.ok(permission.permission.columns.includes("id"))
     assert.ok(!permission.permission.columns.includes("settings"))
 })
+
+test("tenant certificate writes remain restricted to the authenticated admin tenant", () => {
+    const writes = metadata.update_permissions.filter(({permission}) =>
+        permission.columns.includes("settings")
+    )
+    assert.deepEqual(writes.map(({role}) => role).sort(), [
+        "admin-user",
+        "service-account",
+    ])
+    const admin = writes.find(({role}) => role === "admin-user").permission
+    assert.deepEqual(admin.filter, {id: {_eq: "X-Hasura-Tenant-Id"}})
+    assert.deepEqual(admin.check, {id: {_eq: "X-Hasura-Tenant-Id"}})
+})

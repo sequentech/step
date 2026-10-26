@@ -18,6 +18,8 @@ use crate::services::celery_app::get_celery_app;
 use crate::services::database::get_hasura_pool;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
+use crate::services::electoral_log_audit_deadline::AuditDeadline;
+use crate::services::electoral_log_audit_policy::AuditPolicy;
 use crate::services::electoral_log_board::{
     get_board_client, get_board_signing_key, get_event_store,
 };
@@ -298,13 +300,7 @@ pub async fn start_electoral_log_audit(
     tally_session_id: Option<&str>,
     executed_by_user: &str,
 ) -> Result<TasksExecution> {
-    let task = post(
-        tenant_id,
-        Some(election_event_id),
-        ETasksExecution::AUDIT_ELECTORAL_LOG,
-        executed_by_user,
-    )
-    .await?;
+    let task = create_audit_task(tenant_id, election_event_id, executed_by_user).await?;
     if let Some(tally_session_id) = tally_session_id {
         log_to_tally(
             tenant_id,
@@ -314,23 +310,54 @@ pub async fn start_electoral_log_audit(
         )
         .await;
     }
-    let sent = get_celery_app()
+    let sent = AuditDeadline::database()
+        .run(async {
+            get_celery_app()
+                .await
+                .send_task(audit_electoral_log::new(
+                    tenant_id.to_string(),
+                    election_event_id.to_string(),
+                    tally_session_id.map(str::to_string),
+                    task.clone(),
+                ))
+                .await
+                .map_err(anyhow::Error::from)
+        })
         .await
-        .send_task(audit_electoral_log::new(
-            tenant_id.to_string(),
-            election_event_id.to_string(),
-            tally_session_id.map(str::to_string),
-            task.clone(),
-        ))
-        .await;
+        .context("Timed out enqueuing the electoral-log audit")
+        .and_then(|result| result);
     if let Err(error) = sent {
         let message = format!("Error enqueuing the electoral-log audit: {error:?}");
-        if let Err(update_error) = update_fail(&task, &message).await {
+        if let Err(update_error) = record_audit_failure(&task, &message).await {
             tracing::error!("Failed to mark the audit task as failed: {update_error:?}");
         }
         anyhow::bail!(message);
     }
     Ok(task)
+}
+
+async fn create_audit_task(
+    tenant_id: &str,
+    election_event_id: &str,
+    executed_by: &str,
+) -> Result<TasksExecution> {
+    AuditDeadline::database()
+        .run(post(
+            tenant_id,
+            Some(election_event_id),
+            ETasksExecution::AUDIT_ELECTORAL_LOG,
+            executed_by,
+        ))
+        .await
+        .context("Timed out creating the electoral-log audit task")?
+}
+
+/// A failure must not leave a worker waiting forever on the result database.
+pub async fn record_audit_failure(task: &TasksExecution, message: &str) -> Result<()> {
+    AuditDeadline::database()
+        .run(update_fail(task, message))
+        .await
+        .context("Timed out marking the electoral-log audit as failed")?
 }
 
 /// Append a line to a tally session's logs. Failures are logged, not propagated: the
@@ -341,21 +368,24 @@ pub async fn log_to_tally(
     tally_session_id: &str,
     text: &str,
 ) {
-    let result: Result<()> = async {
-        let mut client = get_hasura_pool().await.get().await?;
-        let transaction = client.transaction().await?;
-        append_tally_session_log(
-            &transaction,
-            tenant_id,
-            election_event_id,
-            tally_session_id,
-            text,
-        )
-        .await?;
-        transaction.commit().await?;
-        Ok(())
-    }
-    .await;
+    let result: Result<()> = AuditDeadline::database()
+        .run(async {
+            let mut client = get_hasura_pool().await.get().await?;
+            let transaction = client.transaction().await?;
+            append_tally_session_log(
+                &transaction,
+                tenant_id,
+                election_event_id,
+                tally_session_id,
+                text,
+            )
+            .await?;
+            transaction.commit().await?;
+            Ok(())
+        })
+        .await
+        .context("Timed out recording the audit in the tally log")
+        .and_then(|result| result);
     if let Err(error) = result {
         tracing::error!(
             "Could not add '{text}' to the logs of tally session {tally_session_id}: {error:?}"
@@ -371,6 +401,35 @@ pub async fn run_electoral_log_audit(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<AuditResult> {
+    let policy = AuditPolicy::from_env().map_err(anyhow::Error::msg)?;
+    AuditDeadline::after(std::time::Duration::from_secs(policy.timeout_secs))
+        .run(audit_with_lock(tenant_id, election_event_id))
+        .await
+        .context("Electoral-log audit exceeded its configured time limit; no clean result was established")?
+}
+
+async fn audit_with_lock(tenant_id: &str, election_event_id: &str) -> Result<AuditResult> {
+    // A transaction-scoped lock is released even when a timeout drops the audit.
+    // It also prevents a manual and a periodic full-tree scan of one event from
+    // consuming resources together. No election data is locked or modified.
+    let mut client = get_hasura_pool().await.get().await?;
+    let transaction = client.transaction().await?;
+    let lock_name = format!("electoral-log-audit:{tenant_id}:{election_event_id}");
+    let acquired: bool = transaction
+        .query_one(
+            "SELECT pg_try_advisory_xact_lock(hashtextextended($1, 0))",
+            &[&lock_name],
+        )
+        .await?
+        .try_get(0)?;
+    anyhow::ensure!(
+        acquired,
+        "An electoral-log audit for this event is already running; inspect its task result"
+    );
+    audit_snapshot(tenant_id, election_event_id).await
+}
+
+async fn audit_snapshot(tenant_id: &str, election_event_id: &str) -> Result<AuditResult> {
     let mut client = get_hasura_pool().await.get().await?;
     let transaction = client.transaction().await?;
     let event = get_election_event_by_id(&transaction, tenant_id, election_event_id).await?;
@@ -461,6 +520,63 @@ pub async fn run_electoral_log_audit(
         published_checkpoints: published.len(),
         findings,
     })
+}
+
+/// Run one bounded audit at a time for events with an open voting channel.
+/// This executes on the reports worker, never on the HTTP request or Beat's
+/// scheduler thread. An overlapping sweep is skipped instead of building a
+/// backlog, and every attempted event has a visible task result.
+pub async fn audit_open_elections() -> Result<()> {
+    AuditPolicy::from_env().map_err(anyhow::Error::msg)?;
+    // One shared budget covers setup: a slow pool cannot leave an otherwise
+    // timed scan waiting forever before its timer starts.
+    let setup = AuditDeadline::database();
+    let mut client = setup
+        .run(async { get_hasura_pool().await.get().await })
+        .await
+        .context("Timed out acquiring the periodic audit database connection")??;
+    let transaction = setup
+        .run(client.transaction())
+        .await
+        .context("Timed out starting the periodic audit transaction")??;
+    let acquired: bool = setup
+        .run(transaction.query_one(
+            "SELECT pg_try_advisory_xact_lock(hashtextextended('electoral-log-audit:sweep', 0))",
+            &[],
+        ))
+        .await
+        .context("Timed out acquiring the periodic audit sweep lock")??
+        .try_get(0)?;
+    if !acquired {
+        tracing::info!("An earlier periodic electoral-log audit sweep is still running; no duplicate scan queued");
+        return Ok(());
+    }
+    let events = setup
+        .run(get_election_events_with_open_voting(&transaction))
+        .await
+        .context("Timed out listing election events for the periodic audit")??;
+    let mut failed = 0usize;
+    for (tenant_id, election_event_id) in events {
+        let task = create_audit_task(&tenant_id, &election_event_id, SYSTEM_EXECUTOR).await?;
+        let result = run_electoral_log_audit(&tenant_id, &election_event_id).await;
+        let clean = result.as_ref().is_ok_and(|audit| audit.findings.is_empty());
+        if let Err(error) = record_audit(&task, &result).await {
+            // A recording failure is itself a failed check, never a clean audit.
+            record_audit_failure(
+                &task,
+                &format!("Could not record the periodic audit: {error:#}"),
+            )
+            .await?;
+            failed += 1;
+        } else if !clean {
+            failed += 1;
+        }
+    }
+    anyhow::ensure!(
+        failed == 0,
+        "{failed} periodic electoral-log audit(s) did not establish a clean result; inspect Tasks"
+    );
+    Ok(())
 }
 
 /// Check the signatures, signers and reasons of published checkpoints, returning the
@@ -559,6 +675,16 @@ fn check_labelled_publications(
 
 /// Record an audit result on its task and return the one-line summary.
 pub async fn record_audit(task: &TasksExecution, result: &Result<AuditResult>) -> Result<String> {
+    AuditDeadline::database()
+        .run(record_audit_result(task, result))
+        .await
+        .context("Timed out recording the electoral-log audit result")?
+}
+
+async fn record_audit_result(
+    task: &TasksExecution,
+    result: &Result<AuditResult>,
+) -> Result<String> {
     let mut logs: Option<Value> = task.logs.clone();
     let mut log = |line: &str| -> Result<()> {
         logs = Some(serde_json::to_value(append_general_log(&logs, line))?);

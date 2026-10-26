@@ -19,11 +19,13 @@ use windmill::services::database::get_queue_pool;
 use windmill::services::electoral_log_audit::{
     checkpoint_interval_secs, DEFAULT_CHECKPOINT_INTERVAL_SECS,
 };
+use windmill::services::electoral_log_audit_policy::AuditPolicy;
 use windmill::services::messaging::checks::{
     check_messaging_accounts, CHECK_PASS_INTERVAL_SECONDS,
 };
 use windmill::services::monitoring::cadence;
 use windmill::services::probe::{setup_probe, AppName};
+use windmill::tasks::audit_electoral_log::audit_open_elections_periodically;
 use windmill::tasks::electoral_log::electoral_log_batch_dispatcher;
 use windmill::tasks::migrate_messaging_attributes::migrate_messaging_attributes;
 use windmill::tasks::migrate_realm_permissions::{migrate_realm_permissions, RunOnce};
@@ -101,6 +103,7 @@ async fn main() -> Result<()> {
 
     // Refuse to start on an invalid interval; the schedule below cannot return errors.
     checkpoint_interval_secs()?;
+    let audit_policy = AuditPolicy::from_env().map_err(anyhow::Error::msg)?;
     purge_interval_secs()?;
 
     // A dedicated pooled session holds leadership for this environment's scheduler.
@@ -254,6 +257,7 @@ async fn main() -> Result<()> {
             reconcile_messages::NAME => Queue::Beat.queue_name(),
             seal_ballot_boxes::NAME => Queue::Beat.queue_name(),
             publish_periodic_electoral_log_checkpoints::NAME => Queue::Beat.queue_name(),
+            audit_open_elections_periodically::NAME => Queue::Reports.queue_name(),
             schedule_ballot_box_sequencers::NAME => Queue::ElectoralLogBeat.queue_name(),
             purge_queue_archives::NAME => Queue::Beat.queue_name(),
             check_messaging_accounts::NAME => Queue::Beat.queue_name(),
@@ -261,6 +265,11 @@ async fn main() -> Result<()> {
         ],
         default_queue = Queue::Beat.queue_name(),
     ).await?;
+    beat.schedule_named_task(
+        audit_open_elections_periodically::NAME.to_string(),
+        audit_open_elections_periodically::new().with_expires_in(60),
+        DeltaSchedule::new(Duration::from_secs(audit_policy.interval_secs)),
+    );
     // Scheduled outside the macro, which cannot give a message its expiry.
     beat.schedule_named_task(
         refresh_monitoring_snapshots::NAME.to_string(),

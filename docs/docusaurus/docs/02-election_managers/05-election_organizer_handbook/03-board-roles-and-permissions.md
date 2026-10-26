@@ -17,7 +17,7 @@ board checks them before the preparation phase ends and after every change.
 ## Administrator and election board are separate
 
 - The **administrator** role configures the TOE and the settings of the
-  election events, manages users, roles, signing rules and self-test settings,
+  election events, manages users, roles, signing rules and background audit policy,
   and operates the platform. It holds none of the election board permissions
   listed below. The administrators see an election event's settings, never
   its election data or its audit records; only the election board reads,
@@ -58,7 +58,7 @@ Roles, then the technical name) and what to watch.
 | Run the key ceremony, the initialization report and the counting | "View Election Event Keys" (`election-event-keys-tab`), "Read Keys" (`keys-read`), "Admin Ceremony" (`admin-ceremony`), "Create Ceremony" (`create-ceremony`), "Export Ceremony" (`export-ceremony`), "Transmission Ceremony" (`transmition-ceremony`), "View Election Event Tally" (`election-event-tally-tab`), "Read Tally" (`tally-read`), "Start Tally" (`tally-start`), "Edit Tally" (`tally-write`), "Read Tally Results" (`tally-results-read`) | Ceremonies only as manual ceremonies (see [The key ceremony](06-preparation.md#the-key-ceremony)). |
 | Check the audit records | "View Election Event Logs" (`election-event-logs-tab`), "Read Logs" (`logs-read`), "Audit Electoral Log" (`electoral-log-audit`), "Browse Electoral Log" (`electoral-log-console-read`), "Query Electoral Log" (`electoral-log-console-query`); "Read Electoral Log Personal Data" (`electoral-log-personal-data-read`) only if the election organizer decides that the board needs it | Only the election board reads and audits the audit records; needed at the beginning of the evaluation phase. |
 | Export the electoral log | "Export Logs" (`logs-export`) and "Edit Reports" (`report-write`) | The export holds personal data of voters; keep it confidential. |
-| Run and read self-tests | `self-test-run`, `self-test-read` | The administrators hold them too. |
+| Audit the electoral log | `electoral-log-audit`, `tasks-read` | Board only. The complete self-test suite and its permissions are not implemented. |
 | Export election execution data | "Read Election Event" (`election-event-read`), "Export Voter" (`voter-export`); "Read Document Passwords" (`document-password-read`) and "Reveal Secret Voter Fields" (`voter-secret-attribute-read`) only if the election organizer decides that the board needs them | Post-processing phase only, with the required authorisations. |
 | Delete an election event and its election execution data | "Delete Election Event" (`election-event-delete`) | Only the election board holds it. The TOE refuses every deletion unless the election execution data has been exported and the required authorisations are reached. The deletion also deletes the election event's audit records in the TOE. |
 | Archive an election event | "Archive Election Event" (`election-event-archive`) | Only the election board holds it. Used in the preparation phase for an election event imported with wrong data. Archiving deletes nothing: the data and audit records stay. An archived election event never opens voting and is never unarchived. |
@@ -66,7 +66,7 @@ Roles, then the technical name) and what to watch.
 
 The board role holds no permission to create or change users, roles,
 elections, contests, candidates, areas, voters, signing rules, trusted
-issuers, certificate checks or self-test settings. The administrator role
+issuers, certificate checks or background audit policy. The administrator role
 holds none of the board's permissions on election data and audit records
 (the Handbook for Election Administrators lists them). The administrator
 role keeps, and the election board role never holds:
@@ -77,7 +77,7 @@ certificates" (`signing-certificates-revoke`), "Signatures: edit certificate
 checks" (`signing-checks-write`), the user and role permissions ("Create User"
 `user-create`, "Edit User" `user-write`, "Create Role" `role-create`, "Edit
 Role" `role-write`, "Assign Role" `role-assign`, "Edit User Permission"
-`user-permission-write`), the self-test settings (`self-test-settings-write`),
+`user-permission-write`),
 the attack detection rates (`attack-detection-write`) and "Edit Tenant"
 (`tenant-write`).
 

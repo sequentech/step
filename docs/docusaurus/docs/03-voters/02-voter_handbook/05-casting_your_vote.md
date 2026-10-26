@@ -12,12 +12,21 @@ You can vote only while the ballot shows "Open" in the "Ballot list". Your vote
 counts only after you have cast it and the voting portal shows "Your vote has
 been cast".
 
+The screenshots show the current voting screens with a synthetic example
+called **Community Council**. Your election name, candidates and Ballot IDs will
+differ. The example confirmation illustrates the screen; it is not a cast vote
+in a real election.
+
 ## Step 1: Open the ballot
+
+![Ballot list with the available Community Council ballot](./assets/voter-chooser-current.png)
 
 1. In the "Ballot list", find the ballot you want to vote on.
 2. Select "Click to Vote".
 
 ## Step 2: Read the instructions
+
+![How to vote screen with the Start Voting button](./assets/voter-start-current.png)
 
 The voting portal shows "How to vote" with the three steps of voting: make your
 selections, review them, and cast your ballot.
@@ -31,6 +40,8 @@ to the review screen with a ballot that records that you declined to vote. You
 cast it in the same way as any other ballot.
 
 ## Step 3: Make your selections
+
+![Candidate selection with Alice Example checked](./assets/voter-vote-current.png)
 
 1. For each question (contest), select the options you want. The question says
    how many options you can select.
@@ -50,6 +61,8 @@ Nothing is sent as a vote at this step.
 
 ## Step 4: Review your ballot
 
+![Review screen with the selection, Ballot ID, edit, audit and cast buttons](./assets/voter-review-current.png)
+
 When you select "Next", your browser encrypts your ballot. The voting portal
 then shows "Review your ballot" with your selections. At the top it shows "Your
 Ballot ID:" followed by a code.
@@ -63,13 +76,13 @@ Ballot ID now, nothing is found.
 :::
 
 1. Check every selection carefully.
-2. Choose one of these:
-   - "Edit ballot": go back and change your selections.
-   - "Audit ballot": check the encryption of this ballot instead of casting it.
-     An audited ballot can never be cast. After the audit, the voting portal
-     takes you back to your choices and your ballot is encrypted anew, with a
-     new Ballot ID. See [Auditing Your Ballot](06-auditing_your_ballot.md).
-   - "Cast ballot": cast this ballot as your vote. Continue with step 5.
+2. Choose the action you need:
+
+| Button | What happens next |
+|---|---|
+| **Edit ballot** | Return to your selections and change them. |
+| **Audit ballot** | Check this ballot’s encryption. It is spoiled and can never be cast; voting again creates a new encrypted ballot and Ballot ID. See [Auditing Your Ballot](06-auditing_your_ballot.md). |
+| **Cast ballot** | Submit the ballot. Continue with step 5 and wait for confirmation. |
 
 If you left a contest unfilled, the voting portal shows "Some selections are
 unfilled". Select "Review selections" to go back, or "Continue with these
@@ -105,6 +118,8 @@ you to vote again, a new vote replaces it in the count (see
 :::
 
 ## Step 6: The confirmation
+
+![Example confirmation screen with Ballot ID, QR code, Print and Finish](./assets/voter-confirmation-current.png)
 
 The confirmation screen "Your vote has been cast" appears only after the
 intermediate ballot box has confirmed with its signature that it stored your

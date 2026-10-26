@@ -1110,6 +1110,8 @@ services:
       #- postgres
       #- postgres-keycloak
     environment:
+      ELECTORAL_LOG_AUDIT_INTERVAL_SECS: ${ELECTORAL_LOG_AUDIT_INTERVAL_SECS:-900}
+      ELECTORAL_LOG_AUDIT_TIMEOUT_SECS: ${ELECTORAL_LOG_AUDIT_TIMEOUT_SECS:-60}
       CARGO_TARGET_DIR: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/packages/rust-local-target/docker-dev
       # Monitoring snapshot cadence, the same on beat, windmill and harvest:
       # seconds between passes (5..3600), and between full voter reads.
@@ -1266,6 +1268,8 @@ services:
       "-s", "sh ../../.devcontainer/restart-worker.sh ../rust-local-target/docker-dev/debug/beat"
     ]
     environment:
+      ELECTORAL_LOG_AUDIT_INTERVAL_SECS: ${ELECTORAL_LOG_AUDIT_INTERVAL_SECS:-900}
+      ELECTORAL_LOG_AUDIT_TIMEOUT_SECS: ${ELECTORAL_LOG_AUDIT_TIMEOUT_SECS:-60}
       CARGO_TARGET_DIR: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/packages/rust-local-target/docker-dev
       # Monitoring snapshot cadence, the same on beat, windmill and harvest:
       # seconds between passes (5..3600), and between full voter reads.

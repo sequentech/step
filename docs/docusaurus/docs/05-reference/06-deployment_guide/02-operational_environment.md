@@ -44,17 +44,25 @@ GNU coreutils, diffutils and findutils.
 - It trusts the certificates of the TOE's web hosts (see
   [Certificates](#certificates)).
 
-## Trustee workstations
+## Trustee key handling
 
-Each trustee has their own workstation, used only for the trustee tool:
+The trustee servers run in the cluster, one `braid` instance per trustee. No
+additional physical trustee servers are required.
 
-- it has no network connection while it holds trustee keys;
-- its disk is encrypted, and only the trustee can unlock it;
-- podman and skopeo are installed on it before it is taken offline;
-- files move to and from it only on removable media that the trustee keeps.
+For offline key generation and custody proofs, trustees may reuse one existing
+organizer-controlled workstation in separate clean offline sessions. Each keeps
+their own encrypted working medium and backups. Do not mount ordinary host data
+disks or another trustee's medium; disable persistent swap and hibernation,
+remove the medium after use, and shut down between trustees. An ordinary shared
+login or separate accounts on a persistent shared installation is insufficient.
 
-[Installing the TOE](08-installing_toe.md#preparing-a-trustee-workstation)
-loads the trustee tool onto it.
+The device has podman and skopeo prepared before it is taken offline. Load the
+accepted tool as described in
+[Preparing a trustee workstation](08-installing_toe.md#preparing-a-trustee-workstation).
+The [trustee procedure](../../02-election_managers/05-election_organizer_handbook/09-trustee-procedures.md#reuse-one-existing-workstation)
+defines the session and custody checks. A dedicated encrypted workstation is an
+alternative, not a per-trustee hardware requirement. Browser trustee execution
+is not a replacement for the server-side `braid` in the evaluated configuration.
 
 ## Network
 

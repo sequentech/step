@@ -71,15 +71,14 @@ preparation phase:
    the section "Authentication and Session Settings" of the
    [Handbook for Election Administrators](../../02-election_managers/04-administrator_handbook/01-about.md)
    describes.
-4. The administrator sets the self-test settings in the "Settings" section of
-   the election event's "Self-tests" tab, as the section "Self-Test Settings"
-   of the
-   [Handbook for Election Administrators](../../02-election_managers/04-administrator_handbook/01-about.md)
-   describes. The default "Self-test interval (minutes)" is 15.
-5. The administrator starts a self-test of the election event with "Run
-   self-test". The election event's "Self-tests" tab must show the run with
-   every test passed. The TOE also runs this self-test of each election event
-   when it starts up.
+4. The operator sets the periodic electoral-log audit interval and time limit
+   for Beat and Windmill, as [Self-Test Settings](../../02-election_managers/04-administrator_handbook/07-self_tests.md#configure-regular-background-audits)
+   describes. The default interval is 15 minutes.
+5. A board member requests **Logs → Audit** and checks the **Audit Electoral
+   Log** result in **Tasks**. The complete six-check ST suite, startup/opening
+   gates and automatic maintenance response remain unimplemented. This audit
+   cannot authorize the evaluated configuration's acceptance or handover as
+   compliant with FPT_TST.1.
 6. The operator gives the administrators the confirmation of
    [Confirm the server settings to the administrator](#confirm-the-server-settings-to-the-administrator)
    again, before the election board approves the configuration version of
@@ -146,8 +145,8 @@ by every check of [Verifying the Installation](10-verification.md).
   component only when the election board has decided so with the
   administrator: if harvest or windmill failed, the election event is in
   maintenance mode. Tell the administrators and the election board when the
-  component runs again, and leave the self-test and "Resume Voting" to the
-  election board. Outside the execution phase, end with a self-test as above.
+  component runs again, and leave the audit review and any voting decision to the
+  election board. The complete ST self-test remains unimplemented.
 - Time: repeat the checks of
   [Authenticated time](04-hosts_network_time.md#authenticated-time). If one
   fails, run `systemctl restart chronyd` on the server concerned and repeat
@@ -254,7 +253,8 @@ gpg -d "$B" | tar -tf - | grep -o -e '^root/deploy/' -e '^var/lib/sequent-data/'
 The last command must print two lines, one with `root/deploy/` and one with
 `var/lib/sequent-data/`, each after the number of entries it holds. Then make the checks of
 [Running images](10-verification.md#running-images) and
-[Version](10-verification.md#version), and a self-test as above.
+[Version](10-verification.md#version), and the available board integrity audit as above. This does not establish
+complete ST self-test coverage.
 
 A restore replaces the election data, the election execution data and the
 electoral log with an older state. Restore only outside the execution phase,

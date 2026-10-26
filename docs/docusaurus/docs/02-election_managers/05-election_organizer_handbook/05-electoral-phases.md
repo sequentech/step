@@ -34,15 +34,12 @@ all of these hold:
 - the election period start time has been reached;
 - the initialization report of each election has been generated (see
   [The initialization report](06-preparation.md#the-initialization-report));
-- a self-test has just succeeded;
+- the required complete ST self-test has succeeded (not implemented in this source);
 - the intermediate ballot box and the ballot box are empty.
 
-If the self-test fails or a ballot box is not empty, the TOE does not open
-voting: the election event enters maintenance mode and stays in the
-preparation phase. The scheduled start does not try again by itself: once the
-cause has been removed, the election board starts the election execution with
-"Start Voting" (see
-[Maintenance mode at the start](12-modes-and-failures.md#maintenance-mode-at-the-start)).
+The complete self-test gate and automatic maintenance response are not
+implemented. These remain requirements for the evaluated configuration;
+manual integrity checks do not establish them.
 
 ## What each phase allows
 
@@ -57,7 +54,7 @@ cause has been removed, the election board starts the election execution with
 | Voters vote and check their cast ballots in the ballot locator | No | Yes | No | No |
 | Interrupt ("Pause Voting"), resume ("Resume Voting") | No | Yes; the resumption with the required authorisations | No | No |
 | Terminate the election execution ("Stop Voting") | No | Yes, with the required authorisations | No | No |
-| Run a self-test on request ("Run self-test") | Yes | Yes | Yes | Yes |
+| Request the implemented electoral-log audit | Yes | Yes | Yes | Yes |
 | Read the audit records (Logs tab, election board only) | Yes | Yes | Yes | Yes |
 | Count the votes and determine the result | No | No | Yes, with the required authorisations | No |
 | Export election execution data | No | No | No | Yes, with the required authorisations |

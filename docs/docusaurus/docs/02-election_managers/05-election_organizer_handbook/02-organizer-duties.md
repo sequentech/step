@@ -32,9 +32,9 @@ rest. The regulation states at least:
 - whether re-voting is allowed and how many votes a voter may cast;
 - the time frame within which an interrupted election may be continued, and
   the conditions under which the election board resumes an interrupted
-  election execution or orders further self-tests;
-- the interval of the regular self-tests during the execution phase and the
-  additional conditions for self-tests (see
+  election execution or requests further integrity audits;
+- the interval of the available background audits and the unresolved complete
+  self-test requirements (see
   [Self-test intervals](11-security-relevant-events.md#self-test-intervals));
 - who may observe the election and verify the result;
 - how long exported election execution data is kept, who keeps it, and when it
@@ -165,9 +165,11 @@ suspected security problem that you receive from voters.
 - Provide board members and trustees with devices that the election organizer
   controls: an up-to-date operating system and browser, no software from
   unknown sources, screen lock on, used by one person.
-- Provide each trustee with a trustee workstation that is used for nothing else,
-  kept in a locked place, and backed up as
-  [Trustee Procedures](09-trustee-procedures.md) describes.
+- Provide separate encrypted media and backups for each trustee. One existing
+  organizer-controlled workstation can serve them in turn using the clean
+  offline sessions in [Trustee Procedures](09-trustee-procedures.md). Trustee
+  servers run in the protected cluster; extra physical trustee machines are
+  not required.
 
 ## After the election
 
@@ -204,7 +206,7 @@ suspected security problem that you receive from voters.
 | Protected server and network | Install and operate as the Deployment Guide describes; restrict physical access to the servers | Election organizer, operators | Physical, connectivity |
 | Trusted time | Provide a time server with Network Time Security | Election organizer, operators | Connectivity |
 | Protected remote endpoints | Use controlled devices; connect only to the addresses the administrators give you; stop at any certificate warning | Board members, trustees, administrators | Procedural, connectivity |
-| Key shares kept secret | Trustee workstations locked away, offline, used only for the trustee tool; the keys file never sent by email or chat or pasted into a web page; two backups in separate locked places, kept as securely as the original; the keys file handed over to the operators only in person, for the trustee's instance of the trustee server; loss or exposure reported at once; keys files destroyed at the end of the retention period (see [Protecting your keys file](09-trustee-procedures.md#protecting-your-keys-file)) | Trustees, election board, operators | Physical, procedural |
+| Key shares kept secret | Controlled offline trustee sessions; separate encrypted media for each trustee; the keys file never sent by email or chat or pasted into a web page; two backups in separate locked places, kept as securely as the original; the keys file handed over to the operators only in person, for the trustee's instance of the trustee server; loss or exposure reported at once; keys files destroyed at the end of the retention period (see [Protecting your keys file](09-trustee-procedures.md#protecting-your-keys-file)) | Trustees, election board, operators | Physical, procedural |
 
 ## Reporting a security problem
 

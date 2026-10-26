@@ -151,6 +151,7 @@ google-calendar3 = { version = "6.0.0", features = ["yup-oauth2"] }
 rustls = { version = "0.23.32", features = ["ring"] }
 
 [dev-dependencies]
+tokio = { version = "1.32", features = ["test-util"] }
 dhat = "0.3"
 hmac = "0.12"
 messaging = { path = "../messaging", features = ["test-support"] }

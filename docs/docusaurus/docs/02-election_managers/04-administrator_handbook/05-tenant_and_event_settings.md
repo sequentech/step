@@ -22,8 +22,7 @@ SPDX-License-Identifier: AGPL-3.0-only
    retain them. If one differs, use [Correcting imported election
    data](#correcting-imported-election-data) before continuing.
 4. Set the protected actions
-   ([Configuring Protected Actions](06-signing_rules.md)), the self-test
-   settings ([Self-Test Settings](07-self_tests.md)) and check the
+   ([Configuring Protected Actions](06-signing_rules.md)), the background audit policy ([Self-Test Settings](07-self_tests.md)) and check the
    authentication settings
    ([Authentication and Session Settings](08-authentication_and_sessions.md))
    of the election event.
@@ -82,175 +81,66 @@ below 2: with fewer approvals, one board member could bring in election data
 that no other member has checked.
 :::
 
-### The tenant configuration file
+### Configure certificates in the admin portal
 
-`configuration_signing` is part of the tenant's settings. You change it by
-backing up the tenant configuration, editing the backup and restoring it. The
-backup is a ZIP file with three members:
+You need **Edit Tenant** (`tenant-write`) and **View settings** (`settings-menu`)
+to use this screen. The tenant mutation is restricted on the server to the
+`admin-user` role and the tenant named by the authenticated session. These
+portal permissions determine whether the screen is available; they are not an
+additional server permission check.
 
-```
-tenant_configuration-<tenant-id>.csv   the tenant record, including its settings
-keycloak_admin-<tenant-id>.json        the identity configuration of the tenant
-export_permissions-<tenant-id>.csv     each role with its permissions
-```
+1. Open **Settings → Configuration packages** before importing the first
+   election event. The screen is titled **Signed configuration packages**.
+2. Under **Package-signing CAs**, select **Choose CA certificate file** and open
+   the organizer's public PEM CA file. A file can contain several CA
+   certificates, including an approved successor. Do not select a private key
+   or a board member's personal certificate.
+3. Check the name, expiry date and full **SHA-256** fingerprint of **every**
+   displayed certificate against the organizer's independently supplied record.
+   Select the confirmation checkbox only when they all match.
+4. Repeat these checks under **Election board approval CAs**, using the CA file
+   for board members' approval certificates.
+5. Set **Required distinct approvals** to the organizer's approved number,
+   **at least 2**. Confirm the count and the package-signing CAs carefully:
+   these values cannot change after the first save.
+6. Select **Save certificate settings**. Continue only after
+   **Certificate settings saved and read back successfully.** Reload the page
+   and check the saved certificates and approval count before telling the board
+   that imports can begin.
 
-The tenant record is a CSV file with a header line and one data line. The
-header is:
+![Configuration packages form showing public CA details and fingerprint confirmations](assets/configuration-packages.png)
 
-```
-id,slug,created_at,updated_at,labels,annotations,is_active,voting_channels,settings,test
-```
+*Actual browser capture of the implemented form using synthetic CA certificates
+and a simulated tenant API. The certificates shown are examples, not trust
+anchors for an evaluated installation.*
 
-Each value of the data line is JSON text; the `settings` value is a JSON
-object. After your change, `settings` contains this member, next to the
-members that are already there (shortened here):
+The screen accepts public PEM CA files up to **256 KiB**. It rejects malformed,
+expired, not-yet-valid, duplicate and personal certificates. Certificate names
+and fingerprints are calculated in the browser from their DER bytes; no private
+key is needed or sent. Saving changes only `configuration_signing`, preserves
+other tenant settings and reads the result back from the server. An intervening
+administrator's change causes the save to fail rather than overwrite their
+configuration.
 
-```json
-"configuration_signing": {
-  "policy": "required",
-  "package_roots": "-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----\n",
-  "staff_roots": "-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----\n",
-  "required_approvals": 2
-}
-```
+### Expected results and recovery
 
-Each PEM text is one JSON string, with its line breaks written as `\n`. Several
-CA certificates are concatenated in one string.
+| What you see | What to do |
+|---|---|
+| **Save certificate settings** is unavailable | Supply both CA files, compare every fingerprint and confirm both sets; choose a whole approval count of at least 2. |
+| A certificate-file error | Obtain the correct public PEM CA file. Do not bypass a fingerprint mismatch or use a private key. An expired saved package-signing CA remains fixed: escalate to the organizer and provision a new approved tenant configuration; this screen cannot replace it. |
+| **Settings were not confirmed** | Reload before retrying. Check your role and tenant, and whether another administrator changed the settings. Do not tell the board that configuration succeeded. |
+| Package-signing CAs or the approval count are disabled | They were already configured. Do not try to change them through a backup or a direct API call. |
+| Staff CA replacement is refused | Every tenant election event must be archived before staff CA trust can change. Confirm this with the election board; never archive an ongoing election just to enable a certificate change. |
 
-### Set it
+The database enforces the required policy, approval-count bounds, public PEM
+format and change restrictions for direct mutations and tenant restores too.
+The TOE performs the authoritative X.509 trust-chain and signature checks when
+it imports a package. The browser's successful certificate preview alone does
+not authorize an election-data import.
 
-You need "Edit Tenant" (`tenant-write`) and "View settings" (`settings-menu`).
-
-1. Make sure nobody changes roles or permissions until you have finished: the
-   restore also sets every role's permissions to the ones in the backup.
-2. Open Settings > "Backup / Restore". Under "Backup" ("Backup Tenant
-   configurations") select "Backup". The admin portal downloads the ZIP file.
-3. Extract the ZIP file into an empty folder on your workstation. Change only
-   the tenant record file; leave the other two files untouched.
-4. Put the election organizer's CA certificates into two PEM files, for example
-   `package-roots.pem` and `staff-roots.pem`, and add `configuration_signing`
-   to `settings`. Do not edit the CSV by hand: a spreadsheet program or a
-   manual edit easily breaks its quoting. Use this script, which needs only
-   Python 3:
-
-   ```python
-   # usage: python3 set-signing.py <tenant-csv> <package-roots.pem>
-   #        <staff-roots.pem> <approvals>
-   import csv, json, sys
-   path, package_roots, staff_roots, approvals = sys.argv[1:5]
-   with open(path, newline="") as f:
-       header, row = list(csv.reader(f))[:2]
-   i = header.index("settings")
-   settings = json.loads(row[i]) or {}
-   settings["configuration_signing"] = {
-       "policy": "required",
-       "package_roots": open(package_roots).read(),
-       "staff_roots": open(staff_roots).read(),
-       "required_approvals": int(approvals),
-   }
-   row[i] = json.dumps(settings)
-   json.loads(row[i])  # stops here if the result is not valid JSON
-   with open(path, "w", newline="") as f:
-       csv.writer(f).writerows([header, row])
-   ```
-
-5. Pack the three files into a new ZIP file, at its top level, and compute its
-   SHA-256 digest on your workstation:
-
-   ```
-   zip new-tenant-config.zip tenant_configuration-*.csv keycloak_admin-*.json \
-     export_permissions-*.csv
-   sha256sum new-tenant-config.zip
-   ```
-
-6. In Settings > "Backup / Restore", under "Restore" ("Restore Tenant config"),
-   tick "Import Tenant Configurations", "Import Keycloak Configurations" and
-   "Import Roles & Permissions Configurations"; "Restore" is available only
-   when all three are ticked. Select "Restore".
-7. In the drawer "Import Tenant Configurations", upload the new ZIP file and
-   enter its digest in "Integrity Check (SHA-256)". Start the import. Wait for
-   the specific task "Import Tenant Config" to show "SUCCESS" before making
-   another backup. The success of an earlier export does not confirm that
-   this import has finished.
-8. Make a fresh backup (step 2), save it as `fresh-tenant-config.zip`, and run
-   the check below against `new-tenant-config.zip`, the exact file you restored.
-   It compares the entire intended settings object, the identity configuration
-   and every role-permission row. JSON object-key order and whitespace, and
-   CSV row order, can change during export; array order, scalar types, headers,
-   duplicate rows and all values must stay the same. The script prints only
-   "PASS" or "FAIL", without showing private backup contents.
-
-   ```sh
-   python3 - new-tenant-config.zip fresh-tenant-config.zip <<'PY'
-   import csv, io, json, sys, zipfile
-   from collections import Counter
-
-   def rows(data):
-       return list(csv.reader(io.StringIO(data.decode("utf-8"))))
-
-   def canonical(data):
-       return json.dumps(json.loads(data), sort_keys=True, separators=(",", ":"))
-
-   def settings(data):
-       records = rows(data)
-       assert len(records) == 2
-       header, row = records
-       value = json.loads(row[header.index("settings")])
-       assert isinstance(value, dict)
-       return json.dumps(value, sort_keys=True, separators=(",", ":"))
-
-   try:
-       with zipfile.ZipFile(sys.argv[1]) as intended, zipfile.ZipFile(sys.argv[2]) as fresh:
-           names = intended.namelist()
-           assert len(names) == len(set(names)) == len(fresh.namelist()) == 3
-           assert set(names) == set(fresh.namelist())
-           prefixes = ("tenant_configuration-", "keycloak_admin-", "export_permissions-")
-           assert all(sum(name.startswith(prefix) for name in names) == 1 for prefix in prefixes)
-           for name in names:
-               before, after = intended.read(name), fresh.read(name)
-               if name.startswith("tenant_configuration-"):
-                   assert settings(before) == settings(after)
-               elif name.startswith("keycloak_admin-"):
-                   assert canonical(before) == canonical(after)
-               else:
-                   left, right = rows(before), rows(after)
-                   assert left and right and left[0] == right[0]
-                   assert Counter(map(tuple, left[1:])) == Counter(map(tuple, right[1:]))
-   except Exception:
-       print("FAIL")
-       sys.exit(1)
-   print("PASS")
-   PY
-   ```
-
-   Continue only after "PASS". If the import task fails, parts of the restore
-   may already have been applied: repeat steps 6 to 8 with the same intended
-   file. If the import succeeds but the check prints "FAIL", keep both files
-   protected and investigate the difference before continuing or restoring
-   again.
-
-:::danger
-If the `settings` value in the file you restore is not valid JSON, the TOE does
-not refuse the file: it clears all the tenant's settings, which also removes
-`configuration_signing`. Never skip the checks of steps 4 and 8.
-:::
-
-:::warning
-The backup contains the tenant's identity configuration and its roles. Keep it
-on your workstation only as long as you need it, and delete every copy when you
-have finished. Make the backup and the restore in one session, so that the
-restore cannot undo role changes made in between.
-:::
-
-Set `configuration_signing` once, before the first election event is imported.
-`required_approvals` changes only from not set to a number, by you, in the
-preparation phase, and never afterwards; do not change `policy` or
-`package_roots` afterwards either. In `staff_roots`, list from the start the election
-organizer's current staff CA and, if the organizer has one, its successor. A
-staff CA is replaced only between elections, when no election event of the
-tenant is in the preparation, execution or evaluation phase. If the election
-organizer tells you that the number of approvals must change, do not change it:
-tell the election board and the election organizer.
+Set this configuration once before the first election. Include the approved
+current and successor staff CAs from the start. Replace staff CAs only between
+elections, after all of this tenant's election events have been archived.
 
 ## Import of election data
 
@@ -275,9 +165,8 @@ Your part:
    election board names the new election event, check that those values are
    present and retain them. You see the settings, not the election data.
 3. If the election board reports that an import was refused although the
-   package is the one the election organizer released, check with a backup
-   (steps 2 and 8 of [Set it](#set-it)) that `configuration_signing` still has
-   your values. Do not change it. Treat the refusal as a security-relevant event
+   package is the one the election organizer released, open **Settings → Configuration packages** and check that the saved CA
+   fingerprints and approval count still match your approved values. Do not change it. Treat the refusal as a security-relevant event
    ([Security-Relevant Events for Administrators](11-security_relevant_events.md)).
 
 The TOE refuses every other way in for election data: "Create an Election
@@ -291,7 +180,7 @@ is approved in the signed package. The election organizer includes the required
 event and election Data-tab values before the package approvals. Administrators
 verify those imported values; they do not change them to repair a package.
 Otherwise publication can refuse the changed ballot design. The tenant settings,
-protected-action rules, certificate registrations and self-test settings are
+protected-action rules, certificate registrations and the background audit policy are
 configured separately as their procedures describe. Areas remain election data.
 
 ### Correcting imported election data
@@ -460,7 +349,7 @@ Publish" (`publish-write`). The TOE accepts a publication only in the
 preparation phase and refuses it in every other phase.
 
 1. Check the settings of this page once more, and the protected actions and the
-   self-test settings.
+   background audit scope and the complete self-test implementation gap.
 2. Tell the election board in writing that the settings of the election event
    are complete, once you hold the written confirmation of the person who runs
    the servers for this election event (plugins, telephone provider and

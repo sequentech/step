@@ -31,7 +31,7 @@ For every event on this page:
 | An attack detection matched | the election board tells you | Tell the person who runs the servers and the network, and agree the measures with the board ([Audit, Monitoring and Notifications](09-audit_and_monitoring.md#attack-detections)). |
 | The "Version" or an image digest differs from the TOE delivery | your check ([Secure Use of the Admin Portal](03-admin_portal.md)) | The system is not the evaluated TOE: do not start or continue an election; tell the election board and the election organizer; report it. |
 | The audit storage threshold is exceeded | email | Extend the storage as the Deployment Guide describes; never delete records. Voters' access returns once space is available. |
-| A server component crashed or was shut down | the state check of the Deployment Guide ("Operating the servers"); maintenance mode in the execution phase | Have it restarted as the Deployment Guide describes, in the execution phase only when the election board has decided so, then check the version and the image digests. Outside the execution phase, run the self-test; in it, the self-test and "Resume Voting" are the election board's ([Modes of Operation and Failure Handling](10-modes_of_operation.md)). |
+| A server component crashed or was shut down | the state check of the Deployment Guide ("Operating the servers"); operator monitoring; automatic ST maintenance is not implemented | Have it restarted as the Deployment Guide describes, in the execution phase only when the election board has decided so, then check the version and the image digests. Ask the board to review the available log audit; a complete ST self-test is not available ([Modes of Operation and Failure Handling](10-modes_of_operation.md)). |
 | The browser reports a certificate problem for the admin portal or the external authentication server | the browser | Do not sign in; tell the person who runs the servers. |
 | A notification email does not arrive, or arrives for an event you did not expect | email | Check the account's "Email" and tell the person who runs the servers; ask the election board to check the electoral log for the event. |
 
@@ -43,7 +43,7 @@ For every event on this page:
 | A setting of an imported election event differs from the required value | your checks ([Tenant and Election Event Settings](05-tenant_and_event_settings.md)) | Stop before publication and tell the election board and the election organizer. The organizer includes the required value in a corrected signed package; the board imports a new election event and archives the wrong one. Check the new event without repairing imported values in the TOE. |
 | The imported election data is wrong | the election board's check | Nobody corrects it in the TOE. The election organizer issues a corrected package, which the election board imports; the board archives the wrong election event. Check the settings of the new one. |
 | The TOE refuses a change with "The election event is locked down: …" | the message | The election event is in a lockdown period: change nothing. A needed change goes through a new configuration version, with the election board. |
-| A self-test fails | "Self-tests" tab; maintenance mode at the start | Find and remove the cause; the election board starts again ([Modes of Operation and Failure Handling](10-modes_of_operation.md#maintenance-mode)). |
+| An electoral-log audit fails, is missing or is delayed | The board checks **Tasks → Audit Electoral Log** | Inform the board and operator; preserve the task result and investigate. A log audit is not the complete ST suite ([Self-Test Settings](07-self_tests.md)). |
 | A ballot box is not empty when the execution phase is to start | maintenance mode | Tell the election board; do not try to empty it; report it. |
 | A scheduled opening or closing shows "Will be refused" or "Will run without signatures" | the election board tells you | The schedule does not match the approved configuration version. Tell the board every setting you changed after the approval. |
 | A signing request ends as "Failed" | the election board tells you | Check the protected action's rule and the certificate registrations on the Signatures tab with the board. |
@@ -52,11 +52,9 @@ For every event on this page:
 
 | Event | How you notice it | What you do |
 |---|---|---|
-| A regular self-test fails | maintenance mode; email | Find and remove the cause with the person who runs the servers; the election board resumes with "Resume Voting" ([Modes of Operation and Failure Handling](10-modes_of_operation.md#maintenance-mode)). |
-| A regular self-test run is missing from the "Self-tests" tab | your check, at least once per interval | Tell the election board at once; a board member or you select "Run self-test". |
-| You suspect a manipulation between two regular self-tests | any observation | Tell the election board; select "Run self-test" at once instead of waiting for the next run ([Self-Test Settings](07-self_tests.md#security-relevant-events-and-the-interval)). |
+| An electoral-log audit fails, is missing or is delayed | The board checks **Tasks → Audit Electoral Log** | Inform the board and operator; preserve the task result and investigate. A log audit is not the complete ST suite ([Self-Test Settings](07-self_tests.md)). |
 | The ballot box test fails: an unrecoverable failure | email | Support the election board; keep all server logs; report it ([Modes of Operation and Failure Handling](10-modes_of_operation.md#an-unrecoverable-failure)). |
-| The server clock is not synchronised | self-test 6 fails | Restore the time service as the Deployment Guide describes. |
+| The server clock is not synchronised | AGD-04 synchronization check fails | Restore the time service as the Deployment Guide describes. |
 
 ## Evaluation and post-processing phases
 
@@ -68,18 +66,90 @@ For every event on this page:
 
 ## Checklist before the election board approves the configuration version
 
-For each election event, check and tick:
+Work through one section at a time. Record the election event and configuration
+version you checked. A tick records a completed check, not an approval: the
+election board approves the configuration version after reviewing the evidence.
+If a check fails, stop and resolve it before asking for approval.
 
-- "Version" in the header is `Sequent Voting Platform - uniWAHL Version, v10.0.0`, and every running image digest is in `image-digests.txt`.
-- The tenant's signed configuration packages are `required`, with the election organizer's CA certificates and at least 2 approvals.
-- The election board has confirmed that a board member imported the election event with "Import Election Event" and the digest from the election organizer.
-- No account holds both the administrator role and a board permission; the administrator role holds no permission of [Permissions on election data and audit records](04-users_and_roles.md#permissions-on-election-data-and-audit-records); no role holds "Edit Results Publication" (`publish-results-write`) and no account holds "Datafix account" (`datafix-account`); the seeded account `admin` is deleted; every board member holds "Create Election Event", "Signatures: cancel requests", "Export Logs" and "Edit Reports", and the read-only user and role permissions.
-- Election event, tab "Data": "Ballot Box Seal Policy" "Seal at close"; "Ballot Box Seal Record" "Restricted"; "Receipts signed by the ballot box" "Signed by the ballot box"; "Period for checking cast ballots" "Until a date" at the end of the election period; "Scheduled close without signatures" "Refuse"; "Keys/Tally Ceremonies Policy" "Manual Ceremonies"; "Batch Anonymity Policy" "Refuse"; "Voter Digital Certificate Policy" "Disabled"; "Enrollment" and "OTP" "Disabled"; "Show User Profile" off; "Show Cast Vote Logs Tab" "Hide Cast Vote Logs Tab"; "Voting Channels Allowed" "Online" only.
-- Each election: "Audit Button Display Options" "Show"; "Number of allowed votes" as the electoral regulation fixes (1 = no re-voting); "Initialize Report Policy" "Required"; "Grace Period Policy" "No grace period" with 0 seconds; "Allow Tally" "Requires Voting Period End"; "Voting Channels Allowed" "Online" only.
-- Election work happens only in the customer's tenant; the person who runs the servers has confirmed in writing, for this election event, that no plugin is installed, no telephone provider is configured and only the customer's tenant holds election work.
-- Signatures tab: every non-trustee protected action the tab lists, including "Open voting" and "Close voting", has "Signatures needed" set, at least 2, with only "Election board" in "Who can sign"; "Approve a configuration version", "Initialize voting", "Generate other election reports", "Confirm custody (key ceremony)" and "Authorize tally custody (tally)" are on; no non-trustee expiry is "No limit".
-- Certificates: the election organizer's trusted issuers with checked "SHA-256"; "Registering a certificate to a person" "Only when someone who can register certificates registers it"; "Check revocation lists" on with "Don't accept signatures" where the CA publishes lists; "A certificate signs for one Post only" on; every board member's certificate registered and "Active".
-- Self-test settings: "Self-test interval (minutes)" from the secure values; all three "Additional self-test conditions" selected.
-- Settings > "SECURITY": "Authentication failure threshold" set (default 5); the login checks of [Authentication and Session Settings](08-authentication_and_sessions.md#what-you-check) pass.
-- Settings, section "Attack detection": "Failed logins per minute, all accounts" and "Requests per minute, external interfaces" set with the election organizer.
-- Every administrator's and board member's account has a working "Email".
+### 1. Verify the delivery and imported configuration
+
+- [ ] The header shows `Sequent Voting Platform - uniWAHL Version, v10.0.0`.
+- [ ] Every running image digest matches `image-digests.txt`.
+- [ ] Signed configuration packages are required, with the organizer's checked
+  CA certificates and at least two approvals.
+- [ ] The board confirms that a board member used **Import Election Event** and
+  checked the digest received from the organizer.
+- [ ] The operator confirms in writing that election work uses only the
+  customer's tenant, no plugin is installed, and no telephone provider is configured.
+
+### 2. Check the accounts and permissions
+
+- [ ] No account combines an administrator role with a board permission.
+- [ ] The administrator has none of the
+  [permissions on election data and audit records](04-users_and_roles.md#permissions-on-election-data-and-audit-records).
+- [ ] No role has **Edit Results Publication** (`publish-results-write`),
+  and no account has **Datafix account** (`datafix-account`).
+- [ ] The seeded `admin` account is deleted.
+- [ ] Each board member has **Create Election Event**, **Signatures: cancel
+  requests**, **Export Logs**, **Edit Reports**, and read-only user/role access.
+- [ ] Each administrator and board member has a tested notification email address.
+
+### 3. Check the election event's Data tab
+
+Tick each row after comparing the displayed value.
+
+| Checked | Setting | Required value |
+|---|---|---|
+| ☐ | Ballot Box Seal Policy | Seal at close |
+| ☐ | Ballot Box Seal Record | Restricted |
+| ☐ | Receipts signed by the ballot box | Signed by the ballot box |
+| ☐ | Period for checking cast ballots | Until a date: the end of the election period |
+| ☐ | Scheduled close without signatures | Refuse |
+| ☐ | Keys/Tally Ceremonies Policy | Manual Ceremonies |
+| ☐ | Batch Anonymity Policy | Refuse |
+| ☐ | Voter Digital Certificate Policy | Disabled |
+| ☐ | Enrollment; OTP | Both Disabled |
+| ☐ | Show User Profile | Off |
+| ☐ | Show Cast Vote Logs Tab | Hide Cast Vote Logs Tab |
+| ☐ | Voting Channels Allowed | Online only |
+
+### 4. Repeat these checks for every election
+
+| Checked | Setting | Required value |
+|---|---|---|
+| ☐ | Audit Button Display Options | Show |
+| ☐ | Number of allowed votes | As fixed by the electoral regulation; 1 means no re-voting |
+| ☐ | Initialize Report Policy | Required |
+| ☐ | Grace Period Policy | No grace period; 0 seconds |
+| ☐ | Allow Tally | Requires Voting Period End |
+| ☐ | Voting Channels Allowed | Online only |
+
+### 5. Check protected actions and certificates
+
+- [ ] Each non-trustee protected action, including **Open voting** and **Close
+  voting**, requires at least two signatures and allows only **Election board**.
+- [ ] **Approve a configuration version**, **Initialize voting** and
+  **Generate other election reports** are enabled.
+- [ ] **Confirm custody (key ceremony)** and **Authorize tally custody (tally)**
+  are enabled; no non-trustee action has **No limit** expiry.
+- [ ] Trusted issuer certificates match their independently checked SHA-256 fingerprints.
+- [ ] Certificate registration is **Only when someone who can register
+  certificates registers it**.
+- [ ] **Check revocation lists** is on with **Don't accept signatures** where
+  the CA publishes lists.
+- [ ] **A certificate signs for one Post only** is on.
+- [ ] Every board member's certificate is registered and **Active**.
+
+### 6. Check monitoring and authentication
+
+- [ ] Review [Self-Test Settings](07-self_tests.md) and its implementation scope.
+  A successful electoral-log audit alone does not establish that the complete
+  ST self-test suite or its lifecycle gates have passed.
+- [ ] **Settings → SECURITY → Authentication failure threshold** is set
+  (default 5), and the
+  [login checks](08-authentication_and_sessions.md#what-you-check) pass.
+- [ ] **Attack detection → Failed logins per minute, all accounts** and
+  **Requests per minute, external interfaces** match the organizer's agreed values.
+
+Record each exception and its owner. Do not mark an unavailable control as passed
+or treat this checklist as evidence of complete PP/CC conformance.

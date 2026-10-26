@@ -46,8 +46,7 @@ administrators. An administrator:
   or its audit records;
 - manages the user accounts and roles of the tenant, and keeps the
   administrator role and the election board role apart;
-- sets the protected actions and their required authorisations, the self-test
-  settings and realm authentication settings, and checks the imported re-voting
+- sets the protected actions and their required authorisations, the background integrity audit policy and realm authentication settings, and checks the imported re-voting
   setting;
 - acts on the TOE's notifications and supports the election board when a
   failure occurs;
@@ -70,7 +69,7 @@ Election Organizers describes them.
 | [Users, Roles and Role Separation](04-users_and_roles.md) | Accounts, the administrator role, the election board role, the trustee role, and what to do when a person leaves |
 | [Tenant and Election Event Settings](05-tenant_and_event_settings.md) | Signed configuration packages, the administrator's part around the election board's import, each security setting of the election event and its elections with the required values, and the hand-over to the board for the publication of the configuration version |
 | [Configuring Protected Actions](06-signing_rules.md) | Security-critical actions, required authorisations, trusted issuers and certificate checks |
-| [Self-Test Settings](07-self_tests.md) | When the TOE tests itself, what it tests, the settings and the secure interval values |
+| [Self-Test Settings](07-self_tests.md) | Actual background integrity audits, their limits and the remaining ST self-test requirements |
 | [Authentication and Session Settings](08-authentication_and_sessions.md) | The external authentication server, the authentication failure threshold, session limits and the functions available before login |
 | [Audit, Monitoring and Notifications](09-audit_and_monitoring.md) | The electoral log and the election board's review of it, attack detections, the audit storage threshold and email notifications |
 | [Modes of Operation and Failure Handling](10-modes_of_operation.md) | The electoral phases, lockdown, maintenance mode, unrecoverable failures, the audit storage threshold and backups |
@@ -100,7 +99,7 @@ uses another name, the table gives it.
 |---|---|
 | election | election event (an election event contains elections, an election contains contests, a contest contains candidates); the Signatures tab calls an election a "Post" |
 | tenant | the organisation's space in the TOE; it holds the administrators', board members' and trustees' accounts and the election events |
-| election data | the voters' register (the voters of the election event, with its areas), the candidate list and the display data of the ballot, the set of election rules (the counting and voting rules of the contests) and the election dates (the scheduled opening and closing of voting, with the end of the election period). The signed package also contains event and election Data-tab settings, including presentation and re-voting settings, which administrators verify after import. Some of these settings affect the approved ballot design and must not be changed to repair an imported package. Administrators separately configure the rules and required authorisations of the Signatures tab, certificate registrations, self-test settings and realm authentication and session settings |
+| election data | the voters' register (the voters of the election event, with its areas), the candidate list and the display data of the ballot, the set of election rules (the counting and voting rules of the contests) and the election dates (the scheduled opening and closing of voting, with the end of the election period). The signed package also contains event and election Data-tab settings, including presentation and re-voting settings, which administrators verify after import. Some of these settings affect the approved ballot design and must not be changed to repair an imported package. Administrators separately configure the rules and required authorisations of the Signatures tab, certificate registrations, background integrity audit policy and realm authentication and session settings |
 | election execution data | the cast votes, the electoral log (Logs tab, Electoral Log console), the tally and results data, and the voting records |
 | intermediate ballot box | the ballot boxes that receive the cast votes during the execution phase |
 | ballot box | the anonymised boards of the bulletin board that the trustees mix and decrypt when the votes are counted |

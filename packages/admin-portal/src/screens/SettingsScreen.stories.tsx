@@ -81,7 +81,7 @@ export const Populated: Story = {
         ).toBeVisible()
         await expect(tab(canvasElement, "electionTypes")).toHaveAttribute("aria-selected", "true")
         await expect(await canvas.findByRole("row", {name: /Referendum/})).toBeVisible()
-        expect(canvas.getAllByRole("tab")).toHaveLength(10)
+        expect(canvas.getAllByRole("tab")).toHaveLength(11)
         expect(data.calls.map(({method, args}) => [method, args[0]])).toEqual([
             ["getList", ELECTION_TYPE_RESOURCE],
         ])
@@ -122,7 +122,7 @@ export const OpenTheMessagingAccounts: Story = {
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await canvas.findByRole("row", {name: /Referendum/})
-        expect(canvas.getAllByRole("tab")).toHaveLength(11)
+        expect(canvas.getAllByRole("tab")).toHaveLength(12)
         await userEvent.click(canvas.getByRole("tab", {name: i18n.t("messagingAccounts.tab")}))
         await expect(await canvas.findByText(i18n.t("messagingAccounts.list.empty"))).toBeVisible()
         expect(graphql.calls.map(({name}) => name).sort()).toEqual([

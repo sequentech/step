@@ -20,10 +20,10 @@ changed record is detected. Among others the TOE records:
 - the start, interruption, resumption and termination of the election
   execution, the counting, the export and the deletion;
 - creating, changing and deleting users, roles, role permissions and role assignments, signing
-  rules, self-test settings and realm policies;
-- each self-test run, entering and leaving maintenance mode, the audit storage
-  threshold being exceeded, an account reaching the authentication failure
-  threshold, and each attack detection;
+  rules and realm policies;
+- audit and integrity events that the implemented producers record. The full
+  self-test suite and maintenance-mode event producers remain unimplemented
+  ([Self-Test Settings](07-self_tests.md));
 - the voters' actions in the voting portal.
 
 Nobody can change or delete records. Only the election board reads, audits and

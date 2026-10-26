@@ -31,6 +31,10 @@ ballot in the "Ballot list" and with "Locate your ballot".
 
 ## Your Ballot ID
 
+![Example confirmation showing where to copy the Ballot ID or scan its QR code](./assets/voter-confirmation-current.png)
+
+*Example screen with synthetic data. Use the Ballot ID from your own confirmed vote.*
+
 The Ballot ID is a ballot tracker: a SHA-3 hash that identifies your
 encrypted ballot. The voting portal describes it like this: "The Ballot ID is
 a unique code that lets you find your ballot in the ballot box. It does not

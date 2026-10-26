@@ -729,6 +729,8 @@ services:
       configure-minio:
         condition: service_completed_successfully
     environment:
+      ELECTORAL_LOG_AUDIT_INTERVAL_SECS: ${ELECTORAL_LOG_AUDIT_INTERVAL_SECS:-900}
+      ELECTORAL_LOG_AUDIT_TIMEOUT_SECS: ${ELECTORAL_LOG_AUDIT_TIMEOUT_SECS:-60}
       # Monitoring snapshot cadence, the same on beat, windmill and harvest:
       # seconds between passes (5..3600), and between full voter reads.
       MONITORING_SNAPSHOT_INTERVAL_SECONDS: ${MONITORING_SNAPSHOT_INTERVAL_SECONDS:-30}
@@ -857,6 +859,8 @@ services:
       "-s", "sh ../../.devcontainer/restart-worker.sh ../target/debug/beat"
     ]
     environment:
+      ELECTORAL_LOG_AUDIT_INTERVAL_SECS: ${ELECTORAL_LOG_AUDIT_INTERVAL_SECS:-900}
+      ELECTORAL_LOG_AUDIT_TIMEOUT_SECS: ${ELECTORAL_LOG_AUDIT_TIMEOUT_SECS:-60}
       # Monitoring snapshot cadence, the same on beat, windmill and harvest:
       # seconds between passes (5..3600), and between full voter reads.
       MONITORING_SNAPSHOT_INTERVAL_SECONDS: ${MONITORING_SNAPSHOT_INTERVAL_SECONDS:-30}

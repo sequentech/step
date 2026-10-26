@@ -42,7 +42,7 @@ completion evidence in this handbook, including required authorisations.
 
 - The Handbook for Election Administrators (AGD-02): the administrators'
   tasks: the settings of the tenant and the election events, roles and
-  permissions, signing rules, self-test settings and the realm settings that
+  permissions, signing rules, background audit policy and the realm settings that
   this handbook relies on.
 - The Deployment Guide (AGD-04): acceptance of the TOE delivery, installation
   of the operational environment and of the TOE, its hardening, and how
@@ -58,7 +58,7 @@ name for the same thing, the table gives it.
 | Term in this handbook | Name in the admin portal |
 |---|---|
 | election | election event (an election event contains elections, an election contains contests, a contest contains candidates); the Signatures tab calls an election a "Post" |
-| election data | the voters' register (the voters of the election event, with its areas), the candidate list and the display data of the ballot, the set of election rules (the counting and voting rules of the contests) and the election dates (the scheduled opening and closing of voting, with the end of the election period). The signed package also contains event and election Data-tab settings, including presentation and re-voting settings, which administrators verify after import. Some of these settings affect the approved ballot design and must not be changed to repair an imported package. Administrators separately configure the rules and required authorisations of the Signatures tab, certificate registrations, self-test settings and realm authentication and session settings |
+| election data | the voters' register (the voters of the election event, with its areas), the candidate list and the display data of the ballot, the set of election rules (the counting and voting rules of the contests) and the election dates (the scheduled opening and closing of voting, with the end of the election period). The signed package also contains event and election Data-tab settings, including presentation and re-voting settings, which administrators verify after import. Some of these settings affect the approved ballot design and must not be changed to repair an imported package. Administrators separately configure the rules and required authorisations of the Signatures tab, certificate registrations, background audit policy and realm authentication and session settings |
 | election execution data | the cast votes, the electoral log (Logs tab), the tally and results data, and the voting records |
 | intermediate ballot box | the ballot boxes that receive the cast votes during the execution phase |
 | ballot box | the anonymised boards of the bulletin board that the trustees mix and decrypt when the votes are counted |

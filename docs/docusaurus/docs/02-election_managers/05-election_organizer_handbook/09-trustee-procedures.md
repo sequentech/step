@@ -20,26 +20,47 @@ A trustee works with two things:
 - the **trustee tool** (`trustee`) on their **trustee workstation**, which
   creates and holds their keys file (`trustee.toml`).
 
-## The trustee workstation
+## Where the trustee runs
 
-- Use a workstation that the election organizer provides for this purpose
-  only, kept in a locked place, used by you alone, with disk encryption and
-  screen lock on.
-- Use only the trustee tool of the accepted TOE delivery: the `trustee`
-  program inside the delivery's `braid` image, run on the trustee workstation
-  without a network connection, as the Deployment Guide (AGD-04) shows
-  (`podman run --rm --network none --entrypoint /usr/bin/trustee …`, defined
-  there as the shell command `trustee`). The commands on this page are the
-  commands of that program. Never start the `braid` image with its default
-  command: that command starts the trustee server of the platform. Do not use
-  a trustee tool from any other source.
-- The program sees only the current directory. Run every command from the
-  directory on your own medium that holds your keys file, and give file names
-  relative to it, as the commands on this page do.
-- The trustee tool needs no network connection to generate keys or to create a
-  custody proof. Keep the workstation offline, and move the public files
-  (custody request and custody proof) with a removable medium that you
-  control.
+The trustee **server** already runs inside the protected cluster: one `braid`
+instance per trustee, with its own keys and protocol state. Trustees do not need
+separate servers or a permanently assigned physical computer.
+
+The offline **trustee tool** creates keys and signs custody authorizations. It
+runs the accepted `braid` image's `trustee` program, not the image's default
+server command. The Deployment Guide shows how to load and verify it.
+
+### Reuse one existing workstation
+
+Trustees may take turns on one organizer-controlled workstation. Each trustee
+must retain separate encrypted media, credentials and backups; sharing the
+computer never means sharing a keys file or a logged-in session.
+
+For each turn:
+
+1. Start from the organizer's verified offline operating environment. Keep
+   networking disabled. Do not mount the workstation's ordinary data disks or
+   enable persistent swap, hibernation, shell/session recording or cloud backup.
+2. Unlock only your own encrypted working medium. Keep your keys file and
+   generated proofs there. Do not copy another trustee's keys or mount their medium.
+3. Run the accepted trustee tool with only your current directory mounted into
+   its container. Use the relative file names shown below.
+4. Copy out only the public keys or custody proof that the portal needs. Lock
+   and remove your medium, then shut down fully before the next trustee starts
+   a fresh session. Keep the device physically controlled between sessions.
+
+A dedicated encrypted workstation per trustee is also suitable, but is not
+required. If a shared device cannot provide the clean offline session above,
+use a separately controlled offline device. Ordinary OS user accounts alone do
+not provide this separation.
+
+### Browser trustees and the evaluated configuration
+
+The product includes a browser **Trustee Dashboard**. This evaluated configuration
+uses the server-side `braid` component identified by the Security Target, so
+browser trustees do not replace those cluster instances. The portal handles
+public custody requests and signed proofs; private trustee keys stay out of it.
+Use the offline tool for key generation and custody authorization.
 
 ## Generating your keys
 
@@ -69,8 +90,8 @@ key that decrypts the shares of the election key dealt to you. Whoever has it
 can act as you in the ceremonies and contribute your share to decrypting the
 votes.
 
-- Keep it on your own protected medium: the trustee workstation, or a medium
-  only you control.
+- Keep it on your own protected medium: your own encrypted working medium; keep it separate from
+  another trustee’s media.
 - Never send it by email or chat.
 - Never paste it into any web page other than the ceremony step that needs
   it. In the evaluated configuration no ceremony step needs it: the steps of
@@ -199,9 +220,10 @@ command and tell the election board.
 ## What trustees never do
 
 - Do not use the page "Trustee Dashboard" of the admin portal. In the evaluated
-  configuration trustees use only the trustee tool on their trustee
-  workstation; that page would handle your keys in the browser.
-- Do not run the trustee tool on any other device.
+  configuration custody authorization uses the offline trustee tool; the
+  server-side instance runs in the cluster. That page would handle your keys in
+  the browser.
+- Use only an organizer-controlled device prepared as described above.
 - Do not tick the backup confirmations without real backups.
 - Do not give your keys file, its backups or your signing token to another
   trustee or board member, except as described in

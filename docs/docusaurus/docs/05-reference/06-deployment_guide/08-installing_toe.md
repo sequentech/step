@@ -15,8 +15,8 @@ they are not additional shell commands to type after a successful installation.
 
 This page loads the TOE images from the verified delivery medium onto both
 servers, pins every TOE container to its delivered digest, deploys, and
-installs the trustees' keys. It also covers the trustee workstations, which
-run the trustee tool from the same delivery.
+installs the trustees' keys. It also covers the offline trustee tool from the same delivery. Trustees may
+share an existing workstation through separate protected offline sessions.
 
 :::warning
 Use only the delivery medium that passed every step of
@@ -414,9 +414,11 @@ A trustee workstation runs the `trustee` program of the delivered `braid`
 image, offline.
 
 :::warning
-The workstation has no network connection, an encrypted disk and a screen
-lock, and serves only this purpose. Load the trustee tool only from the
-verified delivery medium, and only after checking its digest.
+The workstation has no network connection while handling keys. Use each
+trustee’s encrypted medium and a clean offline session as described in
+[Trustee key handling](02-operational_environment.md#trustee-key-handling).
+The hardware may be shared; the keys, media and sessions must remain separate.
+Load the tool only from the verified delivery after checking its digest.
 :::
 
 The workstation needs podman and skopeo. Mount the delivery medium read-only

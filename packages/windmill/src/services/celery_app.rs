@@ -17,7 +17,7 @@ use crate::services::messaging::checks::check_messaging_accounts;
 use crate::services::plugins_manager::plugin_manager::init_plugin_manager;
 use crate::tasks::activity_logs_report::generate_activity_logs_report;
 use crate::tasks::apply_reconciliation_patch::apply_reconciliation_patch;
-use crate::tasks::audit_electoral_log::audit_electoral_log;
+use crate::tasks::audit_electoral_log::{audit_electoral_log, audit_open_elections_periodically};
 use crate::tasks::create_ballot_receipt::create_ballot_receipt;
 use crate::tasks::create_keys::create_keys;
 use crate::tasks::delete_election_event::delete_election_event_t;
@@ -325,6 +325,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             export_election_event,
             generate_activity_logs_report,
             audit_electoral_log,
+            audit_open_elections_periodically,
             publish_electoral_log_checkpoint,
             publish_periodic_electoral_log_checkpoints,
             purge_queue_archives,
@@ -407,6 +408,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             export_users::NAME => Queue::ImportExport.queue_name(),
             export_election_event::NAME => Queue::ImportExport.queue_name(),
             audit_electoral_log::NAME => Queue::Reports.queue_name(),
+            audit_open_elections_periodically::NAME => Queue::Reports.queue_name(),
             publish_electoral_log_checkpoint::NAME => Queue::Short.queue_name(),
             publish_periodic_electoral_log_checkpoints::NAME => Queue::Beat.queue_name(),
             purge_queue_archives::NAME => Queue::Beat.queue_name(),

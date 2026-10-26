@@ -191,3 +191,8 @@ body.home .navbar__brand .navbar__title {
   outline: 2px solid var(--ifm-color-primary);
   outline-offset: -2px;
 }
+
+/* Separate procedural list items in both the site and printed guidance. */
+.markdown li + li { margin-top: 0.65em; }
+.markdown li > p { margin-bottom: 0.55em; }
+.markdown li > p:last-child { margin-bottom: 0.65em; }

@@ -41,6 +41,11 @@ Auditing is optional. You can audit as many times as you like before you cast.
 
 ## Step 1: Start the audit
 
+![Audit confirmation warning and the explicit discard-to-audit button](./assets/voter-audit-confirmation.png)
+
+*Current voting interface with synthetic example data. Auditing spoils this
+ballot; cancel if you want to return to the review screen.*
+
 1. On "Review your ballot", note the Ballot ID shown after "Your Ballot ID:".
    After the audit you check that your new ballot has a different one.
 2. Select "Audit ballot".

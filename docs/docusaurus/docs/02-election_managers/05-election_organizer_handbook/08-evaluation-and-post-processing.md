@@ -34,8 +34,9 @@ election.
      decision of the board or the election dates;
    - every entry into and exit from maintenance mode (`MaintenanceModeEntered`,
      `MaintenanceModeLeft`) has a recorded cause and a board decision;
-   - every `SelfTestCompleted` record of the execution phase is a success, and
-     there is one for every self-test interval;
+   - each scheduled **Audit Electoral Log** task completed without findings,
+     and any missing or delayed run was investigated; this is not a complete
+     ST self-test record;
    - every ballot box has a `BallotBoxSealed` record, and there is no
      `BallotBoxSealFailed`;
    - there is no `AuthenticationFailureThresholdReached` or
@@ -79,7 +80,9 @@ Before you start, check that:
   election can be tallied once every ballot box is sealed and its seal record
   is published.");
 - the audit records have been checked;
-- both trustees are present with their trustee workstations, and their instances of the trustee server are running (the
+- both trustees are present with their own encrypted media and access to the
+  controlled offline workstation (which they may use in turn), and their
+  cluster trustee instances are running (the
   operators confirm it).
 
 Steps:

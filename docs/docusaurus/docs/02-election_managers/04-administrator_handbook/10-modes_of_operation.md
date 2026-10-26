@@ -17,14 +17,19 @@ turnout, cast votes or ballot boxes: only the election board sees those.
 
 | Phase | How it starts | What the TOE allows | What the administrator does |
 |---|---|---|---|
-| Preparation | when a member of the election board imports the election event | the board's import of election data; settings, signing rules and self-test settings; the board's "Publish" of a configuration version, which the TOE refuses in every other phase; the board's archiving of a wrongly imported election event; the key ceremony and the initialization report | verifies imported Data-tab values and configures the separate administrator settings as [Tenant and Election Event Settings](05-tenant_and_event_settings.md) describes, then tells the board when they are complete; the board publishes the configuration version and approves it |
-| Execution | at the start time of the election period the TOE runs the self-test and checks that the ballot boxes are empty, and opens voting only if both succeed; or the election board starts voting with "Start Voting", which the TOE accepts only at or after the start time, after a successful self-test, with empty ballot boxes and once the required initialization report exists | voters cast votes; the board can interrupt, resume and terminate the election execution | monitors the TOE and supports the board; changes no settings |
+| Preparation | when a member of the election board imports the election event | the board's import of election data; settings and signing rules; the board's "Publish" of a configuration version, which the TOE refuses in every other phase; the board's archiving of a wrongly imported election event; the key ceremony and the initialization report | verifies imported Data-tab values and configures the separate administrator settings as [Tenant and Election Event Settings](05-tenant_and_event_settings.md) describes, then tells the board when they are complete; the board publishes the configuration version and approves it |
+| Execution | The board or a scheduled task opens voting. The complete ST self-test and automatic maintenance gates are not implemented; see the warning below. | Voters cast votes; the board controls voting status. | Monitors the TOE and supports the board. |
 | Evaluation | at the end of election time, or when the election board terminates the election execution with "Stop Voting" and its required authorisations; voting cannot be reopened | the counting of the votes by the board, with its required authorisations | supports the board's audit review; changes no settings |
 | Post-processing | the election board selects "Start post-processing" on the Dashboard | the export of election execution data and the board's read-out, with the required authorisations; after the export, the deletion | supports the board; changes no settings |
 
-If the start of the execution phase fails, because the self-test fails or a
-ballot box is not empty, the election event enters maintenance mode and stays
-in the preparation phase (see below).
+:::warning Required failure handling
+The ST requires self-tests before opening and resuming voting and automatic
+maintenance or permanent stopping on the specified failures. The complete
+suite and these automatic state transitions are not implemented in this source
+version. The Dashboard does not provide the previously described maintenance
+screen. A successful background log audit does not close this requirement.
+See [Self-Test Settings](07-self_tests.md#required-checks-still-to-be-completed).
+:::
 
 ## Lockdown
 
@@ -52,92 +57,50 @@ not set it there.
 
 ## Voting paused by the election board
 
-In the execution phase the election board can interrupt the election execution
-with "Pause Voting" and resume it with "Resume Voting", a security-critical
-action with its required authorisations. While voting is paused, no voter can start or continue an
-election action. With the additional self-test condition "after each pause of
-voting", the TOE runs the self-test right after the pause; before the
-resumption it runs the self-test again and resumes voting only if it succeeds
-([Self-Test Settings](07-self_tests.md)). While voting is paused, change no
-setting and never resume voting yourself; if a self-test fails, the election
-event enters maintenance mode.
+The election board controls voting status. Administrators must not resume voting
+or change approved election settings to bypass a problem. An electoral-log audit
+runs in the background and does not itself pause or resume voting.
+
+Before a restart or resumption, the board records its decision under the
+electoral regulation and obtains the required investigation results. Do not
+assume an automatic complete self-test will run or refuse the resumption.
 
 ## Maintenance mode
 
-### When the TOE enters maintenance mode
+The ST requires maintenance mode on recoverable failures and a controlled
+return to operation. The complete mode, its Dashboard indicator and automatic
+notifications are not implemented. This is an implementation requirement;
+a manual pause and an operational checklist do not establish its compliance.
 
-The TOE puts an election event into maintenance mode on a recoverable failure:
+If an integrity check fails or a component stops:
 
-- a self-test fails, other than the ballot box test;
-- a ballot box is not empty when the execution phase is to start;
-- a server part of the TOE that receives, stores or processes the votes
-  crashes or is shut down while the election event is in the execution phase.
-
-### What the TOE does
-
-- It suspends voting: no voter can start or continue an election action.
-- Nobody can read or modify the intermediate ballot box or the ballot box.
-- The Dashboard shows "Maintenance mode" with the reason.
-- It writes a record to the electoral log and emails the election board and
-  the administrators.
-
-### What the administrator does
-
-1. Read the reason in the notification email and on the Dashboard, and the
-   result of the failed self-test on the "Self-tests" tab.
-2. Find and remove the cause together with the person who runs the servers,
-   using the Deployment Guide: for example restore the time synchronisation,
-   the TLS endpoint or a stopped component (in the execution phase only when
-   the election board has decided so). Never change a setting, a role or a
-   signing rule of the election event to make a test pass.
-3. Tell the election board what the cause was and what was done, in writing.
-4. Do not leave maintenance mode yourself: only the election board does.
-
-### Leaving maintenance mode
-
-- **In the execution phase**, the election board resumes with "Resume Voting",
-  a security-critical action with its required authorisations. The TOE first
-  runs the self-test and resumes voting only if it succeeds, and records that
-  the election event left maintenance mode.
-- **In the preparation phase**, after a failed start, the election board
-  starts again with "Start Voting" once the cause is removed. The TOE runs the
-  self-test and the check of the empty ballot boxes, opens voting only if both
-  succeed, and records that the election event left maintenance mode. The
-  scheduled start does not retry by itself.
+1. Tell the election board and server operator immediately. Preserve the task
+   identifier, its result and the operating logs.
+2. The board decides whether to interrupt or terminate voting under the electoral
+   regulation. Administrators do not take that decision on its behalf.
+3. Investigate the failure with the operator. Check the delivered image digests,
+   TLS endpoint and time synchronization using AGD-04.
+4. The board checks the electoral log and can request **Logs → Audit**. Wait for
+   the terminal **Audit Electoral Log** task result; a timeout or error is not a
+   successful check.
+5. Record what was found and what was corrected. Do not represent a restart as
+   completion of the missing ST self-test and maintenance requirements.
 
 ## An unrecoverable failure
 
-A failed ballot box test, that is, a data integrity error of the intermediate
-ballot box or the ballot box, is an unrecoverable failure. The TOE then:
-
-- stops the election execution of the election event permanently: voting
-  cannot be resumed;
-- keeps the ballot boxes unreadable and unmodifiable;
-- writes a record to the electoral log and emails the election board and the
-  administrators.
-
-The election board decides under the electoral regulation. It can still end
-the election execution, start post-processing without an election result, in
-which case the Dashboard shows that no result was determined, and export the
-data for investigation. Support the board, keep every server log, and report
-the failure as a security problem
-([Environment Measures and Security Problems](12-environment_and_security_problems.md#reporting-a-security-problem)).
+A ballot-box integrity failure requires the secure failure response defined by
+the ST. That complete automatic response is not implemented as the self-test
+state machine. Preserve every record and escalate to the election board;
+do not repair evidence, delete data, or assume that a later green log audit
+restores trust in the affected ballot box.
 
 ## A crash or shutdown of a server component
 
-If a server part of the TOE that receives, stores or processes the votes
-crashes or is shut down during the execution phase, the election event enters
-maintenance mode (see above). In the execution phase the component is
-restarted only when the election board has decided so, and the self-test and
-"Resume Voting" are the election board's. Outside the execution phase, restart
-the component as the Deployment Guide describes, then check:
-
-- the "Version" in the header of the admin portal and the image digests
-  ([Secure Use of the Admin Portal](03-admin_portal.md));
-- that a self-test runs at the start-up and succeeds;
-- with the election board, which checks the electoral log, the records around
-  the time of the crash; read the platform's operating logs only as the
-  Deployment Guide describes.
+During election execution, restart a component only after the election board's
+decision. Follow AGD-04 and verify the image digests and service status.
+The board reviews the log records around the outage. Startup does not currently
+run the complete ST self-test suite; keep that limitation explicit in the
+incident and recovery record.
 
 ## The audit storage threshold
 
