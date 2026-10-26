@@ -28,9 +28,9 @@ use celery::error::TaskError;
 use deadpool_postgres::Client as DbClient;
 use sequent_core::election_config::manifest::read_zip;
 use sequent_core::election_config::package_contract::{Requirements, Section};
-use sequent_core::election_config::package_verify::{admit_at, Admission};
+use sequent_core::election_config::package_verify::{admit_at, Admission, ConfigurationSigning};
 use sequent_core::election_config::tenant_package::TrusteePublic;
-use sequent_core::types::hasura::core::TasksExecution;
+use sequent_core::types::hasura::core::{Document, TasksExecution};
 use sequent_core::types::hasura::extra::TasksExecutionStatus;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -159,6 +159,41 @@ fn choose_prior(
         .with_context(|| format!("the saved application of task {id} cannot be read"))
 }
 
+/// What a run reads before it decides anything: the package's document row,
+/// and the tenant's signing trust and revocation lists, against which the
+/// package is verified (its freshness against the tenant's imports is the
+/// target's to check, before each section).
+struct Inputs {
+    document: Document,
+    setting: Option<ConfigurationSigning>,
+    revocation_lists: Vec<Vec<u8>>,
+}
+
+/// Reads the [`Inputs`] on one connection and gives it back to the pool before
+/// returning. The run keeps only its claim's connection after this; holding
+/// this one too, while every later step takes another, left a run waiting
+/// forever on a pool sized from a small CPU quota.
+async fn read_inputs(
+    pool: &deadpool_postgres::Pool,
+    tenant_id: &str,
+    document_id: &str,
+) -> anyhow::Result<Inputs> {
+    let mut db: DbClient = pool.get().await?;
+    let transaction = db.transaction().await?;
+    let document = get_document(&transaction, tenant_id, None, document_id)
+        .await?
+        .ok_or_else(|| anyhow!("document {document_id} not found"))?;
+    let setting = tenant_setting(&transaction, tenant_id).await?;
+    let revocation_lists =
+        configuration_packages::revocation_lists(&transaction, tenant_id).await?;
+    transaction.commit().await?;
+    Ok(Inputs {
+        document,
+        setting,
+        revocation_lists,
+    })
+}
+
 /// A run that stopped before it held the claim: the row may be a live run's.
 #[derive(Debug)]
 struct Unclaimed(anyhow::Error);
@@ -214,18 +249,15 @@ async fn execute(
     )
     .await?;
 
-    let mut db: DbClient = get_hasura_pool().await.get().await?;
-    let transaction = db.transaction().await?;
-    let document = get_document(&transaction, &body.tenant_id, None, &body.document_id)
-        .await?
-        .ok_or_else(|| anyhow!("document {} not found", body.document_id))?;
-    let file = get_document_as_temp_file(&body.tenant_id, &document).await?;
+    let inputs = read_inputs(
+        &*get_hasura_pool().await,
+        &body.tenant_id,
+        &body.document_id,
+    )
+    .await?;
+    let file = get_document_as_temp_file(&body.tenant_id, &inputs.document).await?;
     let bytes = std::fs::read(file.path()).context("could not read the package")?;
-    // Verified against the tenant's signing trust. Its freshness against the
-    // tenant's imports is the target's to check, before each section.
-    let setting = tenant_setting(&transaction, &body.tenant_id).await?;
-    let lists = configuration_packages::revocation_lists(&transaction, &body.tenant_id).await?;
-    transaction.commit().await?;
+    let (setting, lists) = (inputs.setting, inputs.revocation_lists);
     let (members, signed_package, verified) =
         match admit_at(&bytes, setting.as_ref(), lists, chrono::Utc::now()) {
             Ok(Admission::Unsigned) => (
@@ -499,6 +531,63 @@ mod tests {
         );
         assert_eq!(row.get::<_, serde_json::Value>(4), json!({"online": true}));
         tx.rollback().await.unwrap();
+    }
+
+    /// Needs the PostgreSQL server `HASURA_DB__*` names (see
+    /// tests/support/schema.rs); deletes the rows it commits.
+    ///
+    /// The rehearsal of the airgap release found a run waiting forever: its
+    /// worker's pool held two connections (sized from a 0.5 CPU quota), the run
+    /// kept the inputs' connection besides its claim, and asked for a third.
+    #[tokio::test]
+    async fn reading_the_inputs_gives_the_connection_back_before_the_next_step() {
+        let pool = super::apply_test_schema::pool().await;
+        pool.resize(2);
+        let (tenant, document) = (uuid::Uuid::new_v4(), uuid::Uuid::new_v4());
+        {
+            let setup = pool.get().await.unwrap();
+            setup
+                .execute(
+                    "INSERT INTO sequent_backend.tenant (id, slug) VALUES ($1, $2)",
+                    &[&tenant, &format!("inputs-{tenant}")],
+                )
+                .await
+                .unwrap();
+            setup
+                .execute(
+                    "INSERT INTO sequent_backend.document (id, tenant_id, name) VALUES ($1, $2, 'package.zip')",
+                    &[&document, &tenant],
+                )
+                .await
+                .unwrap();
+        }
+        // The claim holds one of the two connections for the whole run.
+        let claim = pool.get().await.unwrap();
+        let inputs = read_inputs(&pool, &tenant.to_string(), &document.to_string())
+            .await
+            .unwrap();
+        assert_eq!(inputs.document.id, document.to_string());
+        assert!(inputs.setting.is_none());
+        assert!(inputs.revocation_lists.is_empty());
+        let next = tokio::time::timeout(std::time::Duration::from_secs(5), pool.get())
+            .await
+            .expect("the inputs' connection was not given back: the run would wait forever")
+            .unwrap();
+        drop(next);
+        claim
+            .execute(
+                "DELETE FROM sequent_backend.document WHERE id = $1",
+                &[&document],
+            )
+            .await
+            .unwrap();
+        claim
+            .execute(
+                "DELETE FROM sequent_backend.tenant WHERE id = $1",
+                &[&tenant],
+            )
+            .await
+            .unwrap();
     }
 
     /// Needs the PostgreSQL server `HASURA_DB__*` names (see
