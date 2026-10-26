@@ -58,12 +58,17 @@ implemented log audit, not the missing complete self-test suite.
 | Setting | Default | Accepted values | Meaning |
 | --- | --- | --- | --- |
 | `ELECTORAL_LOG_AUDIT_INTERVAL_SECS` | `900` (15 minutes) | `60` to `3600` seconds | How often Beat queues a sweep of election events with an open voting channel. |
-| `ELECTORAL_LOG_AUDIT_TIMEOUT_SECS` | `60` seconds | `10` seconds to the configured interval | Maximum time allowed for one event's scan. A timeout is recorded as a failed task. |
+| `ELECTORAL_LOG_AUDIT_TIMEOUT_SECS` | `60` seconds | `10` seconds to the configured interval | Maximum time allowed for one event's scan. A timeout is a failure, never a clean result. |
 
 The scan time limit includes waiting for a database connection, beginning the
 transaction and acquiring the audit lock. Sweep setup and task/result database
 operations have separate 10-second limits, so a stalled connection cannot
 leave a worker waiting without a deadline.
+
+The worker records a failed task when it can reach result storage. If that
+storage is unavailable, the worker fails but the Tasks tab may still show
+**In progress**. Investigate a task that exceeds its expected duration; a
+pending status does not mean that the scan is still running or has passed.
 
 The Compose definitions pass these values from the operator's environment.
 For the evaluated cluster, set the same values in the platform configuration
@@ -71,7 +76,7 @@ used by the `beat` and `windmill` Deployments. Invalid values prevent Beat from
 starting; a worker with invalid values fails the requested audit. Confirm both
 Deployments are ready and inspect the first scheduled task after changing them.
 
-The reports worker scans events **one at a time**. A database lock prevents
+Each periodic sweep scans events **one at a time**. A database lock prevents
 overlapping sweeps, and an old queued sweep expires after one minute. These
 controls limit duplicate work; they do not guarantee that a long queue or a
 large event finishes within the configured interval. Check the actual task
