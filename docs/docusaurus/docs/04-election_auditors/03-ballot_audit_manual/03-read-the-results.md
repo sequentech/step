@@ -21,7 +21,7 @@ All six ballot audit commands use the same exit statuses.
 
 | Status | Meaning | Action |
 | --- | --- | --- |
-| `0` | The check passed. | Continue to the next procedure. |
+| `0` | The check passed. | Continue to the next procedure. If the result lists votes to audit, review each one first. See [Votes to audit](#votes-to-audit). |
 | `1` | Contradiction. The evidence disagrees with itself, with the pins or with the scope. | Stop. Keep the evidence. Read the message and report the finding. |
 | `2` | Usage error. A command option is wrong or missing. | Correct the command and run it again. |
 | `3` | Incomplete evidence. Part of the evidence is missing, so the check cannot pass or fail. | Read the message. Report it as incomplete, not as a pass and not as a finding. |
@@ -49,7 +49,8 @@ Do not count a `3` as a pass. An audit with an incomplete result did not pass.
 
 `audit-tally` gives a status to each step in `audit-record.json`. It also gives a status to each
 scope, to each election history, to the Braid verifier and to the full audit in
-`public-summary.json`.
+`public-summary.json`. The console output shows the status of each step in its `Step` section and
+the content of `public-summary.json` as `Public summary` in the `Results` section.
 
 | Status | Meaning | Exit status |
 | --- | --- | --- |
@@ -74,6 +75,44 @@ When a step does not pass, `audit-tally` records the next steps of the same scop
 | `export-electoral-log` | `prepare-ballot-audit`, `ballot-audit` and `audit-cast-history` of all scopes. |
 | `export-ballot-audit` of a scope | `prepare-ballot-audit` and `ballot-audit` of the scope. `audit-cast-history` of the election if no scope of the election was exported. |
 | `prepare-ballot-audit` of a scope | `ballot-audit` of the scope. |
+
+## Votes to audit
+
+A **vote to audit** is a stored ballot without a signed `CastVote` record in the electoral log.
+The platform writes this record after it stores the ballot, and the write can fail. A missing
+record is not proof of a change, but the electoral log cannot confirm that the platform accepted
+this ballot.
+
+The commands check everything else about a vote to audit: its receipt, its content and, if it is
+selected, its ciphertext in the batches of the scope. If these checks pass, the exit status is
+`0` and the vote is listed:
+
+- `ballot-audit` lists the selected ballots without a record in `votes_to_audit` of
+  `audit-report.json`.
+- `audit-cast-history` returns the outcome `success` and lists the stored ballots without a
+  record as `hasura_row_without_signed_log` groups.
+- `audit-tally` writes the votes to audit that the tally counted in
+  `tallied-votes-to-audit.json` and gives the number in `tallied_votes_to_audit` of
+  `public-summary.json`. The `Results` section of its console output shows both, as `Tallied votes to audit` and `Public summary`. A stored ballot without a record that no scope selected, for example the
+  ballot of a voter disabled after voting, did not change the result. It is listed only in the
+  history report of its election.
+
+:::caution CAUTION
+The audit is not finished until you review each vote to audit. Exit status `0` does not cover
+them.
+:::
+
+For each vote to audit:
+
+1. Find the vote in `tallied-votes-to-audit.json`: the cast vote ID, the voter ID, the receipt, the area,
+   the status and the time it was stored. The console output shows the same, without the voter ID.
+2. Ask the system operator for the logs of the electoral log writes at that time. A failed write
+   leaves an error in the logs of the service that writes the electoral log.
+3. If the voter is known, confirm with the election authority that the voter voted.
+4. Write the result for each vote in the audit report.
+
+A signed record that names a ballot of another voter is a contradiction, with exit status `1`. It
+is not a vote to audit.
 
 ## Contradiction or a change after the tally?
 

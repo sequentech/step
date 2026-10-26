@@ -54,6 +54,7 @@ this in the audit report.
 | Audit bundle | The files that **Prepare the Audit Bundle** writes. They contain only the ballots of the scope. |
 | Exit status | The number that a command returns when it stops. It tells the result. See [Read the Results](03-read-the-results.md). |
 | Audit record | The file `audit-record.json` that `audit-tally` writes. It records each command, its result and the digests of its files. |
+| Audit output | The file `audit-output.log` that the audit image writes: a copy of everything that the audit showed on the console. |
 | Audit notes | The text file `audit-notes.txt` in which you write the values that the procedures tell you to record. |
 | Audit image | The Docker image with all tools of the audit and the database servers of the copies. One `docker run` command restores the backups into copies inside the container, runs the audit and removes the copies. |
 

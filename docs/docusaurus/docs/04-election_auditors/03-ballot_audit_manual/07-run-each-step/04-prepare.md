@@ -19,7 +19,8 @@ The command does these checks:
 
 1. It checks the signature of each `CastVote` record of the election in the electoral log.
 2. It selects each eligible voter's latest cast row marked valid in the application database.
-3. It finds the signed record of each selected ballot.
+3. It finds the signed record of each selected ballot. A selected ballot without a signed record
+   stays selected and becomes a vote to audit.
 4. It checks that no signed ballot of a selected voter was removed or replaced.
 5. It checks that no later signed revote was left out.
 6. It compares the selection with the counts that the tally saved.
@@ -98,7 +99,8 @@ bundle can contain changed anchors.
 | Exit status `1`, `a selected voter has a later signed revote ...` | The stored vote order disagrees with the signed log. If the times are seconds apart, ask the system operator to check the server clocks. Then report it. |
 | Exit status `1`, `saved ... count differs ...` | The saved tally disagrees with the selection. A voter or a ballot changed after the tally, or a backup is from another moment. Read [Read the Results](../03-read-the-results.md). |
 | Exit status `1`, `... ballot receipt(s) are shared by several selected cast votes` | Several selected cast rows share the same ballot receipt. Keep the evidence and report it. |
-| Exit status `3`, `selected cast vote has no matching signed electoral-log evidence` | The signed record of a selected ballot is missing. The log write can fail. Report it as incomplete, not as a change. |
+| Exit status `1`, `a selected cast vote's ballot is signed in the electoral log for another voter` | The signed record of the ballot names another voter. Keep the evidence and report it. |
+| Exit status `3`, `selected cast vote has no signed record while its voter has another signed ballot ...` | You gave `--without-cast-vote-history`. Without the history, a replaced ballot looks like a missing record. Run the command again with `--cast-vote-history`. |
 | Exit status `3`, `scoped in-progress cast vote blocks preparation` | A vote was still in progress at the backup. Get a backup from after the end of the voting period. |
 
 See [Troubleshooting](../04-troubleshooting.md) for all messages.

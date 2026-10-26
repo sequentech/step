@@ -25,9 +25,10 @@ authority and removes the copies.
 1. Write the tally ID, the public key hash and the electoral log system public key.
 2. Write the source commit of the tools.
 3. Write the identity and the digest of each backup.
-4. Write the digest of `audit-record.json`.
+4. Write the digest of `audit-output.log`.
 5. Write the overall status, and the status and the counts of each scope, of each election history
-   and of the Braid verifier. Copy them from `public-summary.json`.
+   and of the Braid verifier. Copy them from `Public summary` in the `Results` section of
+   `audit-output.log`.
 6. For each status that is not `success`, write the message of the step and your conclusion.
 7. If you ran a step separately, write its pins, its exit status and its counts.
 8. Write the limits of the audit. See [Before You Start](../01-before-you-start.md#what-the-audit-proves).
@@ -36,23 +37,25 @@ authority and removes the copies.
 
 ## 2. Publish the safe summary
 
-1. Publish `~/audit/output/public-summary.json`. It contains only IDs of the election,
-   statuses and counts. See [File Reference](../06-file-reference.md#public-summaryjson).
-2. Publish the digest of `audit-record.json`, the commit of the tools and the limits of the audit.
+1. Publish the `Public summary`, from the `Results` section of
+   `audit-output.log`. It contains only IDs of the election, statuses and counts. See
+   [File Reference](../06-file-reference.md#public-summaryjson).
+2. Publish the digest of `audit-output.log`, the commit of the tools and the limits of the audit.
 3. Do not publish other information. Use this table:
 
 | Safe to publish | Do not publish |
 | --- | --- |
-| `public-summary.json`. | Voter IDs and hashed voter identifiers. |
-| The digests of the backups and of `audit-record.json`. | Ballot IDs and receipts that identify a voter. |
+| The `Public summary`. | Voter IDs and hashed voter identifiers. |
+| The digests of the backups and of `audit-output.log`. | Ballot IDs and receipts that identify a voter. |
+| | `audit-output.log`. It contains cast vote IDs and receipts. |
 | The commit of the tools. | Batch positions in a batch that `privacy_warnings` lists. |
 | The limits of the audit. | The copies, the evidence, the audit bundles and the reports. |
 
 :::danger WARNING
-Do not publish the files in `output/scopes/`, `output/history/` or `output/immudb-export/`.
-They contain personal data, for example `selection.json`, `cast-votes.json`,
-`cast-vote-history.json`, `keycloak-source.json`, `eligibility-reasons.json` and
-`audit-report.json`.
+Do not publish `audit-output.log`. It contains the cast vote IDs and the receipts of all stored
+votes. If you ran steps separately, do not publish their files either: for example
+`selection.json`, `cast-votes.json`, `cast-vote-history.json`, `keycloak-source.json`,
+`eligibility-reasons.json` and `audit-report.json` contain personal data.
 :::
 
 **Expected result:** the election authority has the audit report. The public summary contains no
@@ -61,7 +64,8 @@ personal data.
 ## 3. Keep the evidence
 
 1. Ask the election authority how long to keep the evidence.
-2. Put the directory `~/audit/output` and the audit notes in an encrypted archive.
+2. Put the directory `~/audit/output`, which contains `audit-output.log` and
+   `audit-output.log.sha512`, and the audit notes in an encrypted archive.
 3. Give the archive to the election authority.
 
 **Expected result:** the election authority keeps the evidence.

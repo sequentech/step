@@ -19,8 +19,8 @@ The command `audit-cast-history` finds two cases:
 
 - A signed record without a stored ballot. The success record is written only after the ballot is
   stored, so the ballot was removed or replaced. This is a finding.
-- A stored ballot without a signed record. The log write can fail, so this is incomplete
-  evidence, not a finding.
+- A stored ballot without a signed record. The log write can fail, so this is not a finding. The
+  command lists it, and the exit status stays `0`. If the tally counted it, it is a vote to audit.
 
 The command does not select votes, does not check the voters and does not read the bulletin
 board.
@@ -53,8 +53,8 @@ board.
 3. Read the exit status.
 4. Write the exit status and the coverage counts of `history-report.json` in the audit notes.
 
-**Expected result:** the exit status is `0`, or `3` with only `hasura_row_without_signed_log`
-groups.
+**Expected result:** the exit status is `0`. The `outcome` is `consistent`, or `success`
+when some stored ballots have no signed record.
 
 ## 2. Read the groups
 
@@ -65,7 +65,7 @@ Each group of the report has a `classification`:
 | `matched`, `matched_repeated_logs` | The stored ballot has its signed record. | None. |
 | `matched_ambiguous_row_attribution` | More than one stored ballot has the same signed record. | Write it in the audit report. |
 | `matched_ambiguous_log_occurrences` | Different signed records describe the same ballot. | Write it in the audit report. |
-| `hasura_row_without_signed_log` | A stored ballot has no signed record. | Report it as incomplete. Ask the system operator about failed log writes. |
+| `hasura_row_without_signed_log` | A stored ballot has no signed record. If the tally counted it, it is a vote to audit. | Review it. See [Votes to audit](../03-read-the-results.md#votes-to-audit). |
 | `signed_log_without_hasura_row` | A signed ballot has no stored ballot. | Keep the evidence and report it. |
 
 **Expected result:** you know the classification of each group.

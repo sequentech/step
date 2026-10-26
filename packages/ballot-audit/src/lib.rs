@@ -81,7 +81,11 @@ pub struct SelectedVote {
     pub ballot_id: String,
     /// SHA-512 of original content UTF-8 bytes, anchored by the manifest digest.
     pub content_sha512: String,
-    pub electoral_log_message_sha512: String,
+    /// None when the electoral log holds no signed CastVote record for this
+    /// vote. The vote is still checked against the tally input and is listed
+    /// in [`AuditReport::votes_to_audit`].
+    #[serde(default)]
+    pub electoral_log_message_sha512: Option<String>,
     pub multiplicity: u64,
 }
 
@@ -178,6 +182,24 @@ pub enum ReceiptLookup {
     },
 }
 
+/// Why a selected vote needs a manual audit.
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum VoteToAuditReason {
+    /// A lost log write (meta#13796) or Windmill's best-effort post-cast
+    /// logging leaves an accepted vote without signed evidence.
+    NoSignedCastVoteRecord,
+}
+
+/// A selected vote whose content, receipt and tally input were checked, but
+/// whose acceptance no signed electoral-log record confirms.
+#[derive(Clone, Debug, Serialize)]
+pub struct VoteToAudit {
+    pub cast_vote_id: String,
+    pub ballot_id: String,
+    pub reason: VoteToAuditReason,
+}
+
 #[derive(Debug, Serialize)]
 pub struct DuplicateReceipt {
     pub ballot_id: String,
@@ -208,6 +230,9 @@ pub struct AuditReport {
     /// ballot accepted under several voters and counted once for each.
     pub duplicate_selected_receipts: Vec<DuplicateReceipt>,
     pub privacy_warnings: Vec<PrivacyWarning>,
+    /// Selected votes without a signed CastVote record. They do not change
+    /// the status: everything else about them was checked.
+    pub votes_to_audit: Vec<VoteToAudit>,
     pub assurance: &'static str,
 }
 
@@ -458,6 +483,7 @@ fn contributions(scope: &Scope, multiplicity: u64) -> Result<Vec<(u32, u64)>> {
 /// establish snapshot provenance or verify shuffle/decryption/counting proofs.
 /// Callers must also act on [`AuditReport::status`]: duplicate selected
 /// receipts and unselected receipt lookups are reported, not returned as errors.
+/// Votes to audit do not change the status; callers must report them.
 #[allow(clippy::too_many_arguments)]
 pub fn audit(
     manifest_bytes: &[u8],
@@ -584,6 +610,7 @@ pub fn audit_with_selection(
     let mut votes_by_receipt: BTreeMap<&str, Vec<String>> = BTreeMap::new();
     let mut expected: BTreeMap<(u32, Vec<u8>), u64> = BTreeMap::new();
     let mut projected = Vec::new();
+    let mut votes_to_audit = Vec::new();
     let mut computed_batches = BTreeSet::new();
     for selected in &manifest.selected {
         ensure!(
@@ -617,12 +644,27 @@ pub fn audit_with_selection(
             "receipt hash mismatch for {}",
             row.cast_vote_id
         );
+        ensure!(!row.voter_id.is_empty(), "missing cast vote voter ID");
+        for (batch, count) in contributions(scope, selected.multiplicity)? {
+            computed_batches.insert(batch);
+            let total = expected.entry((batch, ciphertext.clone())).or_default();
+            *total = total.checked_add(count).context("multiplicity overflow")?;
+        }
+        let Some(log_sha512) = &selected.electoral_log_message_sha512 else {
+            votes_to_audit.push(VoteToAudit {
+                cast_vote_id: row.cast_vote_id.clone(),
+                ballot_id: row.ballot_id.clone(),
+                reason: VoteToAuditReason::NoSignedCastVoteRecord,
+            });
+            projected.push((row, ciphertext));
+            continue;
+        };
         ensure!(
-            used_logs.insert(&selected.electoral_log_message_sha512),
+            used_logs.insert(log_sha512),
             "reused electoral-log evidence"
         );
         let log_bytes = logs_by_hash
-            .get(&selected.electoral_log_message_sha512)
+            .get(log_sha512)
             .ok_or_else(|| incomplete("selected electoral-log message missing"))?;
         let log = ElectoralMessage::strand_deserialize(log_bytes)
             .map_err(|_| invalid_input("invalid electoral-log message"))?;
@@ -645,7 +687,6 @@ pub fn audit_with_selection(
             election.0.as_deref() == Some(scope.election_id.as_str()),
             "electoral-log election mismatch"
         );
-        ensure!(!row.voter_id.is_empty(), "missing cast vote voter ID");
         let voter_hash = strand::hash::hash_to_array(&row.voter_id.strand_serialize()?)?;
         ensure!(
             pseudonym.0.clone().into_inner() == voter_hash,
@@ -659,11 +700,6 @@ pub fn audit_with_selection(
             channel == row.voting_channel,
             "electoral-log voting channel mismatch"
         );
-        for (batch, count) in contributions(scope, selected.multiplicity)? {
-            computed_batches.insert(batch);
-            let total = expected.entry((batch, ciphertext.clone())).or_default();
-            *total = total.checked_add(count).context("multiplicity overflow")?;
-        }
         projected.push((row, ciphertext));
     }
     ensure!(
@@ -816,7 +852,8 @@ pub fn audit_with_selection(
     Ok(AuditReport { scope: manifest.scope, checked_cast_votes: rows.len(), checked_batches: seen_batches.len(),
         checked_electoral_log_messages: used_logs.len(),
         legacy_online_channel_inferences, receipts: matches, lookup, duplicate_selected_receipts, privacy_warnings,
-        assurance: "Signed electoral-log voter/event/election/full ballot hashes match every selected cast vote. Channels match signed values except reported legacy ONLINE inferences. Exact pre-shuffle input multiset and receipt hashes match the pinned selected-set manifest. Full content bytes match its separate digest anchors. The manifest and configuration pins must come from outside the bundle: anchors.json inside it only restates the bundle's own digests, so it cannot protect content fields omitted from the receipt hash against a regenerated bundle. This selected-scope result does not reconcile every historical CastVote log to Hasura or detect accepted casts missing from both supplied history and tally inputs. ImmuDB append-only history, snapshot/selection provenance and mixnet/counting proofs must be verified separately." })
+        votes_to_audit,
+        assurance: "Signed electoral-log voter/event/election/full ballot hashes match every selected cast vote except the listed votes to audit, which have no signed CastVote record: their acceptance must be audited by hand. Channels match signed values except reported legacy ONLINE inferences. Exact pre-shuffle input multiset and receipt hashes match the pinned selected-set manifest. Full content bytes match its separate digest anchors. The manifest and configuration pins must come from outside the bundle: anchors.json inside it only restates the bundle's own digests, so it cannot protect content fields omitted from the receipt hash against a regenerated bundle. This selected-scope result does not reconcile every historical CastVote log to Hasura or detect accepted casts missing from both supplied history and tally inputs. ImmuDB append-only history, snapshot/selection provenance and mixnet/counting proofs must be verified separately." })
 }
 
 pub fn decode_message(value: &str) -> Result<Vec<u8>> {

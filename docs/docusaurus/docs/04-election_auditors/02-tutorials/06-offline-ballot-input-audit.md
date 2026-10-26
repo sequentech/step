@@ -56,7 +56,7 @@ All six commands share these statuses:
 | `0` | Success. |
 | `1` | Verification failed or the evidence contradicts itself or the pinned scope (digest, signature, hash, or multiset mismatch). This includes a signed cast-vote record whose ballot no stored row holds, in `audit-cast-history` and `prepare-ballot-audit`, and a later signed revote that `prepare-ballot-audit` did not select. Also the default for unclassified errors, and for duplicate selected receipts in `prepare-ballot-audit` and `ballot-audit`. |
 | `2` | Command-line usage error, reported by clap. Nothing else uses it. |
-| `3` | Incomplete evidence: a stored row without a signed log, a missing batch, or a looked-up receipt that is not selected. Neither consistency nor contradiction is established. `ballot-audit` and `audit-cast-history` still print their JSON report. |
+| `3` | Incomplete evidence: a missing batch, or a looked-up receipt that is not selected. Neither consistency nor contradiction is established. `ballot-audit` and `audit-cast-history` still print their JSON report. |
 | `4` | Invalid or unsupported input, or an acquisition failure (unreadable or malformed file, malformed pin, unsupported ceremony, refused connection, existing output directory). |
 
 Wrappers must not treat `2` as anything but a usage error, and must not collapse
@@ -99,7 +99,10 @@ The output directory holds `tally-plan.json`, the per-scope directories,
 `history/<election ID>.json`, `braid/verify.log`, `audit-record.json` and
 `public-summary.json`. The audit record lists each command line, exit code,
 status and output digest. The public summary has counts and statuses only: no
-voter IDs, receipts or batch positions. The exit status is the most serious
+voter IDs, receipts or batch positions. The console shows each step with its
+command, exit code, messages and output digests, followed by the content of
+its files and a results section; keys that hold voter IDs, ballot contents or
+Keycloak users are left out. The exit status is the most serious
 step status: `1` before `4` before `3`. A step that did not run counts as `3`,
 and a usage error (`2`) of a child command counts as `4`.
 
@@ -142,9 +145,12 @@ a new admin password (`--force-admin-password`), so the password of the source
 is not needed, then gives `ballot_audit_reader` read access to each ImmuDB
 database. It starts the B3 server on the B3 copy, writes `connections.json` and
 runs `audit-tally`. With `--network none` the container has only `127.0.0.1`,
-which the loopback-only rules of the tools accept. The results of `audit-tally`
-go to the output directory, the messages of the restore to `<output>/restore`,
-and the files belong to the owner of `backup-digests.txt`. The exit status is
+which the loopback-only rules of the tools accept. The container shows the
+restore logs and the console output of `audit-tally`, and keeps only a copy of
+that output in `<output>/audit-output.log` and its digest in
+`<output>/audit-output.log.sha512`, owned by the owner of
+`backup-digests.txt`. The passwords of the copies are redacted from the logs.
+The files of `audit-tally` stay in the container. The exit status is
 the exit status of `audit-tally`. The copies are removed with the container.
 
 `shell` in place of the options restores the copies and opens a shell in
@@ -743,13 +749,14 @@ containing row IDs, `signed_log_records`, `distinct_signed_log_message_bytes`,
   differing unsigned wrappers do not prove separate signing events.
 - `signed_log_without_hasura_row`: a contradiction. The success log is posted
   only after the row commits, so the row was removed or its content replaced.
-- `hasura_row_without_signed_log`: incomplete coverage, not a lawful
+- `hasura_row_without_signed_log`: a vote to audit, not a lawful
   tally-selection exclusion. The log write may have been lost.
 
 Omit `--ballot-id` to report every group. With it, the entire history is still
 checked; only reported groups are filtered. Exit `0` means consistent supplied
-coverage; exit `3` means rows without signed logs, ambiguous row/log
-attribution, or a requested receipt absent from the supplied evidence. Exit `1`
+coverage, with outcome `success` when some rows have no signed log; exit
+`3` means ambiguous row/log attribution, or a requested receipt absent from the
+supplied evidence. Exit `1`
 with a JSON report (`outcome: contradicted`) means at least one
 `signed_log_without_hasura_row` group; it takes precedence over `3`. Exit `1`
 without a report means failed signatures, hashes, or digests, and `4` means
@@ -812,7 +819,8 @@ must not be swept into an arbitrary batch range.
   can happen before accepted storage, without a stored row/exclusion entry.
 - Committed `discarded` status and historical evidence explain that stage;
   in-progress is unresolved. Existing electoral-log writes are best effort:
-  missing signed evidence makes this audit incomplete, not automatically fraud.
+  missing signed evidence makes the ballot a vote to audit, not automatically
+  fraud.
 - Superseded rows have zero stage exclusion count. Only the selected latest
   discarded row, or latest valid row without eligible membership, contributes
   one exclusion and one channel participation count. Included channel counts
@@ -892,7 +900,8 @@ Exit statuses are in brackets.
 | `invalid saved weight bit mask` [4] | The mask is zero or outside the supported weight bits. |
 | `non-default keys-ceremony boards require separately authenticated ...` [4] | Only default ceremonies are supported. Do not edit the ceremony data; use separately reviewed acquisition. |
 | `restored B3 board has no configuration or scoped ballots`, `missing B3 batch` [3] | The restored board or blob root lacks a declared batch. Check the restore and `--b3-blob-root`. |
-| `selected cast vote has no matching signed electoral-log evidence` [3] | The signed log write was lost (meta#13796) or never made, or the row was replaced. Rerun with `--cast-vote-history` instead of `--without-cast-vote-history` to tell them apart. Report as incomplete; do not fabricate or infer evidence. |
+| `selected cast vote has no signed record while its voter has another signed ballot ...` [3] | Without the history, a lost log write and a replaced row look the same. Rerun with `--cast-vote-history` instead of `--without-cast-vote-history` to tell them apart. A selected vote without any signed record of its voter is a vote to audit, not an error. |
+| `a selected cast vote's ballot is signed in the electoral log for another voter` [1] | The signed log names the ballot for another voter. Keep the evidence and escalate. |
 | `a selected voter has a signed cast vote that no stored cast vote holds ...` [1] | A row the signed log proves was committed has been removed or its content replaced. Keep the evidence and escalate. |
 | `a selected voter has a later signed revote held by a valid scoped cast vote ...` [1] | The stored `created_at` order disagrees with the signed log, so an earlier ballot was selected. If the timestamps are seconds apart across workers, check their clocks before escalating. |
 | `cast-vote history does not hold a selected cast vote ...` [1] | The history and scoped cast votes come from different snapshots or one was altered. Re-export both in one acquisition. |

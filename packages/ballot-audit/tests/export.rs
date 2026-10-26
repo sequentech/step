@@ -11,6 +11,7 @@ use ballot_audit::{digest, ExitStatus};
 use base64::{engine::general_purpose::STANDARD_NO_PAD, Engine};
 use serde_json::{json, Value};
 use std::{
+    collections::BTreeSet,
     fs,
     marker::PhantomData,
     os::unix::fs::PermissionsExt,
@@ -635,6 +636,199 @@ async fn exports_native_postgres_snapshots_without_application_servers() {
         )
         .await;
     }
+    if let Ok(input) = std::env::var("BALLOT_AUDIT_LOST_LOG_FIXTURE_DIR") {
+        let output = std::env::var("BALLOT_AUDIT_LOST_LOG_DEMO_OUTPUT")
+            .expect("new lost-log demonstration directory is required");
+        lost_cast_vote_records_pass(
+            &hasura,
+            &keycloak,
+            &b3,
+            &root.0,
+            Path::new(&input),
+            Path::new(&output),
+        )
+        .await;
+    }
+}
+
+/// audit-tally on a scope where every voter cast once, some voters were
+/// disabled after voting, and the electoral log lost three CastVote records,
+/// one of them of a disabled voter. Every step passes and the three votes are
+/// listed to audit.
+async fn lost_cast_vote_records_pass(
+    hasura: &Client,
+    keycloak: &Client,
+    b3: &Client,
+    root: &Path,
+    input: &Path,
+    output: &Path,
+) {
+    const LOST_LOG_BOARD: &str = "lost_log_board";
+    fs::create_dir(output).unwrap();
+    fs::set_permissions(output, fs::Permissions::from_mode(0o700)).unwrap();
+    let read = |name: &str| -> Value {
+        serde_json::from_slice(&fs::read(input.join(name)).unwrap()).unwrap()
+    };
+    let scope = read("scope.json");
+    assert_eq!(scope["scope"]["area_id"], AREA);
+    hasura.batch_execute("DELETE FROM sequent_backend.cast_vote;
+        UPDATE sequent_backend.tally_session SET configuration = '{\"contest_encryption_policy\":\"single-contest\"}';").await.unwrap();
+    hasura
+        .execute(
+            "UPDATE sequent_backend.election_event SET bulletin_board_reference=$1",
+            &[&json!({ "database_name": LOST_LOG_BOARD })],
+        )
+        .await
+        .unwrap();
+    hasura.execute("UPDATE sequent_backend.tally_session_contest SET contest_id=$1::text::uuid, annotations=NULL",
+        &[&scope["scope"]["contest_id"].as_str().unwrap()]).await.unwrap();
+    let votes = read("cast-votes.json");
+    for vote in votes.as_array().unwrap() {
+        hasura.execute("INSERT INTO sequent_backend.cast_vote SELECT * FROM jsonb_populate_record(NULL::sequent_backend.cast_vote,$1)",
+            &[vote]).await.unwrap();
+    }
+    keycloak
+        .batch_execute("DELETE FROM public.user_attribute; DELETE FROM public.user_entity;")
+        .await
+        .unwrap();
+    let eligible: Vec<String> = read("eligible-voters.json")["voters"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|voter| voter["voter_id"].as_str().unwrap().to_string())
+        .collect();
+    let disabled: BTreeSet<String> = votes
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|vote| vote["voter_id_string"].as_str().unwrap().to_string())
+        .filter(|voter| !eligible.contains(voter))
+        .collect();
+    assert_eq!(disabled.len(), 4);
+    for (id, enabled) in eligible
+        .iter()
+        .map(|id| (id, true))
+        .chain(disabled.iter().map(|id| (id, false)))
+    {
+        keycloak
+            .execute(
+                "INSERT INTO public.user_entity VALUES ($1,'event-realm',$1,$2,NULL)",
+                &[&id, &enabled],
+            )
+            .await
+            .unwrap();
+        keycloak
+            .execute(
+                "INSERT INTO public.user_attribute VALUES ($1,$2,'area-id',$3)",
+                &[&format!("area-{id}"), &id, &AREA],
+            )
+            .await
+            .unwrap();
+    }
+    b3.batch_execute(&format!(
+        "CREATE TABLE public.{LOST_LOG_BOARD} (id bigint PRIMARY KEY, sender_pk text,
+        statement_kind text, batch integer, mix_number integer, message bytea, version text);
+        GRANT SELECT ON public.{LOST_LOG_BOARD} TO audit_reader;
+        DELETE FROM public.index;"
+    ))
+    .await
+    .unwrap();
+    let encoded: Vec<String> = serde_json::from_value(read("board-messages.json")).unwrap();
+    for (i, value) in encoded.iter().enumerate() {
+        let bytes = STANDARD_NO_PAD.decode(value).unwrap();
+        let message = Message::strand_deserialize(&bytes).unwrap();
+        b3.execute(
+            &format!("INSERT INTO public.{LOST_LOG_BOARD} VALUES ($1,$2,$3,$4,$5,$6,'test')"),
+            &[
+                &((i + 1) as i64),
+                &message.sender.pk.to_der_b64_string().unwrap(),
+                &message.statement.get_kind().to_string(),
+                &(message.statement.get_batch_number() as i32),
+                &(message.statement.get_mix_number() as i32),
+                &bytes,
+            ],
+        )
+        .await
+        .unwrap();
+    }
+    b3.execute(
+        "INSERT INTO public.index VALUES (1,$1,$2)",
+        &[&LOST_LOG_BOARD, &(encoded.len() as i32)],
+    )
+    .await
+    .unwrap();
+
+    let log = output.join("electoral-log-export");
+    fs::create_dir(&log).unwrap();
+    fs::copy(
+        input.join("electoral-log.json"),
+        log.join("electoral-log.json"),
+    )
+    .unwrap();
+    let tally = output.join("tally");
+    let result = tally_run(root, &scope, &log, &stand_in_verify(output, 0), &tally);
+    let stdout = String::from_utf8(result.stdout.clone()).unwrap();
+    eprintln!("{stdout}");
+    let summary = load(&tally, "", "public-summary.json");
+    assert_eq!(summary["status"], "success", "{summary}");
+    assert_eq!(summary["scopes"][0]["checked_cast_votes"], 20);
+    assert_eq!(summary["scopes"][0]["checked_electoral_log_messages"], 18);
+    assert_eq!(summary["scopes"][0]["tallied_votes_to_audit"], 2);
+    let accounting = summary["scopes"][0]["selection_accounting"]
+        .as_object()
+        .unwrap();
+    assert_eq!(accounting["stage_exclusions"]["no_eligible_voter"], 4);
+    assert!(
+        !accounting
+            .keys()
+            .any(|key| key.starts_with("frozen_eligible")),
+        "{accounting:?}"
+    );
+    assert_eq!(summary["cast_vote_history"][0]["outcome"], "success");
+    assert_eq!(
+        summary["cast_vote_history"][0]["hasura_rows_without_signed_log"],
+        3
+    );
+    // The disabled voter's vote has no signed record either, but the tally
+    // left it out, so only the history report lists it.
+    assert_eq!(summary["tallied_votes_to_audit"], 2);
+    let votes = load(&tally, "", "tallied-votes-to-audit.json");
+    let votes = votes.as_array().unwrap();
+    assert_eq!(votes.len(), 2);
+    for vote in votes {
+        assert_eq!(vote["found_by"].as_array().unwrap().len(), 2, "{vote}");
+    }
+    assert!(stdout.contains("Overall: Success"), "{stdout}");
+    // The console shows every step and report, but no voter ID.
+    for expected in [
+        "Ballot audit of tally session",
+        "Step export-electoral-log",
+        "Electoral log records: 21",
+        "Step export-ballot-audit scopes/001",
+        "Cast votes (24):",
+        "Step prepare-ballot-audit scopes/001",
+        "Selection:",
+        "Step ballot-audit scopes/001",
+        "votes_to_audit (2):",
+        "Step audit-cast-history election ",
+        "hasura_rows_without_signed_log: 3",
+        "Step verify",
+        "Tallied votes to audit (2):",
+    ] {
+        assert!(stdout.contains(expected), "{expected}\n{stdout}");
+    }
+    assert!(!stdout.contains("voter-identifier"), "{stdout}");
+    // Reports and digests are shown by title, not by file name.
+    for line in stdout.lines() {
+        if let Some((key, _)) = line.trim_start().split_once(':') {
+            assert!(!key.contains(".json") && !key.contains(".log"), "{line}");
+        }
+    }
+    assert!(!stdout.contains("Command:"), "{stdout}");
+    assert!(!stdout.contains("assurance:"), "{stdout}");
+    assert!(!stdout.contains("note:"), "{stdout}");
+    assert!(!stdout.to_lowercase().contains("limitation"), "{stdout}");
+    assert_exit(result, ExitStatus::Success);
 }
 
 /// audit-tally must derive, from the tally ID alone, the same scope that the
@@ -1132,15 +1326,26 @@ fn signed_tally_run_passes(root: &Path, scope: &Value, acquired_log: &Path, outp
     assert_eq!(summary["scopes"][0]["status"], "success");
     assert_eq!(summary["scopes"][0]["checked_cast_votes"], 1);
     assert_eq!(summary["braid"]["status"], "success");
-    // The fixture's unselected rows have no signed log, which leaves the
-    // event-wide history incomplete but not contradicted.
+    // Two stored rows share the selected ballot's signed record, which makes
+    // the event-wide history ambiguous. The four rows without a signed log are
+    // listed as votes to audit.
     assert_eq!(status_of("audit-cast-history")["status"], "incomplete");
     let history = &summary["cast_vote_history"][0];
-    assert_eq!(history["outcome"], "incomplete");
+    assert_eq!(history["outcome"], "ambiguous");
     assert_eq!(history["signed_log_records_without_hasura_row"], 0);
     assert_eq!(history["hasura_rows_without_signed_log"], 4);
+    assert_eq!(summary["scopes"][0]["tallied_votes_to_audit"], 0);
+    assert_eq!(summary["tallied_votes_to_audit"], 0);
     assert_eq!(summary["status"], "incomplete");
     assert_eq!(record["status"], summary["status"]);
+    assert_eq!(load(&tally, "", "tallied-votes-to-audit.json"), json!([]));
+    assert_eq!(
+        record["tallied_votes_to_audit"]["sha512"]
+            .as_str()
+            .unwrap()
+            .len(),
+        128
+    );
     assert_exit(result, ExitStatus::Incomplete);
 
     let failed = output.join("tally-braid-failed");

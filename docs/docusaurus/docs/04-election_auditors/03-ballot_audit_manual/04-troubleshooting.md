@@ -29,18 +29,19 @@ status is the exit status of `audit-tally`.
 | `no backups; mount the backups directory at /backups` | The command has no `-v <backups>:/backups:ro`. | Add it. |
 | `no output; mount an empty output directory at /output` | The command has no `-v <output>:/output`. | Add it. |
 | `the output directory is not empty; use a new one` | The output directory has files of an earlier run. | Use a new, empty directory. |
-| `WARNING: pg_restore reported ... error(s) for ...` | `pg_restore` could not restore part of a backup. The command restores the other backups. | Read the log in `output/restore`. Write each error in the audit notes. |
+| `WARNING: pg_restore reported ... error(s) for ...` | `pg_restore` could not restore part of a backup. The command restores the other backups. | Read the log of `pg_restore` above the warning. Write each error in the audit notes. |
 | `not auditing: the restore of ... had errors` | A copy can miss rows after a restore error, and an audit of it could pass. The command stops before the audit. | Ask the system operator for a backup that restores without errors. To examine the errors, use the `shell` form, which opens after restore errors. |
-| `WARNING: the read-only account cannot run SQL on the ImmuDB database ...` | The copy did not accept the read permission for this database. | If it is the electoral log of the event, the audit stops at `export-electoral-log`. Read `output/restore/immudb-grants.log`. |
+| `WARNING: the read-only account cannot run SQL on the ImmuDB database ...` | The copy did not accept the read permission for this database. | If it is the electoral log of the event, the audit stops at `export-electoral-log`. Read the log of the grants below the warning. |
 | `the ImmuDB archive has no systemdb directory` | The ImmuDB archive is not an ImmuDB data directory. | Ask the system operator for the correct archive. |
 | `the ImmuDB copy has no databases` | The ImmuDB data directory is empty. | Ask the system operator for the correct archive. |
-| `ImmuDB did not start`, `the B3 server did not start` | A copy did not start. The command shows the end of its log. | Read the logs in `output/restore`. |
+| `ImmuDB did not start`, `the B3 server did not start` | A copy did not start. The command shows its log. | Read the log in `audit-output.log`. |
 | `unknown option: ...`, `... needs a value` | An option of the command is wrong. | Correct the command. See [The audit image](05-command-reference.md#the-audit-image). |
 
 ## Messages of audit-tally
 
-`audit-tally` shows its own messages after `audit-tally:`. When a step does not pass, the `message`
-of the step in `audit-record.json` gives the message of that command. Find that message in the
+`audit-tally` shows its own messages after `audit-tally:`. When a step does not pass, `Messages` in
+the `Step` section of the console output, and the `message` of the step in `audit-record.json`,
+give the message of that command. Find that message in the
 other tables of this page.
 
 | Message | Cause | Action |
@@ -105,7 +106,8 @@ other tables of this page.
 | `... ballot receipt(s) are shared by several selected cast votes ...` [1] | Several selected cast rows share the same ballot receipt. | Keep the evidence and report the finding. |
 | `saved eligible voter count differs ...`, `saved cast ballot count differs ...`, `saved ballots without voter differ ...` [1] | The saved tally disagrees with the selection. | Ask about changes after the tally. See [Read the Results](03-read-the-results.md#contradiction-or-a-change-after-the-tally). |
 | `tally input multiset mismatch ...` [1] | The encrypted ballots on the bulletin board are not the selected ballots. | Keep the evidence and report the finding. |
-| `selected cast vote has no matching signed electoral-log evidence` [3] | The signed record of a selected ballot is missing. | Report it as incomplete. |
+| `a selected cast vote's ballot is signed in the electoral log for another voter` [1] | The signed record of the ballot names another voter. | Keep the evidence and report the finding. |
+| `selected cast vote has no signed record while its voter has another signed ballot ...` [3] | The command ran with `--without-cast-vote-history`. | Run it again with `--cast-vote-history`. |
 | `selected cast vote has ambiguous signed electoral-log evidence` [3] | Different signed records describe the same ballot. | Report it as incomplete. |
 | `scoped in-progress cast vote blocks preparation` [3] | A vote was in progress at the backup. | Get a backup from after the end of the voting period. |
 | `restored B3 board has no configuration or scoped ballots`, `missing B3 batch` [3] | The B3 copy or the blob directory does not have a batch. | Check the restore and `--b3-blob-root`. |
