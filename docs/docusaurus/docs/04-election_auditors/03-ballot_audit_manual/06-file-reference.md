@@ -389,7 +389,7 @@ the position can show how a person voted.
 | `checked_signed_cast_vote_log_records` | The number of signed records that the command checked. |
 | `ignored_other_log_records` | The number of records of other elections. |
 | `signed_log_records_without_hasura_row` | Signed records without a stored ballot. A value other than `0` is a finding. |
-| `hasura_rows_without_signed_log` | Stored ballots without a signed record. These are votes to audit. |
+| `hasura_rows_without_signed_log` | Stored ballots without a signed record, in all areas and statuses. Only those that the tally counted are votes to audit, in `tallied_votes_to_audit`. |
 | `ambiguous_row_attribution_groups`, `ambiguous_log_occurrence_groups` | The numbers of ambiguous groups. |
 | `report_filtered`, `requested_receipt_found` | Only with `--ballot-id`: the report shows one receipt, and if the command found it. |
 | `receipts[]` | One group for each receipt: `ballot_id`, `cast_vote_ids`, the counts of signed records, and the `classification`. See [Check the Cast-Vote History](07-run-each-step/07-history.md#2-read-the-groups). |
