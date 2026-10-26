@@ -583,9 +583,14 @@ mod tests {
     async fn reading_the_inputs_gives_the_connection_back_before_the_next_step() {
         let (pool, claim) = claimed_small_pool().await;
         let (tenant, document) = committed_tenant(&claim).await;
-        let inputs = read_inputs(&pool, &tenant.to_string(), &document.to_string())
-            .await
-            .unwrap();
+        // Bounded too: a step that waited on the pool itself would hang here.
+        let inputs = tokio::time::timeout(
+            std::time::Duration::from_secs(5),
+            read_inputs(&pool, &tenant.to_string(), &document.to_string()),
+        )
+        .await
+        .expect("read_inputs waited on the pool")
+        .unwrap();
         assert_eq!(inputs.document.id, document.to_string());
         assert!(inputs.setting.is_none());
         assert!(inputs.revocation_lists.is_empty());
@@ -605,14 +610,17 @@ mod tests {
             )])),
             ..Default::default()
         };
-        let before =
+        let before = tokio::time::timeout(
+            std::time::Duration::from_secs(5),
             crate::services::import::configuration_package_target::write_tenant_configuration(
                 &pool,
                 &tenant.to_string(),
                 &wanted,
-            )
-            .await
-            .unwrap();
+            ),
+        )
+        .await
+        .expect("write_tenant_configuration waited on the pool")
+        .unwrap();
         assert_eq!(before.id, tenant.to_string());
         // The audit record and the task's status come next, each on a
         // connection of its own.

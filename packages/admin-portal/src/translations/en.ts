@@ -58,7 +58,7 @@ const englishTranslation = {
             // What handles a member (the package contract), not what a run did.
             disposition: {
                 "applied": "handled by the {{section}} section",
-                "manual": "applied by hand, outside the platform",
+                "manual": "to be applied by hand, outside the platform",
                 "record-only": "kept as a record",
                 "verification": "checked to verify the package",
                 "unknown": "not a member this version knows; not applied",

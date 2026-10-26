@@ -549,7 +549,9 @@ const ApplicationTable: React.FC<{view: ApplicationView}> = ({view}) => {
             : member.disposition === "applied"
               ? String(
                     t("configurationPackage.disposition.applied", {
-                        section: member.section ?? "?",
+                        section: member.section
+                            ? String(t(`configurationPackage.sections.${member.section}`))
+                            : "?",
                     })
                 )
               : String(t(`configurationPackage.disposition.${member.disposition}`))

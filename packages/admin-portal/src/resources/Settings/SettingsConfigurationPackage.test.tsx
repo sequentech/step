@@ -487,6 +487,8 @@ it("says what handles each member, never that a refused run applied it", async (
     const {rerender} = render(<SettingsConfigurationPackage />)
     await upload()
     const refused = record("refused") as any
+    // The fixture's coverage is shared between records: this test's own copy.
+    refused.application.coverage = JSON.parse(JSON.stringify(refused.application.coverage))
     refused.application.coverage.members.push(
         {
             path: "keycloak_event_realm_patch.json",
@@ -507,7 +509,7 @@ it("says what handles each member, never that a refused run applied it", async (
     const members = screen.getByTestId("package-members").textContent ?? ""
     expect(members).not.toMatch(/— applied\b/)
     expect(members).toContain(
-        'tenant_platform-t1.json — configurationPackage.disposition.applied {"section":"tenant-configuration"}'
+        'tenant_platform-t1.json — configurationPackage.disposition.applied {"section":"configurationPackage.sections.tenant-configuration"}'
     )
     expect(members).toContain("manifest.json — configurationPackage.disposition.verification")
     expect(members).toContain(

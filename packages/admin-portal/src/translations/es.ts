@@ -58,7 +58,7 @@ const spanishTranslation: TranslationType = {
             earlierApplied: "Aplicado por una ejecución anterior",
             disposition: {
                 "applied": "lo gestiona la sección {{section}}",
-                "manual": "se aplica a mano, fuera de la plataforma",
+                "manual": "se aplicará a mano, fuera de la plataforma",
                 "record-only": "se conserva como registro",
                 "verification": "se comprueba para verificar el paquete",
                 "unknown": "no es un miembro que esta versión conozca; no se aplica",
