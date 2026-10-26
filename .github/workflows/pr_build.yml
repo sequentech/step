@@ -25,5 +25,11 @@ jobs:
       DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
       AWS_ACCESS_KEY_ID_GLOBALDOT: ${{ secrets.AWS_ACCESS_KEY_ID_GLOBALDOT }}
       AWS_SECRET_ACCESS_KEY_GLOBALDOT: ${{ secrets.AWS_SECRET_ACCESS_KEY_GLOBALDOT }}
+    # Forwarded as given, as publish_release.yml does. Only workflow_dispatch
+    # triggers this workflow, so the former `github.event_name == 'push'`
+    # condition was always false: the push input was ignored and nothing was
+    # ever published. Publishing still runs in the reusable workflow's
+    # `release` environment, whose protection rules apply.
     with:
-      push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+      tag: ${{ inputs.tag }}
+      push: ${{ inputs.push }}
