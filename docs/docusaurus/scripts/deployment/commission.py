@@ -31,9 +31,9 @@ def validate(c):
 
 def ask(message):
     # /dev/tty prevents a pipe or captured stdin from silently authorizing custody.
-    with open('/dev/tty','r+') as tty:
-        tty.write(message+'\nType CONTINUE after completing this action: ');tty.flush()
-        install.require(tty.readline().strip()=='CONTINUE','Commissioning paused; no automatic continuation')
+    with open('/dev/tty','w') as output, open('/dev/tty','r') as response:
+        output.write(message+'\nType CONTINUE after completing this action: ');output.flush()
+        install.require(response.readline().strip()=='CONTINUE','Commissioning paused; no automatic continuation')
 
 
 def sql(d,query,values):

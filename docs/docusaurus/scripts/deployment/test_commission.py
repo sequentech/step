@@ -10,6 +10,38 @@ import commission
 import install
 
 class CommissionTests(unittest.TestCase):
+    def test_confirmation_uses_a_real_controlling_terminal(self):
+        import os
+        import pty
+        import select
+        import signal
+        import sys
+        import time
+        for answer, expected in [('CONTINUE',0),('PAUSE',1)]:
+            pid,fd=pty.fork()
+            if pid==0:
+                code='import sys;sys.path.insert(0,'+repr(str(Path(__file__).parent))+');import commission;commission.ask("Actual terminal confirmation")'
+                os.execl(sys.executable,sys.executable,'-c',code)
+            output=b'';status=None;deadline=time.monotonic()+10;answered=False
+            try:
+                while time.monotonic()<deadline:
+                    ready,_,_=select.select([fd],[],[],0.1)
+                    if ready:
+                        try:chunk=os.read(fd,4096)
+                        except OSError:chunk=b''
+                        output+=chunk
+                        if b'Type CONTINUE' in output and not answered:
+                            os.write(fd,(answer+'\n').encode());answered=True
+                    done,state=os.waitpid(pid,os.WNOHANG)
+                    if done:status=state;break
+                self.assertIsNotNone(status,'Terminal confirmation timed out')
+                self.assertTrue(answered,output.decode(errors='replace'))
+                self.assertEqual(os.waitstatus_to_exitcode(status),expected,output.decode(errors='replace'))
+            finally:
+                os.close(fd)
+                if status is None:
+                    os.kill(pid,signal.SIGKILL);os.waitpid(pid,0)
+
     def config(self):
         return {'customer_slug':'customer','administrator':{'username':'customer-admin','email':'a@example.org'},'trustees':[{'name':'one','keys_file':'/media/one.toml'},{'name':'two','keys_file':'/media/two.toml'}]}
     def test_exact_two_distinct_trustees_and_safe_identifiers(self):
