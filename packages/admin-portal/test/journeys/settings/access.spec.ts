@@ -188,7 +188,19 @@ test.describe("with preview-read", () => {
         )
         await openSettings(page, portal, "Previews")
         await expect(page.getByText("No Previews found", {exact: true})).toBeVisible()
-        expect(portal.graphql.callsTo("sequent_backend_preview")).toHaveLength(1)
+        // React Query may refetch this read-only list. Check the request contract
+        // for every read rather than coupling the empty state to its request count.
+        const reads = portal.graphql.callsTo("sequent_backend_preview")
+        expect(reads.length).toBeGreaterThan(0)
+        for (const read of reads) {
+            expect(read.headers["x-hasura-role"]).toBe("preview-read")
+            expect(read.variables).toEqual({
+                limit: 10,
+                offset: 0,
+                order_by: {id: "asc"},
+                where: {_and: []},
+            })
+        }
     })
 })
 
