@@ -19,6 +19,13 @@ class InstallerTests(unittest.TestCase):
         d['tls']['ca_sha256']=d['identity_provider']['ca_sha256']='a'*64
         d['release']['step_commit']='a'*40
         return d
+    def test_metadata_consistency_rejects_unavailable_actions_before_handover(self):
+        with patch('install.ssh',return_value=b'{"is_consistent":true,"inconsistent_count":0}'):
+            install.verify_metadata(self.config())
+        for result in ({'is_consistent':False,'inconsistent_count':196},{'is_consistent':True,'inconsistent_count':1},{'inconsistent_count':0}):
+            with patch('install.ssh',return_value=json.dumps(result).encode()):
+                with self.assertRaisesRegex(ValueError,'metadata is inconsistent'):install.verify_metadata(self.config())
+
     def test_runtime_identity_uses_spec_container_name_not_normalized_status_tag(self):
         import subprocess
         expected='sequentech.local/harvest@sha256:'+'a'*64

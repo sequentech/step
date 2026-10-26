@@ -363,6 +363,15 @@ RUNTIME_IDS = r''' .items[] |
  select(.name as $name | any($definitions[]; .name==$name and .image==$image)) |
  select(.imageID!="" and .imageID!=null) | .imageID'''
 
+def verify_metadata(d):
+    script=r'''k3s kubectl -n step-apps exec deploy/hasura -c hasura -- sh -ec '
+ curl --silent --show-error --fail -H "X-Hasura-Admin-Secret: $HASURA_GRAPHQL_ADMIN_SECRET" -H "Content-Type: application/json" -d "{\"type\":\"get_inconsistent_metadata\",\"args\":{}}" http://localhost:8080/v1/metadata' |
+ jq -c '{is_consistent, inconsistent_count:(.inconsistent_objects|length)}'
+'''
+    result=json.loads(ssh(d,'c1',script,'GraphQL metadata consistency inspection'))
+    require(result.get('is_consistent') is True and result.get('inconsistent_count')==0,'GraphQL metadata is inconsistent; obtain a corrected complete signed installation kit before continuing')
+
+
 def verify(d):
     # Only configuration and operational readiness checks. Browser/MFA, client-network
     # filtering, custody and board authorization remain commissioning checkpoints.
@@ -411,6 +420,7 @@ done
     script=script.replace('__RUNTIME_IDS__',RUNTIME_IDS)
     print('VERIFY: waiting for platform services and checking their security settings',flush=True)
     ssh(d,'c1',script,'Installed platform policy verification',timeout=1800)
+    verify_metadata(d)
     for host in [d['hosts'][name] for name in ('voting','administration','verifier')]:
         issuer=json.loads(run(['curl','--silent','--show-error','--fail','--cacert',d['tls']['ca'],'https://'+host+'/realms/'+R+'/.well-known/openid-configuration'],'External HTTPS discovery',timeout=30))['issuer']
         require(issuer=='https://'+d['hosts']['voting']+'/realms/'+R,'Published issuer differs from configured realm')
