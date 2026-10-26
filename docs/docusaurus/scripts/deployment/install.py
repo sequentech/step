@@ -200,8 +200,22 @@ def environment(d):
 def ssh_args(d,node):
     return ['ssh','-o','BatchMode=yes','-o','StrictHostKeyChecking=yes','-o','ConnectTimeout=15','-i',d['ssh_identity'],'root@'+d['nodes'][node]]
 
+# Stage the received script before running any stdin-reading child command.
+# Only the static wrapper is in the remote process arguments; script contents
+# stay in a root-only temporary file, removed on success, error or signal.
+SSH_SCRIPT_WRAPPER = r'''set -eu
+umask 077
+script=$(mktemp /tmp/agd-script.XXXXXXXX)
+trap 'result=$?; rm -f "$script"; exit "$result"' EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+cat > "$script"
+bash "$script" </dev/null
+'''
+
 def ssh(d,node,script,label,timeout=120):
-    return run(ssh_args(d,node)+['bash','-s'],label,('set -Eeuo pipefail\nset +x\numask 077\n'+script).encode(),timeout)
+    return run(ssh_args(d,node)+['bash','-c',shlex.quote(SSH_SCRIPT_WRAPPER)],label,('set -Eeuo pipefail\nset +x\numask 077\n'+script).encode(),timeout)
 
 def preflight_script(d,fresh,node="c1"):
     base='''AGD_CHECK=TOOLS

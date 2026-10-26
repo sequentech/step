@@ -10,6 +10,13 @@ import commission
 import install
 
 class CommissionTests(unittest.TestCase):
+    def test_accounts_require_separate_completion_readback(self):
+        c=self.config();d={'operator':{'username':'bootstrap','email':'b@example.org'}}
+        with patch('install.command_source',return_value='true'),patch('install.ssh',side_effect=[b'',b'wrong-identity']) as ssh:
+            with self.assertRaisesRegex(ValueError,'did not complete'):commission.accounts(d,c,'tenant-test')
+            self.assertEqual(ssh.call_count,2)
+            self.assertIn('test -f /root/deploy/.commission-accounts-ready',ssh.call_args.args[2])
+
     def test_confirmation_uses_a_real_controlling_terminal(self):
         import os
         import pty

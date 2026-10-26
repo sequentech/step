@@ -19,6 +19,18 @@ class InstallerTests(unittest.TestCase):
         d['tls']['ca_sha256']=d['identity_provider']['ca_sha256']='a'*64
         d['release']['step_commit']='a'*40
         return d
+    def test_ssh_script_input_cannot_be_consumed_by_child_and_is_removed(self):
+        import subprocess
+        script='set -e\nprintf "%s\n" "$0"\ntest "$(stat -c %a "$0")" = 600\ncat >/dev/null\nprintf "explicit-input" | cat\nprintf "\nafter-child\n"\n'
+        result=subprocess.run(['bash','-c',install.SSH_SCRIPT_WRAPPER],input=script,text=True,capture_output=True)
+        self.assertEqual(result.returncode,0,result.stderr)
+        lines=result.stdout.splitlines()
+        self.assertEqual(lines[1:],['explicit-input','after-child'])
+        self.assertFalse(Path(lines[0]).exists())
+        result=subprocess.run(['bash','-c',install.SSH_SCRIPT_WRAPPER],input='printf "%s\n" "$0"; exit 23\n',text=True,capture_output=True)
+        self.assertEqual(result.returncode,23)
+        self.assertFalse(Path(result.stdout.strip()).exists())
+
     def test_metadata_consistency_rejects_unavailable_actions_before_handover(self):
         with patch('install.ssh',return_value=b'{"is_consistent":true,"inconsistent_count":0}'):
             install.verify_metadata(self.config())

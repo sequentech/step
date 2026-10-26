@@ -70,6 +70,8 @@ def accounts(d,c,realm):
     script+='printf \'export CR=%s\\n\' '+shlex.quote(realm)+' >> /root/deploy/hosts.env\n'
     script+=body+'\nprintf ready > /root/deploy/.commission-accounts-ready\n'
     install.ssh(d,'c1',script,'Customer account creation',timeout=600)
+    recorded=install.ssh(d,'c1','test -f /root/deploy/.commission-accounts-ready\ncat /root/deploy/.commission-config.sha256\n','Customer account completion readback').decode()
+    install.require(recorded==config_hash,'Customer account creation did not complete with the configured identity; inspect partial state before continuing')
 
 
 def public_keys(d,number,remote):
