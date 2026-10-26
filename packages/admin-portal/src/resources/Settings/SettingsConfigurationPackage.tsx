@@ -281,7 +281,9 @@ export const SettingsConfigurationPackage: React.FC = () => {
             </Typography>
 
             <Divider sx={{my: 2}} />
-            <Typography variant="h6" component="h3">{t("configurationPackage.requirements")}</Typography>
+            <Typography variant="h6" component="h3">
+                {t("configurationPackage.requirements")}
+            </Typography>
             {PACKAGE_SECTIONS.map((section) => (
                 <FormControlLabel
                     key={section}
@@ -413,7 +415,9 @@ export const SettingsConfigurationPackage: React.FC = () => {
             )}
 
             <Divider sx={{my: 2}} />
-            <Typography variant="h6" component="h3">{t("configurationPackage.history")}</Typography>
+            <Typography variant="h6" component="h3">
+                {t("configurationPackage.history")}
+            </Typography>
             <List dense data-testid="package-history">
                 {(historyData?.sequent_backend_tasks_execution ?? []).map((row: any) => {
                     const record = readApplication(row.annotations)
