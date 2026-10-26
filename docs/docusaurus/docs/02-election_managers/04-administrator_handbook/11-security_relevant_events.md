@@ -73,26 +73,26 @@ If a check fails, stop and resolve it before asking for approval.
 
 ### 1. Verify the delivery and imported configuration
 
-- [ ] The header shows `Sequent Voting Platform - uniWAHL Version, v10.0.0`.
-- [ ] Every running image digest matches `image-digests.txt`.
-- [ ] Signed configuration packages are required, with the organizer's checked
+- ☐ The header shows `Sequent Voting Platform - uniWAHL Version, v10.0.0`.
+- ☐ Every running image digest matches `image-digests.txt`.
+- ☐ Signed configuration packages are required, with the organizer's checked
   CA certificates and at least two approvals.
-- [ ] The board confirms that a board member used **Import Election Event** and
+- ☐ The board confirms that a board member used **Import Election Event** and
   checked the digest received from the organizer.
-- [ ] The operator confirms in writing that election work uses only the
+- ☐ The operator confirms in writing that election work uses only the
   customer's tenant, no plugin is installed, and no telephone provider is configured.
 
 ### 2. Check the accounts and permissions
 
-- [ ] No account combines an administrator role with a board permission.
-- [ ] The administrator has none of the
+- ☐ No account combines an administrator role with a board permission.
+- ☐ The administrator has none of the
   [permissions on election data and audit records](04-users_and_roles.md#permissions-on-election-data-and-audit-records).
-- [ ] No role has **Edit Results Publication** (`publish-results-write`),
+- ☐ No role has **Edit Results Publication** (`publish-results-write`),
   and no account has **Datafix account** (`datafix-account`).
-- [ ] The seeded `admin` account is deleted.
-- [ ] Each board member has **Create Election Event**, **Signatures: cancel
+- ☐ The seeded `admin` account is deleted.
+- ☐ Each board member has **Create Election Event**, **Signatures: cancel
   requests**, **Export Logs**, **Edit Reports**, and read-only user/role access.
-- [ ] Each administrator and board member has a tested notification email address.
+- ☐ Each administrator and board member has a tested notification email address.
 
 ### 3. Check the election event's Data tab
 
@@ -126,29 +126,29 @@ Tick each row after comparing the displayed value.
 
 ### 5. Check protected actions and certificates
 
-- [ ] Each non-trustee protected action, including **Open voting** and **Close
+- ☐ Each non-trustee protected action, including **Open voting** and **Close
   voting**, requires at least two signatures and allows only **Election board**.
-- [ ] **Approve a configuration version**, **Initialize voting** and
+- ☐ **Approve a configuration version**, **Initialize voting** and
   **Generate other election reports** are enabled.
-- [ ] **Confirm custody (key ceremony)** and **Authorize tally custody (tally)**
+- ☐ **Confirm custody (key ceremony)** and **Authorize tally custody (tally)**
   are enabled; no non-trustee action has **No limit** expiry.
-- [ ] Trusted issuer certificates match their independently checked SHA-256 fingerprints.
-- [ ] Certificate registration is **Only when someone who can register
+- ☐ Trusted issuer certificates match their independently checked SHA-256 fingerprints.
+- ☐ Certificate registration is **Only when someone who can register
   certificates registers it**.
-- [ ] **Check revocation lists** is on with **Don't accept signatures** where
+- ☐ **Check revocation lists** is on with **Don't accept signatures** where
   the CA publishes lists.
-- [ ] **A certificate signs for one Post only** is on.
-- [ ] Every board member's certificate is registered and **Active**.
+- ☐ **A certificate signs for one Post only** is on.
+- ☐ Every board member's certificate is registered and **Active**.
 
 ### 6. Check monitoring and authentication
 
-- [ ] Review [Self-Test Settings](07-self_tests.md) and its implementation scope.
+- ☐ Review [Self-Test Settings](07-self_tests.md) and its implementation scope.
   A successful electoral-log audit alone does not establish that the complete
   ST self-test suite or its lifecycle gates have passed.
-- [ ] **Settings → SECURITY → Authentication failure threshold** is set
+- ☐ **Settings → SECURITY → Authentication failure threshold** is set
   (default 5), and the
   [login checks](08-authentication_and_sessions.md#what-you-check) pass.
-- [ ] **Attack detection → Failed logins per minute, all accounts** and
+- ☐ **Attack detection → Failed logins per minute, all accounts** and
   **Requests per minute, external interfaces** match the organizer's agreed values.
 
 Record each exception and its owner. Do not mark an unavailable control as passed
