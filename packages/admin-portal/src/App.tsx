@@ -128,6 +128,8 @@ const App: React.FC<AppProps> = () => {
     return (
         <StyledAppAtom>
             <Admin
+                // Nothing goes to react-admin's usage telemetry, hosted or offline.
+                disableTelemetry
                 dataProvider={dataProvider || undefined}
                 layout={CustomLayout}
                 theme={fullAdminTheme as any}
