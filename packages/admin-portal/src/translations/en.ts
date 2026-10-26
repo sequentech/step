@@ -73,6 +73,8 @@ const englishTranslation = {
                 "This applies the previewed package to tenant {{tenantId}}. The platform previews it again first and stops at any blocker.",
             cancel: "Cancel",
             proposedChanges: "What applying would change",
+            shaMalformed:
+                "The SHA-256 entered is not 64 hexadecimal characters, so the package was not previewed. Enter the digest exactly, or leave it blank.",
             nothingToChange: "Nothing: the tenant already matches the package.",
         },
         ballotPrivacy: {

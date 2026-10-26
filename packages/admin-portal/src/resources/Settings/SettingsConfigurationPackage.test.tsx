@@ -512,3 +512,51 @@ it("shows what applying would change before the confirmation, names and keys onl
     expect(proposed).not.toContain("hunter2")
     expect(mockApply).toHaveBeenCalledTimes(1)
 })
+
+describe("a failed or uncertain submission never brings an old preview's Apply back", () => {
+    it.each([
+        ["rejected", () => mockApply.mockRejectedValueOnce(new Error("timeout"))],
+        [
+            "answered with errors",
+            () => mockApply.mockResolvedValueOnce({data: null, errors: [{message: "denied"}]}),
+        ],
+        ["answered without a task", () => mockApply.mockResolvedValueOnce({data: {}})],
+    ])("after an apply %s, on a reload", async (_, fail) => {
+        const view = await previewed()
+        fail()
+        await apply()
+        expect(applyButton().disabled).toBe(true)
+        expect(sessionStorage.getItem("configurationPackage.active.t1")).toBeNull()
+        view.unmount()
+        render(<SettingsConfigurationPackage />)
+        expect(applyButton().disabled).toBe(true)
+        expect(screen.queryByTestId("package-run")).toBeNull()
+    })
+
+    it("after a rejected apply, on switching tenants away and back", async () => {
+        const view = await previewed()
+        mockApply.mockRejectedValueOnce(new Error("timeout"))
+        await apply()
+        mockTenant = "t2"
+        view.rerender(<SettingsConfigurationPackage />)
+        mockTenant = "t1"
+        view.rerender(<SettingsConfigurationPackage />)
+        view.rerender(<SettingsConfigurationPackage />)
+        expect(applyButton().disabled).toBe(true)
+    })
+
+    it("after a reply dropped by a tenant switch", async () => {
+        const view = await previewed()
+        let finish: (value: unknown) => void = () => undefined
+        mockApply.mockImplementationOnce(() => new Promise((resolve) => (finish = resolve)))
+        fireEvent.click(applyButton())
+        fireEvent.click(screen.getByTestId("package-apply-confirm"))
+        mockTenant = "t2"
+        view.rerender(<SettingsConfigurationPackage />)
+        await act(async () => finish(accepted("task-a")))
+        mockTenant = "t1"
+        view.rerender(<SettingsConfigurationPackage />)
+        view.rerender(<SettingsConfigurationPackage />)
+        expect(applyButton().disabled).toBe(true)
+    })
+})

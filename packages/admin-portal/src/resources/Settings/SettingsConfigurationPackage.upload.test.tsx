@@ -137,3 +137,54 @@ it("uploads the delivery through its own drawer and previews it, never the event
         expectedSha: SHA,
     })
 })
+
+describe("the SHA-256 typed for the upload", () => {
+    const uploadWith = async (sha: string) => {
+        render(<SettingsConfigurationPackage />)
+        fireEvent.click(screen.getByText("configurationPackage.upload"))
+        fireEvent.change(screen.getByLabelText("electionEventScreen.import.sha"), {
+            target: {value: sha},
+        })
+        const file = new File(["PK synthetic delivery"], "delivery.zip", {
+            type: "application/zip",
+        })
+        await act(async () => {
+            fireEvent.change(screen.getByLabelText("Import file"), {target: {files: [file]}})
+        })
+        await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(1))
+        const importButton = screen.getByRole("button", {
+            name: "electionEventScreen.import.import",
+        })
+        await waitFor(() => expect((importButton as HTMLButtonElement).disabled).toBe(false))
+        await act(async () => {
+            fireEvent.click(importButton)
+        })
+    }
+
+    it.each([["abc"], ["sha256:" + SHA], [SHA.slice(0, 63) + "g"]])(
+        "is refused visibly when malformed (%s), and nothing is previewed",
+        async (sha) => {
+            await uploadWith(sha)
+            expect(mockApply).not.toHaveBeenCalled()
+            expect(screen.getByTestId("package-error").textContent).toBe(
+                "configurationPackage.shaMalformed"
+            )
+        }
+    )
+
+    it("is optional when only whitespace", async () => {
+        await uploadWith("   ")
+        expect(mockApply).toHaveBeenCalledTimes(1)
+        expect(
+            JSON.parse(sessionStorage.getItem("configurationPackage.active.t1")!).expectedSha
+        ).toBeNull()
+    })
+
+    it("is trimmed and kept when padded", async () => {
+        await uploadWith(`  ${SHA.toUpperCase()}\n`)
+        expect(mockApply).toHaveBeenCalledTimes(1)
+        expect(
+            JSON.parse(sessionStorage.getItem("configurationPackage.active.t1")!).expectedSha
+        ).toBe(SHA)
+    })
+})

@@ -74,6 +74,8 @@ const spanishTranslation: TranslationType = {
                 "Esto aplica el paquete previsualizado al cliente {{tenantId}}. La plataforma lo vuelve a previsualizar primero y se detiene ante cualquier bloqueo.",
             cancel: "Cancelar",
             proposedChanges: "Lo que cambiaría al aplicar",
+            shaMalformed:
+                "El SHA-256 introducido no tiene 64 caracteres hexadecimales, así que el paquete no se ha previsualizado. Introduzca el resumen exacto o déjelo en blanco.",
             nothingToChange: "Nada: el cliente ya coincide con el paquete.",
         },
         ballotPrivacy: englishTranslation.translations.ballotPrivacy,

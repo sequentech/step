@@ -191,6 +191,12 @@ export const SettingsConfigurationPackage: React.FC = () => {
             return
         }
         const forTenant = tenantId
+        // Whatever this submission's outcome, the earlier one is no longer
+        // what the page follows: neither a reload, a tenant switch nor the
+        // polling effect may bring back its finished preview and its Apply.
+        forgetSubmission(forTenant)
+        stopPolling()
+        setSubmitted(null)
         setSubmitting(true)
         try {
             const {data, errors} = await applyConfigurationPackage({
@@ -442,7 +448,15 @@ export const SettingsConfigurationPackage: React.FC = () => {
                         doCancel={() => setOpenUpload(false)}
                         doImport={async (document: string, sha256: string) => {
                             setOpenUpload(false)
-                            const sha = SHA256.test(sha256) ? sha256.toLowerCase() : null
+                            // Blank is no check; anything else must be a digest,
+                            // never silently dropped.
+                            const entered = sha256.trim()
+                            if (entered && !SHA256.test(entered)) {
+                                setPreviewed(null)
+                                setError(t("configurationPackage.shaMalformed"))
+                                return
+                            }
+                            const sha = entered ? entered.toLowerCase() : null
                             setDocumentId(document)
                             setTypedDocumentId(document)
                             setExpectedSha(sha)
