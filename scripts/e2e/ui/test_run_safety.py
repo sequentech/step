@@ -82,7 +82,12 @@ class UIRunSafety(backend_safety.RunSafety):
             release.touch()
             stdout, stderr = process.communicate(timeout=10)
         self.assertEqual(process.returncode, 0, stdout + stderr)
-        self.assertEqual(len(self.compose_calls("up")), 2)
+        # The claimed run alone started anything: its platform, then its
+        # trustees after bootstrap, then its browser.
+        self.assertEqual(len(self.platform_starts()), 1)
+        self.assertEqual(len(self.trustee_starts()), 1)
+        self.assertEqual(len(self.ui_starts()), 1)
+        self.assertEqual(len(self.compose_calls("up")), 3)
         self.assertEqual(len(self.compose_calls("down")), 1)
         result = self.run_ui(
             "--skip-ui-build", "--skip-images", "--skip-build", STEP_E2E_PROJECT=project
@@ -203,11 +208,19 @@ class UIRunSafety(backend_safety.RunSafety):
         for _ in range(2):
             result = self.run_ui("--skip-ui-build", "--skip-images", "--skip-build")
             self.assertEqual(result.returncode, 0, result.stderr)
-        starts, stops = self.compose_calls("up"), self.compose_calls("down")
-        self.assertEqual(len(starts), 4)
+        stops = self.compose_calls("down")
+        # Each run starts its platform, its trustees and its browser.
+        self.assertEqual(len(self.platform_starts()), 2)
+        self.assertEqual(len(self.trustee_starts()), 2)
+        self.assertEqual(len(self.ui_starts()), 2)
+        self.assertEqual(len(self.compose_calls("up")), 6)
         self.assertEqual(len(stops), 2)
         projects = [args[args.index("--project-name") + 1] for args in stops]
         self.assertEqual(len(set(projects)), 2)
+        # All three starts of a run are in that run's own project.
+        project = lambda args: args[args.index("--project-name") + 1]
+        for starts in (self.platform_starts(), self.trustee_starts(), self.ui_starts()):
+            self.assertEqual([project(args) for args in starts], projects)
         for project in projects:
             self.assertTrue(project.startswith("step-e2e-ui-"))
             self.assertTrue(

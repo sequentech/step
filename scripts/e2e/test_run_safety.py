@@ -142,9 +142,21 @@ class RunSafety(unittest.TestCase):
     def compose_calls(self, verb):
         return [args for args in self.calls() if args[0] == "compose" and verb in args]
 
+    def trustee_starts(self):
+        """Each run's start of the trustees, after bootstrap has enrolled them."""
+        return [args for args in self.compose_calls("up") if "trustee1" in args]
+
+    def ui_starts(self):
+        """Each UI run's start of its browser, after the backend is ready."""
+        return [args for args in self.compose_calls("up") if "ui-browser" in args]
+
     def platform_starts(self):
-        """The compose up of each run's platform; the trustees start after bootstrap."""
-        return [args for args in self.compose_calls("up") if "trustee1" not in args]
+        """Each run's start of the platform: neither the trustees nor a browser."""
+        return [
+            args
+            for args in self.compose_calls("up")
+            if "trustee1" not in args and "ui-browser" not in args
+        ]
 
     def run_browser_script(self, **environment):
         script = self.root / "scripts/e2e/run-browser-trustees.sh"
