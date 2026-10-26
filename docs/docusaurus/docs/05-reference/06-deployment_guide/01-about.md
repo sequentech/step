@@ -122,7 +122,7 @@ Fill the configuration from the approved site plan and verified delivery records
 | `hosts` | Voting, administration, ballot-verifier and external-authentication host names |
 | `idp_alias` | The external provider's alias in the TOE |
 | `kit` | Verified kit directory and the signing fingerprint received independently |
-| `toe` | Verified delivery root containing `images/` and `image-digests.txt`; its six archive hashes and manifest hash from the accepted delivery |
+| `toe` | Accepted delivery root containing `images/` and `image-digests.txt`, `format: "oci"`, and the digest-list file's SHA-256 from the accepted delivery record |
 | `tls` | Paths to the issued site certificate, protected private key and CA, plus the independently checked CA fingerprint |
 | `identity_provider` | Paths to the protected provider definition and CA, plus the independently checked CA fingerprint |
 | `operator` | The installation operator's existing identity-provider user name and e-mail; the separate service-administrator name |
@@ -132,6 +132,24 @@ Fill the configuration from the approved site plan and verified delivery records
 Use absolute paths. The example's addresses, hash placeholders and names are
 examples only. The installer refuses unknown fields and invalid values. A
 successful schema check does not prove that the values describe your approved site.
+
+Point `toe.directory` directly at the accepted delivery medium. For example, this
+section of `site.json` selects the OCI images already supplied by Sequent:
+
+```json
+"toe": {
+  "directory": "/media/toe",
+  "format": "oci",
+  "manifest_sha256": "REPLACE_WITH_THE_ACCEPTED_IMAGE_DIGESTS_FILE_SHA256"
+}
+```
+
+The medium contains `image-digests.txt` and one OCI image directory under `images/`
+for each of the seven TOE parts. Leave those files unchanged. You do not create
+tar files or enter six more hashes: the check validates the delivered image
+descriptors and blobs, and installation prepares and checks its own temporary
+transport archives for the six server images. The election-verifier image remains
+part of the accepted delivery even though it is not installed on the servers.
 
 Keep the `identity_provider.definition` file private: it contains the client
 secret. Its format and required settings are described in
@@ -158,11 +176,14 @@ the file paths, certificates, server identities and policies must match this sit
 
 ![Actual terminal running the configuration check against two fresh rehearsal VMs](./assets/installation/installer-preflight.png)
 
-*Actual terminal capture from the VM rehearsal on 2026-10-26. The check verifies
-its media and certificate inputs, each server’s SSH and authenticated-time policy,
-and both nodes’ readiness before printing the success line. This rehearsal used
-an explicitly recorded time-service configuration correction; it does not show a
-freshly rebuilt delivery kit.*
+*Actual terminal capture from the VM rehearsal on 2026-10-26. The check accepts
+the delivered OCI image layout directly and verifies the media, certificates,
+server access, authenticated time, private ingress and node readiness before
+printing the success line. These isolated rehearsal VMs used corrected, prebuilt
+operating-system configurations, a signed supporting-image rehearsal supplement
+and a recorded laboratory time-server CA. This capture demonstrates the preflight
+check; it does not show acceptance of a newly delivered ISO or a completed platform
+installation.*
 
 **If the result differs.** Correct the configuration or the named prerequisite and
 run this read-only check again. Do not change a certificate fingerprint to match
@@ -171,6 +192,19 @@ A missing `deploy` means the terminal is not in the extracted directory; it does
 not mean a package must be downloaded from the Internet. If existing platform
 state is detected, stop: this fresh-install workflow is not an upgrade or an
 instruction to clear an occupied cluster.
+
+If the check reports missing supporting-image metadata or an incompatible
+supporting image on a server, obtain the corrected complete signed installation
+kit from Sequent. The installer compares the signed image and public-asset records
+with the actual installed supporting image automatically. Do not edit an inventory,
+replace an individual tool or accept a different image just to pass the check.
+
+![Actual preflight refusing a supporting image that does not match the signed kit](./assets/installation/installer-preflight-refusal.png)
+
+*Actual negative check from the same VM rehearsal. The command stopped with exit
+status 1 before application installation because C1's supporting image did not
+match the supplied kit. Treat this as a failed check and obtain the matching
+complete kit; the earlier media-check success does not authorize installation.*
 
 ### Install the platform
 
@@ -184,10 +218,25 @@ Use the same configuration file. The installer works over the administration
 network with the configured SSH identities; you do not log into each server to
 paste a sequence of shell fragments.
 
+Image transfer and verified public-asset setup can take several minutes. Keep the
+terminal open while the installer reports progress. The message
+`VERIFY: waiting for the GraphQL metadata API to finish startup` is a normal,
+bounded readiness wait; it needs no additional command. If startup does not finish
+within the allowed time, the installer stops and reports the failure.
+
 **Expected result.** The installer reports its stages and ends with
 `INSTALL 4/4: platform installed; customer and trustee commissioning still required`. This means the platform
 installation finished; it does not mean the customer accounts, trustee custody or
 election handover have been approved.
+
+![Actual clean VM installation completing all four stages with exit status zero](./assets/installation/installer-complete.png)
+
+*Actual terminal capture from the clean VM rehearsal on 2026-10-26. The command
+installed the accepted TOE OCI images, verified the running platform and removed
+the imported realm credentials from its stored manifest before exiting with
+status 0. The rehearsal used the corrected prebuilt operating-system
+configurations and signed supporting-image fixture described above; it was not a
+new ISO acceptance test. Customer and trustee commissioning still follow.*
 
 **If the result differs.** Keep the reported stage and error. A stopped installation
 may already have written files or started services: do not erase its state, repeat
@@ -225,6 +274,15 @@ instances pass their checks. The command ends with
 `COMMISSIONING COMMANDS COMPLETE — perform the browser, client-network and board handover checks in AGD-04.` Complete the
 remaining browser, MFA, client-network and board self-test checks; a server check
 alone cannot establish those conditions.
+
+![Actual clean VM commissioning completing the customer and both native trustee checks](./assets/installation/installer-commission-complete.png)
+
+*Actual terminal capture from the same clean VM rehearsal. Both registered
+public-key pairs were checked before import, both native trustees became ready,
+and the command exited with status 0. This laboratory run used test key media to
+exercise the custody checkpoints; it does not establish real trustees' physical
+custody. Complete the site's browser, client-network and election-board handover
+checks before operational use.*
 
 **If the result differs.** Stop at the reported stage. Check the customer slug,
 registered trustee names and key media with their owners. Never choose a different

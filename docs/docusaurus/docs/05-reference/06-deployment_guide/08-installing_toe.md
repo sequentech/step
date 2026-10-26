@@ -27,22 +27,28 @@ those.
 
 ## Load the TOE images
 
-On the administration workstation, mount the delivery medium read-only with
-the commands of step 3 of [Verifying the Delivery](../08-delivery_verification.md),
-then copy the six images that run on the servers to C1 and C2:
+Keep the accepted delivery medium mounted read-only as described in
+[Verifying the Delivery](../08-delivery_verification.md). Set `toe.directory` to
+its root and `toe.format` to `oci` in `site.json`. `./deploy check site.json`
+validates all seven delivered OCI images against the accepted digest list.
+
+During `./deploy install site.json`, the installer prepares private temporary
+transport archives from the six server images, copies them to C1 and C2, and
+checks the transferred hashes. Do not manually create archives or change the
+accepted delivery layout:
 
 <!-- deployment-step: 08-001 -->
 
 **Operation reference:** `08-copy-toe-images` on `admin`.
 
-**Expected result.** The copy completes for C1 and C2 without SSH, tar or disk errors, and the verified delivery medium is unmounted. This transfer does not itself verify the imported images; the next step does.
+**Expected result.** The installer prints `INSTALL: preparing private transport archives from the verified OCI images`; transfers to C1 and C2 complete without SSH, archive or disk errors. The source delivery remains unchanged. Transfer checks do not replace the imported-image checks below.
 
 **If the result differs.** If either host is unreachable or the target is full, fix connectivity or capacity before importing. Keep the source medium protected; do not substitute images from the installation kit.
 
 
-On C1, and then on C2, import them and check that each one is present under
-its delivered digest. Use `--local` so the digest-qualified names identify the
-delivered image manifests:
+The installer imports the transported images on both servers and checks that each
+one is present under its delivered digest. Its local import preserves the
+digest-qualified names of the delivered image manifests:
 
 <!-- deployment-step: 08-002 -->
 
@@ -53,8 +59,7 @@ delivered image manifests:
 **If the result differs.** If any line ends in `MISSING`, compare the delivery digest list and transferred archives, then repair the transfer/import on that server. Do not continue because the other server passed.
 
 
-The last command must print `loaded` for all six images on both servers. If
-one is `MISSING`, do not continue.
+All six server images must be present on both servers before deployment proceeds.
 
 ## Pin the TOE images
 
@@ -160,6 +165,15 @@ before the trustee keys are installed:
    that [Configure the realms](07-hardening.md#configure-the-realms) has
    hardened, with the service accounts and a seeded `admin` account without a
    password.
+
+   ![Actual portal showing the customer-creation task in progress](./assets/installation/customer-creation-in-progress.png)
+
+   *Actual portal capture from the final VM rehearsal. The **Create Tenant** task
+   can remain **IN_PROGRESS** while the customer is provisioned. Wait for it to
+   finish and confirm the agreed customer slug exists before commissioning; do
+   not submit another creation request while this task is running. The displayed
+   installation account and site values are laboratory examples.*
+
 3. Put the customer slug and administrator identity in `commissioning` in
    `site.json`, then run `./deploy commission site.json` from the administration
    workstation. The command resolves the customer tenant on C1:
@@ -236,6 +250,12 @@ provides the corresponding private key file on their own medium. Before importin
 either file, the command compares its public-key pair with the registered trustee
 record. It changes only the native account's trustee binding; personal trustee
 accounts remain separate and receive no local password.
+
+![Actual customer portal listing the two registered laboratory trustees](./assets/installation/trustees-registered.png)
+
+*Actual customer portal from the final VM rehearsal. Open each registered trustee
+record and check both public keys against that trustee's own keys before
+continuing. The customer and trustee names shown here are laboratory examples.*
 
 <!-- deployment-step: 08-009 -->
 

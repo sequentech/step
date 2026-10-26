@@ -44,13 +44,12 @@ read -r -p "Signing-key fingerprint received separately: " FINGERPRINT
 **If the result differs.** If the fingerprint differs, do not replace your expected value with the one from the USB drive. If a signature or file check fails, keep the kit unused and obtain a corrected delivery. A missing `sequent` means the session is not in the kit’s top directory; check the configured kit path before retrying this read-only check.
 
 
-It must print, in this order, the lines `Signing key fingerprint: ...` (the
-fingerprint you received), `Fingerprint matches the expected value.`,
-`Signature over checksums.txt is valid.` and
-`All N files match checksums.txt. Bundle verified.`
-
-Then check the kit a second time with the standard tools, so that the result
-does not depend only on a program from the kit:
+Before booting either server, make the independent signature and file check below
+with the administration workstation's standard tools. This is the pre-boot trust
+check: the later `./deploy check site.json` repeats these checks automatically,
+but it also needs the installed servers and cannot replace acceptance before boot.
+Paste this block once in the same kit directory; compare its displayed fingerprint
+with the independently received value before accepting the result:
 
 <!-- deployment-step: 03-002 -->
 
@@ -70,9 +69,6 @@ sha256sum --check --strict --quiet checksums.txt && echo "all kit files verified
 
 **If the result differs.** If the fingerprint differs or signature verification fails, reject the kit. For a missing file, verify that you opened the complete kit directory; do not remove entries from `checksums.txt`. A checksum mismatch requires a replacement verified kit, not a regenerated checksum.
 
-
-`ssh-keygen -Y verify` must report a good signature for `sequent-release`, and
-the last command must print `all kit files verified`.
 
 ## Check the site file
 
@@ -139,7 +135,9 @@ the platform installation and commissioning still follow.*
 If the installer stops, the screen says why and whether anything was written.
 Alt+F2 opens a console with the log at `/run/sequent-install.log`.
 
-Check from the administration workstation that both nodes are in the cluster:
+After both servers restart, return to
+[Check the site](01-about.md#check-the-site). That command checks both nodes in
+the cluster automatically:
 
 <!-- deployment-step: 03-004 -->
 
@@ -180,8 +178,8 @@ The installer transfers the same public site values to the nodes. The directory
 must be mode 700 and the file mode 600, both owned by root. Commissioning adds the
 customer realm; preserve it during later maintenance.
 
-Then make a working copy of the cluster manifests that the `sequent` command
-carries. All later changes are made to this copy:
+The installer also makes a working copy of the cluster manifests that the
+`sequent` command carries. All later changes are made to this copy:
 
 <!-- deployment-step: 03-006 -->
 
