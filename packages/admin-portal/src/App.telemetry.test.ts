@@ -13,5 +13,7 @@ it("the portal's react-admin root sends no telemetry", () => {
     const app = readFileSync(join(__dirname, "App.tsx"), "utf8")
     const admin = app.match(/<Admin\b[^>]*>/)
     expect(admin).not.toBeNull()
-    expect(admin![0]).toMatch(/\bdisableTelemetry\b/)
+    // Set, and to true: the bare attribute or ={true}, never ={false}.
+    expect(admin![0]).toMatch(/\bdisableTelemetry(?=[\s/>])|\bdisableTelemetry=\{true\}/)
+    expect(admin![0]).not.toMatch(/\bdisableTelemetry=\{(?!true\})/)
 })

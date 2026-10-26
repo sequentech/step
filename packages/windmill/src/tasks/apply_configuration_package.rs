@@ -533,61 +533,99 @@ mod tests {
         tx.rollback().await.unwrap();
     }
 
-    /// Needs the PostgreSQL server `HASURA_DB__*` names (see
-    /// tests/support/schema.rs); deletes the rows it commits.
-    ///
-    /// The rehearsal of the airgap release found a run waiting forever: its
-    /// worker's pool held two connections (sized from a 0.5 CPU quota), the run
-    /// kept the inputs' connection besides its claim, and asked for a third.
-    #[tokio::test]
-    async fn reading_the_inputs_gives_the_connection_back_before_the_next_step() {
+    /// A pool of two connections with one held for the whole run, as the
+    /// claim holds it: every step must give its own back before the next asks.
+    /// The rehearsal of the airgap release found a run waiting forever on a
+    /// worker whose pool deadpool had sized from a 0.5 CPU quota.
+    async fn claimed_small_pool() -> (deadpool_postgres::Pool, deadpool_postgres::Object) {
         let pool = super::apply_test_schema::pool().await;
         pool.resize(2);
-        let (tenant, document) = (uuid::Uuid::new_v4(), uuid::Uuid::new_v4());
-        {
-            let setup = pool.get().await.unwrap();
-            setup
-                .execute(
-                    "INSERT INTO sequent_backend.tenant (id, slug) VALUES ($1, $2)",
-                    &[&tenant, &format!("inputs-{tenant}")],
-                )
-                .await
-                .unwrap();
-            setup
-                .execute(
-                    "INSERT INTO sequent_backend.document (id, tenant_id, name) VALUES ($1, $2, 'package.zip')",
-                    &[&document, &tenant],
-                )
-                .await
-                .unwrap();
-        }
-        // The claim holds one of the two connections for the whole run.
         let claim = pool.get().await.unwrap();
+        (pool, claim)
+    }
+
+    /// The next step's connection, at once: a step that kept its own would
+    /// leave none, and the run would wait forever.
+    async fn next_connection(pool: &deadpool_postgres::Pool, step: &str) {
+        let next = tokio::time::timeout(std::time::Duration::from_secs(5), pool.get())
+            .await
+            .unwrap_or_else(|_| panic!("{step} kept its connection: the run would wait forever"))
+            .unwrap();
+        drop(next);
+    }
+
+    /// A tenant (and its package document) of the test's own, committed so the
+    /// step's connection sees them; unique ids in the binary's private
+    /// database (tests/support/schema.rs), so a failed test leaves nothing
+    /// another reads.
+    async fn committed_tenant(claim: &deadpool_postgres::Object) -> (uuid::Uuid, uuid::Uuid) {
+        let (tenant, document) = (uuid::Uuid::new_v4(), uuid::Uuid::new_v4());
+        claim
+            .execute(
+                "INSERT INTO sequent_backend.tenant (id, slug) VALUES ($1, $2)",
+                &[&tenant, &format!("small-pool-{tenant}")],
+            )
+            .await
+            .unwrap();
+        claim
+            .execute(
+                "INSERT INTO sequent_backend.document (id, tenant_id, name) VALUES ($1, $2, 'package.zip')",
+                &[&document, &tenant],
+            )
+            .await
+            .unwrap();
+        (tenant, document)
+    }
+
+    /// Needs the PostgreSQL server `HASURA_DB__*` names (see
+    /// tests/support/schema.rs).
+    #[tokio::test]
+    async fn reading_the_inputs_gives_the_connection_back_before_the_next_step() {
+        let (pool, claim) = claimed_small_pool().await;
+        let (tenant, document) = committed_tenant(&claim).await;
         let inputs = read_inputs(&pool, &tenant.to_string(), &document.to_string())
             .await
             .unwrap();
         assert_eq!(inputs.document.id, document.to_string());
         assert!(inputs.setting.is_none());
         assert!(inputs.revocation_lists.is_empty());
-        let next = tokio::time::timeout(std::time::Duration::from_secs(5), pool.get())
-            .await
-            .expect("the inputs' connection was not given back: the run would wait forever")
-            .unwrap();
-        drop(next);
-        claim
-            .execute(
-                "DELETE FROM sequent_backend.document WHERE id = $1",
-                &[&document],
+        next_connection(&pool, "read_inputs").await;
+    }
+
+    /// Needs the PostgreSQL server `HASURA_DB__*` names (see
+    /// tests/support/schema.rs).
+    #[tokio::test]
+    async fn applying_the_tenant_configuration_gives_the_connection_back_before_the_audit() {
+        let (pool, claim) = claimed_small_pool().await;
+        let (tenant, _) = committed_tenant(&claim).await;
+        let wanted = sequent_core::election_config::tenant_package::TenantConfiguration {
+            settings: Some(serde_json::Map::from_iter([(
+                "display_name".to_owned(),
+                serde_json::json!("Synthetic"),
+            )])),
+            ..Default::default()
+        };
+        let before =
+            crate::services::import::configuration_package_target::write_tenant_configuration(
+                &pool,
+                &tenant.to_string(),
+                &wanted,
             )
             .await
             .unwrap();
-        claim
-            .execute(
-                "DELETE FROM sequent_backend.tenant WHERE id = $1",
+        assert_eq!(before.id, tenant.to_string());
+        // The audit record and the task's status come next, each on a
+        // connection of its own.
+        next_connection(&pool, "write_tenant_configuration").await;
+        let written: Option<serde_json::Value> = claim
+            .query_one(
+                "SELECT settings FROM sequent_backend.tenant WHERE id = $1",
                 &[&tenant],
             )
             .await
-            .unwrap();
+            .unwrap()
+            .get(0);
+        assert_eq!(written.unwrap()["display_name"], "Synthetic");
     }
 
     /// Needs the PostgreSQL server `HASURA_DB__*` names (see
