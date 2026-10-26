@@ -25,6 +25,20 @@ class InstallerTests(unittest.TestCase):
         d['toe']['archive_sha256']={part:'a'*64 for part in install.PARTS}
         with self.assertRaisesRegex(ValueError,'unknown field'):install.validate(d)
 
+    def test_realm_assertions_respect_voter_and_administrator_scope(self):
+        import subprocess
+        base={'sslRequired':'external','ssoSessionIdleTimeout':900,'bruteForceProtected':True,'failureFactor':5,'eventsEnabled':True,'registrationAllowed':False,'resetPasswordAllowed':False,'rememberMe':False,'eventsListeners':['custom-event-listener'],'identityProviders':[{'alias':'external-login'}],'groups':[]}
+        for kind in ('tenant','tenant-template','event-template'):
+            fixture=copy.deepcopy(base);fixture['adminEventsEnabled']=fixture['adminEventsDetailsEnabled']=kind!='event-template'
+            fixture['clients']=[{'clientId':name,'directAccessGrantsEnabled':False,'attributes':{'pkce.code.challenge.method':'S256'}} for name in (['voting-portal'] if kind=='event-template' else ['admin-portal','voting-portal'])]
+            args=['jq','-e','--arg','kind',kind,'--arg','alias','external-login',install.REALM_CHECK]
+            result=subprocess.run(args,input=json.dumps(fixture),text=True,capture_output=True)
+            self.assertEqual(result.returncode,0,(kind,result.stderr))
+            fixture['clients'][0]['directAccessGrantsEnabled']=True
+            self.assertNotEqual(subprocess.run(args,input=json.dumps(fixture),text=True,capture_output=True).returncode,0)
+            fixture['clients']=[]
+            self.assertNotEqual(subprocess.run(args,input=json.dumps(fixture),text=True,capture_output=True).returncode,0)
+
     def test_config_rejects_unknown_keys_and_shell_host(self):
         d=self.config();install.validate(d)
         for mutation in [lambda x:x.update(secret='wrong'),lambda x:x['nodes'].update(c1='host;id'),lambda x:x['hosts'].update(voting='x$(id).test')]:

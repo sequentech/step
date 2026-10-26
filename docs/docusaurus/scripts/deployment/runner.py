@@ -162,7 +162,7 @@ def main():
         need(not m.get('test_only'), 'Test-only bundle cannot install a platform')
         import install
         install.main(sys.argv[1],sys.argv[2]); return
-    p = argparse.ArgumentParser(description='Install from the administration workstation: ./deploy check site.json; ./deploy install site.json; ./deploy commission site.json. Repeat automated checks with ./deploy verify site.json. Legacy diagnostic commands are listed below.', formatter_class=argparse.RawDescriptionHelpFormatter)
+    p = argparse.ArgumentParser(prog='./deploy',description='Install from the administration workstation: ./deploy check site.json; ./deploy install site.json; ./deploy commission site.json. Repeat automated checks with ./deploy verify site.json. Legacy diagnostic commands are listed below.', formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument('command', choices=['check', 'install', 'verify', 'commission', 'list', 'show', 'configure', 'session', 'prepare'])
     p.add_argument('value', nargs='?'); a = p.parse_args()
     if a.command in ('install','verify','commission'):p.error('Provide the configuration path: ./deploy '+a.command+' site.json')

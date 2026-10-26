@@ -247,6 +247,8 @@ def command_source(ident,d):
     return s
 
 
+REALM_CHECK = '.sslRequired == "external" and .ssoSessionIdleTimeout == 900 and\n      .bruteForceProtected == true and .failureFactor == 5 and\n      .eventsEnabled == true and .registrationAllowed == false and\n      .resetPasswordAllowed == false and .rememberMe == false and\n      (.eventsListeners | index("custom-event-listener") != null) and\n      (.identityProviders | length == 1) and .identityProviders[0].alias == $alias and\n      ([.clients[] | select(.clientId == "admin-portal" or .clientId == "voting-portal") | .clientId] | sort) == (if $kind == "event-template" then ["voting-portal"] else ["admin-portal","voting-portal"] end) and\n      ([.groups[]? | select(.name | startswith("admin")) | .realmRoles[]?\n        | select(. == "publish-results-write" or . == "datafix-account" or . == "voter-manually-verify")] | length == 0) and\n      ([.clients[] | select(.clientId == "admin-portal" or .clientId == "voting-portal")\n        | .directAccessGrantsEnabled == false and .attributes["pkce.code.challenge.method"] == "S256"] | all) and\n      .adminEventsEnabled == ($kind != "event-template") and .adminEventsDetailsEnabled == ($kind != "event-template")'
+
 def install_script(d):
     # One shell preserves functions, variables and working directories across reviewed blocks.
     lines=['set -Eeuo pipefail', 'set +x', 'umask 077', '. /root/deploy/hosts.env', 'AGD_STAGE=00-000', 'trap \'printf "AGD_STAGE_FAILED %s\\n" "$AGD_STAGE" >&2\' ERR']
@@ -259,28 +261,12 @@ def install_script(d):
     lines.extend(['install -m 600 /root/deploy/installation-commands/07-008.jq /root/deploy/keycloak.jq','install -m 600 /root/deploy/installation-commands/07-015.jq /root/deploy/board.jq','install -m 600 /root/deploy/installation-commands/07-016.jq /root/deploy/realm.jq'])
     for ident in ('07-009','07-010','07-011','07-012','07-013','07-014','07-017','07-020'):
         source(ident)
-    lines.append(r'''verify_realms() {
-  for kind in tenant tenant-template event-template; do
-    jq -e --arg alias "$IDP_ALIAS" '
-      .sslRequired == "external" and .ssoSessionIdleTimeout == 900 and
-      .bruteForceProtected == true and .failureFactor == 5 and
-      .eventsEnabled == true and .registrationAllowed == false and
-      .resetPasswordAllowed == false and .rememberMe == false and
-      (.eventsListeners | index("custom-event-listener") != null) and
-      (.identityProviders | length == 1) and .identityProviders[0].alias == $alias and
-      ([.clients[] | select(.clientId == "admin-portal" or .clientId == "voting-portal")] | length == 2) and
-      ([.groups[]? | select(.name | startswith("admin")) | .realmRoles[]?
-        | select(. == "publish-results-write" or . == "datafix-account" or . == "voter-manually-verify")] | length == 0) and
-      ([.clients[] | select(.clientId == "admin-portal" or .clientId == "voting-portal")
-        | .directAccessGrantsEnabled == false and .attributes["pkce.code.challenge.method"] == "S256"] | all) and
-      .adminEventsEnabled == true and .adminEventsDetailsEnabled == true
-    ' "/root/deploy/realm-$kind.new.json" >/dev/null
-  done
-}
-verify_realms
-''')
+    lines.append('AGD_STAGE=07-018')
+    lines.append('verify_realms() {\n  for kind in tenant tenant-template event-template; do\n    jq -e --arg kind "$kind" --arg alias "$IDP_ALIAS" '+shlex.quote(REALM_CHECK)+' "/root/deploy/realm-$kind.new.json" >/dev/null\n  done\n}\nverify_realms\n')
     source('07-021');source('08-003')
-    lines.extend(['test "$POSTGRES_PASSWORD"','source /root/deploy/installation-commands/08-005.sh','printf platform-installed > /root/deploy/.platform-installed'])
+    lines.append('test "$POSTGRES_PASSWORD"')
+    source('08-005')
+    lines.append('printf platform-installed > /root/deploy/.platform-installed')
     return '\n'.join(lines)+'\n'
 
 
