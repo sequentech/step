@@ -28,6 +28,12 @@ roles. Select "Add" to create one, or the edit icon in a role's row to open
 and roles" (`users-menu`), the "Users" tab needs "Read User" (`user-read`) and
 the "Roles" tab needs "Read Role" (`role-read`).
 
+![Users and Roles with the Roles tab and row edit icons](assets/roles-navigation.png)
+
+*Illustration: role navigation in a synthetic v10.0.0 tenant before role setup.
+The shipped role names shown here are not the completed evaluated configuration;
+apply the role assignments and exclusions below.*
+
 A change of an account's roles takes effect at the account's next sign-in.
 
 Creating, changing and deleting users, roles, role permissions and role assignments is recorded
@@ -85,7 +91,7 @@ stated, to `trustee`). Remove each of them from the role `admin`:
 | Key and tally ceremonies, counting | "View Election Event Keys" (`election-event-keys-tab`), "Read Keys" (`keys-read`), "Admin Ceremony" (`admin-ceremony`), "Create Ceremony" (`create-ceremony`), "Export Ceremony" (`export-ceremony`), "View Election Event Tally" (`election-event-tally-tab`), "Read Tally" (`tally-read`), "Start Tally" (`tally-start`), "Edit Tally" (`tally-write`), "Read Tally Results" (`tally-results-read`) |
 | Archiving and deletion of election events | "Archive Election Event" (`election-event-archive`), "Delete Election Event" (`election-event-delete`) |
 | Audit review and monitoring | "View Election Event Logs" (`election-event-logs-tab`), "Read Logs" (`logs-read`), "Audit Electoral Log" (`electoral-log-audit`), "Browse Electoral Log" (`electoral-log-console-read`), "Query Electoral Log" (`electoral-log-console-query`), "Read Electoral Log Personal Data" (`electoral-log-personal-data-read`), "View Election Event Tasks" (`election-event-tasks-tab`), "Read Tasks Execution" (`tasks-read`), "View Monitoring Dashboards" (`monitoring-view`) |
-| Read the voters' register, as a protected action where the Signatures tab requires it | "Read Voter" (`voter-read`), "View Election Event Voters" (`election-event-voters-tab`) |
+| Read the voters' register (permission-controlled; no post-processing board-signature gate is implemented) | "Read Voter" (`voter-read`), "View Election Event Voters" (`election-event-voters-tab`) |
 | Export of the electoral log and of election execution data | "Export Logs" (`logs-export`), "Read Reports" (`report-read`), "Edit Reports" (`report-write`), "Read Documents" (`document-read`), "Download Documents" (`document-download`), "Export Voter" (`voter-export`), "Read Document Passwords" (`document-password-read`) |
 
 ### Permissions on election data and audit records

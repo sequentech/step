@@ -314,6 +314,12 @@ with the required authorisations; the TOE refuses every other deletion.
 
 ## Settings of the election event
 
+![Advanced Configurations showing Lockdown Status, Ballot Box Seal Policy and Ballot Box Seal Record](assets/event-advanced-settings.png)
+
+*Illustration: the Data tab’s Advanced Configurations in a synthetic v10.0.0
+event. Use the required values below, and verify the signed package’s settings;
+do not copy a sample event’s state or identifiers.*
+
 Open the election event and its tab "Data". The settings are grouped in
 sections; the table names the section of each.
 

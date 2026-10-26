@@ -29,6 +29,11 @@ has been accepted, the operational environment and the TOE have been installed
 and hardened, and the first personal administrator account works, all as the
 Deployment Guide describes.
 
+The admin portal is a supporting component outside the TOE. Its screens guide
+the workflow; displaying or hiding a control is not a security boundary or
+evidence of a server-side refusal. Follow the operation-specific checks and
+completion evidence in this handbook, including required authorisations.
+
 ## Who this handbook is for
 
 This handbook is for the persons whom the election organizer appoints as
@@ -107,6 +112,11 @@ uses another name, the table gives it.
 | re-voting | "Number of allowed votes" of an election |
 
 ## Conventions
+
+Screenshots illustrate real interfaces from a synthetic rehearsal. Sample
+accounts, election names, identifiers, hashes and dates are not values to copy
+into an election. Follow the steps and required values in the text; a pictured
+screen is not evidence that your own operation completed.
 
 - Names in quotation marks, such as "Users and Roles", are the exact texts of
   the admin portal in English: menu entries, tabs, buttons, fields, options,

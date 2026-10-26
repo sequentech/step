@@ -91,20 +91,72 @@ ones are complete and that all of their checks passed.
 10. [Verifying the Installation](10-verification.md).
 11. [Self-Test and Handover](11-selftest_handover.md).
 
+## Use the bundled deployment commands
+
+After accepting the delivered guidance package under **Verifying the Delivery**,
+use its sibling **deployment** folder. It contains the complete reviewed command
+sources and their hashes; no repository checkout or online download is needed.
+The separate installation kit is checked in section 3 before installing servers.
+
+Copy the whole folder to each machine that will execute a step. Use a root shell
+and enter that folder. The workstation needs Python 3.10 or later, Bash, and the
+operational tools named in this guide; the corresponding installation kit supplies
+Python 3 and Bash on C1 and C2. Check these prerequisites before starting.
+
+1. Run `./deploy check`. This detects changed package files; the delivery signature
+   and independent source verification establish their authenticity.
+2. Run `./deploy configure admin` on the administration workstation. Enter the
+   seven public site values and the absolute directory containing the installation
+   kit to be checked. Passwords, keys and client secrets never belong in this form.
+3. Run `./deploy session admin`. The prompt shows the selected session and directory.
+   Follow the handbook's short `step` commands in order, reading the stated checks.
+
+Repeat configure and session on each other machine with its role below, using the
+same public site values. Each machine has its own root-only public configuration
+in `/root/deploy/operator.json`; `hosts.env` is loaded automatically in every session.
+An existing different configuration is refused instead of overwritten. The server
+address and machine identity are checked before a command runs.
+
+| Session | Where to start it |
+| --- | --- |
+| `admin` | Administration workstation, initially in the installation kit directory |
+| `c1` | Root shell on C1, initially in `/root/deploy` |
+| `c2` | Root shell on C2, initially in `/root/deploy` |
+| `client` | Separate machine in the client network, for reachability checks |
+| `trustee` | Offline trustee workstation under the trustee's physical custody |
+
+For example, run `./deploy configure c1`, then `./deploy session c1` on C1.
+The launcher never changes machines or opens an SSH session automatically.
+A session label does not replace verifying network position or physical custody.
+
+Inside a session, `steps` lists the available commands; `show 07-003` displays the
+exact implementation and source reference; `step 07-003` runs that one block.
+Long implementations are in `deployment/steps/`, outside the main procedure text.
+Review the relevant implementation and prerequisites before running it. Public
+values needed later are prompted when used. Existing private password prompts
+and private input files remain unchanged; command output is not recorded.
+
+Keep the session open: variables, helper functions and working-directory changes
+are needed by later steps. Use `exit` when changing machine or finishing. After a
+failure, inspect the current state and the stated check; never replay a write
+blindly. A successful command exit is **not** acceptance of the step. Compare
+its actual output with every condition in this guide before continuing. Do not
+record these sessions with shell tracing or terminal transcripts.
+
 ## Conventions
 
 - Commands are for bash and run as root. Each command block says where it runs:
   on C1 (the cluster server), on C2 (the second node), on the administration
   workstation or on a trustee workstation.
-- Words in angle brackets inside commands, such as `<voting-portal-host>`, are
-  values you supply. Replace them, brackets included.
+- Words in angle brackets in the bundled source identify public inputs. The
+  launcher prompts for these values; do not edit the verified command package.
 - The commands use the shell variables that
   [Installing the Servers](03-installation_kit.md#prepare-the-deployment-directory)
   defines in the file `/root/deploy/hosts.env`: PORTAL_HOST, ADMIN_HOST,
   VERIFIER_HOST, AUTH_HOST, IDP_ALIAS, C1, C2, R and, once
   [the customer's tenant](08-installing_toe.md#create-the-customers-tenant)
-  exists, CR. Load the file in every
-  new shell with `. /root/deploy/hosts.env`.
+  exists, CR. The launcher loads this file in every new session; outside the
+  launcher, load it with `. /root/deploy/hosts.env`.
 - Every step ends with a check. Do not go on until the check gives the result
   stated. If a check fails, stop, do not put the TOE into operation, and
   report it to [security@sequentech.io](mailto:security@sequentech.io), as the

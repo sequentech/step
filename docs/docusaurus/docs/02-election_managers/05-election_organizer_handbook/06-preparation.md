@@ -245,6 +245,12 @@ approves it:
 4. When the version is approved, tell the administrators: from then on they
    change no setting without telling the board.
 
+![Publish tab comparing Current with Changes to Publish and the Publish Changes button](assets/publication-review.png)
+
+*Illustration: a generated v10.0.0 publication awaiting review in a synthetic
+election. The green comparison is proposed content, not evidence of approval.
+Review your own complete changes before requesting the board’s signatures.*
+
 The approved configuration version also fixes the signing rules. After the
 approval they change only through a new configuration version, which the board
 publishes and approves in the same way.
@@ -315,6 +321,12 @@ Ceremony"):
    ticked.
 6. The ceremony is complete only when every selected trustee shows "Custody
    Confirmed".
+
+![Key Ceremony Progress with status IN_PROGRESS and custody progress columns](assets/key-ceremony-progress.png)
+
+*Illustration: a newly created v10.0.0 ceremony, before trustee progress appears.
+“Key Ceremony created” does not mean that custody is confirmed; wait for the
+required confirmations from every selected trustee.*
 
 The key ceremony and the tally ceremony run only as manual ceremonies:
 "Manual Ceremonies" for every election event, and "Automatic Ceremony" never

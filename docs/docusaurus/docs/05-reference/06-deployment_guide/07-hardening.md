@@ -33,24 +33,18 @@ sign-in and which origins may call the TOE. Use exactly the three names of
 the certificate.
 :::
 
-```bash
-cd /root/deploy/kubernetes
-grep -rl -e portal.local -e admin.local -e verifier.local . | xargs sed -i \
-  -e "s/portal\.local/$PORTAL_HOST/g" -e "s/admin\.local/$ADMIN_HOST/g" \
-  -e "s/verifier\.local/$VERIFIER_HOST/g"
-grep -rn '\.local\b' . | grep -v -e sequentech.local -e svc.cluster.local
-```
+<!-- deployment-step: 07-001 -->
+
+**Session: c1.** Run `step 07-001`. Review its implementation with `show 07-001`.
 
 The last command must print nothing.
 
 All three portals must reach the identity service under one host name, the
 voting portal's:
 
-```bash
-sed -i '/name: KEYCLOAK_URL$/{n;s|value: .*|value: "https://'"$PORTAL_HOST"'"|}' \
-  admin-portal/deployment.yaml ballot-verifier/deployment.yaml
-grep -A1 'name: KEYCLOAK_URL$' */deployment.yaml
-```
+<!-- deployment-step: 07-002 -->
+
+**Session: c1.** Run `step 07-002`. Review its implementation with `show 07-002`.
 
 The three values shown must be `"https://PORTAL_HOST"` with your voting portal
 host.
@@ -65,77 +59,9 @@ from a signed URL would invalidate its signature.
 
 <!-- REUSE-IgnoreStart -->
 
-```bash
-cd /root/deploy/kubernetes
-sed -i 's|^  AWS_S3_PUBLIC_URI:.*|  AWS_S3_PUBLIC_URI: "https://'"$PORTAL_HOST"'"|' config/step-env.yaml
-cat > rustfs/browser-ingress.yaml <<EOF
-# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
-# SPDX-License-Identifier: LicenseRef-Proprietary
-# Presigned S3 URLs include the bucket path; never strip or rewrite it.
-apiVersion: traefik.io/v1alpha1
-kind: Middleware
-metadata:
-  name: storage-browser-cors
-  namespace: step-infra
-spec:
-  headers:
-    accessControlAllowOriginList:
-      - "https://$PORTAL_HOST"
-      - "https://$ADMIN_HOST"
-      - "https://$VERIFIER_HOST"
-    accessControlAllowMethods:
-      - GET
-      - HEAD
-      - PUT
-      - OPTIONS
-    accessControlAllowHeaders:
-      - "*"
-    accessControlExposeHeaders:
-      - ETag
-    addVaryHeader: true
----
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: storage-browser-ingress
-  namespace: step-infra
-  annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: step-infra-storage-browser-cors@kubernetescrd
-spec:
-  ingressClassName: traefik
-  tls:
-    - hosts:
-        - $PORTAL_HOST
-        - $ADMIN_HOST
-        - $VERIFIER_HOST
-      secretName: step-tls-cert
-  rules:
-    - host: $PORTAL_HOST
-      http: &browser-storage
-        paths:
-          - path: /public
-            pathType: Prefix
-            backend:
-              service:
-                name: rustfs
-                port:
-                  number: 9000
-          - path: /election-event-documents
-            pathType: Prefix
-            backend:
-              service:
-                name: rustfs
-                port:
-                  number: 9000
-    - host: $ADMIN_HOST
-      http: *browser-storage
-    - host: $VERIFIER_HOST
-      http: *browser-storage
-EOF
-grep '^  AWS_S3_PUBLIC_URI:' config/step-env.yaml
-grep -A3 'accessControlAllowOriginList:' rustfs/browser-ingress.yaml
-```
+<!-- deployment-step: 07-003 -->
+
+**Session: c1.** Run `step 07-003`. Review its implementation with `show 07-003`.
 
 <!-- REUSE-IgnoreEnd -->
 
@@ -153,19 +79,9 @@ The portals display the software release and the Step source revision that
 produced the images. Set both from the installed provenance of the verified
 installation kit, before the first deployment:
 
-```bash
-cd /root/deploy/kubernetes
-P=/var/lib/sequent-install/provenance.json
-APP_VERSION=$(jq -er '.release | select(type == "string")
-  | select(test("^[0-9]+[.][0-9]+[.][0-9]+$"))' "$P") &&
-APP_HASH=$(jq -er '.images.manifest.stepRevision | select(type == "string")
-  | select(test("^[0-9a-f]{40}$"))' "$P") &&
-[ -f config/step-env.yaml ] &&
-! grep -qE '^  APP_(VERSION|HASH):' config/step-env.yaml &&
-printf '  APP_VERSION: "%s"\n  APP_HASH: "%s"\n' "$APP_VERSION" "$APP_HASH" \
-  >> config/step-env.yaml &&
-grep -E '^  APP_(VERSION|HASH):' config/step-env.yaml
-```
+<!-- deployment-step: 07-004 -->
+
+**Session: c1.** Run `step 07-004`. Review its implementation with `show 07-004`.
 
 The block must print the two public values. For release `v10.0.0`,
 `APP_VERSION` must be `10.0.0`; `APP_HASH` must be the 40-character Step
@@ -182,27 +98,12 @@ again. Keep `/root/deploy/secrets.env` readable by root only, and never print
 it.
 :::
 
-Replace the placeholder in the last `echo` with a name for the identity
+At the public input prompt, enter a name for the identity
 service's administrator account, used only by the TOE's services:
 
-```bash
-cd /root/deploy && umask 077 && set -o noclobber
-{
-  for v in POSTGRES_PASSWORD RUSTFS_PASSWORD ACTIONS_ADMIN_SECRET MASTER_SECRET \
-      HASURA_ADMIN_SECRET QUEUE_DB_OWNER_PASSWORD QUEUE_DB_WORKER_PASSWORD \
-      QUEUE_DB_PRODUCER_PASSWORD QUEUE_DB_READER_PASSWORD ELECTORAL_LOG_PG_PASSWORD \
-      ELECTORAL_LOG_PG_PROVISIONING_PASSWORD ELECTORAL_LOG_PG_READER_PASSWORD \
-      KC_ADMIN_PASSWORD KC_SERVICE_ACCOUNT_SECRET KC_API_KEY_CLIENT_SECRET \
-      TRUSTEE1_PASSWORD TRUSTEE2_PASSWORD; do
-    echo "export $v=$(openssl rand -hex 32)"
-  done
-  echo 'export S3_SECRET="$RUSTFS_PASSWORD"'
-  echo 'export KC_ADMIN_USER=<name-of-the-service-administrator>'
-} > secrets.env
-set +o noclobber
-stat -c '%a %U' secrets.env      # 600 root
-grep -c '^export ' secrets.env   # 19
-```
+<!-- deployment-step: 07-005 -->
+
+**Session: c1.** Run `step 07-005`. Review its implementation with `show 07-005`.
 
 `S3_SECRET` must equal `RUSTFS_PASSWORD`: the services use the object
 storage's root account. Every later command that needs a secret loads this
@@ -219,20 +120,9 @@ The identity service gets an administrator account in its master realm, which
 the TOE's services use to create the realms of election events. The services
 also get the secret of their own client in the tenant realm.
 
-```bash
-. /root/deploy/secrets.env
-k3s kubectl -n step-infra create secret generic keycloak-bootstrap-admin \
-  --from-env-file=<(printf '%s\n' "KC_BOOTSTRAP_ADMIN_USERNAME=$KC_ADMIN_USER" \
-    "KC_BOOTSTRAP_ADMIN_PASSWORD=$KC_ADMIN_PASSWORD")
-k3s kubectl -n step-apps create secret generic keycloak-service-credentials \
-  --from-env-file=<(printf '%s\n' KEYCLOAK_CLIENT_ID=service-account \
-    "KEYCLOAK_CLIENT_SECRET=$KC_SERVICE_ACCOUNT_SECRET" \
-    "KEYCLOAK_ADMIN_CLIENT_ID=$KC_ADMIN_USER" \
-    "KEYCLOAK_ADMIN_CLIENT_SECRET=$KC_ADMIN_PASSWORD")
-for s in step-infra/keycloak-bootstrap-admin step-apps/keycloak-service-credentials; do
-  k3s kubectl -n ${s%/*} get secret ${s#*/} -o jsonpath='{.data}' | jq -r 'keys[]'
-done
-```
+<!-- deployment-step: 07-006 -->
+
+**Session: c1.** Run `step 07-006`. Review its implementation with `show 07-006`.
 
 The output must list `KC_BOOTSTRAP_ADMIN_PASSWORD` and
 `KC_BOOTSTRAP_ADMIN_USERNAME`, then `KEYCLOAK_ADMIN_CLIENT_ID`,
@@ -240,15 +130,9 @@ The output must list `KC_BOOTSTRAP_ADMIN_PASSWORD` and
 `KEYCLOAK_CLIENT_SECRET`. Then give harvest and the two windmill services the
 second Secret:
 
-```bash
-cd /root/deploy/kubernetes
-printf '%s\n' '            - secretRef:' \
-  '                name: keycloak-service-credentials' > /root/deploy/envfrom.txt
-sed -i '/^                name: step-secrets$/r /root/deploy/envfrom.txt' \
-  harvest/deployment.yaml windmill/deployment.yaml windmill/beat.yaml
-grep -c 'name: keycloak-service-credentials' harvest/deployment.yaml \
-  windmill/deployment.yaml windmill/beat.yaml
-```
+<!-- deployment-step: 07-007 -->
+
+**Session: c1.** Run `step 07-007`. Review its implementation with `show 07-007`.
 
 Each of the three files must count 1.
 
@@ -262,42 +146,17 @@ without this section.
 
 The identity service must run in production mode, with one fixed host name,
 the trust anchor of the authentication server and the TLS profile for its own
-connections. Save this filter as `/root/deploy/keycloak.jq`:
+connections. The following step installs the reviewed filter at `/root/deploy/keycloak.jq`:
 
-```jq
-def without(names): map(select(.name as $n | names | index($n) | not));
-"-Djdk.tls.client.protocols=TLSv1.3"
-  + " -Djdk.tls.client.cipherSuites=TLS_AES_256_GCM_SHA384"
-  + " -Djdk.tls.namedGroups=secp384r1" as $tls
-| .spec.template.spec.containers |= map(if .name != "keycloak" then . else
-    .args = ["start", "--import-realm"]
-    | .env = (.env | without(["KC_HOSTNAME_STRICT", "KC_HOSTNAME_STRICT_HTTPS"]))
-      + [{name: "KC_HOSTNAME", value: "https://\($ENV.PORTAL_HOST)"},
-         {name: "KC_HTTP_ENABLED", value: "true"},
-         {name: "KC_TRUSTSTORE_PATHS",
-          value: "/opt/keycloak/conf/truststores/ca.pem"},
-         {name: "JAVA_OPTS_APPEND", value: $tls}]
-    | .envFrom = (.envFrom // []) + [{secretRef: {name: "keycloak-bootstrap-admin"}}]
-    | .volumeMounts += [{name: "auth-server-ca", readOnly: true,
-        mountPath: "/opt/keycloak/conf/truststores"}]
-  end)
-| .spec.template.spec.volumes |= map(if .name == "realm-import"
-    then {name, secret: {secretName: "keycloak-realm"}} else . end)
-  + [{name: "auth-server-ca", configMap: {name: "auth-server-ca"}}]
-```
+<!-- deployment-step: 07-008 -->
+
+**Session: c1.** Run `step 07-008`. Review its implementation with `show 07-008`.
 
 Then apply it to the manifest, which becomes a JSON file:
 
-```bash
-cd /root/deploy/kubernetes/keycloak
-k3s kubectl create --dry-run=client -o json -f deployment.yaml \
-  | jq -f /root/deploy/keycloak.jq > deployment.json && rm deployment.yaml
-jq -r '(.spec.template.spec.containers[] | select(.name == "keycloak")
-  | (.args | join(" ")),
-    (.env[] | select(.name | test("^KC_HOST|^KC_HTTP_EN|^KC_TRUST|^JAVA")) | .name)),
-  (.spec.template.spec.volumes[] | select(.name == "realm-import")
-    | .secret.secretName)' deployment.json
-```
+<!-- deployment-step: 07-009 -->
+
+**Session: c1.** Run `step 07-009`. Review its implementation with `show 07-009`.
 
 The output must be `start --import-realm` followed by `KC_HOSTNAME`,
 `KC_HTTP_ENABLED`, `KC_TRUSTSTORE_PATHS`, `JAVA_OPTS_APPEND` and
@@ -315,16 +174,9 @@ schema and its permissions. They must not be reachable.
 The GraphQL engine must offer only its GraphQL endpoint: no console, no
 development mode, no metadata or other API.
 
-```bash
-cd /root/deploy/kubernetes
-sed -i -e '/name: HASURA_GRAPHQL_ENABLE_CONSOLE$/{n;s/"true"/"false"/}' \
-  -e '/name: HASURA_GRAPHQL_DEV_MODE$/{n;s/"true"/"false"/}' hasura/deployment.yaml
-sed -i '/- path: \/hasura$/{s|/hasura$|/hasura/v1/graphql|;n;s/Prefix/Exact/}' \
-  admin-portal/ingress.yaml voting-portal/ingress.yaml ballot-verifier/ingress.yaml
-grep -A1 -e 'HASURA_GRAPHQL_ENABLE_CONSOLE$' -e 'HASURA_GRAPHQL_DEV_MODE$' \
-  hasura/deployment.yaml
-grep -A1 'path: /hasura' */ingress.yaml
-```
+<!-- deployment-step: 07-010 -->
+
+**Session: c1.** Run `step 07-010`. Review its implementation with `show 07-010`.
 
 Both values must be `"false"`, and each of the three ingress files must show
 `path: /hasura/v1/graphql` with `pathType: Exact`.
@@ -341,18 +193,9 @@ Set the same three allowed origins on the ingress and on the GraphQL
 backend. The ingress allowlist alone does not remove an allow-origin header
 returned by the backend:
 
-```bash
-printf '      - "https://%s"\n' "$PORTAL_HOST" "$VERIFIER_HOST" "$ADMIN_HOST" \
-  > /root/deploy/origins.txt
-sed -i -e '/accessControlAllowOriginList:/r /root/deploy/origins.txt' \
-  -e '/accessControlAllowOriginList:/{n;/- "\*"/d}' voting-portal/middleware.yaml
-k3s kubectl set env --local --containers=hasura -f hasura/deployment.yaml \
-  HASURA_GRAPHQL_CORS_DOMAIN="https://$PORTAL_HOST,https://$VERIFIER_HOST,https://$ADMIN_HOST" \
-  -o yaml > /root/deploy/hasura-cors.yaml &&
-mv /root/deploy/hasura-cors.yaml hasura/deployment.yaml
-grep -A3 'accessControlAllowOriginList:' voting-portal/middleware.yaml
-grep -A1 'name: HASURA_GRAPHQL_CORS_DOMAIN$' hasura/deployment.yaml
-```
+<!-- deployment-step: 07-011 -->
+
+**Session: c1.** Run `step 07-011`. Review its implementation with `show 07-011`.
 
 The ingress list and the comma-separated backend value must contain the
 same three `https://` origins and no `"*"`. The backend setting applies only
@@ -368,52 +211,9 @@ in to the identity service's master realm.
 The identity service's master realm holds its service administrator and must
 not be reachable from outside the cluster:
 
-```bash
-cat > keycloak/master-blocked.yaml <<EOF
-apiVersion: traefik.io/v1alpha1
-kind: Middleware
-metadata:
-  name: deny-all
-  namespace: step-infra
-spec:
-  ipAllowList:
-    sourceRange:
-      - 192.0.2.1/32
----
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: keycloak-master-blocked
-  namespace: step-infra
-  annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: step-infra-deny-all@kubernetescrd
-spec:
-  ingressClassName: traefik
-  tls:
-    - hosts:
-        - $PORTAL_HOST
-        - $ADMIN_HOST
-        - $VERIFIER_HOST
-      secretName: step-tls-cert
-  rules:
-    - host: $PORTAL_HOST
-      http: &master-realm
-        paths:
-          - path: /realms/master
-            pathType: Prefix
-            backend:
-              service:
-                name: keycloak
-                port:
-                  number: 8090
-    - host: $ADMIN_HOST
-      http: *master-realm
-    - host: $VERIFIER_HOST
-      http: *master-realm
-EOF
-grep -E '^    - host:' keycloak/master-blocked.yaml
-```
+<!-- deployment-step: 07-012 -->
+
+**Session: c1.** Run `step 07-012`. Review its implementation with `show 07-012`.
 
 The last command must list the three host names. The only address allowed,
 192.0.2.1, is reserved for documentation and is never a client's, so the
@@ -427,21 +227,9 @@ answers with an error.
 The other services reach harvest inside the cluster at port 8400. Add its
 Service, reachable only inside the cluster:
 
-```bash
-cat > harvest/service.yaml <<'EOF'
-apiVersion: v1
-kind: Service
-metadata:
-  name: harvest
-  namespace: step-apps
-spec:
-  selector:
-    app: harvest
-  ports:
-    - port: 8400
-      targetPort: 8400
-EOF
-```
+<!-- deployment-step: 07-013 -->
+
+**Session: c1.** Run `step 07-013`. Review its implementation with `show 07-013`.
 
 ## Keep the results and kiosk portals off
 
@@ -452,9 +240,9 @@ Do not set either address, and do not deploy either portal.
 No results portal and no kiosk voting portal are part of the evaluated
 configuration. Their addresses stay unset:
 
-```bash
-grep -nE '^ *(RESULTS_PORTAL_URL|KIOSK_VOTING_PORTAL_URL):' config/step-env.yaml
-```
+<!-- deployment-step: 07-014 -->
+
+**Session: c1.** Run `step 07-014`. Review its implementation with `show 07-014`.
 
 The command must print nothing. The realm settings below also disable the
 results portal's client.
@@ -507,138 +295,27 @@ clients disabled.
 Save the list of the permissions that the administrator role must not hold
 as `/root/deploy/board.jq`:
 
-```jq
-def board_only: test("^((sign|voter|contest|candidate|area|application|document"
-  + "|report|miru|tally|publish|logs|electoral-log|signing-requests|monitoring"
-  + "|scheduled-event)-.+|election-event-(archive|create|delete|keys-tab"
-  + "|logs-tab|publish-(preview|tab|view)|reports-tab|scheduled-(tab|event-columns)"
-  + "|tally-tab|tasks-tab|voter-list-reconciliation|voters-tab)|election-(create"
-  + "|delete|ip-address-view|publish-tab|state-write|voters-tab)"
-  + "|(admin|create|export|transmition|trustee)-ceremony|admin-ip-address-view"
-  + "|datafix-account|ee-voters-logs|keys-read|task-export|tasks-read"
-  + "|transmission-report-generate|user-import)$");
-```
+<!-- deployment-step: 07-015 -->
 
-Then save this filter as `/root/deploy/realm.jq`:
+**Session: c1.** Run `step 07-015`. Review its implementation with `show 07-015`.
 
-```jq
-include "board";
-def client(id; f): .clients |= map(if .clientId == id then f else . end);
-def drop(a; v): if a then a -= [v] else . end;
-def portal(uris):
-  .publicClient = true | .standardFlowEnabled = true
-  | .implicitFlowEnabled = false | .directAccessGrantsEnabled = false
-  | .redirectUris = uris | .webOrigins = ["+"]
-  | .attributes["pkce.code.challenge.method"] = "S256"
-  | .attributes["post.logout.redirect.uris"] = "+";
-def execs(f): .authenticationFlows |= map(.authenticationExecutions |= map(f));
-def password(v): [{type: "password", value: v, temporary: false}];
-($ENV.PORTAL_HOST) as $p | ($ENV.ADMIN_HOST) as $a | ($ENV.VERIFIER_HOST) as $v
-| .sslRequired = "external" | .ssoSessionIdleTimeout = 900
-| .bruteForceProtected = true | .failureFactor = 5
-| .eventsEnabled = true
-| .eventsListeners = ((.eventsListeners // []) + ["custom-event-listener"] | unique)
-| .registrationAllowed = false | .resetPasswordAllowed = false
-| .rememberMe = false
-| .requiredActions |= map(if .alias == "mfa-method-selector"
-    then .enabled = false | .defaultAction = false else . end)
-| .identityProviders = ($idp | if $doc == "event-template" then .
-    else map(.config.passMaxAge = "true") end) | .identityProviderMappers = []
-| if $doc == "event-template" then . else
-    client("admin-portal"; .protocolMappers =
-      ([.protocolMappers[]? | select(.config["claim.name"] != "auth_time")]
-      + [{name: "board-authentication-time", protocol: "openid-connect",
-          protocolMapper: "oidc-usersessionmodel-note-mapper", consentRequired: false,
-          config: {"user.session.note": "AUTH_TIME", "claim.name": "auth_time",
-            "jsonType.label": "long", "id.token.claim": "true",
-            "access.token.claim": "true", "introspection.token.claim": "true"}}])) end
-| .authenticatorConfig = [(.authenticatorConfig // [])[]
-    | select(.alias != "redirect-to-idp")]
-    + [{alias: "redirect-to-idp", config: {defaultProvider: $idp[0].alias}}]
-| execs(if .authenticator == "identity-provider-redirector"
-          then .authenticatorConfig = "redirect-to-idp"
-        elif .flowAlias == "sequent browser flow forms"
-          or .flowAlias == "message channel OTP"
-          then .requirement = "DISABLED"
-        else . end)
-| if any(.authenticationFlows[]; .alias == "certificate-first-login-flow") then .
-  else .authenticationFlows += [$flow[0] | del(.id)] end
-| client("admin-cli"; .directAccessGrantsEnabled = false)
-| .authenticationFlows |= map(select(.alias != "smart-link" and .alias != "smart-link forms"))
-| if $doc == "event-template" then
-    client("voting-portal"; portal(["https://\($p)/*", "https://\($v)/*"]))
-    | reduce ("account-console", "results-portal", "onsite-voting-portal",
-        "vp-sso", "ivr-service", "ivr-voting", "voting-portal-certs") as $c
-        (.; client($c; .enabled = false))
-    | del(.attributes["sequent.messaging"])
-    | .defaultRole.name as $dr
-    | .roles.realm |= map(if .name == $dr
-        then drop(.composites.realm; "offline_access") else . end)
-    | drop(.defaultOptionalClientScopes; "offline_access")
-    | .clients |= map(drop(.optionalClientScopes; "offline_access"))
-  else
-    client("admin-portal"; portal(["https://\($a)/*"]))
-    | client("voting-portal"; portal(["https://\($p)/*", "https://\($v)/*"]))
-    | client("api-key-client"; del(.authenticationFlowBindingOverrides))
-    | client("cli-account-admin"; .enabled = false | .directAccessGrantsEnabled = false)
-    | .adminEventsEnabled = true | .adminEventsDetailsEnabled = true
-    | .groups |= map(drop(.realmRoles; "publish-results-write")
-        | drop(.realmRoles; "datafix-account")
-        | drop(.realmRoles; "voter-manually-verify")
-        | if (.name | startswith("admin")) and .realmRoles
-          then .realmRoles |= map(select(board_only | not)) else . end)
-    | if $doc == "tenant" then
-        client("service-account"; .secret = $ENV.KC_SERVICE_ACCOUNT_SECRET)
-        | client("api-key-client"; .secret = $ENV.KC_API_KEY_CLIENT_SECRET)
-        | .users |= map(
-            if .username == "trustee1"
-              then .credentials = password($ENV.TRUSTEE1_PASSWORD)
-            elif .username == "trustee2"
-              then .credentials = password($ENV.TRUSTEE2_PASSWORD)
-            else del(.credentials) end)
-      elif .users then .users |= map(del(.credentials))
-      else . end
-  end
-```
+Then install the reviewed filter at `/root/deploy/realm.jq`:
+
+<!-- deployment-step: 07-016 -->
+
+**Session: c1.** Run `step 07-016`. Review its implementation with `show 07-016`.
 
 Extract the three documents and apply the filter to each:
 
-```bash
-. /root/deploy/hosts.env && . /root/deploy/secrets.env
-cd /root/deploy/kubernetes/keycloak
-k3s kubectl create --dry-run=client -o json -f realm.yaml > ../../realm.cm.json
-k3s kubectl create --dry-run=client -o json -f realm-templates.yaml \
-  | jq -s '{apiVersion: "v1", kind: "List", items: .}' > ../../templates.cm.json
-cd /root/deploy
-T=$R.json
-E=$R-event-33f18502-a67c-4853-8333-a58630663559.json
-pick() { jq -r --arg n "$1" --arg k "$2" \
-  '.items[] | select(.metadata.name == $n) | .data[$k]' templates.cm.json; }
-jq -r --arg k "$T" '.data[$k]' realm.cm.json > realm-tenant.json
-pick keycloak-tenant-realm-template "$T" > realm-tenant-template.json
-pick keycloak-election-event-realm-template "$E" > realm-event-template.json
-jq '.authenticationFlows[] | select(.alias == "certificate-first-login-flow")' \
-  realm-event-template.json > flow.json
-for d in tenant tenant-template event-template; do
-  jq -e -L /root/deploy --arg doc $d --slurpfile idp idp.json \
-    --slurpfile flow flow.json -f realm.jq realm-$d.json > realm-$d.new.json && echo "$d done"
-done
-```
+<!-- deployment-step: 07-017 -->
+
+**Session: c1.** Run `step 07-017`. Review its implementation with `show 07-017`.
 
 The loop must print `done` for the three documents. Then check them:
 
-```bash
-for d in tenant tenant-template event-template; do
-  jq -c '{sslRequired, ssoSessionIdleTimeout, bruteForceProtected, failureFactor,
-    eventsEnabled, registrationAllowed, resetPasswordAllowed, rememberMe,
-    mfa_selector: [.requiredActions[] | select(.alias == "mfa-method-selector")
-      | [.enabled, .defaultAction]],
-    idps: [.identityProviders[].alias],
-    users: [.users[]? | select(.credentials) | .username],
-    disabled: [.clients[] | select(.enabled == false) | .clientId]}' \
-    realm-$d.new.json
-done
-```
+<!-- deployment-step: 07-018 -->
+
+**Session: c1.** Run `step 07-018`. Review its implementation with `show 07-018`.
 
 Each line must show `"sslRequired":"external"`, `"ssoSessionIdleTimeout":900`,
 `"bruteForceProtected":true`, `"failureFactor":5`, `"eventsEnabled":true`,
@@ -652,45 +329,9 @@ the disabled client `cli-account-admin`; the event template lists
 
 Check the sign-in settings in detail:
 
-```bash
-for d in tenant tenant-template event-template; do
-  jq -L /root/deploy -c 'include "board";
-    {listener: (.eventsListeners | index("custom-event-listener") != null),
-    results: [.groups[]?.realmRoles[]?, .users[]?.realmRoles[]?
-      | select(. == "publish-results-write" or . == "datafix-account"
-        or . == "voter-manually-verify")],
-    admin_groups: [.groups[]? | select(.name | startswith("admin")) | .realmRoles[]?
-      | select(board_only)],
-    forms: [.authenticationFlows[].authenticationExecutions[]
-      | select(.flowAlias == "sequent browser flow forms") | .requirement],
-    redirect: [.authenticatorConfig[] | select(.alias == "redirect-to-idp")
-      | .config.defaultProvider],
-    broker_freshness: [.identityProviders[]
-      | {alias, passMaxAge: (.config.passMaxAge // "false"),
-         prompt: (.config.prompt // "")}],
-    admin_auth_time: [.clients[] | select(.clientId == "admin-portal")
-      | .protocolMappers[]? | select(.config["claim.name"] == "auth_time")
-      | [.protocolMapper, .config["user.session.note"], .config["jsonType.label"],
-         .config["id.token.claim"], .config["access.token.claim"]]],
-    portals: [.clients[] | select(.clientId | test("^(admin|voting)-portal$"))
-      | [.clientId, .directAccessGrantsEnabled,
-         .attributes["pkce.code.challenge.method"]]],
-    admin_cli: [.clients[] | select(.clientId == "admin-cli")
-      | .directAccessGrantsEnabled],
-    cli_account_admin: [.clients[] | select(.clientId == "cli-account-admin")
-      | [.enabled, .directAccessGrantsEnabled]],
-    smart_link: [.authenticationFlows[] | select((.alias | startswith("smart-link"))
-      or any(.authenticationExecutions[]; .authenticator == "smart-link")) | .alias],
-    admin_events: [.adminEventsEnabled, .adminEventsDetailsEnabled]}' realm-$d.new.json
-done
-jq -c '.defaultRole.name as $dr
-  | {messaging: (.attributes["sequent.messaging"] // "absent"),
-  code_step: [.authenticationFlows[].authenticationExecutions[]
-    | select(.flowAlias == "message channel OTP") | .requirement],
-  offline: [.defaultOptionalClientScopes[], .clients[].optionalClientScopes[]?,
-    (.roles.realm[] | select(.name == $dr) | .composites.realm[]?)]
-    | index("offline_access")}' realm-event-template.new.json
-```
+<!-- deployment-step: 07-019 -->
+
+**Session: c1.** Run `step 07-019`. Review its implementation with `show 07-019`.
 
 For each document, `listener` must be `true`, `results` (no group or account
 with "Edit Results Publication", "Datafix account" or "Manually Verify
@@ -727,16 +368,9 @@ which disables it afterwards. It gets the group and roles of the seeded
 administrator account, no password, and the user name and e-mail address that
 the external authentication server holds for the operator:
 
-```bash
-cd /root/deploy
-jq --arg u '<operator-user-name-at-the-authentication-server>' --arg m '<e-mail-address>' \
-  '.users += [.users[] | select(.username == "admin")
-    | {username: $u, email: $m, emailVerified, enabled: true, realmRoles, groups,
-       attributes: {"tenant-id": .attributes["tenant-id"]}}]' \
-  realm-tenant.new.json > realm-tenant.tmp && mv realm-tenant.tmp realm-tenant.new.json
-jq -c '.users[] | select(.groups == ["/admin"]) | [.username, (.credentials != null)]' \
-  realm-tenant.new.json
-```
+<!-- deployment-step: 07-020 -->
+
+**Session: c1.** Run `step 07-020`. Review its implementation with `show 07-020`.
 
 The last command must list `admin`, `api-user` and the new user name, each
 with `false`.
@@ -752,27 +386,9 @@ Secrets, which the cluster stores encrypted, never as ConfigMaps.
 Write the documents back into the manifests as Secrets, and let the setup job
 of the object storage read the templates from them:
 
-```bash
-cd /root/deploy
-jq --arg k "$T" --rawfile r realm-tenant.new.json \
-  '.kind = "Secret" | .type = "Opaque" | del(.data) | .stringData = {($k): $r}' \
-  realm.cm.json > kubernetes/keycloak/realm.json
-jq --arg t "$T" --arg e "$E" --rawfile tt realm-tenant-template.new.json \
-  --rawfile et realm-event-template.new.json \
-  '.items |= map(.kind = "Secret" | .type = "Opaque" | del(.data)
-    | .stringData = if .metadata.name == "keycloak-tenant-realm-template"
-        then {($t): $tt} else {($e): $et} end)' \
-  templates.cm.json > kubernetes/keycloak/realm-templates.json
-sed -i 's/^              - configMap:$/              - secret:/' \
-  kubernetes/rustfs/buckets.yaml
-rm kubernetes/keycloak/realm.yaml kubernetes/keycloak/realm-templates.yaml
-chmod -R go-rwx /root/deploy
-ls kubernetes/keycloak
-jq -r '.kind' kubernetes/keycloak/realm.json
-jq -r '.items[] | "\(.kind) \(.metadata.name)"' kubernetes/keycloak/realm-templates.json
-grep -A1 -e '- secret:' -e '- configMap:' kubernetes/rustfs/buckets.yaml
-grep -rl 'kind: ConfigMap' kubernetes | xargs grep -il -e secret -e password
-```
+<!-- deployment-step: 07-021 -->
+
+**Session: c1.** Run `step 07-021`. Review its implementation with `show 07-021`.
 
 The `ls` command must list `deployment.json`, `ingress.yaml`,
 `master-blocked.yaml`, `realm-templates.json`, `realm.json` and

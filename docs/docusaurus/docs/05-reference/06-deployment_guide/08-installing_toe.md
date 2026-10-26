@@ -26,34 +26,17 @@ On the administration workstation, mount the delivery medium read-only with
 the commands of step 3 of [Verifying the Delivery](../08-delivery_verification.md),
 then copy the six images that run on the servers to C1 and C2:
 
-```bash
-. /root/deploy/hosts.env
-M=/mnt/temenos-delivery
-for n in "$C1" "$C2"; do
-  ssh root@$n 'install -d -m 700 /root/toe-images'
-  scp "$M/image-digests.txt" root@$n:/root/toe-images/
-  for p in b4 ballot-verifier braid harvest keycloak windmill; do
-    tar -C "$M/images/$p" -cf - . | ssh root@$n "cat > /root/toe-images/$p.tar"
-  done
-done
-umount "$M" && cryptsetup close temenos-delivery
-```
+<!-- deployment-step: 08-001 -->
+
+**Session: admin.** Run `step 08-001`. Review its implementation with `show 08-001`.
 
 On C1, and then on C2, import them and check that each one is present under
 its delivered digest. Use `--local` so the digest-qualified names identify the
 delivered image manifests:
 
-```bash
-cd /root/toe-images
-for p in b4 ballot-verifier braid harvest keycloak windmill; do
-  k3s ctr -n k8s.io images import --local --base-name sequentech.local/$p --digests $p.tar
-done
-grep -E '^(b4|ballot-verifier|braid|harvest|keycloak|windmill) sha256:' \
-  image-digests.txt | while read -r p d; do
-  k3s ctr -n k8s.io images ls -q | grep -qx "sequentech.local/$p@$d" \
-    && echo "$p loaded" || echo "$p MISSING"
-done
-```
+<!-- deployment-step: 08-002 -->
+
+**Session: c1/c2.** Run `step 08-002`. Review its implementation with `show 08-002`.
 
 The last command must print `loaded` for all six images on both servers. If
 one is `MISSING`, do not continue.
@@ -68,22 +51,9 @@ name.
 
 On C1:
 
-```bash
-cd /root/deploy/kubernetes
-cp /root/toe-images/image-digests.txt /root/deploy/
-d() { sed -n "s/^$1 \(sha256:[0-9a-f]*\)\$/\1/p" /root/deploy/image-digests.txt; }
-for p in harvest windmill ballot-verifier; do
-  grep -rl --include=*.yaml "sequentech.local/$p:latest" . | xargs sed -i \
-    "s|sequentech.local/$p:latest|sequentech.local/$p@$(d $p)|"
-done
-sed -i "s|sequentech.local/b4v6:latest|sequentech.local/b4@$(d b4)|" b4/deployment.yaml
-sed -i "s|sequentech.local/trustee:latest|sequentech.local/braid@$(d braid)|" \
-  trustees/deployment.yaml
-sed -i "s|\"sequentech.local/keycloak\"|\"sequentech.local/keycloak@$(d keycloak)\"|" \
-  keycloak/deployment.json
-grep -rhoE 'sequentech\.local/(b4|ballot|braid|harvest|keycloak|trustee|windmill)[^" ]*' \
-  . | sed 's/@sha256:.*/@sha256:.../' | sort | uniq -c
-```
+<!-- deployment-step: 08-003 -->
+
+**Session: c1.** Run `step 08-003`. Review its implementation with `show 08-003`.
 
 The output must be exactly:
 
@@ -110,12 +80,9 @@ without it sets demonstration passwords on the databases and services.
 
 On C1:
 
-```bash
-. /root/deploy/hosts.env && . /root/deploy/secrets.env
-[ -n "$POSTGRES_PASSWORD" ] && sequent deploy --manifests /root/deploy/kubernetes
-k3s kubectl -n step-infra rollout status deployment/keycloak --timeout=15m
-k3s kubectl get pods -A
-```
+<!-- deployment-step: 08-005 -->
+
+**Session: c1.** Run `step 08-005`. Review its implementation with `show 08-005`.
 
 The deployment must print `step-tls-cert already exists; keeping it.` and end
 without an error. After a few minutes every pod must be `Running` or
@@ -133,27 +100,9 @@ passwords, and must no longer.
 
 On C1:
 
-```bash
-. /root/deploy/hosts.env && cd /root/deploy
-T=$R.json
-curl -s -o /dev/null -w '%{http_code}\n' "https://$PORTAL_HOST/realms/$R"    # 200
-jq '(.clients[] | select(.clientId == "service-account") | .secret)
-    = "CHANGE_ME_SERVICE_ACCOUNT_SECRET"
-  | (.clients[] | select(.clientId == "api-key-client") | .secret)
-    = "CHANGE_ME_API_KEY_CLIENT_SECRET"
-  | .users |= map(del(.credentials))
-  | .identityProviders |= map(del(.config.clientSecret))' realm-tenant.new.json \
-  > realm-tenant.clean.json
-jq --arg k "$T" --rawfile r realm-tenant.clean.json '.stringData[$k] = $r' \
-  kubernetes/keycloak/realm.json > realm.tmp && mv realm.tmp kubernetes/keycloak/realm.json
-k3s kubectl apply -f kubernetes/keycloak/realm.json
-shred -u realm-tenant.new.json
-jq -r --arg k "$T" '.stringData[$k]' kubernetes/keycloak/realm.json | jq -c '{
-  credentials: [.users[] | select(.credentials)] | length,
-  idp_secret: [.identityProviders[].config.clientSecret // empty] | length,
-  secrets: [.clients[] | select(.clientId == "service-account"
-    or .clientId == "api-key-client") | .secret]}'
-```
+<!-- deployment-step: 08-006 -->
+
+**Session: c1.** Run `step 08-006`. Review its implementation with `show 08-006`.
 
 The last command must print
 `{"credentials":0,"idp_secret":0,"secrets":["CHANGE_ME_API_KEY_CLIENT_SECRET","CHANGE_ME_SERVICE_ACCOUNT_SECRET"]}`.
@@ -182,12 +131,9 @@ before the trustee keys are installed:
    password.
 3. On C1, list the tenants and record the realm name of the customer's tenant:
 
-   ```bash
-   . /root/deploy/hosts.env && cd /root/deploy
-   k3s kubectl -n step-infra exec deploy/postgres -- psql -U postgres -tA \
-     -d hasura -c "select id, slug from sequent_backend.tenant order by slug"
-   echo 'export CR=tenant-<id-of-the-customer-tenant>' >> /root/deploy/hosts.env
-   ```
+   <!-- deployment-step: 08-007 -->
+
+   **Session: c1.** Run `step 08-007`. Review its implementation with `show 08-007`.
 
    The first command must list two tenants: `90505c8a-23a9-4cdf-a26b-4e19f6a097d5`
    (the super-admin tenant) and the customer's tenant with the short name you
@@ -205,38 +151,9 @@ before the trustee keys are installed:
    that the external authentication server holds for the customer's first
    administrator:
 
-   ```bash
-   . /root/deploy/hosts.env && . /root/deploy/secrets.env
-   kc() { k3s kubectl -n step-infra exec -i deploy/keycloak -- \
-     /opt/keycloak/bin/kcadm.sh "$@" --config /tmp/kcadm.config; }
-   kc config credentials --server http://localhost:8090 --realm master \
-     --user "$KC_ADMIN_USER" --password "$KC_ADMIN_PASSWORD"
-   U='<user-name-at-the-authentication-server>'
-   jq -n --arg u "$U" --arg m '<e-mail-address>' --arg t "${CR#tenant-}" \
-     '{username: $u, email: $m, emailVerified: true, enabled: true,
-       groups: ["/admin"], attributes: {"tenant-id": [$t]}}' \
-     | kc create users -r "$CR" -f -
-   kc add-roles -r "$CR" --uusername "$U" --rolename permission-label-write
-   for N in 1 2; do
-     jq -n --arg n trustee$N --arg v TRUSTEE${N}_PASSWORD --arg t "${CR#tenant-}" \
-       '{username: $n, enabled: true, groups: ["/trustee"],
-         attributes: {"tenant-id": [$t], trustee: [$n]},
-         credentials: [{type: "password", value: $ENV[$v], temporary: false}]}' \
-       | kc create users -r "$CR" -f -
-     kc add-roles -r "$CR" --uusername trustee$N \
-       --rolename trustee-read --rolename trustee-write
-   done
-   K=$(kc get clients -r "$CR" -q clientId=api-key-client --fields id \
-     --format csv --noquotes)
-   jq -n '{secret: $ENV.KC_API_KEY_CLIENT_SECRET}' \
-     | kc update clients/$K -r "$CR" --merge -f -
-   kc get users -r "$R" --fields id,username --format csv --noquotes \
-     | grep -v ',service-account-' | cut -d, -f1 | while read -r I; do
-       kc update users/$I -r "$R" -s enabled=false < /dev/null; done
-   kc get users -r "$CR" --fields username,enabled --format csv --noquotes
-   kc get users -r "$R" --fields username,enabled --format csv --noquotes
-   k3s kubectl -n step-infra exec deploy/keycloak -- rm /tmp/kcadm.config
-   ```
+   <!-- deployment-step: 08-008 -->
+
+   **Session: c1.** Run `step 08-008`. Review its implementation with `show 08-008`.
 
    For the realm CR the list must show `admin`, the first administrator's
    user name, `trustee1` and `trustee2`, each with `true`. For the realm R
@@ -272,51 +189,15 @@ in Settings > "TRUSTEES". Each machine account's `trustee` attribute must name
 exactly its registered trustee. The person's separate account uses "Act as
 Trustee" for the same registered name.
 
-On C1, run the following for `N=1`, replacing `T` with the registered name
-whose keys will be installed in `trustee1`. Repeat with `N=2` and the second
+On C1, answer the public prompts with native trustee number `1` and the registered
+name whose keys will be installed in `trustee1`. Repeat with number `2` and the second
 registered name. This changes only the native account's trustee binding; it
 preserves its login name, password, roles and all other attributes. Do not use
 the personal trustee account or add a password to it.
 
-```bash
-(
-set +x
-set -e
-umask 077
-. /root/deploy/hosts.env && . /root/deploy/secrets.env
-N=1
-T='<registered-trustee-name>'
-case "$N" in 1|2) ;; *) exit 1 ;; esac
-[ -n "$T" ] && [ "$T" != '<registered-trustee-name>' ]
-MATCHES=$(k3s kubectl -n step-infra exec -i deploy/postgres -- \
-  psql -U postgres -tA -d hasura -v ON_ERROR_STOP=1 \
-  -v tenant="${CR#tenant-}" -v trustee="$T" <<'SQL'
-SELECT count(*) FROM sequent_backend.trustee
-WHERE tenant_id = :'tenant' AND name = :'trustee';
-SQL
-)
-[ "$MATCHES" = 1 ]
-W=$(mktemp -d /root/deploy/.trustee-map.XXXXXXXX)
-trap 'rm -rf "$W"; k3s kubectl -n step-infra exec deploy/keycloak -- rm -f /tmp/kcadm-trustee-map.config >/dev/null 2>&1 || true' EXIT
-kc() { k3s kubectl -n step-infra exec -i deploy/keycloak -- \
-  /opt/keycloak/bin/kcadm.sh "$@" --config /tmp/kcadm-trustee-map.config; }
-kc config credentials --server http://localhost:8090 --realm master \
-  --user "$KC_ADMIN_USER" --password "$KC_ADMIN_PASSWORD" < /dev/null > "$W/auth.log" 2>&1
-kc get users -r "$CR" -q username="trustee$N" -q exact=true \
-  --fields id,username < /dev/null > "$W/users.json"
-I=$(jq -er --arg n "trustee$N" '[.[] | select(.username==$n)] |
-  if length==1 then .[0].id else error("Expected one native account") end' "$W/users.json")
-kc get "users/$I" -r "$CR" < /dev/null > "$W/before.json"
-jq --arg t "$T" '{attributes:(.attributes + {trustee:[$t]})}' \
-  "$W/before.json" > "$W/binding.json"
-kc update "users/$I" -r "$CR" -f - < "$W/binding.json" > "$W/update.log" 2>&1
-kc get "users/$I" -r "$CR" < /dev/null > "$W/after.json"
-jq -e --slurpfile before "$W/before.json" --slurpfile expected "$W/binding.json" \
-  '.attributes==$expected[0].attributes and
-   (del(.attributes)==($before[0]|del(.attributes)))' "$W/after.json" > /dev/null
-echo "Native trustee binding verified"
-)
-```
+<!-- deployment-step: 08-009 -->
+
+**Session: c1.** Run `step 08-009`. Review its implementation with `show 08-009`.
 
 Each run must print "Native trustee binding verified". Record the native
 account, registered trustee name and checked public-key pair in the protected
@@ -337,43 +218,29 @@ only in the cluster's encrypted Secret.
 On the administration workstation, with the trustee's medium mounted, set N
 to the trustee's instance number and the path to their keys file:
 
-```bash
-. /root/deploy/hosts.env
-N=1
-K=<path-to-the-keys-file>
-scp "$K" root@$C1:/root/deploy/trustee$N.toml
-ssh root@$C1 "k3s kubectl -n step-infra create secret generic trustee$N-keys \
-  --from-file=trustee.toml=/root/deploy/trustee$N.toml; \
-  shred -u /root/deploy/trustee$N.toml; ls /root/deploy/trustee$N.toml"
-```
+<!-- deployment-step: 08-010 -->
+
+**Session: admin.** Run `step 08-010`. Review its implementation with `show 08-010`.
 
 The last command must answer that the file does not exist. Unmount the
 trustee's medium and give it back. Then, on C1, give the instance its sign-in
 details and start it:
 
-```bash
-. /root/deploy/hosts.env && . /root/deploy/secrets.env
-N=1
-P=TRUSTEE${N}_PASSWORD
-k3s kubectl -n step-infra create secret generic trustee$N-auth \
-  --from-env-file=<(printf '%s\n' "TRUSTEE_PASSWORD=${!P}" \
-    "TRUSTEE_KEYCLOAK_REALM=$CR" TRUSTEE_KEYCLOAK_CLIENT_ID=api-key-client \
-    "TRUSTEE_KEYCLOAK_CLIENT_SECRET=$KC_API_KEY_CLIENT_SECRET")
-k3s kubectl -n step-infra rollout restart deployment/trustee$N
-k3s kubectl -n step-infra rollout status deployment/trustee$N --timeout=5m
-```
+<!-- deployment-step: 08-011 -->
+
+**Session: c1.** Run `step 08-011`. Review its implementation with `show 08-011`.
 
 The last command must report that the rollout finished. Repeat both transfer
-and start blocks with `N=2` for the second trustee, using its matching keys
+and start blocks, answering native trustee number `2` for the second trustee, using its matching keys
 and the native-account binding checked above.
 
 Before the key ceremony and before each tally ceremony, check on C1 that both
 instances are ready, and confirm it to the election board, which waits for
 this confirmation:
 
-```bash
-k3s kubectl -n step-infra get deployment trustee1 trustee2    # READY 1/1 for each
-```
+<!-- deployment-step: 08-012 -->
+
+**Session: c1.** Run `step 08-012`. Review its implementation with `show 08-012`.
 
 ## Back up the trustee state
 
@@ -389,17 +256,9 @@ Keep the backup and its passphrase in separate locked places.
 After the key ceremony, from the administration workstation, with a backup
 medium mounted at the path you give:
 
-```bash
-. /root/deploy/hosts.env
-B=<backup-medium>/trustee-state-$(date +%F).tar.gpg
-ssh root@$C1 'k3s kubectl -n step-infra scale --replicas=0 \
-  deployment/trustee1 deployment/trustee2'
-ssh root@$C1 'tar -C /var/lib/sequent-data -cf - trustee1 trustee2' \
-  | gpg --symmetric --cipher-algo AES256 -o "$B"
-ssh root@$C1 'k3s kubectl -n step-infra scale --replicas=1 \
-  deployment/trustee1 deployment/trustee2'
-gpg -d "$B" | tar -tf - | cut -d/ -f1 | sort -u    # trustee1 and trustee2
-```
+<!-- deployment-step: 08-013 -->
+
+**Session: admin.** Run `step 08-013`. Review its implementation with `show 08-013`.
 
 ## Remove the trustee keys at the end of the election
 
@@ -413,14 +272,9 @@ the instances can then no longer take part in decrypting the votes. Do it
 only at the end of the retention period, with the election board present.
 :::
 
-```bash
-k3s kubectl -n step-infra scale --replicas=0 deployment/trustee1 deployment/trustee2
-k3s kubectl -n step-infra delete secret trustee1-keys trustee2-keys \
-  trustee1-auth trustee2-auth
-find /var/lib/sequent-data/trustee1 /var/lib/sequent-data/trustee2 -mindepth 1 -delete
-k3s kubectl -n step-infra get secret trustee1-keys trustee2-keys 2>&1 | grep -c NotFound
-find /var/lib/sequent-data/trustee1 /var/lib/sequent-data/trustee2 -mindepth 1 | wc -l
-```
+<!-- deployment-step: 08-014 -->
+
+**Session: c1.** Run `step 08-014`. Review its implementation with `show 08-014`.
 
 The last two commands must print `2` and `0`. Then destroy every backup of
 the trustee state, and record the removal and the destruction in the election
@@ -441,17 +295,9 @@ The workstation needs podman and skopeo. Mount the delivery medium read-only
 with the commands of step 3 of
 [Verifying the Delivery](../08-delivery_verification.md), then:
 
-```bash
-M=/mnt/temenos-delivery
-D=$(sed -n 's/^braid \(sha256:[0-9a-f]*\)$/\1/p' "$M/image-digests.txt")
-[ "$(skopeo inspect --format '{{.Digest}}' "oci:$M/images/braid:v10.0.0")" = "$D" ] \
-  && echo "braid image verified"
-skopeo copy "oci:$M/images/braid:v10.0.0" containers-storage:localhost/braid:v10.0.0
-[ "$(podman image inspect --format '{{.Digest}}' localhost/braid:v10.0.0)" = "$D" ] \
-  && echo "braid image loaded"
-umount "$M" && cryptsetup close temenos-delivery
-echo "D=$D" > ~/braid-digest
-```
+<!-- deployment-step: 08-015 -->
+
+**Session: trustee.** Run `step 08-015`. Review its implementation with `show 08-015`.
 
 Both checks must print their line; if one does not, do not use the
 workstation.
@@ -466,12 +312,9 @@ keys file.
 
 Define the `trustee` command in each new shell:
 
-```bash
-. ~/braid-digest
-trustee() { podman run --rm --network none --entrypoint /usr/bin/trustee \
-  -v "$PWD":/work:Z -w /work "localhost/braid@$D" "$@"; }
-trustee --help
-```
+<!-- deployment-step: 08-016 -->
+
+**Session: trustee.** Run `step 08-016`. Review its implementation with `show 08-016`.
 
 `trustee --help` lists, among others, the subcommands `generate`,
 `public-keys`, `attest` and `verify`. The program sees only the current

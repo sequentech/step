@@ -20,6 +20,12 @@ SPDX-License-Identifier: AGPL-3.0-only
    "Ballot list" with the ballots you can vote on. If you have only one ballot,
    the voting portal may open it directly.
 
+![Empty external authentication form with username and password fields](assets/external-login.png)
+
+*Illustration: the isolated rehearsal’s external authentication service, before
+any credentials are entered. Your authentication service may look different;
+use only the address and login method your election organizer specifies.*
+
 If your election has support materials that you must read first, the voting
 portal tells you so before you can vote. Open them, tick "I have read the
 Support Materials" and select "Continue".

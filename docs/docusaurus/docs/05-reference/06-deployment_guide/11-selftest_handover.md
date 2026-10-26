@@ -195,26 +195,16 @@ execution phase and after its post-processing phase, never during the
 execution phase. The TOE is not available while the backup runs. From the
 administration workstation, with a backup medium mounted at the path you give:
 
-```bash
-. /root/deploy/hosts.env
-B=<backup-medium>/sequent-$(date -u +%Y%m%dT%H%MZ).tar.gpg
-ssh root@$C1 'for ns in step-apps step-infra; do
-  k3s kubectl -n $ns scale deployment --all --replicas=0; done'
-ssh root@$C1 'k3s kubectl get pods -A --no-headers \
-  --field-selector=status.phase=Running | grep -c "^step-"'
-```
+<!-- deployment-step: 11-001 -->
+
+**Session: admin.** Run `step 11-001`. Review its implementation with `show 11-001`.
 
 Repeat the last command until it prints `0`. Then write the backup and start
 the TOE again:
 
-```bash
-ssh root@$C1 'tar -C / -cf - var/lib/sequent-data root/deploy' \
-  | gpg --symmetric --cipher-algo AES256 -o "$B"    # asks for a new passphrase twice
-ssh root@$C1 'for ns in step-apps step-infra; do
-  k3s kubectl -n $ns scale deployment --all --replicas=1; done'
-gpg -d "$B" | tar -tf - | grep -o -e '^root/deploy/' -e '^var/lib/sequent-data/' \
-  | sort | uniq -c                                   # asks for the passphrase
-```
+<!-- deployment-step: 11-002 -->
+
+**Session: admin.** Run `step 11-002`. Review its implementation with `show 11-002`.
 
 The last command must print two lines, one with `root/deploy/` and one with
 `var/lib/sequent-data/`, each after the number of entries it holds. Then make the checks of
@@ -232,12 +222,13 @@ checks the electoral log. To restore:
 3. Set B to the backup to restore (step 1 has set it to the new backup),
    empty the data directory and extract the backup on C1:
 
-   ```bash
-   . /root/deploy/hosts.env
-   B=<backup-medium>/<file-of-the-backup-to-restore>.tar.gpg
-   ssh root@$C1 'find /var/lib/sequent-data -mindepth 1 -delete'
-   gpg -d "$B" | ssh root@$C1 'tar -C / -xf -'      # asks for the passphrase
-   ```
+   <!-- deployment-step: 11-003 -->
+
+   **Session: admin.** Run `step 11-003`. Review its implementation with `show 11-003`.
+
+The step asks for explicit restore authorization, then validates decryption and
+the complete archive before deleting any current data. Plaintext is streamed,
+never written to an intermediate file. If this preflight fails, do not proceed.
 
 4. Deploy again with the commands of [Deploy](08-installing_toe.md#deploy) on
    C1, then make every check of [Verifying the Installation](10-verification.md).

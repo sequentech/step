@@ -66,8 +66,11 @@ keep it confidential.
 ## Counting the votes
 
 Counting the votes and determining the election result is a security-critical
-action. It needs the required authorisations of the election board and the
-authorisation of the trustees, given with their keys.
+action under the Security Target. The current results-tally path checks the
+required trustee custody and tally prerequisites, but has no separate
+board-signing gate for starting the count. This implementation limitation must
+be resolved before claiming the required board-quorum enforcement; later report
+signatures do not authorise the earlier count.
 
 Before you start, check that:
 
@@ -87,7 +90,10 @@ Steps:
 3. Select "Start Tally Ceremony" and confirm "Are you sure you want to start a
    ceremony?" ("This tally ceremony asks trustees to submit public custody
    proofs. Keep their runners active with their local protocol state.").
-4. The required board members authorise the counting.
+4. Record the board’s required decision under the electoral regulation. The
+   current UI does not request a separate board signature for starting this
+   results tally; this record does not remedy the implementation limitation
+   described above.
 5. Each trustee authorises the counting with their keys, as
    [Authorising the counting](09-trustee-procedures.md#authorising-the-counting)
    describes. The section "Trustees" ("Custody confirmation status") shows how
@@ -155,16 +161,24 @@ election execution data can be exported for the investigation.
 
 In the post-processing phase the election board can read the cast votes and the
 voters' register, for example to answer a challenge of the election. The
-board's read of the voters' register is a security-critical action: it runs
-only with the required authorisations. Read only what the electoral regulation
-allows, and record each read and its reason in the board's minutes.
+board's read of the voters' register is a security-critical action under the
+Security Target’s post-processing condition, but the current read path checks
+permission without a post-processing board-signature gate. This is an
+implementation limitation for that condition; it does not mean that every
+ordinary board read requires signatures (the Security Target also permits
+general board access to the register).
+Read only what the electoral regulation allows, and record each read and its
+reason; the minutes are not evidence of TOE-enforced quorum.
 
 ## Exporting the election execution data
 
 The export keeps the election execution data (the cast votes, the electoral
 log, the tally and results data and the voting records) for the time that the
-electoral regulation fixes. It is a security-critical action and possible only
-in the post-processing phase.
+electoral regulation fixes. Perform it only in the post-processing phase.
+The current full-event export path has no corresponding phase or board-signing
+gate; its general election-event read permission must not be interpreted as
+proof of the required board authorisations. This is an implementation limitation,
+not permission to export outside the prescribed procedure.
 
 1. On the election event's Data tab, select "Export". The drawer "Export
    Election Event" opens.
@@ -177,7 +191,9 @@ in the post-processing phase.
    in decrypted form: the secret fields of the voters' register with "Include
    Voters", and the voters' secret documents among the stored files with "S3
    Files".
-4. Select "Export". The required board members authorise the export.
+4. Obtain the board’s decision under the electoral regulation before selecting
+   "Export". The current export does not request a board-signing quorum; do not
+   record it as a TOE-enforced protected action.
 5. The TOE generates the password of the file; nobody chooses it. The admin
    portal shows it once, under "Password to decrypt the file:". Write the
    password into the board's protected record at once. Never store it with
@@ -243,10 +259,12 @@ the election event is locked down.
 1. Check that the data has been exported and that the copies are readable.
 2. In the election event's menu, select "Remove this Election Event" and
    confirm "Are you sure to delete this item?".
-3. The required board members authorise the deletion.
-4. The TOE deletes the election event only if its election execution data has
-   been exported and the required authorisations are reached; otherwise it
-   refuses. Sealed ballot boxes do not prevent the deletion after the export.
+3. Record the required board decision. The current deletion path does not
+   request board signatures or verify that an export was completed; these
+   missing prerequisites are implementation limitations.
+4. The current implementation refuses deletion of an event with sealed ballot
+   boxes, including after export. Do not bypass that refusal or remove seals
+   to complete retention work. Report the blocked deletion to the operators.
 5. Check that the election event no longer appears in the list of election
    events, and record the deletion in the board's minutes.
 

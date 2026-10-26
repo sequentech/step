@@ -24,6 +24,11 @@ configuration of the TOE only: one configuration, set up as the Deployment
 Guide describes and configured as the Handbook for Election Administrators
 describes. Do not run an election with any other configuration.
 
+The admin portal is a supporting component outside the TOE. Its screens guide
+the workflow; displaying or hiding a control is not a security boundary or
+evidence of a server-side refusal. Follow the operation-specific checks and
+completion evidence in this handbook, including required authorisations.
+
 ## Who this handbook is for
 
 | Reader | What they do with the TOE | Pages |
@@ -74,6 +79,11 @@ The TOE knows three roles: **administrator**, **election board** and
 administrators and the election board it appoints. Trustees are members of the election board.
 
 ## Conventions
+
+Screenshots illustrate real interfaces from a synthetic rehearsal. Sample
+accounts, election names, identifiers, hashes and dates are not values to copy
+into an election. Follow the steps and required values in the text; a pictured
+screen is not evidence that your own operation completed.
 
 - Names in quotation marks, such as "Stop Voting", are the exact texts of the
   admin portal in English: tabs, buttons, fields, dialogs and messages.

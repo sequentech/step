@@ -74,6 +74,12 @@ the steps below:".
 
 ## Step 4: Check your ballot in the ballot verifier
 
+![Ballot verifier import screen with Browse, an empty Ballot ID field and disabled Next](assets/ballot-verifier-current.png)
+
+*Illustration: the v10.0.0 verifier before a file is loaded. Use your own audit
+file and Ballot ID, not “Use a sample ballot”. This empty screen does not show
+a successful verification.*
+
 1. Under "Step 1: Import your ballot", drag the file you downloaded onto the area
    that says "Drag & drop files or", or select "Browse" and choose the file. The
    supported format is txt. If the ballot verifier shows "Could not import this

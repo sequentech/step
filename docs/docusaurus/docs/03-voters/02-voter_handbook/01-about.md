@@ -51,6 +51,11 @@ uniWAHL Version, v10.0.0. You use it through these parts:
   log in there. It is not part of the voting system. The voting system does not
   hold your password.
 
+The voting portal guides you through the workflow; a visible button alone does
+not authorise a vote. The voting system checks the submitted operation. The
+ballot verifier and election verifier provide the separate checks described in
+this handbook; the portal’s appearance is not a substitute for those checks.
+
 ## Who does what
 
 - **The election organizer** runs your election. It gives you your login
@@ -78,6 +83,11 @@ are for the people who run the election:
 - the Deployment Guide (AGD-04): how the voting system is installed.
 
 ## Conventions
+
+Screenshots illustrate real interfaces from a synthetic rehearsal. Sample
+accounts, election names, identifiers, hashes and dates are not values to copy
+into an election. Follow the steps and required values in the text; a pictured
+screen is not evidence that your own operation completed.
 
 - Text in double quotes, such as "Cast ballot", is exactly what the screen shows
   in English. If you use the voting portal in another language, the same items

@@ -30,9 +30,9 @@ operating system of the servers and the join token of the cluster.
 On the administration workstation, in the kit's top directory, run the kit's
 own check with the fingerprint you received separately:
 
-```bash
-./sequent verify --fingerprint <signing-key-fingerprint>
-```
+<!-- deployment-step: 03-001 -->
+
+**Session: admin.** Run `step 03-001`. Review its implementation with `show 03-001`.
 
 It must print, in this order, the lines `Signing key fingerprint: ...` (the
 fingerprint you received), `Fingerprint matches the expected value.`,
@@ -42,14 +42,9 @@ fingerprint you received), `Fingerprint matches the expected value.`,
 Then check the kit a second time with the standard tools, so that the result
 does not depend only on a program from the kit:
 
-```bash
-ssh-keygen -lf release/signing-key.pub    # the fingerprint received separately
-printf 'sequent-release %s\n' "$(cut -d' ' -f1,2 release/signing-key.pub)" \
-  > /tmp/allowed_signers
-ssh-keygen -Y verify -f /tmp/allowed_signers -I sequent-release \
-  -n sequent-release -s checksums.txt.sig < checksums.txt
-sha256sum --check --strict --quiet checksums.txt && echo "all kit files verified"
-```
+<!-- deployment-step: 03-002 -->
+
+**Session: admin.** Run `step 03-002`. Review its implementation with `show 03-002`.
 
 `ssh-keygen -Y verify` must report a good signature for `sequent-release`, and
 the last command must print `all kit files verified`.
@@ -59,10 +54,9 @@ the last command must print `all kit files verified`.
 The kit's `nixos/site.json` is the site file built into the installer. It
 must describe your site exactly:
 
-```bash
-jq . nixos/site.json
-./sequent site check --site nixos/site.json --role server && echo "site file valid"
-```
+<!-- deployment-step: 03-003 -->
+
+**Session: admin.** Run `step 03-003`. Review its implementation with `show 03-003`.
 
 Compare each value with your network plan: `site.domain`; under `network` the
 interface, prefix length, gateway, `dns` and `ntp` (IP addresses of your DNS
@@ -100,31 +94,19 @@ Alt+F2 opens a console with the log at `/run/sequent-install.log`.
 
 Check from the administration workstation that both nodes are in the cluster:
 
-```bash
-ssh root@<address-of-c1> k3s kubectl get nodes    # c1 and c2, both Ready
-```
+<!-- deployment-step: 03-004 -->
+
+**Session: admin.** Run `step 03-004`. Review its implementation with `show 03-004`.
 
 ## Prepare the deployment directory
 
 All later configuration is made in `/root/deploy` on C1, a directory that only
-root can read. Log in to C1 and create it with the file of shell variables
-that the commands use:
+root can read. Start the configured C1 session and check the public file of
+shell variables created by `./deploy configure c1`:
 
-```bash
-install -d -m 700 /root/deploy
-cat > /root/deploy/hosts.env <<'EOF'
-PORTAL_HOST=<voting-portal-host>
-ADMIN_HOST=<administration-portal-host>
-VERIFIER_HOST=<ballot-verifier-host>
-AUTH_HOST=<authentication-server-host>
-IDP_ALIAS=<alias-of-the-authentication-server>
-C1=<address-of-c1>
-C2=<address-of-c2>
-R=tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5
-export PORTAL_HOST ADMIN_HOST VERIFIER_HOST AUTH_HOST IDP_ALIAS C1 C2 R
-EOF
-chmod 600 /root/deploy/hosts.env
-```
+<!-- deployment-step: 03-005 -->
+
+**Session: c1.** Run `step 03-005`. Review its implementation with `show 03-005`.
 
 - PORTAL_HOST, ADMIN_HOST and VERIFIER_HOST are the full host names of the
   voting portal, the administration portal and the ballot verifier.
@@ -136,18 +118,13 @@ chmod 600 /root/deploy/hosts.env
   [Create the customer's tenant](08-installing_toe.md#create-the-customers-tenant)
   later adds CR, the name of the customer's realm.
 
-Copy the file to the same path on the administration workstation, and load
-it in every shell, on C1 and on the workstation, with
-`. /root/deploy/hosts.env`.
+Configure each other machine with the same public site values. Its session
+loads its own `hosts.env` automatically. The directory must be mode 700 and the
+file mode 600, both owned by root. Keep any later CR addition when reopening a session.
 
 Then make a working copy of the cluster manifests that the `sequent` command
 carries. All later changes are made to this copy:
 
-```bash
-. /root/deploy/hosts.env
-MANIFESTS=$(sed -n 's/^export SEQUENT_MANIFESTS=//p' \
-  "$(readlink -f "$(command -v sequent)")")
-cp -r "$MANIFESTS" /root/deploy/kubernetes
-chmod -R u+w /root/deploy/kubernetes
-ls /root/deploy/kubernetes    # namespaces.yaml and one directory per service
-```
+<!-- deployment-step: 03-006 -->
+
+**Session: c1.** Run `step 03-006`. Review its implementation with `show 03-006`.

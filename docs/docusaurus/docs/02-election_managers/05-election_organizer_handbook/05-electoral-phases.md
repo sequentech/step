@@ -65,14 +65,19 @@ cause has been removed, the election board starts the election execution with
 | Read the voters' register as election board | Yes | Yes | Yes | Yes, with the required authorisations |
 | Delete election execution data | No | No | No | Yes, after the export, with the required authorisations |
 
+The table gives the required operating procedure. The current implementation
+does not enforce every phase or board-quorum prerequisite in it; see the
+limitations under "Security-critical actions" below.
+
 The initialization report is the one count that the TOE allows before the
 execution phase: it counts the empty ballot box to show that it holds no
 votes.
 
 ## Security-critical actions
 
-A security-critical action runs only after the required number of election
-board members has authorised it (see
+The Security Target requires the prescribed number of election board members
+to authorise security-critical actions. The implementation limitations below
+must be resolved before that can be claimed for every such action (see
 [Authorising a security-critical action](04-secure-use.md#authorising-a-security-critical-action)).
 The election event does not exist before its import, so the imports of
 election data are authorised by approvals inside the configuration package:
@@ -82,8 +87,9 @@ The TOE lists the other protected actions on the election event's Signatures
 tab under "Protected actions", with the number of authorisations each needs in
 "Signatures needed".
 
-The following actions are always protected. The TOE refuses to switch them
-off.
+The following table states the required authorisations and intended phases.
+It does not establish that each action has a corresponding implemented signing
+gate.
 
 | Security-critical action | How it is started | Phase |
 |---|---|---|
@@ -98,11 +104,21 @@ off.
 | Read of the voters' register by the election board | Voters tab of the election event | Post-processing |
 | Deletion of election execution data | "Remove this Election Event" in the election event's menu | Post-processing |
 
-No election event is deleted in the preparation phase. Only the election
-board holds "Delete Election Event", and the TOE refuses every deletion
-unless the election execution data has been exported and the required
-authorisations are reached. An election event imported with wrong data is
-archived instead and replaced by a corrected import (see
+:::warning
+The current signing catalogue has no board-signing gate for starting a results
+tally, exporting or deleting execution data, or reading the voters’ register
+in post-processing. These are implementation limitations, not optional
+requirements. Trustee custody or signatures on a later report do not approve
+those earlier operations. Do not infer enforcement from a hidden portal control
+or substitute a board minute for the missing TOE check.
+:::
+
+Do not delete an election event in the preparation phase. Only the election
+board is assigned "Delete Election Event". The current deletion path has
+permission, lockdown, lifecycle and sealed-box checks, but no export-completed
+or board-signature prerequisite. An event with sealed boxes is refused even
+after export. An election event imported with wrong data is archived instead
+and replaced by a corrected import (see
 [Importing the election data](06-preparation.md#importing-the-election-data)).
 
 The evaluated configuration also protects these actions, which the TOE
@@ -117,12 +133,13 @@ offers in its catalogue on the same tab:
 | "Confirm custody (key ceremony)" | Each trustee's confirmation of custody of their keys at the key ceremony |
 | "Authorize tally custody (tally)" | Each trustee's authorisation of the counting |
 
-Rules that apply to every security-critical action:
+Rules for the implemented signing requests and package approvals:
 
 - Except for the two trustee custody rows, the administrators set "Signatures
   needed" in the preparation phase, as the
-  electoral regulation fixes it. A protected action whose number has not been
-  set cannot be performed: the TOE refuses it. For the imports they set the
+  electoral regulation fixes it. An absent rule or a rule set to "Off" does
+  not require signatures; verify the actual rule instead of assuming refusal.
+  For the imports they set the
   tenant's number of package approvals before the first import, and never
   change it afterwards; while it is not set, the TOE refuses every import.
   For the two trustee custody rows, "Trustees sign this step" is on: each
@@ -139,8 +156,8 @@ Rules that apply to every security-critical action:
 
 :::warning
 Check on the Signatures tab before the preparation phase ends that every
-action in the two tables above, apart from the imports and the two trustee
-custody rows, has "Signatures needed" set to the number in the electoral regulation, and that the board has
+implemented non-trustee signing action has "Signatures needed" set to the
+number in the electoral regulation, and that the board has
 at least that many members who can sign. For the imports, have the
 administrators show the tenant's number of package approvals. For the trustee
 custody rows, check that "Trustees sign this step" is on. If a protected

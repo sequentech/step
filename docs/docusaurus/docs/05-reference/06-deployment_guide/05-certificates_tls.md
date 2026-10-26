@@ -30,15 +30,9 @@ directory.
 
 On C1:
 
-```bash
-. /root/deploy/hosts.env
-install -d -m 700 /root/deploy/tls && cd /root/deploy/tls
-openssl ecparam -name secp384r1 -genkey -noout -out tls.key
-chmod 600 tls.key
-openssl req -new -key tls.key -subj "/CN=$PORTAL_HOST" -out tls.csr \
-  -addext "subjectAltName=DNS:$PORTAL_HOST,DNS:$VERIFIER_HOST,DNS:$ADMIN_HOST"
-openssl req -in tls.csr -noout -text | grep -E 'NIST CURVE|DNS:'
-```
+<!-- deployment-step: 05-001 -->
+
+**Session: c1.** Run `step 05-001`. Review its implementation with `show 05-001`.
 
 The last command must show `NIST CURVE: P-384` and the three host names.
 
@@ -51,26 +45,17 @@ intermediate certificates of its chain, in PEM format as
 
 On C1:
 
-```bash
-cd /root/deploy/tls
-openssl x509 -in tls.crt -noout -subject -issuer -ext subjectAltName -enddate
-openssl x509 -in tls.crt -noout -text | grep 'NIST CURVE'    # NIST CURVE: P-384
-cmp <(openssl x509 -in tls.crt -noout -pubkey) <(openssl pkey -in tls.key -pubout) \
-  && echo "certificate matches the key"
-```
+<!-- deployment-step: 05-002 -->
+
+**Session: c1.** Run `step 05-002`. Review its implementation with `show 05-002`.
 
 Then check the chain on the administration workstation, against the trust
 store of a current browser installation (on Debian and Ubuntu,
 `/etc/ssl/certs/ca-certificates.crt`):
 
-```bash
-scp root@$C1:/root/deploy/tls/tls.crt .
-openssl x509 -in tls.crt -out leaf.pem
-awk '/BEGIN CERTIFICATE/{n++} n>1' tls.crt > chain.pem
-chain_args=()
-[ ! -s chain.pem ] || chain_args=(-untrusted chain.pem)
-openssl verify -CAfile /etc/ssl/certs/ca-certificates.crt "${chain_args[@]}" leaf.pem
-```
+<!-- deployment-step: 05-003 -->
+
+**Session: admin.** Run `step 05-003`. Review its implementation with `show 05-003`.
 
 The result must be `leaf.pem: OK`. A certificate that is self-signed, chains
 to a private CA, has an RSA key or a curve other than P-384 must not be used:
@@ -84,14 +69,9 @@ Create the Secret first, in both namespaces of the TOE.
 
 On C1:
 
-```bash
-k3s kubectl apply -f /root/deploy/kubernetes/namespaces.yaml
-for ns in step-apps step-infra; do
-  k3s kubectl -n $ns create secret tls step-tls-cert \
-    --cert=/root/deploy/tls/tls.crt --key=/root/deploy/tls/tls.key
-done
-k3s kubectl get secret -A --field-selector metadata.name=step-tls-cert
-```
+<!-- deployment-step: 05-004 -->
+
+**Session: c1.** Run `step 05-004`. Review its implementation with `show 05-004`.
 
 The last command must list `step-tls-cert` in `step-apps` and in
 `step-infra`.
@@ -115,14 +95,9 @@ from `/var/lib/sequent-site/tls/`.
 
 On C1, install the certificate and the key, and restart the TLS endpoint:
 
-```bash
-install -d -m 700 /var/lib/sequent-site/tls
-install -m 644 /root/deploy/tls/tls.crt /var/lib/sequent-site/tls/tls.crt
-install -m 600 /root/deploy/tls/tls.key /var/lib/sequent-site/tls/tls.key
-systemctl restart nginx
-systemctl is-active nginx
-ss -Hltnp 'sport = :443' | sed 's/.*users:(("\([^"]*\)".*/\1/' | sort -u
-```
+<!-- deployment-step: 05-005 -->
+
+**Session: c1.** Run `step 05-005`. Review its implementation with `show 05-005`.
 
 The last two commands must print `active` and `nginx` alone. Repeat this
 section each time the certificate is renewed, together with
@@ -136,29 +111,9 @@ Run these checks from the administration workstation once the TLS endpoint
 has its certificate, and again in
 [Verifying the Installation](10-verification.md):
 
-```bash
-. /root/deploy/hosts.env
-tls() { echo | openssl s_client -connect "$C1:443" -servername "$1" "${@:2}" 2>&1; }
-for h in $PORTAL_HOST $ADMIN_HOST $VERIFIER_HOST; do
-  echo "== $h"
-  tls $h -tls1_3 -ciphersuites TLS_AES_256_GCM_SHA384 -groups secp384r1 \
-    -verify_hostname $h -verify_return_error \
-    | grep -E '^New,|Temp Key|public key is|Verify return'
-  tls $h -tls1_2 >/dev/null && echo "TLS 1.2 ACCEPTED" || echo "TLS 1.2 refused"
-  tls $h -tls1_3 -ciphersuites TLS_AES_128_GCM_SHA256 >/dev/null \
-    && echo "AES-128 ACCEPTED" || echo "AES-128 refused"
-  tls $h -tls1_3 -ciphersuites TLS_CHACHA20_POLY1305_SHA256 >/dev/null \
-    && echo "ChaCha20 ACCEPTED" || echo "ChaCha20 refused"
-  tls $h -tls1_3 -groups X25519 >/dev/null && echo "X25519 ACCEPTED" \
-    || echo "X25519 refused"
-done
-tls other.invalid >/dev/null && echo "other name ACCEPTED" || echo "other name refused"
-echo | openssl s_client -connect "$C1:443" -noservername >/dev/null 2>&1 \
-  && echo "no-SNI ACCEPTED" || echo "no-SNI refused"
-port() { timeout 5 bash -c "</dev/tcp/$1/$2" 2>/dev/null && echo "$1:$2 open" \
-  || echo "$1:$2 closed"; }
-port "$C1" 80
-```
+<!-- deployment-step: 05-006 -->
+
+**Session: admin.** Run `step 05-006`. Review its implementation with `show 05-006`.
 
 For each host, the first command must print four lines:
 `Peer Temp Key: ECDH, secp384r1, 384 bits` (older OpenSSL versions say

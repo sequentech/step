@@ -53,25 +53,9 @@ root-only deployment directory.
 On C1, write the definition with your values. The command asks for the client
 secret without showing it:
 
-```bash
-. /root/deploy/hosts.env
-cd /root/deploy && umask 077
-read -r -s -p 'Client secret: ' IDP_SECRET && echo && export IDP_SECRET
-jq -n --arg alias "$IDP_ALIAS" --arg issuer '<issuer>' \
-  --arg auth '<authorization-endpoint>' --arg token '<token-endpoint>' \
-  --arg jwks '<jwks-url>' --arg logout '<end-session-endpoint>' \
-  --arg id '<client-id>' '{
-  alias: $alias, displayName: $alias, providerId: "oidc", enabled: true,
-  trustEmail: false, storeToken: false, linkOnly: false,
-  firstBrokerLoginFlowAlias: "certificate-first-login-flow",
-  config: {issuer: $issuer, authorizationUrl: $auth, tokenUrl: $token,
-    jwksUrl: $jwks, logoutUrl: $logout, clientId: $id,
-    clientSecret: $ENV.IDP_SECRET, clientAuthMethod: "client_secret_post",
-    validateSignature: "true", useJwksUrl: "true",
-    pkceEnabled: "true", pkceMethod: "S256"}}' > idp.json
-unset IDP_SECRET
-jq 'del(.config.clientSecret)' idp.json
-```
+<!-- deployment-step: 06-001 -->
+
+**Session: c1.** Run `step 06-001`. Review its implementation with `show 06-001`.
 
 Check the output against the values you received. `validateSignature` and
 `useJwksUrl` make the TOE accept only ID tokens signed with the server's
@@ -88,11 +72,9 @@ CA certificate. Check its fingerprint before installing it.
 
 Save the CA certificate as `/root/deploy/auth-server-ca.pem` on C1, then:
 
-```bash
-openssl x509 -in /root/deploy/auth-server-ca.pem -noout -subject -fingerprint -sha256
-k3s kubectl -n step-infra create configmap auth-server-ca \
-  --from-file=ca.pem=/root/deploy/auth-server-ca.pem
-```
+<!-- deployment-step: 06-002 -->
+
+**Session: c1.** Run `step 06-002`. Review its implementation with `show 06-002`.
 
 The fingerprint must be the one you received. [Configuring the
 Deployment](07-hardening.md) makes Keycloak use this certificate and limits
@@ -102,24 +84,15 @@ its connections to the TLS profile of [Certificates and TLS](05-certificates_tls
 
 On C1:
 
-```bash
-. /root/deploy/hosts.env
-ca=/root/deploy/auth-server-ca.pem
-tls() { echo | openssl s_client -connect "$AUTH_HOST:443" -servername "$AUTH_HOST" \
-  -CAfile "$ca" -verify_hostname "$AUTH_HOST" -verify_return_error "$@" 2>&1; }
-tls -tls1_3 -ciphersuites TLS_AES_256_GCM_SHA384 -groups secp384r1 \
-  | grep -E '^New,|Temp Key|public key is|Verify return'
-tls -tls1_2 >/dev/null && echo "TLS 1.2 ACCEPTED" || echo "TLS 1.2 refused"
-tls -tls1_3 -ciphersuites TLS_AES_128_GCM_SHA256 >/dev/null \
-  && echo "AES-128 ACCEPTED" || echo "AES-128 refused"
-tls -tls1_3 -groups X25519 >/dev/null && echo "X25519 ACCEPTED" || echo "X25519 refused"
-```
+<!-- deployment-step: 06-003 -->
+
+**Session: c1.** Run `step 06-003`. Review its implementation with `show 06-003`.
 
 The first command must show `New, TLSv1.3, Cipher is TLS_AES_256_GCM_SHA384`,
 a temporary key on `secp384r1`, `Server public key is 384 bit` and
 `Verify return code: 0 (ok)`; every other line must say `refused`. On C2,
 check that the server is reachable, since Keycloak can run on either node:
 
-```bash
-timeout 5 bash -c "</dev/tcp/<authentication-server-host>/443" && echo reachable
-```
+<!-- deployment-step: 06-004 -->
+
+**Session: c2.** Run `step 06-004`. Review its implementation with `show 06-004`.

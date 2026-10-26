@@ -47,10 +47,11 @@ Without "Signatures: edit protected actions", the rule shows "Read only.
 Changing signing rules needs the permission “Signatures: edit protected
 actions”."
 
-## Security-critical actions that are always protected
+## Security-critical authorisations required by the Security Target
 
-The TOE always requires the election board's authorisations for these actions;
-they cannot be switched off:
+The Security Target requires the election board’s authorisations for the
+following actions. This is a requirements list, not a list of implemented
+signing controls:
 
 | Security-critical action | Electoral phase |
 |---|---|
@@ -75,10 +76,21 @@ members inside the package, at least the number that the tenant's signed
 configuration packages require
 ([Tenant and Election Event Settings](05-tenant_and_event_settings.md#signed-configuration-packages)).
 
-For protected actions other than the two trustee custody rows, an unset
-"Signatures needed" prevents the action: the TOE refuses it. Set it before
-the election board starts the action. The trustee rows require each trustee
-to sign their own step and have no configurable signature count.
+:::warning
+The current signing catalogue has no board-signing gate for starting a results
+tally, exporting or deleting election execution data, or reading the voters’
+register in post-processing. Trustee custody and later report signatures do
+not supply those missing authorisations. These are implementation limitations
+against the requirements above; a board procedure is not equivalent TOE
+enforcement. Do not treat the evaluated configuration as satisfying those
+requirements until the limitations are resolved.
+
+A catalogue rule that is absent or set to "Off" does not require signatures.
+Set and verify the required rule before starting its action; do not rely on an
+unset "Signatures needed" value to refuse it. For the two trustee custody rows,
+switch on "Trustees sign this step": each trustee signs their own step, with no
+configurable signature count.
+:::
 
 ## Protected actions to switch on
 
@@ -107,6 +119,13 @@ results" and "Approve a voter manually", are not used in the evaluated
 configuration: voters do not enrol, and results are not transmitted. Switch on
 "Generate election returns" if the election organizer wants signed election
 returns.
+
+![Protected actions table showing configured signature counts and a read-only lockdown notice](assets/protected-actions-current.png)
+
+*Illustration: the v10.0.0 Signatures tab after configuration and lockdown in a
+synthetic election. This view is read-only; set the required rules during
+preparation, then check their readback. The example is not a list of every
+authorisation requirement in the Security Target.*
 
 ## Setting a signing rule
 
@@ -172,6 +191,12 @@ What the TOE does with a rule:
 ## Trusted issuers and certificate checks
 
 Open the tab "Signatures", area "Certificates".
+
+![Certificates tab with Trusted issuers, abbreviated SHA-256 and certificate-check settings](assets/certificates-current.png)
+
+*Illustration: a synthetic v10.0.0 issuer and certificate policy. The displayed
+SHA-256 is abbreviated: compare the complete fingerprint independently as
+described below. Use your election’s actual issuers and revocation policy.*
 
 ### Trusted issuers
 
