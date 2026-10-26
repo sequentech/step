@@ -21,7 +21,7 @@ const IMPORT_LOCK_NAMESPACE: &str = "configuration-package-import";
 /// the ones every earlier import left.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn lock_imports(hasura_transaction: &Transaction<'_>, tenant_id: &str) -> Result<()> {
-    let lock_key = format!("{IMPORT_LOCK_NAMESPACE}:{}", parse_uuid_v4(tenant_id)?);
+    let lock_key = import_lock_key(tenant_id)?;
     hasura_transaction
         .query_one(
             "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
@@ -30,6 +30,38 @@ pub async fn lock_imports(hasura_transaction: &Transaction<'_>, tenant_id: &str)
         .await
         .context("could not lock the tenant's configuration package imports")?;
     Ok(())
+}
+
+pub(crate) fn import_lock_key(tenant_id: &str) -> Result<String> {
+    Ok(format!(
+        "{IMPORT_LOCK_NAMESPACE}:{}",
+        parse_uuid_v4(tenant_id)?
+    ))
+}
+
+/// The same lock as [`lock_imports`], held on a connection of its own until
+/// the value is dropped. The connection is taken out of the pool and closes
+/// with it, so the lock (its transaction's) never outlives the holder, not
+/// even on a panic, and never returns to the pool held.
+pub struct ImportsHeld(#[allow(dead_code)] deadpool_postgres::ClientWrapper);
+
+#[instrument(skip(pool), err)]
+pub async fn hold_imports(pool: &deadpool_postgres::Pool, tenant_id: &str) -> Result<ImportsHeld> {
+    let lock_key = import_lock_key(tenant_id)?;
+    let client = deadpool_postgres::Object::take(
+        pool.get()
+            .await
+            .context("could not get a connection to hold the tenant's package imports")?,
+    );
+    client.batch_execute("BEGIN").await?;
+    client
+        .query_one(
+            "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
+            &[&lock_key],
+        )
+        .await
+        .context("could not lock the tenant's configuration package imports")?;
+    Ok(ImportsHeld(client))
 }
 
 /// The newest package imported for a configuration.
@@ -148,4 +180,31 @@ pub async fn remember_revocation_lists(
             .await?;
     }
     Ok(())
+}
+
+/// The newest package imported for a configuration, with the event it was
+/// imported into.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn last_import_with_event(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    external_id: &str,
+) -> Result<Option<(LastImport, String)>> {
+    let row = hasura_transaction
+        .query_opt(
+            "SELECT revision, manifest_sha256, election_event_id FROM sequent_backend.configuration_package
+             WHERE tenant_id = $1 AND external_id = $2
+             ORDER BY revision DESC LIMIT 1",
+            &[&parse_uuid_v4(tenant_id)?, &external_id],
+        )
+        .await?;
+    Ok(row.map(|row| {
+        (
+            LastImport {
+                revision: row.get::<_, i64>(0) as u64,
+                manifest_sha256: row.get(1),
+            },
+            row.get::<_, uuid::Uuid>(2).to_string(),
+        )
+    }))
 }

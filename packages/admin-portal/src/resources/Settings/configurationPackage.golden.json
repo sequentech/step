@@ -1,0 +1,1715 @@
+{
+  "applied": {
+    "format": "sequent.package-application/1",
+    "tenantId": "t1",
+    "packageSha256": "aeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeae",
+    "mode": "apply",
+    "coverage": {
+      "members": [
+        {
+          "container": "admin_portal_settings.zip",
+          "path": "admin_users.csv",
+          "sha256": "8f36a56470bafdd79eeb9f0f90b4a793ae482ba5be92a3957cfcfe0bd3baa8f2",
+          "size": 29,
+          "disposition": {
+            "kind": "applied",
+            "section": "admin-accounts"
+          }
+        },
+        {
+          "container": "admin_portal_settings.zip",
+          "path": "export_permissions-t1.csv",
+          "sha256": "458a56aa61d9b55494bca3509d94de3fa4a9a926559ccf149c84794619817e83",
+          "size": 25,
+          "disposition": {
+            "kind": "applied",
+            "section": "role-permissions"
+          }
+        },
+        {
+          "container": "admin_portal_settings.zip",
+          "path": "export_templates-t1.csv",
+          "sha256": "99cfffbe3625b9caa64298d4f51c17869e92fea9c32dd4c4877b8e271c01d075",
+          "size": 6,
+          "disposition": {
+            "kind": "manual"
+          }
+        },
+        {
+          "container": "admin_portal_settings.zip",
+          "path": "keycloak_admin-t1.json",
+          "sha256": "960a211e18f11b1f1d1ee0a7f016c30e3a60aa60323ff250a745197b99372cff",
+          "size": 19,
+          "disposition": {
+            "kind": "applied",
+            "section": "tenant-settings"
+          }
+        },
+        {
+          "container": "admin_portal_settings.zip",
+          "path": "tenant_platform-t1.json",
+          "sha256": "fcec7e35b5328abdc8b379fe1e2b7412a6131b32b21ed04ab4c1888aaa465c69",
+          "size": 34,
+          "disposition": {
+            "kind": "applied",
+            "section": "tenant-configuration"
+          }
+        },
+        {
+          "container": "admin_portal_settings.zip",
+          "path": "trustees_public.json",
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "size": 2,
+          "disposition": {
+            "kind": "applied",
+            "section": "trustees"
+          }
+        },
+        {
+          "container": null,
+          "path": "blueprint.json",
+          "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "size": 2,
+          "disposition": {
+            "kind": "record-only"
+          }
+        },
+        {
+          "container": "official_election_setup.zip",
+          "path": "export_election_event-e1.json",
+          "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "size": 2,
+          "disposition": {
+            "kind": "applied",
+            "section": "election-event"
+          }
+        },
+        {
+          "container": "official_election_setup.zip",
+          "path": "export_voters-e1.csv",
+          "sha256": "e5c549b85c9674593aa768b465ab1976e3c633b9028b10a6a6a9eb3d4ca5fb91",
+          "size": 12,
+          "disposition": {
+            "kind": "applied",
+            "section": "election-event"
+          }
+        }
+      ],
+      "sections": {
+        "tenant-configuration": {
+          "state": "present",
+          "members": [
+            "tenant_platform-t1.json"
+          ]
+        },
+        "tenant-settings": {
+          "state": "present",
+          "members": [
+            "keycloak_admin-t1.json"
+          ]
+        },
+        "role-permissions": {
+          "state": "present",
+          "members": [
+            "export_permissions-t1.csv"
+          ]
+        },
+        "admin-accounts": {
+          "state": "present",
+          "members": [
+            "admin_users.csv"
+          ]
+        },
+        "trustees": {
+          "state": "present",
+          "members": [
+            "trustees_public.json"
+          ]
+        },
+        "election-event": {
+          "state": "present",
+          "members": [
+            "export_election_event-e1.json",
+            "export_voters-e1.csv"
+          ]
+        }
+      },
+      "census": {
+        "state": "present",
+        "members": [
+          "export_voters-e1.csv"
+        ]
+      }
+    },
+    "sections": [
+      {
+        "section": "tenant-configuration",
+        "members": [
+          "tenant_platform-t1.json"
+        ],
+        "status": {
+          "state": "applied",
+          "submission": {
+            "taskId": "task-TenantConfiguration",
+            "detail": {}
+          },
+          "reconciled": false
+        },
+        "history": {
+          "submissions": [
+            {
+              "taskId": "task-TenantConfiguration",
+              "detail": {}
+            }
+          ],
+          "inFlight": null,
+          "applied": true
+        }
+      },
+      {
+        "section": "tenant-settings",
+        "members": [
+          "keycloak_admin-t1.json"
+        ],
+        "status": {
+          "state": "applied",
+          "submission": {
+            "taskId": "task-TenantSettings",
+            "detail": {}
+          },
+          "reconciled": false
+        },
+        "history": {
+          "submissions": [
+            {
+              "taskId": "task-TenantSettings",
+              "detail": {}
+            }
+          ],
+          "inFlight": null,
+          "applied": true
+        }
+      },
+      {
+        "section": "role-permissions",
+        "members": [
+          "export_permissions-t1.csv"
+        ],
+        "status": {
+          "state": "applied",
+          "submission": {
+            "taskId": "task-RolePermissions",
+            "detail": {}
+          },
+          "reconciled": false
+        },
+        "history": {
+          "submissions": [
+            {
+              "taskId": "task-RolePermissions",
+              "detail": {}
+            }
+          ],
+          "inFlight": null,
+          "applied": true
+        }
+      },
+      {
+        "section": "admin-accounts",
+        "members": [
+          "admin_users.csv"
+        ],
+        "status": {
+          "state": "applied",
+          "submission": {
+            "taskId": "task-AdminAccounts",
+            "detail": {}
+          },
+          "reconciled": false
+        },
+        "history": {
+          "submissions": [
+            {
+              "taskId": "task-AdminAccounts",
+              "detail": {}
+            }
+          ],
+          "inFlight": null,
+          "applied": true
+        }
+      },
+      {
+        "section": "trustees",
+        "members": [
+          "trustees_public.json"
+        ],
+        "status": {
+          "state": "applied",
+          "submission": {
+            "taskId": "task-Trustees",
+            "detail": {}
+          },
+          "reconciled": false
+        },
+        "history": {
+          "submissions": [
+            {
+              "taskId": "task-Trustees",
+              "detail": {}
+            }
+          ],
+          "inFlight": null,
+          "applied": true
+        }
+      },
+      {
+        "section": "election-event",
+        "members": [
+          "official_election_setup.zip"
+        ],
+        "status": {
+          "state": "applied",
+          "submission": {
+            "taskId": "task-ElectionEvent",
+            "detail": {}
+          },
+          "reconciled": false
+        },
+        "history": {
+          "submissions": [
+            {
+              "taskId": "task-ElectionEvent",
+              "detail": {}
+            }
+          ],
+          "inFlight": null,
+          "applied": true
+        }
+      }
+    ],
+    "outcome": "applied"
+  },
+  "previewed": {
+    "format": "sequent.package-application/1",
+    "tenantId": "t1",
+    "packageSha256": "aeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeae",
+    "mode": "preview",
+    "coverage": {
+      "members": [
+        {
+          "container": "admin_portal_settings.zip",
+          "path": "admin_users.csv",
+          "sha256": "8f36a56470bafdd79eeb9f0f90b4a793ae482ba5be92a3957cfcfe0bd3baa8f2",
+          "size": 29,
+          "disposition": {
+            "kind": "applied",
+            "section": "admin-accounts"
+          }
+        },
+        {
+          "container": "admin_portal_settings.zip",
+          "path": "export_permissions-t1.csv",
+          "sha256": "458a56aa61d9b55494bca3509d94de3fa4a9a926559ccf149c84794619817e83",
+          "size": 25,
+          "disposition": {
+            "kind": "applied",
+            "section": "role-permissions"
+          }
+        },
+        {
+          "container": "admin_portal_settings.zip",
+          "path": "export_templates-t1.csv",
+          "sha256": "99cfffbe3625b9caa64298d4f51c17869e92fea9c32dd4c4877b8e271c01d075",
+          "size": 6,
+          "disposition": {
+            "kind": "manual"
+          }
+        },
+        {
+          "container": "admin_portal_settings.zip",
+          "path": "keycloak_admin-t1.json",
+          "sha256": "960a211e18f11b1f1d1ee0a7f016c30e3a60aa60323ff250a745197b99372cff",
+          "size": 19,
+          "disposition": {
+            "kind": "applied",
+            "section": "tenant-settings"
+          }
+        },
+        {
+          "container": "admin_portal_settings.zip",
+          "path": "tenant_platform-t1.json",
+          "sha256": "fcec7e35b5328abdc8b379fe1e2b7412a6131b32b21ed04ab4c1888aaa465c69",
+          "size": 34,
+          "disposition": {
+            "kind": "applied",
+            "section": "tenant-configuration"
+          }
+        },
+        {
+          "container": "admin_portal_settings.zip",
+          "path": "trustees_public.json",
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "size": 2,
+          "disposition": {
+            "kind": "applied",
+            "section": "trustees"
+          }
+        },
+        {
+          "container": null,
+          "path": "blueprint.json",
+          "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "size": 2,
+          "disposition": {
+            "kind": "record-only"
+          }
+        },
+        {
+          "container": "official_election_setup.zip",
+          "path": "export_election_event-e1.json",
+          "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "size": 2,
+          "disposition": {
+            "kind": "applied",
+            "section": "election-event"
+          }
+        },
+        {
+          "container": "official_election_setup.zip",
+          "path": "export_voters-e1.csv",
+          "sha256": "e5c549b85c9674593aa768b465ab1976e3c633b9028b10a6a6a9eb3d4ca5fb91",
+          "size": 12,
+          "disposition": {
+            "kind": "applied",
+            "section": "election-event"
+          }
+        }
+      ],
+      "sections": {
+        "tenant-configuration": {
+          "state": "present",
+          "members": [
+            "tenant_platform-t1.json"
+          ]
+        },
+        "tenant-settings": {
+          "state": "present",
+          "members": [
+            "keycloak_admin-t1.json"
+          ]
+        },
+        "role-permissions": {
+          "state": "present",
+          "members": [
+            "export_permissions-t1.csv"
+          ]
+        },
+        "admin-accounts": {
+          "state": "present",
+          "members": [
+            "admin_users.csv"
+          ]
+        },
+        "trustees": {
+          "state": "present",
+          "members": [
+            "trustees_public.json"
+          ]
+        },
+        "election-event": {
+          "state": "present",
+          "members": [
+            "export_election_event-e1.json",
+            "export_voters-e1.csv"
+          ]
+        }
+      },
+      "census": {
+        "state": "present",
+        "members": [
+          "export_voters-e1.csv"
+        ]
+      }
+    },
+    "sections": [
+      {
+        "section": "tenant-configuration",
+        "members": [
+          "tenant_platform-t1.json"
+        ],
+        "status": {
+          "state": "previewed",
+          "preview": {
+            "needsApply": true,
+            "changes": {
+              "files": [
+                "tenant_platform-t1.json"
+              ]
+            },
+            "blockers": []
+          }
+        },
+        "history": {
+          "submissions": [],
+          "inFlight": null,
+          "applied": false
+        }
+      },
+      {
+        "section": "tenant-settings",
+        "members": [
+          "keycloak_admin-t1.json"
+        ],
+        "status": {
+          "state": "previewed",
+          "preview": {
+            "needsApply": true,
+            "changes": {
+              "files": [
+                "keycloak_admin-t1.json"
+              ]
+            },
+            "blockers": []
+          }
+        },
+        "history": {
+          "submissions": [],
+          "inFlight": null,
+          "applied": false
+        }
+      },
+      {
+        "section": "role-permissions",
+        "members": [
+          "export_permissions-t1.csv"
+        ],
+        "status": {
+          "state": "previewed",
+          "preview": {
+            "needsApply": true,
+            "changes": {
+              "files": [
+                "export_permissions-t1.csv"
+              ]
+            },
+            "blockers": []
+          }
+        },
+        "history": {
+          "submissions": [],
+          "inFlight": null,
+          "applied": false
+        }
+      },
+      {
+        "section": "admin-accounts",
+        "members": [
+          "admin_users.csv"
+        ],
+        "status": {
+          "state": "previewed",
+          "preview": {
+            "needsApply": true,
+            "changes": {
+              "files": [
+                "admin_users.csv"
+              ]
+            },
+            "blockers": []
+          }
+        },
+        "history": {
+          "submissions": [],
+          "inFlight": null,
+          "applied": false
+        }
+      },
+      {
+        "section": "trustees",
+        "members": [
+          "trustees_public.json"
+        ],
+        "status": {
+          "state": "previewed",
+          "preview": {
+            "needsApply": true,
+            "changes": {
+              "files": [
+                "trustees_public.json"
+              ]
+            },
+            "blockers": []
+          }
+        },
+        "history": {
+          "submissions": [],
+          "inFlight": null,
+          "applied": false
+        }
+      },
+      {
+        "section": "election-event",
+        "members": [
+          "official_election_setup.zip"
+        ],
+        "status": {
+          "state": "previewed",
+          "preview": {
+            "needsApply": true,
+            "changes": {
+              "files": [
+                "official_election_setup.zip"
+              ]
+            },
+            "blockers": []
+          }
+        },
+        "history": {
+          "submissions": [],
+          "inFlight": null,
+          "applied": false
+        }
+      }
+    ],
+    "outcome": "previewed"
+  },
+  "refused": {
+    "format": "sequent.package-application/1",
+    "tenantId": "t1",
+    "packageSha256": "aeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeae",
+    "mode": "apply",
+    "coverage": {
+      "members": [
+        {
+          "container": "admin_portal_settings.zip",
+          "path": "admin_users.csv",
+          "sha256": "8f36a56470bafdd79eeb9f0f90b4a793ae482ba5be92a3957cfcfe0bd3baa8f2",
+          "size": 29,
+          "disposition": {
+            "kind": "applied",
+            "section": "admin-accounts"
+          }
+        },
+        {
+          "container": "admin_portal_settings.zip",
+          "path": "export_permissions-t1.csv",
+          "sha256": "458a56aa61d9b55494bca3509d94de3fa4a9a926559ccf149c84794619817e83",
+          "size": 25,
+          "disposition": {
+            "kind": "applied",
+            "section": "role-permissions"
+          }
+        },
+        {
+          "container": "admin_portal_settings.zip",
+          "path": "export_templates-t1.csv",
+          "sha256": "99cfffbe3625b9caa64298d4f51c17869e92fea9c32dd4c4877b8e271c01d075",
+          "size": 6,
+          "disposition": {
+            "kind": "manual"
+          }
+        },
+        {
+          "container": "admin_portal_settings.zip",
+          "path": "keycloak_admin-t1.json",
+          "sha256": "960a211e18f11b1f1d1ee0a7f016c30e3a60aa60323ff250a745197b99372cff",
+          "size": 19,
+          "disposition": {
+            "kind": "applied",
+            "section": "tenant-settings"
+          }
+        },
+        {
+          "container": "admin_portal_settings.zip",
+          "path": "tenant_platform-t1.json",
+          "sha256": "fcec7e35b5328abdc8b379fe1e2b7412a6131b32b21ed04ab4c1888aaa465c69",
+          "size": 34,
+          "disposition": {
+            "kind": "applied",
+            "section": "tenant-configuration"
+          }
+        },
+        {
+          "container": "admin_portal_settings.zip",
+          "path": "trustees_public.json",
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "size": 2,
+          "disposition": {
+            "kind": "applied",
+            "section": "trustees"
+          }
+        },
+        {
+          "container": null,
+          "path": "blueprint.json",
+          "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "size": 2,
+          "disposition": {
+            "kind": "record-only"
+          }
+        },
+        {
+          "container": "official_election_setup.zip",
+          "path": "export_election_event-e1.json",
+          "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "size": 2,
+          "disposition": {
+            "kind": "applied",
+            "section": "election-event"
+          }
+        },
+        {
+          "container": "official_election_setup.zip",
+          "path": "export_voters-e1.csv",
+          "sha256": "e5c549b85c9674593aa768b465ab1976e3c633b9028b10a6a6a9eb3d4ca5fb91",
+          "size": 12,
+          "disposition": {
+            "kind": "applied",
+            "section": "election-event"
+          }
+        }
+      ],
+      "sections": {
+        "tenant-configuration": {
+          "state": "present",
+          "members": [
+            "tenant_platform-t1.json"
+          ]
+        },
+        "tenant-settings": {
+          "state": "present",
+          "members": [
+            "keycloak_admin-t1.json"
+          ]
+        },
+        "role-permissions": {
+          "state": "present",
+          "members": [
+            "export_permissions-t1.csv"
+          ]
+        },
+        "admin-accounts": {
+          "state": "present",
+          "members": [
+            "admin_users.csv"
+          ]
+        },
+        "trustees": {
+          "state": "present",
+          "members": [
+            "trustees_public.json"
+          ]
+        },
+        "election-event": {
+          "state": "present",
+          "members": [
+            "export_election_event-e1.json",
+            "export_voters-e1.csv"
+          ]
+        }
+      },
+      "census": {
+        "state": "present",
+        "members": [
+          "export_voters-e1.csv"
+        ]
+      }
+    },
+    "sections": [
+      {
+        "section": "tenant-configuration",
+        "members": [
+          "tenant_platform-t1.json"
+        ],
+        "status": {
+          "state": "previewed",
+          "preview": {
+            "needsApply": true,
+            "changes": {
+              "files": [
+                "tenant_platform-t1.json"
+              ]
+            },
+            "blockers": []
+          }
+        },
+        "history": {
+          "submissions": [],
+          "inFlight": null,
+          "applied": false
+        }
+      },
+      {
+        "section": "tenant-settings",
+        "members": [
+          "keycloak_admin-t1.json"
+        ],
+        "status": {
+          "state": "previewed",
+          "preview": {
+            "needsApply": true,
+            "changes": {
+              "files": [
+                "keycloak_admin-t1.json"
+              ]
+            },
+            "blockers": []
+          }
+        },
+        "history": {
+          "submissions": [],
+          "inFlight": null,
+          "applied": false
+        }
+      },
+      {
+        "section": "role-permissions",
+        "members": [
+          "export_permissions-t1.csv"
+        ],
+        "status": {
+          "state": "blocked",
+          "preview": {
+            "needsApply": true,
+            "changes": {
+              "files": [
+                "export_permissions-t1.csv"
+              ]
+            },
+            "blockers": [
+              "unknown role"
+            ]
+          }
+        },
+        "history": {
+          "submissions": [],
+          "inFlight": null,
+          "applied": false
+        }
+      },
+      {
+        "section": "admin-accounts",
+        "members": [
+          "admin_users.csv"
+        ],
+        "status": {
+          "state": "previewed",
+          "preview": {
+            "needsApply": true,
+            "changes": {
+              "files": [
+                "admin_users.csv"
+              ]
+            },
+            "blockers": []
+          }
+        },
+        "history": {
+          "submissions": [],
+          "inFlight": null,
+          "applied": false
+        }
+      },
+      {
+        "section": "trustees",
+        "members": [
+          "trustees_public.json"
+        ],
+        "status": {
+          "state": "previewed",
+          "preview": {
+            "needsApply": true,
+            "changes": {
+              "files": [
+                "trustees_public.json"
+              ]
+            },
+            "blockers": []
+          }
+        },
+        "history": {
+          "submissions": [],
+          "inFlight": null,
+          "applied": false
+        }
+      },
+      {
+        "section": "election-event",
+        "members": [
+          "official_election_setup.zip"
+        ],
+        "status": {
+          "state": "previewed",
+          "preview": {
+            "needsApply": true,
+            "changes": {
+              "files": [
+                "official_election_setup.zip"
+              ]
+            },
+            "blockers": []
+          }
+        },
+        "history": {
+          "submissions": [],
+          "inFlight": null,
+          "applied": false
+        }
+      }
+    ],
+    "outcome": "refused"
+  },
+  "failed": {
+    "format": "sequent.package-application/1",
+    "tenantId": "t1",
+    "packageSha256": "aeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeae",
+    "mode": "apply",
+    "coverage": {
+      "members": [
+        {
+          "container": "admin_portal_settings.zip",
+          "path": "admin_users.csv",
+          "sha256": "8f36a56470bafdd79eeb9f0f90b4a793ae482ba5be92a3957cfcfe0bd3baa8f2",
+          "size": 29,
+          "disposition": {
+            "kind": "applied",
+            "section": "admin-accounts"
+          }
+        },
+        {
+          "container": "admin_portal_settings.zip",
+          "path": "export_permissions-t1.csv",
+          "sha256": "458a56aa61d9b55494bca3509d94de3fa4a9a926559ccf149c84794619817e83",
+          "size": 25,
+          "disposition": {
+            "kind": "applied",
+            "section": "role-permissions"
+          }
+        },
+        {
+          "container": "admin_portal_settings.zip",
+          "path": "export_templates-t1.csv",
+          "sha256": "99cfffbe3625b9caa64298d4f51c17869e92fea9c32dd4c4877b8e271c01d075",
+          "size": 6,
+          "disposition": {
+            "kind": "manual"
+          }
+        },
+        {
+          "container": "admin_portal_settings.zip",
+          "path": "keycloak_admin-t1.json",
+          "sha256": "960a211e18f11b1f1d1ee0a7f016c30e3a60aa60323ff250a745197b99372cff",
+          "size": 19,
+          "disposition": {
+            "kind": "applied",
+            "section": "tenant-settings"
+          }
+        },
+        {
+          "container": "admin_portal_settings.zip",
+          "path": "tenant_platform-t1.json",
+          "sha256": "fcec7e35b5328abdc8b379fe1e2b7412a6131b32b21ed04ab4c1888aaa465c69",
+          "size": 34,
+          "disposition": {
+            "kind": "applied",
+            "section": "tenant-configuration"
+          }
+        },
+        {
+          "container": "admin_portal_settings.zip",
+          "path": "trustees_public.json",
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "size": 2,
+          "disposition": {
+            "kind": "applied",
+            "section": "trustees"
+          }
+        },
+        {
+          "container": null,
+          "path": "blueprint.json",
+          "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "size": 2,
+          "disposition": {
+            "kind": "record-only"
+          }
+        },
+        {
+          "container": "official_election_setup.zip",
+          "path": "export_election_event-e1.json",
+          "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "size": 2,
+          "disposition": {
+            "kind": "applied",
+            "section": "election-event"
+          }
+        },
+        {
+          "container": "official_election_setup.zip",
+          "path": "export_voters-e1.csv",
+          "sha256": "e5c549b85c9674593aa768b465ab1976e3c633b9028b10a6a6a9eb3d4ca5fb91",
+          "size": 12,
+          "disposition": {
+            "kind": "applied",
+            "section": "election-event"
+          }
+        }
+      ],
+      "sections": {
+        "tenant-configuration": {
+          "state": "present",
+          "members": [
+            "tenant_platform-t1.json"
+          ]
+        },
+        "tenant-settings": {
+          "state": "present",
+          "members": [
+            "keycloak_admin-t1.json"
+          ]
+        },
+        "role-permissions": {
+          "state": "present",
+          "members": [
+            "export_permissions-t1.csv"
+          ]
+        },
+        "admin-accounts": {
+          "state": "present",
+          "members": [
+            "admin_users.csv"
+          ]
+        },
+        "trustees": {
+          "state": "present",
+          "members": [
+            "trustees_public.json"
+          ]
+        },
+        "election-event": {
+          "state": "present",
+          "members": [
+            "export_election_event-e1.json",
+            "export_voters-e1.csv"
+          ]
+        }
+      },
+      "census": {
+        "state": "present",
+        "members": [
+          "export_voters-e1.csv"
+        ]
+      }
+    },
+    "sections": [
+      {
+        "section": "tenant-configuration",
+        "members": [
+          "tenant_platform-t1.json"
+        ],
+        "status": {
+          "state": "applied",
+          "submission": {
+            "taskId": "task-TenantConfiguration",
+            "detail": {}
+          },
+          "reconciled": false
+        },
+        "history": {
+          "submissions": [
+            {
+              "taskId": "task-TenantConfiguration",
+              "detail": {}
+            }
+          ],
+          "inFlight": null,
+          "applied": true
+        }
+      },
+      {
+        "section": "tenant-settings",
+        "members": [
+          "keycloak_admin-t1.json"
+        ],
+        "status": {
+          "state": "applied",
+          "submission": {
+            "taskId": "task-TenantSettings",
+            "detail": {}
+          },
+          "reconciled": false
+        },
+        "history": {
+          "submissions": [
+            {
+              "taskId": "task-TenantSettings",
+              "detail": {}
+            }
+          ],
+          "inFlight": null,
+          "applied": true
+        }
+      },
+      {
+        "section": "role-permissions",
+        "members": [
+          "export_permissions-t1.csv"
+        ],
+        "status": {
+          "state": "applied",
+          "submission": {
+            "taskId": "task-RolePermissions",
+            "detail": {}
+          },
+          "reconciled": false
+        },
+        "history": {
+          "submissions": [
+            {
+              "taskId": "task-RolePermissions",
+              "detail": {}
+            }
+          ],
+          "inFlight": null,
+          "applied": true
+        }
+      },
+      {
+        "section": "admin-accounts",
+        "members": [
+          "admin_users.csv"
+        ],
+        "status": {
+          "state": "failed",
+          "error": "import failed",
+          "task_id": "task-AdminAccounts"
+        },
+        "history": {
+          "submissions": [
+            {
+              "taskId": "task-AdminAccounts",
+              "detail": null
+            }
+          ],
+          "inFlight": null,
+          "applied": false
+        }
+      },
+      {
+        "section": "trustees",
+        "members": [
+          "trustees_public.json"
+        ],
+        "status": {
+          "state": "previewed",
+          "preview": {
+            "needsApply": true,
+            "changes": {
+              "files": [
+                "trustees_public.json"
+              ]
+            },
+            "blockers": []
+          }
+        },
+        "history": {
+          "submissions": [],
+          "inFlight": null,
+          "applied": false
+        }
+      },
+      {
+        "section": "election-event",
+        "members": [
+          "official_election_setup.zip"
+        ],
+        "status": {
+          "state": "previewed",
+          "preview": {
+            "needsApply": true,
+            "changes": {
+              "files": [
+                "official_election_setup.zip"
+              ]
+            },
+            "blockers": []
+          }
+        },
+        "history": {
+          "submissions": [],
+          "inFlight": null,
+          "applied": false
+        }
+      }
+    ],
+    "outcome": "failed"
+  },
+  "unknown": {
+    "format": "sequent.package-application/1",
+    "tenantId": "t1",
+    "packageSha256": "aeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeae",
+    "mode": "apply",
+    "coverage": {
+      "members": [
+        {
+          "container": "admin_portal_settings.zip",
+          "path": "admin_users.csv",
+          "sha256": "8f36a56470bafdd79eeb9f0f90b4a793ae482ba5be92a3957cfcfe0bd3baa8f2",
+          "size": 29,
+          "disposition": {
+            "kind": "applied",
+            "section": "admin-accounts"
+          }
+        },
+        {
+          "container": "admin_portal_settings.zip",
+          "path": "export_permissions-t1.csv",
+          "sha256": "458a56aa61d9b55494bca3509d94de3fa4a9a926559ccf149c84794619817e83",
+          "size": 25,
+          "disposition": {
+            "kind": "applied",
+            "section": "role-permissions"
+          }
+        },
+        {
+          "container": "admin_portal_settings.zip",
+          "path": "export_templates-t1.csv",
+          "sha256": "99cfffbe3625b9caa64298d4f51c17869e92fea9c32dd4c4877b8e271c01d075",
+          "size": 6,
+          "disposition": {
+            "kind": "manual"
+          }
+        },
+        {
+          "container": "admin_portal_settings.zip",
+          "path": "keycloak_admin-t1.json",
+          "sha256": "960a211e18f11b1f1d1ee0a7f016c30e3a60aa60323ff250a745197b99372cff",
+          "size": 19,
+          "disposition": {
+            "kind": "applied",
+            "section": "tenant-settings"
+          }
+        },
+        {
+          "container": "admin_portal_settings.zip",
+          "path": "tenant_platform-t1.json",
+          "sha256": "fcec7e35b5328abdc8b379fe1e2b7412a6131b32b21ed04ab4c1888aaa465c69",
+          "size": 34,
+          "disposition": {
+            "kind": "applied",
+            "section": "tenant-configuration"
+          }
+        },
+        {
+          "container": "admin_portal_settings.zip",
+          "path": "trustees_public.json",
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "size": 2,
+          "disposition": {
+            "kind": "applied",
+            "section": "trustees"
+          }
+        },
+        {
+          "container": null,
+          "path": "blueprint.json",
+          "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "size": 2,
+          "disposition": {
+            "kind": "record-only"
+          }
+        },
+        {
+          "container": "official_election_setup.zip",
+          "path": "export_election_event-e1.json",
+          "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "size": 2,
+          "disposition": {
+            "kind": "applied",
+            "section": "election-event"
+          }
+        },
+        {
+          "container": "official_election_setup.zip",
+          "path": "export_voters-e1.csv",
+          "sha256": "e5c549b85c9674593aa768b465ab1976e3c633b9028b10a6a6a9eb3d4ca5fb91",
+          "size": 12,
+          "disposition": {
+            "kind": "applied",
+            "section": "election-event"
+          }
+        }
+      ],
+      "sections": {
+        "tenant-configuration": {
+          "state": "present",
+          "members": [
+            "tenant_platform-t1.json"
+          ]
+        },
+        "tenant-settings": {
+          "state": "present",
+          "members": [
+            "keycloak_admin-t1.json"
+          ]
+        },
+        "role-permissions": {
+          "state": "present",
+          "members": [
+            "export_permissions-t1.csv"
+          ]
+        },
+        "admin-accounts": {
+          "state": "present",
+          "members": [
+            "admin_users.csv"
+          ]
+        },
+        "trustees": {
+          "state": "present",
+          "members": [
+            "trustees_public.json"
+          ]
+        },
+        "election-event": {
+          "state": "present",
+          "members": [
+            "export_election_event-e1.json",
+            "export_voters-e1.csv"
+          ]
+        }
+      },
+      "census": {
+        "state": "present",
+        "members": [
+          "export_voters-e1.csv"
+        ]
+      }
+    },
+    "sections": [
+      {
+        "section": "tenant-configuration",
+        "members": [
+          "tenant_platform-t1.json"
+        ],
+        "status": {
+          "state": "applied",
+          "submission": {
+            "taskId": "task-TenantConfiguration",
+            "detail": {}
+          },
+          "reconciled": true
+        },
+        "history": {
+          "submissions": [
+            {
+              "taskId": "task-TenantConfiguration",
+              "detail": {}
+            }
+          ],
+          "inFlight": null,
+          "applied": true
+        }
+      },
+      {
+        "section": "tenant-settings",
+        "members": [
+          "keycloak_admin-t1.json"
+        ],
+        "status": {
+          "state": "applied",
+          "submission": {
+            "taskId": "task-TenantSettings",
+            "detail": {}
+          },
+          "reconciled": true
+        },
+        "history": {
+          "submissions": [
+            {
+              "taskId": "task-TenantSettings",
+              "detail": {}
+            }
+          ],
+          "inFlight": null,
+          "applied": true
+        }
+      },
+      {
+        "section": "role-permissions",
+        "members": [
+          "export_permissions-t1.csv"
+        ],
+        "status": {
+          "state": "applied",
+          "submission": {
+            "taskId": "task-RolePermissions",
+            "detail": {}
+          },
+          "reconciled": true
+        },
+        "history": {
+          "submissions": [
+            {
+              "taskId": "task-RolePermissions",
+              "detail": {}
+            }
+          ],
+          "inFlight": null,
+          "applied": true
+        }
+      },
+      {
+        "section": "admin-accounts",
+        "members": [
+          "admin_users.csv"
+        ],
+        "status": {
+          "state": "applied",
+          "submission": {
+            "taskId": "task-AdminAccounts",
+            "detail": {}
+          },
+          "reconciled": true
+        },
+        "history": {
+          "submissions": [
+            {
+              "taskId": "task-AdminAccounts",
+              "detail": {}
+            }
+          ],
+          "inFlight": null,
+          "applied": true
+        }
+      },
+      {
+        "section": "trustees",
+        "members": [
+          "trustees_public.json"
+        ],
+        "status": {
+          "state": "applied",
+          "submission": {
+            "taskId": "task-Trustees",
+            "detail": {}
+          },
+          "reconciled": true
+        },
+        "history": {
+          "submissions": [
+            {
+              "taskId": "task-Trustees",
+              "detail": {}
+            }
+          ],
+          "inFlight": null,
+          "applied": true
+        }
+      },
+      {
+        "section": "election-event",
+        "members": [
+          "official_election_setup.zip"
+        ],
+        "status": {
+          "state": "unknown",
+          "error": "an earlier submission (task task-ElectionEvent) is still running",
+          "task_id": "task-ElectionEvent"
+        },
+        "history": {
+          "submissions": [
+            {
+              "taskId": "task-ElectionEvent",
+              "detail": null
+            }
+          ],
+          "inFlight": "task-ElectionEvent",
+          "applied": false
+        }
+      }
+    ],
+    "outcome": "unknown"
+  },
+  "submitting": {
+    "format": "sequent.package-application/1",
+    "tenantId": "t1",
+    "packageSha256": "aeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeae",
+    "mode": "apply",
+    "coverage": {
+      "members": [
+        {
+          "container": "admin_portal_settings.zip",
+          "path": "admin_users.csv",
+          "sha256": "8f36a56470bafdd79eeb9f0f90b4a793ae482ba5be92a3957cfcfe0bd3baa8f2",
+          "size": 29,
+          "disposition": {
+            "kind": "applied",
+            "section": "admin-accounts"
+          }
+        },
+        {
+          "container": "admin_portal_settings.zip",
+          "path": "export_permissions-t1.csv",
+          "sha256": "458a56aa61d9b55494bca3509d94de3fa4a9a926559ccf149c84794619817e83",
+          "size": 25,
+          "disposition": {
+            "kind": "applied",
+            "section": "role-permissions"
+          }
+        },
+        {
+          "container": "admin_portal_settings.zip",
+          "path": "export_templates-t1.csv",
+          "sha256": "99cfffbe3625b9caa64298d4f51c17869e92fea9c32dd4c4877b8e271c01d075",
+          "size": 6,
+          "disposition": {
+            "kind": "manual"
+          }
+        },
+        {
+          "container": "admin_portal_settings.zip",
+          "path": "keycloak_admin-t1.json",
+          "sha256": "960a211e18f11b1f1d1ee0a7f016c30e3a60aa60323ff250a745197b99372cff",
+          "size": 19,
+          "disposition": {
+            "kind": "applied",
+            "section": "tenant-settings"
+          }
+        },
+        {
+          "container": "admin_portal_settings.zip",
+          "path": "tenant_platform-t1.json",
+          "sha256": "fcec7e35b5328abdc8b379fe1e2b7412a6131b32b21ed04ab4c1888aaa465c69",
+          "size": 34,
+          "disposition": {
+            "kind": "applied",
+            "section": "tenant-configuration"
+          }
+        },
+        {
+          "container": "admin_portal_settings.zip",
+          "path": "trustees_public.json",
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "size": 2,
+          "disposition": {
+            "kind": "applied",
+            "section": "trustees"
+          }
+        },
+        {
+          "container": null,
+          "path": "blueprint.json",
+          "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "size": 2,
+          "disposition": {
+            "kind": "record-only"
+          }
+        },
+        {
+          "container": "official_election_setup.zip",
+          "path": "export_election_event-e1.json",
+          "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "size": 2,
+          "disposition": {
+            "kind": "applied",
+            "section": "election-event"
+          }
+        },
+        {
+          "container": "official_election_setup.zip",
+          "path": "export_voters-e1.csv",
+          "sha256": "e5c549b85c9674593aa768b465ab1976e3c633b9028b10a6a6a9eb3d4ca5fb91",
+          "size": 12,
+          "disposition": {
+            "kind": "applied",
+            "section": "election-event"
+          }
+        }
+      ],
+      "sections": {
+        "tenant-configuration": {
+          "state": "present",
+          "members": [
+            "tenant_platform-t1.json"
+          ]
+        },
+        "tenant-settings": {
+          "state": "present",
+          "members": [
+            "keycloak_admin-t1.json"
+          ]
+        },
+        "role-permissions": {
+          "state": "present",
+          "members": [
+            "export_permissions-t1.csv"
+          ]
+        },
+        "admin-accounts": {
+          "state": "present",
+          "members": [
+            "admin_users.csv"
+          ]
+        },
+        "trustees": {
+          "state": "present",
+          "members": [
+            "trustees_public.json"
+          ]
+        },
+        "election-event": {
+          "state": "present",
+          "members": [
+            "export_election_event-e1.json",
+            "export_voters-e1.csv"
+          ]
+        }
+      },
+      "census": {
+        "state": "present",
+        "members": [
+          "export_voters-e1.csv"
+        ]
+      }
+    },
+    "sections": [
+      {
+        "section": "tenant-configuration",
+        "members": [
+          "tenant_platform-t1.json"
+        ],
+        "status": {
+          "state": "submitting",
+          "task_id": "task-TenantConfiguration"
+        },
+        "history": {
+          "submissions": [
+            {
+              "taskId": "task-TenantConfiguration",
+              "detail": null
+            }
+          ],
+          "inFlight": "task-TenantConfiguration",
+          "applied": false
+        }
+      },
+      {
+        "section": "tenant-settings",
+        "members": [
+          "keycloak_admin-t1.json"
+        ],
+        "status": {
+          "state": "previewed",
+          "preview": {
+            "needsApply": true,
+            "changes": {
+              "files": [
+                "keycloak_admin-t1.json"
+              ]
+            },
+            "blockers": []
+          }
+        },
+        "history": {
+          "submissions": [],
+          "inFlight": null,
+          "applied": false
+        }
+      },
+      {
+        "section": "role-permissions",
+        "members": [
+          "export_permissions-t1.csv"
+        ],
+        "status": {
+          "state": "previewed",
+          "preview": {
+            "needsApply": true,
+            "changes": {
+              "files": [
+                "export_permissions-t1.csv"
+              ]
+            },
+            "blockers": []
+          }
+        },
+        "history": {
+          "submissions": [],
+          "inFlight": null,
+          "applied": false
+        }
+      },
+      {
+        "section": "admin-accounts",
+        "members": [
+          "admin_users.csv"
+        ],
+        "status": {
+          "state": "previewed",
+          "preview": {
+            "needsApply": true,
+            "changes": {
+              "files": [
+                "admin_users.csv"
+              ]
+            },
+            "blockers": []
+          }
+        },
+        "history": {
+          "submissions": [],
+          "inFlight": null,
+          "applied": false
+        }
+      },
+      {
+        "section": "trustees",
+        "members": [
+          "trustees_public.json"
+        ],
+        "status": {
+          "state": "previewed",
+          "preview": {
+            "needsApply": true,
+            "changes": {
+              "files": [
+                "trustees_public.json"
+              ]
+            },
+            "blockers": []
+          }
+        },
+        "history": {
+          "submissions": [],
+          "inFlight": null,
+          "applied": false
+        }
+      },
+      {
+        "section": "election-event",
+        "members": [
+          "official_election_setup.zip"
+        ],
+        "status": {
+          "state": "previewed",
+          "preview": {
+            "needsApply": true,
+            "changes": {
+              "files": [
+                "official_election_setup.zip"
+              ]
+            },
+            "blockers": []
+          }
+        },
+        "history": {
+          "submissions": [],
+          "inFlight": null,
+          "applied": false
+        }
+      }
+    ],
+    "outcome": "running"
+  }
+}

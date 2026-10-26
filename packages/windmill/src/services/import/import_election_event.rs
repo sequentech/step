@@ -2183,7 +2183,8 @@ pub async fn process_document(
                 .context("Failed to import activity logs")?;
             }
 
-            if file_name.contains(&format!("{}", EDocuments::VOTERS.to_file_name())) {
+            // The census rule the configuration package contract shares.
+            if sequent_core::election_config::package_contract::is_census_member(&file_name) {
                 let mut temp_file = NamedTempFile::new()
                     .context("Failed to create activity logs temporary file")?;
                 io::copy(&mut cursor, &mut temp_file)

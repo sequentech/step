@@ -43,6 +43,8 @@ interface ImportScreenProps {
     problems?: Problem[] | null
     fileIntegrityPolicy?: EFileIntegrityPolicy
     allowHistoricalSource?: boolean
+    /** The formats the drop area names; by default those of the source it accepts. */
+    formatLabel?: string
     disableImport?: boolean
     refresh?: string
 }
@@ -102,6 +104,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
             errors,
             problems,
             allowHistoricalSource,
+            formatLabel,
         } = props
         const requiresSha = props.fileIntegrityPolicy === EFileIntegrityPolicy.REQUIRED_SHA256
         const {globalSettings} = React.useContext(SettingsContext)
@@ -395,7 +398,9 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                 <Box component="fieldset" disabled={isWorking()} sx={{border: 0, m: 0, p: 0}}>
                     <DropFile
                         multiple={historicalEnabled}
-                        formatLabel={allowHistoricalSource ? "ZIP / JSON / EZIP" : undefined}
+                        formatLabel={
+                            formatLabel ?? (allowHistoricalSource ? "ZIP / JSON / EZIP" : undefined)
+                        }
                         handleFiles={async (files) => handleFiles(files)}
                     />
                 </Box>

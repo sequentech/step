@@ -382,16 +382,67 @@ fn build_workbook_output(
     read: &crate::election_config::Workbook,
     options: &BuildOptions,
 ) -> Output {
+    match build_workbook_layout(read, options) {
+        Ok(built) => built.output(),
+        Err(refused) => refused,
+    }
+}
+
+/// A built workbook's layout, before it becomes an [`Output`], for a caller
+/// that adds members to the delivery.
+#[cfg(all(
+    feature = "election_config_xlsx",
+    feature = "election_config_archive"
+))]
+struct BuiltLayout {
+    layout: archive::Layout,
+    tenant_id: String,
+    report: Report,
+    event_external_id: String,
+}
+
+#[cfg(all(
+    feature = "election_config_xlsx",
+    feature = "election_config_archive"
+))]
+impl BuiltLayout {
+    fn output(self) -> Output {
+        let zipped = match archive::zip(&self.layout.importable) {
+            Ok(bytes) => bytes,
+            Err(problem) => return output_problem(problem),
+        };
+        Output {
+            importable: self.layout.importable.iter().map(File::from).collect(),
+            auxiliary: self.layout.auxiliary.iter().map(File::from).collect(),
+            archive: Some(File {
+                name: self.layout.archive_name,
+                bytes: zipped,
+            }),
+            delivery: None,
+            report: self.report,
+            event_external_id: Some(self.event_external_id),
+        }
+    }
+}
+
+#[cfg(all(
+    feature = "election_config_xlsx",
+    feature = "election_config_archive"
+))]
+fn build_workbook_layout(
+    read: &crate::election_config::Workbook,
+    options: &BuildOptions,
+) -> Result<BuiltLayout, Output> {
     let templates = match TemplateSet::builtin() {
         Ok(templates) => templates,
-        Err(problem) => return output_problem(problem),
+        Err(problem) => return Err(output_problem(problem)),
     };
 
     let built = build(read, &templates, options, &Sources::default());
 
     let bundle = match built {
         Ok(bundle) => bundle,
-        Err(report) => return Output::refused(report),
+        Err(report) => return Err(Output::refused(report)),
     };
 
     // The same second pass `step-cli` makes: a document can be internally
@@ -416,26 +467,15 @@ fn build_workbook_output(
     }
 
     if report.has_errors() {
-        return Output::refused(report);
+        return Err(Output::refused(report));
     }
 
-    let layout = archive::layout(&bundle);
-    let zipped = match archive::zip(&layout.importable) {
-        Ok(bytes) => bytes,
-        Err(problem) => return output_problem(problem),
-    };
-
-    Output {
-        importable: layout.importable.iter().map(File::from).collect(),
-        auxiliary: layout.auxiliary.iter().map(File::from).collect(),
-        archive: Some(File {
-            name: layout.archive_name,
-            bytes: zipped,
-        }),
-        delivery: None,
+    Ok(BuiltLayout {
+        layout: archive::layout(&bundle),
+        tenant_id: bundle.tenant_id.clone(),
         report,
-        event_external_id: Some(bundle.event_external_id.clone()),
-    }
+        event_external_id: bundle.event_external_id.clone(),
+    })
 }
 
 #[cfg(all(
@@ -473,30 +513,158 @@ pub fn build_from_historical(
     workbook: &[u8],
     decisions: JsValue,
     options: JsValue,
+    // Optional `{ tenantPackage?, requirements? }`. Given, the output also
+    // carries the delivery and its coverage.
+    package_request: JsValue,
 ) -> Result<JsValue, JsError> {
     use crate::election_config::historical::{
         adapt, HistoricalOptions, Summary,
     };
+    use crate::election_config::package_contract::{Coverage, Requirements};
+    use crate::election_config::tenant_package;
     #[derive(Serialize)]
+    #[serde(rename_all = "camelCase")]
     struct HistoricalOutput {
         summary: Summary,
         output: Output,
+        /// Present when `package` asked for a delivery.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        coverage: Option<Coverage>,
+    }
+    /// What the delivery adds to the converted event. Absent: the importable
+    /// zip only, as before.
+    #[derive(serde::Deserialize)]
+    #[serde(deny_unknown_fields, rename_all = "camelCase")]
+    struct PackageRequest {
+        #[serde(default)]
+        tenant_package: Option<serde_json::Value>,
+        #[serde(default)]
+        requirements: Requirements,
     }
     let decisions: HistoricalOptions =
         serde_wasm_bindgen::from_value(decisions)
             .map_err(|_| JsError::new("historical decisions are invalid"))?;
     let options = build_options(options)?;
-    let result = match adapt(sql, workbook, &decisions) {
-        Ok(adapted) => HistoricalOutput {
-            summary: adapted.summary,
-            output: build_workbook_output(&adapted.workbook, &options),
-        },
-        Err(refused) => HistoricalOutput {
-            summary: refused.summary,
-            output: Output::refused(refused.report),
-        },
+    let request: Option<PackageRequest> =
+        if package_request.is_undefined() || package_request.is_null() {
+            None
+        } else {
+            Some(serde_wasm_bindgen::from_value(package_request).map_err(
+                |error| JsError::new(&format!("bad package request: {error}")),
+            )?)
+        };
+    let adapted = match adapt(sql, workbook, &decisions) {
+        Ok(adapted) => adapted,
+        Err(refused) => {
+            return to_js(&HistoricalOutput {
+                summary: refused.summary,
+                output: Output::refused(refused.report),
+                coverage: None,
+            })
+        }
     };
-    to_js(&result)
+    let Some(request) = request else {
+        return to_js(&HistoricalOutput {
+            output: build_workbook_output(&adapted.workbook, &options),
+            summary: adapted.summary,
+            coverage: None,
+        });
+    };
+    let refused = |summary: Summary, report: Report| HistoricalOutput {
+        summary,
+        output: Output::refused(report),
+        coverage: None,
+    };
+    let package = match request
+        .tenant_package
+        .as_ref()
+        .map(tenant_package::read)
+        .transpose()
+    {
+        Ok(package) => package,
+        Err(report) => return to_js(&refused(adapted.summary, report)),
+    };
+    let built = match build_workbook_layout(&adapted.workbook, &options) {
+        Ok(built) => built,
+        Err(output) => {
+            return to_js(&HistoricalOutput {
+                summary: adapted.summary,
+                output,
+                coverage: None,
+            })
+        }
+    };
+    let record = serde_json::to_value(&adapted.summary)
+        .map(|summary| tenant_package::historical_record(&summary))
+        .map_err(|_| JsError::new("cannot record the conversion summary"))?;
+    let layout = built.layout.clone();
+    let delivered = tenant_package::complete_delivery(
+        layout,
+        package.as_ref(),
+        &built.tenant_id,
+        Some(record),
+        &request.requirements,
+        census_expected(&decisions, &adapted.summary),
+    );
+    let (delivery, coverage) = match delivered {
+        Ok(done) => done,
+        Err(problem) => {
+            return to_js(&refused(
+                adapted.summary,
+                Report::from_problem(problem),
+            ))
+        }
+    };
+    let mut output = built.output();
+    output.delivery = Some(File::from(&delivery));
+    to_js(&HistoricalOutput {
+        summary: adapted.summary,
+        output,
+        coverage: Some(coverage),
+    })
+}
+
+/// How many voters the delivery's census must hold: every preserved source
+/// voter when the decisions preserve them, otherwise no census check.
+#[cfg(all(
+    feature = "election_config_xlsx",
+    feature = "election_config_archive"
+))]
+fn census_expected(
+    decisions: &crate::election_config::historical::HistoricalOptions,
+    summary: &crate::election_config::historical::Summary,
+) -> Option<usize> {
+    use crate::election_config::historical::CensusPolicy;
+    (decisions.census == CensusPolicy::PreserveSourceVoters)
+        .then_some(summary.preserved_voters)
+}
+
+/// Every member of a delivery or signed package with the section that
+/// applies it, and the `required` sections it lacks. Reads names and hashes
+/// only; nothing is applied.
+#[cfg(feature = "election_config_archive")]
+#[wasm_bindgen(js_name = packageCoverage)]
+pub fn package_coverage_js(
+    bytes: &[u8],
+    required: JsValue,
+) -> Result<JsValue, JsError> {
+    use crate::election_config::package_contract::{coverage, Requirements};
+    let required: Requirements = if required.is_undefined()
+        || required.is_null()
+    {
+        Requirements::default()
+    } else {
+        serde_wasm_bindgen::from_value(required)
+            .map_err(|error| JsError::new(&format!("bad sections: {error}")))?
+    };
+    let members = crate::election_config::manifest::read_zip(bytes, "package")
+        .and_then(|members| {
+            crate::election_config::manifest::file_entries(&members)
+        });
+    match members {
+        Ok(entries) => to_js(&coverage(&entries, &required)),
+        Err(problem) => Err(JsError::new(&problem.to_string())),
+    }
 }
 
 /// Check a plan, in the wizard's own vocabulary.

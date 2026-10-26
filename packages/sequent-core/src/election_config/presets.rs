@@ -537,48 +537,52 @@ fn biometric_patch(input: &PresetInput) -> RealmPatch {
     let similarity =
         input.text(PARAM_SCANOVATE_FACE_MATCH_MIN_SIMILARITY, "0.67");
 
+    // Keys in byte order: these are serialized into strings, and serde_json
+    // keeps insertion order only when a crate in the build enables
+    // `preserve_order` (windmill does, the WASM build does not). Sorted, both
+    // write the same bytes.
     let validate = json!({
         "philippinePassport": [{
-            "type": "isBeforeDateValue",
+            "attributePath": "/date_of_expiry",
+            "errorMsg": "scanovateAttributesError",
             "isBeforeDateValue": "now",
             "process": "ocr",
-            "attributePath": "/date_of_expiry",
             "sourceDateFormat": "yyyy-MM-dd",
-            "errorMsg": "scanovateAttributesError",
+            "type": "isBeforeDateValue",
         }],
     });
     let store = json!({
         "philippinePassport": [
             {
                 "UserAttribute": "firstName",
-                "process": "ocr",
                 "attributePath": "/first_name_english",
+                "process": "ocr",
                 "type": "text",
             },
             {
                 "UserAttribute": "lastName",
-                "process": "ocr",
                 "attributePath": "/last_name_english",
+                "process": "ocr",
                 "type": "text",
             },
             {
                 "UserAttribute": "sequent.read-only.id-card-number",
-                "process": "ocr",
                 "attributePath": "/document_number",
+                "process": "ocr",
                 "type": "text",
             },
             {
                 "UserAttribute": "dateOfBirth",
-                "process": "ocr",
                 "attributePath": "/date_of_birth",
-                "type": "date",
+                "process": "ocr",
                 "sourceDateFormat": "yyyy-MM-dd",
                 "storeDateFormat": "yyyy-MM-dd",
+                "type": "date",
             },
             {
                 "UserAttribute": ISSUING_COUNTRY_NOTE,
-                "process": "ocr",
                 "attributePath": "/issuing_country_code",
+                "process": "ocr",
                 "type": "text",
             },
         ],

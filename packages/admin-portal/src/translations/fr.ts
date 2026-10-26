@@ -5,6 +5,7 @@ import englishTranslation, {TranslationType} from "./en"
 
 const frenchTranslation: TranslationType = {
     translations: {
+        configurationPackage: englishTranslation.translations.configurationPackage,
         ballotPrivacy: englishTranslation.translations.ballotPrivacy,
         readiness: {
             close: "Fermer",
@@ -949,6 +950,7 @@ const frenchTranslation: TranslationType = {
                 EXPORT_APPLICATION: "Exporter les Demandes",
                 EXPORT_TENANT_CONFIG: "Exporter la Configuration du Locataire",
                 IMPORT_TENANT_CONFIG: "Importer la Configuration du Locataire",
+                APPLY_CONFIGURATION_PACKAGE: "Appliquer le Paquet de Configuration",
                 RENDER_DOCUMENT_PDF: "Générer le document PDF",
                 CREATE_TENANT: "Créer un locataire",
                 EXPORT_TEMPLATES: "Exporter les Modèles",

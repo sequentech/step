@@ -161,6 +161,44 @@ the CLI with explicitly reviewed, source-hash-bound associations when necessary.
 The drawer never picks the first context or invents essential election settings.
 Voter exclusion is reported in the summary and stored in provenance.
 
+### Preserving the source voters as the census
+
+Census policy is an enum with three reviewed options:
+
+- `require-reviewed-mapping` (default) — refuse while the source lists voters, so
+  the choice below is always explicit.
+- `configuration-only` — count the voters and drop them (no census is built).
+- `preserve-source-voters` — import every source voter as the event census.
+
+Under `preserve-source-voters` each voter is emitted into the `Voters` sheet and
+flows through the shared voters builder into the `export_voters-*.csv` native
+member. The decisions must also name the voter area join; the only join is
+`voterAreaJoin: "population-precinct-tuple"`, which equates
+`(voters.COUNTRY, voters.EMBASSY, voters.PRECINCT)` with
+`(pop.PROV_CODE, pop.MUN_CODE, pop.PRECINCT)` of exactly one in-scope polling row.
+The same precinct under different embassies therefore resolves to different areas,
+and a key shared by rows with different outcomes is a conflict. Without the join
+decision the conversion is refused as not approved. The join is recorded in
+provenance under `decisions`.
+
+Each voter carries two kinds of attribute:
+
+- Canonical identity, under the keys enrollment matching reads: id → `username`,
+  first/last name, maternal name → `middleName`, `suffix`, the date-of-birth parts
+  composed as `dateOfBirth` (`yyyy-MM-dd`), and `country`/`embassy` derived from the
+  voter's area with the same formatting as the registration option lists.
+- Raw source values for audit, unchanged: `source_maternal_name`, `source_suffix`,
+  `source_dob_year`/`_month`/`_day`, `source_country`, `source_embassy`,
+  `source_precinct` and `source_abroad_status`. The abroad status is never turned
+  into eligibility.
+
+Email, mobile and password are left unset; enrollment collects them later. Every
+row is checked before the conversion is refused, and each failing voter is reported
+by row and column: a location with no in-scope area, a duplicate id, an incomplete
+or impossible date of birth, or an area without an embassy/country label. Nothing
+is dropped silently. The preserved count is reported in the summary and stored in
+provenance as `preservedVoters`.
+
 The advanced CLI decisions contract remains available: limited post/precinct
 coverage, explicit associations and preserving unresolved affiliation codes
 require both source SHA-256 values. Changed bytes invalidate those decisions.
@@ -224,7 +262,8 @@ workbook matches and reports excluded rows. Optional affiliation mode
 The source, decision and profile provenance is carried in the event's
 `import:provenance` annotation. The native ZIP contains the existing event JSON
 and scheduled-event CSV members. Configuration-only conversion emits no voter
-CSV. Keep original source files in controlled local storage; hashes do not
+CSV; `preserve-source-voters` adds an `export_voters-*.csv` census member.
+Keep original source files in controlled local storage; hashes do not
 replace the originals.
 
 ## Verification and limits

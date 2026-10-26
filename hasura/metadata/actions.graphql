@@ -747,6 +747,15 @@ type Mutation {
 }
 
 type Mutation {
+    apply_configuration_package(
+        tenant_id: String!
+        document_id: String!
+        mode: String!
+        requirements: jsonb
+    ): ApplyConfigurationPackageOutput
+}
+
+type Mutation {
     import_tenant_config(
         tenant_id: String!
         document_id: String!
@@ -2113,6 +2122,10 @@ type ExportTrusteesOutput {
 type SetVoterAuthenticationOutput {
     success: Boolean!
     message: String
+}
+
+type ApplyConfigurationPackageOutput {
+    task_execution: tasks_execution_type!
 }
 
 type ImportTenantOutput {

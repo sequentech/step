@@ -31,7 +31,7 @@ jobs:
     environment: release
     timeout-minutes: 360
     strategy:
-      max-parallel: 13
+      max-parallel: 15
       matrix:
         include:
           - service: keycloak
@@ -87,6 +87,23 @@ jobs:
             context: .
             file: packages/loadtesting/Dockerfile
 
+          # Beyond's Election Architect static wizard, from the pinned beyond
+          # gitlink and this step's election-config WASM (built below with the
+          # repository's Nix recipe), with the airgap release's recipe.
+          - service: election-architect
+            context: beyond/packages
+            file: beyond/airgap/docker/election-architect.Dockerfile
+            build_contexts: |
+              step_packages=./packages
+              election_config_wasm=./packages/sequent-core/pkg-election-config
+
+          # Beyond's Delivery Orchestrator, from the pinned beyond gitlink.
+          - service: delivery-orchestrator
+            context: beyond/packages/delivery-orchestrator
+            file: beyond/packages/delivery-orchestrator/Dockerfile
+            build_contexts: |
+              guide_source=./beyond/docs/docusaurus
+
           # - service: mock_server
           #   context: packages/e2e/src/mock_server
           #   file: packages/e2e/src/mock_server/Dockerfile.prod
@@ -98,12 +115,12 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Resolve beyond submodule commit
-      if: matrix.service == 'keycloak'
+      if: contains(fromJSON('["keycloak", "delivery-orchestrator", "election-architect"]'), matrix.service)
       id: beyond
       run: echo "sha=$(git rev-parse HEAD:beyond)" >> "$GITHUB_OUTPUT"
 
     - name: Check out beyond submodule
-      if: matrix.service == 'keycloak'
+      if: contains(fromJSON('["keycloak", "delivery-orchestrator", "election-architect"]'), matrix.service)
       uses: actions/checkout@v4
       with:
         repository: sequentech/beyond
@@ -113,8 +130,32 @@ jobs:
         submodules: recursive
         persist-credentials: false
 
+    # The Architect image takes its sources and WASM from this step's
+    # packages/, while its recipe says they are the step the beyond release
+    # pins. Build only when the two packages/ trees are the same tree.
+    - name: Check this step's packages/ is the one beyond pins
+      if: matrix.service == 'election-architect'
+      run: |
+        pinned=$(git -C beyond rev-parse HEAD:step)
+        git fetch --no-tags --depth 1 origin "$pinned"
+        ours=$(git rev-parse HEAD:packages)
+        theirs=$(git rev-parse "$pinned:packages")
+        echo "step $GITHUB_SHA packages $ours; beyond pins step $pinned packages $theirs"
+        test "$ours" = "$theirs"
+
     - name: Set short SHA
       run: echo "SHORT_SHA=$(echo $GITHUB_SHA | cut -c 1-7)" >> $GITHUB_ENV
+
+    # The wizard's core is this step's election-config WASM. `ring` compiles C
+    # for wasm32 and needs the clang the repository's Nix shell provides.
+    - name: Set up Nix
+      if: matrix.service == 'election-architect'
+      uses: cachix/install-nix-action@v25
+
+    - name: Build the election-config WASM
+      if: matrix.service == 'election-architect'
+      working-directory: packages/sequent-core
+      run: nix develop --command ../../.devcontainer/scripts/rebuild-election-config-wasm.sh
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
@@ -152,3 +193,4 @@ jobs:
         build-args: |
           SPA_NAME=${{ matrix.spa_name }}
           FEATURES=${{ matrix.features }}
+          STEP_REVISION=${{ github.sha }}
