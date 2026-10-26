@@ -17,7 +17,7 @@
 #[path = "support/schema.rs"]
 mod schema;
 
-use deadpool_postgres::Pool;
+use deadpool_postgres::{Pool, PoolError, Timeouts};
 use serde_json::json;
 use std::ffi::OsString;
 use std::future::Future;
@@ -81,6 +81,10 @@ async fn fixture() -> &'static Pool {
             }
             std::env::set_var("HASURA_DB__DBNAME", &database);
             std::env::set_var("KEYCLOAK_DB__DBNAME", &database);
+            // The worker's Hasura pool as the rehearsal had it: two connections,
+            // capped where deadpool caps it, when the pool is built (a later
+            // resize leaves the semaphore's original permits).
+            std::env::set_var("HASURA_DB__POOL__MAX_SIZE", "2");
             let (hasura, keycloak) = (get_hasura_pool().await, get_keycloak_pool().await);
             for (key, _) in pool_settings() {
                 std::env::remove_var(key);
@@ -223,16 +227,27 @@ fn the_admin_accounts_import_finishes_on_a_two_connection_pool_with_the_claim_he
         }))
         .unwrap();
 
-        // The worker's pool as the rehearsal had it, and the package
-        // application's claim holding one of its two connections throughout.
+        // The package application's claim holds one of the pool's two
+        // connections throughout.
         let hasura = get_hasura_pool().await;
-        let size = hasura.status().max_size;
-        hasura.resize(2);
         let claim = hasura.get().await.unwrap();
+        // The cap is real: with the claim and one more held, a third is refused
+        // at once rather than created.
+        let second = hasura.get().await.unwrap();
+        let third = hasura
+            .timeout_get(&Timeouts {
+                wait: Some(Duration::ZERO),
+                ..Default::default()
+            })
+            .await;
+        assert!(
+            matches!(third, Err(PoolError::Timeout(_))),
+            "the Hasura pool is not capped at two connections"
+        );
+        drop(second);
         let finished =
             tokio::time::timeout(Duration::from_secs(60), execute(body, task_execution)).await;
         drop(claim);
-        hasura.resize(size);
         finished
             .expect("the import waited on the pool: claim, importer and maintenance")
             .expect("the import");
