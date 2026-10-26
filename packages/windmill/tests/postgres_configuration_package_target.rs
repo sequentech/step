@@ -357,3 +357,143 @@ fn imports_are_held_for_the_application_and_released_with_it() {
         drop(again);
     })
 }
+
+#[test]
+fn a_section_takes_exactly_one_file_and_refuses_what_it_cannot_read() {
+    run(async {
+        let (_, target) = tenant().await;
+        let none = target
+            .preview(Section::TenantConfiguration, &[])
+            .await
+            .unwrap_err();
+        assert!(
+            none.to_string().contains("0 tenant configuration files"),
+            "{none:#}"
+        );
+        let mut two = file("a.json", json!({}));
+        two.extend(file("b.json", json!({})));
+        let both = target
+            .preview(Section::TenantConfiguration, &two)
+            .await
+            .unwrap_err();
+        assert!(
+            both.to_string().contains("exactly one is applied"),
+            "{both:#}"
+        );
+        let unknown = target
+            .preview(
+                Section::TenantConfiguration,
+                &file("t.json", json!({"slug": "not-a-package-field"})),
+            )
+            .await
+            .unwrap_err();
+        assert!(
+            format!("{unknown:#}").contains("not the package's tenant record"),
+            "{unknown:#}"
+        );
+        let trustees = target
+            .preview(
+                Section::Trustees,
+                &file("trustees_public.json", json!({"not": "a list"})),
+            )
+            .await
+            .unwrap_err();
+        assert!(
+            format!("{trustees:#}").contains("not the public trustee list"),
+            "{trustees:#}"
+        );
+        let event = target
+            .preview(
+                Section::ElectionEvent,
+                &[Artifact {
+                    name: "event.zip".to_owned(),
+                    bytes: b"not a zip".to_vec(),
+                }],
+            )
+            .await;
+        assert!(
+            event.is_err(),
+            "an unreadable event zip is refused: {event:?}"
+        );
+    })
+}
+
+#[test]
+fn a_tenant_that_does_not_exist_is_not_previewed() {
+    run(async {
+        let (_, mut target) = tenant().await;
+        target.context.tenant_id = uuid::Uuid::new_v4().to_string();
+        let missing = target
+            .preview(
+                Section::TenantConfiguration,
+                &file("t.json", json!({"settings": {"display_name": "Nobody"}})),
+            )
+            .await;
+        assert!(missing.is_err(), "{missing:?}");
+    })
+}
+
+#[test]
+fn one_tenants_trustees_are_not_anothers() {
+    run(async {
+        let (_, first) = tenant().await;
+        let (_, second) = tenant().await;
+        let wanted = file("trustees_public.json", trustees());
+        first.apply(Section::Trustees, &wanted, None).await.unwrap();
+        let theirs = second.preview(Section::Trustees, &wanted).await.unwrap();
+        assert!(
+            theirs.needs_apply,
+            "another tenant's registration is not this one's: {theirs:?}"
+        );
+    })
+}
+
+#[test]
+fn applying_keeps_unnamed_settings_and_never_the_packages_signing_trust() {
+    run(async {
+        let (id, target) = tenant().await;
+        let signing = sequent_core::election_config::package_verify::CONFIGURATION_SIGNING_SETTING;
+        fixture()
+            .await
+            .get()
+            .await
+            .unwrap()
+            .execute(
+                "UPDATE sequent_backend.tenant SET settings = $2 WHERE id = $1::text::uuid",
+                &[
+                    &id,
+                    &json!({"kept": "installed", signing: {"installed": true}}),
+                ],
+            )
+            .await
+            .unwrap();
+        let wanted = file(
+            "tenant_platform-t.json",
+            json!({"settings": {"display_name": "Synthetic", signing: {"from": "the package"}}}),
+        );
+        let preview = target
+            .preview(Section::TenantConfiguration, &wanted)
+            .await
+            .unwrap();
+        assert!(
+            !preview.blockers.is_empty(),
+            "a package that would change the signing trust is blocked: {preview:?}"
+        );
+        // Applied anyway (as if the installed value changed after the
+        // preview): the installed trust stays, and so does what the package
+        // does not name.
+        let task = target
+            .begin(Section::TenantConfiguration)
+            .await
+            .unwrap()
+            .unwrap();
+        target
+            .apply(Section::TenantConfiguration, &wanted, Some(&task))
+            .await
+            .unwrap();
+        let settings = tenant_settings(&id).await;
+        assert_eq!(settings["display_name"], "Synthetic");
+        assert_eq!(settings["kept"], "installed");
+        assert_eq!(settings[signing], json!({"installed": true}));
+    })
+}
