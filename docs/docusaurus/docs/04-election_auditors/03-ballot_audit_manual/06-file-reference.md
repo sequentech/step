@@ -88,7 +88,9 @@ The console output leaves out these fields at any depth: `voter_id`, `voter_id_s
 it contains no voter ID, no ballot content and no Keycloak user. What each check proves and does
 not prove is in
 [What the Ballot Audit Verifies](../04-ballot_audit_explanation.md). It shows each file by its title, not by its file name: `Cast votes` is `cast-votes.json`.
-The passwords of the copies are replaced with `<password of the copy>`.
+The passwords of the copies are replaced with `<password of the copy>`. PostgreSQL messages can quote the
+data of a backup, so the restore logs leave out the text of `DETAIL` and `STATEMENT` lines, the row
+of a `COPY` context and the value of an invalid input.
 
 ## Files of audit-tally (tally)
 

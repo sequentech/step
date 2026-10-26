@@ -105,7 +105,10 @@ new_password() {
 }
 
 # show_log <what> <file>: copies a log to the console, so that the console
-# output holds it, without the passwords of the copies.
+# output holds it, without the passwords of the copies. PostgreSQL diagnostics
+# can quote the rows of a failed COPY, which hold voter IDs and ballots, so
+# their DETAIL and STATEMENT text, the row of a COPY context and the value of
+# an invalid input are left out.
 show_log() {
     local password redact=()
     for password in "${POSTGRES_PASSWORD:-}" "${READER_PG_PASSWORD:-}" \
@@ -114,7 +117,11 @@ show_log() {
     done
     info "log of $1:"
     if [ -s "$2" ]; then
-        sed "${redact[@]}" -e 's/^/    /' "$2" >&2
+        sed "${redact[@]}" \
+            -e 's/\(\(DETAIL\|STATEMENT\): *\).*/\1<left out>/' \
+            -e 's/\(COPY [^,]*, line [0-9]*\).*/\1/' \
+            -e 's/\(invalid input syntax for type [^:]*\):.*/\1/' \
+            -e 's/^/    /' "$2" >&2
     else
         echo "    (empty)" >&2
     fi

@@ -43,7 +43,7 @@ this in the audit report.
 | --- | --- |
 | Tally | One count of the votes. An election event can have more than one tally. |
 | Scope | An election and area of a tally, with one contest or all contests for combined ballot formats. `audit-tally` follows the saved tally mappings. |
-| Electoral log | The signed log of the election events, stored in ImmuDB. A `CastVote` record contains signed evidence of a cast ballot. A missing record makes the audit incomplete. |
+| Electoral log | The signed log of the election events, stored in ImmuDB. A `CastVote` record contains signed evidence of a cast ballot. A ballot that the tally counted without this record is a vote to audit. See [Votes to audit](03-read-the-results.md#votes-to-audit). |
 | Bulletin board | The B3 database of the cryptographic protocol. It holds the election public key and the encrypted ballots of each tally. |
 | Batch | A numbered group of encrypted ballots on the bulletin board. A scope uses one or more batches. |
 | Receipt | The ballot ID that the voter gets after the vote. It is a hash of the encrypted ballot. |
