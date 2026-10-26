@@ -19,6 +19,18 @@ class InstallerTests(unittest.TestCase):
         d['tls']['ca_sha256']=d['identity_provider']['ca_sha256']='a'*64
         d['release']['step_commit']='a'*40
         return d
+    def test_runtime_identity_uses_spec_container_name_not_normalized_status_tag(self):
+        import subprocess
+        expected='sequentech.local/harvest@sha256:'+'a'*64
+        fixture={'items':[{'spec':{'containers':[{'name':'harvest','image':expected},{'name':'other','image':'other:latest'}],'initContainers':[{'name':'setup','image':expected}]},'status':{'containerStatuses':[{'name':'harvest','image':'sequentech.local/harvest:v10.0.0','imageID':expected},{'name':'other','image':expected,'imageID':'unrelated'}],'initContainerStatuses':[{'name':'setup','image':'sha256:normalized','imageID':expected}]}}]}
+        args=['jq','-r','--arg','image',expected,install.RUNTIME_IDS]
+        result=subprocess.run(args,input=json.dumps(fixture),text=True,capture_output=True)
+        self.assertEqual(result.returncode,0,result.stderr)
+        self.assertEqual(result.stdout.splitlines(),[expected,expected])
+        fixture['items'][0]['spec']['containers'][0]['image']='unapproved:latest'
+        result=subprocess.run(args,input=json.dumps(fixture),text=True,capture_output=True)
+        self.assertEqual(result.stdout.splitlines(),[expected])
+
     def test_supporting_payload_requires_signed_complete_and_bound_metadata(self):
         with tempfile.TemporaryDirectory() as folder:
             root=Path(folder);(root/'release').mkdir()

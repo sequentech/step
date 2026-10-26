@@ -357,6 +357,12 @@ def install_prepared(d,archives,archive_hashes):
     print('INSTALL 4/4: platform installed; customer and trustee commissioning still required',flush=True)
 
 
+RUNTIME_IDS = r''' .items[] |
+ [.spec.containers[]?, .spec.initContainers[]?] as $definitions |
+ (.status.containerStatuses[]?, .status.initContainerStatuses[]?) |
+ select(.name as $name | any($definitions[]; .name==$name and .image==$image)) |
+ select(.imageID!="" and .imageID!=null) | .imageID'''
+
 def verify(d):
     # Only configuration and operational readiness checks. Browser/MFA, client-network
     # filtering, custody and board authorization remain commissioning checkpoints.
@@ -393,8 +399,7 @@ for part in b4 ballot-verifier braid harvest keycloak windmill; do
     select(startswith("sequentech.local/"+$part+":") or startswith("sequentech.local/"+$part+"@"))] |
     length>0 and all(.==$image)' >/dev/null
  ids=$(printf '%s' "$pods" | jq -r --arg image "$image" '
-   .items[].status | (.containerStatuses[]?, .initContainerStatuses[]?) |
-   select(.image==$image and .imageID!="" and .imageID!=null) | .imageID' | sort -u)
+__RUNTIME_IDS__' | sort -u)
  if test "$part" != braid; then test -n "$ids"; fi
  while IFS= read -r image_id; do
    if test -n "$image_id"; then
@@ -403,6 +408,7 @@ for part in b4 ballot-verifier braid harvest keycloak windmill; do
  done <<< "$ids"
 done
 '''
+    script=script.replace('__RUNTIME_IDS__',RUNTIME_IDS)
     print('VERIFY: waiting for platform services and checking their security settings',flush=True)
     ssh(d,'c1',script,'Installed platform policy verification',timeout=1800)
     for host in [d['hosts'][name] for name in ('voting','administration','verifier')]:
