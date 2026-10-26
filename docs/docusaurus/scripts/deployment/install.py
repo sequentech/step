@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 # SPDX-License-Identifier: AGPL-3.0-only
-"""Configuration-driven first installation. No upgrades, retries or acceptance claims."""
+"""Configuration-driven first installation. No upgrades, write retries or acceptance claims."""
 import hashlib
 import io
 import ipaddress
@@ -14,6 +14,7 @@ import stat
 import subprocess
 import tarfile
 import tempfile
+import time
 from urllib.parse import urlencode, urlsplit, parse_qs
 from step_names import STEP_NAMES
 
@@ -382,8 +383,20 @@ def verify_metadata(d):
  curl --silent --show-error --fail -H "X-Hasura-Admin-Secret: $HASURA_GRAPHQL_ADMIN_SECRET" -H "Content-Type: application/json" -d "{\"type\":\"get_inconsistent_metadata\",\"args\":{}}" http://localhost:8080/v1/metadata' |
  jq -c '{is_consistent, inconsistent_count:(.inconsistent_objects|length)}'
 '''
-    result=json.loads(ssh(d,'c1',script,'GraphQL metadata consistency inspection'))
-    require(result.get('is_consistent') is True and result.get('inconsistent_count')==0,'GraphQL metadata is inconsistent; obtain a corrected complete signed installation kit before continuing')
+    # The migrations image can be marked Running before its final API listens.
+    # Poll this read-only endpoint only; never repeat a configuration write.
+    for attempt in range(20):
+        try:
+            raw=ssh(d,'c1',script,'GraphQL metadata consistency inspection',timeout=5)
+        except ValueError:
+            if attempt==19:
+                raise ValueError('GraphQL metadata API did not become ready within the bounded startup checks; inspect the supporting service before continuing') from None
+            if attempt==0:print('VERIFY: waiting for the GraphQL metadata API to finish startup',flush=True)
+            time.sleep(2)
+            continue
+        result=json.loads(raw)
+        require(result.get('is_consistent') is True and result.get('inconsistent_count')==0,'GraphQL metadata is inconsistent; obtain a corrected complete signed installation kit before continuing')
+        return
 
 
 def verify(d):

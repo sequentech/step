@@ -31,6 +31,18 @@ class InstallerTests(unittest.TestCase):
         self.assertEqual(result.returncode,23)
         self.assertFalse(Path(result.stdout.strip()).exists())
 
+    def test_metadata_api_waits_for_startup_without_retrying_inconsistency(self):
+        with patch('install.ssh',side_effect=[ValueError('not listening'),b'{"is_consistent":true,"inconsistent_count":0}']) as ssh,patch('install.time.sleep') as sleep:
+            install.verify_metadata(self.config())
+            self.assertEqual(ssh.call_count,2);sleep.assert_called_once_with(2)
+        with patch('install.ssh',side_effect=ValueError('not listening')) as ssh,patch('install.time.sleep') as sleep:
+            with self.assertRaisesRegex(ValueError,'did not become ready'):install.verify_metadata(self.config())
+            self.assertEqual(ssh.call_count,20);self.assertEqual(sleep.call_count,19)
+            self.assertEqual(ssh.call_args.kwargs['timeout'],5)
+        with patch('install.ssh',return_value=b'{"is_consistent":false,"inconsistent_count":196}') as ssh,patch('install.time.sleep') as sleep:
+            with self.assertRaisesRegex(ValueError,'metadata is inconsistent'):install.verify_metadata(self.config())
+            ssh.assert_called_once();sleep.assert_not_called()
+
     def test_metadata_consistency_rejects_unavailable_actions_before_handover(self):
         with patch('install.ssh',return_value=b'{"is_consistent":true,"inconsistent_count":0}'):
             install.verify_metadata(self.config())
