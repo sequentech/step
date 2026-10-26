@@ -2195,3 +2195,55 @@ fn a_voter_whose_area_has_no_embassy_label_is_refused() {
     // Only the 20 voters of the unlabelled area, each by its own row.
     assert_eq!(problems.len(), 20);
 }
+
+#[test]
+fn null_required_voter_fields_are_reported_without_dropping_the_row() {
+    let (sql, xlsx) = overseas_voter_fixture("", "");
+    let columns = [
+        "ID",
+        "FIRSTNAME",
+        "LASTNAME",
+        "COUNTRY",
+        "EMBASSY",
+        "PRECINCT",
+        "ABROADSTATUS",
+    ];
+    let control = [
+        "'v-1'", "'First'", "'Last'", "'90'", "'06'", "'0001A'", "'O'",
+    ];
+    let make_source = |values: &[&str]| {
+        with_voters(
+            sql.clone(),
+            &format!(
+                "CREATE TABLE `voters` ({}); INSERT INTO `voters` VALUES ({});",
+                columns
+                    .iter()
+                    .map(|column| format!("`{column}` text"))
+                    .collect::<Vec<_>>()
+                    .join(","),
+                values.join(",")
+            ),
+        )
+    };
+    assert_eq!(
+        adapt(&make_source(&control), &xlsx, &preserving())
+            .unwrap()
+            .summary
+            .preserved_voters,
+        1
+    );
+    for (index, column) in columns.iter().enumerate() {
+        let mut values = control;
+        values[index] = "NULL";
+        let refused =
+            adapt(&make_source(&values), &xlsx, &preserving()).unwrap_err();
+        assert_eq!(refused.report.problems.len(), 1, "{column}");
+        let problem = &refused.report.problems[0];
+        assert_eq!(problem.code, Code::MissingField, "{column}");
+        assert_eq!(
+            problem.path,
+            format!("SQL table voters row 1 column {column}")
+        );
+        assert_eq!(problem.message, "source value is null");
+    }
+}

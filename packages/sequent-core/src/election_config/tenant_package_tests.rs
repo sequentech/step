@@ -408,3 +408,20 @@ fn an_ambiguous_or_unreadable_census_is_refused_before_counting() {
     assert_eq!(problem.code, Code::Unreadable);
     assert_eq!(problem.path, "export_voters-e1.csv");
 }
+
+#[test]
+fn missing_census_is_only_consistent_with_zero_preserved_voters() {
+    let layout = super::super::archive::Layout {
+        importable: vec![Artifact {
+            name: "export_election_event-e1.json".into(),
+            bytes: b"{}".to_vec(),
+        }],
+        archive_name: "delivery.zip".into(),
+        auxiliary: vec![],
+    };
+    assert!(check_census_rows(&layout, 0).is_ok());
+    let problem = check_census_rows(&layout, 1).unwrap_err();
+    assert_eq!(problem.code, Code::InvalidValue);
+    assert_eq!(problem.path, "census");
+    assert_eq!(problem.message, "the package's voters file has 0 voters but the source conversion preserved 1");
+}
