@@ -19,7 +19,7 @@ ballot or audit it. If you audit it, the voting portal reveals the secret values
 it used to encrypt that ballot, and the ballot verifier checks with them that
 the encrypted ballot contains your selections. A ballot whose secret values have
 been revealed is spoiled: the voting system never casts it. The voting portal
-takes you back to your choices, and your ballot is encrypted anew, with new
+takes you back to the ballot list, and your next ballot is encrypted anew, with new
 secret values and a new Ballot ID, before you can cast it. Because your device
 cannot know in advance whether you will audit or cast a ballot, a device that
 encrypts wrongly can be caught by an audit.
@@ -121,9 +121,10 @@ about your ballot.
    it says: "For security reasons, when you audit your ballot, it needs to be
    spoiled. To continue with the voting process, you need to click ‘Start
    Voting’ below."
-2. Select "Start Voting". The voting portal takes you back to your choices.
-3. Make or check your selections, and select "Next". Your browser encrypts your
-   ballot anew.
+2. Select "Start Voting". The voting portal returns to the ballot list.
+3. For the same election, select "Click to Vote", then "Start Voting".
+   Make your selections again and select "Next". Your browser encrypts a new
+   ballot.
 4. On "Review your ballot", check that the Ballot ID after "Your Ballot ID:" is
    different from the one you noted before the audit. If it is the same, do not
    cast. Tell the election organizer.
