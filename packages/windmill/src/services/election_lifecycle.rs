@@ -335,6 +335,16 @@ async fn boxes_empty(tx: &Transaction<'_>, tenant: &str, event: &str) -> Result<
     Ok(row.try_get(0)?)
 }
 
+async fn request_activity_live(tx: &Transaction<'_>) -> Result<bool> {
+    Ok(tx
+        .query_one(
+            "SELECT sequent_backend.attack_activity_allows_voters()",
+            &[],
+        )
+        .await?
+        .try_get(0)?)
+}
+
 /// Called before any status change reaches its first mutation. The background
 /// check is independently committed, so a refused/retried action cannot erase it.
 pub async fn before_status_change(
@@ -360,6 +370,10 @@ pub async fn before_status_change(
     if *status != VotingStatus::OPEN {
         return Ok(());
     }
+    ensure!(
+        request_activity_live(tx).await?,
+        "Required external request monitoring is unavailable or stale; restore its trustworthy observations before starting or resuming voting"
+    );
     let (start, end) = period(tx, tenant, event, election).await?;
     let trigger = if current.phase == ElectoralPhase::Preparation
         || (scheduled && current.safety == SafetyState::Operational)
@@ -673,6 +687,7 @@ async fn monitor_event(tenant: &str, event: &str) -> Result<()> {
     let mut client = get_hasura_pool().await.get().await?;
     let tx = client.transaction().await?;
     let live = services_live(&tx).await?;
+    let activity_live = request_activity_live(&tx).await?;
     let current = state(&tx, tenant, event).await?;
     let allowed:bool=tx.query_one("SELECT voter_allowed FROM sequent_backend.election_lifecycle_access WHERE tenant_id=$1::text::uuid AND election_event_id=$2::text::uuid", &[&tenant,&event]).await?.try_get(0)?;
     let irreversible:bool=tx.query_one("SELECT EXISTS(SELECT 1 FROM sequent_backend.self_test_run WHERE tenant_id=$1::text::uuid AND election_event_id=$2::text::uuid AND outcome='unrecoverable-failure')", &[&tenant,&event]).await?.try_get(0)?;
@@ -686,18 +701,20 @@ async fn monitor_event(tenant: &str, event: &str) -> Result<()> {
             json!({}),
         )
         .await?;
-    } else if current.safety == SafetyState::Operational && (!live || !allowed) {
+    } else if current.safety == SafetyState::Operational && (!live || !allowed || !activity_live) {
         enter_failure(
             &tx,
             tenant,
             event,
             SafetyState::Recoverable,
-            if live {
-                "The required self-test failed or its validity interval expired"
-            } else {
+            if !live {
                 "A required service heartbeat expired"
+            } else if !activity_live {
+                "Required external request monitoring is unavailable or its observation expired"
+            } else {
+                "The required self-test failed or its validity interval expired"
             },
-            json!({}),
+            json!({"service_heartbeats_live": live, "request_activity_live": activity_live}),
         )
         .await?;
     }

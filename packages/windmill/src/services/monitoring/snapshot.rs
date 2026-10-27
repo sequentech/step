@@ -72,7 +72,7 @@ pub const RECOUNT_EVERY: Duration = Duration::minutes(10);
 /// What reads the inputs and counts from them: a change to what a pass
 /// counts from, or to what the producers count (a new measure, say), bumps
 /// the leading number, so no run recorded before is trusted.
-const INPUTS_READER: &str = concat!("2/", env!("CARGO_PKG_VERSION"));
+const INPUTS_READER: &str = concat!("3/", env!("CARGO_PKG_VERSION"));
 
 /// What a pass counts from, recorded with the run it showed
 /// (`monitoring_snapshot_run.counted_inputs`). Two passes that find the same
@@ -843,7 +843,10 @@ async fn counted_inputs(
         areas: row.get("areas"),
         area_elections: row.get("area_elections"),
         tally_sessions: row.get("tally_sessions"),
-        logins: row.get("logins"),
+        logins: format!("{}:{}", row.get::<_, String>("logins"), {
+            let row=transaction.query_one("SELECT md5(COALESCE((SELECT string_agg(d::text,'' ORDER BY d.id) FROM sequent_backend.attack_detection d WHERE d.tenant_id=$1 AND (d.election_event_id IS NULL OR d.election_event_id=$2)),'')) || COALESCE((SELECT (available AND checked_at>clock_timestamp()-interval '30 seconds')::text FROM sequent_backend.attack_activity_health WHERE source='external-nginx'),'false')", &[&event.tenant_id,&event.election_event_id]).await?;
+            row.get::<_, String>(0)
+        }),
         sets: row.get("sets"),
         counted_at: now,
     })
@@ -1389,6 +1392,8 @@ pub async fn load_facts(
         .into_iter()
         .map(|(area, (_, elections))| (area, elections))
         .collect();
+    let attacks=transaction.query("SELECT category,detected_at FROM sequent_backend.attack_detection WHERE tenant_id=$1 AND (election_event_id IS NULL OR election_event_id=$2) ORDER BY detected_at",&params).await?.iter().map(|r|(r.get(0),r.get(1))).collect();
+    let attack_activity_available=transaction.query_opt("SELECT available AND checked_at>clock_timestamp()-interval '30 seconds' FROM sequent_backend.attack_activity_health WHERE source='external-nginx'",&[]).await?.is_some_and(|r|r.get(0));
     Ok(EventFacts {
         settings: settings.clone(),
         zone,
@@ -1397,6 +1402,8 @@ pub async fn load_facts(
         area_elections,
         area_regions,
         logins,
+        attacks,
+        attack_activity_available,
     })
 }
 

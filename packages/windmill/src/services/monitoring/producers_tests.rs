@@ -71,6 +71,8 @@ fn facts(settings: &Settings, voters: Vec<VoterRow>) -> EventFacts {
         area_elections: HashMap::new(),
         area_regions: HashMap::new(),
         logins: Vec::new(),
+        attacks: Vec::new(),
+        attack_activity_available: true,
     }
 }
 
@@ -811,5 +813,34 @@ fn an_empty_scope_has_every_group_and_the_cube() {
     assert_eq!(
         empty_payload(DataSourceId::AccessSecurity, &settings).notices,
         vec![Notice::UnregisteredAttemptsExcluded]
+    );
+}
+
+#[test]
+fn real_attack_detections_are_counted_and_unavailable_is_not_zero() {
+    let mut f = facts(&settings(), vec![]);
+    f.attacks = vec![
+        ("network-dos".into(), at(1, 10, 0)),
+        ("brute-force-account".into(), at(1, 10, 1)),
+    ];
+    let figures = produce(&f, &[set(&[1, 2, 3])]);
+    assert_eq!(
+        scopes(&figures, DataSourceId::AttackDetections)["event"].totals[&Measure::Detections],
+        2
+    );
+    f.attack_activity_available = false;
+    let figures = produce(&f, &[set(&[1, 2, 3])]);
+    assert!(scopes(&figures, DataSourceId::AttackDetections)["event"]
+        .notices
+        .contains(&Notice::AttackRequestActivityUnavailable));
+    f.attacks.clear();
+    let figures = produce(&f, &[set(&[1, 2, 3])]);
+    assert_eq!(
+        figures
+            .iter()
+            .find(|f| f.source == DataSourceId::AttackDetections)
+            .unwrap()
+            .status,
+        SourceStatus::NotConnected(PendingProducer::AttackDetectionFeed)
     );
 }

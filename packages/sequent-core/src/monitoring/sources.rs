@@ -594,7 +594,7 @@ impl DataSourceId {
                 &[T::Summary, T::ByGroup, T::Timeseries, T::ByMeasure],
                 &[D::Category],
                 VoterDimensions::NotApplicable,
-                Producer::Pending(PendingProducer::AttackDetectionFeed),
+                Producer::Available,
             ),
             Helpdesk => (
                 CountingUnit::ReportedIssues,

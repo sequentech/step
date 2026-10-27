@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.nio.charset.StandardCharsets;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.events.Event;
 import org.keycloak.events.EventListenerProvider;
@@ -73,10 +74,32 @@ public class CustomEventListenerProvider implements EventListenerProvider {
       }
     }
 
+    // The transactional queue records failed authentication independently of
+    // whether an election-specific audit board exists (staff realm included).
+    if (event.getType() == EventType.LOGIN_ERROR) {
+      var realm = session.realms().getRealm(event.getRealmId());
+      String account = event.getUserId();
+      if (account == null && event.getDetails() != null) account = event.getDetails().get("username");
+      var activity = attackMessage(realm.getName(), event.getId(), account, event.getTime(),
+          Math.max(1, realm.getFailureFactor()), Math.max(1, realm.getMaxDeltaTimeSeconds()));
+      if (activity != null) {
+        try {
+          pgmqEventPublisher.publish(session, UUID.randomUUID().toString(),
+              "record_attack_auth_failure", om.writeValueAsBytes(activity));
+        } catch (Exception e) {
+          session.getTransactionManager().setRollbackOnly();
+          throw new IllegalStateException("Unable to enqueue authentication security activity", e);
+        }
+      }
+    }
+
     // Extract tenant_id and election_event_id from the realm.
     String[] tenantAndEvent = parseRealm(event.getRealmId());
     String tenantId = tenantAndEvent[0];
     String electionEventId = tenantAndEvent[1];
+
+    // Staff authentication is recorded above; an event-log task needs an event.
+    if (tenantId.isEmpty() || electionEventId.isEmpty()) return;
 
     // Extract username from event details (default to "unknown" if absent)
     String username =
@@ -215,6 +238,31 @@ public class CustomEventListenerProvider implements EventListenerProvider {
     message.add(inputObject);
     message.add(annotations);
     return message;
+  }
+
+  /** A separate durable activity record; no password, token, address or request URL. */
+  static List<Object> attackMessage(String realm, String eventId, String account,
+      long time, int failureLimit, int windowSeconds) {
+    if (realm == null || !realm.startsWith("tenant-")) return null;
+    String[] ids = realm.substring(7).split("-event-", -1);
+    if (ids.length < 1 || ids.length > 2) return null;
+    try {
+      if (!UUID.fromString(ids[0]).toString().equals(ids[0])) return null;
+      if (ids.length == 2 && !UUID.fromString(ids[1]).toString().equals(ids[1])) return null;
+    } catch (IllegalArgumentException e) { return null; }
+    if (failureLimit < 1 || failureLimit > 100000 || windowSeconds < 1 || windowSeconds > 2592000)
+      throw new IllegalArgumentException("Authentication failure policy outside supported bounds");
+    String identity = eventId == null ? UUID.randomUUID().toString() : eventId;
+    Map<String,Object> input = new HashMap<>();
+    input.put("id", UUID.nameUUIDFromBytes((realm + ":" + identity).getBytes(StandardCharsets.UTF_8)).toString());
+    input.put("tenant_id", ids[0]);
+    input.put("election_event_id", ids.length == 2 ? ids[1] : null);
+    input.put("realm", realm);
+    input.put("account", account == null || account.isBlank() || account.length() > 512 ? null : account);
+    input.put("event_time_ms", time);
+    input.put("failure_limit", failureLimit);
+    input.put("window_seconds", windowSeconds);
+    return List.of(Collections.emptyList(), Map.of("input",input), Collections.emptyMap());
   }
 
   @Override

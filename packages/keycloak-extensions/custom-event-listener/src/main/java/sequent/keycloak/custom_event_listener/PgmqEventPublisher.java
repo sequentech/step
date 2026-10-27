@@ -52,6 +52,7 @@ final class PgmqEventPublisher implements AutoCloseable {
   }
 
   void publish(KeycloakSession session, String taskId, String taskName, byte[] body) {
+    String queue = taskName.equals("record_attack_auth_failure") ? "short_queue" : QUEUE;
     String payload;
     try {
       payload = envelope(taskId, taskName, body);
@@ -60,12 +61,12 @@ final class PgmqEventPublisher implements AutoCloseable {
     }
     KeycloakTransactionManager transaction = session.getTransactionManager();
     if (!transaction.isActive()) {
-      send(taskId, payload);
+      send(queue, taskId, payload);
       return;
     }
     switch (policy) {
-      case FAIL_REQUEST -> transaction.enlistPrepare(new Enqueue(taskId, payload));
-      case LOG_AND_CONTINUE -> transaction.enlistAfterCompletion(new Enqueue(taskId, payload));
+      case FAIL_REQUEST -> transaction.enlistPrepare(new Enqueue(queue, taskId, payload));
+      case LOG_AND_CONTINUE -> transaction.enlistAfterCompletion(new Enqueue(queue, taskId, payload));
     }
   }
 
@@ -89,9 +90,9 @@ final class PgmqEventPublisher implements AutoCloseable {
             properties));
   }
 
-  private void send(String taskId, String payload) {
+  private void send(String queue, String taskId, String payload) {
     try {
-      sender.send(QUEUE, payload);
+      sender.send(queue, payload);
     } catch (Exception exception) {
       switch (policy) {
         case FAIL_REQUEST ->
@@ -103,7 +104,7 @@ final class PgmqEventPublisher implements AutoCloseable {
                 "Unable to enqueue electoral audit event {0}; it is not in the electoral log."
                     + " Its message, to send to {1}: {2}",
                 taskId,
-                QUEUE,
+                queue,
                 payload);
       }
     }
@@ -116,12 +117,14 @@ final class PgmqEventPublisher implements AutoCloseable {
 
   /** Sends the event when Keycloak commits the request; a rolled-back request sends nothing. */
   private final class Enqueue implements KeycloakTransaction {
+    private final String queue;
     private final String taskId;
     private final String payload;
     private boolean active;
     private boolean rollbackOnly;
 
-    private Enqueue(String taskId, String payload) {
+    private Enqueue(String queue, String taskId, String payload) {
+      this.queue = queue;
       this.taskId = taskId;
       this.payload = payload;
     }
@@ -134,7 +137,7 @@ final class PgmqEventPublisher implements AutoCloseable {
     @Override
     public void commit() {
       active = false;
-      send(taskId, payload);
+      send(queue, taskId, payload);
     }
 
     @Override

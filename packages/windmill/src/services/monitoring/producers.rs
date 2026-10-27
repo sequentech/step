@@ -112,6 +112,8 @@ pub struct EventFacts {
     /// annotation; empty otherwise.
     pub area_regions: HashMap<Uuid, String>,
     pub logins: Vec<LoginRow>,
+    pub attacks: Vec<(String, DateTime<Utc>)>,
+    pub attack_activity_available: bool,
 }
 
 /// Whether a source was counted, and why not.
@@ -212,6 +214,15 @@ pub fn produce(facts: &EventFacts, sets: &[ElectionSet]) -> Vec<SourceFigures> {
         let logins = access_security(facts, set);
         for source in DataSourceId::iter() {
             let (status, scopes) = match source.spec().producer {
+                _ if source == DataSourceId::AttackDetections
+                    && !facts.attack_activity_available
+                    && facts.attacks.is_empty() =>
+                {
+                    (
+                        SourceStatus::NotConnected(PendingProducer::AttackDetectionFeed),
+                        BTreeMap::new(),
+                    )
+                }
                 Producer::Pending(pending) => {
                     (SourceStatus::NotConnected(pending), BTreeMap::new())
                 }
@@ -221,6 +232,7 @@ pub fn produce(facts: &EventFacts, sets: &[ElectionSet]) -> Vec<SourceFigures> {
                         DataSourceId::PollStatus => posts.poll.clone(),
                         DataSourceId::CountingTransmission => posts.counting.clone(),
                         DataSourceId::AccessSecurity => logins.clone(),
+                        DataSourceId::AttackDetections => attack_detections(facts),
                         _ => voters.remove(&source).unwrap_or_default(),
                     },
                 ),
@@ -895,3 +907,28 @@ pub fn poll_state(voting_status: Option<&str>, initialized: bool) -> PostState {
 #[cfg(test)]
 #[path = "producers_tests.rs"]
 mod producers_tests;
+
+fn attack_detections(facts: &EventFacts) -> BTreeMap<String, ScopePayload> {
+    let mut tally = Tally::default();
+    for (category, at) in &facts.attacks {
+        let counts: Counts = [(Measure::Detections, 1)].into();
+        add(&mut tally.totals, &counts);
+        tally.group(BuiltinDimension::Category, category, &counts);
+        tally.event(facts.zone, Measure::Detections, *at, 1);
+    }
+    if !facts.attack_activity_available {
+        tally
+            .notices
+            .insert(Notice::AttackRequestActivityUnavailable);
+    }
+    [(
+        canonical(None, None, None),
+        tally.payload(
+            DataSourceId::AttackDetections,
+            &facts.settings,
+            facts.zone,
+            &HashMap::new(),
+        ),
+    )]
+    .into()
+}

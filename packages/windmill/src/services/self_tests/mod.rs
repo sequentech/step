@@ -204,6 +204,19 @@ pub async fn execute(tenant: &str, event: &str, id: &str) -> Result<()> {
                             baseline.get(key).is_some() && baseline[key] == current[key],
                             "Current {key} differs from the board-approved baseline"
                         );
+                        if check == SelfTestCheck::AccessControl {
+                            let monitored: bool = tx
+                                .query_one(
+                                    "SELECT sequent_backend.attack_activity_allows_voters()",
+                                    &[],
+                                )
+                                .await?
+                                .try_get(0)?;
+                            ensure!(
+                                monitored,
+                                "External request activity is unavailable, stale or discontinuous"
+                            );
+                        }
                         Ok(None)
                     }
                     SelfTestCheck::AuditGeneration => {
@@ -260,7 +273,7 @@ pub async fn execute(tenant: &str, event: &str, id: &str) -> Result<()> {
                         SelfTestCheck::ElectionData=>"Election data or its approved baseline could not be verified",
                         SelfTestCheck::AuditGeneration=>"Audit write, read-back or integrity verification failed",
                         SelfTestCheck::TrustedChannel=>"A public endpoint failed the required TLS profile or certificate checks",
-                        SelfTestCheck::AccessControl=>"Access-control settings differ from, or cannot be verified against, the approved baseline",
+                        SelfTestCheck::AccessControl=>"Access-control settings differ from the approved baseline, or external request monitoring is unavailable",
                         SelfTestCheck::Clock=>"The host clock observation is unavailable, stale or not synchronized with NTS",
                     }
                 };

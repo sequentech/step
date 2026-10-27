@@ -93,3 +93,5 @@ pub mod export_verification_transcript;
 pub mod election_lifecycle;
 
 pub mod self_tests;
+
+pub mod attack_heuristics;

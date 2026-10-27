@@ -69,6 +69,18 @@ class PgmqEventPublisherTest {
   }
 
   @Test
+  void authenticationActivityUsesTheShortQueueAndTheSameCommitBoundary() throws Exception {
+    new PgmqEventPublisher(sender, PublishFailurePolicy.FAIL_REQUEST)
+        .publish(session, "auth-id", "record_attack_auth_failure", BODY);
+    ArgumentCaptor<KeycloakTransaction> enqueue = ArgumentCaptor.forClass(KeycloakTransaction.class);
+    verify(transaction).enlistPrepare(enqueue.capture());
+    verifyNoInteractions(sender);
+    enqueue.getValue().commit();
+    verify(sender).send(eq("short_queue"), anyString());
+    verify(sender, never()).send(eq(PgmqEventPublisher.QUEUE), anyString());
+  }
+
+  @Test
   void failRequestFailsTheRequestWhenTheEventCannotBeEnqueued() throws Exception {
     KeycloakTransaction enqueue = enlisted(PublishFailurePolicy.FAIL_REQUEST);
     doThrow(new SQLException("queue database unavailable")).when(sender).send(any(), any());

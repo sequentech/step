@@ -25,6 +25,7 @@ use windmill::services::messaging::checks::{
 };
 use windmill::services::monitoring::cadence;
 use windmill::services::probe::{setup_probe, AppName};
+use windmill::tasks::attack_heuristics::evaluate_attack_activity;
 use windmill::tasks::audit_electoral_log::audit_open_elections_periodically;
 use windmill::tasks::electoral_log::electoral_log_batch_dispatcher;
 use windmill::tasks::migrate_messaging_attributes::migrate_messaging_attributes;
@@ -241,6 +242,7 @@ async fn main() -> Result<()> {
             },
         ],
         task_routes = [
+            evaluate_attack_activity::NAME => Queue::Beat.queue_name(),
             schedule_self_tests::NAME => Queue::Beat.queue_name(),
             reconcile_security_alerts::NAME => Queue::Beat.queue_name(),
             review_boards::NAME => Queue::Beat.queue_name(),
@@ -272,6 +274,11 @@ async fn main() -> Result<()> {
         audit_open_elections_periodically::NAME.to_string(),
         audit_open_elections_periodically::new().with_expires_in(60),
         DeltaSchedule::new(Duration::from_secs(audit_policy.interval_secs)),
+    );
+    beat.schedule_named_task(
+        evaluate_attack_activity::NAME.to_string(),
+        evaluate_attack_activity::new().with_expires_in(15),
+        DeltaSchedule::new(Duration::from_secs(15)),
     );
     beat.schedule_named_task(
         schedule_self_tests::NAME.to_string(),

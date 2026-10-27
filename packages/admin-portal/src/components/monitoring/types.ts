@@ -126,6 +126,7 @@ export enum EMonitoringNotice {
     UNREGISTERED_ATTEMPTS_EXCLUDED = "UNREGISTERED_ATTEMPTS_EXCLUDED",
     /** Voting credentials: counted when the password is set, until their issue is recorded. */
     CREDENTIALS_ISSUED_WHEN_PASSWORD_SET = "CREDENTIALS_ISSUED_WHEN_PASSWORD_SET",
+    ATTACK_REQUEST_ACTIVITY_UNAVAILABLE = "ATTACK_REQUEST_ACTIVITY_UNAVAILABLE",
     /** Drawn with the live configuration: the snapshot's has not this widget yet. */
     CONFIG_NEWER_THAN_SNAPSHOT = "CONFIG_NEWER_THAN_SNAPSHOT",
     /** Drawn with the live configuration: the snapshot's is no longer kept. */

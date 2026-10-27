@@ -51,6 +51,18 @@ pub(crate) fn authorize_monitoring(
     claims: &JwtClaims,
     permissions: Vec<Permissions>,
 ) -> MonitoringResult<()> {
+    if permissions.contains(&Permissions::MONITORING_VIEW) {
+        windmill::services::signing::board_gate::require_board(
+            &windmill::services::signing::SigningCaller::from_claims(claims),
+        )
+        .map_err(|_| {
+            MonitoringError::from((
+                Status::Forbidden,
+                "Monitoring activity requires an election board account"
+                    .to_string(),
+            ))
+        })?;
+    }
     authorize(
         claims,
         true,

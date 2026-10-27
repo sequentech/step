@@ -3221,3 +3221,14 @@ type Mutation {
 type SelfTestStartOutput { task_id: String! state: String! }
 type SelfTestStatusOutput { settings: jsonb! runs: jsonb! baseline_present: Boolean! notifications: jsonb! }
 type SelfTestSettingsOutput { settings: jsonb! }
+
+# Logged activity attack heuristics.
+type Query {
+ get_attack_detection_settings: AttackDetectionSettingsOutput!
+ get_attack_detections(election_event_id: String!): AttackDetectionsOutput!
+}
+type Mutation {
+ update_attack_detection_settings(settings: jsonb!): AttackDetectionSettingsOutput!
+}
+type AttackDetectionSettingsOutput { tenant_id: String! settings: jsonb! }
+type AttackDetectionsOutput { detections: jsonb! request_source: jsonb! }

@@ -108,3 +108,5 @@ pub mod self_tests;
 pub mod board_operations;
 
 pub mod execution_archive;
+
+pub mod attack_heuristics;

@@ -16,6 +16,7 @@ fn only_sources_whose_facts_the_platform_records_are_connected() {
         CountingTransmission,
         VotingEnrollmentActivity,
         AccessSecurity,
+        AttackDetections,
     ] {
         assert_eq!(producer(source), Producer::Available, "{source}");
     }
@@ -25,7 +26,6 @@ fn only_sources_whose_facts_the_platform_records_are_connected() {
             FinalTestingLockdown,
             PendingProducer::FinalTestingLockdownState,
         ),
-        (AttackDetections, PendingProducer::AttackDetectionFeed),
         (Helpdesk, PendingProducer::HelpdeskIntegration),
     ];
     for (source, reason) in pending {

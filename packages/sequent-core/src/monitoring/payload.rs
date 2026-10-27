@@ -159,6 +159,8 @@ pub enum Notice {
     /// Credentials count as issued when the voter's password is set, until
     /// the platform records their issue.
     CredentialsIssuedWhenPasswordSet,
+    /// Historical detections remain visible, but current external activity is unavailable.
+    AttackRequestActivityUnavailable,
 }
 
 impl Cube {

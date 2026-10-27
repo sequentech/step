@@ -127,6 +127,11 @@ pub async fn capture(tx: &Transaction<'_>, tenant: &str, event: &str) -> Result<
         "self_test_settings".into(),
         json!(super::settings(tx, tenant, event).await?),
     );
+    let attack=tx.query_one("SELECT jsonb_build_object('failed_logins_per_minute',COALESCE(s.failed_logins_per_minute,20),'requests_per_minute',COALESCE(s.requests_per_minute,2000)) FROM sequent_backend.tenant t LEFT JOIN sequent_backend.attack_detection_settings s ON s.tenant_id=t.id WHERE t.id=$1::text::uuid", &[&tenant]).await?;
+    access.insert(
+        "attack_detection_settings".into(),
+        attack.try_get::<_, Value>(0)?,
+    );
     Ok(
         json!({"election_data":digest(&Value::Object(data)),"access_control":digest(&Value::Object(access))}),
     )

@@ -3071,6 +3071,49 @@ actions:
           - role: admin-user
           - role: election-event-read
       comment: Read trusted lifecycle snapshots per Post and event
+    - name: get_attack_detection_settings
+      definition:
+        kind: synchronous
+        handler: "http://{{HARVEST_DOMAIN}}/attack-detection/settings/get"
+        forward_client_headers: true
+        type: query
+        request_transform:
+          body:
+            action: transform
+            template: "{{$body.input}}"
+          template_engine: Kriti
+          version: 2
+      permissions:
+        - role: tenant-write
+    - name: update_attack_detection_settings
+      definition:
+        kind: synchronous
+        handler: "http://{{HARVEST_DOMAIN}}/attack-detection/settings/update"
+        forward_client_headers: true
+        type: mutation
+        request_transform:
+          body:
+            action: transform
+            template: "{{$body.input}}"
+          template_engine: Kriti
+          version: 2
+      permissions:
+        - role: tenant-write
+    - name: get_attack_detections
+      definition:
+        kind: synchronous
+        handler: "http://{{HARVEST_DOMAIN}}/attack-detection/get"
+        forward_client_headers: true
+        type: query
+        request_transform:
+          body:
+            action: transform
+            template: "{{$body.input}}"
+          template_engine: Kriti
+          version: 2
+      permissions:
+        - role: monitoring-view
+
 custom_types:
     enums:
         - name: EarlyVotingPolicy
@@ -3371,4 +3414,6 @@ custom_types:
         - name: SelfTestStartOutput
         - name: SelfTestStatusOutput
         - name: SelfTestSettingsOutput
+        - name: AttackDetectionSettingsOutput
+        - name: AttackDetectionsOutput
     scalars: []
