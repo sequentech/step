@@ -49,13 +49,14 @@ def check_signing_keys(published, realms):
 
 def check_metadata_response(status, body):
     # Exact-path ingress may return its portal HTML fallback for an unknown path.
-    refused=status==404 or (status==403 and not body.lstrip().startswith(('{','['))) or (status==200 and body.lstrip().lower().startswith(('<!doctype html','<html')))
+    refused=status==404 or (status==403 and not body.lstrip().startswith(('{','['))) or (status in (200,405) and body.lstrip().lower().startswith(('<!doctype html','<html')))
     install.require(refused, 'Metadata endpoint did not return a verified refusal or portal fallback')
 
 
-def http(d, host, path, label, form=None):
+def http(d, host, path, label, form=None, json_body=None):
     argv=['curl','--silent','--show-error','--cacert',d['tls']['ca'],'--max-time','15','-w','\n%{http_code}']
     if form is not None:argv+=['--data',urlencode(form)]
+    if json_body is not None:argv+=['-H','Content-Type: application/json','--data',json.dumps(json_body)]
     raw=install.run(argv+['https://'+host+path],label,timeout=20).decode()
     body,status=raw.rsplit('\n',1)
     install.require(re.fullmatch(r'[1-5][0-9]{2}',status) is not None,'HTTPS check has no valid response status')
@@ -73,7 +74,7 @@ def external(d, realm):
     for host in (d['hosts'][name] for name in ('voting','administration','verifier')):
         status,_=http(d,host,'/realms/'+realm+'/election/x/public/login','Smart-link endpoint refusal')
         install.require(status==404,'Smart-link endpoint must return HTTP 404')
-        status,body=http(d,host,'/hasura/v1/metadata','Metadata endpoint refusal',{'type':'export_metadata'})
+        status,body=http(d,host,'/hasura/v1/metadata','Metadata endpoint refusal',json_body={'type':'export_metadata','args':{}})
         check_metadata_response(status,body)
         headers=install.run(['curl','--silent','--show-error','--cacert',d['tls']['ca'],'--max-time','15','-o','/dev/null','-D','-','-H','Origin: https://other.invalid','https://'+host+'/hasura/v1/graphql'],'Foreign-origin policy',timeout=20).decode()
         install.require(re.search(r'^HTTP/\S+ [1-5][0-9]{2}',headers,re.M) is not None and re.search(r'^access-control-allow-origin:',headers,re.I|re.M) is None,'A foreign origin received cross-origin permission or no HTTP response')

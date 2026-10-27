@@ -20,9 +20,17 @@ class VerificationTests(unittest.TestCase):
 
     def test_metadata_html_fallback_is_not_a_reachable_api(self):
         verification.check_metadata_response(404,'missing')
+        verification.check_metadata_response(405,'<html><head><title>405 Not Allowed</title></head></html>')
         verification.check_metadata_response(200,'<!doctype html><html>portal</html>')
-        for status,body in [(0,''),(403,'{"code":"access-denied"}'),(200,'{"code":"access-denied"}'),(200,'{"sources":[]}'),(500,'oops')]:
+        for status,body in [(0,''),(403,'{"code":"access-denied"}'),(200,'{"code":"access-denied"}'),(200,'{"sources":[]}'),(500,'oops'),(503,'<html>unavailable</html>'),(405,'{"code":"error"}')]:
             with self.assertRaises(ValueError):verification.check_metadata_response(status,body)
+
+    def test_metadata_probe_sends_json_with_its_correct_content_type(self):
+        with patch('install.run',return_value=b'<html>405</html>\n405') as run:
+            verification.http({'tls':{'ca':'/ca.pem'}},'site.example','/hasura/v1/metadata','metadata',json_body={'type':'export_metadata','args':{}})
+        args=run.call_args.args[0]
+        self.assertIn('Content-Type: application/json',args)
+        self.assertEqual(args[args.index('--data')+1],'{"type": "export_metadata", "args": {}}')
 
     def test_storage_check_refuses_existing_pod_before_cleanup_is_armed(self):
         with patch('install.command_source',return_value='k3s kubectl apply -f /root/deploy/storage-check.yaml\nk3s kubectl -n step-infra delete pod storage-check\n'):
