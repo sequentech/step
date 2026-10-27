@@ -133,7 +133,9 @@ The TOE's three web hosts need server certificates with ECDSA P-384 keys:
   so that voters never see a certificate warning;
 - the administration portal host can use the same certificate.
 
-[Certificates and TLS](05-certificates_tls.md) creates the key and the request.
+[Certificates and TLS](05-certificates_tls.md) explains which certificate inputs
+to obtain through your site's certificate process and how to check their trust
+and the required TLS profile.
 
 ## People
 

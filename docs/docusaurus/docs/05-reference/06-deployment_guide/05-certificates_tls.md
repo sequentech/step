@@ -8,12 +8,14 @@ SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-Read this chapter for the requirements and expected results behind the
-[configuration-driven installation](01-about.md#install-from-one-configuration-file).
-Follow the explicit commands and human checkpoints below. The installer performs
-the server-side operations; you do not run internal numbered operations yourself.
+This chapter prepares the certificate inputs for
+[the three-command installation](01-about.md#install-from-one-configuration-file).
+The installer checks the inputs and installs the certificate automatically. You
+supply the approved files; you do not create cluster Secrets by hand.
 
-Every connection to the TOE's web hosts uses one TLS profile:
+## Required TLS profile
+
+Every connection to the TOE's web hosts must use this profile:
 
 | Property | Required value |
 | --- | --- |
@@ -21,131 +23,164 @@ Every connection to the TOE's web hosts uses one TLS profile:
 | Cipher suite | TLS_AES_256_GCM_SHA384 only |
 | Key exchange group | secp384r1 only |
 | Server certificate | ECDSA key on the P-384 curve |
-| Plain HTTP | none: port 80 closed |
+| Names | The voting, administration and ballot-verifier host names in `site.json` |
+| Plain HTTP | None; port 80 closed |
 
-The same profile applies to the external authentication server (see
-[Connecting the Authentication Server](06-authentication_server.md)).
+The same protocol, cipher and group requirements apply to the
+[external authentication server](06-authentication_server.md).
 
 ## Create the key and the certificate request
 
-:::warning
-The private key never leaves C1. Create it there, in the root-only deployment
-directory.
-:::
-
-On C1:
-
 <!-- deployment-step: 05-001 -->
 
-**Expected result.** The certificate request summary shows `NIST CURVE: P-384` and DNS entries for all three configured web host names. The private key is saved locally; it is not printed.
+**Before installation, on the administration workstation:** obtain an issued
+certificate, its matching private key and its CA chain through your approved
+certificate procedure. The issuing CA's procedure depends on your organization;
+its screens are outside this installer. Request all three web host names and
+an ECDSA P-384 key.
 
-**If the result differs.** If a host name is wrong, correct the controlled site configuration before requesting a certificate. If key generation or request creation fails, inspect the root-only TLS directory and installed OpenSSL prerequisites. Do not blindly rerun this step after submitting a CSR: it replaces the private key, invalidating the relationship to that request.
+The configuration-driven installer reads the key from a protected input file on
+the administration workstation and transfers it to C1 over the verified SSH
+connection. Keep both machines and these files within the protected
+administration environment. Do not paste private-key material into `site.json`,
+a terminal, an e-mail or a screenshot.
 
+In your private working configuration, set these file paths:
 
-The last command must show `NIST CURVE: P-384` and the three host names.
+| `site.json` field | File or value |
+| --- | --- |
+| `tls.certificate` | PEM server certificate and its intermediate chain |
+| `tls.private_key` | Matching private key, owned by root and accessible only to root |
+| `tls.ca` | Trusted CA certificate used to validate the chain |
+| `tls.ca_sha256` | SHA-256 CA fingerprint received independently |
 
-Send `tls.csr` to a certification authority whose root certificate the common
-web browsers trust. Save the certificate you receive, followed by the
-intermediate certificates of its chain, in PEM format as
-`/root/deploy/tls/tls.crt`.
+Use absolute paths. Your certificate must be trusted by voters' ordinary,
+current browsers. A laboratory CA shown in a rehearsal is not suitable for
+consumer deployment; adding such a CA locally does not establish public trust.
+
+**If the certificate is wrong:** obtain the correct certificate for the approved
+key and names. Do not regenerate a key after submitting its CSR and then attempt
+to use the old response. Resolve any untrusted chain, expired certificate or
+missing name before installation.
 
 ## Check the certificate
 
-On C1:
-
 <!-- deployment-step: 05-002 -->
-
-**Expected result.** The certificate summary lists the intended subject, issuer, all three DNS names and a future expiry date. It shows `NIST CURVE: P-384`, then `certificate matches the key`.
-
-**If the result differs.** If the certificate cannot be parsed, check that the CA response and chain were saved in PEM format. For missing names, expiry, a wrong curve or a key mismatch, obtain the correct certificate for the existing CSR. Never replace or export the private key to make an unrelated certificate fit.
-
-
-Then check the chain on the administration workstation, against the trust
-store of a current browser installation (on Debian and Ubuntu,
-`/etc/ssl/certs/ca-certificates.crt`):
-
 <!-- deployment-step: 05-003 -->
 
-**Expected result.** The final verification line is `leaf.pem: OK`. The certificate chain reaches the administration workstation’s current public browser-compatible CA trust store.
+**Where:** a root terminal on the administration workstation, in the extracted
+package's `deployment` directory. After preparing the complete `site.json` and
+installing C1 and C2, run:
 
-**If the result differs.** For `unable to get local issuer certificate`, check the supplied intermediate chain. For expiry or an untrusted/private CA, obtain a suitable certificate from the CA. Do not add a private CA to this check’s trust store merely to force `OK`; voters’ ordinary browsers must trust the chain.
+```bash
+./deploy check site.json
+```
 
+This is the same preflight command from [Check the site](01-about.md#check-the-site).
+It checks the independently supplied CA fingerprint, certificate chain, each
+configured host name, P-384 curve and certificate/private-key match. Do not run
+it a second time if that preflight has already passed with these exact inputs.
 
-The result must be `leaf.pem: OK`. A certificate that is self-signed, chains
-to a private CA, has an RSA key or a curve other than P-384 must not be used:
-voters would see a certificate warning, or the profile would not hold.
+**Expected result:** `PASS: configuration, accepted media and certificate inputs`,
+followed by the node checks and `CHECK PASSED — ready to install the platform`.
+The private key and client secrets are not printed.
+
+![Actual VM preflight checking certificate inputs and the two installed servers](./assets/installation/installer-preflight.png)
+
+*Actual rehearsal capture. The certificate-input PASS line is followed by the
+server checks. The shown laboratory identities illustrate the command's output;
+your approved inputs and browser trust must be checked for your own site.*
+
+**If it stops:** read the named failure. For a fingerprint mismatch, compare the
+independently received record with the supplied file; do not copy an observed
+mismatch into the expected field. For a key mismatch, name mismatch, expiry or
+untrusted chain, correct the input with the CA. A successful file check does not
+replace the live TLS-profile check below.
 
 ## Install the certificate
 
-The deployment keeps a certificate Secret named `step-tls-cert` that exists
-before it runs, and only generates a self-signed one when there is none.
-Create the Secret first, in both namespaces of the TOE.
-
-On C1:
-
 <!-- deployment-step: 05-004 -->
 
-**Expected result.** Namespace apply messages are followed by creation of `step-tls-cert` in each namespace. The final table lists that TLS Secret in both `step-apps` and `step-infra` (type `kubernetes.io/tls`).
+**Automatic part of installation.** After the full preflight passes, the command
+below securely transfers the configured certificate and key, creates the TLS
+Secret in both `step-apps` and `step-infra`, and prepares the operating-system
+TLS endpoint:
 
-**If the result differs.** If a Secret already exists, stop and establish whether this is a renewal or a partial earlier installation; do not delete it blindly. For a certificate/key error, return to certificate verification. If only one namespace succeeded, inspect both namespaces and reconcile the partial state before proceeding.
+```bash
+./deploy install site.json
+```
 
+Run it once from the same administration-workstation directory, as described in
+[Install the platform](01-about.md#install-the-platform). If that installation
+is already complete, do not rerun it for this chapter.
 
-The last command must list `step-tls-cert` in `step-apps` and in
-`step-infra`.
+**Expected result:** installation proceeds through its numbered stages and ends
+with `INSTALL 4/4: platform installed; customer and trustee commissioning still required`.
+The [actual installation screenshot](01-about.md#install-the-platform) shows the
+complete command and its successful end state.
+
+**If it fails:** keep the error and stage name. An existing Secret or occupied
+installation may indicate a partial earlier attempt. Inspect that state with
+the operator; do not delete Secrets or retry installation blindly.
 
 ## Set up the TLS endpoint
 
-:::warning
-Every connection from the network must end at the TLS endpoint, which alone
-enforces the TLS profile above. The cluster's ingress behind it listens only on
-C1's loopback interface and must never be reachable from the network.
-:::
-
-The TLS endpoint is the `nginx` service of C1's operating system, installed
-with the servers from the installation kit. It is the only service that
-listens on port 443 of C1's network addresses. It accepts only connections
-that meet the TLS profile and name one of the three host names (SNI), and
-forwards each one over C1's loopback interface, encrypted and with the
-client's address, to the cluster's ingress, which routes it to the TOE. No
-service listens on port 80. The TLS endpoint reads its certificate and key
-from `/var/lib/sequent-site/tls/`.
-
-On C1, install the certificate and the key, and restart the TLS endpoint:
-
 <!-- deployment-step: 05-005 -->
 
-**Expected result.** The last two output lines are `active` and `nginx`. The second line identifies the sole process listening on TCP 443; no other process name may appear.
+**Also automatic within `./deploy install site.json`.** C1's operating-system
+`nginx` service reads the protected certificate and key from
+`/var/lib/sequent-site/tls/`. It is the only externally reachable listener on
+TCP 443. It accepts the configured SNI names and permitted TLS profile, then
+forwards encrypted traffic through C1's loopback interface to cluster ingress.
 
-**If the result differs.** If nginx fails to restart, inspect its service status and journal for certificate-path or configuration errors; retain private key confidentiality. If another process occupies port 443, stop and reconcile the installed kit’s endpoint arrangement. Do not bypass nginx or expose the ingress directly.
+The ingress's own listeners must remain unreachable from client networks, and
+port 80 must remain closed. [Network filtering](04-hosts_network_time.md#network-filtering)
+checks that boundary from a separate client-network machine. Do not expose the
+ingress or another application listener to work around a failed TLS endpoint.
 
-
-The last two commands must print `active` and `nginx` alone. Repeat this
-section each time the certificate is renewed, together with
-[Install the certificate](#install-the-certificate) (delete the two
-`step-tls-cert` Secrets first and deploy again afterwards, as in
-[Deploy](08-installing_toe.md#deploy)).
+Certificate renewal is a separate controlled maintenance change. These fresh
+installation commands are not a renewal procedure: do not delete both TLS
+Secrets and rerun installation against an occupied cluster. Use an approved
+renewal procedure, then repeat the live TLS check below before returning service.
 
 ## Check the TLS profile
 
-Run these checks from the administration workstation once the TLS endpoint
-has its certificate, and again in
-[Verifying the Installation](10-verification.md):
-
 <!-- deployment-step: 05-006 -->
 
-**Expected result.** For each of the three host names, the successful handshake reports TLS 1.3, `TLS_AES_256_GCM_SHA384`, a `secp384r1` temporary key, a 384-bit server public key and `Verify return code: 0 (ok)`. All prohibited protocol/cipher/group and wrong-or-missing-name attempts say `refused`. The final C1 port-80 line says `closed`.
+**Where:** the administration workstation, in the same `deployment` directory.
+After installation, run:
 
-**If the result differs.** Any `ACCEPTED`, `open`, missing positive-handshake field or certificate verification error fails this check. Verify DNS/SNI host names, certificate chain and the controlled TLS endpoint configuration. A disconnected endpoint can refuse everything, so negative results never replace the successful allowed handshake.
+```bash
+./deploy inspect site.json tls
+```
 
+This verifies the configured CA fingerprints, tests each of the three TOE host
+names from this workstation, and tests the authentication server from **both
+C1 and C2**. It uses short, bounded probes and does not change server settings.
+It also repeats the allowed connection after the rejection tests: a disconnected
+service that refuses everything cannot pass.
 
-For each host, the first command must print four lines:
-`Peer Temp Key: ECDH, secp384r1, 384 bits` (older OpenSSL versions say
-`Server Temp Key`), `New, TLSv1.3, Cipher is TLS_AES_256_GCM_SHA384`,
-`Server public key is 384 bit` and `Verify return code: 0 (ok)`. Every other
-line must say `refused`, and port 80 must be `closed`. If any line says
-`ACCEPTED` or `open`, or a line is missing, the TLS profile does not hold:
-stop and report it to [security@sequentech.io](mailto:security@sequentech.io).
+![Actual TLS inspection showing verified allowed connections and refused prohibited variants](./assets/installation/inspect-tls.png)
 
-[Network filtering](04-hosts_network_time.md#network-filtering) and
-[Verifying the Installation](10-verification.md#tls-endpoint-and-ingress-ports)
-check from a client network that the ingress's ports are closed.
+*Actual TLS probe results from the rehearsal. `TOE` lines are checks from the
+administration workstation; `C1 to authentication server` and `C2 to authentication
+server` identify the upstream checks. Laboratory host names and certificates are
+examples, not deployment inputs.*
+
+**Expected final result:** `TLS PROFILE CHECK PASSED — allowed connections verified and prohibited variants refused`.
+All individual lines must pass as summarized below. Save the output in the
+installation record; [Verifying the Installation](10-verification.md#tls-endpoint-and-ingress-ports)
+uses this same inspection, so a completed check with unchanged configuration
+need not be repeated merely to read another chapter.
+
+| Check | Required result |
+| --- | --- |
+| Each of the three configured web names | TLS 1.3, `TLS_AES_256_GCM_SHA384`, `secp384r1`, 384-bit server public key, trusted certificate and correct name |
+| TLS 1.2, AES-128, ChaCha20 or X25519 | Connection refused |
+| Wrong SNI name or no SNI | Connection refused |
+| C1 port 80 | Closed |
+
+**If any prohibited connection succeeds or the allowed connection fails:** stop.
+Check the configured names, certificate chain and controlled endpoint settings
+with the operator. Do not disable certificate verification, accept a browser
+warning or route clients around nginx.

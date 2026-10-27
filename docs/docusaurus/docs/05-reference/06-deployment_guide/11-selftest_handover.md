@@ -8,12 +8,11 @@ SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-The installation is complete when every check of
-[Verifying the Installation](10-verification.md) has passed and the operator
-has given the administrators the confirmation of
-[Confirm the server settings to the administrator](#confirm-the-server-settings-to-the-administrator).
-The TOE is then handed over to the administrator's work in the
-[Handbook for Election Administrators (AGD-02)](../../02-election_managers/04-administrator_handbook/01-about.md).
+This chapter records the remaining human checks and the separate maintenance
+procedures. Passing installation checks does not establish complete PP/CC
+conformance: the full ST self-test suite and other implementation requirements
+remain incomplete. Do not authorize the evaluated configuration as compliant
+merely because the installer or platform inspection succeeds.
 
 ## Before the first import
 
@@ -26,16 +25,16 @@ Handbook for Election Administrators describes.
 
 Before the election board imports any election data:
 
-1. The administrator sets the tenant setting `configuration_signing` with
-   `policy` "required", `required_approvals` of at least 2, and the election
-   organizer's certificates in `package_roots` and `staff_roots`, as the
-   section "Tenant and Election Event Settings" of the
-   [Handbook for Election Administrators](../../02-election_managers/04-administrator_handbook/01-about.md)
-   describes.
+1. In the administration portal, open **Settings → Configuration packages**.
+   Upload the approved public CA certificates, independently check their
+   fingerprints and set at least two approvals, following the illustrated
+   [certificate setup procedure](../../02-election_managers/04-administrator_handbook/05-tenant_and_event_settings.md#configure-certificates-in-the-admin-portal).
+   Save and check the read-back. A failed save or different fingerprint blocks
+   the first import; do not substitute a different CA to make the form pass.
 2. The administrator sets up the roles and the personal accounts and deletes
-   the seeded accounts, as the section "Users, Roles and Role Separation" of
-   the [Handbook for Election Administrators](../../02-election_managers/04-administrator_handbook/01-about.md)
-   describes. The seeded administrator groups already hold none of the
+   the seeded accounts, following the illustrated
+   [Users, Roles and Role Separation](../../02-election_managers/04-administrator_handbook/04-users_and_roles.md)
+   procedure. The seeded administrator groups already hold none of the
    permissions that the handbook's role tables exclude from the administrator
    role ([Configuring the Deployment](07-hardening.md#configure-the-realms)). Only
    the election board's role holds "Create Election Event"
@@ -59,18 +58,20 @@ voters use it.
 Each time the election board has imported an election event, in its
 preparation phase:
 
-1. The operator asks the operator of the external authentication server to
-   register the redirect URI
-   `https://PORTAL_HOST/realms/E/broker/IDP_ALIAS/endpoint`, with the realm
-   name of the election event in place of E (see
-   [Connecting the Authentication Server](06-authentication_server.md)).
+1. From the administration workstation's `deployment` directory, run
+   `./deploy inspect site.json platform` as shown in
+   [Election event realms](10-verification.md#election-event-realms). Copy the
+   event's complete name from `EVENT REALM:`. Ask the external provider's operator
+   to register `https://HOST/realms/REALM/broker/ALIAS/endpoint`, replacing **HOST**
+   with `hosts.voting` from `site.json`, **REALM** with that complete printed name,
+   and **ALIAS** with `idp_alias`. Register the exact resulting URI, with no wildcard,
+   following [Connecting the Authentication Server](06-authentication_server.md).
 2. The operator makes the checks of
    [Election event realms](10-verification.md#election-event-realms) and
    tells the administrators the result.
-3. The administrator checks the election event's authentication settings as
-   the section "Authentication and Session Settings" of the
-   [Handbook for Election Administrators](../../02-election_managers/04-administrator_handbook/01-about.md)
-   describes.
+3. The administrator follows the illustrated
+   [Authentication and Session Settings](../../02-election_managers/04-administrator_handbook/08-authentication_and_sessions.md)
+   procedure for the imported event.
 4. The operator sets the periodic electoral-log audit interval and time limit
    for Beat and Windmill, as [Self-Test Settings](../../02-election_managers/04-administrator_handbook/07-self_tests.md#configure-regular-background-audits)
    describes. The default interval is 15 minutes.
@@ -120,213 +121,332 @@ this confirmation for the current election event.
 
 ## Operating the servers
 
-The operator operates the servers with the commands of this guide only, on
-C1, as root, in every phase.
+**Where:** use the administration workstation and the unchanged `site.json`.
+For the short server-console commands below, open a root shell on C1 first:
 
-:::warning
-Never change a running container, a Secret or a file under
-`/var/lib/sequent-data` by hand, and never delete records to free storage.
-Every change goes through `/root/deploy/kubernetes` and a deployment with
-`secrets.env` loaded, as in [Deploy](08-installing_toe.md#deploy), followed
-by every check of [Verifying the Installation](10-verification.md).
-:::
+```bash
+C1=$(jq -er '.nodes.c1' site.json)
+IDENTITY=$(jq -er '.ssh_identity' site.json)
+ssh -o StrictHostKeyChecking=yes -i "$IDENTITY" "root@$C1"
+```
 
-- State of the platform: `k3s kubectl get pods -A` (every pod `Running` or
-  `Completed`) and `k3s kubectl get nodes` (both nodes `Ready`).
-- Operating log of a component: `k3s kubectl -n <namespace> logs
-  deployment/<name>`, for example `-n step-infra logs deployment/keycloak`.
-  These are the platform's operating logs. The TOE's audit records are the
-  electoral log, which only the election board reads.
-- Restart of a component that has failed:
-  `k3s kubectl -n <namespace> rollout restart deployment/<name>`, then
-  `k3s kubectl -n <namespace> rollout status deployment/<name>`, then the
-  checks [Running images](10-verification.md#running-images) and
-  [Version](10-verification.md#version). In the execution phase, restart a
-  component only when the election board has decided so with the
-  administrator: if harvest or windmill failed, the election event is in
-  maintenance mode. Tell the administrators and the election board when the
-  component runs again, and leave the audit review and any voting decision to the
-  election board. The complete ST self-test remains unimplemented.
-- Time: repeat the checks of
-  [Authenticated time](04-hosts_network_time.md#authenticated-time). If one
-  fails, run `systemctl restart chronyd` on the server concerned and repeat
-  them. If they still fail, stop and report it.
-- Certificates: renew them before they expire, as
-  [Set up the TLS endpoint](05-certificates_tls.md#set-up-the-tls-endpoint)
-  describes, and repeat
-  [TLS endpoint and ingress ports](10-verification.md#tls-endpoint-and-ingress-ports).
-- Updates: only a new TOE delivery, accepted as
-  [Verifying the Delivery](../08-delivery_verification.md) describes and
-  installed with this guide. Never patch a running TOE.
-- Operating system and cluster software: change them only with a new
-  installation kit from Sequent, verified and installed as
-  [Installing the Servers](03-installation_kit.md) describes, outside the
-  execution phase, followed by every check of
-  [Verifying the Installation](10-verification.md).
+The prompt now belongs to C1. Run `hostname` and compare the result with your
+recorded C1 hostname before running the server commands.
+Use `exit` to return to the workstation. Unknown or changed SSH host keys are a
+failure; verify the server identity through the approved console procedure.
+
+### Read the current server state
+
+Run on C1:
+
+```bash
+hostname
+k3s kubectl get nodes
+k3s kubectl get pods -A
+k3s kubectl -n step-infra logs deployment/keycloak --tail=20
+```
+
+**Expected result:** both nodes are `Ready`; application pods are `Running` or
+completed setup jobs are `Completed`. The last command shows the identity
+service's recent operating log. These are not the electoral audit records,
+which only the election board reads. Treat logs as protected operational data.
+
+![Actual VM console showing the cluster state and data-volume capacity](./assets/installation/server-operations.png)
+
+*Actual read-only VM inspection of nodes, pods and storage. Compare node names,
+readiness and capacity with your site; the image's values are examples.*
+
+![Actual VM console displaying the last 20 identity-service log lines](./assets/installation/server-logs.png)
+
+*Actual recent Keycloak log output. Messages depend on the current service state;
+review errors without publishing private operational logs.*
+
+**If different:** keep the failed component's error, investigate connectivity,
+storage and its controlled configuration, and inform the administrator and board.
+Do not delete records, change a Secret or edit a running container to recover it.
+The current source does not implement the complete automatic maintenance-state
+response described by the ST; do not assume a service failure safely paused voting.
+
+### Restart an authorized failed component
+
+A restart interrupts service. During an election, obtain the board's operational
+decision with the administrator first. On C1, the following example restarts only
+Keycloak; use it only when Keycloak is the agreed failed component:
+
+```bash
+k3s kubectl -n step-infra rollout restart deployment/keycloak
+k3s kubectl -n step-infra rollout status deployment/keycloak --timeout=120s
+```
+
+Expect `deployment "keycloak" successfully rolled out`. On timeout or failure,
+stop and inspect that component's log; do not restart unrelated services. Return
+to the workstation with `exit`, run `./deploy inspect site.json platform`, and
+complete the browser sign-in check before reporting recovery. The board retains
+all decisions on voting and audit review.
+
+![Actual disposable VM rehearsal restarting Keycloak and waiting for its rollout](./assets/installation/server-restart.png)
+
+*Actual isolated restart rehearsal. A successful rollout is followed by the
+platform inspection and browser checks; it does not authorize an election restart.*
+
+For time problems, use [Authenticated time](04-hosts_network_time.md#authenticated-time)
+and its exact check. Certificate renewal, operating-system changes and TOE
+upgrades require the accepted release's maintenance procedure. The fresh-install
+command intentionally refuses an occupied cluster; it is not an upgrade or
+recovery command. Never replace credentials or install an unaccepted image.
 
 ### Storage
 
-`df -h /var/lib/sequent-data` on C1 shows the space left for the databases,
-the object storage and the electoral log. When the storage of the audit data
-is more than 80 % full, the TOE refuses voters' sessions and requests until
-space is available again. Check the space every day in the preparation and
-execution phases, and extend the storage before that point, outside the
-execution phase: give the volume that holds `/var/lib/sequent-data` more
-capacity, grow its file system, and check with `df -h /var/lib/sequent-data`
-that the space has grown. If the TOE reports that the storage of the audit
-data is more than 80 % full, extend the storage at once in the same way, also
-in the execution phase: tell the election board first, which decides whether
-to pause voting while you extend it. Voters can sign in again once the used
-space is below 80 %. If the storage cannot be extended in time, stop and
-report it. Never delete records, logs or files to make space.
+On C1, run:
+
+```bash
+df -h /var/lib/sequent-data
+```
+
+Read the `Use%` and `Avail` columns for the volume holding the data. Check daily
+during Preparation and Execution and arrange expansion before free space becomes
+insufficient. The server-state screenshot above shows the command's table.
+
+The current source does not establish the ST's complete automatic 80% storage
+protection. Do not rely on that threshold to block voters or preserve records.
+If capacity is low, inform the administrator and board immediately; they decide
+whether to pause operations while the operator applies the site's approved
+storage-expansion procedure. Never delete records, logs or arbitrary files to
+make space. Volume/device expansion is installation-specific and must use the
+approved host/storage procedure, followed by this capacity check and platform
+inspection.
 
 ### Backups and restore
 
-:::warning
-A backup holds the election data, the election execution data, the electoral
-log and the deployment directory with its secrets. Make it only encrypted,
-keep its passphrase apart from it, and keep both in separate locked places to
-which only the operators have access.
-:::
+A system backup contains election data, execution data, audit records and the
+working deployment directory with its secrets. Keep it encrypted, with the
+passphrase in a separate locked place. It does **not** contain the cluster's own
+state or the imported container-image store.
 
-Make a backup after the installation, before each election event enters its
-execution phase and after its post-processing phase, never during the
-execution phase. The TOE is not available while the backup runs. From the
-administration workstation, with a backup medium mounted at the path you give:
+These commands operate on an **existing accepted cluster and the same software
+release**. They restore data and the working deployment directory; they do not
+rebuild Kubernetes Secrets or a replacement C1. Do not attempt replacement-node
+recovery using the fresh-install command or by guessing missing Secrets. That
+case needs a separately approved and rehearsed recovery procedure.
 
-Run the following backup commands in the same root terminal in the extracted
-`deployment` directory, with the installation’s `site.json`. The first command
-reads C1’s address from that file; keep the terminal open so the selected backup
-path remains available for the next command.
+#### Stop services for a backup
+
+**When:** after commissioning, before Execution and after Post-processing; never
+as a routine operation during voting. Coordinate the service outage with the
+administrator and board. Mount the protected backup medium.
+
+**Where:** a root terminal in the extracted `deployment` directory on the
+administration workstation. Copy this complete block:
 
 <!-- deployment-step: 11-001 -->
 
 ```bash
-set -e -o pipefail
+set -Eeuo pipefail
+umask 077
 C1=$(jq -er '.nodes.c1' site.json)
-read -r -p "Mounted backup directory: " BACKUP_DIRECTORY
-B="$BACKUP_DIRECTORY"/sequent-$(date -u +%Y%m%dT%H%MZ).tar.gpg
-ssh root@$C1 'set -e -o pipefail; for ns in step-apps step-infra; do
-  k3s kubectl -n $ns scale deployment --all --replicas=0; done'
-ssh root@$C1 'set -e -o pipefail; pods=$(k3s kubectl get pods -A --no-headers \
-  --field-selector=status.phase=Running)
-printf "%s\n" "$pods" | awk '\''/^step-/ {n++} END {print n+0}'\'''
+IDENTITY=$(jq -er '.ssh_identity' site.json)
+c1() { ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -i "$IDENTITY" "root@$C1" "$@"; }
+c1 'set -Eeuo pipefail; umask 077
+ test ! -e /root/deploy/.backup-in-progress
+ k3s kubectl -n step-apps get deploy -o json > /root/deploy/backup-apps.json
+ k3s kubectl -n step-infra get deploy -o json > /root/deploy/backup-infra.json
+ jq -s "[.[].items[] | {namespace:.metadata.namespace,name:.metadata.name,replicas:(.spec.replicas // 1)}]" \
+   /root/deploy/backup-apps.json /root/deploy/backup-infra.json > /root/deploy/backup-replicas.json
+ jq -e "length > 0 and all(.[]; .replicas >= 0)" /root/deploy/backup-replicas.json >/dev/null
+ rm /root/deploy/backup-apps.json /root/deploy/backup-infra.json
+ touch /root/deploy/.backup-in-progress
+ for ns in step-apps step-infra; do k3s kubectl -n "$ns" scale deploy --all --replicas=0; done
+ for attempt in $(seq 1 60); do
+   count=$(k3s kubectl get pods -A -o json | jq "[.items[] | select(.metadata.namespace | startswith(\"step-\")) | select(.status.phase != \"Succeeded\" and .status.phase != \"Failed\")] | length")
+   if test "$count" = 0; then echo "APPLICATIONS STOPPED: backup may begin"; exit 0; fi
+   sleep 2
+ done
+ echo "Shutdown incomplete; do not create a backup" >&2; exit 1'
 ```
 
-**Expected result.** Deployment scale-down messages followed by a running-pod count. Continue to the backup only when the count is `0`, with no SSH or Kubernetes error.
+**Expected result.** Deployment scale-down messages followed by
+`APPLICATIONS STOPPED: backup may begin`. The script records each original replica
+count and waits up to two minutes for all nonterminal application pods to disappear.
 
-**If the result differs.** A positive count means shutdown is still in progress: repeat only the read-only pod listing shown below, not the whole backup preparation. On any SSH or Kubernetes error, stop and check the connection and actual pod state before doing anything else.
+![Actual VM terminal stopping the applications before a backup](./assets/installation/system-stop.png)
 
+*Actual terminal executing the complete stop block above. The laboratory test
+driver runs the same block; it is not part of the installation instructions.*
 
-To check shutdown again, copy this read-only command in the same administration
-session; it lists running pods:
+**If it fails:** no backup is authorized. Check the connection and actual pod
+state. Do not treat an API error or timeout as evidence that services stopped.
+An existing in-progress marker requires investigation of the earlier attempt.
+If stopping failed after some deployments scaled down, use **Resume unchanged
+services after a failed backup** below only after checking that the original
+data remains intact. Do not delete the marker or guess replica counts.
 
-```bash
-ssh root@"$C1" 'k3s kubectl get pods -A --field-selector=status.phase=Running'
-```
+#### Create and verify the encrypted backup
 
-Wait until no row has a namespace starting with `step-`; system pods may still
-run. Any SSH or Kubernetes error is a failed check, not evidence of shutdown.
-Then write the backup and start the TOE again:
+Stay in the same workstation directory. This block asks for the mounted backup
+directory and a new passphrase privately, verifies the complete decrypted archive
+without writing plaintext to the workstation, and resumes the recorded replicas:
 
 <!-- deployment-step: 11-002 -->
 
 ```bash
-set -e -o pipefail
-ssh root@$C1 'set -e -o pipefail; tar -C / -cf - var/lib/sequent-data root/deploy' \
-  | gpg --symmetric --cipher-algo AES256 -o "$B"    # asks for a new passphrase twice
-ssh root@$C1 'set -e -o pipefail; for ns in step-apps step-infra; do
-  k3s kubectl -n $ns scale deployment --all --replicas=1; done'
-gpg -d "$B" | tar -tf - | grep -o -e '^root/deploy/' -e '^var/lib/sequent-data/' \
-  | sort | uniq -c                                   # asks for the passphrase
+set -Eeuo pipefail
+umask 077
+C1=$(jq -er '.nodes.c1' site.json)
+IDENTITY=$(jq -er '.ssh_identity' site.json)
+c1() { ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -i "$IDENTITY" "root@$C1" "$@"; }
+read -r -p "Mounted encrypted-backup directory: " BACKUP_DIRECTORY
+test -d "$BACKUP_DIRECTORY" && test ! -L "$BACKUP_DIRECTORY"
+B="$BACKUP_DIRECTORY/sequent-$(date -u +%Y%m%dT%H%M%SZ).tar.gpg"
+test ! -e "$B"
+c1 'set -Eeuo pipefail
+test -f /root/deploy/.backup-in-progress
+count=$(k3s kubectl get pods -A -o json | jq "[.items[] | select(.metadata.namespace | startswith(\"step-\")) | select(.status.phase != \"Succeeded\" and .status.phase != \"Failed\")] | length")
+test "$count" = 0
+tar -C / -cf - var/lib/sequent-data root/deploy' |
+  gpg --symmetric --cipher-algo AES256 --output "$B"
+gpg --decrypt "$B" | python3 ./archive_check.py system
+c1 'set -Eeuo pipefail
+ test -f /root/deploy/.backup-in-progress
+ jq -r ".[] | [.namespace,.name,(.replicas|tostring)] | @tsv" /root/deploy/backup-replicas.json |
+ while read -r ns name replicas; do k3s kubectl -n "$ns" scale "deployment/$name" --replicas="$replicas"; done
+ jq -r ".[] | [.namespace,.name] | @tsv" /root/deploy/backup-replicas.json |
+ while read -r ns name; do k3s kubectl -n "$ns" rollout status "deployment/$name" --timeout=120s; done
+ rm /root/deploy/.backup-in-progress
+ echo "RECORDED REPLICA COUNTS RESTORED"'
+printf 'SYSTEM BACKUP COMPLETE: %s\n' "$B"
 ```
 
-**Expected result.** Private passphrase prompts, deployment scale-up messages, and two nonzero archive-entry counts for `root/deploy/` and `var/lib/sequent-data/`.
+**Expected result.** `BACKUP CONTENTS VERIFIED: system`, successful deployment
+rollouts, `RECORDED REPLICA COUNTS RESTORED`, and `SYSTEM BACKUP COMPLETE:` with the
+new encrypted archive's path. Then run `./deploy inspect site.json platform` and
+perform the browser sign-in check before declaring service restored.
 
-**If the result differs.** On an encryption or validation failure, retain the original data and establish whether the services remain stopped. Do not accept a partial archive or overwrite the only known good backup; recover service operation through the documented deploy/check procedure.
+![Actual isolated rehearsal terminal creating and validating a system backup](./assets/installation/system-backup.png)
 
+*Actual terminal executing the complete backup block above. The laboratory test
+driver enters the test paths and prompts; it is not part of the installation
+instructions. Preserve the reported encrypted file and its validation result;
+the screenshot is not the backup.*
 
-The last command must print two lines, one with `root/deploy/` and one with
-`var/lib/sequent-data/`, each after the number of entries it holds. Then make the checks of
-[Running images](10-verification.md#running-images) and
-[Version](10-verification.md#version), and the available board integrity audit as above. This does not establish
-complete ST self-test coverage.
+**If encryption or validation fails:** keep the original data and last known-good
+backup. The script stops before resuming services. Do not accept or overwrite
+a partial archive. The validator rejects unsafe paths, links, special files,
+duplicate entries, missing directories and truncated data.
 
-A restore replaces the election data, the election execution data and the
-electoral log with an older state. Restore only outside the execution phase,
-or in it only after the election board has decided so, and tell the
-administrators and the election board of every restore, so that the board
-checks the electoral log. To restore:
+<details>
+<summary>Resume unchanged services after a failed backup</summary>
 
-1. Make a backup of the current state as above, and keep it.
-2. Scale the deployments to 0 as above and wait until the count is `0`.
-3. At the path prompt, select the existing backup file to restore, not the
-   new backup just created. After validation, this step
-   empties the data directory and extracts the selected backup on C1:
+Use this only after diagnosing a failed **backup**, when the original data has
+not been replaced or changed by recovery work. Never use it after a failed
+restore: partially restored data must stay stopped. From a root terminal in the
+workstation's `deployment` directory, copy:
 
-   <!-- deployment-step: 11-003 -->
+```bash
+set -Eeuo pipefail
+C1=$(jq -er '.nodes.c1' site.json)
+IDENTITY=$(jq -er '.ssh_identity' site.json)
+ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -i "$IDENTITY" "root@$C1" 'set -Eeuo pipefail
+ test -f /root/deploy/.backup-in-progress
+ test -f /root/deploy/backup-replicas.json
+ jq -e "length > 0 and all(.[]; (.namespace == \"step-apps\" or .namespace == \"step-infra\") and .replicas >= 0)" /root/deploy/backup-replicas.json >/dev/null
+ jq -r ".[] | [.namespace,.name,(.replicas|tostring)] | @tsv" /root/deploy/backup-replicas.json |
+ while read -r ns name replicas; do k3s kubectl -n "$ns" scale "deployment/$name" --replicas="$replicas"; done
+ jq -r ".[] | [.namespace,.name] | @tsv" /root/deploy/backup-replicas.json |
+ while read -r ns name; do k3s kubectl -n "$ns" rollout status "deployment/$name" --timeout=120s; done
+ rm /root/deploy/.backup-in-progress
+ echo "RECORDED REPLICA COUNTS RESTORED"'
+./deploy inspect site.json platform
+```
 
-   ```bash
-   set -e -o pipefail
-   C1=$(jq -er '.nodes.c1' site.json)
-   read -r -p "Type RESTORE AUTHORIZED BACKUP to confirm: " CONFIRM
-   test "$CONFIRM" = "RESTORE AUTHORIZED BACKUP"
-   read -r -p "Absolute path to the authorized backup: " B
-   test -f "$B" && test -r "$B"
-   # Validate decryption and the complete tar stream before deleting anything.
-   # Plaintext flows through a pipe only; GPG obtains the passphrase privately.
-   gpg -d "$B" | tar -tf - | awk '
-     /^root\/deploy\// {deployment=1}
-     /^var\/lib\/sequent-data\// {data=1}
-     /^\// || /(^|\/)\.\.(\/|$)/ {unsafe=1}
-     END {exit !(deployment && data && !unsafe)}'
-   ssh root@$C1 'set -e -o pipefail; find /var/lib/sequent-data -mindepth 1 -delete'
-   gpg -d "$B" | ssh root@$C1 'set -e -o pipefail; tar -C / -xf -'      # asks for the passphrase
-   ```
+Expect successful rollouts, `RECORDED REPLICA COUNTS RESTORED` and a completed
+platform inspection. The backup screenshot above shows the normal rollout
+result. Complete the browser sign-in check and report the failed backup and
+service state to the administrator. If a command fails or the replica record is
+missing, keep the marker and investigate; do not guess replica counts or resume
+voting on the basis of a partial recovery.
 
-   **Expected result.** An explicit restore confirmation, private decryption prompts and completion without an archive or SSH error. Successful extraction itself is normally silent; deployment and all verification checks are still required next.
+</details>
 
-   **If the result differs.** If preflight fails, current data must not be removed: check the chosen archive and passphrase. If extraction fails after deletion began, keep the TOE stopped, preserve the current-state backup, and recover from a validated archive before redeploying.
+#### Restore an authorized backup on the existing cluster
 
+A restore replaces the current data with older data. Keep a separate current-state
+backup first. During Execution, act only after the board has made the required
+recovery decision; inform the administrator and board of every restore.
 
-The step asks for explicit restore authorization, then validates decryption and
-the complete archive before deleting any current data. Plaintext is streamed,
-never written to an intermediate file. If this preflight fails, do not proceed.
+1. Create and validate a current-state backup with the two procedures above.
+   Keep it separately from the older archive selected for restoration.
+2. Run **Stop services for a backup** again and require its stopped confirmation.
+3. Confirm that the selected archive belongs to the same accepted installation
+   and software release. Keep its medium under operator control, unchanged.
+4. In the same workstation directory, copy the block below. Type the exact
+   confirmation phrase and the absolute path to the **authorized older backup**.
+   Its complete contents are checked before current directories are cleared.
 
-4. Deploy again with the commands of [Deploy](08-installing_toe.md#deploy) on
-   C1, then make every check of [Verifying the Installation](10-verification.md).
+<!-- deployment-step: 11-003 -->
 
-The backup does not hold the cluster's own state or the container image store.
-If a server has to be installed again, install it as
-[Installing the Servers](03-installation_kit.md) describes before the restore.
-After extracting the backup and before step 4, load the delivered TOE images
-onto each reinstalled node as
-[Load the TOE images](08-installing_toe.md#load-the-toe-images) describes.
+```bash
+set -Eeuo pipefail
+umask 077
+C1=$(jq -er '.nodes.c1' site.json)
+IDENTITY=$(jq -er '.ssh_identity' site.json)
+c1() { ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -i "$IDENTITY" "root@$C1" "$@"; }
+read -r -p "Type RESTORE AUTHORIZED BACKUP to confirm: " CONFIRM
+test "$CONFIRM" = "RESTORE AUTHORIZED BACKUP"
+read -r -p "Absolute path to the authorized backup: " B
+test -f "$B" && test -r "$B" && test ! -L "$B"
+case "$B" in /*) ;; *) echo 'Use an absolute backup path' >&2; exit 1;; esac
+BACKUP_HASH=$(sha256sum "$B" | cut -d ' ' -f 1)
+gpg --decrypt "$B" | python3 ./archive_check.py system
+test "$(sha256sum "$B" | cut -d ' ' -f 1)" = "$BACKUP_HASH"
+c1 'set -Eeuo pipefail
+test -f /root/deploy/.backup-in-progress
+count=$(k3s kubectl get pods -A -o json | jq "[.items[] | select(.metadata.namespace | startswith(\"step-\")) | select(.status.phase != \"Succeeded\" and .status.phase != \"Failed\")] | length")
+test "$count" = 0
+echo "RESTORE PRECHECK: services stopped"'
+gpg --decrypt "$B" | c1 'set -Eeuo pipefail
+test -f /root/deploy/.backup-in-progress
+count=$(k3s kubectl get pods -A -o json | jq "[.items[] | select(.metadata.namespace | startswith(\"step-\")) | select(.status.phase != \"Succeeded\" and .status.phase != \"Failed\")] | length")
+test "$count" = 0
+find /var/lib/sequent-data -mindepth 1 -delete
+find /root/deploy -mindepth 1 -delete
+tar --numeric-owner -C / -xf -
+echo "BACKUP EXTRACTED: services remain stopped"'
+c1 'set -Eeuo pipefail
+ test -f /root/deploy/.backup-in-progress
+ jq -r ".[] | [.namespace,.name,(.replicas|tostring)] | @tsv" /root/deploy/backup-replicas.json |
+ while read -r ns name replicas; do k3s kubectl -n "$ns" scale "deployment/$name" --replicas="$replicas"; done
+ jq -r ".[] | [.namespace,.name] | @tsv" /root/deploy/backup-replicas.json |
+ while read -r ns name; do k3s kubectl -n "$ns" rollout status "deployment/$name" --timeout=120s; done
+ rm /root/deploy/.backup-in-progress
+ echo "RECORDED REPLICA COUNTS RESTORED"'
+./deploy inspect site.json platform
+printf 'RESTORE CHECKS COMPLETE: board review is still required\n'
+```
 
-If C1 was reinstalled and the cluster state was lost, recreate the resources
-that the manifests do not carry, using the restored files and original keys:
+**Expected result.** Archive validation succeeds before
+`RESTORE PRECHECK: services stopped`. After extraction, the terminal reports
+`BACKUP EXTRACTED: services remain stopped`, restores the recorded replicas and
+runs the platform inspection. If a newly started identity service is still
+becoming reachable, `VERIFY: waiting for identity-service HTTPS discovery to
+finish startup` is a bounded read-only wait of under one minute. It does not
+retry certificate, issuer or policy failures. The final line is
+`RESTORE CHECKS COMPLETE: board review is still required`.
 
-- apply the namespaces and recreate the two `step-tls-cert` Secrets as in
-  [Install the certificate](05-certificates_tls.md#install-the-certificate);
-- reinstall the TLS endpoint's files as in
-  [Set up the TLS endpoint](05-certificates_tls.md#set-up-the-tls-endpoint);
-- recreate `auth-server-ca` as in
-  [Install the trust anchor](06-authentication_server.md#install-the-trust-anchor);
-- recreate `keycloak-bootstrap-admin` and `keycloak-service-credentials` with
-  the first block of [Create the service credentials](07-hardening.md#create-the-service-credentials),
-  loading the restored `secrets.env`; never generate new deployment secrets
-  or repeat the manifest transformations;
-- with each trustee present, recreate `trustee1-keys`, `trustee2-keys` and
-  their authentication Secrets as in
-  [Install the trustee keys](08-installing_toe.md#install-the-trustee-keys).
-  Use the original keys from the trustees' own protected media or backups,
-  which must match the restored protocol state; do not generate new keys.
-  Defer the rollout commands until after step 4.
+![Actual isolated rehearsal terminal restoring and checking an authorized backup](./assets/installation/system-restore.png)
 
-Stop if an original key or restored credential is unavailable. Deploying
-alone cannot recreate these resources. Restore one backup on the installed
-servers before the handover, to show that the procedure works. If the recovery
-plan includes replacement of C1, rehearse that case with a new cluster too.
+*Actual terminal executing the complete restore block above on an isolated
+disposable copy. The laboratory test driver enters the test paths and prompts;
+it is not part of the installation instructions. The image demonstrates the
+observed result for that copy, not permission to restore a customer system.*
 
-Report every failed check and every security problem to
-[security@sequentech.io](mailto:security@sequentech.io).
+**If preflight fails:** current data must remain intact; check the selected archive
+and passphrase. **If decryption, transfer or extraction fails after replacement
+starts:** keep the application stopped, preserve both encrypted backups and have
+the operator recover from a validated archive. Do not resume a partly restored
+database or assume a successful extraction message proves service correctness.
+
+After the command succeeds, the administrator completes the browser checks and
+the board reviews the restored electoral log and available integrity audit.
+Original trustee keys and restored protocol state must agree. Handover and any
+resumption of voting require the board's decision; this procedure does not
+establish the unimplemented complete ST self-test suite.

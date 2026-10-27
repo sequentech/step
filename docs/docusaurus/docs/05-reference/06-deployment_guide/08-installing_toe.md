@@ -8,143 +8,97 @@ SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-Read this chapter for the requirements and expected results behind the
-[configuration-driven installation](01-about.md#install-from-one-configuration-file).
-Follow the explicit commands and human checkpoints below. The installer performs
-the server-side operations; you do not run internal numbered operations yourself.
-
-This page loads the TOE images from the verified delivery medium onto both
-servers, pins every TOE container to its delivered digest, deploys, and
-installs the trustees' keys. It also covers the offline trustee tool from the same delivery. Trustees may
-share an existing workstation through separate protected offline sessions.
+This page covers the one-command platform installation, the browser checkpoint
+for creating the customer, and the guided trustee-key import. Later backup and
+retirement procedures are separate maintenance actions, not installation steps.
 
 :::warning
-Use only the delivery medium that passed every step of
-[Verifying the Delivery](../08-delivery_verification.md). The installation kit
-also carries images under the same names; the TOE parts must never run from
-those.
+Use only the TOE delivery accepted through
+[Verifying the Delivery](../08-delivery_verification.md). The installation kit's
+supporting images do not replace the delivered TOE images.
 :::
-
-## Load the TOE images
-
-Keep the accepted delivery medium mounted read-only as described in
-[Verifying the Delivery](../08-delivery_verification.md). Set `toe.directory` to
-its root and `toe.format` to `oci` in `site.json`. `./deploy check site.json`
-validates all seven delivered OCI images against the accepted digest list.
-
-During `./deploy install site.json`, the installer prepares private temporary
-transport archives from the six server images, copies them to C1 and C2, and
-checks the transferred hashes. Do not manually create archives or change the
-accepted delivery layout:
-
-<!-- deployment-step: 08-001 -->
-
-**Expected result.** The installer prints `INSTALL: preparing private transport archives from the verified OCI images`; transfers to C1 and C2 complete without SSH, archive or disk errors. The source delivery remains unchanged. Transfer checks do not replace the imported-image checks below.
-
-**If the result differs.** If either host is unreachable or the target is full, fix connectivity or capacity before importing. Keep the source medium protected; do not substitute images from the installation kit.
-
-
-The installer imports the transported images on both servers and checks that each
-one is present under its delivered digest. Its local import preserves the
-digest-qualified names of the delivered image manifests:
-
-<!-- deployment-step: 08-002 -->
-
-**Expected result.** Six final lines ending in `loaded`, one for each delivered image, on each server.
-
-**If the result differs.** If any line ends in `MISSING`, compare the delivery digest list and transferred archives, then repair the transfer/import on that server. Do not continue because the other server passed.
-
-
-All six server images must be present on both servers before deployment proceeds.
-
-## Pin the TOE images
-
-:::warning
-Every TOE container must name its image by the digest of the delivery. A
-container that names an image by a tag can run the kit's image of the same
-name.
-:::
-
-On C1:
-
-<!-- deployment-step: 08-003 -->
-
-**Expected result.** The seven reference/count lines shown below, with every TOE image pinned to `@sha256:`.
-
-**If the result differs.** If a count differs or a TOE image still uses a tag, stop and check that the working manifests and digest list match this delivery. Do not replace a missing digest with `latest`.
-
-
-The output must be exactly:
-
-```text
-      1 sequentech.local/b4@sha256:...
-      1 sequentech.local/ballot-verifier@sha256:...
-      2 sequentech.local/braid@sha256:...
-      1 sequentech.local/harvest@sha256:...
-      1 sequentech.local/keycloak@sha256:...
-      2 sequentech.local/trustee:latest
-      3 sequentech.local/windmill@sha256:...
-```
-
-The two `trustee:latest` references are the setup steps of the bulletin board
-and of the object storage, which use the tools of the kit's image and run no
-TOE function.
 
 ## Deploy
 
-:::warning
-Load `secrets.env` in the same shell before every deployment. A deployment
-without it sets demonstration passwords on the databases and services.
-:::
+**Where:** a root terminal on the administration workstation, in the extracted
+`deployment` directory. Keep the accepted delivery medium mounted read-only and
+use the checked `site.json` from [the start of this guide](01-about.md#install-from-one-configuration-file).
+After `./deploy check site.json` passes, run:
 
-On C1:
+```bash
+./deploy install site.json
+```
 
 <!-- deployment-step: 08-005 -->
 
-**Expected result.** `step-tls-cert already exists; keeping it.`, successful identity-service rollout, and pods `Running` or `Completed`. Only the two trustee instances may remain not ready until their keys are installed.
+**Expected result.** Four numbered installation stages appear. The final line is
+`INSTALL 4/4: platform installed; customer and trustee commissioning still required`.
+The installer loads the protected credentials in its own server-side process;
+you do not type a separate deployment command or source `secrets.env` yourself.
 
-**If the result differs.** On a rollout timeout or `CrashLoopBackOff`, inspect that component's operating log using the server operations section and check the verified manifests. Keep the original secrets; do not rerun secret generation or use demonstration credentials.
+![Actual VM terminal showing the configuration-driven installation completing](./assets/installation/installer-complete.png)
 
+*Actual VM installation capture. Read the final stage and verification lines.
+The screenshot's site values are examples; match the running identity to your
+accepted delivery. Trustee commissioning is still outstanding at this point.*
 
-The deployment must print `step-tls-cert already exists; keeping it.` and end
-without an error. After a few minutes every pod must be `Running` or
-`Completed`, except `trustee1` and `trustee2`: they stay not ready until their
-keys are installed during commissioning. Later configuration changes require a
-reviewed maintenance procedure; do not rerun the fresh-install command against an
-occupied cluster.
+**If it stops:** preserve the reported stage and original credentials. Resolve
+connectivity, capacity or the stated configuration fault before continuing.
+The command refuses an occupied cluster and does not replay failed writes.
+Do not regenerate secrets, replace a digest with `latest`, or rerun the fresh
+installation as a recovery operation.
+
+## Load the TOE images
+
+<!-- deployment-step: 08-001 -->
+<!-- deployment-step: 08-002 -->
+
+**Automatic part of the command above.** The installer validates the seven
+accepted OCI image directories, prepares private transfer archives for the six
+server images, transfers them to C1 and C2, and checks their hashes and imported
+digests. It prints `PASS: c1 delivery archive hashes and imported image digests`
+and the corresponding line for `c2`.
+
+You do not create tar archives or type a separate image-import command. Keep the
+accepted delivery unchanged and the imported content cache available for later
+verification. Either server failing its import blocks installation.
+
+## Pin the TOE images
+
+<!-- deployment-step: 08-003 -->
+
+**Automatic part of the command above.** Every TOE container reference is pinned
+to its accepted `@sha256:` digest. The two supporting `trustee:latest` references
+belong to the kit's setup jobs, not to the two native braid trustee instances;
+the installer verifies the supporting setup image separately against the kit.
+The later [Running images](10-verification.md#running-images) check verifies
+actual running content rather than relying only on a manifest's text.
 
 ## Remove the secrets from the realm manifest
 
-:::warning
-The identity service has now imported the tenant realm. Its manifest and the
-Secret `keycloak-realm` still hold the client secrets and the trustee
-passwords, and must no longer.
-:::
-
-On C1:
-
 <!-- deployment-step: 08-006 -->
 
-**Expected result.** HTTP `200` for the imported realm, then the exact zero-credential summary below after updating its stored manifest.
+**Automatic part of the command above.** After the initial realm has imported,
+the installer removes its imported credentials from the stored manifest and
+checks the resulting cluster Secret. The running realm retains the values it
+imported. Expect
+`PASS: imported realm credentials removed from its stored manifest and verified in the cluster`.
 
-**If the result differs.** If the realm is not available or the summary differs, stop: confirm its first import completed before removing import material. Do not print client secrets or recreate the realm to work around the error.
-
-
-The last command must print
-`{"credentials":0,"idp_secret":0,"secrets":["CHANGE_ME_API_KEY_CLIENT_SECRET","CHANGE_ME_SERVICE_ACCOUNT_SECRET"]}`.
-The running realm keeps the values set at its import. Check with
-`k3s kubectl get pods -A` that the pods are still running.
+If the realm is unavailable or cleanup fails, stop and establish its actual
+import state. Do not print secret-bearing documents, recreate the realm or
+repeat secret generation.
 
 ## Create the customer's tenant
 
 :::warning
-All election work happens in the customer's tenant. The tenant of the realm R
-is the super-admin tenant: it serves only the steps of this guide, holds no
+All election work happens in the customer's tenant. The initial installation
+tenant is the super-admin tenant: it serves only the steps of this guide, holds no
 election event, and none of its personal accounts stays enabled.
 :::
 
 The operator creates the customer's tenant once, after [Deploy](#deploy) and
-before the trustee keys are installed:
+before the trustee keys are installed. `ADMIN_HOST` below means the value of
+`hosts.administration` in your `site.json`; replace that label in the browser URL:
 
 1. Open `https://ADMIN_HOST` on the administration workstation and sign in at
    the external authentication server as the installation account of
@@ -179,10 +133,12 @@ before the trustee keys are installed:
    other tenant must have the customer slug you supplied. The commissioning
    command records the resolved customer realm. Do not type or guess a UUID or
    edit a shell environment file to select a different tenant.
-4. At the commissioning checkpoint, ask the operator of the external
-   authentication server to register the exact redirect URI `https://PORTAL_HOST/realms/CR/broker/IDP_ALIAS/endpoint`,
-   with your value of CR (see
-   [Connecting the Authentication Server](06-authentication_server.md)).
+4. At the commissioning checkpoint, copy the complete URI printed after
+   `Register this exact customer redirect URI`. Have the external provider
+   operator register that exact address, following
+   [Connecting the Authentication Server](06-authentication_server.md). Type
+   `CONTINUE` only after registration and the external administrator account
+   are ready; do not construct a URI by guessing the customer identifier.
 5. The commissioning command adds the customer's first administrator and the
    two native trustee accounts, configures the trustee client secret, and disables
    the personal accounts of the installation realm. The administrator's user name
@@ -191,31 +147,30 @@ before the trustee keys are installed:
 
    <!-- deployment-step: 08-008 -->
 
-   **Expected result.** The customer realm lists the new administrator and trustees enabled; the installation realm lists all personal accounts disabled, as detailed below.
+   **Expected result.** The terminal prints `PASS: customer administrator and native accounts configured; installation personal accounts disabled`. The next prompt asks you to register the two trustees in the customer portal.
 
    **If the result differs.** If account creation reports a conflict or a user remains enabled in the installation realm, stop and inspect the account state with the administrator. Do not rerun the entire creation block or give these accounts local passwords.
 
 
-   For the realm CR the list must show `admin`, the first administrator's
-   user name, `trustee1` and `trustee2`, each with `true`. For the realm R
-   every line must end in `false`. Neither list shows the accounts whose names
-   start with `service-account-`: the identity service does not list them, and
-   they stay enabled.
-   The installation account is now disabled: no later step of this guide
-   needs an account of the super-admin tenant.
-6. Make the checks of
-   [Identity service](10-verification.md#identity-service) for the customer realm, and of
-   [Data correction, telephone channel, plugins and tenants](10-verification.md#data-correction-telephone-channel-plugins-and-tenants).
+   The installer checks the account creation and disables the installation
+   personal accounts. Native service accounts stay enabled. You do not receive
+   or type a service password, and no later step uses the installation personal
+   account. The exact prompts and success messages are shown in the
+   [commissioning terminal screenshot](#transfer-the-matching-keys-and-start-the-instances).
+6. Continue with [Install the trustee keys](#install-the-trustee-keys) below in
+   the same commissioning terminal. Run the
+   [platform inspection](10-verification.md#run-the-platform-inspection) only
+   after both trustees are ready and commissioning completes.
 
 ## Install the trustee keys
 
 Each trustee generates their keys on a trustee workstation (see
 [Preparing a trustee workstation](#preparing-a-trustee-workstation) and the
 trustee procedures of the
-[Handbook for Election Organizers (AGD-03)](../../02-election_managers/05-election_organizer_handbook/01-about.md)),
+[Trustee Procedures (AGD-03)](../../02-election_managers/05-election_organizer_handbook/09-trustee-procedures.md)),
 and the administrators register the public keys as the section "Registering
 the trustees' public keys" of the
-[Handbook for Election Administrators (AGD-02)](../../02-election_managers/04-administrator_handbook/01-about.md)
+[Registering the trustees' public keys (AGD-02)](../../02-election_managers/04-administrator_handbook/04-users_and_roles.md#registering-the-trustees-public-keys)
 describes. The trustee then hands over the keys file for their instance of
 the trustee server: `trustee1` for the first trustee, `trustee2` for the
 second.
@@ -349,82 +304,159 @@ the ceremony until the operator resolves the fault and the check passes.
 
 ## Back up the trustee state
 
-The instances keep their protocol state, which they need to continue the
-protocol, on C1 under `/var/lib/sequent-data/trustee1` and
-`/var/lib/sequent-data/trustee2`.
+**When:** after a key ceremony, with no ceremony in progress and with the board
+and trustees informed. This briefly stops both native trustee instances. The
+state is on C1 under `/var/lib/sequent-data/trustee1` and `trustee2`.
 
-:::warning
-Back up the state only while no ceremony is running, and only encrypted.
-Keep the backup and its passphrase in separate locked places.
-:::
-
-After the key ceremony, from the administration workstation, with a backup
-medium mounted at the path you give:
-
-Run from the extracted `deployment` directory on the administration workstation,
-with the same `site.json`. The first line reads C1’s address from that file.
+**Where:** a root terminal in the extracted `deployment` directory on the
+administration workstation, using its unchanged `site.json`. Mount the backup
+medium first. Copy the complete block; it asks for the mounted directory and a
+new encryption passphrase privately. No private key is printed.
 
 <!-- deployment-step: 08-013 -->
 
 ```bash
-set -e -o pipefail
+set -Eeuo pipefail
+umask 077
 C1=$(jq -er '.nodes.c1' site.json)
-read -r -p "Mounted backup directory: " BACKUP_DIRECTORY
-B="$BACKUP_DIRECTORY"/trustee-state-$(date +%F).tar.gpg
-ssh root@$C1 'k3s kubectl -n step-infra scale --replicas=0 \
-  deployment/trustee1 deployment/trustee2'
-ssh root@$C1 'tar -C /var/lib/sequent-data -cf - trustee1 trustee2' \
-  | gpg --symmetric --cipher-algo AES256 -o "$B"
-ssh root@$C1 'k3s kubectl -n step-infra scale --replicas=1 \
-  deployment/trustee1 deployment/trustee2'
-gpg -d "$B" | tar -tf - | cut -d/ -f1 | sort -u    # trustee1 and trustee2
+IDENTITY=$(jq -er '.ssh_identity' site.json)
+c1() { ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -i "$IDENTITY" "root@$C1" "$@"; }
+read -r -p "Mounted encrypted-backup directory: " BACKUP_DIRECTORY
+test -d "$BACKUP_DIRECTORY" && test ! -L "$BACKUP_DIRECTORY"
+B="$BACKUP_DIRECTORY/trustee-state-$(date -u +%Y%m%dT%H%M%SZ).tar.gpg"
+test ! -e "$B"
+c1 'set -Eeuo pipefail; umask 077
+ test ! -e /root/deploy/.trustee-backup-in-progress
+ k3s kubectl -n step-infra get deploy trustee1 trustee2 -o json |
+   jq "[.items[] | {name:.metadata.name,replicas:(.spec.replicas // 1)}]" > /root/deploy/trustee-backup-replicas.json
+ touch /root/deploy/.trustee-backup-in-progress
+ k3s kubectl -n step-infra scale deploy trustee1 trustee2 --replicas=0
+ for attempt in $(seq 1 60); do
+   count=$(k3s kubectl -n step-infra get pods -l "app in (trustee1,trustee2)" -o json | jq ".items | length")
+   if test "$count" = 0; then echo "TRUSTEES STOPPED: state backup may begin"; exit 0; fi
+   sleep 2
+ done
+ echo "Trustee shutdown incomplete; no backup taken" >&2; exit 1'
+c1 'set -Eeuo pipefail
+ test -f /root/deploy/.trustee-backup-in-progress
+ count=$(k3s kubectl -n step-infra get pods -l "app in (trustee1,trustee2)" -o json | jq ".items | length")
+ test "$count" = 0
+ tar -C /var/lib/sequent-data -cf - trustee1 trustee2' |
+  gpg --symmetric --cipher-algo AES256 --output "$B"
+gpg --decrypt "$B" | python3 ./archive_check.py trustee
+c1 'set -Eeuo pipefail
+ jq -r ".[] | [.name,(.replicas|tostring)] | @tsv" /root/deploy/trustee-backup-replicas.json |
+ while read -r name replicas; do k3s kubectl -n step-infra scale "deployment/$name" --replicas="$replicas"; done
+ for name in trustee1 trustee2; do k3s kubectl -n step-infra rollout status "deployment/$name" --timeout=120s; done
+ rm /root/deploy/.trustee-backup-in-progress'
+printf 'TRUSTEE BACKUP COMPLETE: %s\n' "$B"
 ```
 
-**Expected result.** The encrypted backup can be decrypted with its passphrase and the final listing contains both `trustee1` and `trustee2`. The deployments are scaled back to one replica.
+**Expected result.** `TRUSTEES STOPPED: state backup may begin`, then
+`BACKUP CONTENTS VERIFIED: trustee`, successful rollout of both instances, and
+`TRUSTEE BACKUP COMPLETE:` followed by the encrypted backup path. The script
+records and restores each original replica count; it does not assume every
+Deployment should have one replica.
 
-**If the result differs.** If encryption or archive validation fails, keep the original state, verify whether trustees remain stopped, and restore their intended running state only outside a ceremony. Do not delete state or accept a partial backup.
+![Actual rehearsal terminal completing an encrypted trustee-state backup](./assets/installation/trustee-backup.png)
 
+*Actual terminal executing the complete backup block above. The laboratory test
+driver enters the test paths and prompts; it is not part of the installation
+instructions. No passphrase is shown. Keep the encrypted backup and its passphrase
+in separate locked places, under the trustee-custody procedure.*
+
+**If it fails:** keep the original state and the last known-good backup. Do not
+accept a partial archive. A timeout waiting for the pods to stop prevents the
+copy. Encryption or validation failure leaves the trustees stopped. Diagnose
+that error before deciding whether to retry the backup or resume unchanged state.
+
+<details>
+<summary>Resume unchanged trustees after a failed backup</summary>
+
+Use this only after a failed **backup**, while the original trustee state is
+intact. It does not recover damaged state or undo removal. From a root terminal
+in the workstation's `deployment` directory, copy:
+
+```bash
+set -Eeuo pipefail
+C1=$(jq -er '.nodes.c1' site.json)
+IDENTITY=$(jq -er '.ssh_identity' site.json)
+ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -i "$IDENTITY" "root@$C1" 'set -Eeuo pipefail
+ test -f /root/deploy/.trustee-backup-in-progress
+ test -f /root/deploy/trustee-backup-replicas.json
+ jq -e "length == 2 and all(.[]; (.name == \"trustee1\" or .name == \"trustee2\") and .replicas >= 0)" /root/deploy/trustee-backup-replicas.json >/dev/null
+ jq -r ".[] | [.name,(.replicas|tostring)] | @tsv" /root/deploy/trustee-backup-replicas.json |
+ while read -r name replicas; do k3s kubectl -n step-infra scale "deployment/$name" --replicas="$replicas"; done
+ for name in trustee1 trustee2; do k3s kubectl -n step-infra rollout status "deployment/$name" --timeout=120s; done
+ rm /root/deploy/.trustee-backup-in-progress
+ echo "TRUSTEE REPLICA COUNTS RESTORED"'
+./deploy commission site.json
+```
+
+Expect successful rollouts, `TRUSTEE REPLICA COUNTS RESTORED` and the commissioning
+readiness check's `PASS` line. The normal backup screenshot above shows the same
+rollout result. If any command fails, keep the marker and do not authorize a
+ceremony. A missing or invalid replica record requires investigation; do not
+guess the counts or delete the marker manually.
+
+</details>
 
 ## Remove the trustee keys at the end of the election
 
-When the trustee procedures say so (the retention period has ended and the
-election execution data has been deleted), remove the trustees' keys and
-state from the servers, on C1:
-
 :::warning
-This destroys the trustees' keys files and protocol state on the servers:
-the instances can then no longer take part in decrypting the votes. Do it
-only at the end of the retention period, with the election board present.
+This destroys server-side trustee keys and protocol state. Do it only after the
+retention period has ended, the required election execution data has been deleted,
+and the election board has authorized retirement and is present. It is not part
+of installation or troubleshooting.
 :::
+
+**Where:** the same root terminal in the administration workstation's extracted
+`deployment` directory. Verify the target addresses in `site.json` with the board.
+Copy the complete block; it requires the exact confirmation phrase.
 
 <!-- deployment-step: 08-014 -->
 
 ```bash
-set -e -o pipefail
+set -Eeuo pipefail
+umask 077
+C1=$(jq -er '.nodes.c1' site.json)
+IDENTITY=$(jq -er '.ssh_identity' site.json)
+c1() { ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -i "$IDENTITY" "root@$C1" "$@"; }
 read -r -p "Type REMOVE TRUSTEE KEYS to confirm: " CONFIRM
 test "$CONFIRM" = "REMOVE TRUSTEE KEYS"
-k3s kubectl -n step-infra scale --replicas=0 deployment/trustee1 deployment/trustee2
-k3s kubectl -n step-infra delete secret trustee1-keys trustee2-keys \
-  trustee1-auth trustee2-auth
-find /var/lib/sequent-data/trustee1 /var/lib/sequent-data/trustee2 -mindepth 1 -delete
-if _agd_absent=$(k3s kubectl -n step-infra get secret trustee1-keys trustee2-keys 2>&1); then
-  printf 'Unexpected trustee key secret remains\n' >&2
-  false
-else
-  printf '%s\n' "$_agd_absent" | grep -c NotFound
-fi
-unset _agd_absent
-find /var/lib/sequent-data/trustee1 /var/lib/sequent-data/trustee2 -mindepth 1 | wc -l
+c1 'set -Eeuo pipefail
+ k3s kubectl -n step-infra scale deployment/trustee1 deployment/trustee2 --replicas=0
+ for attempt in $(seq 1 60); do
+   count=$(k3s kubectl -n step-infra get pods -l "app in (trustee1,trustee2)" -o json | jq ".items | length")
+   if test "$count" = 0; then break; fi
+   sleep 2
+ done
+ test "$count" = 0
+ k3s kubectl -n step-infra delete secret trustee1-keys trustee2-keys trustee1-auth trustee2-auth
+ find /var/lib/sequent-data/trustee1 /var/lib/sequent-data/trustee2 -mindepth 1 -delete
+ remaining=$(k3s kubectl -n step-infra get secret trustee1-keys trustee2-keys trustee1-auth trustee2-auth --ignore-not-found -o name)
+ test -z "$remaining"
+ count=$(find /var/lib/sequent-data/trustee1 /var/lib/sequent-data/trustee2 -mindepth 1 | wc -l)
+ test "$count" = 0
+ echo "TRUSTEE REMOVAL COMPLETE: four Secrets absent; state directories empty"'
 ```
 
-**Expected result.** After the explicit destruction confirmation, deletion messages are followed by `2` (both key Secrets absent) and `0` (no remaining state entries).
+**Expected result.** The instances stop before any deletion. Four Secrets are
+removed, the state directories become empty, and the last line is
+`TRUSTEE REMOVAL COMPLETE: four Secrets absent; state directories empty`.
 
-**If the result differs.** If either count differs, stop and establish exactly what remains; do not destroy the backups yet or start another ceremony. Record the partial outcome and have the board direct completion of the authorized removal.
+![Actual isolated rehearsal terminal confirming trustee retirement](./assets/installation/trustee-removal.png)
 
+*Actual terminal executing the complete removal block above on an isolated
+disposable copy. The laboratory test driver enters the test prompts; it is not
+part of the installation instructions.
+The confirmation and completion messages show the authorized retirement workflow.*
 
-The last two commands must print `2` and `0`. Then destroy every backup of
-the trustee state, and record the removal and the destruction in the election
-board's minutes.
+**If it fails:** preserve the remaining state and backups and record exactly what
+was removed. Do not authorize another ceremony or destroy backups while the
+outcome is uncertain. After confirmed server removal, the board directs the
+custodians to destroy every retained trustee-state backup and records removal
+and backup destruction in its minutes.
 
 ## Preparing a trustee workstation
 
@@ -439,9 +471,11 @@ The hardware may be shared; the keys, media and sessions must remain separate.
 Load the tool only from the verified delivery after checking its digest.
 :::
 
-The workstation needs podman and skopeo. Mount the delivery medium read-only
-with the commands of step 3 of
-[Verifying the Delivery](../08-delivery_verification.md), then:
+**Where:** a root terminal on the offline trustee workstation, before connecting
+any trustee key medium. The workstation needs Podman and Skopeo from its approved
+image. Open the accepted delivery medium read-only using the exact commands in
+[Decrypt the medium](../08-delivery_verification.md#3-decrypt-the-medium).
+Once it is mounted at `/mnt/temenos-delivery`, copy this block:
 
 <!-- deployment-step: 08-015 -->
 
@@ -463,9 +497,6 @@ echo "D=$D" > ~/braid-digest
 **If the result differs.** If either line is absent or a digest check fails, do not use the trustee tool. Re-check the verified delivery and local image import while keeping the workstation offline.
 
 
-Both checks must print their line; if one does not, do not use the
-workstation.
-
 :::warning
 Never start the image with its default command on the workstation: that
 command starts the trustee server of the platform. Use only the `trustee`
@@ -474,7 +505,8 @@ container no network, and mounts only the current directory, which holds the
 keys file.
 :::
 
-Define the `trustee` command in each new shell:
+In the same offline root terminal, define the `trustee` command. Repeat this
+short block whenever you open a new shell; the function is local to that shell:
 
 <!-- deployment-step: 08-016 -->
 
@@ -491,12 +523,19 @@ trustee --help
 **If the result differs.** If the command is missing or starts a server instead, stop. Check the verified braid image and this wrapper; do not run the image's default entry point or enable network access.
 
 
-`trustee --help` lists, among others, the subcommands `generate`,
-`public-keys`, `attest` and `verify`. The program sees only the current
-directory: run every command from the directory on the trustee's own medium
+The program sees only the current directory: run each key-handling command
+from the directory on the trustee's own medium
 that holds the keys file, and give file names relative to it, for example
 `trustee public-keys --trustee-config trustee.toml`. The trustees use the
 subcommands as the trustee procedures of the
-[Handbook for Election Organizers (AGD-03)](../../02-election_managers/05-election_organizer_handbook/01-about.md)
-describe. The `election-verifier` image is loaded the same way, with its own
-name and digest, only where that handbook calls for it.
+[Trustee Procedures (AGD-03)](../../02-election_managers/05-election_organizer_handbook/09-trustee-procedures.md)
+describe. Result verification is a separate procedure in
+[Verifying the Result with the Election Verifier](../../02-election_managers/05-election_organizer_handbook/10-election-verifier.md);
+it does not use private trustee keys.
+
+![Actual network-disabled trustee-tool help screen from the verified rehearsal image](./assets/installation/trustee-tool.png)
+
+*Actual Podman execution on the laboratory host, using the verified local OCI
+image with `--network none`. This shows the tool and its help; it does not show
+a wholly offline workstation session or actual private-key custody. Follow the
+offline workstation, private-medium and clean-session procedure above.*

@@ -10,8 +10,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 After [Configuring the Deployment](07-hardening.md) and
 [Installing the TOE](08-installing_toe.md), the TOE holds these accounts. The
-customer's tenant is the realm in `CR`; the super-admin tenant is the realm
-in `R`, which holds no election event:
+customer tenant is the one created with the agreed slug; the initial installation
+tenant holds no election event:
 
 | Account | Realm | State | Used by |
 | --- | --- | --- | --- |
@@ -22,8 +22,7 @@ in `R`, which holds no election event:
 | Accounts whose names start with `service-account-` | both tenants | client secrets random | the TOE's services only |
 | The installation account, `admin`, `api-user`, `trustee1`, `trustee2` and the kit's further trustee accounts | super-admin tenant | disabled; only `trustee1` and `trustee2` have a password | nobody |
 
-In the super-admin tenant's realm `R` (`tenant-` followed by the super-admin
-tenant's identifier, as in `hosts.env`), the client `service-account` stays
+In the initial installation realm, the client `service-account` stays
 enabled: harvest and windmill obtain their service tokens from it. Disabling
 the accounts of that realm listed above does not affect it.
 
@@ -40,11 +39,12 @@ factors.
 
 ## The first sign-in
 
-The first personal administrator signs in for the check
-[Version](10-verification.md#version), once the checks before it on that page
-have passed:
+The first personal administrator signs in at the trustee-registration
+checkpoint of commissioning. Repeat this browser check after the completed
+platform inspection, including the [Version](10-verification.md#version) check:
 
-1. Open `https://ADMIN_HOST/tenant` in the browser of the administration
+1. Read `hosts.administration` in `site.json`. Replace `ADMIN_HOST` below with
+   that exact hostname. Open `https://ADMIN_HOST/tenant` in the browser of the administration
    workstation and check that the browser shows a valid HTTPS connection to
    ADMIN_HOST.
 2. Under "Select Tenant", enter the customer's short name (the "Slug" given
@@ -54,6 +54,16 @@ have passed:
    with both factors.
 4. The browser returns to the administration portal, signed in to the account
    added in [Create the customer's tenant](08-installing_toe.md#create-the-customers-tenant).
+
+![Actual customer administration portal after external sign-in](./assets/installation/trustees-registered.png)
+
+*Actual VM portal capture after customer sign-in. This example is on Settings →
+Trustees; the customer name and logged-in identity must be your own. The screenshot
+shows the return to the customer portal, not proof that your provider enforced MFA.*
+
+**Expected result.** The browser returns to the configured administration hostname,
+with the intended customer and your personal administrator account selected. It
+does not show a local TOE password form or a native trustee/service account.
 
 If the authentication server does not ask for two factors, if the browser
 returns to any other host, or if the portal shows an account other than the
@@ -65,9 +75,9 @@ Give the administrators the customer's short name: everyone enters it under
 
 ## Accounts after the first sign-in
 
-The administrator then continues with the section "Users, Roles and Role
-Separation" of the
-[Handbook for Election Administrators (AGD-02)](../../02-election_managers/04-administrator_handbook/01-about.md):
+The administrator then follows the illustrated
+[Users, Roles and Role Separation](../../02-election_managers/04-administrator_handbook/04-users_and_roles.md)
+procedure in AGD-02:
 setting up the roles with their separation, creating the personal accounts of
 the election board and the trustees, and deleting the seeded account `admin`. The realm settings of this guide have already removed from
 the seeded administrator groups every permission that the administrator role
@@ -75,8 +85,9 @@ must not hold: the election board's permissions, among them "Create Election
 Event" (`election-event-create`), with which the election board imports
 election data, "Delete Election Event" (`election-event-delete`), "Archive
 Election Event" (`election-event-archive`), the "Sign:" permissions, the
-scheduled events and the areas, and every permission that reads, changes or
-exports election data, election execution data or audit records. No group
+scheduled events and the areas, and the other named permissions excluded by the AGD role tables. These role
+assignments do not establish the missing backend access restrictions recorded
+in ADV; do not treat portal visibility as proof of complete role separation. No group
 holds "Edit Results Publication" (`publish-results-write`), "Datafix
 account" (`datafix-account`) or "Manually Verify Voter"
 (`voter-manually-verify`).

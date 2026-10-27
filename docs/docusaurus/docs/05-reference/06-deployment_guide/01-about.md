@@ -89,13 +89,9 @@ Complete these preparations once:
 1. Accept the delivered TOE and guidance using
    [Verifying the Delivery](../08-delivery_verification.md), including its
    confirmation of receipt. The installation command does not authorize acceptance.
-2. Provide the [Operational Environment](02-operational_environment.md), verify the
-   installation kit and boot C1 and C2 from it as described in
-   [Installing the Servers](03-installation_kit.md#install-c1-and-c2). The operator
-   confirms the disk at each server console before it is erased.
-   Use the administration SSH key authorized by the site file, and verify each
-   server’s SSH host key through the server console before recording it in the
-   workstation’s `known_hosts`. The installer refuses unknown or changed SSH host keys.
+2. Provide the [Operational Environment](02-operational_environment.md): the two
+   servers, protected administration workstation, network, authenticated time
+   service and responsible people.
 3. Obtain the site TLS certificate and private key from your certificate process,
    and the external identity provider's registration and CA certificate. The
    [certificate requirements](05-certificates_tls.md) and
@@ -106,6 +102,28 @@ Complete these preparations once:
    in a text editor, save a private working copy as `site.json`, and fill in the
    site's public values and file paths. Keep passwords, tokens and private keys
    out of this JSON file: it refers to protected files where those are needed.
+5. [Verify the kit and install C1 and C2](03-installation_kit.md). The operator
+   confirms the disk at each server console before it is erased. Then
+   [verify both SSH host keys](03-installation_kit.md#verify-ssh-host-keys-before-first-use)
+   against their server-console fingerprints. These instructions show the commands,
+   actual console and first-connection prompt, and when to refuse the connection.
+
+### Where to run each instruction
+
+| Place | What it means in this guide |
+| --- | --- |
+| Administration workstation | The protected Linux computer from which you run `./deploy`. Open its terminal in the extracted `deployment/` directory. |
+| C1 or C2 console | The physical or trusted management console of that server, used for disk confirmation and host-key verification. |
+| C1 or C2 over SSH | A command sent to a server using the administration workstation's verified SSH connection. The guide supplies the complete command. |
+| Client-network computer | A separate computer on a voter/client network, outside the administration allowlist. It tests which server ports clients can reach. |
+| Trustee workstation | The clean offline session used by one trustee at a time with their own protected medium. It is not another always-on server. |
+| External identity-provider operator | The person authorized to register applications and enforce MFA at your organization's identity provider. |
+
+There are two different configuration files. The delivered kit's `nixos/site.json`
+records the server configuration already signed into that kit; do not edit it.
+Your working `deployment/site.json` points to the accepted kit, certificates and
+other site inputs used by `./deploy`. The following field table describes this
+working file.
 
 The configuration is JSON, matching the installation kit's existing site-file
 format. JSON makes the site values explicit without adding a YAML interpreter to
@@ -307,16 +325,28 @@ To repeat the read-only installation checks later, use:
 A verification result describes the checks that ran. It is not an authorization
 to hold an election or a record of evaluator acceptance.
 
+After customer and trustee commissioning, use the broader
+[platform inspection](10-verification.md#run-the-platform-inspection):
+
+```bash
+./deploy inspect site.json platform
+```
+
+That section shows its actual output and remaining browser, client-network and
+election checks. The storage probe creates and removes a temporary check pod.
+
 Backup, restore and trustee-key removal are later lifecycle operations. They are
 not performed by the installation command. Their explicit commands remain in the
 relevant reference sections for use at the authorized lifecycle stage.
 
 ## Detailed operations and acceptance criteria
 
-The following chapters preserve the configuration requirements, expected outputs
-and fault handling needed to inspect an installation. An operation identifier such
-as `04-check-secret-encryption` names a check in that reference; normal installation
-uses the two commands above.
+The following chapters explain the configuration requirements, complete commands,
+expected outputs and fault handling. Their screenshots show actual executions.
+Run a command where its section specifies; a server name or internal operation
+number by itself is never an instruction to execute. Installation is automated;
+the explicit acceptance checks establish conditions that still require the
+operator, an independent client network or another responsible person.
 
 | Reference | Purpose |
 | --- | --- |

@@ -8,10 +8,10 @@ SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-Read this chapter for the requirements and expected results behind the
-[configuration-driven installation](01-about.md#install-from-one-configuration-file).
-Follow the explicit commands and human checkpoints below. The installer performs
-the server-side operations; you do not run internal numbered operations yourself.
+This chapter prepares the identity-provider registration and protected input
+files. The [configuration-driven installer](01-about.md#install-from-one-configuration-file)
+checks them, then configures the connection automatically. The provider's operator
+performs the external registration; the installer cannot authorize it for them.
 
 Administrators, election board members and voters sign in only through the
 external authentication server. The TOE's identity service (keycloak) sends
@@ -29,9 +29,9 @@ with these properties:
 | Protocol | OpenID Connect, authorization code flow |
 | Client type | confidential, with a client secret sent in the request body |
 | PKCE | required, method S256 |
-| Redirect URI of the super-admin tenant | `https://PORTAL_HOST/realms/R/broker/IDP_ALIAS/endpoint`, with the values of PORTAL_HOST, R and IDP_ALIAS |
-| Redirect URI of the customer's tenant | the same, with the name of the customer's realm (CR) in place of R; registered when the tenant is created (see [Create the customer's tenant](08-installing_toe.md#create-the-customers-tenant)) |
-| Redirect URI of each election event | the same, with the name of the event's realm in place of R; registered when the event is created (see [Self-Test and Handover](11-selftest_handover.md)) |
+| Redirect URI of the super-admin tenant | `https://HOST/realms/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5/broker/ALIAS/endpoint`, replacing `HOST` with `hosts.voting` and `ALIAS` with `idp_alias` from your working `site.json` |
+| Redirect URI of the customer's tenant | The exact URI printed by `./deploy commission site.json` after customer creation; copy that complete URI into the provider registration |
+| Redirect URI of each election event | Its exact event-realm URI, registered when the event is created; follow [Self-Test and Handover](11-selftest_handover.md) |
 | Claims | the user name and e-mail address of each person, as their account in the TOE will carry them; the actual authentication time in the signed ID token (`auth_time`) |
 | Authentication | two factors for administrators and election board members |
 | Fresh authentication | honour `prompt=login` with a fresh login, including both factors for a board member, even when an upstream session exists; honour `max_age` and return the actual authentication time, not the token issue time |
@@ -40,6 +40,21 @@ with these properties:
 Register exact redirect URIs only, never a wildcard. The authentication
 server must refuse every other redirect URI for this client.
 :::
+
+At customer commissioning, the terminal prints the complete customer URI and
+pauses while the provider's operator registers it. Type `CONTINUE` only after
+that registration and the customer administrator account are ready.
+
+![Actual commissioning terminal showing the exact customer redirect URI and registration checkpoint](./assets/installation/installer-commission-complete.png)
+
+*Actual VM rehearsal capture. Use the URI printed by your own commissioning run.
+The provider's registration screen depends on its product; this screenshot shows
+the TOE command's required value and its explicit checkpoint.*
+
+**If registration cannot be completed:** leave the command paused. Resolve the
+exact URI, client settings and administrator identity with the provider's
+operator. Do not register a wildcard or continue on the assumption that the
+provider will accept the login.
 
 From the operator of the authentication server, obtain, through a channel
 that protects their integrity: the issuer, the authorization endpoint, the
@@ -51,8 +66,9 @@ that CA certificate.
 ## Write the provider definition
 
 :::warning
-The provider definition holds the client secret. Keep it only in the
-root-only deployment directory.
+The provider definition holds the client secret. Keep the input in a root-only
+protected directory on the administration workstation; the installer transfers
+it to C1 over the verified administration connection.
 :::
 
 Before running the installer, prepare the protected JSON file named by
@@ -96,9 +112,30 @@ The client secret remains in the private definition, not in `site.json`.
 
 <!-- deployment-step: 06-001 -->
 
-**Expected result.** Configuration validation accepts the private definition, including its issuer, HTTPS endpoint URLs, client ID, signature-validation settings and `certificate-first-login-flow`. The client secret is not printed.
+**Check it from a root terminal in the administration workstation's `deployment`
+directory**, after the full working configuration and server installations are ready:
 
-**If the result differs.** If the public values differ from the independently supplied registration, stop before applying the provider definition. Correct the private file in the editor and rerun the check. Never paste its unredacted contents into a report or put the client secret in the public site file.
+```bash
+./deploy check site.json
+```
+
+This is the same [site preflight](01-about.md#check-the-site), not an additional
+installation command. It checks the definition's issuer, HTTPS URLs, client ID,
+signature-validation settings and first-login flow, as well as the CA fingerprint.
+
+**Expected result:** `PASS: configuration, accepted media and certificate inputs`,
+then the node checks and `CHECK PASSED — ready to install the platform`.
+The client secret is not printed.
+
+![Actual preflight validating protected certificate and provider inputs before installation](./assets/installation/installer-preflight.png)
+
+*Actual rehearsal terminal. The first PASS line covers the input validation;
+a successful file check does not prove that the external provider has completed
+registration or that a user can authenticate with both factors.*
+
+**If it differs:** compare the public values with the independently supplied
+registration, correct the private file in the editor and rerun the check. Never
+paste unredacted contents into a report or put the client secret in `site.json`.
 
 
 Check the public registration values against those you received. `validateSignature` and
@@ -109,46 +146,58 @@ account and never creates one.
 
 ## Install the trust anchor
 
-:::warning
-Keycloak trusts the authentication server's TLS certificate only through this
-CA certificate. Check its fingerprint before installing it.
-:::
-
-Set `identity_provider.ca` to the independently supplied CA certificate and
-`identity_provider.ca_sha256` to its separately received fingerprint. The
-configuration check computes the actual certificate fingerprint and compares it
-before installation. A mismatch stops the process; do not replace the configured
-fingerprint with a value copied from the untrusted file.
-
 <!-- deployment-step: 06-002 -->
 
-**Expected result.** The certificate subject and SHA-256 fingerprint match the independently received CA certificate details, followed by `configmap/auth-server-ca created`. The fingerprint must have passed the configuration check before this operation runs.
+Set `identity_provider.ca` to the independently supplied CA file and
+`identity_provider.ca_sha256` to its separately received fingerprint. The
+preflight above compares the actual fingerprint before installation.
 
-**If the result differs.** If the configuration check reports a fingerprint mismatch, do not install. If creation says `AlreadyExists`, inspect whether this is a partial earlier setup and verify the existing trusted certificate before replacing anything. A missing namespace means the certificate/namespace installation stage is incomplete; return to it first.
+**Automatic part of `./deploy install site.json`:** the installer installs the
+checked trust anchor and configures Keycloak to use it with the required TLS
+profile. No manual ConfigMap command is needed. The [installation instructions
+and actual terminal capture](01-about.md#install-the-platform) show the command
+and the final `INSTALL 4/4` completion message.
 
-
-The fingerprint must be the one you received. [Configuring the
-Deployment](07-hardening.md) makes Keycloak use this certificate and limits
-its connections to the TLS profile of [Certificates and TLS](05-certificates_tls.md).
+**If a fingerprint or trust-anchor installation check fails:** stop. Do not copy
+an observed fingerprint into the expected field, replace an existing ConfigMap
+blindly or disable certificate verification. Reconcile the CA and partial
+installation state with the operator before proceeding.
 
 ## Check the authentication server's TLS
 
-On C1:
-
 <!-- deployment-step: 06-003 -->
-
-**Expected result.** The allowed handshake reports TLS 1.3, `TLS_AES_256_GCM_SHA384`, a `secp384r1` temporary key, a 384-bit server public key and `Verify return code: 0 (ok)`. The TLS 1.2, AES-128 and X25519 attempts each say `refused`.
-
-**If the result differs.** If the allowed handshake fails, check the independently verified CA file, DNS, endpoint host name and firewall path. If a prohibited attempt is accepted, have the external authentication-server operator correct its TLS profile before connecting the TOE. Do not disable certificate or host-name verification.
-
-
-The first command must show `New, TLSv1.3, Cipher is TLS_AES_256_GCM_SHA384`,
-a temporary key on `secp384r1`, `Server public key is 384 bit` and
-`Verify return code: 0 (ok)`; every other line must say `refused`. On C2,
-check that the server is reachable, since Keycloak can run on either node:
-
 <!-- deployment-step: 06-004 -->
 
-**Expected result.** The single success message is `reachable`. This is a TCP reachability check from C2, not an authentication or certificate validation result.
+**Where:** a root terminal in the administration workstation's `deployment`
+directory, after the platform has been installed. Run the same live TLS inspection
+used in [Certificates and TLS](05-certificates_tls.md#check-the-tls-profile):
 
-**If the result differs.** If no `reachable` message appears or the command times out, check C2’s DNS and outbound TCP-443 route to the configured authentication host. Resolve the network problem before allowing Keycloak to run there; do not change the host to an unrelated reachable server.
+```bash
+./deploy inspect site.json tls
+```
+
+The command checks the TOE's endpoints and makes full authenticated TLS probes
+from **both C1 and C2** to the configured authentication host, because Keycloak
+can run on either node. The public, fingerprint-verified CA certificate is
+provided to each inspection through a temporary file and removed afterwards.
+No client secret or private key is sent by these probes.
+
+![Actual TLS inspection including connections from both servers to the authentication service](./assets/installation/inspect-tls.png)
+
+**Expected result:** the lines labelled `C1 to authentication server` and
+`C2 to authentication server` each show a verified TLS 1.3 connection with
+`TLS_AES_256_GCM_SHA384`, `secp384r1` and a 384-bit server key. TLS 1.2, AES-128,
+ChaCha20 and X25519 attempts are refused; the allowed connection still succeeds
+after those rejection tests. The run ends with
+`TLS PROFILE CHECK PASSED — allowed connections verified and prohibited variants refused`.
+
+**If either server fails:** check that server's DNS, outbound TCP-443 route,
+configured host name and verified CA. If a prohibited variant is accepted,
+have the authentication-server operator correct its profile. A timeout is an
+incomplete check, not proof that a prohibited protocol was refused. Do not change
+the host to an unrelated reachable service or disable name/chain verification.
+
+[Configuring the Deployment](07-hardening.md) explains the settings already
+applied by installation. Continue with [customer and trustee commissioning](08-installing_toe.md#create-the-customers-tenant)
+if it is still pending. Successful transport checks still require the browser
+login, MFA and fresh-authentication checks before handover.

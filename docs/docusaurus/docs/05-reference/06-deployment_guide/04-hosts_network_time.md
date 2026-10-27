@@ -8,129 +8,152 @@ SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-Read this chapter for the requirements and expected results behind the
-[configuration-driven installation](01-about.md#install-from-one-configuration-file).
-Follow the explicit commands and human checkpoints below. The installer performs
-the server-side operations; you do not run internal numbered operations yourself.
+Use the read-only inspection below to see the actual network, SSH, time,
+secret-encryption and node results. The initial `./deploy check site.json`
+already enforces the corresponding pre-installation requirements; this inspection
+also works after installation and exports the public inputs for the separate
+client-network check.
 
-These checks confirm that the installed servers and their network give the
-protection the TOE relies on. Make them before any part of the TOE is
-deployed, and stop at the first one that fails.
+## Inspect from the administration workstation
+
+**Where:** a root terminal on the administration workstation, in the extracted
+`deployment` directory containing the same approved `site.json`.
+
+```bash
+./deploy inspect site.json network
+```
+
+It connects to C1 and C2 using the configured administration key and verified
+SSH host keys. It prints the checks below and writes **`client-network.json`** in
+the current directory. That report contains only node addresses, the voting host
+and actual ingress ports; it contains no SSH key path, credential or secret.
+
+![Actual administration-terminal inspection of ingress ports, SSH, time and cluster readiness](./assets/installation/inspect-network.png)
+
+*Actual inspection against the rehearsal VMs. Use the values printed by your own
+run. The report also includes loopback listener ports so the client-network test
+does not omit an ingress listener.*
+
+**Expected final result:**
+`ADMINISTRATION NETWORK CHECK PASSED — client-network filtering still requires the separate client test`.
+Each individual result below must also pass.
+
+**If it stops:** use the named failure and the matching section below. Do not
+continue on partial output. If `client-network.json` already exists with different
+contents, preserve that earlier report and run the inspection from a clean
+working copy of the verified `deployment` directory; do not silently reuse old
+port or node values.
 
 ## Network filtering
 
-:::warning
-The site firewall must allow only the connections listed in
-[Operational Environment](02-operational_environment.md#network).
-:::
-
-First, on C1, list the ports that the cluster's ingress uses (its service
-ports and node ports):
-
 <!-- deployment-step: 04-001 -->
+<!-- deployment-step: 04-007 -->
 
-**Expected result.** One line of space-separated port numbers is printed: the Traefik service ports followed by its node ports. Keep the actual numbers for the next client-network check; do not substitute a sample port list.
+The inspection prints these lines automatically:
 
-**If the result differs.** If the service is missing or no numbers appear, check that C1 completed installation and its cluster services started. Do not continue with an empty port list, because that would omit required firewall checks.
-
-
-Then, from a computer on a client network (not the administration
-workstation), with the variables of `/root/deploy/hosts.env` set and P set to
-the port numbers that C1 printed, separated by spaces:
+- **C1 ingress service ports and node ports:** actual values read from the
+  Traefik service. Missing ports or an unavailable service fail the inspection.
+- **C1 ingress loopback listener ports:** actual configured listener ports.
+  Any listener not restricted to C1's loopback address fails the inspection.
+- **C1/C2 address:22 open:** SSH is reachable from this administration workstation.
+  The same run then checks authenticated, key-only SSH access.
 
 <!-- deployment-step: 04-002 -->
 
-**Expected result.** The launcher asks for the ports printed on C1. Enter those actual numbers separated by spaces. Every resulting address-and-port line ends in `closed`; C1 port 443 is intentionally checked in the TLS section instead.
+The [site firewall](02-operational_environment.md#network) must expose only the
+approved connections. Test its client side from a **separate computer connected
+to a client network**, after the TLS endpoint has been installed:
 
-**If the result differs.** Any `open` line exposes a forbidden port: stop and correct the site firewall through the site’s controlled configuration process. An all-closed result can also mean a disconnected test machine; confirm its network position and later require the positive TLS and administration-SSH checks to pass. Do not interpret timeouts alone as proof of correct filtering.
+1. Copy the verified `deployment` tools and the newly generated
+   `client-network.json` to that computer. **Do not copy `site.json`, private keys,
+   passwords or provider definitions.**
+2. Open a terminal in that copied `deployment` directory. It needs Python 3;
+   it does not need root access or an administration SSH key.
+3. Run:
 
+   ```bash
+   ./deploy inspect client-network.json client-network
+   ```
 
-Every line must say `closed`. Port 443 of C1 belongs to the TLS endpoint,
-which [Check the TLS profile](05-certificates_tls.md#check-the-tls-profile)
-checks. Then check SSH from the separate administration workstation:
+![Actual separate client-network test with a reachable HTTPS endpoint and forbidden ports closed](./assets/installation/inspect-client-network.png)
 
-<!-- deployment-step: 04-007 -->
+*Actual laboratory client-network test. The test must run from the corresponding
+client network at your site. A run from the administration workstation does not
+prove the client-side firewall rule.*
 
-**Expected result.** Two lines appear, one for each configured server, ending in `22 open`. This checks port reachability; the earlier SSH node check also establishes that the administration key works.
+**Expected result:** the positive control reports C1 port 443 `open`; every
+forbidden address/port reports `closed`; the final line is
+`CLIENT NETWORK CHECK PASSED — positive HTTPS reachability and all tested forbidden ports closed`.
+The tested ports include SSH, plain HTTP, cluster API/kubelet and the actual
+service, node and loopback ingress ports. C2 port 443 must also be closed.
 
-**If the result differs.** If either says `closed`, confirm the administration workstation address is in the approved source range and check the firewall route and SSH service on that server. Do not open SSH access to all client networks to make this test pass.
+**If the positive control fails:** first establish that this computer is actually
+on the intended client network, the route works and C1's TLS endpoint is running.
+An unreachable computer that reports every port closed has not passed the test.
 
-
-Both server lines must print `open`.
+**If any forbidden port is open:** stop and correct the controlled site firewall.
+Do not broaden SSH access to make administration work. Repeat this client-side
+check afterwards. Record the test machine, network position and result; TCP
+reachability alone does not validate a certificate, so also perform
+[Check the TLS profile](05-certificates_tls.md#check-the-tls-profile).
 
 ## SSH access
 
-:::warning
-Root logs in with a key only. A server that accepts a password is not in the
-evaluated configuration.
-:::
-
-On each server:
-
 <!-- deployment-step: 04-003 -->
 
-**Expected result.** Three policy lines include `passwordauthentication no` and `pubkeyauthentication yes`. `permitrootlogin` must permit keys only (for example, `prohibit-password` or its older spelling `without-password`), never unrestricted `yes`. Compare option names without regard to case.
+The `network` inspection above checks **both servers** and prints their policy:
 
-**If the result differs.** If passwords are enabled or root login is unrestricted, stop; the installed server does not meet this guide. If root login is `no`, administration by the required root key will not work either. Check that the installed kit matches the approved site configuration; do not loosen SSH policy as a workaround.
+| Setting | Required output |
+| --- | --- |
+| Password login | `passwordauthentication no` |
+| Public-key login | `pubkeyauthentication yes` |
+| Root login | `permitrootlogin prohibit-password` or `permitrootlogin without-password` |
 
+Each server must then report `PASS: C1 key-only SSH and synchronized NTS time`
+or the corresponding C2 line. The [inspection screenshot](#inspect-from-the-administration-workstation)
+shows these actual policy results; no additional hidden server command is needed.
 
-Option names may be printed with different capitalization; compare the names
-without regard to case. The output must show `passwordauthentication no` and
-`pubkeyauthentication yes`, and `permitrootlogin` must not be `yes`.
+**If it differs:** stop. Root login `yes` permits an unacceptable password path;
+root login `no` prevents the required administration-key access. Check the
+installed kit and approved site configuration. Do not loosen policy as a workaround.
 
 ## Authenticated time
 
-:::warning
-The servers must take their time only from NTS-authenticated sources.
-:::
-
-On each server:
-
 <!-- deployment-step: 04-004 -->
 
-**Expected result.** The `authdata` table shows `NTS` in every source’s Mode column. `tracking` reports `Leap status : Normal`. In `sources`, one site time server is selected (marked `*`). All three conditions must hold on each server.
+The same inspection prints the `chronyc` authentication table, leap status and
+selected source on **both C1 and C2**. Every source must show `NTS`; leap status
+must be `Normal`; a site time server must be selected (marked `*`).
 
-**If the result differs.** A non-NTS source is unacceptable. If no source is selected or tracking is unsynchronised, check DNS and the site firewall paths for UDP 123 and TCP 4460, and ask the time-server operator to confirm NTS availability. Do not hand-edit the installed time configuration or continue while unsynchronised.
-
-
-If a source shows a mode other than NTS, the installed system does not meet
-this requirement: stop, and report it to
-[security@sequentech.io](mailto:security@sequentech.io). Do not edit the time
-configuration of the installed system by hand.
+**If it differs:** investigate DNS and the permitted UDP-123/TCP-4460 paths with
+the time-server operator. A non-NTS source, no selected source or unsynchronized
+clock is a failure. Do not continue or hand-edit the installed time configuration
+into a weaker mode. The combined PASS line appears only after the SSH and all
+three time conditions pass.
 
 ## Encryption of cluster secrets
 
-:::warning
-The cluster must store its Secrets encrypted. They hold the database
-passwords, the client secrets and the trustee keys.
-:::
-
-On C1:
-
 <!-- deployment-step: 04-005 -->
 
-**Expected result.** The status includes the literal line `Encryption Status: Enabled`. Additional key-rotation/status lines can vary; they do not replace the required Enabled result.
+The inspection prints C1's secret-encryption status. It must include the literal
+line **`Encryption Status: Enabled`**. Other key-rotation details do not replace
+this requirement.
 
-**If the result differs.** For `Disabled`, an unavailable command or an error reading the encryption configuration, stop before creating any Kubernetes Secrets. Confirm that this is the C1 server from the approved kit and report the status to Sequent. Do not enable encryption ad hoc or create Secrets to “test” the cluster.
-
-
-If the status is not `Enabled`, stop and report it to
-[security@sequentech.io](mailto:security@sequentech.io). Do not create any of
-the Secrets of the later pages on a cluster that stores them unencrypted.
+**If disabled or unavailable:** stop before creating application Secrets.
+Confirm that C1 came from the approved kit and have the operator resolve the
+installation. Do not create Secrets as a test or enable encryption ad hoc on an
+unknown cluster state.
 
 ## Cluster nodes
 
-On C1:
-
 <!-- deployment-step: 04-006 -->
 
-**Expected result.** The node table shows C1 and C2 `Ready`, with their addresses matching the site file. At this pre-deployment point, the pod table contains only `kube-system` workloads, all `Running` or `Completed`; no Pending, failed or restarting workload remains.
+The inspection prints the actual node table and checks it again as structured
+data. There must be exactly two nodes, both `Ready`, with internal addresses
+matching `nodes.c1` and `nodes.c2` in `site.json`.
 
-**If the result differs.** For a wrong node address, reconcile the installed site configuration. For Pending or failing pods, inspect cluster networking, disk capacity and boot/service logs before continuing. Unexpected application namespaces suggest a reused or partially deployed system; establish its state before applying this fresh-install procedure.
-
-![Actual SSH terminal showing both VM cluster nodes Ready and cluster-secret encryption Enabled](./assets/installation/cluster-health-live.png)
-
-*Actual terminal capture from the installed rehearsal VMs on 2026-10-26. Both nodes
-report `Ready`; the cluster reports `Encryption Status: Enabled` and matching
-server encryption hashes. The address, age and version are the observed rehearsal
-values. This is a live cluster check, not evidence of a new installer run.*
+**If a node is missing, unready or at the wrong address:** stop and reconcile
+its boot state, network and approved site definition. The initial preflight
+also requires a fresh cluster with no existing `step-apps` or `step-infra`
+installation; a later read-only inspection may legitimately see the running
+platform. Do not mistake a healthy existing deployment for a fresh installation.
