@@ -275,11 +275,14 @@ deletes the election execution data (phase: post-processing; permission
 board role holds):
 
 :::warning
-Deleting the election event also deletes its audit records in the TOE; only
-the exported copies remain. Delete only after the export (see
+Deleting the election event removes its operational data and electoral log.
+Signed protocol evidence and restricted records of approvals, exports,
+security notices and configuration revisions remain for verification and
+replay prevention. Deletion does not erase those records.
+
+Delete only after the export (see
 [Exporting the election execution data](#exporting-the-election-execution-data))
-and after the lockdown period has ended: the TOE refuses the deletion while
-the election event is locked down.
+and after the lockdown period has ended.
 :::
 
 1. Check that the data has been exported and that the copies are readable.
