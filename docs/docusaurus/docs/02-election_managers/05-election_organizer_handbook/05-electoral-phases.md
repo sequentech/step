@@ -52,7 +52,7 @@ does not itself authorize a manual opening or recovery.
 | Enter or change election data in any other way | No | No | No | No |
 | Voters log in (subject to account and audit-storage restrictions) | Yes | Yes | Yes | Yes |
 | Voters vote and check their cast ballots in the ballot locator | No | Yes | No | No |
-| Interrupt ("Pause Voting"), resume ("Resume Voting") | No | Yes; the resumption with the required authorisations | No | No |
+| Interrupt ("Pause Voting"), resume (**Start Voting → Start Online Voting**) | No | Yes; the resumption with the required authorisations | No | No |
 | Terminate the election execution ("Stop Voting") | No | Yes, with the required authorisations | No | No |
 | Request the six security self-tests | Yes | Yes | Yes | Yes |
 | Read the audit records (Logs tab, election board only) | Yes | Yes | Yes | Yes |
@@ -92,7 +92,7 @@ The following table identifies the protected operations and permitted phases.
 | Import of the set of election rules | A board member selects "Import Election Event" with a signed configuration package; with valid package approvals and a completed **Import election data** signing request | Preparation |
 | Import of the election dates | A board member selects "Import Election Event" with a signed configuration package; with valid package approvals and a completed **Import election data** signing request | Preparation |
 | Termination of the election execution | "Stop Voting" (protected action "Close voting") | Execution |
-| Resumption of the election execution | "Resume Voting" (protected action "Open voting") | Execution |
+| Resumption of the election execution | **Start Voting → Start Online Voting** on the paused Post (protected action "Open voting") | Execution |
 | Start of counting votes with determination of the election result | "Start Tally Ceremony" and "Start Tally" on the Tally tab | Evaluation |
 | Export of election execution data | "Export" on the Data tab | Post-processing |
 | Read of the voters' register by the election board | Voters tab of the election event | Post-processing |

@@ -266,6 +266,12 @@ The example above was captured from the evaluator laboratory before the single
 background count has not completed; wait for the displayed update before
 interpreting the figures.
 
+![Actual chart showing detections in the synthetic evaluator rehearsal](./assets/monitoring-attack-detections-rendered.png)
+
+This laboratory example shows 26 detections from a completed snapshot. The
+chart is a record of that snapshot; check its update time before treating it
+as current. An older snapshot remains useful when reviewing an ended event.
+
 If the **Dashboard** tab is absent, check **Admin Dashboard View**. If
 **Set up monitoring** is absent, check **Configure Monitoring Dashboards**. If saving
 is refused, retain the current configuration and resolve the reported cause;

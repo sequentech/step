@@ -93,7 +93,7 @@ prevents voter access.
 - **Operational:** the recorded lifecycle state is operational. Phase, period,
   permission, storage and current self-test checks still apply to each operation.
 - **Recovery required:** voting remains unavailable. Resolve the cause, run
-  **Before resuming voting**, and have the board authorize **Resume Voting** in
+  **Before resuming voting**, and have the board authorize **Start Voting → Start Online Voting** in
   **Publish**. Repairs alone do not reopen voting.
 - **Unrecoverable failure:** election execution cannot resume. Preserve the
   evidence and follow the organizer's failure procedure. A later passed test

@@ -49,7 +49,7 @@ under the electoral regulation. An administrator does not take that decision.
 1. Resolve the reason for the pause and preserve the relevant records.
 2. Select **Security and self-tests → Before resuming voting → Run self-tests**.
 3. Wait for all six checks in the latest run to pass for the current state.
-4. The board authorizes **Resume Voting** in **Publish**. The approved voting
+4. The board authorizes **Start Voting → Start Online Voting** in **Publish**. The approved voting
    period and the required services must still be available.
 
 A failed, pending, stale or differently purposed run cannot authorize resumption.
@@ -70,7 +70,7 @@ The system records the transition and queues a separate security notification.
    authenticated time source or storage availability. Never replace evidence
    merely to make a test pass.
 4. Run **Before resuming voting** and wait for the current six-check result.
-5. The board reviews the investigation and authorizes **Resume Voting**. The
+5. The board reviews the investigation and authorizes **Start Voting → Start Online Voting**. The
    server checks its preconditions again and runs an additional check after
    leaving maintenance.
 6. Check **Security email delivery** and confirm that the responsible people

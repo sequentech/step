@@ -145,12 +145,17 @@ Steps:
 1. Review the reason and investigation record. In **Security and self-tests**,
    select **Before resuming voting** and **Run self-tests**. Wait for all six
    results to show **Passed** for the current state.
-2. Select "Resume Voting" and confirm, as for "Start Voting".
+2. Select the individual election (Post), open **Publish**, and choose
+   **Start Voting → Start Online Voting**. The same control resumes a paused
+   channel. Review the confirmation and confirm once.
 3. The TOE creates a signing request for "Open voting". Each required board
    member authenticates again at the external authentication server and
    signs.
-4. Check **Election execution**, **Operational** and the resumed voting
-   status. Review `MaintenanceModeLeft` when leaving recovery. A further
+4. Check **Election execution** and **Operational**, and confirm that both the
+   event's online status and the selected Post's online status are **Open**.
+   The approved Post's restart restores the event gate; other paused Posts
+   remain paused until separately authorized. Confirm that the voter interface
+   offers voting for the resumed Post. Review `MaintenanceModeLeft` when leaving recovery. A further
    **After maintenance** suite runs automatically; investigate any failure.
 
 If the time frame for continuing has passed, do not resume: terminate the

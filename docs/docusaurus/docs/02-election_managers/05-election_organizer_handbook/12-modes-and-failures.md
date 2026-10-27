@@ -62,10 +62,13 @@ was accepted by the transport, failed or has an unknown delivery outcome.
    **Run self-tests**. Wait for all six current results to show **Passed**.
 4. Decide whether the electoral regulation permits continuation within the
    remaining approved voting period.
-5. In **Publish**, request **Resume Voting** and obtain the required fresh board
-   authorizations. A passing test by itself never resumes voting.
-6. Check **Operational**, the resumed voting status, `MaintenanceModeLeft` and
-   the automatic **After maintenance** result. A new failure blocks access again.
+5. Select the individual election (Post), then **Publish → Start Voting →
+   Start Online Voting**, and obtain the required fresh board authorizations.
+   This resumes that paused channel. A passing test by itself never resumes voting.
+6. Check **Operational**, **Open** for both the event and the resumed Post,
+   `MaintenanceModeLeft` and the automatic **After maintenance** result.
+   Other paused Posts remain paused. Verify the resumed Post is available in
+   the voter interface. A new failure blocks access again.
 
 ### Maintenance mode at the start
 
