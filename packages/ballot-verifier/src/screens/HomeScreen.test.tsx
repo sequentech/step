@@ -240,6 +240,22 @@ describe("comparing the audited ballot style with the published one", () => {
 })
 
 describe("importing an audited ballot", () => {
+    it("rejects a supported ballot when tracker hashing fails", async () => {
+        const current = singleContestBallot()
+        recordSequentCore(current)
+        sequentCore.hash_auditable_ballot_js.mockImplementation(() => {
+            throw new Error("Malformed tracker input")
+        })
+        const {lastReported} = renderImportStep(current)
+
+        await importFile(JSON.stringify(current.ballot))
+
+        await expectRejected()
+        expect(lastReported()).toBeNull()
+        expect(nextButton()).toBeDisabled()
+        expect(screen.getByTestId("legacy-ballot-warning")).not.toBeVisible()
+    })
+
     it("verifies a signed single-contest ballot and continues once its ballot ID is entered", async () => {
         const single = singleContestBallot()
         recordSequentCore(single)
