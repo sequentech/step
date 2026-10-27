@@ -61,6 +61,7 @@ pub mod keycloak_events;
 pub mod limit_access_by_countries;
 pub mod messaging;
 pub mod monitoring;
+mod parent_voting_status;
 pub mod partial_file;
 pub mod password;
 pub mod pdf_encryption;

@@ -73,7 +73,7 @@ pub async fn update_election_status(
     let mut changed_channels = vec![];
     let mut event_opened = vec![];
     for voting_channel in voting_channels {
-        if election_event_status::change_election_voting_status(
+        let post_changed = election_event_status::change_election_voting_status(
             &tenant_id,
             user_id,
             username,
@@ -83,17 +83,22 @@ pub async fn update_election_status(
             voting_channel,
             &hasura_transaction,
         )
-        .await?
-        {
+        .await?;
+        if post_changed {
             changed_channels.push(voting_channel);
         }
         let current_event_status = event_status.status_by_channel(voting_channel);
 
         info!("current_voting_status={current_event_status:?} next_voting_status={voting_status:?}, voting_channel={voting_channel:?}");
 
-        if voting_status.clone() == VotingStatus::OPEN
-            && current_event_status == VotingStatus::NOT_STARTED
-        {
+        // A no-op, archived or missing Post returns false before its lifecycle
+        // guards. Only a real guarded transition may restore the parent gate;
+        // sibling Posts retain their own paused/closed status.
+        if super::parent_voting_status::should_open_parent(
+            current_event_status,
+            *voting_status,
+            post_changed,
+        ) {
             info!("Updating election event status to OPEN");
             event_status
                 .close_early_voting_if_online_status_change(voting_channel, VotingStatus::OPEN);
