@@ -205,7 +205,9 @@ current election data.
 7. The archive contains `execution-integrity/manifest.json`, a signature and
    its public key. The manifest lists SHA-256 hashes of the exported entries.
    It also covers `execution-security-evidence.json`: the event's security
-   settings, applicable attack detections, pending security notices and its
+   settings, full self-test history with each check's result and start/completion
+   times, the approved baseline, applicable attack detections, pending security
+   notices and its
    pseudonymous authentication activity. Keep this file with the archive;
    an audit-log export alone does not include all this evidence.
    Keep the `ExecutionDataExported` record's archive hash, manifest hash and
