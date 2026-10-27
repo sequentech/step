@@ -378,6 +378,43 @@ RUNTIME_IDS = r''' .items[] |
  select(.name as $name | any($definitions[]; .name==$name and .image==$image)) |
  select(.imageID!="" and .imageID!=null) | .imageID'''
 
+def verify_discovery(d,host,realm):
+    """Wait only for positive HTTPS readiness; fail security/identity errors now."""
+    endpoint='https://'+host+'/realms/'+realm+'/.well-known/openid-configuration'
+    expected='https://'+d['hosts']['voting']+'/realms/'+realm
+    argv=['curl','--silent','--show-error','--cacert',d['tls']['ca'],
+          '--connect-timeout','2','--max-time','3','--write-out','\n%{http_code}',endpoint]
+    # At most 12 four-second subprocess deadlines and 11 one-second pauses.
+    # No redirected request, disabled TLS check, write or negative probe is retried.
+    for attempt in range(12):
+        try:
+            result=subprocess.run(argv,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=4,check=False)
+        except subprocess.TimeoutExpired:
+            retry=True
+        except OSError:
+            raise ValueError('External HTTPS discovery command is unavailable; stop and inspect the workstation') from None
+        else:
+            if result.returncode:
+                # Connection refused, timeout, empty response or reset during startup.
+                # Certificate/name failures (51/60), TLS errors (35) and all others stop.
+                require(result.returncode in (7,28,52,56),'External HTTPS discovery failed TLS or connection validation; stop and inspect this stage privately')
+                retry=True
+            else:
+                body,separator,status=result.stdout.rpartition(b'\n')
+                require(separator and re.fullmatch(rb'[1-5][0-9]{2}',status) is not None,'External HTTPS discovery returned an invalid HTTP status')
+                retry=status in (b'502',b'503',b'504')
+                if not retry:
+                    require(status==b'200','External HTTPS discovery returned an unexpected HTTP status')
+                    try:document=json.loads(body)
+                    except (ValueError,TypeError):raise ValueError('External HTTPS discovery returned invalid JSON') from None
+                    require(isinstance(document,dict) and document.get('issuer')==expected,'Published issuer differs from configured realm')
+                    return document
+        if attempt==11:
+            raise ValueError('External HTTPS discovery did not become ready within its bounded startup check; inspect the identity service and ingress')
+        if attempt==0:print('VERIFY: waiting for identity-service HTTPS discovery to finish startup',flush=True)
+        time.sleep(1)
+
+
 def verify_metadata(d):
     script=r'''k3s kubectl -n step-apps exec deploy/hasura -c hasura -- sh -ec '
  curl --silent --show-error --fail -H "X-Hasura-Admin-Secret: $HASURA_GRAPHQL_ADMIN_SECRET" -H "Content-Type: application/json" -d "{\"type\":\"get_inconsistent_metadata\",\"args\":{}}" http://localhost:8080/v1/metadata' |
@@ -449,8 +486,7 @@ done
     ssh(d,'c1',script,'Installed platform policy verification',timeout=1800)
     verify_metadata(d)
     for host in [d['hosts'][name] for name in ('voting','administration','verifier')]:
-        issuer=json.loads(run(['curl','--silent','--show-error','--fail','--cacert',d['tls']['ca'],'https://'+host+'/realms/'+R+'/.well-known/openid-configuration'],'External HTTPS discovery',timeout=30))['issuer']
-        require(issuer=='https://'+d['hosts']['voting']+'/realms/'+R,'Published issuer differs from configured realm')
+        verify_discovery(d,host,R)
         status=run(['curl','--silent','--show-error','--cacert',d['tls']['ca'],'-o','/dev/null','-w','%{http_code}','https://'+host+'/realms/master/.well-known/openid-configuration'],'External master-realm restriction',timeout=30)
         require(status==b'403','Master realm is externally reachable or not verifiable')
     verify_login(d,R)
@@ -477,8 +513,7 @@ def cleanup_import(d):
 def verify_login(d,realm):
     host=d['hosts']['voting'];admin=d['hosts']['administration']
     for portal in (host,admin):
-        discovery=json.loads(run(['curl','--silent','--show-error','--fail','--cacert',d['tls']['ca'],'https://'+portal+'/realms/'+realm+'/.well-known/openid-configuration'],'Realm discovery identity',timeout=30))
-        require(discovery.get('issuer')=='https://'+host+'/realms/'+realm,'Realm discovery issuer differs from site configuration')
+        verify_discovery(d,portal,realm)
     endpoint='https://'+host+'/realms/'+realm+'/protocol/openid-connect'
     base=['curl','--silent','--show-error','--cacert',d['tls']['ca']]
     query={'client_id':'admin-portal','response_type':'code','scope':'openid','redirect_uri':'https://'+admin+'/'}

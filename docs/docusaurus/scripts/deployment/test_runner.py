@@ -76,22 +76,29 @@ agd_source "$2"
                 self.assertIn('Trustee key import complete; temporary key file removed.',result.stdout)
 
     def test_backup_quiescence_propagates_remote_failures(self):
+        import re
         original=(Path(__file__).parent/'commands/11-001.sh').read_text()
-        for failed in ['scale','get']:
+        remote=re.search(r"\nc1 '(.*)'\s*$", original, re.S).group(1)
+        for failed in ['scale','get pods']:
             with self.subTest(failed=failed), tempfile.TemporaryDirectory() as folder:
-                f=Path(folder)/'body.sh'
-                f.write_text(original.replace('. /root/deploy/hosts.env','C1=example.invalid').replace('<backup-medium>',folder))
-                code = '''source "$1"
-k3s(){ case "$*" in *" $FAILED "*) return 3;; *) printf reached >&2;; esac; }
-ssh(){ bash -c "$2"; }
-export -f k3s
-export FAILED="$3"
-agd_source "$2"
-'''
-                result=subprocess.run(['bash','-c',code,'test',str(Path(__file__).with_name('session.sh')),str(f),failed],capture_output=True,text=True)
+                body=remote.replace('/root/deploy',folder)
+                code = r'''k3s(){
+ case "$*" in
+ *"get deploy"*) printf '{"items":[{"metadata":{"name":"test","namespace":"step-apps"},"spec":{"replicas":2}}]}';;
+ *"$FAILED"*) printf 'REACHED EXPECTED FAILURE: %s\n' "$FAILED" >&2; return 3;;
+ *"scale deploy"*) printf 'SCALE REACHED\n' >&2;;
+ *) printf 'Unexpected mock call: %s\n' "$*" >&2; return 42;;
+ esac
+}
+export FAILED="$1"
+''' + body
+                result=subprocess.run(['bash','-c',code,'test',failed],capture_output=True,text=True)
                 self.assertNotEqual(result.returncode,0)
-                self.assertNotIn('0',result.stdout)
-                if failed == 'scale': self.assertNotIn('reached',result.stderr)
+                self.assertIn('REACHED EXPECTED FAILURE: '+failed,result.stderr)
+                self.assertNotIn('APPLICATIONS STOPPED',result.stdout)
+                self.assertTrue((Path(folder)/'.backup-in-progress').exists())
+                recorded=json.loads((Path(folder)/'backup-replicas.json').read_text())
+                self.assertTrue(all(item['replicas']==2 for item in recorded))
 
     def test_tenant_selection_prompts_after_listing_and_rejects_bad_uuid(self):
         original=(Path(__file__).parent/'commands/08-007.sh').read_text()
@@ -187,31 +194,33 @@ agd_source "$2"
             result=subprocess.run(['bash','-c','''source "$1"; agd_source "$2"; test "$EXAMPLE" = kept; test "$PWD" = /tmp; test "$(set -o | awk '/noclobber/ {print $2}')" = off''','test',str(Path(__file__).with_name('session.sh')),str(f)],capture_output=True,text=True)
             self.assertEqual(result.returncode,0,result.stderr)
 
-    def test_restore_corrupt_backup_never_calls_ssh(self):
+    def _restore_rejection(self, backup_content, gpg_mock):
         original=(Path(__file__).parent/'commands/11-003.sh').read_text()
         with tempfile.TemporaryDirectory() as folder:
-            backup=Path(folder)/'bad.tar.gpg';backup.write_bytes(b'bad')
-            body=original.replace('. /root/deploy/hosts.env','C1=example.invalid').replace('<backup-medium>/<file-of-the-backup-to-restore>.tar.gpg',str(backup))
-            f=Path(folder)/'body.sh';f.write_text(body)
-            command='source "$1"; gpg(){ return 2; }; ssh(){ printf DESTRUCTIVE; }; agd_source "$2"; printf survived'
-            result=subprocess.run(['bash','-c',command,'test',str(Path(__file__).with_name('session.sh')),str(f)],capture_output=True,text=True)
+            root=Path(folder)
+            backup=root/'bad.tar.gpg';backup.write_bytes(backup_content)
+            (root/'site.json').write_text(json.dumps({'nodes':{'c1':'example.invalid'},'ssh_identity':'/unused'}))
+            (root/'archive_check.py').write_text(Path(__file__).with_name('archive_check.py').read_text())
+            script=root/'body.sh';script.write_text(original)
+            command=('source "$1"; '+gpg_mock+
+                     '; ssh(){ printf DESTRUCTIVE; }; agd_source "$2"; printf survived')
+            result=subprocess.run(['bash','-c',command,'test',str(Path(__file__).with_name('session.sh').resolve()),str(script)],
+                                  cwd=root,input='RESTORE AUTHORIZED BACKUP\n'+str(backup)+'\n',capture_output=True,text=True)
             self.assertNotIn('DESTRUCTIVE',result.stdout)
             self.assertIn('survived',result.stdout)
+            self.assertIn('GPG REACHED',result.stderr)
+            self.assertIn('BACKUP VALIDATION FAILED',result.stderr)
+
+    def test_restore_corrupt_backup_never_calls_ssh(self):
+        self._restore_rejection(b'bad', 'gpg(){ printf "GPG REACHED\\n" >&2; return 2; }')
 
     def test_restore_unrelated_archive_refused_before_delete(self):
         import tarfile
         import io
-        original=(Path(__file__).parent/'commands/11-003.sh').read_text()
-        with tempfile.TemporaryDirectory() as folder:
-            backup=Path(folder)/'unrelated.tar.gpg'
-            with tarfile.open(backup,'w') as archive:
-                item=tarfile.TarInfo('unrelated.txt');item.size=1;archive.addfile(item,io.BytesIO(b'x'))
-            body=original.replace('. /root/deploy/hosts.env','C1=example.invalid').replace('<backup-medium>/<file-of-the-backup-to-restore>.tar.gpg',str(backup))
-            f=Path(folder)/'body.sh';f.write_text(body)
-            command='source "$1"; gpg(){ cat "$2"; }; ssh(){ printf DESTRUCTIVE; }; agd_source "$2"; printf survived'
-            result=subprocess.run(['bash','-c',command,'test',str(Path(__file__).with_name('session.sh')),str(f)],capture_output=True,text=True)
-            self.assertNotIn('DESTRUCTIVE',result.stdout)
-            self.assertIn('survived',result.stdout)
+        content=io.BytesIO()
+        with tarfile.open(fileobj=content,mode='w') as archive:
+            item=tarfile.TarInfo('unrelated.txt');item.size=1;archive.addfile(item,io.BytesIO(b'x'))
+        self._restore_rejection(content.getvalue(), 'gpg(){ printf "GPG REACHED\\n" >&2; cat "$2"; }')
 
     def test_native_trustee_number_and_c2_mapping(self):
         for value in ['0','3','one']:

@@ -31,6 +31,41 @@ class InstallerTests(unittest.TestCase):
         self.assertEqual(result.returncode,23)
         self.assertFalse(Path(result.stdout.strip()).exists())
 
+    def test_discovery_retries_only_startup_failures_with_verified_https(self):
+        import subprocess
+        d=self.config();host=d['hosts']['administration']
+        expected='https://'+d['hosts']['voting']+'/realms/'+install.R
+        ok=subprocess.CompletedProcess([],0,json.dumps({'issuer':expected}).encode()+b'\n200',b'')
+        for initial in [subprocess.CompletedProcess([],code,b'\n000',b'private error') for code in (7,28,52,56)]+[subprocess.CompletedProcess([],0,b'upstream unavailable\n'+status,b'') for status in (b'502',b'503',b'504')]+[subprocess.TimeoutExpired('curl',4)]:
+            with self.subTest(initial=initial),patch('install.subprocess.run',side_effect=[initial,ok]) as call,patch('install.time.sleep') as sleep:
+                self.assertEqual(install.verify_discovery(d,host,install.R),{'issuer':expected})
+                self.assertEqual(call.call_count,2);sleep.assert_called_once_with(1)
+                args=call.call_args.args[0]
+                self.assertEqual(args[args.index('--cacert')+1],d['tls']['ca'])
+                self.assertEqual(args[args.index('--connect-timeout')+1],'2')
+                self.assertEqual(args[args.index('--max-time')+1],'3')
+                self.assertEqual(call.call_args.kwargs['timeout'],4)
+                self.assertNotIn('--insecure',args);self.assertNotIn('--location',args)
+                self.assertEqual(args[-1],'https://'+host+'/realms/'+install.R+'/.well-known/openid-configuration')
+
+    def test_discovery_security_or_semantic_failure_is_never_retried(self):
+        import subprocess
+        d=self.config();host=d['hosts']['voting']
+        bad=[subprocess.CompletedProcess([],code,b'\n000',b'private error') for code in (6,35,51,60,77)]+[
+            subprocess.CompletedProcess([],0,body,b'') for body in (b'{}\n500',b'{}\n404',b'{}\n302',b'{"issuer":"https://other.invalid"}\n200',b'invalid-json\n200',b'[]\n200',b'no-status')]
+        for result in bad:
+            with self.subTest(result=result),patch('install.subprocess.run',return_value=result) as call,patch('install.time.sleep') as sleep:
+                with self.assertRaises(ValueError):install.verify_discovery(d,host,install.R)
+                call.assert_called_once();sleep.assert_not_called()
+
+    def test_discovery_startup_exhaustion_has_short_total_bound(self):
+        import subprocess
+        with patch('install.subprocess.run',return_value=subprocess.CompletedProcess([],0,b'unavailable\n503',b'')) as call,patch('install.time.sleep') as sleep:
+            d=self.config()
+            with self.assertRaisesRegex(ValueError,'did not become ready'):install.verify_discovery(d,d['hosts']['voting'],install.R)
+            self.assertEqual(call.call_count,12);self.assertEqual(sleep.call_count,11)
+            self.assertLessEqual(call.call_count*call.call_args.kwargs['timeout']+sleep.call_count,60)
+
     def test_metadata_api_waits_for_startup_without_retrying_inconsistency(self):
         with patch('install.ssh',side_effect=[ValueError('not listening'),b'{"is_consistent":true,"inconsistent_count":0}']) as ssh,patch('install.time.sleep') as sleep:
             install.verify_metadata(self.config())
