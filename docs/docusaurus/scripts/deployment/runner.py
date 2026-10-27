@@ -157,6 +157,14 @@ def prepare(entry, d, role):
 
 def main():
     os.umask(0o077)
+    if len(sys.argv) == 3 and sys.argv[1] in ('backup-trustees','resume-trustees','remove-trustees'):
+        m=manifest();need(not m.get('test_only'), 'Test-only bundle cannot maintain an installation')
+        import trustee
+        trustee.server(sys.argv[2],sys.argv[1]);return
+    if (len(sys.argv)==3 and sys.argv[1] in ('backup','restore')) or (len(sys.argv) in (4,5) and sys.argv[1]=='services'):
+        m=manifest();need(not m.get('test_only'), 'Test-only bundle cannot maintain an installation')
+        import maintenance
+        maintenance.main(sys.argv[1],sys.argv[2],sys.argv[3] if len(sys.argv)>3 else None,sys.argv[4] if len(sys.argv)>4 else None);return
     if len(sys.argv) in (4, 5) and sys.argv[1] == 'inspect':
         m = manifest()
         need(not m.get('test_only'), 'Test-only bundle cannot inspect an installation')
@@ -169,7 +177,7 @@ def main():
         import install
         install.main(sys.argv[1],sys.argv[2]); return
     p = argparse.ArgumentParser(prog='./deploy',description='Install from the administration workstation: ./deploy check site.json; ./deploy install site.json; ./deploy commission site.json. Repeat automated checks with ./deploy verify site.json. Legacy diagnostic commands are listed below.', formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument('command', choices=['check', 'install', 'verify', 'commission', 'inspect', 'list', 'show', 'configure', 'session', 'prepare'])
+    p.add_argument('command', choices=['check', 'install', 'verify', 'commission', 'inspect', 'backup', 'restore', 'services', 'backup-trustees', 'resume-trustees', 'remove-trustees', 'list', 'show', 'configure', 'session', 'prepare'])
     p.add_argument('value', nargs='?'); a = p.parse_args()
     if a.command == 'inspect':p.error('Use ./deploy inspect site.json kit|network|tls|platform, ./deploy inspect client-network.json client-network, or ./deploy inspect site.json election REALM')
     if a.command in ('install','verify','commission'):p.error('Provide the configuration path: ./deploy '+a.command+' site.json')

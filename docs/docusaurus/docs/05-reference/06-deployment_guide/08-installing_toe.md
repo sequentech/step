@@ -304,238 +304,189 @@ the ceremony until the operator resolves the fault and the check passes.
 
 ## Back up the trustee state
 
-**When:** after a key ceremony, with no ceremony in progress and with the board
-and trustees informed. This briefly stops both native trustee instances. The
-state is on C1 under `/var/lib/sequent-data/trustee1` and `trustee2`.
+**When:** after a key ceremony, with no ceremony running, and with the board and
+trustees informed. The command briefly stops the two native trustee instances,
+encrypts and verifies their state, then restores their original replica counts.
 
-**Where:** a root terminal in the extracted `deployment` directory on the
-administration workstation, using its unchanged `site.json`. Mount the backup
-medium first. Copy the complete block; it asks for the mounted directory and a
-new encryption passphrase privately. No private key is printed.
+**Where:** the administration workstation, in the accepted `deployment` folder.
+Use the existing `site.json` and mount the encrypted backup medium. Run:
 
 <!-- deployment-step: 08-013 -->
 
-```bash
-set -Eeuo pipefail
-umask 077
-C1=$(jq -er '.nodes.c1' site.json)
-IDENTITY=$(jq -er '.ssh_identity' site.json)
-c1() { ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -i "$IDENTITY" "root@$C1" "$@"; }
-read -r -p "Mounted encrypted-backup directory: " BACKUP_DIRECTORY
-test -d "$BACKUP_DIRECTORY" && test ! -L "$BACKUP_DIRECTORY"
-B="$BACKUP_DIRECTORY/trustee-state-$(date -u +%Y%m%dT%H%M%SZ).tar.gpg"
-test ! -e "$B"
-c1 'set -Eeuo pipefail; umask 077
- test ! -e /root/deploy/.trustee-backup-in-progress
- k3s kubectl -n step-infra get deploy trustee1 trustee2 -o json |
-   jq "[.items[] | {name:.metadata.name,replicas:(.spec.replicas // 1)}]" > /root/deploy/trustee-backup-replicas.json
- touch /root/deploy/.trustee-backup-in-progress
- k3s kubectl -n step-infra scale deploy trustee1 trustee2 --replicas=0
- for attempt in $(seq 1 60); do
-   count=$(k3s kubectl -n step-infra get pods -l "app in (trustee1,trustee2)" -o json | jq ".items | length")
-   if test "$count" = 0; then echo "TRUSTEES STOPPED: state backup may begin"; exit 0; fi
-   sleep 2
- done
- echo "Trustee shutdown incomplete; no backup taken" >&2; exit 1'
-c1 'set -Eeuo pipefail
- test -f /root/deploy/.trustee-backup-in-progress
- count=$(k3s kubectl -n step-infra get pods -l "app in (trustee1,trustee2)" -o json | jq ".items | length")
- test "$count" = 0
- tar -C /var/lib/sequent-data -cf - trustee1 trustee2' |
-  gpg --symmetric --cipher-algo AES256 --output "$B"
-gpg --decrypt "$B" | python3 ./archive_check.py trustee
-c1 'set -Eeuo pipefail
- jq -r ".[] | [.name,(.replicas|tostring)] | @tsv" /root/deploy/trustee-backup-replicas.json |
- while read -r name replicas; do k3s kubectl -n step-infra scale "deployment/$name" --replicas="$replicas"; done
- for name in trustee1 trustee2; do k3s kubectl -n step-infra rollout status "deployment/$name" --timeout=120s; done
- rm /root/deploy/.trustee-backup-in-progress'
-printf 'TRUSTEE BACKUP COMPLETE: %s\n' "$B"
+```sh
+./deploy backup-trustees site.json
 ```
 
-**Expected result.** `TRUSTEES STOPPED: state backup may begin`, then
-`BACKUP CONTENTS VERIFIED: trustee`, successful rollout of both instances, and
-`TRUSTEE BACKUP COMPLETE:` followed by the encrypted backup path. The script
-records and restores each original replica count; it does not assume every
-Deployment should have one replica.
+The command asks for the mounted backup directory and the encryption passphrase
+privately. Enter the passphrase again when requested. It creates a new dated
+backup; it does not overwrite an earlier one. Keep the encrypted backup and its
+passphrase in separate locked places.
+
+**Expected result:**
+
+1. `TRUSTEES STOPPED: state backup may begin`.
+2. `BACKUP CONTENTS VERIFIED: trustee`.
+3. `TRUSTEE REPLICA COUNTS RESTORED`.
+4. `TRUSTEE BACKUP COMPLETE:` followed by the encrypted file's path and SHA-256.
+
+Record the final path and digest in the backup record. The encrypted archive is
+accepted only after decryption and complete content validation succeed.
 
 ![Actual rehearsal terminal completing an encrypted trustee-state backup](./assets/installation/trustee-backup.png)
 
-*Actual terminal executing the complete backup block above. The laboratory test
-driver enters the test paths and prompts; it is not part of the installation
-instructions. No passphrase is shown. Keep the encrypted backup and its passphrase
-in separate locked places, under the trustee-custody procedure.*
+*Actual encrypted trustee-state backup and replica restoration in the isolated
+rehearsal. No passphrase is shown.*
 
-**If it fails:** keep the original state and the last known-good backup. Do not
-accept a partial archive. A timeout waiting for the pods to stop prevents the
-copy. Encryption or validation failure leaves the trustees stopped. Diagnose
-that error before deciding whether to retry the backup or resume unchanged state.
+**If the result differs:** keep the original state and the last known-good
+backup. Do not accept a partial archive. Failure to stop all trustee pods prevents
+copying. Encryption or verification failure leaves the trustees stopped, so
+inspect the reported error before retrying or resuming.
 
-<details>
-<summary>Resume unchanged trustees after a failed backup</summary>
+### Resume unchanged trustees after a failed backup
 
-Use this only after a failed **backup**, while the original trustee state is
-intact. It does not recover damaged state or undo removal. From a root terminal
-in the workstation's `deployment` directory, copy:
+Use this only when the original state is intact and the board authorizes resuming
+it. This does not restore damaged state or undo key removal. Run:
 
-```bash
-set -Eeuo pipefail
-C1=$(jq -er '.nodes.c1' site.json)
-IDENTITY=$(jq -er '.ssh_identity' site.json)
-ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -i "$IDENTITY" "root@$C1" 'set -Eeuo pipefail
- test -f /root/deploy/.trustee-backup-in-progress
- test -f /root/deploy/trustee-backup-replicas.json
- jq -e "length == 2 and all(.[]; (.name == \"trustee1\" or .name == \"trustee2\") and .replicas >= 0)" /root/deploy/trustee-backup-replicas.json >/dev/null
- jq -r ".[] | [.name,(.replicas|tostring)] | @tsv" /root/deploy/trustee-backup-replicas.json |
- while read -r name replicas; do k3s kubectl -n step-infra scale "deployment/$name" --replicas="$replicas"; done
- for name in trustee1 trustee2; do k3s kubectl -n step-infra rollout status "deployment/$name" --timeout=120s; done
- rm /root/deploy/.trustee-backup-in-progress
- echo "TRUSTEE REPLICA COUNTS RESTORED"'
-./deploy commission site.json
+```sh
+./deploy resume-trustees site.json
 ```
 
-Expect successful rollouts, `TRUSTEE REPLICA COUNTS RESTORED` and the commissioning
-readiness check's `PASS` line. The normal backup screenshot above shows the same
-rollout result. If any command fails, keep the marker and do not authorize a
-ceremony. A missing or invalid replica record requires investigation; do not
-guess the counts or delete the marker manually.
-
-</details>
+Read the warning, then type `RESUME UNCHANGED TRUSTEES`. Expect
+`TRUSTEE REPLICA COUNTS RESTORED`. The command checks and uses the saved original
+replica counts. If their record is missing or invalid, it stops: do not guess the
+counts, remove markers manually or authorize another ceremony.
 
 ## Remove the trustee keys at the end of the election
 
 :::warning
-This destroys server-side trustee keys and protocol state. Do it only after the
+This destroys server-side trustee keys and protocol state. Use it only after the
 retention period has ended, the required election execution data has been deleted,
-and the election board has authorized retirement and is present. It is not part
-of installation or troubleshooting.
+and the election board has authorized retirement and is present. It is not an
+installation or troubleshooting command.
 :::
 
-**Where:** the same root terminal in the administration workstation's extracted
-`deployment` directory. Verify the target addresses in `site.json` with the board.
-Copy the complete block; it requires the exact confirmation phrase.
+**Where:** the administration workstation, in the accepted `deployment` folder.
+Verify the target addresses in `site.json` with the board, then run:
 
 <!-- deployment-step: 08-014 -->
 
-```bash
-set -Eeuo pipefail
-umask 077
-C1=$(jq -er '.nodes.c1' site.json)
-IDENTITY=$(jq -er '.ssh_identity' site.json)
-c1() { ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -i "$IDENTITY" "root@$C1" "$@"; }
-read -r -p "Type REMOVE TRUSTEE KEYS to confirm: " CONFIRM
-test "$CONFIRM" = "REMOVE TRUSTEE KEYS"
-c1 'set -Eeuo pipefail
- k3s kubectl -n step-infra scale deployment/trustee1 deployment/trustee2 --replicas=0
- for attempt in $(seq 1 60); do
-   count=$(k3s kubectl -n step-infra get pods -l "app in (trustee1,trustee2)" -o json | jq ".items | length")
-   if test "$count" = 0; then break; fi
-   sleep 2
- done
- test "$count" = 0
- k3s kubectl -n step-infra delete secret trustee1-keys trustee2-keys trustee1-auth trustee2-auth
- find /var/lib/sequent-data/trustee1 /var/lib/sequent-data/trustee2 -mindepth 1 -delete
- remaining=$(k3s kubectl -n step-infra get secret trustee1-keys trustee2-keys trustee1-auth trustee2-auth --ignore-not-found -o name)
- test -z "$remaining"
- count=$(find /var/lib/sequent-data/trustee1 /var/lib/sequent-data/trustee2 -mindepth 1 | wc -l)
- test "$count" = 0
- echo "TRUSTEE REMOVAL COMPLETE: four Secrets absent; state directories empty"'
+```sh
+./deploy remove-trustees site.json
 ```
 
-**Expected result.** The instances stop before any deletion. Four Secrets are
-removed, the state directories become empty, and the last line is
+Read the warning and type `REMOVE TRUSTEE KEYS`. The command stops both instances
+and verifies that their pods have disappeared before it removes the four trustee
+Secrets and empties the two fixed protocol-state directories.
+
+**Expected result:**
 `TRUSTEE REMOVAL COMPLETE: four Secrets absent; state directories empty`.
+No trustee instance is restarted.
 
 ![Actual isolated rehearsal terminal confirming trustee retirement](./assets/installation/trustee-removal.png)
 
-*Actual terminal executing the complete removal block above on an isolated
-disposable copy. The laboratory test driver enters the test prompts; it is not
-part of the installation instructions.
-The confirmation and completion messages show the authorized retirement workflow.*
+*Actual server-side trustee retirement on an isolated disposable copy.*
 
-**If it fails:** preserve the remaining state and backups and record exactly what
-was removed. Do not authorize another ceremony or destroy backups while the
-outcome is uncertain. After confirmed server removal, the board directs the
-custodians to destroy every retained trustee-state backup and records removal
-and backup destruction in its minutes.
+**If the result differs:** preserve the remaining state and backups and record
+what was removed. Do not authorize another ceremony or destroy backups while the
+outcome is uncertain. After confirmed server removal, the board directs each
+custodian to destroy retained trustee-state backups and records their destruction.
+Deleting files does not establish physical erasure of storage remnants; follow
+the organizer's approved media-retirement procedure as well.
 
 ## Preparing a trustee workstation
 
-A trustee workstation runs the `trustee` program of the delivered `braid`
-image, offline.
+Use the accepted tool folder's **`./trustee`** command. It selects the native
+trustee program from the accepted `braid` image and supplies the offline container
+options automatically. No shell function, container command or script needs to
+be typed.
 
-:::warning
-The workstation has no network connection while handling keys. Use each
-trustee’s encrypted medium and a clean offline session as described in
-[Trustee key handling](02-operational_environment.md#trustee-key-handling).
-The hardware may be shared; the keys, media and sessions must remain separate.
-Load the tool only from the verified delivery after checking its digest.
-:::
+Trustees may use one organizer-controlled computer in separate clean offline
+sessions. Each keeps their own encrypted working medium, keys and backups. Follow
+[Trustee key handling](02-operational_environment.md#trustee-key-handling): disable
+network interfaces, swap, hibernation and session recording before handling keys.
+The wrapper checks the network interfaces, swap, encrypted working medium and
+file permissions; it cannot verify physical custody or a clean boot for you.
 
-**Where:** a root terminal on the offline trustee workstation, before connecting
-any trustee key medium. The workstation needs Podman and Skopeo from its approved
-image. Open the accepted delivery medium read-only using the exact commands in
+### Set up the public configuration once
+
+**Where:** a root terminal on the offline workstation. Python 3, Podman, Skopeo,
+`findmnt` and `cryptsetup` must come from its approved operating environment.
+Open the accepted delivery medium read-only as described in
 [Decrypt the medium](../08-delivery_verification.md#3-decrypt-the-medium).
-Once it is mounted at `/mnt/temenos-delivery`, copy this block:
+
+In the accepted `deployment` folder, copy `trustee.example.json` to
+`trustee.json` using the file manager, then fill these public values:
+
+| Setting | What to enter |
+| --- | --- |
+| `delivery_directory` | The read-only accepted delivery mount, normally `/mnt/temenos-delivery`. |
+| `manifest_sha256` | The independently accepted SHA-256 of `image-digests.txt`, already used for `toe.manifest_sha256` in the installation configuration. |
+| `working_directory` | The private `session` directory on this trustee's own unlocked LUKS-encrypted medium, for example `/media/trustee-one/session`. It must be owned by root with permissions **700**. |
+| `keys_file` | Keep `trustee.toml`. This file is created on the private medium. |
+| `request_file` | Keep `custody-request.json`; copy and rename the downloaded public request to this name when needed. |
+| `proof_file` | Keep `custody-proof.json` for the key ceremony; use a new name for each tally. |
+| `tally_session_id` | Keep `null` for the key ceremony. For a tally, enter the exact tally identifier shown by the portal, in quotes. |
+
+Do not put passwords, private keys or the contents of `trustee.toml` into this
+configuration. A separate `trustee.json` for each trustee avoids selecting another
+person's medium accidentally.
+
+### Prepare the accepted tool
+
+Before attaching a trustee's key medium, run:
 
 <!-- deployment-step: 08-015 -->
 
-```bash
-set -e -o pipefail
-M=/mnt/temenos-delivery
-D=$(sed -n 's/^braid \(sha256:[0-9a-f]*\)$/\1/p' "$M/image-digests.txt")
-[ "$(skopeo inspect --format '{{.Digest}}' "oci:$M/images/braid:v10.0.0")" = "$D" ]
-echo "braid image verified"
-skopeo copy "oci:$M/images/braid:v10.0.0" containers-storage:localhost/braid:v10.0.0
-[ "$(podman image inspect --format '{{.Digest}}' localhost/braid:v10.0.0)" = "$D" ]
-echo "braid image loaded"
-umount "$M" && cryptsetup close temenos-delivery
-echo "D=$D" > ~/braid-digest
+```sh
+./trustee prepare trustee.json
 ```
 
-**Expected result.** Both `braid image verified` and `braid image loaded` appear. The delivery medium is unmounted and the checked digest is retained locally.
+**Expected result:** `TRUSTEE IMAGE VERIFIED: all accepted manifests and layers
+match`, followed by `TRUSTEE TOOL READY: accepted image loaded; safely eject the
+delivery medium`. The command checks the entire OCI image graph against the
+accepted manifest, loads it locally and retains only the public digest manifest
+beside `trustee.json`. Safely eject the delivery medium through the file manager.
 
-**If the result differs.** If either line is absent or a digest check fails, do not use the trustee tool. Re-check the verified delivery and local image import while keeping the workstation offline.
+**If the result differs:** stop. A checksum or image mismatch requires the
+accepted delivery to be checked again. Do not replace the expected checksum with
+the observed value or enable networking to download an image.
 
+### Generate keys in the trustee's private session
 
-:::warning
-Never start the image with its default command on the workstation: that
-command starts the trustee server of the platform. Use only the `trustee`
-command below. It runs the program `/usr/bin/trustee` instead, gives the
-container no network, and mounts only the current directory, which holds the
-keys file.
-:::
-
-In the same offline root terminal, define the `trustee` command. Repeat this
-short block whenever you open a new shell; the function is local to that shell:
+Unlock only this trustee's encrypted working medium and select its private
+working directory in `trustee.json`. Then run:
 
 <!-- deployment-step: 08-016 -->
 
-```bash
-set -e -o pipefail
-. ~/braid-digest
-trustee() { podman run --rm --network none --entrypoint /usr/bin/trustee \
-  -v "$PWD":/work:Z -w /work "localhost/braid@$D" "$@"; }
-trustee --help
+```sh
+./trustee generate trustee.json
 ```
 
-**Expected result.** The trustee help screen lists `generate`, `public-keys`, `attest` and `verify`, among its subcommands.
+**Expected result:** `TRUSTEE KEYS CREATED: trustee.toml`, followed by JSON with
+only `signing_public_key` and `share_encryption_public_key`. The keys file is
+created with owner-only permissions. An existing file is never replaced.
 
-**If the result differs.** If the command is missing or starts a server instead, stop. Check the verified braid image and this wrapper; do not run the image's default entry point or enable network access.
+To display those public keys again, run:
 
+```sh
+./trustee public-keys trustee.json
+```
 
-The program sees only the current directory: run each key-handling command
-from the directory on the trustee's own medium
-that holds the keys file, and give file names relative to it, for example
-`trustee public-keys --trustee-config trustee.toml`. The trustees use the
-subcommands as the trustee procedures of the
+**If the result differs:** an active interface or swap requires shutting down and
+correcting the offline operating environment. A medium or permission error means
+the private working directory is not ready. An existing keys file means this
+trustee already has keys: use `public-keys`; do not delete it and generate a
+replacement. If the accepted image is missing, repeat the prepare command with
+the accepted delivery medium.
+
+Only this trustee's working directory is mounted into the offline container.
+The command supplies the private-key file path explicitly, so private keys are
+never intentionally printed. Make the two required protected backups and follow
 [Trustee Procedures (AGD-03)](../../02-election_managers/05-election_organizer_handbook/09-trustee-procedures.md)
-describe. Result verification is a separate procedure in
-[Verifying the Result with the Election Verifier](../../02-election_managers/05-election_organizer_handbook/10-election-verifier.md);
-it does not use private trustee keys.
+for the portal's public-key registration and custody-proof upload.
 
 ![Actual network-disabled trustee-tool help screen from the verified rehearsal image](./assets/installation/trustee-tool.png)
 
-*Actual Podman execution on the laboratory host, using the verified local OCI
-image with `--network none`. This shows the tool and its help; it does not show
-a wholly offline workstation session or actual private-key custody. Follow the
-offline workstation, private-medium and clean-session procedure above.*
+*Actual native trustee tool in the accepted image with its network disabled. The
+short commands above select that program automatically; the image's default
+server command is never used for offline key handling.*

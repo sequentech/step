@@ -65,6 +65,35 @@ An absent blob, ambiguous index, missing container or different digest fails.
 A matching pod specification alone is insufficient. The `PASS` line confirms the
 image group; it does not establish that the source implements every ST requirement.
 
+## Repeat the complete TSF software integrity check
+
+**Where:** the administration workstation, in the verified `deployment` folder.
+Keep the original accepted seven-image OCI delivery mounted at `toe.directory`
+in `site.json`. Use its independently accepted digest manifest.
+
+```bash
+./deploy inspect site.json integrity
+```
+
+**Expected result:** four `PASS` lines confirm:
+
+- all seven delivered TOE images, including the on-demand election verifier;
+- every installed server image manifest, configuration and layer on C1;
+- the same complete content check on C2;
+- the cluster's deployed image references match that accepted release.
+
+This command reads image content and does not replace software. It also works
+when a trustee is idle; it checks the accepted trustee image on both servers.
+Run it after recovery or software replacement, before authorizing election work,
+and whenever the integrity of the software is in doubt.
+
+**If the result differs:** keep voting unavailable and preserve the failed
+result. Restore the complete accepted software through the controlled recovery
+procedure, then repeat this command. Never copy an observed digest into the
+expected delivery manifest to make a mismatch pass. The background election
+self-tests and their data checks do not replace this seven-component software
+verification.
+
 ## Version
 
 **Where:** the administration workstation's browser.
@@ -231,5 +260,5 @@ administrator the written result using
 [Confirm the server settings to the administrator](11-selftest_handover.md#confirm-the-server-settings-to-the-administrator).
 
 The platform inspection, browser checks and network checks are prerequisites for
-handover. They do not replace the unimplemented complete ST self-test suite or
-close other implementation limitations described in AGD-02 and ADV.
+handover. They do not replace the six current election self-tests, the protected board
+procedures or the evaluation of the accepted release.

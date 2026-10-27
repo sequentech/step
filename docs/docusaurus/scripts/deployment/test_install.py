@@ -10,6 +10,24 @@ from unittest.mock import patch
 import install
 
 class InstallerTests(unittest.TestCase):
+    def test_security_mail_requires_private_tls_configuration_and_bounded_timeout(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path=Path(folder)/'smtp.json'
+            config=self.config();config['notifications']['smtp_config_file']=str(path)
+            path.write_text(json.dumps({'server_url':'smtps://mailer:private@smtp.example.invalid:465'}));path.chmod(0o600)
+            valid=json.loads(install.notification_config(config))
+            self.assertEqual(valid['timeout'],5)
+            for invalid in ({'server_url':'smtp://smtp.example.invalid'}, {'server_url':'smtps://smtp.example.invalid','timeout':0}, {'server_url':'smtps://smtp.example.invalid','timeout':120}, {'server_url':'smtps://smtp.example.invalid','accept_invalid_certs':True}):
+                path.write_text(json.dumps(invalid))
+                with self.subTest(invalid=invalid), self.assertRaises(ValueError):install.notification_config(config)
+            path.write_text(json.dumps({'server_url':'smtps://smtp.example.invalid'}));path.chmod(0o644)
+            with self.assertRaises(ValueError):install.notification_config(config)
+
+    def test_security_mail_is_configured_before_application_workers_start(self):
+        script=install.install_script(self.config())
+        self.assertLess(script.index('create secret generic security-notifications'),script.index('source /root/deploy/installation-commands/08-005.sh'))
+        self.assertNotIn('mailer:private',script)
+
     def config(self):
         d=json.loads(Path(__file__).with_name('site.example.json').read_text())
         d['kit']['signing_fingerprint']='SHA256:'+'a'*43
@@ -19,6 +37,16 @@ class InstallerTests(unittest.TestCase):
         d['tls']['ca_sha256']=d['identity_provider']['ca_sha256']='a'*64
         d['release']['step_commit']='a'*40
         return d
+    def test_installation_supplies_authenticated_ca_before_starting_workers(self):
+        script=install.install_script(self.config())
+        supplied=script.index('source /root/deploy/installation-commands/07-006.sh')
+        ca=install.command_source('07-006',self.config())
+        self.assertIn('create configmap self-test-tls-ca',ca)
+        self.assertIn('--from-file=ca.pem=/root/deploy/tls/ca.pem',ca)
+        started=script.index('source /root/deploy/installation-commands/08-005.sh')
+        self.assertLess(supplied,started)
+        self.assertNotIn('--insecure',script)
+
     def test_ssh_script_input_cannot_be_consumed_by_child_and_is_removed(self):
         import subprocess
         script='set -e\nprintf "%s\n" "$0"\ntest "$(stat -c %a "$0")" = 600\ncat >/dev/null\nprintf "explicit-input" | cat\nprintf "\nafter-child\n"\n'

@@ -7,13 +7,14 @@ from pathlib import Path
 import install
 import site_checks
 import verification
+import integrity
 
 
 def main(configuration, check, realm=None):
-    actions = {'kit': site_checks.kit, 'network': site_checks.network,
+    actions = {'integrity': integrity.check, 'kit': site_checks.kit, 'network': site_checks.network,
                'tls': site_checks.tls, 'client-network': site_checks.client_network,
                'platform': verification.platform, 'election': verification.event}
-    install.require(check in actions, 'Choose kit, network, tls, client-network, platform or election')
+    install.require(check in actions, 'Choose kit, integrity, network, tls, client-network, platform or election')
     install.require((check == 'election') == (realm is not None),
                     'Supply a realm only for the election inspection')
     path = Path(configuration)

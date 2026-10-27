@@ -125,6 +125,16 @@ The same inspection prints the `chronyc` authentication table, leap status and
 selected source on **both C1 and C2**. Every source must show `NTS`; leap status
 must be `Normal`; a site time server must be selected (marked `*`).
 
+Before Sequent prepares the site kit, supply the time servers' IP addresses and,
+for a private certification authority, its public CA certificate. The accepted
+site configuration carries this certificate as `network.ntsCaCertificatePem`;
+the installer configures both nodes to trust that CA for time authentication.
+The time server's certificate must include its configured IP address in its
+Subject Alternative Name. No private CA key belongs in the site configuration.
+If no private CA is supplied, the server certificate must chain to the operating
+system's public trust store. Do not disable certificate validation to make a
+private server connect.
+
 **If it differs:** investigate DNS and the permitted UDP-123/TCP-4460 paths with
 the time-server operator. A non-NTS source, no selected source or unsynchronized
 clock is a failure. Do not continue or hand-edit the installed time configuration

@@ -144,6 +144,7 @@ Fill the configuration from the approved site plan and verified delivery records
 | `tls` | Paths to the issued site certificate, protected private key and CA, plus the independently checked CA fingerprint |
 | `identity_provider` | Paths to the protected provider definition and CA, plus the independently checked CA fingerprint |
 | `operator` | The installation operator's existing identity-provider user name and e-mail; the separate service-administrator name |
+| `notifications` | Security-notification sender address and path to the private SMTP configuration supplied by the mail administrator |
 | `release` | Software version and exact Step source revision from the accepted image provenance |
 | `commissioning` | Customer slug, first administrator identity, and two trustee names with paths to their independently held key files; used by the commissioning command |
 
@@ -174,6 +175,49 @@ secret. Its format and required settings are described in
 [Connecting the Authentication Server](06-authentication_server.md#write-the-provider-definition).
 The certificate and CA inputs are checked before they are installed. Do not put
 private-key contents, client secrets or passwords into `site.json`.
+
+### Configure security email
+
+Obtain an authenticated SMTP relay from the mail administrator. Security-state
+changes and audit-storage warnings must reach the administrators and election
+board as distinct email messages.
+
+In your private editor, save the mail administrator's settings as
+`/root/installation-inputs/smtp.json`. The file has this shape; replace the
+example relay and credentials with the supplied values:
+
+```json
+{
+  "server_url": "smtps://USERNAME:PASSWORD@smtp.example.org:465",
+  "timeout": 5
+}
+```
+
+Use the complete URL supplied by the mail administrator, including any required
+percent-encoding in its credentials. Keep the file private:
+
+```bash
+chmod 600 /root/installation-inputs/smtp.json
+```
+
+Set `notifications.sender` to the approved sender address and
+`notifications.smtp_config_file` to that file's absolute path in `site.json`.
+The installer transfers it privately and creates the application's protected
+mail Secret. You do not enter the password in a terminal command or edit a
+Kubernetes manifest.
+
+**Expected result:** `./deploy check site.json` accepts the private configuration
+and `./deploy install site.json` supplies it before workers start. During
+handover, generate a controlled security notification and confirm both its
+delivery status and its arrival in the intended test mailboxes. Configuration
+validation alone does not establish delivery.
+
+**If it fails:** check the reported path, file permissions, relay URL and timeout.
+The evaluated installer accepts authenticated `smtps://` URLs and a timeout of
+1–10 seconds. For a private SMTP certificate authority, the mail administrator
+may supply the additional `root_certificate_pem` field with the approved CA
+certificate. Hostname and certificate verification remain required. Never
+substitute a console transport or disable TLS verification to obtain a pass.
 
 ### Check the site
 

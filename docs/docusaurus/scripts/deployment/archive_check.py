@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """Validate an entire decrypted tar stream without writing plaintext to disk."""
 import sys
+import json
 import tarfile
 from pathlib import PurePosixPath
 
@@ -10,7 +11,7 @@ ROOTS={'system':('root/deploy','var/lib/sequent-data'),'trustee':('trustee1','tr
 
 def validate(stream,kind):
     if kind not in ROOTS:raise ValueError('Choose system or trustee backup validation')
-    roots=ROOTS[kind];seen=set();found=set()
+    roots=ROOTS[kind];seen=set();found=set();metadata=None
     with tarfile.open(fileobj=stream,mode='r|') as archive:
         for item in archive:
             name=item.name.rstrip('/')
@@ -25,6 +26,11 @@ def validate(stream,kind):
                 data=archive.extractfile(item)
                 if data is None:raise ValueError('Backup file content is unavailable')
                 remaining=item.size
+                if name=='root/deploy/.backup-identity.json':
+                    if remaining>65536:raise ValueError('Backup identity is too large')
+                    raw=data.read(remaining)
+                    if len(raw)!=remaining:raise ValueError('Backup identity is truncated')
+                    metadata=json.loads(raw);remaining=0
                 while remaining:
                     block=data.read(min(remaining,1024*1024))
                     if not block:raise ValueError('Backup file content is truncated')
@@ -32,6 +38,7 @@ def validate(stream,kind):
     # Consume the whole pipe so GPG authenticates its complete encrypted input.
     while stream.read(1024*1024):pass
     if found!=set(roots):raise ValueError('Backup is missing a required directory')
+    return metadata
 
 if __name__=='__main__':
     try:

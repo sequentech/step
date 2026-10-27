@@ -20,6 +20,8 @@ config() {
     c=$(jq -r '.config.digest // empty' "$f") || return
     if [ -n "$c" ]; then
       blob "$c" > /dev/null || return
+      jq -e '.layers | type=="array"' "$f" >/dev/null || return
+      while IFS= read -r layer; do blob "$layer" >/dev/null || return; done < <(jq -er '.layers[].digest' "$f")
       printf '%s\n' "$c"
       return
     fi

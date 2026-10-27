@@ -12,3 +12,7 @@ k3s kubectl -n step-apps create secret generic keycloak-service-credentials \
 for s in step-infra/keycloak-bootstrap-admin step-apps/keycloak-service-credentials; do
   k3s kubectl -n ${s%/*} get secret ${s#*/} -o jsonpath='{.data}' | jq -r 'keys[]'
 done
+
+# Self-tests verify the public endpoints with the independently accepted site CA.
+k3s kubectl -n step-apps create configmap self-test-tls-ca \
+  --from-file=ca.pem=/root/deploy/tls/ca.pem

@@ -30,7 +30,7 @@ def keys(value, expected, label):
     require(isinstance(value, dict) and set(value) == set(expected), label + ': missing or unknown field')
 
 def validate(d):
-    keys(d, ('schema','nodes','ssh_identity','hosts','idp_alias','kit','toe','tls','identity_provider','operator','release') + (('commissioning',) if isinstance(d,dict) and 'commissioning' in d else ()), 'configuration')
+    keys(d, ('schema','nodes','ssh_identity','hosts','idp_alias','kit','toe','tls','identity_provider','operator','release','notifications') + (('commissioning',) if isinstance(d,dict) and 'commissioning' in d else ()), 'configuration')
     require(d['schema'] == 1, 'Unsupported configuration schema')
     keys(d['nodes'], ('c1','c2'), 'nodes')
     for address in d['nodes'].values():
@@ -57,6 +57,9 @@ def validate(d):
     for value in d['operator'].values():
         require(isinstance(value,str) and re.fullmatch(r'[A-Za-z0-9_@.+-]+',value), 'Use literal operator identifiers')
     require('@' in d['operator']['email'], 'An operator email address is required')
+    keys(d['notifications'],('sender','smtp_config_file'),'security notifications')
+    require(isinstance(d['notifications']['sender'],str) and re.fullmatch(r'[^\s@<>]+@[^\s@<>]+',d['notifications']['sender']), 'A security notification sender address is required')
+    require(isinstance(d['notifications']['smtp_config_file'],str) and Path(d['notifications']['smtp_config_file']).is_absolute(), 'Use an absolute path to the private SMTP configuration file')
     keys(d['release'],('version','step_commit'),'release')
     require(re.fullmatch(r'\d+\.\d+\.\d+',d['release']['version']) is not None, 'Invalid release version')
     require(re.fullmatch('[0-9a-f]{40}',d['release']['step_commit']) is not None, 'Exact release source commit required')
@@ -79,6 +82,20 @@ def digest(path):
     with Path(path).open('rb') as f:
         for block in iter(lambda:f.read(1024*1024),b''):result.update(block)
     return result.hexdigest()
+
+def notification_config(d):
+    path=checked_path(d['notifications']['smtp_config_file'],private=True,label='SMTP configuration')
+    require(path.stat().st_size<=65536,'SMTP configuration exceeds the size limit')
+    try:value=json.loads(path.read_text())
+    except (ValueError,UnicodeError):raise ValueError('SMTP configuration must contain valid JSON') from None
+    require(isinstance(value,dict) and set(value)<= {'server_url','timeout','root_certificate_pem'} and 'server_url' in value,'SMTP configuration needs server_url and only documented options')
+    try:url=urlsplit(value['server_url'])
+    except (ValueError,TypeError):raise ValueError('SMTP URL is invalid') from None
+    require(url.scheme=='smtps' and url.hostname and not url.query and not url.fragment and url.path in ('','/'),'Use an authenticated smtps:// SMTP relay URL')
+    require('timeout' not in value or type(value['timeout']) is int and 1<=value['timeout']<=10,'SMTP timeout must be 1–10 seconds')
+    if 'root_certificate_pem' in value:require(isinstance(value['root_certificate_pem'],str) and '-----BEGIN CERTIFICATE-----' in value['root_certificate_pem'],'SMTP site CA must be a PEM certificate')
+    value['timeout']=value.get('timeout',5)
+    return (json.dumps(value)+'\n').encode()
 
 def run(argv, label, data=None, timeout=120):
     try:
@@ -180,6 +197,7 @@ def verify_inputs(d):
         for part in PARTS:
             p=checked_path(str(toe/'images'/(part+'.tar')),label='TOE archive '+part)
             require(digest(p)==d['toe']['archive_sha256'][part].lower(),'TOE archive '+part+' differs from the accepted delivery digest')
+    notification_config(d)
     for group in ('tls','identity_provider'):
         ca=checked_path(d[group]['ca'],label=group+' CA certificate')
         der=run(['openssl','x509','-in',str(ca),'-outform','DER'],'CA certificate parsing')
@@ -310,7 +328,9 @@ def install_script(d):
         source(ident)
     lines.append('AGD_STAGE=07-018')
     lines.append('verify_realms() {\n  for kind in tenant tenant-template event-template; do\n    jq -e --arg kind "$kind" --arg alias "$IDP_ALIAS" '+shlex.quote(REALM_CHECK)+' "/root/deploy/realm-$kind.new.json" >/dev/null\n  done\n}\nverify_realms\n')
-    source('07-021');source('08-003')
+    source('07-021')
+    lines.append('k3s kubectl -n step-apps create secret generic security-notifications --from-literal=EMAIL_TRANSPORT_NAME=smtp --from-file=EMAIL_FROM=/root/deploy/notifications/sender --from-file=EMAIL_TRANSPORT_CONFIG=/root/deploy/notifications/smtp.json')
+    source('08-003')
     lines.append('test "$POSTGRES_PASSWORD"')
     source('08-005')
     lines.append('printf platform-installed > /root/deploy/.platform-installed')
@@ -350,6 +370,8 @@ def install_prepared(d,archives,archive_hashes):
     for node in ('c1','c2'):
         files={'hosts.env':env,'.installation-config.sha256':hashlib.sha256(json.dumps(d,sort_keys=True).encode()).hexdigest().encode()}
         if node=='c1':
+            files['notifications/sender']=d['notifications']['sender'].encode()
+            files['notifications/smtp.json']=notification_config(d)
             files['tls/hosts.json']=(json.dumps([d['hosts'][name] for name in ('voting','administration','verifier')])+'\n').encode()
             for ident in ('03-006','05-004','05-005','06-002','07-001','07-002','07-003','07-004','07-005','07-006','07-007','07-008','07-009','07-010','07-011','07-012','07-013','07-014','07-015','07-016','07-017','07-020','07-021','08-003','08-005'):
                 suffix='.jq' if ident in ('07-008','07-015','07-016') else '.sh';files['installation-commands/'+ident+suffix]=command_source(ident,d).encode()

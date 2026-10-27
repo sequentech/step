@@ -12,6 +12,10 @@
     "authentication": "login.example.org"
   },
   "idp_alias": "external-login",
+  "notifications": {
+    "sender": "election-alerts@example.org",
+    "smtp_config_file": "/root/installation-inputs/smtp.json"
+  },
   "kit": {
     "directory": "/media/kit",
     "signing_fingerprint": "SHA256:REPLACE_WITH_INDEPENDENT_VALUE"

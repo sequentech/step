@@ -76,29 +76,35 @@ agd_source "$2"
                 self.assertIn('Trustee key import complete; temporary key file removed.',result.stdout)
 
     def test_backup_quiescence_propagates_remote_failures(self):
-        import re
-        original=(Path(__file__).parent/'commands/11-001.sh').read_text()
-        remote=re.search(r"\nc1 '(.*)'\s*$", original, re.S).group(1)
-        for failed in ['scale','get pods']:
+        from unittest.mock import patch
+        import maintenance
+        for failed in ['scale', 'get pods']:
             with self.subTest(failed=failed), tempfile.TemporaryDirectory() as folder:
-                body=remote.replace('/root/deploy',folder)
-                code = r'''k3s(){
+                root=Path(folder);deploy=root/'deploy';deploy.mkdir();state=root/'maintenance'
+                def execute(data,node,script,label,timeout):
+                    body=script.replace('/root/deploy',str(deploy)).replace('/var/lib/sequent-maintenance',str(state))
+                    stub='''set -Eeuo pipefail
+k3s(){
  case "$*" in
- *"get deploy"*) printf '{"items":[{"metadata":{"name":"test","namespace":"step-apps"},"spec":{"replicas":2}}]}';;
- *"$FAILED"*) printf 'REACHED EXPECTED FAILURE: %s\n' "$FAILED" >&2; return 3;;
- *"scale deploy"*) printf 'SCALE REACHED\n' >&2;;
- *) printf 'Unexpected mock call: %s\n' "$*" >&2; return 42;;
+ 'kubectl get deployments -n step-apps -o json') printf '{"items":[{"metadata":{"name":"harvest","namespace":"step-apps"},"spec":{"replicas":2}}]}' ;;
+ 'kubectl get deployments -n step-infra -o json') printf '{"items":[{"metadata":{"name":"postgres","namespace":"step-infra"},"spec":{"replicas":1}}]}' ;;
+ *"$FAILED"*) printf 'REACHED EXPECTED FAILURE: %s\\n' "$FAILED" >&2; return 3;;
+ *"scale deployment"*) :;;
+ *) printf 'Unexpected mock call: %s\\n' "$*" >&2; return 42;;
  esac
 }
 export FAILED="$1"
 ''' + body
-                result=subprocess.run(['bash','-c',code,'test',failed],capture_output=True,text=True)
-                self.assertNotEqual(result.returncode,0)
-                self.assertIn('REACHED EXPECTED FAILURE: '+failed,result.stderr)
-                self.assertNotIn('APPLICATIONS STOPPED',result.stdout)
-                self.assertTrue((Path(folder)/'.backup-in-progress').exists())
-                recorded=json.loads((Path(folder)/'backup-replicas.json').read_text())
-                self.assertTrue(all(item['replicas']==2 for item in recorded))
+                    result=subprocess.run(['bash','-c',stub,'test',failed],capture_output=True,text=True)
+                    self.assertNotEqual(result.returncode,0)
+                    self.assertIn('REACHED EXPECTED FAILURE: '+failed,result.stderr)
+                    self.assertNotIn('APPLICATIONS STOPPED',result.stdout)
+                    self.assertTrue((deploy/'.backup-in-progress').exists())
+                    recorded=json.loads((state/'replicas.json').read_text())
+                    self.assertEqual({item['name']:item['replicas'] for item in recorded},{'harvest':2,'postgres':1})
+                    raise ValueError('Actual generated shutdown script refused unsafe continuation')
+                with patch('maintenance.install.ssh',side_effect=execute):
+                    with self.assertRaises(ValueError):maintenance.stop({})
 
     def test_tenant_selection_prompts_after_listing_and_rejects_bad_uuid(self):
         original=(Path(__file__).parent/'commands/08-007.sh').read_text()
@@ -194,25 +200,30 @@ export FAILED="$1"
             result=subprocess.run(['bash','-c','''source "$1"; agd_source "$2"; test "$EXAMPLE" = kept; test "$PWD" = /tmp; test "$(set -o | awk '/noclobber/ {print $2}')" = off''','test',str(Path(__file__).with_name('session.sh')),str(f)],capture_output=True,text=True)
             self.assertEqual(result.returncode,0,result.stderr)
 
-    def _restore_rejection(self, backup_content, gpg_mock):
-        original=(Path(__file__).parent/'commands/11-003.sh').read_text()
+    def _restore_rejection(self, backup_content, encrypt=False):
+        from unittest.mock import patch
+        import maintenance
+        import os,time,tarfile
         with tempfile.TemporaryDirectory() as folder:
-            root=Path(folder)
-            backup=root/'bad.tar.gpg';backup.write_bytes(backup_content)
-            (root/'site.json').write_text(json.dumps({'nodes':{'c1':'example.invalid'},'ssh_identity':'/unused'}))
-            (root/'archive_check.py').write_text(Path(__file__).with_name('archive_check.py').read_text())
-            script=root/'body.sh';script.write_text(original)
-            command=('source "$1"; '+gpg_mock+
-                     '; ssh(){ printf DESTRUCTIVE; }; agd_source "$2"; printf survived')
-            result=subprocess.run(['bash','-c',command,'test',str(Path(__file__).with_name('session.sh').resolve()),str(script)],
-                                  cwd=root,input='RESTORE AUTHORIZED BACKUP\n'+str(backup)+'\n',capture_output=True,text=True)
-            self.assertNotIn('DESTRUCTIVE',result.stdout)
-            self.assertIn('survived',result.stdout)
-            self.assertIn('GPG REACHED',result.stderr)
-            self.assertIn('BACKUP VALIDATION FAILED',result.stderr)
+            root=Path(folder);selected=root/'bad.tar.gpg';selected.write_bytes(backup_content)
+            secret='temporary real encryption test passphrase'
+            if encrypt:
+                with selected.open('wb') as output:
+                    process=maintenance.gpg_process(['--symmetric','--cipher-algo','AES256','--force-mdc'],secret,stdin=subprocess.PIPE,stdout=output,stderr=subprocess.PIPE)
+                    _,errors=process.communicate(backup_content,timeout=10)
+                    self.assertEqual(process.returncode,0,errors)
+            current=root/'current.tar.gpg';current.write_bytes(b'current backup fixture')
+            data={'nodes':{},'hosts':{},'release':{},'toe':{'manifest_sha256':'a'*64}}
+            (root/'.backup-receipt.json').write_text(json.dumps({'archive':str(current),'sha256':maintenance.install.digest(current),'installation':maintenance.identity(data),'created_at':int(time.time())}))
+            previous=Path.cwd();os.chdir(root)
+            try:
+                with patch('builtins.input',return_value=str(selected)),patch('maintenance.password',return_value=secret),patch('maintenance.confirm'),patch('maintenance.stop') as stop,patch('maintenance.install.ssh') as ssh:
+                    with self.assertRaises((ValueError,tarfile.TarError)):maintenance.restore(data)
+                    stop.assert_not_called();ssh.assert_not_called()
+            finally:os.chdir(previous)
 
     def test_restore_corrupt_backup_never_calls_ssh(self):
-        self._restore_rejection(b'bad', 'gpg(){ printf "GPG REACHED\\n" >&2; return 2; }')
+        self._restore_rejection(b'bad')
 
     def test_restore_unrelated_archive_refused_before_delete(self):
         import tarfile
@@ -220,7 +231,7 @@ export FAILED="$1"
         content=io.BytesIO()
         with tarfile.open(fileobj=content,mode='w') as archive:
             item=tarfile.TarInfo('unrelated.txt');item.size=1;archive.addfile(item,io.BytesIO(b'x'))
-        self._restore_rejection(content.getvalue(), 'gpg(){ printf "GPG REACHED\\n" >&2; cat "$2"; }')
+        self._restore_rejection(content.getvalue(),encrypt=True)
 
     def test_native_trustee_number_and_c2_mapping(self):
         for value in ['0','3','one']:

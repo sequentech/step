@@ -1,0 +1,10 @@
+{
+  "schema": 1,
+  "delivery_directory": "/mnt/temenos-delivery",
+  "manifest_sha256": "REPLACE_WITH_ACCEPTED_IMAGE_MANIFEST_SHA256",
+  "working_directory": "/media/trustee-one/session",
+  "keys_file": "trustee.toml",
+  "request_file": "custody-request.json",
+  "proof_file": "custody-proof.json",
+  "tally_session_id": null
+}
