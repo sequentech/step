@@ -26,7 +26,7 @@ the audit image.
   | `hasura.dump` | The Hasura database: the election event, the tally, the stored ballots and their history. Made with `pg_dump` in custom format. |
   | `keycloak.dump` | The Keycloak database: the voters, their area and their status. Made with `pg_dump` in custom format. |
   | `b3.dump` | The B3 database: the bulletin board. Made with `pg_dump` in custom format. |
-  | `immudb.tar.gz` | The ImmuDB data directory: the electoral log. A `tar.gz` archive. |
+  | `<database>.bkp` | A hot backup of each ImmuDB database, made with `immuadmin hot-backup`. The name can also be `<database>_backup_<YYYYMMDD>_<HHMMSS>.bkp`. The electoral log of the election event must be one of them. |
   | `b3-blobs.tar.gz` | Only if the bulletin board stores messages in files: an archive of the B3 blob directory. |
 
   </div>
@@ -56,8 +56,10 @@ copies disagree.
    <digest of hasura.dump>  hasura.dump
    <digest of keycloak.dump>  keycloak.dump
    <digest of b3.dump>  b3.dump
-   <digest of immudb.tar.gz>  immudb.tar.gz
+   <digest of the hot backup>  <database>.bkp
    ```
+
+   Write one line for each `.bkp` file.
 
 2. Write the digests in the audit notes.
 
@@ -68,7 +70,7 @@ against it before it uses the backup.
 
 | Problem | Action |
 | --- | --- |
-| A backup has another file name. | Rename the copy in `~/audit/backups`. Write the original name in the audit notes. |
+| A backup has another file name. | Rename the copy in `~/audit/backups`. Write the original name in the audit notes. Do not rename the `.bkp` files: their name gives the ImmuDB database. |
 | The system operator cannot give a digest. | Stop. Without the digest, the audit cannot show that the backup is the backup of the system operator. |
 
 ## Next

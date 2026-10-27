@@ -125,8 +125,9 @@ The image is based on `postgres:18-bookworm` and holds the six ballot audit
 commands, the B3 server (`b3-server`), the Braid `verify` program and ImmuDB
 1.9.6 (`immudb`, `immuadmin`, `immuclient`, pinned by SHA-256). Put the backups
 in one directory: `hasura.dump`, `keycloak.dump` and `b3.dump` (`pg_dump`
-custom format), `immudb.tar.gz` (the ImmuDB data directory), `b3-blobs.tar.gz`
-for file-backed boards, and `backup-digests.txt` with the digests from the
+custom format), one `immuadmin hot-backup` file per ImmuDB database (`<database>.bkp` or
+`<database>_backup_<YYYYMMDD>_<HHMMSS>.bkp`), `b3-blobs.tar.gz` for file-backed
+boards, and `backup-digests.txt` with the digests from the
 system operator in `sha512sum` format. Then:
 
 ```sh
@@ -136,13 +137,17 @@ docker run --rm --network none -v <backups>:/backups:ro -v <empty output>:/outpu
   --electoral-log-system-public-key "$ELECTORAL_LOG_SYSTEM_PUBLIC_KEY"
 ```
 
+For a tally of a non-default keys ceremony, add
+`--environment-slug "$ENVIRONMENT_SLUG"` with the authenticated deployment
+slug.
+
 The entry point (`image/run-audit`) refuses a backup whose digest differs or is
 missing, and an output directory that is not empty. It restores the PostgreSQL
 backups into one PostgreSQL 18 server with `pg_restore --no-owner
 --no-privileges` and makes the role `ballot_audit_reader` with
-`pg_read_all_data`. It unpacks the ImmuDB data directory and starts ImmuDB with
-a new admin password (`--force-admin-password`), so the password of the source
-is not needed, then gives `ballot_audit_reader` read access to each ImmuDB
+`pg_read_all_data`. It starts an empty ImmuDB with a new admin password,
+restores each hot backup into a database of the same name with
+`immuadmin hot-restore` and stops if one does not restore, then gives `ballot_audit_reader` read access to each ImmuDB
 database. It starts the B3 server on the B3 copy, writes `connections.json` and
 runs `audit-tally`. With `--network none` the container has only `127.0.0.1`,
 which the loopback-only rules of the tools accept. The container shows the
@@ -276,10 +281,11 @@ area-specific board name or assume the event board always applies.
 ## 1. Export the restored PostgreSQL evidence
 
 `export-ballot-audit` connects directly to local PostgreSQL, not to application
-APIs. Its current mapping validation supports **default keys ceremonies only**.
-A non-default ceremony fails closed and needs separately reviewed acquisition
-with an authenticated environment-slug/election-to-board mapping. Do not alter
-the saved ceremony data to make the exporter accept it.
+APIs. A non-default keys ceremony needs `--environment-slug` with the
+independently authenticated deployment slug: the exporter checks it against the
+saved event board, requires exactly one event election for the ceremony and
+derives that election's B3 board. Without the slug it fails closed. Do not
+alter the saved ceremony data to make the exporter accept it.
 
 Prepare a private `connections.json` using the actual restored databases and
 backup identifiers. This example assumes local authentication is already
@@ -898,7 +904,7 @@ Exit statuses are in brackets.
 | `combined weighted and delegated voting is unsupported`, `unsupported saved tally configuration` [4] | The saved tally uses a setup these commands do not support, so it cannot be audited with them. |
 | `weighted saved mapping lacks a weight bit mask` [3] | The weighted tally mapping has no `annotations.weight_bit_mask`. Obtain a mapping saved after the tally ran. |
 | `invalid saved weight bit mask` [4] | The mask is zero or outside the supported weight bits. |
-| `non-default keys-ceremony boards require separately authenticated ...` [4] | Only default ceremonies are supported. Do not edit the ceremony data; use separately reviewed acquisition. |
+| `non-default keys ceremony requires an independently authenticated --environment-slug` [4] | Pass `--environment-slug` with the authenticated deployment slug. Do not edit the ceremony data. |
 | `restored B3 board has no configuration or scoped ballots`, `missing B3 batch` [3] | The restored board or blob root lacks a declared batch. Check the restore and `--b3-blob-root`. |
 | `selected cast vote has no signed record while its voter has another signed ballot ...` [3] | Without the history, a lost log write and a replaced row look the same. Rerun with `--cast-vote-history` instead of `--without-cast-vote-history` to tell them apart. A selected vote without any signed record of its voter is a vote to audit, not an error. |
 | `a selected cast vote's ballot is signed in the electoral log for another voter` [1] | The signed log names the ballot for another voter. Keep the evidence and escalate. |

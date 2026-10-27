@@ -37,23 +37,26 @@ them and stops. See [Run the Audit](02-procedures/03-run-the-audit.md).
 ```sh
 docker run --rm --network none -v <backups>:/backups:ro -v <output>:/output <image> \
   --tally-session-id <ID> --public-key-sha512 <digest> \
-  --electoral-log-system-public-key <key> [-- <audit-tally option> ...]
+  --electoral-log-system-public-key <key> [--environment-slug <slug>] \
+  [-- <audit-tally option> ...]
 ```
 
 | Part of the command | Description |
 | --- | --- |
 | `--rm` | Removes the container, with the copies, when it stops. |
 | `--network none` | The container has no network. The copies and the tools connect only on `127.0.0.1`. |
-| `-v <backups>:/backups:ro` | The backups directory, read only. It holds `hasura.dump`, `keycloak.dump`, `b3.dump`, `immudb.tar.gz`, `backup-digests.txt` and, if the board stores messages in files, `b3-blobs.tar.gz`. |
+| `-v <backups>:/backups:ro` | The backups directory, read only. It holds `hasura.dump`, `keycloak.dump`, `b3.dump`, the ImmuDB backup, `backup-digests.txt` and, if the board stores messages in files, `b3-blobs.tar.gz`. The ImmuDB backup is a `.bkp` hot backup of each database. |
 | `-v <output>:/output` | An empty directory for the results. |
 | `--tally-session-id <ID>` | The tally ID, from the election authority. |
 | `--public-key-sha512 <digest>` | The public key hash, from the election authority. |
 | `--electoral-log-system-public-key <key>` | The electoral log system public key, from the election authority. |
+| `--environment-slug <slug>` | The environment slug, from the election authority. Needed only when the election uses its own keys ceremony. |
 | `-- <option> ...` | More options of `audit-tally`, for example `--statement-timeout-seconds 600`. |
 
 `backup-digests.txt` has one line for each backup: its SHA-512 digest, two spaces and its file
-name, as `shasum -a 512` writes it. The ImmuDB archive holds the data directory, or one directory
-that holds it.
+name, as `shasum -a 512` writes it. A hot backup is named `<database>.bkp` or
+`<database>_backup_<YYYYMMDD>_<HHMMSS>.bkp`, and is restored into a new database of that name.
+The audit stops if a hot backup does not restore.
 
 The command gives `audit-tally` the options `--connections`, `--immudb-server-url`,
 `--immudb-username`, `--b3-server-url`, `--output` and, if there is a blob archive,
@@ -96,6 +99,7 @@ scope for each area and contest, and runs the other six commands. See
 | `--tally-session-id <ID>` | Yes | The tally ID, from the election authority. Use lowercase. |
 | `--public-key-sha512 <digest>` | Yes | The public key hash, from the election authority. |
 | `--electoral-log-system-public-key <key>` | Yes | The electoral log system public key, from the election authority. |
+| `--environment-slug <slug>` | Only for an election with its own keys ceremony | The environment slug, from the election authority. |
 | `--immudb-server-url <url>` | Yes, if you do not give `--electoral-log-export` | The loopback address of the restored ImmuDB, for example `http://127.0.0.1:43322`. Give it with `--immudb-username`. |
 | `--immudb-username <user>` | With `--immudb-server-url` | The read-only ImmuDB user. |
 | `--immudb-password-env <variable>` | No | The name of the environment variable that holds the ImmuDB password. Default: `BALLOT_AUDIT_IMMUDB_PASSWORD`. |

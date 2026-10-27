@@ -23,7 +23,9 @@ IMMUDB_PORT=3322
 B3_PORT=50051
 PASSWORD_ENV=BALLOT_AUDIT_IMMUDB_PASSWORD
 PG_COPIES="hasura keycloak b3"
-IMMUDB_BACKUP=immudb.tar.gz
+# A hot backup of one ImmuDB database, as immuadmin hot-backup writes it, named
+# <database>.bkp or <database>_backup_<YYYYMMDD>_<HHMMSS>.bkp.
+IMMUDB_HOT_BACKUP_SUFFIX=.bkp
 B3_BLOBS_BACKUP=b3-blobs.tar.gz
 
 # Exit status 4, as audit-tally uses for a refused input: the backups or the
@@ -50,13 +52,20 @@ usage() {
 Usage:
   docker run --rm --network none -v <backups>:/backups:ro -v <output>:/output <image> \
     --tally-session-id <ID> --public-key-sha512 <digest> \
-    --electoral-log-system-public-key <key> [-- <audit-tally option> ...]
+    --electoral-log-system-public-key <key> [--environment-slug <slug>] \
+    [-- <audit-tally option> ...]
   docker run --rm -it --network none -v <backups>:/backups:ro -v <output>:/output <image> shell
 
 <backups> holds hasura.dump, keycloak.dump and b3.dump (pg_dump custom format),
-immudb.tar.gz (the ImmuDB data directory), b3-blobs.tar.gz if the board stores
-messages in files, and backup-digests.txt: one line "<SHA-512>  <file name>"
-for each backup, from the system operator. <output> must be empty.
+a hot backup of each ImmuDB database (immuadmin hot-backup), named
+<database>.bkp or <database>_backup_<YYYYMMDD>_<HHMMSS>.bkp, b3-blobs.tar.gz if
+the board stores messages in files, and backup-digests.txt: one line
+"<SHA-512>  <file name>" for each backup, from the system operator. The
+electoral log of the election event must be one of the ImmuDB databases.
+<output> must be empty.
+
+--environment-slug is the slug of the deployment, from the system operator. The
+audit needs it when the tally used a keys ceremony of one election.
 
 The container checks the backups, restores them into copies with read-only
 accounts, starts ImmuDB and the B3 server, and runs audit-tally. It shows the
@@ -76,18 +85,36 @@ shell   restores the copies and opens a shell in <output>, to run one command
 EOF
 }
 
+# The file names of the ImmuDB hot backups in the backups directory.
+hot_backups() {
+    find "$BACKUPS" -maxdepth 1 -type f -name "*$IMMUDB_HOT_BACKUP_SUFFIX" -printf '%f\n' | sort
+}
+
+# hot_backup_database <file name>: the database that a hot backup holds.
+hot_backup_database() {
+    local database="${1%"$IMMUDB_HOT_BACKUP_SUFFIX"}"
+    database="$(echo "$database" | sed -E 's/_backup_[0-9]{8}_[0-9]{6}$//')"
+    [[ "$database" =~ ^[A-Za-z][A-Za-z0-9_]*$ ]] || die "not an ImmuDB database name: backups/$1"
+    echo "$database"
+}
+
 check_backups() {
-    local name expected actual
+    local name expected actual databases
     [ -d "$BACKUPS" ] || die "no backups; mount the backups directory at /backups"
     [ -f "$DIGESTS" ] || die "no backup-digests.txt in the backups directory"
-    for name in hasura.dump keycloak.dump b3.dump "$IMMUDB_BACKUP"; do
+    HOT_BACKUPS="$(hot_backups)"
+    [ -n "$HOT_BACKUPS" ] \
+        || die "missing backup: no ImmuDB hot backup (*$IMMUDB_HOT_BACKUP_SUFFIX) in the backups directory"
+    databases="$(for name in $HOT_BACKUPS; do hot_backup_database "$name"; done)"
+    name="$(echo "$databases" | sort | uniq -d | head -n 1)"
+    [ -z "$name" ] || die "more than one hot backup of the ImmuDB database $name; keep one of them"
+    for name in hasura.dump keycloak.dump b3.dump $HOT_BACKUPS; do
         [ -f "$BACKUPS/$name" ] || die "missing backup: backups/$name"
+    done
+    for name in hasura.dump keycloak.dump b3.dump "$B3_BLOBS_BACKUP" $HOT_BACKUPS; do
+        [ -f "$BACKUPS/$name" ] || continue
         grep -Eq "^[0-9a-f]{128}[ *]+$name\$" "$DIGESTS" || die "no digest for $name in backup-digests.txt"
     done
-    if [ -f "$BACKUPS/$B3_BLOBS_BACKUP" ]; then
-        grep -Eq "^[0-9a-f]{128}[ *]+$B3_BLOBS_BACKUP\$" "$DIGESTS" \
-            || die "no digest for $B3_BLOBS_BACKUP in backup-digests.txt"
-    fi
     while read -r expected name; do
         [ -n "$expected" ] || continue
         name="${name#\*}"
@@ -182,19 +209,7 @@ restore_postgres() {
 }
 
 unpack() {
-    local top
-    info "unpacking backups/$IMMUDB_BACKUP"
     mkdir -p "$WORK/immudb" "$WORK/b3-blobs"
-    tar -C "$WORK/immudb" -xzf "$BACKUPS/$IMMUDB_BACKUP"
-    # The archive holds the data directory, or one directory that holds it.
-    if [ ! -d "$WORK/immudb/systemdb" ]; then
-        top="$(ls -A "$WORK/immudb")"
-        if [ "$(echo "$top" | wc -l)" -ne 1 ] || [ ! -d "$WORK/immudb/$top/systemdb" ]; then
-            die "the ImmuDB archive has no systemdb directory"
-        fi
-        mv "$WORK/immudb/$top"/* "$WORK/immudb/"
-        rmdir "$WORK/immudb/$top"
-    fi
     if [ -f "$BACKUPS/$B3_BLOBS_BACKUP" ]; then
         info "unpacking backups/$B3_BLOBS_BACKUP"
         tar -C "$WORK/b3-blobs" -xzf "$BACKUPS/$B3_BLOBS_BACKUP"
@@ -215,9 +230,29 @@ immuadmin_admin() {
     immuadmin "$@" -p "$IMMUDB_PORT" --tokenfile "$WORK/immuadmin-token"
 }
 
-# The copy keeps the users of the source. A new admin password lets this
-# script make the read-only user without the password of the source. A user
-# created with SQL can read one database; immuadmin gives it the others.
+# restore_hot_backups audit|shell: restores each hot backup into a new database
+# of the same name. The restore checks the sequence of the transactions; a
+# backup that does not restore is not audited.
+restore_hot_backups() {
+    local mode="$1" name database log="$LOGS/immudb-restore.log" failed=""
+    for name in $HOT_BACKUPS; do
+        database="$(hot_backup_database "$name")"
+        info "restoring backups/$name into the ImmuDB database $database"
+        echo "== backups/$name -> $database" >>"$log"
+        if ! immuadmin_admin hot-restore "$database" -i "$BACKUPS/$name" >>"$log" 2>&1; then
+            failed="$failed $name"
+        fi
+    done
+    show_log "the restore of the ImmuDB hot backups" "$log"
+    if [ -n "$failed" ]; then
+        [ "$mode" = shell ] || die "not auditing: the restore of$failed had errors"
+        info "WARNING: the restore of$failed had errors. Write each error shown above in the audit notes."
+    fi
+}
+
+# start_immudb audit|shell: starts an empty ImmuDB, restores the hot backups
+# into it and makes the read-only user. A user created with SQL can read one
+# database; immuadmin gives it the others.
 start_immudb() {
     local databases database first=1
     immudb --dir "$WORK/immudb" --address 127.0.0.1 --port "$IMMUDB_PORT" \
@@ -226,6 +261,7 @@ start_immudb() {
         >"$LOGS/immudb.log" 2>&1 &
     wait_for "ImmuDB" "$LOGS/immudb.log" immuclient_admin query "SHOW DATABASES;" --database defaultdb
     printf '%s' "$IMMUDB_ADMIN_PASSWORD" | immuadmin_admin login immudb >/dev/null
+    restore_hot_backups "$1"
     databases="$(immuclient_admin query "SHOW DATABASES;" --database defaultdb \
         | sed -n 's/^| *"\([^"]*\)" *|$/\1/p')"
     for database in $databases; do
@@ -314,7 +350,7 @@ start_copies() {
     READER_IMMUDB_PASSWORD="$(new_password)"
     restore_postgres "$1"
     unpack
-    start_immudb
+    start_immudb "$1"
     start_b3
     write_connections
     info "the copies are ready"
@@ -335,7 +371,8 @@ run_audit() {
     local args=()
     while [ $# -gt 0 ]; do
         case "$1" in
-            --tally-session-id | --public-key-sha512 | --electoral-log-system-public-key)
+            --tally-session-id | --public-key-sha512 | --electoral-log-system-public-key \
+                | --environment-slug)
                 [ $# -ge 2 ] || usage_error "$1 needs a value"
                 args+=("$1" "$2"); shift 2 ;;
             --) shift; args+=("$@"); break ;;

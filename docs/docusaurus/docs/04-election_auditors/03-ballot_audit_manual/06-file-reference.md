@@ -43,7 +43,8 @@ The audit image reads the backups directory at `/backups` and writes to the outp
 ├── audit-notes.txt          you write it
 ├── backups/                 read only for the audit
 │   ├── backup-digests.txt   you write it
-│   ├── hasura.dump, keycloak.dump, b3.dump, immudb.tar.gz
+│   ├── hasura.dump, keycloak.dump, b3.dump
+│   ├── <database>.bkp       a hot backup of each ImmuDB database
 │   └── b3-blobs.tar.gz      only for a board that stores messages in files
 └── output/                  must be empty before the audit
     ├── audit-output.log         a copy of the console output
