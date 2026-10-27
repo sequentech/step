@@ -9,6 +9,7 @@ import {
 } from "graphql"
 import {readFileSync} from "node:fs"
 import {resolve} from "node:path"
+import {parse as parseYaml} from "yaml"
 import {createHasuraDataProvider, supplementRoutedReadSchema} from "./createHasuraDataProvider"
 import {getOperationRole} from "./Permissions"
 import {IPermissions} from "../types/keycloak"
@@ -376,5 +377,20 @@ it("constructs the board's scoped report list and detail using its held report-r
         where: {_and: [{tenant_id: {_eq: TENANT}}, {election_event_id: {_eq: EVENT}}]},
     })
     expect(requests[2].variables).toMatchObject({where: {id: {_eq: ID}}})
+    const metadata = parseYaml(
+        readFileSync(
+            resolve(
+                __dirname,
+                "../../../../hasura/metadata/databases/backend-db/tables/sequent_backend_report.yaml"
+            ),
+            "utf8"
+        )
+    )
+    const columns = metadata.select_permissions.find(
+        (entry: {role: string}) => entry.role === IPermissions.REPORT_READ
+    ).permission.columns
+    for (const request of requests.slice(1)) {
+        for (const field of request.fields) expect(columns).toContain(field)
+    }
     client.stop()
 })

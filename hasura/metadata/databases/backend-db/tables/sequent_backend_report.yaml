@@ -114,6 +114,9 @@ select_permissions:
     permission:
         allow_aggregations: true
         columns:
+        - copies
+        - created_at
+        - output_formats
         - cron_config
         - election_event_id
         - election_id
