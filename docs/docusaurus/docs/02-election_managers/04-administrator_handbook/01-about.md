@@ -69,7 +69,7 @@ Election Organizers describes them.
 | [Users, Roles and Role Separation](04-users_and_roles.md) | Accounts, the administrator role, the election board role, the trustee role, and what to do when a person leaves |
 | [Tenant and Election Event Settings](05-tenant_and_event_settings.md) | Signed configuration packages, the administrator's part around the election board's import, each security setting of the election event and its elections with the required values, and the hand-over to the board for the publication of the configuration version |
 | [Configuring Protected Actions](06-signing_rules.md) | Security-critical actions, required authorisations, trusted issuers and certificate checks |
-| [Self-Test Settings](07-self_tests.md) | Actual background integrity audits, their limits and the remaining ST self-test requirements |
+| [Self-Test Settings](07-self_tests.md) | The six background checks, configurable interval, security state and notification delivery |
 | [Authentication and Session Settings](08-authentication_and_sessions.md) | The external authentication server, the authentication failure threshold, session limits and the functions available before login |
 | [Audit, Monitoring and Notifications](09-audit_and_monitoring.md) | The electoral log and the election board's review of it, attack detections, the audit storage threshold and email notifications |
 | [Modes of Operation and Failure Handling](10-modes_of_operation.md) | The electoral phases, lockdown, maintenance mode, unrecoverable failures, the audit storage threshold and backups |

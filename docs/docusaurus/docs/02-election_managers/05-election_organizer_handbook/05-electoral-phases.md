@@ -9,7 +9,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 Every election event is in one of four electoral phases. The election event's
-Dashboard shows the current one as "Electoral phase". The TOE sets the phase
+**Security and self-tests** tab shows the current phase and safety state. The TOE sets the phase
 from the election dates and from the election board's actions; nobody edits it
 directly. The phase decides which functions the TOE allows.
 
@@ -17,10 +17,10 @@ directly. The phase decides which functions the TOE allows.
 
 | Electoral phase | Begins when | What happens | Pages |
 |---|---|---|---|
-| Preparation | The election event is created by an import of election data | The election board approves and imports the election data; the administrators make the settings; the key ceremony is held; the board publishes and approves the configuration version and sets the lockdown period; the initialization report is generated. Voters cannot vote. | [Preparation Phase Procedures](06-preparation.md) |
+| Preparation | An empty approval event is created, or signed election data is imported | The election board approves and imports the election data; the administrators make the settings; the key ceremony is held; the board publishes and approves the configuration version and sets the lockdown period; the initialization report is generated. Voters cannot vote. | [Preparation Phase Procedures](06-preparation.md) |
 | Execution | The election period start time is reached (scheduled start), or the election board selects "Start Voting" at or after that time | Voters cast their votes. The election board monitors the election, interrupts and resumes it when needed. | [Execution Phase Procedures](07-execution.md) |
 | Evaluation | The end of election time is reached (scheduled end), or the election board terminates the election execution with "Stop Voting" | The ballot boxes are sealed. The election board checks the audit records, counts the votes and determines the result. | [Evaluation and Post-Processing Procedures](08-evaluation-and-post-processing.md) |
-| Post-processing | The election board selects "Start post-processing" on the Dashboard after the result has been determined | The election board exports and keeps the election execution data, publishes the verification data, and deletes the data when the regulation allows. | [Evaluation and Post-Processing Procedures](08-evaluation-and-post-processing.md) |
+| Post-processing | The election board selects "Start post-processing" in **Security and self-tests** after the result has been determined | The election board exports and keeps the election execution data, publishes the verification data, and deletes the data when the regulation allows. | [Evaluation and Post-Processing Procedures](08-evaluation-and-post-processing.md) |
 
 The phases follow each other in this order only. The TOE never returns an
 election event to an earlier phase: once the election execution has been
@@ -34,12 +34,12 @@ all of these hold:
 - the election period start time has been reached;
 - the initialization report of each election has been generated (see
   [The initialization report](06-preparation.md#the-initialization-report));
-- the required complete ST self-test has succeeded (not implemented in this source);
+- the current six-check self-test for the opening has succeeded;
 - the intermediate ballot box and the ballot box are empty.
 
-The complete self-test gate and automatic maintenance response are not
-implemented. These remain requirements for the evaluated configuration;
-manual integrity checks do not establish them.
+The start time must have arrived and the end time must not have passed.
+Missing, failed or expired tests keep voting unavailable. A successful test
+does not itself authorize a manual opening or recovery.
 
 ## What each phase allows
 
@@ -54,7 +54,7 @@ manual integrity checks do not establish them.
 | Voters vote and check their cast ballots in the ballot locator | No | Yes | No | No |
 | Interrupt ("Pause Voting"), resume ("Resume Voting") | No | Yes; the resumption with the required authorisations | No | No |
 | Terminate the election execution ("Stop Voting") | No | Yes, with the required authorisations | No | No |
-| Request the implemented electoral-log audit | Yes | Yes | Yes | Yes |
+| Request the six security self-tests | Yes | Yes | Yes | Yes |
 | Read the audit records (Logs tab, election board only) | Yes | Yes | Yes | Yes |
 | Count the votes and determine the result | No | No | Yes, with the required authorisations | No |
 | Export election execution data | No | No | No | Yes, with the required authorisations |
@@ -62,9 +62,8 @@ manual integrity checks do not establish them.
 | Read the voters' register as election board | Yes | Yes | Yes | Yes, with the required authorisations |
 | Delete election execution data | No | No | No | Yes, after the export, with the required authorisations |
 
-The table gives the required operating procedure. The current implementation
-does not enforce every phase or board-quorum prerequisite in it; see the
-limitations under "Security-critical actions" below.
+The TOE checks the phase and required board authorizations on the server,
+including requests made outside the visible portal controls.
 
 The initialization report is the one count that the TOE allows before the
 execution phase: it counts the empty ballot box to show that it holds no
@@ -73,27 +72,25 @@ votes.
 ## Security-critical actions
 
 The Security Target requires the prescribed number of election board members
-to authorise security-critical actions. The implementation limitations below
-must be resolved before that can be claimed for every such action (see
+to authorise security-critical actions (see
 [Authorising a security-critical action](04-secure-use.md#authorising-a-security-critical-action)).
-The election event does not exist before its import, so the imports of
-election data are authorised by approvals inside the configuration package:
-the TOE counts them against the number of package approvals that the tenant
-requires (see [Importing the election data](06-preparation.md#importing-the-election-data)).
+For an import, the board first approves the signed configuration package and
+then authorises the exact uploaded file through **Import election data** in an
+existing Preparation event. Create an empty approval event for the first import
+as [Preparation Phase Procedures](06-preparation.md#prepare-the-first-imports-approval-event)
+describes. The TOE checks both the package approvals and the fresh authorisations.
 The TOE lists the other protected actions on the election event's Signatures
 tab under "Protected actions", with the number of authorisations each needs in
 "Signatures needed".
 
-The following table states the required authorisations and intended phases.
-It does not establish that each action has a corresponding implemented signing
-gate.
+The following table identifies the protected operations and permitted phases.
 
 | Security-critical action | How it is started | Phase |
 |---|---|---|
-| Import of the ballot (candidate list and its display data) | A board member selects "Import Election Event" with a signed configuration package; authorised by the package approvals of different board members | Preparation |
-| Import of the voters' register | A board member selects "Import Election Event" with a signed configuration package; authorised by the package approvals of different board members | Preparation |
-| Import of the set of election rules | A board member selects "Import Election Event" with a signed configuration package; authorised by the package approvals of different board members | Preparation |
-| Import of the election dates | A board member selects "Import Election Event" with a signed configuration package; authorised by the package approvals of different board members | Preparation |
+| Import of the ballot (candidate list and its display data) | A board member selects "Import Election Event" with a signed configuration package; with valid package approvals and a completed **Import election data** signing request | Preparation |
+| Import of the voters' register | A board member selects "Import Election Event" with a signed configuration package; with valid package approvals and a completed **Import election data** signing request | Preparation |
+| Import of the set of election rules | A board member selects "Import Election Event" with a signed configuration package; with valid package approvals and a completed **Import election data** signing request | Preparation |
+| Import of the election dates | A board member selects "Import Election Event" with a signed configuration package; with valid package approvals and a completed **Import election data** signing request | Preparation |
 | Termination of the election execution | "Stop Voting" (protected action "Close voting") | Execution |
 | Resumption of the election execution | "Resume Voting" (protected action "Open voting") | Execution |
 | Start of counting votes with determination of the election result | "Start Tally Ceremony" and "Start Tally" on the Tally tab | Evaluation |
@@ -101,21 +98,15 @@ gate.
 | Read of the voters' register by the election board | Voters tab of the election event | Post-processing |
 | Deletion of election execution data | "Remove this Election Event" in the election event's menu | Post-processing |
 
-:::warning
-The current signing catalogue has no board-signing gate for starting a results
-tally, exporting or deleting execution data, or reading the voters’ register
-in post-processing. These are implementation limitations, not optional
-requirements. Trustee custody or signatures on a later report do not approve
-those earlier operations. Do not infer enforcement from a hidden portal control
-or substitute a board minute for the missing TOE check.
-:::
+The board's authorization is bound to the requested operation, election and
+input. Changing the input, phase or applicable data invalidates the authorization;
+a signature from an earlier request does not approve a retry with different data.
+Trustee custody and report signatures remain separate approvals.
 
-Do not delete an election event in the preparation phase. Only the election
-board is assigned "Delete Election Event". The current deletion path has
-permission, lockdown, lifecycle and sealed-box checks, but no export-completed
-or board-signature prerequisite. An event with sealed boxes is refused even
-after export. An election event imported with wrong data is archived instead
-and replaced by a corrected import (see
+Delete only in post-processing after a completed, valid export of the current
+election execution data and the required board approvals. A failed or obsolete
+export cannot permit deletion. Archive an incorrectly imported event during
+preparation instead of deleting its evidence (see
 [Importing the election data](06-preparation.md#importing-the-election-data)).
 
 The evaluated configuration also protects these actions, which the TOE
@@ -134,8 +125,8 @@ Rules for the implemented signing requests and package approvals:
 
 - Except for the two trustee custody rows, the administrators set "Signatures
   needed" in the preparation phase, as the
-  electoral regulation fixes it. An absent rule or a rule set to "Off" does
-  not require signatures; verify the actual rule instead of assuming refusal.
+  electoral regulation fixes it. Mandatory board actions cannot use an absent or disabled rule to bypass
+  authorization. Check the configured number and available signers before proceeding.
   For the imports they set the
   tenant's number of package approvals before the first import, and never
   change it afterwards; while it is not set, the TOE refuses every import.
@@ -145,9 +136,8 @@ Rules for the implemented signing requests and package approvals:
   each signing certificate only once per request.
 - Any board member can abort a security-critical action before it runs
   ("Cancel request", see [Aborting](04-secure-use.md#aborting)). A request
-  also ends if what it would sign changes, or when it expires. An import is
-  stopped before it runs by not approving the package and telling the
-  election organizer.
+  also ends if what it would sign changes, or when it expires. Cancel an import's signing request before selecting **Continue operation**
+  to stop that pending operation; tell the election organizer as well.
 - Every step (request created, signed, refused, cancelled, expired, completed,
   action performed) is recorded in the electoral log.
 
@@ -158,8 +148,7 @@ number in the electoral regulation, and that the board has
 at least that many members who can sign. For the imports, have the
 administrators show the tenant's number of package approvals. For the trustee
 custody rows, check that "Trustees sign this step" is on. If a protected
-action shows "Off", or a lower number than the regulation fixes, a single
-person could perform it: stop and have the administrators correct it before
+action shows "Off", or a lower number than the regulation fixes, stop and have the administrators correct it before
 the execution phase.
 :::
 

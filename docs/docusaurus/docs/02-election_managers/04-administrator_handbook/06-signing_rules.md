@@ -68,29 +68,39 @@ signing controls:
 
 On the tab, termination is the protected action "Close voting", and
 resumption is "Open voting", which also covers the first opening of voting.
-The four imports are performed together, by one import of a signed
-configuration package, which a member of the election board performs. The
-election event does not exist before its import, so no rule of this tab applies
-to the imports: their required authorisations are the approvals of board
-members inside the package, at least the number that the tenant's signed
-configuration packages require
-([Tenant and Election Event Settings](05-tenant_and_event_settings.md#signed-configuration-packages)).
+The evaluated procedure imports the four data categories together as a signed
+configuration package. Before the first import, the board creates an empty
+preparation event for authorization. Configure **Import election data** and
+register the board certificates there. The board selects this event in
+**Board approval for import**; its signing request binds the exact uploaded
+file. Package signatures and these online board approvals are both required.
+See [Import of election data](05-tenant_and_event_settings.md#import-of-election-data).
 
-:::warning
-The current signing catalogue has no board-signing gate for starting a results
-tally, exporting or deleting election execution data, or reading the voters’
-register in post-processing. Trustee custody and later report signatures do
-not supply those missing authorisations. These are implementation limitations
-against the requirements above; a board procedure is not equivalent TOE
-enforcement. Do not treat the evaluated configuration as satisfying those
-requirements until the limitations are resolved.
+The server always requires configured board approval for these actions:
 
-A catalogue rule that is absent or set to "Off" does not require signatures.
-Set and verify the required rule before starting its action; do not rely on an
-unset "Signatures needed" value to refuse it. For the two trustee custody rows,
-switch on "Trustees sign this step": each trustee signs their own step, with no
-configurable signature count.
-:::
+| Protected action | Additional condition |
+| --- | --- |
+| **Import election data** | Preparation; the approved upload digest still matches. |
+| **Approve a configuration version** | Preparation; the signed publication and self-test baseline still match. |
+| **Open voting** | Approved time window and current purpose-specific self-tests. This also covers resumption. |
+| **Close voting** | The board's current approved close operation; closure cannot be reversed. |
+| **Start counting votes** | Evaluation after close; trustee custody approvals remain separately required. |
+| **Export election execution data** | Post-processing; the approved complete export profile and current source revision. |
+| **Delete election execution data** | Post-processing and a completed export receipt for the current revision. |
+| **Read the voters' register in post-processing** | A five-minute read session for the requesting board member and current event state. |
+
+For these rows, **Off** and an undefined or zero signature count cannot bypass
+authorization. An unset rule refuses the operation. Configure at least two
+distinct board signers before using it. The approvals are bound to the action,
+requester, exact parameters, event state and current rule. Changed inputs,
+revoked or expired certificates, and reused authorizations are refused.
+
+For import, counting, export, deletion and register read-out, the portal opens
+the signing request when approval is needed. After the required members sign,
+the requester selects **Continue operation**. The original operation is
+resubmitted with its unchanged parameters; a failed or cancelled request does
+not count as success. The register session expires after five minutes or a
+change to its bound state, and does not authorize secret-field disclosure.
 
 ## Protected actions to switch on
 
@@ -135,7 +145,8 @@ election board approves the configuration version.
 1. Open the election event, tab "Signatures", area "Protected actions". The
    table shows "Action", "Applies to", "Who can sign", "Signatures needed",
    "Request expires" and "Waiting". A rule that is not switched on shows
-   "Off".
+   "Off" only for optional actions. Required actions without a configured
+   count remain unavailable.
 2. Select the edit icon of the action. The drawer opens.
 3. For "Confirm custody (key ceremony)" and "Authorize tally custody (tally)",
    switch on "Trustees sign this step" and save. These two rows have no
@@ -158,7 +169,7 @@ Messages of the drawer:
 
 | Message | Meaning |
 |---|---|
-| "At least 1." / "At most …" | The number of signatures is outside the allowed range. |
+| A minimum or maximum signature-count error | The number is outside the permitted range. Mandatory board actions require at least two; keep the evaluated configuration at the organizer's approved count. |
 | "No Post has … people who can sign. The most is …" | Fewer people can sign than the number you entered. Give the role to more board members, or ask the election organizer. |
 | "N requests are waiting for signatures under the current rule. Saving cancels them; the people who started them start again." | Saving a changed rule cancels its waiting requests. |
 | "The election event is locked down: signing rules change only through a new configuration version." | The election event is in a lockdown period; the TOE refuses the change. |

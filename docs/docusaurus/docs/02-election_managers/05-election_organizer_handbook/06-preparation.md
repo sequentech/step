@@ -29,12 +29,12 @@ All election data (the voters' register, the candidate list and its display
 data, the set of election rules and the election dates) reaches the TOE as a
 signed configuration package. The election organizer prepares the package and
 signs it (see [Provide the credentials](02-organizer-duties.md#provide-the-credentials)).
-The election board authorises the import by approving the package before it
-is imported; a board member then imports it. Only the election board role
-holds the permission for the import, "Create Election Event"
-(`election-event-create`); the administrators never hold it. The import needs
-no other permission: it writes every part of the package itself. The voting
-system accepts election data only as a signed configuration package.
+The board checks and signs the package before import. The importing board member
+also obtains the TOE's required authorisations for the exact uploaded file through
+the mandatory **Import election data** rule. Package approvals and this operation's
+fresh authorisations are both required. The importing member needs
+<code>election-event-create</code>; approving members need
+<code>sign-import-election-data</code> and their registered signing certificates.
 
 Before asking the board to approve the package, include the required event and
 election Data-tab settings from [the administrator's tables](../04-administrator_handbook/05-tenant_and_event_settings.md#settings-of-the-election-event).
@@ -52,7 +52,7 @@ If that number is not set, the TOE refuses every import.
 ### Approving a configuration package
 
 Who: each approving board member. Phase: before the import, which creates
-the election event in the preparation phase. Permission: no permission in the TOE; your approval certificate, which the
+a separate election event in the preparation phase. Permission: no permission in the TOE; your approval certificate, which the
 election organizer's certification authority issued to you.
 
 1. The election organizer gives you, with its package tool, which runs
@@ -78,27 +78,57 @@ for another person, and never let anyone use your approval certificate. Your
 approval has counted when the import succeeds and its record names the
 revision you approved (see [Checking the import](#checking-the-import)).
 
+### Prepare the first import's approval event
+
+The first import needs a place to hold its signing rule and registered board
+certificates. Prepare this once before importing the first package:
+
+1. A board member selects **Create an Election Event** and creates an empty
+   event named, for example, **Board import approvals**. It is a Preparation
+   event used for authorisations; do not add election data, publish it or open voting.
+2. An administrator opens this event's **Signatures** tab. Under **Certificates**,
+   register each board member's certificate to their personal account. Configure
+   the trusted issuer and certificate checks as described in
+   [the administrator handbook](../04-administrator_handbook/06-signing_rules.md).
+3. Under **Protected actions**, configure **Import election data** with the
+   number of independent board signatures required by the regulation, at least two,
+   and the supplied **election-board** role under **Who can sign**. Save the rule. The action cannot
+   proceed with a missing or disabled rule.
+4. Board members sign in with their personal board accounts and confirm that
+   they can see this event's signing requests. Retain this event's identifier
+   with the board's minutes; it must remain in Preparation for further imports.
+
+The approval event contains authorisation records. Importing creates a separate
+new event containing the election data; configure that new event's own signing
+rules and certificate registrations before its protected operations.
+
 ### Importing the package
 
-Who: one board member. Phase: the import creates the election event in the
-preparation phase. Permission: "Create Election Event"
-(`election-event-create`).
+Who: one board member. Phase: Preparation in the approval event; the import
+creates a separate event in Preparation.
 
-1. Select "Import Election Event", choose the package file, type the
-   SHA-256 digest that the election organizer gave you through a separate
-   channel into "Integrity Check (SHA-256)", and select "Import". For an
-   encrypted package enter the "Decryption Password", received
-   separately from the file, and select "Ok".
-2. The TOE checks the signature of the package, every file of the package
-   against the signed list of its files, and the approvals. It refuses an
-   unsigned package, a package with a changed, missing or added file, a
-   package signed with a certificate it does not trust, a package with an
-   approval that is not valid or with fewer valid approvals from different
-   board members than the tenant requires, a revision of the configuration
-   that is not newer than the last one imported, and a package that enables
-   the results website or in which an area has "Allow Early Voting" ticked.
-3. When the TOE accepts the package, it creates the election event and shows
-   "Election event imported Successfully".
+1. Select **Import Election Event**. In **Board approval for import**, choose the
+   Preparation event configured above. If it is missing, finish its setup first.
+2. Choose the signed package. Enter the SHA-256 value supplied by the organizer
+   through a separate channel in **Integrity Check (SHA-256)**, then select
+   **Import**. For an encrypted package, enter the separately supplied
+   **Decryption Password** and select **Ok**.
+3. The signing dialog opens a request for **Import election data**. Review its
+   file identity, SHA-256 digest and target event with the other board members.
+   Each member authenticates again and signs using their registered certificate.
+   Keep the original import dialog open. After the required approvals, the original
+   requester selects **Continue operation**.
+4. The worker checks that the stored file is still exactly the approved file.
+   It also checks the package signature, every listed file and the package's own
+   approvals. A changed upload, invalid or untrusted signature, missing or added
+   file, insufficient package approvals or an already-imported revision is refused.
+5. Wait for the task to finish and **Election event imported Successfully**.
+   Open the newly imported event and perform the checks below. A completed signing
+   request alone is not confirmation that the import task succeeded.
+
+If the signing request expires, is cancelled, or the file changes, obtain a new
+request and new approvals. If a package check fails, retain the error and ask the
+organizer for a corrected signed revision; do not bypass the check.
 
 ### Checking the import
 
@@ -132,10 +162,10 @@ Permission: "Read Logs" (`logs-read`) and "Read Area" (`area-read`).
   without the election organizer. Treat it as a security-relevant event and
   ask the election organizer for a new package.
 - The voting system accepts election data only as a signed configuration
-  package, through "Import Election Event". It refuses every other way in and
-  every change of imported election data: "Create an Election Event", the
-  "Import" of the Voters tab and of Areas, "Import Candidates", "Import
-  schedule", and changes of voters, areas, candidates or dates. If election
+  package, through "Import Election Event". Use **Create an Election Event** only for the empty approval context above.
+  Do not populate an event by hand or use the separate voter, area, candidate
+  or schedule imports in this evaluated workflow. Those controls are not
+  substitutes for the organizer's signed package and its approvals. If election
   data ever appears that did not come from a signed package, or an imported
   value of the voters' register, the candidate list, the set of election rules
   or the election dates has changed, stop, approve nothing, and treat it as a
@@ -198,7 +228,7 @@ actions and certificates. The election board checks these settings with them:
 | Election event, Signatures tab, "Certificates" | "Registering a certificate to a person" | "Only when someone who can register certificates registers it" (the default "When its holder first signs with it" is not allowed) |
 | Election event, Signatures tab, "Certificates" | "Check revocation lists" and "When a list can't be downloaded" | If the election organizer's certification authority publishes revocation lists that the server can download: on, with "Don't accept signatures". Otherwise certificates are withdrawn with "Revoke" |
 | Users and Roles | "Signatures: register certificates" (`signing-certificates-register`) | Held by administrators only |
-| Operator configuration and Tasks | Background audit interval and results; the complete self-test controls are not implemented | The interval as the electoral regulation fixes it, and all three additional conditions selected (see [Self-test intervals](11-security-relevant-events.md#self-test-intervals)) |
+| **Security and self-tests** | Automatic self-test interval, time limit and six results | The interval as the electoral regulation fixes it, and all three additional conditions selected (see [Self-test intervals](11-security-relevant-events.md#self-test-intervals)) |
 | Header of the admin portal | "Version" | `Sequent Voting Platform - uniWAHL Version, v10.0.0` |
 
 :::warning
@@ -398,12 +428,19 @@ the start means that votes may have been added outside the execution phase.
 
 ## The self-test before the start
 
-The complete ST self-test and automatic start gate remain unimplemented.
-Do not look for a Self-tests tab or Run self-test action. A board member can
-run the narrower **Logs → Audit** check and inspect **Audit Electoral Log**
-in **Tasks**, as [Self-Test Settings](../04-administrator_handbook/07-self_tests.md)
-explains. A successful audit does not establish complete FPT_TST.1 coverage;
-keep that requirement open before approving the evaluated configuration.
+1. Open **Security and self-tests**. Confirm that the approved configuration
+   baseline is present; otherwise complete publication first.
+2. Select **Before starting voting**, then **Run self-tests** once.
+3. Wait for the background run to finish. Expand it and verify that all six
+   checks show **Passed**, for the current election state.
+4. Keep the run identifier and result with the board's record. Start within the
+   five-minute validity of the opening check and the approved election period.
+   If either state or validity has changed, run the required check again.
+
+A failed, missing or expired result blocks opening. Investigate it using
+[Operating Modes, Failures and Recovery](12-modes-and-failures.md). A scheduled
+opening requests its own **Scheduled election start** check; an earlier
+**On request** result is not its authorization.
 
 ## Checklist before the execution phase
 
@@ -416,5 +453,5 @@ keep that requirement open before approving the evaluated configuration.
 | "Start Lockdown Period" and "End Lockdown Period" created at the times the election organizer decided | [Setting the lockdown period](#setting-the-lockdown-period) |
 | Key ceremony complete, every trustee with "Custody Confirmed" | [The key ceremony](#the-key-ceremony) |
 | Initialization report of every election witnessed, zero ballots, hash matches the log | [The initialization report](#the-initialization-report) |
-| Complete ST self-test requirement resolved; available log audit reviewed | [The self-test before the start](#the-self-test-before-the-start) |
+| All six current opening self-tests passed; no unresolved failure | [The self-test before the start](#the-self-test-before-the-start) |
 | Voters have their credentials and the information the election organizer gives them | [Instruct the voters](02-organizer-duties.md#instruct-the-voters) |

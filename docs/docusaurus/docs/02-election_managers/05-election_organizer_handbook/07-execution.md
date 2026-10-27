@@ -14,19 +14,25 @@ terminates it.
 
 ## Starting the election execution
 
-Voting can be opened by a scheduled task or a board request. The complete
-ST self-test and automatic start/resume failure gates are not implemented.
-The actions below must not be treated as evidence that those gates ran.
+Voting opens only within the approved election period, after initialization,
+empty-box checks and the six required security checks. Open the event's
+**Security and self-tests** tab to review the current phase, safety state and
+**Recent self-test runs**. A queued task is not a passed test.
 See [Self-Test Settings](../04-administrator_handbook/07-self_tests.md).
 
 **At the scheduled start.** The election dates of the configuration package
 contain the scheduled event "Start Voting Period" for the election period
-start time. When it is reached, the TOE opens voting by itself.
+start time. When it is reached, the TOE requests the scheduled-start tests. It opens voting
+after they pass and the other opening prerequisites hold. If a test fails, the
+board must investigate and authorize recovery; a later pass does not silently
+resume the election.
 
 **With "Start Voting".** If the electoral regulation has the election board
 open voting itself:
 
-1. At or after the election period start time, open the election event's
+1. In **Security and self-tests**, select **Before starting voting** under
+   **Purpose of the test**, then **Run self-tests**. Wait for all six checks
+   to show **Passed**. At or after the approved start time, open the
    Publish tab and select "Start Voting".
 2. Read the "Confirm Action" dialog ("You are about to start voting period.
    Are you sure you want to continue?") and select "Confirm". If the admin
@@ -35,19 +41,23 @@ open voting itself:
 3. The TOE creates a signing request for "Open voting". Each required board
    member authenticates again at the external authentication server and
    signs.
-4. Inspect the resulting voting status. No complete ST self-test result is produced by this action.
+4. Inspect the voting status and the current safety state. If the request
+   says another test is needed, let that task finish, review all six results
+   and authorize a fresh opening request. A missing or expired test cannot
+   be bypassed with an earlier signature.
 
-The required self-test and maintenance safeguards must be completed before
-this source can establish the evaluated start-of-election behavior. A green
-log audit or an initialization report alone does not satisfy that requirement.
+Opening checks are short-lived and bound to the current election state.
+Changing that state or waiting more than five minutes requires a fresh check.
 
 After the start, check that:
 
-- the Dashboard shows "Electoral phase" Execution and the elections as open;
+- **Security and self-tests** shows **Election execution** and **Operational**,
+  and the Publish tab shows the elections as open;
 - the Logs tab has the opening record (`ElectionVotingPeriodOpen` or
   `ElectionEventVotingPeriodOpen`) with the time and the board members who
   authorised it;
-- the board has recorded the available integrity audit result and the unresolved complete self-test requirement.
+- all six current self-test results show **Passed** and their completion time
+  is within the configured interval.
 
 If the election event enters maintenance mode instead, follow
 [Maintenance mode](12-modes-and-failures.md#maintenance-mode).
@@ -55,12 +65,12 @@ If the election event enters maintenance mode instead, follow
 ## Monitoring the election
 
 At least one board member watches the election throughout the execution
-phase, and checks the following at least once in every configured background audit interval:
+phase, and checks the following at least once in every configured self-test interval:
 
 | Where | What to look at | Act when |
 |---|---|---|
-| Dashboard | "Electoral phase", the state of each election, the election execution data that the Dashboard shows the board (turnout and cast votes), the ballot boxes ("Show ballot boxes") | The Dashboard shows "Maintenance mode", or an election is in a state the board did not decide |
-| **Tasks** | The periodic **Audit Electoral Log** task completed without findings | A failed, delayed or missing task; this is not a six-check self-test result |
+| Dashboard and Publish | Election voting status, turnout and ballot boxes | An unexpected state, count or seal; use **Security and self-tests** for the authoritative phase and recovery reason |
+| **Security and self-tests** | Current phase, safety state, six results and their times | **Recovery required**, **Unrecoverable failure**, any failed, missing or expired result, or a status-read error |
 | Monitoring tab, "Attack detections" | Brute-force attempts on accounts and denial-of-service attempts on the external interfaces | Any detection |
 | Logs tab | The audit records of the election event (see [Security-Relevant Events for the Election Board](11-security-relevant-events.md)) | Any record of a kind listed there as security-relevant |
 | Email | Notices from the TOE to the election board, for example on maintenance mode or on the audit storage threshold | Any notice |
@@ -70,21 +80,28 @@ The events to act on, with what to do, are in
 
 ## Self-test results
 
-The implemented result is **Audit Electoral Log** in **Tasks**. Success means
-the stored log and signed checkpoint checks completed without findings.
-Failure includes a detected inconsistency, an operational error or a timeout.
-The complete six-check ST suite is not implemented; there are no per-test
-results or automatic maintenance transitions to review.
+Expand the latest entry under **Recent self-test runs** in **Security and
+self-tests**. Check its purpose, completion time and all six named results:
+ballot-box integrity, approved election data, audit recording and integrity,
+trusted HTTPS channels, approved access-control configuration and clock
+synchronization. Each row includes the result and details.
+
+**Earlier election state** means that an old result cannot authorize the current
+transition. **Queued or running** and **Not completed** are not successful
+results. If the page cannot refresh its status, do not act on old displayed data.
 
 ## Running a self-test on request
 
-Use **Logs → Audit** for the implemented background integrity check. The
-request returns promptly; follow its task identifier in **Tasks**. You may
-leave the page while it runs. Avoid repeated requests while an audit is active.
+1. Open **Security and self-tests**.
+2. Select **On request** under **Purpose of the test**.
+3. Select **Run self-tests** once. The request queues background work; you may
+   leave the page while it runs.
+4. Return and use **Refresh status**. Review the six completed results and their
+   details. Investigate any failure before deciding how to continue.
 
-[Self-Test Settings](../04-administrator_handbook/07-self_tests.md) describes
-the actual scope, interval, timeout, failure response and missing ST checks.
-This operation must not be recorded as completion of the full self-test suite.
+**On request** checks do not replace the purpose-specific checks required before
+starting, resuming or, when configured, counting. The separate **Logs → Audit**
+operation remains available for a detailed electoral-log audit.
 
 ## Interrupting the election execution
 
@@ -107,8 +124,10 @@ time in the board's minutes.
 
 The TOE puts the election event into maintenance mode by itself when it finds a
 recoverable failure during the execution phase. Voting is then suspended, the
-Dashboard shows "Maintenance mode" with the reason, and the election board and
-the administrators receive an email. What to do is in
+**Security and self-tests** shows **Recovery required** with the reason.
+The TOE records the transition and queues email to the election board and
+administrators. Check **Security email delivery**; a queued message does not
+prove it has arrived. What to do is in
 [Maintenance mode](12-modes-and-failures.md#maintenance-mode).
 
 ## Resuming the election execution
@@ -123,12 +142,16 @@ The election execution is resumed only by the election board, and only when:
 
 Steps:
 
-1. Review the available **Audit Electoral Log** task and the investigation record. The required complete self-test and automatic resume gate remain unimplemented.
+1. Review the reason and investigation record. In **Security and self-tests**,
+   select **Before resuming voting** and **Run self-tests**. Wait for all six
+   results to show **Passed** for the current state.
 2. Select "Resume Voting" and confirm, as for "Start Voting".
 3. The TOE creates a signing request for "Open voting". Each required board
    member authenticates again at the external authentication server and
    signs.
-4. Inspect the resulting voting status. This action does not produce a complete ST self-test result or a `MaintenanceModeLeft` event.
+4. Check **Election execution**, **Operational** and the resumed voting
+   status. Review `MaintenanceModeLeft` when leaving recovery. A further
+   **After maintenance** suite runs automatically; investigate any failure.
 
 If the time frame for continuing has passed, do not resume: terminate the
 election execution and decide under the electoral regulation how the

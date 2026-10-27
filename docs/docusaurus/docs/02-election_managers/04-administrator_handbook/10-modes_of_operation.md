@@ -10,111 +10,108 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 ## The electoral phases
 
-Each election event is in one electoral phase, shown as "Electoral phase" on
-its Dashboard. The TOE sets the phase; nobody edits it. Your Dashboard shows the
-election event's phase and settings, not election execution data such as
-turnout, cast votes or ballot boxes: only the election board sees those.
+Open the election event's **Security and self-tests** tab to check its phase,
+security state and reason. The server controls the phase; it is not an editable
+setting. Administrators see the security status and administration settings.
+Only the election board has access to election execution data and audit records.
 
-| Phase | How it starts | What the TOE allows | What the administrator does |
-|---|---|---|---|
-| Preparation | when a member of the election board imports the election event | the board's import of election data; settings and signing rules; the board's "Publish" of a configuration version, which the TOE refuses in every other phase; the board's archiving of a wrongly imported election event; the key ceremony and the initialization report | verifies imported Data-tab values and configures the separate administrator settings as [Tenant and Election Event Settings](05-tenant_and_event_settings.md) describes, then tells the board when they are complete; the board publishes the configuration version and approves it |
-| Execution | The board or a scheduled task opens voting. The complete ST self-test and automatic maintenance gates are not implemented; see the warning below. | Voters cast votes; the board controls voting status. | Monitors the TOE and supports the board. |
-| Evaluation | at the end of election time, or when the election board terminates the election execution with "Stop Voting" and its required authorisations; voting cannot be reopened | the counting of the votes by the board, with its required authorisations | supports the board's audit review; changes no settings |
-| Post-processing | the election board selects "Start post-processing" on the Dashboard | the export of election execution data and the board's read-out, with the required authorisations; after the export, the deletion | supports the board; changes no settings |
+| Phase | How it starts | What happens next |
+| --- | --- | --- |
+| Preparation | The board creates an authorization context or imports an approved election event. | Configure administrator settings, approved imports, signing rules, the key ceremony and initialization. The board approves and publishes the configuration. |
+| Execution | The board or the approved schedule opens voting after the required checks pass. | Voters cast ballots within the approved period. The board may pause, resume or close voting with the required approvals. |
+| Evaluation | The approved period ends or the board closes all elections. | Voting cannot reopen. The board checks the audit and authorizes counting. |
+| Post-processing | The board selects **Start post-processing** in **Security and self-tests** and authenticates again. | Completed counting permits normal post-processing. An unrecoverable failure permits investigation. Board-approved read-out and export precede deletion. |
 
-:::warning Required failure handling
-The ST requires self-tests before opening and resuming voting and automatic
-maintenance or permanent stopping on the specified failures. The complete
-suite and these automatic state transitions are not implemented in this source
-version. The Dashboard does not provide the previously described maintenance
-screen. A successful background log audit does not close this requirement.
-See [Self-Test Settings](07-self_tests.md#required-checks-still-to-be-completed).
-:::
+The first opening requires the approved time window, an empty ballot box,
+initialization and a current **Before starting voting** result. A scheduled
+opening uses its own election-start check. A diagnostic **On request** result
+does not substitute for either. See [Security and Self-Tests](07-self_tests.md).
 
 ## Lockdown
 
-Lockdown protects the approved configuration while the election takes place.
-While the election event is locked down, the TOE refuses:
+Lockdown protects configuration settings during the agreed period. It is shown
+as **Lockdown Status** on **Data** and is separate from the security state.
+Lockdown alone does not stop voting.
 
-- generating a new publication;
-- changing signing rules ("The election event is locked down: signing rules
-  change only through a new configuration version.");
-- deleting the election event;
-- changing or deleting voters;
-- changing the monitoring configuration.
-
-Lockdown is not maintenance mode: it does not stop voting.
-
-Lockdown starts and ends only through the scheduled events "Start Lockdown
-Period" and "End Lockdown Period". The election board creates them at the times
-the election organizer decides: the start after the configuration version is
-approved and before the election period starts. The board's procedure is in the
-[Handbook for Election Organizers](../05-election_organizer_handbook/01-about.md).
-The administrator role holds no scheduled event permission, and no other
-scheduled event is created: the election dates come only with the imported
-election data. "Lockdown Status" on the tab "Data" shows the current state; do
-not set it there.
+The board configures the lockdown schedule before approval. The server also
+enforces electoral phases: ending a lockdown does not permit rewriting approved
+election data or returning from evaluation to execution. Administrators cannot
+change the board's schedule. Follow the
+[Handbook for Election Organizers](../05-election_organizer_handbook/01-about.md)
+when a new configuration version is needed.
 
 ## Voting paused by the election board
 
-The election board controls voting status. Administrators must not resume voting
-or change approved election settings to bypass a problem. An electoral-log audit
-runs in the background and does not itself pause or resume voting.
+A pause stops voting and invalidates the previous transition evidence. The board
+records why it paused the election and decides whether resumption is allowed
+under the electoral regulation. An administrator does not take that decision.
 
-Before a restart or resumption, the board records its decision under the
-electoral regulation and obtains the required investigation results. Do not
-assume an automatic complete self-test will run or refuse the resumption.
+1. Resolve the reason for the pause and preserve the relevant records.
+2. Select **Security and self-tests → Before resuming voting → Run self-tests**.
+3. Wait for all six checks in the latest run to pass for the current state.
+4. The board authorizes **Resume Voting** in **Publish**. The approved voting
+   period and the required services must still be available.
+
+A failed, pending, stale or differently purposed run cannot authorize resumption.
+If the board tries too soon, the operation remains refused; wait for its required
+check and then submit a new authorized operation.
 
 ## Maintenance mode
 
-The ST requires maintenance mode on recoverable failures and a controlled
-return to operation. The complete mode, its Dashboard indicator and automatic
-notifications are not implemented. This is an implementation requirement;
-a manual pause and an operational checklist do not establish its compliance.
+**Recovery required** means that a recoverable failure has stopped normal
+voting. A failed required check, a stopped required service or an expired
+service heartbeat causes refusal. A repair or restart does not reopen voting.
+The system records the transition and queues a separate security notification.
 
-If an integrity check fails or a component stops:
-
-1. Tell the election board and server operator immediately. Preserve the task
-   identifier, its result and the operating logs.
-2. The board decides whether to interrupt or terminate voting under the electoral
-   regulation. Administrators do not take that decision on its behalf.
-3. Investigate the failure with the operator. Check the delivered image digests,
-   TLS endpoint and time synchronization using AGD-04.
-4. The board checks the electoral log and can request **Logs → Audit**. Wait for
-   the terminal **Audit Electoral Log** task result; a timeout or error is not a
-   successful check.
-5. Record what was found and what was corrected. Do not represent a restart as
-   completion of the missing ST self-test and maintenance requirements.
+1. Read the reason and the latest check results in **Security and self-tests**.
+2. Tell the board and server operator. Record the event identifier, run
+   identifier, time and reason; preserve the operating logs.
+3. Correct the cause using AGD-04, for example the service, trusted certificate,
+   authenticated time source or storage availability. Never replace evidence
+   merely to make a test pass.
+4. Run **Before resuming voting** and wait for the current six-check result.
+5. The board reviews the investigation and authorizes **Resume Voting**. The
+   server checks its preconditions again and runs an additional check after
+   leaving maintenance.
+6. Check **Security email delivery** and confirm that the responsible people
+   received the notice. A mail failure is visible and does not remove the refusal.
 
 ## An unrecoverable failure
 
-A ballot-box integrity failure requires the secure failure response defined by
-the ST. That complete automatic response is not implemented as the self-test
-state machine. Preserve every record and escalate to the election board;
-do not repair evidence, delete data, or assume that a later green log audit
-restores trust in the affected ballot box.
+A detected ballot-box integrity error produces **Unrecoverable failure**.
+Election execution cannot resume, even if a later diagnostic check passes.
+Do not edit ballots, remove records, replace the approved baseline or delete
+execution data to clear the state.
+
+Preserve the evidence and notify the election board. The board follows the
+electoral regulation and may enter post-processing for an authorized
+investigation and export. This does not turn an incomplete or failed election
+into a successfully counted election.
 
 ## A crash or shutdown of a server component
 
-During election execution, restart a component only after the election board's
-decision. Follow AGD-04 and verify the image digests and service status.
-The board reviews the log records around the outage. Startup does not currently
-run the complete ST self-test suite; keep that limitation explicit in the
-incident and recovery record.
+During execution, obtain the board's decision before an operator restarts a
+component. Follow AGD-04 and verify the accepted image digests and service state.
+An absent or expired required-service lease prevents voter operations.
+
+Startup records the recovery requirement for an executing event. Follow the
+maintenance procedure above, including the purpose-specific checks and board
+resumption. Do not infer readiness merely from a green container status.
 
 ## The audit storage threshold
 
-When the storage of the audit data is more than 80 % full, the TOE refuses
-voters' sessions and requests until space is available again
-([Audit, Monitoring and Notifications](09-audit_and_monitoring.md#the-audit-storage-threshold)).
-Extend the storage as the Deployment Guide describes; never delete audit
-records or election execution data to make space.
+Above 80% used audit-storage capacity, the system refuses voter token issuance,
+refresh and voter operations. Missing, stale, future-dated or unreadable storage
+observations also refuse access. Staff access remains available for recovery.
+
+Extend storage as AGD-04 describes; never delete audit records or election
+execution data to make space. A fresh healthy observation removes the storage
+refusal, but every other lifecycle and self-test gate still applies. See
+[Audit, Monitoring and Notifications](09-audit_and_monitoring.md#the-audit-storage-threshold).
 
 ## Backups
 
-Backups of the servers, their protection and their restoration are measures of
-the operational environment. Make and test them as the Deployment Guide
-describes. A restoration replaces election data and election execution data
-with an older state: never restore a backup of an election event that is in
-the execution phase without the election board's decision, and tell the
-election board of every restoration, so that it can check the electoral log.
+The operational environment provides protected, tested backups. Follow AGD-04.
+A restoration replaces current data with an older state and is not a normal way
+to recover an executing election. Obtain the board's decision, preserve the
+incident evidence and investigate the audit sequence before any resumption.

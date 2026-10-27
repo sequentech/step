@@ -16,13 +16,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 2. In the preparation phase, a member of the election board imports the
    election data of each election event as a signed configuration package
    ([Import of election data](#import-of-election-data)).
-3. After each import, when the election board tells you, check every setting
-   of the new election event and its elections against the tables on this
-   page. The signed package must already carry the required Data-tab values;
-   retain them. If one differs, use [Correcting imported election
+3. After import, check the administrator settings you can see. Ask the board
+   to confirm the remaining event and election values against the reference
+   tables below. The signed package must already carry the required values.
+   If one differs, use [Correcting imported election
    data](#correcting-imported-election-data) before continuing.
 4. Set the protected actions
-   ([Configuring Protected Actions](06-signing_rules.md)), the background audit policy ([Self-Test Settings](07-self_tests.md)) and check the
+   ([Configuring Protected Actions](06-signing_rules.md)), the background self-test policy ([Security and Self-Tests](07-self_tests.md)) and check the
    authentication settings
    ([Authentication and Session Settings](08-authentication_and_sessions.md))
    of the election event.
@@ -169,11 +169,18 @@ Your part:
    fingerprints and approval count still match your approved values. Do not change it. Treat the refusal as a security-relevant event
    ([Security-Relevant Events for Administrators](11-security_relevant_events.md)).
 
-The TOE refuses every other way in for election data: "Create an Election
-Event", the "Import" of the Voters tab and of Areas, "Import Candidates",
-"Import schedule", and every change of imported election data (the voters'
-register, the candidate list, the display data of the ballot, the set of
-election rules, the election dates and the election period end time).
+Before the first import, the board creates an empty preparation event as an
+**authorization context**. Configure its **Import election data** protected
+action, trusted issuers and registered board certificates. The board selects
+this event in **Board approval for import**. The exact uploaded file then needs
+the context's distinct board approvals as well as the signed-package checks.
+The empty context itself is not a configured election ready for voting.
+
+Use the complete signed-package procedure for the evaluated configuration.
+The server also gates individual voter, area, candidate and schedule imports
+with board authorization and phase checks. An unapproved raw table mutation
+cannot replace these procedures. Read-only candidate and contest forms point
+back to approved imports.
 
 Some settings available to administrators also affect the ballot design that
 is approved in the signed package. The election organizer includes the required
@@ -209,8 +216,32 @@ with the required authorisations; the TOE refuses every other deletion.
 event. Use the required values below, and verify the signed package’s settings;
 do not copy a sample event’s state or identifiers.*
 
-Open the election event and its tab "Data". The settings are grouped in
-sections; the table names the section of each.
+Open the election event and select **Data → Security settings**. This
+administrator form is writable only during preparation. It exposes these
+controls without exposing the ballot design, voter register or election dates:
+
+| Control | What to check |
+| --- | --- |
+| **Key ceremony scope** | Retain the event/election scope specified in the approved package. |
+| **Trustee participation** | **Trustees participate**; the evaluated configuration uses manual custody. |
+| **Ballot encryption** | Retain the contest encryption policy specified in the approved package. |
+| **Decoded ballots in results** | **Do not include**. |
+| **Voter ballot signatures** | Retain the approved package's policy. This differs from ballot-box-signed receipts and from voter digital certificates. |
+| **Ballot box sealing** | **Seal when voting closes**. |
+| **Seal record access** | **Election board only**. |
+| **Time zone settings** | Use the organizer's agreed display zones; these do not change the signed election dates. |
+
+Select **Save security settings**, wait for confirmation and reopen the form to
+check the saved values. A refusal leaves the operation incomplete: check the
+phase and displayed error, and resolve a conflicting edit before retrying.
+Do not add board data permissions to make another form available.
+
+### Configuration the board must verify
+
+The following table specifies the values the organizer must include in the
+signed package. Give it to the board and obtain its confirmation. Some fields
+are election data and are deliberately absent from the administrator form.
+The section names below identify the board's read-only **Data** view.
 
 | Setting (section) | Default | Required value | Why |
 |---|---|---|---|
@@ -290,7 +321,10 @@ never available.
 
 ## Settings of each election
 
-Open each election of the election event and its tab "Data".
+Ask the board to open each election's **Data** tab and confirm the following
+values. The administrator's limited settings projection does not expose every
+field. Record the board's confirmation; if a value is wrong, request a corrected
+approved import rather than acquiring election-data permissions.
 
 | Setting (section) | Default | Required value | Why |
 |---|---|---|---|
@@ -349,7 +383,8 @@ Publish" (`publish-write`). The TOE accepts a publication only in the
 preparation phase and refuses it in every other phase.
 
 1. Check the settings of this page once more, and the protected actions and the
-   background audit scope and the complete self-test implementation gap.
+   self-test interval, timeout and additional conditions
+   ([Security and Self-Tests](07-self_tests.md)).
 2. Tell the election board in writing that the settings of the election event
    are complete, once you hold the written confirmation of the person who runs
    the servers for this election event (plugins, telephone provider and

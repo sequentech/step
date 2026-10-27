@@ -279,7 +279,11 @@ def main(command,configuration,operation=None,component=None):
         install.verify_inputs(data)
         return backup(data) if command=='backup' else restore(data)
     if operation=='status':
-        result=install.ssh(data,'c1','hostname\nk3s kubectl get nodes\nk3s kubectl get pods -A\ndf -h /var/lib/sequent-data\n','Current server state',timeout=15)
+        script='hostname\nk3s kubectl get nodes\nk3s kubectl get pods -A\ndf -h /var/lib/sequent-data\n'
+        script+='if test -f /run/sequent-security/activity.json; then\n'
+        script+="jq -r 'if .status==\"available\" and ((now*1000)-.updated_at_ms>=0) and ((now*1000)-.updated_at_ms<=30000) then \"REQUEST MONITORING: available\" else \"REQUEST MONITORING: unavailable — \"+(.reason//\"observation is stale or missing\") end' /run/sequent-security/activity.json\n"
+        script+='else echo \"REQUEST MONITORING: unavailable — observation file is missing\"; fi\n'
+        result=install.ssh(data,'c1',script,'Current server state',timeout=15)
         print(result.decode(),end='');return
     if operation=='stop':confirm('STOP SERVICES FOR MAINTENANCE');return stop(data)
     if operation=='resume-unchanged':confirm('RESUME UNCHANGED SERVICES');return resume(data)

@@ -17,7 +17,7 @@ A trustee works with two things:
 
 - their **personal account** in the admin portal, with the role `trustee` and
   their trustee name in "Act as Trustee";
-- the **trustee tool** (`trustee`) on their **trustee workstation**, which
+- the accepted **trustee tool** (`./trustee`) on their **trustee workstation**, which
   creates and holds their keys file (`trustee.toml`).
 
 ## Where the trustee runs
@@ -43,8 +43,8 @@ For each turn:
    enable persistent swap, hibernation, shell/session recording or cloud backup.
 2. Unlock only your own encrypted working medium. Keep your keys file and
    generated proofs there. Do not copy another trustee's keys or mount their medium.
-3. Run the accepted trustee tool with only your current directory mounted into
-   its container. Use the relative file names shown below.
+3. Use your own `trustee.json` configuration and the accepted `./trustee` tool.
+   It mounts only your encrypted working directory and keeps networking disabled.
 4. Copy out only the public keys or custody proof that the portal needs. Lock
    and remove your medium, then shut down fully before the next trustee starts
    a fresh session. Keep the device physically controlled between sessions.
@@ -64,19 +64,35 @@ Use the offline tool for key generation and custody authorization.
 
 ## Generating your keys
 
-Generate your keys once, before the key ceremony, on the trustee workstation:
+First complete [Preparing a trustee workstation](../../05-reference/06-deployment_guide/08-installing_toe.md#preparing-a-trustee-workstation).
+That procedure prepares the accepted tool once and explains the small public
+`trustee.json` configuration. Open a root terminal in its accepted `deployment`
+folder, with only your encrypted working medium unlocked. Generate keys once:
 
 ```sh
-trustee generate --trustee-config trustee.toml
-trustee public-keys --trustee-config trustee.toml
+./trustee generate trustee.json
 ```
 
-- `trustee generate` writes the keys file under the name you give, readable by
-  its owner only, and prints the two public keys. Always give
-  `--trustee-config`: without it, the tool prints the whole keys file,
-  including the private keys, on the screen.
-- `trustee public-keys` prints the two public keys of an existing keys file as
-  JSON: `signing_public_key` and `share_encryption_public_key`.
+Expect `TRUSTEE KEYS CREATED: trustee.toml`, followed by the two **public** keys
+as JSON: `signing_public_key` and `share_encryption_public_key`. The private file
+stays in the configured encrypted working directory with owner-only permissions.
+The command refuses to overwrite existing keys.
+
+![Generating keys on the offline VM's encrypted working medium](../../05-reference/06-deployment_guide/assets/installation/trustee-generate.png)
+
+To display your public keys again:
+
+```sh
+./trustee public-keys trustee.json
+```
+
+![Displaying the two public keys without revealing the private keys](../../05-reference/06-deployment_guide/assets/installation/trustee-public-keys.png)
+
+If the command stops, follow its message: disable networking and swap, check that
+your own encrypted medium is unlocked and the private directory has permissions
+700. If keys already exist, use `public-keys`; never remove them merely to make
+`generate` succeed. A changed image or digest requires checking the accepted
+delivery again.
 
 Give both public keys to the administrators, in person or on a medium you hand
 over yourself. They register them under your trustee name in Settings >
@@ -142,17 +158,22 @@ you: "You have been invited to participate in a Key Ceremony."
    `trustee.toml` in at least two secure locations. Tick "First backup secured"
    and "Second backup secured" only when both backups exist, then select
    "Confirm Backups and Continue".
-5. Move `<trustee name>-custody-request.json` to the trustee workstation, into
-   the directory that holds your keys file, and create the custody proof
-   there. The admin portal shows the command with its own file names; give
-   the names of your files instead:
+5. Move the downloaded public request into your own encrypted working directory.
+   The portal shows three short public configuration fields. Copy their values
+   into your `trustee.json`: `request_file`, `proof_file` and `tally_session_id`.
+   For the key ceremony, `tally_session_id` must be `null`. Keep your existing
+   working directory and private-key filename. From the accepted tool folder, run:
 
    ```sh
-   trustee attest --request <trustee name>-custody-request.json \
-     --trustee-config trustee.toml --output custody-proof.json
+   ./trustee attest trustee.json
    ```
 
-6. Move `custody-proof.json` back. On the step "Confirm Trustee Custody",
+   Expect `CUSTODY PROOF CREATED:` followed by the configured proof filename.
+   A missing request, a mismatched trustee key or an existing proof file stops
+   the command. Check the current ceremony request and your own medium; for an
+   existing output, choose a new `proof_file` name without deleting the old proof.
+
+6. Move the new public proof back. On the step "Confirm Trustee Custody",
    upload it. The admin portal checks the proof when you select the file.
    If the protected action
    "Confirm custody (key ceremony)" needs signatures, sign it with your signing
@@ -183,23 +204,23 @@ has closed. Both require a new custody proof bound to their own tally.
 
 1. Sign in with your personal account, open the election event's Tally tab and
    select the tally's action.
-2. Under "Trustees process" ("Upload your public custody-proof.json file") the
-   admin portal shows the command to run, with the identifier of this tally:
-   "Create a custody proof locally using your saved request:". Check that the
-   identifier is the one of the tally the board announced.
-3. On the trustee workstation, in the directory that holds your keys file and
-   the saved custody request, run the command shown, with the names of your
-   files. The trustee tool never overwrites a file: if the directory already
-   holds a file with the name after `--output`, for example the proof of the
-   key ceremony, give a new name. It has this form:
+2. Under "Trustees process", compare the displayed tally identifier with the
+   tally the board announced. The portal shows the public fields to use in
+   `trustee.json`: your saved `request_file`, a new `proof_file` for this tally,
+   and the exact `tally_session_id` in quotes. Copy those three values into your
+   own offline configuration. Keep your working directory and keys unchanged.
+3. On the offline workstation, open a root terminal in the accepted tool folder
+   and run the same short command:
 
    ```sh
-   trustee attest --request <trustee name>-custody-request.json \
-     --trustee-config trustee.toml --tally-session-id <tally identifier> \
-     --output tally-custody-proof.json
+   ./trustee attest trustee.json
    ```
 
-4. Upload the new `tally-custody-proof.json`. If the protected action "Authorize
+   Expect `CUSTODY PROOF CREATED:` and this tally's proof filename. The command
+   never replaces an existing proof. If it stops, check the request, your own
+   keys and the new output filename. Do not substitute another tally identifier.
+
+4. Upload the new public proof named by the command. If the protected action "Authorize
    tally custody (tally)" needs signatures, sign it with your signing
    certificate.
 5. Check that the section "Trustees" ("Custody confirmation status") of the

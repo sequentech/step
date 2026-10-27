@@ -21,9 +21,8 @@ changed record is detected. Among others the TOE records:
   execution, the counting, the export and the deletion;
 - creating, changing and deleting users, roles, role permissions and role assignments, signing
   rules and realm policies;
-- audit and integrity events that the implemented producers record. The full
-  self-test suite and maintenance-mode event producers remain unimplemented
-  ([Self-Test Settings](07-self_tests.md));
+- self-test results, maintenance and unrecoverable-failure transitions, and
+  audit-storage failures ([Security and Self-Tests](07-self_tests.md));
 - the voters' actions in the voting portal.
 
 Nobody can change or delete records. Only the election board reads, audits and
@@ -59,7 +58,7 @@ patterns:
 
 Both rates are tenant settings in the section "Attack detection" of the
 tenant's "Settings", and only the administrator role changes them
-(`attack-detection-write`). Set them with the election organizer in the
+(`tenant-write`). Set them with the election organizer in the
 preparation phase, from the number of voters and the expected peak load: high enough that the normal peak
 does not match, low enough that an attack does. On a match the TOE writes a
 record to the electoral log and shows it in the Monitoring tab's "Attack
@@ -74,8 +73,9 @@ with the board.
 
 ## The audit storage threshold
 
-The TOE checks every minute how much of the storage for the audit data is
-used. Above 80 % it:
+The storage observer measures the audit database volume every 30 seconds.
+The application reconciles observations in the background. Above 80% used
+capacity it:
 
 - refuses new sessions and requests of voters, so that no vote is cast that
   could not be recorded;
@@ -85,7 +85,9 @@ used. Above 80 % it:
 Administrators and board members can still sign in and work. Extend the
 storage at once, as the Deployment Guide describes: never by deleting audit
 records or election execution data. Voters can sign in again once the used
-space is below the threshold.
+space is at or below the threshold and the observation is fresh. Missing, stale,
+future-dated or unreadable observations also refuse voter access. The other
+phase, period and self-test checks continue to apply.
 
 ## Email notifications
 
@@ -95,7 +97,13 @@ The TOE emails the election board and the administrators when:
 - an unrecoverable failure stops the election execution;
 - the audit storage threshold is exceeded.
 
-The TOE sends the emails to the "Email" of each account. Before the execution
+The TOE sends these emails to the enabled administrators and board members
+with a configured email address. It uses the protected relay configuration
+supplied during installation. **Security and self-tests → Security email
+delivery** shows queued, sent, failed and uncertain outcomes. A transport
+acceptance does not prove that the recipient read the message.
+
+Use the "Email" of each account. Before the execution
 phase, check that every administrator's and board member's account has the
 person's working address, and agree with the election organizer who reads the
 email throughout the execution phase.

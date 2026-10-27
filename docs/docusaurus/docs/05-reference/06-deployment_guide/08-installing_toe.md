@@ -447,6 +447,8 @@ delivery medium`. The command checks the entire OCI image graph against the
 accepted manifest, loads it locally and retains only the public digest manifest
 beside `trustee.json`. Safely eject the delivery medium through the file manager.
 
+![Actual offline VM verifying and preparing the delivered trustee image](./assets/installation/trustee-prepare.png)
+
 **If the result differs:** stop. A checksum or image mismatch requires the
 accepted delivery to be checked again. Do not replace the expected checksum with
 the observed value or enable networking to download an image.
@@ -466,11 +468,15 @@ working directory in `trustee.json`. Then run:
 only `signing_public_key` and `share_encryption_public_key`. The keys file is
 created with owner-only permissions. An existing file is never replaced.
 
+![Actual offline VM creating trustee keys on the encrypted working medium](./assets/installation/trustee-generate.png)
+
 To display those public keys again, run:
 
 ```sh
 ./trustee public-keys trustee.json
 ```
+
+![Actual offline VM displaying only the two public trustee keys](./assets/installation/trustee-public-keys.png)
 
 **If the result differs:** an active interface or swap requires shutting down and
 correcting the offline operating environment. A medium or permission error means
@@ -484,9 +490,3 @@ The command supplies the private-key file path explicitly, so private keys are
 never intentionally printed. Make the two required protected backups and follow
 [Trustee Procedures (AGD-03)](../../02-election_managers/05-election_organizer_handbook/09-trustee-procedures.md)
 for the portal's public-key registration and custody-proof upload.
-
-![Actual network-disabled trustee-tool help screen from the verified rehearsal image](./assets/installation/trustee-tool.png)
-
-*Actual native trustee tool in the accepted image with its network disabled. The
-short commands above select that program automatically; the image's default
-server command is never used for offline key handling.*

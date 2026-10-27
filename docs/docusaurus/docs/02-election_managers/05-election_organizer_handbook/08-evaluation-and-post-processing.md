@@ -33,11 +33,11 @@ election.
      `ElectionVotingPeriodClose` and their `ElectionEvent…` forms) matches a
      decision of the board or the election dates;
    - each operator-reported interruption has a recorded cause and board
-     decision; automatic maintenance-mode events are not implemented, so
-     their absence is not evidence that no failure occurred;
-   - each scheduled **Audit Electoral Log** task completed without findings,
-     and any missing or delayed run was investigated; this is not a complete
-     ST self-test record;
+     decision; correlate `MaintenanceModeEntered`, `MaintenanceModeLeft` and
+     `ElectoralPhaseChanged` with the security state and operational record;
+   - the required six-check runs completed successfully for the relevant
+     election state, and every failed, missing, delayed or expired run was
+     investigated; check the separate electoral-log audits as well;
    - every ballot box has a `BallotBoxSealed` record, and there is no
      `BallotBoxSealFailed`;
    - there is no `AuthenticationFailureThresholdReached` or
@@ -67,12 +67,11 @@ keep it confidential.
 
 ## Counting the votes
 
-Counting the votes and determining the election result is a security-critical
-action under the Security Target. The current results-tally path checks the
-required trustee custody and tally prerequisites, but has no separate
-board-signing gate for starting the count. This implementation limitation must
-be resolved before claiming the required board-quorum enforcement; later report
-signatures do not authorise the earlier count.
+Counting is a protected board operation. The TOE checks the evaluation phase,
+the required board authorization, trustee custody and the tally prerequisites.
+When **Before counting** is selected in the self-test settings, that current
+purpose-specific suite must also pass. Trustee custody and later report
+signatures do not replace the board's authorization to start counting.
 
 Before you start, check that:
 
@@ -94,10 +93,10 @@ Steps:
 3. Select "Start Tally Ceremony" and confirm "Are you sure you want to start a
    ceremony?" ("This tally ceremony asks trustees to submit public custody
    proofs. Keep their runners active with their local protocol state.").
-4. Record the board’s required decision under the electoral regulation. The
-   current UI does not request a separate board signature for starting this
-   results tally; this record does not remedy the implementation limitation
-   described above.
+4. Complete the displayed signing request with the required distinct board
+   members. The original requester selects **Continue operation** when the
+   request is complete. If a before-counting test was requested instead, wait
+   for all six results, then request fresh authorization.
 5. Each trustee authorises the counting with their keys, as
    [Authorising the counting](09-trustee-procedures.md#authorising-the-counting)
    describes. The section "Trustees" ("Custody confirmation status") shows how
@@ -149,40 +148,39 @@ result in the board's minutes.
 
 ## Starting post-processing
 
-When the election result has been determined, a board member selects "Start
-post-processing" on the election event's Dashboard. The election event moves
-to the post-processing phase: the Dashboard shows "Electoral phase" Post-processing. From now on no
-counting is possible, and the export and the deletion of election execution
-data become possible.
+1. In **Security and self-tests**, confirm **Evaluation** and that every
+   election has a successfully completed results tally.
+2. Select **Start post-processing**. Read the irreversible phase-change notice.
+3. If sent to the external authentication server, authenticate again, return
+   and confirm the phase change.
+4. Check that the state is **Post-processing**. Further counting and reopening
+   voting are refused.
 
-After an unrecoverable failure (see
-[An unrecoverable failure](12-modes-and-failures.md#an-unrecoverable-failure))
-the election board may select "Start post-processing" without an election
-result. The Dashboard then shows that no result was determined, and the
-election execution data can be exported for the investigation.
+After an **Unrecoverable failure**, first terminate execution under the board
+procedure. The same control permits investigation export from evaluation
+without a completed result. This exception is recorded; it does not turn a
+failed election into a valid result or allow it to resume.
 
 ## Reading the cast votes and the voters' register
 
-In the post-processing phase the election board can read the cast votes and the
-voters' register, for example to answer a challenge of the election. The
-board's read of the voters' register is a security-critical action under the
-Security Target’s post-processing condition, but the current read path checks
-permission without a post-processing board-signature gate. This is an
-implementation limitation for that condition; it does not mean that every
-ordinary board read requires signatures (the Security Target also permits
-general board access to the register).
-Read only what the electoral regulation allows, and record each read and its
-reason; the minutes are not evidence of TOE-enforced quorum.
+In post-processing the board may read cast votes and the voters' register
+within its assigned permissions. Reading the register in this phase requires
+the protected request's distinct board approvals. Review the request's scope,
+complete its signatures and let the original requester select **Continue
+operation**. The approved reader has a five-minute session for register counts,
+pages and individual records in that same event and state. A different reader,
+changed election data or expired session requires new approval. Revealing
+secret fields and exporting data remain separately protected operations.
+Read only what the electoral regulation permits and record the reason.
 
 ## Exporting the election execution data
 
 The export keeps the election execution data (the cast votes, the electoral
 log, the tally and results data and the voting records) for the time that the
 electoral regulation fixes. Perform it only in the post-processing phase.
-The current full-event export path has no corresponding phase or board-signing
-gate; its general election-event read permission must not be interpreted as
-proof of the required board authorisations. This is an implementation limitation,
-not permission to export outside the prescribed procedure.
+The TOE requires the execution-export permission, post-processing and the
+required board signatures. The approval binds the selected export options and
+current election data.
 
 1. On the election event's Data tab, select "Export". The drawer "Export
    Election Event" opens.
@@ -195,22 +193,25 @@ not permission to export outside the prescribed procedure.
    in decrypted form: the secret fields of the voters' register with "Include
    Voters", and the voters' secret documents among the stored files with "S3
    Files".
-4. Obtain the board’s decision under the electoral regulation before selecting
-   "Export". The current export does not request a board-signing quorum; do not
-   record it as a TOE-enforced protected action.
+4. Select **Export**, review the signing request and obtain the required
+   distinct board approvals. The original requester selects **Continue
+   operation** to continue the same export with the same options.
 5. The TOE generates the password of the file; nobody chooses it. The admin
    portal shows it once, under "Password to decrypt the file:". Write the
    password into the board's protected record at once. Never store it with
    the file.
 6. The export runs as the task "Export Election Event" on the Tasks tab. When
    it is complete, download the file.
-7. The TOE signs the export with a key that it generates for this export and
-   destroys right after signing; the file carries the signature and the
-   public key. It records that the election execution data has been exported
-   and writes the fingerprint of the public key into the electoral-log record
-   of the export. Copy the fingerprint into the board's minutes and hand it
-   over with the file: whoever receives the file checks the signature with
-   the public key and compares the key's fingerprint with the minutes.
+7. The archive contains `execution-integrity/manifest.json`, a signature and
+   its public key. The manifest lists SHA-256 hashes of the exported entries.
+   It also covers `execution-security-evidence.json`: the event's security
+   settings, applicable attack detections, pending security notices and its
+   pseudonymous authentication activity. Keep this file with the archive;
+   an audit-log export alone does not include all this evidence.
+   Keep the `ExecutionDataExported` record's archive hash, manifest hash and
+   public key separately with the board's minutes. The recipient checks the
+   archive and signed manifest against those independently retained values;
+   a public key taken only from the same untrusted archive is insufficient.
 8. Keep at least two copies of the file on separate protected media, each
    under the control of at least two board members, and the password apart
    from them.
@@ -261,14 +262,16 @@ the election event is locked down.
 :::
 
 1. Check that the data has been exported and that the copies are readable.
+   If new security evidence has arrived since that export, obtain fresh board
+   approvals and export again before requesting deletion.
 2. In the election event's menu, select "Remove this Election Event" and
    confirm "Are you sure to delete this item?".
-3. Record the required board decision. The current deletion path does not
-   request board signatures or verify that an export was completed; these
-   missing prerequisites are implementation limitations.
-4. The current implementation refuses deletion of an event with sealed ballot
-   boxes, including after export. Do not bypass that refusal or remove seals
-   to complete retention work. Report the blocked deletion to the operators.
+3. Review the protected deletion request. Obtain the required distinct board
+   approvals; the original requester selects **Continue operation**.
+4. The TOE verifies the completed export receipt against the current data and
+   lifecycle state. A missing, failed or obsolete export blocks deletion.
+   Preserve the refusal and investigate; never remove seals or alter receipts
+   to make deletion pass.
 5. Check that the election event no longer appears in the list of election
    events, and record the deletion in the board's minutes.
 

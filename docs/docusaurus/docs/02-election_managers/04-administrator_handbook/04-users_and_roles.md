@@ -18,7 +18,10 @@ SPDX-License-Identifier: AGPL-3.0-only
   created from the voters' register of the election event
   ([Tenant and Election Event Settings](05-tenant_and_event_settings.md)).
 - **Roles.** A role is a named set of permissions. An account gets the
-  permissions of every role it is a member of.
+  permissions assigned through its roles. Administrator-capable accounts are
+  restricted to administration permissions when a token is issued, even if a
+  board role was also assigned. Correct conflicting assignments; do not use
+  this safeguard as a substitute for separate people and accounts.
 
 You manage accounts and roles in the side menu "Users and Roles". The tab
 "Users" lists the accounts. Select "Add" to create one, or open the account's
@@ -47,7 +50,7 @@ The evaluated configuration has exactly these roles for people:
 | Role | Who holds it | Purpose |
 |---|---|---|
 | `admin`, with the permissions of the next two sections removed | each administrator | the administrator role |
-| "Election board", a role you create | each member of the election board, including the trustees | the election board role |
+| `election-board`, shown below as "Election board" | each member of the election board, including the trustees | the election board role |
 | `trustee` | each trustee, in addition to "Election board" | the trustees' key and tally ceremony steps |
 
 No account holds the administrator role together with the election board role.
@@ -84,14 +87,14 @@ stated, to `trustee`). Remove each of them from the role `admin`:
 | Configuration versions | <ul><li>"View Election Event Publish" (<code>election-event-publish-tab</code>)</li><li>"View Election Publish" (<code>election-publish-tab</code>)</li><li>"Read Publish" (<code>publish-read</code>)</li><li>"Edit Publish" (<code>publish-write</code>)</li><li>"Create Publish" (<code>publish-create</code>)</li><li>"Regenerate Publish" (<code>publish-regenerate</code>)</li><li>"Publish Changes" (<code>publish-changes</code>)</li></ul> |
 | Lockdown periods | <ul><li>"View Election Event Scheduled" (<code>election-event-scheduled-tab</code>)</li><li>"Election Event Scheduled Event Columns" (<code>election-event-scheduled-event-columns</code>)</li><li>"Edit Scheduled Events" (<code>scheduled-event-write</code>)</li><li>"Create Scheduled Event" (<code>scheduled-event-create</code>)</li><li>"Delete Scheduled Event" (<code>scheduled-event-delete</code>)</li></ul> The board creates only "Start Lockdown Period" and "End Lockdown Period". |
 | Areas, which are election data: the TOE refuses changes | <ul><li>"Read Area" (<code>area-read</code>)</li><li>"Edit Area" (<code>area-write</code>)</li><li>"Create Area" (<code>area-create</code>)</li><li>"Delete Area" (<code>area-delete</code>)</li><li>"Import Area" (<code>area-import</code>)</li><li>"Upsert Area" (<code>area-upsert</code>)</li><li>"Export Area" (<code>area-export</code>)</li></ul> |
-| Sign protected actions | <ul><li>"Sign: initialize voting" (<code>sign-initialize-voting</code>)</li><li>"Sign: open voting" (<code>sign-open-voting</code>)</li><li>"Sign: close voting" (<code>sign-close-voting</code>)</li><li>"Sign: generate election returns" (<code>sign-generate-election-returns</code>)</li><li>"Sign: generate other election reports" (<code>sign-generate-reports</code>)</li><li>"Sign: transmit results" (<code>sign-transmit-results</code>)</li><li>"Sign: approve a voter manually" (<code>sign-approve-voter</code>)</li><li>"Sign: approve a configuration version" (<code>sign-approve-configuration</code>)</li></ul> |
+| Sign protected actions | <ul><li>"Sign: initialize voting" (<code>sign-initialize-voting</code>)</li><li>"Sign: open voting" (<code>sign-open-voting</code>)</li><li>"Sign: close voting" (<code>sign-close-voting</code>)</li><li>"Sign: generate election returns" (<code>sign-generate-election-returns</code>)</li><li>"Sign: generate other election reports" (<code>sign-generate-reports</code>)</li><li>"Sign: transmit results" (<code>sign-transmit-results</code>)</li><li>"Sign: approve a voter manually" (<code>sign-approve-voter</code>)</li><li>"Sign: approve a configuration version" (<code>sign-approve-configuration</code>)</li><li>"Sign: import election data" (<code>sign-import-election-data</code>)</li><li>"Sign: start counting votes" (<code>sign-start-tally</code>)</li><li>"Sign: export election execution data" (<code>sign-export-execution-data</code>)</li><li>"Sign: delete election execution data" (<code>sign-delete-execution-data</code>)</li><li>"Sign: read the voters’ register in post-processing" (<code>sign-read-voters-register</code>)</li></ul> |
 | Trustee steps (role `trustee` only) | <ul><li>"Sign: confirm custody" (<code>sign-key-ceremony</code>)</li><li>"Sign: authorize tally custody" (<code>sign-tally-key</code>)</li><li>"Trustee Ceremony" (<code>trustee-ceremony</code>)</li></ul> |
 | Start, interrupt, resume and end the election execution | <ul><li>"Edit Election State" (<code>election-state-write</code>)</li><li>"Start Voting" (<code>publish-start-voting</code>)</li><li>"Pause Voting" (<code>publish-pause-voting</code>)</li><li>"Stop Voting" (<code>publish-stop-voting</code>)</li></ul> |
 | Signing requests | <ul><li>"Signatures: read requests" (<code>signing-requests-read</code>)</li><li>"Signatures: cancel requests" (<code>signing-requests-cancel</code>)</li><li>"Signatures: export requests" (<code>signing-requests-export</code>)</li></ul> |
 | Key and tally ceremonies, counting | <ul><li>"View Election Event Keys" (<code>election-event-keys-tab</code>)</li><li>"Read Keys" (<code>keys-read</code>)</li><li>"Admin Ceremony" (<code>admin-ceremony</code>)</li><li>"Create Ceremony" (<code>create-ceremony</code>)</li><li>"Export Ceremony" (<code>export-ceremony</code>)</li><li>"View Election Event Tally" (<code>election-event-tally-tab</code>)</li><li>"Read Tally" (<code>tally-read</code>)</li><li>"Start Tally" (<code>tally-start</code>)</li><li>"Edit Tally" (<code>tally-write</code>)</li><li>"Read Tally Results" (<code>tally-results-read</code>)</li></ul> |
 | Archiving and deletion of election events | <ul><li>"Archive Election Event" (<code>election-event-archive</code>)</li><li>"Delete Election Event" (<code>election-event-delete</code>)</li></ul> |
 | Audit review and monitoring | <ul><li>"View Election Event Logs" (<code>election-event-logs-tab</code>)</li><li>"Read Logs" (<code>logs-read</code>)</li><li>"Audit Electoral Log" (<code>electoral-log-audit</code>)</li><li>"Browse Electoral Log" (<code>electoral-log-console-read</code>)</li><li>"Query Electoral Log" (<code>electoral-log-console-query</code>)</li><li>"Read Electoral Log Personal Data" (<code>electoral-log-personal-data-read</code>)</li><li>"View Election Event Tasks" (<code>election-event-tasks-tab</code>)</li><li>"Read Tasks Execution" (<code>tasks-read</code>)</li><li>"View Monitoring Dashboards" (<code>monitoring-view</code>)</li></ul> |
-| Read the voters' register (permission-controlled; no post-processing board-signature gate is implemented) | <ul><li>"Read Voter" (<code>voter-read</code>)</li><li>"View Election Event Voters" (<code>election-event-voters-tab</code>)</li></ul> |
+| Read the voters' register (post-processing requires board approval for a five-minute read session) | <ul><li>"Read Voter" (<code>voter-read</code>)</li><li>"View Election Event Voters" (<code>election-event-voters-tab</code>)</li></ul> |
 | Export of the electoral log and of election execution data | <ul><li>"Export Logs" (<code>logs-export</code>)</li><li>"Read Reports" (<code>report-read</code>)</li><li>"Edit Reports" (<code>report-write</code>)</li><li>"Read Documents" (<code>document-read</code>)</li><li>"Download Documents" (<code>document-download</code>)</li><li>"Export Voter" (<code>voter-export</code>)</li><li>"Read Document Passwords" (<code>document-password-read</code>)</li></ul> |
 
 ### Permissions on election data and audit records
@@ -104,7 +107,7 @@ name.
 
 | Object | Permissions |
 |---|---|
-| Election events and elections | <ul><li>"Create Election Event" (<code>election-event-create</code>)</li><li>"Delete Election Event" (<code>election-event-delete</code>)</li><li>"Archive Election Event" (<code>election-event-archive</code>)</li><li>"Create Election" (<code>election-create</code>)</li><li>"Delete Election" (<code>election-delete</code>)</li></ul> |
+| Election events and elections | <ul><li>"Read Election Event" (<code>election-event-read</code>)</li><li>"Edit Election Event" (<code>election-event-write</code>)</li><li>"Read Election" (<code>election-read</code>)</li><li>"Edit Election" (<code>election-write</code>)</li><li>"Create Election Event" (<code>election-event-create</code>)</li><li>"Delete Election Event" (<code>election-event-delete</code>)</li><li>"Archive Election Event" (<code>election-event-archive</code>)</li><li>"Create Election" (<code>election-create</code>)</li><li>"Delete Election" (<code>election-delete</code>)</li></ul> |
 | Voters' register — records and imports | <ul><li>"Create Voter" (<code>voter-create</code>)</li><li>"Read Voter" (<code>voter-read</code>)</li><li>"Edit Voter" (<code>voter-write</code>)</li><li>"Delete Voter" (<code>voter-delete</code>)</li><li>"Import Voter" (<code>voter-import</code>)</li><li>"Export Voter" (<code>voter-export</code>)</li></ul> |
 | Voters' register — additional operations | <ul><li>"Reveal Secret Voter Fields" (<code>voter-secret-attribute-read</code>)</li><li>"Edit Secret Voter Fields" (<code>voter-secret-attribute-write</code>)</li><li>"Manually Verify Voter" (<code>voter-manually-verify</code>)</li><li>"Change Voter Password" (<code>voter-change-password</code>)</li><li>"Generate Voter Information Letter" (<code>voter-information-letter</code>)</li><li>"Edit voters who voted" (<code>voter-voted-edit</code>)</li><li>"Edit voters email/phone fields" (<code>voter-email-tlf-edit</code>)</li><li>"Import Users" (<code>user-import</code>)</li></ul> |
 | Voters' register — views and reconciliation | <ul><li>"View Election Event Voters" (<code>election-event-voters-tab</code>)</li><li>"View Election Voters" (<code>election-voters-tab</code>)</li><li>"View Election Event Voters Logs" (<code>ee-voters-logs</code>)</li><li>"Reconcile election event voter list" (<code>election-event-voter-list-reconciliation</code>)</li></ul> |
@@ -125,22 +128,20 @@ name.
 | Audit records — electoral log | <ul><li>"View Election Event Logs" (<code>election-event-logs-tab</code>)</li><li>"Read Logs" (<code>logs-read</code>)</li><li>"Export Logs" (<code>logs-export</code>)</li><li>"Audit Electoral Log" (<code>electoral-log-audit</code>)</li><li>"Browse Electoral Log" (<code>electoral-log-console-read</code>)</li><li>"Query Electoral Log" (<code>electoral-log-console-query</code>)</li><li>"Read Electoral Log Personal Data" (<code>electoral-log-personal-data-read</code>)</li></ul> |
 | Monitoring — tasks, dashboards and IP addresses | <ul><li>"View Election Event Tasks" (<code>election-event-tasks-tab</code>)</li><li>"Read Tasks Execution" (<code>tasks-read</code>)</li><li>"Export Tasks" (<code>task-export</code>)</li><li>"View Monitoring Dashboards" (<code>monitoring-view</code>)</li><li>"Configure Monitoring Dashboards" (<code>monitoring-configure</code>)</li><li>"View Election IP Address" (<code>election-ip-address-view</code>)</li><li>"View IP Address" (<code>admin-ip-address-view</code>)</li></ul> |
 
-The administrator role keeps the other permissions of `admin`. Among them are
-the user and role permissions; the Signatures tab's permissions for protected
-actions, trusted issuers, certificate checks and certificate registrations;
-"Edit Tenant" (`tenant-write`) and "View settings" (`settings-menu`); "Read
-Election Event" (`election-event-read`), "Edit Election Event"
-(`election-event-write`), "Read Election" (`election-read`), "Edit Election"
-(`election-write`), "View Election Event Data" (`election-event-data-tab`) and
-"View Election Data" (`election-data-tab`), for the settings of
-[Tenant and Election Event Settings](05-tenant_and_event_settings.md); in these
-forms the TOE shows you only the settings and refuses changes of election data.
-They also include `attack-detection-write`, for the attack detection rates
-([Audit, Monitoring and Notifications](09-audit_and_monitoring.md#attack-detections));
-the trustee registration permissions; "View Election Dashboard"
-(`election-dashboard-tab`), where your Dashboard shows the election event's
-phase and settings, not election execution data such as turnout, cast votes or
-ballot boxes; and no `self-test-*` permissions: those controls are not implemented (see [Self-Test Settings](07-self_tests.md)).
+The administrator role uses `admin-user` to read the separate administration
+settings projection. Keep its account-management, tenant, trustee-registration
+and certificate-management permissions, the relevant menu/tab permissions,
+`self-test-read`, `self-test-run` and
+`self-test-settings-write`. Do not give it the election-data read/write permissions
+listed above. The portal uses the settings projection for administrators; it
+does not need those permissions to open an event's administration settings.
+
+The event **Data** tab allows only the named administration settings during
+preparation. Individual-election settings are read-only: changes must arrive
+through an approved import. **Security and self-tests** shows phase, safety,
+checks and notification delivery without exposing ballots, the voter register
+or audit records. Board members receive `self-test-read` and `self-test-run`,
+but not `self-test-settings-write`.
 
 No role holds "Edit Results Publication" (`publish-results-write`), neither the
 administrator role nor the election board role. No account holds "Datafix
@@ -161,9 +162,13 @@ the election board, not deleted
 
 ### Create the "Election board" role
 
-1. In "Users and Roles", open the tab "Roles" and select "Add". Name
-   the role, for example `Election board`.
-2. In the new role's "Permission" table, give it these permissions:
+The evaluated installation supplies the `election-board` role. Use it for
+board members and trustees, then verify its permissions before use. The display
+name "Election board" below refers to this role.
+
+1. In **Users and Roles → Roles**, open `election-board`. On an older tenant
+   without this role, select **Add** and create it with that name.
+2. In its **Permission** table, verify these permissions:
    - the board functions: "Create Election Event" (`election-event-create`);
      the configuration version permissions of the table above; the lockdown
      period permissions of the table above; every "Sign:"
@@ -204,7 +209,7 @@ the election board, not deleted
      read certificates" (`signing-certificates-read`), "Read Publish"
      (`publish-read`), "Read Keys" (`keys-read`), "View Election Dashboard"
      (`election-dashboard-tab`), "View Monitoring Dashboards"
-     (`monitoring-view`).
+     (`monitoring-view`); `self-test-read` and `self-test-run`.
 3. Give "Read Electoral Log Personal Data" (`electoral-log-personal-data-read`),
    "Read Document Passwords" (`document-password-read`) and "Reveal Secret
    Voter Fields" (`voter-secret-attribute-read`) only if the election
@@ -214,9 +219,11 @@ the election board, not deleted
    elections, contests, candidates, areas, voters, signing
    rules, trusted issuers, certificate checks, and never
    "Edit Results Publication" (`publish-results-write`). The board creates
-   election events only by importing signed configuration packages. Each
-   such import writes every part of the package itself and needs no other
-   permission of the importing member.
+   an empty preparation event as the first import authorization context.
+   Election data then arrives through the approved import. Configure
+   **Import election data** in that context and register the board certificates
+   before the board submits its first package. The selected context supplies
+   the distinct board approvals for the exact uploaded file.
 5. Select "Save", then reopen the role with its edit icon and check the
    permissions. "Export Logs" (`logs-export`) and "Edit Reports"
    (`report-write`) must both be in the role: exporting the electoral log
@@ -225,8 +232,15 @@ the election board, not deleted
    let the board generate and download the initialization report and download
    the exported electoral log. These permissions do not reveal secret voter
    fields; the separate permission in step 3 remains necessary for those.
-   Changes to an existing role's permission checkboxes take effect
-   immediately; close and reopen "Role Data" to check them.
+   Close and reopen "Role Data" to check the saved permissions, then have
+   affected users sign out and sign in again to obtain updated tokens.
+
+Do not add administrator capabilities to the board role: `admin-user`,
+`tenant-write`, `user-create`, `user-write`, `role-create`, `role-write`,
+`signing-rules-write`, issuer/check/certificate-management permissions or
+`self-test-settings-write`. These identify an administrator-capable account;
+its issued token will have board capabilities removed. Read-only account,
+role, rule and certificate access is sufficient for board review.
 
 The evaluated configuration does not transmit results
 ([Configuring Protected Actions](06-signing_rules.md)); no transmission
@@ -253,8 +267,10 @@ custody" (`sign-key-ceremony`) and "Sign: authorize tally custody"
 The side menu shows holders of "Trustee Ceremony" the entry "Trustee
 Dashboard". It is not used in the evaluated configuration: trustees perform
 their key and tally steps only with the trustee tool of the TOE delivery on an
-offline workstation, as the Handbook for Election Organizers describes, and
-sign their custody steps as protected actions.
+offline workstation using the short [configuration-driven trustee commands](../05-election_organizer_handbook/09-trustee-procedures.md#generating-your-keys), and
+sign their custody steps as protected actions. Trustees may take separate clean
+offline sessions on one organizer-controlled computer; each keeps separate
+encrypted working media and backups.
 :::
 
 ### Registering the trustees' public keys
@@ -266,7 +282,7 @@ trustee. You need "Create Trustee" (`trustee-create`), "Read Trustee"
 
 1. Receive the trustee's two public keys from the trustee in person, or on a
    medium the trustee hands over: `signing_public_key` and
-   `share_encryption_public_key`, as the trustee tool prints them.
+   `share_encryption_public_key`, as `./trustee public-keys trustee.json` prints them.
 2. Enter the trustee's name, and paste the two keys into the two key fields.
    Their helper texts name them: "Signing public key from trustee
    public-keys" and "Share encryption public key from trustee public-keys".
@@ -394,8 +410,13 @@ account of a person who leaves at once, also during the execution phase.
 
 ## Permission labels
 
-A permission label restricts what an account can reach to the elections that
-carry the same label. Labels are set with "Permission Label" in the account's
-data and need "Edit Permission Label" (`permission-label-write`). Use them only
-as the election organizer decides. After any change, check that every board
-member can still reach each election whose protected actions they sign.
+Permission labels are election-data controls. The administrator role does not
+hold **Edit Permission Label** (`permission-label-write`), because that permission
+also permits access to election data. Do not add it to an administrator account
+to make a form available.
+
+Have the election organizer define the required election access in the signed
+configuration package. After import, the board checks that each member can reach
+every election whose protected actions they must sign. A missing election is a
+configuration problem to correct before execution; broadening an administrator's
+permissions is not a remedy.

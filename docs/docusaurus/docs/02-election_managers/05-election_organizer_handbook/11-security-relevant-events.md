@@ -11,8 +11,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 A security-relevant event is anything that may affect the integrity of the
 election data or of the votes, the secrecy of the votes, or the authorisations
 of the election board. This page lists the events the election board must act
-on, by electoral phase, and explains the scope of periodic background integrity audits
-between two checks.
+on, by electoral phase, and explains the periodic self-tests.
 
 For every event:
 
@@ -42,14 +41,14 @@ For every event:
 | A signing request that the board did not start, or whose contents differ from the board's decision | Signatures tab, "Requests" | Abort it with "Cancel request". |
 | A ceremony shows "Automatic Ceremony", or a trustee lacks "Custody Confirmed" | Keys tab | Stop; cancel the ceremony; do not continue with the election event. |
 | The initialization report counts a ballot, or its hash differs from the `ElectionInitialized` record | Initialization report, Logs tab | Do not start voting. Keep the report. |
-| Background audit failed, missing or delayed | **Tasks → Audit Electoral Log** | Preserve the result, request investigation and decide under the regulation. A missing result is not success; the complete ST suite remains unimplemented. |
+| Self-test failed, missing, expired or delayed | **Security and self-tests** | Preserve the run identifier and details, investigate the cause and follow the recovery procedure. A missing result is not success. |
 
 ## Events in the execution phase
 
 | Event | Where it shows | What the election board does |
 |---|---|---|
-| Suspected ballot-box integrity failure | Audit/seal verification or other observed evidence | Preserve evidence and follow [An unrecoverable failure](12-modes-and-failures.md#an-unrecoverable-failure); no automatic self-test response is implemented. |
-| Background audit failed, missing or delayed | **Tasks → Audit Electoral Log** | Preserve the result, request investigation and decide under the regulation. A missing result is not success; the complete ST suite remains unimplemented. |
+| Suspected ballot-box integrity failure | Audit/seal verification or other observed evidence | Preserve evidence and follow [An unrecoverable failure](12-modes-and-failures.md#an-unrecoverable-failure); the durable **Unrecoverable failure** state cannot be cleared by a later passing run. |
+| Self-test failed, missing, expired or delayed | **Security and self-tests** | Preserve the run identifier and details, investigate the cause and follow the recovery procedure. A missing result is not success. |
 | An account reached the authentication failure threshold | Record `AuthenticationFailureThresholdReached` on the Logs tab for voters' accounts; for board members' and administrators' accounts, in the tenant's electoral log | The TOE locks the account for a while. For a voter: watch for more such records. For a board member or administrator: ask the person whether it was them; if not, treat it as an attack on that account. |
 | A brute-force or denial-of-service detection | Monitoring tab, "Attack detections" | Request **Logs → Audit** and inspect its Tasks result. Decide under the regulation whether to interrupt the election execution. |
 | The audit storage threshold was exceeded | Email; record `AuditStorageThresholdExceeded` on the Logs tab | Voters can no longer log in. Have the administrators provide storage, then decide under the regulation whether the election period suffices. |
@@ -83,35 +82,45 @@ For every event:
 
 ## Self-test intervals
 
-The operator configures periodic background **electoral-log audits**. The
-complete ST self-test suite and additional-condition settings are not
-implemented. The board monitors **Tasks → Audit Electoral Log** and treats a
-failed, timed-out, missing or delayed run as an incident.
+Administrators configure **Automatic self-tests** in **Security and self-tests**
+during preparation. The board checks the saved values before approving the
+configuration and reviews actual completion times throughout execution.
 
 ### Which events the regular self-test finds
 
-The implemented audit checks stored log records, the Merkle tree, checkpoint
-signatures and configured write-once copies. It does not establish that all
-ballot boxes, current configuration, audit write/read-back, TLS interfaces,
-access-control baselines or time synchronization satisfy the six ST tests.
+The six checks cover ballot-box integrity, approved election data, audit
+recording and integrity, trusted HTTPS channels, approved access-control
+configuration and clock synchronization. Expand a run to read each result and
+its details. A stale or missing current success blocks voter access; changing
+the interval is not a way to dismiss a failure.
 
 ### Secure values for the interval
 
-Agree the background audit interval and time limit with the operator using
-[Self-Test Settings](../04-administrator_handbook/07-self_tests.md#configure-regular-background-audits).
-Check actual task times; queue delays and audit duration count toward the
-observation delay. A missing result is not success.
+Use the interval fixed by the electoral regulation, between 1 and 60 minutes.
+The suite time limit must leave at least 30 seconds before the next interval.
+Account for queue delay and check duration when choosing the interval. Review
+[Self-Test Settings](../04-administrator_handbook/07-self_tests.md) with the
+administrator and operator.
 
 ### Additional self-test conditions
 
-The complete suite's startup, opening, resumption and maintenance triggers
-remain implementation requirements. No additional-condition controls exist
-in the portal. Do not claim that a manual log audit replaces those gates.
+Select **After a configuration import**, **After pausing voting** and **Before
+counting** during preparation. Before-counting tests, when selected, must pass
+before a results tally can start. Startup, scheduled start, manual start,
+resumption and leaving maintenance checks remain mandatory; these additional
+settings cannot disable them.
 
 ## Notifications
 
-The TOE emails the election board and the administrators when the election
+The TOE queues separate email notices to the election board and administrators when the election
 event enters maintenance mode or stops after an unrecoverable failure, and when
 the audit storage threshold is exceeded. Check before the execution phase that
 every board member's account has a working email address, and that at least
 one board member reads the email throughout the execution phase.
+
+
+Check **Security email delivery** as well as the mailbox. **Accepted by mail
+transport** means the mail server accepted the message; it does not prove that
+a person read it. Investigate **Delivery failed** or **Delivery outcome unknown**
+with the operator. Continue monitoring the security state even when email is
+unavailable.

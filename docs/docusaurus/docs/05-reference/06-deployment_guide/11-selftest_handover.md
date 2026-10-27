@@ -138,6 +138,8 @@ console procedure before proceeding.
 application pods marked `Running` and completed setup jobs marked `Completed`.
 The final table shows the data volume's `Use%` and `Avail` columns.
 
+![Actual terminal running the short status command against both laboratory VMs](./assets/installation/server-operations.png)
+
 To read the identity service's most recent 20 operating-log lines:
 
 ```bash
@@ -146,6 +148,8 @@ To read the identity service's most recent 20 operating-log lines:
 
 These are protected operational logs. Electoral audit records are reviewed by
 the election board in the portal.
+
+![Actual terminal reading the identity service log with the short maintenance command](./assets/installation/server-logs.png)
 
 **If different:** preserve the failed component's error, investigate connectivity,
 storage and its controlled configuration, and inform the administrator and board.
@@ -197,6 +201,33 @@ whether to pause operations while the operator applies the site's approved
 storage-expansion procedure. Never delete records, logs or arbitrary files to
 make space. Volume/device expansion is installation-specific. Follow the
 approved host/storage procedure, then repeat the capacity and platform checks.
+
+### Request activity monitoring
+
+`./deploy services site.json status` also reports `REQUEST MONITORING: available`
+when the protected external-request observation is healthy and no more than
+30 seconds old. The host counts completed external HTTP requests, including
+unauthenticated refusals. Its raw observations omit client addresses, URLs,
+queries, request bodies and credentials. The administrator configures detection
+thresholds in the portal; the election board reviews the resulting detections.
+
+**If unavailable:** inform the administrator and board. Voting remains blocked
+and an operational election enters recovery; staff access stays available.
+An unavailable, stale, truncated or discontinuous source must never be treated
+as zero activity. A successful Nginx restart alone does not repair a lost cursor
+or missing observations.
+
+Preserve the incident evidence and investigate the host, storage and collector.
+Restore only verified continuous observation state. Never delete the collector's
+state, change its generation, reseed counters or remove a failure marker to force
+a passing result. If continuity cannot be established, keep voting stopped and
+escalate the incident to the board and Sequent. After a verified repair, the board
+still requires fresh passing self-tests and its protected recovery action.
+
+The raw observation buffer is bounded. Overflow records a persistent continuity
+failure before reclaiming raw transport storage; retained attack detections and
+signed electoral audit records are preserved. This failure remains visible after
+a service or host restart.
 
 ### Backups and restore
 

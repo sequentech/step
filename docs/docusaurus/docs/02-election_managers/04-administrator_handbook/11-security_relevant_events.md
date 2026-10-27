@@ -30,8 +30,8 @@ For every event on this page:
 | An account reached the authentication failure threshold | the person cannot sign in and tells you, or the election board tells you | Find out with the person whether the attempts were theirs. If not, tell the election board and the organisation that runs the external authentication server. |
 | An attack detection matched | the election board tells you | Tell the person who runs the servers and the network, and agree the measures with the board ([Audit, Monitoring and Notifications](09-audit_and_monitoring.md#attack-detections)). |
 | The "Version" or an image digest differs from the TOE delivery | your check ([Secure Use of the Admin Portal](03-admin_portal.md)) | The system is not the evaluated TOE: do not start or continue an election; tell the election board and the election organizer; report it. |
-| The audit storage threshold is exceeded | email | Extend the storage as the Deployment Guide describes; never delete records. Voters' access returns once space is available. |
-| A server component crashed or was shut down | the state check of the Deployment Guide ("Operating the servers"); operator monitoring; automatic ST maintenance is not implemented | Have it restarted as the Deployment Guide describes, in the execution phase only when the election board has decided so, then check the version and the image digests. Ask the board to review the available log audit; a complete ST self-test is not available ([Modes of Operation and Failure Handling](10-modes_of_operation.md)). |
+| The audit storage threshold is exceeded | email and **Security email delivery** | Extend storage as AGD-04 describes; never delete records. A fresh healthy observation removes this refusal; other lifecycle checks still apply. |
+| A server component crashed or was shut down | **Security and self-tests** shows recovery required; AGD-04 service checks identify the component | Preserve the reason and logs. Obtain the board's decision before restarting during execution, verify image integrity, then complete the six-check recovery and board resumption procedure in [Modes of Operation and Failure Handling](10-modes_of_operation.md). |
 | The browser reports a certificate problem for the admin portal or the external authentication server | the browser | Do not sign in; tell the person who runs the servers. |
 | A notification email does not arrive, or arrives for an event you did not expect | email | Check the account's "Email" and tell the person who runs the servers; ask the election board to check the electoral log for the event. |
 
@@ -53,7 +53,7 @@ For every event on this page:
 | Event | How you notice it | What you do |
 |---|---|---|
 | An electoral-log audit fails, is missing or is delayed | The board checks **Tasks → Audit Electoral Log** | Inform the board and operator; preserve the task result and investigate. A log audit is not the complete ST suite ([Self-Test Settings](07-self_tests.md)). |
-| Suspected ballot-box integrity failure | An audit/seal verification result or operator report; no automatic complete self-test response is implemented | Support the election board; keep all server logs; report it ([Modes of Operation and Failure Handling](10-modes_of_operation.md#an-unrecoverable-failure)). |
+| Suspected ballot-box integrity failure | **Unrecoverable failure** and the ballot-box check result, or an operator report | Support the election board; keep all server logs; report it ([Modes of Operation and Failure Handling](10-modes_of_operation.md#an-unrecoverable-failure)). |
 | The server clock is not synchronised | AGD-04 synchronization check fails | Restore the time service as the Deployment Guide describes. |
 
 ## Evaluation and post-processing phases
@@ -94,9 +94,11 @@ If a check fails, stop and resolve it before asking for approval.
   requests**, **Export Logs**, **Edit Reports**, and read-only user/role access.
 - ☐ Each administrator and board member has a tested notification email address.
 
-### 3. Check the election event's Data tab
+### 3. Check the event settings with the board
 
-Tick each row after comparing the displayed value.
+Compare the controls visible in **Data → Security settings**. For the other
+rows, obtain the board's confirmation from its read-only Data view. Tick a row
+only after recording that check; do not add board data permissions to your account.
 
 | Checked | Setting | Required value |
 |---|---|---|
@@ -113,7 +115,7 @@ Tick each row after comparing the displayed value.
 | ☐ | Show Cast Vote Logs Tab | Hide Cast Vote Logs Tab |
 | ☐ | Voting Channels Allowed | Online only |
 
-### 4. Repeat these checks for every election
+### 4. Obtain the board's checks for every election
 
 | Checked | Setting | Required value |
 |---|---|---|
@@ -128,8 +130,11 @@ Tick each row after comparing the displayed value.
 
 - ☐ Each non-trustee protected action, including **Open voting** and **Close
   voting**, requires at least two signatures and allows only **Election board**.
-- ☐ **Approve a configuration version**, **Initialize voting** and
-  **Generate other election reports** are enabled.
+- ☐ **Import election data**, **Approve a configuration version**, **Start
+  counting votes**, **Export election execution data**, **Delete election
+  execution data**, and **Read the voters' register in post-processing** each
+  have the required board count. None is left undefined.
+- ☐ **Initialize voting** and **Generate other election reports** are enabled.
 - ☐ **Confirm custody (key ceremony)** and **Authorize tally custody (tally)**
   are enabled; no non-trustee action has **No limit** expiry.
 - ☐ Trusted issuer certificates match their independently checked SHA-256 fingerprints.
@@ -142,9 +147,13 @@ Tick each row after comparing the displayed value.
 
 ### 6. Check monitoring and authentication
 
-- ☐ Review [Self-Test Settings](07-self_tests.md) and its implementation scope.
-  A successful electoral-log audit alone does not establish that the complete
-  ST self-test suite or its lifecycle gates have passed.
+- ☐ Configure [Security and Self-Tests](07-self_tests.md): interval, timeout
+  and additional conditions. Confirm that all six checks can finish in time.
+- ☐ Confirm that the board knows to run **Before starting voting** after
+  publication and initialization, and **Before resuming voting** after a pause
+  or recovery. A standalone electoral-log audit does not replace these checks.
+- ☐ Test the protected mail relay and check the security notification delivery
+  state with the operator; confirm receipt at the intended staff addresses.
 - ☐ **Settings → SECURITY → Authentication failure threshold** is set
   (default 5), and the
   [login checks](08-authentication_and_sessions.md#what-you-check) pass.

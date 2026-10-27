@@ -60,7 +60,7 @@ whatever the admin portal shows.
 | Create the administrator, election board and trustee roles and the personal accounts; delete the seeded account `admin` | after deployment; whenever a person joins or leaves | [Users, Roles and Role Separation](04-users_and_roles.md) |
 | Verify the imported event and election Data-tab settings against the required values; complete the separate administrator settings and tell the board when it can publish the configuration version | preparation phase, after each import | [Tenant and Election Event Settings](05-tenant_and_event_settings.md) |
 | Set the protected actions and their required authorisations | preparation phase | [Configuring Protected Actions](06-signing_rules.md) |
-| Agree the background audit interval with the operator and review the missing complete self-test requirements | preparation phase | [Self-Test Settings](07-self_tests.md) |
+| Configure the background self-test interval with the organizer and verify all six checks | preparation phase | [Self-Test Settings](07-self_tests.md) |
 | Set the attack detection rates | preparation phase | [Audit, Monitoring and Notifications](09-audit_and_monitoring.md#attack-detections) |
 | Give the election organizer the required number of allowed votes (re-voting), and verify the imported value for each election | before package approval and after import | [Tenant and Election Event Settings](05-tenant_and_event_settings.md) |
 | Set the authentication failure threshold and check the session and login settings | after deployment, and for each new election event | [Authentication and Session Settings](08-authentication_and_sessions.md) |
@@ -77,21 +77,21 @@ phase stated, and only as the election organizer has decided.
 
 | Function | Permissions | Why it must be controlled |
 |---|---|---|
-| Accounts and roles | <ul><li>"Create User" (<code>user-create</code>)</li><li>"Edit User" (<code>user-write</code>)</li><li>"Create Role" (<code>role-create</code>)</li><li>"Edit Role" (<code>role-write</code>)</li><li>"Edit User Permission" (<code>user-permission-write</code>)</li><li>"Edit Permission Label" (<code>permission-label-write</code>)</li></ul> | Whoever holds them can give any account any permission, including the election board's. The separation of the roles depends on how you use them. |
+| Accounts and roles | <ul><li>"Create User" (<code>user-create</code>)</li><li>"Edit User" (<code>user-write</code>)</li><li>"Create Role" (<code>role-create</code>)</li><li>"Edit Role" (<code>role-write</code>)</li><li>"Edit User Permission" (<code>user-permission-write</code>)</li></ul> | Use these permissions only for authorized account administration. The server restricts administrator tokens and refuses self-membership changes; independently review role assignments and certificate ownership. |
 | Protected actions | "Signatures: edit protected actions" (`signing-rules-write`) | Sets which actions need the election board's authorisations and how many. |
 | Trusted issuers and certificate checks | <ul><li>"Signatures: import and remove trusted issuers" (<code>signing-issuers-write</code>)</li><li>"Signatures: edit certificate checks" (<code>signing-checks-write</code>)</li><li>"Signatures: register certificates" (<code>signing-certificates-register</code>)</li><li>"Signatures: revoke certificates" (<code>signing-certificates-revoke</code>)</li></ul> | Decide whose signatures the TOE accepts for protected actions. |
 | Tenant configuration | "Edit Tenant" (`tenant-write`) | Includes the rules for signed configuration packages, which protect the integrity and authenticity of imported election data. |
-| Election event and election settings | <ul><li>"Edit Election Event" (<code>election-event-write</code>)</li><li>"Edit Election" (<code>election-write</code>)</li></ul> | Include the ballot box seal, receipts, verification period, grace period, tally, re-voting and voter authentication settings. The TOE shows the administrator only the settings in these forms, as listed in [Tenant and Election Event Settings](05-tenant_and_event_settings.md). Values that affect the approved ballot design must already be correct in the signed package: verify them after import, and request a corrected package instead of editing them to repair the import. |
+| Election event administration settings | <ul><li>Settings projection: <code>admin-user</code></li><li>Event Data tab: <code>admin-user</code></li></ul> | Only the event's allowlisted administrator settings are writable in preparation. Individual-election settings are read-only. The TOE shows the administrator only the settings in these forms, as listed in [Tenant and Election Event Settings](05-tenant_and_event_settings.md). Values that affect the approved ballot design must already be correct in the signed package: verify them after import, and request a corrected package instead of editing them to repair the import. |
 | Permissions on election data and audit records | For example: <ul><li>"Create Election Event" (<code>election-event-create</code>)</li><li>"Read Voter" (<code>voter-read</code>)</li><li>"Read Logs" (<code>logs-read</code>)</li><li>"Read Publish" (<code>publish-read</code>)</li><li>"Edit Scheduled Events" (<code>scheduled-event-write</code>)</li><li>"Read Area" (<code>area-read</code>)</li><li>"Delete Election Event" (<code>election-event-delete</code>)</li></ul> ([the full list](04-users_and_roles.md#permissions-on-election-data-and-audit-records)) | The administrator role holds none of them. Whoever holds them imports, reads, publishes or deletes election data, or reads the audit records. Never add one of them to the administrator role, and give "Edit Results Publication" (`publish-results-write`) to no role. |
-| Configure background integrity audits | The operator sets Beat/Windmill environment values; there is no self-test permission or settings screen. | [Self-Test Settings](07-self_tests.md) |
-| Attack detection rates | `attack-detection-write` | Settings, section "Attack detection": "Failed logins per minute, all accounts" and "Requests per minute, external interfaces" decide when the TOE reports an attack to the election board. |
+| Configure background self-tests | <ul><li>Read results: <code>self-test-read</code></li><li>Run checks: <code>self-test-run</code></li><li>Change the interval and optional conditions in preparation: <code>self-test-settings-write</code></li></ul> | [Security and Self-Tests](07-self_tests.md) |
+| Attack detection rates | `tenant-write` | Settings, section "Attack detection": "Failed logins per minute, all accounts" and "Requests per minute, external interfaces" decide when the TOE reports an attack to the election board. |
 
 :::warning
 Never give yourself or another administrator a permission of the election
 board role, and never sign, start, interrupt, resume or end the election
-execution yourself. If an account holds both roles, one person can perform the
-security-critical actions alone and the required authorisations no longer
-protect the election. Every change of users, roles, role permissions and role assignments is
+execution yourself. An administrator token cannot gain board capabilities by combining roles.
+Still correct conflicting assignments and preserve distinct board identities;
+a role assignment does not replace a registered certificate or board quorum. Every change of users, roles, role permissions and role assignments is
 recorded in the electoral log, which the election board checks.
 :::
 
