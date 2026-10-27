@@ -17,6 +17,39 @@ use windmill::tasks::signing_log_outbox::kick_signing_log_outbox;
 
 type RouteResult<T> = Result<T, (Status, String)>;
 
+fn operation_prerequisite(message: String) -> String {
+    // Hasura action errors must be JSON even when the HTTP status is a refusal.
+    // Plain text would hide the operator's next step behind a webhook error.
+    serde_json::json!({
+        "message": message,
+        "extensions": { "code": "operation-prerequisite" }
+    })
+    .to_string()
+}
+
+#[cfg(test)]
+mod prerequisite_tests {
+    use super::operation_prerequisite;
+
+    #[test]
+    fn missing_export_remains_a_readable_action_error() {
+        let message = "Export the complete, current election execution data before requesting deletion";
+        let body: serde_json::Value =
+            serde_json::from_str(&operation_prerequisite(message.into())).unwrap();
+        assert_eq!(body["message"], message);
+        assert_eq!(body["extensions"]["code"], "operation-prerequisite");
+        assert!(body["extensions"].get("signing_request").is_none());
+    }
+
+    #[test]
+    fn action_error_escapes_quotes_and_preserves_its_reason() {
+        let message = "The \"before-counting\" check is required.\nRun it again.";
+        let body: serde_json::Value =
+            serde_json::from_str(&operation_prerequisite(message.into())).unwrap();
+        assert_eq!(body["message"], message);
+    }
+}
+
 /// An authenticated caller repeats the same request after the board approves
 /// it. A waiting request commits its audit record but releases no protected
 /// data. The returned id is persisted with asynchronous work for worker checks.
@@ -106,18 +139,18 @@ pub async fn authorize_operation(
     };
     election_lifecycle::require_phase(&tx, tenant, event, required_phase)
         .await
-        .map_err(|e| (Status::Conflict, e.to_string()))?;
+        .map_err(|e| (Status::Conflict, operation_prerequisite(e.to_string())))?;
     if action == SigningAction::DeleteExecutionData {
         windmill::services::board_operations::require_export(
             &tx, tenant, event,
         )
         .await
-        .map_err(|e| (Status::Conflict, e.to_string()))?;
+        .map_err(|e| (Status::Conflict, operation_prerequisite(e.to_string())))?;
     }
     if action == SigningAction::StartTally {
         election_lifecycle::require_counting_test(&tx, tenant, event)
             .await
-            .map_err(|e| (Status::Conflict, e.to_string()))?;
+            .map_err(|e| (Status::Conflict, operation_prerequisite(e.to_string())))?;
     }
     let source_revision =
         windmill::services::board_operations::source_revision(
