@@ -31,9 +31,10 @@ ballot in the "Ballot list" and with "Locate your ballot".
 
 ## Your Ballot ID
 
-![Example confirmation showing where to copy the Ballot ID or scan its QR code](./assets/voter-confirmation-current.png)
+![Actual test-vote confirmation showing where to copy the Ballot ID or scan its QR code](./assets/voter-confirmation-current.png)
 
-*Example screen with synthetic data. Use the Ballot ID from your own confirmed vote.*
+*Actual installed-system capture with a synthetic voter. Use the Ballot ID
+from your own confirmed vote.*
 
 The Ballot ID lets you find your encrypted ballot in the ballot box. With
 signed ballot receipts, the confirmation shows a short code in two groups of

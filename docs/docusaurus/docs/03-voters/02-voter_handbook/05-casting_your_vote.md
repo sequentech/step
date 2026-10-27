@@ -12,14 +12,14 @@ You can vote only while the ballot shows "Open" in the "Ballot list". Your vote
 counts only after you have cast it and the voting portal shows "Your vote has
 been cast".
 
-The screenshots show the current voting screens with a synthetic example
-called **Community Council**. Your election name, candidates and Ballot IDs will
-differ. The example confirmation illustrates the screen; it is not a cast vote
-in a real election.
+The screenshots were taken during an actual rehearsal on the installed system,
+using a synthetic election and voter. They show a real test ballot being
+reviewed, cast and located. Your election name, candidates, branding and Ballot
+IDs will differ.
 
 ## Step 1: Open the ballot
 
-![Ballot list with the available Community Council ballot](./assets/voter-chooser-current.png)
+![Actual ballot list with the available synthetic rehearsal ballot](./assets/voter-chooser-current.png)
 
 1. In the "Ballot list", find the ballot you want to vote on.
 2. Select "Click to Vote".
@@ -41,7 +41,7 @@ cast it in the same way as any other ballot.
 
 ## Step 3: Make your selections
 
-![Candidate selection with Alice Example checked](./assets/voter-vote-current.png)
+![Actual candidate selection with Option A checked](./assets/voter-vote-current.png)
 
 1. For each question (contest), select the options you want. The question says
    how many options you can select.
@@ -124,7 +124,7 @@ you to vote again, a new vote replaces it in the count (see
 
 ## Step 6: The confirmation
 
-![Example confirmation screen with Ballot ID, QR code, Print and Finish](./assets/voter-confirmation-current.png)
+![Actual test-vote confirmation with Ballot ID, QR code, Print and Finish](./assets/voter-confirmation-current.png)
 
 The confirmation screen "Your vote has been cast" appears only after the
 intermediate ballot box has confirmed with its signature that it stored your
