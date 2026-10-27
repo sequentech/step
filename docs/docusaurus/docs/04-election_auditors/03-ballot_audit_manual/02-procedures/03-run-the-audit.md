@@ -47,6 +47,9 @@ the cast vote IDs and the receipts of the stored votes, so keep `audit-output.lo
   - The **public key hash**: the SHA-512 digest of the election public key on the bulletin board,
     in 128 lowercase hexadecimal characters.
   - The **electoral log system public key**: DER/SPKI, encoded in standard base64.
+  - The **environment slug**, only if the election uses its own keys ceremony: the short
+    name of the deployment, for example `example`. The election authority gets it from the
+    system operator.
 - The directory `~/audit/output` is empty.
 
 ## 1. Set the trusted values
@@ -59,9 +62,15 @@ the cast vote IDs and the receipts of the stored votes, so keep `audit-output.lo
    export ELECTORAL_LOG_SYSTEM_PUBLIC_KEY=<electoral log system public key>
    ```
 
-2. Write the three values in the audit notes.
+   If you have an environment slug, set it too:
 
-**Expected result:** the three variables are set. The audit notes contain the three values.
+   ```sh
+   export ENVIRONMENT_SLUG=<environment slug>
+   ```
+
+2. Write the values in the audit notes.
+
+**Expected result:** the variables are set. The audit notes contain the values.
 
 ## 2. Run the audit
 
@@ -74,6 +83,9 @@ the cast vote IDs and the receipts of the stored votes, so keep `audit-output.lo
      --public-key-sha512 "$PUBLIC_KEY_SHA512" \
      --electoral-log-system-public-key "$ELECTORAL_LOG_SYSTEM_PUBLIC_KEY"
    ```
+
+   If you have an environment slug, add `--environment-slug "$ENVIRONMENT_SLUG"` at the end
+   of the command.
 
 :::note
 The command runs the steps one after the other. A large tally can take a long time.

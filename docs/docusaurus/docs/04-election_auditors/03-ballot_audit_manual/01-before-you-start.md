@@ -72,7 +72,7 @@ See [Check the cryptographic tally](../04-ballot_audit_explanation.md#6-check-th
 | --- | --- |
 | Election data | The release of the election platform that ran the election, for example `10.0.1-rc.1`. |
 | Tools | The audit image, built from a commit of the same release line that contains the folder `packages/ballot-audit/image`. A release from before the tools does not contain this folder. |
-| Database servers | The audit image contains PostgreSQL 18 and ImmuDB 1.9.6. It restores backups of PostgreSQL 18 and earlier, and the ImmuDB data directory of the platform. |
+| Database servers | The audit image contains PostgreSQL 18 and ImmuDB 1.9.6. It restores backups of PostgreSQL 18 and earlier, and hot backups of ImmuDB databases (`immuadmin hot-backup`). |
 
 Write the release of the data, the commit of the tools and the ID of the audit image in the audit
 notes.

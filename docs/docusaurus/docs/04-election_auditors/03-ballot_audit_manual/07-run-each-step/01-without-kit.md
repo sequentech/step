@@ -191,23 +191,26 @@ keeps it.
 
 ## 6. Restore the ImmuDB copy
 
-1. Make a Docker volume and extract the ImmuDB archive into it:
-
-   ```sh
-   docker volume create audit-immudb
-   ```
-
-   ```sh
-   docker run --rm -v audit-immudb:/dst -v ~/audit/backups:/src:ro alpine tar -C /dst -xzf /src/immudb.tar.gz
-   ```
-
-2. Start ImmuDB on the volume, with the same version as the source. Publish the port on the
+1. Start an empty ImmuDB, with the same version as the source. Publish the port on the
    loopback address only:
 
    ```sh
    docker run -d --name audit-immudb --network audit-net -p 127.0.0.1:43322:3322 \
-     -v audit-immudb:/var/lib/immudb codenotary/immudb:<version>
+     codenotary/immudb:<version>
    ```
+
+2. Log in as the admin user with `immuadmin` of the same version, and restore each hot backup
+   into a database with the name of the backup, without the `_backup_<date>_<time>` part:
+
+   ```sh
+   immuadmin login immudb -p 43322
+   ```
+
+   ```sh
+   immuadmin hot-restore <database> -i ~/audit/backups/<backup file>.bkp -p 43322
+   ```
+
+   If a hot backup does not restore, stop. Ask the system operator for a backup that restores.
 
 3. Find the name of the electoral log database. It is the name of the event board of the tally:
 

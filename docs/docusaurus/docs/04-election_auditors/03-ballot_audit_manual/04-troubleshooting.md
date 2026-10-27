@@ -32,8 +32,10 @@ status is the exit status of `audit-tally`.
 | `WARNING: pg_restore reported ... error(s) for ...` | `pg_restore` could not restore part of a backup. The command restores the other backups. | Read the log of `pg_restore` above the warning. Write each error in the audit notes. |
 | `not auditing: the restore of ... had errors` | A copy can miss rows after a restore error, and an audit of it could pass. The command stops before the audit. | Ask the system operator for a backup that restores without errors. To examine the errors, use the `shell` form, which opens after restore errors. |
 | `WARNING: the read-only account cannot run SQL on the ImmuDB database ...` | The copy did not accept the read permission for this database. | If it is the electoral log of the event, the audit stops at `export-electoral-log`. Read the log of the grants below the warning. |
-| `the ImmuDB archive has no systemdb directory` | The ImmuDB archive is not an ImmuDB data directory. | Ask the system operator for the correct archive. |
-| `the ImmuDB copy has no databases` | The ImmuDB data directory is empty. | Ask the system operator for the correct archive. |
+| `missing backup: no ImmuDB hot backup (*.bkp) in the backups directory` | The backups directory has no `.bkp` file. | Ask the system operator for the hot backups of the ImmuDB databases. |
+| `more than one hot backup of the ImmuDB database ...` | Two `.bkp` files hold the same database, for example from two nights. | Keep the backup from after the tally. Remove the other one and its line in `backup-digests.txt`. |
+| `not an ImmuDB database name: ...` | The name of a `.bkp` file does not give a database name. | Use the file name from the system operator. |
+| `not auditing: the restore of ... had errors` (ImmuDB) | `immuadmin hot-restore` refused a hot backup, for example a cut or changed file. | Read the log of the restore above. Ask the system operator for a backup that restores. |
 | `ImmuDB did not start`, `the B3 server did not start` | A copy did not start. The command shows its log. | Read the log in `audit-output.log`. |
 | `unknown option: ...`, `... needs a value` | An option of the command is wrong. | Correct the command. See [The audit image](05-command-reference.md#the-audit-image). |
 
@@ -82,7 +84,9 @@ other tables of this page.
 | `... does not support TLS-required connections` [4] | The connection has `sslmode=require`. | Remove the setting. The copy is on the loopback address. |
 | `connections file must not grant group or other access` [4] | Other users can read `connections.json`. | Run `chmod 600 connections.json`. |
 | `output directory already exists`, `cannot create new private output directory` [4] | The output directory exists, or its parent does not exist. | Use a new output directory in a directory that exists. |
-| `non-default keys-ceremony boards require separately authenticated ...` [4] | The election uses a key ceremony that the tools do not support. | Write in the audit report that the tools cannot audit this election. |
+| `non-default keys ceremony requires an independently authenticated --environment-slug` [4] | The election uses its own keys ceremony. | Get the environment slug from the election authority and run the audit again with `--environment-slug`. |
+| `invalid environment slug` [4] | The slug has characters other than letters, digits, `_` and `-`. | Get the slug again from the election authority. |
+| `environment slug differs from authenticated event board mapping` [1] | The slug is not the slug of the deployment of this election event. | Check the slug with the election authority. |
 
 ## Scope messages
 
