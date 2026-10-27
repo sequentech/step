@@ -22,8 +22,11 @@ public final class StaffAuthorizationMapper extends AbstractOIDCProtocolMapper
       "signing-rules-write", "signing-issuers-write", "self-test-settings-write", "signing-checks-write",
       "signing-certificates-register", "signing-certificates-revoke", "role-create", "user-create", "tenant-write");
   private static final Set<String> SETTINGS = Set.of(
-      "admin-user", "election-event-create", "user-read", "user-create", "user-write", "user-delete",
-      "user-permission-read", "role-read", "role-write", "role-create", "role-delete",
+      "admin-user", "user-read", "user-create", "user-write", "user-delete",
+      "users-menu", "settings-menu", "templates-menu", "settings-election-types-tab",
+      "settings-voting-channels-tab", "settings-templates-tab", "settings-languages-tab",
+      "settings-localization-tab", "settings-look-feel-tab", "settings-trustees-tab", "settings-countries-tab",
+      "user-permission-read", "user-permission-create", "user-permission-write", "role-read", "role-write", "role-create", "role-delete",
       "tenant-read", "tenant-write", "tenant-create", "tenant-delete", "settings-read", "settings-write",
       "trustee-read", "trustee-create", "trustee-write", "trustee-delete", "ca-read", "ca-write",
       "certificate-authority-read", "certificate-authority-write",

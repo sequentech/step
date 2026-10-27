@@ -54,7 +54,7 @@ export const ElectionEventListContent: React.FC<ElectionEventListProps> = ({asid
     const canCreateElections = authContext.isAuthorized(
         true,
         tenantId,
-        IPermissions.ELECTION_EVENT_WRITE
+        IPermissions.ELECTION_EVENT_CREATE
     )
 
     const {openCreateDrawer, openImportDrawer} = useCreateElectionEventStore()
