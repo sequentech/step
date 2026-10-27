@@ -35,13 +35,13 @@ one that replaces a wrong import.
 
 | Function | Permissions | Held by |
 |---|---|---|
-| Open the tab and read the rules and certificates | "Election Event Signatures Tab" (`election-event-signatures-tab`), "Signatures: read protected actions" (`signing-rules-read`), "Signatures: read certificates" (`signing-certificates-read`) | administrator role and "Election board" |
-| Change signing rules | "Signatures: edit protected actions" (`signing-rules-write`); to change "Who can sign" also "Read Role" (`role-read`) and "Edit Role" (`role-write`) | administrator role only |
+| Open the tab and read the rules and certificates | <ul><li>"Election Event Signatures Tab" (<code>election-event-signatures-tab</code>)</li><li>"Signatures: read protected actions" (<code>signing-rules-read</code>)</li><li>"Signatures: read certificates" (<code>signing-certificates-read</code>)</li></ul> | administrator role and "Election board" |
+| Change signing rules | <ul><li>"Signatures: edit protected actions" (<code>signing-rules-write</code>)</li><li>To change "Who can sign", also "Read Role" (<code>role-read</code>)</li><li>To change "Who can sign", also "Edit Role" (<code>role-write</code>)</li></ul> | administrator role only |
 | Import and remove trusted issuers | "Signatures: import and remove trusted issuers" (`signing-issuers-write`) | administrator role only |
 | Change the certificate checks | "Signatures: edit certificate checks" (`signing-checks-write`) | administrator role only |
 | Register certificates to people | "Signatures: register certificates" (`signing-certificates-register`) | administrator role only |
 | Revoke certificates | "Signatures: revoke certificates" (`signing-certificates-revoke`) | administrator role only |
-| Read, cancel and export signing requests | "Signatures: read requests" (`signing-requests-read`), "Signatures: cancel requests" (`signing-requests-cancel`), "Signatures: export requests" (`signing-requests-export`) | "Election board" only; give `signing-requests-cancel` to every board member |
+| Read, cancel and export signing requests | <ul><li>"Signatures: read requests" (<code>signing-requests-read</code>)</li><li>"Signatures: cancel requests" (<code>signing-requests-cancel</code>)</li><li>"Signatures: export requests" (<code>signing-requests-export</code>)</li></ul> | "Election board" only; give `signing-requests-cancel` to every board member |
 
 Without "Signatures: edit protected actions", the rule shows "Read only.
 Changing signing rules needs the permission “Signatures: edit protected
