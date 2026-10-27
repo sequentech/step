@@ -173,6 +173,11 @@ you: "You have been invited to participate in a Key Ceremony."
    the command. Check the current ceremony request and your own medium; for an
    existing output, choose a new `proof_file` name without deleting the old proof.
 
+   ![The offline trustee VM creates the public custody proof with the short attest command](assets/trustee-attest-key.png)
+
+   This capture shows the actual offline VM creating a proof for a laboratory
+   key ceremony. Your ceremony identifier and configured filename will differ.
+
 6. Move the new public proof back. On the step "Confirm Trustee Custody",
    upload it. The admin portal checks the proof when you select the file.
    If the protected action
