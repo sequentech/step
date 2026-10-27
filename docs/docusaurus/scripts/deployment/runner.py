@@ -88,9 +88,9 @@ def write_config(d):
     tmp.chmod(0o600); tmp.replace(CONFIG)
 
 def prompt(label, default=''):
-    with open('/dev/tty', 'r+') as tty:
-        tty.write(label + (f' [{default}]' if default else '') + ': '); tty.flush()
-        value = tty.readline().strip()
+    with open('/dev/tty', 'w') as output, open('/dev/tty', 'r') as response:
+        output.write(label + (f' [{default}]' if default else '') + ': '); output.flush()
+        value = response.readline().strip()
     return value or default
 
 def configure(role):

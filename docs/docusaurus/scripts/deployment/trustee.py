@@ -235,9 +235,11 @@ def backup_server(data):
 
 
 def confirm(phrase, explanation):
-    with open('/dev/tty', 'r+') as tty:
-        tty.write(explanation + '\nType ' + phrase + ': '); tty.flush()
-        need(tty.readline().strip() == phrase, 'Operation cancelled; no automatic confirmation')
+    # A terminal is not seekable: separate handles support redirected stdin
+    # without allowing a pipe to authorize retirement or custody recovery.
+    with open('/dev/tty', 'w') as output, open('/dev/tty', 'r') as response:
+        output.write(explanation + '\nType ' + phrase + ': '); output.flush()
+        need(response.readline().strip() == phrase, 'Operation cancelled; no automatic confirmation')
 
 
 def server(config_path, operation):
