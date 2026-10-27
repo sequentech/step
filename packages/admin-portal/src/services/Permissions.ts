@@ -84,6 +84,9 @@ const AdminOperationMap: Record<string, IPermissions> = {
     update_sequent_backend_documents: IPermissions.DOCUMENT_WRITE,
     delete_sequent_backend_document: IPermissions.DOCUMENT_WRITE,
     delete_sequent_backend_documents: IPermissions.DOCUMENT_WRITE,
+    // report: the board reads generated reports independently of publication access.
+    sequent_backend_report: IPermissions.REPORT_READ,
+    sequent_backend_reports: IPermissions.REPORT_READ,
     // election
     sequent_backend_election: IPermissions.ELECTION_READ,
     sequent_backend_elections: IPermissions.ELECTION_READ,
@@ -269,6 +272,11 @@ const AccountReadOperationMap: Record<string, IPermissions> = {
 // Select a precise held permission before publication/trustee defaults.
 // No grant is inferred; admin-user retains its existing scoped backup fallback.
 const HeldOperationMap: Record<string, IPermissions> = {
+    CreateElectionEvent: IPermissions.ELECTION_EVENT_CREATE,
+    DeleteElectionEvent: IPermissions.ELECTION_EVENT_DELETE,
+    PreviewScheduledOutcomeChange: IPermissions.ELECTION_EVENT_READ,
+    GetScheduledOutcomes: IPermissions.ELECTION_EVENT_READ,
+    listElectoralLog: IPermissions.LOGS_READ,
     GetAttackDetectionSettings: IPermissions.TENANT_WRITE,
     UpdateAttackDetectionSettings: IPermissions.TENANT_WRITE,
     GetAttackDetections: IPermissions.MONITORING_VIEW,

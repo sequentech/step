@@ -135,6 +135,166 @@ select_permissions:
                   - tenant_id:
                         _eq: X-Hasura-Tenant-Id
                   - action:
+                        _eq: import-election-data
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _in: X-Hasura-Permission-Labels
+      role: sign-import-election-data
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - id
+              - tenant_id
+              - election_event_id
+              - action
+              - election_id
+              - area_id
+              - code
+              - status
+              - cancel_reason
+              - required
+              - requested_by_name
+              - requested_by_username
+              - created_at
+              - expires_at
+              - completed_at
+              - executed_at
+          filter:
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - action:
+                        _eq: start-tally
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _in: X-Hasura-Permission-Labels
+      role: sign-start-tally
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - id
+              - tenant_id
+              - election_event_id
+              - action
+              - election_id
+              - area_id
+              - code
+              - status
+              - cancel_reason
+              - required
+              - requested_by_name
+              - requested_by_username
+              - created_at
+              - expires_at
+              - completed_at
+              - executed_at
+          filter:
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - action:
+                        _eq: export-execution-data
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _in: X-Hasura-Permission-Labels
+      role: sign-export-execution-data
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - id
+              - tenant_id
+              - election_event_id
+              - action
+              - election_id
+              - area_id
+              - code
+              - status
+              - cancel_reason
+              - required
+              - requested_by_name
+              - requested_by_username
+              - created_at
+              - expires_at
+              - completed_at
+              - executed_at
+          filter:
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - action:
+                        _eq: delete-execution-data
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _in: X-Hasura-Permission-Labels
+      role: sign-delete-execution-data
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - id
+              - tenant_id
+              - election_event_id
+              - action
+              - election_id
+              - area_id
+              - code
+              - status
+              - cancel_reason
+              - required
+              - requested_by_name
+              - requested_by_username
+              - created_at
+              - expires_at
+              - completed_at
+              - executed_at
+          filter:
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - action:
+                        _eq: read-voters-register
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _in: X-Hasura-Permission-Labels
+      role: sign-read-voters-register
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - id
+              - tenant_id
+              - election_event_id
+              - action
+              - election_id
+              - area_id
+              - code
+              - status
+              - cancel_reason
+              - required
+              - requested_by_name
+              - requested_by_username
+              - created_at
+              - expires_at
+              - completed_at
+              - executed_at
+          filter:
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - action:
                         _eq: generate-election-returns
                   - _or:
                         - permission_label:

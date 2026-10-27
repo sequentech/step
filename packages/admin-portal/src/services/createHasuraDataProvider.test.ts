@@ -18,7 +18,8 @@ const schema = JSON.parse(
 ).__schema
 const resources = ["sequent_backend_tally_session", "sequent_backend_tally_session_execution"]
 const scheduled = "sequent_backend_scheduled_event"
-const readResources = [...resources, scheduled]
+const report = "sequent_backend_report"
+const readResources = [...resources, scheduled, report]
 const ID = "30000000-0000-4000-8000-000000000001"
 const EVENT = "40000000-0000-4000-8000-000000000001"
 const TENANT = "50000000-0000-4000-8000-000000000001"
@@ -93,6 +94,7 @@ function fixture(deny = false, trustee = false, live = defaultRoleSchema, schedu
                     (permission) =>
                         permission === IPermissions.ADMIN_CEREMONY ||
                         permission === IPermissions.PUBLISH_READ ||
+                        permission === IPermissions.REPORT_READ ||
                         (scheduleRead && permission === IPermissions.SCHEDULED_EVENT_WRITE) ||
                         (trustee && permission === IPermissions.TRUSTEE_CEREMONY)
                 )
@@ -354,3 +356,25 @@ it.each([true, false])(
         client.stop()
     }
 )
+
+it("constructs the board's scoped report list and detail using its held report-read role", async () => {
+    const {client, requests} = fixture()
+    const provider = await createHasuraDataProvider(client)
+    await expect(
+        provider.getList(report, {
+            pagination: {page: 1, perPage: 10},
+            sort: {field: "created_at", order: "DESC"},
+            filter: {tenant_id: TENANT, election_event_id: EVENT},
+        })
+    ).resolves.toEqual({data: [], total: 0})
+    await expect(provider.getOne(report, {id: ID})).resolves.toMatchObject({data: {id: ID}})
+    expect(requests.slice(1).map((request) => request.role)).toEqual([
+        IPermissions.REPORT_READ,
+        IPermissions.REPORT_READ,
+    ])
+    expect(requests[1].variables).toMatchObject({
+        where: {_and: [{tenant_id: {_eq: TENANT}}, {election_event_id: {_eq: EVENT}}]},
+    })
+    expect(requests[2].variables).toMatchObject({where: {id: {_eq: ID}}})
+    client.stop()
+})
