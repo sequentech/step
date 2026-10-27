@@ -76,7 +76,11 @@ public class CustomEventListenerProvider implements EventListenerProvider {
 
     // The transactional queue records failed authentication independently of
     // whether an election-specific audit board exists (staff realm included).
-    if (event.getType() == EventType.LOGIN_ERROR) {
+    if (event.getType() == EventType.LOGIN_ERROR
+        || event.getType() == EventType.IDENTITY_PROVIDER_LOGIN_ERROR
+        || event.getType() == EventType.IDENTITY_PROVIDER_FIRST_LOGIN_ERROR
+        || event.getType() == EventType.IDENTITY_PROVIDER_POST_LOGIN_ERROR
+        || event.getType() == EventType.IDENTITY_PROVIDER_RESPONSE_ERROR) {
       var realm = session.realms().getRealm(event.getRealmId());
       String account = event.getUserId();
       if (account == null && event.getDetails() != null) account = event.getDetails().get("username");

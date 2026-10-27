@@ -40,6 +40,26 @@ class AttackActivityMessageTest {
     assertEquals(5,input.get("failure_limit").asInt());
     verifyNoMoreInteractions(publisher);
   }
+  @Test void brokerAuthenticationFailuresAlsoReachTheDurableActivityQueue() throws Exception {
+    for (var type : new EventType[]{EventType.IDENTITY_PROVIDER_LOGIN_ERROR,
+        EventType.IDENTITY_PROVIDER_FIRST_LOGIN_ERROR, EventType.IDENTITY_PROVIDER_POST_LOGIN_ERROR,
+        EventType.IDENTITY_PROVIDER_RESPONSE_ERROR}) {
+    var session=mock(KeycloakSession.class);var realms=mock(RealmProvider.class);var realm=mock(RealmModel.class);
+    var publisher=mock(PgmqEventPublisher.class);
+    when(session.realms()).thenReturn(realms);when(realms.getRealm("realm-id")).thenReturn(realm);
+    when(realm.getName()).thenReturn("tenant-"+TENANT);when(realm.getFailureFactor()).thenReturn(5);
+    when(realm.getMaxDeltaTimeSeconds()).thenReturn(900);when(realm.isEventsEnabled()).thenReturn(false);
+    var event=new Event();event.setId("failure-id");event.setRealmId("realm-id");
+    event.setType(type);event.setUserId("known-user");event.setTime(123L);
+    new CustomEventListenerProvider(session,publisher).onEvent(event);
+    var bytes=ArgumentCaptor.forClass(byte[].class);
+    verify(publisher).publish(eq(session),anyString(),eq("record_attack_auth_failure"),bytes.capture());
+    var input=new ObjectMapper().readTree(bytes.getValue()).get(1).get("input");
+    assertEquals("known-user",input.get("account").asText());
+    assertEquals(5,input.get("failure_limit").asInt());
+    verifyNoMoreInteractions(publisher);
+    }
+  }
   @Test void longUnicodeIdentifiersStillProduceAggregateActivity() {
     var input=new ObjectMapper().valueToTree(CustomEventListenerProvider.attackMessage("tenant-"+TENANT,"id","€".repeat(200),1,5,900)).get(1).get("input");
     assertTrue(input.get("account").isNull());
