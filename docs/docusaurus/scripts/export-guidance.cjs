@@ -60,9 +60,15 @@ function exportGuidance({site, selection, out}) {
   const built = JSON.parse(fs.readFileSync(path.join(site,'.docusaurus/publication-build.json')));
   if (built.schema !== 1 || built.source_dirty || built.source_commit !== selection.commit || git('rev-parse','HEAD') !== selection.commit ||
       git('status','--porcelain','--','.',':(exclude).yarnrc')) throw Error('Guidance build requires the clean selected source revision');
+  const committedPNGs = new Map();
   for (const [name, digest] of Object.entries(built.files)) {
-    if (sha(fs.readFileSync(inside(repo,name))) !== digest || execFileSync('git',['-C',repo,'hash-object','--no-filters',inside(repo,name)],{encoding:'utf8'}).trim() !== git('rev-parse','--verify',`${selection.commit}:${name}`))
+    const file = inside(repo,name);
+    if (sha(fs.readFileSync(file)) !== digest || execFileSync('git',['-C',repo,'hash-object','--no-filters',file],{encoding:'utf8'}).trim() !== git('rev-parse','--verify',`${selection.commit}:${name}`))
       throw Error('Source or renderer changed since the documentation build: '+name);
+    if (path.extname(name) === '.png') {
+      if (!committedPNGs.has(digest)) committedPNGs.set(digest,[]);
+      committedPNGs.get(digest).push(name);
+    }
   }
   const build = path.join(site,'build');
   const prepared = []; const routeTargets = new Map(); const output = new Map(); const images = new Map();
@@ -105,8 +111,11 @@ function exportGuidance({site, selection, out}) {
       if (/@import|expression\s*\(/i.test(css) || [...css.matchAll(/url\(\s*['"]?([^)'"\s]+)/gi)].some(m => !m[1].startsWith('#')))
         throw Error('Unsupported style resource in '+page.source);
       for (const [name,value] of Object.entries(element.attribs || {})) {
+        // Docusaurus inlines small PNGs; only img.src may reach the strict,
+        // committed-byte check below. Every other data URI remains prohibited.
+        const inlinePNG = name === 'src' && element.tagName === 'img' && value.startsWith('data:image/png;base64,');
         if (/^on/i.test(name) || /^(?:srcdoc|srcset|action|formaction|poster)$/i.test(name) ||
-            /^(?:href|xlink:href|src)$/i.test(name) && /^\s*(?:javascript|data|vbscript):/i.test(value)) throw Error('Active or unresolved content in '+page.source);
+            /^(?:href|xlink:href|src)$/i.test(name) && /^\s*(?:javascript|data|vbscript):/i.test(value) && !inlinePNG) throw Error('Active or unresolved content in '+page.source);
         if (name === 'src' && element.tagName !== 'img' || name === 'xlink:href' && !value.startsWith('#'))
           throw Error('Unsupported resource in '+page.source);
         if (name === 'href' && element.tagName !== 'a' && !value.startsWith('#')) throw Error('Unsupported SVG resource in '+page.source);
@@ -121,13 +130,27 @@ function exportGuidance({site, selection, out}) {
         throw Error(page.source+': SVG content needs an explicit offline rendering adapter');
     });
     article.find('img').each((_, image) => {
-      const url = new URL($(image).attr('src'), 'https://guidance.invalid'+page.permalink);
-      if (url.origin !== 'https://guidance.invalid' || !url.pathname.startsWith(built.base_url) || url.search || url.hash)
-        throw Error('Image must be a local built asset: '+url.href);
-      const name = decodeURIComponent(url.pathname.slice(built.base_url.length));
-      const bytes = fs.readFileSync(inside(build,name)); const digest = sha(bytes);
-      if (!built.assets?.[name] || built.assets[name] !== digest) throw Error('Image is unrecorded or changed: '+name);
-      const ext = path.extname(name).toLowerCase();
+      const src = $(image).attr('src');
+      if (typeof src !== 'string' || !src) throw Error('Image is missing its source in '+page.source);
+      let name, bytes, digest, ext;
+      if (src.startsWith('data:image/png;base64,')) {
+        const match = src.match(/^data:image\/png;base64,([A-Za-z0-9+/]+={0,2})$/);
+        if (!match) throw Error('Noncanonical inline PNG encoding in '+page.source);
+        bytes = Buffer.from(match[1],'base64');
+        if (!bytes.length || bytes.toString('base64') !== match[1]) throw Error('Noncanonical inline PNG encoding in '+page.source);
+        digest = sha(bytes);
+        name = committedPNGs.get(digest)?.find(source => fs.readFileSync(inside(repo,source)).equals(bytes));
+        if (!name) throw Error('Unrecorded or changed inline PNG in '+page.source);
+        ext = '.png';
+      } else {
+        const url = new URL(src, 'https://guidance.invalid'+page.permalink);
+        if (url.origin !== 'https://guidance.invalid' || !url.pathname.startsWith(built.base_url) || url.search || url.hash)
+          throw Error('Image must be a local built asset: '+url.href);
+        name = decodeURIComponent(url.pathname.slice(built.base_url.length));
+        bytes = fs.readFileSync(inside(build,name)); digest = sha(bytes);
+        if (!built.assets?.[name] || built.assets[name] !== digest) throw Error('Image is unrecorded or changed: '+name);
+        ext = path.extname(name).toLowerCase();
+      }
       const valid = ext === '.png' ? bytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])) :
         ['.jpg','.jpeg'].includes(ext) ? bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255 :
         ext === '.gif' ? /^GIF8[79]a$/.test(bytes.subarray(0,6).toString()) :

@@ -135,3 +135,55 @@ test('prints warning callouts with compact decorative icons',()=>using(f=>{
   changeArticle(f,'<div class="theme-admonition"><div class="admonitionHeading_test"><span class="admonitionIcon_test"><svg viewBox="0 0 16 16"><path d="M0 0h16v16H0z"></path></svg></span>Warning</div><p>Read this preparation warning before proceeding.</p></div>');
   const m=f.run();assert.equal(m.documents[0].page_count,2);
 }));
+
+function recordSourceImage(f, name, bytes) {
+  f.write(name, bytes);f.git('add',name);
+  f.git('-c','user.name=Test','-c','user.email=test@example.invalid','-c','commit.gpgSign=false','commit','-qm','Synthetic source image');
+  f.selection.commit=f.git('rev-parse','HEAD');f.manifest.source_commit=f.selection.commit;
+  f.manifest.files[name]=sha(bytes);f.record();
+}
+
+test('exports canonical inline PNG only when its exact bytes are committed and recorded',()=>using(f=>{
+  const bytes=fs.readFileSync(path.join(f.build,'assets/image.png'));
+  recordSourceImage(f,'docs/docusaurus/docs/03-voters/assets/host-key.png',bytes);
+  changeArticle(f,'<img alt="Small actual PNG" src="data:image/png;base64,'+bytes.toString('base64')+'">');
+  const m=f.run();assert.equal(m.documents.length,4);
+  const count=execFileSync('python3',['-c','import sys; from pypdf import PdfReader; print(sum(len(p.images) for p in PdfReader(sys.argv[1]).pages))',path.join(f.out,'AGD-01.pdf')],{encoding:'utf8'});
+  assert.ok(Number(count)>0,'The committed inline image must survive in the PDF');
+}));
+
+test('refuses unrecorded, altered or noncanonical inline PNG data',()=>using(f=>{
+  const bytes=fs.readFileSync(path.join(f.build,'assets/image.png'));const encoded=bytes.toString('base64');
+  changeArticle(f,'<img src="data:image/png;base64,'+encoded+'">');
+  assert.throws(f.run,/inline PNG|recorded/);assert.equal(fs.existsSync(f.out),false);
+  recordSourceImage(f,'docs/docusaurus/docs/03-voters/assets/host-key.png',bytes);
+  const noncanonical=encoded.slice(0,-2)+'J=';assert.ok(Buffer.from(noncanonical,'base64').equals(bytes));
+  for (const payload of [encoded.slice(0,-4)+'AAAA',encoded.replace(/=+$/,''),encoded+'=',encoded+'\n',encoded.replace('iVB','iV-'),noncanonical]) {
+    changeArticle(f,'<img src="data:image/png;base64,'+payload+'">');
+    assert.throws(f.run,/inline PNG|canonical/);assert.equal(fs.existsSync(f.out),false);
+  }
+  delete f.manifest.files['docs/docusaurus/docs/03-voters/assets/host-key.png'];f.record();
+  changeArticle(f,'<img src="data:image/png;base64,'+encoded+'">');assert.throws(f.run,/inline PNG|recorded/);
+}));
+
+test('inline PNG exception cannot admit other data types or active attributes',()=>using(f=>{
+  const bytes=fs.readFileSync(path.join(f.build,'assets/image.png'));const encoded=bytes.toString('base64');
+  recordSourceImage(f,'docs/docusaurus/docs/03-voters/assets/image.bin',bytes);
+  changeArticle(f,'<img src="data:image/png;base64,'+encoded+'">');assert.throws(f.run,/inline PNG|recorded/);
+  recordSourceImage(f,'docs/docusaurus/docs/03-voters/assets/image.png',bytes);
+  for (const html of [
+    '<img src="data:image/svg+xml;base64,PHN2Zy8+">',
+    '<img src="data:image/jpeg;base64,'+encoded+'">',
+    '<img src="DATA:image/png;base64,'+encoded+'">',
+    '<img src="javascript:alert(1)">',
+    '<a href="data:image/png;base64,'+encoded+'">Image</a>',
+    '<img src="data:image/png;base64,'+encoded+'" onload="evil()">',
+    '<img src="data:image/png;base64,'+encoded+'" srcset="https://example.invalid/tracker 2x">'
+  ]) {
+    changeArticle(f,html);assert.throws(f.run,/content|resource|inline PNG/);assert.equal(fs.existsSync(f.out),false);
+  }
+  const disguised=Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><script>evil()</script></svg>');
+  recordSourceImage(f,'docs/docusaurus/docs/03-voters/assets/disguised.png',disguised);
+  changeArticle(f,'<img src="data:image/png;base64,'+disguised.toString('base64')+'">');
+  assert.throws(f.run,/malformed image/);assert.equal(fs.existsSync(f.out),false);
+}));
