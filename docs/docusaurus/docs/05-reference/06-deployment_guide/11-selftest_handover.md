@@ -201,8 +201,6 @@ path remains available for the next command.
 
 <!-- deployment-step: 11-001 -->
 
-**Operation reference:** `11-stop-services-for-backup` on `admin`.
-
 ```bash
 set -e -o pipefail
 C1=$(jq -er '.nodes.c1' site.json)
@@ -232,8 +230,6 @@ run. Any SSH or Kubernetes error is a failed check, not evidence of shutdown.
 Then write the backup and start the TOE again:
 
 <!-- deployment-step: 11-002 -->
-
-**Operation reference:** `11-create-encrypted-backup` on `admin`.
 
 ```bash
 set -e -o pipefail
@@ -269,8 +265,6 @@ checks the electoral log. To restore:
    empties the data directory and extracts the selected backup on C1:
 
    <!-- deployment-step: 11-003 -->
-
-   **Operation reference:** `11-restore-authorized-backup` on `admin`.
 
    ```bash
    set -e -o pipefail

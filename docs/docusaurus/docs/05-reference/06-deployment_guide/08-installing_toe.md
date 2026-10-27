@@ -10,8 +10,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 Read this chapter for the requirements and expected results behind the
 [configuration-driven installation](01-about.md#install-from-one-configuration-file).
-Operation references identify implementation details and troubleshooting checks;
-they are not additional shell commands to type after a successful installation.
+Follow the explicit commands and human checkpoints below. The installer performs
+the server-side operations; you do not run internal numbered operations yourself.
 
 This page loads the TOE images from the verified delivery medium onto both
 servers, pins every TOE container to its delivered digest, deploys, and
@@ -39,8 +39,6 @@ accepted delivery layout:
 
 <!-- deployment-step: 08-001 -->
 
-**Operation reference:** `08-copy-toe-images` on `admin`.
-
 **Expected result.** The installer prints `INSTALL: preparing private transport archives from the verified OCI images`; transfers to C1 and C2 complete without SSH, archive or disk errors. The source delivery remains unchanged. Transfer checks do not replace the imported-image checks below.
 
 **If the result differs.** If either host is unreachable or the target is full, fix connectivity or capacity before importing. Keep the source medium protected; do not substitute images from the installation kit.
@@ -51,8 +49,6 @@ one is present under its delivered digest. Its local import preserves the
 digest-qualified names of the delivered image manifests:
 
 <!-- deployment-step: 08-002 -->
-
-**Operation reference:** `08-import-toe-images` on `c1/c2`.
 
 **Expected result.** Six final lines ending in `loaded`, one for each delivered image, on each server.
 
@@ -72,8 +68,6 @@ name.
 On C1:
 
 <!-- deployment-step: 08-003 -->
-
-**Operation reference:** `08-pin-image-digests` on `c1`.
 
 **Expected result.** The seven reference/count lines shown below, with every TOE image pinned to `@sha256:`.
 
@@ -107,8 +101,6 @@ On C1:
 
 <!-- deployment-step: 08-005 -->
 
-**Operation reference:** `08-start-services` on `c1`.
-
 **Expected result.** `step-tls-cert already exists; keeping it.`, successful identity-service rollout, and pods `Running` or `Completed`. Only the two trustee instances may remain not ready until their keys are installed.
 
 **If the result differs.** On a rollout timeout or `CrashLoopBackOff`, inspect that component's operating log using the server operations section and check the verified manifests. Keep the original secrets; do not rerun secret generation or use demonstration credentials.
@@ -132,8 +124,6 @@ passwords, and must no longer.
 On C1:
 
 <!-- deployment-step: 08-006 -->
-
-**Operation reference:** `08-remove-import-secrets` on `c1`.
 
 **Expected result.** HTTP `200` for the imported realm, then the exact zero-credential summary below after updating its stored manifest.
 
@@ -180,8 +170,6 @@ before the trustee keys are installed:
 
    <!-- deployment-step: 08-007 -->
 
-   **Operation reference:** `08-select-customer-tenant` on `c1`.
-
    **Required result.** The lookup identifies exactly the installation tenant and the customer tenant matching the configured slug. The customer realm is `tenant-` followed by that customer UUID.
 
    **If the result differs.** If the customer row is absent, finish its creation in the portal first. If more than two tenants appear, stop and reconcile the installation state; never choose an arbitrary tenant or repeat creation.
@@ -202,8 +190,6 @@ before the trustee keys are installed:
    server; they come from the same configuration file:
 
    <!-- deployment-step: 08-008 -->
-
-   **Operation reference:** `08-add-customer-operator` on `c1`.
 
    **Expected result.** The customer realm lists the new administrator and trustees enabled; the installation realm lists all personal accounts disabled, as detailed below.
 
@@ -259,8 +245,6 @@ continuing. The customer and trustee names shown here are laboratory examples.*
 
 <!-- deployment-step: 08-009 -->
 
-**Operation reference:** `08-register-native-trustee` on `c1`.
-
 **Required result.** Each native account is bound to its configured registered trustee name, and the installed key file matches that record’s public keys. Both instances must pass.
 
 **If the result differs.** If there is no success line, check the exact registered name, customer tenant and instance number with the administrator and trustee. Do not start either server with an uncertain key-to-account mapping.
@@ -282,48 +266,86 @@ No copy may remain on the administration workstation or on C1: it is kept
 only in the cluster's encrypted Secret.
 :::
 
-With each trustee present and their medium mounted at the configured key-file
-path, continue the commissioning checkpoint. It transfers the corresponding file
-to C1 and installs it in that instance’s encrypted cluster Secret:
+**Where to work:** the administration workstation—the computer from which you
+connect to C1 and C2 over SSH. This is not the admin portal, a user named `admin`,
+or a separate trustee server.
+
+1. Complete [customer creation and account setup](#create-the-customers-tenant)
+   and register both trustees as described above. In `site.json`, each
+   `commissioning.trustees` entry must contain the exact registered `name` and
+   the absolute `keys_file` path on that trustee's mounted medium.
+2. Open a root terminal in the extracted package's `deployment` directory. If
+   commissioning is not already running, start it with the same configuration:
+
+   ```bash
+   ./deploy commission site.json
+   ```
+
+   If that command is already waiting for you, continue in that terminal;
+   do not start a second copy. `./deploy` is the executable in the current
+   directory. From another directory, use its full path and the full path to
+   `site.json`.
+3. At the trustee-registration prompt, verify the names and both public keys
+   in the [portal screenshot above](#bind-each-native-account-to-its-registered-trustee).
+   Type `CONTINUE` and press Enter only after completing that check.
+4. At each `Trustee 1: be present...` / `Trustee 2: be present...` prompt,
+   have that trustee confirm their own mounted medium and private-key file.
+   Type `CONTINUE` and press Enter. Keep both media available, unchanged, and
+   under their owners' supervision until both imports finish: the installer
+   checks both key pairs before importing either, then reads each file again.
+5. Let the command transfer the keys, create the encrypted cluster Secrets,
+   bind the native accounts and start both instances. These are automatic
+   operations; no additional command on C1 is required.
 
 <!-- deployment-step: 08-010 -->
 
-**Operation reference:** `08-install-trustee-keys` on `admin`.
+**Expected result.** First the terminal prints
+`PASS: both trustee media match their registered public-key pairs before either import`.
+After each successful import, it prints
+`PASS: trustee 1 public-key pair, native binding and startup; transfer copy removed`
+and the corresponding line for trustee 2. Only then unmount each trustee's
+medium and return it to its owner. These messages confirm removal of the
+installer's temporary transfer copies; do not make additional copies yourself.
 
-**Expected result.** A creation message for the chosen trustee key Secret, then `Trustee key import complete; temporary key file removed.` No nonzero status is expected.
+![Actual VM commissioning terminal showing the trustee prompts, both key checks and successful startup](./assets/installation/installer-commission-complete.png)
 
-**If the result differs.** Any Secret-creation or transfer error is a failure; do not continue without the completion message. Keep the trustee present, verify the chosen instance and Secret before starting it, and do not overwrite an existing Secret or leave an extra private-key copy.
+*Actual terminal capture from the VM rehearsal on 2026-10-26. The command at
+ the top is the one to run. The `CONTINUE` prompts and `PASS` lines show the
+ expected sequence. Hostnames and account identifiers are laboratory examples;
+ use your approved `site.json` values.*
 
+**If the result differs:**
 
-The completion message confirms that the temporary copy was removed. Unmount the
-trustee's medium and give it back. Then, on C1, give the instance its sign-in
-details and start it:
+- **Keys do not match:** stop. With the trustee, check the configured file,
+  registered name, tenant and both registered public keys. Do not replace keys
+  or alter the registration simply to silence a mismatch.
+- **Transfer, Secret creation or startup fails:** stop and inspect the stated
+  error and the actual cluster state. Do not overwrite an existing Secret,
+  generate replacement keys or assume that temporary-file cleanup succeeded.
+- **A previous attempt stopped during writes:** the installer refuses automatic
+  replay. Resolve the partial state with the operator before retrying; do not
+  remove its state markers to bypass this refusal.
 
 <!-- deployment-step: 08-011 -->
 
-**Operation reference:** `08-configure-trustee-login` on `c1`.
-
-**Expected result.** The authentication Secret is created and the selected trustee deployment reports `successfully rolled out`.
-
-**If the result differs.** If rollout fails, check its operating log and the previously verified native-account binding. Keep the trustee's existing keys and password; do not generate replacements to make the service start.
-
-
-Both trustee instances must finish their rollout. Commissioning handles their
-transfer and sign-in configuration separately, using each instance’s matching
-key file and verified native-account binding.
-
-Before the key ceremony and before each tally ceremony, check on C1 that both
-instances are ready, and confirm it to the election board, which waits for
-this confirmation:
+The same commissioning command configures each native instance's sign-in and
+waits for its deployment to become ready. Keep the configured names and keys;
+personal trustee accounts remain separate from these native machine accounts.
 
 <!-- deployment-step: 08-012 -->
 
-**Operation reference:** `08-check-trustee-health` on `c1`.
+**Final expected result.** The terminal prints
+`PASS: customer login restrictions and both native trustees Ready`, followed by
+`COMMISSIONING COMMANDS COMPLETE — perform the browser, client-network and board handover checks in AGD-04.`
+This is not authorization to start an election.
 
-**Expected result.** Two rows, `trustee1` and `trustee2`, each with `READY` equal to `1/1`.
-
-**If the result differs.** If either is `0/1`, missing or restarting, do not authorize a key or tally ceremony. Resolve the failed instance and repeat this read-only check before confirming readiness to the board.
-
+Before each key or tally ceremony, the operator must confirm that both instances
+are ready. From the same `deployment` directory, run `./deploy commission site.json`
+with the unchanged completed configuration. On a completed installation it checks
+readiness and login restrictions without importing the keys again. Expect the
+`PASS: customer login restrictions and both native trustees Ready` line; the
+first-run completion banner is not repeated. If the check fails, do not authorize
+the ceremony until the operator resolves the fault and the check passes.
 
 ## Back up the trustee state
 
@@ -343,8 +365,6 @@ Run from the extracted `deployment` directory on the administration workstation,
 with the same `site.json`. The first line reads C1’s address from that file.
 
 <!-- deployment-step: 08-013 -->
-
-**Operation reference:** `08-backup-trustee-state` on `admin`.
 
 ```bash
 set -e -o pipefail
@@ -378,8 +398,6 @@ only at the end of the retention period, with the election board present.
 :::
 
 <!-- deployment-step: 08-014 -->
-
-**Operation reference:** `08-remove-trustee-keys` on `c1`.
 
 ```bash
 set -e -o pipefail
@@ -427,8 +445,6 @@ with the commands of step 3 of
 
 <!-- deployment-step: 08-015 -->
 
-**Operation reference:** `08-load-offline-trustee-image` on `trustee`.
-
 ```bash
 set -e -o pipefail
 M=/mnt/temenos-delivery
@@ -461,8 +477,6 @@ keys file.
 Define the `trustee` command in each new shell:
 
 <!-- deployment-step: 08-016 -->
-
-**Operation reference:** `08-check-offline-trustee-tool` on `trustee`.
 
 ```bash
 set -e -o pipefail

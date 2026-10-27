@@ -10,8 +10,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 Read this chapter for the requirements and expected results behind the
 [configuration-driven installation](01-about.md#install-from-one-configuration-file).
-Operation references identify implementation details and troubleshooting checks;
-they are not additional shell commands to type after a successful installation.
+Follow the explicit commands and human checkpoints below. The installer performs
+the server-side operations; you do not run internal numbered operations yourself.
 
 These checks confirm that the installed servers and their network give the
 protection the TOE relies on. Make them before any part of the TOE is
@@ -29,8 +29,6 @@ ports and node ports):
 
 <!-- deployment-step: 04-001 -->
 
-**Operation reference:** `04-list-ingress-ports` on `c1`.
-
 **Expected result.** One line of space-separated port numbers is printed: the Traefik service ports followed by its node ports. Keep the actual numbers for the next client-network check; do not substitute a sample port list.
 
 **If the result differs.** If the service is missing or no numbers appear, check that C1 completed installation and its cluster services started. Do not continue with an empty port list, because that would omit required firewall checks.
@@ -42,8 +40,6 @@ the port numbers that C1 printed, separated by spaces:
 
 <!-- deployment-step: 04-002 -->
 
-**Operation reference:** `04-check-client-firewall` on `client`.
-
 **Expected result.** The launcher asks for the ports printed on C1. Enter those actual numbers separated by spaces. Every resulting address-and-port line ends in `closed`; C1 port 443 is intentionally checked in the TLS section instead.
 
 **If the result differs.** Any `open` line exposes a forbidden port: stop and correct the site firewall through the site’s controlled configuration process. An all-closed result can also mean a disconnected test machine; confirm its network position and later require the positive TLS and administration-SSH checks to pass. Do not interpret timeouts alone as proof of correct filtering.
@@ -54,8 +50,6 @@ which [Check the TLS profile](05-certificates_tls.md#check-the-tls-profile)
 checks. Then check SSH from the separate administration workstation:
 
 <!-- deployment-step: 04-007 -->
-
-**Operation reference:** `04-check-admin-ssh` on `admin`.
 
 **Expected result.** Two lines appear, one for each configured server, ending in `22 open`. This checks port reachability; the earlier SSH node check also establishes that the administration key works.
 
@@ -75,8 +69,6 @@ On each server:
 
 <!-- deployment-step: 04-003 -->
 
-**Operation reference:** `04-check-ssh-policy` on `c1/c2`.
-
 **Expected result.** Three policy lines include `passwordauthentication no` and `pubkeyauthentication yes`. `permitrootlogin` must permit keys only (for example, `prohibit-password` or its older spelling `without-password`), never unrestricted `yes`. Compare option names without regard to case.
 
 **If the result differs.** If passwords are enabled or root login is unrestricted, stop; the installed server does not meet this guide. If root login is `no`, administration by the required root key will not work either. Check that the installed kit matches the approved site configuration; do not loosen SSH policy as a workaround.
@@ -95,8 +87,6 @@ The servers must take their time only from NTS-authenticated sources.
 On each server:
 
 <!-- deployment-step: 04-004 -->
-
-**Operation reference:** `04-check-authenticated-time` on `c1/c2`.
 
 **Expected result.** The `authdata` table shows `NTS` in every source’s Mode column. `tracking` reports `Leap status : Normal`. In `sources`, one site time server is selected (marked `*`). All three conditions must hold on each server.
 
@@ -119,8 +109,6 @@ On C1:
 
 <!-- deployment-step: 04-005 -->
 
-**Operation reference:** `04-check-secret-encryption` on `c1`.
-
 **Expected result.** The status includes the literal line `Encryption Status: Enabled`. Additional key-rotation/status lines can vary; they do not replace the required Enabled result.
 
 **If the result differs.** For `Disabled`, an unavailable command or an error reading the encryption configuration, stop before creating any Kubernetes Secrets. Confirm that this is the C1 server from the approved kit and report the status to Sequent. Do not enable encryption ad hoc or create Secrets to “test” the cluster.
@@ -135,8 +123,6 @@ the Secrets of the later pages on a cluster that stores them unencrypted.
 On C1:
 
 <!-- deployment-step: 04-006 -->
-
-**Operation reference:** `04-check-cluster-health` on `c1`.
 
 **Expected result.** The node table shows C1 and C2 `Ready`, with their addresses matching the site file. At this pre-deployment point, the pod table contains only `kube-system` workloads, all `Running` or `Completed`; no Pending, failed or restarting workload remains.
 

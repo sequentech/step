@@ -10,8 +10,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 Read this chapter for the requirements and expected results behind the
 [configuration-driven installation](01-about.md#install-from-one-configuration-file).
-Operation references identify implementation details and troubleshooting checks;
-they are not additional shell commands to type after a successful installation.
+Follow the explicit commands and human checkpoints below. The installer performs
+the server-side operations; you do not run internal numbered operations yourself.
 
 Administrators, election board members and voters sign in only through the
 external authentication server. The TOE's identity service (keycloak) sends
@@ -96,8 +96,6 @@ The client secret remains in the private definition, not in `site.json`.
 
 <!-- deployment-step: 06-001 -->
 
-**Operation reference:** `06-configure-external-login` on `c1`.
-
 **Expected result.** Configuration validation accepts the private definition, including its issuer, HTTPS endpoint URLs, client ID, signature-validation settings and `certificate-first-login-flow`. The client secret is not printed.
 
 **If the result differs.** If the public values differ from the independently supplied registration, stop before applying the provider definition. Correct the private file in the editor and rerun the check. Never paste its unredacted contents into a report or put the client secret in the public site file.
@@ -124,8 +122,6 @@ fingerprint with a value copied from the untrusted file.
 
 <!-- deployment-step: 06-002 -->
 
-**Operation reference:** `06-install-idp-ca` on `c1`.
-
 **Expected result.** The certificate subject and SHA-256 fingerprint match the independently received CA certificate details, followed by `configmap/auth-server-ca created`. The fingerprint must have passed the configuration check before this operation runs.
 
 **If the result differs.** If the configuration check reports a fingerprint mismatch, do not install. If creation says `AlreadyExists`, inspect whether this is a partial earlier setup and verify the existing trusted certificate before replacing anything. A missing namespace means the certificate/namespace installation stage is incomplete; return to it first.
@@ -141,8 +137,6 @@ On C1:
 
 <!-- deployment-step: 06-003 -->
 
-**Operation reference:** `06-check-idp-tls` on `c1`.
-
 **Expected result.** The allowed handshake reports TLS 1.3, `TLS_AES_256_GCM_SHA384`, a `secp384r1` temporary key, a 384-bit server public key and `Verify return code: 0 (ok)`. The TLS 1.2, AES-128 and X25519 attempts each say `refused`.
 
 **If the result differs.** If the allowed handshake fails, check the independently verified CA file, DNS, endpoint host name and firewall path. If a prohibited attempt is accepted, have the external authentication-server operator correct its TLS profile before connecting the TOE. Do not disable certificate or host-name verification.
@@ -154,8 +148,6 @@ a temporary key on `secp384r1`, `Server public key is 384 bit` and
 check that the server is reachable, since Keycloak can run on either node:
 
 <!-- deployment-step: 06-004 -->
-
-**Operation reference:** `06-check-c2-idp-access` on `c2`.
 
 **Expected result.** The single success message is `reachable`. This is a TCP reachability check from C2, not an authentication or certificate validation result.
 

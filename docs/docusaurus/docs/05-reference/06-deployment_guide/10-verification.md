@@ -10,8 +10,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 Read this chapter for the requirements and expected results behind the
 [configuration-driven installation](01-about.md#install-from-one-configuration-file).
-Operation references identify implementation details and troubleshooting checks;
-they are not additional shell commands to type after a successful installation.
+Follow the explicit commands and human checkpoints below. The installer performs
+the server-side operations; you do not run internal numbered operations yourself.
 
 Make every check of this page after the deployment and before anyone else
 signs in, and again after every later deployment. If a check fails, the
@@ -34,8 +34,6 @@ settings and the root filesystem layer hashes. Each running, ready container
 must also name the delivered manifest digest in its pod specification.
 
 <!-- deployment-step: 10-001 -->
-
-**Operation reference:** `10-verify-running-images` on `c1`.
 
 **Expected result.** Six lines ending in `verified`, with the minimum ready-container counts described below; no error.
 
@@ -83,8 +81,6 @@ From the administration workstation:
 
 <!-- deployment-step: 10-002 -->
 
-**Operation reference:** `10-check-login-discovery` on `admin`.
-
 **Expected result.** After choosing `installation` at the realm prompt, two matching issuer URLs on the voting portal host, then three master-realm responses ending in `403`. Select `customer` when repeating this check for that tenant.
 
 **If the result differs.** A `000` status, blank issuer or TLS error is a connectivity failure, not a successful denial. Check DNS and certificate trust first. Any reachable master realm requires correcting the ingress before handover.
@@ -100,8 +96,6 @@ goes to the external authentication server.
 :::
 
 <!-- deployment-step: 10-003 -->
-
-**Operation reference:** `10-check-login-redirects` on `admin`.
 
 **Expected result.** After choosing the same realm as the preceding check, six results in the order below: IdP redirect, PKCE error redirect, `400`, two `unauthorized_client` responses and `invalid_client`.
 
@@ -141,8 +135,6 @@ On C1:
 
 <!-- deployment-step: 10-004 -->
 
-**Operation reference:** `10-check-login-providers` on `c1`.
-
 **Expected result.** The provider file listing contains no `smart-link-hmac` file; its final count is `0`.
 
 **If the result differs.** A nonzero count means the wrong identity-service build or extension set is installed. Check the delivered image identity; do not manually delete files inside a running container.
@@ -158,8 +150,6 @@ uses, with the flows they call:
 
 <!-- deployment-step: 10-005 -->
 
-**Operation reference:** `10-check-login-flows` on `c1`.
-
 **Expected result.** Exactly `0`: no used authentication flow invokes smart-link.
 
 **If the result differs.** A nonzero result or SQL error is not acceptable. Check the imported realm templates and actual used flows; do not delete built-in flows or alter the database directly.
@@ -169,8 +159,6 @@ The command must print `0`.
 Then, from the administration workstation:
 
 <!-- deployment-step: 10-006 -->
-
-**Operation reference:** `10-check-public-login-disabled` on `admin`.
 
 **Expected result.** Three lines, one per portal host, each ending in `404`.
 
@@ -186,8 +174,6 @@ On C1:
 
 <!-- deployment-step: 10-007 -->
 
-**Operation reference:** `10-check-graphql-settings` on `c1`.
-
 **Expected result.** `/hasura/v1/graphql Exact`, followed by `HASURA_GRAPHQL_ENABLE_CONSOLE false` and `HASURA_GRAPHQL_DEV_MODE false`.
 
 **If the result differs.** If a broader path, console or development mode is present, correct the protected manifests and redeploy through the documented procedure. Do not expose the console for diagnosis.
@@ -198,8 +184,6 @@ The first command must print `/hasura/v1/graphql Exact` alone, and the second
 From the administration workstation:
 
 <!-- deployment-step: 10-008 -->
-
-**Operation reference:** `10-check-metadata-and-cors` on `admin`.
 
 **Expected result.** Six `0` results: two checks for each portal host. There must also be no curl/TLS error; an unreachable server is not proof that access is restricted.
 
@@ -215,8 +199,6 @@ On C1:
 
 <!-- deployment-step: 10-009 -->
 
-**Operation reference:** `10-check-service-isolation` on `c1`.
-
 **Expected result.** `Encryption Status: Enabled`, `ClusterIP`, `0`, and only `kube-system/traefik` in the external-service list.
 
 **If the result differs.** If encryption is disabled, the bulletin board has ingress, or another service is externally exposed, stop. Check the verified cluster and service configuration; do not create more Secrets on an unencrypted cluster.
@@ -230,8 +212,6 @@ that its master key is present with the required length. Run this on C1; the
 command checks the key inside each container and prints only its result:
 
 <!-- deployment-step: 10-010 -->
-
-**Operation reference:** `10-check-secret-store` on `c1`.
 
 **Expected result.** Two identical `Secret-store configuration: PASS` lines. No key value is shown.
 
@@ -253,8 +233,6 @@ the first election event, list the realms of the election events on C1:
 
 <!-- deployment-step: 10-011 -->
 
-**Operation reference:** `10-list-event-realms` on `c1`.
-
 **Expected result.** One realm name per imported election event. Before the first import, an empty result is expected, but it does not complete the required post-import checks.
 
 **If the result differs.** If an imported event's realm is absent or an unfamiliar realm appears, compare with the board's import record. Do not approve the event configuration until the mismatch is resolved.
@@ -263,8 +241,6 @@ the first election event, list the realms of the election events on C1:
 Then show the sign-in settings of each of these realms, on C1:
 
 <!-- deployment-step: 10-012 -->
-
-**Operation reference:** `10-check-live-realm-policy` on `c1`.
 
 **Expected result.** One row per event realm with the TLS, timeout, brute-force and event-listener values described below.
 
@@ -279,8 +255,6 @@ that threshold, and authentication events recorded and passed to the TOE.
 The check must cover each listed realm on C1:
 
 <!-- deployment-step: 10-013 -->
-
-**Operation reference:** `10-check-event-login-policy` on `c1`.
 
 **Expected result.** Three results for the selected realm: `[]`, its HTTPS issuer URL and `unauthorized_client`.
 
@@ -312,8 +286,6 @@ version:
 
 <!-- deployment-step: 10-014 -->
 
-**Operation reference:** `10-check-prohibited-roles` on `c1`.
-
 **Expected result.** The zero counts, exactly two tenant IDs, and `t|t` administration-audit flags described below.
 
 **If the result differs.** Any extra tenant, enabled installation account or forbidden permission blocks handover. Compare with the customer setup and role assignments; do not delete database rows or unrelated accounts to force the counts.
@@ -341,8 +313,6 @@ checks with the object storage's command-line tool:
 
 <!-- deployment-step: 10-015 -->
 
-**Operation reference:** `10-check-storage-policy` on `c1`.
-
 **Expected result.** The temporary check pod completes; its five log values are `0`, `AccessDenied`, `NoSuchBucketPolicy`, `1`, and `Enabled`, then the pod is deleted.
 
 **If the result differs.** A timeout, missing line or other policy result is a failure. Inspect the check pod's operating log and kit storage setup; do not upload or remove objects by hand or accept public access to private buckets.
@@ -365,8 +335,6 @@ the realm R, the realm CR and the election event realms that you listed in
 import).
 
 <!-- deployment-step: 10-016 -->
-
-**Operation reference:** `10-check-published-signing-keys` on `c1`.
 
 **Expected result.** A nonzero count of published keys and no subsequent unmatched key ID.
 

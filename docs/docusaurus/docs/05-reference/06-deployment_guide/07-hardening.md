@@ -10,8 +10,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 Read this chapter for the requirements and expected results behind the
 [configuration-driven installation](01-about.md#install-from-one-configuration-file).
-Operation references identify implementation details and troubleshooting checks;
-they are not additional shell commands to type after a successful installation.
+Follow the explicit commands and human checkpoints below. The installer performs
+the server-side operations; you do not run internal numbered operations yourself.
 
 The installer prepares the working manifests in `/root/deploy/kubernetes` on C1.
 This chapter states the required transformations and checks in their dependency
@@ -38,8 +38,6 @@ the certificate.
 
 <!-- deployment-step: 07-001 -->
 
-**Operation reference:** `07-set-site-hostnames` on `c1`.
-
 **Expected result.** No output after the command; no demonstration portal host names remain.
 
 **If the result differs.** If a matching file or host name is printed, check the three configured host names and the clean working copy. Do not deploy partially substituted manifests; restart this chapter from a fresh copy as described above.
@@ -51,8 +49,6 @@ All three portals must reach the identity service under one host name, the
 voting portal's:
 
 <!-- deployment-step: 07-002 -->
-
-**Operation reference:** `07-set-login-url` on `c1`.
 
 **Expected result.** Three `KEYCLOAK_URL` entries, all with your voting portal origin, for example `value: "https://vote.example.org"`. The example domain is not a value to enter.
 
@@ -73,8 +69,6 @@ from a signed URL would invalidate its signature.
 <!-- REUSE-IgnoreStart -->
 
 <!-- deployment-step: 07-003 -->
-
-**Operation reference:** `07-configure-storage-route` on `c1`.
 
 **Expected result.** An `AWS_S3_PUBLIC_URI` line with your voting portal HTTPS origin, followed by the three portal HTTPS origins under `accessControlAllowOriginList`.
 
@@ -98,8 +92,6 @@ produced the images. Set both from the installed provenance of the verified
 installation kit, before the first deployment:
 
 <!-- deployment-step: 07-004 -->
-
-**Operation reference:** `07-set-release-identity` on `c1`.
 
 **Expected result.** Two lines: `APP_VERSION: "10.0.0"` and `APP_HASH: "…"`, where the hash is exactly the 40-character Step revision from the verified kit provenance.
 
@@ -126,8 +118,6 @@ service's administrator account, used only by the TOE's services:
 
 <!-- deployment-step: 07-005 -->
 
-**Operation reference:** `07-generate-service-secrets` on `c1`.
-
 **Expected result.** The final two lines are `600 root` and `19`. No password or secret value is printed.
 
 **If the result differs.** If `secrets.env` already exists, do not overwrite it or generate another set of passwords. Check the installation record. Any mode other than `600` or owner other than root must be corrected before continuing; never inspect the file by printing it.
@@ -150,8 +140,6 @@ also get the secret of their own client in the tenant realm.
 
 <!-- deployment-step: 07-006 -->
 
-**Operation reference:** `07-install-service-secrets` on `c1`.
-
 **Expected result.** Creation messages for `keycloak-bootstrap-admin` and `keycloak-service-credentials`, followed by the six key names listed below. Values are not displayed.
 
 **If the result differs.** If creation reports `AlreadyExists`, stop and establish whether this installation step was already completed; do not delete or replace credentials blindly. For a missing namespace, return to the namespace preparation step.
@@ -164,8 +152,6 @@ The output must list `KC_BOOTSTRAP_ADMIN_PASSWORD` and
 second Secret:
 
 <!-- deployment-step: 07-007 -->
-
-**Operation reference:** `07-connect-service-credentials` on `c1`.
 
 **Expected result.** Three file/count lines ending in `:1`: one for harvest and one for each windmill manifest.
 
@@ -188,8 +174,6 @@ connections. The following step installs the reviewed filter at `/root/deploy/ke
 
 <!-- deployment-step: 07-008 -->
 
-**Operation reference:** `07-install-keycloak-filter` on `c1`.
-
 **Expected result.** The launcher reports that the reviewed filter was installed at `/root/deploy/keycloak.jq`. It does not change the running identity service.
 
 **If the result differs.** If the package check fails or the destination is refused, re-check the verified command package and root session. Do not paste a replacement filter from another source.
@@ -198,8 +182,6 @@ connections. The following step installs the reviewed filter at `/root/deploy/ke
 Then apply it to the manifest, which becomes a JSON file:
 
 <!-- deployment-step: 07-009 -->
-
-**Operation reference:** `07-configure-keycloak` on `c1`.
 
 **Expected result.** `start --import-realm`, the four environment setting names and `keycloak-realm`, exactly as listed below; no `KC_HOSTNAME_STRICT` line.
 
@@ -224,8 +206,6 @@ development mode, no metadata or other API.
 
 <!-- deployment-step: 07-010 -->
 
-**Operation reference:** `07-restrict-graphql` on `c1`.
-
 **Expected result.** The console and development-mode values are both `"false"`; each of the three ingress paths is `/hasura/v1/graphql` with `pathType: Exact`.
 
 **If the result differs.** If any value is `true`, a path is shorter, or its type is `Prefix`, do not deploy. Check the kit manifests and rebuild the hardening transformations; do not expose the metadata API to make troubleshooting easier.
@@ -248,8 +228,6 @@ returned by the backend:
 
 <!-- deployment-step: 07-011 -->
 
-**Operation reference:** `07-restrict-browser-origins` on `c1`.
-
 **Expected result.** Both allowlists contain exactly your three HTTPS portal origins; neither contains `*`.
 
 **If the result differs.** If origins differ between ingress and backend, check the configured host names and the current working directory. Recreate the affected manifests from the verified kit; a wildcard is not an acceptable workaround.
@@ -271,8 +249,6 @@ not be reachable from outside the cluster:
 
 <!-- deployment-step: 07-012 -->
 
-**Operation reference:** `07-block-master-realm` on `c1`.
-
 **Expected result.** Exactly three `- host:` lines, matching your voting, administration and verifier hosts.
 
 **If the result differs.** If a host is absent or unexpected, correct the public input and recreate this ingress before deploying. After deployment, the master-realm HTTP checks must still pass.
@@ -292,8 +268,6 @@ Service, reachable only inside the cluster:
 
 <!-- deployment-step: 07-013 -->
 
-**Operation reference:** `07-restrict-harvest-route` on `c1`.
-
 **Expected result.** No terminal output. The step writes `harvest/service.yaml` for internal port 8400. Later deployment and service checks verify it in the cluster.
 
 **If the result differs.** If a file or directory error appears, check that the session is in `/root/deploy/kubernetes` and the working copy includes the harvest directory. Do not substitute a public or NodePort service.
@@ -309,8 +283,6 @@ No results portal and no kiosk voting portal are part of the evaluated
 configuration. Their addresses stay unset:
 
 <!-- deployment-step: 07-014 -->
-
-**Operation reference:** `07-check-excluded-portals` on `c1`.
 
 **Expected result.** `Neither excluded-portal setting is present.` Both results-portal and kiosk-portal addresses remain unset.
 
@@ -370,8 +342,6 @@ as `/root/deploy/board.jq`:
 
 <!-- deployment-step: 07-015 -->
 
-**Operation reference:** `07-install-board-role-filter` on `c1`.
-
 **Expected result.** The launcher reports that `/root/deploy/board.jq` was installed. This copies the reviewed permissions filter; it does not yet change accounts.
 
 **If the result differs.** If installation is refused, verify the package and destination permissions. Do not shorten the exclusion list to make a later check pass.
@@ -380,8 +350,6 @@ as `/root/deploy/board.jq`:
 Then install the reviewed filter at `/root/deploy/realm.jq`:
 
 <!-- deployment-step: 07-016 -->
-
-**Operation reference:** `07-install-realm-filter` on `c1`.
 
 **Expected result.** The launcher reports that `/root/deploy/realm.jq` was installed. Apply it only with the next step.
 
@@ -392,8 +360,6 @@ Extract the three documents and apply the filter to each:
 
 <!-- deployment-step: 07-017 -->
 
-**Operation reference:** `07-prepare-realms` on `c1`.
-
 **Expected result.** Three lines: `tenant done`, `tenant-template done` and `event-template done`.
 
 **If the result differs.** If jq reports an error or one line is absent, check that the IdP definition, all three reviewed filters and the original realm manifests are present. Keep the incomplete output out of the cluster; recreate the working copy before repeating transformations.
@@ -402,8 +368,6 @@ Extract the three documents and apply the filter to each:
 The loop must print `done` for the three documents. Then check them:
 
 <!-- deployment-step: 07-018 -->
-
-**Operation reference:** `07-check-realm-security` on `c1`.
 
 **Expected result.** Three compact JSON records with the exact security values listed below, including a 900-second idle timeout, failure factor 5 and disabled local MFA selector.
 
@@ -423,8 +387,6 @@ the disabled client `cli-account-admin`; the event template lists
 Check the sign-in settings in detail:
 
 <!-- deployment-step: 07-019 -->
-
-**Operation reference:** `07-check-role-separation` on `c1`.
 
 **Expected result.** Each document has the detailed sign-in, role, PKCE and authentication-time values listed below. The final record shows messaging absent, code step disabled and offline access null.
 
@@ -468,8 +430,6 @@ the external authentication server holds for the operator:
 
 <!-- deployment-step: 07-020 -->
 
-**Operation reference:** `07-add-bootstrap-operator` on `c1`.
-
 **Expected result.** The listed administrator entries include `admin`, `api-user` and your installation user name, each paired with `false` for stored credentials.
 
 **If the result differs.** If the user name is wrong or appears twice, do not create more accounts by rerunning. Recreate the tenant document and enter the external authentication server's exact user name and e-mail; never add a local password.
@@ -490,8 +450,6 @@ Write the documents back into the manifests as Secrets, and let the setup job
 of the object storage read the templates from them:
 
 <!-- deployment-step: 07-021 -->
-
-**Operation reference:** `07-package-realm-secrets` on `c1`.
 
 **Expected result.** The six keycloak manifest files, `Secret` type lines, and the two secret-backed template references listed below. Only the two permitted ConfigMap paths may appear in the final scan.
 

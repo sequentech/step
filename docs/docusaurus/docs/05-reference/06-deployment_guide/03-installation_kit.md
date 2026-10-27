@@ -32,8 +32,6 @@ own check with the fingerprint you received separately:
 
 <!-- deployment-step: 03-001 -->
 
-**Operation reference:** `03-verify-kit-signature` on `admin`.
-
 ```bash
 read -r -p "Signing-key fingerprint received separately: " FINGERPRINT
 ./sequent verify --fingerprint "$FINGERPRINT"
@@ -52,8 +50,6 @@ Paste this block once in the same kit directory; compare its displayed fingerpri
 with the independently received value before accepting the result:
 
 <!-- deployment-step: 03-002 -->
-
-**Operation reference:** `03-verify-kit-files` on `admin`.
 
 ```bash
 set -e -o pipefail
@@ -76,8 +72,6 @@ The kit's `nixos/site.json` is the site file built into the installer. It
 must describe your site exactly:
 
 <!-- deployment-step: 03-003 -->
-
-**Operation reference:** `03-check-site-config` on `admin`.
 
 ```bash
 jq . nixos/site.json
@@ -141,8 +135,6 @@ the cluster automatically:
 
 <!-- deployment-step: 03-004 -->
 
-**Operation reference:** `03-check-installed-nodes` on `admin`.
-
 **Expected result.** A node table lists both site host names, C1 and C2, with `Ready` in the STATUS column. The C1 control-plane role and the C2 worker must match the site file.
 
 **If the result differs.** For an SSH refusal or timeout, check the administration workstation’s source network and the C1 address. For `Permission denied`, check that you are using its authorized SSH key. For a missing C2 or `NotReady`, inspect the installer/boot logs and the allowed inter-node connections; do not deploy the TOE until both nodes are Ready.
@@ -156,8 +148,6 @@ from the validated site configuration; the operator does not configure a separat
 shell session on every machine:
 
 <!-- deployment-step: 03-005 -->
-
-**Operation reference:** `03-load-site-values` on `c1`.
 
 **Expected result.** The two permission lines are `700 root /root/deploy` and `600 root /root/deploy/hosts.env`. All preceding checks are silent on success; their absence alone does not establish success if the command stopped.
 
@@ -182,8 +172,6 @@ The installer also makes a working copy of the cluster manifests that the
 `sequent` command carries. All later changes are made to this copy:
 
 <!-- deployment-step: 03-006 -->
-
-**Operation reference:** `03-copy-service-manifests` on `c1`.
 
 **Expected result.** The listing contains `namespaces.yaml` and the service directories from the verified kit. No `cp`, `chmod` or missing-file error appears.
 

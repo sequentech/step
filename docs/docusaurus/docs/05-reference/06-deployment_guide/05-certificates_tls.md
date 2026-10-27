@@ -10,8 +10,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 Read this chapter for the requirements and expected results behind the
 [configuration-driven installation](01-about.md#install-from-one-configuration-file).
-Operation references identify implementation details and troubleshooting checks;
-they are not additional shell commands to type after a successful installation.
+Follow the explicit commands and human checkpoints below. The installer performs
+the server-side operations; you do not run internal numbered operations yourself.
 
 Every connection to the TOE's web hosts uses one TLS profile:
 
@@ -37,8 +37,6 @@ On C1:
 
 <!-- deployment-step: 05-001 -->
 
-**Operation reference:** `05-create-tls-request` on `c1`.
-
 **Expected result.** The certificate request summary shows `NIST CURVE: P-384` and DNS entries for all three configured web host names. The private key is saved locally; it is not printed.
 
 **If the result differs.** If a host name is wrong, correct the controlled site configuration before requesting a certificate. If key generation or request creation fails, inspect the root-only TLS directory and installed OpenSSL prerequisites. Do not blindly rerun this step after submitting a CSR: it replaces the private key, invalidating the relationship to that request.
@@ -57,8 +55,6 @@ On C1:
 
 <!-- deployment-step: 05-002 -->
 
-**Operation reference:** `05-check-tls-certificate` on `c1`.
-
 **Expected result.** The certificate summary lists the intended subject, issuer, all three DNS names and a future expiry date. It shows `NIST CURVE: P-384`, then `certificate matches the key`.
 
 **If the result differs.** If the certificate cannot be parsed, check that the CA response and chain were saved in PEM format. For missing names, expiry, a wrong curve or a key mismatch, obtain the correct certificate for the existing CSR. Never replace or export the private key to make an unrelated certificate fit.
@@ -69,8 +65,6 @@ store of a current browser installation (on Debian and Ubuntu,
 `/etc/ssl/certs/ca-certificates.crt`):
 
 <!-- deployment-step: 05-003 -->
-
-**Operation reference:** `05-verify-certificate-chain` on `admin`.
 
 **Expected result.** The final verification line is `leaf.pem: OK`. The certificate chain reaches the administration workstation’s current public browser-compatible CA trust store.
 
@@ -90,8 +84,6 @@ Create the Secret first, in both namespaces of the TOE.
 On C1:
 
 <!-- deployment-step: 05-004 -->
-
-**Operation reference:** `05-install-tls-secrets` on `c1`.
 
 **Expected result.** Namespace apply messages are followed by creation of `step-tls-cert` in each namespace. The final table lists that TLS Secret in both `step-apps` and `step-infra` (type `kubernetes.io/tls`).
 
@@ -122,8 +114,6 @@ On C1, install the certificate and the key, and restart the TLS endpoint:
 
 <!-- deployment-step: 05-005 -->
 
-**Operation reference:** `05-start-tls-endpoint` on `c1`.
-
 **Expected result.** The last two output lines are `active` and `nginx`. The second line identifies the sole process listening on TCP 443; no other process name may appear.
 
 **If the result differs.** If nginx fails to restart, inspect its service status and journal for certificate-path or configuration errors; retain private key confidentiality. If another process occupies port 443, stop and reconcile the installed kit’s endpoint arrangement. Do not bypass nginx or expose the ingress directly.
@@ -142,8 +132,6 @@ has its certificate, and again in
 [Verifying the Installation](10-verification.md):
 
 <!-- deployment-step: 05-006 -->
-
-**Operation reference:** `05-check-tls-profile` on `admin`.
 
 **Expected result.** For each of the three host names, the successful handshake reports TLS 1.3, `TLS_AES_256_GCM_SHA384`, a `secp384r1` temporary key, a 384-bit server public key and `Verify return code: 0 (ok)`. All prohibited protocol/cipher/group and wrong-or-missing-name attempts say `refused`. The final C1 port-80 line says `closed`.
 
