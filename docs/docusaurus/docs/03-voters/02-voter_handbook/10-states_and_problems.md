@@ -27,13 +27,27 @@ you as follows.
 If the voting system detects a failure it can recover from while voting is
 open, it puts the election into maintenance mode. In maintenance mode, voting
 is paused for everyone: no voter can start or continue voting, and nobody can
-read or change the stored votes. The ballot shows "Closed", and "Locate your
-ballot" cannot find ballots. Only the election board can resume voting, and the
-voting system first checks itself before it allows that.
+read or change the stored votes through the voter interfaces. A ballot already
+shown in your browser may show "Closed". When you load the ballot list again,
+you may instead see the message below, with no voting button. Ballot lookup is
+also unavailable during maintenance; this does not mean your stored vote has
+been lost. Only the election board can resume voting, and the voting system
+first checks itself before it allows that.
+
+![Actual voting portal refusing to load ballots during maintenance](assets/voter-maintenance-unavailable.png)
+
+*The deployed voting portal during a recoverable maintenance state. The voter
+has logged in, but cannot load a ballot or start voting.*
+
+If you see "There was a problem fetching the data. Please try again later or
+contact support for assistance.", wait and try again later. If it continues,
+tell the election organizer the message and time. Do not use another voting
+address to work around the refusal.
 
 The same can happen at the start of the election period: the voting system
 checks itself before it opens voting. If that check fails, voting does not
-open, and the ballot keeps showing "Closed" until the problem is solved.
+open. The ballot remains closed or the ballot list is unavailable until the
+problem is solved.
 
 For you this means:
 
@@ -61,6 +75,7 @@ tell them the message and the time.
 
 | Message | What it means | What to do |
 |---|---|---|
+| "There was a problem fetching the data. Please try again later or contact support for assistance." | The portal could not load your ballots. This can happen during maintenance or a connection problem; the message alone does not identify the cause. | Wait and try again later. If it continues, contact the election organizer. The message does not confirm whether an earlier vote was cast. |
 | "This election does not allow casting a vote. It may be closed, archived, or outside the allowed voting period" | Voting is not open for this ballot: it has not started, is paused or has ended. Your vote was not cast. | Look at the "Ballot list". If voting is paused, wait and try again when it shows "Open". |
 | "A network problem occurred. Please try again later or contact support" | The connection to the voting system failed. | Check your internet connection. Check "Voted" or "Not voted" before you try again (see [Casting Your Vote](05-casting_your_vote.md)). |
 | "A timeout occurred while casting your vote. Please try again later or contact support" | The voting system did not answer in time. Your vote may or may not have been cast. | Check "Voted" or "Not voted" and use "Locate your ballot" before you try again. |
