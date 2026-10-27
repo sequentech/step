@@ -36,6 +36,7 @@ import {IElectionPresentation, IElectionStatus, IChannelButtonInfo} from "@seque
 import {usePublishPermissions} from "./usePublishPermissions"
 import {ThreeStateDatagridHeader} from "@/components/ThreeStateDatagridHeader"
 import {AdminDateField} from "@/components/AdminDateTime"
+import {ResumePublication} from "./ResumePublication"
 
 const OMIT_FIELDS: string[] = []
 
@@ -67,6 +68,7 @@ type TPublishList = {
     initializationReportPolicy?: import("@sequentech/ui-core").EInitializeReportPolicy
     setBallotPublicationId: (id: string | Identifier) => void
     onPreview: (id: string | Identifier) => void
+    onResume?: (id: string) => void
 }
 
 export const PublishList: React.FC<TPublishList> = ({
@@ -89,6 +91,7 @@ export const PublishList: React.FC<TPublishList> = ({
     initializationReportPolicy,
     setBallotPublicationId = () => null,
     onPreview = () => null,
+    onResume,
 }) => {
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
@@ -213,6 +216,7 @@ export const PublishList: React.FC<TPublishList> = ({
                     <AdminDateField source="created_at" seconds />
                     <WrapperField label={String(t("common.label.actions"))}>
                         <ActionsColumn actions={actions} />
+                        <ResumePublication electionEventId={electionEventId} onResume={onResume} />
                     </WrapperField>
                 </DatagridConfigurable>
             </List>

@@ -764,6 +764,16 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                             setBallotPublicationId(id)
                         }}
                         onPreview={onPreview}
+                        onResume={(id: string) => {
+                            if (!canRead || !canWrite) return
+                            requestEpoch.current++
+                            setTaskId(null)
+                            setViewMode(ViewMode.Edit)
+                            setPublicationStatus(PublishStatus.GeneratedLoading)
+                            setGenerateData(null)
+                            setPublishError(null)
+                            setBallotPublicationId(id)
+                        }}
                     />
                 )}
                 {(viewMode === ViewMode.Edit || viewMode === ViewMode.View) && (

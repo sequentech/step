@@ -64,8 +64,17 @@ jest.mock("@sequentech/ui-core", () => ({
     EInitializeReportPolicy: {REQUIRED: "required"},
 }))
 jest.mock("./PublishList", () => ({
-    PublishList: ({onGenerate}: {onGenerate: () => void}) =>
-        require("react").createElement("button", {onClick: onGenerate}, "Publish changes"),
+    PublishList: ({onGenerate, onResume}: any) =>
+        require("react").createElement(
+            "div",
+            null,
+            require("react").createElement("button", {onClick: onGenerate}, "Publish changes"),
+            require("react").createElement(
+                "button",
+                {onClick: () => onResume("publication")},
+                "Resume approval"
+            )
+        ),
 }))
 jest.mock("./PublishActions", () => ({PublishActions: () => null}))
 jest.mock("./PublishExport", () => ({__esModule: true, default: () => null}))
@@ -103,6 +112,19 @@ beforeEach(() => {
                 current: {title: "after"},
             },
         },
+    })
+})
+
+it("resumes the existing generated artifact without creating another publication", async () => {
+    mockPublication = {id: "publication", is_generated: true}
+    render(React.createElement(Publish, props))
+    await act(async () => fireEvent.click(screen.getByText("Resume approval")))
+    const button = await screen.findByRole("button", {name: "publish.action.publish"})
+    await waitFor(() => expect((button as HTMLButtonElement).disabled).toBe(false))
+    expect(mockGenerate).not.toHaveBeenCalled()
+    await act(async () => fireEvent.click(button))
+    expect(mockPublish).toHaveBeenCalledWith({
+        variables: {electionEventId: "event", ballotPublicationId: "publication"},
     })
 })
 
