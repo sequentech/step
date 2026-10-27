@@ -20,8 +20,9 @@ use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::electoral_log_audit_deadline::AuditDeadline;
 use crate::services::electoral_log_audit_policy::AuditPolicy;
+use crate::services::electoral_log_audit_scope::{classify, AuditLogOrigin};
 use crate::services::electoral_log_board::{
-    get_board_client, get_board_signing_key, get_event_store,
+    get_board_client, get_board_signing_key, get_election_board, get_event_store,
 };
 use crate::services::electoral_log_checkpoint_copies::{
     cross_check, read_checkpoint_copies, CheckpointCopyConfig, CheckpointCopyPolicy,
@@ -39,6 +40,7 @@ use electoral_log::proofs::{verify_checkpoint_signature, Checkpoint, LogState};
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::hasura::extra::TasksExecutionStatus;
 use serde_json::Value;
+use std::collections::BTreeMap;
 use tracing::instrument;
 use voting_crypto::signing::VerificationKey;
 use voting_crypto::RistrettoCtx;
@@ -438,6 +440,20 @@ async fn audit_snapshot(tenant_id: &str, election_event_id: &str) -> Result<Audi
     let protocol_manager =
         get_board_signing_key(&transaction, tenant_id, Some(election_event_id), &board).await?;
     let expected_signer = VerificationKey::from_sk(&protocol_manager)?.to_b64_string()?;
+    // Import creates a separate active audit board for every current Post. Only
+    // the exact boards derived from this tenant/event's database rows qualify;
+    // historical or unbound boards must still be sealed.
+    let slug = std::env::var("ENV_SLUG").context("Missing ENV_SLUG")?;
+    let mut current_posts = BTreeMap::new();
+    for row in transaction.query(
+        "SELECT id::text FROM sequent_backend.election WHERE tenant_id=$1::text::uuid AND election_event_id=$2::text::uuid ORDER BY id",
+        &[&tenant_id, &election_event_id],
+    ).await? {
+        let id: String = row.try_get(0)?;
+        let name = get_election_board(tenant_id, &id, &slug);
+        let key = get_board_signing_key(&transaction, tenant_id, Some(election_event_id), &name).await?;
+        current_posts.insert(name, VerificationKey::from_sk(&key)?.to_b64_string()?);
+    }
     let published =
         get_electoral_log_checkpoints(&transaction, tenant_id, election_event_id).await?;
     transaction.commit().await?;
@@ -475,17 +491,18 @@ async fn audit_snapshot(tenant_id: &str, election_event_id: &str) -> Result<Audi
     let store = get_event_store(election_event_id).await?;
     let report = store.audit(&board, &checkpoints).await?;
     findings.extend(report.findings());
-    // The sealed logs an imported event's board continues, against the checkpoints
-    // published of them before the export, which carry the source event's signatures.
+    // Audit every current Post board against its registered signer, and every
+    // sealed continuation against its source checkpoints. No board is skipped.
     let logs = store.logs().await?;
     for log in &logs {
         let name = &log.checkpoint.log_name;
         if *name == board {
             continue;
         }
-        if log.state != LogState::Sealed {
+        let origin = classify(name, &current_posts);
+        if matches!(origin, AuditLogOrigin::Imported) && log.state != LogState::Sealed {
             findings.push(format!(
-                "Log {name} is not sealed but is not the event's board"
+                "Log {name} is not sealed and is not a current event or Post board"
             ));
         }
         let publications: Vec<_> = imported
@@ -493,13 +510,23 @@ async fn audit_snapshot(tenant_id: &str, election_event_id: &str) -> Result<Audi
             .filter(|publication| publication.board_name == *name)
             .cloned()
             .collect();
-        let (checkpoints, signature_findings) = check_imported_publications(name, &publications);
+        let (checkpoints, signature_findings) = match origin {
+            AuditLogOrigin::Current { expected_signer } => {
+                check_publications(name, expected_signer, &publications)
+            }
+            AuditLogOrigin::Imported => check_imported_publications(name, &publications),
+        };
         findings.extend(
             signature_findings
                 .into_iter()
                 .chain(store.audit(name, &checkpoints).await?.findings())
-                .map(|finding| format!("Continued log {name}: {finding}")),
+                .map(|finding| format!("Log {name}: {finding}")),
         );
+    }
+    for name in current_posts.keys() {
+        if !logs.iter().any(|log| log.checkpoint.log_name == *name) {
+            findings.push(format!("Current Post audit board {name} is missing"));
+        }
     }
     for publication in &imported {
         if !logs
