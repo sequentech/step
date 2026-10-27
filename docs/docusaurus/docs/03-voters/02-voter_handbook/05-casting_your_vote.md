@@ -67,6 +67,11 @@ When you select "Next", your browser encrypts your ballot. The voting portal
 then shows "Review your ballot" with your selections. At the top it shows "Your
 Ballot ID:" followed by a code.
 
+With signed ballot receipts, this is a short code in two groups of four
+characters, such as `G5AT-12SZ`. Copy your own code exactly. The audit screen
+uses a separate, longer identifier for checking the encryption; follow the
+instructions in [Auditing Your Ballot](06-auditing_your_ballot.md).
+
 :::info
 
 **Your vote has not been cast yet.** The voting system has received your

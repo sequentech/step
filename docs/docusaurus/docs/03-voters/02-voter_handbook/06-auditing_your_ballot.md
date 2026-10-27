@@ -29,8 +29,8 @@ Auditing is optional. You can audit as many times as you like before you cast.
 :::warning
 
 - **An audited ballot can never be cast.** Before you cast the new ballot,
-  check that the Ballot ID on the review screen is different from the Ballot
-  IDs you saw for the ballot you audited. If it is the same, do not cast, and
+  check that its Ballot ID on the review screen is different from the code
+  you noted on the original review screen. If it is the same, do not cast, and
   tell the election organizer.
 - **An audit shows your selections.** The file you download and the ballot
   verifier show the selections of the audited ballot. Audit only where nobody
@@ -64,6 +64,9 @@ the steps below:".
 1. Under "1. Save the following details:", note the Ballot ID shown at the top
    of this screen after "Your Ballot ID:". Copy it exactly. This is the Ballot
    ID you type into the ballot verifier.
+   It is the full 64-character hash of the encrypted ballot. When the review
+   screen used a short signed-receipt code, keep that code separately: the
+   verifier needs the full identifier from **Check your ballot**.
 2. Select "Download". Your browser saves your encrypted ballot, with the secret
    values used to encrypt it, as a text file. The screen also shows the same
    data as text below the button.
@@ -127,7 +130,8 @@ about your ballot.
 5. Cast the new ballot as described in
    [Casting Your Vote](05-casting_your_vote.md), or audit it, too.
 6. When the voting portal shows "Your vote has been cast", check that the
-   Ballot ID shown there is not one you saw for the audited ballot.
+   Ballot ID shown there matches the new review screen's code and differs
+   from the original review screen's code.
 7. Delete the file you downloaded, and close the tab of the ballot verifier.
 
 If you try to cast an audited ballot, the voting system refuses it. The voting

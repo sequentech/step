@@ -35,10 +35,14 @@ ballot in the "Ballot list" and with "Locate your ballot".
 
 *Example screen with synthetic data. Use the Ballot ID from your own confirmed vote.*
 
-The Ballot ID is a ballot tracker: a SHA-3 hash that identifies your
-encrypted ballot. The voting portal describes it like this: "The Ballot ID is
-a unique code that lets you find your ballot in the ballot box. It does not
-contain any information about your selections."
+The Ballot ID lets you find your encrypted ballot in the ballot box. With
+signed ballot receipts, the confirmation shows a short code in two groups of
+four characters, such as `G5AT-12SZ`. Other configurations may show the full
+hash of the encrypted ballot. Use the complete code from your own confirmation;
+it does not reveal your selections.
+
+The full identifier on **Check your ballot** is for auditing a discarded
+ballot's encryption. To locate a cast ballot, use its confirmation code instead.
 
 - Keep the Ballot ID of your cast ballot. You can copy it, write it down,
   select "Print" on the confirmation screen to save the receipt, or scan the QR
