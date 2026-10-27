@@ -33,6 +33,12 @@ test is never a passed test.
 4. Return to the board operation after its required test passes. A test does not
    authorize the operation or replace the required board signatures.
 
+![Actual background run showing all six completed security checks](./assets/six-self-tests-passed.png)
+
+This laboratory run completed with all six checks **Passed**. The displayed
+result records that run; it does not open voting or authorize a later operation
+after its configuration or election state changes.
+
 A result marked **Earlier election state** cannot authorize a later transition.
 Changes to the configuration or security state invalidate earlier evidence.
 If the status cannot be refreshed, do not rely on a previously displayed result.

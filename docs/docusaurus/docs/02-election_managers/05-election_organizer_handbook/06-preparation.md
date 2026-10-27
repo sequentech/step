@@ -249,14 +249,22 @@ View** (`admin-dashboard-view`), **View Monitoring Dashboards**
 the election-event Dashboard; its name does not assign the administrator role:
 
 1. Open the election event's **Dashboard** and select **Set up monitoring**.
-2. Choose the supplied preset containing **Attack detections**. Review the
-   confirmation: it replaces this event's monitoring layout and retains the
+2. Choose **COMELEC overseas voting · v6**, the supplied monitoring preset
+   containing **Attack detections**. This selects a dashboard layout; it does not
+   change the imported election data or voting rules. Review the confirmation: it replaces this event's monitoring layout and retains the
    earlier configuration in its history. Select **Reset** once.
-3. After the Dashboard reloads, open its **Section** selector and choose
+3. After the Dashboard reloads, open its **Dashboard** selector and choose
    **Attack detections**, under **Access and security**.
 4. Check that the figures have a current update time. Inspect any detections
    and correlate them with the signed **PotentialAttackDetected** records in
    **Logs** before approving the election configuration.
+
+![Actual board confirmation before creating the monitoring layout](./assets/monitoring-preset-confirmation.png)
+
+The example above was captured from the evaluator laboratory before the single
+**Reset** operation. After setup, **Not counted yet** means that the first
+background count has not completed; wait for the displayed update before
+interpreting the figures.
 
 If the **Dashboard** tab is absent, check **Admin Dashboard View**. If
 **Set up monitoring** is absent, check **Configure Monitoring Dashboards**. If saving
