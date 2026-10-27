@@ -128,6 +128,66 @@ export const GET_SIGNING_RULE_CAPACITIES = gql`
             waiting
             config_version
         }
+        import_election_data: signingRuleCapacity(
+            election_event_id: $electionEventId
+            action: "import-election-data"
+        ) {
+            max
+            posts
+            posts_short
+            posts_short_without_requester
+            roles
+            waiting
+            config_version
+        }
+        start_tally: signingRuleCapacity(
+            election_event_id: $electionEventId
+            action: "start-tally"
+        ) {
+            max
+            posts
+            posts_short
+            posts_short_without_requester
+            roles
+            waiting
+            config_version
+        }
+        export_execution_data: signingRuleCapacity(
+            election_event_id: $electionEventId
+            action: "export-execution-data"
+        ) {
+            max
+            posts
+            posts_short
+            posts_short_without_requester
+            roles
+            waiting
+            config_version
+        }
+        delete_execution_data: signingRuleCapacity(
+            election_event_id: $electionEventId
+            action: "delete-execution-data"
+        ) {
+            max
+            posts
+            posts_short
+            posts_short_without_requester
+            roles
+            waiting
+            config_version
+        }
+        read_voters_register: signingRuleCapacity(
+            election_event_id: $electionEventId
+            action: "read-voters-register"
+        ) {
+            max
+            posts
+            posts_short
+            posts_short_without_requester
+            roles
+            waiting
+            config_version
+        }
         key_ceremony: signingRuleCapacity(
             election_event_id: $electionEventId
             action: "key-ceremony"
