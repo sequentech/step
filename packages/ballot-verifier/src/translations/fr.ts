@@ -42,6 +42,8 @@ const frenchTranslation: TranslationType = {
                 "Les bulletins publiés pour cet événement électoral n'ont pas pu être chargés ; ce vote auditable ne peut donc pas encore être vérifié. Veuillez réessayer.",
             styleErrorDescription:
                 "Le style de vote de ce vote auditable n'est pas celui publié pour l'élection : sa clé publique ou ses scrutins et candidats diffèrent, ou il n'est pas publié. Ce vote n'est pas fiable.",
+            historicalTrackerWarning:
+                "Ce bulletin utilise l’ancien format d’identifiant SHA-512. Le vérificateur contrôle le format d’origine.",
             legacyBallotWarning:
                 "Ce vote auditable utilise un ancien format dont l'identifiant de vote ne couvre pas le style de vote. Son identifiant ne peut pas confirmer que le vote a été chiffré avec la clé publiée de l'élection.",
             useSampleLink: "Utiliser un vote exemple",

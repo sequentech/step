@@ -43,6 +43,8 @@ const galegoTranslation: TranslationType = {
                 "Non se puideron cargar as papeletas publicadas para este evento electoral, polo que esta papeleta auditábel aínda non se pode verificar. Por favor, ténteo de novo.",
             styleErrorDescription:
                 "O estilo de papeleta desta papeleta auditábel non é o publicado para a elección: a súa chave pública ou os seus concursos e candidaturas difiren, ou non está publicado. Non se pode confiar na papeleta.",
+            historicalTrackerWarning:
+                "Esta papeleta utiliza o formato histórico de identificador SHA-512. O verificador comproba o formato orixinal.",
             legacyBallotWarning:
                 "Esta papeleta auditábel usa un formato anterior cuxo ID de papeleta non cobre o estilo de papeleta. O seu ID non pode confirmar que se cifrou coa chave publicada da elección.",
             useSampleLink: "Usar unha papeleta de exemplo",

@@ -207,6 +207,25 @@ describe("comparing the audited ballot style with the published one", () => {
         expect(nextButton()).toBeDisabled()
     })
 
+    it("identifies historical SHA-512 trackers without a style-binding warning", async () => {
+        const current = singleContestBallot()
+        const historical = {...current.ballot, version: 3}
+        recordSequentCore(current)
+        const {lastReported} = renderImportStep(current)
+
+        await importFile(JSON.stringify(historical))
+
+        const warning = await screen.findByTestId("legacy-ballot-warning")
+        expect(warning).toBeVisible()
+        expect(warning).toHaveTextContent("historical SHA-512 tracker format")
+        expect(warning).not.toHaveTextContent("does not cover the ballot style")
+        expect(lastReported()).toEqual(confirmationOf(current))
+
+        await importFile(JSON.stringify(current.ballot), "current-ballot.json")
+        await expectAccepted("current-ballot.json")
+        expect(warning).not.toBeVisible()
+    })
+
     it("accepts a ballot of the legacy version with a warning", async () => {
         const single = singleContestBallot()
         const legacy = {...single.ballot, version: 2}

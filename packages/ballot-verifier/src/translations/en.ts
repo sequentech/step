@@ -40,6 +40,8 @@ const englishTranslation = {
                 "The ballots published for this election event could not be loaded, so this auditable ballot cannot be verified yet. Please try again.",
             styleErrorDescription:
                 "The ballot style in this auditable ballot is not the one published for the election: its public key or its contests and candidates differ, or it is not published. The ballot cannot be trusted.",
+            historicalTrackerWarning:
+                "This ballot uses the historical SHA-512 tracker format. The verifier checks the original format.",
             legacyBallotWarning:
                 "This auditable ballot uses an older ballot format whose Ballot ID does not cover the ballot style. Its Ballot ID cannot confirm that the ballot was encrypted with the published election key.",
             useSampleLink: "Use a sample ballot",

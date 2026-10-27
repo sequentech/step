@@ -78,7 +78,7 @@ export const singleContestBallot = (): RecordedBallot<IAuditableSingleBallot> =>
     const config = ballotStyle()
     return {
         ballot: {
-            version: 1,
+            version: 4,
             issue_date: "15/01/2026",
             config,
             contests: ["council-ciphertext"],
@@ -95,7 +95,7 @@ export const multiContestBallot = (): RecordedBallot<IAuditableMultiBallot> => {
     const config = ballotStyle(true)
     return {
         ballot: {
-            version: 1,
+            version: 4,
             issue_date: "15/01/2026",
             config,
             contests: "council-and-school-ciphertext",
@@ -113,7 +113,7 @@ export const sampleBallot = (): RecordedBallot<IAuditableSingleBallot> => {
     const config = ballotStyle()
     return {
         ballot: {
-            version: 1,
+            version: 4,
             issue_date: "15/01/2026",
             config,
             contests: ["sample-ciphertext"],

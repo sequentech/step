@@ -44,6 +44,8 @@ const spanishTranslation: TranslationType = {
                 "No se pudieron cargar las papeletas publicadas para este evento electoral, por lo que este voto auditable aún no se puede verificar. Por favor, inténtelo de nuevo.",
             styleErrorDescription:
                 "El estilo de voto de este voto auditable no es el publicado para la elección: su clave pública o sus contiendas y candidaturas difieren, o no está publicado. No se puede confiar en el voto.",
+            historicalTrackerWarning:
+                "Esta papeleta utiliza el formato histórico de identificador SHA-512. El verificador comprueba el formato original.",
             legacyBallotWarning:
                 "Este voto auditable usa un formato anterior cuyo ID de voto no cubre el estilo de voto. Su ID de voto no puede confirmar que se cifró con la clave publicada de la elección.",
             useSampleLink: "Use voto de ejemplo",

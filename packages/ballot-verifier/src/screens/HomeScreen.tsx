@@ -155,7 +155,7 @@ export const HomeScreen: React.FC<IProps> = ({
     const [showError, setShowError] = useState(false)
     const [showCiphertextError, setShowCiphertextError] = useState(false)
     const [showStyleError, setShowStyleError] = useState(false)
-    const [showLegacyWarning, setShowLegacyWarning] = useState(false)
+    const [legacyWarning, setLegacyWarning] = useState<string | null>(null)
     const [styleLookupFailure, setStyleLookupFailure] =
         useState<EPublishedBallotStyleLookup | null>(null)
     const [openStep1Help, setOpenStep1Help] = useState(false)
@@ -190,7 +190,7 @@ export const HomeScreen: React.FC<IProps> = ({
         setShowCiphertextError(false)
         setStyleLookupFailure(failure)
         setShowStyleError(false)
-        setShowLegacyWarning(false)
+        setLegacyWarning(null)
         setConfirmationBallot(null)
     }
 
@@ -259,7 +259,15 @@ export const HomeScreen: React.FC<IProps> = ({
             setShowCiphertextError(isMismatch)
             return
         }
-        setShowLegacyWarning(isPublishedBallot && LEGACY_BALLOT_VERSION === auditableBallot.version)
+        setLegacyWarning(
+            !isPublishedBallot
+                ? null
+                : LEGACY_BALLOT_VERSION === auditableBallot.version
+                  ? "legacyBallotWarning"
+                  : auditableBallot.version === 3
+                    ? "historicalTrackerWarning"
+                    : null
+        )
         // Signatures and trackers cover the uploaded configuration; the published
         // presentation is used for decoding and display after the layout matches.
         let ballotHash = isMultiContest
@@ -424,10 +432,12 @@ export const HomeScreen: React.FC<IProps> = ({
             </Alert>
             <Alert
                 severity="warning"
-                style={{display: showLegacyWarning ? undefined : "none"}}
+                style={{display: legacyWarning ? undefined : "none"}}
                 data-testid="legacy-ballot-warning"
             >
-                <Typography variant="body2">{t("homeScreen.legacyBallotWarning")}</Typography>
+                <Typography variant="body2">
+                    {legacyWarning ? t(`homeScreen.${legacyWarning}`) : null}
+                </Typography>
             </Alert>
             <Alert
                 severity="error"
