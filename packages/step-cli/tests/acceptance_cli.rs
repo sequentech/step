@@ -5,7 +5,7 @@
 use electoral_log::adapters::ballot_box::{AcceptBallot, AcceptOutcome, BallotStatus};
 use sequent_core::{
     ballot::{HashableBallot, SignedHashableBallot},
-    encrypt::{encrypt_decoded_contest, hash_ballot_sha512},
+    encrypt::{encrypt_decoded_contest, hash_ballot_digest},
     fixtures::ballot_codec::{get_writein_ballot_style, get_writein_plaintext},
 };
 use serde_json::{json, Value};
@@ -321,7 +321,7 @@ fn run_decides_the_automatic_checks_from_the_election_event() {
     )
     .unwrap();
     let signed = SignedHashableBallot::try_from(&ballot).unwrap();
-    let hash = hash_ballot_sha512(&HashableBallot::try_from(&signed).unwrap()).unwrap();
+    let hash = hash_ballot_digest(&HashableBallot::try_from(&signed).unwrap()).unwrap();
     let content = serde_json::to_string(&signed).unwrap();
 
     for (logged_hash, passes) in [(hash.to_vec(), true), (vec![0; 64], false)] {

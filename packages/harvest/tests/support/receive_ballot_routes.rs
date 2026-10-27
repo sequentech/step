@@ -35,6 +35,7 @@ fn voter() -> Claims {
 fn received() -> ReceivedBallot {
     ReceivedBallot {
         statement: ReceivedStatement {
+            tracker_version: None,
             tenant_id: TENANT_ID.into(),
             election_event_id: EVENT_ID.into(),
             election_id: ELECTION_ID.into(),

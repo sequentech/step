@@ -202,6 +202,7 @@ export interface IBallotBoxKey {
 
 // The ballot box's signed statement that it has stored a ballot.
 export interface IReceivedBallot {
+    tracker_version?: number
     tenant_id: string
     election_event_id: string
     election_id: string

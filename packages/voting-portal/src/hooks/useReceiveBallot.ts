@@ -128,6 +128,7 @@ export const useReceiveBallot = ({
             // The signature must cover what this device sent, so only the
             // time, the key and the signatures are taken from the answer.
             const receivedBallot: IReceivedBallot = {
+                tracker_version: auditableBallot.version === 4 ? 2 : undefined,
                 tenant_id: ballotStyle.tenant_id,
                 election_event_id: ballotStyle.election_event_id,
                 election_id: ballotStyle.election_id,
@@ -140,6 +141,9 @@ export const useReceiveBallot = ({
                 ballot_id: answer.ballot_id,
             }
             try {
+                if ((answer.tracker_version ?? undefined) !== receivedBallot.tracker_version) {
+                    throw new Error("The receipt tracker version does not match this ballot")
+                }
                 verifyReceivedBallot(ballotBoxKey, receivedBallot)
             } catch (error) {
                 console.error("The ballot box's receipt does not verify:", error)

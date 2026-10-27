@@ -53,6 +53,13 @@ impl<'de> Deserialize<'de> for HashWrapper {
 pub fn hash_to_array(bytes: &[u8]) -> Result<Hash> {
     Ok(Sha512::digest(bytes).into())
 }
+/// FIPS 202 SHA3-512 for explicitly versioned ballot trackers.
+/// Application/configuration hashes above retain their original SHA-512 identity.
+pub fn hash_sha3_512(bytes: &[u8]) -> Hash {
+    use sha3::Digest as _;
+    sha3::Sha3_512::digest(bytes).into()
+}
+
 /// SHA-512 as a byte vector.
 pub fn hash(bytes: &[u8]) -> Result<Vec<u8>> {
     Ok(Sha512::digest(bytes).to_vec())

@@ -16,7 +16,7 @@ use crate::ballot::BallotBoxKey;
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::collections::HashMap;
-use voting_crypto::hash::{hash_sha256, hash_to_array};
+use voting_crypto::hash::{hash_sha256, hash_sha3_512, hash_to_array};
 use voting_crypto::signing::{Signature, SigningKey, VerificationKey};
 
 const RECEIVED_STATEMENT_DOMAIN: &str = "step/ballot-received/v1";
@@ -59,6 +59,9 @@ quick_error! {
 /// What the ballot box states about a ballot it has stored.
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct ReceivedStatement {
+    /// Absent: original SHA-512 receipt; 2: signed SHA3-512 receipt.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tracker_version: Option<u32>,
     pub tenant_id: String,
     pub election_event_id: String,
     pub election_id: String,
@@ -69,6 +72,20 @@ pub struct ReceivedStatement {
     /// UTC, RFC 3339 with milliseconds: 2028-05-08T03:00:00.000Z.
     pub received_at: String,
     pub key_id: String,
+}
+
+/// Receipt scheme follows the validated ballot format, never a client policy hint.
+pub fn receipt_tracker_version(
+    ballot_version: u32,
+) -> Result<Option<u32>, BallotReceiptError> {
+    match ballot_version {
+        crate::ballot::TYPES_VERSION => Ok(Some(2)),
+        crate::ballot::LEGACY_TYPES_VERSION
+        | crate::ballot::SHA512_TYPES_VERSION => Ok(None),
+        version => Err(BallotReceiptError::Malformed(format!(
+            "Unsupported ballot version {version}"
+        ))),
+    }
 }
 
 /// A Received statement with the ballot box's signature over it.
@@ -112,7 +129,16 @@ fn voter_signature_bytes(
 impl ReceivedStatement {
     pub fn bytes_for_signing(&self) -> Result<Vec<u8>, BallotReceiptError> {
         let mut bytes = vec![];
-        extend_with_field(&mut bytes, RECEIVED_STATEMENT_DOMAIN.as_bytes());
+        let domain = match self.tracker_version {
+            None => RECEIVED_STATEMENT_DOMAIN,
+            Some(2) => "step/ballot-received/v2/sha3-512",
+            Some(version) => {
+                return Err(BallotReceiptError::Malformed(format!(
+                    "Unsupported tracker version {version}"
+                )))
+            }
+        };
+        extend_with_field(&mut bytes, domain.as_bytes());
         extend_with_field(&mut bytes, self.tenant_id.as_bytes());
         extend_with_field(&mut bytes, self.election_event_id.as_bytes());
         extend_with_field(&mut bytes, self.election_id.as_bytes());
@@ -195,8 +221,9 @@ pub fn normalize_ballot_id(typed: &str) -> Option<String> {
     )
 }
 
-/// The first 40 bits of SHA-512 over the voter-signed ballot and the ballot
-/// box's signature.
+/// A short locator from the voter-signed ballot and ballot-box signature.
+/// Version 2 uses the first 40 bits of SHA3-512; absent version retains the
+/// original SHA-512 identifier for historical verification only.
 pub fn ballot_id(
     statement: &ReceivedStatement,
     received_signature: &str,
@@ -205,7 +232,16 @@ pub fn ballot_id(
         .map_err(malformed("received_signature"))?;
 
     let mut bytes = vec![];
-    extend_with_field(&mut bytes, BALLOT_ID_DOMAIN.as_bytes());
+    let domain = match statement.tracker_version {
+        None => BALLOT_ID_DOMAIN,
+        Some(2) => "step/ballot-id/v2/sha3-512",
+        Some(version) => {
+            return Err(BallotReceiptError::Malformed(format!(
+                "Unsupported tracker version {version}"
+            )))
+        }
+    };
+    extend_with_field(&mut bytes, domain.as_bytes());
     extend_with_field(&mut bytes, statement.ballot_hash.as_bytes());
     extend_with_field(&mut bytes, &voter_key_bytes(statement)?);
     extend_with_field(&mut bytes, &voter_signature_bytes(statement)?);
@@ -213,7 +249,11 @@ pub fn ballot_id(
     extend_with_field(&mut bytes, statement.key_id.as_bytes());
     extend_with_field(&mut bytes, &received_signature.to_bytes());
 
-    let digest = hash_to_array(&bytes).map_err(malformed("digest"))?;
+    let digest = if statement.tracker_version == Some(2) {
+        hash_sha3_512(&bytes)
+    } else {
+        hash_to_array(&bytes).map_err(malformed("digest"))?
+    };
     let mut prefix = [0u8; BALLOT_ID_BYTES];
     prefix.copy_from_slice(&digest[..BALLOT_ID_BYTES]);
     Ok(format_ballot_id(&prefix))

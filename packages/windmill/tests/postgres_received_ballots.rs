@@ -249,6 +249,7 @@ impl SignedBallot {
         let ballot_box_sk = SigningKey::generate().unwrap();
         let voter_sk = SigningKey::generate().unwrap();
         let statement = ReceivedStatement {
+            tracker_version: None,
             tenant_id: f.tenant.to_string(),
             election_event_id: f.event.to_string(),
             election_id: f.election.to_string(),

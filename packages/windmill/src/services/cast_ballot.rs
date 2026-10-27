@@ -518,6 +518,7 @@ mod postgres_wiring_tests {
                         let received = sign_received_ballot(
                             &self.ballot_box_sk,
                             ReceivedStatement {
+                                tracker_version: None,
                                 tenant_id: Uuid::new_v4().to_string(),
                                 election_event_id: self.id.clone(),
                                 election_id: self.election.clone(),

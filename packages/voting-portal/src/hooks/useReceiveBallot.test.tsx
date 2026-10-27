@@ -38,6 +38,7 @@ let mockState: RootState
 const BALLOT_HASH = "0123456789abcdef".repeat(4)
 const BALLOT_BOX_KEY = {key_id: "fd110d301d2f077d", public_key: "ballot-box-key"}
 const ANSWER = {
+    tracker_version: 2,
     ballot_id: "FTBE-MHRX",
     received_at: "2028-05-08T03:00:00.000Z",
     key_id: "fd110d301d2f077d",
@@ -67,6 +68,7 @@ const ballotStyle = (policy?: EReceiptsPolicy, withKey = true): IBallotStyle =>
 
 const auditableBallot = (signed = true): IAuditableBallot =>
     ({
+        version: 4,
         ballot_hash: BALLOT_HASH,
         voter_signing_pk: signed ? "voter-key" : undefined,
         voter_ballot_signature: signed ? "voter-signature" : undefined,
@@ -260,3 +262,14 @@ it("waits for the ballot before sending anything", () => {
     expect(result.current).toEqual({status: EReceiveBallotStatus.PENDING})
     expect(mockReceiveBallot).not.toHaveBeenCalled()
 })
+
+it.each([undefined, 1, 3, 99])(
+    "rejects a receipt scheme downgrade or unknown scheme %s",
+    async (tracker_version) => {
+        mockReceiveBallot.mockResolvedValue({data: {receive_ballot: {...ANSWER, tracker_version}}})
+        const {result} = receive()
+        await waitFor(() => expect(result.current.status).toBe(EReceiveBallotStatus.FAILED))
+        expect(mockVerifyReceivedBallot).not.toHaveBeenCalled()
+        expect(mockDispatch).not.toHaveBeenCalled()
+    }
+)

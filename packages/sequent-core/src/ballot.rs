@@ -39,8 +39,11 @@ use voting_crypto::signing::{Signature, SigningKey, VerificationKey};
 use voting_crypto::RecordSerialize;
 
 /// Version of the ballots encrypted by this crate. Their tracker covers the
-/// ballot format and the ballot style besides the contests.
-pub const TYPES_VERSION: u32 = 3;
+/// ballot format and the ballot style besides the contests, using SHA3-512.
+pub const TYPES_VERSION: u32 = 4;
+
+/// Style-bound SHA-512 ballots remain readable with their original trackers.
+pub const SHA512_TYPES_VERSION: u32 = 3;
 
 /// Version of the ballots whose tracker covers only the issue date and the
 /// contests. They are still read, and hashed as they were cast.
@@ -48,10 +51,12 @@ pub const LEGACY_TYPES_VERSION: u32 = 2;
 
 pub(crate) fn check_types_version(version: u32) -> Result<u32, BallotError> {
     match version {
-        TYPES_VERSION | LEGACY_TYPES_VERSION => Ok(version),
+        TYPES_VERSION | SHA512_TYPES_VERSION | LEGACY_TYPES_VERSION => {
+            Ok(version)
+        }
         _ => Err(BallotError::Serialization(format!(
             "Unexpected version {version}, expected {TYPES_VERSION} or \
-             {LEGACY_TYPES_VERSION}"
+             {SHA512_TYPES_VERSION} or {LEGACY_TYPES_VERSION}"
         ))),
     }
 }

@@ -27,7 +27,9 @@ use once_cell::sync::Lazy;
 use sequent_core::ballot::{
     AreaPresentation, BallotStyle, ContestEncryptionPolicy, ReceiptsPolicy, VotingStatusChannel,
 };
-use sequent_core::ballot_receipt::{sign_received_ballot, ReceivedBallot, ReceivedStatement};
+use sequent_core::ballot_receipt::{
+    receipt_tracker_version, sign_received_ballot, ReceivedBallot, ReceivedStatement,
+};
 use sequent_core::encrypt::hash_ballot_style;
 use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
 use sequent_core::services::uuid_validation::parse_uuid_v4;
@@ -63,6 +65,7 @@ static BALLOT_STYLE_HASHES: Lazy<DashMap<Uuid, (String, BallotStyle)>> = Lazy::n
 /// voter's key. Single and multi-contest ballots share these fields.
 #[derive(Deserialize)]
 struct BallotEnvelope {
+    version: u32,
     config: String,
     ballot_style_hash: String,
     voter_signing_pk: Option<String>,
@@ -221,6 +224,7 @@ fn sign_received(
     voter_signing_pk: &str,
     voter_ballot_signature: &str,
     received_at: &DateTime<Utc>,
+    ballot_version: u32,
 ) -> Result<ReceivedBallot, CastVoteError> {
     let key_id = published_key(signing_key)
         .map_err(|err| CastVoteError::BallotSignFailed(err.to_string()))?
@@ -228,6 +232,8 @@ fn sign_received(
     sign_received_ballot(
         signing_key,
         ReceivedStatement {
+            tracker_version: receipt_tracker_version(ballot_version)
+                .map_err(|error| CastVoteError::BallotSignFailed(error.to_string()))?,
             tenant_id: scope.tenant_id.to_string(),
             election_event_id: scope.election_event_id.to_string(),
             election_id: scope.election_id.to_string(),
@@ -242,9 +248,16 @@ fn sign_received(
 }
 
 /// The receipt the ballot box signed for a stored received ballot.
-fn stored_receipt(tenant_id: &Uuid, stored: StoredReceivedBallot) -> ReceivedBallot {
-    ReceivedBallot {
+fn stored_receipt(
+    tenant_id: &Uuid,
+    stored: StoredReceivedBallot,
+) -> Result<ReceivedBallot, CastVoteError> {
+    let envelope: BallotEnvelope = deserialize_str(&stored.content)
+        .map_err(|error| CastVoteError::DeserializeBallotFailed(error.to_string()))?;
+    Ok(ReceivedBallot {
         statement: ReceivedStatement {
+            tracker_version: receipt_tracker_version(envelope.version)
+                .map_err(|error| CastVoteError::BallotSignFailed(error.to_string()))?,
             tenant_id: tenant_id.to_string(),
             election_event_id: stored.election_event_id,
             election_id: stored.election_id,
@@ -256,7 +269,7 @@ fn stored_receipt(tenant_id: &Uuid, stored: StoredReceivedBallot) -> ReceivedBal
         },
         received_signature: stored.received_signature,
         ballot_id: stored.ballot_id,
-    }
+    })
 }
 
 #[instrument(skip(input), err)]
@@ -401,6 +414,7 @@ pub async fn try_receive_ballot(
                     &voter_signing_pk,
                     &voter_ballot_signature,
                     &received_at,
+                    envelope.version,
                 )
                 .map_err(anyhow::Error::msg)?;
                 Ok(ReceivedSignature {
@@ -426,7 +440,7 @@ pub async fn try_receive_ballot(
 
     match outcome {
         ReceiveOutcome::Received(stored) | ReceiveOutcome::AlreadyReceived(stored) => {
-            Ok(stored_receipt(&tenant_uuid, stored))
+            stored_receipt(&tenant_uuid, stored)
         }
         ReceiveOutcome::NoFreeBallotId => Err(CastVoteError::InsertFailed(
             "No free Ballot ID for the received ballot".to_string(),

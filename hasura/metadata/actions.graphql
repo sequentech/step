@@ -1673,6 +1673,7 @@ type InsertCastVoteOutput {
 }
 
 type ReceiveBallotOutput {
+    tracker_version: Int
     tenant_id: uuid!
     election_event_id: uuid!
     election_id: uuid!

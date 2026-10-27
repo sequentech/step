@@ -10,6 +10,7 @@ export const RECEIVE_BALLOT = gql`
             received_at
             key_id
             received_signature
+            tracker_version
         }
     }
 `

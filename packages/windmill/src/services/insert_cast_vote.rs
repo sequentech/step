@@ -47,10 +47,10 @@ use sequent_core::ballot::{
 use sequent_core::ballot::{HashableBallot, HashableBallotContest, SignedHashableBallot};
 use sequent_core::ballot_receipt::CastReceipt;
 use sequent_core::encrypt::hash_ballot;
-use sequent_core::encrypt::hash_ballot_sha512;
+use sequent_core::encrypt::hash_ballot_digest;
 use sequent_core::encrypt::hash_ballot_style;
 use sequent_core::encrypt::hash_multi_ballot;
-use sequent_core::encrypt::hash_multi_ballot_sha512;
+use sequent_core::encrypt::hash_multi_ballot_digest;
 use sequent_core::error::BallotError;
 use sequent_core::multi_ballot::verify_multi_ballot_signature;
 use sequent_core::multi_ballot::HashableMultiBallot;
@@ -732,14 +732,15 @@ pub fn check_ballot_style_binding(
     ballot_tracker_policy: &BallotTrackerPolicy,
     published_ballot_styles: &[PublishedBallotStyleHash],
 ) -> Result<(), CastVoteError> {
-    if version == LEGACY_TYPES_VERSION {
-        return match ballot_tracker_policy {
-            BallotTrackerPolicy::ALLOW_LEGACY => Ok(()),
-            BallotTrackerPolicy::STYLE_BOUND => Err(CastVoteError::BallotStyleMismatch(format!(
-                "Ballot version {version} is not accepted by the ballot tracker policy \
-                 {ballot_tracker_policy}"
-            ))),
-        };
+    match version {
+        sequent_core::ballot::TYPES_VERSION => {},
+        LEGACY_TYPES_VERSION | sequent_core::ballot::SHA512_TYPES_VERSION
+            if *ballot_tracker_policy == BallotTrackerPolicy::ALLOW_LEGACY => {
+                if version == LEGACY_TYPES_VERSION { return Ok(()); }
+            },
+        _ => return Err(CastVoteError::BallotStyleMismatch(format!(
+            "Ballot version {version} is not accepted by the ballot tracker policy {ballot_tracker_policy}"
+        ))),
     }
 
     if published_ballot_styles
@@ -801,7 +802,7 @@ pub fn deserialize_and_check_ballot(
     let pseudonym_hash_bytes = hash_voter_id(voter_id)
         .map_err(|e| CastVoteError::SerializeVoterIdFailed(e.to_string()))?;
 
-    let vote_hash_bytes = hash_ballot_sha512(&hashable_ballot)
+    let vote_hash_bytes = hash_ballot_digest(&hashable_ballot)
         .map_err(|e| CastVoteError::SerializeBallotFailed(e.to_string()))?;
 
     let pseudonym_h = PseudonymHash(HashWrapper::new(pseudonym_hash_bytes));
@@ -870,7 +871,7 @@ pub fn deserialize_and_check_multi_ballot(
     let pseudonym_hash_bytes = hash_voter_id(voter_id)
         .map_err(|e| CastVoteError::SerializeVoterIdFailed(e.to_string()))?;
 
-    let vote_hash_bytes = hash_multi_ballot_sha512(&hashable_multi_ballot)
+    let vote_hash_bytes = hash_multi_ballot_digest(&hashable_multi_ballot)
         .map_err(|e| CastVoteError::SerializeBallotFailed(e.to_string()))?;
 
     let pseudonym_h = PseudonymHash(HashWrapper::new(pseudonym_hash_bytes));

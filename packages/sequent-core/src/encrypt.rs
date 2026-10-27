@@ -30,8 +30,8 @@ use voting_crypto::RecordSerialize;
 pub const DEFAULT_PUBLIC_KEY_RISTRETTO_STR: &str =
     "ajR/I9RqyOwbpsVRucSNOgXVLCvLpfQxCgPoXGQ2RF4";
 
-/// Sha-512 hash are 64 bytes, this short hash uses
-/// only the first 32 bytes.
+/// Displayed application hashes retain the first 32 of the 64 digest bytes.
+/// The hash family is selected by the record type and ballot format version.
 pub const SHORT_SHA512_HASH_LENGTH_BYTES: usize = 32;
 
 pub type ShortHash = [u8; SHORT_SHA512_HASH_LENGTH_BYTES];
@@ -140,6 +140,7 @@ pub fn verify_auditable_ballot_ciphertexts(
     _ctx: &RistrettoCtx,
     ballot: &AuditableBallot,
 ) -> Result<(), BallotError> {
+    check_types_version(ballot.version)?;
     let contests = ballot.deserialize_contests()?;
     let expected: Vec<String> = ballot
         .config
@@ -170,6 +171,7 @@ pub fn verify_auditable_multi_ballot_ciphertext(
     _ctx: &RistrettoCtx,
     ballot: &AuditableMultiBallot,
 ) -> Result<(), BallotError> {
+    check_types_version(ballot.version)?;
     let contests = ballot.deserialize_contests()?;
     let expected: Vec<String> = ballot
         .config
@@ -553,14 +555,14 @@ pub fn hash_ballot_style(
     Ok(hex::encode(short_hash))
 }
 
-pub fn hash_ballot_sha512(
+pub fn hash_ballot_digest(
     hashable_ballot: &HashableBallot,
 ) -> AnyhowResult<Hash> {
     let bytes = match hashable_ballot.version {
         LEGACY_TYPES_VERSION => RawHashableBallot::try_from(hashable_ballot)
             .map_err(|error| anyhow!("{error:?}"))?
             .ser(),
-        TYPES_VERSION => StyleBoundHashableBallot {
+        TYPES_VERSION | SHA512_TYPES_VERSION => StyleBoundHashableBallot {
             version: hashable_ballot.version,
             format: ContestEncryptionPolicy::SINGLE_CONTEST,
             issue_date: hashable_ballot.issue_date.clone(),
@@ -576,7 +578,11 @@ pub fn hash_ballot_sha512(
         .record_serialize()?,
         version => return Err(anyhow!("Unexpected ballot version {version}")),
     };
-    hash::hash_to_array(&bytes)
+    if hashable_ballot.version == TYPES_VERSION {
+        Ok(hash::hash_sha3_512(&bytes))
+    } else {
+        hash::hash_to_array(&bytes)
+    }
 }
 
 pub fn shorten_hash(hash: &Hash) -> ShortHash {
@@ -586,12 +592,12 @@ pub fn shorten_hash(hash: &Hash) -> ShortHash {
 }
 
 // hash ballot:
-// serialize ballot into string, then hash to sha512, truncate to
-// 256 bits and serialize to hexadecimal
+// Hash the version-bound ballot bytes (SHA3-512 for version 4, historical
+// SHA-512 for versions 2/3), truncate to 256 bits, and encode as hexadecimal.
 pub fn hash_ballot(
     hashable_ballot: &HashableBallot,
 ) -> Result<String, BallotError> {
-    let sha512_hash = hash_ballot_sha512(hashable_ballot)
+    let sha512_hash = hash_ballot_digest(hashable_ballot)
         .map_err(|error| BallotError::Serialization(error.to_string()))?;
     let short_hash = shorten_hash(&sha512_hash);
     Ok(hex::encode(short_hash))
@@ -673,13 +679,13 @@ pub fn encrypt_multi_ballot(
 pub fn hash_multi_ballot(
     hashable_ballot: &HashableMultiBallot,
 ) -> Result<String, BallotError> {
-    let sha512_hash = hash_multi_ballot_sha512(hashable_ballot)
+    let sha512_hash = hash_multi_ballot_digest(hashable_ballot)
         .map_err(|error| BallotError::Serialization(error.to_string()))?;
     let short_hash = shorten_hash(&sha512_hash);
     Ok(hex::encode(short_hash))
 }
 
-pub fn hash_multi_ballot_sha512(
+pub fn hash_multi_ballot_digest(
     hashable_ballot: &HashableMultiBallot,
 ) -> AnyhowResult<Hash> {
     let bytes = match hashable_ballot.version {
@@ -688,7 +694,7 @@ pub fn hash_multi_ballot_sha512(
                 .map_err(|error| anyhow!("{error:?}"))?
                 .ser()
         }
-        TYPES_VERSION => StyleBoundHashableBallot {
+        TYPES_VERSION | SHA512_TYPES_VERSION => StyleBoundHashableBallot {
             version: hashable_ballot.version,
             format: ContestEncryptionPolicy::MULTIPLE_CONTESTS,
             issue_date: hashable_ballot.issue_date.clone(),
@@ -702,7 +708,11 @@ pub fn hash_multi_ballot_sha512(
         .record_serialize()?,
         version => return Err(anyhow!("Unexpected ballot version {version}")),
     };
-    hash::hash_to_array(&bytes)
+    if hashable_ballot.version == TYPES_VERSION {
+        Ok(hash::hash_sha3_512(&bytes))
+    } else {
+        hash::hash_to_array(&bytes)
+    }
 }
 
 #[cfg(test)]

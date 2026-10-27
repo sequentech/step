@@ -795,3 +795,71 @@ mod ballot_style_binding {
         ));
     }
 }
+
+#[test]
+fn evaluated_tracker_policy_refuses_sha512_downgrade_and_unknown_versions() {
+    let styles = vec![PublishedBallotStyleHash {
+        id: "style".into(),
+        hash: "hash".into(),
+    }];
+    for version in [0, 1, 2, 3, 5, 99] {
+        assert!(check_ballot_style_binding(
+            version,
+            "style",
+            "hash",
+            &BallotTrackerPolicy::STYLE_BOUND,
+            &styles
+        )
+        .is_err());
+    }
+    assert!(check_ballot_style_binding(
+        sequent_core::ballot::TYPES_VERSION,
+        "style",
+        "hash",
+        &BallotTrackerPolicy::STYLE_BOUND,
+        &styles
+    )
+    .is_ok());
+}
+
+#[test]
+fn historical_tracker_policy_preserves_binding_and_refuses_unknown_versions() {
+    let styles = vec![PublishedBallotStyleHash {
+        id: "style".into(),
+        hash: "hash".into(),
+    }];
+    for version in [0, 1, 5, 99] {
+        assert!(check_ballot_style_binding(
+            version,
+            "style",
+            "hash",
+            &BallotTrackerPolicy::ALLOW_LEGACY,
+            &styles
+        )
+        .is_err());
+    }
+    assert!(check_ballot_style_binding(
+        3,
+        "style",
+        "hash",
+        &BallotTrackerPolicy::ALLOW_LEGACY,
+        &styles
+    )
+    .is_ok());
+    assert!(check_ballot_style_binding(
+        3,
+        "other",
+        "hash",
+        &BallotTrackerPolicy::ALLOW_LEGACY,
+        &styles
+    )
+    .is_err());
+    assert!(check_ballot_style_binding(
+        2,
+        "other",
+        "old",
+        &BallotTrackerPolicy::ALLOW_LEGACY,
+        &styles
+    )
+    .is_ok());
+}

@@ -51,6 +51,7 @@ fn statement() -> ReceivedStatement {
     let voter_sk = SigningKey::from_b64_string(VOTER_SK).unwrap();
     let voter_pk = VerificationKey::from_sk(&voter_sk).unwrap();
     ReceivedStatement {
+        tracker_version: None,
         tenant_id: "90505c8a-23a9-4cdf-a26b-4e19f6a097d5".into(),
         election_event_id: "33f18502-a67c-4853-8333-a58630663559".into(),
         election_id: "f2f1065e-b784-46d1-b81a-c71bfeb9ad55".into(),
@@ -655,4 +656,75 @@ fn a_cast_receipt_reads_back_from_its_published_form() {
     assert_eq!(json["cast_receipt_signature"], CAST_RECEIPT_SIGNATURE);
     let read: CastReceipt = serde_json::from_value(json).unwrap();
     assert_eq!(read, receipt);
+}
+
+#[test]
+fn sha3_receipt_version_is_signed_and_cannot_be_downgraded() {
+    let mut value = serde_json::to_value(statement()).unwrap();
+    value["tracker_version"] = serde_json::json!(2);
+    let current: ReceivedStatement = serde_json::from_value(value).unwrap();
+    let receipt = sign_received_ballot(&ballot_box_sk(), current).unwrap();
+    assert_eq!(
+        serde_json::to_value(&receipt).unwrap()["tracker_version"],
+        2
+    );
+    assert_eq!(receipt.ballot_id, "1W6H-30XK");
+    assert_eq!(receipt.received_signature, "zE7O1G0Pnk7eC8LvXowvLLO7BP5Yi+lOH62kg2SzIVyG3HZVuJkvZZYDWUDdnoEGZe9LAaJqkygTTM/VK3jsDw==");
+    assert_ne!(receipt.ballot_id, BALLOT_ID);
+    assert_ne!(receipt.received_signature, RECEIVED_SIGNATURE);
+    assert_eq!(
+        verify_received_ballot(&published_key(), &receipt).unwrap(),
+        receipt.ballot_id
+    );
+    let mut changed = serde_json::to_value(&receipt).unwrap();
+    changed.as_object_mut().unwrap().remove("tracker_version");
+    let downgraded: ReceivedBallot = serde_json::from_value(changed).unwrap();
+    assert!(verify_received_ballot(&published_key(), &downgraded).is_err());
+}
+
+#[test]
+fn unknown_receipt_tracker_version_is_refused() {
+    let mut value = serde_json::to_value(statement()).unwrap();
+    value["tracker_version"] = serde_json::json!(99);
+    let unknown: ReceivedStatement = serde_json::from_value(value).unwrap();
+    assert!(sign_received_ballot(&ballot_box_sk(), unknown).is_err());
+}
+
+#[test]
+fn new_ballots_use_sha3_and_version_three_remains_verifiable() {
+    use sequent_core::ballot::{HashableBallot, TYPES_VERSION};
+    use sequent_core::encrypt::hash_ballot;
+    assert_eq!(TYPES_VERSION, 4);
+    let mut ballot = HashableBallot {
+        version: 4,
+        issue_date: "27/10/2026".into(),
+        contests: vec![],
+        config: "test-style".into(),
+        ballot_style_hash: "test-style-hash".into(),
+    };
+    assert_eq!(
+        hash_ballot(&ballot).unwrap(),
+        "ad9502a05cdd1bb03850236b2d0d66704db62c6abb58b1c8cf5c6e767a97d0bf"
+    );
+    ballot.version = 3;
+    assert_eq!(
+        hash_ballot(&ballot).unwrap(),
+        "fba7dd1ba325970a3be6834a4b249ebe6267fbe443ba2843a4b3fc4911ef863c"
+    );
+}
+
+#[test]
+fn tracker_upgrade_does_not_change_published_style_identity() {
+    assert_eq!(
+        hash_ballot_style(&get_writein_ballot_style()).unwrap(),
+        "d6510b7f28ee4dc2c14b49a9f6cfdc44b493c33954107ee6b1cb5604dea9bf50"
+    );
+}
+
+#[test]
+fn tracker_sha3_512_matches_fips202_known_answer() {
+    assert_eq!(hex::encode(voting_crypto::hash::hash_sha3_512(b"abc")),
+        "b751850b1a57168a5693cd924b6b096e08f621827444f70d884f5d0240d2712e10e116e9192af3c91a7ec57647e3934057340b4cf408d5a56592f8274eec53f0");
+    assert_eq!(hex::encode(voting_crypto::hash::hash_to_array(b"abc").unwrap()),
+        "ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f");
 }

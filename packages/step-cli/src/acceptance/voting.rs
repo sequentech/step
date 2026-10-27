@@ -14,7 +14,7 @@ use anyhow::Result;
 use chrono::{DateTime, Utc};
 use sequent_core::{
     ballot::{HashableBallot, SignedHashableBallot},
-    encrypt::{hash_ballot_sha512, hash_multi_ballot_sha512},
+    encrypt::{hash_ballot_digest, hash_multi_ballot_digest},
     multi_ballot::{HashableMultiBallot, SignedHashableMultiBallot},
 };
 use std::collections::BTreeSet;
@@ -341,7 +341,7 @@ pub fn content_hashes(content: &str) -> Vec<String> {
     if let Ok(signed) = serde_json::from_str::<SignedHashableBallot>(content) {
         if let Some(hash) = HashableBallot::try_from(&signed)
             .ok()
-            .and_then(|ballot| hash_ballot_sha512(&ballot).ok())
+            .and_then(|ballot| hash_ballot_digest(&ballot).ok())
         {
             hashes.push(hex::encode(hash));
         }
@@ -349,7 +349,7 @@ pub fn content_hashes(content: &str) -> Vec<String> {
     if let Ok(signed) = serde_json::from_str::<SignedHashableMultiBallot>(content) {
         if let Some(hash) = HashableMultiBallot::try_from(&signed)
             .ok()
-            .and_then(|ballot| hash_multi_ballot_sha512(&ballot).ok())
+            .and_then(|ballot| hash_multi_ballot_digest(&ballot).ok())
         {
             hashes.push(hex::encode(hash));
         }
@@ -429,7 +429,7 @@ pub(crate) mod tests {
         (
             ballot.ballot_hash.clone(),
             serde_json::to_string(&signed).unwrap(),
-            hex::encode(hash_ballot_sha512(&hashable).unwrap()),
+            hex::encode(hash_ballot_digest(&hashable).unwrap()),
         )
     }
 
