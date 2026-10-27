@@ -44,6 +44,12 @@ pub enum ElectionEventDeletionRefusal {
     VotingInProgress,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum DeletionContext {
+    General,
+    AuthorizedPostProcessing,
+}
+
 /// Returns why the election event must not be deleted by a user with the
 /// given permission labels, or `None` when it can be deleted.
 pub fn election_event_deletion_refusal(
@@ -51,15 +57,29 @@ pub fn election_event_deletion_refusal(
     elections: &[Election],
     permission_labels: &[String],
 ) -> Result<Option<ElectionEventDeletionRefusal>> {
+    deletion_refusal_in_context(
+        election_event,
+        elections,
+        permission_labels,
+        DeletionContext::General,
+    )
+}
+
+fn deletion_refusal_in_context(
+    election_event: &ElectionEvent,
+    elections: &[Election],
+    permission_labels: &[String],
+    context: DeletionContext,
+) -> Result<Option<ElectionEventDeletionRefusal>> {
     let presentation: Option<ElectionEventPresentation> = election_event
         .presentation
         .clone()
         .map(deserialize_value)
         .transpose()
         .map_err(|err| anyhow!("Error parsing election event presentation: {err:?}"))?;
-    if presentation.and_then(|presentation| presentation.locked_down)
-        == Some(LockedDown::LOCKED_DOWN)
-    {
+    let locked_down = presentation.and_then(|presentation| presentation.locked_down)
+        == Some(LockedDown::LOCKED_DOWN);
+    if locked_down && context == DeletionContext::General {
         return Ok(Some(ElectionEventDeletionRefusal::LockedDown));
     }
 
@@ -75,11 +95,17 @@ pub fn election_event_deletion_refusal(
     if let Some(status) = election_event.status.clone() {
         let status: ElectionEventStatus = deserialize_value(status)
             .map_err(|err| anyhow!("Error parsing election event status: {err:?}"))?;
-        voting_statuses.extend(
-            VOTING_STATUS_CHANNELS
-                .iter()
-                .map(|channel| status.status_by_channel(*channel)),
-        );
+        // Closing individual Posts can leave the aggregate gate OPEN. Only a
+        // transaction with current export/quorum authority and no voter
+        // admission may disregard that summary; every Post is checked below.
+        // Still parse the parent, and never infer closure from an empty set.
+        if context == DeletionContext::General || elections.is_empty() {
+            voting_statuses.extend(
+                VOTING_STATUS_CHANNELS
+                    .iter()
+                    .map(|channel| status.status_by_channel(*channel)),
+            );
+        }
     }
     for election in elections {
         if let Some(status) = election.status.clone() {
@@ -95,6 +121,11 @@ pub fn election_event_deletion_refusal(
     }
     if voting_statuses.iter().any(VotingStatus::is_open) {
         return Ok(Some(ElectionEventDeletionRefusal::VotingInProgress));
+    }
+    // The authorized task can accept LockedDown, but it must not hide an
+    // active/malformed Post or a permission-label refusal behind that result.
+    if locked_down {
+        return Ok(Some(ElectionEventDeletionRefusal::LockedDown));
     }
 
     Ok(None)
@@ -116,8 +147,26 @@ pub async fn find_election_event_deletion_refusal(
         return Ok(None);
     };
     let elections = get_elections(hasura_transaction, tenant_id, election_event_id).await?;
+    let context = if crate::services::board_operations::is_authorized_deletion(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+    )
+    .await?
+        && hasura_transaction
+            .query_one(
+                "SELECT EXISTS(SELECT 1 FROM sequent_backend.election_lifecycle_access WHERE tenant_id=$1::text::uuid AND election_event_id=$2::text::uuid AND phase='post_processing' AND NOT voter_allowed)",
+                &[&tenant_id, &election_event_id],
+            )
+            .await?
+            .try_get::<_, bool>(0)?
+    {
+        DeletionContext::AuthorizedPostProcessing
+    } else {
+        DeletionContext::General
+    };
 
-    election_event_deletion_refusal(&election_event, &elections, permission_labels)
+    deletion_refusal_in_context(&election_event, &elections, permission_labels, context)
 }
 
 #[instrument(err)]
@@ -421,5 +470,111 @@ mod deletion_refusal_tests {
 
         let event = election_event(Some(json!({"locked_down": "maybe"})), None);
         assert!(election_event_deletion_refusal(&event, &[], &[]).is_err());
+    }
+
+    #[test]
+    fn authorized_teardown_accepts_only_the_stale_parent_summary() {
+        for channel in [
+            "voting_status",
+            "kiosk_voting_status",
+            "early_voting_status",
+            "telephone_voting_status",
+        ] {
+            for status in ["OPEN", "PAUSED"] {
+                let event = election_event(None, Some(json!({channel: status})));
+                let elections = [election(Some(json!({"voting_status":"CLOSED"})), None)];
+                assert_eq!(
+                    deletion_refusal_in_context(&event, &elections, &[], DeletionContext::General)
+                        .unwrap(),
+                    Some(ElectionEventDeletionRefusal::VotingInProgress)
+                );
+                assert_eq!(
+                    deletion_refusal_in_context(
+                        &event,
+                        &elections,
+                        &[],
+                        DeletionContext::AuthorizedPostProcessing
+                    )
+                    .unwrap(),
+                    None
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn authorized_teardown_still_refuses_every_active_child_channel_even_if_locked() {
+        for locked in [None, Some(json!({"locked_down":"locked-down"}))] {
+            for channel in [
+                "voting_status",
+                "kiosk_voting_status",
+                "early_voting_status",
+                "telephone_voting_status",
+            ] {
+                for status in ["OPEN", "PAUSED"] {
+                    let event =
+                        election_event(locked.clone(), Some(json!({"voting_status":"CLOSED"})));
+                    let elections = [
+                        election(Some(json!({"voting_status":"CLOSED"})), None),
+                        election(Some(json!({channel:status})), None),
+                    ];
+                    assert_eq!(
+                        deletion_refusal_in_context(
+                            &event,
+                            &elections,
+                            &[],
+                            DeletionContext::AuthorizedPostProcessing
+                        )
+                        .unwrap(),
+                        Some(ElectionEventDeletionRefusal::VotingInProgress)
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn authorized_teardown_preserves_parsing_and_label_boundaries() {
+        let context = DeletionContext::AuthorizedPostProcessing;
+        let event = election_event(
+            Some(json!({"locked_down":"locked-down"})),
+            Some(json!({"voting_status":"OPEN"})),
+        );
+        assert_eq!(
+            deletion_refusal_in_context(&event, &[election(None, Some(LABEL))], &[], context)
+                .unwrap(),
+            Some(ElectionEventDeletionRefusal::PermissionLabels)
+        );
+        assert!(deletion_refusal_in_context(
+            &event,
+            &[election(Some(json!({"voting_status":"UNKNOWN"})), None)],
+            &[],
+            context
+        )
+        .is_err());
+        let malformed = election_event(None, Some(json!({"voting_status":"UNKNOWN"})));
+        assert!(deletion_refusal_in_context(&malformed, &[], &[], context).is_err());
+        let malformed = election_event(Some(json!({"locked_down":"maybe"})), None);
+        assert!(deletion_refusal_in_context(&malformed, &[], &[], context).is_err());
+        assert_eq!(
+            deletion_refusal_in_context(
+                &event,
+                &[election(Some(json!({"voting_status":"CLOSED"})), None)],
+                &[],
+                context
+            )
+            .unwrap(),
+            Some(ElectionEventDeletionRefusal::LockedDown)
+        );
+        assert_eq!(
+            deletion_refusal_in_context(
+                &election_event(None, Some(json!({"voting_status":"OPEN"}))),
+                &[],
+                &[],
+                context
+            )
+            .unwrap(),
+            Some(ElectionEventDeletionRefusal::VotingInProgress)
+        );
     }
 }
