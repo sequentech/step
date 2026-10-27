@@ -130,16 +130,34 @@ publish any result.
    number of eligible voters, the number of votes, the votes counted, valid
    and invalid, and the votes of each candidate. The number of votes counted
    must agree with the ballot boxes on the Dashboard ("Counted").
-2. Generate the reports the electoral regulation requires. Where "Generate
-   other election reports" needs signatures, the required board members sign
-   each report.
-3. The election board determines the result and records it, with the signed
+2. Open **Actions** for the election result. A report marked **awaiting
+   signatures** is held until its own approval is complete. Select **Open the
+   signing request**, review the document and configuration revision, and have
+   the required distinct board members sign with their personal certificates.
+   Repeat for each required area report; approving the election report does
+   not approve its area reports.
+3. Reopen **Actions** and select **Export in PDF format** for the report you
+   approved. Check the downloaded PDF's signatures, signer identities,
+   configuration revision and totals. If it still says **awaiting signatures**,
+   check the request's approvals and any refused certificate check. If the
+   request has completed but the PDF is unavailable, ask the operator to
+   investigate before publishing it.
+4. Generate any additional reports the electoral regulation requires. Where
+   **Generate other election reports** needs signatures, the required board
+   members sign each report.
+5. The election board determines the result and records it, with the signed
    reports, in its minutes. The election organizer announces it through its
    own channels. The evaluated configuration has no results website: the TOE
    refuses to import a package that enables it, and no role holds "Edit
    Results Publication" (`publish-results-write`), so "Publish to results
    website" is never available. If it is offered, do not use it, and treat it as a
    security-relevant event.
+
+![Actual VM rehearsal: completed result with five voters and separate downloadable election and area PDFs](./assets/results-released-reports.png)
+
+The example shows a synthetic election. The election and area PDFs became
+available after their separate approvals; use your election's expected totals
+and authorised signers when checking your own reports.
 
 After the tally, run "Audit" on the Logs tab once more, as in
 [Checking the audit records](#checking-the-audit-records), and check that the
@@ -228,8 +246,9 @@ says so.
 
 ## Downloading the verification data
 
-In the post-processing phase, after voting has closed for every election in
-the tally, open the completed **results tally** from the Tally tab. In
+After voting has closed for every election in the tally, open the completed
+**results tally** from the Tally tab. Check its verification data before
+publishing the result. In
 **Election verification**, each listed protocol board represents one batch.
 For every batch, record the full **Configuration hash** and **Tally ID** from
 that board's section, then select its **Download verification data** button.
