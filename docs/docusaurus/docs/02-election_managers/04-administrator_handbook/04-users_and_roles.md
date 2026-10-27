@@ -210,6 +210,11 @@ name "Election board" below refers to this role.
      (`publish-read`), "Read Keys" (`keys-read`), "View Election Dashboard"
      (`election-dashboard-tab`), "View Monitoring Dashboards"
      (`monitoring-view`); `self-test-read` and `self-test-run`.
+   - for the board members who prepare the security dashboard, "Configure
+     Monitoring Dashboards" (`monitoring-configure`). Add this permission
+     before the board approves the election configuration. It enables the
+     [dashboard setup procedure](../05-election_organizer_handbook/06-preparation.md#preparing-the-security-dashboard);
+     viewing a dashboard alone does not allow its initial setup.
 3. Give "Read Electoral Log Personal Data" (`electoral-log-personal-data-read`),
    "Read Document Passwords" (`document-password-read`) and "Reveal Secret
    Voter Fields" (`voter-secret-attribute-read`) only if the election
