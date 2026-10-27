@@ -23,13 +23,20 @@ INSERT INTO sequent_backend.election_event VALUES('33333333-3333-4333-8333-33333
     sql(database,'''DO $test$
 DECLARE t uuid:='11111111-1111-4111-8111-111111111111'; other uuid:='22222222-2222-4222-8222-222222222222'; e uuid:='33333333-3333-4333-8333-333333333333'; k uuid:=gen_random_uuid(); at timestamptz:=date_trunc('minute',clock_timestamp())-interval '1 minute'; n integer;
 BEGIN
+ INSERT INTO sequent_backend.election_lifecycle VALUES(t,e,'execution','operational',1);
+ INSERT INTO sequent_backend.lifecycle_service_lease VALUES('harvest',clock_timestamp()+interval '1 minute'),('windmill',clock_timestamp()+interval '1 minute');
+ INSERT INTO sequent_backend.self_test_run VALUES(gen_random_uuid(),t,e,1,'passed',clock_timestamp());
+ IF (SELECT voter_allowed FROM sequent_backend.election_lifecycle_access) THEN RAISE EXCEPTION 'missing request observation did not block voter view'; END IF;
  IF sequent_backend.attack_activity_allows_voters() THEN RAISE EXCEPTION 'missing activity health allowed voting'; END IF;
  INSERT INTO sequent_backend.attack_activity_health VALUES('external-nginx',true,clock_timestamp(),'test');
  IF NOT sequent_backend.attack_activity_allows_voters() THEN RAISE EXCEPTION 'fresh available activity refused'; END IF;
+ IF NOT (SELECT voter_allowed FROM sequent_backend.election_lifecycle_access) THEN RAISE EXCEPTION 'all fresh evidence should permit voting'; END IF;
  UPDATE sequent_backend.attack_activity_health SET checked_at=clock_timestamp()-interval '31 seconds';
  IF sequent_backend.attack_activity_allows_voters() THEN RAISE EXCEPTION 'stale activity allowed voting'; END IF;
+ IF (SELECT voter_allowed FROM sequent_backend.election_lifecycle_access) THEN RAISE EXCEPTION 'stale observation did not block voter view'; END IF;
  UPDATE sequent_backend.attack_activity_health SET checked_at=clock_timestamp(),available=false;
  IF sequent_backend.attack_activity_allows_voters() THEN RAISE EXCEPTION 'unavailable activity allowed voting'; END IF;
+ IF (SELECT voter_allowed FROM sequent_backend.election_lifecycle_access) THEN RAISE EXCEPTION 'failed observation did not block voter view'; END IF;
  INSERT INTO sequent_backend.attack_detection_settings(tenant_id,failed_logins_per_minute,requests_per_minute,updated_by) VALUES(t,2,3,'administrator');
  PERFORM sequent_backend.record_attack_auth_activity(k,t,e,'realm','a',at,2,900);
  IF EXISTS(SELECT 1 FROM sequent_backend.attack_detection) THEN RAISE EXCEPTION 'detection before threshold'; END IF;

@@ -258,7 +258,7 @@ public class CustomEventListenerProvider implements EventListenerProvider {
     input.put("tenant_id", ids[0]);
     input.put("election_event_id", ids.length == 2 ? ids[1] : null);
     input.put("realm", realm);
-    input.put("account", account == null || account.isBlank() || account.length() > 512 ? null : account);
+    input.put("account", account == null || account.isBlank() || account.getBytes(StandardCharsets.UTF_8).length > 512 ? null : account);
     input.put("event_time_ms", time);
     input.put("failure_limit", failureLimit);
     input.put("window_seconds", windowSeconds);

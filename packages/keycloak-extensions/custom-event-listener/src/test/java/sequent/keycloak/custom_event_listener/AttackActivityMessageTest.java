@@ -40,6 +40,11 @@ class AttackActivityMessageTest {
     assertEquals(5,input.get("failure_limit").asInt());
     verifyNoMoreInteractions(publisher);
   }
+  @Test void longUnicodeIdentifiersStillProduceAggregateActivity() {
+    var input=new ObjectMapper().valueToTree(CustomEventListenerProvider.attackMessage("tenant-"+TENANT,"id","€".repeat(200),1,5,900)).get(1).get("input");
+    assertTrue(input.get("account").isNull());
+    assertEquals(TENANT,input.get("tenant_id").asText());
+  }
   @Test void ratesCannotDisableHeuristics() {
     assertThrows(IllegalArgumentException.class,()->CustomEventListenerProvider.attackMessage("tenant-"+TENANT,"id","a",1,0,900));
   }
