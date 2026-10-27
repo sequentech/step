@@ -81,7 +81,7 @@ attempts. The external authentication server keeps its own limits as well.
 A locked account and the record of the threshold being reached are
 security-relevant events
 ([Security-Relevant Events for Administrators](11-security_relevant_events.md)).
-Indications of attacks across several accounts appear in the Monitoring tab's
+Indications of attacks across several accounts appear in the Dashboard's
 "Attack detections", which the election board watches
 ([Audit, Monitoring and Notifications](09-audit_and_monitoring.md#attack-detections)).
 

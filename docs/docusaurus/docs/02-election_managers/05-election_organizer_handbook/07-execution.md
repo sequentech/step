@@ -71,7 +71,7 @@ phase, and checks the following at least once in every configured self-test inte
 |---|---|---|
 | Dashboard and Publish | Election voting status, turnout and ballot boxes | An unexpected state, count or seal; use **Security and self-tests** for the authoritative phase and recovery reason |
 | **Security and self-tests** | Current phase, safety state, six results and their times | **Recovery required**, **Unrecoverable failure**, any failed, missing or expired result, or a status-read error |
-| Monitoring tab, "Attack detections" | Brute-force attempts on accounts and denial-of-service attempts on the external interfaces | Any detection |
+| Dashboard, "Attack detections" | Brute-force attempts on accounts and denial-of-service attempts on the external interfaces | Any detection |
 | Logs tab | The audit records of the election event (see [Security-Relevant Events for the Election Board](11-security-relevant-events.md)) | Any record of a kind listed there as security-relevant |
 | Email | Notices from the TOE to the election board, for example on maintenance mode or on the audit storage threshold | Any notice |
 

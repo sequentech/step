@@ -104,7 +104,9 @@ applies. A country can be combined with a region or with a Post.
 Each widget follows some or all of the dashboard selectors. A widget that
 does not follow a selector, or whose data source cannot be narrowed by it,
 keeps showing its own scope. For example, sign-in figures have no country,
-and attack detections always cover the whole event.
+and attack detections are not narrowed by Post or country. They include
+failures in the event, tenant-wide failed-login patterns and request-rate
+patterns across the cluster's external interfaces.
 
 On an election's own Dashboard tab the Post is fixed to that election and
 only Country remains. See
@@ -200,15 +202,20 @@ A widget that cannot show a chart says why:
 | **This widget cannot be shown** | Its configuration has a problem. |
 | **This widget could not be loaded** | The request failed. It is tried again when the dashboard updates. |
 
-Four data sources are declared but not connected yet, so their widgets show
+Three data sources are declared but not connected yet, so their widgets show
 **Not connected** with one of these reasons:
 
 | Data source | Reason |
 |---|---|
 | Test voting | Test elections cannot be marked yet. |
 | Final testing and lockdown | Final testing and lockdown are not recorded yet. |
-| Attack detections | No attack detection feed is connected. |
 | Helpdesk | No helpdesk system is connected. |
+
+Attack detections use the recorded authentication and external-request
+activity. If the external-request observer is unavailable, the dashboard
+labels the figures as historical; do not interpret them as a current absence
+of attacks. The election board also reviews the corresponding signed
+`PotentialAttackDetected` records in **Logs**.
 
 ### View data
 

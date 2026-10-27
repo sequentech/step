@@ -82,6 +82,12 @@ in `site.json`. Use its independently accepted digest manifest.
 - the same complete content check on C2;
 - the cluster's deployed image references match that accepted release.
 
+![Actual VM integrity check showing the command and all four successful checks](./assets/installation/complete-tsf-integrity.png)
+
+*Actual laboratory capture of the complete check against the accepted TOE
+delivery and both running VM image stores. The administration portal and
+supporting services have separate delivery records.*
+
 This command reads image content and does not replace software. It also works
 when a trustee is idle; it checks the accepted trustee image on both servers.
 Run it after recovery or software replacement, before authorizing election work,

@@ -42,7 +42,7 @@ election.
      `BallotBoxSealFailed`;
    - there is no `AuthenticationFailureThresholdReached` or
      `AuditStorageThresholdExceeded` record without an explanation, and the
-     Monitoring tab's "Attack detections" are explained;
+     Dashboard's "Attack detections" are explained;
    - every security-critical action was authorised by the required number of
      different board members (the `Signing…` records), and every refused,
      cancelled or failed signing request (`SigningSignatureRefused`,

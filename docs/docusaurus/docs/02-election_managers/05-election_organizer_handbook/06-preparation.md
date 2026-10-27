@@ -240,6 +240,29 @@ certificate settings and background audit policy, wait for the administrators to
 procedures.
 :::
 
+## Preparing the security dashboard
+
+Before approving the configuration, a board member with **View Monitoring
+Dashboards** (`monitoring-view`) and **Configure Monitoring Dashboards**
+(`monitoring-configure`) prepares the dashboard:
+
+1. Open the election event's **Dashboard** and select **Set up monitoring**.
+2. Choose the supplied preset containing **Attack detections**. Review the
+   confirmation: it replaces this event's monitoring layout and retains the
+   earlier configuration in its history. Select **Reset** once.
+3. After the Dashboard reloads, open its **Section** selector and choose
+   **Attack detections**, under **Access and security**.
+4. Check that the figures have a current update time. Inspect any detections
+   and correlate them with the signed **PotentialAttackDetected** records in
+   **Logs** before approving the election configuration.
+
+If **Set up monitoring** is absent, check the two permissions above. If saving
+is refused, retain the current configuration and resolve the reported cause;
+repeated clicks do not establish that a change succeeded. A failed request,
+unavailable data source or unfinished first count must never be read as zero
+attacks. If the chart cannot be drawn but figures are available, inspect those
+figures using the widget's data view.
+
 ## Approving the configuration
 
 Who: the election board. Phase: preparation, after the administrators have

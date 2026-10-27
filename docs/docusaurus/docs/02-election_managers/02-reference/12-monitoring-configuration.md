@@ -355,7 +355,7 @@ a source is a code change.
 | `counting_transmission` | Posts in scope | `posts`, `tallied`, `transmitted`, `transmission_failed` | `summary`, `by_group`, `by_post`, `by_measure` | `region`, `post`, `state` | Connected |
 | `voting_enrollment_activity` | Each voter's first valid vote or approval, in the bucket it happened | `approved`, `voted` | `summary`, `timeseries`, `by_measure` | `region`, `post`, `country` | Connected |
 | `access_security` | Attempts, not people | `logins`, `login_failures`, `login_failures_valid_user`, `login_failures_unregistered`, `password_resets`, `password_reset_requests` | `summary`, `by_group`, `timeseries`, `by_measure` | `region`, `post` | Connected |
-| `attack_detections` | Detections | `detections` | `summary`, `by_group`, `timeseries`, `by_measure` | `category` | Not connected: no attack detection feed is connected |
+| `attack_detections` | Recorded potential attacks | `detections` | `summary`, `by_group`, `timeseries`, `by_measure` | `category` | Connected; historical figures are labeled when current external-request activity is unavailable |
 | `helpdesk` | Reported issues | `issues`, `pending_issues` | `summary`, `by_group`, `timeseries`, `by_measure` | `region`, `post`, `category` | Not connected: no helpdesk system is connected |
 
 Notes:

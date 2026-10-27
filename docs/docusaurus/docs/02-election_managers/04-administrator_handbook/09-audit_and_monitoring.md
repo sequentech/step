@@ -61,9 +61,32 @@ tenant's "Settings", and only the administrator role changes them
 (`tenant-write`). Set them with the election organizer in the
 preparation phase, from the number of voters and the expected peak load: high enough that the normal peak
 does not match, low enough that an attack does. On a match the TOE writes a
-record to the electoral log and shows it in the Monitoring tab's "Attack
+record to the electoral log and shows it in the Dashboard's "Attack
 detections", which only the election board sees (`monitoring-view`) and
 watches during the execution phase.
+
+### Set and verify the two rates
+
+1. Open **Settings → Attack detection**.
+2. Enter whole numbers in **Failed logins per minute, all accounts**
+   (1–100,000) and **Requests per minute, external interfaces**
+   (1–10,000,000), using the values agreed with the election organizer.
+3. Select **Save attack detection settings** once.
+4. Expect **Attack detection settings saved and verified**. Check that both
+   fields still show the agreed values. The board must approve the updated
+   configuration before execution.
+
+![Actual administrator settings after saving and verifying the agreed rates](assets/attack-detection-settings.png)
+
+*Actual VM rehearsal: the administrator saved and read back the lab's rates.
+The numbers shown are examples for that lab, not a recommendation for a live
+election.*
+
+If a value is outside the accepted range, correct it and save again. If saving
+or verification fails, do not assume the new values took effect: reopen this
+section, inspect the stored values and resolve the displayed cause. Rates
+cannot be changed while an election is executing. These thresholds detect
+patterns; they do not rate-limit requests or disable per-account lockout.
 
 When the election board tells you of an attack detection, treat it as a
 security-relevant event
