@@ -384,7 +384,9 @@ No trustee instance is restarted.
 
 ![Actual isolated rehearsal terminal confirming trustee retirement](./assets/installation/trustee-removal.png)
 
-*Actual server-side trustee retirement on an isolated disposable copy.*
+*Actual short command on an isolated retirement fixture, with stopped trustees,
+verified copied state and synthetic Secrets. The live election installation was
+not used for this destructive demonstration.*
 
 **If the result differs:** preserve the remaining state and backups and record
 what was removed. Do not authorize another ceremony or destroy backups while the

@@ -244,7 +244,8 @@ approved and rehearsed recovery procedure.
 
 #### Create and verify the encrypted backup
 
-**When:** after commissioning, before Execution and after Post-processing.
+**When:** after commissioning, before Execution, or after voting has ended and
+the board authorizes maintenance.
 A backup briefly stops the services. Coordinate the outage with the administrator
 and board; do not use it as a routine operation during voting. Mount the protected
 backup medium and keep the accepted delivery inputs available.
@@ -280,6 +281,12 @@ plaintext to the workstation.
 - `SYSTEM BACKUP COMPLETE:` with the archive's absolute path, followed by its
   `SHA256:` digest.
 
+![Actual VM terminal creating, verifying and completing an encrypted system backup with the short command](./assets/installation/system-backup.png)
+
+The passphrase stays hidden. The laboratory screenshot shows successful archive
+verification and restoration of the original service counts; your archive path
+and digest will differ.
+
 Retain the encrypted archive, its digest and the protected `.backup-receipt.json`
 created beside `site.json`. The receipt identifies the current backup when a
 restore is requested. Complete `./deploy inspect site.json platform` and the
@@ -309,6 +316,8 @@ counts and allows up to 30 seconds for application shutdown, then up to 30 secon
 for the database and remaining pods. A system or trustee maintenance operation
 already in progress prevents another operation from starting.
 
+![Actual VM terminal stopping services with the short maintenance command](./assets/installation/system-stop.png)
+
 **If it fails:** retain the maintenance record and inspect the actual service
 state. Some services may already be stopped. Do not manually remove the record,
 guess replica counts or start the normal backup command over an unfinished stop.
@@ -327,6 +336,8 @@ Type `RESUME UNCHANGED SERVICES` after confirming that the original data is inta
 Expect `READY:` for each previously running deployment, then
 `RECORDED REPLICA COUNTS RESTORED`. The helper restores the saved counts, including
 services that had zero replicas; it does not assume every service should run.
+
+![Actual VM terminal restoring the saved replica counts with resume-unchanged](./assets/installation/system-resume.png)
 
 Then run `./deploy inspect site.json platform`, complete the browser sign-in check
 and report the failed operation to the administrator. If a rollout fails or the
@@ -383,6 +394,11 @@ reminder to inspect the platform and obtain current tests and board review.
 The third command must also complete successfully. Identity-service startup may
 produce a bounded read-only wait of under one minute; it does not bypass issuer,
 certificate or policy failures.
+
+![Actual VM terminal authenticating the selected backup and completing the authorized restore](./assets/installation/system-restore.png)
+
+The restored system still requires current self-tests and the board's recovery
+decision. Successful restoration does not reopen voting.
 
 **If archive preflight fails:** no service or current data has been changed by the
 restore. Check the archive and passphrase. **If a safety-state comparison fails
