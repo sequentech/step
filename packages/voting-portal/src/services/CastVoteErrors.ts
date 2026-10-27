@@ -12,6 +12,22 @@ import {TFunction} from "i18next"
 import {isApolloTransportError} from "./ApolloErrors"
 import {CastBallotsErrorType} from "./VotingPortalError"
 
+// Hasura can wrap a non-2xx action response in an `unexpected` error.
+// Recognize this public code only; never display arbitrary backend messages.
+const wrappedQuotaCode = (extensions: IExtensionError): string | undefined => {
+    if (extensions.code !== EGraphQLErrorCode.UNEXPECTED) return undefined
+    const body: unknown = extensions.internal?.response?.body
+    try {
+        const parsed: unknown = typeof body === "string" ? JSON.parse(body) : body
+        if (!parsed || typeof parsed !== "object" || !("extensions" in parsed)) return undefined
+        const inner = parsed.extensions
+        if (!inner || typeof inner !== "object" || !("code" in inner)) return undefined
+        return inner.code === "InsertFailedExceedsAllowedRevotes" ? inner.code : undefined
+    } catch {
+        return undefined
+    }
+}
+
 // The review screen's text for a ballot the ballot box did not accept, whether
 // it was being received or cast.
 export const castVoteErrorMessage = (error: unknown, t: TFunction): string => {
@@ -24,10 +40,8 @@ export const castVoteErrorMessage = (error: unknown, t: TFunction): string => {
     if (castError?.message?.includes("internal error")) {
         return t(`reviewScreen.error.${CastBallotsErrorType.INTERNAL_ERROR}`) // can happen if the backend panics
     } else if (errorExtensions?.code) {
-        let errorCode = errorExtensions?.code
-        console.log(castError.name, castError.message)
+        let errorCode = wrappedQuotaCode(errorExtensions) ?? errorExtensions.code
         let internalErrMessage = errorExtensions?.internal?.error?.message
-        console.log(errorCode, internalErrMessage)
         if (
             errorCode === EGraphQLErrorCode.UNEXPECTED &&
             internalErrMessage === EGraphQLInternalErrorMessage.TIMEOUT_ERROR

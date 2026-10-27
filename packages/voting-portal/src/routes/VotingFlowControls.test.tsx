@@ -1116,6 +1116,28 @@ describe("Apollo 4 cast failures", () => {
             }),
             "CAST_VOTE_InsertFailedExceedsAllowedRevotes",
         ],
+        [
+            new CombinedGraphQLErrors({
+                errors: [
+                    {
+                        message: "Cannot cast",
+                        extensions: {
+                            code: "unexpected",
+                            internal: {
+                                response: {
+                                    status: 400,
+                                    body: JSON.stringify({
+                                        message: "Private server detail",
+                                        extensions: {code: "InsertFailedExceedsAllowedRevotes"},
+                                    }),
+                                },
+                            },
+                        },
+                    },
+                ],
+            }),
+            "CAST_VOTE_InsertFailedExceedsAllowedRevotes",
+        ],
         [new TypeError("Failed to fetch"), "NETWORK_ERROR"],
     ])("shows the specific failure and permits a successful retry: %s", async (error, message) => {
         mockDisableAuth = false
