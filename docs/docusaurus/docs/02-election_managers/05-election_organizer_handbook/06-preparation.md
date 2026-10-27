@@ -242,9 +242,11 @@ procedures.
 
 ## Preparing the security dashboard
 
-Before approving the configuration, a board member with **View Monitoring
-Dashboards** (`monitoring-view`) and **Configure Monitoring Dashboards**
-(`monitoring-configure`) prepares the dashboard:
+Before approving the configuration, a board member with **Admin Dashboard
+View** (`admin-dashboard-view`), **View Monitoring Dashboards**
+(`monitoring-view`) and **Configure Monitoring Dashboards**
+(`monitoring-configure`) prepares the dashboard. The first permission opens
+the election-event Dashboard; its name does not assign the administrator role:
 
 1. Open the election event's **Dashboard** and select **Set up monitoring**.
 2. Choose the supplied preset containing **Attack detections**. Review the
@@ -256,7 +258,8 @@ Dashboards** (`monitoring-view`) and **Configure Monitoring Dashboards**
    and correlate them with the signed **PotentialAttackDetected** records in
    **Logs** before approving the election configuration.
 
-If **Set up monitoring** is absent, check the two permissions above. If saving
+If the **Dashboard** tab is absent, check **Admin Dashboard View**. If
+**Set up monitoring** is absent, check **Configure Monitoring Dashboards**. If saving
 is refused, retain the current configuration and resolve the reported cause;
 repeated clicks do not establish that a change succeeded. A failed request,
 unavailable data source or unfinished first count must never be read as zero

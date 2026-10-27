@@ -93,7 +93,7 @@ stated, to `trustee`). Remove each of them from the role `admin`:
 | Signing requests | <ul><li>"Signatures: read requests" (<code>signing-requests-read</code>)</li><li>"Signatures: cancel requests" (<code>signing-requests-cancel</code>)</li><li>"Signatures: export requests" (<code>signing-requests-export</code>)</li></ul> |
 | Key and tally ceremonies, counting | <ul><li>"View Election Event Keys" (<code>election-event-keys-tab</code>)</li><li>"Read Keys" (<code>keys-read</code>)</li><li>"Admin Ceremony" (<code>admin-ceremony</code>)</li><li>"Create Ceremony" (<code>create-ceremony</code>)</li><li>"Export Ceremony" (<code>export-ceremony</code>)</li><li>"View Election Event Tally" (<code>election-event-tally-tab</code>)</li><li>"Read Tally" (<code>tally-read</code>)</li><li>"Start Tally" (<code>tally-start</code>)</li><li>"Edit Tally" (<code>tally-write</code>)</li><li>"Read Tally Results" (<code>tally-results-read</code>)</li></ul> |
 | Archiving and deletion of election events | <ul><li>"Archive Election Event" (<code>election-event-archive</code>)</li><li>"Delete Election Event" (<code>election-event-delete</code>)</li></ul> |
-| Audit review and monitoring | <ul><li>"View Election Event Logs" (<code>election-event-logs-tab</code>)</li><li>"Read Logs" (<code>logs-read</code>)</li><li>"Audit Electoral Log" (<code>electoral-log-audit</code>)</li><li>"Browse Electoral Log" (<code>electoral-log-console-read</code>)</li><li>"Query Electoral Log" (<code>electoral-log-console-query</code>)</li><li>"Read Electoral Log Personal Data" (<code>electoral-log-personal-data-read</code>)</li><li>"View Election Event Tasks" (<code>election-event-tasks-tab</code>)</li><li>"Read Tasks Execution" (<code>tasks-read</code>)</li><li>"View Monitoring Dashboards" (<code>monitoring-view</code>)</li></ul> |
+| Audit review and monitoring | <ul><li>"Admin Dashboard View" (<code>admin-dashboard-view</code>)</li><li>"View Election Event Logs" (<code>election-event-logs-tab</code>)</li><li>"Read Logs" (<code>logs-read</code>)</li><li>"Audit Electoral Log" (<code>electoral-log-audit</code>)</li><li>"Browse Electoral Log" (<code>electoral-log-console-read</code>)</li><li>"Query Electoral Log" (<code>electoral-log-console-query</code>)</li><li>"Read Electoral Log Personal Data" (<code>electoral-log-personal-data-read</code>)</li><li>"View Election Event Tasks" (<code>election-event-tasks-tab</code>)</li><li>"Read Tasks Execution" (<code>tasks-read</code>)</li><li>"View Monitoring Dashboards" (<code>monitoring-view</code>)</li></ul> |
 | Read the voters' register (post-processing requires board approval for a five-minute read session) | <ul><li>"Read Voter" (<code>voter-read</code>)</li><li>"View Election Event Voters" (<code>election-event-voters-tab</code>)</li></ul> |
 | Export of the electoral log and of election execution data | <ul><li>"Export Logs" (<code>logs-export</code>)</li><li>"Read Reports" (<code>report-read</code>)</li><li>"Edit Reports" (<code>report-write</code>)</li><li>"Read Documents" (<code>document-read</code>)</li><li>"Download Documents" (<code>document-download</code>)</li><li>"Export Voter" (<code>voter-export</code>)</li><li>"Read Document Passwords" (<code>document-password-read</code>)</li></ul> |
 
@@ -207,8 +207,9 @@ name "Election board" below refers to this role.
      "Election Event Signatures Tab" (`election-event-signatures-tab`),
      "Signatures: read protected actions" (`signing-rules-read`), "Signatures:
      read certificates" (`signing-certificates-read`), "Read Publish"
-     (`publish-read`), "Read Keys" (`keys-read`), "View Election Dashboard"
-     (`election-dashboard-tab`), "View Monitoring Dashboards"
+     (`publish-read`), "Read Keys" (`keys-read`), "Admin Dashboard View"
+     (`admin-dashboard-view`) for the election-event Dashboard, "View Election
+     Dashboard" (`election-dashboard-tab`) for an individual election, "View Monitoring Dashboards"
      (`monitoring-view`); `self-test-read` and `self-test-run`.
    - for the board members who prepare the security dashboard, "Configure
      Monitoring Dashboards" (`monitoring-configure`). Add this permission
