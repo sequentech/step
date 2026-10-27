@@ -65,8 +65,16 @@ regulation.
 The voting system keeps records of what happens during the election. If it can
 no longer keep them safely (for example, because the storage for these records
 is almost full), it refuses new voter logins and voter requests until the
-problem is solved; a login then shows "Voting is temporarily unavailable.
-Please try again later." If it lasts, contact the election organizer.
+problem is solved. The portal can show "The voting portal could not start.
+Please try again." with a **Try again** button. Wait before trying again; if it
+continues, contact the election organizer. The message alone does not identify
+the cause or change whether a previous vote was cast.
+
+![Actual portal refusing to start during the audit-storage threshold test](assets/voter-storage-unavailable.png)
+
+*Actual rehearsal screen while new voter sign-in was refused to protect the
+audit records. Existing cast votes remained stored. Voting stayed paused after
+storage was restored until the election board authorized recovery.*
 
 ## Messages and what to do
 
@@ -75,6 +83,7 @@ tell them the message and the time.
 
 | Message | What it means | What to do |
 |---|---|---|
+| "The voting portal could not start. Please try again." | The portal could not complete sign-in or startup. This can happen when the system refuses voter access to protect its records. | Wait and select **Try again**. If it continues, tell the election organizer the message and time. |
 | "There was a problem fetching the data. Please try again later or contact support for assistance." | The portal could not load your ballots. This can happen during maintenance or a connection problem; the message alone does not identify the cause. | Wait and try again later. If it continues, contact the election organizer. The message does not confirm whether an earlier vote was cast. |
 | "This election does not allow casting a vote. It may be closed, archived, or outside the allowed voting period" | Voting is not open for this ballot: it has not started, is paused or has ended. Your vote was not cast. | Look at the "Ballot list". If voting is paused, wait and try again when it shows "Open". |
 | "A network problem occurred. Please try again later or contact support" | The connection to the voting system failed. | Check your internet connection. Check "Voted" or "Not voted" before you try again (see [Casting Your Vote](05-casting_your_vote.md)). |

@@ -80,6 +80,11 @@ until the end of the election period.
 | "Something went wrong." | The lookup could not be done, for example because the election is in maintenance mode (see [Election States and Problems for Voters](10-states_and_problems.md)). | Try again later. If it keeps happening, tell the election organizer. |
 | "Checks ended on" followed by a date | The time for checking ballots is over. | Nothing can be checked any more. |
 
+![Actual ballot locator showing a found ballot, its cast time and complete encrypted ballot content](./assets/voter-locator-current.png)
+
+*Actual rehearsal screen with a synthetic voter. The example receipt identifies
+an earlier vote; use the receipt of your own latest vote.*
+
 The ballot content is encrypted. It does not show your selections.
 
 :::warning
@@ -102,7 +107,9 @@ the final ballot only while the ballot locator shows it, and at the latest
 until the end of the election period.
 
 1. Find your ballot with the ballot locator, as described above.
-2. Select all the text shown under "This is your Ballot content:" and copy it.
+2. Select all the text shown under "This is your Ballot content:" and copy it,
+   including the opening `{` and closing `}`. This is the complete JSON ballot;
+   keep every field, not just the long encrypted value inside `contests`.
 3. Paste it, exactly as shown and without any change, into an empty text file,
    and save the file. Put nothing else into this file. Keep your Ballot ID
    separately, for example written down.
