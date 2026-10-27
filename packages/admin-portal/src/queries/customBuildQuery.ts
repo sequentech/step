@@ -8,6 +8,7 @@ import {
     normalizeSupportReference,
 } from "@/resources/Approvals/supportReference"
 import {buildQuery, buildVariables} from "ra-data-hasura"
+import {administratorSettingsQuery} from "@/services/administratorSettings"
 import {
     getElectoralLogVariables,
     getElectoralLog,
@@ -478,7 +479,22 @@ export const customBuildQuery =
             }
             return ret
         }
-        return buildQuery(introspectionResults)(raFetchType, resourceName, params)
+        const result = buildQuery(introspectionResults)(raFetchType, resourceName, params)
+        if (["sequent_backend_election_event", "sequent_backend_election"].includes(resourceName)) {
+            const fields =
+                introspectionResults.resources.find(
+                    (resource: any) => resource.type.name === resourceName
+                )?.type.fields ?? []
+            if (
+                fields.some((field: any) => field.name === "administration_settings") &&
+                !fields.some((field: any) => field.name === "presentation")
+            ) {
+                // Project before Apollo records the request's cache shape. A
+                // link-only alias leaves the cache expecting the old field.
+                result.query = administratorSettingsQuery(result.query, result.variables)
+            }
+        }
+        return result
     }
 
 function flattenObject(obj: any, prefix = "") {

@@ -82,7 +82,7 @@ export const ApolloContextProvider = ({children, role}: ApolloContextProviderPro
                     operationRole
                 )
             ) {
-                operation.query = administratorSettingsQuery(operation.query)
+                operation.query = administratorSettingsQuery(operation.query, operation.variables)
             }
             return forward(operation)
         })

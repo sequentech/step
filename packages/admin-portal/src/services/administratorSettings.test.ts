@@ -32,3 +32,45 @@ describe("administrator settings queries", () => {
         expect(print(administratorSettingsQuery(query))).toBe(print(query))
     })
 })
+
+it("normalizes actual list ordering and projection name filters without weakening unknown predicates", () => {
+    const variables = {
+        order_by: {created_at: "desc"},
+        where: {
+            _and: [
+                {tenant_id: {_eq: "tenant"}},
+                {
+                    _or: [
+                        {external_id: {_ilike: "%Context%"}},
+                        {presentation: {_cast: {String: {_ilike: "%Context%"}}}},
+                    ],
+                },
+            ],
+        },
+    }
+    const query =
+        parse(`query List($order_by:[sequent_backend_election_event_order_by!],$where:sequent_backend_election_event_bool_exp) {
+      items:sequent_backend_election_event(order_by:$order_by,where:$where){id presentation}
+    }`)
+    administratorSettingsQuery(query, variables)
+    expect(variables.order_by).toEqual({id: "asc"})
+    expect(variables.where._and[1]._or).toEqual([
+        {id: {_is_null: true}},
+        {administration_settings: {_cast: {String: {_ilike: "%Context%"}}}},
+    ])
+})
+
+it("projects fragments and drops variables used only by removed nested fields", () => {
+    const query = administratorSettingsQuery(
+        parse(`query List($secret:String,$tenant:uuid){
+      sequent_backend_election_event(where:{tenant_id:{_eq:$tenant}}){...EventFields}
+    }
+    fragment EventFields on sequent_backend_election_event {
+      id presentation elections(where:{description:{_eq:$secret}}){id}
+    }`)
+    )
+    expect(print(query)).toContain("presentation: administration_settings")
+    expect(print(query)).not.toContain("$secret")
+    expect(print(query)).not.toContain("elections")
+    expect(print(query)).toContain("$tenant")
+})
