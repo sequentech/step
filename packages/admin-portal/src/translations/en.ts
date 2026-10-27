@@ -3884,6 +3884,8 @@ const englishTranslation = {
                 HELPDESK_INTEGRATION: "no helpdesk system is connected",
             },
             notices: {
+                ATTACK_REQUEST_ACTIVITY_UNAVAILABLE:
+                    "Historical detections are shown. Current external request activity is unavailable; investigate the collector before relying on these counts.",
                 UNREGISTERED_ATTEMPTS_AT_EVENT_SCOPE_ONLY:
                     "Attempts by unregistered usernames belong to no Post, so they are counted for the whole event only.",
                 UNREGISTERED_ATTEMPTS_EXCLUDED:

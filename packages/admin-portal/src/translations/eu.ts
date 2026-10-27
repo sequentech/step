@@ -5,6 +5,7 @@ import englishTranslation, {TranslationType} from "./en"
 
 const basqueTranslation: TranslationType = {
     translations: {
+        securityTests: englishTranslation.translations.securityTests,
         verificationExport: englishTranslation.translations.verificationExport,
         philippinePassport: "Filipinetako Pasaportea",
         seamanBook: "Marinoaren Liburua",
@@ -1600,6 +1601,12 @@ const basqueTranslation: TranslationType = {
                 },
             },
             permissions: {
+                "sign-start-tally": englishTranslation.translations.usersAndRolesScreen.permissions["sign-start-tally"],
+                "sign-import-election-data": englishTranslation.translations.usersAndRolesScreen.permissions["sign-import-election-data"],
+                "sign-export-execution-data": englishTranslation.translations.usersAndRolesScreen.permissions["sign-export-execution-data"],
+                "sign-delete-execution-data": englishTranslation.translations.usersAndRolesScreen.permissions["sign-delete-execution-data"],
+                "sign-read-voters-register": englishTranslation.translations.usersAndRolesScreen.permissions["sign-read-voters-register"],
+                "election-execution-export": englishTranslation.translations.usersAndRolesScreen.permissions["election-execution-export"],
                 "voter-information-letter": "Bozkatzailearen informazio-gutuna sortu",
                 "admin-user": "Admin Erabiltzailea",
                 "admin-dashboard-view": "Admin Panela Ikusi",
@@ -3772,6 +3779,8 @@ const basqueTranslation: TranslationType = {
                 HELPDESK_INTEGRATION: "ez dago laguntza-sistemarik konektatuta",
             },
             notices: {
+                ATTACK_REQUEST_ACTIVITY_UNAVAILABLE:
+                    englishTranslation.translations.monitoring.notices.ATTACK_REQUEST_ACTIVITY_UNAVAILABLE,
                 UNREGISTERED_ATTEMPTS_AT_EVENT_SCOPE_ONLY:
                     "Erregistratu gabeko erabiltzaile-izenen saiakerak ez dira inongo posturenak, eta, beraz, gertaera osorako soilik zenbatzen dira.",
                 UNREGISTERED_ATTEMPTS_EXCLUDED:
@@ -4300,6 +4309,11 @@ const basqueTranslation: TranslationType = {
                 "configuration-and-keys": "Konfigurazioa eta giltzak",
             },
             actions: {
+                "import-election-data": englishTranslation.translations.signing.actions["import-election-data"],
+                "start-tally": englishTranslation.translations.signing.actions["start-tally"],
+                "export-execution-data": englishTranslation.translations.signing.actions["export-execution-data"],
+                "delete-execution-data": englishTranslation.translations.signing.actions["delete-execution-data"],
+                "read-voters-register": englishTranslation.translations.signing.actions["read-voters-register"],
                 "initialize-voting": {
                     label: "Bozketa hasieratu",
                     short: "Hasieratzea",

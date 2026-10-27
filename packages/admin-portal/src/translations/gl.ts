@@ -5,6 +5,7 @@ import englishTranslation, {TranslationType} from "./en"
 
 const galegoTranslation: TranslationType = {
     translations: {
+        securityTests: englishTranslation.translations.securityTests,
         verificationExport: englishTranslation.translations.verificationExport,
         philippinePassport: "Pasaporte filipino",
         seamanBook: "Libro de marinero",
@@ -1608,6 +1609,12 @@ const galegoTranslation: TranslationType = {
                 },
             },
             permissions: {
+                "sign-start-tally": englishTranslation.translations.usersAndRolesScreen.permissions["sign-start-tally"],
+                "sign-import-election-data": englishTranslation.translations.usersAndRolesScreen.permissions["sign-import-election-data"],
+                "sign-export-execution-data": englishTranslation.translations.usersAndRolesScreen.permissions["sign-export-execution-data"],
+                "sign-delete-execution-data": englishTranslation.translations.usersAndRolesScreen.permissions["sign-delete-execution-data"],
+                "sign-read-voters-register": englishTranslation.translations.usersAndRolesScreen.permissions["sign-read-voters-register"],
+                "election-execution-export": englishTranslation.translations.usersAndRolesScreen.permissions["election-execution-export"],
                 "voter-information-letter": "Xerar Carta de información para o votante",
                 "admin-user": "Administración",
                 "admin-dashboard-view": "Vista del Panel de Administración",
@@ -3777,6 +3784,8 @@ const galegoTranslation: TranslationType = {
                 HELPDESK_INTEGRATION: "non hai ningún sistema de soporte conectado",
             },
             notices: {
+                ATTACK_REQUEST_ACTIVITY_UNAVAILABLE:
+                    englishTranslation.translations.monitoring.notices.ATTACK_REQUEST_ACTIVITY_UNAVAILABLE,
                 UNREGISTERED_ATTEMPTS_AT_EVENT_SCOPE_ONLY:
                     "Os intentos con nomes de usuario non rexistrados non pertencen a ningún posto, polo que só se contan para todo o evento.",
                 UNREGISTERED_ATTEMPTS_EXCLUDED:
@@ -4303,6 +4312,11 @@ const galegoTranslation: TranslationType = {
                 "configuration-and-keys": "Configuración e chaves",
             },
             actions: {
+                "import-election-data": englishTranslation.translations.signing.actions["import-election-data"],
+                "start-tally": englishTranslation.translations.signing.actions["start-tally"],
+                "export-execution-data": englishTranslation.translations.signing.actions["export-execution-data"],
+                "delete-execution-data": englishTranslation.translations.signing.actions["delete-execution-data"],
+                "read-voters-register": englishTranslation.translations.signing.actions["read-voters-register"],
                 "initialize-voting": {
                     label: "Inicializar a votación",
                     short: "Inicialización",

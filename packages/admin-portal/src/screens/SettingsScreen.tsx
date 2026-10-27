@@ -25,6 +25,7 @@ import SettingsLocalization from "@/resources/Settings/SettingsLocalization"
 import {SettingsBackupRestore} from "@/resources/Settings/SettingsBackupRestore"
 import {SettingsConfigurationSigning} from "@/resources/Settings/SettingsConfigurationSigning"
 import {SettingsPreviews} from "@/resources/Settings/SettingsPreviews"
+import {SettingsAttackDetection} from "@/resources/Settings/SettingsAttackDetection"
 
 export const SettingsScreen: React.FC = () => {
     const {t} = useTranslation()
@@ -84,6 +85,12 @@ export const SettingsScreen: React.FC = () => {
                         label: t("configurationSigning.tab", "Configuration packages"),
                         component: () => <SettingsConfigurationSigning />,
                     },
+                    ...(authContext.isAuthorized(true, tenantId, IPermissions.ADMIN_USER)
+                        ? [{
+                              label: t("attackDetection.title", "Attack detection"),
+                              component: () => <SettingsAttackDetection key={tenantId} />,
+                          }]
+                        : []),
                     ...(showMessaging
                         ? [
                               {

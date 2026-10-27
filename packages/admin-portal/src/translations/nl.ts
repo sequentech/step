@@ -5,6 +5,7 @@ import englishTranslation, {TranslationType} from "./en"
 
 const dutchTranslation: TranslationType = {
     translations: {
+        securityTests: englishTranslation.translations.securityTests,
         verificationExport: englishTranslation.translations.verificationExport,
         philippinePassport: "Filipijns Paspoort",
         seamanBook: "Zeemansboek",
@@ -1610,6 +1611,12 @@ const dutchTranslation: TranslationType = {
                 },
             },
             permissions: {
+                "sign-start-tally": englishTranslation.translations.usersAndRolesScreen.permissions["sign-start-tally"],
+                "sign-import-election-data": englishTranslation.translations.usersAndRolesScreen.permissions["sign-import-election-data"],
+                "sign-export-execution-data": englishTranslation.translations.usersAndRolesScreen.permissions["sign-export-execution-data"],
+                "sign-delete-execution-data": englishTranslation.translations.usersAndRolesScreen.permissions["sign-delete-execution-data"],
+                "sign-read-voters-register": englishTranslation.translations.usersAndRolesScreen.permissions["sign-read-voters-register"],
+                "election-execution-export": englishTranslation.translations.usersAndRolesScreen.permissions["election-execution-export"],
                 "voter-information-letter": "Kiezersinformatiebrief genereren",
                 "admin-user": "Beheerder Gebruiker",
                 "admin-dashboard-view": "Beheerdersdashboard Bekijken",
@@ -3794,6 +3801,8 @@ const dutchTranslation: TranslationType = {
                 HELPDESK_INTEGRATION: "er is geen helpdesksysteem gekoppeld",
             },
             notices: {
+                ATTACK_REQUEST_ACTIVITY_UNAVAILABLE:
+                    englishTranslation.translations.monitoring.notices.ATTACK_REQUEST_ACTIVITY_UNAVAILABLE,
                 UNREGISTERED_ATTEMPTS_AT_EVENT_SCOPE_ONLY:
                     "Pogingen met niet-geregistreerde gebruikersnamen horen bij geen enkele post en worden daarom alleen voor het hele evenement geteld.",
                 UNREGISTERED_ATTEMPTS_EXCLUDED:
@@ -4326,6 +4335,11 @@ const dutchTranslation: TranslationType = {
                 "configuration-and-keys": "Configuratie en sleutels",
             },
             actions: {
+                "import-election-data": englishTranslation.translations.signing.actions["import-election-data"],
+                "start-tally": englishTranslation.translations.signing.actions["start-tally"],
+                "export-execution-data": englishTranslation.translations.signing.actions["export-execution-data"],
+                "delete-execution-data": englishTranslation.translations.signing.actions["delete-execution-data"],
+                "read-voters-register": englishTranslation.translations.signing.actions["read-voters-register"],
                 "initialize-voting": {
                     label: "Stemming initialiseren",
                     short: "Initialisatie",
