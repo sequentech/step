@@ -65,6 +65,17 @@ export interface DocumentScope {
     electionIds: string[]
 }
 
+function resultsDocument(raw: unknown): string | null {
+    try {
+        const documents: unknown = typeof raw === "string" ? JSON.parse(raw) : raw
+        if (!documents || typeof documents !== "object" || Array.isArray(documents)) return null
+        const json = (documents as Record<string, unknown>).json
+        return typeof json === "string" && json.length > 0 ? json : null
+    } catch {
+        return null
+    }
+}
+
 /** Never carry a stale export reference across a missing or denied current read. */
 export function overlayCurrentDocuments<T extends Record<string, unknown>>(
     rows: T[],
@@ -72,9 +83,13 @@ export function overlayCurrentDocuments<T extends Record<string, unknown>>(
     scope: DocumentScope
 ): T[] {
     return rows.map((row) => {
+        // SQLite and PostgreSQL independently allocate storage row IDs. The
+        // result scope and immutable JSON document identify the same tally.
+        const snapshotDocument = resultsDocument(row.documents)
         const matches = (current ?? []).filter(
             (live) =>
-                live.id === row.id &&
+                snapshotDocument !== null &&
+                resultsDocument(live.documents) === snapshotDocument &&
                 live.tenant_id === scope.tenantId &&
                 live.tenant_id === row.tenant_id &&
                 live.election_event_id === scope.electionEventId &&

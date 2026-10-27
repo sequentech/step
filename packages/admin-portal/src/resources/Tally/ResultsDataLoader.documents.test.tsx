@@ -41,7 +41,12 @@ const post = {
     total_voters: 0,
     documents: {json: "json", pdf: "old-pdf"},
 }
-const area = {...post, id: "area-row", area_id: "country"}
+const area = {
+    ...post,
+    id: "area-row",
+    area_id: "country",
+    documents: {json: "area-json", pdf: "old-area"},
+}
 const props = {
     resultsEventId: "results",
     electionEventId: "event",
@@ -77,7 +82,7 @@ test("updates released Post and country PDFs without changing immutable tally co
     mockQuery.mockReturnValue({
         data: {
             sequent_backend_results_election: [
-                {...post, total_voters: 999, documents: {pdf: "replacement-pdf"}},
+                {...post, total_voters: 999, documents: {json: "json", pdf: "replacement-pdf"}},
             ],
             sequent_backend_results_election_area: [],
         },
@@ -100,6 +105,55 @@ test("rejects another results session or country despite matching row ID", async
     await waitFor(() => expect(output().sequent_backend_results_election[0].documents).toEqual({}))
     expect(output().sequent_backend_results_election_area[0].documents).toEqual({})
 })
+test("matches independently stored row IDs using the same scoped result and JSON document", async () => {
+    mockRows.results_election = [
+        {...post, id: "snapshot-row", documents: JSON.stringify(post.documents)},
+    ]
+    render(<ResultsDataLoader {...props} />)
+    await waitFor(() =>
+        expect(output().sequent_backend_results_election[0].documents.pdf).toBe("signed-pdf")
+    )
+    expect(output().sequent_backend_results_election[0].id).toBe("snapshot-row")
+    expect(output().sequent_backend_results_election[0].total_voters).toBe(0)
+})
+test.each(["tenant_id", "election_event_id", "election_id"])(
+    "refuses another %s despite the same results document",
+    async (key) => {
+        mockQuery.mockReturnValue({
+            data: {sequent_backend_results_election: [{...post, [key]: "other"}]},
+        })
+        render(<ResultsDataLoader {...props} />)
+        await waitFor(() =>
+            expect(output().sequent_backend_results_election[0].documents).toEqual({})
+        )
+    }
+)
+test("refuses a replaced results JSON document or duplicate scoped row", async () => {
+    mockQuery.mockReturnValue({
+        data: {
+            sequent_backend_results_election: [
+                {...post, documents: {json: "different", pdf: "signed-pdf"}},
+            ],
+        },
+    })
+    const view = render(<ResultsDataLoader {...props} />)
+    await waitFor(() => expect(output().sequent_backend_results_election[0].documents).toEqual({}))
+    mockQuery.mockReturnValue({
+        data: {sequent_backend_results_election: [post, {...post, id: "duplicate"}]},
+    })
+    view.rerender(<ResultsDataLoader {...props} />)
+    await waitFor(() => expect(output().sequent_backend_results_election[0].documents).toEqual({}))
+})
+test.each(["invalid JSON", null, {pdf: "unbound"}])(
+    "refuses an unbound snapshot document %p",
+    async (documents) => {
+        mockRows.results_election = [{...post, documents}]
+        render(<ResultsDataLoader {...props} />)
+        await waitFor(() =>
+            expect(output().sequent_backend_results_election[0].documents).toEqual({})
+        )
+    }
+)
 test("does not reuse stale document IDs after a denied current read", async () => {
     mockQuery.mockReturnValue({
         error: new Error("denied"),
