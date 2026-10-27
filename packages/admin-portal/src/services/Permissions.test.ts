@@ -26,6 +26,9 @@ it.each([
 })
 
 it.each([
+    ["GetAttackDetectionSettings", IPermissions.TENANT_WRITE],
+    ["UpdateAttackDetectionSettings", IPermissions.TENANT_WRITE],
+    ["GetAttackDetections", IPermissions.MONITORING_VIEW],
     ["sequent_backend_area", IPermissions.AREA_READ],
     ["insert_sequent_backend_candidate", IPermissions.CANDIDATE_CREATE],
     ["update_sequent_backend_candidate", IPermissions.CANDIDATE_WRITE],

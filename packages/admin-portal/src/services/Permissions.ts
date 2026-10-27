@@ -269,6 +269,9 @@ const AccountReadOperationMap: Record<string, IPermissions> = {
 // Select a precise held permission before publication/trustee defaults.
 // No grant is inferred; admin-user retains its existing scoped backup fallback.
 const HeldOperationMap: Record<string, IPermissions> = {
+    GetAttackDetectionSettings: IPermissions.TENANT_WRITE,
+    UpdateAttackDetectionSettings: IPermissions.TENANT_WRITE,
+    GetAttackDetections: IPermissions.MONITORING_VIEW,
     ImportCandidates: IPermissions.CANDIDATE_CREATE,
     UpsertArea: IPermissions.AREA_CREATE,
     ImportAreas: IPermissions.AREA_WRITE,
