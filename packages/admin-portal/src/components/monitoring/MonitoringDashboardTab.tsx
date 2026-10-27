@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {type ReactNode} from "react"
-import {Alert, Box, CircularProgress, Stack} from "@mui/material"
+import React, {useState, type ReactNode} from "react"
+import {Alert, Box, Button, CircularProgress, Stack} from "@mui/material"
 import {useQuery} from "@apollo/client"
 import {useTranslation} from "react-i18next"
 import {MONITORING_LIST_DASHBOARDS} from "@/queries/MonitoringListDashboards"
@@ -17,6 +17,8 @@ import {MonitoringProvider, type MonitoringEditorActions} from "./MonitoringProv
 import {MonitoringDashboard} from "./MonitoringDashboard"
 import type {IMonitoringEditorApi} from "./editor/api"
 import {useMonitoringTabEditor} from "./editor/useMonitoringTabEditor"
+import {useMonitoringEditorApi} from "./editor/useMonitoringEditorApi"
+import {MonitoringResetToPresetDialog} from "./editor/MonitoringResetToPresetDialog"
 
 export interface MonitoringDashboardTabProps {
     electionEventId?: string | null
@@ -54,6 +56,8 @@ export function MonitoringDashboardTab({
 }: MonitoringDashboardTabProps) {
     const {t} = useTranslation()
     const {view, configure} = useMonitoringPermissions(lock)
+    const [setupOpen, setSetupOpen] = useState(false)
+    const setupApi = useMonitoringEditorApi(electionEventId ?? "")
     const editor = useMonitoringTabEditor({
         electionEventId: electionEventId ?? "",
         electionId,
@@ -61,7 +65,7 @@ export function MonitoringDashboardTab({
         api: editorApi,
     })
     const allowed = view === EMonitoringCapability.GRANTED && Boolean(electionEventId)
-    const {data, loading, error} = useQuery<
+    const {data, loading, error, refetch} = useQuery<
         MonitoringListDashboardsQuery,
         MonitoringListDashboardsVariables
     >(MONITORING_LIST_DASHBOARDS, {
@@ -86,11 +90,41 @@ export function MonitoringDashboardTab({
             </Box>
         )
     }
-    if (list.mode !== EMonitoringMode.CONFIGURED) return <>{legacy}</>
+    // A new or legacy event has no dashboard whose editor could open the
+    // existing preset dialog. Keep that entry available to authorized holders.
+    const setup =
+        configure === EMonitoringCapability.GRANTED ? (
+            <>
+                <Box>
+                    <Button variant="outlined" onClick={() => setSetupOpen(true)}>
+                        {t("monitoring.setup", "Set up monitoring")}
+                    </Button>
+                </Box>
+                <MonitoringResetToPresetDialog
+                    open={setupOpen}
+                    api={editorApi ?? setupApi}
+                    onClose={() => setSetupOpen(false)}
+                    onReset={() => {
+                        setSetupOpen(false)
+                        // useQuery exposes a failed reload through the alert above.
+                        void refetch().catch(() => undefined)
+                    }}
+                />
+            </>
+        ) : null
+    if (list.mode !== EMonitoringMode.CONFIGURED) {
+        return (
+            <Stack spacing={2}>
+                {setup}
+                {legacy}
+            </Stack>
+        )
+    }
     if (!list.dashboards.length) {
         return (
             <Stack spacing={2}>
                 <Alert severity="info">{t("monitoring.noDashboards")}</Alert>
+                {setup}
                 {below}
             </Stack>
         )
