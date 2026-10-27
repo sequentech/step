@@ -248,3 +248,25 @@ describe("configuration approval comparisons", () => {
         })
     })
 })
+
+it.each([
+    [SigningAction.ImportElectionData, IPermissions.ELECTION_EVENT_CREATE],
+    [SigningAction.StartTally, IPermissions.ADMIN_CEREMONY],
+    [SigningAction.ExportExecutionData, IPermissions.ELECTION_EXECUTION_EXPORT],
+    [SigningAction.DeleteExecutionData, IPermissions.ELECTION_EVENT_DELETE],
+    [SigningAction.ReadVotersRegister, IPermissions.VOTER_READ],
+])(
+    "routes requester cancellation for mandatory %s through its held operation permission",
+    (action, permission) => {
+        expect(
+            signingOperationRole(
+                SigningOperation.Cancel,
+                action as SigningAction,
+                holding(permission as IPermissions)
+            )
+        ).toBe(permission)
+        expect(
+            signingOperationRole(SigningOperation.Cancel, action as SigningAction, holding())
+        ).toBeNull()
+    }
+)

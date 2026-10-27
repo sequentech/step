@@ -2832,6 +2832,10 @@ actions:
           - role: application-write
           - role: publish-write
           - role: trustee-ceremony
+          - role: election-event-create
+          - role: election-execution-export
+          - role: election-event-delete
+          - role: voter-read
       comment: Cancel a waiting signing request
     - name: signingExportRequests
       definition:

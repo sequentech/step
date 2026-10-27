@@ -47,6 +47,11 @@ const START_PERMISSIONS: Record<SigningAction, IPermissions> = {
     [SigningAction.ApproveConfiguration]: IPermissions.PUBLISH_WRITE,
     [SigningAction.ConfirmCustodyProof]: IPermissions.TRUSTEE_CEREMONY,
     [SigningAction.ContributeCustodyProof]: IPermissions.TRUSTEE_CEREMONY,
+    [SigningAction.ImportElectionData]: IPermissions.ELECTION_EVENT_CREATE,
+    [SigningAction.StartTally]: IPermissions.ADMIN_CEREMONY,
+    [SigningAction.ExportExecutionData]: IPermissions.ELECTION_EXECUTION_EXPORT,
+    [SigningAction.DeleteExecutionData]: IPermissions.ELECTION_EVENT_DELETE,
+    [SigningAction.ReadVotersRegister]: IPermissions.VOTER_READ,
 }
 
 /**
