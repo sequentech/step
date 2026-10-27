@@ -517,6 +517,24 @@ pub async fn process_export_zip(
     let options: FileOptions<()> =
         FileOptions::default().compression_method(zip::CompressionMethod::DEFLATE);
 
+    // Include durable security evidence even when its signed electoral-log
+    // delivery is still pending. The archive's integrity manifest covers this
+    // snapshot; a later substantive change advances the execution revision and
+    // invalidates both the export receipt and a pending deletion approval.
+    let security_evidence: serde_json::Value = hasura_transaction
+        .query_one(
+            "SELECT sequent_backend.execution_security_evidence($1::text::uuid,$2::text::uuid)",
+            &[&tenant_id, &election_event_id],
+        )
+        .await?
+        .try_get(0)?;
+    anyhow::ensure!(
+        security_evidence.is_object(),
+        "Execution security evidence is unavailable for this tenant and event"
+    );
+    zip_writer.start_file("execution-security-evidence.json", options)?;
+    serde_json::to_writer_pretty(&mut zip_writer, &security_evidence)?;
+
     // Add election event data file to the ZIP archive
     let (export_data, event_images_files_path) = read_export_data(
         &hasura_transaction,
