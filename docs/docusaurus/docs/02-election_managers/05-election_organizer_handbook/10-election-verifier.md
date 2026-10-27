@@ -137,29 +137,43 @@ place prove nothing if that place has been manipulated.
 A voter who copied their encrypted ballot in the voting portal ("Locate your
 ballot") during the execution phase can check that it was counted. The voter
 saves the encrypted ballot, exactly as "Locate your ballot" shows it, to a text
-file, and passes the content of that file to the election-verifier. If the
+file. This is the complete JSON ballot, including its signatures and the
+encrypted value in `contests`. The native `--ballot-ciphertext` option takes
+that encrypted value, not the surrounding JSON. If the
 voter voted again, use only the copy for the last vote cast: earlier votes are
 not counted. Checking an earlier ciphertext can therefore report it absent
 without indicating a fault in the tally. Obtain the final ciphertext before
 the ballot locator closes.
 
-Run:
+Keep the original file unchanged. On the verification workstation, use the
+JSON reader `jq` to extract the single contest into a separate file. In this
+example, the complete saved ballot is named `ballot.json`:
+
+```sh
+jq -er '.contests | select(type == "array" and length == 1) | .[0] | strings' ballot.json > ballot-ciphertext.txt
+```
+
+The command must finish successfully and create a nonempty file containing one
+encoded value. Stop if it prints an error or the file is empty; do not choose
+one contest from a ballot containing several contests, delete fields, or alter
+the saved ballot. This procedure covers the single-contest ballot used by the
+evaluated configuration. `jq` is an auxiliary JSON reader, not the cryptographic
+verifier.
+
+Run the accepted verifier with the extracted value:
 
 ```sh
 podman run --rm --network none -v <directory>:/data:ro <election-verifier image> \
   --transcript /data/<verification data file> \
   --configuration-hash <configuration hash> \
   --tally-id <Tally ID> \
-  --ballot-ciphertext "$(cat <ballot file>)"
+  --ballot-ciphertext "$(cat ballot-ciphertext.txt)"
 ```
 
-The options always take this form, where the first file is the verification
-data and the second the saved encrypted ballot:
-
-```text
---transcript <file> --configuration-hash <hex> --tally-id <id> \
-  --ballot-ciphertext "$(cat <file>)"
-```
+The original complete ballot remains the evidence copied from the locator.
+The verifier parses the extracted ciphertext and checks its inclusion against
+the independently verified tally; successful JSON extraction is not a
+cryptographic verification.
 
 Several ballots from the same batch can be checked at once by repeating
 `--ballot-ciphertext`. If the organizer publishes several batch files and the
