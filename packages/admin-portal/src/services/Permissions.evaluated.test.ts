@@ -38,7 +38,7 @@ it.each(cases)(
     "routes the actual %s document's %s through its held action grant",
     (file, name, required) => {
         const source = readFileSync(resolve(__dirname, "../queries", file), "utf8")
-        const definitions = [...source.matchAll(/(?:gql|graphql)`([\s\S]*?)`/g)].flatMap(
+        const definitions = Array.from(source.matchAll(/(?:gql|graphql)`([\s\S]*?)`/g)).flatMap(
             (match) => parse(match[1]).definitions
         )
         const definition = definitions.find(
