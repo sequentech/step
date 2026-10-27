@@ -37,6 +37,13 @@ export const castVoteErrorMessage = (error: unknown, t: TFunction): string => {
             ? error.errors[0]?.extensions
             : castError?.graphQLErrors?.[0]?.extensions
     ) as IExtensionError | undefined
+    const publicCode =
+        errorExtensions && (wrappedQuotaCode(errorExtensions) ?? errorExtensions.code)
+    // Hasura may label its wrapper "internal error" while retaining this
+    // explicit public refusal. Never replace it with the generic panic text.
+    if (publicCode === "InsertFailedExceedsAllowedRevotes") {
+        return t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}_${publicCode}`)
+    }
     if (castError?.message?.includes("internal error")) {
         return t(`reviewScreen.error.${CastBallotsErrorType.INTERNAL_ERROR}`) // can happen if the backend panics
     } else if (errorExtensions?.code) {

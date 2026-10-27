@@ -66,8 +66,11 @@ export const useCastReceivedBallot = () => {
                 },
             })
             const cast = result.data?.cast_ballot
-            if (result.error || !cast) {
-                console.log(result.error?.message)
+            if (result.error) {
+                setErrorMsg(castVoteErrorMessage(result.error, t))
+                return false
+            }
+            if (!cast) {
                 setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.UNABLE_TO_FETCH_DATA}`))
                 return false
             }

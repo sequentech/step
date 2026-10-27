@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {renderHook} from "@testing-library/react"
+import {CombinedGraphQLErrors} from "@apollo/client/errors"
 import type {IReceivedBallot} from "@sequentech/ui-core"
 import {addCastVotes} from "../store/castVotes/castVotesSlice"
 import {IReceivedCast, signReceivedCast, useCastReceivedBallot} from "./useCastReceivedBallot"
@@ -157,17 +158,47 @@ it("does not confirm a cast whose receipt the ballot box did not sign", async ()
     expect(mockForgetVoterSigningKey).not.toHaveBeenCalled()
 })
 
-it.each([
-    ["no answer", {data: {cast_ballot: null}}],
-    ["an error result", {data: undefined, error: new Error("refused")}],
-])("shows the fetch error and confirms nothing for %s", async (_, result) => {
-    mockCastBallot.mockResolvedValue(result)
+it("shows the fetch error and confirms nothing when there is no answer", async () => {
+    mockCastBallot.mockResolvedValue({data: {cast_ballot: null}})
 
     expect(await cast()).toBe(false)
     expect(setErrorMsg).toHaveBeenCalledWith("reviewScreen.error.UNABLE_TO_FETCH_DATA")
     expect(mockVerifyCastReceipt).not.toHaveBeenCalled()
     expect(mockDispatch).not.toHaveBeenCalled()
 })
+
+it.each(["resolved", "rejected"])(
+    "shows a wrapped quota refusal from a %s Apollo mutation without confirming or forgetting the key",
+    async (disposition) => {
+        const error = new CombinedGraphQLErrors({
+            errors: [
+                {
+                    message: "internal error",
+                    extensions: {
+                        code: "unexpected",
+                        internal: {
+                            response: {
+                                body: JSON.stringify({
+                                    extensions: {code: "InsertFailedExceedsAllowedRevotes"},
+                                }),
+                            },
+                        },
+                    },
+                },
+            ],
+        })
+        if (disposition === "resolved") mockCastBallot.mockResolvedValue({data: undefined, error})
+        else mockCastBallot.mockRejectedValue(error)
+        expect(await cast()).toBe(false)
+        expect(setErrorMsg).toHaveBeenCalledWith(
+            "reviewScreen.error.CAST_VOTE_InsertFailedExceedsAllowedRevotes"
+        )
+        expect(mockVerifyCastReceipt).not.toHaveBeenCalled()
+        expect(mockDispatch).not.toHaveBeenCalled()
+        expect(mockForgetVoterSigningKey).not.toHaveBeenCalled()
+        expect(mockCastBallot).toHaveBeenCalledTimes(1)
+    }
+)
 
 it("shows the ballot box's refusal with the cast error texts", async () => {
     mockCastBallot.mockRejectedValue({

@@ -15,6 +15,18 @@ it("retains the direct quota error translation", () => {
     )
 })
 it.each([
+    {code: quota},
+    {code: "unexpected", internal: {response: {body: {extensions: {code: quota}}}}},
+])("keeps an explicit quota code when the wrapper says internal error", (extensions) => {
+    const wrapped = new CombinedGraphQLErrors({errors: [{message: "internal error", extensions}]})
+    expect(castVoteErrorMessage(wrapped, t)).toBe(`reviewScreen.error.CAST_VOTE_${quota}`)
+})
+it("retains the generic internal error when no recognized quota code is present", () => {
+    expect(castVoteErrorMessage(new Error("internal error"), t)).toBe(
+        "reviewScreen.error.INTERNAL_ERROR"
+    )
+})
+it.each([
     {extensions: {code: quota}},
     JSON.stringify({message: "private server details", extensions: {code: quota}}),
 ])("recognizes the Hasura-wrapped quota response without displaying its message", (body) => {
