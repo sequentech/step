@@ -121,6 +121,14 @@ function exportGuidance({site, selection, out}) {
         if (name === 'href' && element.tagName !== 'a' && !value.startsWith('#')) throw Error('Unsupported SVG resource in '+page.source);
       }
     });
+    // WeasyPrint ignores the HTML start attribute without presentational hints.
+    // Express the checked numeric value as CSS so lists continue after screenshots.
+    article.find('ol[start]').each((_, list) => {
+      const value = $(list).attr('start').trim(); const start = Number(value);
+      if (!/^[+-]?[0-9]+$/.test(value) || !Number.isSafeInteger(start) || !Number.isSafeInteger(start-1))
+        throw Error('Unsupported ordered-list start in '+page.source);
+      $(list).css('counter-reset','list-item '+(start-1));
+    });
     // Docusaurus supplies decorative icons independently of the selected Markdown.
     article.find('svg[class*="iconExternalLink"]').remove();
     article.find('.theme-admonition [class*="admonitionIcon"]').addClass('guidance-admonition-icon');

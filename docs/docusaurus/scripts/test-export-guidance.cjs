@@ -187,3 +187,11 @@ test('inline PNG exception cannot admit other data types or active attributes',(
   changeArticle(f,'<img src="data:image/png;base64,'+disguised.toString('base64')+'">');
   assert.throws(f.run,/malformed image/);assert.equal(fs.existsSync(f.out),false);
 }));
+
+test('preserves ordered-list continuation numbers around screenshots in the PDF',()=>using(f=>{
+  changeArticle(f,'<ol><li>First preparation step</li></ol><img src="/manual/assets/image.png"><ol start="2"><li><p>Second preparation step</p></li></ol><img src="/manual/assets/image.png"><ol start="3"><li>Third preparation step</li><li>Fourth preparation step</li></ol>');
+  f.run();
+  const text=execFileSync('python3',['-c','import sys; from pypdf import PdfReader; print("\\n".join(p.extract_text() for p in PdfReader(sys.argv[1]).pages))',path.join(f.out,'AGD-01.pdf')],{encoding:'utf8'});
+  for (const [number,word] of [[1,'First'],[2,'Second'],[3,'Third'],[4,'Fourth']])
+    assert.match(text,new RegExp(number+'\\.\\s*'+word+' preparation step'));
+}));
