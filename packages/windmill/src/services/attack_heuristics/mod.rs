@@ -155,9 +155,7 @@ pub fn validate_activity(feed: &Activity, now: i64) -> Result<()> {
     let mut keys = std::collections::HashSet::new();
     for row in &feed.buckets {
         ensure!(
-            row.minute_start_ms % 60000 == 0
-                && row.minute_start_ms <= now
-                && now - row.minute_start_ms <= 16 * 60000,
+            policy::valid_bucket_time(row.minute_start_ms, feed.updated_at_ms, now),
             "Invalid request bucket time"
         );
         ensure!(
