@@ -428,22 +428,20 @@ export const RemoveAnElectionTheDatabaseRefuses: Story = {
     },
 }
 
-/** VOTE-FREEZE: an election event with ballot box seals can't be deleted either. */
+/** Whole-event erasure reaches the protected server workflow, which checks
+ * phase, complete export and board approval even when ballot boxes are sealed. */
 export const RemoveASealedEvent: Story = {
-    args: {
-        sealAtClose: true,
-        sealedEventIds: [EVENT_ID],
-    },
-    play: async ({canvasElement}) => {
+    args: {sealAtClose: true, sealedEventIds: [EVENT_ID]},
+    play: async ({canvasElement, args}) => {
         const menu = await openActions(canvasElement)
         await userEvent.click(
             within(menu).getByRole("menuitem", {name: "Remove this Election Event"})
         )
-        const dialog = await body().findByRole("dialog")
-        await waitFor(() => expect(within(dialog).getByText(EVENT_SEALED)).toBeVisible())
-        expect(within(dialog).queryByRole("button", {name: "Delete"})).toBeNull()
-        await userEvent.click(within(dialog).getByRole("button", {name: "Cancel"}))
-        expect(operations()).not.toContain("DeleteElectionEvent")
+        await confirm("Delete", /Are you sure to delete this item/)
+        await waitFor(() => expect(operations()).toContain("DeleteElectionEvent"))
+        expect(operations()).not.toContain("GetEventBallotBoxSeals")
+        expect(services.data.writes).toEqual([])
+        await waitFor(() => expect(args.reloadTree).toHaveBeenCalledTimes(1))
     },
 }
 

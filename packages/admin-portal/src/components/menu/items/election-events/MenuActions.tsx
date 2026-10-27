@@ -27,12 +27,8 @@ import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {WidgetProps} from "@/components/Widget"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {isBallotBoxSealedError, sealText} from "@/services/ballotBoxSealErrors"
-import {GET_BALLOT_BOX_SEALS, GET_EVENT_BALLOT_BOX_SEALS} from "@/queries/GetBallotBoxSeals"
-import type {
-    GetBallotBoxSealsQuery,
-    GetBallotBoxSealsQueryVariables,
-    GetEventBallotBoxSealsQuery,
-} from "@/types/ballotBoxSeal"
+import {GET_BALLOT_BOX_SEALS} from "@/queries/GetBallotBoxSeals"
+import type {GetBallotBoxSealsQuery, GetBallotBoxSealsQueryVariables} from "@/types/ballotBoxSeal"
 import {useSealReadRole} from "@/hooks/useSealReadRole"
 import {isSealAtClose} from "@/services/ballotBoxSealPolicy"
 
@@ -131,27 +127,20 @@ export default function MenuAction({
 
     const [openArchiveModal, setOpenArchiveModal] = React.useState(false)
     const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
-    // What the pre-check found about the ballot box seals of the election or
-    // event to remove (VOTE-FREEZE): sealed ones can't be deleted.
+    // Individual sealed elections remain protected from direct deletion.
+    // Whole events use the server's export- and quorum-bound erasure workflow.
     const [sealCheck, setSealCheck] = React.useState<ESealCheck>(ESealCheck.NONE)
     const apollo = useApolloClient()
     const sealRole = useSealReadRole()
 
-    /**
-     * Whether the election or event has ballot box seals. The database (or
-     * the delete task) refuses to delete it then, and outside Hasura's dev
-     * mode its error doesn't say why, so the dialog says it before. The seals
-     * are read with a role the user has; when none can read them, the dialog
-     * says they could not be checked.
+    /** Whole-event deletion is authorized by the server only in Post-processing,
+     * against a current complete export and the required board signatures.
+     * Its sealed evidence is deliberately included in that final erasure.
+     * Individual-election deletion retains the permanent seal protection.
      */
     const checkSeals = async (payload: ActionPayload): Promise<ESealCheck> => {
-        const isElection = payload.type === "sequent_backend_election"
-        if (!isElection && payload.type !== "sequent_backend_election_event") {
-            return ESealCheck.NONE
-        }
-        // Only an event that seals at close has seals: any other is deleted
-        // as before, without reading them.
-        const eventId = String(isElection ? parentData.id : payload.id)
+        if (payload.type !== "sequent_backend_election") return ESealCheck.NONE
+        const eventId = String(parentData.id)
         const event = (
             treeData?.sequent_backend_election_event as
                 | Array<{id: string; presentation?: unknown}>
@@ -160,23 +149,15 @@ export default function MenuAction({
         if (event && !isSealAtClose(event.presentation)) return ESealCheck.NONE
         if (!sealRole) return ESealCheck.UNKNOWN
         try {
-            const context = {headers: {"x-hasura-role": sealRole}}
-            const {data} = isElection
-                ? await apollo.query<GetBallotBoxSealsQuery, GetBallotBoxSealsQueryVariables>({
-                      query: GET_BALLOT_BOX_SEALS,
-                      variables: {
-                          electionEventId: parentData.id,
-                          electionIds: [String(payload.id)],
-                      },
-                      fetchPolicy: "network-only",
-                      context,
-                  })
-                : await apollo.query<GetEventBallotBoxSealsQuery>({
-                      query: GET_EVENT_BALLOT_BOX_SEALS,
-                      variables: {electionEventId: String(payload.id)},
-                      fetchPolicy: "network-only",
-                      context,
-                  })
+            const {data} = await apollo.query<
+                GetBallotBoxSealsQuery,
+                GetBallotBoxSealsQueryVariables
+            >({
+                query: GET_BALLOT_BOX_SEALS,
+                variables: {electionEventId: parentData.id, electionIds: [String(payload.id)]},
+                fetchPolicy: "network-only",
+                context: {headers: {"x-hasura-role": sealRole}},
+            })
             return data?.sequent_backend_ballot_box_seal?.length
                 ? ESealCheck.SEALED
                 : ESealCheck.NONE
@@ -598,6 +579,12 @@ export default function MenuAction({
                             "sideMenu.menuActions.messages.confirm.sealsUnknown"
                         )}`
                       : t("sideMenu.menuActions.messages.confirm.delete")}
+                {selectedActionModal?.payload.type === "sequent_backend_election_event" && (
+                    <p>
+                        Post-processing, a complete current export, and the required election-board
+                        approvals are required before the event can be deleted.
+                    </p>
+                )}
             </Dialog>
         </>
     )
