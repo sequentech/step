@@ -56,6 +56,25 @@ select_permissions:
         - tenant_id
         filter: {}
     role: service-account
+-   comment: Publication reviewers can read event support material; editing remains separately authorized.
+    permission:
+        allow_aggregations: true
+        columns:
+        - is_hidden
+        - annotations
+        - data
+        - labels
+        - document_id
+        - kind
+        - created_at
+        - last_updated_at
+        - election_event_id
+        - id
+        - tenant_id
+        filter:
+            tenant_id:
+                _eq: X-Hasura-Tenant-Id
+    role: publish-read
 -   comment: ''
     permission:
         allow_aggregations: true

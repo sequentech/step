@@ -20,7 +20,9 @@ const schema = JSON.parse(
 const resources = ["sequent_backend_tally_session", "sequent_backend_tally_session_execution"]
 const scheduled = "sequent_backend_scheduled_event"
 const report = "sequent_backend_report"
-const readResources = [...resources, scheduled, report]
+const supportMaterial = "sequent_backend_support_material"
+const documentResource = "sequent_backend_document"
+const readResources = [...resources, scheduled, report, supportMaterial, documentResource]
 const ID = "30000000-0000-4000-8000-000000000001"
 const EVENT = "40000000-0000-4000-8000-000000000001"
 const TENANT = "50000000-0000-4000-8000-000000000001"
@@ -96,6 +98,7 @@ function fixture(deny = false, trustee = false, live = defaultRoleSchema, schedu
                         permission === IPermissions.ADMIN_CEREMONY ||
                         permission === IPermissions.PUBLISH_READ ||
                         permission === IPermissions.REPORT_READ ||
+                        permission === IPermissions.DOCUMENT_READ ||
                         (scheduleRead && permission === IPermissions.SCHEDULED_EVENT_WRITE) ||
                         (trustee && permission === IPermissions.TRUSTEE_CEREMONY)
                 )
@@ -394,3 +397,56 @@ it("constructs the board's scoped report list and detail using its held report-r
     }
     client.stop()
 })
+
+it.each([
+    [supportMaterial, IPermissions.PUBLISH_READ],
+    [documentResource, IPermissions.DOCUMENT_READ],
+    ["sequent_backend_ballot_style", IPermissions.PUBLISH_READ],
+])("constructs publication dependency %s with only its held read role", async (resource, role) => {
+    const {client, requests} = fixture()
+    const provider = await createHasuraDataProvider(client)
+    await expect(
+        provider.getList(resource, {
+            pagination: {page: 1, perPage: 1000},
+            sort: {field: "id", order: "ASC"},
+            filter: {tenant_id: TENANT, election_event_id: EVENT},
+        })
+    ).resolves.toEqual({data: [], total: 0})
+    await expect(provider.getOne(resource, {id: ID})).resolves.toMatchObject({data: {id: ID}})
+    const metadata = parseYaml(
+        readFileSync(
+            resolve(
+                __dirname,
+                `../../../../hasura/metadata/databases/backend-db/tables/${resource}.yaml`
+            ),
+            "utf8"
+        )
+    )
+    const permission = metadata.select_permissions.find(
+        (entry: {role: string}) => entry.role === role
+    )?.permission
+    expect(permission).toBeDefined()
+    for (const request of requests.slice(1)) {
+        expect(request.role).toBe(role)
+        for (const field of request.fields) expect(permission.columns).toContain(field)
+    }
+    expect(requests[1].variables).toMatchObject({
+        where: {_and: [{tenant_id: {_eq: TENANT}}, {election_event_id: {_eq: EVENT}}]},
+    })
+    expect(requests[2].variables).toMatchObject({where: {id: {_eq: ID}}})
+    client.stop()
+})
+
+it.each([supportMaterial, documentResource])(
+    "keeps server refusals for publication dependency %s",
+    async (resource) => {
+        const {client, requests} = fixture(true)
+        const provider = await createHasuraDataProvider(client)
+        await expect(provider.getOne(resource, {id: ID})).rejects.toThrow("permission denied")
+        expect(requests).toHaveLength(2)
+        expect(requests[1].role).toBe(
+            resource === supportMaterial ? IPermissions.PUBLISH_READ : IPermissions.DOCUMENT_READ
+        )
+        client.stop()
+    }
+)

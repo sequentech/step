@@ -50,7 +50,7 @@ test("independent signed public anchors are board-only and tenant scoped", () =>
     const permission = select("protocol_board", "admin-ceremony")
     assert.ok(permission.columns.includes("manager_message"))
     assert.deepEqual(permission.filter, tenant)
-    assert.ok(!select("protocol_board", "admin-user").columns.includes("manager_message"))
+    assert.ok(!select("protocol_board", "admin-user")?.columns.includes("manager_message"))
 })
 
 test("transcript export accepts only a selected event and board under admin-ceremony", () => {
@@ -64,4 +64,16 @@ test("transcript export accepts only a selected event and board under admin-cere
     assert.match(template, /election_event_id/)
     assert.match(template, /protocol_board_id/)
     assert.doesNotMatch(template, /board_url|tenant_id|document_id/)
+})
+
+
+test("publishers can read event support material without gaining editing or administration grants", () => {
+    const permission = select("support_material", "publish-read")
+    assert.ok(permission, "publication dependency is readable")
+    assert.deepEqual(permission.filter, select("election_event", "election-event-read").filter)
+    assert.deepEqual(permission.columns, select("support_material", "support-material-read").columns)
+    assert.equal(permission.allow_aggregations, true)
+    assert.equal(select("support_material", "admin-user"), undefined)
+    for (const kind of ["insert_permissions", "update_permissions", "delete_permissions"])
+        assert.ok(!(table("support_material")[kind] ?? []).some(p => p.role === "publish-read"))
 })

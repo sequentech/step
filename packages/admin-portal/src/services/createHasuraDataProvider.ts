@@ -13,6 +13,8 @@ const routedReads = [
     "sequent_backend_tally_session_execution",
     "sequent_backend_scheduled_event",
     "sequent_backend_report",
+    "sequent_backend_support_material",
+    "sequent_backend_document",
 ]
 
 /** Keep the current role's schema; supplement only absent, separately routed reads. */
