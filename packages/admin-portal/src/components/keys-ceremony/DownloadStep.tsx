@@ -28,6 +28,7 @@ import {
     IKeysCeremonyTrusteeStatus as TStatus,
 } from "@/services/KeyCeremony"
 import {isCustodyRequestDownloadUnavailableError} from "@/services/custodyRequestDownloadError"
+import {OfflineCustodyInstructions} from "./OfflineCustodyInstructions"
 
 export interface DownloadStepProps {
     electionEvent: Sequent_Backend_Election_Event
@@ -46,7 +47,6 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
     const authContext = useContext(AuthContext)
     const trustee = authContext.trustee || authContext.username
     const requestFilename = trusteeFilename(trustee, "custody-request.json")
-    const keysFilename = trusteeFilename(trustee, "private-keys.toml")
     const proofFilename = trusteeFilename(trustee, "custody-proof.json")
     const {globalSettings} = useContext(SettingsContext)
     const [downloaded, setDownloaded] = useState<boolean>(false)
@@ -147,14 +147,10 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
                     {t("keysGeneration.downloadStep.title")}
                 </WizardStyles.StepHeader>
                 <WizardStyles.MainContent>
-                    <Alert severity="info">
-                        Download the public custody request, then run{" "}
-                        <code>
-                            {`trustee attest --request ${requestFilename} --trustee-config ${keysFilename} --output ${proofFilename}`}
-                        </code>{" "}
-                        locally. Upload the proof in the next step. Keep your trustee keys file
-                        private.
-                    </Alert>
+                    <OfflineCustodyInstructions
+                        requestFilename={requestFilename}
+                        proofFilename={proofFilename}
+                    />
                     <Typography variant="body1">
                         <Trans
                             i18nKey="keysGeneration.downloadStep.subtitle"

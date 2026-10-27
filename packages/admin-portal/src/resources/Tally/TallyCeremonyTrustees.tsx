@@ -29,7 +29,7 @@ import {
     ITallyExecutionStatus,
     ITallyTrusteeStatus,
 } from "@/types/ceremonies"
-import {Alert, Box, Typography} from "@mui/material"
+import {Box, Typography} from "@mui/material"
 import {
     AuthorizeTallyCustodyMutation,
     AuthorizeTallyCustodyMutationVariables,
@@ -49,6 +49,7 @@ import {
 } from "@/components/keys-ceremony/useCustodyProofSigning"
 import {getTallyTrusteeStatus} from "@/services/tallyCeremonyParticipation"
 import {getTallyKeyRestoreEligibility} from "./utils"
+import {OfflineCustodyInstructions} from "@/components/keys-ceremony/OfflineCustodyInstructions"
 
 const WizardSteps = {
     Start: 0,
@@ -64,8 +65,7 @@ export const TallyCeremonyTrustees: React.FC = () => {
     const authContext = useContext(AuthContext)
     const trustee = authContext.trustee || authContext.username
     const requestFilename = trusteeFilename(trustee, "custody-request.json")
-    const keysFilename = trusteeFilename(trustee, "private-keys.toml")
-    const proofFilename = trusteeFilename(trustee, "custody-proof.json")
+    const proofFilename = trusteeFilename(trustee, `tally-${tallyId}-custody-proof.json`)
 
     const [hasContinuedToStatus, setHasContinuedToStatus] = useState(false)
     const [selectedElections, setSelectedElections] = useState<string[]>([])
@@ -311,14 +311,11 @@ export const TallyCeremonyTrustees: React.FC = () => {
                                     </Typography>
                                 ) : null}
 
-                                <Alert severity="info" sx={{mb: 2}}>
-                                    Create a custody proof locally using your saved request:
-                                    <Typography component="pre" sx={{whiteSpace: "pre-wrap"}}>
-                                        {`trustee attest --request ${requestFilename} --trustee-config ${keysFilename} --tally-session-id ${tally?.id || tallyId} --output ${proofFilename}`}
-                                    </Typography>
-                                    Upload {proofFilename}. Keep {keysFilename} on your trustee
-                                    machine.
-                                </Alert>
+                                <OfflineCustodyInstructions
+                                    requestFilename={requestFilename}
+                                    proofFilename={proofFilename}
+                                    tallySessionId={tally?.id || tallyId}
+                                />
                                 <DropFile handleFiles={uploadCustodyProof} />
 
                                 <WizardStyles.StatusBox>
