@@ -15,6 +15,9 @@ import {AuthContext} from "./AuthContextProvider"
 import {Box, CircularProgress} from "@mui/material"
 import {ApolloProvider} from "@apollo/client"
 import {SettingsContext} from "./SettingsContextProvider"
+import {boardAuthorizationLink} from "@/services/boardAuthorizationLink"
+import {administratorSettingsQuery} from "@/services/administratorSettings"
+import {IPermissions} from "@/types/keycloak"
 import {getOperationRole} from "@/services/Permissions"
 import {getTimeZoneValidationMessage} from "@/services/graphqlActionError"
 
@@ -64,11 +67,24 @@ export const ApolloContextProvider = ({children, role}: ApolloContextProviderPro
 
             return {
                 headers: {
-                    "authorization": token ? `Bearer ${token}` : "",
-                    "x-hasura-role": operationRole,
                     ...headers,
+                    "authorization": token ? `Bearer ${token}` : "",
+                    "x-hasura-role": headers?.["x-hasura-role"] ?? operationRole,
                 },
             }
+        })
+
+        const settingsLink = new ApolloLink((operation, forward) => {
+            const operationRole = getOperationRole(operation, hasRole)
+            if (
+                hasRole(IPermissions.ADMIN_USER) &&
+                [IPermissions.ADMIN_USER, IPermissions.ELECTION_EVENT_CREATE].includes(
+                    operationRole
+                )
+            ) {
+                operation.query = administratorSettingsQuery(operation.query)
+            }
+            return forward(operation)
         })
 
         const validationLink = new ApolloLink((operation, forward) =>
@@ -90,7 +106,11 @@ export const ApolloContextProvider = ({children, role}: ApolloContextProviderPro
             }))
         )
         const apolloClient = new ApolloClient({
-            link: authLink.concat(validationLink).concat(httpLink),
+            link: boardAuthorizationLink()
+                .concat(settingsLink)
+                .concat(authLink)
+                .concat(validationLink)
+                .concat(httpLink),
             cache: new InMemoryCache(),
         })
         return apolloClient

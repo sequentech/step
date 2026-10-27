@@ -45,11 +45,9 @@ export function useActionPermissions() {
         tenantId,
         IPermissions.ELECTION_EVENT_DELETE
     )
-    const canReadElectionEvent = authContext.isAuthorized(
-        true,
-        tenantId,
-        IPermissions.ELECTION_EVENT_READ
-    )
+    const canReadElectionEvent =
+        authContext.hasRole(IPermissions.ADMIN_USER) ||
+        authContext.isAuthorized(true, tenantId, IPermissions.ELECTION_EVENT_READ)
     const canArchiveElectionEvent = authContext.isAuthorized(
         true,
         tenantId,
@@ -60,7 +58,9 @@ export function useActionPermissions() {
      * election
      */
     const canWriteElection = authContext.isAuthorized(true, tenantId, IPermissions.ELECTION_WRITE)
-    const canReadElection = authContext.isAuthorized(true, tenantId, IPermissions.ELECTION_READ)
+    const canReadElection =
+        authContext.hasRole(IPermissions.ADMIN_USER) ||
+        authContext.isAuthorized(true, tenantId, IPermissions.ELECTION_READ)
     const canCreateElection = authContext.isAuthorized(true, tenantId, IPermissions.ELECTION_CREATE)
     const canDeleteElection = authContext.isAuthorized(true, tenantId, IPermissions.ELECTION_DELETE)
 

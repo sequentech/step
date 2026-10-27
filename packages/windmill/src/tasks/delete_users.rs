@@ -7,6 +7,7 @@ use crate::services::election::is_election_event_locked_down;
 use crate::services::tasks_execution::{update_complete_with_annotations, update_fail};
 use crate::services::users::{list_users, list_users_with_vote_info, ListUsersFilter};
 use crate::types::error::{Error, Result};
+use anyhow::Context;
 use celery::error::TaskError;
 use deadpool_postgres::Client as DbClient;
 use sequent_core::services::keycloak::KeycloakAdminClient;
@@ -94,6 +95,24 @@ pub async fn delete_users(
         }
     };
 
+    // The phase lock remains held until all Keycloak mutations complete.
+    let mut lifecycle_db = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .map_err(anyhow::Error::from)?;
+    let lifecycle_tx = lifecycle_db.transaction().await?;
+    if let Some(task) = task_execution.as_ref() {
+        crate::services::election_lifecycle::require_phase(
+            &lifecycle_tx,
+            &task.tenant_id,
+            task.election_event_id
+                .as_deref()
+                .context("Delete voters task has no election event")?,
+            sequent_core::election_lifecycle::ElectoralPhase::Preparation,
+        )
+        .await?;
+    }
     let total = ids.len();
     info!("Deleting {total} voters from realm {realm}");
 

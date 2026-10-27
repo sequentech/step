@@ -45,6 +45,16 @@ pub async fn import_candidates_route(
         .clone()
         .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
 
+    let request =
+        crate::services::board_authorization::authorize_import_document(
+            &claims,
+            &election_event_id,
+            "import-candidates",
+            &body.document_id,
+            serde_json::to_value(&body)
+                .map_err(|e| (Status::BadRequest, e.to_string()))?,
+        )
+        .await?;
     // Insert the task execution record
     let task_execution = post(
         &tenant_id,
@@ -64,9 +74,17 @@ pub async fn import_candidates_route(
         &claims,
         true,
         Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::ADMIN_USER],
+        vec![Permissions::CANDIDATE_CREATE],
     )?;
 
+    crate::services::board_authorization::bind_operation(
+        &claims,
+        &election_event_id,
+        request,
+        windmill::services::board_operations::BindingKind::Import,
+        &task_execution.id,
+    )
+    .await?;
     match import_candidates_task(
         claims.hasura_claims.tenant_id.clone(),
         election_event_id,

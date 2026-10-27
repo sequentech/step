@@ -22,7 +22,7 @@ it.each([
     "ListTrusteeBoards",
     "ReportTrusteeBoard",
 ])("uses the trustee ceremony permission for the public custody action %s", (name) => {
-    expect(roleOf(name)).toBe(IPermissions.TRUSTEE_CEREMONY)
+    expect(roleFor(name, [IPermissions.TRUSTEE_CEREMONY])).toBe(IPermissions.TRUSTEE_CEREMONY)
 })
 
 it.each([
@@ -61,14 +61,14 @@ it.each([
     ["MessagingFakeProviderGetStarted", IPermissions.MESSAGING_ACCOUNT_WRITE],
     ["FindApplicationsBySupportReference", IPermissions.APPLICATION_READ],
 ])("requires the role for %s in both modes", (name, role) => {
-    expect(roleOf(name)).toBe(role)
-    expect(roleOf(name, true)).toBe(role)
+    expect(roleFor(name, [IPermissions.ADMIN_USER, role])).toBe(role)
+    expect(roleFor(name, [IPermissions.ADMIN_USER, IPermissions.TRUSTEE_CEREMONY, role])).toBe(role)
 })
 
 it.each(["sequent_backend_keys_ceremony", "sequent_backend_tally_session_execution"])(
     "uses the trustee ceremony permission only in trustee mode: %s",
     (name) => {
-        expect(roleOf(name)).toBe(IPermissions.ADMIN_CEREMONY)
+        expect(roleFor(name, [IPermissions.ADMIN_CEREMONY])).toBe(IPermissions.ADMIN_CEREMONY)
         expect(roleOf(name, true)).toBe(IPermissions.TRUSTEE_CEREMONY)
     }
 )
@@ -77,7 +77,9 @@ it("asks whether a trustee's key step needs a signature with the trustee ceremon
     expect(roleOf("CustodyProofSignatureStatus")).toBe(IPermissions.ADMIN_USER)
 })
 it("keeps the trustee user lookup separate from the admin fallback", () => {
-    expect(roleOf("getUsers", true)).toBe(IPermissions.VOTER_READ)
+    expect(roleFor("getUsers", [IPermissions.TRUSTEE_CEREMONY, IPermissions.VOTER_READ])).toBe(
+        IPermissions.VOTER_READ
+    )
     expect(roleOf("getUsers")).toBe(IPermissions.ADMIN_USER)
 })
 it.each([undefined, "", "unknown", "toString", "constructor", "__proto__"])(
@@ -220,7 +222,11 @@ describe("getOperationRole", () => {
     })
 
     it("keeps the ceremony mapping for admins who also run ceremonies", () => {
-        const roles = [IPermissions.ADMIN_USER, IPermissions.TRUSTEE_CEREMONY]
+        const roles = [
+            IPermissions.ADMIN_USER,
+            IPermissions.TRUSTEE_CEREMONY,
+            IPermissions.VOTER_READ,
+        ]
         expect(roleFor("sequent_backend_keys_ceremony", roles)).toBe(IPermissions.TRUSTEE_CEREMONY)
         expect(roleFor("getUsers", roles)).toBe(IPermissions.VOTER_READ)
         expect(roleFor("sequent_backend_tenant", roles)).toBe(IPermissions.ADMIN_USER)
@@ -507,3 +513,14 @@ it.each([
         roleFor("sequent_backend_scheduled_event", [IPermissions.PUBLISH_READ, permission])
     ).toBe(permission)
 )
+
+// An operation name selects a held permission; it cannot manufacture one.
+it.each([
+    "sequent_backend_election_event",
+    "sequent_backend_candidate",
+    "RevealVoterSecretAttribute",
+    "MonitoringGetDashboard",
+    "ExportElectionEvent",
+])("does not infer election data access from admin-user for %s", (name) => {
+    expect(roleFor(name, [IPermissions.ADMIN_USER])).toBe(IPermissions.ADMIN_USER)
+})

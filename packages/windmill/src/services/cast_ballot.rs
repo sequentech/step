@@ -271,8 +271,27 @@ pub fn sign_receipt(
 pub(crate) async fn accept_received_cast(
     accept: &AcceptBallot<'_>,
     received_cast: &ReceivedCast,
+    board: &str,
+    admission_key: &SigningKey,
 ) -> Result<(AcceptOutcome, DateTime<Utc>, CastReceipt), CastVoteError> {
     let (cast_at, receipt) = sign_receipt(received_cast)?;
+    let seq = crate::services::ballot_admission::reserve_sequence(accept.election_event_id)
+        .await
+        .map_err(store_error)?;
+    let admission = crate::services::ballot_admission::sign(accept, admission_key, &cast_at, seq)
+        .map_err(|e| CastVoteError::BallotSignFailed(e.to_string()))?;
+    let signed = AcceptBallot {
+        admission_record: &admission,
+        ..accept.clone()
+    };
+    let pending = crate::services::ballot_admission::pending(&signed, &cast_at, seq);
+    let entry = crate::services::ballot_box::ballot_record(
+        board,
+        accept.election_event_id,
+        &pending,
+        admission_key,
+    )
+    .map_err(|e| CastVoteError::BallotSignFailed(e.to_string()))?;
     let received = &received_cast.received_ballot;
     let databases = get_event_databases().await.map_err(store_error)?;
     databases
@@ -284,14 +303,16 @@ pub(crate) async fn accept_received_cast(
         .await
         .map_err(store_error)?;
     let outcome = store
-        .accept_received_ballot(
-            accept,
-            &AcceptReceived {
+        .accept_recorded_ballot(
+            &signed,
+            Some(&AcceptReceived {
                 ballot_id: &received.ballot_id,
                 cast_at,
                 cast_signature: &received_cast.cast_signature,
                 cast_receipt_signature: &receipt.cast_receipt_signature,
-            },
+            }),
+            board,
+            &entry,
         )
         .await
         .map_err(store_error)?;
@@ -433,6 +454,7 @@ mod postgres_wiring_tests {
     use electoral_log::adapters::ballot_box_received::{
         ReceiveBallot, ReceiveOutcome, ReceivedSignature,
     };
+    use electoral_log::ports::ElectoralLogStore;
     use sequent_core::ballot_receipt::{
         sign_cast_statement, sign_received_ballot, ReceivedStatement,
     };
@@ -456,6 +478,10 @@ mod postgres_wiring_tests {
                 .await
                 .unwrap();
             store.create_ballot_box(&id).await.unwrap();
+            store
+                .create_board(&format!("fixture-ballot-{id}"))
+                .await
+                .unwrap();
             Self {
                 id,
                 election: Uuid::new_v4().to_string(),
@@ -544,6 +570,7 @@ mod postgres_wiring_tests {
                     format: &format,
                     content: &received_cast.received_ballot.content,
                     voter_signature: None,
+                    admission_record: &format!(r#"{{"payload":{{"accepted_at":"2026-10-27T12:00:00.000Z","sequence":{}}},"signature":""}}"#, std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos() as i64).into_bytes(),
                     pseudonym_hash: &[0; 64],
                     ballot_hash: &[0; 64],
                     voting_channel: "ONLINE",
@@ -554,6 +581,8 @@ mod postgres_wiring_tests {
                     allowed_votes: 0,
                 },
                 received_cast,
+                &format!("fixture-ballot-{}",self.id),
+                &self.ballot_box_sk,
             )
             .await
         }

@@ -1326,6 +1326,20 @@ pub async fn import_schedule_document(
         document_id,
     )
     .await?;
+    let approved = crate::services::board_operations::validate(
+        &hasura_transaction,
+        tenant_id,
+        election_event_id,
+        crate::services::board_operations::BindingKind::Import,
+        document_id,
+        None,
+    )
+    .await?;
+    use sha2::Digest;
+    anyhow::ensure!(
+        approved["parameters"]["sha256"] == hex::encode(sha2::Sha256::digest(&bytes)),
+        "Schedule file differs from the board-approved upload"
+    );
     let (outcome, entries) =
         import_schedule(&hasura_transaction, tenant_id, election_event_id, &bytes).await?;
 

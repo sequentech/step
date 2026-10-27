@@ -792,3 +792,15 @@ async fn deliver_once(log: &SealedBoxLog, delivery_id: String, message: &Message
 #[cfg(test)]
 #[path = "sealed_box_ballots_tests.rs"]
 mod tests;
+
+/// Verify a sealed box for the TSF self-test without counting votes or emitting a tally result.
+pub async fn self_test_verify_box(
+    tx: &Transaction<'_>,
+    log: &SealedBoxLog,
+    ballot_box: &SealedBox<'_>,
+) -> Result<Option<String>> {
+    Ok(match verify_box(tx, log, ballot_box).await? {
+        Ok(_) => None,
+        Err(Rejection(reason)) => Some(reason),
+    })
+}

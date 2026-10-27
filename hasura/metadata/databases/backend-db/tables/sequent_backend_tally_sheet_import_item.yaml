@@ -1,206 +1,170 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-License-Identifier: AGPL-3.0-only
 table:
     name: tally_sheet_import_item
     schema: sequent_backend
 object_relationships:
-    - name: election
-      using:
-          manual_configuration:
-              column_mapping:
-                  election_event_id: election_event_id
-                  election_id: id
-                  tenant_id: tenant_id
-              insertion_order: null
-              remote_table:
-                  name: election
-                  schema: sequent_backend
-    - name: generated_tally_sheet
-      using:
-          foreign_key_constraint_on:
-              - generated_tally_sheet_id
-              - tenant_id
-              - election_event_id
-    - name: import
-      using:
-          foreign_key_constraint_on: import_id
+-   name: election
+    using:
+        manual_configuration:
+            column_mapping:
+                election_event_id: election_event_id
+                election_id: id
+                tenant_id: tenant_id
+            insertion_order: null
+            remote_table:
+                name: election
+                schema: sequent_backend
+-   name: generated_tally_sheet
+    using:
+        foreign_key_constraint_on:
+        - generated_tally_sheet_id
+        - tenant_id
+        - election_event_id
+-   name: import
+    using:
+        foreign_key_constraint_on: import_id
 select_permissions:
-    - comment: ""
-      permission:
-          allow_aggregations: true
-          columns:
-              - annotations
-              - area_id
-              - baseline_approved_tally_sheet_id
-              - baseline_approved_version
-              - baseline_content_hash
-              - change_type
-              - channel
-              - contest_id
-              - created_at
-              - election_event_id
-              - election_id
-              - generated_tally_sheet_id
-              - id
-              - import_id
-              - incoming_content_hash
-              - incoming_csv
-              - labels
-              - last_updated_at
-              - previous_csv
-              - source_refs
-              - status
-              - tenant_id
-              - validation_warnings
-          filter:
-              _and:
-                  - tenant_id:
-                        _eq: X-Hasura-Tenant-Id
-                  - election:
-                        _or:
-                            - permission_label:
-                                  _is_null: true
-                            - permission_label:
-                                  _in: X-Hasura-Permission-Labels
-      role: admin-user
-    - comment: ""
-      permission:
-          allow_aggregations: true
-          columns:
-              - annotations
-              - area_id
-              - baseline_approved_tally_sheet_id
-              - baseline_approved_version
-              - baseline_content_hash
-              - change_type
-              - channel
-              - contest_id
-              - created_at
-              - election_event_id
-              - election_id
-              - generated_tally_sheet_id
-              - id
-              - import_id
-              - incoming_content_hash
-              - incoming_csv
-              - labels
-              - last_updated_at
-              - previous_csv
-              - source_refs
-              - status
-              - tenant_id
-              - validation_warnings
-          filter: {}
-      role: service-account
-    - comment: ""
-      permission:
-          allow_aggregations: true
-          columns:
-              - annotations
-              - area_id
-              - baseline_approved_tally_sheet_id
-              - baseline_approved_version
-              - baseline_content_hash
-              - change_type
-              - channel
-              - contest_id
-              - created_at
-              - election_event_id
-              - election_id
-              - generated_tally_sheet_id
-              - id
-              - import_id
-              - incoming_content_hash
-              - incoming_csv
-              - labels
-              - last_updated_at
-              - previous_csv
-              - source_refs
-              - status
-              - tenant_id
-              - validation_warnings
-          filter:
-              _and:
-                  - tenant_id:
-                        _eq: X-Hasura-Tenant-Id
-                  - election:
-                        _or:
-                            - permission_label:
-                                  _is_null: true
-                            - permission_label:
-                                  _in: X-Hasura-Permission-Labels
-      role: tally-sheet-import-view
-    - comment: ""
-      permission:
-          allow_aggregations: true
-          columns:
-              - annotations
-              - area_id
-              - baseline_approved_tally_sheet_id
-              - baseline_approved_version
-              - baseline_content_hash
-              - change_type
-              - channel
-              - contest_id
-              - created_at
-              - election_event_id
-              - election_id
-              - generated_tally_sheet_id
-              - id
-              - import_id
-              - incoming_content_hash
-              - incoming_csv
-              - labels
-              - last_updated_at
-              - previous_csv
-              - source_refs
-              - status
-              - tenant_id
-              - validation_warnings
-          filter:
-              _and:
-                  - tenant_id:
-                        _eq: X-Hasura-Tenant-Id
-                  - election:
-                        _or:
-                            - permission_label:
-                                  _is_null: true
-                            - permission_label:
-                                  _in: X-Hasura-Permission-Labels
-      role: tally-sheet-import-create
-    - comment: ""
-      permission:
-          allow_aggregations: true
-          columns:
-              - annotations
-              - area_id
-              - baseline_approved_tally_sheet_id
-              - baseline_approved_version
-              - baseline_content_hash
-              - change_type
-              - channel
-              - contest_id
-              - created_at
-              - election_event_id
-              - election_id
-              - generated_tally_sheet_id
-              - id
-              - import_id
-              - incoming_content_hash
-              - incoming_csv
-              - labels
-              - last_updated_at
-              - previous_csv
-              - source_refs
-              - status
-              - tenant_id
-              - validation_warnings
-          filter:
-              _and:
-                  - tenant_id:
-                        _eq: X-Hasura-Tenant-Id
-                  - election:
-                        _or:
-                            - permission_label:
-                                  _is_null: true
-                            - permission_label:
-                                  _in: X-Hasura-Permission-Labels
-      role: tally-sheet-import-review
+-   comment: ''
+    permission:
+        allow_aggregations: true
+        columns:
+        - annotations
+        - area_id
+        - baseline_approved_tally_sheet_id
+        - baseline_approved_version
+        - baseline_content_hash
+        - change_type
+        - channel
+        - contest_id
+        - created_at
+        - election_event_id
+        - election_id
+        - generated_tally_sheet_id
+        - id
+        - import_id
+        - incoming_content_hash
+        - incoming_csv
+        - labels
+        - last_updated_at
+        - previous_csv
+        - source_refs
+        - status
+        - tenant_id
+        - validation_warnings
+        filter: {}
+    role: service-account
+-   comment: ''
+    permission:
+        allow_aggregations: true
+        columns:
+        - annotations
+        - area_id
+        - baseline_approved_tally_sheet_id
+        - baseline_approved_version
+        - baseline_content_hash
+        - change_type
+        - channel
+        - contest_id
+        - created_at
+        - election_event_id
+        - election_id
+        - generated_tally_sheet_id
+        - id
+        - import_id
+        - incoming_content_hash
+        - incoming_csv
+        - labels
+        - last_updated_at
+        - previous_csv
+        - source_refs
+        - status
+        - tenant_id
+        - validation_warnings
+        filter:
+            _and:
+            -   tenant_id:
+                    _eq: X-Hasura-Tenant-Id
+            -   election:
+                    _or:
+                    -   permission_label:
+                            _is_null: true
+                    -   permission_label:
+                            _in: X-Hasura-Permission-Labels
+    role: tally-sheet-import-view
+-   comment: ''
+    permission:
+        allow_aggregations: true
+        columns:
+        - annotations
+        - area_id
+        - baseline_approved_tally_sheet_id
+        - baseline_approved_version
+        - baseline_content_hash
+        - change_type
+        - channel
+        - contest_id
+        - created_at
+        - election_event_id
+        - election_id
+        - generated_tally_sheet_id
+        - id
+        - import_id
+        - incoming_content_hash
+        - incoming_csv
+        - labels
+        - last_updated_at
+        - previous_csv
+        - source_refs
+        - status
+        - tenant_id
+        - validation_warnings
+        filter:
+            _and:
+            -   tenant_id:
+                    _eq: X-Hasura-Tenant-Id
+            -   election:
+                    _or:
+                    -   permission_label:
+                            _is_null: true
+                    -   permission_label:
+                            _in: X-Hasura-Permission-Labels
+    role: tally-sheet-import-create
+-   comment: ''
+    permission:
+        allow_aggregations: true
+        columns:
+        - annotations
+        - area_id
+        - baseline_approved_tally_sheet_id
+        - baseline_approved_version
+        - baseline_content_hash
+        - change_type
+        - channel
+        - contest_id
+        - created_at
+        - election_event_id
+        - election_id
+        - generated_tally_sheet_id
+        - id
+        - import_id
+        - incoming_content_hash
+        - incoming_csv
+        - labels
+        - last_updated_at
+        - previous_csv
+        - source_refs
+        - status
+        - tenant_id
+        - validation_warnings
+        filter:
+            _and:
+            -   tenant_id:
+                    _eq: X-Hasura-Tenant-Id
+            -   election:
+                    _or:
+                    -   permission_label:
+                            _is_null: true
+                    -   permission_label:
+                            _in: X-Hasura-Permission-Labels
+    role: tally-sheet-import-review

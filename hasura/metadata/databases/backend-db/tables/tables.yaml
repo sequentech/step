@@ -55,3 +55,4 @@
 - "!include sequent_backend_template.yaml"
 - "!include sequent_backend_tenant.yaml"
 - "!include sequent_backend_trustee.yaml"
+- "!include sequent_backend_election_lifecycle_access.yaml"

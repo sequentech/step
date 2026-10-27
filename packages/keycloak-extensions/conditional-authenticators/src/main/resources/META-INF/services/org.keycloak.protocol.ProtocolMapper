@@ -1,2 +1,3 @@
 sequent.keycloak.protocol.oidc.mappers.HasuraMultivaluedUserAttributeMapper
 sequent.keycloak.protocol.oidc.mappers.AuthorizedElectionsUserAttributeMapper
+sequent.keycloak.protocol.oidc.mappers.StaffAuthorizationMapper

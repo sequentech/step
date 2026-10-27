@@ -311,6 +311,11 @@ pub fn action_title(action: SigningAction) -> &'static str {
         SigningAction::TransmitResults => "Transmit results",
         SigningAction::ApproveVoter => "Approve voter",
         SigningAction::ApproveConfiguration => "Approve configuration",
+        SigningAction::ImportElectionData => "Import election data",
+        SigningAction::StartTally => "Start counting votes",
+        SigningAction::ExportExecutionData => "Export election execution data",
+        SigningAction::DeleteExecutionData => "Delete election execution data",
+        SigningAction::ReadVotersRegister => "Read the voters' register in post-processing",
         SigningAction::ConfirmCustodyProof => "Confirm custody proof",
         SigningAction::ContributeCustodyProof => "Contribute custody proof",
     }

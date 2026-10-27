@@ -136,11 +136,11 @@ describe("rules", () => {
         revision: 4,
     }
 
-    it("keeps the documented default for an action without a row", () => {
+    it("keeps required actions unavailable until a positive quorum is configured", () => {
         expect(ruleOf(SigningAction.OpenVoting, [saved])).toEqual({
             action: SigningAction.OpenVoting,
-            requirement: SigningRequirement.NotRequired,
-            signatures: 1,
+            requirement: SigningRequirement.Required,
+            signatures: 0,
             requester_signing: RequesterSigning.NotAllowed,
             expires_minutes: 60,
             revision: 0,
@@ -148,7 +148,7 @@ describe("rules", () => {
         expect(ruleOf(SigningAction.CloseVoting, [saved])).toBe(saved)
     })
 
-    it("groups the ten actions in catalog order", () => {
+    it("groups the fifteen actions in catalog order", () => {
         expect(actionGroups()).toEqual([
             {
                 group: SigningActionGroup.Voting,
@@ -164,6 +164,10 @@ describe("rules", () => {
                     SigningAction.GenerateElectionReturns,
                     SigningAction.GenerateReports,
                     SigningAction.TransmitResults,
+                    SigningAction.StartTally,
+                    SigningAction.ExportExecutionData,
+                    SigningAction.DeleteExecutionData,
+                    SigningAction.ReadVotersRegister,
                 ],
             },
             {group: SigningActionGroup.Enrollment, actions: [SigningAction.ApproveVoter]},
@@ -171,6 +175,7 @@ describe("rules", () => {
                 group: SigningActionGroup.ConfigurationAndKeys,
                 actions: [
                     SigningAction.ApproveConfiguration,
+                    SigningAction.ImportElectionData,
                     SigningAction.ConfirmCustodyProof,
                     SigningAction.ContributeCustodyProof,
                 ],

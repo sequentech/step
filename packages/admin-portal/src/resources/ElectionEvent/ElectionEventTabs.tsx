@@ -101,6 +101,12 @@ const EditElectionEventApprovals = lazy(() =>
 const EditElectionEventReports = lazy(() =>
     import("../Reports/EditReportsTab").then((m) => ({default: m.EditReportsTab}))
 )
+const SecurityTab = lazy(() => import("./Security/SecurityTab"))
+const SecurityTestsTab: React.FC = () => (
+    <Suspense fallback={<CircularProgress />}>
+        <SecurityTab />
+    </Suspense>
+)
 
 // ---------------------------------------------------------------------
 // Stable Tab Components (all use useRecordContext)
@@ -357,12 +363,16 @@ export const ElectionEventTabs: React.FC = () => {
         authContext.tenantId,
         IPermissions.ADMIN_DASHBOARD_VIEW
     )
-    const showData = authContext.isAuthorized(
+    const showData =
+        authContext.hasRole(IPermissions.ADMIN_USER) ||
+        authContext.isAuthorized(true, authContext.tenantId, IPermissions.ELECTION_EVENT_DATA_TAB)
+    const showSecurity = authContext.isAuthorized(
         true,
         authContext.tenantId,
-        IPermissions.ELECTION_EVENT_DATA_TAB
+        IPermissions.SELF_TEST_READ
     )
     const showTextData =
+        !authContext.hasRole(IPermissions.ADMIN_USER) &&
         !isElectionEventLocked &&
         authContext.isAuthorized(true, authContext.tenantId, IPermissions.ELECTION_EVENT_DATA_TAB)
     const showVoters = authContext.isAuthorized(
@@ -601,9 +611,17 @@ export const ElectionEventTabs: React.FC = () => {
             })
         }
 
+        if (showSecurity) {
+            result.push({
+                id: "security",
+                label: t("securityTests.title"),
+                component: SecurityTestsTab,
+            })
+        }
         return result
     }, [
         showDashboard,
+        showSecurity,
         showData,
         showTextData,
         showVoters,
@@ -644,6 +662,15 @@ export const ElectionEventTabs: React.FC = () => {
         }
     }, [location.search, logsTabIndex])
     const publishTabIndex = tabs.findIndex((tab) => tab.id === "publish")
+    const securityTabIndex = tabs.findIndex((tab) => tab.id === "security")
+    useEffect(() => {
+        if (
+            new URLSearchParams(location.search).get("tabId") === "security" &&
+            securityTabIndex >= 0
+        ) {
+            setSelectedTab(securityTabIndex)
+        }
+    }, [location.search, securityTabIndex])
 
     // Publish's re-authentication returns with `tabId=publish`: tab positions depend on permissions.
     useEffect(() => {

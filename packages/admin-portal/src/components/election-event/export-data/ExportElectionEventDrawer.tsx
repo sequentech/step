@@ -3,24 +3,18 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useState} from "react"
-import {Typography} from "@mui/material"
+import {Alert, Typography} from "@mui/material"
 import {ExportElectionEventMutation} from "@/gql/graphql"
 import {EXPORT_ELECTION_EVENT} from "@/queries/ExportElectionEvent"
 import {useMutation} from "@apollo/client"
 import {useTranslation} from "react-i18next"
 import {IPermissions} from "@/types/keycloak"
 import {Dialog} from "@sequentech/ui-essentials"
-import {Checkbox, FormControlLabel, FormGroup} from "@mui/material"
-import {styled} from "@mui/material/styles"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {WidgetProps} from "@/components/Widget"
 import {DecryptHelp, PasswordDialog} from "./PasswordDialog"
 import {decryptionCommand} from "@/resources/Reports/ListReports"
-
-const StyledCheckbox = styled(Checkbox)({
-    size: "small",
-})
 
 interface ExportWrapperProps {
     electionEventId: string
@@ -37,42 +31,20 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
 }) => {
     const {t} = useTranslation()
     const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
-    const [encryptWithPassword, setEncryptWithPassword] = useState(false)
-    const [includeVoters, setIncludeVoters] = useState(false)
-    const [activityLogs, setActivityLogs] = useState(false)
-    const [bulletinBoard, setBulletinBoard] = useState(false)
-    const [publications, setPublications] = useState(false)
-    const [s3Files, setS3Files] = useState(false)
-    const [scheduledEvents, setScheduledEvents] = useState(false)
     const [password, setPassword] = useState<string>("")
     const [openPasswordDialog, setOpenPasswordDialog] = useState<boolean>(false)
-    const [reports, setReports] = useState(false)
-    const [applications, setApplications] = useState(false)
-    const [tally, setTally] = useState(false)
-    const [certificates, setCertificates] = useState(false)
 
     const [exportElectionEvent] = useMutation<ExportElectionEventMutation>(EXPORT_ELECTION_EVENT, {
         context: {
             headers: {
-                "x-hasura-role": IPermissions.ELECTION_EVENT_READ,
+                "x-hasura-role": IPermissions.ELECTION_EXECUTION_EXPORT,
             },
         },
     })
 
     const resetState = () => {
-        setEncryptWithPassword(false)
         setPassword("")
-        setIncludeVoters(false)
-        setActivityLogs(false)
-        setBulletinBoard(false)
-        setPublications(false)
-        setS3Files(false)
-        setScheduledEvents(false)
         setOpenPasswordDialog(false)
-        setReports(false)
-        setApplications(false)
-        setTally(false)
-        setCertificates(false)
     }
 
     const confirmExportAction = async () => {
@@ -80,7 +52,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
         setOpenExport(false)
         const currWidget: WidgetProps = addWidget(ETasksExecution.EXPORT_ELECTION_EVENT, true)
         setLoadingExport(true)
-        const isEncrypted = encryptWithPassword || bulletinBoard || reports || applications
+        const isEncrypted = true
 
         try {
             const {data: exportElectionEventData, errors} = await exportElectionEvent({
@@ -88,17 +60,17 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                     electionEventId,
                     exportConfigurations: {
                         is_encrypted: isEncrypted,
-                        encrypt_with_password: encryptWithPassword,
-                        include_voters: includeVoters,
-                        activity_logs: activityLogs,
-                        bulletin_board: bulletinBoard,
-                        publications: publications,
-                        s3_files: s3Files,
-                        scheduled_events: scheduledEvents,
-                        reports: reports,
-                        applications: applications,
-                        tally: tally,
-                        include_certificates: certificates,
+                        encrypt_with_password: true,
+                        include_voters: true,
+                        activity_logs: true,
+                        bulletin_board: true,
+                        publications: true,
+                        s3_files: true,
+                        scheduled_events: true,
+                        reports: true,
+                        applications: true,
+                        tally: true,
+                        include_certificates: true,
                     },
                 },
             })
@@ -131,21 +103,6 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
         }
     }
 
-    const toggleBulletinBoard = (newValue: boolean) => {
-        setBulletinBoard(newValue)
-        // Tally has to be exported with bulletin board
-        if (!newValue && tally) {
-            setTally(false)
-        }
-    }
-
-    const toggleTallyCheckBox = (newValue: boolean) => {
-        setTally(newValue)
-        if (newValue) {
-            setBulletinBoard(true)
-        }
-    }
-
     return (
         <>
             <Dialog
@@ -164,117 +121,16 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
             >
                 {t("electionEventScreen.export.subtitle")}
 
-                <FormGroup>
-                    <FormControlLabel
-                        control={
-                            <Checkbox
-                                checked={encryptWithPassword}
-                                onChange={() => setEncryptWithPassword(!encryptWithPassword)}
-                            />
-                        }
-                        className="export-encrypt-with-password"
-                        label={String(t("electionEventScreen.export.encryptWithPassword"))}
-                    />
-                    {!encryptWithPassword && (bulletinBoard || reports || applications) ? (
-                        <Typography
-                            variant="body2"
-                            color="text.secondary"
-                            className="export-password-forced-note"
-                        >
-                            {t("electionEventScreen.export.passwordForcedNote")}
-                        </Typography>
-                    ) : null}
-                    <FormControlLabel
-                        control={
-                            <StyledCheckbox
-                                checked={includeVoters}
-                                onChange={() => setIncludeVoters(!includeVoters)}
-                            />
-                        }
-                        label={String(t("electionEventScreen.export.includeVoters"))}
-                    />
-                    <FormControlLabel
-                        control={
-                            <StyledCheckbox
-                                checked={activityLogs}
-                                onChange={() => setActivityLogs(!activityLogs)}
-                            />
-                        }
-                        label={String(t("electionEventScreen.export.activityLogs"))}
-                    />
-                    <FormControlLabel
-                        control={
-                            <StyledCheckbox
-                                checked={bulletinBoard}
-                                onChange={() => toggleBulletinBoard(!bulletinBoard)}
-                            />
-                        }
-                        label={String(t("electionEventScreen.export.bulletinBoard"))}
-                    />
-                    <FormControlLabel
-                        control={
-                            <StyledCheckbox
-                                checked={publications}
-                                onChange={() => setPublications(!publications)}
-                            />
-                        }
-                        label={String(t("electionEventScreen.export.publications"))}
-                    />
-                    <FormControlLabel
-                        control={
-                            <StyledCheckbox
-                                checked={s3Files}
-                                onChange={() => setS3Files(!s3Files)}
-                            />
-                        }
-                        label={String(t("electionEventScreen.export.s3Files"))}
-                    />
-                    <FormControlLabel
-                        control={
-                            <StyledCheckbox
-                                checked={scheduledEvents}
-                                onChange={() => setScheduledEvents(!scheduledEvents)}
-                            />
-                        }
-                        label={String(t("electionEventScreen.export.scheduledEvents"))}
-                    />
-                    <FormControlLabel
-                        control={
-                            <StyledCheckbox
-                                checked={reports}
-                                onChange={() => setReports(!reports)}
-                            />
-                        }
-                        label={String(t("electionEventScreen.export.reports"))}
-                    />
-                    <FormControlLabel
-                        control={
-                            <StyledCheckbox
-                                checked={applications}
-                                onChange={() => setApplications(!applications)}
-                            />
-                        }
-                        label={String(t("electionEventScreen.export.applications"))}
-                    />
-                    <FormControlLabel
-                        control={
-                            <StyledCheckbox
-                                checked={tally}
-                                onChange={() => toggleTallyCheckBox(!tally)}
-                            />
-                        }
-                        label={"Tally"}
-                    />
-                    <FormControlLabel
-                        control={
-                            <StyledCheckbox
-                                checked={certificates}
-                                onChange={() => setCertificates(!certificates)}
-                            />
-                        }
-                        label={String(t("electionEventScreen.export.certificates"))}
-                    />
-                </FormGroup>
+                <Alert severity="info" sx={{mt: 2, mb: 2}}>
+                    Export is available in Post-processing and requires the configured
+                    election-board approvals. The complete archive is encrypted and signed. Save the
+                    generated password separately.
+                </Alert>
+                <Typography component="div" variant="body2">
+                    The archive includes the voter register, electoral log, ballot boxes,
+                    publications, election rules and dates, tally evidence, reports, applications
+                    and public certificates. Trustee and protocol-manager private keys are excluded.
+                </Typography>
             </Dialog>
             {openPasswordDialog && password && (
                 <PasswordDialog password={password} onClose={resetState}>

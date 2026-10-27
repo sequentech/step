@@ -112,6 +112,20 @@ pub async fn import_users(body: ImportUsersBody, task_execution: TasksExecution)
         }
     };
 
+    let approved = if let Some(event) = body.election_event_id.as_deref() {
+        Some(
+            crate::services::board_operations::validate_import_document(
+                &hasura_transaction,
+                &body.tenant_id,
+                event,
+                &task_execution.id,
+                &body.document_id,
+            )
+            .await?,
+        )
+    } else {
+        None
+    };
     let (mut voters_file, separator) =
         match body.get_s3_document_as_temp_file(&hasura_transaction).await {
             Ok(result) => result,
@@ -126,6 +140,9 @@ pub async fn import_users(body: ImportUsersBody, task_execution: TasksExecution)
                 )));
             }
         };
+    if let Some(approved) = &approved {
+        crate::services::board_operations::verify_import_file(approved, voters_file.path())?;
+    }
     voters_file.rewind()?;
 
     match body.sha256.clone() {

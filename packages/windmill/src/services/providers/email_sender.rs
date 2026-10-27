@@ -136,6 +136,9 @@ pub struct Attachment {
 struct SmtpConfig {
     server_url: String,
     timeout: Option<u64>, // in seconds
+    /// Optional site CA for an authenticated SMTPS relay. Public roots remain
+    /// enabled; hostname and certificate validation are never disabled.
+    root_certificate_pem: Option<String>,
 }
 
 pub enum EmailTransport {
@@ -363,6 +366,27 @@ impl EmailSender {
                 if let Some(timeout) = smtp_config.timeout {
                     builder = builder.timeout(Some(std::time::Duration::from_secs(timeout)));
                 }
+                if let Some(pem) = smtp_config.root_certificate_pem {
+                    use lettre::transport::smtp::client::{Certificate, Tls, TlsParameters};
+                    let url = reqwest::Url::parse(&smtp_config.server_url)
+                        .map_err(|_| anyhow!("Invalid SMTP URL"))?;
+                    if url.scheme() != "smtps" {
+                        return Err(anyhow!("A custom SMTP CA requires an smtps URL").into());
+                    }
+                    let domain = url
+                        .host_str()
+                        .ok_or_else(|| anyhow!("SMTP hostname is required"))?;
+                    if pem.len() > 65536 {
+                        return Err(anyhow!("SMTP CA certificate exceeds the size limit").into());
+                    }
+                    let certificate = Certificate::from_pem(pem.as_bytes())
+                        .map_err(|_| anyhow!("Invalid SMTP CA certificate"))?;
+                    let tls = TlsParameters::builder(domain.to_owned())
+                        .add_root_certificate(certificate)
+                        .build()
+                        .map_err(|_| anyhow!("Could not configure authenticated SMTP TLS"))?;
+                    builder = builder.tls(Tls::Wrapper(tls));
+                }
 
                 let smtp_transport = builder.build();
 
@@ -513,10 +537,16 @@ impl EmailSender {
                     }
                 }
                 // Send the email via SMTP
-                smtp_transport.send(&email_message).map_err(|err| {
-                    event!(Level::WARN, "EmailTransport::Smtp: send failed: {err:?}");
-                    TransportFailure::from_smtp(&err)
-                })?;
+                // SMTP is synchronous. Keep it off the async worker so other
+                // security tasks and caller deadlines continue to run.
+                let smtp_transport = smtp_transport.clone();
+                tokio::task::spawn_blocking(move || smtp_transport.send(&email_message))
+                    .await
+                    .map_err(|_| TransportFailure::lost())?
+                    .map_err(|err| {
+                        event!(Level::WARN, "EmailTransport::Smtp: send failed: {err:?}");
+                        TransportFailure::from_smtp(&err)
+                    })?;
                 event!(Level::INFO, "Email sent successfully via SMTP");
             }
             EmailTransport::Console => {

@@ -18,6 +18,9 @@ pub mod ballot_style;
 #[cfg(feature = "default_features")]
 pub mod election_config;
 
+#[cfg(feature = "default_features")]
+pub mod election_lifecycle;
+
 /// Monitoring dashboards: what an administrator may configure, and what the
 /// platform refuses. Pure, so the server and the browser give the same answer.
 #[cfg(feature = "monitoring")]
@@ -74,3 +77,6 @@ pub mod signatures;
 /// Webassembly API.
 #[cfg(all(feature = "wasm", feature = "default_features"))]
 pub mod wasm;
+
+#[cfg(feature = "default_features")]
+pub mod self_tests;

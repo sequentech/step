@@ -780,6 +780,7 @@ pub async fn upsert_keycloak_realm(
     }
 
     require_enrollment_window_checks(&mut realm)?;
+    crate::services::keycloak::require_audit_storage_mapper(&mut realm)?;
     realm = remove_keycloak_realm_secrets(&realm)?;
     let client = KeycloakAdminClient::new().await?;
     let realm_name = get_event_realm(tenant_id, election_event_id);
@@ -1105,6 +1106,27 @@ pub async fn get_document(
     let mut temp_file = documents::get_document_as_temp_file(&object.tenant_id, &document)
         .await
         .map_err(|err| anyhow!("Error trying to get document as temporary file {err}"))?;
+
+    if election_event_id.is_some() {
+        let scope = object
+            .authorization_event_id
+            .as_deref()
+            .context("Import approval context is missing")?;
+        let binding = object
+            .board_request_task_id
+            .as_deref()
+            .context("Import task binding is missing")?;
+        let approved = crate::services::board_operations::validate(
+            hasura_transaction,
+            &object.tenant_id,
+            scope,
+            crate::services::board_operations::BindingKind::Import,
+            binding,
+            None,
+        )
+        .await?;
+        crate::services::board_operations::verify_import_file(&approved, temp_file.path())?;
+    }
 
     let document_type = document
         .clone()

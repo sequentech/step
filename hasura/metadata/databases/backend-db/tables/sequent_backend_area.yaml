@@ -1,440 +1,279 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-License-Identifier: AGPL-3.0-only
 table:
     name: area
     schema: sequent_backend
 insert_permissions:
-    - comment: ""
-      permission:
-          check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-          columns:
-              - annotations
-              - created_at
-              - description
-              - election_event_id
-              - id
-              - labels
-              - last_updated_at
-              - name
-              - parent_id
-              - presentation
-              - tenant_id
-              - type
-      role: admin-user
-    - comment: ""
-      permission:
-          check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-          columns:
-              - annotations
-              - created_at
-              - description
-              - election_event_id
-              - id
-              - labels
-              - last_updated_at
-              - name
-              - parent_id
-              - presentation
-              - tenant_id
-              - type
-      role: area-create
-    - comment: ""
-      permission:
-          check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-          columns:
-              - annotations
-              - created_at
-              - description
-              - election_event_id
-              - id
-              - labels
-              - last_updated_at
-              - name
-              - parent_id
-              - presentation
-              - tenant_id
-              - type
-      role: area-upsert
-    - comment: ""
-      permission:
-          check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-          columns:
-              - annotations
-              - created_at
-              - description
-              - election_event_id
-              - id
-              - labels
-              - last_updated_at
-              - name
-              - parent_id
-              - presentation
-              - tenant_id
-              - type
-      role: area-write
-    - comment: ""
-      permission:
-          check: {}
-          columns:
-              - annotations
-              - created_at
-              - description
-              - election_event_id
-              - id
-              - labels
-              - last_updated_at
-              - name
-              - parent_id
-              - presentation
-              - tenant_id
-              - type
-      role: service-account
+-   comment: ''
+    permission:
+        check: {}
+        columns:
+        - annotations
+        - created_at
+        - description
+        - election_event_id
+        - id
+        - labels
+        - last_updated_at
+        - name
+        - parent_id
+        - presentation
+        - tenant_id
+        - type
+    role: service-account
 select_permissions:
-    -   comment: ''
-        permission:
-            columns:
-            - annotations
-            - created_at
-            - description
-            - election_event_id
-            - id
-            - labels
-            - last_updated_at
-            - name
-            - tenant_id
-            - type
-            filter:
-                tenant_id:
-                    _eq: X-Hasura-Tenant-Id
-        role: tally-results-read
-    - comment: ""
-      permission:
-          allow_aggregations: true
-          columns:
-              - annotations
-              - created_at
-              - description
-              - election_event_id
-              - id
-              - labels
-              - last_updated_at
-              - name
-              - parent_id
-              - presentation
-              - tenant_id
-              - type
-          filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-      role: admin-user
-    - comment: ""
-      permission:
-          allow_aggregations: true
-          columns:
-              - annotations
-              - created_at
-              - description
-              - election_event_id
-              - id
-              - labels
-              - last_updated_at
-              - name
-              - parent_id
-              - presentation
-              - tenant_id
-              - type
-          filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-      role: area-create
-    - comment: ""
-      permission:
-          allow_aggregations: true
-          columns:
-              - annotations
-              - created_at
-              - description
-              - election_event_id
-              - id
-              - labels
-              - last_updated_at
-              - name
-              - parent_id
-              - presentation
-              - tenant_id
-              - type
-          filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-      role: area-delete
-    - comment: ""
-      permission:
-          allow_aggregations: true
-          columns:
-              - annotations
-              - created_at
-              - description
-              - election_event_id
-              - id
-              - labels
-              - last_updated_at
-              - name
-              - parent_id
-              - presentation
-              - tenant_id
-              - type
-          filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-      role: area-export
-    - comment: ""
-      permission:
-          allow_aggregations: true
-          columns:
-              - annotations
-              - created_at
-              - description
-              - election_event_id
-              - id
-              - labels
-              - last_updated_at
-              - name
-              - parent_id
-              - presentation
-              - tenant_id
-              - type
-          filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-      role: area-import
-    - comment: ""
-      permission:
-          allow_aggregations: true
-          columns:
-              - annotations
-              - created_at
-              - description
-              - election_event_id
-              - id
-              - labels
-              - last_updated_at
-              - name
-              - parent_id
-              - presentation
-              - tenant_id
-              - type
-          filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-      role: area-read
-    - comment: ""
-      permission:
-          allow_aggregations: true
-          columns:
-              - annotations
-              - created_at
-              - description
-              - election_event_id
-              - id
-              - labels
-              - last_updated_at
-              - name
-              - parent_id
-              - presentation
-              - tenant_id
-              - type
-          filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-      role: area-upsert
-    - comment: ""
-      permission:
-          allow_aggregations: true
-          columns:
-              - annotations
-              - created_at
-              - description
-              - election_event_id
-              - id
-              - labels
-              - last_updated_at
-              - name
-              - parent_id
-              - presentation
-              - tenant_id
-              - type
-          filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-      role: area-write
-    - comment: ""
-      permission:
-          columns:
-              - id
-              - name
-          filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-      role: election-dashboard-tab
-    - comment: ""
-      permission:
-          allow_aggregations: true
-          columns:
-              - annotations
-              - created_at
-              - description
-              - election_event_id
-              - id
-              - labels
-              - last_updated_at
-              - name
-              - parent_id
-              - presentation
-              - tenant_id
-              - type
-          filter: {}
-      role: service-account
-    - comment: ""
-      permission:
-          columns:
-              - id
-              - name
-          filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-      role: tally-read
-    - comment: ""
-      permission:
-          columns:
-              - created_at
-              - description
-              - election_event_id
-              - id
-              - labels
-              - last_updated_at
-              - name
-              - parent_id
-              - presentation
-              - tenant_id
-              - type
-          filter:
-              _and:
-                  - tenant_id:
+-   comment: ''
+    permission:
+        columns:
+        - annotations
+        - created_at
+        - description
+        - election_event_id
+        - id
+        - labels
+        - last_updated_at
+        - name
+        - tenant_id
+        - type
+        filter:
+            tenant_id:
+                _eq: X-Hasura-Tenant-Id
+    role: tally-results-read
+-   comment: ''
+    permission:
+        allow_aggregations: true
+        columns:
+        - annotations
+        - created_at
+        - description
+        - election_event_id
+        - id
+        - labels
+        - last_updated_at
+        - name
+        - parent_id
+        - presentation
+        - tenant_id
+        - type
+        filter:
+            tenant_id:
+                _eq: X-Hasura-Tenant-Id
+    role: area-create
+-   comment: ''
+    permission:
+        allow_aggregations: true
+        columns:
+        - annotations
+        - created_at
+        - description
+        - election_event_id
+        - id
+        - labels
+        - last_updated_at
+        - name
+        - parent_id
+        - presentation
+        - tenant_id
+        - type
+        filter:
+            tenant_id:
+                _eq: X-Hasura-Tenant-Id
+    role: area-delete
+-   comment: ''
+    permission:
+        allow_aggregations: true
+        columns:
+        - annotations
+        - created_at
+        - description
+        - election_event_id
+        - id
+        - labels
+        - last_updated_at
+        - name
+        - parent_id
+        - presentation
+        - tenant_id
+        - type
+        filter:
+            tenant_id:
+                _eq: X-Hasura-Tenant-Id
+    role: area-export
+-   comment: ''
+    permission:
+        allow_aggregations: true
+        columns:
+        - annotations
+        - created_at
+        - description
+        - election_event_id
+        - id
+        - labels
+        - last_updated_at
+        - name
+        - parent_id
+        - presentation
+        - tenant_id
+        - type
+        filter:
+            tenant_id:
+                _eq: X-Hasura-Tenant-Id
+    role: area-import
+-   comment: ''
+    permission:
+        allow_aggregations: true
+        columns:
+        - annotations
+        - created_at
+        - description
+        - election_event_id
+        - id
+        - labels
+        - last_updated_at
+        - name
+        - parent_id
+        - presentation
+        - tenant_id
+        - type
+        filter:
+            tenant_id:
+                _eq: X-Hasura-Tenant-Id
+    role: area-read
+-   comment: ''
+    permission:
+        allow_aggregations: true
+        columns:
+        - annotations
+        - created_at
+        - description
+        - election_event_id
+        - id
+        - labels
+        - last_updated_at
+        - name
+        - parent_id
+        - presentation
+        - tenant_id
+        - type
+        filter:
+            tenant_id:
+                _eq: X-Hasura-Tenant-Id
+    role: area-upsert
+-   comment: ''
+    permission:
+        allow_aggregations: true
+        columns:
+        - annotations
+        - created_at
+        - description
+        - election_event_id
+        - id
+        - labels
+        - last_updated_at
+        - name
+        - parent_id
+        - presentation
+        - tenant_id
+        - type
+        filter:
+            tenant_id:
+                _eq: X-Hasura-Tenant-Id
+    role: area-write
+-   comment: ''
+    permission:
+        columns:
+        - id
+        - name
+        filter:
+            tenant_id:
+                _eq: X-Hasura-Tenant-Id
+    role: election-dashboard-tab
+-   comment: ''
+    permission:
+        allow_aggregations: true
+        columns:
+        - annotations
+        - created_at
+        - description
+        - election_event_id
+        - id
+        - labels
+        - last_updated_at
+        - name
+        - parent_id
+        - presentation
+        - tenant_id
+        - type
+        filter: {}
+    role: service-account
+-   comment: ''
+    permission:
+        columns:
+        - id
+        - name
+        filter:
+            tenant_id:
+                _eq: X-Hasura-Tenant-Id
+    role: tally-read
+-   comment: ''
+    permission:
+        columns:
+        - created_at
+        - description
+        - election_event_id
+        - id
+        - labels
+        - last_updated_at
+        - name
+        - parent_id
+        - presentation
+        - tenant_id
+        - type
+        filter:
+            _and:
+            -   _and:
+                -   tenant_id:
                         _eq: X-Hasura-Tenant-Id
-                  - id:
+                -   id:
                         _eq: X-Hasura-Area-Id
-      role: user
+            -   election_event_id:
+                    _eq: X-Hasura-Election-Event-Id
+            -   lifecycle_access:
+                    voter_allowed:
+                        _eq: true
+    role: user
 update_permissions:
-    - comment: ""
-      permission:
-          check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-          columns:
-              - annotations
-              - created_at
-              - description
-              - election_event_id
-              - id
-              - labels
-              - last_updated_at
-              - name
-              - parent_id
-              - presentation
-              - tenant_id
-              - type
-          filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-      role: admin-user
-    - comment: ""
-      permission:
-          check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-          columns:
-              - annotations
-              - created_at
-              - description
-              - election_event_id
-              - id
-              - labels
-              - last_updated_at
-              - name
-              - parent_id
-              - presentation
-              - tenant_id
-              - type
-          filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-      role: area-upsert
-    - comment: ""
-      permission:
-          check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-          columns:
-              - annotations
-              - created_at
-              - description
-              - election_event_id
-              - id
-              - labels
-              - last_updated_at
-              - name
-              - parent_id
-              - presentation
-              - tenant_id
-              - type
-          filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-      role: area-write
-    - comment: ""
-      permission:
-          check: {}
-          columns:
-              - annotations
-              - created_at
-              - description
-              - election_event_id
-              - id
-              - labels
-              - last_updated_at
-              - name
-              - parent_id
-              - presentation
-              - tenant_id
-              - type
-          filter: {}
-      role: service-account
+-   comment: ''
+    permission:
+        check: {}
+        columns:
+        - annotations
+        - created_at
+        - description
+        - election_event_id
+        - id
+        - labels
+        - last_updated_at
+        - name
+        - parent_id
+        - presentation
+        - tenant_id
+        - type
+        filter: {}
+    role: service-account
 delete_permissions:
-    - comment: ""
-      permission:
-          filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-      role: admin-user
-    - comment: ""
-      permission:
-          filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-      role: area-delete
-    - comment: ""
-      permission:
-          filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-      role: area-write
-    - comment: ""
-      permission:
-          filter: {}
-      role: service-account
+-   comment: ''
+    permission:
+        filter: {}
+    role: service-account
+object_relationships:
+-   name: lifecycle_access
+    using:
+        manual_configuration:
+            remote_table:
+                schema: sequent_backend
+                name: election_lifecycle_access
+            column_mapping:
+                tenant_id: tenant_id
+                election_event_id: election_event_id
+            insertion_order: null

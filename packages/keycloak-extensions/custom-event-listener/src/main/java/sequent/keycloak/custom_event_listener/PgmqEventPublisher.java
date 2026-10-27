@@ -35,7 +35,7 @@ final class PgmqEventPublisher implements AutoCloseable {
     Map<String, String> environment = System.getenv();
     PublishFailurePolicy policy = PublishFailurePolicy.fromEnvironment(environment);
     QueueDatabase database =
-        QueueDatabase.connect(QueueDatabaseSettings.fromEnvironment(environment));
+        QueueDatabase.sharedFromEnvironment();
     log.infov("Electoral-log events go to the task-queue database ({0})", policy.value());
     return new PgmqEventPublisher(database, policy);
   }

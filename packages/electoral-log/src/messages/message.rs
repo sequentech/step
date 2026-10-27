@@ -60,6 +60,46 @@ impl fmt::Display for Message {
 }
 
 impl Message {
+    pub fn self_test_event(
+        event: EventIdString,
+        stage: &str,
+        details: String,
+        sd: &SigningData,
+    ) -> Result<Self> {
+        anyhow::ensure!(
+            ["started", "completed", "settings-changed", "probe"].contains(&stage),
+            "Unknown self-test audit stage"
+        );
+        Self::from_body(
+            event.clone(),
+            StatementBody::SelfTest(event, stage.into(), details),
+            sd,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+    }
+
+    pub fn lifecycle_security_event(
+        event: EventIdString,
+        kind: &str,
+        details: String,
+        sd: &SigningData,
+    ) -> Result<Self> {
+        Self::from_body(
+            event.clone(),
+            StatementBody::LifecycleSecurityEvent(event, kind.into(), details),
+            sd,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+    }
+
     #[instrument(skip_all, err)]
     pub fn external_api_request_message(
         event_id: EventIdString,

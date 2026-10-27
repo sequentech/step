@@ -83,6 +83,7 @@ CREATE TABLE IF NOT EXISTS ballot_box_ballot (
     format TEXT NOT NULL,
     content TEXT NOT NULL,
     voter_signature BYTEA,
+    admission_record BYTEA NOT NULL DEFAULT '\x',
     pseudonym_hash BYTEA NOT NULL CHECK (octet_length(pseudonym_hash) = 64),
     ballot_hash BYTEA NOT NULL CHECK (octet_length(ballot_hash) = 64),
     voting_channel TEXT NOT NULL,
@@ -302,4 +303,8 @@ BEGIN
     END IF;
 END;
 $$;
+-- First-delivery integrity evidence. Existing unsigned rows fail verification;
+-- no migration invents an admission signature for stored data.
+ALTER TABLE ballot_box_ballot ADD COLUMN IF NOT EXISTS admission_record BYTEA NOT NULL DEFAULT '\x';
+
 COMMIT;

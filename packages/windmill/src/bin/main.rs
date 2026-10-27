@@ -41,6 +41,8 @@ enum CeleryOpt {
     Produce,
     /// Install PGMQ and create the queues in the task-queue database, as its owner.
     SetupQueueDatabase,
+    /// Observe the mounted audit database filesystem for voter admission.
+    MonitorAuditStorage,
 }
 
 /// Resolve the queues to consume. A queue may also be given with the `ENV_SLUG_` prefix that
@@ -82,6 +84,7 @@ fn read_worker_threads(opt: &CeleryOpt) -> usize {
     match opt.clone() {
         CeleryOpt::Consume { worker_threads, .. } => worker_threads,
         CeleryOpt::Produce | CeleryOpt::SetupQueueDatabase => None,
+        CeleryOpt::MonitorAuditStorage => Some(1),
     }
     .unwrap_or(num_cpus::get())
 }
@@ -118,6 +121,9 @@ async fn async_main(opt: CeleryOpt) -> Result<()> {
             installation
         );
         return Ok(());
+    }
+    if let CeleryOpt::MonitorAuditStorage = opt {
+        return windmill::services::audit_storage::monitor().await;
     }
     setup_probe(AppName::WINDMILL).await;
 
@@ -207,8 +213,11 @@ async fn async_main(opt: CeleryOpt) -> Result<()> {
             // Read now rather than at the first pass, so the cadence and any
             // value it had to replace are logged when the worker starts.
             cadence::configured();
+            windmill::services::self_tests::startup().await?;
             celery_cfg::set_is_app_active(true);
-            celery_app.consume_from(&vec_str[..]).await?;
+            let consumed = celery_app.consume_from(&vec_str[..]).await;
+            windmill::services::election_lifecycle::mark_process_stopped("windmill").await?;
+            consumed?;
             celery_cfg::set_is_app_active(false);
             celery_app.close().await?;
         }
@@ -217,7 +226,7 @@ async fn async_main(opt: CeleryOpt) -> Result<()> {
             event!(Level::INFO, "No new tasks to produce");
             celery_app.close().await?;
         }
-        CeleryOpt::SetupQueueDatabase => {}
+        CeleryOpt::SetupQueueDatabase | CeleryOpt::MonitorAuditStorage => {}
     };
     Ok(())
 }

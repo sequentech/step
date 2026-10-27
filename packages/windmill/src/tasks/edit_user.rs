@@ -632,6 +632,23 @@ async fn run_datafix_voter_edit(
 /// widget.
 #[instrument(skip(body), err)]
 async fn apply_datafix_voter_edit(body: &EditUserTaskBody) -> std::result::Result<(), String> {
+    let mut lifecycle_db = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .map_err(|e| e.to_string())?;
+    let lifecycle_tx = lifecycle_db
+        .transaction()
+        .await
+        .map_err(|e| e.to_string())?;
+    crate::services::election_lifecycle::require_phase(
+        &lifecycle_tx,
+        &body.tenant_id,
+        &body.election_event_id,
+        sequent_core::election_lifecycle::ElectoralPhase::Preparation,
+    )
+    .await
+    .map_err(|e| e.to_string())?;
     let realm = get_event_realm(&body.tenant_id, &body.election_event_id);
     let election_event = load_election_event(&body.tenant_id, &body.election_event_id)
         .await
@@ -888,6 +905,7 @@ mod postgres_wiring_tests {
                     format: &format,
                     content: "ciphertext",
                     voter_signature: None,
+                    admission_record: &format!(r#"{{"payload":{{"accepted_at":"2026-10-27T12:00:00.000Z","sequence":{}}},"signature":""}}"#, std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos() as i64).into_bytes(),
                     pseudonym_hash: &[0; 64],
                     ballot_hash: &[0; 64],
                     voting_channel: "ONLINE",

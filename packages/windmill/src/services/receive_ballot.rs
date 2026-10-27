@@ -376,11 +376,6 @@ pub async fn try_receive_ballot(
                 "The election event has no ballot box key; publish its ballots".to_string(),
             )
         })?;
-    hasura_transaction
-        .commit()
-        .await
-        .map_err(|e| CastVoteError::CommitFailed(e.to_string()))?;
-    drop(hasura_db_client);
 
     let store = get_event_store(&election_event.id)
         .await
@@ -420,6 +415,14 @@ pub async fn try_receive_ballot(
             Ok(error) => error,
             Err(error) => CastVoteError::InsertFailed(format!("{error:#}")),
         })?;
+
+    // The received-ballot write is protected by the same shared lifecycle
+    // lock as casting. Keep it until the event store commits its receipt.
+    hasura_transaction
+        .commit()
+        .await
+        .map_err(|e| CastVoteError::CommitFailed(e.to_string()))?;
+    drop(hasura_db_client);
 
     match outcome {
         ReceiveOutcome::Received(stored) | ReceiveOutcome::AlreadyReceived(stored) => {

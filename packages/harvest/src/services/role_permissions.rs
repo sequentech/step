@@ -160,6 +160,34 @@ async fn role_name(
     Ok(group.name.unwrap_or_else(|| role_id.to_string()))
 }
 
+/// A staff member cannot change their effective role classification, including
+/// by editing or deleting a parent group. Another administrator must do that.
+/// Read live membership rather than the JWT's role snapshot.
+async fn require_independent_editor(
+    services: &HarvestServices,
+    claims: &JwtClaims,
+    realm: &str,
+    role_id: &str,
+) -> Result<(), (Status, String)> {
+    let (present, affects_actor) = keycloak(async {
+        let pool = services.databases.keycloak().await;
+        let database = pool.get().await?;
+        let row = database
+            .query_one(
+                include_str!("independent_role_editor.sql"),
+                &[&claims.hasura_claims.user_id, &realm, &role_id],
+            )
+            .await?;
+        Ok::<(bool, bool), anyhow::Error>((row.get(0), row.get(1)))
+    })
+    .await?;
+    if !present || affects_actor {
+        return Err((Status::Forbidden,
+            "Another administrator must change or delete roles that affect your own account".to_string()));
+    }
+    Ok(())
+}
+
 async fn apply_role_permission(
     services: &HarvestServices,
     realm: &str,
@@ -199,6 +227,7 @@ pub async fn change_role_permission(
 ) -> Result<(), (Status, String)> {
     let realm = get_tenant_realm(tenant_id);
     validate_role_path(&realm, role_id)?;
+    require_independent_editor(services, claims, &realm, role_id).await?;
     let Some(action) = signing_action_of(permission) else {
         return apply_role_permission(
             services, &realm, role_id, permission, change,
@@ -349,6 +378,7 @@ pub async fn delete_role(
 ) -> Result<(), (Status, String)> {
     let realm = get_tenant_realm(tenant_id);
     validate_role_path(&realm, role_id)?;
+    require_independent_editor(services, claims, &realm, role_id).await?;
     let held = held_permissions(services, &realm, role_id).await?;
     if signing_actions_in(held.iter().map(String::as_str)).is_empty() {
         let client = keycloak(services.identity.client()).await?;

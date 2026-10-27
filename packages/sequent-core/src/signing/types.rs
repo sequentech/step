@@ -39,6 +39,11 @@ signing_enum! {
         TransmitResults,
         ApproveVoter,
         ApproveConfiguration,
+        ImportElectionData,
+        StartTally,
+        ExportExecutionData,
+        DeleteExecutionData,
+        ReadVotersRegister,
         #[serde(rename = "key-ceremony")]
         #[strum(serialize = "key-ceremony")]
         ConfirmCustodyProof,
@@ -110,6 +115,19 @@ impl SigningAction {
             SigningAction::ApproveConfiguration => {
                 Permissions::SIGN_APPROVE_CONFIGURATION
             }
+            SigningAction::ImportElectionData => {
+                Permissions::SIGN_IMPORT_ELECTION_DATA
+            }
+            SigningAction::StartTally => Permissions::SIGN_START_TALLY,
+            SigningAction::ExportExecutionData => {
+                Permissions::SIGN_EXPORT_EXECUTION_DATA
+            }
+            SigningAction::DeleteExecutionData => {
+                Permissions::SIGN_DELETE_EXECUTION_DATA
+            }
+            SigningAction::ReadVotersRegister => {
+                Permissions::SIGN_READ_VOTERS_REGISTER
+            }
             SigningAction::ConfirmCustodyProof => {
                 Permissions::SIGN_KEY_CEREMONY
             }
@@ -131,14 +149,19 @@ impl SigningAction {
             SigningAction::InitializeVoting
             | SigningAction::GenerateElectionReturns
             | SigningAction::TransmitResults => SigningScope::PostAndCountry,
-            SigningAction::ApproveConfiguration => SigningScope::Event,
+            SigningAction::ApproveConfiguration
+            | SigningAction::ImportElectionData
+            | SigningAction::StartTally
+            | SigningAction::ExportExecutionData
+            | SigningAction::DeleteExecutionData
+            | SigningAction::ReadVotersRegister => SigningScope::Event,
             SigningAction::ConfirmCustodyProof
             | SigningAction::ContributeCustodyProof => SigningScope::Trustee,
         }
     }
 
     pub fn mode(&self) -> ExecutionMode {
-        if self.is_trustee() {
+        if self.is_trustee() || self.is_board_gate() {
             ExecutionMode::Gate
         } else {
             ExecutionMode::Deferred
@@ -159,6 +182,29 @@ impl SigningAction {
         self.scope() == SigningScope::Trustee
     }
 
+    /// These operations consume an approved request when its requester retries.
+    pub fn is_board_gate(&self) -> bool {
+        matches!(
+            self,
+            Self::ImportElectionData
+                | Self::StartTally
+                | Self::ExportExecutionData
+                | Self::DeleteExecutionData
+                | Self::ReadVotersRegister
+        )
+    }
+
+    /// Security-critical operations cannot be made unsigned by configuration.
+    pub fn always_required(&self) -> bool {
+        self.is_board_gate()
+            || matches!(
+                self,
+                Self::OpenVoting
+                    | Self::CloseVoting
+                    | Self::ApproveConfiguration
+            )
+    }
+
     pub fn group(&self) -> SigningActionGroup {
         match self {
             SigningAction::InitializeVoting
@@ -166,11 +212,16 @@ impl SigningAction {
             | SigningAction::CloseVoting => SigningActionGroup::Voting,
             SigningAction::GenerateElectionReturns
             | SigningAction::GenerateReports
-            | SigningAction::TransmitResults => {
+            | SigningAction::TransmitResults
+            | SigningAction::StartTally
+            | SigningAction::ExportExecutionData
+            | SigningAction::DeleteExecutionData
+            | SigningAction::ReadVotersRegister => {
                 SigningActionGroup::ResultsAndReports
             }
             SigningAction::ApproveVoter => SigningActionGroup::Enrollment,
             SigningAction::ApproveConfiguration
+            | SigningAction::ImportElectionData
             | SigningAction::ConfirmCustodyProof
             | SigningAction::ContributeCustodyProof => {
                 SigningActionGroup::ConfigurationAndKeys
@@ -350,7 +401,7 @@ pub struct CertificateCheckResult {
 }
 
 /// How an election event signs one action. A missing row means
-/// [`SigningRule::default_for`], which keeps today's behaviour.
+/// [`SigningRule::default_for`], which leaves required quorums undefined.
 ///
 /// The fields are stored as configured. Read the count and the requester
 /// policy through [`SigningRule::required`] and
@@ -379,6 +430,8 @@ fn default_expires_minutes() -> Option<u32> {
 pub enum SigningRuleError {
     /// "At least 1."
     NoSignatures,
+    /// A mandatory board action cannot be switched off.
+    MandatoryAction,
     /// An expiry must be at least one minute; `None` means no limit.
     ZeroExpiry,
 }
@@ -388,6 +441,9 @@ impl fmt::Display for SigningRuleError {
         match self {
             SigningRuleError::NoSignatures => {
                 write!(f, "a rule needs at least one signature")
+            }
+            SigningRuleError::MandatoryAction => {
+                write!(f, "this security-critical action always requires board authorisations")
             }
             SigningRuleError::ZeroExpiry => {
                 write!(f, "a request expiry must be at least one minute")
@@ -412,8 +468,13 @@ impl SigningRule {
     pub fn default_for(action: SigningAction) -> Self {
         SigningRule {
             action,
-            requirement: SigningRequirement::NotRequired,
-            signatures: 1,
+            requirement: if action.always_required() {
+                SigningRequirement::Required
+            } else {
+                SigningRequirement::NotRequired
+            },
+            // Zero is the undefined default, never an executable quorum.
+            signatures: if action.always_required() { 0 } else { 1 },
             requester_signing: RequesterSigning::NotAllowed,
             expires_minutes: Some(DEFAULT_EXPIRES_MINUTES),
             revision: 0,
@@ -421,7 +482,8 @@ impl SigningRule {
     }
 
     pub fn is_required(&self) -> bool {
-        self.requirement == SigningRequirement::Required
+        self.action.always_required()
+            || self.requirement == SigningRequirement::Required
     }
 
     /// How many different people must sign. A trustee signs their own
@@ -449,6 +511,11 @@ impl SigningRule {
     pub fn validate(&self) -> Result<(), SigningRuleError> {
         // The stored count, not required(): a trustee rule still stores
         // one, and the database refuses fewer for every rule.
+        if self.action.always_required()
+            && self.requirement != SigningRequirement::Required
+        {
+            return Err(SigningRuleError::MandatoryAction);
+        }
         if self.signatures < 1 {
             return Err(SigningRuleError::NoSignatures);
         }

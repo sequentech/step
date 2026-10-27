@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import {ProtectedImportNotice} from "@/components/ProtectedImportNotice"
 import {
     BooleanInput,
     SelectInput,
@@ -135,11 +136,7 @@ export const ElectionDataForm: React.FC = () => {
         IPermissions.PERMISSION_LABEL_WRITE
     )
 
-    const canEdit = authContext.isAuthorized(
-        true,
-        authContext.tenantId,
-        IPermissions.ELECTION_WRITE
-    )
+    const canEdit = false // Changes require the board-approved import workflow.
 
     const [value, setValue] = useState(0)
     const [expanded, setExpanded] = useState("election-data-general")
@@ -610,7 +607,7 @@ export const ElectionDataForm: React.FC = () => {
                     <SimpleForm
                         onSubmit={async (values: FieldValues) => {
                             try {
-                                return await save?.(values)
+                                return undefined
                             } catch {
                                 // The transform reports the error; retain the editable form.
                                 return undefined
@@ -619,7 +616,11 @@ export const ElectionDataForm: React.FC = () => {
                         defaultValues={{contestsOrder: sortedContests}}
                         record={parsedValue}
                         resetOptions={formResetOptions}
-                        toolbar={<Toolbar>{canEdit && <SaveButton />}</Toolbar>}
+                        toolbar={
+                            <Toolbar>
+                                <ProtectedImportNotice />
+                            </Toolbar>
+                        }
                     >
                         <Accordion
                             sx={{width: "100%"}}
@@ -640,15 +641,20 @@ export const ElectionDataForm: React.FC = () => {
                                 </ElectionStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
-                                <TextInput
-                                    source="external_id"
-                                    label={String(t("electionScreen.field.externalId"))}
-                                    readOnly={!!record.external_id}
-                                />
-                                <Tabs value={value} onChange={handleChange}>
-                                    {renderTabs(parsedValue)}
-                                </Tabs>
-                                {renderTabContent(parsedValue)}
+                                <fieldset
+                                    disabled
+                                    style={{border: 0, padding: 0, margin: 0, width: "100%"}}
+                                >
+                                    <TextInput
+                                        source="external_id"
+                                        label={String(t("electionScreen.field.externalId"))}
+                                        readOnly={!!record.external_id}
+                                    />
+                                    <Tabs value={value} onChange={handleChange}>
+                                        {renderTabs(parsedValue)}
+                                    </Tabs>
+                                    {renderTabContent(parsedValue)}
+                                </fieldset>
                             </AccordionDetails>
                         </Accordion>
 
@@ -673,30 +679,35 @@ export const ElectionDataForm: React.FC = () => {
                                 </ElectionStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
-                                <Box
-                                    sx={{
-                                        display: "flex",
-                                        flexDirection: "column",
-                                        gap: 3,
-                                        width: "100%",
-                                        minWidth: 0,
-                                    }}
+                                <fieldset
+                                    disabled
+                                    style={{border: 0, padding: 0, margin: 0, width: "100%"}}
                                 >
-                                    <Box sx={{width: "100%", maxWidth: 372}}>
-                                        <SettingsLanguageSelector
-                                            languageSettings={languageSettings}
-                                            canEdit={canEdit}
+                                    <Box
+                                        sx={{
+                                            display: "flex",
+                                            flexDirection: "column",
+                                            gap: 3,
+                                            width: "100%",
+                                            minWidth: 0,
+                                        }}
+                                    >
+                                        <Box sx={{width: "100%", maxWidth: 372}}>
+                                            <SettingsLanguageSelector
+                                                languageSettings={languageSettings}
+                                                canEdit={canEdit}
+                                            />
+                                        </Box>
+                                        <ElectionTimeZoneInput
+                                            context={timeZoneContextOf(
+                                                data?.presentation as
+                                                    | IElectionEventPresentation
+                                                    | undefined
+                                            )}
+                                            disabled={!canEdit}
                                         />
                                     </Box>
-                                    <ElectionTimeZoneInput
-                                        context={timeZoneContextOf(
-                                            data?.presentation as
-                                                | IElectionEventPresentation
-                                                | undefined
-                                        )}
-                                        disabled={!canEdit}
-                                    />
-                                </Box>
+                                </fieldset>
                             </AccordionDetails>
                         </Accordion>
 
@@ -719,11 +730,16 @@ export const ElectionDataForm: React.FC = () => {
                                 </ElectionStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
-                                <Grid container spacing={4}>
-                                    <Grid size={{xs: 12, md: 6}}>
-                                        {renderVotingChannels(parsedValue)}
+                                <fieldset
+                                    disabled
+                                    style={{border: 0, padding: 0, margin: 0, width: "100%"}}
+                                >
+                                    <Grid container spacing={4}>
+                                        <Grid size={{xs: 12, md: 6}}>
+                                            {renderVotingChannels(parsedValue)}
+                                        </Grid>
                                     </Grid>
-                                </Grid>
+                                </fieldset>
                             </AccordionDetails>
                         </Accordion>
 
@@ -746,45 +762,52 @@ export const ElectionDataForm: React.FC = () => {
                                 </ElectionStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
-                                <SelectInput
-                                    source={`presentation.audit_button_cfg`}
-                                    choices={auditButtonConfigChoices()}
-                                    label={String(t(`contestScreen.auditButtonConfig.label`))}
-                                    defaultValue={EVotingPortalAuditButtonCfg.SHOW}
-                                    validate={required()}
-                                />
-                                <SelectInput
-                                    source="presentation.contests_order"
-                                    choices={orderAnswerChoices()}
-                                    validate={required()}
-                                    defaultValue={ContestsOrder.ALPHABETICAL}
-                                />
-                                <FormDataConsumer>
-                                    {({formData, ...rest}) => {
-                                        return (
-                                            formData?.presentation as
-                                                | IElectionPresentation
-                                                | undefined
-                                        )?.contests_order === ContestsOrder.CUSTOM ? (
-                                            <ContestRows>
-                                                <Typography
-                                                    variant="body1"
-                                                    component="span"
-                                                    sx={{
-                                                        padding: "0.5rem 1rem",
-                                                        fontWeight: "bold",
-                                                        margin: 0,
-                                                        display: {xs: "none", sm: "block"},
-                                                    }}
-                                                >
-                                                    {t("electionScreen.edit.reorder")}
-                                                </Typography>
-                                                <CustomOrderInput source="contestsOrder" />
-                                                <Box sx={{width: "100%", height: "180px"}}></Box>
-                                            </ContestRows>
-                                        ) : null
-                                    }}
-                                </FormDataConsumer>
+                                <fieldset
+                                    disabled
+                                    style={{border: 0, padding: 0, margin: 0, width: "100%"}}
+                                >
+                                    <SelectInput
+                                        source={`presentation.audit_button_cfg`}
+                                        choices={auditButtonConfigChoices()}
+                                        label={String(t(`contestScreen.auditButtonConfig.label`))}
+                                        defaultValue={EVotingPortalAuditButtonCfg.SHOW}
+                                        validate={required()}
+                                    />
+                                    <SelectInput
+                                        source="presentation.contests_order"
+                                        choices={orderAnswerChoices()}
+                                        validate={required()}
+                                        defaultValue={ContestsOrder.ALPHABETICAL}
+                                    />
+                                    <FormDataConsumer>
+                                        {({formData, ...rest}) => {
+                                            return (
+                                                formData?.presentation as
+                                                    | IElectionPresentation
+                                                    | undefined
+                                            )?.contests_order === ContestsOrder.CUSTOM ? (
+                                                <ContestRows>
+                                                    <Typography
+                                                        variant="body1"
+                                                        component="span"
+                                                        sx={{
+                                                            padding: "0.5rem 1rem",
+                                                            fontWeight: "bold",
+                                                            margin: 0,
+                                                            display: {xs: "none", sm: "block"},
+                                                        }}
+                                                    >
+                                                        {t("electionScreen.edit.reorder")}
+                                                    </Typography>
+                                                    <CustomOrderInput source="contestsOrder" />
+                                                    <Box
+                                                        sx={{width: "100%", height: "180px"}}
+                                                    ></Box>
+                                                </ContestRows>
+                                            ) : null
+                                        }}
+                                    </FormDataConsumer>
+                                </fieldset>
                             </AccordionDetails>
                         </Accordion>
 
@@ -807,25 +830,30 @@ export const ElectionDataForm: React.FC = () => {
                                 </ElectionStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
-                                <Grid container spacing={1}>
-                                    <Grid size={2}>
-                                        {parsedValue?.image_document_id &&
-                                        imageData?.id === parsedValue.image_document_id &&
-                                        imageData.name ? (
-                                            <img
-                                                width={200}
-                                                height={200}
-                                                src={`${globalSettings.PUBLIC_BUCKET_URL}${imageUrl}`}
-                                                alt={imageUrl}
+                                <fieldset
+                                    disabled
+                                    style={{border: 0, padding: 0, margin: 0, width: "100%"}}
+                                >
+                                    <Grid container spacing={1}>
+                                        <Grid size={2}>
+                                            {parsedValue?.image_document_id &&
+                                            imageData?.id === parsedValue.image_document_id &&
+                                            imageData.name ? (
+                                                <img
+                                                    width={200}
+                                                    height={200}
+                                                    src={`${globalSettings.PUBLIC_BUCKET_URL}${imageUrl}`}
+                                                    alt={imageUrl}
+                                                />
+                                            ) : null}
+                                        </Grid>
+                                        <Grid size={10}>
+                                            <DropFile
+                                                handleFiles={async (files) => handleFiles(files)}
                                             />
-                                        ) : null}
+                                        </Grid>
                                     </Grid>
-                                    <Grid size={10}>
-                                        <DropFile
-                                            handleFiles={async (files) => handleFiles(files)}
-                                        />
-                                    </Grid>
-                                </Grid>
+                                </fieldset>
                             </AccordionDetails>
                         </Accordion>
 
@@ -850,151 +878,164 @@ export const ElectionDataForm: React.FC = () => {
                                 </ElectionStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
-                                <BooleanInput
-                                    source={"presentation.cast_vote_confirm"}
-                                    label={String(t(`electionScreen.edit.castVoteConfirm`))}
-                                />
-                                <NumberInput
-                                    source="num_allowed_revotes"
-                                    label={String(t("electionScreen.edit.numAllowedVotes"))}
-                                    min={0}
-                                />
-                                <SelectInput
-                                    label={String(
-                                        t("electionScreen.castVoteGoldLevelPolicy.label")
-                                    )}
-                                    source="presentation.cast_vote_gold_level"
-                                    choices={goldLevelChoices()}
-                                    defaultValue={ECastVoteGoldLevelPolicy.NO_GOLD_LEVEL}
-                                    validate={required()}
-                                />
-                                <SelectInput
-                                    label={String(t("electionScreen.startScreenTitlePolicy.label"))}
-                                    source="presentation.start_screen_title_policy"
-                                    choices={startScreenTitleChoices()}
-                                    defaultValue={EStartScreenTitlePolicy.ELECTION}
-                                    validate={required()}
-                                />
-                                {canEditPermissionLabel && (
-                                    <TextInput
-                                        label={String(t("electionScreen.edit.permissionLabel"))}
-                                        source="permission_label"
+                                <fieldset
+                                    disabled
+                                    style={{border: 0, padding: 0, margin: 0, width: "100%"}}
+                                >
+                                    <BooleanInput
+                                        source={"presentation.cast_vote_confirm"}
+                                        label={String(t(`electionScreen.edit.castVoteConfirm`))}
                                     />
-                                )}
-                                <FileJsonInput
-                                    parsedValue={parsedValue}
-                                    fileSource="configuration"
-                                    jsonSource="presentation"
-                                />
-                                <SlatesConfigurationInput
-                                    defaultLanguage={
-                                        parsedValue?.presentation?.language_conf
-                                            ?.default_language_code ?? "en"
-                                    }
-                                    contests={contests}
-                                    tenantId={record?.tenant_id}
-                                    electionEventId={record?.election_event_id}
-                                />
-                                <SelectInput
-                                    source={`presentation.initialization_report_policy`}
-                                    choices={initializationReportChoices()}
-                                    label={String(t("electionScreen.initializeReportPolicy.label"))}
-                                    validate={required()}
-                                    defaultValue={EInitializeReportPolicy.NOT_REQUIRED}
-                                />
-                                <Box>
-                                    <Typography
-                                        variant="body1"
-                                        component="span"
-                                        sx={{
-                                            padding: "1rem 0rem",
-                                            fontWeight: "bold",
-                                            margin: 0,
-                                            display: {xs: "none", sm: "block"},
-                                        }}
-                                    >
-                                        {t("electionScreen.edit.custom_filters")}
-                                    </Typography>
-
-                                    <JsonEditor
-                                        theme={{styles: {itemCount: {color: "#444"}}}}
-                                        data={customFilters ?? []}
-                                        onUpdate={(data) =>
-                                            updateCustomFilters(
-                                                parsedValue,
-                                                data as UpdateFunctionProps
-                                            )
-                                        }
+                                    <NumberInput
+                                        source="num_allowed_revotes"
+                                        label={String(t("electionScreen.edit.numAllowedVotes"))}
+                                        min={0}
                                     />
-                                </Box>
-                                <ManagedSelectInput
-                                    source={`presentation.grace_period_policy`}
-                                    choices={gracePeriodPolicyChoices()}
-                                    label={String(t(`electionScreen.gracePeriodPolicy.label`))}
-                                    defaultValue={EGracePeriodPolicy.NO_GRACE_PERIOD}
-                                />
-                                <ManagedNumberInput
-                                    source={"presentation.grace_period_secs"}
-                                    label={String(
-                                        t("electionScreen.gracePeriodPolicy.gracePeriodSecs")
-                                    )}
-                                    defaultValue={0}
-                                    sourceToWatch="presentation.grace_period_policy"
-                                    isDisabled={(selectedPolicy: any) =>
-                                        selectedPolicy === EGracePeriodPolicy.NO_GRACE_PERIOD
-                                    }
-                                />
-                                <ManagedSelectInput
-                                    source={`status.allow_tally`}
-                                    choices={allowTallyChoices()}
-                                    label={String(t(`electionScreen.edit.allowTallyPolicy`))}
-                                    defaultValue={EAllowTally.ALLOWED}
-                                />
-
-                                <ManagedSelectInput
-                                    source={`presentation.security_confirmation_policy`}
-                                    choices={securityConfirmationPolicyChoices()}
-                                    label={String(
-                                        t(`electionScreen.securityConfirmationPolicy.label`)
-                                    )}
-                                    defaultValue={ESecurityConfirmationPolicy.NONE}
-                                />
-                                <SelectInput
-                                    source={`presentation.consolidated_report_policy`}
-                                    choices={consolidatedReportPolicyChoices()}
-                                    label={String(
-                                        t("electionScreen.consolidatedReportPolicy.label")
-                                    )}
-                                    validate={required()}
-                                    defaultValue={getDefaultConsolidatedReportPolicy()}
-                                />
-                                {isShowDeclineToVotePolicy && (
                                     <SelectInput
-                                        source={`presentation.decline_to_vote_policy`}
-                                        choices={declineToVotePolicyChoices()}
                                         label={String(
-                                            t("electionScreen.declineToVotePolicy.label")
+                                            t("electionScreen.castVoteGoldLevelPolicy.label")
+                                        )}
+                                        source="presentation.cast_vote_gold_level"
+                                        choices={goldLevelChoices()}
+                                        defaultValue={ECastVoteGoldLevelPolicy.NO_GOLD_LEVEL}
+                                        validate={required()}
+                                    />
+                                    <SelectInput
+                                        label={String(
+                                            t("electionScreen.startScreenTitlePolicy.label")
+                                        )}
+                                        source="presentation.start_screen_title_policy"
+                                        choices={startScreenTitleChoices()}
+                                        defaultValue={EStartScreenTitlePolicy.ELECTION}
+                                        validate={required()}
+                                    />
+                                    {canEditPermissionLabel && (
+                                        <TextInput
+                                            label={String(t("electionScreen.edit.permissionLabel"))}
+                                            source="permission_label"
+                                        />
+                                    )}
+                                    <FileJsonInput
+                                        parsedValue={parsedValue}
+                                        fileSource="configuration"
+                                        jsonSource="presentation"
+                                    />
+                                    <SlatesConfigurationInput
+                                        defaultLanguage={
+                                            parsedValue?.presentation?.language_conf
+                                                ?.default_language_code ?? "en"
+                                        }
+                                        contests={contests}
+                                        tenantId={record?.tenant_id}
+                                        electionEventId={record?.election_event_id}
+                                    />
+                                    <SelectInput
+                                        source={`presentation.initialization_report_policy`}
+                                        choices={initializationReportChoices()}
+                                        label={String(
+                                            t("electionScreen.initializeReportPolicy.label")
                                         )}
                                         validate={required()}
-                                        defaultValue={getDefaultDeclineToVotePolicy()}
+                                        defaultValue={EInitializeReportPolicy.NOT_REQUIRED}
                                     />
-                                )}
-                                {isShowBlankBallotsPolicy && (
+                                    <Box>
+                                        <Typography
+                                            variant="body1"
+                                            component="span"
+                                            sx={{
+                                                padding: "1rem 0rem",
+                                                fontWeight: "bold",
+                                                margin: 0,
+                                                display: {xs: "none", sm: "block"},
+                                            }}
+                                        >
+                                            {t("electionScreen.edit.custom_filters")}
+                                        </Typography>
+
+                                        <JsonEditor
+                                            theme={{styles: {itemCount: {color: "#444"}}}}
+                                            data={customFilters ?? []}
+                                            onUpdate={(data) =>
+                                                updateCustomFilters(
+                                                    parsedValue,
+                                                    data as UpdateFunctionProps
+                                                )
+                                            }
+                                        />
+                                    </Box>
+                                    <ManagedSelectInput
+                                        source={`presentation.grace_period_policy`}
+                                        choices={gracePeriodPolicyChoices()}
+                                        label={String(t(`electionScreen.gracePeriodPolicy.label`))}
+                                        defaultValue={EGracePeriodPolicy.NO_GRACE_PERIOD}
+                                    />
+                                    <ManagedNumberInput
+                                        source={"presentation.grace_period_secs"}
+                                        label={String(
+                                            t("electionScreen.gracePeriodPolicy.gracePeriodSecs")
+                                        )}
+                                        defaultValue={0}
+                                        sourceToWatch="presentation.grace_period_policy"
+                                        isDisabled={(selectedPolicy: any) =>
+                                            selectedPolicy === EGracePeriodPolicy.NO_GRACE_PERIOD
+                                        }
+                                    />
+                                    <ManagedSelectInput
+                                        source={`status.allow_tally`}
+                                        choices={allowTallyChoices()}
+                                        label={String(t(`electionScreen.edit.allowTallyPolicy`))}
+                                        defaultValue={EAllowTally.ALLOWED}
+                                    />
+
+                                    <ManagedSelectInput
+                                        source={`presentation.security_confirmation_policy`}
+                                        choices={securityConfirmationPolicyChoices()}
+                                        label={String(
+                                            t(`electionScreen.securityConfirmationPolicy.label`)
+                                        )}
+                                        defaultValue={ESecurityConfirmationPolicy.NONE}
+                                    />
                                     <SelectInput
-                                        source={`presentation.blank_ballots_policy`}
-                                        choices={blankBallotsPolicyChoices()}
-                                        label={String(t("electionScreen.blankBallotsPolicy.label"))}
+                                        source={`presentation.consolidated_report_policy`}
+                                        choices={consolidatedReportPolicyChoices()}
+                                        label={String(
+                                            t("electionScreen.consolidatedReportPolicy.label")
+                                        )}
                                         validate={required()}
-                                        defaultValue={getDefaultBlankBallotsPolicy()}
+                                        defaultValue={getDefaultConsolidatedReportPolicy()}
                                     />
-                                )}
-                                <SelectInput
-                                    source={`presentation.voting_screen_back_policy`}
-                                    choices={votingScreenBackPolicyChoices()}
-                                    label={String(t("electionScreen.votingScreenBackPolicy.label"))}
-                                    validate={required()}
-                                    defaultValue={getDefaultVotingScreenBackPolicy()}
-                                />
+                                    {isShowDeclineToVotePolicy && (
+                                        <SelectInput
+                                            source={`presentation.decline_to_vote_policy`}
+                                            choices={declineToVotePolicyChoices()}
+                                            label={String(
+                                                t("electionScreen.declineToVotePolicy.label")
+                                            )}
+                                            validate={required()}
+                                            defaultValue={getDefaultDeclineToVotePolicy()}
+                                        />
+                                    )}
+                                    {isShowBlankBallotsPolicy && (
+                                        <SelectInput
+                                            source={`presentation.blank_ballots_policy`}
+                                            choices={blankBallotsPolicyChoices()}
+                                            label={String(
+                                                t("electionScreen.blankBallotsPolicy.label")
+                                            )}
+                                            validate={required()}
+                                            defaultValue={getDefaultBlankBallotsPolicy()}
+                                        />
+                                    )}
+                                    <SelectInput
+                                        source={`presentation.voting_screen_back_policy`}
+                                        choices={votingScreenBackPolicyChoices()}
+                                        label={String(
+                                            t("electionScreen.votingScreenBackPolicy.label")
+                                        )}
+                                        validate={required()}
+                                        defaultValue={getDefaultVotingScreenBackPolicy()}
+                                    />
+                                </fieldset>
                             </AccordionDetails>
                         </Accordion>
                     </SimpleForm>

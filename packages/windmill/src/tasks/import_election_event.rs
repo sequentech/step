@@ -22,6 +22,10 @@ use tracing::{info, instrument};
 pub struct ImportElectionEventBody {
     pub tenant_id: String,
     pub document_id: String,
+    #[serde(default)]
+    pub authorization_event_id: Option<String>,
+    #[serde(default)]
+    pub board_request_task_id: Option<String>,
     pub password: Option<String>,
     pub check_only: Option<bool>,
     pub sha256: Option<String>,
@@ -60,7 +64,27 @@ pub async fn import_election_event(
         let election_event_id = election_event_id.clone();
         let notes = notes.clone();
 
+        let task_id = task_execution.id.clone();
         Box::pin(async move {
+            anyhow::ensure!(
+                object.board_request_task_id.as_deref() == Some(task_id.as_str()),
+                "Import task authorization binding is missing"
+            );
+            let scope = object.authorization_event_id.as_deref().ok_or_else(|| {
+                anyhow::anyhow!("Choose a Preparation event for board approval of this import")
+            })?;
+            let approved = crate::services::board_operations::validate_import_document(
+                hasura_transaction,
+                &tenant_id,
+                scope,
+                &task_id,
+                &object.document_id,
+            )
+            .await?;
+            anyhow::ensure!(
+                approved["parameters"]["input"]["target_event_id"] == election_event_id,
+                "Import destination differs from the board-approved event"
+            );
             let imported = import_election_event_service::process_document(
                 hasura_transaction,
                 object,
@@ -76,6 +100,12 @@ pub async fn import_election_event(
 
     match &result {
         Ok(_) => {
+            crate::services::self_tests::additional(
+                &tenant_id,
+                &election_event_id,
+                sequent_core::self_tests::SelfTestTrigger::AfterImport,
+            )
+            .await?;
             // Execute database maintenance
             info!("Performing mainteinance after election event import.");
             vacuum_analyze_direct().await?;

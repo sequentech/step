@@ -1,145 +1,116 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-License-Identifier: AGPL-3.0-only
 table:
     name: results_contest_candidate
     schema: sequent_backend
 object_relationships:
-    - name: election
-      using:
-          manual_configuration:
-              column_mapping:
-                  election_event_id: election_event_id
-                  election_id: id
-                  tenant_id: tenant_id
-              insertion_order: null
-              remote_table:
-                  name: election
-                  schema: sequent_backend
+-   name: election
+    using:
+        manual_configuration:
+            column_mapping:
+                election_event_id: election_event_id
+                election_id: id
+                tenant_id: tenant_id
+            insertion_order: null
+            remote_table:
+                name: election
+                schema: sequent_backend
 insert_permissions:
-    - comment: ""
-      permission:
-          check: {}
-          columns:
-              - cast_votes
-              - points
-              - winning_position
-              - annotations
-              - documents
-              - labels
-              - cast_votes_percent
-              - created_at
-              - last_updated_at
-              - candidate_id
-              - contest_id
-              - election_event_id
-              - election_id
-              - id
-              - results_event_id
-              - tenant_id
-      role: service-account
+-   comment: ''
+    permission:
+        check: {}
+        columns:
+        - cast_votes
+        - points
+        - winning_position
+        - annotations
+        - documents
+        - labels
+        - cast_votes_percent
+        - created_at
+        - last_updated_at
+        - candidate_id
+        - contest_id
+        - election_event_id
+        - election_id
+        - id
+        - results_event_id
+        - tenant_id
+    role: service-account
 select_permissions:
-    - comment: ""
-      permission:
-          allow_aggregations: true
-          columns:
-              - cast_votes
-              - points
-              - winning_position
-              - annotations
-              - documents
-              - labels
-              - cast_votes_percent
-              - created_at
-              - last_updated_at
-              - candidate_id
-              - contest_id
-              - election_event_id
-              - election_id
-              - id
-              - results_event_id
-              - tenant_id
-          filter:
-              _and:
-                  - tenant_id:
-                        _eq: X-Hasura-Tenant-Id
-                  - election:
-                        _or:
-                            - permission_label:
-                                  _is_null: true
-                            - permission_label:
-                                  _in: X-Hasura-Permission-Labels
-      role: admin-user
-    - comment: ""
-      permission:
-          allow_aggregations: true
-          columns:
-              - cast_votes
-              - points
-              - winning_position
-              - annotations
-              - documents
-              - labels
-              - cast_votes_percent
-              - created_at
-              - last_updated_at
-              - candidate_id
-              - contest_id
-              - election_event_id
-              - election_id
-              - id
-              - results_event_id
-              - tenant_id
-          filter: {}
-      role: service-account
-    - comment: ""
-      permission:
-          allow_aggregations: true
-          columns:
-              - cast_votes
-              - points
-              - winning_position
-              - annotations
-              - documents
-              - labels
-              - cast_votes_percent
-              - created_at
-              - last_updated_at
-              - candidate_id
-              - contest_id
-              - election_event_id
-              - election_id
-              - id
-              - results_event_id
-              - tenant_id
-          filter:
-              _and:
-                  - tenant_id:
-                        _eq: X-Hasura-Tenant-Id
-                  - election:
-                        _or:
-                            - permission_label:
-                                  _is_null: true
-                            - permission_label:
-                                  _in: X-Hasura-Permission-Labels
-      role: tally-results-read
+-   comment: ''
+    permission:
+        allow_aggregations: true
+        columns:
+        - cast_votes
+        - points
+        - winning_position
+        - annotations
+        - documents
+        - labels
+        - cast_votes_percent
+        - created_at
+        - last_updated_at
+        - candidate_id
+        - contest_id
+        - election_event_id
+        - election_id
+        - id
+        - results_event_id
+        - tenant_id
+        filter: {}
+    role: service-account
+-   comment: ''
+    permission:
+        allow_aggregations: true
+        columns:
+        - cast_votes
+        - points
+        - winning_position
+        - annotations
+        - documents
+        - labels
+        - cast_votes_percent
+        - created_at
+        - last_updated_at
+        - candidate_id
+        - contest_id
+        - election_event_id
+        - election_id
+        - id
+        - results_event_id
+        - tenant_id
+        filter:
+            _and:
+            -   tenant_id:
+                    _eq: X-Hasura-Tenant-Id
+            -   election:
+                    _or:
+                    -   permission_label:
+                            _is_null: true
+                    -   permission_label:
+                            _in: X-Hasura-Permission-Labels
+    role: tally-results-read
 update_permissions:
-    - comment: ""
-      permission:
-          check: {}
-          columns:
-              - cast_votes
-              - points
-              - winning_position
-              - annotations
-              - documents
-              - labels
-              - cast_votes_percent
-              - created_at
-              - last_updated_at
-              - candidate_id
-              - contest_id
-              - election_event_id
-              - election_id
-              - id
-              - results_event_id
-              - tenant_id
-          filter: {}
-      role: service-account
+-   comment: ''
+    permission:
+        check: {}
+        columns:
+        - cast_votes
+        - points
+        - winning_position
+        - annotations
+        - documents
+        - labels
+        - cast_votes_percent
+        - created_at
+        - last_updated_at
+        - candidate_id
+        - contest_id
+        - election_event_id
+        - election_id
+        - id
+        - results_event_id
+        - tenant_id
+        filter: {}
+    role: service-account

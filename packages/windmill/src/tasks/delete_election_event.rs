@@ -27,10 +27,9 @@ async fn delete_election_event_related_data(
     election_event_id: &str,
     realm: &str,
 ) -> AnyhowResult<()> {
-    let audit_future = delete_election_event_electoral_log(tenant_id, election_event_id);
     let documents_future = delete_election_event_related_documents(tenant_id, election_event_id);
     let keycloak_future = delete_keycloak_realm(realm);
-    try_join!(audit_future, documents_future, keycloak_future)?;
+    try_join!(documents_future, keycloak_future)?;
 
     Ok(())
 }
@@ -41,11 +40,17 @@ async fn delete_election_event(
     election_event_id: String,
     realm: String,
     permission_labels: Vec<String>,
+    task_id: String,
 ) -> AnyhowResult<()> {
     let tenant_id_cloned = tenant_id.clone();
     let election_event_id_cloned = election_event_id.clone();
     provide_hasura_transaction(|hasura_transaction| {
         Box::pin(async move {
+            let expected_realm=sequent_core::services::keycloak::get_event_realm(&tenant_id_cloned,&election_event_id_cloned);
+            anyhow::ensure!(realm==expected_realm,"Deletion task names a different realm");
+            hasura_transaction.query_one("SELECT id FROM sequent_backend.election_event WHERE tenant_id=$1::text::uuid AND id=$2::text::uuid FOR UPDATE", &[&tenant_id_cloned,&election_event_id_cloned]).await?;
+            let permission_labels=crate::services::board_operations::authorize_deletion(hasura_transaction,
+                &tenant_id_cloned,&election_event_id_cloned,&task_id).await?;
             if let Some(refusal) = find_election_event_deletion_refusal(
                 hasura_transaction,
                 &tenant_id_cloned,
@@ -54,7 +59,9 @@ async fn delete_election_event(
             )
             .await?
             {
-                return Err(refusal.into());
+                if refusal != crate::services::delete_election_event::ElectionEventDeletionRefusal::LockedDown {
+                    return Err(refusal.into());
+                }
             }
 
             delete_election_event_in(
@@ -116,7 +123,14 @@ pub async fn delete_election_event_t(
     task_execution: TasksExecution,
     permission_labels: Vec<String>,
 ) -> Result<()> {
-    let res = delete_election_event(tenant_id, election_event_id, realm, permission_labels).await;
+    let res = delete_election_event(
+        tenant_id,
+        election_event_id,
+        realm,
+        permission_labels,
+        task_execution.id.clone(),
+    )
+    .await;
 
     let _ = match res {
         Ok(_) => {

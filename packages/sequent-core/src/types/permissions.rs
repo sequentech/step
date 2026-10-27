@@ -499,6 +499,24 @@ pub enum Permissions {
     SIGN_KEY_CEREMONY,
     #[strum(serialize = "sign-tally-key")]
     SIGN_TALLY_KEY,
+    #[strum(serialize = "self-test-run")]
+    SELF_TEST_RUN,
+    #[strum(serialize = "self-test-read")]
+    SELF_TEST_READ,
+    #[strum(serialize = "self-test-settings-write")]
+    SELF_TEST_SETTINGS_WRITE,
+    #[strum(serialize = "sign-import-election-data")]
+    SIGN_IMPORT_ELECTION_DATA,
+    #[strum(serialize = "sign-start-tally")]
+    SIGN_START_TALLY,
+    #[strum(serialize = "sign-export-execution-data")]
+    SIGN_EXPORT_EXECUTION_DATA,
+    #[strum(serialize = "sign-delete-execution-data")]
+    SIGN_DELETE_EXECUTION_DATA,
+    #[strum(serialize = "sign-read-voters-register")]
+    SIGN_READ_VOTERS_REGISTER,
+    #[strum(serialize = "election-execution-export")]
+    ELECTION_EXECUTION_EXPORT,
 }
 
 #[allow(non_camel_case_types)]

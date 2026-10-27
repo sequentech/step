@@ -1,74 +1,58 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-License-Identifier: AGPL-3.0-only
 table:
     name: approval_matrix
     schema: sequent_backend
 select_permissions:
-    - comment: ""
-      permission:
-          columns:
-              - compared_fields
-              - created_at
-              - created_by
-              - created_by_username
-              - election_event_id
-              - id
-              - otherwise
-              - rules
-              - sha256
-              - tenant_id
-              - version
-          filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-      role: admin-user
-    - comment: ""
-      permission:
-          columns:
-              - compared_fields
-              - created_at
-              - created_by
-              - created_by_username
-              - election_event_id
-              - id
-              - otherwise
-              - rules
-              - sha256
-              - tenant_id
-              - version
-          filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-      role: application-read
-    - comment: ""
-      permission:
-          columns:
-              - compared_fields
-              - created_at
-              - created_by
-              - created_by_username
-              - election_event_id
-              - id
-              - otherwise
-              - rules
-              - sha256
-              - tenant_id
-              - version
-          filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-      role: approval-matrix-write
-    - comment: ""
-      permission:
-          columns:
-              - compared_fields
-              - created_at
-              - created_by
-              - created_by_username
-              - election_event_id
-              - id
-              - otherwise
-              - rules
-              - sha256
-              - tenant_id
-              - version
-          filter: {}
-      role: service-account
+-   comment: ''
+    permission:
+        columns:
+        - compared_fields
+        - created_at
+        - created_by
+        - created_by_username
+        - election_event_id
+        - id
+        - otherwise
+        - rules
+        - sha256
+        - tenant_id
+        - version
+        filter:
+            tenant_id:
+                _eq: X-Hasura-Tenant-Id
+    role: application-read
+-   comment: ''
+    permission:
+        columns:
+        - compared_fields
+        - created_at
+        - created_by
+        - created_by_username
+        - election_event_id
+        - id
+        - otherwise
+        - rules
+        - sha256
+        - tenant_id
+        - version
+        filter:
+            tenant_id:
+                _eq: X-Hasura-Tenant-Id
+    role: approval-matrix-write
+-   comment: ''
+    permission:
+        columns:
+        - compared_fields
+        - created_at
+        - created_by
+        - created_by_username
+        - election_event_id
+        - id
+        - otherwise
+        - rules
+        - sha256
+        - tenant_id
+        - version
+        filter: {}
+    role: service-account

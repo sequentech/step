@@ -19,6 +19,14 @@ final class QueueDatabase implements QueueSender {
   private static final String INSTALLED_ENVIRONMENT =
       "SELECT environment FROM step_queue.installation";
 
+  private static QueueDatabase shared;
+
+  /** Listener and token-admission mapper share the same bounded connection pool. */
+  static synchronized QueueDatabase sharedFromEnvironment() {
+    if (shared == null) shared = connect(QueueDatabaseSettings.fromEnvironment(System.getenv()));
+    return shared;
+  }
+
   private final AgroalDataSource dataSource;
   private final String environment;
   private volatile boolean verified;
@@ -67,6 +75,20 @@ final class QueueDatabase implements QueueSender {
         statement.setString(1, queue);
         statement.setString(2, payload);
         statement.executeQuery().close();
+      }
+    }
+  }
+
+  boolean auditStorageAvailable() throws SQLException {
+    try (Connection connection = dataSource.getConnection()) {
+      verify(connection);
+      try (PreparedStatement statement = connection.prepareStatement(
+          "SELECT EXISTS(SELECT 1 FROM step_queue.audit_storage_health WHERE singleton "
+              + "AND state='available' AND observed_at BETWEEN clock_timestamp()-interval '90 seconds' AND clock_timestamp())")) {
+        statement.setQueryTimeout(3);
+        try (ResultSet result = statement.executeQuery()) {
+          return result.next() && result.getBoolean(1);
+        }
       }
     }
   }

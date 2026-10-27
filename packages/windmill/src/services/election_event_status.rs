@@ -242,6 +242,17 @@ async fn update_event_voting_status_impl(
         return Ok((election_event, BTreeMap::new()));
     }
 
+    super::election_lifecycle::before_status_change(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        None,
+        new_status,
+        source == VotingStatusUpdateSource::Scheduled,
+    )
+    .await
+    .map_err(|e| VotingTransitionError(e.to_string()))?;
+
     // Posts that can't open yet with respect to their initialization at the
     // event's scope (design §9). A scheduled opening skips them; a manual
     // one is refused while one of them would open.
@@ -449,7 +460,20 @@ async fn update_event_voting_status_impl(
                         channel,
                         new_status,
                     )? {
-                        ManualPostChange::Apply => {}
+                        ManualPostChange::Apply => {
+                            if channel == VotingStatusChannel::ONLINE
+                                && *new_status == VotingStatus::OPEN
+                            {
+                                super::election_lifecycle::require_opening_time(
+                                    hasura_transaction,
+                                    tenant_id,
+                                    election_event_id,
+                                    &election.id,
+                                )
+                                .await
+                                .map_err(|e| VotingTransitionError(e.to_string()))?;
+                            }
+                        }
                         ManualPostChange::NotEnabled => {
                             info!(
                                 election_id = %election.id,
@@ -534,6 +558,16 @@ async fn update_event_voting_status_impl(
         .await
         .with_context(|| "Error updating electoral board on status change")?;
         logged_changes += 1;
+    }
+
+    if logged_changes > 0 {
+        super::election_lifecycle::after_status_change(
+            hasura_transaction,
+            tenant_id,
+            election_event_id,
+            new_status,
+        )
+        .await?;
     }
 
     if let Some(reason) = voting_checkpoint_reason(new_status).filter(|_| logged_changes > 0) {
@@ -761,6 +795,19 @@ pub async fn change_election_voting_status(
         }
     }
 
+    if channel == VotingStatusChannel::ONLINE {
+        super::election_lifecycle::before_status_change(
+            hasura_transaction,
+            &tenant_id,
+            &election_event_id,
+            Some(&election_id),
+            &new_status,
+            user_id.is_none(),
+        )
+        .await
+        .map_err(|e| VotingTransitionError(e.to_string()))?;
+    }
+
     status.close_early_voting_if_online_status_change(channel, new_status.clone());
     status.set_status_by_channel(channel, new_status.clone());
 
@@ -786,6 +833,16 @@ pub async fn change_election_voting_status(
             &election_event,
             &[election_id.clone()],
             CloseProvenance::of_actor(user_id, username),
+        )
+        .await?;
+    }
+
+    if channel == VotingStatusChannel::ONLINE {
+        super::election_lifecycle::after_status_change(
+            hasura_transaction,
+            &tenant_id,
+            &election_event_id,
+            &new_status,
         )
         .await?;
     }

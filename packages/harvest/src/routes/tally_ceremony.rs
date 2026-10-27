@@ -107,7 +107,20 @@ pub async fn create_tally_ceremony(
 ) -> Result<Json<CreateTallyOutput>, Guarded<JsonError>> {
     create_tally_ceremony_response(body, claims, services)
         .await
-        .map_err(|error| error.map_route(tally_response_error))
+        .map_err(|error| match error {
+            Guarded::Route((status,message)) if status==Status::Conflict => {
+                if let Ok(payload)=serde_json::from_str::<serde_json::Value>(&message) {
+                    if let Some(request)=payload.pointer("/extensions/signing_request") {
+                        return Guarded::Signing(crate::services::signing_http::SigningError::new(status,
+                            crate::services::signing_http::SigningErrorCode::SigningRequired,
+                            payload["message"].as_str().unwrap_or("Board authorisation required"))
+                            .with("signing_request",request.clone()));
+                    }
+                }
+                Guarded::Route(tally_response_error((status,message)))
+            },
+            other=>other.map_route(tally_response_error),
+        })
 }
 
 async fn create_tally_ceremony_response(
@@ -122,6 +135,19 @@ async fn create_tally_ceremony_response(
         vec![Permissions::ADMIN_CEREMONY],
     )?;
     let input = body.into_inner();
+    let board_authorization = if input.tally_type == "ELECTORAL_RESULTS" {
+        crate::services::board_authorization::authorize_operation(
+            &claims,
+            &input.election_event_id,
+            sequent_core::signing::SigningAction::StartTally,
+            "create-tally",
+            serde_json::to_value(&input)
+                .map_err(|e| (Status::BadRequest, e.to_string()))?,
+        )
+        .await?
+    } else {
+        None
+    };
     let tenant_id: String = claims.hasura_claims.tenant_id.clone();
     let user_id = claims.clone().hasura_claims.user_id;
     let username = claims
@@ -188,6 +214,19 @@ async fn create_tally_ceremony_response(
     )
     .await
     .map_err(tally_service_error)?;
+
+    if let Some(request) = board_authorization {
+        windmill::services::board_operations::bind(
+            &hasura_transaction,
+            &claims.hasura_claims.tenant_id,
+            &input.election_event_id,
+            request,
+            windmill::services::board_operations::BindingKind::Tally,
+            &tally_session_id,
+        )
+        .await
+        .map_err(tally_service_error)?;
+    }
 
     let _commit = hasura_transaction.commit().await.map_err(|err| {
         (Status::InternalServerError, format!("Commit failed: {err}"))
@@ -331,6 +370,22 @@ pub async fn recount_tally_session(
     )?;
 
     let input = body.into_inner();
+    let board_authorization =
+        crate::services::board_authorization::authorize_operation(
+            &claims,
+            &input.election_event_id,
+            sequent_core::signing::SigningAction::StartTally,
+            "recount-tally",
+            serde_json::to_value(&input)
+                .map_err(|e| (Status::BadRequest, e.to_string()))?,
+        )
+        .await?
+        .ok_or_else(|| {
+            (
+                Status::Forbidden,
+                "Board authorisation is required".to_string(),
+            )
+        })?;
     let tenant_id = claims.hasura_claims.tenant_id.clone();
 
     let mut hasura_db_client: DbClient = services
@@ -409,6 +464,17 @@ pub async fn recount_tally_session(
             "Only a completed tally session with execution history can be recounted".to_string(),
         ));
     }
+
+    windmill::services::board_operations::bind(
+        &hasura_transaction,
+        &tenant_id,
+        &input.election_event_id,
+        board_authorization,
+        windmill::services::board_operations::BindingKind::Tally,
+        &input.tally_session_id,
+    )
+    .await
+    .map_err(tally_service_error)?;
 
     hasura_transaction.commit().await.map_err(|err| {
         (Status::InternalServerError, format!("Commit failed: {err}"))

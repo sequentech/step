@@ -30,6 +30,7 @@ import {actionDescription} from "@/components/signing/format"
 import {useEventPresentation} from "@/hooks/useZonedFormat"
 import {isSealAtClose} from "@/services/ballotBoxSealPolicy"
 import {
+    mandatorySigningAction,
     RequesterSigning,
     SIGNING_ACTIONS,
     SIGNING_EXPIRY_OPTIONS,
@@ -255,7 +256,7 @@ export const RuleDrawer: React.FC<IRuleDrawerProps> = ({
                         control={
                             <Switch
                                 checked={required}
-                                disabled={readOnly}
+                                disabled={readOnly || mandatorySigningAction(rule.action)}
                                 onChange={(event) =>
                                     update({
                                         requirement: event.target.checked

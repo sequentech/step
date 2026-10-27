@@ -2,7 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React from "react"
+import React, {useContext} from "react"
+import {AuthContext} from "@/providers/AuthContextProvider"
+import {IPermissions} from "@/types/keycloak"
+import {AdministratorSecuritySettings} from "./AdministratorSecuritySettings"
 import {EditBase, Identifier, RaRecord, useUpdate, useRefresh} from "react-admin"
 import {
     EditElectionEventDataForm,
@@ -17,6 +20,7 @@ import {
 export const EditElectionEventData: React.FC = () => {
     const [update] = useUpdate()
     const refresh = useRefresh()
+    const {hasRole} = useContext(AuthContext)
 
     async function updateElectionsOrder(data: Sequent_Backend_Election_Event_Extended) {
         const electionEventPresentation = data.presentation as
@@ -92,6 +96,8 @@ export const EditElectionEventData: React.FC = () => {
     }
 
     const onSuccess = () => refresh()
+
+    if (hasRole(IPermissions.ADMIN_USER)) return <AdministratorSecuritySettings />
 
     return (
         <EditBase

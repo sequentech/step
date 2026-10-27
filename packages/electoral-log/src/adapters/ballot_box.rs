@@ -40,6 +40,8 @@ pub struct AcceptBallot<'a> {
     pub format: &'a str,
     pub content: &'a str,
     pub voter_signature: Option<&'a [u8]>,
+    /// Signed at authenticated ingress, before storage; verified before sequencing.
+    pub admission_record: &'a [u8],
     /// Hash of the voter's ID, as in the cast-vote record.
     pub pseudonym_hash: &'a [u8],
     /// Hash of the ballot, as in the cast-vote record.
@@ -103,6 +105,11 @@ pub struct PendingBallot {
     pub username: Option<String>,
     /// Seconds since the epoch.
     pub accepted_at: i64,
+    pub accepted_at_millis: i64,
+    pub format: String,
+    pub content: String,
+    pub voter_signature: Option<Vec<u8>>,
+    pub admission_record: Vec<u8>,
 }
 
 /// A voter's state in one election.
@@ -139,11 +146,11 @@ WITH voter AS (
     RETURNING election_event_id
 ), ballot AS (
     INSERT INTO ballot_box_ballot
-        (election_event_id, ballot_id, election_id, area_id, voter_id, format, content,
+        (election_event_id, seq, ballot_id, election_id, area_id, voter_id, format, content,
          voter_signature, pseudonym_hash, ballot_hash, voting_channel, status, voter_ip,
-         voter_country, username)
-    SELECT election_event_id, $5, $2::text::uuid, $4::text::uuid, $3, $7, $8, $9, $10, $11,
-           $12, $13, $14, $15, $16
+         voter_country, username, admission_record, accepted_at)
+    SELECT election_event_id, (convert_from($17,'UTF8')::jsonb #>> '{payload,sequence}')::bigint, $5, $2::text::uuid, $4::text::uuid, $3, $7, $8, $9, $10, $11,
+           $12, $13, $14, $15, $16, $17, (convert_from($17,'UTF8')::jsonb #>> '{payload,accepted_at}')::timestamptz
     FROM voter
     RETURNING election_event_id, seq, id
 ), queued AS (
@@ -159,7 +166,8 @@ const ACCEPT_RECEIVED: &str = r#"
 WITH gate AS (
     SELECT election_event_id, id FROM ballot_box_received
     WHERE election_event_id = $1::text::uuid AND election_id = $2::text::uuid
-      AND voter_id = $3 AND ballot_id = $17 AND ballot_hash = $5 AND status = 'received'
+      AND voter_id = $3 AND ballot_id = $18 AND ballot_hash = $5 AND status = 'received'
+      AND $19::timestamptz = (convert_from($17,'UTF8')::jsonb #>> '{payload,accepted_at}')::timestamptz
     FOR UPDATE
 ), voter AS (
     INSERT INTO ballot_box_voter AS v
@@ -175,11 +183,11 @@ WITH gate AS (
     RETURNING election_event_id
 ), ballot AS (
     INSERT INTO ballot_box_ballot
-        (election_event_id, ballot_id, election_id, area_id, voter_id, format, content,
+        (election_event_id, seq, ballot_id, election_id, area_id, voter_id, format, content,
          voter_signature, pseudonym_hash, ballot_hash, voting_channel, status, voter_ip,
-         voter_country, username, accepted_at)
-    SELECT election_event_id, $5, $2::text::uuid, $4::text::uuid, $3, $7, $8, $9, $10, $11,
-           $12, $13, $14, $15, $16, $18::timestamptz
+         voter_country, username, accepted_at, admission_record)
+    SELECT election_event_id, (convert_from($17,'UTF8')::jsonb #>> '{payload,sequence}')::bigint, $5, $2::text::uuid, $4::text::uuid, $3, $7, $8, $9, $10, $11,
+           $12, $13, $14, $15, $16, $19::timestamptz, $17
     FROM voter
     RETURNING election_event_id, seq, id
 ), queued AS (
@@ -187,8 +195,8 @@ WITH gate AS (
     SELECT election_event_id, seq FROM ballot
 ), marked AS (
     UPDATE ballot_box_received r
-    SET status = 'cast', cast_at = $18::timestamptz, cast_signature = $19,
-        cast_receipt_signature = $20
+    SET status = 'cast', cast_at = $19::timestamptz, cast_signature = $20,
+        cast_receipt_signature = $21
     FROM gate, ballot
     WHERE r.election_event_id = gate.election_event_id AND r.id = gate.id
 )
@@ -224,6 +232,7 @@ fn accept_parameters<'a>(
         &ballot.voter_ip,
         &ballot.voter_country,
         &ballot.username,
+        &ballot.admission_record,
     ]
 }
 
@@ -567,6 +576,102 @@ impl PostgresStore {
         }
     }
 
+    /// Atomically accept the authenticated ballot and its independently signed
+    /// cast record. A failed audit append rolls back the ballot, voter counter,
+    /// receipt state and sequencer entry together.
+    pub async fn accept_recorded_ballot(
+        &self,
+        ballot: &AcceptBallot<'_>,
+        received: Option<&AcceptReceived<'_>>,
+        board: &str,
+        entry: &crate::LogEntry,
+    ) -> Result<AcceptOutcome> {
+        let admission: serde_json::Value = serde_json::from_slice(ballot.admission_record)?;
+        let sequence = admission["payload"]["sequence"]
+            .as_i64()
+            .context("Missing signed acceptance sequence")?;
+        ensure!(
+            entry.delivery_id == format!("ballot-box:{}:{}", ballot.election_event_id, sequence),
+            "Audit record does not identify this acceptance"
+        );
+        if let Some(received) = received {
+            let time = admission["payload"]["accepted_at"]
+                .as_str()
+                .context("Missing signed acceptance time")?;
+            ensure!(
+                DateTime::parse_from_rfc3339(time)?.with_timezone(&Utc) == received.cast_at,
+                "Receipt and admission timestamps differ"
+            );
+        }
+        let mut client = self.client().await?;
+        let transaction = client.transaction().await?;
+        let status = ballot.status.to_string();
+        let mut parameters = accept_parameters(ballot, &status);
+        if let Some(received) = received {
+            parameters.extend_from_slice(&[
+                &received.ballot_id,
+                &received.cast_at,
+                &received.cast_signature,
+                &received.cast_receipt_signature,
+            ]);
+        }
+        let statement = if received.is_some() {
+            ACCEPT_RECEIVED
+        } else {
+            ACCEPT
+        };
+        match transaction.query_opt(statement, &parameters).await {
+            Ok(Some(row)) => {
+                let outcome = accepted_outcome(&row);
+                let appended =
+                    super::postgres::append_in(&transaction, board, std::slice::from_ref(entry))
+                        .await?;
+                ensure!(
+                    appended.len() == 1,
+                    "The acceptance audit record was not appended exactly once"
+                );
+                transaction.execute("DELETE FROM ballot_box_pending WHERE election_event_id=$1::text::uuid AND seq=$2",&[&ballot.election_event_id,&sequence]).await?;
+                transaction.commit().await?;
+                Ok(outcome)
+            }
+            Ok(None) => {
+                transaction.rollback().await?;
+                if let Some(received) = received {
+                    let status = client
+                        .query_opt(
+                            RECEIVED_STATUS,
+                            &[
+                                &ballot.election_event_id,
+                                &ballot.election_id,
+                                &ballot.voter_id,
+                                &received.ballot_id,
+                                &ballot.ballot_id,
+                            ],
+                        )
+                        .await?
+                        .map(|row| row.try_get::<_, String>(0))
+                        .transpose()?;
+                    match status.as_deref().map(str::parse::<ReceivedStatus>) {
+                        Some(Ok(ReceivedStatus::Received)) => {
+                            refused_outcome(&client, ballot).await
+                        }
+                        Some(Ok(ReceivedStatus::Cast)) => Ok(AcceptOutcome::DuplicateBallotId),
+                        Some(Ok(ReceivedStatus::Audited)) | None => {
+                            Ok(AcceptOutcome::NotReceivable)
+                        }
+                        Some(Err(_)) => Err(anyhow::anyhow!("Unknown received ballot status")),
+                    }
+                } else {
+                    refused_outcome(&client, ballot).await
+                }
+            }
+            Err(error) => {
+                transaction.rollback().await?;
+                error_outcome(error)
+            }
+        }
+    }
+
     /// A voter's state in one election, if the voter has voted in it.
     pub async fn voter_state(
         &self,
@@ -594,7 +699,9 @@ impl PostgresStore {
             .query(
                 "SELECT b.seq, b.ballot_id, b.election_id::text, b.area_id::text, b.voter_id, \
                         b.pseudonym_hash, b.ballot_hash, b.voting_channel, b.status, b.voter_ip, \
-                        b.voter_country, b.username, extract(epoch FROM b.accepted_at)::bigint \
+                        b.voter_country, b.username, floor(extract(epoch FROM b.accepted_at))::bigint, \
+                        b.format,b.content,b.voter_signature,b.admission_record, \
+                        (extract(epoch FROM b.accepted_at)*1000)::bigint \
                  FROM ballot_box_pending p \
                  JOIN ballot_box_ballot b \
                    ON b.election_event_id = p.election_event_id AND b.seq = p.seq \
@@ -621,6 +728,11 @@ impl PostgresStore {
                 voter_country: row.get(10),
                 username: row.get(11),
                 accepted_at: row.get(12),
+                format: row.get(13),
+                content: row.get(14),
+                voter_signature: row.get(15),
+                admission_record: row.get(16),
+                accepted_at_millis: row.get(17),
             })
             .collect())
     }

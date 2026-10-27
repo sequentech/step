@@ -50,6 +50,7 @@ use windmill::tasks::review_cast_votes::review_cast_votes;
 use windmill::tasks::scheduled_events::scheduled_events;
 use windmill::tasks::scheduled_reports::scheduled_reports;
 use windmill::tasks::seal_ballot_boxes::{seal_ballot_boxes, SEAL_BALLOT_BOXES_INTERVAL_SECONDS};
+use windmill::tasks::self_tests::{reconcile_security_alerts, schedule_self_tests};
 use windmill::tasks::sequence_ballot_box::schedule_ballot_box_sequencers;
 use windmill::tasks::signing_log_outbox::post_signing_log_outbox;
 use windmill::tasks::signing_requests::{
@@ -240,6 +241,8 @@ async fn main() -> Result<()> {
             },
         ],
         task_routes = [
+            schedule_self_tests::NAME => Queue::Beat.queue_name(),
+            reconcile_security_alerts::NAME => Queue::Beat.queue_name(),
             review_boards::NAME => Queue::Beat.queue_name(),
             scheduled_events::NAME => Queue::Beat.queue_name(),
             scheduled_reports::NAME => Queue::Beat.queue_name(),
@@ -269,6 +272,16 @@ async fn main() -> Result<()> {
         audit_open_elections_periodically::NAME.to_string(),
         audit_open_elections_periodically::new().with_expires_in(60),
         DeltaSchedule::new(Duration::from_secs(audit_policy.interval_secs)),
+    );
+    beat.schedule_named_task(
+        schedule_self_tests::NAME.to_string(),
+        schedule_self_tests::new().with_expires_in(15),
+        DeltaSchedule::new(Duration::from_secs(15)),
+    );
+    beat.schedule_named_task(
+        reconcile_security_alerts::NAME.to_string(),
+        reconcile_security_alerts::new().with_expires_in(15),
+        DeltaSchedule::new(Duration::from_secs(15)),
     );
     // Scheduled outside the macro, which cannot give a message its expiry.
     beat.schedule_named_task(

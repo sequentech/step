@@ -17,6 +17,11 @@ export enum SigningAction {
     TransmitResults = "transmit-results",
     ApproveVoter = "approve-voter",
     ApproveConfiguration = "approve-configuration",
+    ImportElectionData = "import-election-data",
+    StartTally = "start-tally",
+    ExportExecutionData = "export-execution-data",
+    DeleteExecutionData = "delete-execution-data",
+    ReadVotersRegister = "read-voters-register",
     ConfirmCustodyProof = "key-ceremony",
     ContributeCustodyProof = "tally-key",
 }
@@ -215,6 +220,41 @@ export const SIGNING_ACTIONS: Record<SigningAction, ISigningActionInfo> = {
         document: DocumentKind.NoDocument,
         signPermission: IPermissions.SIGN_APPROVE_CONFIGURATION,
     },
+    [SigningAction.ImportElectionData]: {
+        group: SigningActionGroup.ConfigurationAndKeys,
+        scope: SigningScope.Event,
+        mode: ExecutionMode.Gate,
+        document: DocumentKind.NoDocument,
+        signPermission: IPermissions.SIGN_IMPORT_ELECTION_DATA,
+    },
+    [SigningAction.StartTally]: {
+        group: SigningActionGroup.ResultsAndReports,
+        scope: SigningScope.Event,
+        mode: ExecutionMode.Gate,
+        document: DocumentKind.NoDocument,
+        signPermission: IPermissions.SIGN_START_TALLY,
+    },
+    [SigningAction.ExportExecutionData]: {
+        group: SigningActionGroup.ResultsAndReports,
+        scope: SigningScope.Event,
+        mode: ExecutionMode.Gate,
+        document: DocumentKind.NoDocument,
+        signPermission: IPermissions.SIGN_EXPORT_EXECUTION_DATA,
+    },
+    [SigningAction.DeleteExecutionData]: {
+        group: SigningActionGroup.ResultsAndReports,
+        scope: SigningScope.Event,
+        mode: ExecutionMode.Gate,
+        document: DocumentKind.NoDocument,
+        signPermission: IPermissions.SIGN_DELETE_EXECUTION_DATA,
+    },
+    [SigningAction.ReadVotersRegister]: {
+        group: SigningActionGroup.ResultsAndReports,
+        scope: SigningScope.Event,
+        mode: ExecutionMode.Gate,
+        document: DocumentKind.NoDocument,
+        signPermission: IPermissions.SIGN_READ_VOTERS_REGISTER,
+    },
     [SigningAction.ConfirmCustodyProof]: {
         group: SigningActionGroup.ConfigurationAndKeys,
         scope: SigningScope.Trustee,
@@ -230,6 +270,19 @@ export const SIGNING_ACTIONS: Record<SigningAction, ISigningActionInfo> = {
         signPermission: IPermissions.SIGN_TALLY_KEY,
     },
 }
+
+/** These security-critical actions cannot be configured without board approval. */
+export const mandatorySigningAction = (action: SigningAction): boolean =>
+    [
+        SigningAction.OpenVoting,
+        SigningAction.CloseVoting,
+        SigningAction.ApproveConfiguration,
+        SigningAction.ImportElectionData,
+        SigningAction.StartTally,
+        SigningAction.ExportExecutionData,
+        SigningAction.DeleteExecutionData,
+        SigningAction.ReadVotersRegister,
+    ].includes(action)
 
 /** The most signatures a rule may need (sequent-core `MAX_SIGNATURES`). */
 export const MAX_SIGNATURES = 100

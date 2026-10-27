@@ -10,6 +10,7 @@
 import {shownRequestStatus} from "@/lib/signing/status"
 import {IPermissions} from "@/types/keycloak"
 import {
+    mandatorySigningAction,
     CertificatePostBinding,
     CertificateRegistration,
     CrlUnavailablePolicy,
@@ -21,6 +22,7 @@ import {
     SIGNING_EXPIRY_OPTIONS,
     SigningAction,
     SigningActionGroup,
+    SigningScope,
     SigningRequestStatus,
     SigningRequirement,
     StaffCertificateStatus,
@@ -87,11 +89,13 @@ export function signaturesAccess(has: (permission: IPermissions) => boolean): IS
 export const afterLockdown = (access: ISignaturesAccess, lockedDown: boolean): ISignaturesAccess =>
     lockedDown ? {...access, rulesWrite: false, rolesWrite: false} : access
 
-/** The rule of an action without a row: no signatures needed (design §1). */
+/** Required operations remain unavailable until a positive quorum is configured. */
 export const defaultRule = (action: SigningAction): ISigningRule => ({
     action,
-    requirement: SigningRequirement.NotRequired,
-    signatures: 1,
+    requirement: mandatorySigningAction(action)
+        ? SigningRequirement.Required
+        : SigningRequirement.NotRequired,
+    signatures: mandatorySigningAction(action) ? 0 : 1,
     requester_signing: RequesterSigning.NotAllowed,
     expires_minutes: 60,
     revision: 0,
@@ -113,7 +117,7 @@ export const DEFAULT_CHECKS: ISigningChecks = {
 
 /** Trustee actions: each trustee signs their own step; the rule only switches on or off. */
 export const isTrusteeAction = (action: SigningAction) =>
-    SIGNING_ACTIONS[action].mode === ExecutionMode.Gate
+    SIGNING_ACTIONS[action].scope === SigningScope.Trustee
 
 /** The catalog's groups, each with its actions, in catalog order. */
 export const actionGroups = (): Array<{group: SigningActionGroup; actions: SigningAction[]}> =>

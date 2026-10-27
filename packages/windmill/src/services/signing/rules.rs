@@ -406,6 +406,7 @@ fn validate(rule: &SigningRule) -> SigningResult<()> {
         let reason = match error {
             SigningRuleError::NoSignatures => InvalidReason::NoSignatures,
             SigningRuleError::ZeroExpiry => InvalidReason::ZeroExpiry,
+            SigningRuleError::MandatoryAction => InvalidReason::OutOfRange,
         };
         SigningError::invalid(reason, error.to_string())
     })
@@ -485,6 +486,13 @@ pub async fn save_rule(
     events.dedup();
     for event in &events {
         lock_signing_event(hasura_transaction, tenant_id, *event).await?;
+        crate::services::election_lifecycle::require_phase(
+            hasura_transaction,
+            &tenant_id.to_string(),
+            &event.to_string(),
+            sequent_core::election_lifecycle::ElectoralPhase::Preparation,
+        )
+        .await?;
     }
     if is_election_event_locked_down_in(
         hasura_transaction,

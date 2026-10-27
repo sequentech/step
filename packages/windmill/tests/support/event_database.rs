@@ -108,6 +108,7 @@ impl EventDatabase {
                 format: FORMAT,
                 content: vote.content,
                 voter_signature: None,
+                admission_record: &format!(r#"{{"payload":{{"accepted_at":"2026-10-27T12:00:00.000Z","sequence":{}}},"signature":""}}"#, std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos() as i64).into_bytes(),
                 pseudonym_hash: &ballot_hash(vote.voter).unwrap(),
                 ballot_hash: &ballot_hash(vote.content).unwrap(),
                 voting_channel: vote.channel,

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::database::try_get_queue_pool;
+use crate::tasks::self_tests::{reconcile_security_alerts, run_self_tests, schedule_self_tests};
 use anyhow::{anyhow, Context, Result};
 use celery::prelude::Task;
 use celery::Celery;
@@ -293,6 +294,9 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             PgmqBrokerBuilder::from_pool(queue_pool).environment(&slug)
         ),
         tasks = [
+            run_self_tests,
+            schedule_self_tests,
+            reconcile_security_alerts,
             create_keys,
             review_boards,
             reconcile_messages,
@@ -382,6 +386,9 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             schedule_ballot_box_seals,
         ],
         task_routes = [
+            run_self_tests::NAME => Queue::Reports.queue_name(),
+            schedule_self_tests::NAME => Queue::Beat.queue_name(),
+            reconcile_security_alerts::NAME => Queue::Beat.queue_name(),
             create_keys::NAME => Queue::Short.queue_name(),
             review_boards::NAME => Queue::Beat.queue_name(),
             // The messaging sweep must not wait behind bulk sends.

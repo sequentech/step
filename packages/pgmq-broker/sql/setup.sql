@@ -20,6 +20,19 @@ CREATE TABLE IF NOT EXISTS step_queue.installation (
     created_at timestamptz NOT NULL DEFAULT now()
 );
 
+-- The observer runs on the same mounted filesystem as the audit database.
+-- Missing or stale observations never grant voter access. Only worker credentials
+-- may write; the identity service and Harvest use the producer read grant.
+CREATE TABLE IF NOT EXISTS step_queue.audit_storage_health (
+    singleton boolean PRIMARY KEY DEFAULT true CHECK (singleton),
+    observed_at timestamptz NOT NULL,
+    state text NOT NULL CHECK (state IN ('available', 'threshold-exceeded', 'unavailable')),
+    used_bytes bigint CHECK (used_bytes >= 0),
+    available_bytes bigint CHECK (available_bytes >= 0),
+    filesystem_path text NOT NULL CHECK (filesystem_path <> ''),
+    generation bigint NOT NULL DEFAULT 1 CHECK (generation > 0)
+);
+
 DO $$
 DECLARE
     expected_environment text := current_setting('step.queue.environment');
@@ -67,9 +80,12 @@ BEGIN
         IF grantee <> '' THEN
             EXECUTE format('GRANT CONNECT ON DATABASE %I TO %I', current_database(), grantee);
             EXECUTE format('GRANT USAGE ON SCHEMA pgmq, step_queue TO %I', grantee);
-            EXECUTE format('GRANT SELECT ON step_queue.installation, pgmq.meta TO %I', grantee);
+            EXECUTE format('GRANT SELECT ON step_queue.installation, step_queue.audit_storage_health, pgmq.meta TO %I', grantee);
         END IF;
     END LOOP;
+    IF worker <> '' THEN
+        EXECUTE format('GRANT INSERT, UPDATE ON step_queue.audit_storage_health TO %I', worker);
+    END IF;
     FOREACH queue IN ARRAY string_to_array(current_setting('step.queue.queues'), ',') LOOP
         IF worker <> '' THEN
             EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON pgmq.%I TO %I',

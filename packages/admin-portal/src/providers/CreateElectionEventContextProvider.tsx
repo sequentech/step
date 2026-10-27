@@ -97,6 +97,8 @@ const CreateElectionEventContext = createContext<{
     isLoading: boolean
     newId: any
     tenantId: any
+    authorizationEventId: string
+    setAuthorizationEventId: (id: string) => void
 }>({
     createDrawer: false,
     importDrawer: false,
@@ -114,6 +116,8 @@ const CreateElectionEventContext = createContext<{
     isLoading: false,
     newId: false,
     tenantId: "",
+    authorizationEventId: "",
+    setAuthorizationEventId: () => {},
 })
 
 export const CreateElectionEventProvider = ({children}: any) => {
@@ -123,6 +127,7 @@ export const CreateElectionEventProvider = ({children}: any) => {
 
     const [insertElectionEvent] = useMutation<CreateElectionEventMutation>(INSERT_ELECTION_EVENT)
     const [tenantId] = useTenantStore()
+    const [authorizationEventId, setAuthorizationEventId] = useState("")
     const {globalSettings} = useContext(SettingsContext)
     const notify = useNotify()
     const [newId, setNewId] = useState<string | null>(null)
@@ -295,6 +300,7 @@ export const CreateElectionEventProvider = ({children}: any) => {
             let {data, errors} = await importElectionEvent({
                 variables: {
                     tenantId,
+                    authorizationEventId,
                     documentId,
                     password,
                     sha256,
@@ -327,6 +333,7 @@ export const CreateElectionEventProvider = ({children}: any) => {
                 setArchivedElectionEvents(false)
             }
         } catch (err) {
+            setErrors(err instanceof Error ? err.message : String(err))
             updateWidgetFail(currWidget.identifier)
         }
     }
@@ -350,6 +357,8 @@ export const CreateElectionEventProvider = ({children}: any) => {
                 isLoading,
                 newId,
                 tenantId,
+                authorizationEventId,
+                setAuthorizationEventId,
             }}
         >
             {children}

@@ -269,6 +269,11 @@ const AccountReadOperationMap: Record<string, IPermissions> = {
 // Select a precise held permission before publication/trustee defaults.
 // No grant is inferred; admin-user retains its existing scoped backup fallback.
 const HeldOperationMap: Record<string, IPermissions> = {
+    ImportCandidates: IPermissions.CANDIDATE_CREATE,
+    UpsertArea: IPermissions.AREA_CREATE,
+    ImportAreas: IPermissions.AREA_WRITE,
+    UpsertAreas: IPermissions.AREA_WRITE,
+    ExportElectionEvent: IPermissions.ELECTION_EXECUTION_EXPORT,
     FetchDocument: IPermissions.DOCUMENT_DOWNLOAD,
     GetDocument: IPermissions.DOCUMENT_READ,
     GetTaskById: IPermissions.TASKS_READ,
@@ -398,5 +403,5 @@ export const getOperationRole = (
     if (!mappedRole) {
         return defaultRole
     }
-    return defaultRole === IPermissions.ADMIN_USER || hasRole(mappedRole) ? mappedRole : defaultRole
+    return hasRole(mappedRole) ? mappedRole : defaultRole
 }

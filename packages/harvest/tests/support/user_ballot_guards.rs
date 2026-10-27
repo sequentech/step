@@ -69,6 +69,7 @@ async fn ballot(
             format: &format,
             content: "ballot",
             voter_signature: None,
+            admission_record: &format!(r#"{{"payload":{{"accepted_at":"2026-10-27T12:00:00.000Z","sequence":{}}},"signature":""}}"#, std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos() as i64).into_bytes(),
             pseudonym_hash: &[0; 64],
             ballot_hash: &[0; 64],
             voting_channel: "ONLINE",

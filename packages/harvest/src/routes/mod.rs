@@ -89,3 +89,7 @@ pub mod signing_certificates;
 pub mod task_queues;
 
 pub mod export_verification_transcript;
+
+pub mod election_lifecycle;
+
+pub mod self_tests;

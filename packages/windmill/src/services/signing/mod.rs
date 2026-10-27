@@ -6,6 +6,7 @@
 
 pub mod actions;
 pub mod approve;
+pub mod board_gate;
 pub mod certificates;
 pub mod configuration;
 pub mod context;

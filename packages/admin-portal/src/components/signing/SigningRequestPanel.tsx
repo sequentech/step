@@ -303,6 +303,16 @@ export const SigningRequestPanel: React.FC<ISigningRequestPanelProps> = ({
         }
     })
 
+    // Other board members may approve on their own devices. Refresh waiting
+    // gates so the requester can continue without repeating a data submission.
+    useEffect(() => {
+        if (!open || data?.request.status !== SigningRequestStatus.Waiting) return
+        const timer = window.setInterval(() => {
+            void load()
+        }, 3000)
+        return () => window.clearInterval(timer)
+    }, [open, data?.request.status, load])
+
     const request = data?.request
     const waiting = request?.status === SigningRequestStatus.Waiting
     const isRequester = !!request && request.requested_by === userId

@@ -33,6 +33,12 @@ pub async fn get_event_ballot_box(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<EventBallotBox> {
+    crate::services::election_lifecycle::require_ballot_access(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+    )
+    .await?;
     let row = hasura_transaction
         .query_opt(
             "SELECT bulletin_board_reference FROM sequent_backend.election_event \

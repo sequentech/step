@@ -32,6 +32,25 @@ pub async fn upsert_areas_route(
     input: Json<ImportAreasInput>,
 ) -> Result<Json<ImportAreasOutput>, (Status, String)> {
     let body = input.into_inner();
+    let request =
+        crate::services::board_authorization::authorize_import_document(
+            &claims,
+            &body.election_event_id,
+            "upsert-areas",
+            &body.document_id,
+            serde_json::to_value(&body)
+                .map_err(|e| (Status::BadRequest, e.to_string()))?,
+        )
+        .await?;
+    crate::services::board_authorization::bind_operation(
+        &claims,
+        &body.election_event_id,
+        request,
+        windmill::services::board_operations::BindingKind::Import,
+        &body.document_id,
+    )
+    .await?;
+
     authorize(
         &claims,
         true,
@@ -61,6 +80,25 @@ pub async fn import_areas_route(
     input: Json<ImportAreasInput>,
 ) -> Result<Json<ImportAreasOutput>, (Status, String)> {
     let body = input.into_inner();
+    let request =
+        crate::services::board_authorization::authorize_import_document(
+            &claims,
+            &body.election_event_id,
+            "import-areas",
+            &body.document_id,
+            serde_json::to_value(&body)
+                .map_err(|e| (Status::BadRequest, e.to_string()))?,
+        )
+        .await?;
+    crate::services::board_authorization::bind_operation(
+        &claims,
+        &body.election_event_id,
+        request,
+        windmill::services::board_operations::BindingKind::Import,
+        &body.document_id,
+    )
+    .await?;
+
     authorize(
         &claims,
         true,

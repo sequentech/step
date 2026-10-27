@@ -1337,6 +1337,39 @@ pub async fn execute_tally_session_wrapped(
     election_ids: Option<Vec<String>>,
     force_new_results_id: bool,
 ) -> Result<()> {
+    let mut force_new_results_id = force_new_results_id;
+    // Queue fields do not grant access and cannot change the signed selection.
+    let stored = get_tally_session_by_id(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &tally_session_id,
+    )
+    .await?;
+    if tally_type != stored.tally_type || election_ids != stored.election_ids {
+        return Err(anyhow!("Queued tally parameters differ from the persisted session").into());
+    }
+    let stored_type = stored
+        .tally_type
+        .as_deref()
+        .context("Tally type is missing")?;
+    let tally_type_enum =
+        TallyType::try_from(stored_type).map_err(|_| anyhow!("Invalid persisted tally type"))?;
+    if tally_type_enum == TallyType::ELECTORAL_RESULTS {
+        let approved = crate::services::board_operations::validate(
+            hasura_transaction,
+            &tenant_id,
+            &election_event_id,
+            crate::services::board_operations::BindingKind::Tally,
+            &tally_session_id,
+            None,
+        )
+        .await?;
+        // The persisted approval, not a broker flag, decides whether this is a
+        // recount. A process_board retry therefore preserves that approval.
+        force_new_results_id = approved["operation"] == "recount-tally";
+    }
+
     let Some((tally_session_execution, tally_session, tally_session_contests, ballot_styles)) =
         find_last_tally_session_execution_and_all_related_data(
             hasura_transaction,
@@ -1358,10 +1391,6 @@ pub async fn execute_tally_session_wrapped(
         &tally_session.keys_ceremony_id,
     )
     .await?;
-
-    let tally_type_enum = tally_type
-        .map(|val: String| TallyType::try_from(val.as_str()).unwrap_or_default())
-        .unwrap_or_default();
 
     let election_ids_default = election_ids.clone().unwrap_or_default();
     let election_id = election_ids_default.get(0).map_or("", |v| v.as_str());

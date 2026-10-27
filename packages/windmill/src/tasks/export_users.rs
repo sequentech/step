@@ -100,6 +100,41 @@ async fn export_users_impl(
             .await
             .context("Failed to load persisted voter export task")?;
 
+            let phase = crate::services::election_lifecycle::state(
+                coordination,
+                &tenant_id,
+                &election_event_id,
+            )
+            .await?
+            .phase;
+            if phase == sequent_core::election_lifecycle::ElectoralPhase::PostProcessing {
+                let parameters = match &body {
+                    ExportBody::Users {
+                        tenant_id,
+                        election_event_id,
+                        election_id,
+                        include_secret_attributes,
+                    } => serde_json::to_value(
+                        crate::services::export::export_users::ExportUsersBody {
+                            tenant_id: tenant_id.clone(),
+                            election_event_id: election_event_id.clone(),
+                            election_id: election_id.clone(),
+                            include_secret_attributes: *include_secret_attributes,
+                        },
+                    )?,
+                    _ => return Err(Error::String("Invalid voter export scope".into())),
+                };
+                crate::services::board_operations::validate(
+                    coordination,
+                    &tenant_id,
+                    &election_event_id,
+                    crate::services::board_operations::BindingKind::VoterExport,
+                    &document_id,
+                    Some(&parameters),
+                )
+                .await?;
+            }
+
             if is_matching_completed_export_task(
                 &persisted_task,
                 &tenant_id,

@@ -18,7 +18,7 @@ use windmill::services::schedule_csv::{
     ScheduleFileError, SchedulePreview,
 };
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct ScheduleDocumentInput {
     election_event_id: String,
     document_id: String,
@@ -81,6 +81,24 @@ pub async fn import_schedule(
 ) -> Result<Json<ImportOutcome>, (Status, String)> {
     authorize_schedule(&claims)?;
     let input = input.into_inner();
+    let request =
+        crate::services::board_authorization::authorize_import_document(
+            &claims,
+            &input.election_event_id,
+            "import-schedule",
+            &input.document_id,
+            serde_json::to_value(&input)
+                .map_err(|e| (Status::BadRequest, e.to_string()))?,
+        )
+        .await?;
+    crate::services::board_authorization::bind_operation(
+        &claims,
+        &input.election_event_id,
+        request,
+        windmill::services::board_operations::BindingKind::Import,
+        &input.document_id,
+    )
+    .await?;
     let author = ScheduleAuthor {
         user_id: claims.hasura_claims.user_id.clone(),
         username: claims.preferred_username.clone(),

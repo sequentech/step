@@ -31,6 +31,24 @@ fn normalize_realm_config_s3_key(s3_key_env_var: &str, s3_key: &str) -> anyhow::
     Ok(s3_key.to_string())
 }
 
+/// Every OIDC client in the voter realm must check audit capacity on access-token
+/// issuance, including refresh. Imported scopes cannot make this guard optional.
+pub fn require_audit_storage_mapper(realm: &mut RealmRepresentation) -> anyhow::Result<()> {
+    const PROVIDER: &str = "sequent-audit-storage-guard";
+    for client in realm.clients.iter_mut().flatten() {
+        if client.protocol.as_deref().unwrap_or("openid-connect") != "openid-connect" {
+            continue;
+        }
+        let mappers = client.protocol_mappers.get_or_insert_with(Vec::new);
+        mappers.retain(|mapper| mapper.protocol_mapper.as_deref() != Some(PROVIDER));
+        mappers.push(serde_json::from_value(serde_json::json!({
+            "name":"Required audit storage admission", "protocol":"openid-connect",
+            "protocolMapper":PROVIDER, "config":{}
+        }))?);
+    }
+    Ok(())
+}
+
 /// Requires the enrollment gate in every registration form in an imported
 /// realm, including forms reachable through nested or currently disabled flows.
 /// Imported flow selection and the relative order of other actions are preserved.
@@ -568,5 +586,31 @@ mod tests {
         let file = roles_config("admin,election-event-read|tally-read\nauditors,logs-read\n");
 
         require_ordinary_permissions(file.path()).expect("ordinary permissions");
+    }
+}
+
+#[cfg(test)]
+mod audit_storage_mapper_tests {
+    #[test]
+    fn imported_voter_clients_receive_a_non_optional_mapper() {
+        let mut realm=serde_json::from_value(serde_json::json!({"clients":[
+            {"clientId":"voting-portal","protocol":"openid-connect","protocolMappers":[{"name":"old","protocolMapper":"sequent-audit-storage-guard","config":{"access.token.claim":"false"}}]},
+            {"clientId":"new-client"}, {"clientId":"saml","protocol":"saml"}
+        ]})).unwrap();
+        super::require_audit_storage_mapper(&mut realm).unwrap();
+        super::require_audit_storage_mapper(&mut realm).unwrap();
+        let clients = realm.clients.unwrap();
+        for client in &clients[..2] {
+            let guards: Vec<_> = client
+                .protocol_mappers
+                .as_ref()
+                .unwrap()
+                .iter()
+                .filter(|p| p.protocol_mapper.as_deref() == Some("sequent-audit-storage-guard"))
+                .collect();
+            assert_eq!(guards.len(), 1);
+            assert!(guards[0].config.as_ref().unwrap().is_empty());
+        }
+        assert!(clients[2].protocol_mappers.is_none());
     }
 }

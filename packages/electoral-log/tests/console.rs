@@ -169,6 +169,7 @@ fn vote<'a>(
     area: &'a str,
     voter: &'a str,
     ballot: &'a str,
+    admission: &'a [u8],
 ) -> AcceptBallot<'a> {
     AcceptBallot {
         election_event_id: event,
@@ -179,6 +180,7 @@ fn vote<'a>(
         format: "test",
         content: "ciphertext",
         voter_signature: None,
+        admission_record: admission,
         pseudonym_hash: &[1; 64],
         ballot_hash: &[2; 64],
         voting_channel: "ONLINE",
@@ -203,9 +205,12 @@ async fn the_ballot_box_is_paged_by_its_keys() -> Result<()> {
         ("voter-b", &area, "b2"),
         ("voter-c", &other_area, "b3"),
     ] {
+        let admission = serde_json::to_vec(
+            &json!({"payload":{"accepted_at":"2026-10-27T12:00:00.000Z","sequence":std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos() as i64},"signature":""}),
+        )?;
         assert!(matches!(
             store
-                .accept_ballot(&vote(&event, &election, area, voter, ballot))
+                .accept_ballot(&vote(&event, &election, area, voter, ballot, &admission))
                 .await?,
             AcceptOutcome::Accepted { .. }
         ));

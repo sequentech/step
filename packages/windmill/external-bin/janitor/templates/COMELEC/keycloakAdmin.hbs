@@ -960,6 +960,55 @@
         "attributes": {}
       },
       {
+  "name": "self-test-run",
+  "description": "Run security self-tests",
+  "composite": false,
+  "clientRole": false
+},
+      {
+  "name": "self-test-read",
+  "description": "Read security self-tests",
+  "composite": false,
+  "clientRole": false
+},
+      {
+  "name": "self-test-settings-write",
+  "description": "Configure security self-tests",
+  "composite": false,
+  "clientRole": false
+},
+      {"name":"sign-import-election-data","description":"Sign: import election data","composite":false,"clientRole":false},
+      {
+  "name": "sign-start-tally",
+  "description": "Sign: start tally",
+  "composite": false,
+  "clientRole": false
+},
+      {
+  "name": "sign-export-execution-data",
+  "description": "Sign: export execution data",
+  "composite": false,
+  "clientRole": false
+},
+      {
+  "name": "sign-delete-execution-data",
+  "description": "Sign: delete execution data",
+  "composite": false,
+  "clientRole": false
+},
+      {
+  "name": "sign-read-voters-register",
+  "description": "Sign: read voters register",
+  "composite": false,
+  "clientRole": false
+},
+      {
+  "name": "election-execution-export",
+  "description": "Export election execution data",
+  "composite": false,
+  "clientRole": false
+},
+      {
         "id": "14d7e770-5841-4de9-949b-54597f986c2b",
         "name": "electoral-log-audit",
         "description": "",
@@ -2580,6 +2629,9 @@
       "subGroups": [],
       "attributes": {},
       "realmRoles": [
+        "self-test-run",
+        "self-test-read",
+        "self-test-settings-write",
         "user-import",
         "monitor-authenticated-voters",
         "monitor-all-approve-disapprove-voters",

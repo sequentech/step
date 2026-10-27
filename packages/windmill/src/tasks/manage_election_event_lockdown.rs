@@ -96,19 +96,25 @@ pub async fn manage_election_event_lockdown_wrapped(
         get_election_event_by_id(hasura_transaction, &tenant_id, &election_event_id).await?;
 
     // An event without a presentation is not locked down.
-    let presentation: ElectionEventPresentation = match election_event.presentation {
+    let presentation: ElectionEventPresentation = match election_event.presentation.clone() {
         Some(presentation) => deserialize_with_path::deserialize_value(presentation)?,
         None => ElectionEventPresentation::default(),
     };
     let previous = presentation.locked_down == Some(LockedDown::LOCKED_DOWN);
-    let presentation = ElectionEventPresentation {
-        locked_down: Some(if locked_down {
+    // Preserve every imported field exactly; serializing the typed presentation
+    // would add null defaults and discard extension fields during a state change.
+    let mut presentation = election_event.presentation.unwrap_or_else(|| json!({}));
+    let object = presentation
+        .as_object_mut()
+        .context("Election presentation must be an object")?;
+    object.insert(
+        "locked_down".into(),
+        serde_json::to_value(if locked_down {
             LockedDown::LOCKED_DOWN
         } else {
             LockedDown::NOT_LOCKED_DOWN
-        }),
-        ..presentation
-    };
+        })?,
+    );
     // The lockdown changes only here (START/END_LOCKDOWN_PERIOD).
     trusted_write(hasura_transaction).await?;
     update_election_event_presentation(

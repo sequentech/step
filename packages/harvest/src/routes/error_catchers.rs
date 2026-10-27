@@ -31,6 +31,21 @@ pub fn not_found(_req: &Request) -> Json<ErrorResponse> {
     })
 }
 
+#[catch(503)]
+pub fn service_unavailable(req: &Request) -> Json<serde_json::Value> {
+    use sequent_core::services::connection::{
+        VoterAccessDenied, VoterAccessFailure,
+    };
+    let failure = req.local_cache(|| {
+        VoterAccessDenied(VoterAccessFailure::ElectionUnavailable)
+    });
+    let (code, message) = match failure.0 {
+        VoterAccessFailure::AuditStorageUnavailable => ("AuditStorageUnavailable", "Voting is temporarily unavailable while audit storage is checked. Please try again later."),
+        VoterAccessFailure::ElectionUnavailable => ("ElectionUnavailable", "Voting is temporarily unavailable. Please try again after the election board confirms that voting has resumed."),
+    };
+    Json(serde_json::json!({"message":message,"extensions":{"code":code}}))
+}
+
 #[instrument(skip_all)]
 #[catch(default)]
 pub fn default(_status: Status, _req: &Request) -> Json<ErrorResponse> {

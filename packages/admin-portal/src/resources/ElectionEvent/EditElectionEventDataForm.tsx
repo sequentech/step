@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+import {ProtectedImportNotice} from "@/components/ProtectedImportNotice"
 import {
     BooleanInput,
     RecordContext,
@@ -341,11 +342,9 @@ export const EditElectionEventDataForm: React.FC<{
     const checkCustomDateTimeFormatRef = useRef<() => void>(() => {})
     const passwordPolicyRef = useRef<PasswordPolicyAccordionHandle | null>(null)
 
-    const canEdit = authContext.isAuthorized(
-        true,
-        authContext.tenantId,
-        IPermissions.ELECTION_EVENT_WRITE
-    )
+    // Election data changes enter through an exact board-approved import.
+    // Administrators use the separate security-settings projection form.
+    const canEdit = false
     const canReadPasswordPolicy = authContext.isAuthorized(
         true,
         authContext.tenantId,
@@ -361,7 +360,7 @@ export const EditElectionEventDataForm: React.FC<{
         authContext.tenantId,
         IPermissions.KEYCLOAK_REALM_ATTRIBUTES_WRITE
     )
-    const canSave = canEdit || (canReadRealmAttributes && canEditRealmAttributes)
+    const canSave = false
 
     const canCreateGoogleMeeting = authContext.isAuthorized(
         true,
@@ -1373,6 +1372,10 @@ export const EditElectionEventDataForm: React.FC<{
     }
 
     const onSave = async (values: Sequent_Backend_Election_Event_Extended) => {
+        if (!canSave)
+            throw new Error(
+                "Election data is read-only. Use a board-approved configuration import."
+            )
         const recordId = values.id?.toString() ?? record?.id?.toString()
         if (!recordId) {
             throw new Error("Election event ID is missing")
@@ -1465,6 +1468,7 @@ export const EditElectionEventDataForm: React.FC<{
                 record={parsedValue}
                 toolbar={
                     <Toolbar>
+                        <ProtectedImportNotice />
                         {canSave && (
                             <EventSaveButton
                                 type="button"
@@ -1497,10 +1501,12 @@ export const EditElectionEventDataForm: React.FC<{
                         </ElectionHeaderStyles.Wrapper>
                     </AccordionSummary>
                     <AccordionDetails>
-                        <Tabs value={value} onChange={handleChange}>
-                            {renderTabs(parsedValue)}
-                        </Tabs>
-                        {renderTabContent(parsedValue)}
+                        <fieldset disabled style={{border: 0, padding: 0, minWidth: 0}}>
+                            <Tabs value={value} onChange={handleChange}>
+                                {renderTabs(parsedValue)}
+                            </Tabs>
+                            {renderTabContent(parsedValue)}
+                        </fieldset>
                     </AccordionDetails>
                 </Accordion>
 
@@ -1525,90 +1531,95 @@ export const EditElectionEventDataForm: React.FC<{
                         </ElectionHeaderStyles.Wrapper>
                     </AccordionSummary>
                     <AccordionDetails>
-                        <Box
-                            sx={{
-                                display: "flex",
-                                flexDirection: "column",
-                                gap: 3,
-                                width: "100%",
-                                minWidth: 0,
-                            }}
-                        >
-                            <Box sx={{width: "100%", maxWidth: 372}}>
-                                <SettingsLanguageSelector
-                                    languageSettings={languageSettings}
-                                    canEdit={canEdit}
+                        <fieldset disabled style={{border: 0, padding: 0, minWidth: 0}}>
+                            <Box
+                                sx={{
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    gap: 3,
+                                    width: "100%",
+                                    minWidth: 0,
+                                }}
+                            >
+                                <Box sx={{width: "100%", maxWidth: 372}}>
+                                    <SettingsLanguageSelector
+                                        languageSettings={languageSettings}
+                                        canEdit={canEdit}
+                                    />
+                                </Box>
+                                <SelectInput
+                                    fullWidth
+                                    source={"presentation.language_conf.language_detection_policy"}
+                                    choices={languageDetectionPolicyOptions()}
+                                    label={String(
+                                        t(
+                                            "electionEventScreen.field.languageDetectionPolicy.policyLabel"
+                                        )
+                                    )}
+                                    defaultValue={getDefaultLanguageDetectionPolicy()}
+                                    emptyText={undefined}
+                                    validate={required()}
+                                />
+                                <EventTimeZoneSettings
+                                    elections={electionZones}
+                                    disabled={!canEdit}
+                                />
+                                <SelectInput
+                                    fullWidth
+                                    source={"presentation.voting_portal_datetime_format"}
+                                    choices={votingPortalDateTimeFormatChoices()}
+                                    label={String(
+                                        t(
+                                            "electionEventScreen.field.votingPortalDateTimeFormat.policyLabel"
+                                        )
+                                    )}
+                                    helperText={String(
+                                        t(
+                                            "electionEventScreen.field.votingPortalDateTimeFormat.helperText"
+                                        )
+                                    )}
+                                    defaultValue={EVotingPortalDateTimeFormat.LEGACY_GB_24H}
+                                    format={dateTimePolicyToSelectValue}
+                                    parse={selectValueToDateTimePolicy}
+                                    emptyText={undefined}
+                                    validate={required()}
+                                    slotProps={{
+                                        input: {error: false},
+                                        inputLabel: {error: false},
+                                        formHelperText: {error: false},
+                                    }}
+                                    sx={{marginBottom: "1.5em"}}
+                                />
+                                <FormDataConsumer>
+                                    {({formData}) =>
+                                        isCustomVotingPortalDateTimeFormat(
+                                            formData?.presentation?.voting_portal_datetime_format
+                                        ) ? (
+                                            <TextInput
+                                                fullWidth
+                                                source={
+                                                    "presentation.voting_portal_datetime_format.custom"
+                                                }
+                                                label={String(
+                                                    t(
+                                                        "electionEventScreen.field.votingPortalDateTimeFormat.customFormat.label"
+                                                    )
+                                                )}
+                                                helperText={String(
+                                                    t(
+                                                        "electionEventScreen.field.votingPortalDateTimeFormat.customFormat.helperText"
+                                                    )
+                                                )}
+                                                sx={{marginBottom: "1.5em"}}
+                                            />
+                                        ) : null
+                                    }
+                                </FormDataConsumer>
+                                <CustomDateTimeFormatInvalidNotifier
+                                    checkRef={checkCustomDateTimeFormatRef}
                                 />
                             </Box>
-                            <SelectInput
-                                fullWidth
-                                source={"presentation.language_conf.language_detection_policy"}
-                                choices={languageDetectionPolicyOptions()}
-                                label={String(
-                                    t(
-                                        "electionEventScreen.field.languageDetectionPolicy.policyLabel"
-                                    )
-                                )}
-                                defaultValue={getDefaultLanguageDetectionPolicy()}
-                                emptyText={undefined}
-                                validate={required()}
-                            />
-                            <EventTimeZoneSettings elections={electionZones} disabled={!canEdit} />
-                            <SelectInput
-                                fullWidth
-                                source={"presentation.voting_portal_datetime_format"}
-                                choices={votingPortalDateTimeFormatChoices()}
-                                label={String(
-                                    t(
-                                        "electionEventScreen.field.votingPortalDateTimeFormat.policyLabel"
-                                    )
-                                )}
-                                helperText={String(
-                                    t(
-                                        "electionEventScreen.field.votingPortalDateTimeFormat.helperText"
-                                    )
-                                )}
-                                defaultValue={EVotingPortalDateTimeFormat.LEGACY_GB_24H}
-                                format={dateTimePolicyToSelectValue}
-                                parse={selectValueToDateTimePolicy}
-                                emptyText={undefined}
-                                validate={required()}
-                                slotProps={{
-                                    input: {error: false},
-                                    inputLabel: {error: false},
-                                    formHelperText: {error: false},
-                                }}
-                                sx={{marginBottom: "1.5em"}}
-                            />
-                            <FormDataConsumer>
-                                {({formData}) =>
-                                    isCustomVotingPortalDateTimeFormat(
-                                        formData?.presentation?.voting_portal_datetime_format
-                                    ) ? (
-                                        <TextInput
-                                            fullWidth
-                                            source={
-                                                "presentation.voting_portal_datetime_format.custom"
-                                            }
-                                            label={String(
-                                                t(
-                                                    "electionEventScreen.field.votingPortalDateTimeFormat.customFormat.label"
-                                                )
-                                            )}
-                                            helperText={String(
-                                                t(
-                                                    "electionEventScreen.field.votingPortalDateTimeFormat.customFormat.helperText"
-                                                )
-                                            )}
-                                            sx={{marginBottom: "1.5em"}}
-                                        />
-                                    ) : null
-                                }
-                            </FormDataConsumer>
-                            <CustomDateTimeFormatInvalidNotifier
-                                checkRef={checkCustomDateTimeFormatRef}
-                            />
-                        </Box>
+                        </fieldset>
                     </AccordionDetails>
                 </Accordion>
 
@@ -1633,14 +1644,16 @@ export const EditElectionEventDataForm: React.FC<{
                         </ElectionHeaderStyles.Wrapper>
                     </AccordionSummary>
                     <AccordionDetails>
-                        <VotingLifecycleSettings
-                            electionEventId={record?.id ?? ""}
-                            saved={
-                                (record?.presentation as IElectionEventPresentation | undefined)
-                                    ?.lifecycle_policies
-                            }
-                            disabled={!canEdit}
-                        />
+                        <fieldset disabled style={{border: 0, padding: 0, minWidth: 0}}>
+                            <VotingLifecycleSettings
+                                electionEventId={record?.id ?? ""}
+                                saved={
+                                    (record?.presentation as IElectionEventPresentation | undefined)
+                                        ?.lifecycle_policies
+                                }
+                                disabled={!canEdit}
+                            />
+                        </fieldset>
                     </AccordionDetails>
                 </Accordion>
 
@@ -1665,109 +1678,117 @@ export const EditElectionEventDataForm: React.FC<{
                         </ElectionHeaderStyles.Wrapper>
                     </AccordionSummary>
                     <AccordionDetails>
-                        <BooleanInput
-                            disabled={!canEdit}
-                            source={"presentation.skip_election_list"}
-                            label={String(t(`electionEventScreen.field.skipElectionList`))}
-                        />
-                        <BooleanInput
-                            disabled={!canEdit}
-                            source={"presentation.show_user_profile"}
-                            label={String(t(`electionEventScreen.field.showUserProfile`))}
-                        />
-                        <SelectInput
-                            source="presentation.elections_order"
-                            choices={orderAnswerChoices()}
-                            validate={required()}
-                        />
-                        <SelectInput
-                            source="presentation.show_cast_vote_logs"
-                            choices={showCastVoteLogsChoices()}
-                            validate={required()}
-                            defaultValue={EShowCastVoteLogsPolicy.HIDE_LOGS_TAB}
-                            label={String(
-                                t("electionEventScreen.field.showCastVoteLogs.policyLabel")
-                            )}
-                        />
-                        <SelectInput
-                            disabled={!canEdit}
-                            source="presentation.voter_accessibility_settings_policy"
-                            choices={voterAccessibilitySettingsPolicyChoices()}
-                            validate={required()}
-                            defaultValue={EVoterAccessibilitySettingsPolicy.DISABLED}
-                            onChange={(e) =>
-                                setRealmAttributeDraftValue(
-                                    REALM_ATTR_VOTER_ACCESSIBILITY_SETTINGS_POLICY,
-                                    e.target.value as EVoterAccessibilitySettingsPolicy
-                                )
-                            }
-                            label={String(
-                                t(
-                                    "electionEventScreen.field.voterAccessibilitySettingsPolicy.policyLabel"
-                                )
-                            )}
-                        />
-                        <SelectInput
-                            disabled={!canEdit}
-                            source="presentation.audio_instructions_policy"
-                            choices={audioInstructionsPolicyChoices()}
-                            validate={required()}
-                            defaultValue={EAudioInstructionsPolicy.DISABLED}
-                            onChange={(e) =>
-                                setRealmAttributeDraftValue(
-                                    REALM_ATTR_AUDIO_INSTRUCTIONS_POLICY,
-                                    e.target.value as EAudioInstructionsPolicy
-                                )
-                            }
-                            label={String(
-                                t("electionEventScreen.field.audioInstructionsPolicy.policyLabel")
-                            )}
-                        />
-                        <FormDataConsumer>
-                            {({formData, ...rest}) => {
-                                return (
-                                    formData?.presentation as IElectionEventPresentation | undefined
-                                )?.elections_order === ElectionsOrder.CUSTOM ? (
-                                    <ElectionRows>
-                                        <Typography
-                                            variant="body1"
-                                            component="span"
-                                            sx={{
-                                                padding: "0.5rem 1rem",
-                                                fontWeight: "bold",
-                                                margin: 0,
-                                                display: {xs: "none", sm: "block"},
-                                            }}
-                                        >
-                                            {t("electionEventScreen.edit.reorder")}
-                                        </Typography>
-                                        <CustomOrderInput source="electionsOrder" />
-                                        <Box sx={{width: "100%", height: "180px"}}></Box>
-                                    </ElectionRows>
-                                ) : null
-                            }}
-                        </FormDataConsumer>
-                        <TextInput
-                            resettable={true}
-                            source={"presentation.logo_url"}
-                            label={String(t("electionEventScreen.field.logoUrl"))}
-                        />
-                        <TextInput
-                            resettable={true}
-                            source={"presentation.redirect_finish_url"}
-                            label={String(t("electionEventScreen.field.redirectFinishUrl"))}
-                        />
-                        <TextInput
-                            resettable={true}
-                            source={"presentation.kiosk_redirect_finish_url"}
-                            label={String(t("electionEventScreen.field.kioskRedirectFinishUrl"))}
-                        />
-                        <TextInput
-                            resettable={true}
-                            multiline={true}
-                            source={"presentation.css"}
-                            label={String(t("electionEventScreen.field.css"))}
-                        />
+                        <fieldset disabled style={{border: 0, padding: 0, minWidth: 0}}>
+                            <BooleanInput
+                                disabled={!canEdit}
+                                source={"presentation.skip_election_list"}
+                                label={String(t(`electionEventScreen.field.skipElectionList`))}
+                            />
+                            <BooleanInput
+                                disabled={!canEdit}
+                                source={"presentation.show_user_profile"}
+                                label={String(t(`electionEventScreen.field.showUserProfile`))}
+                            />
+                            <SelectInput
+                                source="presentation.elections_order"
+                                choices={orderAnswerChoices()}
+                                validate={required()}
+                            />
+                            <SelectInput
+                                source="presentation.show_cast_vote_logs"
+                                choices={showCastVoteLogsChoices()}
+                                validate={required()}
+                                defaultValue={EShowCastVoteLogsPolicy.HIDE_LOGS_TAB}
+                                label={String(
+                                    t("electionEventScreen.field.showCastVoteLogs.policyLabel")
+                                )}
+                            />
+                            <SelectInput
+                                disabled={!canEdit}
+                                source="presentation.voter_accessibility_settings_policy"
+                                choices={voterAccessibilitySettingsPolicyChoices()}
+                                validate={required()}
+                                defaultValue={EVoterAccessibilitySettingsPolicy.DISABLED}
+                                onChange={(e) =>
+                                    setRealmAttributeDraftValue(
+                                        REALM_ATTR_VOTER_ACCESSIBILITY_SETTINGS_POLICY,
+                                        e.target.value as EVoterAccessibilitySettingsPolicy
+                                    )
+                                }
+                                label={String(
+                                    t(
+                                        "electionEventScreen.field.voterAccessibilitySettingsPolicy.policyLabel"
+                                    )
+                                )}
+                            />
+                            <SelectInput
+                                disabled={!canEdit}
+                                source="presentation.audio_instructions_policy"
+                                choices={audioInstructionsPolicyChoices()}
+                                validate={required()}
+                                defaultValue={EAudioInstructionsPolicy.DISABLED}
+                                onChange={(e) =>
+                                    setRealmAttributeDraftValue(
+                                        REALM_ATTR_AUDIO_INSTRUCTIONS_POLICY,
+                                        e.target.value as EAudioInstructionsPolicy
+                                    )
+                                }
+                                label={String(
+                                    t(
+                                        "electionEventScreen.field.audioInstructionsPolicy.policyLabel"
+                                    )
+                                )}
+                            />
+                            <FormDataConsumer>
+                                {({formData, ...rest}) => {
+                                    return (
+                                        formData?.presentation as
+                                            | IElectionEventPresentation
+                                            | undefined
+                                    )?.elections_order === ElectionsOrder.CUSTOM ? (
+                                        <ElectionRows>
+                                            <Typography
+                                                variant="body1"
+                                                component="span"
+                                                sx={{
+                                                    padding: "0.5rem 1rem",
+                                                    fontWeight: "bold",
+                                                    margin: 0,
+                                                    display: {xs: "none", sm: "block"},
+                                                }}
+                                            >
+                                                {t("electionEventScreen.edit.reorder")}
+                                            </Typography>
+                                            <CustomOrderInput source="electionsOrder" />
+                                            <Box sx={{width: "100%", height: "180px"}}></Box>
+                                        </ElectionRows>
+                                    ) : null
+                                }}
+                            </FormDataConsumer>
+                            <TextInput
+                                resettable={true}
+                                source={"presentation.logo_url"}
+                                label={String(t("electionEventScreen.field.logoUrl"))}
+                            />
+                            <TextInput
+                                resettable={true}
+                                source={"presentation.redirect_finish_url"}
+                                label={String(t("electionEventScreen.field.redirectFinishUrl"))}
+                            />
+                            <TextInput
+                                resettable={true}
+                                source={"presentation.kiosk_redirect_finish_url"}
+                                label={String(
+                                    t("electionEventScreen.field.kioskRedirectFinishUrl")
+                                )}
+                            />
+                            <TextInput
+                                resettable={true}
+                                multiline={true}
+                                source={"presentation.css"}
+                                label={String(t("electionEventScreen.field.css"))}
+                            />
+                        </fieldset>
                     </AccordionDetails>
                 </Accordion>
 
@@ -1792,23 +1813,27 @@ export const EditElectionEventDataForm: React.FC<{
                         </ElectionHeaderStyles.Wrapper>
                     </AccordionSummary>
                     <AccordionDetails>
-                        <Grid container spacing={4}>
-                            <Grid size={{xs: 12, md: 6}}>{renderVotingChannels(parsedValue)}</Grid>
-                            <Grid size={{xs: 12, md: 6}}>
-                                <RadioButtonGroupInput
-                                    disabled={!canEdit}
-                                    source={"presentation.automatic_recount_policy"}
-                                    choices={automaticRecountPolicyOptions()}
-                                    label={String(
-                                        t(
-                                            "electionEventScreen.field.automaticRecountPolicy.policyLabel"
-                                        )
-                                    )}
-                                    defaultValue={EElectionEventAutomaticRecountPolicy.DISABLED}
-                                    validate={required()}
-                                />
+                        <fieldset disabled style={{border: 0, padding: 0, minWidth: 0}}>
+                            <Grid container spacing={4}>
+                                <Grid size={{xs: 12, md: 6}}>
+                                    {renderVotingChannels(parsedValue)}
+                                </Grid>
+                                <Grid size={{xs: 12, md: 6}}>
+                                    <RadioButtonGroupInput
+                                        disabled={!canEdit}
+                                        source={"presentation.automatic_recount_policy"}
+                                        choices={automaticRecountPolicyOptions()}
+                                        label={String(
+                                            t(
+                                                "electionEventScreen.field.automaticRecountPolicy.policyLabel"
+                                            )
+                                        )}
+                                        defaultValue={EElectionEventAutomaticRecountPolicy.DISABLED}
+                                        validate={required()}
+                                    />
+                                </Grid>
                             </Grid>
-                        </Grid>
+                        </fieldset>
                     </AccordionDetails>
                 </Accordion>
 
@@ -1833,94 +1858,98 @@ export const EditElectionEventDataForm: React.FC<{
                         </ElectionHeaderStyles.Wrapper>
                     </AccordionSummary>
                     <AccordionDetails>
-                        <CustomUrlsStyle.InputWrapper>
-                            <CustomUrlsStyle.InputLabel>Login:</CustomUrlsStyle.InputLabel>
-                            <CustomUrlsStyle.InputLabelWrapper>
-                                <p>https://</p>
-                                <TextInput
-                                    variant="standard"
-                                    helperText={false}
-                                    sx={{width: "300px"}}
-                                    source={`presentation.custom_urls.login`}
-                                    label={""}
-                                />
-                                <p>{`.${globalSettings.CUSTOM_URLS_DOMAIN_NAME}`}</p>
-                                {isCustomUrlLoading ? (
-                                    <WizardStyles.DownloadProgress size={18} />
-                                ) : (
-                                    isCustomizeUrl &&
-                                    (customLoginRes?.data?.set_custom_urls?.success ? (
-                                        <StatusChip status="SUCCESS" />
+                        <fieldset disabled style={{border: 0, padding: 0, minWidth: 0}}>
+                            <CustomUrlsStyle.InputWrapper>
+                                <CustomUrlsStyle.InputLabel>Login:</CustomUrlsStyle.InputLabel>
+                                <CustomUrlsStyle.InputLabelWrapper>
+                                    <p>https://</p>
+                                    <TextInput
+                                        variant="standard"
+                                        helperText={false}
+                                        sx={{width: "300px"}}
+                                        source={`presentation.custom_urls.login`}
+                                        label={""}
+                                    />
+                                    <p>{`.${globalSettings.CUSTOM_URLS_DOMAIN_NAME}`}</p>
+                                    {isCustomUrlLoading ? (
+                                        <WizardStyles.DownloadProgress size={18} />
                                     ) : (
-                                        <StatusChip status="ERROR" />
-                                    ))
-                                )}
-                            </CustomUrlsStyle.InputLabelWrapper>
-                            {customLoginRes && !customLoginRes?.data?.set_custom_urls?.success && (
-                                <CustomUrlsStyle.ErrorText>
-                                    {customLoginRes?.data?.set_custom_urls?.message}
-                                </CustomUrlsStyle.ErrorText>
-                            )}
-                        </CustomUrlsStyle.InputWrapper>
-                        <CustomUrlsStyle.InputWrapper>
-                            <CustomUrlsStyle.InputLabel>Enrollment:</CustomUrlsStyle.InputLabel>
-                            <CustomUrlsStyle.InputLabelWrapper>
-                                <p>https://</p>
-                                <TextInput
-                                    variant="standard"
-                                    helperText={false}
-                                    sx={{width: "300px"}}
-                                    source={`presentation.custom_urls.enrollment`}
-                                    label={""}
-                                />
-                                <p>{`.${globalSettings.CUSTOM_URLS_DOMAIN_NAME}`}</p>
-                                {isCustomUrlLoading ? (
-                                    <WizardStyles.DownloadProgress size={18} />
-                                ) : (
-                                    isCustomizeUrl &&
-                                    (customEnrollmentRes?.data?.set_custom_urls?.success ? (
-                                        <StatusChip status="SUCCESS" />
+                                        isCustomizeUrl &&
+                                        (customLoginRes?.data?.set_custom_urls?.success ? (
+                                            <StatusChip status="SUCCESS" />
+                                        ) : (
+                                            <StatusChip status="ERROR" />
+                                        ))
+                                    )}
+                                </CustomUrlsStyle.InputLabelWrapper>
+                                {customLoginRes &&
+                                    !customLoginRes?.data?.set_custom_urls?.success && (
+                                        <CustomUrlsStyle.ErrorText>
+                                            {customLoginRes?.data?.set_custom_urls?.message}
+                                        </CustomUrlsStyle.ErrorText>
+                                    )}
+                            </CustomUrlsStyle.InputWrapper>
+                            <CustomUrlsStyle.InputWrapper>
+                                <CustomUrlsStyle.InputLabel>Enrollment:</CustomUrlsStyle.InputLabel>
+                                <CustomUrlsStyle.InputLabelWrapper>
+                                    <p>https://</p>
+                                    <TextInput
+                                        variant="standard"
+                                        helperText={false}
+                                        sx={{width: "300px"}}
+                                        source={`presentation.custom_urls.enrollment`}
+                                        label={""}
+                                    />
+                                    <p>{`.${globalSettings.CUSTOM_URLS_DOMAIN_NAME}`}</p>
+                                    {isCustomUrlLoading ? (
+                                        <WizardStyles.DownloadProgress size={18} />
                                     ) : (
-                                        <StatusChip status="ERROR" />
-                                    ))
-                                )}
-                            </CustomUrlsStyle.InputLabelWrapper>
-                            {customEnrollmentRes &&
-                                !customEnrollmentRes?.data?.set_custom_urls?.success && (
-                                    <CustomUrlsStyle.ErrorText>
-                                        {customEnrollmentRes?.data?.set_custom_urls?.message}
-                                    </CustomUrlsStyle.ErrorText>
-                                )}
-                        </CustomUrlsStyle.InputWrapper>
-                        <CustomUrlsStyle.InputWrapper>
-                            <CustomUrlsStyle.InputLabel>SAML:</CustomUrlsStyle.InputLabel>
-                            <CustomUrlsStyle.InputLabelWrapper>
-                                <p>https://</p>
-                                <TextInput
-                                    variant="standard"
-                                    helperText={false}
-                                    sx={{width: "300px"}}
-                                    source={`presentation.custom_urls.saml`}
-                                    label={""}
-                                />
-                                <p>{`.${globalSettings.CUSTOM_URLS_DOMAIN_NAME}`}</p>
-                                {isCustomUrlLoading ? (
-                                    <WizardStyles.DownloadProgress size={18} />
-                                ) : (
-                                    isCustomizeUrl &&
-                                    (customSamlRes?.data?.set_custom_urls?.success ? (
-                                        <StatusChip status="SUCCESS" />
+                                        isCustomizeUrl &&
+                                        (customEnrollmentRes?.data?.set_custom_urls?.success ? (
+                                            <StatusChip status="SUCCESS" />
+                                        ) : (
+                                            <StatusChip status="ERROR" />
+                                        ))
+                                    )}
+                                </CustomUrlsStyle.InputLabelWrapper>
+                                {customEnrollmentRes &&
+                                    !customEnrollmentRes?.data?.set_custom_urls?.success && (
+                                        <CustomUrlsStyle.ErrorText>
+                                            {customEnrollmentRes?.data?.set_custom_urls?.message}
+                                        </CustomUrlsStyle.ErrorText>
+                                    )}
+                            </CustomUrlsStyle.InputWrapper>
+                            <CustomUrlsStyle.InputWrapper>
+                                <CustomUrlsStyle.InputLabel>SAML:</CustomUrlsStyle.InputLabel>
+                                <CustomUrlsStyle.InputLabelWrapper>
+                                    <p>https://</p>
+                                    <TextInput
+                                        variant="standard"
+                                        helperText={false}
+                                        sx={{width: "300px"}}
+                                        source={`presentation.custom_urls.saml`}
+                                        label={""}
+                                    />
+                                    <p>{`.${globalSettings.CUSTOM_URLS_DOMAIN_NAME}`}</p>
+                                    {isCustomUrlLoading ? (
+                                        <WizardStyles.DownloadProgress size={18} />
                                     ) : (
-                                        <StatusChip status="ERROR" />
-                                    ))
-                                )}
-                            </CustomUrlsStyle.InputLabelWrapper>
-                            {customSamlRes && !customSamlRes?.data?.set_custom_urls?.success && (
-                                <CustomUrlsStyle.ErrorText>
-                                    {customSamlRes?.data?.set_custom_urls?.message}
-                                </CustomUrlsStyle.ErrorText>
-                            )}
-                        </CustomUrlsStyle.InputWrapper>
+                                        isCustomizeUrl &&
+                                        (customSamlRes?.data?.set_custom_urls?.success ? (
+                                            <StatusChip status="SUCCESS" />
+                                        ) : (
+                                            <StatusChip status="ERROR" />
+                                        ))
+                                    )}
+                                </CustomUrlsStyle.InputLabelWrapper>
+                                {customSamlRes &&
+                                    !customSamlRes?.data?.set_custom_urls?.success && (
+                                        <CustomUrlsStyle.ErrorText>
+                                            {customSamlRes?.data?.set_custom_urls?.message}
+                                        </CustomUrlsStyle.ErrorText>
+                                    )}
+                            </CustomUrlsStyle.InputWrapper>
+                        </fieldset>
                     </AccordionDetails>
                 </Accordion>
 
@@ -1948,43 +1977,45 @@ export const EditElectionEventDataForm: React.FC<{
                             </ElectionHeaderStyles.Wrapper>
                         </AccordionSummary>
                         <AccordionDetails>
-                            {realmAttributesQueryError && (
-                                <Typography color="error">
-                                    {t("electionEventScreen.edit.realm_attributes_load_error")}
-                                </Typography>
-                            )}
-                            {realmAttributesError && (
-                                <Typography color="error">{realmAttributesError}</Typography>
-                            )}
-                            {isRealmAttributesLoading ? (
-                                <Typography>{t("loading")}</Typography>
-                            ) : canEditRealmAttributes ? (
-                                <JsonEditor
-                                    data={realmAttributes}
-                                    restrictEdit={restrictRealmAttribute}
-                                    restrictDelete={restrictRealmAttribute}
-                                    restrictDrag={restrictRealmAttribute}
-                                    restrictAdd={({path}) =>
-                                        serverOwnedRealmAttributes.includes(String(path[0]))
-                                    }
-                                    onUpdate={(data) =>
-                                        updateRealmAttributesDraft(data as UpdateFunctionProps)
-                                    }
-                                />
-                            ) : (
-                                <Box
-                                    component="pre"
-                                    sx={{
-                                        backgroundColor: "rgba(0, 0, 0, 0.04)",
-                                        borderRadius: "4px",
-                                        margin: 0,
-                                        overflowX: "auto",
-                                        padding: "1rem",
-                                    }}
-                                >
-                                    {JSON.stringify(realmAttributes, null, 2)}
-                                </Box>
-                            )}
+                            <fieldset disabled style={{border: 0, padding: 0, minWidth: 0}}>
+                                {realmAttributesQueryError && (
+                                    <Typography color="error">
+                                        {t("electionEventScreen.edit.realm_attributes_load_error")}
+                                    </Typography>
+                                )}
+                                {realmAttributesError && (
+                                    <Typography color="error">{realmAttributesError}</Typography>
+                                )}
+                                {isRealmAttributesLoading ? (
+                                    <Typography>{t("loading")}</Typography>
+                                ) : canEditRealmAttributes ? (
+                                    <JsonEditor
+                                        data={realmAttributes}
+                                        restrictEdit={restrictRealmAttribute}
+                                        restrictDelete={restrictRealmAttribute}
+                                        restrictDrag={restrictRealmAttribute}
+                                        restrictAdd={({path}) =>
+                                            serverOwnedRealmAttributes.includes(String(path[0]))
+                                        }
+                                        onUpdate={(data) =>
+                                            updateRealmAttributesDraft(data as UpdateFunctionProps)
+                                        }
+                                    />
+                                ) : (
+                                    <Box
+                                        component="pre"
+                                        sx={{
+                                            backgroundColor: "rgba(0, 0, 0, 0.04)",
+                                            borderRadius: "4px",
+                                            margin: 0,
+                                            overflowX: "auto",
+                                            padding: "1rem",
+                                        }}
+                                    >
+                                        {JSON.stringify(realmAttributes, null, 2)}
+                                    </Box>
+                                )}
+                            </fieldset>
                         </AccordionDetails>
                     </Accordion>
                 )}
@@ -2010,32 +2041,34 @@ export const EditElectionEventDataForm: React.FC<{
                         </ElectionHeaderStyles.Wrapper>
                     </AccordionSummary>
                     <AccordionDetails>
-                        <SelectInput
-                            disabled={!canEdit}
-                            source={`presentation.materials.policy`}
-                            choices={supportMaterialsPolicyChoices()}
-                            label={String(
-                                t(`electionEventScreen.field.supportMaterialsPolicy.label`)
-                            )}
-                            defaultValue={getEffectiveSupportMaterialsPolicy(
-                                record?.presentation?.materials
-                            )}
-                            validate={required()}
-                        />
-                        <Typography
-                            variant="caption"
-                            color="text.secondary"
-                            sx={{display: "block"}}
-                        >
-                            {t("electionEventScreen.field.supportMaterialsPolicy.helperText")}
-                        </Typography>
-                        <Tabs value={valueMaterials} onChange={handleChangeMaterials}>
-                            {renderTabs(parsedValue, "materials")}
-                        </Tabs>
-                        {renderTabContentMaterials(parsedValue)}
-                        <Box>
-                            <ListSupportMaterials electionEventId={parsedValue?.id} />
-                        </Box>
+                        <fieldset disabled style={{border: 0, padding: 0, minWidth: 0}}>
+                            <SelectInput
+                                disabled={!canEdit}
+                                source={`presentation.materials.policy`}
+                                choices={supportMaterialsPolicyChoices()}
+                                label={String(
+                                    t(`electionEventScreen.field.supportMaterialsPolicy.label`)
+                                )}
+                                defaultValue={getEffectiveSupportMaterialsPolicy(
+                                    record?.presentation?.materials
+                                )}
+                                validate={required()}
+                            />
+                            <Typography
+                                variant="caption"
+                                color="text.secondary"
+                                sx={{display: "block"}}
+                            >
+                                {t("electionEventScreen.field.supportMaterialsPolicy.helperText")}
+                            </Typography>
+                            <Tabs value={valueMaterials} onChange={handleChangeMaterials}>
+                                {renderTabs(parsedValue, "materials")}
+                            </Tabs>
+                            {renderTabContentMaterials(parsedValue)}
+                            <Box>
+                                <ListSupportMaterials electionEventId={parsedValue?.id} />
+                            </Box>
+                        </fieldset>
                     </AccordionDetails>
                 </Accordion>
 
@@ -2060,45 +2093,52 @@ export const EditElectionEventDataForm: React.FC<{
                         </ElectionHeaderStyles.Wrapper>
                     </AccordionSummary>
                     <AccordionDetails>
-                        <BallotReceiptsInput canEdit={canEdit} status={record?.status} />
-                        <SelectInput
-                            disabled={!canEdit}
-                            source="presentation.receipts.checks_period_policy"
-                            choices={checksPeriodChoices()}
-                            validate={required()}
-                            defaultValue={EChecksPeriodPolicy.UNLIMITED}
-                            label={String(
-                                t(
-                                    "electionEventScreen.field.ballotReceipts.checksPeriod.policyLabel"
-                                )
-                            )}
-                            helperText={String(
-                                t("electionEventScreen.field.ballotReceipts.checksPeriod.helper")
-                            )}
-                        />
-                        <FormDataConsumer>
-                            {({formData}) =>
-                                (formData?.presentation as IElectionEventPresentation | undefined)
-                                    ?.receipts?.checks_period_policy ===
-                                EChecksPeriodPolicy.UNTIL_DATE ? (
-                                    <DateTimeInput
-                                        disabled={!canEdit}
-                                        source="presentation.receipts.checks_available_until"
-                                        parse={parseChecksAvailableUntil}
-                                        label={String(
-                                            t(
-                                                "electionEventScreen.field.ballotReceipts.checksAvailableUntil",
-                                                {
-                                                    timezone:
-                                                        Intl.DateTimeFormat().resolvedOptions()
-                                                            .timeZone,
-                                                }
-                                            )
-                                        )}
-                                    />
-                                ) : null
-                            }
-                        </FormDataConsumer>
+                        <fieldset disabled style={{border: 0, padding: 0, minWidth: 0}}>
+                            <BallotReceiptsInput canEdit={canEdit} status={record?.status} />
+                            <SelectInput
+                                disabled={!canEdit}
+                                source="presentation.receipts.checks_period_policy"
+                                choices={checksPeriodChoices()}
+                                validate={required()}
+                                defaultValue={EChecksPeriodPolicy.UNLIMITED}
+                                label={String(
+                                    t(
+                                        "electionEventScreen.field.ballotReceipts.checksPeriod.policyLabel"
+                                    )
+                                )}
+                                helperText={String(
+                                    t(
+                                        "electionEventScreen.field.ballotReceipts.checksPeriod.helper"
+                                    )
+                                )}
+                            />
+                            <FormDataConsumer>
+                                {({formData}) =>
+                                    (
+                                        formData?.presentation as
+                                            | IElectionEventPresentation
+                                            | undefined
+                                    )?.receipts?.checks_period_policy ===
+                                    EChecksPeriodPolicy.UNTIL_DATE ? (
+                                        <DateTimeInput
+                                            disabled={!canEdit}
+                                            source="presentation.receipts.checks_available_until"
+                                            parse={parseChecksAvailableUntil}
+                                            label={String(
+                                                t(
+                                                    "electionEventScreen.field.ballotReceipts.checksAvailableUntil",
+                                                    {
+                                                        timezone:
+                                                            Intl.DateTimeFormat().resolvedOptions()
+                                                                .timeZone,
+                                                    }
+                                                )
+                                            )}
+                                        />
+                                    ) : null
+                                }
+                            </FormDataConsumer>
+                        </fieldset>
                     </AccordionDetails>
                 </Accordion>
 
@@ -2140,301 +2180,323 @@ export const EditElectionEventDataForm: React.FC<{
                         </ElectionHeaderStyles.Wrapper>
                     </AccordionSummary>
                     <AccordionDetails>
-                        <SelectInput
-                            source={"presentation.contest_encryption_policy"}
-                            choices={contestEncryptionPolicyChoices()}
-                            label={String(
-                                t("electionEventScreen.field.contestEncryptionPolicy.policyLabel")
-                            )}
-                            {...sealSettingProps(
-                                EElectionEventContestEncryptionPolicy.SINGLE_CONTEST
-                            )}
-                            emptyText={undefined}
-                        />
-                        <SelectInput
-                            source={"presentation.locked_down"}
-                            SelectProps={{readOnly: true}}
-                            helperText={String(
-                                t("electionEventScreen.field.lockdownState.helperText", {
-                                    defaultValue:
-                                        "Schedule a start or end of the lockdown period to change this state.",
-                                })
-                            )}
-                            choices={lockdownStateChoices()}
-                            label={String(t("electionEventScreen.field.lockdownState.policyLabel"))}
-                            defaultValue={EElectionEventLockedDown.NOT_LOCKED_DOWN}
-                            emptyText={undefined}
-                            validate={required()}
-                        />
-                        {/* Locked once voting has opened: the database refuses the change. */}
-                        <SelectInput
-                            source={"presentation.ballot_box_seal_policy"}
-                            SelectProps={{
-                                readOnly: isBallotBoxSealPolicyLocked,
-                                // A locked select looks it: greyed, with a lock, and the
-                                // helper says why. Read-only (not disabled) keeps its value
-                                // in the save, so the database's lock isn't tripped.
-                                ...(isBallotBoxSealPolicyLocked
-                                    ? {IconComponent: LockOutlinedIcon}
-                                    : {}),
-                            }}
-                            sx={isBallotBoxSealPolicyLocked ? lockedSelectSx : undefined}
-                            helperText={`${t(
-                                "electionEventScreen.field.ballotBoxSealPolicy.helperText"
-                            )} ${sealPolicyLockText}`}
-                            choices={ballotBoxSealPolicyChoices()}
-                            label={String(
-                                t("electionEventScreen.field.ballotBoxSealPolicy.policyLabel")
-                            )}
-                            // An event without the key shows "Do not seal" (its effective
-                            // value) but the save doesn't add the key: an event that
-                            // doesn't seal is saved exactly as before.
-                            format={(value: unknown) => value ?? EBallotBoxSealPolicy.DO_NOT_SEAL}
-                            emptyText={undefined}
-                        />
-                        {/* Who can download the seal records: only with Seal at close, and
+                        <fieldset disabled style={{border: 0, padding: 0, minWidth: 0}}>
+                            <SelectInput
+                                source={"presentation.contest_encryption_policy"}
+                                choices={contestEncryptionPolicyChoices()}
+                                label={String(
+                                    t(
+                                        "electionEventScreen.field.contestEncryptionPolicy.policyLabel"
+                                    )
+                                )}
+                                {...sealSettingProps(
+                                    EElectionEventContestEncryptionPolicy.SINGLE_CONTEST
+                                )}
+                                emptyText={undefined}
+                            />
+                            <SelectInput
+                                source={"presentation.locked_down"}
+                                SelectProps={{readOnly: true}}
+                                helperText={String(
+                                    t("electionEventScreen.field.lockdownState.helperText", {
+                                        defaultValue:
+                                            "Schedule a start or end of the lockdown period to change this state.",
+                                    })
+                                )}
+                                choices={lockdownStateChoices()}
+                                label={String(
+                                    t("electionEventScreen.field.lockdownState.policyLabel")
+                                )}
+                                defaultValue={EElectionEventLockedDown.NOT_LOCKED_DOWN}
+                                emptyText={undefined}
+                                validate={required()}
+                            />
+                            {/* Locked once voting has opened: the database refuses the change. */}
+                            <SelectInput
+                                source={"presentation.ballot_box_seal_policy"}
+                                SelectProps={{
+                                    readOnly: isBallotBoxSealPolicyLocked,
+                                    // A locked select looks it: greyed, with a lock, and the
+                                    // helper says why. Read-only (not disabled) keeps its value
+                                    // in the save, so the database's lock isn't tripped.
+                                    ...(isBallotBoxSealPolicyLocked
+                                        ? {IconComponent: LockOutlinedIcon}
+                                        : {}),
+                                }}
+                                sx={isBallotBoxSealPolicyLocked ? lockedSelectSx : undefined}
+                                helperText={`${t(
+                                    "electionEventScreen.field.ballotBoxSealPolicy.helperText"
+                                )} ${sealPolicyLockText}`}
+                                choices={ballotBoxSealPolicyChoices()}
+                                label={String(
+                                    t("electionEventScreen.field.ballotBoxSealPolicy.policyLabel")
+                                )}
+                                // An event without the key shows "Do not seal" (its effective
+                                // value) but the save doesn't add the key: an event that
+                                // doesn't seal is saved exactly as before.
+                                format={(value: unknown) =>
+                                    value ?? EBallotBoxSealPolicy.DO_NOT_SEAL
+                                }
+                                emptyText={undefined}
+                            />
+                            {/* Who can download the seal records: only with Seal at close, and
                             locked like the seal policy once voting has opened. */}
-                        <FormDataConsumer>
-                            {({formData}) =>
-                                (formData?.presentation as IElectionEventPresentation | undefined)
-                                    ?.ballot_box_seal_policy ===
-                                EBallotBoxSealPolicy.SEAL_AT_CLOSE ? (
+                            <FormDataConsumer>
+                                {({formData}) =>
+                                    (
+                                        formData?.presentation as
+                                            | IElectionEventPresentation
+                                            | undefined
+                                    )?.ballot_box_seal_policy ===
+                                    EBallotBoxSealPolicy.SEAL_AT_CLOSE ? (
+                                        <SelectInput
+                                            source={"presentation.ballot_box_seal_record_policy"}
+                                            SelectProps={{
+                                                readOnly: isBallotBoxSealPolicyLocked,
+                                                ...(isBallotBoxSealPolicyLocked
+                                                    ? {IconComponent: LockOutlinedIcon}
+                                                    : {}),
+                                            }}
+                                            sx={
+                                                isBallotBoxSealPolicyLocked
+                                                    ? lockedSelectSx
+                                                    : undefined
+                                            }
+                                            helperText={`${t(
+                                                `electionEventScreen.field.ballotBoxSealRecordPolicy.help.${effectiveSealRecordPolicy(
+                                                    formData?.presentation
+                                                )}`
+                                            )} ${sealPolicyLockText}`}
+                                            choices={ballotBoxSealRecordPolicyChoices()}
+                                            label={String(
+                                                t(
+                                                    "electionEventScreen.field.ballotBoxSealRecordPolicy.policyLabel"
+                                                )
+                                            )}
+                                            // Unset shows Restricted (its effective value), and the
+                                            // save doesn't add the key unless it is chosen.
+                                            format={(value: unknown) =>
+                                                value ?? EBallotBoxSealRecordPolicy.RESTRICTED
+                                            }
+                                            emptyText={undefined}
+                                        />
+                                    ) : null
+                                }
+                            </FormDataConsumer>
+                            <SelectInput
+                                source={"presentation.decoded_ballot_inclusion_policy"}
+                                choices={decodedBallotsStateChoices()}
+                                label={String(
+                                    t("electionEventScreen.field.decodedBallots.policyLabel")
+                                )}
+                                defaultValue={EElectionEventDecodedBallots.NOT_INCLUDED}
+                                emptyText={undefined}
+                                validate={required()}
+                            />
+                            <SelectInput
+                                source={"presentation.ceremonies_policy"}
+                                choices={ceremonyPolicyOptions()}
+                                label={String(
+                                    t("electionEventScreen.field.ceremoniesPolicy.policyLabel")
+                                )}
+                                defaultValue={EElectionEventCeremoniesPolicy.MANUAL_CEREMONIES}
+                                emptyText={undefined}
+                                validate={required()}
+                            />
+                            <SelectInput
+                                source={"presentation.weighted_voting_policy"}
+                                choices={weightedVotingPolicyOptions()}
+                                label={String(
+                                    t("electionEventScreen.field.weightedVotingPolicy.policyLabel")
+                                )}
+                                {...sealSettingProps(
+                                    EElectionEventWeightedVotingPolicy.DISABLED_WEIGHTED_VOTING
+                                )}
+                                emptyText={undefined}
+                            />
+                            <SelectInput
+                                source={"presentation.delegated_voting_policy"}
+                                choices={delegatedVotingPolicyOptions()}
+                                label={String(
+                                    t("electionEventScreen.field.delegatedVotingPolicy.policyLabel")
+                                )}
+                                {...sealSettingProps(EElectionEventDelegatedVotingPolicy.DISABLED)}
+                                emptyText={undefined}
+                            />
+                            <SelectInput
+                                source={"presentation.batch_anonymity_policy"}
+                                choices={policyOptions(
+                                    Object.values(EElectionEventBatchAnonymityPolicy),
+                                    "electionEventScreen.field.batchAnonymityPolicy.options",
+                                    t
+                                )}
+                                label={String(
+                                    t("electionEventScreen.field.batchAnonymityPolicy.policyLabel")
+                                )}
+                                helperText={String(
+                                    t("electionEventScreen.field.batchAnonymityPolicy.helperText")
+                                )}
+                                defaultValue={EElectionEventBatchAnonymityPolicy.WARN}
+                                emptyText={undefined}
+                                validate={required()}
+                            />
+                            {canConfigureResultsWebsite ? <ResultsWebsitePolicyFields /> : null}
+                            <Typography
+                                variant="body1"
+                                component="span"
+                                sx={{
+                                    fontWeight: "bold",
+                                    margin: 0,
+                                    display: {xs: "none", sm: "block"},
+                                }}
+                            >
+                                {t("electionEventScreen.field.countDownPolicyOptions.sectionTitle")}
+                            </Typography>
+                            <SelectInput
+                                source={`presentation.voting_portal_countdown_policy.policy`}
+                                choices={votingPortalCountDownPolicies()}
+                                label={String(
+                                    t(
+                                        "electionEventScreen.field.countDownPolicyOptions.policyLabel"
+                                    )
+                                )}
+                                defaultValue={EVotingPortalCountdownPolicy.NO_COUNTDOWN}
+                                emptyText={undefined}
+                                validate={required()}
+                            />
+                            <FormDataConsumer>
+                                {({formData}) => (
                                     <SelectInput
-                                        source={"presentation.ballot_box_seal_record_policy"}
-                                        SelectProps={{
-                                            readOnly: isBallotBoxSealPolicyLocked,
-                                            ...(isBallotBoxSealPolicyLocked
-                                                ? {IconComponent: LockOutlinedIcon}
-                                                : {}),
-                                        }}
-                                        sx={
-                                            isBallotBoxSealPolicyLocked ? lockedSelectSx : undefined
-                                        }
-                                        helperText={`${t(
-                                            `electionEventScreen.field.ballotBoxSealRecordPolicy.help.${effectiveSealRecordPolicy(
-                                                formData?.presentation
-                                            )}`
-                                        )} ${sealPolicyLockText}`}
-                                        choices={ballotBoxSealRecordPolicyChoices()}
+                                        source={VOTER_SIGNING_POLICY_SOURCE}
+                                        choices={voterSigningPolicyChoices()}
                                         label={String(
                                             t(
-                                                "electionEventScreen.field.ballotBoxSealRecordPolicy.policyLabel"
+                                                "electionEventScreen.field.voterSigningPolicy.policyLabel"
                                             )
                                         )}
-                                        // Unset shows Restricted (its effective value), and the
-                                        // save doesn't add the key unless it is chosen.
-                                        format={(value: unknown) =>
-                                            value ?? EBallotBoxSealRecordPolicy.RESTRICTED
-                                        }
+                                        defaultValue={EVoterSigningPolicy.NO_SIGNATURE}
                                         emptyText={undefined}
+                                        validate={required()}
+                                        // The ballot box receives only signed ballots.
+                                        disabled={areReceiptsSignedByBallotBox(
+                                            formData?.presentation
+                                        )}
                                     />
-                                ) : null
-                            }
-                        </FormDataConsumer>
-                        <SelectInput
-                            source={"presentation.decoded_ballot_inclusion_policy"}
-                            choices={decodedBallotsStateChoices()}
-                            label={String(
-                                t("electionEventScreen.field.decodedBallots.policyLabel")
-                            )}
-                            defaultValue={EElectionEventDecodedBallots.NOT_INCLUDED}
-                            emptyText={undefined}
-                            validate={required()}
-                        />
-                        <SelectInput
-                            source={"presentation.ceremonies_policy"}
-                            choices={ceremonyPolicyOptions()}
-                            label={String(
-                                t("electionEventScreen.field.ceremoniesPolicy.policyLabel")
-                            )}
-                            defaultValue={EElectionEventCeremoniesPolicy.MANUAL_CEREMONIES}
-                            emptyText={undefined}
-                            validate={required()}
-                        />
-                        <SelectInput
-                            source={"presentation.weighted_voting_policy"}
-                            choices={weightedVotingPolicyOptions()}
-                            label={String(
-                                t("electionEventScreen.field.weightedVotingPolicy.policyLabel")
-                            )}
-                            {...sealSettingProps(
-                                EElectionEventWeightedVotingPolicy.DISABLED_WEIGHTED_VOTING
-                            )}
-                            emptyText={undefined}
-                        />
-                        <SelectInput
-                            source={"presentation.delegated_voting_policy"}
-                            choices={delegatedVotingPolicyOptions()}
-                            label={String(
-                                t("electionEventScreen.field.delegatedVotingPolicy.policyLabel")
-                            )}
-                            {...sealSettingProps(EElectionEventDelegatedVotingPolicy.DISABLED)}
-                            emptyText={undefined}
-                        />
-                        <SelectInput
-                            source={"presentation.batch_anonymity_policy"}
-                            choices={policyOptions(
-                                Object.values(EElectionEventBatchAnonymityPolicy),
-                                "electionEventScreen.field.batchAnonymityPolicy.options",
-                                t
-                            )}
-                            label={String(
-                                t("electionEventScreen.field.batchAnonymityPolicy.policyLabel")
-                            )}
-                            helperText={String(
-                                t("electionEventScreen.field.batchAnonymityPolicy.helperText")
-                            )}
-                            defaultValue={EElectionEventBatchAnonymityPolicy.WARN}
-                            emptyText={undefined}
-                            validate={required()}
-                        />
-                        {canConfigureResultsWebsite ? <ResultsWebsitePolicyFields /> : null}
-                        <Typography
-                            variant="body1"
-                            component="span"
-                            sx={{
-                                fontWeight: "bold",
-                                margin: 0,
-                                display: {xs: "none", sm: "block"},
-                            }}
-                        >
-                            {t("electionEventScreen.field.countDownPolicyOptions.sectionTitle")}
-                        </Typography>
-                        <SelectInput
-                            source={`presentation.voting_portal_countdown_policy.policy`}
-                            choices={votingPortalCountDownPolicies()}
-                            label={String(
-                                t("electionEventScreen.field.countDownPolicyOptions.policyLabel")
-                            )}
-                            defaultValue={EVotingPortalCountdownPolicy.NO_COUNTDOWN}
-                            emptyText={undefined}
-                            validate={required()}
-                        />
-                        <FormDataConsumer>
-                            {({formData}) => (
-                                <SelectInput
-                                    source={VOTER_SIGNING_POLICY_SOURCE}
-                                    choices={voterSigningPolicyChoices()}
+                                )}
+                            </FormDataConsumer>
+                            <SelectInput
+                                source={"presentation.voter_certificate_policy"}
+                                choices={VoterCertificatePolicyChoices()}
+                                label={String(
+                                    t(
+                                        "electionEventScreen.field.VoterCertificatePolicy.policyLabel"
+                                    )
+                                )}
+                                defaultValue={EVoterCertificatePolicy.DISABLED}
+                                emptyText={undefined}
+                                validate={required()}
+                                onChange={(e) =>
+                                    setRealmAttributeDraftValue(
+                                        REALM_ATTR_VOTER_CERTIFICATE_POLICY,
+                                        e.target.value as EVoterCertificatePolicy
+                                    )
+                                }
+                            />
+                            <Box
+                                sx={{
+                                    display: "flex",
+                                    flexDirection: "row",
+                                    justifyContent: "flex-end",
+                                    alignItems: "center",
+                                    gap: "16px",
+                                }}
+                            >
+                                <ManagedNumberInput
+                                    source={
+                                        "presentation.voting_portal_countdown_policy.countdown_anticipation_secs"
+                                    }
                                     label={String(
                                         t(
-                                            "electionEventScreen.field.voterSigningPolicy.policyLabel"
+                                            "electionEventScreen.field.countDownPolicyOptions.coundownSecondsLabel"
                                         )
                                     )}
-                                    defaultValue={EVoterSigningPolicy.NO_SIGNATURE}
-                                    emptyText={undefined}
-                                    validate={required()}
-                                    // The ballot box receives only signed ballots.
-                                    disabled={areReceiptsSignedByBallotBox(formData?.presentation)}
+                                    defaultValue={defaultSecondsForCountdown}
+                                    sourceToWatch="presentation.voting_portal_countdown_policy.policy"
+                                    isDisabled={(selectedPolicy) =>
+                                        selectedPolicy === EVotingPortalCountdownPolicy.NO_COUNTDOWN
+                                    }
                                 />
-                            )}
-                        </FormDataConsumer>
-                        <SelectInput
-                            source={"presentation.voter_certificate_policy"}
-                            choices={VoterCertificatePolicyChoices()}
-                            label={String(
-                                t("electionEventScreen.field.VoterCertificatePolicy.policyLabel")
-                            )}
-                            defaultValue={EVoterCertificatePolicy.DISABLED}
-                            emptyText={undefined}
-                            validate={required()}
-                            onChange={(e) =>
-                                setRealmAttributeDraftValue(
-                                    REALM_ATTR_VOTER_CERTIFICATE_POLICY,
-                                    e.target.value as EVoterCertificatePolicy
-                                )
-                            }
-                        />
-                        <Box
-                            sx={{
-                                display: "flex",
-                                flexDirection: "row",
-                                justifyContent: "flex-end",
-                                alignItems: "center",
-                                gap: "16px",
-                            }}
-                        >
-                            <ManagedNumberInput
-                                source={
-                                    "presentation.voting_portal_countdown_policy.countdown_anticipation_secs"
-                                }
-                                label={String(
-                                    t(
-                                        "electionEventScreen.field.countDownPolicyOptions.coundownSecondsLabel"
-                                    )
-                                )}
-                                defaultValue={defaultSecondsForCountdown}
-                                sourceToWatch="presentation.voting_portal_countdown_policy.policy"
-                                isDisabled={(selectedPolicy) =>
-                                    selectedPolicy === EVotingPortalCountdownPolicy.NO_COUNTDOWN
-                                }
-                            />
 
-                            <ManagedNumberInput
-                                source={
-                                    "presentation.voting_portal_countdown_policy.countdown_alert_anticipation_secs"
-                                }
-                                label={String(
-                                    t(
-                                        "electionEventScreen.field.countDownPolicyOptions.alertSecondsLabel"
-                                    )
-                                )}
-                                defaultValue={defaultSecondsForAlert}
-                                sourceToWatch="presentation.voting_portal_countdown_policy.policy"
-                                isDisabled={(selectedPolicy) =>
-                                    selectedPolicy !==
-                                    EVotingPortalCountdownPolicy.COUNTDOWN_WITH_ALERT
-                                }
-                            />
-                        </Box>
-                        <Box>
-                            <Typography
-                                variant="body1"
-                                component="span"
-                                sx={{
-                                    padding: "1rem 0rem",
-                                    fontWeight: "bold",
-                                    margin: 0,
-                                    display: {xs: "none", sm: "block"},
-                                }}
-                            >
-                                {t("electionEventScreen.edit.custom_filters")}
-                            </Typography>
+                                <ManagedNumberInput
+                                    source={
+                                        "presentation.voting_portal_countdown_policy.countdown_alert_anticipation_secs"
+                                    }
+                                    label={String(
+                                        t(
+                                            "electionEventScreen.field.countDownPolicyOptions.alertSecondsLabel"
+                                        )
+                                    )}
+                                    defaultValue={defaultSecondsForAlert}
+                                    sourceToWatch="presentation.voting_portal_countdown_policy.policy"
+                                    isDisabled={(selectedPolicy) =>
+                                        selectedPolicy !==
+                                        EVotingPortalCountdownPolicy.COUNTDOWN_WITH_ALERT
+                                    }
+                                />
+                            </Box>
+                            <Box>
+                                <Typography
+                                    variant="body1"
+                                    component="span"
+                                    sx={{
+                                        padding: "1rem 0rem",
+                                        fontWeight: "bold",
+                                        margin: 0,
+                                        display: {xs: "none", sm: "block"},
+                                    }}
+                                >
+                                    {t("electionEventScreen.edit.custom_filters")}
+                                </Typography>
 
-                            <JsonEditor
-                                data={customFilters ?? []}
-                                onUpdate={(data) =>
-                                    updateCustomFilters(parsedValue, data as UpdateFunctionProps)
-                                }
-                            />
-                        </Box>
-                        <Box>
-                            <Typography
-                                variant="body1"
-                                component="span"
-                                sx={{
-                                    padding: "1rem 0rem",
-                                    fontWeight: "bold",
-                                    margin: 0,
-                                    display: {xs: "none", sm: "block"},
-                                }}
-                            >
-                                {t("electionEventScreen.edit.voter_authentication")}
-                            </Typography>
-                            <SelectInput
-                                label={String(
-                                    t(`electionEventScreen.field.enrollment.policyLabel`)
-                                )}
-                                source="presentation.enrollment"
-                                choices={enrollmentChoices()}
-                                onChange={(value) => handleEnrollmentChange(value)}
-                            />
-                            <SelectInput
-                                label={String(t(`electionEventScreen.field.otp.policyLabel`))}
-                                source="presentation.otp"
-                                choices={otpChoices()}
-                                onChange={(value) => handleOtpChange(value)}
-                            />
-                        </Box>
+                                <JsonEditor
+                                    data={customFilters ?? []}
+                                    onUpdate={(data) =>
+                                        updateCustomFilters(
+                                            parsedValue,
+                                            data as UpdateFunctionProps
+                                        )
+                                    }
+                                />
+                            </Box>
+                            <Box>
+                                <Typography
+                                    variant="body1"
+                                    component="span"
+                                    sx={{
+                                        padding: "1rem 0rem",
+                                        fontWeight: "bold",
+                                        margin: 0,
+                                        display: {xs: "none", sm: "block"},
+                                    }}
+                                >
+                                    {t("electionEventScreen.edit.voter_authentication")}
+                                </Typography>
+                                <SelectInput
+                                    label={String(
+                                        t(`electionEventScreen.field.enrollment.policyLabel`)
+                                    )}
+                                    source="presentation.enrollment"
+                                    choices={enrollmentChoices()}
+                                    onChange={(value) => handleEnrollmentChange(value)}
+                                />
+                                <SelectInput
+                                    label={String(t(`electionEventScreen.field.otp.policyLabel`))}
+                                    source="presentation.otp"
+                                    choices={otpChoices()}
+                                    onChange={(value) => handleOtpChange(value)}
+                                />
+                            </Box>
+                        </fieldset>
                     </AccordionDetails>
                 </Accordion>
             </SimpleForm>

@@ -188,3 +188,72 @@ pub(crate) async fn audit_secret_attributes(
         )
     })
 }
+
+/// Persists a post-processing register-read quorum before dispatching export.
+/// Ordinary preparation exports use the existing task-bound permission grant.
+pub struct BoardAuthorizedUserTaskDispatch {
+    pub claims: JwtClaims,
+    pub request_id: Option<Uuid>,
+}
+impl UserTaskDispatch for BoardAuthorizedUserTaskDispatch {
+    type Connection = Arc<Celery>;
+    async fn connect(&self) -> Result<Self::Connection, UserTaskSendFailure> {
+        CeleryUserTaskDispatch.connect().await
+    }
+    async fn import(
+        &self,
+        connection: &Self::Connection,
+        input: import_users::ImportUsersBody,
+        task: TasksExecution,
+    ) -> Result<(), UserTaskSendFailure> {
+        if let (Some(request), Some(event)) =
+            (self.request_id, input.election_event_id.as_deref())
+        {
+            crate::services::board_authorization::bind_operation(
+                &self.claims,
+                event,
+                request,
+                windmill::services::board_operations::BindingKind::Import,
+                &task.id,
+            )
+            .await
+            .map_err(|(_, message)| UserTaskSendFailure {
+                display: message.clone(),
+                debug: message,
+            })?;
+        }
+        CeleryUserTaskDispatch.import(connection, input, task).await
+    }
+    async fn export(
+        &self,
+        connection: &Self::Connection,
+        input: ExportBody,
+        document_id: String,
+        task: Option<TasksExecution>,
+    ) -> Result<(), UserTaskSendFailure> {
+        if let (
+            Some(request),
+            ExportBody::Users {
+                election_event_id: Some(event),
+                ..
+            },
+        ) = (self.request_id, &input)
+        {
+            crate::services::board_authorization::bind_operation(
+                &self.claims,
+                event,
+                request,
+                windmill::services::board_operations::BindingKind::VoterExport,
+                &document_id,
+            )
+            .await
+            .map_err(|(_, message)| UserTaskSendFailure {
+                display: message.clone(),
+                debug: message,
+            })?;
+        }
+        CeleryUserTaskDispatch
+            .export(connection, input, document_id, task)
+            .await
+    }
+}

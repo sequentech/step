@@ -22,7 +22,12 @@ import {
 import EditIcon from "@mui/icons-material/Edit"
 import VisibilityIcon from "@mui/icons-material/Visibility"
 import {visuallyHidden} from "@mui/utils"
-import {SigningAction, SigningRequirement, type ISigningRule} from "@/lib/signing/types"
+import {
+    mandatorySigningAction,
+    SigningAction,
+    SigningRequirement,
+    type ISigningRule,
+} from "@/lib/signing/types"
 import {
     actionGroups,
     afterLockdown,
@@ -45,7 +50,7 @@ export interface ISignaturesSubTabProps {
     lockedDown?: boolean
 }
 
-/** The ten protected actions by group, with each action's rule and who can sign it. */
+/** The protected actions by group, with each action's rule and who can sign it. */
 export const ProtectedActionsTab: React.FC<ISignaturesSubTabProps> = ({
     electionEventId,
     access: permitted,
@@ -100,6 +105,8 @@ export const ProtectedActionsTab: React.FC<ISignaturesSubTabProps> = ({
     ].filter(Boolean)
 
     const signaturesText = (rule: ISigningRule) => {
+        if (mandatorySigningAction(rule.action) && rule.signatures < 1)
+            return "Not configured — operation blocked"
         if (rule.requirement === SigningRequirement.NotRequired) {
             return t("signing.protectedActions.off")
         }
@@ -110,6 +117,14 @@ export const ProtectedActionsTab: React.FC<ISignaturesSubTabProps> = ({
 
     return (
         <Box>
+            {Object.values(SigningAction).some(
+                (action) => mandatorySigningAction(action) && ruleOf(action, rules).signatures < 1
+            ) && (
+                <Alert severity="warning" sx={{mb: 2}}>
+                    Configure a positive number of board approvals for every required action before
+                    using it. Required actions cannot be switched off.
+                </Alert>
+            )}
             <Box sx={{display: "flex", alignItems: "center", gap: 2, mb: 2}}>
                 <Typography variant="body2" sx={{flex: 1}}>
                     {t("signing.protectedActions.intro")}

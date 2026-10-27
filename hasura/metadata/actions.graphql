@@ -685,6 +685,7 @@ type Mutation {
     import_election_event(
         tenant_id: String!
         document_id: String!
+        authorization_event_id: String
         password: String
         check_only: Boolean
         sha256: String
@@ -3202,3 +3203,21 @@ type ExportVerificationTranscriptOutput {
   document_id: String!
   url: String!
 }
+
+# Durable electoral phase and secure recovery state.
+type Query {
+  get_election_lifecycle(election_event_id: String!): jsonb!
+}
+type Mutation {
+  start_election_post_processing(election_event_id: String!): jsonb!
+}
+
+# Complete background security self-tests (first delivery, version 1.0).
+type Mutation {
+    run_self_tests(election_event_id: String!, trigger: String): SelfTestStartOutput!
+    get_self_tests(election_event_id: String!): SelfTestStatusOutput!
+    update_self_test_settings(election_event_id: String!, settings: jsonb!): SelfTestSettingsOutput!
+}
+type SelfTestStartOutput { task_id: String! state: String! }
+type SelfTestStatusOutput { settings: jsonb! runs: jsonb! baseline_present: Boolean! notifications: jsonb! }
+type SelfTestSettingsOutput { settings: jsonb! }

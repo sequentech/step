@@ -305,6 +305,14 @@ pub async fn import_candidates_task(
         }
     };
 
+    let approved = crate::services::board_operations::validate_import_document(
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &task_execution.id,
+        &document_id,
+    )
+    .await?;
     let document = match get_document(&hasura_transaction, &tenant_id, None, &document_id).await {
         Ok(Some(document)) => document,
         Ok(None) => {
@@ -334,6 +342,7 @@ pub async fn import_candidates_task(
         }
     };
 
+    crate::services::board_operations::verify_import_file(&approved, temp_file.path())?;
     temp_file.rewind()?;
 
     match sha256 {

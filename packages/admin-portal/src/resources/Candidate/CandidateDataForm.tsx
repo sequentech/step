@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+import {ProtectedImportNotice} from "@/components/ProtectedImportNotice"
 import {
     BooleanInput,
     SelectInput,
@@ -92,11 +93,7 @@ export const CandidateDataForm: React.FC<{
     // const [defaultLangValue, setDefaultLangValue] = useState<string>("")
     const authContext = useContext(AuthContext)
 
-    const canEdit = authContext.isAuthorized(
-        true,
-        authContext.tenantId,
-        IPermissions.CANDIDATE_WRITE
-    )
+    const canEdit = false // Changes require the board-approved import workflow.
 
     const {data: electionEvent} = useGetOne<Sequent_Backend_Election_Event>(
         "sequent_backend_election_event",
@@ -377,9 +374,14 @@ export const CandidateDataForm: React.FC<{
                 )
                 return (
                     <SimpleForm
+                        onSubmit={() => undefined}
                         validate={formValidator}
                         record={parsedValue}
-                        toolbar={<Toolbar>{canEdit && <SaveButton />}</Toolbar>}
+                        toolbar={
+                            <Toolbar>
+                                <ProtectedImportNotice />
+                            </Toolbar>
+                        }
                     >
                         <Accordion
                             sx={{width: "100%"}}
@@ -402,14 +404,19 @@ export const CandidateDataForm: React.FC<{
                                 </CandidateStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
-                                <TextInput
-                                    source="external_id"
-                                    label={String(t("candidateScreen.edit.externalId"))}
-                                />
-                                <Tabs value={value} onChange={handleChange}>
-                                    {renderTabs()}
-                                </Tabs>
-                                {renderTabContent()}
+                                <fieldset
+                                    disabled
+                                    style={{border: 0, padding: 0, margin: 0, width: "100%"}}
+                                >
+                                    <TextInput
+                                        source="external_id"
+                                        label={String(t("candidateScreen.edit.externalId"))}
+                                    />
+                                    <Tabs value={value} onChange={handleChange}>
+                                        {renderTabs()}
+                                    </Tabs>
+                                    {renderTabContent()}
+                                </fieldset>
                             </AccordionDetails>
                         </Accordion>
 
@@ -432,39 +439,48 @@ export const CandidateDataForm: React.FC<{
                                 </CandidateStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
-                                <TextInput
-                                    source="type"
-                                    label={String(t("candidateScreen.edit.type"))}
-                                />
-                                <TextInput source="presentation.subtype" label="Subtype" />
+                                <fieldset
+                                    disabled
+                                    style={{border: 0, padding: 0, margin: 0, width: "100%"}}
+                                >
+                                    <TextInput
+                                        source="type"
+                                        label={String(t("candidateScreen.edit.type"))}
+                                    />
+                                    <TextInput source="presentation.subtype" label="Subtype" />
 
-                                <BooleanInput
-                                    source={`presentation.is_explicit_invalid`}
-                                    label={String(t("candidateScreen.edit.isExplicitInvalid"))}
-                                />
-                                <BooleanInput
-                                    source={`presentation.is_explicit_blank`}
-                                    label={String(t("candidateScreen.edit.isExplicitBlank"))}
-                                />
-                                <BooleanInput
-                                    source={`presentation.is_category_list`}
-                                    label={String(t("candidateScreen.edit.isCategoryList"))}
-                                />
-                                <BooleanInput
-                                    source={`presentation.is_write_in`}
-                                    label={String(t("candidateScreen.edit.isWriteIn"))}
-                                />
+                                    <BooleanInput
+                                        source={`presentation.is_explicit_invalid`}
+                                        label={String(t("candidateScreen.edit.isExplicitInvalid"))}
+                                    />
+                                    <BooleanInput
+                                        source={`presentation.is_explicit_blank`}
+                                        label={String(t("candidateScreen.edit.isExplicitBlank"))}
+                                    />
+                                    <BooleanInput
+                                        source={`presentation.is_category_list`}
+                                        label={String(t("candidateScreen.edit.isCategoryList"))}
+                                    />
+                                    <BooleanInput
+                                        source={`presentation.is_write_in`}
+                                        label={String(t("candidateScreen.edit.isWriteIn"))}
+                                    />
 
-                                <SelectInput
-                                    source={`presentation.invalid_vote_position`}
-                                    choices={invalidVotePositionChoices()}
-                                    format={(value) => (typeof value == "string" ? value : "null")}
-                                    parse={(value) => (value == "null" ? null : value)}
-                                    label={String(t(`candidateScreen.invalidVotePosition.label`))}
-                                    emptyValue={t(`candidateScreen.invalidVotePosition.null`)}
-                                    defaultValue={null}
-                                    validate={required()}
-                                />
+                                    <SelectInput
+                                        source={`presentation.invalid_vote_position`}
+                                        choices={invalidVotePositionChoices()}
+                                        format={(value) =>
+                                            typeof value == "string" ? value : "null"
+                                        }
+                                        parse={(value) => (value == "null" ? null : value)}
+                                        label={String(
+                                            t(`candidateScreen.invalidVotePosition.label`)
+                                        )}
+                                        emptyValue={t(`candidateScreen.invalidVotePosition.null`)}
+                                        defaultValue={null}
+                                        validate={required()}
+                                    />
+                                </fieldset>
                             </AccordionDetails>
                         </Accordion>
 
@@ -492,25 +508,30 @@ export const CandidateDataForm: React.FC<{
                                 </CandidateStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
-                                <Grid container spacing={1}>
-                                    <Grid size={2}>
-                                        {parsedValue?.image_document_id &&
-                                        imageData?.id === parsedValue.image_document_id &&
-                                        imageData.name ? (
-                                            <img
-                                                width={200}
-                                                height={200}
-                                                src={`${globalSettings.PUBLIC_BUCKET_URL}${imageUrl}`}
-                                                alt={imageUrl}
+                                <fieldset
+                                    disabled
+                                    style={{border: 0, padding: 0, margin: 0, width: "100%"}}
+                                >
+                                    <Grid container spacing={1}>
+                                        <Grid size={2}>
+                                            {parsedValue?.image_document_id &&
+                                            imageData?.id === parsedValue.image_document_id &&
+                                            imageData.name ? (
+                                                <img
+                                                    width={200}
+                                                    height={200}
+                                                    src={`${globalSettings.PUBLIC_BUCKET_URL}${imageUrl}`}
+                                                    alt={imageUrl}
+                                                />
+                                            ) : null}
+                                        </Grid>
+                                        <Grid size={10}>
+                                            <DropFile
+                                                handleFiles={async (files) => handleFiles(files)}
                                             />
-                                        ) : null}
+                                        </Grid>
                                     </Grid>
-                                    <Grid size={10}>
-                                        <DropFile
-                                            handleFiles={async (files) => handleFiles(files)}
-                                        />
-                                    </Grid>
-                                </Grid>
+                                </fieldset>
                             </AccordionDetails>
                         </Accordion>
                     </SimpleForm>

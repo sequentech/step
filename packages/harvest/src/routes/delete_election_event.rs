@@ -12,18 +12,8 @@ use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
-use windmill::postgres::election_event::{
-    SealedEventDeleteRefusal, SEALED_EVENT_DELETE_REFUSAL,
-};
-use windmill::postgres::tenant;
-use windmill::services::ballot_box_seal::refuse_sealed_event_delete;
 use windmill::services::celery_app::get_celery_app;
-use windmill::services::database::get_hasura_pool;
-use windmill::services::delete_election_event::{
-    find_election_event_deletion_refusal, ElectionEventDeletionRefusal,
-};
 use windmill::services::tasks_execution::*;
-use windmill::services::tasks_execution::{update_complete, update_fail};
 use windmill::tasks::delete_election_event;
 use windmill::types::tasks::ETasksExecution;
 
@@ -39,43 +29,6 @@ pub struct DeleteElectionEventInput {
     election_event_id: String,
 }
 
-/// The refusal to delete an election event with ballot box seals, if it
-/// has any.
-async fn sealed_event_refusal(
-    tenant_id: &str,
-    election_event_id: &str,
-) -> anyhow::Result<Option<String>> {
-    let mut client = get_hasura_pool().await.get().await?;
-    let transaction = client.transaction().await?;
-    match refuse_sealed_event_delete(&transaction, tenant_id, election_event_id)
-        .await
-    {
-        Ok(()) => Ok(None),
-        Err(error)
-            if error.downcast_ref::<SealedEventDeleteRefusal>().is_some() =>
-        {
-            Ok(Some(SEALED_EVENT_DELETE_REFUSAL.to_string()))
-        }
-        Err(error) => Err(error),
-    }
-}
-
-async fn election_event_deletion_refusal(
-    tenant_id: &str,
-    election_event_id: &str,
-    permission_labels: &[String],
-) -> anyhow::Result<Option<ElectionEventDeletionRefusal>> {
-    let mut client = get_hasura_pool().await.get().await?;
-    let transaction = client.transaction().await?;
-    find_election_event_deletion_refusal(
-        &transaction,
-        tenant_id,
-        election_event_id,
-        permission_labels,
-    )
-    .await
-}
-
 #[instrument(skip(claims))]
 #[post("/delete-election-event", format = "json", data = "<body>")]
 pub async fn delete_election_event_f(
@@ -89,6 +42,27 @@ pub async fn delete_election_event_f(
         .clone()
         .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
 
+    authorize(
+        &claims,
+        false,
+        Some(tenant_id.clone()),
+        vec![Permissions::ELECTION_EVENT_DELETE],
+    )?;
+    let request_id = crate::services::board_authorization::authorize_operation(
+        &claims,
+        &input.election_event_id,
+        sequent_core::signing::SigningAction::DeleteExecutionData,
+        "delete-execution-data",
+        serde_json::to_value(&input)
+            .map_err(|e| (Status::BadRequest, e.to_string()))?,
+    )
+    .await?
+    .ok_or_else(|| {
+        (
+            Status::Forbidden,
+            "Board authorisation is required".to_string(),
+        )
+    })?;
     let task_execution = post(
         &tenant_id,
         None,
@@ -96,73 +70,17 @@ pub async fn delete_election_event_f(
         &executer_name,
     )
     .await
-    .map_err(|error| {
-        (
-            Status::InternalServerError,
-            format!("Failed to insert task execution record: {error:?}"),
-        )
-    })?;
-
-    if let Err(error) = authorize(
+    .map_err(|e| (Status::InternalServerError, e.to_string()))?;
+    crate::services::board_authorization::bind_operation(
         &claims,
-        true,
-        Some(tenant_id.clone()),
-        vec![Permissions::ELECTION_EVENT_DELETE],
-    ) {
-        let _ = update_fail(
-            &task_execution,
-            &format!("Failed to authorize executing the task: {error:?}"),
-        )
-        .await;
-        return Err(error);
-    };
-
-    // An event with ballot box seals can't be deleted (VOTE-FREEZE): say so
-    // now, before the task deletes anything.
-    if let Some(refusal) =
-        sealed_event_refusal(&tenant_id, &input.election_event_id)
-            .await
-            .map_err(|error| {
-                (
-                    Status::InternalServerError,
-                    format!("Failed to check the ballot box seals: {error:?}"),
-                )
-            })?
-    {
-        let _ = update_fail(&task_execution, &refusal).await;
-        return Ok(Json(DeleteElectionEventOutput {
-            id: input.election_event_id,
-            error_msg: Some(refusal),
-            task_execution,
-        }));
-    }
+        &input.election_event_id,
+        request_id,
+        windmill::services::board_operations::BindingKind::Deletion,
+        &task_execution.id,
+    )
+    .await?;
 
     let permission_labels = decode_permission_labels(&claims);
-    let refusal = match election_event_deletion_refusal(
-        &tenant_id,
-        &input.election_event_id,
-        &permission_labels,
-    )
-    .await
-    {
-        Ok(refusal) => refusal,
-        Err(error) => {
-            let message = format!(
-                "Failed to check whether the election event can be deleted: {error:?}"
-            );
-            let _ = update_fail(&task_execution, &message).await;
-            return Err((Status::InternalServerError, message));
-        }
-    };
-    if let Some(refusal) = refusal {
-        let _ = update_fail(&task_execution, &refusal.to_string()).await;
-        return Ok(Json(DeleteElectionEventOutput {
-            id: input.election_event_id,
-            error_msg: Some(refusal.to_string()),
-            task_execution,
-        }));
-    }
-
     let celery_app = get_celery_app().await;
 
     let realm = get_event_realm(&tenant_id, &input.election_event_id);

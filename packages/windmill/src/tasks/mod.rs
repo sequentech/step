@@ -86,3 +86,5 @@ pub mod upsert_areas;
 pub mod voter_information_letter;
 
 mod tenant_bootstrap_admin;
+
+pub mod self_tests;

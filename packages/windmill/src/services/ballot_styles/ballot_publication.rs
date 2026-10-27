@@ -592,6 +592,13 @@ pub async fn prepare_ballot_publication(
     // A queued worker takes this same lock before reading the publication.
     // Hold it until commit while allowing the task ledger's foreign-key insert.
     lock_publication_event(hasura_transaction, &tenant_id, &election_event_id).await?;
+    crate::services::election_lifecycle::require_phase(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        sequent_core::election_lifecycle::ElectoralPhase::Preparation,
+    )
+    .await?;
 
     let election_ids = get_election_ids_for_publication(
         hasura_transaction,
@@ -679,6 +686,13 @@ pub async fn update_publish_ballot(
     lifecycle: &crate::services::scheduled_outcome::PublicationLifecycle,
 ) -> Result<()> {
     lock_publication_event(hasura_transaction, &tenant_id, &election_event_id).await?;
+    crate::services::election_lifecycle::require_phase(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        sequent_core::election_lifecycle::ElectoralPhase::Preparation,
+    )
+    .await?;
 
     let ballot_publication = get_ballot_publication_by_id(
         &hasura_transaction,
@@ -829,6 +843,34 @@ pub async fn update_publish_ballot(
     )
     .await;
     Ok(())
+}
+
+/// Materialize deterministic realm projections before the board signs its
+/// configuration snapshot. Failure prevents creating an approval request; the
+/// snapshot verifier never calls this function or repairs an approved baseline.
+pub async fn prepare_approval_realm(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<()> {
+    tokio::time::timeout(std::time::Duration::from_secs(30), async {
+        let event =
+            get_election_event_by_id(hasura_transaction, tenant_id, election_event_id).await?;
+        let presentation = event
+            .presentation
+            .map(deserialize_value::<ElectionEventPresentation>)
+            .transpose()?;
+        realm_localization::sync_event_realm_localization(
+            tenant_id,
+            election_event_id,
+            presentation.as_ref(),
+        )
+        .await?;
+        enrollment_windows::refresh(hasura_transaction, tenant_id, election_event_id).await?;
+        Ok::<_, anyhow::Error>(())
+    })
+    .await
+    .context("Timed out preparing the realm configuration for approval")?
 }
 
 /// The enrollment pages (event realm) follow the published configuration:

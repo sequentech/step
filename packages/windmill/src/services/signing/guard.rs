@@ -206,6 +206,8 @@ pub async fn guard_at(
     if !rule.is_required() {
         return Ok(GuardOutcome::Proceed);
     }
+    rule.validate()
+        .map_err(|error| SigningError::bad_input(error.to_string()))?;
     lock_signing_event(hasura_transaction, scope.tenant_id, scope.election_event_id).await?;
     let rule = effective_rule(
         hasura_transaction,
@@ -217,6 +219,8 @@ pub async fn guard_at(
     if !rule.is_required() {
         return Ok(GuardOutcome::Proceed);
     }
+    rule.validate()
+        .map_err(|error| SigningError::bad_input(error.to_string()))?;
     if let Some(area_id) = scope.area_id {
         if !signing_area_exists(
             hasura_transaction,

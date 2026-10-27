@@ -161,6 +161,10 @@ pub async fn set_user_role(
     body: Json<SetOrDeleteUserRoleBody>,
 ) -> Result<Json<OptionalId>, (Status, String)> {
     let input = body.into_inner();
+    if input.user_id == claims.hasura_claims.user_id {
+        return Err((Status::Forbidden,"A staff account cannot change its own role memberships; another administrator must perform this change".into()));
+    }
+
     validate_keycloak_scope(&input.tenant_id, None)
         .map_err(|error| (Status::BadRequest, error.to_string()))?;
     authorize(
@@ -187,6 +191,10 @@ pub async fn delete_user_role(
     body: Json<SetOrDeleteUserRoleBody>,
 ) -> Result<Json<OptionalId>, (Status, String)> {
     let input = body.into_inner();
+    if input.user_id == claims.hasura_claims.user_id {
+        return Err((Status::Forbidden,"A staff account cannot change its own role memberships; another administrator must perform this change".into()));
+    }
+
     validate_keycloak_scope(&input.tenant_id, None)
         .map_err(|error| (Status::BadRequest, error.to_string()))?;
     authorize(

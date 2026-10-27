@@ -31,6 +31,33 @@ pub struct ExportOptions {
     pub include_certificates: bool,
 }
 
+impl ExportOptions {
+    /// A deletion-eligible export always contains the complete execution
+    /// archive. The signing key and trustee/manager private keys never travel.
+    pub fn execution_profile() -> Self {
+        Self {
+            is_encrypted: true,
+            encrypt_with_password: true,
+            include_voters: true,
+            activity_logs: true,
+            bulletin_board: true,
+            publications: true,
+            s3_files: true,
+            scheduled_events: true,
+            reports: true,
+            applications: true,
+            tally: true,
+            include_certificates: true,
+            ..Self::default()
+        }
+    }
+    pub fn approved_parameters(&self) -> anyhow::Result<serde_json::Value> {
+        let mut approved = self.clone();
+        approved.password = None;
+        Ok(serde_json::to_value(approved)?)
+    }
+}
+
 fn validate_voter_secret_export(export_config: &ExportOptions) -> Result<()> {
     if !export_config.contains_voter_secrets {
         return Ok(());
@@ -94,6 +121,16 @@ async fn export_election_event_impl(
     )
     .await
     .context("Failed to load persisted election-event export task")?;
+
+    crate::services::board_operations::validate(
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        crate::services::board_operations::BindingKind::Export,
+        &document_id,
+        Some(&export_config.approved_parameters()?),
+    )
+    .await?;
 
     if is_matching_completed_export_task(
         &persisted_task,

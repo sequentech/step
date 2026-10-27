@@ -1,0 +1,105 @@
+-- SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+-- SPDX-License-Identifier: AGPL-3.0-only
+CREATE OR REPLACE FUNCTION "sequent_backend"."ballot_box_seal_permanence"()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    -- Columns a pending seal may change while it stays pending.
+    provenance text[] := ARRAY['close_request_id', 'closed_by', 'last_attempt_at', 'waiting_reason'];
+    seal_fields text[] := ARRAY[
+        'sealed_at', 'ballots_in_box', 'ballots_counted', 'seal_hash',
+        'manifest', 'signed_message', 'election_name', 'area_name'
+    ];
+    -- The seal's (or the failure's) record on the event's electoral log.
+    log_fields text[] := ARRAY['log_delivery_id', 'log_uid', 'log_leaf_index'];
+    publication_fields text[] := ARRAY[
+        'public_document_id', 'public_path', 'published_at'
+    ];
+BEGIN
+    IF TG_OP = 'DELETE' THEN
+        RAISE EXCEPTION 'The seal of ballot box % is permanent and can''t be deleted', OLD.id
+            USING ERRCODE = '42501',
+                  HINT = 'Ballot box seals are kept for the audit of the election.';
+    END IF;
+
+    IF TG_OP = 'INSERT' THEN
+        IF NEW.status = 'pending'
+           AND NEW.sealed_at IS NULL AND NEW.ballots_in_box IS NULL
+           AND NEW.ballots_counted IS NULL AND NEW.seal_hash IS NULL
+           AND NEW.manifest IS NULL AND NEW.signed_message IS NULL
+           AND NEW.failure_reason IS NULL AND NEW.log_delivery_id IS NULL
+           AND NEW.log_uid IS NULL AND NEW.log_leaf_index IS NULL
+           AND NEW.public_document_id IS NULL AND NEW.public_path IS NULL
+           AND NEW.published_at IS NULL
+           AND NEW.election_name IS NULL AND NEW.area_name IS NULL THEN
+            RETURN NEW;
+        END IF;
+        RAISE EXCEPTION 'A new ballot box seal can only start pending, without seal data'
+            USING ERRCODE = '42501',
+                  HINT = 'Seals are created when voting closes and sealed by the server.';
+    END IF;
+
+    IF OLD.status = 'pending' THEN
+        IF NEW.status = 'pending'
+           AND to_jsonb(NEW) - provenance = to_jsonb(OLD) - provenance THEN
+            RETURN NEW;
+        END IF;
+        IF NEW.status = 'sealed'
+           AND to_jsonb(NEW) - provenance - seal_fields - log_fields - 'status'
+               = to_jsonb(OLD) - provenance - seal_fields - log_fields - 'status'
+           AND NEW.sealed_at IS NOT NULL AND NEW.ballots_in_box IS NOT NULL
+           AND NEW.ballots_counted IS NOT NULL AND NEW.seal_hash IS NOT NULL
+           AND NEW.manifest IS NOT NULL AND NEW.signed_message IS NOT NULL
+           AND NEW.log_delivery_id IS NOT NULL AND NEW.log_uid IS NOT NULL
+           AND NEW.log_leaf_index IS NOT NULL THEN
+            RETURN NEW;
+        END IF;
+        IF NEW.status = 'failed'
+           AND to_jsonb(NEW) - provenance - log_fields - 'failure_reason' - 'status'
+               - 'election_name' - 'area_name'
+               = to_jsonb(OLD) - provenance - log_fields - 'failure_reason' - 'status'
+               - 'election_name' - 'area_name'
+           AND NEW.failure_reason IS NOT NULL
+           AND (NEW.log_delivery_id IS NULL) = (NEW.log_uid IS NULL)
+           AND (NEW.log_uid IS NULL) = (NEW.log_leaf_index IS NULL) THEN
+            RETURN NEW;
+        END IF;
+    ELSIF OLD.status = 'sealed' THEN
+        IF NEW.status IN ('sealed', 'published')
+           AND to_jsonb(NEW) - publication_fields - 'status'
+               = to_jsonb(OLD) - publication_fields - 'status'
+           AND (OLD.public_document_id IS NULL OR NEW.public_document_id IS NOT DISTINCT FROM OLD.public_document_id)
+           AND (OLD.public_path IS NULL OR NEW.public_path IS NOT DISTINCT FROM OLD.public_path)
+           AND (OLD.published_at IS NULL OR NEW.published_at IS NOT DISTINCT FROM OLD.published_at)
+           AND (NEW.status = 'sealed' OR (
+                NEW.public_document_id IS NOT NULL
+                AND NEW.published_at IS NOT NULL
+                -- A public path exactly when the event's record policy is public.
+                AND (NEW.public_path IS NOT NULL) = EXISTS (
+                    SELECT 1
+                    FROM "sequent_backend"."election_event" AS event
+                    WHERE event.tenant_id = NEW.tenant_id
+                      AND event.id = NEW.election_event_id
+                      AND "sequent_backend"."ballot_box_seal_effective_policy"(
+                              event.presentation::jsonb, 'ballot_box_seal_record_policy', 'restricted')
+                          = '"public"'::jsonb
+                )
+           )) THEN
+            RETURN NEW;
+        END IF;
+    END IF;
+
+    RAISE EXCEPTION 'The % seal of ballot box % can''t change this way (to %)',
+        OLD.status, OLD.id, NEW.status
+        USING ERRCODE = '42501',
+              HINT = 'A seal only moves pending → sealed → published, or pending → failed; published and failed seals are final.';
+END;
+$$;
+DROP FUNCTION sequent_backend.track_execution_revision() CASCADE;
+DROP FUNCTION sequent_backend.authorized_execution_deletion(uuid,uuid);
+DROP TABLE sequent_backend.execution_export;
+DROP TABLE sequent_backend.election_execution_revision;
+DROP TABLE sequent_backend.board_operation_binding;
+
+DROP TABLE sequent_backend.register_read_session;

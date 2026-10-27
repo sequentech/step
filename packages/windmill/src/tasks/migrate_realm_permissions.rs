@@ -34,7 +34,34 @@ use tracing::{error, info, instrument};
 
 /// The permissions the migration adds, with the English label Users and
 /// Roles shows for each, which becomes the role's description.
-pub const MIGRATED_PERMISSIONS: [(Permissions, &str); 25] = [
+pub const MIGRATED_PERMISSIONS: [(Permissions, &str); 34] = [
+    (
+        Permissions::SIGN_IMPORT_ELECTION_DATA,
+        "Sign: import election data",
+    ),
+    (Permissions::SELF_TEST_RUN, "Run security self-tests"),
+    (Permissions::SELF_TEST_READ, "Read security self-tests"),
+    (
+        Permissions::SELF_TEST_SETTINGS_WRITE,
+        "Configure security self-tests",
+    ),
+    (Permissions::SIGN_START_TALLY, "Sign: start tally"),
+    (
+        Permissions::SIGN_EXPORT_EXECUTION_DATA,
+        "Sign: export execution data",
+    ),
+    (
+        Permissions::SIGN_DELETE_EXECUTION_DATA,
+        "Sign: delete execution data",
+    ),
+    (
+        Permissions::SIGN_READ_VOTERS_REGISTER,
+        "Sign: read voters register",
+    ),
+    (
+        Permissions::ELECTION_EXECUTION_EXPORT,
+        "Export election execution data",
+    ),
     (
         Permissions::ELECTION_EVENT_SIGNATURES_TAB,
         "Election Event Signatures Tab",

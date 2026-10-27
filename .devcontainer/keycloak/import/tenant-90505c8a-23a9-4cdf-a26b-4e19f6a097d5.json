@@ -1014,6 +1014,60 @@
         "attributes": {}
       },
       {
+        "name": "self-test-run",
+        "description": "Run security self-tests",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "self-test-read",
+        "description": "Read security self-tests",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "self-test-settings-write",
+        "description": "Configure security self-tests",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "sign-import-election-data",
+        "description": "Sign: import election data",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "sign-start-tally",
+        "description": "Sign: start tally",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "sign-export-execution-data",
+        "description": "Sign: export execution data",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "sign-delete-execution-data",
+        "description": "Sign: delete execution data",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "sign-read-voters-register",
+        "description": "Sign: read voters register",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "election-execution-export",
+        "description": "Export election execution data",
+        "composite": false,
+        "clientRole": false
+      },
+      {
         "id": "8b6b57c5-8bc2-426b-94c4-52d00d41bb7c",
         "name": "electoral-log-audit",
         "description": "",
@@ -2308,6 +2362,12 @@
         "clientRole": false,
         "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
         "attributes": {}
+      },
+      {
+        "name": "area-create",
+        "description": "Election board: area create",
+        "composite": false,
+        "clientRole": false
       }
     ],
     "client": {
@@ -2953,7 +3013,10 @@
         "sign-approve-voter",
         "sign-approve-configuration",
         "sign-key-ceremony",
-        "sign-tally-key"
+        "sign-tally-key",
+        "self-test-run",
+        "self-test-read",
+        "self-test-settings-write"
       ],
       "clientRoles": {}
     },
@@ -3082,6 +3145,83 @@
         "document-download"
       ],
       "clientRoles": {}
+    },
+    {
+      "name": "election-board",
+      "path": "/election-board",
+      "attributes": {},
+      "realmRoles": [
+        "election-event-create",
+        "election-event-read",
+        "election-event-write",
+        "election-event-delete",
+        "election-event-archive",
+        "election-execution-export",
+        "election-read",
+        "election-state-write",
+        "election-event-data-tab",
+        "election-event-voters-tab",
+        "election-event-areas-tab",
+        "election-event-keys-tab",
+        "election-event-tally-tab",
+        "election-event-publish-tab",
+        "election-event-signatures-tab",
+        "election-event-tasks-tab",
+        "election-event-logs-tab",
+        "election-event-scheduled-tab",
+        "tasks-read",
+        "logs-read",
+        "election-data-tab",
+        "election-dashboard-tab",
+        "election-publish-tab",
+        "candidate-read",
+        "candidate-create",
+        "contest-read",
+        "area-read",
+        "area-create",
+        "area-write",
+        "area-import",
+        "area-export",
+        "area-upsert",
+        "voter-read",
+        "voter-create",
+        "voter-write",
+        "voter-delete",
+        "user-read",
+        "role-read",
+        "user-permission-read",
+        "trustee-read",
+        "admin-ceremony",
+        "tally-read",
+        "tally-results-read",
+        "tally-recount-execute",
+        "publish-read",
+        "publish-write",
+        "publish-create",
+        "publish-regenerate",
+        "publish-results-read",
+        "document-read",
+        "document-upload",
+        "scheduled-event-write",
+        "signing-rules-read",
+        "signing-certificates-read",
+        "signing-requests-read",
+        "signing-requests-cancel",
+        "signing-requests-export",
+        "self-test-read",
+        "self-test-run",
+        "sign-initialize-voting",
+        "sign-open-voting",
+        "sign-close-voting",
+        "sign-approve-configuration",
+        "sign-import-election-data",
+        "sign-start-tally",
+        "sign-export-execution-data",
+        "sign-delete-execution-data",
+        "sign-read-voters-register"
+      ],
+      "clientRoles": {},
+      "subGroups": []
     }
   ],
   "defaultRole": {
@@ -6510,7 +6650,7 @@
       "id": "14301189-f3d6-4e1e-babb-44b71d5abb2b",
       "alias": "user session count limiter config",
       "config": {
-        "errorMessage": "Sesión de voto ya iniciada. Cierre la sesión abierta en otra ventana para continuar.",
+        "errorMessage": "Sesi\u00f3n de voto ya iniciada. Cierre la sesi\u00f3n abierta en otra ventana para continuar.",
         "userClientLimit": "0",
         "behavior": "Deny new session",
         "userRealmLimit": "1"

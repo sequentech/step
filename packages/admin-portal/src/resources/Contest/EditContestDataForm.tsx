@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+import {ProtectedImportNotice} from "@/components/ProtectedImportNotice"
 import {
     SelectInput,
     TextInput,
@@ -307,7 +308,7 @@ export const ContestDataForm: React.FC = () => {
     const [value, setValue] = useState(0)
     const [expanded, setExpanded] = useState("contest-data-general")
 
-    const canEdit = authContext.isAuthorized(true, authContext.tenantId, IPermissions.CONTEST_WRITE)
+    const canEdit = false // Changes require the board-approved import workflow.
 
     const {data: electionEvent} = useGetOne<Sequent_Backend_Election_Event>(
         "sequent_backend_election_event",
@@ -651,7 +652,7 @@ export const ContestDataForm: React.FC = () => {
                     <SimpleForm
                         onSubmit={async (values: FieldValues) => {
                             try {
-                                return await save?.(values)
+                                return undefined
                             } catch {
                                 // The transform reports the error; retain the editable form.
                                 return undefined
@@ -660,7 +661,11 @@ export const ContestDataForm: React.FC = () => {
                         defaultValues={{candidatesOrder: sortedCandidates}}
                         validate={formValidator}
                         record={parsedValue}
-                        toolbar={<Toolbar>{canEdit && <SaveButton />}</Toolbar>}
+                        toolbar={
+                            <Toolbar>
+                                <ProtectedImportNotice />
+                            </Toolbar>
+                        }
                     >
                         <Accordion
                             sx={{width: "100%"}}
@@ -681,14 +686,19 @@ export const ContestDataForm: React.FC = () => {
                                 </ContestStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
-                                <TextInput
-                                    source="external_id"
-                                    label={String(t("contestScreen.edit.externalId"))}
-                                />
-                                <Tabs value={value} onChange={handleChange}>
-                                    {renderTabs()}
-                                </Tabs>
-                                {renderTabContent()}
+                                <fieldset
+                                    disabled
+                                    style={{border: 0, padding: 0, margin: 0, width: "100%"}}
+                                >
+                                    <TextInput
+                                        source="external_id"
+                                        label={String(t("contestScreen.edit.externalId"))}
+                                    />
+                                    <Tabs value={value} onChange={handleChange}>
+                                        {renderTabs()}
+                                    </Tabs>
+                                    {renderTabContent()}
+                                </fieldset>
                             </AccordionDetails>
                         </Accordion>
 
@@ -711,24 +721,31 @@ export const ContestDataForm: React.FC = () => {
                                 </ContestStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
-                                <SelectInput
-                                    source="counting_algorithm"
-                                    choices={countingAlgorithmChoices()}
-                                    validate={required()}
-                                />
-                                <FormDataConsumer>
-                                    {({formData}) =>
-                                        formData?.counting_algorithm ===
-                                        ICountingAlgorithm.INSTANT_RUNOFF ? (
-                                            <SelectInput
-                                                source="tally_configuration.tie_breaking_policy"
-                                                label={t("contestScreen.tieBreakingPolicy.label")}
-                                                choices={tieBreakingPolicyChoices()}
-                                                validate={required()}
-                                            />
-                                        ) : null
-                                    }
-                                </FormDataConsumer>
+                                <fieldset
+                                    disabled
+                                    style={{border: 0, padding: 0, margin: 0, width: "100%"}}
+                                >
+                                    <SelectInput
+                                        source="counting_algorithm"
+                                        choices={countingAlgorithmChoices()}
+                                        validate={required()}
+                                    />
+                                    <FormDataConsumer>
+                                        {({formData}) =>
+                                            formData?.counting_algorithm ===
+                                            ICountingAlgorithm.INSTANT_RUNOFF ? (
+                                                <SelectInput
+                                                    source="tally_configuration.tie_breaking_policy"
+                                                    label={t(
+                                                        "contestScreen.tieBreakingPolicy.label"
+                                                    )}
+                                                    choices={tieBreakingPolicyChoices()}
+                                                    validate={required()}
+                                                />
+                                            ) : null
+                                        }
+                                    </FormDataConsumer>
+                                </fieldset>
                             </AccordionDetails>
                         </Accordion>
 
@@ -751,186 +768,197 @@ export const ContestDataForm: React.FC = () => {
                                 </ContestStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
-                                <BooleanInput
-                                    source="is_acclaimed"
-                                    label={String(t("contestScreen.isAcclaimed.label"))}
-                                    helperText={String(t("contestScreen.isAcclaimed.helperText"))}
-                                />
-                                <BooleanInput
-                                    source="presentation.allow_writeins"
-                                    label={String(t(`contestScreen.allowWriteins.label`))}
-                                />
-                                <NumberInput source="min_votes" min={0} />
-                                <FormDataConsumer>
-                                    {({formData}) => (
-                                        <NumberInput
-                                            source="max_votes"
-                                            min={0}
-                                            helperText={String(
-                                                t(
-                                                    formData?.counting_algorithm ===
-                                                        ICountingAlgorithm.INSTANT_RUNOFF
-                                                        ? "contestScreen.maxVotes.helperTextPreferential"
-                                                        : "contestScreen.maxVotes.helperText"
-                                                )
-                                            )}
-                                        />
-                                    )}
-                                </FormDataConsumer>
-                                <Box sx={{marginTop: "1rem"}} />
-                                <NumberInput source="presentation.columns" min={1} />
-                                <NumberInput source="winning_candidates_num" min={0} />
-                                <SelectInput
-                                    source="presentation.candidates_order"
-                                    choices={orderAnswerChoices()}
-                                    validate={required()}
-                                />
-                                <FormDataConsumer>
-                                    {({formData, ...rest}) => {
-                                        return (
-                                            formData?.presentation as
-                                                | IContestPresentation
-                                                | undefined
-                                        )?.candidates_order === CandidatesOrder.CUSTOM ? (
-                                            <CandidateRows>
-                                                <Typography
-                                                    variant="body1"
-                                                    component="span"
-                                                    sx={{
-                                                        padding: "0.5rem 1rem",
-                                                        fontWeight: "bold",
-                                                        margin: 0,
-                                                        display: {xs: "none", sm: "block"},
-                                                    }}
-                                                >
-                                                    {t("contestScreen.edit.reorder")}
-                                                </Typography>
-                                                <CustomOrderInput source="candidatesOrder" />
-                                                <Box sx={{width: "100%", height: "180px"}}></Box>
-                                            </CandidateRows>
-                                        ) : null
-                                    }}
-                                </FormDataConsumer>
-                                <FormDataConsumer>
-                                    {({formData, ...rest}) => (
-                                        <ListsPresentationEditor
-                                            formData={formData}
-                                            candidates={candidates}
-                                            languageConf={languageConf}
-                                        />
-                                    )}
-                                </FormDataConsumer>
-
-                                <SelectInput
-                                    source="presentation.enable_checkable_lists"
-                                    choices={checkableListChoices()}
-                                    validate={required()}
-                                />
-
-                                <SelectInput
-                                    source="presentation.collapsible_lists"
-                                    choices={collapsibleListsChoices()}
-                                    label={String(t(`contestScreen.collapsibleListsPolicy.label`))}
-                                    defaultValue={ECollapsibleLists.DISABLED}
-                                    validate={required()}
-                                />
-
-                                <NumberInput
-                                    source="presentation.max_selections_per_type"
-                                    min={0}
-                                    isRequired={false}
-                                />
-
-                                <Typography
-                                    variant="body1"
-                                    component="span"
-                                    sx={{
-                                        padding: "0.5rem 1rem",
-                                        fontWeight: "bold",
-                                        margin: 0,
-                                        display: {xs: "none", sm: "block"},
-                                    }}
+                                <fieldset
+                                    disabled
+                                    style={{border: 0, padding: 0, margin: 0, width: "100%"}}
                                 >
-                                    {t("contestScreen.edit.policies")}
-                                </Typography>
+                                    <BooleanInput
+                                        source="is_acclaimed"
+                                        label={String(t("contestScreen.isAcclaimed.label"))}
+                                        helperText={String(
+                                            t("contestScreen.isAcclaimed.helperText")
+                                        )}
+                                    />
+                                    <BooleanInput
+                                        source="presentation.allow_writeins"
+                                        label={String(t(`contestScreen.allowWriteins.label`))}
+                                    />
+                                    <NumberInput source="min_votes" min={0} />
+                                    <FormDataConsumer>
+                                        {({formData}) => (
+                                            <NumberInput
+                                                source="max_votes"
+                                                min={0}
+                                                helperText={String(
+                                                    t(
+                                                        formData?.counting_algorithm ===
+                                                            ICountingAlgorithm.INSTANT_RUNOFF
+                                                            ? "contestScreen.maxVotes.helperTextPreferential"
+                                                            : "contestScreen.maxVotes.helperText"
+                                                    )
+                                                )}
+                                            />
+                                        )}
+                                    </FormDataConsumer>
+                                    <Box sx={{marginTop: "1rem"}} />
+                                    <NumberInput source="presentation.columns" min={1} />
+                                    <NumberInput source="winning_candidates_num" min={0} />
+                                    <SelectInput
+                                        source="presentation.candidates_order"
+                                        choices={orderAnswerChoices()}
+                                        validate={required()}
+                                    />
+                                    <FormDataConsumer>
+                                        {({formData, ...rest}) => {
+                                            return (
+                                                formData?.presentation as
+                                                    | IContestPresentation
+                                                    | undefined
+                                            )?.candidates_order === CandidatesOrder.CUSTOM ? (
+                                                <CandidateRows>
+                                                    <Typography
+                                                        variant="body1"
+                                                        component="span"
+                                                        sx={{
+                                                            padding: "0.5rem 1rem",
+                                                            fontWeight: "bold",
+                                                            margin: 0,
+                                                            display: {xs: "none", sm: "block"},
+                                                        }}
+                                                    >
+                                                        {t("contestScreen.edit.reorder")}
+                                                    </Typography>
+                                                    <CustomOrderInput source="candidatesOrder" />
+                                                    <Box
+                                                        sx={{width: "100%", height: "180px"}}
+                                                    ></Box>
+                                                </CandidateRows>
+                                            ) : null
+                                        }}
+                                    </FormDataConsumer>
+                                    <FormDataConsumer>
+                                        {({formData, ...rest}) => (
+                                            <ListsPresentationEditor
+                                                formData={formData}
+                                                candidates={candidates}
+                                                languageConf={languageConf}
+                                            />
+                                        )}
+                                    </FormDataConsumer>
 
-                                <SelectInput
-                                    source="presentation.under_vote_policy"
-                                    choices={underVotePolicyChoices()}
-                                    label={String(t(`contestScreen.underVotePolicy.label`))}
-                                    validate={required()}
-                                />
+                                    <SelectInput
+                                        source="presentation.enable_checkable_lists"
+                                        choices={checkableListChoices()}
+                                        validate={required()}
+                                    />
 
-                                <SelectInput
-                                    source="presentation.invalid_vote_policy"
-                                    choices={invalidVotePolicyChoices()}
-                                    label={String(t(`contestScreen.invalidVotePolicy.label`))}
-                                    validate={required()}
-                                />
+                                    <SelectInput
+                                        source="presentation.collapsible_lists"
+                                        choices={collapsibleListsChoices()}
+                                        label={String(
+                                            t(`contestScreen.collapsibleListsPolicy.label`)
+                                        )}
+                                        defaultValue={ECollapsibleLists.DISABLED}
+                                        validate={required()}
+                                    />
 
-                                <SelectInput
-                                    source={`presentation.blank_vote_policy`}
-                                    choices={blankVotePolicyChoices()}
-                                    label={String(t(`contestScreen.blankVotePolicy.label`))}
-                                    defaultValue={EBlankVotePolicy.ALLOWED}
-                                    validate={required()}
-                                />
+                                    <NumberInput
+                                        source="presentation.max_selections_per_type"
+                                        min={0}
+                                        isRequired={false}
+                                    />
 
-                                <SelectInput
-                                    source={`presentation.over_vote_policy`}
-                                    choices={overVotePolicyChoices()}
-                                    label={String(t(`contestScreen.overVotePolicy.label`))}
-                                    defaultValue={EOverVotePolicy.ALLOWED}
-                                    validate={required()}
-                                />
+                                    <Typography
+                                        variant="body1"
+                                        component="span"
+                                        sx={{
+                                            padding: "0.5rem 1rem",
+                                            fontWeight: "bold",
+                                            margin: 0,
+                                            display: {xs: "none", sm: "block"},
+                                        }}
+                                    >
+                                        {t("contestScreen.edit.policies")}
+                                    </Typography>
 
-                                <FormDataConsumer>
-                                    {({formData}) =>
-                                        formData?.counting_algorithm ===
-                                        ICountingAlgorithm.INSTANT_RUNOFF ? (
-                                            <>
-                                                <SelectInput
-                                                    source={`presentation.duplicated_rank_policy`}
-                                                    choices={duplicatedRankPolicyChoices()}
-                                                    label={String(
-                                                        t(
-                                                            `contestScreen.duplicatedRankPolicy.label`
-                                                        )
-                                                    )}
-                                                    defaultValue={getDefaultDuplicatedRankPolicy()}
-                                                    validate={required()}
-                                                />
+                                    <SelectInput
+                                        source="presentation.under_vote_policy"
+                                        choices={underVotePolicyChoices()}
+                                        label={String(t(`contestScreen.underVotePolicy.label`))}
+                                        validate={required()}
+                                    />
 
-                                                <SelectInput
-                                                    source={`presentation.preference_gaps_policy`}
-                                                    choices={preferenceGapsPolicyChoices()}
-                                                    label={String(
-                                                        t(
-                                                            `contestScreen.preferenceGapsPolicy.label`
-                                                        )
-                                                    )}
-                                                    defaultValue={getDefaultPreferenceGapsPolicy()}
-                                                    validate={required()}
-                                                />
-                                            </>
-                                        ) : null
-                                    }
-                                </FormDataConsumer>
+                                    <SelectInput
+                                        source="presentation.invalid_vote_policy"
+                                        choices={invalidVotePolicyChoices()}
+                                        label={String(t(`contestScreen.invalidVotePolicy.label`))}
+                                        validate={required()}
+                                    />
 
-                                <SelectInput
-                                    source={`presentation.candidates_icon_checkbox_policy`}
-                                    choices={candidatesIconCheckboxPolicy()}
-                                    label={String(
-                                        t(`contestScreen.candidatesIconCheckboxPolicy.label`)
-                                    )}
-                                    defaultValue={ECandidatesIconCheckboxPolicy.SQUARE_CHECKBOX}
-                                    validate={required()}
-                                />
+                                    <SelectInput
+                                        source={`presentation.blank_vote_policy`}
+                                        choices={blankVotePolicyChoices()}
+                                        label={String(t(`contestScreen.blankVotePolicy.label`))}
+                                        defaultValue={EBlankVotePolicy.ALLOWED}
+                                        validate={required()}
+                                    />
 
-                                <TextInput
-                                    source={`presentation.pagination_policy`}
-                                    label={String(t(`contestScreen.paginationPolicy.label`))}
-                                />
+                                    <SelectInput
+                                        source={`presentation.over_vote_policy`}
+                                        choices={overVotePolicyChoices()}
+                                        label={String(t(`contestScreen.overVotePolicy.label`))}
+                                        defaultValue={EOverVotePolicy.ALLOWED}
+                                        validate={required()}
+                                    />
+
+                                    <FormDataConsumer>
+                                        {({formData}) =>
+                                            formData?.counting_algorithm ===
+                                            ICountingAlgorithm.INSTANT_RUNOFF ? (
+                                                <>
+                                                    <SelectInput
+                                                        source={`presentation.duplicated_rank_policy`}
+                                                        choices={duplicatedRankPolicyChoices()}
+                                                        label={String(
+                                                            t(
+                                                                `contestScreen.duplicatedRankPolicy.label`
+                                                            )
+                                                        )}
+                                                        defaultValue={getDefaultDuplicatedRankPolicy()}
+                                                        validate={required()}
+                                                    />
+
+                                                    <SelectInput
+                                                        source={`presentation.preference_gaps_policy`}
+                                                        choices={preferenceGapsPolicyChoices()}
+                                                        label={String(
+                                                            t(
+                                                                `contestScreen.preferenceGapsPolicy.label`
+                                                            )
+                                                        )}
+                                                        defaultValue={getDefaultPreferenceGapsPolicy()}
+                                                        validate={required()}
+                                                    />
+                                                </>
+                                            ) : null
+                                        }
+                                    </FormDataConsumer>
+
+                                    <SelectInput
+                                        source={`presentation.candidates_icon_checkbox_policy`}
+                                        choices={candidatesIconCheckboxPolicy()}
+                                        label={String(
+                                            t(`contestScreen.candidatesIconCheckboxPolicy.label`)
+                                        )}
+                                        defaultValue={ECandidatesIconCheckboxPolicy.SQUARE_CHECKBOX}
+                                        validate={required()}
+                                    />
+
+                                    <TextInput
+                                        source={`presentation.pagination_policy`}
+                                        label={String(t(`contestScreen.paginationPolicy.label`))}
+                                    />
+                                </fieldset>
                             </AccordionDetails>
                         </Accordion>
 
@@ -953,25 +981,30 @@ export const ContestDataForm: React.FC = () => {
                                 </CandidateStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
-                                <Grid container spacing={1}>
-                                    <Grid size={2}>
-                                        {parsedValue?.image_document_id &&
-                                        imageData?.id === parsedValue.image_document_id &&
-                                        imageData.name ? (
-                                            <img
-                                                width={200}
-                                                height={200}
-                                                src={`${globalSettings.PUBLIC_BUCKET_URL}${imageUrl}`}
-                                                alt={imageUrl}
+                                <fieldset
+                                    disabled
+                                    style={{border: 0, padding: 0, margin: 0, width: "100%"}}
+                                >
+                                    <Grid container spacing={1}>
+                                        <Grid size={2}>
+                                            {parsedValue?.image_document_id &&
+                                            imageData?.id === parsedValue.image_document_id &&
+                                            imageData.name ? (
+                                                <img
+                                                    width={200}
+                                                    height={200}
+                                                    src={`${globalSettings.PUBLIC_BUCKET_URL}${imageUrl}`}
+                                                    alt={imageUrl}
+                                                />
+                                            ) : null}
+                                        </Grid>
+                                        <Grid size={10}>
+                                            <DropFile
+                                                handleFiles={async (files) => handleFiles(files)}
                                             />
-                                        ) : null}
+                                        </Grid>
                                     </Grid>
-                                    <Grid size={10}>
-                                        <DropFile
-                                            handleFiles={async (files) => handleFiles(files)}
-                                        />
-                                    </Grid>
-                                </Grid>
+                                </fieldset>
                             </AccordionDetails>
                         </Accordion>
 
@@ -996,11 +1029,16 @@ export const ContestDataForm: React.FC = () => {
                                 </ContestStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
-                                <FileJsonInput
-                                    parsedValue={parsedValue}
-                                    fileSource="configuration"
-                                    jsonSource="presentation"
-                                />
+                                <fieldset
+                                    disabled
+                                    style={{border: 0, padding: 0, margin: 0, width: "100%"}}
+                                >
+                                    <FileJsonInput
+                                        parsedValue={parsedValue}
+                                        fileSource="configuration"
+                                        jsonSource="presentation"
+                                    />
+                                </fieldset>
                             </AccordionDetails>
                         </Accordion>
                     </SimpleForm>

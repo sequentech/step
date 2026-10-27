@@ -62,6 +62,7 @@ struct Vote {
     country: Option<&'static str>,
     status: BallotStatus,
     content: &'static str,
+    admission: Vec<u8>,
 }
 
 impl Vote {
@@ -78,6 +79,7 @@ impl Vote {
             country: Some("ES"),
             status: BallotStatus::Valid,
             content: "ciphertext",
+            admission: serde_json::to_vec(&serde_json::json!({"payload":{"accepted_at":"2026-10-27T12:00:00.000Z","sequence":std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos() as i64},"signature":""})).unwrap(),
         }
     }
 
@@ -124,6 +126,7 @@ impl Vote {
             format: "test",
             content: self.content,
             voter_signature: None,
+            admission_record: &self.admission,
             pseudonym_hash: &[1; 64],
             ballot_hash: &[2; 64],
             voting_channel: self.channel,
@@ -1408,6 +1411,9 @@ impl Received {
         let mut vote = Vote::new(&self.event, &self.election, &self.area, self.voter, allowed)
             .with_content("received ciphertext");
         vote.ballot = self.hash.clone();
+        let mut admission: serde_json::Value = serde_json::from_slice(&vote.admission).unwrap();
+        admission["payload"]["accepted_at"] = serde_json::json!(cast("").cast_at.to_rfc3339());
+        vote.admission = serde_json::to_vec(&admission).unwrap();
         vote
     }
 }
@@ -1858,5 +1864,61 @@ async fn first_valid_votes_are_read_again_while_a_vote_may_be_in_progress() -> R
     let after = store.first_valid_votes(&event, settled.next_seq).await?;
     assert!(after.votes.is_empty());
     assert_eq!(after.next_seq, later);
+    drop_ballot_box(&store, &event).await
+}
+
+#[tokio::test]
+#[ignore = "requires ELECTORAL_LOG_TEST_DATABASE_URL"]
+async fn admission_and_audit_commit_together_or_leave_no_ballot() -> Result<()> {
+    let store = store().await?;
+    let (event, election, area, _) = ids();
+    store.create_ballot_box(&event).await?;
+    let vote = Vote::new(&event, &election, &area, "atomic-voter", 1);
+    let accepted = vote.request();
+    let admission: serde_json::Value = serde_json::from_slice(accepted.admission_record)?;
+    let seq = admission["payload"]["sequence"].as_i64().unwrap();
+    let record = cast_vote_record(&event, seq);
+    // A nonexistent board rejects the append after ballot INSERT has executed.
+    assert!(store
+        .accept_recorded_ballot(&accepted, None, "missing-admission-board", &record)
+        .await
+        .is_err());
+    assert!(store
+        .voter_state(&event, &election, "atomic-voter")
+        .await?
+        .is_none());
+    assert!(store
+        .voter_ballots(&event, "atomic-voter")
+        .await?
+        .is_empty());
+    assert_eq!(store.pending_count(&event).await?, 0);
+    let board = format!("atomic{}", Uuid::new_v4().simple());
+    store.create_board(&board).await?;
+    assert!(matches!(
+        store
+            .accept_recorded_ballot(&accepted, None, &board, &record)
+            .await?,
+        AcceptOutcome::Accepted { .. }
+    ));
+    assert_eq!(
+        store
+            .voter_state(&event, &election, "atomic-voter")
+            .await?
+            .unwrap()
+            .votes,
+        1
+    );
+    assert_eq!(store.pending_count(&event).await?, 0);
+    let count: i64 = store
+        .client()
+        .await?
+        .query_one(
+            "SELECT count(*) FROM electoral_log_messages WHERE board_name=$1 AND delivery_id=$2",
+            &[&board, &record.delivery_id],
+        )
+        .await?
+        .get(0);
+    assert_eq!(count, 1);
+    store.delete_board(&board).await?;
     drop_ballot_box(&store, &event).await
 }

@@ -69,6 +69,12 @@ async fn rocket() -> _ {
 /// tests. Starting probes, plugins and worker processes remains a startup step.
 fn build_application() -> rocket::Rocket<rocket::Build> {
     build_application_with(HarvestServices::production())
+        .manage(sequent_core::services::connection::VoterAccessGuard(
+            std::sync::Arc::new(
+                services::voter_admission::ElectionVoterAdmission,
+            ),
+        ))
+        .attach(services::voter_admission::lifecycle_fairing())
 }
 
 fn build_application_with(
@@ -82,6 +88,7 @@ fn build_application_with(
             catchers![
                 routes::error_catchers::internal_error,
                 routes::error_catchers::not_found,
+                routes::error_catchers::service_unavailable,
                 routes::error_catchers::default
             ],
         )
@@ -218,6 +225,11 @@ fn build_application_with(
                 routes::tally_ceremony::submit_tally_resolution,
                 routes::voting_status::update_event_status,
                 routes::voting_status::update_election_status,
+                routes::election_lifecycle::lifecycle_status,
+                routes::election_lifecycle::start_post_processing,
+                routes::self_tests::run_self_tests,
+                routes::self_tests::get_self_tests,
+                routes::self_tests::update_self_test_settings,
                 routes::tally_ceremony::update_tally_ceremony,
                 routes::tally_ceremony::recount_tally_session,
                 routes::tally_sheets::create_new_tally_sheet,

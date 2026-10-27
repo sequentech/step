@@ -68,6 +68,9 @@ pub struct ConfigurationSubject {
     pub ballot_publication_id: String,
     /// SHA-256 of what publishing writes; see [`publication_digest`].
     pub digest: String,
+    /// Exact integrity baseline approved by the board. Older requests cover none.
+    #[serde(default)]
+    pub self_test_baseline: Option<Value>,
     /// The signing rules saved since the last publication, each
     /// `ACTION=BEFORE>AFTER` ([`rule_change`]). Requests started before
     /// carry the action id alone.
@@ -267,6 +270,12 @@ pub async fn configuration_subject(
     election_event_id: Uuid,
     publication: &BallotPublication,
 ) -> Result<ConfigurationSubject> {
+    crate::services::ballot_styles::ballot_publication::prepare_approval_realm(
+        hasura_transaction,
+        &tenant_id.to_string(),
+        &election_event_id.to_string(),
+    )
+    .await?;
     let publication_id = Uuid::parse_str(&publication.id)?;
     let diff = serde_json::to_value(
         get_ballot_publication_diff(
@@ -303,6 +312,14 @@ pub async fn configuration_subject(
     let lifecycle =
         lifecycle_snapshot(hasura_transaction, tenant_id, election_event_id, target).await?;
     Ok(ConfigurationSubject {
+        self_test_baseline: Some(
+            crate::services::self_tests::snapshot::capture(
+                hasura_transaction,
+                &tenant_id.to_string(),
+                &election_event_id.to_string(),
+            )
+            .await?,
+        ),
         ballot_publication_id: publication.id.clone(),
         digest: publication_digest(
             hasura_transaction,
@@ -543,6 +560,24 @@ pub async fn publish(
             ),
         ));
     }
+    let baseline = signed.self_test_baseline.as_ref().ok_or_else(|| {
+        refuse(
+            "baseline-missing",
+            "Start a new approval request to sign the self-test baseline.",
+        )
+    })?;
+    let current = crate::services::self_tests::snapshot::capture(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+    )
+    .await?;
+    if baseline != &current {
+        return Err(refuse(
+            "payload-changed",
+            "Election data or access configuration changed after approval was requested.",
+        ));
+    }
     // Publishing writes the voter files and posts to the bulletin board.
     progress.reach_outside();
     // The published copy is what the signers authorized, even if a rule or
@@ -560,8 +595,8 @@ pub async fn publish(
         hasura_transaction,
         request.requested_by.clone(),
         request.requested_by_username.clone(),
-        tenant_id,
-        election_event_id,
+        tenant_id.clone(),
+        election_event_id.clone(),
         signed.ballot_publication_id.clone(),
         &lifecycle,
     )
@@ -572,6 +607,28 @@ pub async fn publish(
             None => error,
         },
     )?;
+    // Idempotent publish-time realm synchronization must not change the values
+    // that the board signed. Verify, never recapture, after publication as well.
+    let published_snapshot = crate::services::self_tests::snapshot::capture(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+    )
+    .await?;
+    if baseline != &published_snapshot {
+        return Err(refuse(
+            "payload-changed",
+            "Publication changed the approved election data or access configuration.",
+        ));
+    }
+    crate::services::self_tests::snapshot::approve(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &signed.ballot_publication_id,
+        baseline,
+    )
+    .await?;
     Ok(json!({
         "ballot_publication_id": signed.ballot_publication_id,
         "digest": signed.digest,

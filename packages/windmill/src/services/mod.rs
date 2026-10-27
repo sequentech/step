@@ -30,6 +30,7 @@ pub mod election_event_board;
 pub mod election_event_dates;
 pub mod election_event_statistics;
 pub mod election_event_status;
+pub mod election_lifecycle;
 pub mod election_statistics;
 pub mod electoral_log;
 pub mod electoral_log_audit;
@@ -96,3 +97,14 @@ pub mod vault;
 pub mod voter_secret_attributes;
 pub mod voting_status;
 pub mod weight_batches;
+
+pub mod audit_storage;
+pub mod audit_storage_policy;
+pub mod ballot_admission;
+pub mod security_notifications;
+
+pub mod self_tests;
+
+pub mod board_operations;
+
+pub mod execution_archive;

@@ -118,6 +118,20 @@ pub async fn accept_ballot(ballot: &AcceptBallot<'_>) -> Result<AcceptOutcome> {
         .await
 }
 
+/// Acceptance and the independently signed audit record commit together.
+pub async fn accept_recorded_ballot(
+    ballot: &AcceptBallot<'_>,
+    board: &str,
+    entry: &LogEntry,
+) -> Result<AcceptOutcome> {
+    get_event_databases()
+        .await?
+        .store(ballot.election_event_id)
+        .await?
+        .accept_recorded_ballot(ballot, None, board, entry)
+        .await
+}
+
 /// Mark an event so that the sequencer visits it at its next run, before waiting for
 /// it.
 pub async fn request_sequencer(election_event_id: &str) -> Result<()> {
@@ -147,8 +161,13 @@ pub fn ballot_record(
     ballot: &PendingBallot,
     signing_key: &SigningKey,
 ) -> Result<LogEntry> {
+    crate::services::ballot_admission::verify_pending(
+        ballot,
+        election_event_id,
+        &voting_crypto::signing::VerificationKey::from_sk(signing_key)?,
+    )?;
     let log = ElectoralLog::for_voter_with_signing_key(board, &ballot.voter_id, signing_key);
-    let message = Message::cast_vote_with_channel_message(
+    let mut message = Message::cast_vote_with_channel_message(
         EventIdString(election_event_id.to_string()),
         ElectionIdString(Some(ballot.election_id.clone())),
         PseudonymHash::new(stored_hash(&ballot.pseudonym_hash)?),
@@ -163,6 +182,23 @@ pub fn ballot_record(
         Some(ballot.voter_id.clone()),
         ballot.username.clone(),
         ballot.area_id.clone(),
+    )?;
+    // Deterministic retries retain the signed admission time, not worker wall time.
+    message.statement.head.timestamp = ballot
+        .accepted_at
+        .try_into()
+        .context("Invalid signed acceptance timestamp")?;
+    let message = Message::sign(
+        message.statement,
+        message.artifact,
+        signing_key,
+        &ballot.voter_id,
+        signing_key,
+        message.user_id,
+        message.username,
+        message.election_id,
+        message.area_id,
+        message.ballot_id,
     )?;
     Ok(LogEntry {
         delivery_id: ballot_delivery_id(election_event_id, ballot.seq),
@@ -403,6 +439,7 @@ mod tests {
                     format: "hashable-ballot",
                     content: "ciphertext",
                     voter_signature: None,
+                    admission_record: &format!(r#"{{"payload":{{"accepted_at":"2026-10-27T12:00:00.000Z","sequence":{}}},"signature":""}}"#, std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos() as i64).into_bytes(),
                     pseudonym_hash: &[index as u8; 64],
                     ballot_hash: &[9; 64],
                     voting_channel: "ONLINE",

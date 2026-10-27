@@ -187,7 +187,11 @@ pub async fn read_export_data(
         // parse_uuid_v4 still runs: the schema now carries a String, but an
         // export must not emit a tenant id that is not a UUID.
         tenant_id: parse_uuid_v4(&tenant_id)?.to_string(),
-        keycloak_event_realm: Some(serde_json::to_value(realm)?),
+        keycloak_event_realm: Some(
+            crate::services::execution_archive::public_realm_configuration(&serde_json::to_value(
+                &realm,
+            )?),
+        ),
         election_event: election_event,
         elections: export_elections,
         contests: contests.clone(),
@@ -477,6 +481,24 @@ pub async fn process_export_zip(
         .transaction()
         .await
         .map_err(|err| anyhow!("Error starting hasura transaction: {err}"))?;
+    let approved = crate::services::board_operations::validate(
+        &hasura_transaction,
+        tenant_id,
+        election_event_id,
+        crate::services::board_operations::BindingKind::Export,
+        document_id,
+        Some(&export_config.approved_parameters()?),
+    )
+    .await?;
+    let source_revision = crate::services::board_operations::source_revision(
+        &hasura_transaction,
+        tenant_id,
+        election_event_id,
+    )
+    .await?;
+    let generation = approved["lifecycle_generation"]
+        .as_i64()
+        .context("Missing approved lifecycle generation")?;
     info!(
         include_voters = export_config.include_voters,
         contains_voter_secrets, "exporting election event"
@@ -827,31 +849,8 @@ pub async fn process_export_zip(
         }
     }
 
-    // add protocol manager secrets
-    if export_config.bulletin_board || export_config.activity_logs || export_config.publications {
-        // read protocol manager keys (one per board)
-        let protocol_manager_keys_filename = format!(
-            "{}-{}.csv",
-            EDocuments::PROTOCOL_MANAGER_KEYS.to_file_name(),
-            election_event_id
-        );
-
-        let temp_protocol_manager_keys_file = export_bulletin_boards::read_protocol_manager_keys(
-            &hasura_transaction,
-            tenant_id,
-            election_event_id,
-        )
-        .await
-        .map_err(|e| anyhow!("Error reading protocol manager keys data: {e:?}"))?;
-        zip_writer
-            .start_file(&protocol_manager_keys_filename, options)
-            .map_err(|e| anyhow!("Error starting protocol manager keys file in ZIP: {e:?}"))?;
-
-        let mut protocol_manager_keys_file = File::open(temp_protocol_manager_keys_file)
-            .map_err(|e| anyhow!("Error opening temporary protocol manager keys file: {e:?}"))?;
-        std::io::copy(&mut protocol_manager_keys_file, &mut zip_writer)
-            .map_err(|e| anyhow!("Error copying protocol manager keys file to ZIP: {e:?}"))?;
-    }
+    // Execution evidence contains public protocol messages, never manager or
+    // trustee private keys. It is an audit archive, not a restoration of keys.
 
     // Add boards info
     let keys_ceremonies =
@@ -951,6 +950,15 @@ pub async fn process_export_zip(
         .finish()
         .map_err(|e| anyhow!("Error finalizing ZIP file: {e:?}"))?;
 
+    let integrity = crate::services::execution_archive::sign(
+        &zip_path,
+        tenant_id,
+        election_event_id,
+        document_id,
+        source_revision,
+        generation,
+    )?;
+
     // Encrypt ZIP file if required
     let encryption_password = export_config.password.unwrap_or("".to_string());
     if 0 == encryption_password.len() && (export_config.bulletin_board || export_config.reports) {
@@ -1013,6 +1021,30 @@ pub async fn process_export_zip(
         )
         .await?
     };
+
+    // Mark an export complete only after the exact signed archive is durably
+    // uploaded, and only if the source remained unchanged throughout export.
+    anyhow::ensure!(
+        source_revision
+            == crate::services::board_operations::source_revision(
+                &hasura_transaction,
+                tenant_id,
+                election_event_id
+            )
+            .await?,
+        "Election data changed during export; retry with a new board approval"
+    );
+    let archive_hash = hex::encode(hash_sha256_file(std::path::Path::new(upload_path))?);
+    hasura_transaction.execute("INSERT INTO sequent_backend.execution_export(tenant_id,election_event_id,document_id,request_id,source_revision,lifecycle_generation,manifest_sha256,archive_sha256,signing_public_key) SELECT $1::text::uuid,$2::text::uuid,$3::text::uuid,b.request_id,$4,$5,$6,$7,$8 FROM sequent_backend.board_operation_binding b WHERE b.tenant_id=$1::text::uuid AND b.election_event_id=$2::text::uuid AND b.binding_kind='export' AND b.binding_id=$3::text::uuid", &[&tenant_id,&election_event_id,&document_id,&source_revision,&generation,&integrity.manifest_sha256,&archive_hash,&integrity.public_key]).await?;
+    crate::services::election_lifecycle::notice(
+        &hasura_transaction,
+        tenant_id,
+        election_event_id,
+        "ExecutionDataExported",
+        serde_json::json!({"document_id":document_id,"archive_sha256":archive_hash,
+        "manifest_sha256":integrity.manifest_sha256,"public_key":integrity.public_key}),
+    )
+    .await?;
 
     hasura_transaction
         .commit()

@@ -42,6 +42,21 @@ impl StatementHead {
         };
 
         match body {
+            StatementBody::SelfTest(_, stage, details) => StatementHead {
+                kind: match stage.as_str() {
+                    "started" => StatementType::SelfTestStarted,
+                    "completed" => StatementType::SelfTestCompleted,
+                    "settings-changed" => StatementType::SelfTestSettingsChanged,
+                    _ => StatementType::SelfTestProbe,
+                },
+                description: format!("Self-test {stage}: {details}"),
+                ..default_head
+            },
+            StatementBody::LifecycleSecurityEvent(_, kind, details) => StatementHead {
+                kind: StatementType::LifecycleSecurityEvent,
+                description: format!("{kind}: {details}"),
+                ..default_head
+            },
             StatementBody::CastVote(_, _, _, _, _) => StatementHead {
                 kind: StatementType::CastVote,
                 description: "Inserted cast vote.".to_string(),
@@ -769,6 +784,8 @@ pub enum StatementBody {
     /// The tally found a ballot box that does not match its seal: what
     /// differs and the tally session id (VOTE-FREEZE).
     TallyBallotBoxRejected(ElectionIdString, AreaIdString, String, String),
+    SelfTest(EventIdString, String, String),
+    LifecycleSecurityEvent(EventIdString, String, String),
 }
 
 // Note: When creating new variants, consider that the length limit STATEMENT_KIND_VARCHAR_LENGTH is 40.
@@ -836,6 +853,11 @@ pub enum StatementType {
     BallotBoxSealFailed,
     TallyBallotBoxVerified,
     TallyBallotBoxRejected,
+    SelfTestStarted,
+    SelfTestCompleted,
+    SelfTestSettingsChanged,
+    SelfTestProbe,
+    LifecycleSecurityEvent,
 }
 
 #[derive(

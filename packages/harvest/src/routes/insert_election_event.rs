@@ -274,6 +274,7 @@ pub async fn import_election_event_f(
     claims: JwtClaims,
 ) -> Result<Json<ImportElectionEventOutput>, (Status, String)> {
     let mut input = body.into_inner();
+    input.board_request_task_id = None;
     let tenant_id = claims.hasura_claims.tenant_id.clone();
     let executer_name = claims
         .name
@@ -368,7 +369,7 @@ pub async fn import_election_event_f(
     let document_result =
         services::import::import_election_event::get_election_event_schema(
             &file_election_event_schema,
-            None,
+            Some(input.document_id.clone()),
             tenant_id.clone(),
         )
         .await;
@@ -398,6 +399,33 @@ pub async fn import_election_event_f(
         }));
     }
 
+    let approval_event =
+        input.authorization_event_id.as_deref().ok_or_else(|| {
+            (
+                Status::BadRequest,
+                "Choose a Preparation event for board approval of this import"
+                    .to_string(),
+            )
+        })?;
+    let request =
+        crate::services::board_authorization::authorize_import_document(
+            &claims,
+            approval_event,
+            "import-election-event",
+            &input.document_id,
+            serde_json::json!({"tenant_id":tenant_id,"target_event_id":id}),
+        )
+        .await?;
+    crate::services::board_authorization::bind_operation(
+        &claims,
+        approval_event,
+        request,
+        windmill::services::board_operations::BindingKind::Import,
+        &task_execution.id,
+    )
+    .await?;
+
+    input.board_request_task_id = Some(task_execution.id.clone());
     let celery_app = get_celery_app().await;
     let _celery_task = match celery_app
         .send_task(import_election_event::import_election_event::new(

@@ -1,4 +1,30 @@
 actions:
+    - name: get_election_lifecycle
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/election-lifecycle/status
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: self-test-read
+    - name: start_election_post_processing
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/election-lifecycle/post-processing
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: election-state-write
     - name: export_verification_transcript
       definition:
           kind: synchronous
@@ -114,6 +140,48 @@ actions:
           - role: service-account
           - role: admin-user
       comment: Verify User Registration Application
+    - name: run_self_tests
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/self-tests/run
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: self-test-run
+          - role: admin-user
+    - name: get_self_tests
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/self-tests/get
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: self-test-read
+          - role: admin-user
+    - name: update_self_test_settings
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/self-tests/settings
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: self-test-settings-write
+          - role: admin-user
     - name: audit_electoral_log
       definition:
           kind: synchronous
@@ -1074,7 +1142,7 @@ actions:
               template_engine: Kriti
               version: 2
       permissions:
-          - role: election-event-read
+          - role: election-execution-export
     - name: export_election_event_logs
       definition:
           kind: synchronous
@@ -1688,7 +1756,7 @@ actions:
               template_engine: Kriti
               version: 2
       permissions:
-          - role: admin-user
+          - role: candidate-create
     - name: import_election_event
       definition:
           kind: synchronous
@@ -2516,6 +2584,11 @@ actions:
       permissions:
           - role: admin-user
           - role: sign-initialize-voting
+          - role: sign-import-election-data
+          - role: sign-start-tally
+          - role: sign-export-execution-data
+          - role: sign-delete-execution-data
+          - role: sign-read-voters-register
           - role: sign-open-voting
           - role: sign-close-voting
           - role: sign-generate-election-returns
@@ -2620,6 +2693,11 @@ actions:
       permissions:
           - role: admin-user
           - role: sign-initialize-voting
+          - role: sign-import-election-data
+          - role: sign-start-tally
+          - role: sign-export-execution-data
+          - role: sign-delete-execution-data
+          - role: sign-read-voters-register
           - role: sign-open-voting
           - role: sign-close-voting
           - role: sign-generate-election-returns
@@ -2645,6 +2723,11 @@ actions:
       permissions:
           - role: admin-user
           - role: sign-initialize-voting
+          - role: sign-import-election-data
+          - role: sign-start-tally
+          - role: sign-export-execution-data
+          - role: sign-delete-execution-data
+          - role: sign-read-voters-register
           - role: sign-open-voting
           - role: sign-close-voting
           - role: sign-generate-election-returns
@@ -2669,6 +2752,11 @@ actions:
       permissions:
           - role: admin-user
           - role: sign-initialize-voting
+          - role: sign-import-election-data
+          - role: sign-start-tally
+          - role: sign-export-execution-data
+          - role: sign-delete-execution-data
+          - role: sign-read-voters-register
           - role: sign-open-voting
           - role: sign-close-voting
           - role: sign-generate-election-returns
@@ -2693,6 +2781,11 @@ actions:
       permissions:
           - role: admin-user
           - role: sign-initialize-voting
+          - role: sign-import-election-data
+          - role: sign-start-tally
+          - role: sign-export-execution-data
+          - role: sign-delete-execution-data
+          - role: sign-read-voters-register
           - role: sign-open-voting
           - role: sign-close-voting
           - role: sign-generate-election-returns
@@ -2718,6 +2811,11 @@ actions:
           - role: admin-user
           - role: signing-requests-cancel
           - role: sign-initialize-voting
+          - role: sign-import-election-data
+          - role: sign-start-tally
+          - role: sign-export-execution-data
+          - role: sign-delete-execution-data
+          - role: sign-read-voters-register
           - role: sign-open-voting
           - role: sign-close-voting
           - role: sign-generate-election-returns
@@ -2796,6 +2894,11 @@ actions:
           - role: signing-certificates-read
           - role: signing-requests-read
           - role: sign-initialize-voting
+          - role: sign-import-election-data
+          - role: sign-start-tally
+          - role: sign-export-execution-data
+          - role: sign-delete-execution-data
+          - role: sign-read-voters-register
           - role: sign-open-voting
           - role: sign-close-voting
           - role: sign-generate-election-returns
@@ -3261,4 +3364,7 @@ custom_types:
         - name: MessagingFakeProviderParameter
         - name: MessagingFakeProviderReport
         - name: MessagingFakeProviderGetStartedOutput
+        - name: SelfTestStartOutput
+        - name: SelfTestStatusOutput
+        - name: SelfTestSettingsOutput
     scalars: []

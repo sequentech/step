@@ -5,7 +5,7 @@ use crate::postgres::area::get_area_by_id;
 use crate::postgres::ballot_style::get_published_ballot_emls;
 use crate::postgres::election::{get_cast_vote_configuration, CastVoteConfiguration};
 use crate::postgres::election_event::get_election_event_by_id;
-use crate::services::ballot_box::{accept_ballot, get_allowed_votes, BallotFormat};
+use crate::services::ballot_box::{accept_recorded_ballot, get_allowed_votes, BallotFormat};
 use crate::services::ballot_box_reads::cast_vote_status;
 use crate::services::cast_ballot::{
     accept_received_cast, prepare_received_cast, stored_cast, CastBallotInput, CastBallotOutput,
@@ -959,10 +959,6 @@ async fn accept_into_ballot_box(
     )
     .await
     .map_err(|e| CastVoteError::CheckRevotesFailed(e.to_string()))?;
-    hasura_transaction
-        .commit()
-        .await
-        .map_err(|e| CastVoteError::CommitFailed(e.to_string()))?;
 
     let voter_signature: Option<Vec<u8>> = voter_signature_data
         .as_ref()
@@ -971,6 +967,18 @@ async fn accept_into_ballot_box(
     let ballot_hash = ballot_hash.0.clone().to_inner();
     let format = format.to_string();
     let channel = effective_voting_channel.to_string();
+    let board = get_election_event_board(election_event.bulletin_board_reference.clone())
+        .ok_or_else(|| {
+            CastVoteError::BallotSignFailed("Election event has no audit board".into())
+        })?;
+    let admission_key = get_board_signing_key(
+        &hasura_transaction,
+        ids.tenant_id,
+        Some(ids.election_event_id),
+        &board,
+    )
+    .await
+    .map_err(|error| CastVoteError::BallotSignFailed(error.to_string()))?;
     let accept = AcceptBallot {
         election_event_id: ids.election_event_id,
         election_id: &election_id,
@@ -980,6 +988,7 @@ async fn accept_into_ballot_box(
         format: &format,
         content: &input.content,
         voter_signature: voter_signature.as_deref(),
+        admission_record: &[],
         pseudonym_hash: &pseudonym_hash,
         ballot_hash: &ballot_hash,
         voting_channel: &channel,
@@ -992,16 +1001,46 @@ async fn accept_into_ballot_box(
     let _phase = CastVotePhase::start("accept");
     let (outcome, receipt) = match received {
         Some(received) => {
-            let (outcome, cast_at, receipt) = accept_received_cast(&accept, received).await?;
+            let (outcome, cast_at, receipt) =
+                accept_received_cast(&accept, received, &board, &admission_key).await?;
             (outcome, Some((cast_at, receipt)))
         }
-        None => (
-            accept_ballot(&accept)
+        None => {
+            let at = crate::services::receive_ballot::truncate_to_milliseconds(chrono::Utc::now())?;
+            let seq = crate::services::ballot_admission::reserve_sequence(ids.election_event_id)
                 .await
-                .map_err(|e| CastVoteError::InsertFailed(format!("{e:#}")))?,
-            None,
-        ),
+                .map_err(|e| CastVoteError::InsertFailed(format!("{e:#}")))?;
+            let admission =
+                crate::services::ballot_admission::sign(&accept, &admission_key, &at, seq)
+                    .map_err(|e| CastVoteError::BallotSignFailed(format!("{e:#}")))?;
+            let signed = AcceptBallot {
+                admission_record: &admission,
+                ..accept.clone()
+            };
+            let pending = crate::services::ballot_admission::pending(&signed, &at, seq);
+            let entry = crate::services::ballot_box::ballot_record(
+                &board,
+                ids.election_event_id,
+                &pending,
+                &admission_key,
+            )
+            .map_err(|e| CastVoteError::BallotSignFailed(format!("{e:#}")))?;
+            (
+                accept_recorded_ballot(&signed, &board, &entry)
+                    .await
+                    .map_err(|e| CastVoteError::InsertFailed(format!("{e:#}")))?,
+                None,
+            )
+        }
     };
+    // Keep the shared lifecycle lock until the separate event-store transaction
+    // has durably accepted the ballot. A close or maintenance transition must
+    // never commit between this request's safety check and its ballot write.
+    hasura_transaction
+        .commit()
+        .await
+        .map_err(|e| CastVoteError::CommitFailed(e.to_string()))?;
+
     match outcome {
         AcceptOutcome::Accepted { id, .. } => {
             let accepted_at = receipt
@@ -1282,6 +1321,13 @@ pub(crate) async fn check_status(
     is_early_voting_area: bool,
 ) -> Result<VotingStatusChannel, CastVoteError> {
     let _phase = CastVotePhase::start("check_status");
+    crate::services::election_lifecycle::require_voter_access(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+    )
+    .await
+    .map_err(|e| CastVoteError::CheckStatusFailed(e.to_string()))?;
     if election_event.is_archived {
         return Err(CastVoteError::CheckStatusFailed(
             "Election event is archived".to_string(),

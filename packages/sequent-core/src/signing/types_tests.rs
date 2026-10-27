@@ -37,7 +37,7 @@ where
 }
 
 #[test]
-fn the_catalog_has_ten_actions_with_stable_ids() {
+fn the_catalog_has_fifteen_actions_with_stable_ids() {
     let ids: Vec<String> = SigningAction::iter()
         .map(|action| action.to_string())
         .collect();
@@ -52,6 +52,11 @@ fn the_catalog_has_ten_actions_with_stable_ids() {
             "transmit-results",
             "approve-voter",
             "approve-configuration",
+            "import-election-data",
+            "start-tally",
+            "export-execution-data",
+            "delete-execution-data",
+            "read-voters-register",
             "key-ceremony",
             "tally-key",
         ]
@@ -136,6 +141,41 @@ fn actions_map_to_their_scope_mode_document_and_group() {
             M::Deferred,
             D::NoDocument,
             G::ConfigurationAndKeys,
+        ),
+        (
+            SigningAction::ImportElectionData,
+            S::Event,
+            M::Gate,
+            D::NoDocument,
+            G::ConfigurationAndKeys,
+        ),
+        (
+            SigningAction::StartTally,
+            S::Event,
+            M::Gate,
+            D::NoDocument,
+            G::ResultsAndReports,
+        ),
+        (
+            SigningAction::ExportExecutionData,
+            S::Event,
+            M::Gate,
+            D::NoDocument,
+            G::ResultsAndReports,
+        ),
+        (
+            SigningAction::DeleteExecutionData,
+            S::Event,
+            M::Gate,
+            D::NoDocument,
+            G::ResultsAndReports,
+        ),
+        (
+            SigningAction::ReadVotersRegister,
+            S::Event,
+            M::Gate,
+            D::NoDocument,
+            G::ResultsAndReports,
         ),
         (
             SigningAction::ConfirmCustodyProof,
@@ -589,4 +629,30 @@ fn list_fields_of_subjects_are_sorted() {
     }))
     .unwrap();
     assert_eq!(read, transmit);
+}
+
+#[test]
+fn required_election_actions_start_undefined_instead_of_bypassing_quorum() {
+    for action in [SigningAction::OpenVoting, SigningAction::CloseVoting] {
+        let rule = SigningRule::default_for(action);
+        assert!(rule.is_required(), "{action} cannot default to unprotected");
+        assert_eq!(
+            rule.signatures, 0,
+            "the administrator must define the quorum"
+        );
+        assert!(rule.validate().is_err(), "undefined must not be executable");
+    }
+}
+
+#[test]
+fn required_election_actions_cannot_be_switched_off() {
+    for action in [SigningAction::OpenVoting, SigningAction::CloseVoting] {
+        let mut rule = SigningRule::default_for(action);
+        rule.signatures = 2;
+        rule.requirement = SigningRequirement::NotRequired;
+        assert!(
+            rule.validate().is_err(),
+            "{action} must retain board authorisation"
+        );
+    }
 }

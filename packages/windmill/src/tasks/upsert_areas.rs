@@ -31,6 +31,14 @@ pub async fn upsert_areas_task(
         .await
         .map_err(|err| anyhow!("Error starting hasura transaction: {err}"))?;
 
+    let approved = crate::services::board_operations::validate_import_document(
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &document_id,
+        &document_id,
+    )
+    .await?;
     let document = get_document(&hasura_transaction, &tenant_id, None, &document_id)
         .await
         .with_context(|| "Error obtaining the document")?
@@ -45,6 +53,7 @@ pub async fn upsert_areas_task(
         .collect();
 
     let mut temp_file = get_document_as_temp_file(&tenant_id, &document).await?;
+    crate::services::board_operations::verify_import_file(&approved, temp_file.path())?;
     temp_file.rewind()?;
     // Read the first line of the file to get the columns
     let mut rdr = csv::ReaderBuilder::new()

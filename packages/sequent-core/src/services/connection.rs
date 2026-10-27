@@ -16,7 +16,7 @@ use rocket::request::{FromRequest, Outcome, Request};
 use rocket::State;
 use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
-use std::sync::RwLock;
+use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 use tracing::{error, instrument, warn};
 
@@ -65,6 +65,57 @@ pub struct BearerIssuers {
     pub trusted_bases: Vec<String>,
 }
 
+/// Admission to the voter channel is checked for every verified election-realm
+/// token, including tokens issued before a failure or storage threshold breach.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum VoterAccessFailure {
+    ElectionUnavailable,
+    AuditStorageUnavailable,
+}
+
+#[rocket::async_trait]
+pub trait VoterAccessPolicy: Send + Sync {
+    async fn check(
+        &self,
+        tenant: &str,
+        event: &str,
+    ) -> Result<(), VoterAccessFailure>;
+}
+
+pub struct VoterAccessGuard(pub Arc<dyn VoterAccessPolicy>);
+
+/// Set only after a verified token fails admission. Catchers can return a safe,
+/// structured error without disclosing database or transport diagnostics.
+pub struct VoterAccessDenied(pub VoterAccessFailure);
+
+async fn voter_admission(
+    request: &Request<'_>,
+    jwt: &JwtClaims,
+) -> Result<(), VoterAccessFailure> {
+    let Some(policy) = request.rocket().state::<VoterAccessGuard>() else {
+        return Ok(());
+    };
+    let tenant = &jwt.hasura_claims.tenant_id;
+    // The issuer has already passed signature and trusted-origin verification.
+    // Do not rely on the optional event claim: older realm templates omit it.
+    let realm = jwt
+        .iss
+        .rsplit_once("/realms/")
+        .map(|(_, realm)| realm)
+        .ok_or(VoterAccessFailure::ElectionUnavailable)?;
+    if realm == format!("tenant-{tenant}") {
+        return Ok(());
+    }
+    let prefix = format!("tenant-{tenant}-event-");
+    let event = realm
+        .strip_prefix(&prefix)
+        .filter(|id| uuid::Uuid::parse_str(id).is_ok())
+        .ok_or(VoterAccessFailure::ElectionUnavailable)?;
+    tokio::time::timeout(Duration::from_secs(5), policy.0.check(tenant, event))
+        .await
+        .unwrap_or(Err(VoterAccessFailure::ElectionUnavailable))
+}
+
 async fn verified_claims(
     request: &Request<'_>,
     token: &str,
@@ -94,7 +145,20 @@ impl<'r> FromRequest<'r> for JwtClaims {
                 match authorization.strip_prefix("Bearer ") {
                     Some(token) => {
                         match verified_claims(request, token).await {
-                            Ok(jwt) => Outcome::Success(jwt),
+                            Ok(jwt) => {
+                                match voter_admission(request, &jwt).await {
+                                    Ok(()) => Outcome::Success(jwt),
+                                    Err(failure) => {
+                                        request.local_cache(|| {
+                                            VoterAccessDenied(failure)
+                                        });
+                                        Outcome::Error((
+                                            Status::ServiceUnavailable,
+                                            (),
+                                        ))
+                                    }
+                                }
+                            }
                             Err(_) => {
                                 warn!("JwtClaims guard: invalid bearer token");
                                 Outcome::Error((Status::Unauthorized, ()))

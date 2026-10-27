@@ -19,3 +19,6 @@ pub mod user_tasks;
 pub mod worker;
 
 pub mod transcript_export;
+
+pub mod board_authorization;
+pub mod voter_admission;

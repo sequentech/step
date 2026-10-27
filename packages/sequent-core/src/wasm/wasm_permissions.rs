@@ -98,6 +98,16 @@ export enum IPermissions {
     SIGN_TRANSMIT_RESULTS = "sign-transmit-results",
     SIGN_APPROVE_VOTER = "sign-approve-voter",
     SIGN_APPROVE_CONFIGURATION = "sign-approve-configuration",
+    SELF_TEST_RUN = "self-test-run",
+    SELF_TEST_READ = "self-test-read",
+    SELF_TEST_SETTINGS_WRITE = "self-test-settings-write",
+    SIGN_IMPORT_ELECTION_DATA = "sign-import-election-data",
+    SIGN_START_TALLY = "sign-start-tally",
+    SIGN_EXPORT_EXECUTION_DATA = "sign-export-execution-data",
+    SIGN_DELETE_EXECUTION_DATA = "sign-delete-execution-data",
+    SIGN_READ_VOTERS_REGISTER = "sign-read-voters-register",
+    ELECTION_EXECUTION_EXPORT = "election-execution-export",
+
     SIGN_KEY_CEREMONY = "sign-key-ceremony",
     SIGN_TALLY_KEY = "sign-tally-key",
 }

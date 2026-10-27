@@ -22,6 +22,66 @@ use serde_json::{json, Value};
 #[path = "support/signing.rs"]
 mod signing;
 
+#[rocket::async_test]
+async fn election_realm_access_is_checked_even_when_the_optional_event_claim_is_missing(
+) {
+    use sequent_core::services::connection::{
+        VoterAccessFailure, VoterAccessGuard, VoterAccessPolicy,
+    };
+    use std::sync::{Arc, Mutex};
+    struct Closed(Arc<Mutex<Vec<(String, String)>>>);
+    #[rocket::async_trait]
+    impl VoterAccessPolicy for Closed {
+        async fn check(
+            &self,
+            tenant: &str,
+            event: &str,
+        ) -> Result<(), VoterAccessFailure> {
+            self.0.lock().unwrap().push((tenant.into(), event.into()));
+            Err(VoterAccessFailure::ElectionUnavailable)
+        }
+    }
+    let observed = Arc::new(Mutex::new(vec![]));
+    let client = Client::tracked(
+        rocket::build()
+            .manage(signing::issuers())
+            .manage(VoterAccessGuard(Arc::new(Closed(observed.clone()))))
+            .mount("/", routes![claims]),
+    )
+    .await
+    .unwrap();
+    let event = "00000000-0000-0000-0000-000000000001";
+    let payload = voter_claims(&format!(
+        "{}/realms/tenant-north-event-{event}",
+        signing::ISSUER
+    ));
+    let token = signing::token(&payload);
+    assert_eq!(
+        client
+            .get("/claims")
+            .header(Header::new("Authorization", format!("Bearer {token}")))
+            .dispatch()
+            .await
+            .status(),
+        Status::ServiceUnavailable
+    );
+    assert_eq!(
+        *observed.lock().unwrap(),
+        vec![("north".into(), event.into())]
+    );
+    let staff = signing::token(&voter_claims(&signing::issuer_of("north")));
+    assert_eq!(
+        client
+            .get("/claims")
+            .header(Header::new("Authorization", format!("Bearer {staff}")))
+            .dispatch()
+            .await
+            .status(),
+        Status::Ok
+    );
+    assert_eq!(observed.lock().unwrap().len(), 1);
+}
+
 #[get("/headers")]
 fn headers(auth: AuthHeaders) -> String {
     format!("{}={}", auth.key, auth.value)

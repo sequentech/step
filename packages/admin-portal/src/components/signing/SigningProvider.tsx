@@ -23,6 +23,10 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {createSigningApi, type ISigningApi, type ISigningPanelData} from "@/lib/signing/api"
 import {takeResume} from "@/lib/signing/request"
+import {
+    BOARD_AUTHORIZATION_EVENT,
+    type BoardAuthorizationPending,
+} from "@/services/boardAuthorizationLink"
 import type {SigningAction} from "@/lib/signing/types"
 import type {IPermissions} from "@/types/keycloak"
 import {SigningRequestPanel} from "./SigningRequestPanel"
@@ -143,6 +147,7 @@ export const SigningProvider: React.FC<ISigningProviderProps> = ({
     )
     const [opened, setOpened] = useState<IOpened | null>(null)
     const [visible, setVisible] = useState(false)
+    const pendingOperation = useRef<BoardAuthorizationPending | null>(null)
     const [authenticationFailed, setAuthenticationFailed] = useState(false)
     const {t} = useTranslation()
 
@@ -150,7 +155,55 @@ export const SigningProvider: React.FC<ISigningProviderProps> = ({
         setOpened((previous) => ({requestId, ...options, nonce: (previous?.nonce ?? 0) + 1}))
         setVisible(true)
     }, [])
-    const close = useCallback(() => setVisible(false), [])
+    const close = useCallback(() => {
+        pendingOperation.current?.cancel()
+        pendingOperation.current = null
+        setVisible(false)
+    }, [])
+    useEffect(() => {
+        const show = (event: Event) => {
+            let pending = (event as CustomEvent<BoardAuthorizationPending>).detail
+            const previous = pendingOperation.current
+            if (previous?.requestId === pending.requestId) {
+                const next = pending
+                pending = {
+                    requestId: next.requestId,
+                    resume: () => {
+                        previous.resume()
+                        next.resume()
+                    },
+                    cancel: () => {
+                        previous.cancel()
+                        next.cancel()
+                    },
+                }
+            } else previous?.cancel()
+            pendingOperation.current = pending
+            open(pending.requestId, {
+                completionActions: (data) => (
+                    <Alert
+                        severity="success"
+                        action={
+                            <Button
+                                onClick={() => {
+                                    pendingOperation.current = null
+                                    setVisible(false)
+                                    pending.resume()
+                                }}
+                            >
+                                Continue operation
+                            </Button>
+                        }
+                    >
+                        Board approval is complete. Continue using the account that requested this
+                        operation.
+                    </Alert>
+                ),
+            })
+        }
+        window.addEventListener(BOARD_AUTHORIZATION_EVENT, show)
+        return () => window.removeEventListener(BOARD_AUTHORIZATION_EVENT, show)
+    }, [open])
 
     useEffect(() => {
         if (!isAuthenticated || !userId || !tenantId) return

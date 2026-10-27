@@ -62,6 +62,22 @@ pub async fn upsert_area(
     claims: JwtClaims,
 ) -> Result<Json<UpsertAreaOutput>, (Status, String)> {
     authorize_upsert_area(&claims, &body)?;
+    let parameters = serde_json::to_value(&*body)
+        .map_err(|e| (Status::BadRequest, e.to_string()))?;
+    let request = crate::services::board_authorization::authorize_operation(
+        &claims,
+        &body.election_event_id.to_string(),
+        sequent_core::signing::SigningAction::ImportElectionData,
+        "configure-area",
+        parameters.clone(),
+    )
+    .await?
+    .ok_or_else(|| {
+        (
+            Status::Forbidden,
+            "Board authorization is required".to_string(),
+        )
+    })?;
 
     info!("Policy: {:#?}", body.allow_early_voting);
     let mut hasura_db_client: DbClient = get_hasura_pool()
@@ -77,6 +93,27 @@ pub async fn upsert_area(
 
     let tenant_id = body.tenant_id.to_string();
     let election_event_id_str = body.election_event_id.to_string();
+    let operation_id = Uuid::new_v4().to_string();
+    windmill::services::board_operations::bind(
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id_str,
+        request,
+        windmill::services::board_operations::BindingKind::Import,
+        &operation_id,
+    )
+    .await
+    .map_err(|e| (Status::Conflict, e.to_string()))?;
+    windmill::services::board_operations::validate(
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id_str,
+        windmill::services::board_operations::BindingKind::Import,
+        &operation_id,
+        Some(&parameters),
+    )
+    .await
+    .map_err(|e| (Status::Conflict, e.to_string()))?;
 
     get_election_event_by_id_if_exist(
         &hasura_transaction,

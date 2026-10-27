@@ -186,6 +186,15 @@ pub async fn refuse_sealed_event_delete(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<()> {
+    if crate::services::board_operations::is_authorized_deletion(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+    )
+    .await?
+    {
+        return Ok(());
+    }
     if crate::postgres::ballot_box_seal::any_for_event(
         hasura_transaction,
         &Uuid::parse_str(tenant_id)?,

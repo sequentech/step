@@ -502,17 +502,15 @@ pub async fn delete_election_event(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<()> {
-    // Ballot box seals are permanent (VOTE-FREEZE): an event with any can't
-    // be deleted, only archived.
-    if super::ballot_box_seal::any_for_event(
-        hasura_transaction,
-        &parse_uuid_v4(tenant_id)?,
-        &parse_uuid_v4(election_event_id)?,
-    )
-    .await?
-    {
-        return Err(SealedEventDeleteRefusal.into());
-    }
+    anyhow::ensure!(
+        crate::services::board_operations::is_authorized_deletion(
+            hasura_transaction,
+            tenant_id,
+            election_event_id
+        )
+        .await?,
+        "Deleting election execution data requires its current export and board authorisation"
+    );
     super::trusted_write::trusted_write(hasura_transaction).await?;
     super::protocol_board::delete_event_protocol_metadata(
         hasura_transaction,
@@ -526,6 +524,8 @@ pub async fn delete_election_event(
     // which references document. tally_session_resolution goes with its
     // tally_session, but its contest foreign key must not outlive contest.
     let related_tables = vec![
+        "ballot_box_seal",
+        "electoral_log_checkpoint",
         "phone_blacklist",
         "tally_results_publication",
         "secret",

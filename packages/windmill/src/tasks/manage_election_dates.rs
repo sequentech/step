@@ -29,7 +29,7 @@ use tracing::{error, event, info, Level};
 use uuid::Uuid;
 
 #[instrument(err)]
-async fn manage_election_date_wrapper(
+pub(crate) async fn manage_election_date_wrapper(
     hasura_transaction: &Transaction<'_>,
     tenant_id: String,
     election_event_id: String,

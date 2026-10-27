@@ -4,6 +4,97 @@
 
 const englishTranslation = {
     translations: {
+        securityTests: {
+            title: "Security and self-tests",
+            intro: "Security checks run in the background. You can leave this page and return to the results. Mandatory checks also run at the required lifecycle transitions.",
+            readRequired: "You need permission to read self-test results.",
+            readFailed:
+                "The current security status could not be loaded. Previously displayed results may be out of date. Refresh before making an operational decision.",
+            actionFailed:
+                "The request was refused or could not be completed. Refresh the status and review the election state before trying again.",
+            recovery:
+                "A passed test does not reopen voting. The election board must authorize starting or resuming voting in Publish after resolving the reported problem.",
+            noBaseline:
+                "The board-approved configuration baseline is not yet available. Approve and publish the configuration before expecting the complete self-test suite to pass.",
+            purpose: "Purpose of the test",
+            run: "Run self-tests",
+            running: "Tests queued or running",
+            refresh: "Refresh status",
+            queued: "Self-tests queued. Results will appear here when the background task finishes.",
+            settings: "Automatic self-tests",
+            settingsHelp:
+                "During preparation, administrators can set the interval and optional triggers. The timeout must leave at least 30 seconds before the next interval. Required lifecycle checks always remain enabled.",
+            settingsReadOnly:
+                "Only an authorized administrator can change these settings, and only during preparation.",
+            interval: "Interval in minutes (1–60)",
+            timeout: "Suite timeout in seconds (10–600)",
+            save: "Save self-test settings",
+            saved: "Self-test settings saved.",
+            history: "Recent self-test runs",
+            noRuns: "No self-test run has been recorded yet.",
+            superseded: "Earlier election state",
+            recordedOnly:
+                "This is a recorded test result. Changes to the configuration or election state invalidate its use to authorize a later transition.",
+            checks: "Six required security checks",
+            check: "Check",
+            result: "Result",
+            details: "Details",
+            when: "Time",
+            notifications: "Security email delivery",
+            notificationHelp:
+                "These are distinct notifications to the election board and administrators. A failed or uncertain delivery needs investigation with the mail administrator; an uncertain delivery may already have arrived.",
+            startPostProcessing: "Start post-processing",
+            postProcessingStarted: "Post-processing started.",
+            postProcessingHelp:
+                "Start post-processing after determining the election result. This phase change is irreversible. It enables the board-authorized export and subsequent deletion procedures. If fresh external authentication is required, sign in again and confirm this action afterwards.",
+            cancel: "Cancel",
+            confirm: "Confirm phase change",
+            phase: {
+                preparation: "Preparation",
+                execution: "Election execution",
+                evaluation: "Evaluation",
+                post_processing: "Post-processing",
+            },
+            safety: {
+                operational: "Operational",
+                recoverable: "Recovery required",
+                unrecoverable: "Unrecoverable failure",
+            },
+            trigger: {
+                "requested": "On request",
+                "startup": "Application startup",
+                "election-start-time": "Scheduled election start",
+                "before-start": "Before starting voting",
+                "before-resume": "Before resuming voting",
+                "periodic": "Periodic check",
+                "after-maintenance": "After maintenance",
+                "after-import": "After a configuration import",
+                "after-pause": "After pausing voting",
+                "before-counting": "Before counting",
+            },
+            outcome: {
+                "passed": "Passed",
+                "recoverable-failure": "Failed — recovery required",
+                "unrecoverable-failure": "Failed — unrecoverable",
+                "running": "Queued or running",
+                "not-completed": "Not completed",
+            },
+            checkName: {
+                "ballot-box": "Ballot-box integrity",
+                "election-data": "Approved election data",
+                "audit-generation": "Audit recording and integrity",
+                "trusted-channel": "Trusted HTTPS channels",
+                "access-control": "Approved access-control configuration",
+                "clock": "Clock synchronization",
+            },
+            delivery: {
+                pending: "Queued for delivery",
+                sending: "Sending",
+                sent: "Accepted by mail transport",
+                failed: "Delivery failed",
+                uncertain: "Delivery outcome unknown",
+            },
+        },
         verificationExport: {
             title: "Election verification",
             anchors:
@@ -1622,6 +1713,12 @@ const englishTranslation = {
                 "sign-approve-configuration": "Sign: approve a configuration version",
                 "sign-key-ceremony": "Sign: confirm custody",
                 "sign-tally-key": "Sign: authorize tally custody",
+                "sign-start-tally": "Sign: start counting votes",
+                "sign-import-election-data": "Sign: import election data",
+                "sign-export-execution-data": "Sign: export election execution data",
+                "sign-delete-execution-data": "Sign: delete election execution data",
+                "sign-read-voters-register": "Sign: read the voters' register in post-processing",
+                "election-execution-export": "Export election execution data",
                 "application-export": "Application Export",
                 "application-import": "Application Import",
                 "tenant-create": "Create Tenant",
@@ -4382,6 +4479,51 @@ const englishTranslation = {
                     object: "configuration version",
                     appliesTo: "The election event",
                     description: "Started in Publish. Publishes the configuration version.",
+                },
+                "import-election-data": {
+                    label: "Import election data",
+                    short: "Import data",
+                    permissionName: "import election data",
+                    object: "election data",
+                    appliesTo: "Election event",
+                    description:
+                        "The board approves the exact uploaded ballot, voter register, rules or dates file before import. After approval, repeat the same import.",
+                },
+                "start-tally": {
+                    label: "Start counting votes",
+                    short: "Start counting votes",
+                    permissionName: "start counting votes",
+                    object: "election execution data",
+                    appliesTo: "The election event",
+                    description:
+                        "Approve this request, then the requester repeats the same operation. Each authorisation can be used once.",
+                },
+                "export-execution-data": {
+                    label: "Export election execution data",
+                    short: "Export election execution data",
+                    permissionName: "export election execution data",
+                    object: "election execution data",
+                    appliesTo: "The election event",
+                    description:
+                        "Approve this request, then the requester repeats the same operation. Each authorisation can be used once.",
+                },
+                "delete-execution-data": {
+                    label: "Delete election execution data",
+                    short: "Delete election execution data",
+                    permissionName: "delete election execution data",
+                    object: "election execution data",
+                    appliesTo: "The election event",
+                    description:
+                        "Approve this request, then the requester repeats the same operation. Each authorisation can be used once.",
+                },
+                "read-voters-register": {
+                    label: "Read the voters' register in post-processing",
+                    short: "Read the voters' register in post-processing",
+                    permissionName: "read the voters' register in post-processing",
+                    object: "election execution data",
+                    appliesTo: "The election event",
+                    description:
+                        "Approve this request, then the requester repeats the same operation. Each authorisation can be used once.",
                 },
                 "key-ceremony": {
                     label: "Confirm custody (key ceremony)",

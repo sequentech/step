@@ -25,6 +25,14 @@ pub async fn import_areas_task(
     document_id: String,
     sha256: Option<String>,
 ) -> Result<()> {
+    let approved = crate::services::board_operations::validate_import_document(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &document_id,
+        &document_id,
+    )
+    .await?;
     let document = get_document(hasura_transaction, &tenant_id, None, &document_id)
         .await
         .with_context(|| "Error obtaining the document")?
@@ -34,6 +42,7 @@ pub async fn import_areas_task(
     let contests = export_contests(hasura_transaction, &tenant_id, &election_event_id).await?;
 
     let mut temp_file = get_document_as_temp_file(&tenant_id, &document).await?;
+    crate::services::board_operations::verify_import_file(&approved, temp_file.path())?;
     temp_file.rewind()?;
 
     match sha256 {

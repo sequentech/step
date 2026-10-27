@@ -1210,6 +1210,7 @@ fn signed_snapshot_uses_subject_and_rejects_wrong_reference() {
         post_channels: BTreeMap::new(),
         initialization_report_policies: BTreeMap::new(),
         initialization_countries: None,
+        self_test_baseline: None,
     };
     let forged = serde_json::to_value(LifecycleSnapshot::default()).unwrap();
     let signed = serde_json::to_value(subject).unwrap();

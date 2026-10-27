@@ -45,7 +45,7 @@ pub async fn export_election_event_route(
         &claims,
         true,
         Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::ELECTION_EVENT_READ],
+        vec![Permissions::ELECTION_EXECUTION_EXPORT],
     )?;
 
     let body = input.into_inner();
@@ -55,7 +55,7 @@ pub async fn export_election_event_route(
         .name
         .clone()
         .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
-    let mut export_config = body.export_configurations.clone();
+    let mut export_config = ExportOptions::execution_profile();
     export_config.password = None;
     export_config.contains_voter_secrets = false;
     export_config.is_encrypted = export_config.is_encrypted
@@ -87,6 +87,23 @@ pub async fn export_election_event_route(
             .is_ok();
         }
     }
+
+    let request_id = crate::services::board_authorization::authorize_operation(
+        &claims,
+        &election_event_id,
+        sequent_core::signing::SigningAction::ExportExecutionData,
+        "export-execution-data",
+        export_config
+            .approved_parameters()
+            .map_err(|e| (Status::InternalServerError, e.to_string()))?,
+    )
+    .await?
+    .ok_or_else(|| {
+        (
+            Status::Forbidden,
+            "Board authorisation is required".to_string(),
+        )
+    })?;
 
     let document_id = Uuid::new_v4().to_string();
     if export_config.contains_voter_secrets {
@@ -129,6 +146,15 @@ pub async fn export_election_event_route(
             format!("Failed to insert task execution record: {error:?}"),
         )
     })?;
+
+    crate::services::board_authorization::bind_operation(
+        &claims,
+        &election_event_id,
+        request_id,
+        windmill::services::board_operations::BindingKind::Export,
+        &document_id,
+    )
+    .await?;
 
     let celery_app = get_celery_app().await;
 
