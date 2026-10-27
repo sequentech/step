@@ -85,6 +85,16 @@ fn write_json(path: &Path, value: &Value) {
 }
 
 fn invoke(root: &Path, name: &str, scope: &Value, with_blobs: bool) -> Output {
+    invoke_with_slug(root, name, scope, with_blobs, None)
+}
+
+fn invoke_with_slug(
+    root: &Path,
+    name: &str,
+    scope: &Value,
+    with_blobs: bool,
+    slug: Option<&str>,
+) -> Output {
     let scope_path = root.join("scope-input.json");
     write_json(&scope_path, scope);
     let pin = digest(&fs::read(&scope_path).unwrap()).unwrap();
@@ -101,6 +111,9 @@ fn invoke(root: &Path, name: &str, scope: &Value, with_blobs: bool) -> Output {
     ]);
     if with_blobs {
         command.arg("--b3-blob-root").arg(root.join("blobs"));
+    }
+    if let Some(slug) = slug {
+        command.arg("--environment-slug").arg(slug);
     }
     command.output().unwrap()
 }
@@ -431,6 +444,118 @@ async fn exports_native_postgres_snapshots_without_application_servers() {
         ExitStatus::Incomplete,
     );
     assert!(!root.0.join("no-blobs/acquisition.json").exists());
+
+    // A native non-default ceremony keeps the event log mapping and reads the
+    // election board without modifying any signed message, key or batch.
+    let event_board = format!(
+        "testtenant{}event{}",
+        &TENANT.replace('-', "")[..17],
+        EVENT.replace('-', "")
+    );
+    let election_board = format!(
+        "testtenant{}election{}",
+        &TENANT.replace('-', "")[..17],
+        ELECTION.replace('-', "")
+    );
+    hasura
+        .batch_execute("ALTER TABLE sequent_backend.election ADD COLUMN keys_ceremony_id uuid;")
+        .await
+        .unwrap();
+    hasura
+        .execute(
+            "UPDATE sequent_backend.election SET keys_ceremony_id=$1::text::uuid",
+            &[&CEREMONY],
+        )
+        .await
+        .unwrap();
+    hasura
+        .batch_execute("UPDATE sequent_backend.keys_ceremony SET is_default=false;")
+        .await
+        .unwrap();
+    hasura
+        .execute(
+            "UPDATE sequent_backend.election_event SET bulletin_board_reference=$1",
+            &[&json!({"database_name":event_board})],
+        )
+        .await
+        .unwrap();
+    b3.batch_execute(&format!(
+        "ALTER TABLE public.audit_board RENAME TO {election_board};"
+    ))
+    .await
+    .unwrap();
+    b3.execute("UPDATE public.index SET board_name=$1", &[&election_board])
+        .await
+        .unwrap();
+    fs::rename(
+        root.0.join("blobs").join(BOARD),
+        root.0.join("blobs").join(&election_board),
+    )
+    .unwrap();
+    let mut election_scope = scope.clone();
+    election_scope["scope"]["board_name"] = json!(election_board);
+    assert_success(invoke_with_slug(
+        &root.0,
+        "per-election",
+        &election_scope,
+        true,
+        Some("test"),
+    ));
+    assert_eq!(
+        load(&root.0, "per-election", "board-messages.json"),
+        json!(expected_bytes)
+    );
+    let mapping = load(&root.0, "per-election", "saved-mapping.json");
+    assert_eq!(
+        mapping["election_event"]["bulletin_board_reference"]["database_name"],
+        event_board
+    );
+    assert_eq!(mapping["election"]["id"], ELECTION);
+    assert_exit(
+        invoke_with_slug(
+            &root.0,
+            "per-election-wrong-slug",
+            &election_scope,
+            true,
+            Some("wrong"),
+        ),
+        ExitStatus::VerificationFailed,
+    );
+    assert_exit(
+        invoke(&root.0, "per-election-no-slug", &election_scope, true),
+        ExitStatus::InvalidInput,
+    );
+    assert_exit(
+        invoke_with_slug(
+            &root.0,
+            "per-election-wrong-board",
+            &scope,
+            true,
+            Some("test"),
+        ),
+        ExitStatus::VerificationFailed,
+    );
+    fs::rename(
+        root.0.join("blobs").join(&election_board),
+        root.0.join("blobs").join(BOARD),
+    )
+    .unwrap();
+    b3.batch_execute(&format!(
+        "ALTER TABLE public.{election_board} RENAME TO audit_board;"
+    ))
+    .await
+    .unwrap();
+    b3.execute("UPDATE public.index SET board_name=$1", &[&BOARD])
+        .await
+        .unwrap();
+    hasura
+        .execute(
+            "UPDATE sequent_backend.election_event SET bulletin_board_reference=$1",
+            &[&json!({"database_name":BOARD})],
+        )
+        .await
+        .unwrap();
+    hasura.batch_execute("UPDATE sequent_backend.keys_ceremony SET is_default=true; UPDATE sequent_backend.election SET keys_ceremony_id=NULL;").await.unwrap();
 
     hasura
         .batch_execute("UPDATE sequent_backend.tally_session_contest SET session_id = 0;")

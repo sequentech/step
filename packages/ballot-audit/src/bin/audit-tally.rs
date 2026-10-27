@@ -4,6 +4,7 @@
 use anyhow::{ensure, Context, Result};
 use b3::messages::statement::StatementType;
 use ballot_audit::{
+    board::{read_ceremony_sources, resolve_boards, validate_scope_election, CeremonySources},
     digest, incomplete, invalid_input,
     source::{
         board_identifier, connect, into_invalid_input, local_config, new_private_directory, one,
@@ -117,6 +118,9 @@ struct Args {
     /// The Braid verify program. Default: `verify` next to this program.
     #[arg(long)]
     braid_verify: Option<PathBuf>,
+    /// Independently authenticated producer environment slug, required for non-default ceremonies.
+    #[arg(long)]
+    environment_slug: Option<String>,
     /// Restored B3 blob root, when the board stores messages in files.
     #[arg(long)]
     b3_blob_root: Option<PathBuf>,
@@ -188,6 +192,8 @@ struct TallyPlan {
     election_event_id: String,
     tally_session_id: String,
     board_name: String,
+    electoral_log_database: String,
+    environment_slug: Option<String>,
     policy: MultiplicityPolicy,
     scopes: Vec<PlannedScope>,
     tally_batches: Vec<u32>,
@@ -234,14 +240,17 @@ fn plan_scopes(
     session: &Value,
     event: &Value,
     contests: &[Value],
+    ceremony_sources: &CeremonySources,
 ) -> Result<(String, MultiplicityPolicy, Vec<PlannedScope>)> {
     let tenant_id = required_str(session, "tenant_id", "tally session")?;
     let election_event_id = required_str(session, "election_event_id", "tally session")?;
-    let board_name = event["bulletin_board_reference"]["database_name"]
-        .as_str()
-        .map(str::to_string)
-        .ok_or_else(|| incomplete("saved election event lacks its board name"))?;
-    board_identifier(&board_name).map_err(into_invalid_input)?;
+    let boards = resolve_boards(
+        session,
+        event,
+        ceremony_sources,
+        args.environment_slug.as_deref(),
+    )?;
+    let board_name = boards.bulletin_board.clone();
     let configuration = session
         .get("configuration")
         .ok_or_else(|| invalid_input("saved session has no configuration column"))?;
@@ -252,6 +261,11 @@ fn plan_scopes(
     );
     let mut scopes = Vec::with_capacity(contests.len());
     for (index, contest) in contests.iter().enumerate() {
+        validate_scope_election(
+            &required_str(contest, "election_id", "tally contest")?,
+            ceremony_sources,
+            &boards,
+        )?;
         let base_batch = contest["session_id"]
             .as_u64()
             .and_then(|batch| u32::try_from(batch).ok())
@@ -303,7 +317,7 @@ async fn read_hasura(
     source: &ConnectionSource,
     tally_session_id: &str,
     timeout: u32,
-) -> Result<(Value, Value, Vec<Value>, Value)> {
+) -> Result<(Value, Value, Vec<Value>, Value, CeremonySources)> {
     let mut client = connect(config).await?;
     let transaction = start_snapshot(&mut client, timeout).await?;
     let snapshot = snapshot_metadata(&transaction, source).await?;
@@ -329,11 +343,12 @@ async fn read_hasura(
         &[&tenant_id, &event_id, &tally_session_id],
     )
     .await?;
+    let ceremony_sources = read_ceremony_sources(&transaction, &session).await?;
     transaction
         .commit()
         .await
         .map_err(|_| invalid_input("cannot finish Hasura snapshot"))?;
-    Ok((session, event, contests, snapshot))
+    Ok((session, event, contests, snapshot, ceremony_sources))
 }
 
 async fn read_board_batches(
@@ -891,14 +906,15 @@ async fn run(args: Args) -> Result<ExitStatus> {
     let board_config =
         local_config(&connections.b3, APPLICATION_NAME).map_err(into_invalid_input)?;
     let timeout = args.statement_timeout_seconds;
-    let (session, event, contests, hasura_snapshot) = read_hasura(
+    let (session, event, contests, hasura_snapshot, ceremony_sources) = read_hasura(
         hasura_config,
         &connections.hasura,
         &args.tally_session_id,
         timeout,
     )
     .await?;
-    let (board_name, policy, scopes) = plan_scopes(&args, &session, &event, &contests)?;
+    let (board_name, policy, scopes) =
+        plan_scopes(&args, &session, &event, &contests, &ceremony_sources)?;
     let (board_ballot_batches, b3_snapshot) =
         read_board_batches(board_config, &connections.b3, &board_name, timeout).await?;
     let tally_batches: Vec<u32> = scopes
@@ -913,6 +929,14 @@ async fn run(args: Args) -> Result<ExitStatus> {
         election_event_id: required_str(&session, "election_event_id", "tally session")?,
         tally_session_id: args.tally_session_id.clone(),
         board_name,
+        electoral_log_database: resolve_boards(
+            &session,
+            &event,
+            &ceremony_sources,
+            args.environment_slug.as_deref(),
+        )?
+        .electoral_log,
+        environment_slug: args.environment_slug.clone(),
         policy,
         scopes,
         tally_batches,
@@ -979,7 +1003,7 @@ async fn run(args: Args) -> Result<ExitStatus> {
                     &"--server-url",
                     &args.immudb_server_url.clone().unwrap_or_default(),
                     &"--database",
-                    &plan.board_name,
+                    &plan.electoral_log_database,
                     &"--username",
                     &args.immudb_username.clone().unwrap_or_default(),
                     &"--password-env",
@@ -1027,6 +1051,9 @@ async fn run(args: Args) -> Result<ExitStatus> {
             &"--output",
             &export,
         ]);
+        if let Some(slug) = &args.environment_slug {
+            export_args.extend(os(&[&"--environment-slug", slug]));
+        }
         if let Some(root) = &args.b3_blob_root {
             export_args.extend(os(&[&"--b3-blob-root", root]));
         }
@@ -1365,9 +1392,27 @@ mod tests {
         ])
     }
 
+    const CEREMONY: &str = "00000000-0000-4000-8000-000000000070";
+    fn ceremony_sources() -> CeremonySources {
+        CeremonySources {
+            ceremony: json!({"id": CEREMONY, "tenant_id": TENANT,
+            "election_event_id": EVENT, "is_default": true}),
+            elections: vec![json!({
+            "id": ELECTION, "tenant_id": TENANT, "election_event_id": EVENT})],
+        }
+    }
+    fn plan_scopes(
+        args: &Args,
+        session: &Value,
+        event: &Value,
+        contests: &[Value],
+    ) -> Result<(String, MultiplicityPolicy, Vec<PlannedScope>)> {
+        super::plan_scopes(args, session, event, contests, &ceremony_sources())
+    }
+
     fn session(configuration: Value) -> Value {
         json!({"id":SESSION, "tenant_id":TENANT, "election_event_id":EVENT,
-            "configuration":configuration})
+            "configuration":configuration, "keys_ceremony_id":CEREMONY})
     }
 
     fn event() -> Value {
@@ -1474,6 +1519,43 @@ mod tests {
         negative[0]["session_id"] = json!(-1);
         let error = plan_scopes(&args(), &session(Value::Null), &event(), &negative).unwrap_err();
         assert_eq!(ExitStatus::of(&error), ExitStatus::InvalidInput);
+    }
+
+    #[test]
+    fn nondefault_plan_preserves_keys_batches_and_event_log() {
+        let mut arguments = args();
+        arguments.environment_slug = Some("test".into());
+        let session = session(json!({"weighted_voting_policy":"voters-weighted-voting"}));
+        let mut event = event();
+        let tenant = TENANT.replace('-', "");
+        let event_board = format!("testtenant{}event{}", &tenant[..17], EVENT.replace('-', ""));
+        event["bulletin_board_reference"]["database_name"] = json!(event_board);
+        let mut sources = ceremony_sources();
+        sources.ceremony["is_default"] = json!(false);
+        sources.elections[0]["keys_ceremony_id"] = json!(CEREMONY);
+        let rows = [contest(
+            "00000000-0000-4000-8000-000000000061",
+            AREA,
+            json!("00000000-0000-4000-8000-000000000090"),
+            20,
+            json!({"weight_bit_mask":6}),
+        )];
+        let (board, _, scopes) =
+            super::plan_scopes(&arguments, &session, &event, &rows, &sources).unwrap();
+        assert_ne!(board, event_board);
+        assert_eq!(
+            resolve_boards(&session, &event, &sources, Some("test"))
+                .unwrap()
+                .electoral_log,
+            event_board
+        );
+        assert_eq!(scopes[0].batches, vec![21, 22]);
+        let scope: Value = serde_json::from_slice(&scopes[0].scope_bytes).unwrap();
+        assert_eq!(scope["scope"]["public_key_sha512"], "7".repeat(128));
+        assert_eq!(scope["scope"]["electoral_log_system_public_key"], "key");
+        let mut foreign = rows.clone();
+        foreign[0]["election_id"] = json!(EVENT);
+        assert!(super::plan_scopes(&arguments, &session, &event, &foreign, &sources).is_err());
     }
 
     #[test]
