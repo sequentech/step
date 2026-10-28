@@ -469,6 +469,7 @@ const dutchTranslation: TranslationType = {
                 customUrls: "Aangepaste URL-prefix",
                 votingPeriod: "Stemperiode",
                 language: "Taal",
+                languageAndRegion: "Taal en regio",
                 allowed: "Toegestane stemkanalen",
                 materials: "Ondersteunend materiaal",
                 ballotDesign: "Ontwerp stembiljet",
@@ -702,6 +703,11 @@ const dutchTranslation: TranslationType = {
                         "browser-detect": "Detecteren via browser",
                         "force-default": "Standaard afdwingen",
                     },
+                },
+                numberFormatPolicy: {
+                    policyLabel: "Getalnotatiebeleid",
+                    helperText: "Geldt voor de getallen in resultaten, dashboards en rapporten.",
+                    unknownPolicy: "Onbekende notatie '{{policy}}', weergegeven als {{sample}}",
                 },
             },
             error: {
@@ -2158,6 +2164,8 @@ const dutchTranslation: TranslationType = {
             },
         },
         tally: {
+            numericResultsReportsPending:
+                "De numerieke resultaten zijn compleet. De rapporten worden nog gegenereerd.",
             errorUploadingSignature: "Er was een fout bij het uploaden van de handtekening",
             downloadTransmissionPackage: "Transmissiepakket Downloaden",
             resultsPublication: {

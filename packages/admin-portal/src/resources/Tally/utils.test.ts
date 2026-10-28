@@ -2,12 +2,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import {ENumberFormatPolicy} from "@sequentech/ui-core"
 import {
     ETallyKeyRestoreEligibility,
     ITallyExecutionStatus,
     ITallyTrusteeStatus,
 } from "@/types/ceremonies"
-import {getTallyKeyRestoreEligibility, orderItemsByIds} from "./utils"
+import {formatTiedVoteShare, getTallyKeyRestoreEligibility, orderItemsByIds} from "./utils"
 
 describe("getTallyKeyRestoreEligibility", () => {
     it.each([ITallyExecutionStatus.STARTED, ITallyExecutionStatus.CONNECTED])(
@@ -82,5 +83,20 @@ describe("orderItemsByIds", () => {
                 "election-1",
             ]).map((item) => item.id)
         ).toEqual(["election-2", "election-1"])
+    })
+})
+
+describe("formatTiedVoteShare", () => {
+    it("writes the tied candidates' share of the votes with one decimal", () => {
+        expect(formatTiedVoteShare(1, 3, ENumberFormatPolicy.PERIOD_COMMA)).toBe("33,3")
+        expect(formatTiedVoteShare(2500, 5000, ENumberFormatPolicy.COMMA_PERIOD)).toBe("50.0")
+    })
+
+    it("writes a zero share when the contest counted no votes", () => {
+        expect(formatTiedVoteShare(0, 0, ENumberFormatPolicy.SPACE_COMMA)).toBe("0,0")
+    })
+
+    it("has no share while the contest's total is unknown", () => {
+        expect(formatTiedVoteShare(3, undefined, ENumberFormatPolicy.COMMA_PERIOD)).toBeUndefined()
     })
 })
