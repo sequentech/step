@@ -63,6 +63,24 @@ public class UrlTruststoreProvider implements TruststoreProvider {
     return intermediateCertificates;
   }
 
+  // Since Keycloak 26.8, X.509 client certificate validation reads the HTTPS (mTLS) truststore.
+  // The URL-fetched CAs serve both purposes, mirroring FileTruststoreProvider when no separate
+  // HTTPS truststore is configured.
+  @Override
+  public KeyStore getHttpsTruststore() {
+    return truststore;
+  }
+
+  @Override
+  public Map<X500Principal, List<X509Certificate>> getHttpsRootCertificates() {
+    return rootCertificates;
+  }
+
+  @Override
+  public Map<X500Principal, List<X509Certificate>> getHttpsIntermediateCertificates() {
+    return intermediateCertificates;
+  }
+
   @Override
   public void close() {}
 }
