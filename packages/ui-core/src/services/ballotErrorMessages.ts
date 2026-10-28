@@ -12,7 +12,9 @@
  * 1. `serde_wasm_bindgen` serialises a Rust `HashMap` as a JS `Map`, not as a
  *    plain object, so the map cannot be handed to `t()` as-is.
  * 2. Every value is a Rust `String`, and i18next skips plural handling
- *    altogether when `count` is a string. Numeric values have to be coerced.
+ *    altogether when `count` is a string. The numeric fields have to be
+ *    coerced, and only those: the rest are labels, such as a candidate type
+ *    named "001", and must reach the sentence as written.
  *
  * On top of that, the checker reports the *state* of the selection
  * (`numSelected`, `min`, `max`) while the voter needs the *remaining action*
@@ -64,6 +66,13 @@ const coerceValue = (value: unknown): string | number => {
     return String(value)
 }
 
+/** Labels keep their exact text: a candidate type `"001"` must not become `1`. */
+const passThrough = (value: unknown): string | number =>
+    typeof value === "number" ? value : String(value)
+
+/** `count` itself and the operands of `COUNT_DERIVATIONS`. */
+const NUMERIC_FIELDS = new Set(["count", "numSelected", "min", "max"])
+
 const asNumber = (value: string | number | undefined): number => {
     const coerced = typeof value === "number" ? value : Number(value)
     return Number.isFinite(coerced) ? coerced : 0
@@ -95,7 +104,7 @@ export const getBallotErrorOptions = (
 ): BallotErrorOptions => {
     const options: BallotErrorOptions = {}
     for (const [key, value] of Object.entries(toRecord(messageMap))) {
-        options[key] = coerceValue(value)
+        options[key] = NUMERIC_FIELDS.has(key) ? coerceValue(value) : passThrough(value)
     }
 
     const derive = message ? COUNT_DERIVATIONS[message] : undefined
