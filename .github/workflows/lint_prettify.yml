@@ -108,6 +108,9 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v4
 
+      - name: Test the Hasura log type check
+        run: scripts/test-check-deployment-env-templates.sh
+
       - name: Check Hasura log types
         run: scripts/check-deployment-env-templates.sh
 

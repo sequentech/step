@@ -282,6 +282,7 @@ globs = [
     "scripts/tasks/**",
     "scripts/build-airgapped.sh",
     "scripts/check-deployment-env-templates.sh",
+    "scripts/test-check-deployment-env-templates.sh",
     "scripts/generate_voters.py",
     "scripts/loc.sh",
     "scripts/replacements.sh",
