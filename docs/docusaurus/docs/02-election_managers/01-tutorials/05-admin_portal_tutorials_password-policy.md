@@ -1,6 +1,7 @@
 ---
 id: admin_portal_tutorials_password-policy
 title: Configure Password Policy
+description: "Each election event has its own Keycloak realm and password policy."
 ---
 
 <!--

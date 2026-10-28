@@ -1,6 +1,7 @@
 ---
 id: election_management_election_event_publish
 title: Publish
+description: "To commit any changes to an Election Event, they must be published using this tab. Additionally, you can start, pause, and stop Election Events here."
 ---
 
 <!--

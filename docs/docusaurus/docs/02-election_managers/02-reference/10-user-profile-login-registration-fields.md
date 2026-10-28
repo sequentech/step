@@ -2,6 +2,7 @@
 id: user_profile_login_registration_fields
 title: Configuring Login and Registration Fields
 sidebar_position: 10
+description: "The fields on the registration page and on the attribute-based login page are generated from the realm's User Profile configuration in Keycloak."
 ---
 
 <!--
