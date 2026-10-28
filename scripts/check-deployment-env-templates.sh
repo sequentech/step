@@ -17,8 +17,9 @@ cd "$repo_root" || exit 2
 
 assignment="^[[:space:]]*((export[[:space:]]+|-[[:space:]]*)?[\"']?${LOG_TYPES_VAR}[\"']?[[:space:]]*[:=]|ENV[[:space:]]+${LOG_TYPES_VAR}([[:space:]]*=|[[:space:]]+))"
 # The value stops at a comment or a shell control operator, so the token must
-# appear before either one.
-value_before_token="([^#;&|]*([\"',[:space:]]|:-))?"
+# appear before either one. ${NAME-x}, ${NAME:-x}, ${NAME=x} and ${NAME:+x}
+# can all expand to x.
+value_before_token="([^#;&|]*([\"',[:space:]]|:-|[$][{][A-Za-z_][A-Za-z0-9_]*:?[-=+]))?"
 token_end="([\"',};&|()<>[:space:]]|$)"
 pattern="${assignment}${value_before_token}${DEVELOPMENT_ONLY_LOG_TYPE}${token_end}"
 
