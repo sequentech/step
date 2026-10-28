@@ -4,15 +4,16 @@
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "server")] {
+        use std::net::SocketAddr;
         use std::path::PathBuf;
-        use tonic::transport::Server;
-        use tracing::info;
+        use tracing::{info, warn};
         use config::{Config, Environment};
         use serde::Deserialize;
         use b3::client::pgsql::{PgsqlB3Client, PgsqlConnectionParams};
         use b3::grpc::server::PgsqlB3Server;
         use b3::grpc::B3Server;
         use b3::grpc::MAX_MESSAGE_SIZE;
+        use b3::grpc::transport::{B3TransportSecurity, TransportConfig, SERVER_ENV_PREFIX};
 
         #[derive(Debug, Deserialize)]
         #[serde(default)]
@@ -70,13 +71,22 @@ cfg_if::cfg_if! {
             info!("there are {} boards in the index", boards.len());
             drop(client);
 
-            let addr = config.bind.parse()?;
+            let transport = TransportConfig::from_env(SERVER_ENV_PREFIX)?;
+            info!("b3 transport security: {}", transport.transport_security);
+
+            let addr: SocketAddr = config.bind.parse()?;
+            if transport.transport_security == B3TransportSecurity::Plaintext
+                && !addr.ip().is_loopback()
+            {
+                warn!("Serving plaintext gRPC without client authentication on {}", addr);
+            }
+
             let b3_impl = PgsqlB3Server::new(c_db, config.blob_root).await?;
             let service = B3Server::new(b3_impl)
                 .max_encoding_message_size(config.max_message_size_bytes)
                 .max_decoding_message_size(config.max_message_size_bytes);
 
-            Server::builder().add_service(service).serve(addr).await?;
+            transport.server_builder()?.add_service(service).serve(addr).await?;
 
             Ok(())
         }
