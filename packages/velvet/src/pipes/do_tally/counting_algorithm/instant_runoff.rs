@@ -1089,6 +1089,12 @@ mod tests {
         votes
     }
 
+    fn unweighted_votes(ranking: &[&str], count: usize) -> Vec<(DecodedVoteContest, Weight)> {
+        (0..count)
+            .map(|_| (ranked_vote(ranking), Weight::default()))
+            .collect()
+    }
+
     fn percentage(round: &Round, candidate_id: &str) -> f64 {
         round
             .candidates_wins
@@ -1146,5 +1152,59 @@ mod tests {
         assert_close(percentage(first_round, "x"), 1.0 / 7.0);
         assert_close(percentage(first_round, "y"), 4.0 / 7.0);
         assert_close(percentage(first_round, "z"), 2.0 / 7.0);
+    }
+
+    #[test]
+    fn irv_exhausted_weighted_ballot_leaves_the_active_weight() {
+        let mut votes = vec![
+            (ranked_vote(&["z"]), area_weight(4)),
+            (ranked_vote(&["x"]), area_weight(5)),
+        ];
+        votes.extend(unweighted_votes(&["y"], 6));
+        let runoff = run_ranked(&votes);
+
+        let first_round = runoff.rounds.first().expect("first round should exist");
+        assert!(first_round.winner.is_none());
+        assert_close(percentage(first_round, "x"), 5.0 / 15.0);
+        assert_close(percentage(first_round, "y"), 6.0 / 15.0);
+        assert_close(percentage(first_round, "z"), 4.0 / 15.0);
+
+        let last_round = runoff.rounds.last().expect("last round should exist");
+        assert_eq!(runoff.rounds.len(), 2);
+        assert_eq!(last_round.active_ballots_count, 7);
+        assert_eq!(last_round.exhausted_ballots_count, 1);
+        assert_eq!(
+            last_round.winner.as_ref().map(|winner| winner.id.as_str()),
+            Some("y")
+        );
+        assert_close(percentage(last_round, "x"), 5.0 / 11.0);
+        assert_close(percentage(last_round, "y"), 6.0 / 11.0);
+    }
+
+    #[test]
+    fn irv_transferred_ballot_keeps_its_area_weight() {
+        let mut votes = vec![(ranked_vote(&["z", "x"]), area_weight(3))];
+        votes.extend(unweighted_votes(&["x"], 4));
+        votes.extend(unweighted_votes(&["y"], 6));
+        let runoff = run_ranked(&votes);
+
+        let first_round = runoff.rounds.first().expect("first round should exist");
+        assert!(first_round.winner.is_none());
+        assert_close(percentage(first_round, "z"), 3.0 / 13.0);
+
+        let last_round = runoff.rounds.last().expect("last round should exist");
+        assert_eq!(runoff.rounds.len(), 2);
+        let x = last_round
+            .candidates_wins
+            .get("x")
+            .expect("candidate outcome should exist");
+        assert_eq!(x.wins, 7);
+        assert_eq!(x.transference, 3);
+        assert_eq!(
+            last_round.winner.as_ref().map(|winner| winner.id.as_str()),
+            Some("x")
+        );
+        assert_close(percentage(last_round, "x"), 7.0 / 13.0);
+        assert_close(percentage(last_round, "y"), 6.0 / 13.0);
     }
 }
