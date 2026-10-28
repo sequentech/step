@@ -278,6 +278,16 @@ impl RunoffStatus {
         self.rounds.last().cloned()
     }
 
+    /// The candidate elected by the runoff, or `None` while a tie awaits
+    /// its external resolution.
+    #[instrument(skip_all)]
+    pub fn get_winner(&self) -> Option<&CandidateReference> {
+        if self.pending_tie_resolution.is_some() {
+            return None;
+        }
+        self.rounds.last().and_then(|round| round.winner.as_ref())
+    }
+
     #[instrument]
     pub fn filter_candidates_by_number_of_wins(
         &self,
@@ -755,7 +765,7 @@ impl CountingAlgorithm for InstantRunoff {
             .tally_sheet_results
             .iter()
             .fold(contest_result, |result, tally_sheet_result| {
-                result.aggregate(tally_sheet_result, false)
+                result.aggregate_tally_sheet(tally_sheet_result)
             }))
     }
 }
@@ -763,7 +773,9 @@ impl CountingAlgorithm for InstantRunoff {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::pipes::mark_winners::MarkWinners;
     use sequent_core::ballot::CandidatePresentation;
+    use sequent_core::types::ceremonies::CountingAlgType;
     use sequent_core::types::{participation::VotesByChannel, tally_sheets::VotingChannel};
 
     fn candidate(id: &str, is_explicit_blank: bool) -> Candidate {
@@ -975,7 +987,7 @@ mod tests {
     }
 
     #[test]
-    fn contest_tally_includes_tally_sheet_results() {
+    fn irv_tally_sheet_adds_participation_but_not_candidate_counts() {
         let mut tally = instant_runoff(vec![vote_with_selected_ids(&["candidate_a"])]);
         tally.tally.auditable_votes = 0;
         let candidate_a = tally
@@ -1014,7 +1026,7 @@ mod tests {
                 .iter()
                 .find(|candidate| candidate.candidate.id == "candidate_a")
                 .map(|candidate| candidate.total_count),
-            Some(3)
+            Some(1)
         );
         assert_eq!(
             result
@@ -1022,6 +1034,198 @@ mod tests {
                 .as_ref()
                 .and_then(|metrics| { metrics.votes_by_channel.get(&VotingChannel::PAPER.into()) }),
             Some(&2)
+        );
+    }
+
+    fn named_candidate(id: &str, name: &str) -> Candidate {
+        Candidate {
+            id: id.to_string(),
+            name: Some(name.to_string()),
+            ..Candidate::default()
+        }
+    }
+
+    fn ranked_contest(
+        candidates: Vec<Candidate>,
+        tie_breaking_policy: TieBreakingPolicy,
+    ) -> Contest {
+        Contest {
+            id: "contest".to_string(),
+            max_votes: candidates.len() as i64,
+            winning_candidates_num: 1,
+            counting_algorithm: Some(CountingAlgType::InstantRunoff),
+            tie_breaking_policy: Some(tie_breaking_policy),
+            candidates,
+            ..Contest::default()
+        }
+    }
+
+    fn ranked_vote(contest: &Contest, preferences: &[&str]) -> DecodedVoteContest {
+        DecodedVoteContest {
+            contest_id: contest.id.clone(),
+            is_explicit_invalid: false,
+            is_decline_to_vote: false,
+            is_blank_ballot: false,
+            invalid_errors: vec![],
+            invalid_alerts: vec![],
+            choices: contest
+                .candidates
+                .iter()
+                .map(|candidate| DecodedVoteChoice {
+                    id: candidate.id.clone(),
+                    selected: preferences
+                        .iter()
+                        .position(|id| *id == candidate.id)
+                        .map_or(-1, |rank| rank as i64),
+                    write_in_text: None,
+                })
+                .collect(),
+        }
+    }
+
+    fn contest_tally(contest: Contest, ballots: Vec<DecodedVoteContest>) -> InstantRunoff {
+        let census = ballots.len() as u64;
+        InstantRunoff {
+            tally: Tally {
+                id: CountingAlgType::InstantRunoff,
+                scope_operation: ScopeOperation::Contest(TallyOperation::ProcessBallotsAll),
+                contest,
+                ballots: ballots
+                    .into_iter()
+                    .map(|ballot| (ballot, Weight::default()))
+                    .collect(),
+                census,
+                auditable_votes: 0,
+                tally_sheet_results: vec![],
+                tally_results: vec![],
+            },
+        }
+    }
+
+    /// Alice and Bob receive two first preferences each, so the first round
+    /// ends in a tie that only the tie-breaking policy can decide.
+    fn tied_alice_and_bob(tie_breaking_policy: TieBreakingPolicy) -> InstantRunoff {
+        let contest = ranked_contest(
+            vec![
+                named_candidate("alice", "Alice"),
+                named_candidate("bob", "Bob"),
+            ],
+            tie_breaking_policy,
+        );
+        let ballots = vec![
+            ranked_vote(&contest, &["alice"]),
+            ranked_vote(&contest, &["alice"]),
+            ranked_vote(&contest, &["bob"]),
+            ranked_vote(&contest, &["bob"]),
+        ];
+        contest_tally(contest, ballots)
+    }
+
+    fn runoff_winner_id(result: &ContestResult) -> Option<String> {
+        let process_results = result.process_results.clone()?;
+        let runoff: RunoffStatus =
+            serde_json::from_value(process_results).expect("runoff process results");
+        runoff
+            .rounds
+            .last()
+            .and_then(|round| round.winner.as_ref())
+            .map(|winner| winner.id.clone())
+    }
+
+    fn winner_ids(result: &ContestResult) -> Vec<String> {
+        MarkWinners::get_winners(result)
+            .expect("winners")
+            .into_iter()
+            .map(|winner| winner.candidate.id)
+            .collect()
+    }
+
+    #[test]
+    fn irv_winner_follows_external_tie_resolution() {
+        let mut tally = tied_alice_and_bob(TieBreakingPolicy::EXTERNAL_PROCEDURE);
+        Contest::insert_tie_resolutions(
+            &mut tally.tally.contest,
+            &vec![TallySessionResolutionData {
+                round_number: Some(1),
+                tied_candidate_ids: vec!["alice".to_string(), "bob".to_string()],
+                vote_count: 2,
+                method_used: TieBreakingMethod::ExternalProcedure,
+                resolved_by_candidate_id: Some("bob".to_string()),
+            }],
+        )
+        .expect("tie resolution annotation");
+
+        let result = tally.tally().expect("IRV contest tally");
+
+        assert_eq!(runoff_winner_id(&result).as_deref(), Some("bob"));
+        assert_eq!(winner_ids(&result), vec!["bob"]);
+    }
+
+    #[test]
+    fn irv_pending_tie_resolution_names_no_winner() {
+        let result = tied_alice_and_bob(TieBreakingPolicy::EXTERNAL_PROCEDURE)
+            .tally()
+            .expect("IRV contest tally");
+
+        assert_eq!(runoff_winner_id(&result), None);
+        assert!(winner_ids(&result).is_empty());
+    }
+
+    #[test]
+    fn irv_winner_follows_tie_drawn_by_lot() {
+        for _ in 0..32 {
+            let result = tied_alice_and_bob(TieBreakingPolicy::RANDOM)
+                .tally()
+                .expect("IRV contest tally");
+            let drawn = runoff_winner_id(&result).expect("a winner drawn by lot");
+
+            assert_eq!(winner_ids(&result), vec![drawn]);
+        }
+    }
+
+    #[test]
+    fn irv_winner_is_not_changed_by_tally_sheet_candidate_counts() {
+        let contest = ranked_contest(
+            vec![
+                named_candidate("a", "A"),
+                named_candidate("b", "B"),
+                named_candidate("c", "C"),
+            ],
+            TieBreakingPolicy::RANDOM,
+        );
+        let mut ballots = vec![];
+        ballots.extend((0..4).map(|_| ranked_vote(&contest, &["a"])));
+        ballots.extend((0..3).map(|_| ranked_vote(&contest, &["b"])));
+        ballots.extend((0..2).map(|_| ranked_vote(&contest, &["c", "b"])));
+        let mut tally = contest_tally(contest.clone(), ballots);
+        tally.tally.tally_sheet_results = vec![ContestResult {
+            contest: contest.clone(),
+            total_votes: 2,
+            total_valid_votes: 2,
+            candidate_result: vec![CandidateResult {
+                candidate: named_candidate("a", "A"),
+                percentage_votes: 100.0,
+                total_count: 2,
+            }],
+            extended_metrics: Some(ExtendedMetricsContest {
+                votes_by_channel: VotesByChannel::from([(VotingChannel::PAPER.into(), 2)]),
+                ..Default::default()
+            }),
+            ..Default::default()
+        }];
+
+        let result = tally.tally().expect("IRV contest tally");
+
+        assert_eq!(runoff_winner_id(&result).as_deref(), Some("b"));
+        assert_eq!(winner_ids(&result), vec!["b"]);
+        assert_eq!(result.total_votes, 11);
+        assert_eq!(
+            result
+                .candidate_result
+                .iter()
+                .find(|candidate| candidate.candidate.id == "a")
+                .map(|candidate| candidate.total_count),
+            Some(4)
         );
     }
 }

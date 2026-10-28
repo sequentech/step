@@ -65,6 +65,24 @@ Candidate percentages use votes for candidates when the counting algorithm
 reports candidate rows against participating non-blank ballots. Summary rows
 labelled as valid votes include blank votes.
 
+## Winners
+
+The winners of a contest, and the `winning_position` of each candidate, are
+determined as follows:
+
+- **Instant runoff**: the winner is the candidate elected in the last round of
+  the runoff recorded in `process_results`, including a final tie decided by
+  lot or by an external procedure. While a tie is waiting for its external
+  resolution, no candidate is marked as a winner.
+- **Tally sheets in an instant-runoff contest**: a tally sheet records
+  unranked counts, so it adds its total, blank and invalid votes and its votes
+  by channel to the result, but not its candidate counts.
+- **Other counting algorithms**: candidates are ranked by their count. When
+  candidates with the same count compete for the last winning seat, the
+  contest's tie-breaking policy (`random` unless configured otherwise) decides
+  the seats left for them: `random` draws them by lot, and
+  `external-procedure` leaves them without a winning position.
+
 ## Compatibility note
 
 This is a breaking results-semantics change for 9.x. Before this change,
