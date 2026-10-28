@@ -47,6 +47,8 @@ expect 1 docker-compose.yml "      - ${VAR}=startup,query-log"
 expect 1 docker-compose.yml "      ${VAR}: \${${VAR}:-query-log}"
 expect 1 docker-compose.yml "      ${VAR}: \${${VAR}:-startup, query-log}"
 expect 1 config.json "  \"${VAR}\": \"startup, query-log\""
+expect 1 packages/Dockerfile.hasura "ENV ${VAR}=\"startup, query-log\""
+expect 1 packages/Dockerfile.hasura "ENV ${VAR} query-log"
 
 # Lines that do not enable it.
 expect 0 .devcontainer/.env.development "${VAR}=startup, query-log"
@@ -56,6 +58,8 @@ expect 0 env.sh "${VAR}=startup; echo query-log"
 expect 0 .env "${VAR}=not-query-log"
 expect 0 .env "${VAR}=query-logs"
 expect 0 .env "OTHER_LOG_TYPES=query-log"
+expect 0 packages/Dockerfile.hasura "ENV ${VAR}=\"startup, http-log\""
+expect 0 packages/Dockerfile.hasura "ENV ${VAR}_COPY query-log"
 
 # Outside a git repository the check cannot list tracked files.
 cases=$((cases + 1))
