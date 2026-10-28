@@ -6,6 +6,7 @@
 module.exports = {
     testEnvironment: "node",
     testMatch: ["<rootDir>/src/**/*.test.ts", "<rootDir>/src/**/*.test.tsx"],
+    setupFiles: ["<rootDir>/src/test/polyfills.cjs"],
     // @vitrine/ui exports its elements only under the "import" condition,
     // which Jest's CommonJS resolver doesn't match.
     moduleNameMapper: {
