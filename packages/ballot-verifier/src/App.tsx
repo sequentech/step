@@ -16,6 +16,8 @@ import {
 } from "@sequentech/ui-core"
 import {HomeScreen} from "./screens/HomeScreen"
 import {ConfirmationScreen} from "./screens/ConfirmationScreen"
+import {ReceiptScreen} from "./screens/ReceiptScreen"
+import {APP_LANGUAGES} from "./services/i18n"
 import Stack from "@mui/material/Stack"
 import {IConfirmationBallot, provideBallotService} from "./services/BallotService"
 import {AuthContext} from "./providers/AuthContextProvider"
@@ -35,6 +37,30 @@ const StyledAppWrapper = styled(Stack)<{customCss: string}>`
 const StyledApp = styled(Stack)`
     min-height: 100vh;
 `
+
+/** The receipt screen, which needs no login and belongs to no event. */
+const RECEIPT_ROUTE = "/receipt/*"
+
+const onChangeLanguage = (lang: string) => {
+    if (getValueFromCookie(USER_LANGUAGE_COOKIE_NAME) !== lang) {
+        setCookie(USER_LANGUAGE_COOKIE_NAME, lang)
+    }
+}
+
+/** The receipt screen's header: every language, and no profile, as no one
+ * logs in there. */
+const ReceiptHeader: React.FC = () => {
+    const {globalSettings} = useContext(SettingsContext)
+    return (
+        <Header
+            appVersion={{main: globalSettings.APP_VERSION}}
+            appHash={{main: globalSettings.APP_HASH}}
+            languagesList={APP_LANGUAGES}
+            logoUrl={BlankLogoImg}
+            onChangeLanguage={onChangeLanguage}
+        />
+    )
+}
 
 const HeaderWithContext: React.FC = () => {
     const authContext = useContext(AuthContext)
@@ -56,12 +82,6 @@ const HeaderWithContext: React.FC = () => {
             : presentation?.logo_url === null
               ? SequentLogo
               : presentation?.logo_url
-
-    const onChangeLanguage = (lang: string) => {
-        if (getValueFromCookie(USER_LANGUAGE_COOKIE_NAME) !== lang) {
-            setCookie(USER_LANGUAGE_COOKIE_NAME, lang)
-        }
-    }
 
     return (
         <Header
@@ -90,6 +110,7 @@ const App = () => {
     const ballotService = provideBallotService()
 
     const routeMatch = useMatch("/tenant/:tenantId/event/:eventId/*")
+    const receiptMatch = useMatch(RECEIPT_ROUTE)
     const currentEventId = routeMatch?.params.eventId
     const ballotStyle = useAppSelector(selectBallotStyleByElectionEventId(currentEventId))
 
@@ -100,7 +121,7 @@ const App = () => {
     }, [currentEventId])
 
     useEffect(() => {
-        if (globalSettings.DISABLE_AUTH) {
+        if (globalSettings.DISABLE_AUTH && !receiptMatch) {
             navigate(
                 `/tenant/${globalSettings.DEFAULT_TENANT_ID}/event/${globalSettings.DEFAULT_EVENT_ID}/start`
             )
@@ -134,10 +155,17 @@ const App = () => {
     return (
         <StyledAppWrapper customCss={customCss}>
             <StyledApp className="ballot-verifier app-root">
-                {globalSettings.DISABLE_AUTH ? <Header /> : <HeaderWithContext />}
+                {receiptMatch ? (
+                    <ReceiptHeader />
+                ) : globalSettings.DISABLE_AUTH ? (
+                    <Header />
+                ) : (
+                    <HeaderWithContext />
+                )}
                 <PageBanner marginBottom="auto" component="main" id="main-content" tabIndex={-1}>
                     <Routes>
                         <Route path="*" element={<NotFoundScreen />} />
+                        <Route path={RECEIPT_ROUTE} element={<ReceiptScreen />} />
                         <Route
                             path="/"
                             element={

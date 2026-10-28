@@ -34,11 +34,13 @@ import JsonImg from "../public/json.png"
 import Image from "mui-image"
 import {TenantEventContext} from ".."
 import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
-import {useAppDispatch} from "../store/hooks"
+import {useAppDispatch, useAppSelector} from "../store/hooks"
+import {selectBallotStyleByElectionEventId} from "../store/ballotStyles/ballotStylesSlice"
 import {
     GetPublishedBallotStylesQuery,
     updateBallotStyleAndSelection,
 } from "../services/BallotStyles"
+import {ETransparencyMode, transparencyMode} from "../services/vitrine/presentation"
 
 const ActionsContainer = styled(Box)`
     display: flex;
@@ -152,6 +154,8 @@ export const HomeScreen: React.FC<IProps> = ({
     const {tenantId, eventId} = useContext(TenantEventContext)
     const {data: dataBallotStyles} = useQuery<GetPublishedBallotStylesQuery>(GET_BALLOT_STYLES)
     const dispatch = useAppDispatch()
+    const ballotStyle = useAppSelector(selectBallotStyleByElectionEventId(eventId ?? undefined))
+    const transparency = transparencyMode(ballotStyle?.ballot_eml?.election_event_presentation)
 
     useEffect(() => {
         const newIsNextActive = !!confirmationBallot && !!ballotId
@@ -388,6 +392,23 @@ export const HomeScreen: React.FC<IProps> = ({
                     <Icon icon={faAngleRight} size="sm" />
                 </StyledButton>
             </ActionsContainer>
+            {transparency !== ETransparencyMode.DISABLED ? (
+                <Box
+                    className="receipt-link"
+                    data-testid="receipt-link-section"
+                    marginBottom="20px"
+                >
+                    <StyledTitle variant="h5">
+                        <span>{t("homeScreen.receiptTitle")}</span>
+                    </StyledTitle>
+                    <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
+                        {t("homeScreen.receiptDescription")}
+                    </Typography>
+                    <Button component={RouterLink} to="/receipt" data-testid="receipt-link">
+                        {t("homeScreen.receiptButton")}
+                    </Button>
+                </Box>
+            ) : null}
         </PageLimit>
     )
 }

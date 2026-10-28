@@ -52,8 +52,8 @@ import Button from "@mui/material/Button"
 import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
 import {Question} from "../components/Question/Question"
 import {useMutation, useQuery} from "@apollo/client/react"
-import {INSERT_CAST_VOTE} from "../queries/InsertCastVote"
-import {GetElectionEventQuery, InsertCastVoteMutation, GetElectionsQuery} from "../gql/graphql"
+import {INSERT_CAST_VOTE, InsertCastVoteWithVitrineMutation} from "../queries/InsertCastVote"
+import {GetElectionEventQuery, GetElectionsQuery} from "../gql/graphql"
 import {GET_ELECTIONS} from "../queries/GetElections"
 import {provideBallotService} from "../services/BallotService"
 import {ICastVote, addCastVotes} from "../store/castVotes/castVotesSlice"
@@ -82,7 +82,12 @@ import {
     BALLOT_DATA_KEY,
     BALLOT_DATA_EXPIRATION_KEY,
 } from "../store/castVotes/sessionBallotData"
-import {setConfirmationScreenData} from "../store/castVotes/confirmationScreenDataSlice"
+import {
+    IConfirmationVitrine,
+    setConfirmationScreenData,
+} from "../store/castVotes/confirmationScreenDataSlice"
+import {asTransparency, eventTransparency, ITransparency} from "../services/vitrine/presentation"
+import {ETransparencyMode, IVitrineCast} from "../services/vitrine/types"
 import {selectElectionById} from "../store/elections/electionsSlice"
 import {completeAcclaimedElection, isDeclineToVoteByElectionId} from "../store/extra/extraSlice"
 
@@ -242,9 +247,20 @@ const useAddFakeCastVote = (tenantId: string | undefined, eventId: string | unde
     }
 }
 
+type TCastOutcome = {ok: false} | {ok: true; vitrine: IVitrineCast | null}
+
+/** Vitrine's part of the confirmation, for events with transparency on. */
+const confirmationVitrine = (
+    transparency: ITransparency | undefined,
+    vitrine: IVitrineCast | null
+): IConfirmationVitrine | undefined =>
+    transparency && transparency.mode !== ETransparencyMode.DISABLED
+        ? {cast: vitrine, transparency}
+        : undefined
+
 const useTryInsertCastVote = () => {
     const {t} = useTranslation()
-    const [insertCastVote] = useMutation<InsertCastVoteMutation>(INSERT_CAST_VOTE)
+    const [insertCastVote] = useMutation<InsertCastVoteWithVitrineMutation>(INSERT_CAST_VOTE)
     const dispatch = useAppDispatch()
 
     return async (
@@ -252,7 +268,7 @@ const useTryInsertCastVote = () => {
         ballotId: string,
         content: string,
         setErrorMsg: (msg: string) => void
-    ) => {
+    ): Promise<TCastOutcome> => {
         try {
             let result = await insertCastVote({
                 variables: {
@@ -265,14 +281,15 @@ const useTryInsertCastVote = () => {
             if (result.error) {
                 console.log(result.error?.message)
                 setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.UNABLE_TO_FETCH_DATA}`))
-                return false
+                return {ok: false}
             }
 
             let newCastVote = result.data?.insert_cast_vote
             if (newCastVote) {
-                dispatch(addCastVotes([newCastVote]))
+                const {vitrine, ...castVote} = newCastVote
+                dispatch(addCastVotes([castVote]))
             }
-            return true
+            return {ok: true, vitrine: newCastVote?.vitrine ?? null}
         } catch (error) {
             console.log(error)
             let castError = error as IGraphQLActionError
@@ -311,7 +328,7 @@ const useTryInsertCastVote = () => {
             } else {
                 setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}`)) // Generic error
             }
-            return false
+            return {ok: false}
         }
     }
 }
@@ -359,6 +376,11 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     const addFakeCastVote = useAddFakeCastVote(tenantId, eventId)
     const tryInsertCastVote = useTryInsertCastVote()
     const dispatch = useAppDispatch()
+    const events = useAppSelector((state) => state.electionEvent)
+    const transparency = eventTransparency(
+        events[ballotStyle.election_event_id]?.presentation,
+        ballotStyle.ballot_eml.election_event_presentation
+    )
 
     const handleClose = (value: boolean) => {
         setAuditBallotHelp(false)
@@ -471,21 +493,33 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 isDemo,
                 ballot: JSON.stringify(hashableBallot),
                 timestamp: Date.now(), // Add timestamp for expiration check
+                ...(transparency.mode === ETransparencyMode.DISABLED ? {} : {transparency}),
             }
             return await storeBallotDataAndReauth(ballotData)
         }
 
-        if (
-            !(await tryInsertCastVote(
-                ballotStyle.election_id,
-                ballotId,
-                JSON.stringify(hashableBallot),
-                setErrorMsg
-            ))
-        ) {
+        const cast = await tryInsertCastVote(
+            ballotStyle.election_id,
+            ballotId,
+            JSON.stringify(hashableBallot),
+            setErrorMsg
+        )
+        if (!cast.ok) {
             isCastingBallot.current = false
             return submit({error: errorType}, {method: "post"})
         }
+        const vitrine = confirmationVitrine(transparency, cast.vitrine)
+        dispatch(
+            setConfirmationScreenData({
+                electionId: ballotStyle.election_id,
+                confirmationScreenData: {
+                    ballotId,
+                    isDemo,
+                    auditButtonCfg,
+                    ...(vitrine ? {vitrine} : {}),
+                },
+            })
+        )
         return submit(null, {method: "post"})
     }
 
@@ -745,19 +779,22 @@ export const ReviewScreen: React.FC = () => {
             return submit(null, {method: "post"})
         }
 
-        if (
-            !(await tryInsertCastVote(
-                ballotData.electionId,
-                ballotData.ballotId,
-                ballotData.ballot,
-                setErrorMsg
-            ))
-        ) {
+        const cast = await tryInsertCastVote(
+            ballotData.electionId,
+            ballotData.ballotId,
+            ballotData.ballot,
+            setErrorMsg
+        )
+        if (!cast.ok) {
             isCastingBallot.current = false
             return submit({error: errorType}, {method: "post"})
         }
 
         // Restore confirmation data after the reauthentication reload.
+        const vitrine = confirmationVitrine(
+            ballotData.transparency && asTransparency(ballotData.transparency),
+            cast.vitrine
+        )
         dispatch(
             setConfirmationScreenData({
                 electionId: ballotData.electionId,
@@ -765,6 +802,7 @@ export const ReviewScreen: React.FC = () => {
                     ballotId: ballotData.ballotId,
                     isDemo: ballotData.isDemo,
                     auditButtonCfg: ballotData.auditButtonCfg,
+                    ...(vitrine ? {vitrine} : {}),
                 },
             })
         )

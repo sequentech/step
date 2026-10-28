@@ -96,7 +96,8 @@
     "immutable": "^3.8.4",
     "@babel/core": "^7.29.6",
     "@babel/plugin-transform-modules-systemjs": "^7.29.4",
-    "@tootallnate/once": "^2.0.1"
+    "@tootallnate/once": "^2.0.1",
+    "@vitrine/verify": "file:./vendor-npm/vitrine-verify.tgz"
   },
   "scripts": {
     "start:voting-portal": "yarn --cwd ./voting-portal start",

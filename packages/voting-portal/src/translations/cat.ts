@@ -469,6 +469,42 @@ const catalanTranslation: TranslationType = {
                 ballot_id: "ID de la Papereta",
             },
         },
+        vitrine: {
+            booth: {
+                title: "Encara no es pot preparar la vostra papereta",
+                explanation:
+                    "Abans de xifrar la vostra papereta, aquest lloc web comprova que la configuració de l'elecció és la publicada al registre públic de l'elecció. La vostra papereta no s'ha xifrat ni enviat, i les vostres opcions es mantenen.",
+                pending:
+                    "La configuració publicada encara no està disponible. Torneu-ho a provar d'aquí a un moment.",
+                invalid:
+                    "No s'ha pogut llegir la configuració publicada. Torneu-ho a provar d'aquí a un moment.",
+                failed: "La configuració no coincideix amb la publicada. S'ha avisat els observadors de l'elecció. Poseu-vos en contacte amb el servei d'assistència.",
+                retry: "Torna-ho a provar",
+                close: "Tanca",
+            },
+            receipt: {
+                title: "El vostre rebut",
+                description:
+                    "El rebut mostra que la vostra papereta s'ha anotat al registre públic de l'elecció. No mostra què heu votat.",
+                waiting:
+                    "El rebut encara no està a punt. Aquest lloc web el continua demanant mentre aquesta pàgina estigui oberta.",
+                missing:
+                    "Aquest lloc web no ha rebut cap rebut de la vostra papereta. El vostre vot s'ha emès. S'ha avisat els observadors de l'elecció.",
+                unchecked:
+                    "Aquest lloc web no ha pogut comprovar el rebut. El vostre vot s'ha emès.",
+                reference:
+                    "Escanegeu aquest codi per comprovar el rebut des d'un altre dispositiu.",
+                stored: "Aquest rebut es guarda en aquest dispositiu i el podreu tornar a veure quan inicieu la sessió.",
+                notStored: "Aquest rebut no es guarda en aquest dispositiu.",
+                forget: "No guardis rebuts en aquest dispositiu",
+                keep: "Guarda els rebuts en aquest dispositiu",
+            },
+            storedReceipts: {
+                title: "Rebuts en aquest dispositiu",
+                description: "Els rebuts de les paperetes que heu emès en aquest dispositiu.",
+                forget: "Esborra els rebuts d'aquest dispositiu",
+            },
+        },
     },
 }
 

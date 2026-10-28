@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {Box, Button, CircularProgress, Typography, Alert} from "@mui/material"
-import React, {useContext, useEffect, useState} from "react"
+import React, {useContext, useEffect, useMemo, useState} from "react"
 import {Trans, useTranslation} from "react-i18next"
 import {Dialog, IconButton, PageLimit, SelectElection, theme} from "@sequentech/ui-essentials"
 import {
@@ -68,6 +68,7 @@ import {GET_SUPPORT_MATERIALS} from "../queries/GetSupportMaterials"
 import {GET_SUPPORT_MATERIALS_ACKNOWLEDGMENT} from "../queries/GetSupportMaterialsAcknowledgment"
 import {setSupportMaterial} from "../store/supportMaterials/supportMaterialsSlice"
 import {useElectionClassName} from "../hooks/useElectionClassName"
+import {KeptReceipts} from "../components/Vitrine/KeptReceipts"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -336,6 +337,19 @@ const ElectionSelectionScreen: React.FC = () => {
     const eventDefaultLanguageCode =
         electionEvent?.presentation?.language_conf?.default_language_code
     const electionIds = useAppSelector(selectElectionIds)
+    const elections = useAppSelector((state) => state.elections)
+    const electionNames = useMemo(
+        () =>
+            Object.fromEntries(
+                electionIds.map((id) => [
+                    id,
+                    translateFromPresentation(elections[id], "name", i18n.language, {
+                        defaultLanguageCode: eventDefaultLanguageCode,
+                    }) || "",
+                ])
+            ),
+        [electionIds, elections, i18n.language, eventDefaultLanguageCode]
+    )
     const dispatch = useAppDispatch()
     const [canVoteTest, setCanVoteTest] = useState<boolean>(true)
     const [testElectionId, setTestElectionId] = useState<string | null>(null)
@@ -731,6 +745,11 @@ const ElectionSelectionScreen: React.FC = () => {
                     </Box>
                 )}
             </ElectionContainer>
+            <KeptReceipts
+                eventId={eventId}
+                presentation={electionEvent?.presentation}
+                electionNames={electionNames}
+            />
         </PageLimit>
     )
 }

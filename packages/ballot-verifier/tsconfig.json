@@ -16,6 +16,13 @@
     "noEmit": false,
     "jsx": "react-jsx",
     "types": [],
+    "paths": {
+      "@vitrine/verify": ["../node_modules/@vitrine/verify/dist/index.d.ts"],
+      "@vitrine/verify/*": [
+        "../node_modules/@vitrine/verify/dist/*/index.d.ts",
+        "../node_modules/@vitrine/verify/dist/*.d.ts"
+      ]
+    },
   },
   "include": ["src"]
 }

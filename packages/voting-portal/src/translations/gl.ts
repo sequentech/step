@@ -467,6 +467,39 @@ const galegoTranslation: TranslationType = {
                 ballot_id: "ID da papeleta",
             },
         },
+        vitrine: {
+            booth: {
+                title: "Aínda non se pode preparar a súa papeleta",
+                explanation:
+                    "Antes de cifrar a súa papeleta, este sitio web comproba que a configuración da elección é a publicada no rexistro público da elección. A súa papeleta non se cifrou nin se enviou, e as súas opcións mantéñense.",
+                pending:
+                    "A configuración publicada aínda non está dispoñible. Ténteo de novo nun momento.",
+                invalid: "Non se puido ler a configuración publicada. Ténteo de novo nun momento.",
+                failed: "A configuración non coincide coa publicada. Avisouse aos observadores da elección. Póñase en contacto co soporte.",
+                retry: "Tentar de novo",
+                close: "Pechar",
+            },
+            receipt: {
+                title: "O seu recibo",
+                description:
+                    "O recibo mostra que a súa papeleta quedou anotada no rexistro público da elección. Non mostra o que votou.",
+                waiting:
+                    "O recibo aínda non está listo. Este sitio web segue pedíndoo mentres esta páxina estea aberta.",
+                missing:
+                    "Este sitio web non recibiu ningún recibo da súa papeleta. O seu voto emitiuse. Avisouse aos observadores da elección.",
+                unchecked: "Este sitio web non puido comprobar o recibo. O seu voto emitiuse.",
+                reference: "Escanee este código para comprobar o recibo noutro dispositivo.",
+                stored: "Este recibo gárdase neste dispositivo e poderá velo de novo ao iniciar sesión.",
+                notStored: "Este recibo non se garda neste dispositivo.",
+                forget: "Non gardar recibos neste dispositivo",
+                keep: "Gardar recibos neste dispositivo",
+            },
+            storedReceipts: {
+                title: "Recibos neste dispositivo",
+                description: "Os recibos das papeletas que emitiu neste dispositivo.",
+                forget: "Borrar os recibos deste dispositivo",
+            },
+        },
     },
 }
 

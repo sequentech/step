@@ -11,7 +11,7 @@ import React, {
     lazy,
     useCallback,
 } from "react"
-import {useRecordContext, useSidebarState, RecordContextProvider} from "react-admin"
+import {useRecordContext, useRefresh, useSidebarState, RecordContextProvider} from "react-admin"
 import {Sequent_Backend_Election_Event} from "@/gql/graphql"
 import ElectionHeader from "@/components/ElectionHeader"
 import {AuthContext} from "@/providers/AuthContextProvider"
@@ -67,6 +67,11 @@ const Publish = lazy(() =>
     import("@/resources/Publish/Publish").then((m) => ({default: m.Publish}))
 )
 const ElectoralLog = lazy(() => import("./ElectoralLog").then((m) => ({default: m.ElectoralLog})))
+const EditElectionEventTransparency = lazy(() =>
+    import("./EditElectionEventTransparency").then((m) => ({
+        default: m.EditElectionEventTransparency,
+    }))
+)
 const EditElectionEventTasks = lazy(() =>
     import("./EditElectionEventTasks").then((m) => ({default: m.EditElectionEventTasks}))
 )
@@ -187,6 +192,16 @@ const LogsTab: React.FC = () => (
         <ElectoralLog />
     </Suspense>
 )
+
+const TransparencyTab: React.FC = () => {
+    const record = useRecordContext<Sequent_Backend_Election_Event>()
+    const refresh = useRefresh()
+    return (
+        <Suspense fallback={<div>Loading Transparency...</div>}>
+            <EditElectionEventTransparency electionEventId={record?.id} onChanged={refresh} />
+        </Suspense>
+    )
+}
 
 const EventsTab: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
@@ -329,6 +344,11 @@ export const ElectionEventTabs: React.FC = () => {
         true,
         authContext.tenantId,
         IPermissions.ELECTION_EVENT_LOGS_TAB
+    )
+    const showTransparency = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.ELECTION_EVENT_TRANSPARENCY_TAB
     )
     const showTasksExecution =
         !isElectionEventLocked &&
@@ -478,6 +498,14 @@ export const ElectionEventTabs: React.FC = () => {
             result.push({label: t("electionEventScreen.tabs.logs"), component: LogsTab})
         }
 
+        // Transparency
+        if (showTransparency) {
+            result.push({
+                label: t("electionEventScreen.tabs.transparency"),
+                component: TransparencyTab,
+            })
+        }
+
         // Events
         if (showEvents) {
             result.push({label: t("electionEventScreen.tabs.events"), component: EventsTab})
@@ -513,6 +541,7 @@ export const ElectionEventTabs: React.FC = () => {
         showTallySheetImports,
         showPublish,
         showLogs,
+        showTransparency,
         showTasksExecution,
         showEvents,
         showReports,

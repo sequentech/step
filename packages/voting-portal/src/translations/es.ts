@@ -468,6 +468,41 @@ const spanishTranslation: TranslationType = {
                 ballot_id: "ID de Papeleta",
             },
         },
+        vitrine: {
+            booth: {
+                title: "Todavía no se puede preparar su papeleta",
+                explanation:
+                    "Antes de cifrar su papeleta, este sitio web comprueba que la configuración de la elección es la publicada en el registro público de la elección. Su papeleta no se ha cifrado ni enviado, y sus opciones se mantienen.",
+                pending:
+                    "La configuración publicada aún no está disponible. Vuelva a intentarlo en un momento.",
+                invalid:
+                    "No se ha podido leer la configuración publicada. Vuelva a intentarlo en un momento.",
+                failed: "La configuración no coincide con la publicada. Se ha avisado a los observadores de la elección. Póngase en contacto con soporte.",
+                retry: "Reintentar",
+                close: "Cerrar",
+            },
+            receipt: {
+                title: "Su recibo",
+                description:
+                    "El recibo muestra que su papeleta quedó anotada en el registro público de la elección. No muestra qué ha votado.",
+                waiting:
+                    "El recibo aún no está listo. Este sitio web lo sigue pidiendo mientras esta página esté abierta.",
+                missing:
+                    "Este sitio web no ha recibido ningún recibo de su papeleta. Su voto se ha emitido. Se ha avisado a los observadores de la elección.",
+                unchecked:
+                    "Este sitio web no ha podido comprobar el recibo. Su voto se ha emitido.",
+                reference: "Escanee este código para comprobar el recibo desde otro dispositivo.",
+                stored: "Este recibo se guarda en este dispositivo y podrá verlo de nuevo al iniciar sesión.",
+                notStored: "Este recibo no se guarda en este dispositivo.",
+                forget: "No guardar recibos en este dispositivo",
+                keep: "Guardar recibos en este dispositivo",
+            },
+            storedReceipts: {
+                title: "Recibos en este dispositivo",
+                description: "Los recibos de las papeletas que ha emitido en este dispositivo.",
+                forget: "Borrar los recibos de este dispositivo",
+            },
+        },
     },
 }
 

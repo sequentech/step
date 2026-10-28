@@ -467,6 +467,40 @@ const basqueTranslation: TranslationType = {
                 ballot_id: "Bozketa IDa",
             },
         },
+        vitrine: {
+            booth: {
+                title: "Zure boto-txartela ezin da oraindik prestatu",
+                explanation:
+                    "Zure boto-txartela zifratu aurretik, webgune honek egiaztatzen du hauteskundearen konfigurazioa hauteskundearen erregistro publikoan argitaratutakoa dela. Zure boto-txartela ez da zifratu ez bidali, eta zure aukerak hemen daude oraindik.",
+                pending:
+                    "Argitaratutako konfigurazioa ez dago oraindik eskuragarri. Saiatu berriro une batean.",
+                invalid:
+                    "Ezin izan da argitaratutako konfigurazioa irakurri. Saiatu berriro une batean.",
+                failed: "Konfigurazioa ez dator bat argitaratutakoarekin. Hauteskundearen behatzaileei jakinarazi zaie. Jarri harremanetan laguntza-zerbitzuarekin.",
+                retry: "Saiatu berriro",
+                close: "Itxi",
+            },
+            receipt: {
+                title: "Zure hartu-agiria",
+                description:
+                    "Hartu-agiriak erakusten du zure boto-txartela hauteskundearen erregistro publikoan jaso dela. Ez du erakusten zer bozkatu duzun.",
+                waiting:
+                    "Hartu-agiria ez dago oraindik prest. Webgune honek eskatzen jarraitzen du orri hau irekita dagoen bitartean.",
+                missing:
+                    "Webgune honek ez du zure boto-txartelaren hartu-agiririk jaso. Zure botoa eman da. Hauteskundearen behatzaileei jakinarazi zaie.",
+                unchecked: "Webgune honek ezin izan du hartu-agiria egiaztatu. Zure botoa eman da.",
+                reference: "Eskaneatu kode hau hartu-agiria beste gailu batean egiaztatzeko.",
+                stored: "Hartu-agiri hau gailu honetan gordetzen da, eta saioa hasten duzunean berriro ikus dezakezu.",
+                notStored: "Hartu-agiri hau ez da gailu honetan gordetzen.",
+                forget: "Ez gorde hartu-agiririk gailu honetan",
+                keep: "Gorde hartu-agiriak gailu honetan",
+            },
+            storedReceipts: {
+                title: "Gailu honetako hartu-agiriak",
+                description: "Gailu honetan eman dituzun boto-txartelen hartu-agiriak.",
+                forget: "Ezabatu hartu-agiriak gailu honetatik",
+            },
+        },
     },
 }
 

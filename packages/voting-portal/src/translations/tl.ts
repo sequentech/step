@@ -465,6 +465,41 @@ const tagalogTranslation: TranslationType = {
                 ballot_id: "Ballot ID",
             },
         },
+        vitrine: {
+            booth: {
+                title: "Hindi pa maihahanda ang iyong balota",
+                explanation:
+                    "Bago i-encrypt ang iyong balota, tinitingnan ng website na ito kung ang mga setting ng halalan ay ang mga nakalathala sa pampublikong talaan ng halalan. Hindi pa na-encrypt o naipadala ang iyong balota, at nananatili rito ang iyong mga pinili.",
+                pending:
+                    "Hindi pa available ang mga nakalathalang setting. Pakisubukan muli mamaya-maya.",
+                invalid:
+                    "Hindi mabasa ang mga nakalathalang setting. Pakisubukan muli mamaya-maya.",
+                failed: "Hindi tugma ang mga setting sa mga nakalathala. Naabisuhan na ang mga tagamasid ng halalan. Pakikontak ang suporta.",
+                retry: "Subukan muli",
+                close: "Isara",
+            },
+            receipt: {
+                title: "Ang iyong resibo",
+                description:
+                    "Ipinapakita ng resibo na naitala ang iyong balota sa pampublikong talaan ng halalan. Hindi nito ipinapakita kung paano ka bumoto.",
+                waiting:
+                    "Hindi pa handa ang resibo. Patuloy itong hinihingi ng website na ito habang bukas ang pahinang ito.",
+                missing:
+                    "Hindi nakatanggap ang website na ito ng resibo para sa iyong balota. Naisumite na ang iyong boto. Naabisuhan na ang mga tagamasid ng halalan.",
+                unchecked:
+                    "Hindi nasuri ng website na ito ang resibo. Naisumite na ang iyong boto.",
+                reference: "I-scan ang code na ito para masuri ang resibo sa ibang device.",
+                stored: "Nakatago ang resibong ito sa device na ito, at makikita mo itong muli pagkatapos mong mag-log in.",
+                notStored: "Hindi nakatago ang resibong ito sa device na ito.",
+                forget: "Huwag magtago ng mga resibo sa device na ito",
+                keep: "Magtago ng mga resibo sa device na ito",
+            },
+            storedReceipts: {
+                title: "Mga resibo sa device na ito",
+                description: "Ang mga resibo ng mga balotang isinumite mo sa device na ito.",
+                forget: "Alisin ang mga resibo sa device na ito",
+            },
+        },
     },
 }
 
