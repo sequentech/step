@@ -242,6 +242,9 @@ pub const DEFAULT_IVR_SERVICE_CLIENT_ID: &str = "ivr-service";
 /// Client ID used by the IVR for voting.
 ///  Can't be changed as `authorize_voter_election` depends on its fixed value.
 pub const IVR_VOTING_CLIENT_ID: &str = "ivr-voting";
+/// Name of the protocol mapper that adds Harvest's audience to the access
+/// tokens of the clients that call Harvest.
+pub const HARVEST_AUDIENCE_MAPPER_NAME: &str = "harvest-audience";
 
 /// Smart Link (external HMAC SSO) realm attributes.
 ///
