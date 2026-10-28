@@ -116,3 +116,61 @@ pub fn extract_archive_to_temp_dir(file_path: &Path, is_compressed: bool) -> Res
 
     Ok(temp_dir)
 }
+
+#[cfg(test)]
+pub(crate) mod test_support {
+    use super::create_archive_from_folder;
+    use anyhow::Result;
+    use sequent_core::types::templates::PrintToPdfOptionsLocal;
+    use std::env;
+    use std::fs;
+    use std::path::PathBuf;
+    use tempfile::{tempdir, TempPath};
+    use uuid::Uuid;
+    use velvet::config::generate_reports::PipeConfigGenerateReports;
+    use velvet::fixtures::get_config;
+    use velvet::pipes::pipe_inputs::DEFAULT_DIR_CONFIGS;
+    use velvet::pipes::pipe_name::PipeName;
+
+    /// Builds a tally archive with a velvet config, an empty input tree and
+    /// a uniquely named marker file. Returns the archive and the marker name.
+    pub fn tally_archive_fixture() -> Result<(TempPath, String)> {
+        let source = tempdir()?;
+        let marker = format!("marker-{}", Uuid::new_v4());
+        fs::write(source.path().join(&marker), "")?;
+        fs::create_dir_all(source.path().join("input").join(DEFAULT_DIR_CONFIGS))?;
+
+        let reports_config = serde_json::to_value(PipeConfigGenerateReports {
+            pdf_options: Some(PrintToPdfOptionsLocal::default()),
+            ..Default::default()
+        })?;
+        let mut config = get_config()?;
+        config
+            .stages
+            .stages_def
+            .values_mut()
+            .flat_map(|stage| stage.pipeline.iter_mut())
+            .filter(|pipe| pipe.pipe == PipeName::GenerateReports)
+            .for_each(|pipe| pipe.config = Some(reports_config.clone()));
+        fs::write(
+            source.path().join("velvet-config.json"),
+            serde_json::to_string(&config)?,
+        )?;
+
+        let (archive, _, _) = create_archive_from_folder(source.path(), false)?;
+        Ok((archive, marker))
+    }
+
+    /// Directories directly under the system temp dir that contain `marker`.
+    pub fn temp_dirs_containing(marker: &str) -> Vec<PathBuf> {
+        fs::read_dir(env::temp_dir())
+            .map(|entries| {
+                entries
+                    .filter_map(|entry| entry.ok())
+                    .map(|entry| entry.path())
+                    .filter(|path| path.join(marker).exists())
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+}
