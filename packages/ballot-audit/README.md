@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+
+SPDX-License-Identifier: AGPL-3.0-only
+-->
+
 # Ceremony board mapping
 
 `audit-tally` and `export-ballot-audit` support shared/default and per-election keys ceremonies on restored local PostgreSQL copies.
