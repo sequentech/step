@@ -243,6 +243,7 @@ async fn a_public_event_logs_its_ballots_and_statements_on_the_sidecar() -> Resu
     // A ballot: the ballot box queues its entry with it, the log receipts
     // it, and the receipt is one that Harvest forwards for this voter only.
     let store = PostgresStore::new(database_config)?;
+    store.initialize().await?;
     store.create_ballot_box(&event).await?;
     let ballot_id = format!("{}{}", Uuid::new_v4().simple(), Uuid::new_v4().simple());
     let accepted = store
@@ -439,16 +440,39 @@ async fn a_private_event_provisions_both_blinded_keys_and_exposes_authenticated_
             electoral_log::vitrine::policy_note_id(&policy)?
         );
         assert!(!installed.ack.is_empty());
-        let response = sidecar
-            .voter(
-                &log.path,
-                "policies",
-                "",
-                None,
-                &format!("{tenant}/{VOTER}"),
-            )
-            .await?;
-        assert_eq!(response.status, 200);
+    }
+    let witnesses = dev_witness_admins(&env(WITNESS_ADMINS_ENV)?)?;
+    for log in logs.values() {
+        let note = sidecar
+            .enrolment(&log.path)
+            .await?
+            .context("the private log has no enrolment note")?;
+        for (url, token_file) in &witnesses {
+            post_enrolment(url, &read_token_file(token_file)?, &note).await?;
+        }
+    }
+    for log in logs.values() {
+        let response = eventually("authenticated private policy history", || async {
+            let response = sidecar
+                .voter(
+                    &log.path,
+                    "policies",
+                    "",
+                    None,
+                    &format!("{tenant}/{VOTER}"),
+                )
+                .await?;
+            if response.status == 404 || response.status == 503 {
+                return Ok(None);
+            }
+            ensure!(
+                response.status == 200,
+                "private policy history answered {}",
+                response.status
+            );
+            Ok(Some(response))
+        })
+        .await?;
         assert!(response.body.starts_with("vitrine/policy-proofs/v1\n"));
         sidecar.freeze(&log.path).await?;
     }
