@@ -4,9 +4,9 @@
 
 use crate::config::ballot_images_config::PipeConfigBallotImages;
 use crate::pipes::decode_ballots::OUTPUT_DECODED_BALLOTS_FILE;
-use crate::pipes::do_tally::tally::Tally;
+use crate::pipes::do_tally::tally::{BallotsFile, Tally};
 use crate::pipes::error::{Error, Result};
-use crate::pipes::pipe_inputs::{InputElectionConfig, PipeInputs};
+use crate::pipes::pipe_inputs::{ensure_unbatched, InputElectionConfig, PipeInputs};
 use crate::pipes::pipe_name::{PipeName, PipeNameOutputDir};
 use crate::pipes::Pipe;
 use sequent_core::ballot::{Candidate, Contest, StringifiedPeriodDates, Weight};
@@ -58,7 +58,7 @@ impl BallotImages {
         let tally = Tally::new(
             contest,
             ScopeOperation::Area(TallyOperation::ProcessBallotsAll), // TODO: Fix this
-            vec![(path.to_path_buf(), Weight::default())],
+            vec![BallotsFile::new(path.to_path_buf(), Weight::default())],
             0,
             0,
             vec![],
@@ -69,7 +69,7 @@ impl BallotImages {
         let ballots = tally
             .ballots
             .iter()
-            .map(|(ballot, _weight)| ballot.clone())
+            .map(|ballot| ballot.vote.clone())
             .collect::<Vec<DecodedVoteContest>>();
 
         let data = TemplateData {
@@ -181,13 +181,14 @@ impl Pipe for BallotImages {
         for election_input in &self.pipe_inputs.election_list {
             for contest_input in &election_input.contest_list {
                 for area_input in &contest_input.area_list {
-                    let decoded_ballots_file = PipeInputs::build_path(
+                    let area_dir = PipeInputs::build_path(
                         &input_dir,
                         &contest_input.election_id,
                         Some(&contest_input.id),
                         Some(&area_input.id),
-                    )
-                    .join(OUTPUT_DECODED_BALLOTS_FILE);
+                    );
+                    ensure_unbatched(&area_dir, OUTPUT_DECODED_BALLOTS_FILE, "Ballot images")?;
+                    let decoded_ballots_file = area_dir.join(OUTPUT_DECODED_BALLOTS_FILE);
 
                     if decoded_ballots_file.exists() {
                         let (bytes_pdf, bytes_html) = self.print_ballot_images(
