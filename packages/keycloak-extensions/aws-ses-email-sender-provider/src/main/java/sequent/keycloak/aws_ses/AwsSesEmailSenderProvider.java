@@ -70,9 +70,17 @@ public class AwsSesEmailSenderProvider implements EmailSenderProvider {
       log.errorf("AWS SES delivery failed (status %d)", error.statusCode());
       throw new EmailException("SES: Failed to send email via AWS SES");
     } catch (Exception error) {
-      log.error("Failed to send email via AWS SES");
-      throw new EmailException("Exception: Failed to send email via AWS SES");
+      String category = failureCategory(error);
+      log.errorf("Failed to send email via AWS SES (%s)", category);
+      throw new EmailException("Exception: Failed to send email via AWS SES (" + category + ")");
     }
+  }
+
+  // Class names only: exception messages can echo addresses or provider responses.
+  static String failureCategory(Throwable error) {
+    String category = error.getClass().getSimpleName();
+    Throwable cause = error.getCause();
+    return cause == null ? category : category + " caused by " + cause.getClass().getSimpleName();
   }
 
   public InternetAddress toInternetAddress(String email, String displayName) throws Exception {

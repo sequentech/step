@@ -7,6 +7,7 @@ package sequent.keycloak.aws_ses;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -19,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import org.keycloak.email.EmailException;
 import org.mockito.ArgumentCaptor;
 import software.amazon.awssdk.awscore.exception.AwsErrorDetails;
+import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.services.ses.SesClient;
 import software.amazon.awssdk.services.ses.model.SendEmailRequest;
 import software.amazon.awssdk.services.ses.model.SesException;
@@ -59,6 +61,47 @@ class EmailSecretLoggingTest {
       for (LogRecord record : records.getAllValues()) {
         assertFalse(new SimpleFormatter().format(record).contains("synthetic-body-secret"));
       }
+    } finally {
+      logger.removeHandler(handler);
+    }
+  }
+
+  @Test
+  void clientFailuresKeepTheirCategoryButNotTheirMessages() {
+    SesClient client = mock(SesClient.class);
+    AwsSesEmailSenderProvider provider = new AwsSesEmailSenderProvider(client);
+    Logger logger = Logger.getLogger(AwsSesEmailSenderProvider.class.getName());
+    Handler handler = mock(Handler.class);
+    logger.addHandler(handler);
+    try {
+      doThrow(
+              SdkClientException.builder()
+                  .message("Unable to execute HTTP request: synthetic-body-secret")
+                  .cause(new UnknownHostException("synthetic-body-secret.example"))
+                  .build())
+          .when(client)
+          .sendEmail(any(SendEmailRequest.class));
+      EmailException error =
+          assertThrows(
+              EmailException.class,
+              () ->
+                  provider.send(
+                      Map.of("from", "sender@example.com"),
+                      "voter@example.com",
+                      "subject",
+                      "body",
+                      "<p>body</p>"));
+      assertTrue(error.getMessage().contains("SdkClientException caused by UnknownHostException"));
+      assertFalse(error.getMessage().contains("synthetic-body-secret"));
+      assertNull(error.getCause());
+      ArgumentCaptor<LogRecord> records = ArgumentCaptor.forClass(LogRecord.class);
+      verify(handler, atLeastOnce()).publish(records.capture());
+      StringBuilder text = new StringBuilder();
+      for (LogRecord record : records.getAllValues()) {
+        text.append(new SimpleFormatter().format(record));
+      }
+      assertTrue(text.toString().contains("SdkClientException caused by UnknownHostException"));
+      assertFalse(text.toString().contains("synthetic-body-secret"));
     } finally {
       logger.removeHandler(handler);
     }
