@@ -15,7 +15,7 @@ DEVELOPMENT_ENV_FILE=".devcontainer/.env.development"
 repo_root=$(git rev-parse --show-toplevel) || exit 2
 cd "$repo_root" || exit 2
 
-assignment="^[[:space:]]*(export[[:space:]]+|-[[:space:]]*)?[\"']?${LOG_TYPES_VAR}[\"']?[[:space:]]*[:=]"
+assignment="^[[:space:]]*((export[[:space:]]+|-[[:space:]]*)?[\"']?${LOG_TYPES_VAR}[\"']?[[:space:]]*[:=]|ENV[[:space:]]+${LOG_TYPES_VAR}([[:space:]]*=|[[:space:]]+))"
 # The value stops at a comment or a shell control operator, so the token must
 # appear before either one.
 value_before_token="([^#;&|]*([\"',[:space:]]|:-))?"
