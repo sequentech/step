@@ -27,6 +27,75 @@ This tab displays and manages voters. The table lists all currently configured v
 
 ---
 
+### Voters CSV
+
+**Import** reads a CSV file, or a tab-separated one if its name ends in `.tsv`. The first row names
+the columns. **Export** writes the same format, and an election event export that includes voters
+carries the same file, so either can be edited and imported again into this or another election
+event.
+
+| Column | Meaning |
+| --- | --- |
+| `id` | Written by export. Import ignores it and gives each voter a new ID. |
+| `username`, `email`, `first_name`, `last_name` | The voter's account. Without a `username` column each voter gets a random one. |
+| `enabled`, `email_verified` | `true` or `false`; `true` if blank or missing. |
+| `area_name` | The voter's area, spelled exactly as in the **Areas** tab. A name that matches no area leaves the voter without one. |
+| `authorized-election-ids` | The elections the voter may vote in, separated by `\|`. See below. |
+| `password` | A password for the voter. |
+| `hashed_password`, `password_salt`, `num_of_iterations` | Instead of `password`, a base64 PBKDF2-SHA256 hash and its salt. `num_of_iterations` is 27500 if missing. |
+| `group_name` | The voter's group; `voter` if missing. |
+| `tenant-id` | Ignored: voters belong to the tenant they are imported into. |
+| `vote-weight`, `delegate-vote-to` | See the weighted and delegated voting policies under **Data > Advanced Configuration**. |
+| Any other column | Stored as the voter attribute of the same name, unless the name starts with `election__`: export adds those columns, one per election, and import ignores them. |
+
+Column names may only contain letters, digits, `.`, `_` and `-`. Import keeps an attribute's name
+as it is in the column, such as `Mobile-Number`, but rejects two columns whose names are the same in
+lower case and with `.` and `-` as `_`, such as `Email` and `email` or `mobile.number` and
+`mobile_number`. It reads `area_name` as `area-id` for this too, so it rejects the two together, but
+accepts `area_name` with `area-name`. Export writes a column for each voter attribute, except those
+that import would not read back:
+
+- One named like a column with another meaning, such as `password` or `group_name`, which would set
+  the voter's password or group.
+- One that import fills itself, such as `tenant-id` or the account field `not_before`, or whose name
+  starts with `election__`, which import ignores.
+- One that import would reject the file over: an attribute whose name has other characters, is a
+  misspelling of `vote-weight`, or is the same as an account field's or another attribute's in that
+  form. Of two such attributes, export writes the one that other components read, such as
+  `authorized-election-ids`, and otherwise the first.
+
+Spreadsheets run a cell that starts with `=`, `+`, `-`, `@` or their full-width forms, a tab or a
+line break as a formula. Export writes a `'` before such a value, and before an attribute name such
+as `-2-3` in the first row, so that they show it as text. Import removes it from the first row and
+from every column but `password`. A spreadsheet that saves the file may drop the `'`: import still
+reads the value, but the spreadsheet runs it when it opens that file again. To import a value that
+starts with `'` followed by one of those characters, write another `'` before it.
+
+In `authorized-election-ids`, name each election by its external ID, or by its ID if it has no
+external ID. An election's ID is also accepted when it has an external ID, and the external ID is
+stored instead. An election is named and stored by its ID when another election shares its external
+ID, or when the external ID starts or ends with whitespace, such as a space, a tab or a line break,
+contains `|` or starts with `"`. It is also
+stored by its ID when its external ID is longer than 255 characters, the most a voter attribute
+holds. If an election's ID is another election's external ID, that value names the other election,
+as in the token mapper, so the first one can only be named and stored by its own external ID, and
+not at all if it has none or if it would be stored by its ID. A blank cell leaves the voter unrestricted: they can vote in the
+elections of their area. A value that names no election in the election event, or more than one, or
+an election that cannot be stored, or that starts with `"`, is rejected, with its row and the value,
+and nothing is imported.
+
+Export writes `authorized-election-ids` the same way, and adds one column per election, holding when
+the voter last voted in it. Each is named `election__` followed by the value stored for the election,
+or by its ID in double quotes if it has none. Import ignores these columns. A stored value that names no election, or more than one, is exported
+in double quotes, so that importing it into any election event fails instead of giving the voter
+other elections.
+
+When an election event export is imported, its elections get new IDs, and so do external IDs shaped
+like an ID. Voters whose `authorized-election-ids` name elections by the values they had in the
+exported event keep those elections.
+
+---
+
 ### Actions
 
 The **Actions** column provides options to interact with voter records:
