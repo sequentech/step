@@ -85,7 +85,8 @@ public class AwsSesEmailSenderProviderTest {
               emailSenderProvider.send(config, address, subject, textBody, htmlBody);
             });
 
-    assertEquals("Exception: Failed to send email via AWS SES", thrown.getMessage());
+    assertEquals(
+        "Exception: Failed to send email via AWS SES (RuntimeException)", thrown.getMessage());
   }
 
   public Map<String, String> setupValidConfig(String from, String fromDisplayName) {
