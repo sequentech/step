@@ -49,7 +49,7 @@ const draftOf = (sdk: IVitrineSdk, note: string): Policy | undefined => {
 /** Whether `text` is a valid, sealed trust policy, and if not, why. */
 export const examinePolicy = (sdk: IVitrineSdk, text: string): TPolicyExamination => {
     try {
-        const policy = sdk.verify.parsePolicy(text)
+        const policy = sdk.verify.pinPolicy(text)
         return {ok: true, view: {policy, text, summary: sdk.verify.policySummary(policy)}}
     } catch (e) {
         const draft = draftOf(sdk, text)

@@ -129,10 +129,13 @@ export const setReceiptKeeping = (keeping: EReceiptKeeping): void => {
 export const keepReceipt = async (
     sdk: IVitrineSdk,
     userId: string,
-    r: IKeptReceipt
+    r: IKeptReceipt,
+    options: {isAllowed?: () => boolean} = {}
 ): Promise<boolean> => {
     const storage = local()
-    if (!storage) return false
+    const allowed = () =>
+        options.isAllowed?.() !== false && receiptKeeping() !== EReceiptKeeping.FORGET
+    if (!storage || !userId || !allowed()) return false
     const key = electionKey(r.eventId, r.electionId)
     let chain: string | undefined
     try {
@@ -144,6 +147,14 @@ export const keepReceipt = async (
         }
     } catch {
         chain = undefined
+    }
+    if (!allowed()) {
+        try {
+            await receiptStore(sdk).delete(key)
+        } catch {
+            /* No receipt kept. */
+        }
+        return false
     }
     if (!chain && r.acceptedAt === undefined) return false
     const record: IKeptRecord = {

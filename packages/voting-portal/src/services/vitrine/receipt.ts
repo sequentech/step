@@ -230,7 +230,8 @@ export const mergeChain = (
     sdk: IVitrineSdk,
     chain: string,
     answer: string,
-    take: (block: blocks.Block, current: readonly blocks.Block[]) => boolean
+    take: (block: blocks.Block, current: readonly blocks.Block[]) => boolean,
+    acceptedPolicy?: (id: string) => boolean
 ): string | undefined => {
     const format = {
         header: sdk.pure.CHAIN_HEADER,
@@ -240,7 +241,13 @@ export const mergeChain = (
     try {
         const base = sdk.pure.blocks.parseBlockDoc(chain, format)
         const got = sdk.pure.blocks.parseBlockDoc(answer, format)
-        const same = base.values.every((v, i) => v.join(" ") === got.values[i]?.join(" "))
+        const same = base.values.every((v, i) => {
+            const incoming = got.values[i]?.join(" ")
+            return (
+                v.join(" ") === incoming ||
+                (i === 0 && incoming !== undefined && acceptedPolicy?.(incoming) === true)
+            )
+        })
         const incoming = got.blocks.filter((b) => take(b, base.blocks))
         if (!same || incoming.length === 0) return undefined
         const key = (b: blocks.Block) =>

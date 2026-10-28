@@ -63,6 +63,7 @@ beforeAll(() => {
 })
 
 beforeEach(() => {
+    setReceiptKeeping(EReceiptKeeping.KEEP)
     localStorage.clear()
     MemoryReceiptStore.chains.clear()
 })
@@ -118,5 +119,28 @@ describe("receipts kept on this device", () => {
         setReceiptKeeping(EReceiptKeeping.FORGET)
         expect(receiptKeeping()).toBe(EReceiptKeeping.FORGET)
         expect(localStorage.getItem("vitrine-receipt-keeping")).toBe(EReceiptKeeping.FORGET)
+    })
+
+    it("retains nothing when opt-out arrives while IndexedDB is writing", async () => {
+        let finish!: () => void
+        const writing = new Promise<void>((resolve) => {
+            finish = resolve
+        })
+        const put = jest
+            .spyOn(MemoryReceiptStore.prototype, "put")
+            .mockImplementationOnce(async (chain, opts = {}) => {
+                await writing
+                MemoryReceiptStore.chains.set(opts.election ?? "", chain)
+            })
+        const saving = keepReceipt(sdk, "voter-1", kept({chain: chainFor("07".repeat(32))}))
+        await Promise.resolve()
+        setReceiptKeeping(EReceiptKeeping.FORGET)
+        finish()
+        expect(await saving).toBe(false)
+        expect(MemoryReceiptStore.chains.size).toBe(0)
+        expect(
+            Object.keys(localStorage).filter((key) => key.startsWith("vitrine-receipt:"))
+        ).toEqual([])
+        put.mockRestore()
     })
 })

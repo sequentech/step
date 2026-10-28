@@ -100,7 +100,8 @@ const readStatement = (value: unknown): IVitrineLoggedStatement | null => {
     const o = asObject(value)
     const statement = asString(o?.statement)
     const entry = asString(o?.entry)
-    const chain = asString(o?.chain)
+    const framed = asObject(o?.chain)
+    const chain = asString(o?.chain) ?? asString(framed?.text) ?? asString(framed?.chain)
     return statement && entry && chain ? {statement, entry, chain} : null
 }
 
@@ -110,9 +111,10 @@ export const readVoterContext = (value: unknown): IVitrineVoterContext | undefin
     const o = asObject(value)
     const mode = asString(o?.mode)
     if (!o || !mode) return undefined
-    const hashes = Array.isArray(o.style_hashes)
-        ? o.style_hashes.filter((h): h is string => typeof h === "string")
-        : null
+    const hashes =
+        Array.isArray(o.style_hashes) && o.style_hashes.every((h) => typeof h === "string")
+            ? (o.style_hashes as string[])
+            : null
     return {
         mode,
         policy: asString(o.policy) ?? null,

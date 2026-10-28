@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import type {ApolloClient} from "@apollo/client"
-import {checkBooth, EBoothCheckReason, EBoothRefusalState} from "./boothCheck"
-import {electionKeyDigest} from "./digests"
+import {checkBooth, EBoothCheckReason, EBoothRefusalState, pinnedPolicy} from "./boothCheck"
+import {electionKeyBytes} from "./digests"
 import {configObservation, IReportOptions, sendObservation} from "./observation"
 import {eventTransparency} from "./presentation"
 import {IVitrineSdk, loadVitrineSdk} from "./sdk"
@@ -75,21 +75,35 @@ export const runBoothCheck = async (o: IRunBoothCheck): Promise<TBoothOutcome> =
         now,
     })
     if (result.ok) return {ok: true}
+    // Public policy admission does not depend on the context being available.
+    // Never derive report destinations from an unpinned policy supplied by a
+    // failed private-context request.
+    const fallback =
+        transparency.mode === ETransparencyMode.PUBLIC
+            ? pinnedPolicy(sdk, transparency.mode, transparency.vitrine, undefined)
+            : undefined
+    const reportPolicy = result.policy ?? (fallback?.ok ? fallback.policy : undefined)
     const seen = `${eventId}/${electionId} ${result.reason}`
-    if (result.policy && !observed.has(seen)) {
+    if (reportPolicy && !observed.has(seen)) {
         observed.add(seen)
-        const body = configObservation(sdk.pure, {
-            policyId: result.policy.id,
-            time: now,
-            eventId,
-            electionId,
-            reason: result.reason,
-            key: electionKeyDigest(sdk.pure, o.style.publicKey),
-            release: o.release,
-            config: context?.config,
-            opened: context?.opened,
-        })
-        sendObservation(result.policy, body, o.report)
+        try {
+            const body = configObservation(sdk.pure, {
+                policyId: reportPolicy.id,
+                time: now,
+                eventId,
+                electionId,
+                reason: result.reason,
+                key: electionKeyBytes(sdk.pure, o.style.publicKey),
+                styles: context?.style_hashes ?? undefined,
+                styleText: o.style.styleText,
+                release: o.release,
+                config: context?.config,
+                opened: context?.opened,
+            })
+            sendObservation(reportPolicy, body, o.report)
+        } catch {
+            /* Reporting cannot replace or bypass the refusal. */
+        }
     }
     return {ok: false, reason: result.reason, state: result.state}
 }

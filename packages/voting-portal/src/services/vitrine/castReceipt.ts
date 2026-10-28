@@ -458,7 +458,9 @@ class ReceiptRun {
     private mergeIn(answer: string, take: Parameters<typeof mergeChain>[3]): void {
         const {chain, expect, result} = this.view
         if (!chain || !expect || !result) return
-        const merged = mergeChain(this.sdk, chain, answer, take)
+        const merged = mergeChain(this.sdk, chain, answer, take, (id) =>
+            Boolean(this.history.byId(id))
+        )
         const next = merged && this.verify(merged, expect)
         if (merged && next && improves(result, next)) this.show({chain: merged, result: next})
     }
@@ -470,6 +472,22 @@ class ReceiptRun {
         const forward = this.o.forward
         const chain = this.view.chain
         if (!forward || !chain) return
+        const policies = await forward(EVitrineForwardRoute.POLICIES, "")
+        if (policies.status === 200 && policies.body) {
+            try {
+                this.sdk.pure.history.applyPolicyProofs(
+                    this.history,
+                    policies.body,
+                    this.nowSeconds()
+                )
+                if (this.view.expect) {
+                    const result = this.verify(chain, this.view.expect)
+                    if (result) this.show({result})
+                }
+            } catch {
+                /* Discovery remains pending until authentic proofs arrive. */
+            }
+        }
         const body = chainReceipt(this.sdk, chain) ?? chainPromise(this.sdk, chain)
         if (body) {
             const got = await forward(EVitrineForwardRoute.UPGRADE, body)

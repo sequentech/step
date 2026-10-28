@@ -63,9 +63,41 @@ const request = async (
         return {status: 0}
     }
     try {
-        const bytes = new Uint8Array(await response.arrayBuffer())
-        if (bytes.length > MAX_RESPONSE_BYTES) return {status: 413}
-        return {status: response.status, body: new TextDecoder().decode(bytes)}
+        const length = Number(response.headers?.get("content-length"))
+        if (Number.isFinite(length) && length > MAX_RESPONSE_BYTES) {
+            await response.body?.cancel().catch(() => undefined)
+            return {status: 413}
+        }
+        const reader = response.body?.getReader()
+        const parts: Uint8Array[] = []
+        let size = 0
+        if (reader) {
+            for (;;) {
+                const next = await reader.read()
+                if (next.done) break
+                size += next.value.length
+                if (size > MAX_RESPONSE_BYTES) {
+                    await reader.cancel().catch(() => undefined)
+                    return {status: 413}
+                }
+                parts.push(next.value)
+            }
+        } else {
+            const bytes = new Uint8Array(await response.arrayBuffer())
+            if (bytes.length > MAX_RESPONSE_BYTES) return {status: 413}
+            parts.push(bytes)
+            size = bytes.length
+        }
+        const bytes = new Uint8Array(size)
+        let at = 0
+        for (const part of parts) {
+            bytes.set(part, at)
+            at += part.length
+        }
+        return {
+            status: response.status,
+            body: new TextDecoder("utf-8", {fatal: true}).decode(bytes),
+        }
     } catch {
         return {status: 0}
     }

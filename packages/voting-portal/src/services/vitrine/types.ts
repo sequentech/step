@@ -27,6 +27,8 @@ export enum EVitrineLog {
 export enum EVitrineForwardRoute {
     UPGRADE = "upgrade",
     OPENING = "opening",
+    /** Authenticated event-wide discovery; body is an empty string. */
+    POLICIES = "policies",
 }
 
 /** The package the config statement's `release` line names for this portal. */

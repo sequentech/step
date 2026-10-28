@@ -26,8 +26,10 @@ import type {THttpInit} from "../services/vitrine/http"
 import {ETransparencyMode} from "../services/vitrine/presentation"
 
 const PKCS8_ED25519_PREFIX = "302e020100300506032b657004220420"
-const EVENTS_TAG = "vitrine/events/v1"
-const MEANING_HASH = `sha256:${"ab".repeat(32)}`
+const EVENTS_TAG = "vitrine/election/events/v1"
+const MEANING_HASH = "sha256:03a5a99d740d19741de6491ee2fb77bd1680d8d934f6dc5ca90bb25c841bdba7"
+const EVENTS_MEANING_HASH =
+    "sha256:819b9a9da4755aaf78b18ea35390f7908d1a21a824e7c7c6874702bf7152bc4f"
 
 export const NOW = 1_800_000_000
 export const EVENT_ID = "0b6c4f53-8c0b-4cbb-9b7a-6c8a3a5c2f10"
@@ -78,6 +80,10 @@ const cosignature = (witness: ITestKey, time: number, checkpointText: string) =>
     ),
 })
 
+const PRIVATE_PSEUDO = encoding.hexEncode(
+    hashes.sha256("vitrine/origin/v1", "logs.acme.example/e/ballots", new Uint8Array(32).fill(0x5a))
+)
+
 export const KEYS = {
     board: testKey("board.acme.example", 1),
     ballots: testKey("logs.acme.example/e/ballots", 3),
@@ -87,7 +93,23 @@ export const KEYS = {
         testKey("witness-2.example", 6, notes.SIG_COSIGNATURE_V1),
         testKey("witness-3.example", 7, notes.SIG_COSIGNATURE_V1),
     ],
+    blinded: testKey(PRIVATE_PSEUDO, 17),
+    blindedEvents: testKey(
+        encoding.hexEncode(
+            hashes.sha256(
+                "vitrine/origin/v1",
+                "logs.acme.example/e/events",
+                new Uint8Array(32).fill(0x5a)
+            )
+        ),
+        18
+    ),
     monitor: testKey("monitor.example", 8),
+    monitor2: testKey("monitor2.example", 12),
+    hub1: testKey("hub1.example", 13),
+    hub2: testKey("hub2.example", 14),
+    hubWitness1: testKey("hub-witness1.example", 15, notes.SIG_COSIGNATURE_V1),
+    hubWitness2: testKey("hub-witness2.example", 16, notes.SIG_COSIGNATURE_V1),
     auditor: testKey("auditor.example", 9),
     // The logs' log-time keys: cosigner keys named by each log's origin.
     ballotsTime: testKey("logs.acme.example/e/ballots", 10, notes.SIG_COSIGNATURE_V1),
@@ -213,11 +235,18 @@ const policyLines = (o: IPolicyOptions): string[] => {
         "sign 1 board",
         ...(isPrivate ? [`auditor auditors ${KEYS.auditor.vkey}`] : []),
         "mmd 60",
+        "required on",
         `log ballots ${KEYS.ballots.vkey} ${LOG_URLS.ballots}`,
         `log-time ballots ${KEYS.ballotsTime.vkey}`,
         `mirror ballots ${MIRROR_URL}`,
         `mirror-party ballots ${MIRROR_URL} mirror-co`,
-        `profile ballots vitrine/election/v1 ${MEANING_HASH}`,
+        `profile ballots vitrine/election/ballots/v1 ${MEANING_HASH}`,
+        ...(visibility === ETransparencyMode.PRIVATE
+            ? [`blinded ballots ${PRIVATE_PSEUDO} ${KEYS.blinded.vkey}`]
+            : []),
+        ...(visibility === ETransparencyMode.PRIVATE
+            ? [`opens ${NOW - 3600}`, `closes ${NOW + 3600}`]
+            : []),
         ...(o.noParams
             ? []
             : [
@@ -226,12 +255,29 @@ const policyLines = (o: IPolicyOptions): string[] => {
               ]),
         `log events ${KEYS.events.vkey} ${LOG_URLS.events}`,
         `log-time events ${KEYS.eventsTime.vkey}`,
-        `profile events ${EVENTS_TAG} ${MEANING_HASH}`,
+        `profile events ${EVENTS_TAG} ${EVENTS_MEANING_HASH}`,
+        ...(visibility === ETransparencyMode.PRIVATE
+            ? [`blinded events ${KEYS.blindedEvents.vkey.split("+")[0]} ${KEYS.blindedEvents.vkey}`]
+            : []),
         ...KEYS.witnesses.map((w, i) => `witness w${i + 1} ${w.vkey}`),
         "witness-party w2 observers",
         "group witnesses 2 w1 w2 w3",
         "quorum witnesses",
         `monitor observers ${KEYS.monitor.vkey} ${MONITOR_URL}`,
+        `hub h1 ${KEYS.hub1.vkey} https://hub1.example/`,
+        "hub-operator h1 hubco1",
+        `hub-witness h1 w ${KEYS.hubWitness1.vkey}`,
+        "hub-witness-party h1 w hub-witness-party1",
+        "hub-quorum h1 w",
+        `hub h2 ${KEYS.hub2.vkey} https://hub2.example/`,
+        "hub-operator h2 hubco2",
+        `hub-witness h2 w ${KEYS.hubWitness2.vkey}`,
+        "hub-witness-party h2 w hub-witness-party2",
+        "hub-quorum h2 w",
+        `monitor observers2 ${KEYS.monitor2.vkey} https://monitor2.example/`,
+        "monitor-party observers monitorco1",
+        "monitor-party observers2 monitorco2",
+        "monitor-quorum 2",
     ]
 }
 

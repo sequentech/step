@@ -286,6 +286,48 @@ describe("runCastReceipt", () => {
             return {s, ballotId, index}
         }
 
+        it.each([true, false])(
+            "verifies authenticated policy discovery before lifting pending claims (%s)",
+            async (valid) => {
+                const {s, ballotId, index} = privately()
+                const receipt = s.ballots.receipt(index, 1, WITNESSES)
+                const proof = pure.bytes.fromUtf8(
+                    pure.history.formatPolicyProofs({
+                        log: "events",
+                        checkpoint: pure.bytes.utf8(
+                            s.events.checkpoint(s.events.entries.length, WITNESSES, NOW)
+                        ),
+                        entries: [],
+                    })
+                )
+                const forward = jest.fn<ReturnType<TForward>, Parameters<TForward>>(
+                    async (route) =>
+                        route === EVitrineForwardRoute.POLICIES
+                            ? {status: 200, body: valid ? proof : "not policy proofs"}
+                            : {status: 404}
+                )
+                const {last, net} = await cast(
+                    s,
+                    ballotId,
+                    {kind: "receipt", text: receipt},
+                    {forward}
+                )
+                expect(forward).toHaveBeenNthCalledWith(1, EVitrineForwardRoute.POLICIES, "")
+                expect(last?.result?.tiers[0].status).toBe(valid ? "verified" : "pending")
+                expect(
+                    last?.result?.tiers.some((tier) =>
+                        tier.reasons.some((r) => r.code === "successors-unchecked")
+                    )
+                ).toBe(!valid)
+                expect(
+                    net.calls.filter(
+                        (c) =>
+                            c.url.startsWith(LOG_URLS.ballots) || c.url.startsWith(LOG_URLS.events)
+                    )
+                ).toEqual([])
+            }
+        )
+
         it("keeps the policy acknowledgement and merges the upgrade Harvest forwards", async () => {
             const {s, ballotId, index} = privately()
             const issued = s.ballots.receipt(index, 1, WITNESSES)

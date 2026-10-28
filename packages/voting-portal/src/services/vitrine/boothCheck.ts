@@ -71,7 +71,7 @@ export const pinnedPolicy = (
     if (!text || !pinned) return {ok: false, reason: EBoothCheckReason.POLICY_MISSING}
     let policy: Policy
     try {
-        policy = sdk.verify.parsePolicy(text)
+        policy = sdk.verify.pinPolicy(text)
     } catch {
         return {ok: false, reason: EBoothCheckReason.POLICY_INVALID}
     }

@@ -17,7 +17,7 @@ import {
 } from "../../fixtures/vitrine"
 import {IRunBoothCheck, runBoothCheck} from "./booth"
 import {EBoothCheckReason, EBoothRefusalState} from "./boothCheck"
-import {electionKeyDigest} from "./digests"
+import {electionKeyBytes} from "./digests"
 import type {THttpInit} from "./http"
 import {MAX_REPORT_DELAY_MS, OBSERVATION_HEADER, OBSERVATION_TYPE} from "./observation"
 import type {IVitrineSdk} from "./sdk"
@@ -110,7 +110,7 @@ describe("runBoothCheck", () => {
         expect(query).not.toHaveBeenCalled()
     })
 
-    it("tells no monitor before the policy is pinned", async () => {
+    it("reports unavailable context to monitors of a separately pinned public policy", async () => {
         const query = jest.fn(async () => Promise.reject(new Error("offline")))
         const {fetch, options} = setup()
         await expect(runBoothCheck({...options, client: fakeClient(query)})).resolves.toEqual({
@@ -119,7 +119,35 @@ describe("runBoothCheck", () => {
             state: EBoothRefusalState.PENDING,
         })
         await flush()
-        expect(fetch).not.toHaveBeenCalled()
+        expect(fetch).toHaveBeenCalledTimes(2)
+    })
+
+    it.each([
+        ["key", EBoothCheckReason.KEY_MISMATCH],
+        ["styles", EBoothCheckReason.STYLES_MISMATCH],
+        ["config", EBoothCheckReason.CONFIG_MISSING],
+        ["opened", EBoothCheckReason.OPENED_MISSING],
+    ] as const)("refuses and reports a %s mismatch", async (part, reason) => {
+        const {s, options, fetch} = setup()
+        const context = {
+            ...s.context,
+            ...(part === "config" ? {config: null} : {}),
+            ...(part === "opened" ? {opened: null} : {}),
+        }
+        const style = {
+            ...options.style,
+            ...(part === "key" ? {publicKey: ""} : {}),
+            ...(part === "styles" ? {styleText: "changed style"} : {}),
+        }
+        const result = await runBoothCheck({
+            ...options,
+            style,
+            client: fakeClient(answering(context)),
+        })
+        expect(result).toMatchObject({ok: false, reason})
+        await flush()
+        expect(fetch).toHaveBeenCalledTimes(2)
+        expect(String(fetch.mock.calls[0][1]?.body)).toContain(`problem ${reason}`)
     })
 
     it("sends the policy's monitors one observation of a config that contradicts the booth", async () => {
@@ -132,9 +160,9 @@ describe("runBoothCheck", () => {
         await expect(runBoothCheck(options)).resolves.toEqual(refused)
         await flush()
 
-        expect(schedule).toHaveBeenCalledTimes(1)
+        expect(schedule).toHaveBeenCalledTimes(2)
         expect(schedule.mock.calls[0][1]).toBe(MAX_REPORT_DELAY_MS / 2)
-        expect(fetch).toHaveBeenCalledTimes(1)
+        expect(fetch).toHaveBeenCalledTimes(2)
         const [url, init] = fetch.mock.calls[0]
         expect(url).toBe(`${MONITOR_URL}observe`)
         expect(init).toMatchObject({
@@ -148,7 +176,7 @@ describe("runBoothCheck", () => {
         const body = String(init?.body)
         const doc = pure.blocks.parseBlockDoc(body, {
             header: OBSERVATION_HEADER,
-            keys: ["policy", "kind", "time", "event", "election", "reason", "key", "release"],
+            keys: ["policy", "kind", "time", "event", "election", "problem"],
             code: "bad-proof",
         })
         expect(doc.values).toEqual([
@@ -157,23 +185,32 @@ describe("runBoothCheck", () => {
             [String(NOW)],
             [EVENT_ID],
             [ELECTION_ID],
-            [EBoothCheckReason.RELEASE_MISMATCH],
-            [electionKeyDigest(pure, PUBLIC_KEY)],
-            ["sequent/voting-portal", "10.5.0"],
+            [
+                EBoothCheckReason.RELEASE_MISMATCH,
+                "package",
+                "sequent/voting-portal",
+                "version",
+                "10.5.0",
+            ],
         ])
         expect(doc.blocks.map((b) => b.type)).toEqual([
             "config",
-            "config-entry",
-            "config-chain",
             "opened",
-            "opened-entry",
-            "opened-chain",
+            "key",
+            "styles",
+            "style",
         ])
-        expect(pure.bytes.fromUtf8(doc.blocks[0].body)).toBe(s.context.config?.statement)
-        expect(body).not.toContain(STYLE_TEXT)
+        expect(pure.bytes.fromUtf8(doc.blocks[0].body)).toBe(
+            pure.bytes.fromUtf8(pure.parseChain(s.context.config?.chain ?? "").record!)
+        )
+        expect(Array.from(doc.blocks[2].body)).toEqual(
+            Array.from(electionKeyBytes(pure, PUBLIC_KEY)!)
+        )
+        expect(pure.bytes.fromUtf8(doc.blocks[4].body)).toBe(STYLE_TEXT)
+        expect(doc.blocks[4].args).toEqual([ELECTION_ID])
 
         await expect(runBoothCheck(options)).resolves.toEqual(refused)
         await flush()
-        expect(fetch).toHaveBeenCalledTimes(1)
+        expect(fetch).toHaveBeenCalledTimes(2)
     })
 })

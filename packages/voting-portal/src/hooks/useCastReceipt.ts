@@ -61,17 +61,23 @@ const keepView = async (
     sdk: IVitrineSdk,
     userId: string,
     target: IReceiptTarget,
-    view: IReceiptView
+    view: IReceiptView,
+    isAllowed?: () => boolean
 ): Promise<boolean> => {
     const {chain, own, policy} = view
     if (!policy || (!chain && !own)) return false
-    return keepReceipt(sdk, userId, {
-        ...target,
-        ...(own ? {acceptedAt: own.acceptedAt} : {}),
-        policyId: policy.id,
-        ...(chain ? {chain} : {}),
-        savedAt: Date.now(),
-    })
+    return keepReceipt(
+        sdk,
+        userId,
+        {
+            ...target,
+            ...(own ? {acceptedAt: own.acceptedAt} : {}),
+            policyId: policy.id,
+            ...(chain ? {chain} : {}),
+            savedAt: Date.now(),
+        },
+        {isAllowed}
+    )
 }
 
 export interface ICastReceipt {
@@ -111,13 +117,20 @@ export const useCastReceipt = (
     }, [client, eventId, electionId, ballotId, vitrine])
 
     useEffect(() => {
-        if (!view || kiosk || keeping !== EReceiptKeeping.KEEP) return
+        if (!view || kiosk || !userId || keeping !== EReceiptKeeping.KEEP) return
         let active = true
         const keep = async () => {
             let ok = false
             try {
                 const sdk = await loadVitrineSdk()
-                ok = await keepView(sdk, userId, {eventId, electionId, ballotId}, view)
+                if (!active) return
+                ok = await keepView(
+                    sdk,
+                    userId,
+                    {eventId, electionId, ballotId},
+                    view,
+                    () => active
+                )
             } catch {
                 ok = false
             }
@@ -172,8 +185,10 @@ export const useKeptReceipts = (
     const {isKiosk, userId} = useContext(AuthContext)
     const kiosk = isKiosk()
     const [receipts, setReceipts] = useState<IKeptReceiptView[]>([])
+    const [receiptOwner, setReceiptOwner] = useState<string>()
     const off =
         !eventId ||
+        !userId ||
         kiosk ||
         transparency.mode === ETransparencyMode.DISABLED ||
         receiptKeeping() === EReceiptKeeping.FORGET
@@ -194,6 +209,7 @@ export const useKeptReceipts = (
                 return
             }
             if (controller.signal.aborted) return
+            setReceiptOwner(userId)
             setReceipts(kept.map((k) => ({kept: k})))
             kept.forEach((k) => {
                 const target = {eventId, electionId: k.electionId, ballotId: k.ballotId}
@@ -212,7 +228,13 @@ export const useKeptReceipts = (
                             )
                         )
                         if (view.chain && view.chain !== k.chain) {
-                            void keepView(sdk, userId, target, view)
+                            void keepView(
+                                sdk,
+                                userId,
+                                target,
+                                view,
+                                () => !controller.signal.aborted
+                            )
                         }
                     },
                 })
@@ -232,5 +254,5 @@ export const useKeptReceipts = (
         setReceipts([])
     }, [eventId, userId])
 
-    return {receipts, forgetAll}
+    return {receipts: !off && receiptOwner === userId ? receipts : [], forgetAll}
 }

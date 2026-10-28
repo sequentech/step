@@ -59,14 +59,18 @@ const statementBlocks = (
     pure: TVitrinePure,
     name: string,
     logged: IVitrineLoggedStatement | null | undefined
-): blocks.Block[] =>
-    logged
-        ? [
-              {type: name, args: [], body: pure.bytes.utf8(logged.statement)},
-              {type: `${name}-entry`, args: [], body: pure.bytes.utf8(logged.entry)},
-              {type: `${name}-chain`, args: [], body: pure.bytes.utf8(logged.chain)},
-          ]
-        : []
+): blocks.Block[] => {
+    if (!logged || logged.chain.length > 1 << 20) return []
+    let receipt: string | Uint8Array = logged.chain
+    try {
+        const chain = pure.parseChain(logged.chain)
+        receipt = chain.record ?? chain.issued ?? logged.chain
+    } catch {
+        /* Malformed received data is still useful to the monitor. */
+    }
+    const body = typeof receipt === "string" ? pure.bytes.utf8(receipt) : receipt
+    return body.length <= 1 << 20 ? [{type: name, args: [], body}] : []
+}
 
 export interface IConfigObservation {
     policyId: string
@@ -75,8 +79,10 @@ export interface IConfigObservation {
     electionId: string
     /** Why the booth refused, as the booth check's reason code. */
     reason: string
-    /** The `key` the booth computed from the key it was given. */
-    key?: string
+    /** The actual public key bytes the booth would use. */
+    key?: Uint8Array
+    styles?: readonly string[]
+    styleText?: string
     release: string
     config?: IVitrineLoggedStatement | null
     opened?: IVitrineLoggedStatement | null
@@ -84,10 +90,27 @@ export interface IConfigObservation {
 
 /** A booth was shown a configuration it couldn't bind to the events log
  * (specs/entry.md, section 5.2); the monitor checks the objects and reports
- * `config-mismatch`. The ballot style itself stays out: it names the voter's
- * area. */
-export const configObservation = (pure: TVitrinePure, o: IConfigObservation): string =>
-    observation(
+ * `config-mismatch`. No encrypted ballot, ballot ID or submission receipt is
+ * included. The configuration style is the public style shown before voting. */
+export const configObservation = (pure: TVitrinePure, o: IConfigObservation): string => {
+    const objects = [
+        ...statementBlocks(pure, "config", o.config),
+        ...statementBlocks(pure, "opened", o.opened),
+    ]
+    if (o.key && o.key.length <= 65536) objects.push({type: "key", args: [], body: o.key})
+    if (o.styles && o.styles.length <= 1000 && o.styles.every((s) => /^[0-9a-f]{64}$/.test(s))) {
+        objects.push({
+            type: "styles",
+            args: [],
+            body: pure.bytes.utf8(o.styles.map((s) => `${s}\n`).join("")),
+        })
+    }
+    if (o.styleText && o.styleText.length <= 1 << 20) {
+        const body = pure.bytes.utf8(o.styleText)
+        if (body.length <= 1 << 20) objects.push({type: "style", args: [o.electionId], body})
+    }
+    const version = /^[A-Za-z0-9._+-]{1,128}$/.test(o.release) ? o.release : "unknown"
+    return observation(
         pure,
         o.policyId,
         EObservationKind.CONFIG_MISMATCH,
@@ -95,12 +118,11 @@ export const configObservation = (pure: TVitrinePure, o: IConfigObservation): st
         [
             `event ${o.eventId}`,
             `election ${o.electionId}`,
-            `reason ${o.reason}`,
-            ...(o.key ? [`key ${o.key}`] : []),
-            `release ${VOTING_PORTAL_PACKAGE} ${o.release}`,
+            `problem ${o.reason} package ${VOTING_PORTAL_PACKAGE} version ${version}`,
         ],
-        [...statementBlocks(pure, "config", o.config), ...statementBlocks(pure, "opened", o.opened)]
+        objects
     )
+}
 
 /** Under `required on`, a cast that got neither a receipt nor a promise the
  * booth accepted: the log's name, the time and the answer, never the entry or
