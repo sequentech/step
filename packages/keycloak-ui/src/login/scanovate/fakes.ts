@@ -30,6 +30,7 @@ import {
     type StillCheck,
     type FaceAnalyzer,
     type FaceFrame,
+    type Point,
 } from "./types"
 
 // WebM's EBML magic number, so the video part looks like one.
@@ -52,9 +53,11 @@ function player<Status>(script: Script<Status>) {
 }
 
 // The stills pass their check unless `still` says otherwise; its statuses play on across resets.
+// `stillCorners` are where the still check finds the document, in still pixels.
 export function scriptedDocument(
     script: Script<DocumentStatus>,
-    still: Script<DocumentStatus> = {statuses: [DocumentStatus.Ready]}
+    still: Script<DocumentStatus> = {statuses: [DocumentStatus.Ready]},
+    stillCorners: Point[] | null = null
 ): DocumentAnalyzer {
     const play = player(script)
     const playStill = player(still)
@@ -73,7 +76,7 @@ export function scriptedDocument(
         },
         checkStill: (): StillCheck => ({
             status: playStill.next(),
-            corners: null,
+            corners: stillCorners,
             cardWidth: 1000,
             blur: 0.25,
         }),
@@ -295,6 +298,7 @@ export function fakeUploads(
 export function fakeServices(options: {
     document?: Script<DocumentStatus>
     still?: Script<DocumentStatus>
+    stillCorners?: Point[]
     face?: Script<FaceStatus>
     camera?: CameraService
     liveness?: LivenessConnector
@@ -312,7 +316,8 @@ export function fakeServices(options: {
             return {
                 document: scriptedDocument(
                     options.document ?? {statuses: [DocumentStatus.NoDocument]},
-                    options.still
+                    options.still,
+                    options.stillCorners
                 ),
                 face: scriptedFace(options.face ?? {statuses: [FaceStatus.NoFace]}),
             }

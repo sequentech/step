@@ -70,6 +70,16 @@ pub mod ids;
 #[cfg(feature = "election_config_archive")]
 pub mod manifest;
 
+/// Which importer reads each delivery member, and what a complete delivery
+/// contains.
+#[cfg(feature = "election_config_archive")]
+pub mod package_contract;
+
+/// Tenant settings, role mappings, administrators and trustees' public keys,
+/// written for the Admin Portal settings zip.
+#[cfg(feature = "election_config_archive")]
+pub mod tenant_package;
+
 /// Checking a signed configuration package before anything in it is read:
 /// its signer, signature, files, approvals and revision.
 #[cfg(feature = "election_config_signing")]

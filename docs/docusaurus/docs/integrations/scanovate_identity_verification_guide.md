@@ -71,12 +71,15 @@ sequenceDiagram
    `format`). The photo is taken automatically once the whole document is in
    the frame, about centred and at least half the guide's size, held flat to
    the camera, without glare, sharp and still: the guide only shows where to
-   hold it, since the whole frame is uploaded and the OCR service finds the
-   document in it. The live checks run on small frames, so the photo itself is
-   checked again before it is kept: the document must be found in it, at least
-   480 pixels wide (or most of the guide, with a low resolution camera) and
-   sharp at that width; otherwise the page tells the voter why and takes
-   another. On a desktop, the preview of a webcam is mirrored like a mirror.
+   hold it, since the OCR service finds the document in the photo. The live
+   checks run on small frames, so the photo itself is checked again before it
+   is kept: the document must be found in it, at least 480 pixels wide (or most
+   of the guide, with a low resolution camera) and sharp at that width;
+   otherwise the page tells the voter why and takes another. Only the document
+   and a margin of a tenth of its size around it are uploaded, at the camera's
+   resolution: Face Match misses the portrait of a document that is a small
+   part of the photo, as it is in the frame of a desktop webcam. On a desktop,
+   the preview of a webcam is mirrored like a mirror.
 3. For the face, the page takes a photo once the face is steady in the oval and
    sends it to Liveness Plus, one photo at a time, until Liveness Plus completes
    the scan. Liveness Plus posts the verdict and the checked face to Keycloak,

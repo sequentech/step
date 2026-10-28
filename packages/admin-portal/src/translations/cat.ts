@@ -5,6 +5,7 @@ import englishTranslation, {TranslationType} from "./en"
 
 const catalanTranslation: TranslationType = {
     translations: {
+        configurationPackage: englishTranslation.translations.configurationPackage,
         ballotPrivacy: englishTranslation.translations.ballotPrivacy,
         readiness: {
             close: "Tanca",
@@ -555,6 +556,7 @@ const catalanTranslation: TranslationType = {
                 EXPORT_APPLICATION: "Exportar Sol·licituds",
                 EXPORT_TENANT_CONFIG: "Exporta la Configuració del Llogater",
                 IMPORT_TENANT_CONFIG: "Importa la Configuració del Llogater",
+                APPLY_CONFIGURATION_PACKAGE: "Aplica el Paquet de Configuració",
                 RENDER_DOCUMENT_PDF: "Generar el document PDF",
                 CREATE_TENANT: "Crear Llogater",
                 EXPORT_TEMPLATES: "Exportar plantilles",

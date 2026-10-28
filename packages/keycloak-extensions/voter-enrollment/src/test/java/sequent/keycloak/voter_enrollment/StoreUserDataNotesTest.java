@@ -121,6 +121,23 @@ class StoreUserDataNotesTest {
             LookupAndUpdateUser.IDENTITY_METHOD, Set.of(LookupAndUpdateUser.IDENTITY_METHOD)));
   }
 
+  @Test
+  void aNewFormResetsEnteredDiagnosticsAndCannotForgeTheSnapshot() {
+    String snapshot = "scanovate-diagnostic-entered";
+    String field = snapshot + ".entered_document_type";
+    MultivaluedMap<String, String> formData = new MultivaluedHashMap<>();
+    formData.add(UserModel.FIRST_NAME, "Synthetic");
+    formData.add(field, "passport");
+    formData.add(snapshot, "v1");
+    AuthenticationSessionModel session = storeNotes(formData);
+    verify(session).removeAuthNote(snapshot);
+    verify(session).removeAuthNote(field);
+    verify(session).removeAuthNote("scanovate-diagnostic-attempt");
+    verify(session, never()).setAuthNote(eq(field), anyString());
+    verify(session, never()).setAuthNote(eq(snapshot), anyString());
+    assertFalse(Utils.isFormNote(field, Set.of(field)));
+  }
+
   /** An empty stored field list reads back as no fields, not as one field with an empty name. */
   @Test
   void emptyFieldListReadsBackAsNoFields() {

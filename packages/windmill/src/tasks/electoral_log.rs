@@ -2006,6 +2006,54 @@ mod batch_build_tests {
         );
     }
 
+    #[tokio::test]
+    async fn scanovate_contract_reaches_the_signed_event_board_and_ui_body() {
+        let fixture: Value = serde_json::from_str(include_str!(
+            "../../../keycloak-extensions/custom-event-listener/src/test/resources/scanovate-failure-contract.json"
+        )).unwrap();
+        let input = parse_queued_event(fixture["queue_envelope"].clone()).unwrap();
+        assert_eq!(input.tenant_id, "00000000-0000-4000-8000-000000000001");
+        assert_eq!(
+            input.election_event_id,
+            "00000000-0000-4000-8000-000000000002"
+        );
+        let board = format!("board-{}", input.election_event_id);
+        let mut lookups = FakeLookups::new();
+        let batch = build_batch(&mut lookups, &[input]).await.unwrap();
+        assert!(batch.dead_letters.is_empty());
+        assert_eq!(batch.by_board.len(), 1);
+        let entries = &batch.by_board[&board];
+        assert_eq!(entries.len(), 1);
+        let stored = &entries[0].message;
+        assert_eq!(
+            stored.user_id.as_deref(),
+            Some("00000000-0000-4000-8000-000000000003")
+        );
+        assert_eq!(stored.username.as_deref(), Some("synthetic-voter"));
+        let decoded = Message::record_deserialize(&stored.message).unwrap();
+        let actual_body = serde_json::to_value(&decoded.statement.body).unwrap();
+        let actual_details: Value =
+            serde_json::from_str(actual_body["KeycloakUserEvent"][0].as_str().unwrap()).unwrap();
+        let expected_details: Value = serde_json::from_str(
+            fixture["statement_body"]["KeycloakUserEvent"][0]
+                .as_str()
+                .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(actual_details, expected_details);
+        assert_eq!(actual_body["KeycloakUserEvent"][1], "REGISTER_ERROR");
+        assert_eq!(decoded.statement.head.log_type, StatementLogType::ERROR);
+        assert_eq!(
+            actual_details["details"]["scanovate_check_barcode_valid"],
+            "missing"
+        );
+        assert_eq!(
+            actual_details["details"]["scanovate_occurred_at"],
+            "2026-05-11T15:00:00.123Z"
+        );
+        assert_eq!(lookups.tenant_log_calls, 0);
+    }
+
     /// Keycloak's publisher produces this envelope; its tests check the same fixture.
     #[test]
     fn keycloak_envelopes_parse_into_events() {

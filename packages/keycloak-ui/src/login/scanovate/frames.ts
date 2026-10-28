@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
-import {fitSize} from "./geometry"
-import type {Size} from "./types"
+import {documentCrop, fitSize} from "./geometry"
+import type {Point, Rect, Size} from "./types"
 
 export const DOCUMENT_ANALYSIS_SIDE = 480
 export const FACE_ANALYSIS_SIDE = 640
@@ -9,6 +9,9 @@ export const STILL_SIDE = 1920
 // The authenticator accepts photos up to 2 MiB.
 export const STILL_MAX_BYTES = 1.8 * 1024 * 1024
 export const STILL_QUALITIES = [0.92, 0.85, 0.78, 0.7, 0.6]
+// Share of the document's size kept around it in the uploaded photo, so the OCR still sees its
+// edges.
+export const DOCUMENT_CROP_MARGIN = 0.1
 
 export function videoSize(video: HTMLVideoElement): Size | null {
     return video.videoWidth > 0 && video.videoHeight > 0
@@ -83,4 +86,22 @@ export async function encodeStill(still: ImageData): Promise<Blob> {
         if (blob.size <= STILL_MAX_BYTES) return blob
     }
     throw new Error(`The photo is too large: ${blob?.size ?? 0} bytes`)
+}
+
+/** The part of a still showing the document, at full resolution, as it is uploaded. */
+export function documentStill(still: ImageData, corners: Point[]): ImageData {
+    const crop = cropPixels(still, documentCrop(corners, still, DOCUMENT_CROP_MARGIN))
+    return new ImageData(crop.data, crop.width, crop.height)
+}
+
+type Pixels = {data: Uint8ClampedArray<ArrayBuffer>; width: number; height: number}
+
+/** The RGBA pixels of a rectangle, in whole pixels, of an RGBA image. */
+export function cropPixels(image: Pixels, rect: Rect): Pixels {
+    const data = new Uint8ClampedArray(rect.width * rect.height * 4)
+    for (let row = 0; row < rect.height; row++) {
+        const start = ((rect.y + row) * image.width + rect.x) * 4
+        data.set(image.data.subarray(start, start + rect.width * 4), row * rect.width * 4)
+    }
+    return {data, width: rect.width, height: rect.height}
 }

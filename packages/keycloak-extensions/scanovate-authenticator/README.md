@@ -15,6 +15,9 @@ for the configuration reference, and
 [Scanovate On-Premise Services](../../../docs/docusaurus/docs/integrations/scanovate_on_premise_guide.md)
 for how to run the services and test the whole flow.
 
+See [Failure diagnostics](../../../docs/docusaurus/docs/07-developers/06-keycloak/scanovate_diagnostics.md)
+for the event-log field contract, redactions, support reference and contact-lookup design gap.
+
 ## Tests
 
 ```bash
