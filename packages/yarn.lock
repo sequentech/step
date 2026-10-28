@@ -6885,15 +6885,15 @@
 
 "@vitrine/ui@file:vendor-npm/vitrine-ui.tgz":
   version "0.1.0"
-  uid bfab12eec861812e706e0c457863ad278b2c1ce3
-  resolved "file:vendor-npm/vitrine-ui.tgz#bfab12eec861812e706e0c457863ad278b2c1ce3"
+  uid "6f085a27403f4ae6ab54208199a522d17305d60b"
+  resolved "file:vendor-npm/vitrine-ui.tgz#6f085a27403f4ae6ab54208199a522d17305d60b"
   dependencies:
     "@fluent/bundle" "^0.19.1"
     "@vitrine/verify" "0.1.0"
 
 "@vitrine/verify@0.1.0", "@vitrine/verify@file:./vendor-npm/vitrine-verify.tgz", "@vitrine/verify@file:vendor-npm/vitrine-verify.tgz":
   version "0.1.0"
-  resolved "file:./vendor-npm/vitrine-verify.tgz#e284628ed205847fd39c39e8e250925acc9b9368"
+  resolved "file:./vendor-npm/vitrine-verify.tgz#f270f9176887fe91dfba9ab9dd8c86b765676ee6"
   dependencies:
     "@noble/curves" "^2.4.0"
     "@noble/hashes" "^2.4.0"

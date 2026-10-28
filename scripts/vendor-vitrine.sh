@@ -11,8 +11,7 @@
 #
 # It exports the ref's packages/ and testdata/ with `git archive` into a
 # temporary directory, installs Vitrine's locked dependencies there, builds and
-# tests both packages, and packs them; a failing test stops it, unless
-# VITRINE_ALLOW_FAILING_TESTS=1 says to vendor anyway. The tarballs keep fixed
+# tests both packages, and packs them; a failing test stops it. The tarballs keep fixed
 # names, so the apps' `file:` dependencies don't change with Vitrine's version.
 # It drops the packages' entries from packages/yarn.lock, whose hashes no
 # longer match, and yarn's unpacked copies of the old tarballs.
@@ -42,13 +41,7 @@ mkdir "$WORK/out"
     cd "$WORK/packages"
     npm ci --no-audit --no-fund
     npm run build -w @vitrine/verify -w @vitrine/ui
-    if ! npm test -w @vitrine/verify -w @vitrine/ui; then
-        if [[ "${VITRINE_ALLOW_FAILING_TESTS:-}" != "1" ]]; then
-            echo "Vitrine's tests failed: set VITRINE_ALLOW_FAILING_TESTS=1 to vendor anyway." >&2
-            exit 1
-        fi
-        echo "Vitrine's tests failed: vendoring anyway, as VITRINE_ALLOW_FAILING_TESTS asks." >&2
-    fi
+    npm test -w @vitrine/verify -w @vitrine/ui
     npm pack -w @vitrine/verify -w @vitrine/ui --pack-destination "$WORK/out"
 )
 
@@ -56,6 +49,7 @@ mkdir -p "$VENDOR_DIR"
 cp "$WORK"/out/vitrine-verify-*.tgz "$VENDOR_DIR/vitrine-verify.tgz"
 cp "$WORK"/out/vitrine-ui-*.tgz "$VENDOR_DIR/vitrine-ui.tgz"
 echo "$COMMIT" >"$VENDOR_DIR/VITRINE_COMMIT"
+(cd "$VENDOR_DIR" && sha256sum vitrine-verify.tgz vitrine-ui.tgz > SHA256SUMS)
 
 awk '
   /^"@vitrine\// { skip = 1 }
