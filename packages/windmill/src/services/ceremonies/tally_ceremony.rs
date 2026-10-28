@@ -554,6 +554,7 @@ pub async fn create_tally_ceremony(
     let tally_session_id: String = Uuid::new_v4().to_string();
 
     let annotations: Value = json!({
+        "result_readiness_version": 1,
         "executer_username": username,
         "executer_user_id": user_id,
         ELECTION_AREAS_ANNOTATION: serde_json::to_string(&election_areas(
@@ -654,8 +655,27 @@ pub async fn update_tally_ceremony(
     user_id: String,
     username: String,
 ) -> Result<()> {
+    lock_tally_session_for_update(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &tally_session.id,
+    )
+    .await?;
+    let tally_session = get_tally_session_by_id(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &tally_session.id,
+    )
+    .await?;
+    // Numeric completion remains terminal for cancellation while reports finalize.
+    if super::result_readiness::is_numerically_complete(&tally_session) {
+        return Err(TallyValidationError::new("Cannot change a completed tally's status").into());
+    }
     let current_status = tally_session
         .execution_status
+        .clone()
         .map(|value| {
             TallyExecutionStatus::from_str(&value).unwrap_or(TallyExecutionStatus::STARTED)
         })
@@ -996,8 +1016,24 @@ pub async fn set_tally_session_completed(
     tenant_id: String,
     election_event_id: String,
     tally_session_id: String,
+    has_results: bool,
 ) -> Result<()> {
-    let execution_status = TallyExecutionStatus::SUCCESS;
+    let session = get_tally_session_by_id(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &tally_session_id,
+    )
+    .await?;
+    // Existing tallies retain their original completion semantics.
+    let execution_status =
+        if super::result_readiness::uses_readiness_policy(session.annotations.as_ref())
+            && has_results
+        {
+            TallyExecutionStatus::IN_PROGRESS
+        } else {
+            TallyExecutionStatus::SUCCESS
+        };
 
     let is_updated = match set_tally_session_completed_in_db(
         hasura_transaction,
@@ -1009,9 +1045,19 @@ pub async fn set_tally_session_completed(
     .await
     {
         Ok(_) => true,
-        Err(_) => false,
+        Err(error) => return Err(error),
     };
 
+    if super::result_readiness::uses_readiness_policy(session.annotations.as_ref()) && !has_results
+    {
+        crate::postgres::tally_session::set_post_tally_task_completed(
+            hasura_transaction,
+            &tenant_id,
+            &election_event_id,
+            &tally_session_id,
+        )
+        .await?;
+    }
     if is_updated {
         let election_event =
             get_election_event_by_id(hasura_transaction, &tenant_id, &election_event_id).await?;
@@ -1107,10 +1153,7 @@ pub async fn begin_tally_session_recount(
         tally_session_id,
     )
     .await?;
-    if tally_session.execution_status.as_deref()
-        != Some(TallyExecutionStatus::SUCCESS.to_string().as_str())
-        || !tally_session.is_execution_completed
-    {
+    if !super::result_readiness::is_numerically_complete(&tally_session) {
         return Ok(false);
     }
 
