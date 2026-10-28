@@ -545,7 +545,8 @@ impl RunoffStatus {
         let act_candidate_ids = self.candidates_status.get_active_candidate_ids();
         let act_candidates_count = act_candidate_ids.len() as u64;
         let mut act_ballots = 0;
-        let mut act_weight: u64 = 0;
+        // u128 holds any sum of u64 weights exactly, so the majority test cannot saturate.
+        let mut act_weight: u128 = 0;
         let mut exhausted_ballots = self
             .get_last_round()
             .unwrap_or_default()
@@ -562,7 +563,7 @@ impl RunoffStatus {
                     outcome.wins += w;
                 }
                 act_ballots += 1;
-                act_weight = act_weight.saturating_add(w);
+                act_weight += u128::from(w);
             } else {
                 *ballot_st = BallotStatus::Exhausted;
                 exhausted_ballots += 1;
@@ -579,7 +580,7 @@ impl RunoffStatus {
 
         // Check if there is a winner
         let max_wins = candidates_wins.values().map(|o| o.wins).max().unwrap_or(0);
-        if max_wins > act_weight.saturating_sub(max_wins) {
+        if 2 * u128::from(max_wins) > act_weight {
             let winner_id = self
                 .filter_candidates_by_number_of_wins(&candidates_wins, max_wins)
                 .first()
@@ -1213,5 +1214,37 @@ mod tests {
         );
         assert_close(percentage(last_round, "x"), 7.0 / 13.0);
         assert_close(percentage(last_round, "y"), 6.0 / 13.0);
+    }
+
+    #[test]
+    fn irv_tie_past_u64_max_active_weight_is_not_a_majority() {
+        let votes = vec![
+            (ranked_vote(&["x"]), area_weight(1 << 63)),
+            (ranked_vote(&["y"]), area_weight(1 << 63)),
+        ];
+        let runoff = run_ranked(&votes);
+
+        let first_round = runoff.rounds.first().expect("first round should exist");
+        assert!(first_round.winner.is_none());
+        assert_eq!(
+            first_round
+                .eliminated_candidates
+                .as_ref()
+                .map(|eliminated| eliminated.iter().map(|c| c.id.as_str()).collect::<Vec<_>>()),
+            Some(vec!["z"])
+        );
+        assert_close(percentage(first_round, "x"), 0.5);
+
+        // x and y stay tied at 2^63 each, so the tie-breaking policy decides.
+        assert_eq!(runoff.rounds.len(), 2);
+        let resolution = runoff
+            .tie_resolutions
+            .first()
+            .expect("the tie should be resolved by lot");
+        assert_eq!(runoff.tie_resolutions.len(), 1);
+        assert_eq!(resolution.round_number, Some(2));
+        let mut tied = resolution.tied_candidate_ids.clone();
+        tied.sort();
+        assert_eq!(tied, vec!["x", "y"]);
     }
 }
