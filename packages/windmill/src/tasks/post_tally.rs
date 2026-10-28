@@ -1,6 +1,10 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::services::ceremonies::result_readiness::{
+    require_complete_result_document, uses_readiness_policy, write_execution_readiness,
+    write_origin,
+};
 
 use crate::postgres::document::get_document;
 use crate::services::documents::upload_and_return_document;
@@ -47,7 +51,7 @@ use chrono::Duration;
 
 use crate::postgres::results_event::{get_results_event_by_id, update_results_event_documents};
 use crate::postgres::tally_session::{
-    lock_tally_session_for_update, set_post_tally_task_completed,
+    get_tally_session_by_id, lock_tally_session_for_update, set_post_tally_task_completed,
 };
 use crate::services::documents::get_document_as_temp_file;
 use tokio::time::Duration as ChronoDuration;
@@ -254,6 +258,13 @@ pub async fn post_tally_task_impl(
     .await?
     .ok_or_else(|| anyhow!("Can't find document {}", tar_gz_document_id))?;
 
+    let result_origin = require_complete_result_document(
+        &hasura_transaction,
+        &tenant_id,
+        &tar_gz_document,
+        Some(&tally_session_id),
+    )
+    .await?;
     let tar_gz_file = get_document_as_temp_file(&tenant_id, &tar_gz_document).await?;
 
     // Unpack targz
@@ -266,8 +277,12 @@ pub async fn post_tally_task_impl(
         Some(election_event_id.clone()),
         Some(tally_session_execution.tally_session_id.clone()),
     )
-    .await?
-    .ok_or(anyhow!("Could not find options."))?;
+    .await?;
+    let pdf_options = match pdf_options {
+        Some(options) => options,
+        None if result_origin.is_some() => Default::default(),
+        None => return Err(anyhow!("Could not find options.").into()),
+    };
 
     let pdf_options = PrintToPdfOptionsLocal::from_pdf_options(pdf_options);
 
@@ -303,6 +318,15 @@ pub async fn post_tally_task_impl(
         false,
     )
     .await?;
+    if let Some(origin) = result_origin {
+        write_origin(
+            &hasura_transaction,
+            &tenant_id,
+            &updated_targz_document.id,
+            &origin,
+        )
+        .await?;
+    }
 
     let election_event_id_clone = election_event_id.clone();
     let tenant_id_clone = tenant_id.clone();
@@ -397,7 +421,20 @@ pub async fn post_tally_task_impl(
     .await?
     .ok_or(anyhow!("Could not find last tally session execution."))?;
 
-    if latest_execution.id != starting_execution_id
+    let current_session = get_tally_session_by_id(
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &tally_session_id,
+    )
+    .await?;
+    if (uses_readiness_policy(current_session.annotations.as_ref())
+        && (!current_session.is_execution_completed
+            || !matches!(
+                current_session.execution_status.as_deref(),
+                Some("IN_PROGRESS" | "SUCCESS")
+            )))
+        || latest_execution.id != starting_execution_id
         || latest_execution.run_reason() == TallyRunReason::RECOUNT
     {
         info!(
@@ -420,7 +457,7 @@ pub async fn post_tally_task_impl(
     )?;
 
     // Add a new tally session execution
-    insert_tally_session_execution(
+    let final_execution = insert_tally_session_execution(
         &hasura_transaction,
         &tenant_id,
         &election_event_id,
@@ -433,6 +470,17 @@ pub async fn post_tally_task_impl(
         TallyRunReason::NORMAL,
     )
     .await?;
+
+    if uses_readiness_policy(current_session.annotations.as_ref()) {
+        let readiness = latest_execution
+            .annotations
+            .as_ref()
+            .and_then(|a| a.get("result_readiness"))
+            .ok_or(anyhow!(
+                "Completed execution is missing its result readiness certificate"
+            ))?;
+        write_execution_readiness(&hasura_transaction, &final_execution, readiness).await?;
+    }
 
     set_post_tally_task_completed(
         &hasura_transaction,
@@ -481,7 +529,7 @@ pub async fn post_tally_task(
         election_event_id,
         tally_session_id,
     ));
-    let _res = loop {
+    let result = loop {
         tokio::select! {
             _ = interval.tick() => {
                 // Execute the callback function here
@@ -495,5 +543,5 @@ pub async fn post_tally_task(
     };
     lock.release().await?;
 
-    Ok(())
+    result
 }

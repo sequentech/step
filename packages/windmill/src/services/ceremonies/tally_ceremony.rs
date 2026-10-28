@@ -770,6 +770,7 @@ pub async fn create_tally_ceremony_with(
     let tally_session_id: String = ids.new_id().to_string();
 
     let mut annotations: Value = json!({
+        "result_readiness_version": 1,
         EXECUTER_USERNAME_ANNOTATION: username,
         EXECUTER_USER_ID_ANNOTATION: user_id,
     });
@@ -872,6 +873,20 @@ pub async fn update_tally_ceremony(
     user_id: String,
     username: String,
 ) -> Result<()> {
+    crate::postgres::tally_session::lock_tally_session_for_update(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &tally_session.id,
+    )
+    .await?;
+    let tally_session = get_tally_session_by_id(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &tally_session.id,
+    )
+    .await?;
     update_tally_ceremony_with(
         &PgTallySessions::new(hasura_transaction),
         &PgTallyCreationReader::new(hasura_transaction),
@@ -906,6 +921,9 @@ pub async fn update_tally_ceremony_with(
         user_id,
         username,
     } = change;
+    if super::result_readiness::is_numerically_complete(&tally_session) {
+        return Err(TallyValidationError::new("Cannot change a completed tally's status").into());
+    }
     let current_status = tally_execution_status(tally_session.execution_status.as_deref());
     check_status_change(&current_status, &new_execution_status)?;
 
@@ -1264,6 +1282,7 @@ pub async fn set_tally_session_completed(
     tenant_id: String,
     election_event_id: String,
     tally_session_id: String,
+    has_results: bool,
 ) -> Result<()> {
     set_tally_session_completed_with(
         &PgTallySessions::new(hasura_transaction),
@@ -1272,12 +1291,30 @@ pub async fn set_tally_session_completed(
         &tenant_id,
         &election_event_id,
         &tally_session_id,
+        has_results,
     )
-    .await
+    .await?;
+    let session = get_tally_session_by_id(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &tally_session_id,
+    )
+    .await?;
+    if !has_results && super::result_readiness::uses_readiness_policy(session.annotations.as_ref())
+    {
+        crate::postgres::tally_session::set_post_tally_task_completed(
+            hasura_transaction,
+            &tenant_id,
+            &election_event_id,
+            &tally_session_id,
+        )
+        .await?;
+    }
+    Ok(())
 }
 
-/// An error marking the session completed is swallowed: nothing is posted to
-/// the electoral log and `Ok` is returned.
+/// New sessions retain numeric completion while report finalization is pending.
 pub async fn set_tally_session_completed_with(
     sessions: &impl TallySessions,
     election_events: &impl ElectionEventReader,
@@ -1285,16 +1322,26 @@ pub async fn set_tally_session_completed_with(
     tenant_id: &str,
     election_event_id: &str,
     tally_session_id: &str,
+    has_results: bool,
 ) -> Result<()> {
-    let is_updated = sessions
-        .mark_completed(
-            tenant_id,
-            election_event_id,
-            tally_session_id,
-            TallyExecutionStatus::SUCCESS,
-        )
-        .await
-        .is_ok();
+    let session = sessions
+        .get(tenant_id, election_event_id, tally_session_id)
+        .await?;
+    let strict = super::result_readiness::uses_readiness_policy(session.annotations.as_ref());
+    let status = if strict && has_results {
+        TallyExecutionStatus::IN_PROGRESS
+    } else {
+        TallyExecutionStatus::SUCCESS
+    };
+    let updated = sessions
+        .mark_completed(tenant_id, election_event_id, tally_session_id, status)
+        .await;
+    let is_updated = if strict {
+        updated?;
+        true
+    } else {
+        updated.is_ok()
+    };
 
     if is_updated {
         let election_event = election_events.get(tenant_id, election_event_id).await?;

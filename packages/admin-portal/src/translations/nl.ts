@@ -3090,6 +3090,8 @@ const dutchTranslation: TranslationType = {
             },
         },
         tally: {
+            numericResultsReportsPending:
+                "De numerieke resultaten zijn compleet. De rapporten worden nog gegenereerd.",
             errorUploadingSignature: "Er was een fout bij het uploaden van de handtekening",
             downloadTransmissionPackage: "Transmissiepakket Downloaden",
             resultsPublication: {

@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use windmill::services::ceremonies::result_readiness::require_complete_result_document;
 
 use crate::services::access::document_extra_permissions;
 use crate::services::authorization::authorize;
@@ -124,6 +125,14 @@ async fn fetch_document_url(
     if document.is_ballot_receipt() {
         return Err((Status::NotFound, DOCUMENT_NOT_FOUND.to_string()));
     }
+    require_complete_result_document(
+        &hasura_transaction,
+        &claims.hasura_claims.tenant_id,
+        &document,
+        None,
+    )
+    .await
+    .map_err(|error| (Status::Conflict, error.to_string()))?;
     let legacy_voter_export = document.election_event_id.is_some()
         && document.name.as_deref().is_some_and(|name| {
             name.starts_with("users-export-")

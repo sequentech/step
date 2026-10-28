@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+import {isNumericallyComplete} from "./resultsCompleteness"
 import React, {ReactElement, createContext, useContext, useMemo} from "react"
 import {styled} from "@mui/material/styles"
 import {
@@ -420,8 +421,11 @@ export const ListTally: React.FC<ListAreaProps> = () => {
             action: recountAdminTally,
             showAction: (id: Identifier) =>
                 canRecountTally &&
-                record.execution_status === ITallyExecutionStatus.SUCCESS &&
-                record.is_execution_completed,
+                isNumericallyComplete({
+                    is_execution_completed: record.is_execution_completed,
+                    execution_status: record.execution_status,
+                    annotations: record.annotations,
+                }),
         },
         {
             icon:
