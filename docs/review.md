@@ -6,7 +6,7 @@
 
 ## Frontend interface decisions
 
-The three apps use the verifier and UI packed from Vitrine commit `74f7bec3ef6a5d08791783d96d76bcce6b22adf8`. The archive-based vendor script runs upstream builds and tests before packing and has no failed-test bypass. Repacking the installed verifier and UI produces byte-identical tarballs; their SHA-256 digests are recorded in `packages/vendor-npm/SHA256SUMS`.
+The three apps use the verifier and UI packed from Vitrine commit `93a346021b23c6dc4a0e437ea96eb5bb4d5edd24`. The archive-based vendor script runs upstream builds and tests before packing and has no failed-test bypass. Repacking the installed verifier and UI produces byte-identical tarballs; their SHA-256 digests are recorded in `packages/vendor-npm/SHA256SUMS`.
 
 New policy admission uses the SDK's `pinPolicy`, including authenticated profile meanings and election minimums. Structural parsing remains available for unsigned Board drafts. Election fixtures use `vitrine/election/ballots/v1` and `vitrine/election/events/v1` with their published meaning hashes, two app hubs, an independent hub subset and two monitor parties. Private fixtures name separate blinded subjects for both logs.
 
@@ -61,8 +61,9 @@ The external sidecar test additionally accepts `WINDMILL_VITRINE_TEST_CONFIG_FIL
 
 ## Final package and live acceptance checkpoint
 
-The browser packages are packed from immutable Vitrine revision
-`74f7bec3ef6a5d08791783d96d76bcce6b22adf8`. The refresh exports normative
+The initial browser acceptance checkpoint used immutable Vitrine revision
+`74f7bec3ef6a5d08791783d96d76bcce6b22adf8`; the final refresh below supersedes
+its source provenance. The refresh exports normative
 specs with the packages and vectors, so the UI's evidence-wording coverage
 tests run instead of being skipped. Upstream SDK tests pass 489 cases with
 two deliberately separate service-only areas skipped; all 172 UI tests pass.
@@ -107,3 +108,35 @@ synthetic accepted ballots. It does not claim an authenticated Step,
 Hasura/Harvest and Keycloak deployment or a complete encrypted voting ceremony,
 and monitor listeners alone do not establish subscription to the new events.
 The developer guide records the exact reproducible native/browser commands.
+
+## Final WAICT conformance refresh
+
+The final immutable package source is
+`93a346021b23c6dc4a0e437ea96eb5bb4d5edd24`. The upstream native verifier had
+rejected an otherwise valid WAICT prefix root when a relay appended a bad
+known-witness signature line. The independent browser SDK already followed
+the required normalization rule. Native Rust and compiled WASM now ignore
+non-verifying lines and still require the configured number of distinct
+valid witnesses. Strict key admission, profile minimums, signed text and
+inclusion proofs remain required.
+
+The archive vendor script rebuilt and tested the packages: 638 SDK cases pass
+with two service-only skips, and all 172 UI cases pass. Both resulting
+tarballs, their recorded digests, and the lockfile are byte-identical to the
+earlier package artifacts. The three successful production builds above
+therefore still contain the exact current package bytes; rebuilding them
+would not exercise changed runtime code. All three complete app Jest suites
+were rerun after installation (342 voting, 419 admin, 133 verifier), and all
+three complete TypeScript checks pass.
+
+`scripts/vitrine-conformance-browser.mjs` reads ten portable full receipt
+chains from the exact recorded source revision and checks the installed Step
+SDK in Node, then the installed SDK and compiled native counterpart in actual
+Chromium. All ten cases agree: bad known-key lines before or after a valid
+quorum, short/long payloads and mismatched timestamps cannot invalidate a
+quorum; bad-only and duplicate-only sets cannot supply a missing distinct
+witness. The browser loads only its local bundle and one WASM module, sends
+no service or third-party request, and has no page errors. The temporary
+listener/browser and owned `vitrine-step-waict-browser` container shut down.
+This is deterministic verifier conformance, separate from the retained live
+queue/sidecar rehearsal above.

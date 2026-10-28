@@ -526,6 +526,26 @@ Playwright 1.64.1. Every browser process and its temporary static listener
 shuts down when the script ends. Set `STEP_VITRINE_RECORD_VIDEO=1` to retain
 actual browser clips for the public workflow.
 
+The final package source also supplies deterministic full receipt-chain
+regressions for WAICT signature normalization. To compare the installed Step
+browser SDK with the compiled native verifier, build `@vitrine/verify-wasm`
+in a Vitrine checkout whose production source matches the recorded
+`packages/vendor-npm/VITRINE_COMMIT`, then run:
+
+```sh
+node scripts/vitrine-conformance-browser.mjs /absolute/vitrine-checkout \
+  /absolute/new-conformance-results
+```
+
+This runner reads the ten shared chains from that exact Git revision, checks
+the installed SDK in Node and actual Chromium, and writes a screenshot plus
+the two backends' verdicts and WASM digest. Valid quorums survive extra bad
+known-witness lines, including malformed-length/time payloads; insufficient
+distinct valid signatures are refused. It makes no live-service request.
+`STEP_VITRINE_PLAYWRIGHT_MODULE` selects a matching installed runner when
+using the pinned browser container. Its static listener and browser shut
+down on completion.
+
 This rehearsal uses synthetic accepted ballot rows and real native
 cryptographic receipts. It exercises the transactional queue and production
 independent-verifier page; it does not deploy the authenticated Step,
