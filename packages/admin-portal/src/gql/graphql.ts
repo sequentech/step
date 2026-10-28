@@ -2,7 +2,7 @@
 import { VotingStatusChannel } from '@sequentech/ui-core';
 import { TypedDocumentNode as DocumentNode } from '@graphql-typed-document-node/core';
 export type Maybe<T> = T | null;
-export type InputMaybe<T> = Maybe<T>;
+export type InputMaybe<T> = T | null | undefined;
 export type Exact<T extends { [key: string]: unknown }> = { [K in keyof T]: T[K] };
 export type MakeOptional<T, K extends keyof T> = Omit<T, K> & { [SubKey in K]?: Maybe<T[SubKey]> };
 export type MakeMaybe<T, K extends keyof T> = Omit<T, K> & { [SubKey in K]: Maybe<T[SubKey]> };
@@ -636,6 +636,7 @@ export type InsertCastVoteOutput = {
   labels?: Maybe<Scalars['jsonb']['output']>;
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
   tenant_id: Scalars['uuid']['output'];
+  vitrine?: Maybe<VitrineCast>;
   voter_id_string?: Maybe<Scalars['String']['output']>;
 };
 
@@ -1074,6 +1075,20 @@ export type TotalAggregate = {
   aggregate: Aggregate;
 };
 
+export type TransparencyOutput = {
+  __typename?: 'TransparencyOutput';
+  draft_policy?: Maybe<Scalars['String']['output']>;
+  enrolments?: Maybe<Scalars['jsonb']['output']>;
+  explorer_url?: Maybe<Scalars['String']['output']>;
+  locked: Scalars['Boolean']['output'];
+  logs?: Maybe<Scalars['jsonb']['output']>;
+  mode: Scalars['String']['output'];
+  policy?: Maybe<Scalars['String']['output']>;
+  policy_id?: Maybe<Scalars['String']['output']>;
+  refusal?: Maybe<Scalars['String']['output']>;
+  status?: Maybe<Scalars['jsonb']['output']>;
+};
+
 export type UpdateElectionVotingStatusOutput = {
   __typename?: 'UpdateElectionVotingStatusOutput';
   election_id?: Maybe<Scalars['uuid']['output']>;
@@ -1125,6 +1140,30 @@ export type UserProfileConfiguration = {
   __typename?: 'UserProfileConfiguration';
   attributes: Array<UserProfileAttribute>;
   groups: Array<UserProfileAttributeGroup>;
+};
+
+export type VitrineCast = {
+  __typename?: 'VitrineCast';
+  kind: Scalars['String']['output'];
+  reason?: Maybe<Scalars['String']['output']>;
+  text?: Maybe<Scalars['String']['output']>;
+};
+
+export type VitrineForwardOutput = {
+  __typename?: 'VitrineForwardOutput';
+  body?: Maybe<Scalars['String']['output']>;
+  status: Scalars['Int']['output'];
+};
+
+export type VitrineVoterContext = {
+  __typename?: 'VitrineVoterContext';
+  config?: Maybe<Scalars['jsonb']['output']>;
+  mode: Scalars['String']['output'];
+  opened?: Maybe<Scalars['jsonb']['output']>;
+  policy?: Maybe<Scalars['String']['output']>;
+  policy_ack?: Maybe<Scalars['String']['output']>;
+  release?: Maybe<Scalars['String']['output']>;
+  style_hashes?: Maybe<Array<Scalars['String']['output']>>;
 };
 
 export type VoterCastVote = {
@@ -1500,6 +1539,8 @@ export type Mutation_Root = {
   /** delete users */
   delete_users?: Maybe<DeleteUsersOutput>;
   edit_user: EditUserOutput;
+  /** Sets the event's transparency mode, creating its Vitrine logs */
+  enable_transparency?: Maybe<TransparencyOutput>;
   encrypt_report?: Maybe<EncryptReportOutput>;
   exportTrustees?: Maybe<ExportTrusteesOutput>;
   export_application?: Maybe<ExportApplicationOutput>;
@@ -2010,9 +2051,13 @@ export type Mutation_Root = {
   update_sequent_backend_trustee_many?: Maybe<Array<Maybe<Sequent_Backend_Trustee_Mutation_Response>>>;
   update_tally_ceremony?: Maybe<StartTallyOutput>;
   upload_signature?: Maybe<OptionalId>;
+  /** Installs the event's sealed, signed policy in its Vitrine logs */
+  upload_transparency_policy?: Maybe<TransparencyOutput>;
   upsert_area?: Maybe<UpsertAreaOutput>;
   /** upsert_areas */
   upsert_areas?: Maybe<OptionalId>;
+  /** Forwards a private event's receipt upgrades and openings for the voter's own ballots */
+  vitrine_voter_forward?: Maybe<VitrineForwardOutput>;
 };
 
 
@@ -2838,6 +2883,13 @@ export type Mutation_RootDelete_UsersArgs = {
 /** mutation root */
 export type Mutation_RootEdit_UserArgs = {
   body: EditUsersInput;
+};
+
+
+/** mutation root */
+export type Mutation_RootEnable_TransparencyArgs = {
+  election_event_id: Scalars['uuid']['input'];
+  mode: Scalars['String']['input'];
 };
 
 
@@ -5241,6 +5293,13 @@ export type Mutation_RootUpload_SignatureArgs = {
 
 
 /** mutation root */
+export type Mutation_RootUpload_Transparency_PolicyArgs = {
+  election_event_id: Scalars['uuid']['input'];
+  signed_policy: Scalars['String']['input'];
+};
+
+
+/** mutation root */
 export type Mutation_RootUpsert_AreaArgs = {
   allow_early_voting?: InputMaybe<EarlyVotingPolicy>;
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
@@ -5260,6 +5319,15 @@ export type Mutation_RootUpsert_AreaArgs = {
 export type Mutation_RootUpsert_AreasArgs = {
   document_id: Scalars['String']['input'];
   election_event_id: Scalars['String']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootVitrine_Voter_ForwardArgs = {
+  body: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
+  hub?: InputMaybe<Scalars['String']['input']>;
+  route: Scalars['String']['input'];
 };
 
 /** Boolean expression to compare columns of type "numeric". All fields are combined with logical 'AND'. */
@@ -5320,6 +5388,8 @@ export type Query_Root = {
   /** get_support_materials_acknowledgment */
   get_support_materials_acknowledgment: GetSupportMaterialsAcknowledgmentOutput;
   get_top_votes_by_ip?: Maybe<GetTopCastVotesByIpOutput>;
+  /** The Transparency tab: the event's mode, Vitrine logs and policy */
+  get_transparency?: Maybe<TransparencyOutput>;
   get_user_profile_attributes: Array<UserProfileAttribute>;
   get_user_profile_configuration: UserProfileConfiguration;
   get_users: GetUsersOutput;
@@ -5600,6 +5670,8 @@ export type Query_Root = {
   task_queues_query: Scalars['jsonb']['output'];
   /** Processed messages of a task queue over time, by outcome */
   task_queues_throughput: Scalars['jsonb']['output'];
+  /** What the booth must hold before encrypting in an election event with transparency */
+  vitrine_voter_context?: Maybe<VitrineVoterContext>;
 };
 
 
@@ -5693,6 +5765,11 @@ export type Query_RootGet_Support_Materials_AcknowledgmentArgs = {
 
 export type Query_RootGet_Top_Votes_By_IpArgs = {
   body: GetTopCastVotesByIpInput;
+};
+
+
+export type Query_RootGet_TransparencyArgs = {
+  election_event_id: Scalars['uuid']['input'];
 };
 
 
@@ -6826,6 +6903,12 @@ export type Query_RootTask_Queues_ThroughputArgs = {
   bucket_minutes?: InputMaybe<Scalars['Int']['input']>;
   hours?: InputMaybe<Scalars['Int']['input']>;
   queue: Scalars['String']['input'];
+};
+
+
+export type Query_RootVitrine_Voter_ContextArgs = {
+  election_event_id: Scalars['uuid']['input'];
+  election_id: Scalars['uuid']['input'];
 };
 
 /** columns and relationships of "sequent_backend.applications" */
@@ -26493,6 +26576,29 @@ export type TaskQueuesQueryQueryVariables = Exact<{
 
 export type TaskQueuesQueryQuery = { __typename?: 'query_root', task_queues_query: any };
 
+export type GetTransparencyQueryVariables = Exact<{
+  electionEventId: Scalars['uuid']['input'];
+}>;
+
+
+export type GetTransparencyQuery = { __typename?: 'query_root', get_transparency?: { __typename?: 'TransparencyOutput', mode: string, refusal?: string | null, locked: boolean, logs?: any | null, status?: any | null, draft_policy?: string | null, policy?: string | null, policy_id?: string | null, enrolments?: any | null, explorer_url?: string | null } | null };
+
+export type EnableTransparencyMutationVariables = Exact<{
+  electionEventId: Scalars['uuid']['input'];
+  mode: Scalars['String']['input'];
+}>;
+
+
+export type EnableTransparencyMutation = { __typename?: 'mutation_root', enable_transparency?: { __typename?: 'TransparencyOutput', mode: string, refusal?: string | null, locked: boolean, logs?: any | null, status?: any | null, draft_policy?: string | null, policy?: string | null, policy_id?: string | null, enrolments?: any | null, explorer_url?: string | null } | null };
+
+export type UploadTransparencyPolicyMutationVariables = Exact<{
+  electionEventId: Scalars['uuid']['input'];
+  signedPolicy: Scalars['String']['input'];
+}>;
+
+
+export type UploadTransparencyPolicyMutation = { __typename?: 'mutation_root', upload_transparency_policy?: { __typename?: 'TransparencyOutput', mode: string, refusal?: string | null, locked: boolean, logs?: any | null, status?: any | null, draft_policy?: string | null, policy?: string | null, policy_id?: string | null, enrolments?: any | null, explorer_url?: string | null } | null };
+
 export type UpdateElectionVotingStatusMutationVariables = Exact<{
   electionId: Scalars['uuid']['input'];
   electionEventId: Scalars['uuid']['input'];
@@ -26771,6 +26877,9 @@ export const TaskQueuesThroughputDocument = {"kind":"Document","definitions":[{"
 export const TaskQueuesMessagesDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"TaskQueuesMessages"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"queue"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"state"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"before"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"limit"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"task_queues_messages"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"queue"},"value":{"kind":"Variable","name":{"kind":"Name","value":"queue"}}},{"kind":"Argument","name":{"kind":"Name","value":"state"},"value":{"kind":"Variable","name":{"kind":"Name","value":"state"}}},{"kind":"Argument","name":{"kind":"Name","value":"before"},"value":{"kind":"Variable","name":{"kind":"Name","value":"before"}}},{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"Variable","name":{"kind":"Name","value":"limit"}}}]}]}}]} as unknown as DocumentNode<TaskQueuesMessagesQuery, TaskQueuesMessagesQueryVariables>;
 export const TaskQueuesDeadLettersDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"TaskQueuesDeadLetters"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"operation"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"messageIds"}},"type":{"kind":"NonNullType","type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"task_queues_dead_letters"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"operation"},"value":{"kind":"Variable","name":{"kind":"Name","value":"operation"}}},{"kind":"Argument","name":{"kind":"Name","value":"message_ids"},"value":{"kind":"Variable","name":{"kind":"Name","value":"messageIds"}}}]}]}}]} as unknown as DocumentNode<TaskQueuesDeadLettersMutation, TaskQueuesDeadLettersMutationVariables>;
 export const TaskQueuesQueryDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"TaskQueuesQuery"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"sql"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"task_queues_query"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"sql"},"value":{"kind":"Variable","name":{"kind":"Name","value":"sql"}}}]}]}}]} as unknown as DocumentNode<TaskQueuesQueryQuery, TaskQueuesQueryQueryVariables>;
+export const GetTransparencyDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetTransparency"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"get_transparency"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"mode"}},{"kind":"Field","name":{"kind":"Name","value":"refusal"}},{"kind":"Field","name":{"kind":"Name","value":"locked"}},{"kind":"Field","name":{"kind":"Name","value":"logs"}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"draft_policy"}},{"kind":"Field","name":{"kind":"Name","value":"policy"}},{"kind":"Field","name":{"kind":"Name","value":"policy_id"}},{"kind":"Field","name":{"kind":"Name","value":"enrolments"}},{"kind":"Field","name":{"kind":"Name","value":"explorer_url"}}]}}]}}]} as unknown as DocumentNode<GetTransparencyQuery, GetTransparencyQueryVariables>;
+export const EnableTransparencyDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"EnableTransparency"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"mode"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"enable_transparency"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}},{"kind":"Argument","name":{"kind":"Name","value":"mode"},"value":{"kind":"Variable","name":{"kind":"Name","value":"mode"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"mode"}},{"kind":"Field","name":{"kind":"Name","value":"refusal"}},{"kind":"Field","name":{"kind":"Name","value":"locked"}},{"kind":"Field","name":{"kind":"Name","value":"logs"}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"draft_policy"}},{"kind":"Field","name":{"kind":"Name","value":"policy"}},{"kind":"Field","name":{"kind":"Name","value":"policy_id"}},{"kind":"Field","name":{"kind":"Name","value":"enrolments"}},{"kind":"Field","name":{"kind":"Name","value":"explorer_url"}}]}}]}}]} as unknown as DocumentNode<EnableTransparencyMutation, EnableTransparencyMutationVariables>;
+export const UploadTransparencyPolicyDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UploadTransparencyPolicy"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"signedPolicy"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"upload_transparency_policy"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}},{"kind":"Argument","name":{"kind":"Name","value":"signed_policy"},"value":{"kind":"Variable","name":{"kind":"Name","value":"signedPolicy"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"mode"}},{"kind":"Field","name":{"kind":"Name","value":"refusal"}},{"kind":"Field","name":{"kind":"Name","value":"locked"}},{"kind":"Field","name":{"kind":"Name","value":"logs"}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"draft_policy"}},{"kind":"Field","name":{"kind":"Name","value":"policy"}},{"kind":"Field","name":{"kind":"Name","value":"policy_id"}},{"kind":"Field","name":{"kind":"Name","value":"enrolments"}},{"kind":"Field","name":{"kind":"Name","value":"explorer_url"}}]}}]}}]} as unknown as DocumentNode<UploadTransparencyPolicyMutation, UploadTransparencyPolicyMutationVariables>;
 export const UpdateElectionVotingStatusDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdateElectionVotingStatus"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"votingStatus"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"VotingStatus"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"votingChannel"}},"type":{"kind":"ListType","type":{"kind":"NamedType","name":{"kind":"Name","value":"VotingStatusChannel"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"update_election_voting_status"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"election_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionId"}}},{"kind":"Argument","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}},{"kind":"Argument","name":{"kind":"Name","value":"voting_status"},"value":{"kind":"Variable","name":{"kind":"Name","value":"votingStatus"}}},{"kind":"Argument","name":{"kind":"Name","value":"voting_channels"},"value":{"kind":"Variable","name":{"kind":"Name","value":"votingChannel"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"election_id"}}]}}]}}]} as unknown as DocumentNode<UpdateElectionVotingStatusMutation, UpdateElectionVotingStatusMutationVariables>;
 export const UpdateEventVotingStatusDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdateEventVotingStatus"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"votingStatus"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"VotingStatus"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"votingChannel"}},"type":{"kind":"ListType","type":{"kind":"NamedType","name":{"kind":"Name","value":"VotingStatusChannel"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"update_event_voting_status"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}},{"kind":"Argument","name":{"kind":"Name","value":"voting_status"},"value":{"kind":"Variable","name":{"kind":"Name","value":"votingStatus"}}},{"kind":"Argument","name":{"kind":"Name","value":"voting_channels"},"value":{"kind":"Variable","name":{"kind":"Name","value":"votingChannel"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}}]}}]}}]} as unknown as DocumentNode<UpdateEventVotingStatusMutation, UpdateEventVotingStatusMutationVariables>;
 export const UpdatePhoneBlacklistEntryDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdatePhoneBlacklistEntry"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"reason"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"update_sequent_backend_phone_blacklist_by_pk"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"pk_columns"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}}]}},{"kind":"Argument","name":{"kind":"Name","value":"_set"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"reason"},"value":{"kind":"Variable","name":{"kind":"Name","value":"reason"}}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]} as unknown as DocumentNode<UpdatePhoneBlacklistEntryMutation, UpdatePhoneBlacklistEntryMutationVariables>;
