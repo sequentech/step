@@ -28,7 +28,9 @@ use b3::messages::message::Message;
 use b3::messages::newtypes::*;
 use b3::messages::statement::StatementType;
 use std::path::PathBuf;
+use std::sync::Arc;
 use strand::util::StrandError;
+use zeroize::{ZeroizeOnDrop, Zeroizing};
 
 use strand::symm::{self, EncryptionData};
 
@@ -68,8 +70,8 @@ pub struct Trustee<C: Ctx> {
     pub(crate) name: String,
     #[allow(dead_code)]
     pub(crate) board_name: String,
-    pub(crate) signing_key: StrandSignatureSk,
-    pub(crate) encryption_key: symm::SymmetricKey,
+    pub(crate) signing_key: Arc<StrandSignatureSk>,
+    pub(crate) encryption_key: Arc<Zeroizing<symm::SymmetricKey>>,
     pub(crate) local_board: LocalBoard<C>,
     // FIXME consider moving this into LocalBoard. This field would be
     // updated in LocalBoard when calling add, instead of being returned to
@@ -90,8 +92,8 @@ impl<C: Ctx> Trustee<C> {
     pub fn new(
         name: String,
         board_name: String,
-        signing_key: StrandSignatureSk,
-        encryption_key: symm::SymmetricKey,
+        signing_key: Arc<StrandSignatureSk>,
+        encryption_key: Arc<Zeroizing<symm::SymmetricKey>>,
         store: Option<PathBuf>,
         max_concurrent_actions: Option<usize>,
     ) -> Trustee<C> {
@@ -690,8 +692,8 @@ impl<C: Ctx> Trustee<C> {
                 let identifier: String = self.get_pk()?.to_der_b64_string()?;
                 // 0 is a dummy batch value
                 let aad = cfg.label(0, format!("encrypted by {}", identifier));
-                let bytes: &[u8] = &sk.strand_serialize()?;
-                let ed = symm::encrypt(self.encryption_key, bytes, &aad)?;
+                let bytes = Zeroizing::new(sk.strand_serialize()?);
+                let ed = symm::encrypt(**self.encryption_key, &bytes, &aad)?;
 
                 Ok(ed)
             }
@@ -700,7 +702,7 @@ impl<C: Ctx> Trustee<C> {
                 let identifier: String = self.get_pk()?.to_der_b64_string()?;
                 // 0 is a dummy batch value
                 let aad = cfg.label(0, format!("encrypted by {}", identifier));
-                let decrypted = symm::decrypt(&self.encryption_key, &c.encrypted_channel_sk, &aad)?;
+                let decrypted = Zeroizing::new(symm::decrypt(&self.encryption_key, &c.encrypted_channel_sk, &aad)?);
                 let ret = PrivateKey::<C>::strand_deserialize(&decrypted)?;
 
                 Ok(ret)
@@ -708,14 +710,14 @@ impl<C: Ctx> Trustee<C> {
         }
         else {
             pub(crate) fn encrypt_share_sk(&self, sk: &PrivateKey<C>, _cfg: &Configuration<C>) -> Result<EncryptionData, ProtocolError> {
-                let bytes: &[u8] = &sk.strand_serialize()?;
-                let ed = symm::encrypt(self.encryption_key, bytes)?;
+                let bytes = Zeroizing::new(sk.strand_serialize()?);
+                let ed = symm::encrypt(**self.encryption_key, &bytes)?;
 
                 Ok(ed)
             }
 
             pub(crate) fn decrypt_share_sk(&self, c: &Channel<C>, _cfg: &Configuration<C>) -> Result<PrivateKey<C>, ProtocolError> {
-                let decrypted = symm::decrypt(&self.encryption_key, &c.encrypted_channel_sk)?;
+                let decrypted = Zeroizing::new(symm::decrypt(&self.encryption_key, &c.encrypted_channel_sk)?);
                 let ret = PrivateKey::<C>::strand_deserialize(&decrypted)?;
 
                 Ok(ret)
@@ -767,7 +769,7 @@ use serde::{Deserialize, Serialize};
 /// Trustee configuration files are passed to the braid
 /// binary on startup. Trustee configuration files
 /// contain cryptographic secrets.
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, ZeroizeOnDrop)]
 pub struct TrusteeConfig {
     // base64 encoding of a der encoded pkcs#8 v1
     pub signing_key_sk: String,
@@ -832,5 +834,17 @@ impl StepResult {
             _added_messages,
             _last_id,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn assert_zeroize_on_drop<T: ZeroizeOnDrop>() {}
+
+    #[test]
+    fn test_trustee_config_is_zeroized_on_drop() {
+        assert_zeroize_on_drop::<TrusteeConfig>();
     }
 }
