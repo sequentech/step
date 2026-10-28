@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use super::*;
+use sequent_core::ballot::TYPES_VERSION;
+use sequent_core::encrypt::encrypt_decoded_contest;
+use sequent_core::fixtures::ballot_codec::{get_writein_ballot_style, get_writein_plaintext};
 use serde_json::json;
 
 fn election_event(annotations: Option<serde_json::Value>) -> ElectionEvent {
@@ -422,4 +425,189 @@ fn jwt_authentication_seconds_preserve_grace_eligibility() {
     for invalid in [None, Some(i64::MAX), Some(i64::MIN)] {
         assert!(voter_authentication_time(invalid).is_err());
     }
+}
+
+const CEREMONY_PUBLIC_KEY: &str = "ceremony-public-key";
+const OTHER_PUBLIC_KEY: &str = "other-public-key";
+
+fn ballot_style(public_key: Option<&str>, is_demo: bool) -> BallotStyle {
+    deserialize_value(json!({
+        "id": Uuid::new_v4().to_string(),
+        "tenant_id": Uuid::new_v4().to_string(),
+        "election_event_id": Uuid::new_v4().to_string(),
+        "election_id": Uuid::new_v4().to_string(),
+        "area_id": Uuid::new_v4().to_string(),
+        "public_key": public_key.map(|public_key| json!({
+            "public_key": public_key,
+            "is_demo": is_demo,
+        })),
+        "contests": [],
+    }))
+    .unwrap()
+}
+
+fn stored(ballot_style: &BallotStyle) -> StoredBallotStyle {
+    StoredBallotStyle::from_ballot_eml(&serde_json::to_string(ballot_style).unwrap()).unwrap()
+}
+
+/// The reference a voter's ballot carries when it is encrypted with
+/// `voter_style`, as the portal serializes it.
+fn cast_reference(voter_style: &BallotStyle) -> BallotStyleReference {
+    let content = serde_json::to_string(&SignedHashableBallot {
+        version: TYPES_VERSION,
+        issue_date: "2026-01-01".to_string(),
+        contests: vec![],
+        config: voter_style.id.clone(),
+        ballot_style_hash: hash_ballot_style(voter_style).unwrap(),
+        voter_signing_pk: None,
+        voter_ballot_signature: None,
+    })
+    .unwrap();
+    deserialize_str(&content).unwrap()
+}
+
+#[test]
+fn accepts_a_ballot_made_with_the_stored_style_and_ceremony_key() {
+    let style = ballot_style(Some(CEREMONY_PUBLIC_KEY), false);
+
+    assert!(check_stored_ballot_style(
+        &cast_reference(&style),
+        &stored(&style),
+        Some(CEREMONY_PUBLIC_KEY),
+    )
+    .is_ok());
+}
+
+#[test]
+fn rejects_a_ballot_made_with_a_style_carrying_another_public_key() {
+    let style = ballot_style(Some(CEREMONY_PUBLIC_KEY), false);
+    let mut voter_style = style.clone();
+    voter_style.public_key = Some(PublicKeyConfig {
+        public_key: OTHER_PUBLIC_KEY.to_string(),
+        is_demo: false,
+    });
+
+    assert!(matches!(
+        check_stored_ballot_style(
+            &cast_reference(&voter_style),
+            &stored(&style),
+            Some(CEREMONY_PUBLIC_KEY),
+        ),
+        Err(CastVoteError::BallotStyleMismatch(_))
+    ));
+}
+
+#[test]
+fn rejects_a_ballot_whose_style_hash_differs_from_the_stored_style() {
+    let style = ballot_style(Some(CEREMONY_PUBLIC_KEY), false);
+    let mut voter_style = style.clone();
+    voter_style.description = Some("changed".to_string());
+
+    assert!(matches!(
+        check_stored_ballot_style(
+            &cast_reference(&voter_style),
+            &stored(&style),
+            Some(CEREMONY_PUBLIC_KEY),
+        ),
+        Err(CastVoteError::BallotStyleMismatch(_))
+    ));
+}
+
+#[test]
+fn rejects_a_stored_style_that_does_not_use_the_keys_ceremony_public_key() {
+    let style = ballot_style(Some(OTHER_PUBLIC_KEY), false);
+
+    assert!(matches!(
+        check_stored_ballot_style(
+            &cast_reference(&style),
+            &stored(&style),
+            Some(CEREMONY_PUBLIC_KEY),
+        ),
+        Err(CastVoteError::BallotStyleMismatch(_))
+    ));
+}
+
+#[test]
+fn rejects_a_non_demo_key_for_an_election_without_a_keys_ceremony_public_key() {
+    let style = ballot_style(Some(OTHER_PUBLIC_KEY), false);
+
+    assert!(matches!(
+        check_stored_ballot_style(&cast_reference(&style), &stored(&style), None),
+        Err(CastVoteError::BallotStyleMismatch(_))
+    ));
+}
+
+#[test]
+fn rejects_a_stored_style_without_a_public_key() {
+    let style = ballot_style(None, false);
+
+    for keys_ceremony_public_key in [Some(CEREMONY_PUBLIC_KEY), None] {
+        assert!(matches!(
+            check_stored_ballot_style(
+                &cast_reference(&style),
+                &stored(&style),
+                keys_ceremony_public_key,
+            ),
+            Err(CastVoteError::BallotStyleMismatch(_))
+        ));
+    }
+}
+
+#[test]
+fn accepts_a_demo_key_for_an_election_without_a_keys_ceremony_public_key() {
+    let style = ballot_style(Some(OTHER_PUBLIC_KEY), true);
+
+    assert!(check_stored_ballot_style(&cast_reference(&style), &stored(&style), None).is_ok());
+}
+
+#[test]
+fn reads_the_ballot_style_reference_of_multi_contest_ballots() {
+    let style = ballot_style(Some(CEREMONY_PUBLIC_KEY), false);
+    let content = serde_json::to_string(&SignedHashableMultiBallot {
+        version: TYPES_VERSION,
+        issue_date: "2026-01-01".to_string(),
+        contests: String::new(),
+        config: style.id.clone(),
+        ballot_style_hash: hash_ballot_style(&style).unwrap(),
+        voter_signing_pk: None,
+        voter_ballot_signature: None,
+    })
+    .unwrap();
+    let reference: BallotStyleReference = deserialize_str(&content).unwrap();
+
+    assert_eq!(reference.config, style.id);
+    assert!(
+        check_stored_ballot_style(&reference, &stored(&style), Some(CEREMONY_PUBLIC_KEY)).is_ok()
+    );
+}
+
+#[test]
+fn ballot_style_mismatch_is_not_retried() {
+    assert!(matches!(
+        skip_or_propagate(CastVoteError::BallotStyleMismatch(String::new())),
+        Ok(InsertCastVoteResult::SkipRetryFailure(
+            CastVoteError::BallotStyleMismatch(_)
+        ))
+    ));
+}
+
+#[test]
+fn accepts_a_ballot_encrypted_from_the_stored_ballot_eml() {
+    let style = get_writein_ballot_style();
+    let public_key = style.public_key.clone().unwrap().public_key;
+    let ballot_eml = serde_json::to_string(&style).unwrap();
+    let portal_style: BallotStyle =
+        deserialize_value(serde_json::from_str::<serde_json::Value>(&ballot_eml).unwrap()).unwrap();
+    let auditable_ballot =
+        encrypt_decoded_contest(&RistrettoCtx, &vec![get_writein_plaintext()], &portal_style)
+            .unwrap();
+    let content =
+        serde_json::to_string(&SignedHashableBallot::try_from(&auditable_ballot).unwrap()).unwrap();
+
+    assert!(check_stored_ballot_style(
+        &deserialize_str(&content).unwrap(),
+        &StoredBallotStyle::from_ballot_eml(&ballot_eml).unwrap(),
+        Some(&public_key),
+    )
+    .is_ok());
 }

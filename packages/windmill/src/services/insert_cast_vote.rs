@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres;
 use crate::postgres::area::get_area_by_id;
+use crate::postgres::ballot_style::get_cast_vote_ballot_style;
 use crate::postgres::election::{get_cast_vote_configuration, CastVoteConfiguration};
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::services::cast_votes::{CastVote, CastVoteStatus};
@@ -18,9 +19,11 @@ use anyhow::{anyhow, Context, Result};
 use b3::messages::message::Signer;
 use base64::{engine::general_purpose, Engine as _};
 use chrono::{DateTime, Duration, Local};
+use dashmap::DashMap;
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
 use electoral_log::messages::newtypes::*;
+use once_cell::sync::Lazy;
 use sequent_core::ballot::verify_ballot_signature;
 use sequent_core::ballot::ContestEncryptionPolicy;
 use sequent_core::ballot::EGracePeriodPolicy;
@@ -28,9 +31,11 @@ use sequent_core::ballot::{
     AreaPresentation, EarlyVotingPolicy, ElectionPresentation, ElectionStatus, VoterSigningPolicy,
     VotingPeriodDates, VotingStatus, VotingStatusChannel,
 };
+use sequent_core::ballot::{BallotStyle, PublicKeyConfig};
 use sequent_core::ballot::{HashableBallot, HashableBallotContest, SignedHashableBallot};
 use sequent_core::encrypt::hash_ballot;
 use sequent_core::encrypt::hash_ballot_sha512;
+use sequent_core::encrypt::hash_ballot_style;
 use sequent_core::encrypt::hash_multi_ballot;
 use sequent_core::encrypt::hash_multi_ballot_sha512;
 use sequent_core::encrypt::DEFAULT_PLAINTEXT_LABEL;
@@ -263,7 +268,8 @@ async fn insert_datafix_cast_vote_locked<'a>(
 fn skip_or_propagate(cast_vote_err: CastVoteError) -> Result<InsertCastVoteResult, CastVoteError> {
     match cast_vote_err {
         CastVoteError::InsertFailedExceedsAllowedRevotes
-        | CastVoteError::CheckVotesInOtherAreasFailed(_) => {
+        | CastVoteError::CheckVotesInOtherAreasFailed(_)
+        | CastVoteError::BallotStyleMismatch(_) => {
             Ok(InsertCastVoteResult::SkipRetryFailure(cast_vote_err))
         }
         _ => Err(cast_vote_err),
@@ -338,6 +344,8 @@ pub enum CastVoteError {
     #[serde(rename = "ballot_id_mismatch")]
     #[strum(to_string = "ballot_id_mismatch")]
     BallotIdMismatch(String),
+    #[serde(rename = "ballot_style_mismatch")]
+    BallotStyleMismatch(String),
     #[serde(rename = "unknown_error")]
     UnknownError(String),
 }
@@ -689,6 +697,120 @@ pub fn deserialize_and_check_multi_ballot(
     Ok((pseudonym_h, vote_h, voter_signature_opt))
 }
 
+/// A generated ballot style never changes, so its hash and public key are
+/// kept per ballot style id. The database is still asked on every cast whether
+/// the style is current for the voter.
+static STORED_BALLOT_STYLES: Lazy<DashMap<Uuid, StoredBallotStyle>> = Lazy::new(DashMap::new);
+
+/// The ballot style a cast ballot says it was encrypted with. Single and
+/// multi-contest ballots share these fields.
+#[derive(Deserialize)]
+struct BallotStyleReference {
+    config: String,
+    ballot_style_hash: String,
+}
+
+#[derive(Clone)]
+struct StoredBallotStyle {
+    hash: String,
+    public_key: Option<PublicKeyConfig>,
+}
+
+impl StoredBallotStyle {
+    fn from_ballot_eml(ballot_eml: &str) -> Result<Self, CastVoteError> {
+        let ballot_style: BallotStyle = deserialize_str(ballot_eml)
+            .map_err(|err| CastVoteError::CheckStatusInternalFailed(err.to_string()))?;
+        let hash = hash_ballot_style(&ballot_style)
+            .map_err(|err| CastVoteError::CheckStatusInternalFailed(err.to_string()))?;
+        Ok(Self {
+            hash,
+            public_key: ballot_style.public_key,
+        })
+    }
+}
+
+/// The ballot must carry the hash of the stored ballot style it names, and
+/// that style must use the public key of its election's keys ceremony. Without
+/// a keys ceremony public key, only a demo key is accepted.
+fn check_stored_ballot_style(
+    reference: &BallotStyleReference,
+    stored: &StoredBallotStyle,
+    keys_ceremony_public_key: Option<&str>,
+) -> Result<(), CastVoteError> {
+    if reference.ballot_style_hash != stored.hash {
+        return Err(CastVoteError::BallotStyleMismatch(format!(
+            "Ballot style {} has hash {}, the ballot says {}",
+            reference.config, stored.hash, reference.ballot_style_hash
+        )));
+    }
+    let uses_election_key = match (keys_ceremony_public_key, stored.public_key.as_ref()) {
+        (Some(expected), Some(public_key)) => public_key.public_key == expected,
+        (None, Some(public_key)) => public_key.is_demo,
+        (_, None) => false,
+    };
+    if !uses_election_key {
+        return Err(CastVoteError::BallotStyleMismatch(format!(
+            "Ballot style {} does not use the keys ceremony public key of its election",
+            reference.config
+        )));
+    }
+    Ok(())
+}
+
+/// Requires the ballot to name a current ballot style of the voter's area and
+/// election, on every voting channel.
+#[instrument(skip_all, err)]
+async fn check_ballot_style(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &Uuid,
+    election_event_id: &Uuid,
+    election_id: &Uuid,
+    area_id: &Uuid,
+    content: &str,
+) -> Result<(), CastVoteError> {
+    let _phase = CastVotePhase::start("check_ballot_style");
+    let reference: BallotStyleReference = deserialize_str(content)
+        .map_err(|err| CastVoteError::DeserializeBallotFailed(err.to_string()))?;
+    let not_current = || {
+        CastVoteError::BallotStyleMismatch(format!(
+            "Ballot style {} is not a current ballot style for the voter",
+            reference.config
+        ))
+    };
+    let ballot_style_id = Uuid::parse_str(&reference.config).map_err(|_| not_current())?;
+    let cached = STORED_BALLOT_STYLES
+        .get(&ballot_style_id)
+        .map(|entry| entry.value().clone());
+
+    let found = get_cast_vote_ballot_style(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        election_id,
+        area_id,
+        &ballot_style_id,
+        cached.is_none(),
+    )
+    .await
+    .map_err(|err| CastVoteError::CheckStatusInternalFailed(err.to_string()))?
+    .ok_or_else(not_current)?;
+
+    let stored = match (cached, found.ballot_eml) {
+        (Some(stored), _) => stored,
+        (None, Some(ballot_eml)) => {
+            let stored = StoredBallotStyle::from_ballot_eml(&ballot_eml)?;
+            STORED_BALLOT_STYLES.insert(ballot_style_id, stored.clone());
+            stored
+        }
+        (None, None) => return Err(not_current()),
+    };
+    check_stored_ballot_style(
+        &reference,
+        &stored,
+        found.keys_ceremony_public_key.as_deref(),
+    )
+}
+
 #[instrument(
     skip(
         input,
@@ -735,6 +857,16 @@ pub async fn insert_cast_vote_and_commit<'a>(
         auth_time,
         voting_channel,
         is_early_voting_area,
+    )
+    .await?;
+
+    check_ballot_style(
+        &hasura_transaction,
+        &tenant_uuid,
+        &election_event_uuid,
+        &election_uuid,
+        &area_uuid,
+        &input.content,
     )
     .await?;
 
