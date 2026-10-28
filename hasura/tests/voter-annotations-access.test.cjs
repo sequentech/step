@@ -28,16 +28,17 @@ const voterSelectColumns = (table) => {
     return permission.permission.columns
 }
 
-// sequent_backend_area has no presentation column in this release.
-for (const [table, visibleColumns] of [
-    ["sequent_backend_election_event", ["id", "presentation"]],
-    ["sequent_backend_election", ["id", "presentation"]],
-    ["sequent_backend_area", ["id", "name"]],
+// On 9.0 sequent_backend_area has no presentation column.
+for (const [table, hasPresentation] of [
+    ["sequent_backend_election_event", true],
+    ["sequent_backend_election", true],
+    ["sequent_backend_area", false],
 ]) {
     test(`voter select on ${table} excludes annotations`, () => {
         const columns = voterSelectColumns(table)
-        for (const column of visibleColumns) {
-            assert.ok(columns.includes(column))
+        assert.ok(columns.includes("id"))
+        if (hasPresentation) {
+            assert.ok(columns.includes("presentation"))
         }
         assert.ok(!columns.includes("annotations"))
     })

@@ -32,7 +32,12 @@ pub async fn create_ballot_receipt(
     time_zone: Option<TimeZone>,
     date_format: Option<DateFormat>,
     task_execution: TasksExecution,
+    is_kiosk: Option<bool>,
 ) -> Result<()> {
+    // Kept so requests and queued tasks stay compatible; the tracker link is
+    // built from portal configuration. Tasks queued without `is_kiosk` get a
+    // normal portal link.
+    let _ = ballot_tracker_url;
     let _permit = acquire_semaphore().await?;
     // Spawn the task using an async block
     let handle = tokio::task::spawn_blocking({
@@ -79,7 +84,7 @@ pub async fn create_ballot_receipt(
                         area_id,
                         voter_id,
                         ballot_id,
-                        ballot_tracker_url,
+                        is_kiosk: is_kiosk.unwrap_or_default(),
                         time_zone,
                         date_format,
                     }),
@@ -118,4 +123,49 @@ pub async fn create_ballot_receipt(
     }?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use celery::task::Task;
+
+    type Params = <create_ballot_receipt as Task>::Params;
+
+    #[test]
+    fn tasks_queued_without_the_kiosk_flag_still_deserialize() {
+        let mut kwargs = serde_json::json!({
+            "document_id": "document-id",
+            "ballot_id": "ballot-id",
+            "ballot_tracker_url": "https://voting.example/legacy-path",
+            "tenant_id": "tenant-id",
+            "election_event_id": "event-id",
+            "election_id": "election-id",
+            "area_id": "area-id",
+            "voter_id": "voter-id",
+            "time_zone": null,
+            "date_format": null,
+            "task_execution": {
+                "id": "task-id",
+                "tenant_id": "tenant-id",
+                "election_event_id": "event-id",
+                "name": "ballot receipt",
+                "task_type": "CREATE_BALLOT_RECEIPT",
+                "execution_status": "IN_PROGRESS",
+                "created_at": "2026-10-16T00:00:00Z",
+                "start_at": null,
+                "end_at": null,
+                "annotations": null,
+                "labels": null,
+                "logs": null,
+                "executed_by_user": "voter-id"
+            }
+        });
+        let queued: Params = serde_json::from_value(kwargs.clone()).unwrap();
+        assert_eq!(queued.is_kiosk, None);
+
+        kwargs["is_kiosk"] = serde_json::Value::Bool(true);
+        let current: Params = serde_json::from_value(kwargs).unwrap();
+        assert_eq!(current.is_kiosk, Some(true));
+    }
 }
