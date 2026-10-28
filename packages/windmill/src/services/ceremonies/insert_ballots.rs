@@ -6,7 +6,7 @@ use crate::postgres::cast_vote::count_unresolved_cast_votes;
 use crate::postgres::election::get_elections;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::trustee::get_trustees_by_name;
-use crate::services::cast_votes::{find_area_ballots, CastVote};
+use crate::services::cast_votes::{ciphertext_fingerprint, find_area_ballots, CastVote};
 use crate::services::celery_app::get_worker_threads;
 use crate::services::ceremonies::auditable_ballots::{
     remove_auditable_upload, save_auditable_ballots, write_ballot,
@@ -50,10 +50,12 @@ use sequent_core::types::keycloak::{
     MAX_TOTAL_VOTE_WEIGHT, MIN_WEIGHT_BATCH_ANONYMITY, VOTE_WEIGHT_BATCHES,
 };
 use serde_json::json;
+use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::io::{BufWriter, Write};
 use strand::backend::ristretto::RistrettoCtx;
 use strand::elgamal::Ciphertext;
+use strand::hash::Hash;
 use strand::serialization::StrandDeserialize;
 use strand::signature::StrandSignaturePk;
 use tempfile::NamedTempFile;
@@ -315,6 +317,24 @@ pub async fn insert_ballots_messages(
                     audit_writer.flush()?;
                     drop(audit_writer);
 
+                    let ballot_count = merge_result.ballot_contents.len();
+                    let contest_ciphertexts = contest_ciphertexts(
+                        merge_result.ballot_contents,
+                        &contest_encryption_policy_clone,
+                        &contest_id.unwrap_or_default(),
+                    )?;
+                    let repeated_ciphertexts = ballot_count - contest_ciphertexts.len();
+                    if repeated_ciphertexts > 0 {
+                        event!(
+                            Level::WARN,
+                            "{repeated_ciphertexts} ballot(s) for election {}, contest {}, area {} \
+                             repeat a ciphertext of another ballot; each ciphertext is counted once",
+                            tally_session_contest.election_id,
+                            tally_session_contest.contest_id.clone().unwrap_or_default(),
+                            tally_session_contest.area_id,
+                        );
+                    }
+
                     // Checked before anything is posted, so a run that would
                     // be refused does not leave batches on an append-only
                     // board. Only weighting can inflate this beyond the ballot
@@ -322,8 +342,7 @@ pub async fn insert_ballots_messages(
                     // not using it. Weighting no longer grows the mix batch --
                     // it grows the plaintexts the tally expands after mixing --
                     // so this bounds that expansion rather than the shuffle.
-                    let total_weight: u64 = merge_result
-                        .ballot_contents
+                    let total_weight: u64 = contest_ciphertexts
                         .iter()
                         .map(|(_, multiplicity)| *multiplicity)
                         .sum();
@@ -369,7 +388,7 @@ pub async fn insert_ballots_messages(
                     // because the annotations record it whether or not this run
                     // is the one that posts them.
                     let weight_bit_mask: Option<u32> = if is_voter_weighted {
-                        let union = merge_result.ballot_contents.iter().try_fold(
+                        let union = contest_ciphertexts.iter().try_fold(
                             0u64,
                             |acc, (_, weight)| -> Result<u64> {
                                 // Same refusal the split makes, so the mask can
@@ -413,33 +432,7 @@ pub async fn insert_ballots_messages(
                         // fills only the first.
                         let mut batches: Vec<Vec<Ciphertext<RistrettoCtx>>> =
                             vec![Vec::new(); VOTE_WEIGHT_BATCHES as usize];
-                        for (ballot_str, multiplicity) in merge_result.ballot_contents {
-                            let ciphertext: Ciphertext<RistrettoCtx> =
-                                if ContestEncryptionPolicy::MULTIPLE_CONTESTS
-                                    == contest_encryption_policy_clone
-                                {
-                                    let hashable_multi_ballot: HashableMultiBallot =
-                                        deserialize_str(&ballot_str)?;
-
-                                    let hashable_multi_ballot_contests = hashable_multi_ballot
-                                        .deserialize_contests()
-                                        .map_err(|err| anyhow!("{:?}", err))?;
-                                    Some(hashable_multi_ballot_contests.ciphertext)
-                                } else {
-                                    let hashable_ballot: HashableBallot =
-                                        deserialize_str(&ballot_str)?;
-                                    let contests = hashable_ballot
-                                        .deserialize_contests()
-                                        .map_err(|err| anyhow!("{:?}", err))?;
-                                    contests
-                                        .iter()
-                                        .find(|contest| {
-                                            contest.contest_id
-                                                == contest_id.clone().unwrap_or_default()
-                                        })
-                                        .map(|contest| contest.ciphertext.clone())
-                                }
-                                .ok_or(anyhow!("Could not get ciphertext"))?;
+                        for (ciphertext, multiplicity) in contest_ciphertexts {
                             if is_voter_weighted {
                                 // The ciphertext appears once in the batch for
                                 // each bit the weight sets, and the tally
@@ -663,6 +656,54 @@ pub async fn insert_ballots_messages(
     Ok(tally_session_contests_updated)
 }
 
+/// Reads the ciphertext each ballot holds for the tallied contest, paired with
+/// the ballot's multiplicity. A ciphertext held by more than one ballot is kept
+/// once, at its first position, with the smallest multiplicity among those
+/// ballots, so repeating it neither counts it again nor adds weight to it.
+fn contest_ciphertexts(
+    ballot_contents: Vec<(String, u64)>,
+    contest_encryption_policy: &ContestEncryptionPolicy,
+    contest_id: &str,
+) -> Result<Vec<(Ciphertext<RistrettoCtx>, u64)>> {
+    let mut ciphertexts: Vec<(Ciphertext<RistrettoCtx>, u64)> = Vec::new();
+    let mut positions: HashMap<Hash, usize> = HashMap::new();
+    for (ballot_str, multiplicity) in ballot_contents {
+        let ciphertext: Ciphertext<RistrettoCtx> =
+            if ContestEncryptionPolicy::MULTIPLE_CONTESTS == *contest_encryption_policy {
+                let hashable_multi_ballot: HashableMultiBallot = deserialize_str(&ballot_str)?;
+
+                let hashable_multi_ballot_contests = hashable_multi_ballot
+                    .deserialize_contests()
+                    .map_err(|err| anyhow!("{:?}", err))?;
+                Some(hashable_multi_ballot_contests.ciphertext)
+            } else {
+                let hashable_ballot: HashableBallot = deserialize_str(&ballot_str)?;
+                let contests = hashable_ballot
+                    .deserialize_contests()
+                    .map_err(|err| anyhow!("{:?}", err))?;
+                contests
+                    .iter()
+                    .find(|contest| contest.contest_id == contest_id)
+                    .map(|contest| contest.ciphertext.clone())
+            }
+            .ok_or(anyhow!("Could not get ciphertext"))?;
+        let fingerprint = ciphertext_fingerprint(&ciphertext)
+            .map_err(|err| anyhow!("Could not fingerprint ciphertext: {err:?}"))?;
+        match positions.entry(fingerprint) {
+            Entry::Occupied(position) => {
+                if let Some((_, kept)) = ciphertexts.get_mut(*position.get()) {
+                    *kept = (*kept).min(multiplicity);
+                }
+            }
+            Entry::Vacant(position) => {
+                position.insert(ciphertexts.len());
+                ciphertexts.push((ciphertext, multiplicity));
+            }
+        }
+    }
+    Ok(ciphertexts)
+}
+
 #[instrument(skip_all, err)]
 pub async fn get_elections_end_dates(
     hasura_transaction: &Transaction<'_>,
@@ -698,4 +739,95 @@ pub async fn get_elections_end_dates(
         .collect::<Result<HashMap<_, _>>>()
         .map_err(|err| anyhow!("Error parsing election dates {:?}", err))?;
     Ok(elections_dates)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sequent_core::ballot::{HashableBallotContest, TYPES_VERSION};
+    use sequent_core::encrypt::DEFAULT_PLAINTEXT_LABEL;
+    use strand::context::Ctx;
+    use strand::elgamal::{PrivateKey, PublicKey};
+
+    const CONTEST_ID: &str = "contest";
+
+    fn encrypted_contest(contest_id: &str) -> HashableBallotContest<RistrettoCtx> {
+        let ctx = RistrettoCtx;
+        let mut rng = ctx.get_rng();
+        let secret_key = PrivateKey::gen(&ctx);
+        let public_key = PublicKey::from_element(secret_key.pk_element(), &ctx);
+        let (ciphertext, proof, _) = public_key
+            .encrypt_and_pok(&ctx.rnd(&mut rng), &DEFAULT_PLAINTEXT_LABEL)
+            .unwrap();
+        HashableBallotContest {
+            contest_id: contest_id.to_string(),
+            ciphertext,
+            proof,
+        }
+    }
+
+    fn ballot(issue_date: &str, contests: Vec<HashableBallotContest<RistrettoCtx>>) -> String {
+        serde_json::to_string(&HashableBallot {
+            version: TYPES_VERSION,
+            issue_date: issue_date.to_string(),
+            contests: HashableBallot::serialize_contests(&contests).unwrap(),
+            config: "style".to_string(),
+            ballot_style_hash: "style-hash".to_string(),
+        })
+        .unwrap()
+    }
+
+    #[test]
+    fn ciphertext_cast_by_several_voters_enters_the_batch_once() {
+        let original = encrypted_contest(CONTEST_ID);
+        let other = encrypted_contest(CONTEST_ID);
+        let ballots = vec![
+            (ballot("2026-01-01", vec![original.clone()]), 3),
+            (
+                ballot("2026-01-02", vec![original.clone(), encrypted_contest("x")]),
+                1,
+            ),
+            (ballot("2026-01-03", vec![other.clone()]), 2),
+        ];
+
+        let ciphertexts = contest_ciphertexts(
+            ballots,
+            &ContestEncryptionPolicy::SINGLE_CONTEST,
+            CONTEST_ID,
+        )
+        .unwrap();
+
+        assert_eq!(
+            ciphertexts,
+            vec![(original.ciphertext, 1), (other.ciphertext, 2)]
+        );
+    }
+
+    #[test]
+    fn distinct_ciphertexts_keep_their_order_and_multiplicity() {
+        let contests: Vec<_> = (0..3).map(|_| encrypted_contest(CONTEST_ID)).collect();
+        let ballots = contests
+            .iter()
+            .zip([1, 4, 2])
+            .map(|(contest, multiplicity)| {
+                (ballot("2026-01-01", vec![contest.clone()]), multiplicity)
+            })
+            .collect();
+
+        let ciphertexts = contest_ciphertexts(
+            ballots,
+            &ContestEncryptionPolicy::SINGLE_CONTEST,
+            CONTEST_ID,
+        )
+        .unwrap();
+
+        assert_eq!(
+            ciphertexts,
+            contests
+                .into_iter()
+                .zip([1, 4, 2])
+                .map(|(contest, multiplicity)| (contest.ciphertext, multiplicity))
+                .collect::<Vec<_>>()
+        );
+    }
 }

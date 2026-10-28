@@ -162,6 +162,7 @@ pub async fn insert_cast_vote(
     voter_country: &Option<String>,
     voting_channel: VotingStatusChannel,
     initial_status: CastVoteStatus,
+    ciphertext_fingerprints: &[String],
 ) -> Result<CastVote> {
     let status = initial_status.to_string();
     let statement = hasura_transaction
@@ -169,7 +170,7 @@ pub async fn insert_cast_vote(
             r#"
                 INSERT INTO
                     sequent_backend.cast_vote
-                (tenant_id, election_event_id, election_id, area_id, voter_id_string, ballot_id, content, cast_ballot_signature, annotations, status)
+                (tenant_id, election_event_id, election_id, area_id, voter_id_string, ballot_id, content, cast_ballot_signature, annotations, status, ciphertext_fingerprints)
                 VALUES(
                     $1,
                     $2,
@@ -180,7 +181,8 @@ pub async fn insert_cast_vote(
                     $7,
                     $8,
                     COALESCE($9::jsonb, '{}'),
-                    $10
+                    $10,
+                    $11
                 )
                 RETURNING
                     id, ballot_id, election_id, election_event_id, tenant_id,
@@ -206,6 +208,7 @@ pub async fn insert_cast_vote(
                 &cast_ballot_signature,
                 &annotations,
                 &status,
+                &ciphertext_fingerprints,
             ],
         )
         .await
@@ -235,6 +238,45 @@ pub async fn insert_cast_vote(
         cast_ballot_signature: row.try_get("cast_ballot_signature")?,
         status: row.try_get::<_, String>("status")?.parse()?,
     })
+}
+
+/// Whether a voter other than `voter_id_string` already cast, anywhere in the
+/// election event, a ballot holding one of these ciphertext fingerprints.
+#[instrument(skip(hasura_transaction, ciphertext_fingerprints), err)]
+pub async fn ciphertext_cast_by_other_voter(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &Uuid,
+    election_event_id: &Uuid,
+    voter_id_string: &str,
+    ciphertext_fingerprints: &[String],
+) -> Result<bool> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM sequent_backend.cast_vote
+                    WHERE
+                        ciphertext_fingerprints && $4::text[] AND
+                        tenant_id = $1 AND
+                        election_event_id = $2 AND
+                        voter_id_string IS DISTINCT FROM $3
+                );
+            "#,
+        )
+        .await?;
+    let row = hasura_transaction
+        .query_one(
+            &statement,
+            &[
+                tenant_id,
+                election_event_id,
+                &voter_id_string,
+                &ciphertext_fingerprints,
+            ],
+        )
+        .await?;
+    Ok(row.try_get(0)?)
 }
 
 #[cfg(test)]
