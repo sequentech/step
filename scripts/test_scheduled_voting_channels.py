@@ -15,6 +15,8 @@ from psycopg.types.json import Jsonb
 from database import CONFIGURATION_QUERY, MIGRATIONS, SCHEDULE_MIGRATION, local_database
 from fixtures import Election
 
+IDENTITY_MIGRATION = MIGRATIONS / "1791390000000_channel_schedule_identity"
+
 CHANNELS_MIGRATION = MIGRATIONS / "1789420000000_scheduled_voting_channels"
 
 
@@ -61,6 +63,40 @@ class ScheduledChannelTests(unittest.TestCase):
                 (Jsonb({"election_id": "wrong-election", "voting_channels": ["ONLINE"]}), schedule),
             )
 
+    def test_independent_kiosk_schedule_preserves_online_deadline(self):
+        online = self.election.schedule(self.connection, "END", "2027-01-01T20:00:00Z")
+        self.connection.execute(
+            "UPDATE sequent_backend.scheduled_event SET event_payload = event_payload || %s WHERE id = %s",
+            (Jsonb({"voting_channels": ["ONLINE"]}), online),
+        )
+        kiosk = self.connection.execute(
+            """INSERT INTO sequent_backend.scheduled_event
+               (tenant_id, election_event_id, task_id, event_processor, event_payload, cron_config)
+               SELECT tenant_id, election_event_id, task_id || '_channels_KIOSK', 'END_VOTING_PERIOD',
+                   event_payload || '{"voting_channels":["KIOSK"]}'::jsonb,
+                   '{"scheduled_date":"2027-01-01T17:00:00Z"}'::jsonb
+               FROM sequent_backend.scheduled_event WHERE id = %s RETURNING id""", (online,),
+        ).fetchone()[0]
+        self.assertEqual(self.connection.execute(CONFIGURATION_QUERY, self.election.scope).fetchone()[4], "2027-01-01T20:00:00Z")
+        with self.assertRaises(psycopg.errors.UniqueViolation), self.connection.transaction():
+            self.connection.execute(
+                """INSERT INTO sequent_backend.scheduled_event
+                   (tenant_id, election_event_id, task_id, event_processor, event_payload, cron_config)
+                   SELECT tenant_id, election_event_id, task_id, event_processor, event_payload, cron_config
+                   FROM sequent_backend.scheduled_event WHERE id = %s""", (kiosk,),
+            )
+        for channels in [["ONLINE"], ["TELEPHONE"], [], ["INVALID"]]:
+            with self.subTest(channels=channels), self.assertRaises(psycopg.errors.CheckViolation):
+                self.connection.execute(
+                    "UPDATE sequent_backend.scheduled_event SET event_payload = event_payload || %s WHERE id = %s",
+                    (Jsonb({"voting_channels": channels}), kiosk),
+                )
+        self.connection.execute("UPDATE sequent_backend.scheduled_event SET stopped_at = now() WHERE id = %s", (kiosk,))
+        self.assertEqual(self.connection.execute(CONFIGURATION_QUERY, self.election.scope).fetchone()[4], "2027-01-01T20:00:00Z")
+        self.database.apply(IDENTITY_MIGRATION, "down")
+        self.assertEqual(self.connection.execute(CONFIGURATION_QUERY, self.election.scope).fetchone()[4], "2027-01-01T20:00:00Z")
+        self.database.apply(IDENTITY_MIGRATION)
+
 
 if __name__ == "__main__":
     with local_database() as database:
@@ -71,6 +107,7 @@ if __name__ == "__main__":
         original = database.connection.execute(CONFIGURATION_QUERY, election.scope).fetchone()
         database.apply(CHANNELS_MIGRATION)
         assert database.connection.execute(CONFIGURATION_QUERY, election.scope).fetchone() == original
+        database.apply(IDENTITY_MIGRATION)
         ScheduledChannelTests.database = database
         result = unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromTestCase(ScheduledChannelTests))
         explicit = Election()
@@ -80,6 +117,7 @@ if __name__ == "__main__":
             "UPDATE sequent_backend.scheduled_event SET event_payload = %s WHERE id = %s",
             (Jsonb({"election_id": str(explicit.election), "voting_channels": ["KIOSK", "EARLY_VOTING"]}), explicit_schedule),
         )
+        database.apply(IDENTITY_MIGRATION, "down")
         database.apply(CHANNELS_MIGRATION, "down")
         assert database.connection.execute(CONFIGURATION_QUERY, election.scope).fetchone() == original
         # Rolled-back schedules return to the legacy payload, so the restored

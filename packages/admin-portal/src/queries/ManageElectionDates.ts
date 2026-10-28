@@ -7,6 +7,7 @@ export const MANAGE_ELECTION_DATES = gql`
     mutation ManageElectionDates(
         $electionEventId: String!
         $electionId: String
+        $scheduledEventId: String
         $scheduledDate: String
         $eventProcessor: String!
         $votingChannels: [VotingStatusChannel!]
@@ -14,6 +15,7 @@ export const MANAGE_ELECTION_DATES = gql`
         manage_election_dates(
             election_event_id: $electionEventId
             election_id: $electionId
+            scheduled_event_id: $scheduledEventId
             scheduled_date: $scheduledDate
             event_processor: $eventProcessor
             voting_channels: $votingChannels
