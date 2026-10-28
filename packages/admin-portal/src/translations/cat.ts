@@ -695,6 +695,15 @@ const catalanTranslation: TranslationType = {
                         disabled: "Desactivada",
                     },
                 },
+                kioskChannelAuthenticationPolicy: {
+                    policyLabel: "Política d'Autenticació del Canal de Quiosc",
+                    helperText:
+                        "Amb Atestació, només s'accepta un vot de quiosc quan l'inici de sessió inclou l'atestació del canal de quiosc configurada a Keycloak.",
+                    options: {
+                        "client-identity": "Identitat del client",
+                        "attested": "Atestació",
+                    },
+                },
                 languageDetectionPolicy: {
                     policyLabel: "Política de detecció de llengua",
                     options: {

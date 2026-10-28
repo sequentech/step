@@ -690,6 +690,15 @@ const basqueTranslation: TranslationType = {
                         disabled: "Desgaituta",
                     },
                 },
+                kioskChannelAuthenticationPolicy: {
+                    policyLabel: "Kiosko Kanalaren Autentifikazio Politika",
+                    helperText:
+                        "Egiaztapenarekin, kioskoko botoa onartzen da saio-hasierak Keycloak-en konfiguratutako kiosko-kanalaren egiaztapena duenean bakarrik.",
+                    options: {
+                        "client-identity": "Bezeroaren identitatea",
+                        "attested": "Egiaztapena",
+                    },
+                },
                 languageDetectionPolicy: {
                     policyLabel: "Hizkuntza detekzio politika",
                     options: {
