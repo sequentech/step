@@ -88,3 +88,6 @@ airgapped-artifacts
 /packages/voting-load/__pycache__/
 # Private voter-flow browser captures, fixtures and local build logs
 /.cache/voter-types-e2e/
+
+# Package coverage reports contain generated HTML and local absolute paths.
+/coverage/
