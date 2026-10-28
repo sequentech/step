@@ -155,6 +155,7 @@ pub fn dev_witness_admins(value: &str) -> anyhow::Result<Vec<(String, String)>> 
 /// window.
 async fn draft_policy(
     tx: &Transaction<'_>,
+    sidecar: Option<&SidecarClient>,
     config: &DeploymentConfig,
     event: &ElectionEvent,
     mode: TransparencyMode,
@@ -166,11 +167,13 @@ async fn draft_policy(
             origin: l.origin.clone(),
             vkey: l.vkey.clone(),
             log_time_vkey: l.log_time_vkey.clone(),
+            blinded_vkey: None,
             url: l.url.clone(),
             path: l.sidecar_name.clone(),
         })
     };
-    let (Some(ballots), Some(events)) = (draft_log(LogName::Ballots), draft_log(LogName::Events))
+    let (Some(mut ballots), Some(mut events)) =
+        (draft_log(LogName::Ballots), draft_log(LogName::Events))
     else {
         return Ok(None);
     };
@@ -191,6 +194,58 @@ async fn draft_policy(
         .get_presentation()?
         .and_then(|p| p.language_conf)
         .and_then(|l| l.default_language_code);
+    let policy_salt = vitrine.and_then(|v| {
+        v.policy
+            .as_deref()
+            .and_then(|policy| {
+                policy
+                    .lines()
+                    .find_map(|line| line.strip_prefix("policy-salt ").map(str::to_string))
+            })
+            .or_else(|| v.policy_salt.clone())
+    });
+    if mode == TransparencyMode::PRIVATE {
+        let salt = policy_salt
+            .as_deref()
+            .ok_or_else(|| anyhow!("a private event's policy has no salt"))?;
+        for (name, log) in [
+            (LogName::Ballots, &mut ballots),
+            (LogName::Events, &mut events),
+        ] {
+            let pseudo = super::policy::pseudo_origin(&log.origin, salt)?;
+            let stored = vitrine
+                .and_then(|v| v.policy.as_deref())
+                .and_then(|policy| {
+                    policy.lines().find_map(|line| {
+                        match line.split(' ').collect::<Vec<_>>().as_slice() {
+                            ["blinded", log_name, subject, key]
+                                if *log_name == name.as_ref() && *subject == pseudo =>
+                            {
+                                Some(key.to_string())
+                            }
+                            _ => None,
+                        }
+                    })
+                });
+            log.blinded_vkey = match stored {
+                Some(key) => Some(key),
+                None => {
+                    let Some(sidecar) = sidecar else {
+                        return Ok(None);
+                    };
+                    match sidecar.blinded_key(&log.path, &pseudo).await {
+                        Ok(key) => Some(key),
+                        Err(error) => {
+                            // An offline sidecar leaves drafting unavailable, but the
+                            // administrator can still read an existing policy and state.
+                            warn!("Error provisioning the {name} log's private anchoring key: {error}");
+                            return Ok(None);
+                        }
+                    }
+                }
+            };
+        }
+    }
     let draft_event = DraftEvent {
         name: policy_name(Some(&tenant.slug), &event.tenant_id, &event.id)?,
         mode,
@@ -198,7 +253,7 @@ async fn draft_policy(
         election_ids: elections.iter().map(|e| e.id.clone()).collect(),
         window,
         language,
-        policy_salt: vitrine.and_then(|v| v.policy_salt.clone()),
+        policy_salt,
         ballots,
         events,
     };
@@ -261,7 +316,9 @@ pub async fn transparency_output(
     let logs = get_vitrine_logs(tx, tenant_id, election_event_id).await?;
     let vitrine = get_vitrine_event(tx, tenant_id, election_event_id).await?;
     let draft_policy = match config {
-        Some(config) => draft_policy(tx, config, &event, mode, &logs, vitrine.as_ref()).await?,
+        Some(config) => {
+            draft_policy(tx, sidecar, config, &event, mode, &logs, vitrine.as_ref()).await?
+        }
         None => None,
     };
     let (logs_view, status) = sidecar_view(sidecar, &logs).await;
@@ -548,6 +605,9 @@ pub async fn upload_transparency_policy(
     let Some(sidecar) = sidecar else {
         return refused("The deployment has no Vitrine sidecar: set HARVEST_VITRINE_INTERNAL_URL");
     };
+    super::policy::check_step_policy_admission(signed_policy).map_err(|e| {
+        TransparencyError::Refused(format!("The policy cannot be admitted by Step: {e}"))
+    })?;
     let tx = db.transaction().await?;
     let event = lock_unopened(&tx, tenant_id, election_event_id).await?;
     let mode = transparency_mode(&event)?;
@@ -690,7 +750,7 @@ mod tests {
                 "name": "t/e/ballots",
                 "origin": "vote.localhost/t/e/ballots",
                 "database": "electoral_log_e",
-                "profile": "vitrine/election/v1",
+                "profile": "vitrine/election/ballots/v1",
                 "visibility": "public",
                 "submission": "queue",
                 "app_role": "vitrine_queue",
@@ -699,7 +759,7 @@ mod tests {
         assert!(log_request(LogName::Ballots, "n", "o", "d", "public", None).is_err());
         let events = log_request(LogName::Events, "n", "o", "d", "private", None).unwrap();
         let events = serde_json::to_value(&events).unwrap();
-        assert_eq!(events["profile"], "vitrine/events/v1");
+        assert_eq!(events["profile"], "vitrine/election/events/v1");
         assert_eq!(events["submission"], "http");
         assert_eq!(events.get("app_role"), None);
     }

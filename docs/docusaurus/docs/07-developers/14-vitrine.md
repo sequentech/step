@@ -38,8 +38,8 @@ event has two logs on the sidecar:
 
 | Log | Profile | Entries | How they arrive |
 | --- | --- | --- | --- |
-| `ballots` | `vitrine/election/v1` | One per accepted ballot | The ballot box writes the entry to the log's queue in the event's electoral-log database, in the transaction that stores the ballot. |
-| `events` | `vitrine/events/v1` | Each election's configuration, `voting-opened`, `voting-closed`, and a milestone when a tally completes and when results are published | Windmill posts signed statements to the sidecar's `POST add`, with the log's submission token. |
+| `ballots` | `vitrine/election/ballots/v1` | One per accepted ballot | The ballot box writes the entry to the log's queue in the event's electoral-log database, in the transaction that stores the ballot. |
+| `events` | `vitrine/election/events/v1` | Each election's configuration, `voting-opened`, `voting-closed`, and a milestone when a tally completes and when results are published | Windmill posts signed statements to the sidecar's `POST add`, with the log's submission token. |
 
 Witnesses co-sign the logs' checkpoints. The event's trust policy names the
 logs, their keys, the witnesses and the quorum of witnesses that a receipt
@@ -251,25 +251,25 @@ vkeys: Ed25519 for authorities, auditors, monitors and hubs, and
 | `words` | No | The language of policy and receipt words: `en`, `es`, `fr`, `it`, `pt`, `cs`, `ja`, `ko`, `zh-hans` or `zh-hant`. The event's default language is used instead when it is one of them. |
 | `mmd` | No | The maximum merge delay of promises, in seconds. Default 30, at most 3600. |
 | `explorer_url` | No | The explorer's page for a policy, with `{policy_id}` where the ID goes. The Transparency tab links to it. |
-| `monitor_quorum` | No | How many monitors, of distinct parties, must report an availability failure before verifiers show it as established. At most the number of monitors. |
-| `browser_period` | No | Public events with hubs: how often hubs anchor in the browser layer, and app hubs in bootstrap hubs, in seconds. Vitrine's default is 600. |
+| `monitor_quorum` | No | How many monitors, of distinct parties, must report an availability failure before verifiers show it as established. At least two and at most the number of monitors; at least two distinct monitor parties are required. |
+| `browser_period` | No | How often hubs anchor in the browser layer, and app hubs in bootstrap hubs, in seconds. Vitrine's default is 600. |
 
 ### Sections
 
 | Section | Keys | Meaning |
 | --- | --- | --- |
-| `[profiles]` | `election`, `events` | The meaning hashes of the `vitrine/election/v1` and `vitrine/events/v1` profiles that the sidecar runs, each `sha256:` and 64 hex digits. A Vitrine image lists them in `/usr/local/share/vitrine-dev/meaning-hashes`. |
+| `[profiles]` | `election`, `events` | The meaning hashes of the `vitrine/election/ballots/v1` and `vitrine/election/events/v1` profiles that the sidecar runs, each `sha256:` and 64 hex digits. A Vitrine image lists them in `/usr/local/share/vitrine-dev/meaning-hashes`. |
 | `[sign]` | `threshold`, `authorities` | How many of the listed authorities must sign a policy. It must list the Board, which seals. |
 | `[redaction]` | `threshold`, `authorities` | Optional: who approves redaction notices, in the same shape. Without it, nothing can be redacted. |
-| `[anchor]` | `period`, `max_gap` | Optional, for public events with hubs: a log that grew anchors in the hubs every `period` seconds (at least 1), and monitors report `anchor-late` when a checkpoint waited more than `max_gap` seconds for an anchor. Vitrine's default is 10 and 60. |
-| `[anchor_hubs]` | `min`, `min_independent` | Optional: how many app hubs must be independent of each other, and how many of them independent of the operator. |
+| `[anchor]` | `period`, `max_gap` | Optional: public logs that grew anchor in hubs every `period` seconds (at least 1); private logs send blinded anchors every period even when idle. Monitors report `anchor-late` when a checkpoint waited more than `max_gap` seconds for an anchor. Vitrine's default is 10 and 60. |
+| `[anchor_hubs]` | `min`, `min_independent` | Optional stronger requirements. The election profiles always require a subset of at least two pairwise independent app hubs, at least one independent of the operator; bootstrap hubs do not count. |
 | `[[authorities]]` | `name`, `vkey`, `role` | The policy's authorities. `role` is `board`, `operator` or `other`; exactly one is the Board and exactly one the operator, whose key signs the `events` statements. |
 | `[[auditors]]` | `name`, `vkey` | The auditors who may read private logs. A private event needs one. |
 | `[[witnesses]]` | `name`, `vkey`, `url`, `party` | The logs' witnesses. `url` is optional; `party` defaults to the witness's own name. |
 | `[[groups]]` | `name`, `threshold`, `members` | Groups of witnesses and groups, for the quorum. `threshold` is a number, `any` or `all`. Members are defined before the group and belong to one group only. |
 | `[[monitors]]` | `name`, `vkey`, `url`, `party` | The policy's monitors, which check the logs and collect evidence. |
 | `[[mirrors]]` | `url`, `party`, `logs` | Mirrors of the logs' tiles. `url` has `{path}` where the log's path on the sidecar goes; `party` defaults to the operator; `logs` (`ballots`, `events`) defaults to both. A public event needs a `ballots` mirror that the operator doesn't run. |
-| `[[hubs]]` | `name`, `vkey`, `url`, `operator`, `role`, `witnesses`, `groups`, `quorum` | Anchor hubs, for public events. `role` is `app` (the default: the logs anchor in it) or `bootstrap` (it stands in for the browser layer). `witnesses` and `groups` have the shapes above. |
+| `[[hubs]]` | `name`, `vkey`, `url`, `operator`, `role`, `witnesses`, `groups`, `quorum` | Anchor hubs for both public and private events. `role` is `app` (the default: the logs anchor in it) or `bootstrap` (it stands in for the browser layer). `witnesses` and `groups` have the shapes above. |
 
 Harvest also checks that:
 
@@ -281,14 +281,15 @@ Harvest also checks that:
 - with app hubs, the witnesses have distinct key names, and there are at most
   31 of them;
 - a bootstrap hub isn't run by the operator and is independent of every app
-  hub, and the app hubs meet `[anchor_hubs]`.
+  hub, and the app hubs meet `[anchor_hubs]` and the unconditional election-profile floor;
+- the profile bindings equal the two reviewed built-in meaning hashes in the configuration. Unknown, obsolete or future meanings need an explicit integration update and are refused.
 
 ### What comes from the event
 
 The draft takes its `name` (`<tenant slug>/<event id>`, or
 `<tenant id>/<event id>` when the slug can't be a name), `visibility` (the
 mode), `required on`, and for a private event a random `policy-salt`, from the
-event. Its `opens` is the earliest scheduled start of the event's elections and
+event. Private drafts also include a `blinded` line for each log: Harvest calls the authenticated, idempotent `POST /admin/logs/<name>/blinded-key` with the derived pseudo-origin. The sidecar generates and durably stores the secret keys; Step keeps only their public vkeys. Both modes retain the hubs and monitor requirements. Its `opens` is the earliest scheduled start of the event's elections and
 `closes` the latest scheduled end, grace periods included: the policy can't be
 drafted while an election has no scheduled start or end, its own or the
 event's. Its `quiet` period is the last 3600 seconds before `closes`, or the
@@ -348,7 +349,9 @@ existed gets its grants from `electoral-log-admin upgrade-event-databases`.
 ## Running in development
 
 The sidecar and two witnesses run under the opt-in compose profile `vitrine`.
-Without it, the URLs above don't answer: transparent events' casts get an
+The profile supplies the sidecar and log witnesses only. Before enabling an event, separately run the two app hubs, their witnesses, and two monitors named in `.devcontainer/vitrine/deployment.toml`, or replace their URLs, verifier keys and party labels with an explicitly provisioned infrastructure configuration using `HARVEST_VITRINE_CONFIG_FILE`. The checked-in development key files describe those identities; they do not start these additional services. The full Vitrine `deploy/` stack is an example of the required lifecycle, but its keys must be copied from its actual configuration rather than assumed to match this file.
+
+The hub operators must authorize the sidecar's enrolment signer, and the monitor operators must load each event's sealed policy into their monitor configurations before monitoring that event; an answering listener alone does not establish that it watches the event. Until that infrastructure is running, do not enable a production-like transparent event or claim complete verification. Missing hub or monitor responses remain pending or unavailable; the application never lowers profile requirements to make a local stack pass. Without the compose profile, the URLs above don't answer: transparent events' casts get an
 `unavailable` receipt, and the Transparency tab can't create logs.
 
 1. Build the image from a Vitrine checkout. It has every Vitrine binary,
@@ -409,8 +412,7 @@ Without it, the URLs above don't answer: transparent events' casts get an
    ```
 
    The development `[sign]` asks for the Board's signature only, which
-   sealing adds. The same command with `vitrine policy check policy.txt
-   --signed` checks the result, and shows the policy's words. Upload
+   sealing adds. The `vitrine policy check policy.txt` checks the result; `vitrine policy words policy.txt` shows the policy's words. Upload
    `policy.txt` in the Transparency tab. Harvest installs it in both logs and,
    with `HARVEST_VITRINE_DEV_WITNESS_ADMINS`, enrols the logs in both
    witnesses.
@@ -426,7 +428,7 @@ From `packages/`:
 - **Entries and statements.** `cargo test -p electoral-log --test
   vitrine_vectors` checks step's encoders against Vitrine's vectors, copied in
   `packages/electoral-log/tests/vitrine-vectors/` from Vitrine's
-  `profiles/election/v1/vectors`, `profiles/events/v1/vectors` and
+  `profiles/election/ballots/v1/vectors`, `profiles/election/events/v1/vectors` and
   `testdata/styles`. Copy them again when Vitrine's profiles change.
 - **The ballot box and its queue.** The `ACCEPT_WITH_VITRINE` contract
   tests, idempotent casting included, are in

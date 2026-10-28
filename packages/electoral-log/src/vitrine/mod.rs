@@ -14,11 +14,11 @@ pub mod statement;
 
 pub use entry::{
     ballot_id_hash, leaf_hash, ElectionEntry, EventKind, EventsEntry, Field, Hash, Subject,
-    ELECTION_TAG, EVENTS_TAG, MAX_ENTRY_SIZE,
+    ELECTION_MEANING_HASH, ELECTION_TAG, EVENTS_MEANING_HASH, EVENTS_TAG, MAX_ENTRY_SIZE,
 };
 pub use note::{NoteSigner, Vkey};
 pub use proof::{receipt_chain, ChainBlock, Submitted};
 pub use statement::{
-    election_key_hash, style_digest, style_list, styles_hash, ConfigStatement, Demo, MilestoneKind,
-    MilestoneStatement, Release, Visibility,
+    election_key_hash, normalize_policy_id, policy_note_id, style_digest, style_list, styles_hash,
+    ConfigStatement, Demo, MilestoneKind, MilestoneStatement, Release, Visibility,
 };

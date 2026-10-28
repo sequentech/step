@@ -210,7 +210,10 @@ pub async fn get_vitrine_event(
         Ok(VitrineEvent {
             policy_salt: row.try_get("policy_salt")?,
             policy: row.try_get("policy")?,
-            policy_id: row.try_get("policy_id")?,
+            policy_id: row
+                .try_get::<_, Option<String>>("policy_id")?
+                .map(|id| electoral_log::vitrine::normalize_policy_id(&id))
+                .transpose()?,
         })
     })
     .transpose()

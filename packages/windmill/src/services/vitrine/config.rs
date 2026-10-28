@@ -9,7 +9,7 @@
 
 use anyhow::{anyhow, bail, ensure, Context, Result};
 use electoral_log::vitrine::entry::check_id;
-use electoral_log::vitrine::Vkey;
+use electoral_log::vitrine::{Vkey, ELECTION_MEANING_HASH, EVENTS_MEANING_HASH};
 use serde::Deserialize;
 use std::collections::{BTreeMap, BTreeSet};
 use std::str::FromStr;
@@ -473,6 +473,11 @@ impl DeploymentConfig {
         check_name("the operator", &self.operator)?;
         check_meaning_hash("profiles.election", &self.profiles.election)?;
         check_meaning_hash("profiles.events", &self.profiles.events)?;
+        ensure!(
+            self.profiles.election == ELECTION_MEANING_HASH
+                && self.profiles.events == EVENTS_MEANING_HASH,
+            "Step requires the reviewed election ballots and election events meaning hashes"
+        );
         if let Some(words) = &self.words {
             ensure!(
                 WORD_LISTS.contains(&words.as_str()),
@@ -692,6 +697,25 @@ impl DeploymentConfig {
         if let Some(rule) = &self.anchor_hubs {
             self.check_anchor_hubs(rule)?;
         }
+        // Both election meanings impose these floors, independently of any
+        // optional anchor_hubs override in the deployment configuration.
+        self.check_anchor_hubs(&AnchorHubs {
+            min: 2,
+            min_independent: 1,
+        })?;
+        let monitor_parties: BTreeSet<&str> = self
+            .monitors
+            .iter()
+            .map(|m| m.party.as_deref().unwrap_or(&m.name))
+            .collect();
+        ensure!(
+            monitor_parties.len() >= 2,
+            "election profiles require at least two monitor parties"
+        );
+        ensure!(
+            self.monitor_quorum.unwrap_or(2) >= 2,
+            "election profiles require monitor_quorum of at least two"
+        );
         Ok(())
     }
 
@@ -868,8 +892,53 @@ pub(crate) mod tests {
             AuthorityRole::Operator
         );
         assert_eq!(config.witnesses.len(), 2);
-        assert_eq!(config.app_hubs().count(), 0);
+        assert_eq!(config.app_hubs().count(), 2);
+        assert_eq!(config.monitors.len(), 2);
+        assert_eq!(config.monitor_quorum, Some(2));
         assert_eq!(config.mmd(), DEFAULT_MMD);
+    }
+
+    #[test]
+    fn election_minimums_cannot_be_lowered_by_optional_configuration() {
+        for edit in 0..5 {
+            assert!(
+                with(|t| match edit {
+                    0 => {
+                        array(t, "hubs").truncate(1);
+                    }
+                    1 => {
+                        t.insert("monitor_quorum".into(), 1.into());
+                    }
+                    2 => {
+                        array(t, "monitors").truncate(1);
+                    }
+                    3 => {
+                        for m in array(t, "monitors") {
+                            m.as_table_mut()
+                                .unwrap()
+                                .insert("party".into(), "same-party".into());
+                        }
+                    }
+                    _ => {
+                        t.get_mut("profiles")
+                            .unwrap()
+                            .as_table_mut()
+                            .unwrap()
+                            .insert(
+                                "election".into(),
+                                format!("sha256:{}", "ab".repeat(32)).into(),
+                            );
+                    }
+                })
+                .is_err(),
+                "accepted weak config edit {edit}"
+            );
+        }
+        assert!(with(|t| {
+            t.remove("anchor_hubs");
+            array(t, "hubs").truncate(1);
+        })
+        .is_err());
     }
 
     #[test]

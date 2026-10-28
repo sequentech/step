@@ -77,7 +77,7 @@ pub async fn voter_context(
     })
 }
 
-/// The `vitrine/election/v1` entries of a voter's ballots, as the ballot box
+/// The `vitrine/election/ballots/v1` entries of a voter's ballots, as the ballot box
 /// queued them. Ballots whose ID isn't a hash have none.
 pub fn ballot_entries(election_event_id: &str, ballots: &[StoredBallot]) -> Result<Vec<Vec<u8>>> {
     let event_id = canonical_id(election_event_id)?;

@@ -97,6 +97,23 @@ pub struct InstalledPolicy {
     pub ack: String,
 }
 
+impl InstalledPolicy {
+    fn checked(policy: &str, body: &str) -> Result<Self, SidecarError> {
+        let mut installed: Self =
+            serde_json::from_str(body).map_err(|e| SidecarError::BadResponse(e.to_string()))?;
+        installed.policy_id = electoral_log::vitrine::normalize_policy_id(&installed.policy_id)
+            .map_err(|e| SidecarError::BadResponse(e.to_string()))?;
+        let expected = electoral_log::vitrine::policy_note_id(policy)
+            .map_err(|e| SidecarError::BadResponse(e.to_string()))?;
+        if installed.policy_id != expected {
+            return Err(SidecarError::BadResponse(
+                "the installed policy ID differs from the signed note text".into(),
+            ));
+        }
+        Ok(installed)
+    }
+}
+
 /// What became of an entry submitted or waited for.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Answer {
@@ -209,6 +226,40 @@ impl SidecarClient {
         serde_json::from_str(&body).map_err(|e| SidecarError::BadResponse(e.to_string()))
     }
 
+    /// Provision the private log's blinded-anchor key. Only the sidecar keeps
+    /// the secret; retries for the same pseudo-origin return the same vkey.
+    pub async fn blinded_key(&self, name: &str, pseudo: &str) -> Result<String, SidecarError> {
+        #[derive(Deserialize)]
+        struct BlindedKey {
+            vkey: String,
+        }
+        if pseudo.len() != 64
+            || !pseudo
+                .bytes()
+                .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+        {
+            return Err(SidecarError::BadResponse(
+                "a pseudo-origin is 64 lowercase hex digits".into(),
+            ));
+        }
+        let request = self.admin(
+            self.http
+                .post(self.url(&format!("admin/logs/{name}/blinded-key")))
+                .json(&serde_json::json!({"pseudo": pseudo})),
+        );
+        let (_, body) = self.expect(request, &[200]).await?;
+        let answer: BlindedKey =
+            serde_json::from_str(&body).map_err(|e| SidecarError::BadResponse(e.to_string()))?;
+        let key = electoral_log::vitrine::Vkey::parse(&answer.vkey)
+            .map_err(|e| SidecarError::BadResponse(e.to_string()))?;
+        if key.alg != 1 || key.name != pseudo {
+            return Err(SidecarError::BadResponse(
+                "the blinded Ed25519 key must be named by the pseudo-origin".into(),
+            ));
+        }
+        Ok(answer.vkey)
+    }
+
     /// `GET /admin/logs`: every log of the sidecar.
     pub async fn logs(&self) -> Result<Vec<Value>, SidecarError> {
         let request = self.admin(self.http.get(self.url("admin/logs")));
@@ -241,7 +292,7 @@ impl SidecarClient {
                 .body(policy.to_string()),
         );
         let (_, body) = self.expect(request, &[200]).await?;
-        serde_json::from_str(&body).map_err(|e| SidecarError::BadResponse(e.to_string()))
+        InstalledPolicy::checked(policy, &body)
     }
 
     /// The log's witness enrolment note, or `None` while the sidecar has none
@@ -386,5 +437,30 @@ pub async fn post_enrolment(
             status,
             body: one_line(&body),
         }),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use electoral_log::vitrine::{policy_note_id, NoteSigner};
+
+    #[test]
+    fn installed_policy_ids_are_canonical_and_bound_to_note_text() {
+        let signer = NoteSigner::from_seed("board.example", &[71; 32]).unwrap();
+        let policy = signer.sign("vitrine/policy/v1\nname event\n").unwrap();
+        let expected = policy_note_id(&policy).unwrap();
+        for id in [expected.clone(), expected[7..].to_uppercase()] {
+            let body = serde_json::json!({"policy_id": id, "ack": "ack"}).to_string();
+            assert_eq!(
+                InstalledPolicy::checked(&policy, &body).unwrap().policy_id,
+                expected
+            );
+        }
+        for id in ["ab".repeat(32), "sha256:bad".into()] {
+            let body = serde_json::json!({"policy_id": id, "ack": "ack"}).to_string();
+            assert!(InstalledPolicy::checked(&policy, &body).is_err());
+        }
+        assert!(InstalledPolicy::checked("not a signed note", "{}").is_err());
     }
 }

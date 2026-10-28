@@ -16,6 +16,10 @@
 //! - `WINDMILL_VITRINE_TEST_WITNESS_ADMINS`, the witnesses' admin listeners,
 //!   as `HARVEST_VITRINE_DEV_WITNESS_ADMINS` lists them.
 //!
+//! - `WINDMILL_VITRINE_TEST_CONFIG_FILE`, optional explicit deployment TOML
+//!   naming the actual running infrastructure while retaining the Step fixture
+//!   Board/operator authorities (defaults to `.devcontainer/vitrine/deployment.toml`).
+//!
 //! Each run makes the logs of a new event, and freezes them at the end.
 
 use anyhow::{bail, ensure, Context, Result};
@@ -39,7 +43,9 @@ use windmill::services::vitrine::client::{
     MAX_WAIT_MS,
 };
 use windmill::services::vitrine::config::DeploymentConfig;
-use windmill::services::vitrine::policy::{draft, policy_name, DraftEvent, DraftLog, PolicyFacts};
+use windmill::services::vitrine::policy::{
+    draft, policy_name, pseudo_origin, DraftEvent, DraftLog, PolicyFacts,
+};
 use windmill::services::vitrine::statements::{
     check_authority, config_statement, election_config, milestone_statement, statement_chain,
     PORTAL_PACKAGE, VOTING_OPENED_KEY,
@@ -68,6 +74,13 @@ fn env(name: &str) -> Result<String> {
 fn dev_file(path: &str) -> Result<String> {
     let path = format!("{DEV_DIR}/{path}");
     std::fs::read_to_string(&path).with_context(|| format!("Error reading {path}"))
+}
+
+fn deployment_config() -> Result<DeploymentConfig> {
+    DeploymentConfig::load(
+        &std::env::var("WINDMILL_VITRINE_TEST_CONFIG_FILE")
+            .unwrap_or_else(|_| format!("{DEV_DIR}/deployment.toml")),
+    )
 }
 
 /// Seals a draft as the Board's tool does (specs/policy.md, section 1):
@@ -135,7 +148,7 @@ async fn log_statement(
 #[tokio::test]
 #[ignore = "needs a vitrine-log sidecar and its witnesses: see the module's documentation"]
 async fn a_public_event_logs_its_ballots_and_statements_on_the_sidecar() -> Result<()> {
-    let config = DeploymentConfig::load(&format!("{DEV_DIR}/deployment.toml"))?;
+    let config = deployment_config()?;
     let admin_token = read_token_file(&env(ADMIN_TOKEN_FILE_ENV)?)?;
     let sidecar = SidecarClient::new(&env(INTERNAL_URL_ENV)?, Some(admin_token))?;
     let database_config: tokio_postgres::Config = env(DATABASE_URL_ENV)?.parse()?;
@@ -173,6 +186,7 @@ async fn a_public_event_logs_its_ballots_and_statements_on_the_sidecar() -> Resu
             origin: origin.clone(),
             vkey: created.vkey.clone(),
             log_time_vkey: created.log_time_vkey.clone(),
+            blinded_vkey: None,
             url: created.url.clone(),
             path: path.clone(),
         }
@@ -335,5 +349,108 @@ async fn a_public_event_logs_its_ballots_and_statements_on_the_sidecar() -> Resu
         sidecar.freeze(&logs[&name].0).await?;
     }
     store.drop_ballot_box(&event).await?;
+    Ok(())
+}
+
+#[tokio::test]
+#[ignore = "needs a vitrine-log sidecar: see the module's documentation"]
+async fn a_private_event_provisions_both_blinded_keys_and_exposes_authenticated_policy_history(
+) -> Result<()> {
+    let config = deployment_config()?;
+    let admin_token = read_token_file(&env(ADMIN_TOKEN_FILE_ENV)?)?;
+    let sidecar = SidecarClient::new(&env(INTERNAL_URL_ENV)?, Some(admin_token))?;
+    let database_config: tokio_postgres::Config = env(DATABASE_URL_ENV)?.parse()?;
+    let database = database_config
+        .get_dbname()
+        .context("the database URL names no database")?;
+    let tenant = Uuid::new_v4().to_string();
+    let event = Uuid::new_v4().to_string();
+    let election = Uuid::new_v4().to_string();
+    let salt = hex::encode(rand::random::<[u8; 32]>());
+    let queue_role = PostgresConnection::vitrine_queue_role();
+    let mut logs = BTreeMap::new();
+    for name in LogName::iter() {
+        let path = sidecar_name(&tenant, &event, name)?;
+        let origin = config.origin(&tenant, &event, name)?;
+        let created = sidecar
+            .create_log(&log_request(
+                name,
+                &path,
+                &origin,
+                database,
+                "private",
+                queue_role.as_deref(),
+            )?)
+            .await?;
+        let pseudo = pseudo_origin(&origin, &salt)?;
+        let blinded = sidecar.blinded_key(&path, &pseudo).await?;
+        assert_eq!(
+            sidecar.blinded_key(&path, &pseudo).await?,
+            blinded,
+            "provisioning is idempotent"
+        );
+        logs.insert(
+            name,
+            DraftLog {
+                origin,
+                vkey: created.vkey,
+                log_time_vkey: created.log_time_vkey,
+                blinded_vkey: Some(blinded),
+                url: created.url,
+                path,
+            },
+        );
+    }
+    assert_ne!(
+        logs[&LogName::Ballots].blinded_vkey,
+        logs[&LogName::Events].blinded_vkey
+    );
+    let now = Utc::now().timestamp();
+    let draft_text = draft(
+        &config,
+        &DraftEvent {
+            name: policy_name(None, &tenant, &event)?,
+            mode: TransparencyMode::PRIVATE,
+            election_event_id: event.clone(),
+            election_ids: vec![election],
+            window: VotingWindow {
+                opens: now - 60,
+                closes: now + 86_400,
+            },
+            language: None,
+            policy_salt: Some(salt),
+            ballots: logs[&LogName::Ballots].clone(),
+            events: logs[&LogName::Events].clone(),
+        },
+    )?;
+    assert_eq!(
+        draft_text
+            .lines()
+            .filter(|l| l.starts_with("blinded "))
+            .count(),
+        2
+    );
+    let board = NoteSigner::from_private_key(&dev_file("secrets/board.key")?)?;
+    let policy = board.sign(&seal(&draft_text, BOARD))?;
+    for log in logs.values() {
+        let installed = sidecar.put_policy(&log.path, &policy).await?;
+        assert_eq!(
+            installed.policy_id,
+            electoral_log::vitrine::policy_note_id(&policy)?
+        );
+        assert!(!installed.ack.is_empty());
+        let response = sidecar
+            .voter(
+                &log.path,
+                "policies",
+                "",
+                None,
+                &format!("{tenant}/{VOTER}"),
+            )
+            .await?;
+        assert_eq!(response.status, 200);
+        assert!(response.body.starts_with("vitrine/policy-proofs/v1\n"));
+        sidecar.freeze(&log.path).await?;
+    }
     Ok(())
 }

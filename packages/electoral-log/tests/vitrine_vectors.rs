@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 //! Step's encoders against Vitrine's vectors, copied from Vitrine's
-//! `profiles/election/v1/vectors`, `profiles/events/v1/vectors` and
+//! `profiles/election/ballots/v1/vectors`, `profiles/election/events/v1/vectors` and
 //! `testdata/styles`.
 
 use base64::{engine::general_purpose::STANDARD, Engine as _};
@@ -97,7 +97,7 @@ fn signed_with(signature: &str, vkey: &str) -> bool {
 #[test]
 fn election_entries_match_the_vectors() {
     let mut checked = 0;
-    for (name, vector) in vectors("election-v1") {
+    for (name, vector) in vectors("election-ballots-v1") {
         for (bytes, fields) in entries(&vector) {
             let Some(fields) = fields else {
                 assert!(ElectionEntry::decode(&bytes).is_err(), "{name}: parsed");
@@ -221,7 +221,7 @@ fn events_entries_and_statements_match_the_vectors() {
     let board = NoteSigner::from_seed(BOARD, &BOARD_SEED).unwrap();
     let vkey = board.vkey();
     let (mut entries_checked, mut statements_signed, mut statements_rebuilt) = (0, 0, 0);
-    for (name, vector) in vectors("events-v1") {
+    for (name, vector) in vectors("election-events-v1") {
         if let Some(authorities) = vector["policy"]["authorities"].as_array() {
             assert!(
                 authorities
@@ -264,7 +264,7 @@ fn events_entries_and_statements_match_the_vectors() {
 
 #[test]
 fn milestones_name_the_config_entry_by_its_leaf_hash() {
-    let (_, vector) = vectors("events-v1")
+    let (_, vector) = vectors("election-events-v1")
         .into_iter()
         .find(|(n, _)| n == "passing.json")
         .unwrap();

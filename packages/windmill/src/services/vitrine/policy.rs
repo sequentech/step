@@ -11,6 +11,7 @@ use electoral_log::vitrine::entry::check_id;
 use electoral_log::vitrine::{Vkey, ELECTION_TAG, EVENTS_TAG};
 use sequent_core::ballot::TransparencyMode;
 use sequent_core::types::hasura::core::Election;
+use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
 use strum_macros::{Display, EnumString};
 
@@ -28,6 +29,45 @@ const PARAM_ELECTION_IDS: &str = "election-ids";
 const DEFAULT_ALLOWED_VOTES: i64 = 1;
 /// `num_allowed_revotes` for unlimited votes.
 const UNLIMITED_VOTES: i64 = 0;
+
+/// Step's first integration supports its two reviewed election profiles.
+/// The sidecar performs full policy parsing, signature and infrastructure
+/// validation. This application guard runs before either log is installed.
+pub fn check_step_policy_admission(note: &str) -> Result<()> {
+    use electoral_log::vitrine::{ELECTION_MEANING_HASH, EVENTS_MEANING_HASH};
+    ensure!(note.len() <= 65536, "a policy note is at most 64 KiB");
+    let text = note.split("\n\n").next().unwrap_or_default();
+    let lines: Vec<&str> = text.lines().collect();
+    ensure!(
+        lines.first() == Some(&POLICY_HEADER),
+        "not a Vitrine policy"
+    );
+    let required: Vec<_> = lines
+        .iter()
+        .filter(|line| line.split(' ').next() == Some("required"))
+        .collect();
+    ensure!(
+        required == [&"required on"],
+        "Step transparency requires exactly one required on line"
+    );
+    let profiles: Vec<_> = lines
+        .iter()
+        .filter(|line| line.split(' ').next() == Some("profile"))
+        .map(|line| line.split(' ').collect::<Vec<_>>())
+        .collect();
+    ensure!(
+        profiles.len() == 2,
+        "Step requires exactly its two reviewed profile bindings"
+    );
+    for (name, tag, meaning) in [
+        ("ballots", ELECTION_TAG, ELECTION_MEANING_HASH),
+        ("events", EVENTS_TAG, EVENTS_MEANING_HASH),
+    ] {
+        ensure!(profiles.iter().filter(|fields| fields.as_slice() == ["profile", name, tag, meaning]).count() == 1,
+            "Step requires the reviewed {name} profile and meaning hash without unsupported future versions");
+    }
+    Ok(())
+}
 
 /// Why an event can't be public.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Display, EnumString)]
@@ -53,6 +93,8 @@ pub struct DraftLog {
     pub origin: String,
     pub vkey: String,
     pub log_time_vkey: String,
+    /// Private-only Ed25519 key, provisioned and held by the sidecar.
+    pub blinded_vkey: Option<String>,
     /// Its tlog-tiles prefix.
     pub url: String,
     /// Its name on the sidecar, which mirrors keep.
@@ -168,6 +210,22 @@ fn log_lines(
     Ok(())
 }
 
+/// The private anchor's unlinkable origin (Vitrine hub.md section 1).
+pub fn pseudo_origin(origin: &str, salt: &str) -> Result<String> {
+    ensure!(
+        salt.len() == 64
+            && salt
+                .bytes()
+                .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b)),
+        "a policy salt is 32 bytes in lowercase hex"
+    );
+    let mut hash = Sha256::new();
+    hash.update(b"vitrine/origin/v1");
+    hash.update(origin.as_bytes());
+    hash.update(hex::decode(salt)?);
+    Ok(hex::encode(hash.finalize()))
+}
+
 /// Whether the deployment can draft policies of this mode: a public event's
 /// ballots log needs a mirror that the operator doesn't run (rule 10), and a
 /// private event needs an auditor (rule 7).
@@ -239,11 +297,7 @@ pub fn draft(config: &DeploymentConfig, event: &DraftEvent) -> Result<String> {
         "a log key is another key of the policy"
     );
 
-    let hubs: Vec<_> = if public {
-        config.hubs.iter().collect()
-    } else {
-        Vec::new()
-    };
+    let hubs: Vec<_> = config.hubs.iter().collect();
     for hub in &hubs {
         let origin = Vkey::parse(&hub.vkey)?.name;
         ensure!(
@@ -253,6 +307,41 @@ pub fn draft(config: &DeploymentConfig, event: &DraftEvent) -> Result<String> {
         );
     }
     check_mode(config, event.mode)?;
+
+    let mut blinded = Vec::new();
+    if !public {
+        let salt = event
+            .policy_salt
+            .as_deref()
+            .ok_or_else(|| anyhow!("a private event's policy needs a salt"))?;
+        let mut used_keys = config_keys;
+        used_keys.extend(log_keys.iter().map(|k| k.key.clone()));
+        for (name, log) in [
+            (LogName::Ballots, &event.ballots),
+            (LogName::Events, &event.events),
+        ] {
+            let pseudo = pseudo_origin(&log.origin, salt)?;
+            let vkey = log
+                .blinded_vkey
+                .as_deref()
+                .ok_or_else(|| anyhow!("the {name} log has no provisioned blinded key"))?;
+            let key = Vkey::parse(vkey)?;
+            ensure!(
+                key.alg == ALG_ED25519 && key.name == pseudo,
+                "the {name} blinded key must be Ed25519 and named by its derived pseudo-origin"
+            );
+            ensure!(
+                used_keys.insert(key.key),
+                "a blinded key is another key of the policy"
+            );
+            blinded.push((name, pseudo, vkey));
+        }
+    } else {
+        ensure!(
+            event.ballots.blinded_vkey.is_none() && event.events.blinded_vkey.is_none(),
+            "public policies have no blinded keys"
+        );
+    }
 
     let mut lines = Lines(Vec::new());
     lines.push(&[POLICY_HEADER]);
@@ -347,6 +436,9 @@ pub fn draft(config: &DeploymentConfig, event: &DraftEvent) -> Result<String> {
     }
     lines.push(&["quorum", &config.quorum]);
 
+    for (name, pseudo, vkey) in &blinded {
+        lines.push(&["blinded", name.as_ref(), pseudo, vkey]);
+    }
     if !hubs.is_empty() {
         if let Some(anchor) = &config.anchor {
             lines.push(&[
@@ -492,6 +584,7 @@ pub(crate) mod tests {
         DraftLog {
             vkey: ed25519_vkey(&origin, seed),
             log_time_vkey: cosigner_vkey(&origin, seed + 1),
+            blinded_vkey: None,
             url: format!("http://localhost:8094/{path}/"),
             origin,
             path,
@@ -499,6 +592,19 @@ pub(crate) mod tests {
     }
 
     pub(crate) fn event(config: &DeploymentConfig, mode: TransparencyMode) -> DraftEvent {
+        let mut ballots = log(config, LogName::Ballots, 101);
+        let mut events = log(config, LogName::Events, 103);
+        if mode == TransparencyMode::PRIVATE {
+            let salt = "ab".repeat(32);
+            ballots.blinded_vkey = Some(ed25519_vkey(
+                &pseudo_origin(&ballots.origin, &salt).unwrap(),
+                111,
+            ));
+            events.blinded_vkey = Some(ed25519_vkey(
+                &pseudo_origin(&events.origin, &salt).unwrap(),
+                112,
+            ));
+        }
         DraftEvent {
             name: policy_name(Some("acme"), TENANT, EVENT).unwrap(),
             mode,
@@ -510,8 +616,8 @@ pub(crate) mod tests {
             },
             language: Some("es".into()),
             policy_salt: (mode == TransparencyMode::PRIVATE).then(|| "ab".repeat(32)),
-            ballots: log(config, LogName::Ballots, 101),
-            events: log(config, LogName::Events, 103),
+            ballots,
+            events,
         }
     }
 
@@ -530,13 +636,13 @@ pub(crate) mod tests {
         let mut table: toml::Table = toml::from_str(DEV_CONFIG).unwrap();
         let extra: toml::Table = toml::from_str(&format!(
             r#"
-            monitor_quorum = 1
+            monitor_quorum = 2
             browser_period = 600
             [anchor]
             period = 10
             max_gap = 60
             [anchor_hubs]
-            min = 1
+            min = 2
             min_independent = 1
             [[monitors]]
             name = "observers"
@@ -555,6 +661,18 @@ pub(crate) mod tests {
                 {{ name = "ew3", vkey = "{ew3}", party = "lawyers" }},
             ]
             groups = [{{ name = "ew", threshold = "all", members = ["ew1", "ew2", "ew3"] }}]
+            [[monitors]]
+            name = "observers2"
+            vkey = "{monitor2}"
+            url = "https://monitor2.observers.example/"
+            party = "observers2"
+            [[hubs]]
+            name = "other"
+            vkey = "{hub2}"
+            url = "https://hub2.example.org/"
+            operator = "other-org"
+            quorum = "ow1"
+            witnesses = [{{ name = "ow1", vkey = "{ow1}" }}]
             [[hubs]]
             name = "boot"
             vkey = "{boot}"
@@ -565,6 +683,9 @@ pub(crate) mod tests {
             witnesses = [{{ name = "bw1", vkey = "{bw1}" }}]
             "#,
             monitor = ed25519_vkey("monitor.observers.example", 201),
+            monitor2 = ed25519_vkey("monitor2.observers.example", 208),
+            hub2 = ed25519_vkey("hub2.example.org", 209),
+            ow1 = cosigner_vkey("ow1.example.org", 210),
             hub = ed25519_vkey("hub.example.org", 202),
             ew1 = cosigner_vkey("ew1.example.org", 203),
             ew2 = cosigner_vkey("ew2.press.example", 204),
@@ -575,6 +696,61 @@ pub(crate) mod tests {
         .unwrap();
         table.extend(extra);
         DeploymentConfig::parse(&toml::to_string(&table).unwrap()).unwrap()
+    }
+
+    #[test]
+    fn upload_admission_rejects_optional_unknown_and_legacy_profiles() {
+        let config = dev();
+        let valid = draft(&config, &event(&config, TransparencyMode::PUBLIC)).unwrap();
+        check_step_policy_admission(&valid).unwrap();
+        for invalid in [
+            valid.replace("required on\n", "required off\n"),
+            valid.replace("required on\n", ""),
+            valid.replace("required on\n", "required on\nrequired on\n"),
+            valid.replace(ELECTION_TAG, "vitrine/election/v1"),
+            valid.replace(EVENTS_TAG, "vitrine/events/v1"),
+            valid.replace(
+                &config.profiles.election,
+                &format!("sha256:{}", "ab".repeat(32)),
+            ),
+            format!(
+                "{valid}profile ballots future/v2 sha256:{}\n",
+                "ab".repeat(32)
+            ),
+        ] {
+            assert!(
+                check_step_policy_admission(&invalid).is_err(),
+                "accepted {invalid}"
+            );
+        }
+    }
+
+    #[test]
+    fn private_blinded_keys_must_match_both_derived_pseudo_origins() {
+        let config = dev();
+        let good = event(&config, TransparencyMode::PRIVATE);
+        draft(&config, &good).unwrap();
+        for name in [LogName::Ballots, LogName::Events] {
+            let mut bad = good.clone();
+            let log = if name == LogName::Ballots {
+                &mut bad.ballots
+            } else {
+                &mut bad.events
+            };
+            log.blinded_vkey = None;
+            assert!(draft(&config, &bad).is_err());
+        }
+        let mut bad = good.clone();
+        bad.events.blinded_vkey = bad.ballots.blinded_vkey.clone();
+        assert!(draft(&config, &bad).is_err());
+        let mut bad = good.clone();
+        bad.policy_salt = Some("ac".repeat(32));
+        assert!(draft(&config, &bad).is_err());
+        let mut bad = good;
+        let pseudo =
+            pseudo_origin(&bad.events.origin, bad.policy_salt.as_deref().unwrap()).unwrap();
+        bad.events.blinded_vkey = Some(cosigner_vkey(&pseudo, 112));
+        assert!(draft(&config, &bad).is_err());
     }
 
     #[test]
@@ -599,6 +775,8 @@ pub(crate) mod tests {
             "quiet",
             "words",
             "monitor",
+            "monitor",
+            "monitor-party",
             "monitor-party",
             "monitor-quorum",
         ]);
@@ -643,6 +821,7 @@ pub(crate) mod tests {
             "hub-group",
             "hub-quorum",
         ]);
+        expected.extend(["hub", "hub-operator", "hub-witness", "hub-quorum"]);
         expected.extend([
             "hub",
             "hub-operator",
@@ -675,11 +854,11 @@ pub(crate) mod tests {
             line(&text, "profile"),
             [
                 format!(
-                    "profile ballots vitrine/election/v1 {}",
+                    "profile ballots vitrine/election/ballots/v1 {}",
                     config.profiles.election
                 ),
                 format!(
-                    "profile events vitrine/events/v1 {}",
+                    "profile events vitrine/election/events/v1 {}",
                     config.profiles.events
                 ),
             ]
@@ -705,7 +884,7 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn a_private_draft_has_a_salt_and_no_hubs_or_mirrors() {
+    fn a_private_draft_has_a_salt_both_blinded_logs_and_strong_hubs() {
         let config = with_hubs();
         let text = draft(&config, &event(&config, TransparencyMode::PRIVATE)).unwrap();
         assert_eq!(line(&text, "visibility"), ["visibility private"]);
@@ -713,15 +892,11 @@ pub(crate) mod tests {
             line(&text, "policy-salt"),
             [format!("policy-salt {}", "ab".repeat(32))]
         );
-        for keyword in [
-            "mirror",
-            "mirror-party",
-            "hub",
-            "anchor",
-            "anchor-hubs",
-            "bootstrap",
-            "browser",
-        ] {
+        assert_eq!(line(&text, "blinded").len(), 2);
+        assert_eq!(line(&text, "hub").len(), 3);
+        assert_eq!(line(&text, "anchor-hubs"), ["anchor-hubs 2 1"]);
+        assert_eq!(line(&text, "monitor-quorum"), ["monitor-quorum 2"]);
+        for keyword in ["mirror", "mirror-party"] {
             assert!(line(&text, keyword).is_empty(), "{keyword} in {text}");
         }
         let mut e = event(&config, TransparencyMode::PRIVATE);

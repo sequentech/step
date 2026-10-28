@@ -1,0 +1,94 @@
+{
+  "description": "The policy doesn't set election-ids, a required parameter: the profile is unusable for the log, so every rule but vitrine/parse reports not-run.",
+  "params": {
+    "event-id": "muni-2026"
+  },
+  "policy": {
+    "opens": 1793001600,
+    "closes": 1793044800
+  },
+  "entries": [
+    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBCAAAJbXVuaS0yMDI2AAAFbWF5b3IAACAfwkSvK5bQFpoXfiVZryngSEdE5LhQHRBE12yfezzzBwAACAAAAABq3wi8",
+    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBEAAAJbXVuaS0yMDI2AAAHY291bmNpbAAAII7zsNfER24sCpHMxYZ3QKBUkxO1hTRcHRJYfKLtBOn1AAAIAAAAAGrfCME="
+  ],
+  "sequenced": [
+    1793001661,
+    1793001666
+  ],
+  "checkpoints": [
+    [
+      2,
+      1793045500
+    ]
+  ],
+  "context": {
+    "events": {
+      "entries": [
+        "GnZpdHJpbmUvZWxlY3Rpb24vZXZlbnRzL3YxAdYAAAZjb25maWcAAAgAAAAAat7sYAAAAQAAAbh2aXRyaW5lL2NvbmZpZy92MQpldmVudCBtdW5pLTIwMjYKZWxlY3Rpb24gbWF5b3IKa2V5IEQwOXdGRWN2cjYxSjRuMEtidXNiQzJ2SldUR0pMdSsxS093RUtPTUtMZ2s9CnN0eWxlcyAwSm1sWkszSG9GYTJaUWhWVTkycW1hb2JCeFBuMUlSRTBSckY4WEhYc09nPQpvcGVucyAxNzkzMDAxNjAwCmNsb3NlcyAxNzkzMDQ0ODAwCnBvbGljeSBzaGEyNTY6ODIzNDEyZDFlYWNiNjc5NTYyMjBlNTMyOTU5ZjAxMDQ2MDMwNTdjODg3MDQ4NjNjYTM4ZTdjZDE4OGZkYTgxMgpyZWxlYXNlIGJvb3RoIDEuMC4wCnRyYW5zcGFyZW5jeSBwdWJsaWMKZGVtbyBubwp0aW1lIDE3OTI5OTQ0MDAKCuKAlCBib2FyZC5leGFtcGxlIGNDMjAvWGlUWmlOVys2NFplSXIvOHl4WGVySytqVEZnRlFSc281TG9heXZWQ0IycGNTVHNiOW5uVVdVbHRCMmxJRzFQOUt4bTVxczRmdWhMUlhTb1pzOVdVZzg9CgAAAA==",
+        "GnZpdHJpbmUvZWxlY3Rpb24vZXZlbnRzL3YxAdgAAAZjb25maWcAAAgAAAAAat7sYAAAAQAAAbp2aXRyaW5lL2NvbmZpZy92MQpldmVudCBtdW5pLTIwMjYKZWxlY3Rpb24gY291bmNpbAprZXkgdjhMdVIrVk9YMndyd1dkcnJZT2FybVM0SnJRUTNpTG12ZGgrdmE4WnhjST0Kc3R5bGVzIEdWV1h1Sjh2cDhmRWNGQ1d3NjduZ3M2N0dhY0RNUjc0NWRNOHB3Mng3S3M9Cm9wZW5zIDE3OTMwMDE2MDAKY2xvc2VzIDE3OTMwNDQ4MDAKcG9saWN5IHNoYTI1Njo4MjM0MTJkMWVhY2I2Nzk1NjIyMGU1MzI5NTlmMDEwNDYwMzA1N2M4ODcwNDg2M2NhMzhlN2NkMTg4ZmRhODEyCnJlbGVhc2UgYm9vdGggMS4wLjAKdHJhbnNwYXJlbmN5IHB1YmxpYwpkZW1vIG5vCnRpbWUgMTc5Mjk5NDQwMAoK4oCUIGJvYXJkLmV4YW1wbGUgY0MyMC9laEQ4N0RuWUFVUytoZjRiWEdCL1BCWnA1a0FDRi9XMXVaMVFSTHBwT1VWY3B1aXl3OGJoRnZJbmFRRTM5SEdoM1RveEhzSGlTZVZQODNicmFjcjlBMD0KAAAA",
+        "GnZpdHJpbmUvZWxlY3Rpb24vZXZlbnRzL3YxAVMAAA12b3Rpbmctb3BlbmVkAAAIAAAAAGrfCIAAAAEAAAEudml0cmluZS9taWxlc3RvbmUvdjEKZXZlbnQgbXVuaS0yMDI2CmtpbmQgdm90aW5nLW9wZW5lZAp0aW1lIDE3OTMwMDE2MDAKY29uZmlnIG1heW9yIHlyU0g4WHM1ZlBNZlF1NHdLTVVPUGh1S0U5Q2oxYnRXRUVIcnBqUEpQVlE9CmNvbmZpZyBjb3VuY2lsIGVkR0xrMldMeEhuZWh2QnRxTFB0YVVpZlJKUlJrN1o0emkvT09PQXpZV289CgrigJQgYm9hcmQuZXhhbXBsZSBjQzIwL2J4ZWZURkozOGwyN1c0NzFwcGp4ZVpWcTlJWUV0dVRicnRhN05xY1hOWDZBTFc2bmZ6cEtudWc3L2tndTlIQ08vdWU1YklkVWcxWS90OHBWbFNyM1FBPQoAAAA=",
+        "GnZpdHJpbmUvZWxlY3Rpb24vZXZlbnRzL3YxAPsAAA12b3RpbmctY2xvc2VkAAAIAAAAAGrfsUAAAAEAAADWdml0cmluZS9taWxlc3RvbmUvdjEKZXZlbnQgbXVuaS0yMDI2CmtpbmQgdm90aW5nLWNsb3NlZAp0aW1lIDE3OTMwNDQ4MDAKY291bnQgbWF5b3IgMQpjb3VudCBjb3VuY2lsIDEKCuKAlCBib2FyZC5leGFtcGxlIGNDMjAvZDJ6eUpVQTVLUXFUa1E4dDJSQUFKY01NVzNxcmFSdktmRU10aHkrMTcySENFREFpb1ZMcmxpb1hzZWtmN21OUHNjeG1pV3l0VzhPMGdiYUg3SmQrUTg9CgAAAA=="
+      ],
+      "sequenced": [
+        1792994600,
+        1792994610,
+        1793001595,
+        1793045400
+      ],
+      "checkpoints": [
+        [
+          4,
+          1793045400
+        ]
+      ]
+    }
+  },
+  "fields": [
+    [
+      {
+        "name": "event_id",
+        "value": "muni-2026"
+      },
+      {
+        "name": "election_id",
+        "value": "mayor"
+      },
+      {
+        "name": "ballot_id",
+        "value": "1fc244af2b96d0169a177e2559af29e0484744e4b8501d1044d76c9f7b3cf307"
+      },
+      {
+        "name": "accepted_at",
+        "value": "1793001660"
+      }
+    ],
+    [
+      {
+        "name": "event_id",
+        "value": "muni-2026"
+      },
+      {
+        "name": "election_id",
+        "value": "council"
+      },
+      {
+        "name": "ballot_id",
+        "value": "8ef3b0d7c4476e2c0a91ccc5867740a0549313b585345c1d12587ca2ed04e9f5"
+      },
+      {
+        "name": "accepted_at",
+        "value": "1793001665"
+      }
+    ]
+  ],
+  "rules": {
+    "after-close": "not-run",
+    "count": "not-run",
+    "election": "not-run",
+    "event": "not-run",
+    "in-window": "not-run",
+    "on-time": "not-run",
+    "one-ballot": "not-run",
+    "vitrine/parse": "passing"
+  }
+}

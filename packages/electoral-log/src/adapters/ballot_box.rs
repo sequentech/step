@@ -57,7 +57,7 @@ pub struct AcceptBallot<'a> {
     pub vitrine: Option<VitrineQueue>,
 }
 
-/// Where an accepted ballot's `vitrine/election/v1` entry goes: the queue
+/// Where an accepted ballot's `vitrine/election/ballots/v1` entry goes: the queue
 /// partition of the event's `ballots` log, in the event's database.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct VitrineQueue {
@@ -256,7 +256,7 @@ fn partition_suffix(election_event_id: &str) -> Result<String> {
     Ok(suffix)
 }
 
-/// The ballot's `vitrine/election/v1` entry.
+/// The ballot's `vitrine/election/ballots/v1` entry.
 fn vitrine_entry(ballot: &AcceptBallot<'_>, accepted_at: i64) -> Result<Vec<u8>> {
     ElectionEntry {
         event_id: canonical_uuid(ballot.election_event_id)?,

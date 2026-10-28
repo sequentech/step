@@ -63,6 +63,26 @@ pub fn check_policy_id(id: &str) -> Result<()> {
     Ok(())
 }
 
+/// Accept the sidecar's bare hex or prefixed ID and keep one canonical form
+/// in backend state and every protocol document.
+pub fn normalize_policy_id(value: &str) -> Result<String> {
+    let hex = value.strip_prefix(POLICY_ID_PREFIX).unwrap_or(value);
+    ensure!(
+        hex.len() == 64 && hex.bytes().all(|b| b.is_ascii_hexdigit()),
+        "a policy ID has exactly 64 hex digits, optionally prefixed by sha256:"
+    );
+    Ok(format!("{POLICY_ID_PREFIX}{}", hex.to_ascii_lowercase()))
+}
+
+/// The ID hashes signed note text, excluding signature lines.
+pub fn policy_note_id(note: &str) -> Result<String> {
+    let (text, _) = super::note::split_note(note)?;
+    Ok(format!(
+        "{POLICY_ID_PREFIX}{}",
+        hex::encode(Sha256::digest(text.as_bytes()))
+    ))
+}
+
 /// `key`: SHA-256 over the election public key's bytes as the booth encrypts
 /// to it.
 pub fn election_key_hash(public_key: &[u8]) -> Hash {
@@ -236,6 +256,25 @@ mod tests {
             demo: Demo::No,
             time: 1_792_994_400,
         }
+    }
+
+    #[test]
+    fn policy_ids_normalize_once_and_hash_only_the_note_text() {
+        let expected = format!("sha256:{}", "ab".repeat(32));
+        for value in ["ab".repeat(32), format!("sha256:{}", "AB".repeat(32))] {
+            assert_eq!(normalize_policy_id(&value).unwrap(), expected);
+        }
+        for value in ["", "sha256:ab", "sha512:abc"] {
+            assert!(normalize_policy_id(value).is_err());
+        }
+        let signer = super::super::NoteSigner::from_seed("board.example", &[19; 32]).unwrap();
+        let text = "vitrine/policy/v1\nname test\n";
+        let note = signer.sign(text).unwrap();
+        assert_eq!(
+            policy_note_id(&note).unwrap(),
+            format!("sha256:{}", hex::encode(Sha256::digest(text)))
+        );
+        assert!(policy_note_id(text).is_err());
     }
 
     #[test]

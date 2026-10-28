@@ -415,7 +415,7 @@ mod tests {
     const LOG: &str = "ballots-log";
 
     fn entry() -> VitrineEntry {
-        let entry = b"vitrine/election/v1 test entry".to_vec();
+        let entry = b"vitrine/election/ballots/v1 test entry".to_vec();
         VitrineEntry {
             leaf_hash: leaf_hash(&entry),
             entry,

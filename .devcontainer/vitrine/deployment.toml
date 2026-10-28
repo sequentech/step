@@ -12,10 +12,19 @@ domain = "vote.localhost"
 operator = "sequent"
 quorum = "witnesses"
 words = "en"
+monitor_quorum = 2
+
+[anchor]
+period = 10
+max_gap = 60
+
+[anchor_hubs]
+min = 2
+min_independent = 1
 
 [profiles]
-election = "sha256:93a933ed8cc8eede70ddcaee9e7b585ba37dda55abd9df2c74d4c09ae671d01e"
-events = "sha256:7b2a3fb1295e9c5e230f221d9bf12a35d6b4535430414a2cd9d0c0b9a45a2905"
+election = "sha256:03a5a99d740d19741de6491ee2fb77bd1680d8d934f6dc5ca90bb25c841bdba7"
+events = "sha256:819b9a9da4755aaf78b18ea35390f7908d1a21a824e7c7c6874702bf7152bc4f"
 
 # The Electoral Board seals and signs each event's policy; it alone approves
 # successors.
@@ -62,3 +71,35 @@ members = ["w1", "w2"]
 [[mirrors]]
 url = "http://localhost:8094/{path}/"
 party = "observers"
+
+# These independently labelled development parties run in separate services.
+# Provision the matching hubs and monitors before enabling an event; never use
+# development keys or claim this single-host setup is production independence.
+
+[[hubs]]
+name = "hub-a"
+vkey = "hub-a.localhost+aa8b8f0c+AYVYw0AGwx4o5dP8ZbfXbGIRn3vD7M2ZEzs7JfL3X98C"
+url = "http://localhost:8100/"
+operator = "hub-a-party"
+quorum = "hw-a"
+witnesses = [{name = "hw-a", vkey = "hub-a-witness.localhost+f78cda18+BMDNr5maYRLQ7LsDPIw/BM0vkFQ5ezVClODVcyCJVagZ", party = "hub-a-witness-party"}]
+
+[[hubs]]
+name = "hub-b"
+vkey = "hub-b.localhost+fb65477d+AV5m7yBs5WBLANN+ZcOZCru0sif5MKaLuluJHLgts2E2"
+url = "http://localhost:8104/"
+operator = "hub-b-party"
+quorum = "hw-b"
+witnesses = [{name = "hw-b", vkey = "hub-b-witness.localhost+927b93e5+BO7zehUpdCteYfDFbO4kJxPU3dwNffcgRMU1vjS0dqRH", party = "hub-b-witness-party"}]
+
+[[monitors]]
+name = "monitor-a"
+vkey = "monitor-a.localhost+b451709e+AVg2WdnluLhcTqSA05IwSyqEyzbRBrjyWpPL+6B2VvLm"
+url = "http://localhost:8108/"
+party = "monitor-a-party"
+
+[[monitors]]
+name = "monitor-b"
+vkey = "monitor-b.localhost+0c1473f3+AaAHs3slTWk5rPVd1xb3OsEo+efV20OCm7eBVWpYE5r+"
+url = "http://localhost:8110/"
+party = "monitor-b-party"

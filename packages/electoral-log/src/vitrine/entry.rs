@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 //! Vitrine entries (Vitrine's `specs/entry.md`, sections 1 to 4): the
-//! envelope, the field types step uses, and the `vitrine/election/v1` and
-//! `vitrine/events/v1` layouts.
+//! envelope, the field types step uses, and the `vitrine/election/ballots/v1` and
+//! `vitrine/election/events/v1` layouts.
 
 use anyhow::{anyhow, bail, ensure, Context, Result};
 use sha2::{Digest, Sha256};
@@ -15,8 +15,13 @@ use super::note;
 
 /// Entry bundles prefix each entry with a `uint16` length.
 pub const MAX_ENTRY_SIZE: usize = 65_535;
-pub const ELECTION_TAG: &str = "vitrine/election/v1";
-pub const EVENTS_TAG: &str = "vitrine/events/v1";
+pub const ELECTION_TAG: &str = "vitrine/election/ballots/v1";
+pub const EVENTS_TAG: &str = "vitrine/election/events/v1";
+/// Reviewed Vitrine core meanings for Step's two election logs.
+pub const ELECTION_MEANING_HASH: &str =
+    "sha256:03a5a99d740d19741de6491ee2fb77bd1680d8d934f6dc5ca90bb25c841bdba7";
+pub const EVENTS_MEANING_HASH: &str =
+    "sha256:819b9a9da4755aaf78b18ea35390f7908d1a21a824e7c7c6874702bf7152bc4f";
 
 pub const HASH_SIZE: usize = 32;
 pub type Hash = [u8; HASH_SIZE];
@@ -217,7 +222,7 @@ pub fn ballot_id_hash(ballot_id: &str) -> Result<Hash> {
         .map_err(|_| anyhow!("ballot_id isn't a 32-byte hash"))
 }
 
-/// A `vitrine/election/v1` entry: one accepted ballot.
+/// A `vitrine/election/ballots/v1` entry: one accepted ballot.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ElectionEntry {
     pub event_id: String,
@@ -334,7 +339,7 @@ impl Subject {
     }
 }
 
-/// A `vitrine/events/v1` entry.
+/// A `vitrine/election/events/v1` entry.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EventsEntry {
     pub kind: EventKind,
