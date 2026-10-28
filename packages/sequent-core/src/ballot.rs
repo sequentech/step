@@ -3223,3 +3223,79 @@ mod support_materials_policy_tests {
         );
     }
 }
+
+#[cfg(test)]
+mod ballot_signature_tests {
+    use super::*;
+    use curve25519_dalek::constants::ED25519_BASEPOINT_POINT;
+    use curve25519_dalek::scalar::Scalar;
+
+    const BALLOT_ID: &str = "ballot-id";
+    const ELECTION_ID: &str = "election-id";
+
+    fn hashable_ballot() -> HashableBallot {
+        HashableBallot {
+            version: TYPES_VERSION,
+            issue_date: "2025-01-01".to_string(),
+            contests: vec!["contest".to_string()],
+            config: "config".to_string(),
+            ballot_style_hash: "ballot-style-hash".to_string(),
+        }
+    }
+
+    fn signed_ballot(
+        voter_signing_pk: String,
+        voter_ballot_signature: String,
+    ) -> SignedHashableBallot {
+        let ballot = hashable_ballot();
+        SignedHashableBallot {
+            version: ballot.version,
+            issue_date: ballot.issue_date,
+            contests: ballot.contests,
+            config: ballot.config,
+            ballot_style_hash: ballot.ballot_style_hash,
+            voter_signing_pk: Some(voter_signing_pk),
+            voter_ballot_signature: Some(voter_ballot_signature),
+        }
+    }
+
+    #[test]
+    fn verify_ballot_signature_accepts_voter_signature() {
+        let signed = sign_hashable_ballot_with_ephemeral_voter_signing_key(
+            BALLOT_ID,
+            ELECTION_ID,
+            &hashable_ballot(),
+        )
+        .unwrap();
+        let ballot = signed_ballot(signed.public_key, signed.signature);
+
+        let verified =
+            verify_ballot_signature(BALLOT_ID, ELECTION_ID, &ballot).unwrap();
+        assert!(verified.is_some());
+    }
+
+    #[test]
+    fn verify_ballot_signature_rejects_small_order_voter_key() {
+        let mut identity = [0u8; 32];
+        identity[0] = 1;
+        let voter_signing_pk = StrandSignaturePk::from_bytes(identity)
+            .unwrap()
+            .to_der_b64_string()
+            .unwrap();
+
+        let s = Scalar::from(7u64);
+        let r = (s * ED25519_BASEPOINT_POINT).compress();
+        let mut sig_bytes = [0u8; 64];
+        sig_bytes[..32].copy_from_slice(r.as_bytes());
+        sig_bytes[32..].copy_from_slice(s.as_bytes());
+        let voter_ballot_signature = StrandSignature::from_bytes(sig_bytes)
+            .unwrap()
+            .to_b64_string()
+            .unwrap();
+
+        let ballot = signed_ballot(voter_signing_pk, voter_ballot_signature);
+        assert!(
+            verify_ballot_signature(BALLOT_ID, ELECTION_ID, &ballot).is_err()
+        );
+    }
+}
