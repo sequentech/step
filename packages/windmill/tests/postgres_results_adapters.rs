@@ -1089,6 +1089,35 @@ async fn reading_an_election_result_needs_a_v4_results_event_id() {
 }
 
 #[tokio::test]
+async fn event_election_and_election_area_results_need_v4_tenant_and_event_ids() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let transaction = client.transaction().await.unwrap();
+
+    for (tenant, event, column, value) in [
+        ("tenant-1", EVENT, "tenant_id", "tenant-1"),
+        (TENANT, "event-1", "election_event_id", "event-1"),
+    ] {
+        let errors = [
+            get_event_results_election(&transaction, tenant, event)
+                .await
+                .unwrap_err(),
+            get_event_results_election_area(&transaction, tenant, event)
+                .await
+                .unwrap_err(),
+        ];
+        for error in errors.map(|error| error.to_string()) {
+            assert!(
+                error.starts_with(&format!(
+                    "Error parsing {column} as UUID: invalid UUID '{value}'"
+                )),
+                "{error}"
+            );
+        }
+    }
+    transaction.rollback().await.unwrap();
+}
+
+#[tokio::test]
 async fn event_election_results_are_those_of_the_tenant_and_event() {
     let mut client = schema::pool().await.get().await.unwrap();
     let transaction = client.transaction().await.unwrap();
@@ -1196,7 +1225,7 @@ async fn election_area_documents_are_stored_as_a_new_named_area_result() {
     }
     assert_eq!(row.get::<_, String>(5), "North");
     assert_eq!(row.get::<_, Value>(6), documents_json());
-    assert_eq!(row.get::<_, Option<i32>>(7), Some(12));
+    assert_eq!(row.get::<_, Option<i64>>(7), Some(12));
     assert_eq!(row.get::<_, Option<String>>(8).as_deref(), Some("0.375"));
     assert!(row.get::<_, bool>(9));
     transaction.rollback().await.unwrap();
