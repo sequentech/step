@@ -28,6 +28,7 @@ use curve25519_dalek::ristretto::{CompressedRistretto, RistrettoPoint};
 use curve25519_dalek::scalar::Scalar;
 use curve25519_dalek::traits::Identity;
 use rand::RngCore;
+use subtle::{Choice, ConditionallySelectable};
 
 use crate::context::{Ctx, Element, Exponent, Plaintext};
 use crate::elgamal::Ciphertext;
@@ -193,20 +194,11 @@ impl Ctx for RistrettoCtx {
     // see https://github.com/dalek-cryptography/curve25519-dalek/issues/322
     // see https://github.com/hdevalence/ristretto255-data-encoding/blob/master/src/main.rs
     fn encode(&self, data: &[u8; 30]) -> Result<Self::E, StrandError> {
-        let mut bytes = [0u8; 32];
-        bytes[1..1 + data.len()].copy_from_slice(data);
-        for j in 0..64 {
-            bytes[31] = j as u8;
-            for i in 0..128 {
-                bytes[0] = 2 * i as u8;
-                if let Some(point) = CompressedRistretto(bytes).decompress() {
-                    return Ok(RistrettoPointS(point));
-                }
-            }
-        }
-        Err(StrandError::Generic(
-            "Failed to encode into ristretto point".to_string(),
-        ))
+        encode_point(data, CompressedRistretto::decompress)
+            .map(RistrettoPointS)
+            .ok_or(StrandError::Generic(
+                "Failed to encode into ristretto point".to_string(),
+            ))
     }
     fn decode(&self, element: &Self::E) -> Self::P {
         let compressed = element.0.compress();
@@ -476,6 +468,44 @@ impl std::fmt::Debug for RistrettoPointS {
     }
 }
 
+const ENCODE_ROWS: u8 = 64;
+const ENCODE_CANDIDATES_PER_ROW: u8 = 128;
+
+fn encode_point<F>(data: &[u8; 30], mut decompress: F) -> Option<RistrettoPoint>
+where
+    F: FnMut(&CompressedRistretto) -> Option<RistrettoPoint>,
+{
+    let mut bytes = [0u8; 32];
+    bytes[1..31].copy_from_slice(data);
+
+    // Every candidate of the first row is tried, so that the number of
+    // attempts does not depend on the data. The first valid one is kept.
+    let mut found = Choice::from(0);
+    let mut selected = RistrettoPoint::identity();
+    for i in 0..ENCODE_CANDIDATES_PER_ROW {
+        bytes[0] = 2 * i;
+        let candidate = decompress(&CompressedRistretto(bytes));
+        let valid = Choice::from(u8::from(candidate.is_some()));
+        selected
+            .conditional_assign(&candidate.unwrap_or_default(), valid & !found);
+        found |= valid;
+    }
+    if bool::from(found) {
+        return Some(selected);
+    }
+
+    for j in 1..ENCODE_ROWS {
+        bytes[31] = j;
+        for i in 0..ENCODE_CANDIDATES_PER_ROW {
+            bytes[0] = 2 * i;
+            if let Some(point) = decompress(&CompressedRistretto(bytes)) {
+                return Some(point);
+            }
+        }
+    }
+    None
+}
+
 pub(crate) fn to_ristretto_point_array(
     input: &[u8],
 ) -> Result<[u8; 32], StrandError> {
@@ -666,5 +696,88 @@ mod tests {
     fn test_cp_borsh() {
         let ctx = RistrettoCtx;
         test_cp_borsh_generic(&ctx);
+    }
+
+    fn first_valid_candidate(
+        data: &[u8; 30],
+        rows: std::ops::Range<u8>,
+    ) -> Option<RistrettoPoint> {
+        let mut bytes = [0u8; 32];
+        bytes[1..31].copy_from_slice(data);
+        for j in rows {
+            bytes[31] = j;
+            for i in 0..ENCODE_CANDIDATES_PER_ROW {
+                bytes[0] = 2 * i;
+                if let Some(point) = CompressedRistretto(bytes).decompress() {
+                    return Some(point);
+                }
+            }
+        }
+        None
+    }
+
+    #[test]
+    fn encode_tries_every_candidate_of_the_first_row() {
+        let mut first_valid_positions = std::collections::HashSet::new();
+        for k in 0..64u8 {
+            let mut data = [0u8; 30];
+            data[0] = k;
+            let mut attempts = 0usize;
+            let mut first_valid = None;
+            let point = encode_point(&data, |candidate| {
+                let point = candidate.decompress();
+                if point.is_some() && first_valid.is_none() {
+                    first_valid = Some(attempts);
+                }
+                attempts += 1;
+                point
+            });
+            assert!(point.is_some());
+            assert_eq!(attempts, usize::from(ENCODE_CANDIDATES_PER_ROW));
+            first_valid_positions.insert(first_valid);
+        }
+        assert!(first_valid_positions.len() > 1);
+    }
+
+    #[test]
+    fn encode_selects_the_first_valid_candidate() {
+        let ctx = RistrettoCtx;
+        let mut rng = ctx.get_rng();
+        let mut plaintexts = vec![[0u8; 30], [u8::MAX; 30]];
+        for _ in 0..1000 {
+            let mut data = [0u8; 30];
+            rng.fill_bytes(&mut data);
+            plaintexts.push(data);
+
+            let exp = ctx.rnd_exp(&mut rng).0.to_bytes();
+            for half in exp.chunks(16) {
+                let mut data = [0u8; 30];
+                data[0..16].copy_from_slice(half);
+                plaintexts.push(data);
+            }
+        }
+        for data in plaintexts {
+            let encoded = ctx.encode(&data).unwrap();
+            assert_eq!(
+                Some(encoded.0),
+                first_valid_candidate(&data, 0..ENCODE_ROWS)
+            );
+            assert_eq!(ctx.decode(&encoded), data);
+        }
+    }
+
+    #[test]
+    fn encode_falls_back_to_later_rows() {
+        let data = [7u8; 30];
+        let point = encode_point(&data, |candidate| {
+            if candidate.as_bytes()[31] == 0 {
+                None
+            } else {
+                candidate.decompress()
+            }
+        });
+        assert!(point.is_some());
+        assert_eq!(point, first_valid_candidate(&data, 1..ENCODE_ROWS));
+        assert!(encode_point(&data, |_| None).is_none());
     }
 }
