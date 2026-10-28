@@ -219,8 +219,8 @@ fn aggregation_is_partition_independent_for_counts_and_percentages() {
     // A change in partition or fold order may reorder the result vector but
     // must not change the election. Census summation is checked separately.
     for aggregate in [
-        first.aggregate(&second, false),
-        second.aggregate(&first, false),
+        first.aggregate(&second, false).unwrap(),
+        second.aggregate(&first, false).unwrap(),
     ] {
         assert_eq!(candidate_counts(&aggregate), candidate_counts(&together));
         assert_eq!(aggregate.total_valid_votes, 2);

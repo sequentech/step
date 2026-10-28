@@ -39,9 +39,7 @@ impl TryFrom<Row> for ResultsElectionAreaWrapper {
             created_at: item.get("created_at"),
             last_updated_at: item.get("last_updated_at"),
             documents,
-            blank_ballots: item
-                .try_get::<_, Option<i32>>("blank_ballots")?
-                .map(|v| v as i64),
+            blank_ballots: item.try_get::<_, Option<i64>>("blank_ballots")?,
             blank_ballots_percent: item
                 .try_get::<&str, Option<Decimal>>("blank_ballots_percent")?
                 .map(|d| d.to_f64().map(NotNan::new).transpose())
@@ -61,7 +59,7 @@ pub async fn insert_results_election_area_documents(
     area_id: &str,
     area_name: &str,
     documents: &ResultDocuments,
-    blank_ballots: Option<i32>,
+    blank_ballots: Option<i64>,
     blank_ballots_percent: Option<f64>,
 ) -> Result<()> {
     let documents_value = serde_json::to_value(documents.clone())?;

@@ -5,8 +5,8 @@
 use super::Result;
 use super::{CountingAlgorithm, Error};
 use crate::pipes::do_tally::{
-    counting_algorithm::utils::*, tally::Tally, BlankVotes, CandidateResult, ContestResult,
-    ExtendedMetricsContest, InvalidVotes,
+    add_count, counting_algorithm::utils::*, tally::Tally, BlankVotes, CandidateResult,
+    ContestResult, ExtendedMetricsContest, InvalidVotes,
 };
 use rand::prelude::IndexedRandom;
 use rand::seq::SliceRandom;
@@ -62,7 +62,7 @@ pub struct BallotsStatus<'a> {
 impl BallotsStatus<'_> {
     /// Set initial statuses for all the ballots depending on if they are valid, invalid or blank.
     /// Set the metrics and counts.
-    /// Fails if the summed weight of the valid ballots does not fit in a u64.
+    /// Fails if the summed weight of the valid ballots passes `MAX_COUNT`.
     #[instrument(skip_all)]
     pub fn initialize_ballots_status<'a>(
         votes: &'a Vec<(DecodedVoteContest, Weight)>,
@@ -107,14 +107,8 @@ impl BallotsStatus<'_> {
                     BallotStatus::Blank
                 }
                 BallotClass::Valid => {
-                    valid_weight = valid_weight
-                        .checked_add(weight.unwrap_or_default())
-                        .ok_or_else(|| {
-                            Error::UnexpectedError(
-                                "The summed weight of the valid ballots does not fit in a u64"
-                                    .to_string(),
-                            )
-                        })?;
+                    valid_weight =
+                        add_count(valid_weight, weight.unwrap_or_default(), "valid weight")?;
                     BallotStatus::Valid
                 }
             };
@@ -790,6 +784,7 @@ impl CountingAlgorithm for InstantRunoff {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::pipes::do_tally::CountOverflow;
     use sequent_core::ballot::CandidatePresentation;
     use sequent_core::types::{participation::VotesByChannel, tally_sheets::VotingChannel};
 
@@ -1296,20 +1291,26 @@ mod tests {
     }
 
     #[test]
-    fn irv_weight_past_u64_max_fails_the_tally() {
-        // One candidate's total, and then only the sum, past u64::MAX.
-        for second_choice in ["x", "y"] {
-            let votes = vec![
-                (ranked_vote(&["x"]), area_weight(1 << 63)),
-                (ranked_vote(&[second_choice]), area_weight(1 << 63)),
-            ];
-            let result =
-                ranked_instant_runoff(votes).process_ballots(TallyOperation::ProcessBallotsAll);
+    fn irv_valid_weight_past_the_largest_exact_count_fails_the_tally() {
+        // Past MAX_COUNT within a u64, then past u64::MAX; for one
+        // candidate's total, and then only for the sum.
+        for weight in [1 << 52, 1 << 63] {
+            for second_choice in ["x", "y"] {
+                let votes = vec![
+                    (ranked_vote(&["x"]), area_weight(weight)),
+                    (ranked_vote(&[second_choice]), area_weight(weight)),
+                ];
+                let result =
+                    ranked_instant_runoff(votes).process_ballots(TallyOperation::ProcessBallotsAll);
 
-            assert!(
-                matches!(result, Err(Error::UnexpectedError(_))),
-                "{second_choice}: {result:?}"
-            );
+                assert!(
+                    matches!(
+                        result,
+                        Err(Error::CountOverflow(CountOverflow("valid weight")))
+                    ),
+                    "{weight} {second_choice}: {result:?}"
+                );
+            }
         }
     }
 }

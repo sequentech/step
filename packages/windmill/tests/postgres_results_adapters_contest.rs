@@ -19,6 +19,7 @@ use std::{collections::HashMap, io::Write};
 use tempfile::NamedTempFile;
 use tokio_postgres::types::WasNull;
 use uuid::Uuid;
+use velvet::pipes::do_tally::MAX_COUNT;
 use windmill::postgres::results_area_contest::{
     get_event_results_area_contest, get_results_area_contest, insert_many_results_area_contests,
     insert_results_area_contests, update_results_area_contest_documents,
@@ -1865,6 +1866,132 @@ async fn copied_area_candidate_results_keep_every_given_column() {
         })],
     )
     .await;
+    transaction.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn a_weighted_candidate_total_past_the_int4_range_is_stored_and_read_back() {
+    // Area weights multiply votes, so a tally publishes candidate totals up to
+    // `MAX_COUNT`, far past the 2^31 - 1 that an `integer` column holds.
+    let total = i64::try_from(MAX_COUNT).unwrap();
+    let mut client = schema::pool().await.get().await.unwrap();
+    let transaction = client.transaction().await.unwrap();
+    home(&transaction).await;
+
+    let inserted = insert_results_contest_candidates(
+        &transaction,
+        TENANT,
+        EVENT,
+        RESULTS,
+        vec![ResultsContestCandidate {
+            cast_votes: Some(total),
+            ..candidate_result(CANDIDATE)
+        }],
+    )
+    .await
+    .unwrap();
+    let area_inserted = insert_results_area_contest_candidates(
+        &transaction,
+        TENANT,
+        EVENT,
+        RESULTS,
+        vec![ResultsAreaContestCandidate {
+            cast_votes: Some(total),
+            ..area_candidate_result(AREA)
+        }],
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(inserted[0].cast_votes, Some(total));
+    assert_eq!(area_inserted[0].cast_votes, Some(total));
+    let read = get_event_results_contest_candidates(&transaction, TENANT, EVENT)
+        .await
+        .unwrap();
+    assert_eq!(
+        read.iter().map(|row| row.cast_votes).collect::<Vec<_>>(),
+        [Some(total)]
+    );
+    let area_read = get_event_results_area_contest_candidates(&transaction, TENANT, EVENT)
+        .await
+        .unwrap();
+    assert_eq!(
+        area_read
+            .iter()
+            .map(|row| row.cast_votes)
+            .collect::<Vec<_>>(),
+        [Some(total)]
+    );
+    transaction.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn event_candidate_and_area_results_need_v4_tenant_and_event_ids() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let transaction = client.transaction().await.unwrap();
+
+    for (tenant, event, column, value) in [
+        ("tenant-1", EVENT, "tenant_id", "tenant-1"),
+        (TENANT, "event-1", "election_event_id", "event-1"),
+    ] {
+        let errors = [
+            get_event_results_contest_candidates(&transaction, tenant, event)
+                .await
+                .unwrap_err(),
+            get_event_results_area_contest_candidates(&transaction, tenant, event)
+                .await
+                .unwrap_err(),
+            get_event_results_area_contest(&transaction, tenant, event)
+                .await
+                .unwrap_err(),
+        ];
+        for error in errors.map(|error| error.to_string()) {
+            assert!(
+                error.starts_with(&format!("Error parsing {column} as UUID: "))
+                    && error.contains(value),
+                "{error}"
+            );
+        }
+    }
+    transaction.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn reading_the_area_result_of_a_candidate_needs_v4_ids() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let transaction = client.transaction().await.unwrap();
+    let ids = [TENANT, EVENT, ELECTION, CONTEST, CANDIDATE];
+
+    for (position, column) in [
+        "tenant_id",
+        "election_event_id",
+        "election_id",
+        "contest_id",
+        "candidate_id",
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let mut args = ids;
+        args[position] = "not-a-uuid";
+        let error = get_results_area_contest_candidates(
+            &transaction,
+            args[0],
+            args[1],
+            args[2],
+            args[3],
+            args[4],
+        )
+        .await
+        .unwrap_err()
+        .to_string();
+        assert!(
+            error.starts_with(&format!(
+                "Error parsing {column} as UUID: invalid UUID 'not-a-uuid'"
+            )),
+            "{error}"
+        );
+    }
     transaction.rollback().await.unwrap();
 }
 
