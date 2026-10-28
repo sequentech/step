@@ -23,4 +23,4 @@ export type {
     ResultsParticipationSummary,
     VotesByChannel,
 } from "./types"
-export {sortCandidateResults} from "./utils"
+export {pieChartNumberFormatOptions, sortCandidateResults} from "./utils"

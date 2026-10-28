@@ -38,24 +38,12 @@ impl TryFrom<Row> for ResultsAreaContestWrapper {
             elegible_census: item
                 .try_get::<_, Option<i32>>("elegible_census")?
                 .map(|val| val as i64),
-            total_valid_votes: item
-                .try_get::<_, Option<i32>>("total_valid_votes")?
-                .map(|val| val as i64),
-            explicit_invalid_votes: item
-                .try_get::<_, Option<i32>>("explicit_invalid_votes")?
-                .map(|val| val as i64),
-            implicit_invalid_votes: item
-                .try_get::<_, Option<i32>>("implicit_invalid_votes")?
-                .map(|val| val as i64),
-            total_blank_votes: item
-                .try_get::<_, Option<i32>>("total_blank_votes")?
-                .map(|val| val as i64),
-            explicit_blank_votes: item
-                .try_get::<_, Option<i32>>("explicit_blank_votes")?
-                .map(|val| val as i64),
-            implicit_blank_votes: item
-                .try_get::<_, Option<i32>>("implicit_blank_votes")?
-                .map(|val| val as i64),
+            total_valid_votes: item.try_get::<_, Option<i64>>("total_valid_votes")?,
+            explicit_invalid_votes: item.try_get::<_, Option<i64>>("explicit_invalid_votes")?,
+            implicit_invalid_votes: item.try_get::<_, Option<i64>>("implicit_invalid_votes")?,
+            total_blank_votes: item.try_get::<_, Option<i64>>("total_blank_votes")?,
+            explicit_blank_votes: item.try_get::<_, Option<i64>>("explicit_blank_votes")?,
+            implicit_blank_votes: item.try_get::<_, Option<i64>>("implicit_blank_votes")?,
             created_at: item.get("created_at"),
             last_updated_at: item.get("last_updated_at"),
             labels: item.try_get("labels")?,
@@ -65,9 +53,7 @@ impl TryFrom<Row> for ResultsAreaContestWrapper {
                 .to_f64()
                 .map(NotNan::new)
                 .transpose()?,
-            total_invalid_votes: item
-                .try_get::<_, Option<i32>>("total_invalid_votes")?
-                .map(|val| val as i64),
+            total_invalid_votes: item.try_get::<_, Option<i64>>("total_invalid_votes")?,
             total_invalid_votes_percent: item
                 .try_get::<_, Decimal>("total_invalid_votes_percent")?
                 .to_f64()
@@ -98,9 +84,7 @@ impl TryFrom<Row> for ResultsAreaContestWrapper {
                 .and_then(|val| val.to_f64())
                 .map(NotNan::new)
                 .transpose()?,
-            total_votes: item
-                .try_get::<_, Option<i32>>("total_votes")?
-                .map(|val| val as i64),
+            total_votes: item.try_get::<_, Option<i64>>("total_votes")?,
             total_votes_percent: item
                 .try_get::<_, Decimal>("total_votes_percent")?
                 .to_f64()

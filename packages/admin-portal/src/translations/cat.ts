@@ -468,6 +468,7 @@ const catalanTranslation: TranslationType = {
                 dates: "Dates",
                 customUrls: "Prefix d'URL personalitzats",
                 language: "Idiomes",
+                languageAndRegion: "Idioma i regió",
                 votingPeriod: "Període de votació",
                 allowed: "Canals de Vot Permesos",
                 materials: "Materials de Suport",
@@ -705,6 +706,12 @@ const catalanTranslation: TranslationType = {
                         "browser-detect": "Detectar del navegador",
                         "force-default": "Forçar per defecte",
                     },
+                },
+                numberFormatPolicy: {
+                    policyLabel: "Política de format de nombres",
+                    helperText:
+                        "S'aplica als nombres dels resultats, els taulers de control i els informes.",
+                    unknownPolicy: "Format desconegut '{{policy}}', es mostra com a {{sample}}",
                 },
             },
             error: {
@@ -2173,6 +2180,8 @@ const catalanTranslation: TranslationType = {
             },
         },
         tally: {
+            numericResultsReportsPending:
+                "Els resultats numèrics estan complets. Els informes encara s’estan generant.",
             errorUploadingSignature: "S'ha produït un error en carregar la signatura",
             downloadTransmissionPackage: "Descarregar paquet",
             resultsPublication: {
