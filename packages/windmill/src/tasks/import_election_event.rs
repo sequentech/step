@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::maintenance::vacuum_analyze_direct;
+use crate::services::documents::restrict_import_source;
 use crate::services::electoral_log::ElectoralLogAdminContext;
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
 use crate::services::tasks_execution::{update_complete, update_fail};
@@ -38,6 +39,12 @@ pub async fn import_election_event(
     tenant_id: String,
     task_execution: TasksExecution,
 ) -> Result<()> {
+    if let Err(err) = restrict_import_source(&object.tenant_id, &object.document_id).await {
+        let err_str = format!("Error restricting access to the election event document: {err:#}");
+        let _ = update_fail(&task_execution, &err_str).await;
+        return Err(err_str.into());
+    }
+
     let result = provide_hasura_transaction(|hasura_transaction| {
         let object = object.clone();
         let tenant_id = tenant_id.clone();
