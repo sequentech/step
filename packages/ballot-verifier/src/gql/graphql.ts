@@ -13593,14 +13593,14 @@ export type Sequent_Backend_Results_Area_Contest = {
     election_event_id: Scalars["uuid"]["output"]
     election_id: Scalars["uuid"]["output"]
     elegible_census?: Maybe<Scalars["Int"]["output"]>
-    explicit_blank_votes?: Maybe<Scalars["Int"]["output"]>
+    explicit_blank_votes?: Maybe<Scalars["bigint"]["output"]>
     explicit_blank_votes_percent?: Maybe<Scalars["numeric"]["output"]>
-    explicit_invalid_votes?: Maybe<Scalars["Int"]["output"]>
+    explicit_invalid_votes?: Maybe<Scalars["bigint"]["output"]>
     explicit_invalid_votes_percent?: Maybe<Scalars["numeric"]["output"]>
     id: Scalars["uuid"]["output"]
-    implicit_blank_votes?: Maybe<Scalars["Int"]["output"]>
+    implicit_blank_votes?: Maybe<Scalars["bigint"]["output"]>
     implicit_blank_votes_percent?: Maybe<Scalars["numeric"]["output"]>
-    implicit_invalid_votes?: Maybe<Scalars["Int"]["output"]>
+    implicit_invalid_votes?: Maybe<Scalars["bigint"]["output"]>
     implicit_invalid_votes_percent?: Maybe<Scalars["numeric"]["output"]>
     labels?: Maybe<Scalars["jsonb"]["output"]>
     last_updated_at?: Maybe<Scalars["timestamptz"]["output"]>
@@ -13608,13 +13608,13 @@ export type Sequent_Backend_Results_Area_Contest = {
     tenant_id: Scalars["uuid"]["output"]
     total_auditable_votes?: Maybe<Scalars["Int"]["output"]>
     total_auditable_votes_percent?: Maybe<Scalars["numeric"]["output"]>
-    total_blank_votes?: Maybe<Scalars["Int"]["output"]>
+    total_blank_votes?: Maybe<Scalars["bigint"]["output"]>
     total_blank_votes_percent?: Maybe<Scalars["numeric"]["output"]>
-    total_invalid_votes?: Maybe<Scalars["Int"]["output"]>
+    total_invalid_votes?: Maybe<Scalars["bigint"]["output"]>
     total_invalid_votes_percent?: Maybe<Scalars["numeric"]["output"]>
-    total_valid_votes?: Maybe<Scalars["Int"]["output"]>
+    total_valid_votes?: Maybe<Scalars["bigint"]["output"]>
     total_valid_votes_percent?: Maybe<Scalars["numeric"]["output"]>
-    total_votes?: Maybe<Scalars["Int"]["output"]>
+    total_votes?: Maybe<Scalars["bigint"]["output"]>
     total_votes_percent?: Maybe<Scalars["numeric"]["output"]>
 }
 
@@ -13706,14 +13706,14 @@ export type Sequent_Backend_Results_Area_Contest_Bool_Exp = {
     election_event_id?: InputMaybe<Uuid_Comparison_Exp>
     election_id?: InputMaybe<Uuid_Comparison_Exp>
     elegible_census?: InputMaybe<Int_Comparison_Exp>
-    explicit_blank_votes?: InputMaybe<Int_Comparison_Exp>
+    explicit_blank_votes?: InputMaybe<Bigint_Comparison_Exp>
     explicit_blank_votes_percent?: InputMaybe<Numeric_Comparison_Exp>
-    explicit_invalid_votes?: InputMaybe<Int_Comparison_Exp>
+    explicit_invalid_votes?: InputMaybe<Bigint_Comparison_Exp>
     explicit_invalid_votes_percent?: InputMaybe<Numeric_Comparison_Exp>
     id?: InputMaybe<Uuid_Comparison_Exp>
-    implicit_blank_votes?: InputMaybe<Int_Comparison_Exp>
+    implicit_blank_votes?: InputMaybe<Bigint_Comparison_Exp>
     implicit_blank_votes_percent?: InputMaybe<Numeric_Comparison_Exp>
-    implicit_invalid_votes?: InputMaybe<Int_Comparison_Exp>
+    implicit_invalid_votes?: InputMaybe<Bigint_Comparison_Exp>
     implicit_invalid_votes_percent?: InputMaybe<Numeric_Comparison_Exp>
     labels?: InputMaybe<Jsonb_Comparison_Exp>
     last_updated_at?: InputMaybe<Timestamptz_Comparison_Exp>
@@ -13721,13 +13721,13 @@ export type Sequent_Backend_Results_Area_Contest_Bool_Exp = {
     tenant_id?: InputMaybe<Uuid_Comparison_Exp>
     total_auditable_votes?: InputMaybe<Int_Comparison_Exp>
     total_auditable_votes_percent?: InputMaybe<Numeric_Comparison_Exp>
-    total_blank_votes?: InputMaybe<Int_Comparison_Exp>
+    total_blank_votes?: InputMaybe<Bigint_Comparison_Exp>
     total_blank_votes_percent?: InputMaybe<Numeric_Comparison_Exp>
-    total_invalid_votes?: InputMaybe<Int_Comparison_Exp>
+    total_invalid_votes?: InputMaybe<Bigint_Comparison_Exp>
     total_invalid_votes_percent?: InputMaybe<Numeric_Comparison_Exp>
-    total_valid_votes?: InputMaybe<Int_Comparison_Exp>
+    total_valid_votes?: InputMaybe<Bigint_Comparison_Exp>
     total_valid_votes_percent?: InputMaybe<Numeric_Comparison_Exp>
-    total_votes?: InputMaybe<Int_Comparison_Exp>
+    total_votes?: InputMaybe<Bigint_Comparison_Exp>
     total_votes_percent?: InputMaybe<Numeric_Comparison_Exp>
 }
 
@@ -13737,7 +13737,7 @@ export type Sequent_Backend_Results_Area_Contest_Candidate = {
     annotations?: Maybe<Scalars["jsonb"]["output"]>
     area_id: Scalars["uuid"]["output"]
     candidate_id: Scalars["uuid"]["output"]
-    cast_votes?: Maybe<Scalars["Int"]["output"]>
+    cast_votes?: Maybe<Scalars["bigint"]["output"]>
     cast_votes_percent?: Maybe<Scalars["numeric"]["output"]>
     contest_id: Scalars["uuid"]["output"]
     created_at?: Maybe<Scalars["timestamptz"]["output"]>
@@ -13821,7 +13821,7 @@ export type Sequent_Backend_Results_Area_Contest_Candidate_Bool_Exp = {
     annotations?: InputMaybe<Jsonb_Comparison_Exp>
     area_id?: InputMaybe<Uuid_Comparison_Exp>
     candidate_id?: InputMaybe<Uuid_Comparison_Exp>
-    cast_votes?: InputMaybe<Int_Comparison_Exp>
+    cast_votes?: InputMaybe<Bigint_Comparison_Exp>
     cast_votes_percent?: InputMaybe<Numeric_Comparison_Exp>
     contest_id?: InputMaybe<Uuid_Comparison_Exp>
     created_at?: InputMaybe<Timestamptz_Comparison_Exp>
@@ -13866,7 +13866,7 @@ export type Sequent_Backend_Results_Area_Contest_Candidate_Delete_Key_Input = {
 
 /** input type for incrementing numeric columns in table "sequent_backend.results_area_contest_candidate" */
 export type Sequent_Backend_Results_Area_Contest_Candidate_Inc_Input = {
-    cast_votes?: InputMaybe<Scalars["Int"]["input"]>
+    cast_votes?: InputMaybe<Scalars["bigint"]["input"]>
     cast_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
     points?: InputMaybe<Scalars["Int"]["input"]>
     winning_position?: InputMaybe<Scalars["Int"]["input"]>
@@ -13877,7 +13877,7 @@ export type Sequent_Backend_Results_Area_Contest_Candidate_Insert_Input = {
     annotations?: InputMaybe<Scalars["jsonb"]["input"]>
     area_id?: InputMaybe<Scalars["uuid"]["input"]>
     candidate_id?: InputMaybe<Scalars["uuid"]["input"]>
-    cast_votes?: InputMaybe<Scalars["Int"]["input"]>
+    cast_votes?: InputMaybe<Scalars["bigint"]["input"]>
     cast_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
     contest_id?: InputMaybe<Scalars["uuid"]["input"]>
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
@@ -13898,7 +13898,7 @@ export type Sequent_Backend_Results_Area_Contest_Candidate_Max_Fields = {
     __typename?: "sequent_backend_results_area_contest_candidate_max_fields"
     area_id?: Maybe<Scalars["uuid"]["output"]>
     candidate_id?: Maybe<Scalars["uuid"]["output"]>
-    cast_votes?: Maybe<Scalars["Int"]["output"]>
+    cast_votes?: Maybe<Scalars["bigint"]["output"]>
     cast_votes_percent?: Maybe<Scalars["numeric"]["output"]>
     contest_id?: Maybe<Scalars["uuid"]["output"]>
     created_at?: Maybe<Scalars["timestamptz"]["output"]>
@@ -13917,7 +13917,7 @@ export type Sequent_Backend_Results_Area_Contest_Candidate_Min_Fields = {
     __typename?: "sequent_backend_results_area_contest_candidate_min_fields"
     area_id?: Maybe<Scalars["uuid"]["output"]>
     candidate_id?: Maybe<Scalars["uuid"]["output"]>
-    cast_votes?: Maybe<Scalars["Int"]["output"]>
+    cast_votes?: Maybe<Scalars["bigint"]["output"]>
     cast_votes_percent?: Maybe<Scalars["numeric"]["output"]>
     contest_id?: Maybe<Scalars["uuid"]["output"]>
     created_at?: Maybe<Scalars["timestamptz"]["output"]>
@@ -14026,7 +14026,7 @@ export type Sequent_Backend_Results_Area_Contest_Candidate_Set_Input = {
     annotations?: InputMaybe<Scalars["jsonb"]["input"]>
     area_id?: InputMaybe<Scalars["uuid"]["input"]>
     candidate_id?: InputMaybe<Scalars["uuid"]["input"]>
-    cast_votes?: InputMaybe<Scalars["Int"]["input"]>
+    cast_votes?: InputMaybe<Scalars["bigint"]["input"]>
     cast_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
     contest_id?: InputMaybe<Scalars["uuid"]["input"]>
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
@@ -14082,7 +14082,7 @@ export type Sequent_Backend_Results_Area_Contest_Candidate_Stream_Cursor_Value_I
     annotations?: InputMaybe<Scalars["jsonb"]["input"]>
     area_id?: InputMaybe<Scalars["uuid"]["input"]>
     candidate_id?: InputMaybe<Scalars["uuid"]["input"]>
-    cast_votes?: InputMaybe<Scalars["Int"]["input"]>
+    cast_votes?: InputMaybe<Scalars["bigint"]["input"]>
     cast_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
     contest_id?: InputMaybe<Scalars["uuid"]["input"]>
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
@@ -14101,7 +14101,7 @@ export type Sequent_Backend_Results_Area_Contest_Candidate_Stream_Cursor_Value_I
 /** aggregate sum on columns */
 export type Sequent_Backend_Results_Area_Contest_Candidate_Sum_Fields = {
     __typename?: "sequent_backend_results_area_contest_candidate_sum_fields"
-    cast_votes?: Maybe<Scalars["Int"]["output"]>
+    cast_votes?: Maybe<Scalars["bigint"]["output"]>
     cast_votes_percent?: Maybe<Scalars["numeric"]["output"]>
     points?: Maybe<Scalars["Int"]["output"]>
     winning_position?: Maybe<Scalars["Int"]["output"]>
@@ -14221,23 +14221,23 @@ export type Sequent_Backend_Results_Area_Contest_Delete_Key_Input = {
 /** input type for incrementing numeric columns in table "sequent_backend.results_area_contest" */
 export type Sequent_Backend_Results_Area_Contest_Inc_Input = {
     elegible_census?: InputMaybe<Scalars["Int"]["input"]>
-    explicit_blank_votes?: InputMaybe<Scalars["Int"]["input"]>
+    explicit_blank_votes?: InputMaybe<Scalars["bigint"]["input"]>
     explicit_blank_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
-    explicit_invalid_votes?: InputMaybe<Scalars["Int"]["input"]>
+    explicit_invalid_votes?: InputMaybe<Scalars["bigint"]["input"]>
     explicit_invalid_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
-    implicit_blank_votes?: InputMaybe<Scalars["Int"]["input"]>
+    implicit_blank_votes?: InputMaybe<Scalars["bigint"]["input"]>
     implicit_blank_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
-    implicit_invalid_votes?: InputMaybe<Scalars["Int"]["input"]>
+    implicit_invalid_votes?: InputMaybe<Scalars["bigint"]["input"]>
     implicit_invalid_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
     total_auditable_votes?: InputMaybe<Scalars["Int"]["input"]>
     total_auditable_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
-    total_blank_votes?: InputMaybe<Scalars["Int"]["input"]>
+    total_blank_votes?: InputMaybe<Scalars["bigint"]["input"]>
     total_blank_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
-    total_invalid_votes?: InputMaybe<Scalars["Int"]["input"]>
+    total_invalid_votes?: InputMaybe<Scalars["bigint"]["input"]>
     total_invalid_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
-    total_valid_votes?: InputMaybe<Scalars["Int"]["input"]>
+    total_valid_votes?: InputMaybe<Scalars["bigint"]["input"]>
     total_valid_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
-    total_votes?: InputMaybe<Scalars["Int"]["input"]>
+    total_votes?: InputMaybe<Scalars["bigint"]["input"]>
     total_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
 }
 
@@ -14251,14 +14251,14 @@ export type Sequent_Backend_Results_Area_Contest_Insert_Input = {
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     election_id?: InputMaybe<Scalars["uuid"]["input"]>
     elegible_census?: InputMaybe<Scalars["Int"]["input"]>
-    explicit_blank_votes?: InputMaybe<Scalars["Int"]["input"]>
+    explicit_blank_votes?: InputMaybe<Scalars["bigint"]["input"]>
     explicit_blank_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
-    explicit_invalid_votes?: InputMaybe<Scalars["Int"]["input"]>
+    explicit_invalid_votes?: InputMaybe<Scalars["bigint"]["input"]>
     explicit_invalid_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
-    implicit_blank_votes?: InputMaybe<Scalars["Int"]["input"]>
+    implicit_blank_votes?: InputMaybe<Scalars["bigint"]["input"]>
     implicit_blank_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
-    implicit_invalid_votes?: InputMaybe<Scalars["Int"]["input"]>
+    implicit_invalid_votes?: InputMaybe<Scalars["bigint"]["input"]>
     implicit_invalid_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
     labels?: InputMaybe<Scalars["jsonb"]["input"]>
     last_updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
@@ -14266,13 +14266,13 @@ export type Sequent_Backend_Results_Area_Contest_Insert_Input = {
     tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
     total_auditable_votes?: InputMaybe<Scalars["Int"]["input"]>
     total_auditable_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
-    total_blank_votes?: InputMaybe<Scalars["Int"]["input"]>
+    total_blank_votes?: InputMaybe<Scalars["bigint"]["input"]>
     total_blank_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
-    total_invalid_votes?: InputMaybe<Scalars["Int"]["input"]>
+    total_invalid_votes?: InputMaybe<Scalars["bigint"]["input"]>
     total_invalid_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
-    total_valid_votes?: InputMaybe<Scalars["Int"]["input"]>
+    total_valid_votes?: InputMaybe<Scalars["bigint"]["input"]>
     total_valid_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
-    total_votes?: InputMaybe<Scalars["Int"]["input"]>
+    total_votes?: InputMaybe<Scalars["bigint"]["input"]>
     total_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
 }
 
@@ -14285,27 +14285,27 @@ export type Sequent_Backend_Results_Area_Contest_Max_Fields = {
     election_event_id?: Maybe<Scalars["uuid"]["output"]>
     election_id?: Maybe<Scalars["uuid"]["output"]>
     elegible_census?: Maybe<Scalars["Int"]["output"]>
-    explicit_blank_votes?: Maybe<Scalars["Int"]["output"]>
+    explicit_blank_votes?: Maybe<Scalars["bigint"]["output"]>
     explicit_blank_votes_percent?: Maybe<Scalars["numeric"]["output"]>
-    explicit_invalid_votes?: Maybe<Scalars["Int"]["output"]>
+    explicit_invalid_votes?: Maybe<Scalars["bigint"]["output"]>
     explicit_invalid_votes_percent?: Maybe<Scalars["numeric"]["output"]>
     id?: Maybe<Scalars["uuid"]["output"]>
-    implicit_blank_votes?: Maybe<Scalars["Int"]["output"]>
+    implicit_blank_votes?: Maybe<Scalars["bigint"]["output"]>
     implicit_blank_votes_percent?: Maybe<Scalars["numeric"]["output"]>
-    implicit_invalid_votes?: Maybe<Scalars["Int"]["output"]>
+    implicit_invalid_votes?: Maybe<Scalars["bigint"]["output"]>
     implicit_invalid_votes_percent?: Maybe<Scalars["numeric"]["output"]>
     last_updated_at?: Maybe<Scalars["timestamptz"]["output"]>
     results_event_id?: Maybe<Scalars["uuid"]["output"]>
     tenant_id?: Maybe<Scalars["uuid"]["output"]>
     total_auditable_votes?: Maybe<Scalars["Int"]["output"]>
     total_auditable_votes_percent?: Maybe<Scalars["numeric"]["output"]>
-    total_blank_votes?: Maybe<Scalars["Int"]["output"]>
+    total_blank_votes?: Maybe<Scalars["bigint"]["output"]>
     total_blank_votes_percent?: Maybe<Scalars["numeric"]["output"]>
-    total_invalid_votes?: Maybe<Scalars["Int"]["output"]>
+    total_invalid_votes?: Maybe<Scalars["bigint"]["output"]>
     total_invalid_votes_percent?: Maybe<Scalars["numeric"]["output"]>
-    total_valid_votes?: Maybe<Scalars["Int"]["output"]>
+    total_valid_votes?: Maybe<Scalars["bigint"]["output"]>
     total_valid_votes_percent?: Maybe<Scalars["numeric"]["output"]>
-    total_votes?: Maybe<Scalars["Int"]["output"]>
+    total_votes?: Maybe<Scalars["bigint"]["output"]>
     total_votes_percent?: Maybe<Scalars["numeric"]["output"]>
 }
 
@@ -14318,27 +14318,27 @@ export type Sequent_Backend_Results_Area_Contest_Min_Fields = {
     election_event_id?: Maybe<Scalars["uuid"]["output"]>
     election_id?: Maybe<Scalars["uuid"]["output"]>
     elegible_census?: Maybe<Scalars["Int"]["output"]>
-    explicit_blank_votes?: Maybe<Scalars["Int"]["output"]>
+    explicit_blank_votes?: Maybe<Scalars["bigint"]["output"]>
     explicit_blank_votes_percent?: Maybe<Scalars["numeric"]["output"]>
-    explicit_invalid_votes?: Maybe<Scalars["Int"]["output"]>
+    explicit_invalid_votes?: Maybe<Scalars["bigint"]["output"]>
     explicit_invalid_votes_percent?: Maybe<Scalars["numeric"]["output"]>
     id?: Maybe<Scalars["uuid"]["output"]>
-    implicit_blank_votes?: Maybe<Scalars["Int"]["output"]>
+    implicit_blank_votes?: Maybe<Scalars["bigint"]["output"]>
     implicit_blank_votes_percent?: Maybe<Scalars["numeric"]["output"]>
-    implicit_invalid_votes?: Maybe<Scalars["Int"]["output"]>
+    implicit_invalid_votes?: Maybe<Scalars["bigint"]["output"]>
     implicit_invalid_votes_percent?: Maybe<Scalars["numeric"]["output"]>
     last_updated_at?: Maybe<Scalars["timestamptz"]["output"]>
     results_event_id?: Maybe<Scalars["uuid"]["output"]>
     tenant_id?: Maybe<Scalars["uuid"]["output"]>
     total_auditable_votes?: Maybe<Scalars["Int"]["output"]>
     total_auditable_votes_percent?: Maybe<Scalars["numeric"]["output"]>
-    total_blank_votes?: Maybe<Scalars["Int"]["output"]>
+    total_blank_votes?: Maybe<Scalars["bigint"]["output"]>
     total_blank_votes_percent?: Maybe<Scalars["numeric"]["output"]>
-    total_invalid_votes?: Maybe<Scalars["Int"]["output"]>
+    total_invalid_votes?: Maybe<Scalars["bigint"]["output"]>
     total_invalid_votes_percent?: Maybe<Scalars["numeric"]["output"]>
-    total_valid_votes?: Maybe<Scalars["Int"]["output"]>
+    total_valid_votes?: Maybe<Scalars["bigint"]["output"]>
     total_valid_votes_percent?: Maybe<Scalars["numeric"]["output"]>
-    total_votes?: Maybe<Scalars["Int"]["output"]>
+    total_votes?: Maybe<Scalars["bigint"]["output"]>
     total_votes_percent?: Maybe<Scalars["numeric"]["output"]>
 }
 
@@ -14484,14 +14484,14 @@ export type Sequent_Backend_Results_Area_Contest_Set_Input = {
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     election_id?: InputMaybe<Scalars["uuid"]["input"]>
     elegible_census?: InputMaybe<Scalars["Int"]["input"]>
-    explicit_blank_votes?: InputMaybe<Scalars["Int"]["input"]>
+    explicit_blank_votes?: InputMaybe<Scalars["bigint"]["input"]>
     explicit_blank_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
-    explicit_invalid_votes?: InputMaybe<Scalars["Int"]["input"]>
+    explicit_invalid_votes?: InputMaybe<Scalars["bigint"]["input"]>
     explicit_invalid_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
-    implicit_blank_votes?: InputMaybe<Scalars["Int"]["input"]>
+    implicit_blank_votes?: InputMaybe<Scalars["bigint"]["input"]>
     implicit_blank_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
-    implicit_invalid_votes?: InputMaybe<Scalars["Int"]["input"]>
+    implicit_invalid_votes?: InputMaybe<Scalars["bigint"]["input"]>
     implicit_invalid_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
     labels?: InputMaybe<Scalars["jsonb"]["input"]>
     last_updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
@@ -14499,13 +14499,13 @@ export type Sequent_Backend_Results_Area_Contest_Set_Input = {
     tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
     total_auditable_votes?: InputMaybe<Scalars["Int"]["input"]>
     total_auditable_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
-    total_blank_votes?: InputMaybe<Scalars["Int"]["input"]>
+    total_blank_votes?: InputMaybe<Scalars["bigint"]["input"]>
     total_blank_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
-    total_invalid_votes?: InputMaybe<Scalars["Int"]["input"]>
+    total_invalid_votes?: InputMaybe<Scalars["bigint"]["input"]>
     total_invalid_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
-    total_valid_votes?: InputMaybe<Scalars["Int"]["input"]>
+    total_valid_votes?: InputMaybe<Scalars["bigint"]["input"]>
     total_valid_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
-    total_votes?: InputMaybe<Scalars["Int"]["input"]>
+    total_votes?: InputMaybe<Scalars["bigint"]["input"]>
     total_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
 }
 
@@ -14599,14 +14599,14 @@ export type Sequent_Backend_Results_Area_Contest_Stream_Cursor_Value_Input = {
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     election_id?: InputMaybe<Scalars["uuid"]["input"]>
     elegible_census?: InputMaybe<Scalars["Int"]["input"]>
-    explicit_blank_votes?: InputMaybe<Scalars["Int"]["input"]>
+    explicit_blank_votes?: InputMaybe<Scalars["bigint"]["input"]>
     explicit_blank_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
-    explicit_invalid_votes?: InputMaybe<Scalars["Int"]["input"]>
+    explicit_invalid_votes?: InputMaybe<Scalars["bigint"]["input"]>
     explicit_invalid_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
-    implicit_blank_votes?: InputMaybe<Scalars["Int"]["input"]>
+    implicit_blank_votes?: InputMaybe<Scalars["bigint"]["input"]>
     implicit_blank_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
-    implicit_invalid_votes?: InputMaybe<Scalars["Int"]["input"]>
+    implicit_invalid_votes?: InputMaybe<Scalars["bigint"]["input"]>
     implicit_invalid_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
     labels?: InputMaybe<Scalars["jsonb"]["input"]>
     last_updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
@@ -14614,13 +14614,13 @@ export type Sequent_Backend_Results_Area_Contest_Stream_Cursor_Value_Input = {
     tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
     total_auditable_votes?: InputMaybe<Scalars["Int"]["input"]>
     total_auditable_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
-    total_blank_votes?: InputMaybe<Scalars["Int"]["input"]>
+    total_blank_votes?: InputMaybe<Scalars["bigint"]["input"]>
     total_blank_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
-    total_invalid_votes?: InputMaybe<Scalars["Int"]["input"]>
+    total_invalid_votes?: InputMaybe<Scalars["bigint"]["input"]>
     total_invalid_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
-    total_valid_votes?: InputMaybe<Scalars["Int"]["input"]>
+    total_valid_votes?: InputMaybe<Scalars["bigint"]["input"]>
     total_valid_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
-    total_votes?: InputMaybe<Scalars["Int"]["input"]>
+    total_votes?: InputMaybe<Scalars["bigint"]["input"]>
     total_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
 }
 
@@ -14628,23 +14628,23 @@ export type Sequent_Backend_Results_Area_Contest_Stream_Cursor_Value_Input = {
 export type Sequent_Backend_Results_Area_Contest_Sum_Fields = {
     __typename?: "sequent_backend_results_area_contest_sum_fields"
     elegible_census?: Maybe<Scalars["Int"]["output"]>
-    explicit_blank_votes?: Maybe<Scalars["Int"]["output"]>
+    explicit_blank_votes?: Maybe<Scalars["bigint"]["output"]>
     explicit_blank_votes_percent?: Maybe<Scalars["numeric"]["output"]>
-    explicit_invalid_votes?: Maybe<Scalars["Int"]["output"]>
+    explicit_invalid_votes?: Maybe<Scalars["bigint"]["output"]>
     explicit_invalid_votes_percent?: Maybe<Scalars["numeric"]["output"]>
-    implicit_blank_votes?: Maybe<Scalars["Int"]["output"]>
+    implicit_blank_votes?: Maybe<Scalars["bigint"]["output"]>
     implicit_blank_votes_percent?: Maybe<Scalars["numeric"]["output"]>
-    implicit_invalid_votes?: Maybe<Scalars["Int"]["output"]>
+    implicit_invalid_votes?: Maybe<Scalars["bigint"]["output"]>
     implicit_invalid_votes_percent?: Maybe<Scalars["numeric"]["output"]>
     total_auditable_votes?: Maybe<Scalars["Int"]["output"]>
     total_auditable_votes_percent?: Maybe<Scalars["numeric"]["output"]>
-    total_blank_votes?: Maybe<Scalars["Int"]["output"]>
+    total_blank_votes?: Maybe<Scalars["bigint"]["output"]>
     total_blank_votes_percent?: Maybe<Scalars["numeric"]["output"]>
-    total_invalid_votes?: Maybe<Scalars["Int"]["output"]>
+    total_invalid_votes?: Maybe<Scalars["bigint"]["output"]>
     total_invalid_votes_percent?: Maybe<Scalars["numeric"]["output"]>
-    total_valid_votes?: Maybe<Scalars["Int"]["output"]>
+    total_valid_votes?: Maybe<Scalars["bigint"]["output"]>
     total_valid_votes_percent?: Maybe<Scalars["numeric"]["output"]>
-    total_votes?: Maybe<Scalars["Int"]["output"]>
+    total_votes?: Maybe<Scalars["bigint"]["output"]>
     total_votes_percent?: Maybe<Scalars["numeric"]["output"]>
 }
 
@@ -14816,14 +14816,14 @@ export type Sequent_Backend_Results_Contest = {
     election_event_id: Scalars["uuid"]["output"]
     election_id: Scalars["uuid"]["output"]
     elegible_census?: Maybe<Scalars["Int"]["output"]>
-    explicit_blank_votes?: Maybe<Scalars["Int"]["output"]>
+    explicit_blank_votes?: Maybe<Scalars["bigint"]["output"]>
     explicit_blank_votes_percent?: Maybe<Scalars["numeric"]["output"]>
-    explicit_invalid_votes?: Maybe<Scalars["Int"]["output"]>
+    explicit_invalid_votes?: Maybe<Scalars["bigint"]["output"]>
     explicit_invalid_votes_percent?: Maybe<Scalars["numeric"]["output"]>
     id: Scalars["uuid"]["output"]
-    implicit_blank_votes?: Maybe<Scalars["Int"]["output"]>
+    implicit_blank_votes?: Maybe<Scalars["bigint"]["output"]>
     implicit_blank_votes_percent?: Maybe<Scalars["numeric"]["output"]>
-    implicit_invalid_votes?: Maybe<Scalars["Int"]["output"]>
+    implicit_invalid_votes?: Maybe<Scalars["bigint"]["output"]>
     implicit_invalid_votes_percent?: Maybe<Scalars["numeric"]["output"]>
     labels?: Maybe<Scalars["jsonb"]["output"]>
     last_updated_at?: Maybe<Scalars["timestamptz"]["output"]>
@@ -14832,13 +14832,13 @@ export type Sequent_Backend_Results_Contest = {
     tenant_id: Scalars["uuid"]["output"]
     total_auditable_votes?: Maybe<Scalars["Int"]["output"]>
     total_auditable_votes_percent?: Maybe<Scalars["numeric"]["output"]>
-    total_blank_votes?: Maybe<Scalars["Int"]["output"]>
+    total_blank_votes?: Maybe<Scalars["bigint"]["output"]>
     total_blank_votes_percent?: Maybe<Scalars["numeric"]["output"]>
-    total_invalid_votes?: Maybe<Scalars["Int"]["output"]>
+    total_invalid_votes?: Maybe<Scalars["bigint"]["output"]>
     total_invalid_votes_percent?: Maybe<Scalars["numeric"]["output"]>
-    total_valid_votes?: Maybe<Scalars["Int"]["output"]>
+    total_valid_votes?: Maybe<Scalars["bigint"]["output"]>
     total_valid_votes_percent?: Maybe<Scalars["numeric"]["output"]>
-    total_votes?: Maybe<Scalars["Int"]["output"]>
+    total_votes?: Maybe<Scalars["bigint"]["output"]>
     total_votes_percent?: Maybe<Scalars["numeric"]["output"]>
     voting_type?: Maybe<Scalars["String"]["output"]>
 }
@@ -14931,14 +14931,14 @@ export type Sequent_Backend_Results_Contest_Bool_Exp = {
     election_event_id?: InputMaybe<Uuid_Comparison_Exp>
     election_id?: InputMaybe<Uuid_Comparison_Exp>
     elegible_census?: InputMaybe<Int_Comparison_Exp>
-    explicit_blank_votes?: InputMaybe<Int_Comparison_Exp>
+    explicit_blank_votes?: InputMaybe<Bigint_Comparison_Exp>
     explicit_blank_votes_percent?: InputMaybe<Numeric_Comparison_Exp>
-    explicit_invalid_votes?: InputMaybe<Int_Comparison_Exp>
+    explicit_invalid_votes?: InputMaybe<Bigint_Comparison_Exp>
     explicit_invalid_votes_percent?: InputMaybe<Numeric_Comparison_Exp>
     id?: InputMaybe<Uuid_Comparison_Exp>
-    implicit_blank_votes?: InputMaybe<Int_Comparison_Exp>
+    implicit_blank_votes?: InputMaybe<Bigint_Comparison_Exp>
     implicit_blank_votes_percent?: InputMaybe<Numeric_Comparison_Exp>
-    implicit_invalid_votes?: InputMaybe<Int_Comparison_Exp>
+    implicit_invalid_votes?: InputMaybe<Bigint_Comparison_Exp>
     implicit_invalid_votes_percent?: InputMaybe<Numeric_Comparison_Exp>
     labels?: InputMaybe<Jsonb_Comparison_Exp>
     last_updated_at?: InputMaybe<Timestamptz_Comparison_Exp>
@@ -14947,13 +14947,13 @@ export type Sequent_Backend_Results_Contest_Bool_Exp = {
     tenant_id?: InputMaybe<Uuid_Comparison_Exp>
     total_auditable_votes?: InputMaybe<Int_Comparison_Exp>
     total_auditable_votes_percent?: InputMaybe<Numeric_Comparison_Exp>
-    total_blank_votes?: InputMaybe<Int_Comparison_Exp>
+    total_blank_votes?: InputMaybe<Bigint_Comparison_Exp>
     total_blank_votes_percent?: InputMaybe<Numeric_Comparison_Exp>
-    total_invalid_votes?: InputMaybe<Int_Comparison_Exp>
+    total_invalid_votes?: InputMaybe<Bigint_Comparison_Exp>
     total_invalid_votes_percent?: InputMaybe<Numeric_Comparison_Exp>
-    total_valid_votes?: InputMaybe<Int_Comparison_Exp>
+    total_valid_votes?: InputMaybe<Bigint_Comparison_Exp>
     total_valid_votes_percent?: InputMaybe<Numeric_Comparison_Exp>
-    total_votes?: InputMaybe<Int_Comparison_Exp>
+    total_votes?: InputMaybe<Bigint_Comparison_Exp>
     total_votes_percent?: InputMaybe<Numeric_Comparison_Exp>
     voting_type?: InputMaybe<String_Comparison_Exp>
 }
@@ -14963,7 +14963,7 @@ export type Sequent_Backend_Results_Contest_Candidate = {
     __typename?: "sequent_backend_results_contest_candidate"
     annotations?: Maybe<Scalars["jsonb"]["output"]>
     candidate_id: Scalars["uuid"]["output"]
-    cast_votes?: Maybe<Scalars["Int"]["output"]>
+    cast_votes?: Maybe<Scalars["bigint"]["output"]>
     cast_votes_percent?: Maybe<Scalars["numeric"]["output"]>
     contest_id: Scalars["uuid"]["output"]
     created_at?: Maybe<Scalars["timestamptz"]["output"]>
@@ -15046,7 +15046,7 @@ export type Sequent_Backend_Results_Contest_Candidate_Bool_Exp = {
     _or?: InputMaybe<Array<Sequent_Backend_Results_Contest_Candidate_Bool_Exp>>
     annotations?: InputMaybe<Jsonb_Comparison_Exp>
     candidate_id?: InputMaybe<Uuid_Comparison_Exp>
-    cast_votes?: InputMaybe<Int_Comparison_Exp>
+    cast_votes?: InputMaybe<Bigint_Comparison_Exp>
     cast_votes_percent?: InputMaybe<Numeric_Comparison_Exp>
     contest_id?: InputMaybe<Uuid_Comparison_Exp>
     created_at?: InputMaybe<Timestamptz_Comparison_Exp>
@@ -15091,7 +15091,7 @@ export type Sequent_Backend_Results_Contest_Candidate_Delete_Key_Input = {
 
 /** input type for incrementing numeric columns in table "sequent_backend.results_contest_candidate" */
 export type Sequent_Backend_Results_Contest_Candidate_Inc_Input = {
-    cast_votes?: InputMaybe<Scalars["Int"]["input"]>
+    cast_votes?: InputMaybe<Scalars["bigint"]["input"]>
     cast_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
     points?: InputMaybe<Scalars["Int"]["input"]>
     winning_position?: InputMaybe<Scalars["Int"]["input"]>
@@ -15101,7 +15101,7 @@ export type Sequent_Backend_Results_Contest_Candidate_Inc_Input = {
 export type Sequent_Backend_Results_Contest_Candidate_Insert_Input = {
     annotations?: InputMaybe<Scalars["jsonb"]["input"]>
     candidate_id?: InputMaybe<Scalars["uuid"]["input"]>
-    cast_votes?: InputMaybe<Scalars["Int"]["input"]>
+    cast_votes?: InputMaybe<Scalars["bigint"]["input"]>
     cast_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
     contest_id?: InputMaybe<Scalars["uuid"]["input"]>
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
@@ -15121,7 +15121,7 @@ export type Sequent_Backend_Results_Contest_Candidate_Insert_Input = {
 export type Sequent_Backend_Results_Contest_Candidate_Max_Fields = {
     __typename?: "sequent_backend_results_contest_candidate_max_fields"
     candidate_id?: Maybe<Scalars["uuid"]["output"]>
-    cast_votes?: Maybe<Scalars["Int"]["output"]>
+    cast_votes?: Maybe<Scalars["bigint"]["output"]>
     cast_votes_percent?: Maybe<Scalars["numeric"]["output"]>
     contest_id?: Maybe<Scalars["uuid"]["output"]>
     created_at?: Maybe<Scalars["timestamptz"]["output"]>
@@ -15139,7 +15139,7 @@ export type Sequent_Backend_Results_Contest_Candidate_Max_Fields = {
 export type Sequent_Backend_Results_Contest_Candidate_Min_Fields = {
     __typename?: "sequent_backend_results_contest_candidate_min_fields"
     candidate_id?: Maybe<Scalars["uuid"]["output"]>
-    cast_votes?: Maybe<Scalars["Int"]["output"]>
+    cast_votes?: Maybe<Scalars["bigint"]["output"]>
     cast_votes_percent?: Maybe<Scalars["numeric"]["output"]>
     contest_id?: Maybe<Scalars["uuid"]["output"]>
     created_at?: Maybe<Scalars["timestamptz"]["output"]>
@@ -15244,7 +15244,7 @@ export enum Sequent_Backend_Results_Contest_Candidate_Select_Column {
 export type Sequent_Backend_Results_Contest_Candidate_Set_Input = {
     annotations?: InputMaybe<Scalars["jsonb"]["input"]>
     candidate_id?: InputMaybe<Scalars["uuid"]["input"]>
-    cast_votes?: InputMaybe<Scalars["Int"]["input"]>
+    cast_votes?: InputMaybe<Scalars["bigint"]["input"]>
     cast_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
     contest_id?: InputMaybe<Scalars["uuid"]["input"]>
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
@@ -15299,7 +15299,7 @@ export type Sequent_Backend_Results_Contest_Candidate_Stream_Cursor_Input = {
 export type Sequent_Backend_Results_Contest_Candidate_Stream_Cursor_Value_Input = {
     annotations?: InputMaybe<Scalars["jsonb"]["input"]>
     candidate_id?: InputMaybe<Scalars["uuid"]["input"]>
-    cast_votes?: InputMaybe<Scalars["Int"]["input"]>
+    cast_votes?: InputMaybe<Scalars["bigint"]["input"]>
     cast_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
     contest_id?: InputMaybe<Scalars["uuid"]["input"]>
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
@@ -15318,7 +15318,7 @@ export type Sequent_Backend_Results_Contest_Candidate_Stream_Cursor_Value_Input 
 /** aggregate sum on columns */
 export type Sequent_Backend_Results_Contest_Candidate_Sum_Fields = {
     __typename?: "sequent_backend_results_contest_candidate_sum_fields"
-    cast_votes?: Maybe<Scalars["Int"]["output"]>
+    cast_votes?: Maybe<Scalars["bigint"]["output"]>
     cast_votes_percent?: Maybe<Scalars["numeric"]["output"]>
     points?: Maybe<Scalars["Int"]["output"]>
     winning_position?: Maybe<Scalars["Int"]["output"]>
@@ -15436,23 +15436,23 @@ export type Sequent_Backend_Results_Contest_Delete_Key_Input = {
 /** input type for incrementing numeric columns in table "sequent_backend.results_contest" */
 export type Sequent_Backend_Results_Contest_Inc_Input = {
     elegible_census?: InputMaybe<Scalars["Int"]["input"]>
-    explicit_blank_votes?: InputMaybe<Scalars["Int"]["input"]>
+    explicit_blank_votes?: InputMaybe<Scalars["bigint"]["input"]>
     explicit_blank_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
-    explicit_invalid_votes?: InputMaybe<Scalars["Int"]["input"]>
+    explicit_invalid_votes?: InputMaybe<Scalars["bigint"]["input"]>
     explicit_invalid_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
-    implicit_blank_votes?: InputMaybe<Scalars["Int"]["input"]>
+    implicit_blank_votes?: InputMaybe<Scalars["bigint"]["input"]>
     implicit_blank_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
-    implicit_invalid_votes?: InputMaybe<Scalars["Int"]["input"]>
+    implicit_invalid_votes?: InputMaybe<Scalars["bigint"]["input"]>
     implicit_invalid_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
     total_auditable_votes?: InputMaybe<Scalars["Int"]["input"]>
     total_auditable_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
-    total_blank_votes?: InputMaybe<Scalars["Int"]["input"]>
+    total_blank_votes?: InputMaybe<Scalars["bigint"]["input"]>
     total_blank_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
-    total_invalid_votes?: InputMaybe<Scalars["Int"]["input"]>
+    total_invalid_votes?: InputMaybe<Scalars["bigint"]["input"]>
     total_invalid_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
-    total_valid_votes?: InputMaybe<Scalars["Int"]["input"]>
+    total_valid_votes?: InputMaybe<Scalars["bigint"]["input"]>
     total_valid_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
-    total_votes?: InputMaybe<Scalars["Int"]["input"]>
+    total_votes?: InputMaybe<Scalars["bigint"]["input"]>
     total_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
 }
 
@@ -15466,14 +15466,14 @@ export type Sequent_Backend_Results_Contest_Insert_Input = {
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     election_id?: InputMaybe<Scalars["uuid"]["input"]>
     elegible_census?: InputMaybe<Scalars["Int"]["input"]>
-    explicit_blank_votes?: InputMaybe<Scalars["Int"]["input"]>
+    explicit_blank_votes?: InputMaybe<Scalars["bigint"]["input"]>
     explicit_blank_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
-    explicit_invalid_votes?: InputMaybe<Scalars["Int"]["input"]>
+    explicit_invalid_votes?: InputMaybe<Scalars["bigint"]["input"]>
     explicit_invalid_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
-    implicit_blank_votes?: InputMaybe<Scalars["Int"]["input"]>
+    implicit_blank_votes?: InputMaybe<Scalars["bigint"]["input"]>
     implicit_blank_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
-    implicit_invalid_votes?: InputMaybe<Scalars["Int"]["input"]>
+    implicit_invalid_votes?: InputMaybe<Scalars["bigint"]["input"]>
     implicit_invalid_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
     labels?: InputMaybe<Scalars["jsonb"]["input"]>
     last_updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
@@ -15482,13 +15482,13 @@ export type Sequent_Backend_Results_Contest_Insert_Input = {
     tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
     total_auditable_votes?: InputMaybe<Scalars["Int"]["input"]>
     total_auditable_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
-    total_blank_votes?: InputMaybe<Scalars["Int"]["input"]>
+    total_blank_votes?: InputMaybe<Scalars["bigint"]["input"]>
     total_blank_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
-    total_invalid_votes?: InputMaybe<Scalars["Int"]["input"]>
+    total_invalid_votes?: InputMaybe<Scalars["bigint"]["input"]>
     total_invalid_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
-    total_valid_votes?: InputMaybe<Scalars["Int"]["input"]>
+    total_valid_votes?: InputMaybe<Scalars["bigint"]["input"]>
     total_valid_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
-    total_votes?: InputMaybe<Scalars["Int"]["input"]>
+    total_votes?: InputMaybe<Scalars["bigint"]["input"]>
     total_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
     voting_type?: InputMaybe<Scalars["String"]["input"]>
 }
@@ -15502,14 +15502,14 @@ export type Sequent_Backend_Results_Contest_Max_Fields = {
     election_event_id?: Maybe<Scalars["uuid"]["output"]>
     election_id?: Maybe<Scalars["uuid"]["output"]>
     elegible_census?: Maybe<Scalars["Int"]["output"]>
-    explicit_blank_votes?: Maybe<Scalars["Int"]["output"]>
+    explicit_blank_votes?: Maybe<Scalars["bigint"]["output"]>
     explicit_blank_votes_percent?: Maybe<Scalars["numeric"]["output"]>
-    explicit_invalid_votes?: Maybe<Scalars["Int"]["output"]>
+    explicit_invalid_votes?: Maybe<Scalars["bigint"]["output"]>
     explicit_invalid_votes_percent?: Maybe<Scalars["numeric"]["output"]>
     id?: Maybe<Scalars["uuid"]["output"]>
-    implicit_blank_votes?: Maybe<Scalars["Int"]["output"]>
+    implicit_blank_votes?: Maybe<Scalars["bigint"]["output"]>
     implicit_blank_votes_percent?: Maybe<Scalars["numeric"]["output"]>
-    implicit_invalid_votes?: Maybe<Scalars["Int"]["output"]>
+    implicit_invalid_votes?: Maybe<Scalars["bigint"]["output"]>
     implicit_invalid_votes_percent?: Maybe<Scalars["numeric"]["output"]>
     last_updated_at?: Maybe<Scalars["timestamptz"]["output"]>
     name?: Maybe<Scalars["String"]["output"]>
@@ -15517,13 +15517,13 @@ export type Sequent_Backend_Results_Contest_Max_Fields = {
     tenant_id?: Maybe<Scalars["uuid"]["output"]>
     total_auditable_votes?: Maybe<Scalars["Int"]["output"]>
     total_auditable_votes_percent?: Maybe<Scalars["numeric"]["output"]>
-    total_blank_votes?: Maybe<Scalars["Int"]["output"]>
+    total_blank_votes?: Maybe<Scalars["bigint"]["output"]>
     total_blank_votes_percent?: Maybe<Scalars["numeric"]["output"]>
-    total_invalid_votes?: Maybe<Scalars["Int"]["output"]>
+    total_invalid_votes?: Maybe<Scalars["bigint"]["output"]>
     total_invalid_votes_percent?: Maybe<Scalars["numeric"]["output"]>
-    total_valid_votes?: Maybe<Scalars["Int"]["output"]>
+    total_valid_votes?: Maybe<Scalars["bigint"]["output"]>
     total_valid_votes_percent?: Maybe<Scalars["numeric"]["output"]>
-    total_votes?: Maybe<Scalars["Int"]["output"]>
+    total_votes?: Maybe<Scalars["bigint"]["output"]>
     total_votes_percent?: Maybe<Scalars["numeric"]["output"]>
     voting_type?: Maybe<Scalars["String"]["output"]>
 }
@@ -15537,14 +15537,14 @@ export type Sequent_Backend_Results_Contest_Min_Fields = {
     election_event_id?: Maybe<Scalars["uuid"]["output"]>
     election_id?: Maybe<Scalars["uuid"]["output"]>
     elegible_census?: Maybe<Scalars["Int"]["output"]>
-    explicit_blank_votes?: Maybe<Scalars["Int"]["output"]>
+    explicit_blank_votes?: Maybe<Scalars["bigint"]["output"]>
     explicit_blank_votes_percent?: Maybe<Scalars["numeric"]["output"]>
-    explicit_invalid_votes?: Maybe<Scalars["Int"]["output"]>
+    explicit_invalid_votes?: Maybe<Scalars["bigint"]["output"]>
     explicit_invalid_votes_percent?: Maybe<Scalars["numeric"]["output"]>
     id?: Maybe<Scalars["uuid"]["output"]>
-    implicit_blank_votes?: Maybe<Scalars["Int"]["output"]>
+    implicit_blank_votes?: Maybe<Scalars["bigint"]["output"]>
     implicit_blank_votes_percent?: Maybe<Scalars["numeric"]["output"]>
-    implicit_invalid_votes?: Maybe<Scalars["Int"]["output"]>
+    implicit_invalid_votes?: Maybe<Scalars["bigint"]["output"]>
     implicit_invalid_votes_percent?: Maybe<Scalars["numeric"]["output"]>
     last_updated_at?: Maybe<Scalars["timestamptz"]["output"]>
     name?: Maybe<Scalars["String"]["output"]>
@@ -15552,13 +15552,13 @@ export type Sequent_Backend_Results_Contest_Min_Fields = {
     tenant_id?: Maybe<Scalars["uuid"]["output"]>
     total_auditable_votes?: Maybe<Scalars["Int"]["output"]>
     total_auditable_votes_percent?: Maybe<Scalars["numeric"]["output"]>
-    total_blank_votes?: Maybe<Scalars["Int"]["output"]>
+    total_blank_votes?: Maybe<Scalars["bigint"]["output"]>
     total_blank_votes_percent?: Maybe<Scalars["numeric"]["output"]>
-    total_invalid_votes?: Maybe<Scalars["Int"]["output"]>
+    total_invalid_votes?: Maybe<Scalars["bigint"]["output"]>
     total_invalid_votes_percent?: Maybe<Scalars["numeric"]["output"]>
-    total_valid_votes?: Maybe<Scalars["Int"]["output"]>
+    total_valid_votes?: Maybe<Scalars["bigint"]["output"]>
     total_valid_votes_percent?: Maybe<Scalars["numeric"]["output"]>
-    total_votes?: Maybe<Scalars["Int"]["output"]>
+    total_votes?: Maybe<Scalars["bigint"]["output"]>
     total_votes_percent?: Maybe<Scalars["numeric"]["output"]>
     voting_type?: Maybe<Scalars["String"]["output"]>
 }
@@ -15711,14 +15711,14 @@ export type Sequent_Backend_Results_Contest_Set_Input = {
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     election_id?: InputMaybe<Scalars["uuid"]["input"]>
     elegible_census?: InputMaybe<Scalars["Int"]["input"]>
-    explicit_blank_votes?: InputMaybe<Scalars["Int"]["input"]>
+    explicit_blank_votes?: InputMaybe<Scalars["bigint"]["input"]>
     explicit_blank_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
-    explicit_invalid_votes?: InputMaybe<Scalars["Int"]["input"]>
+    explicit_invalid_votes?: InputMaybe<Scalars["bigint"]["input"]>
     explicit_invalid_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
-    implicit_blank_votes?: InputMaybe<Scalars["Int"]["input"]>
+    implicit_blank_votes?: InputMaybe<Scalars["bigint"]["input"]>
     implicit_blank_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
-    implicit_invalid_votes?: InputMaybe<Scalars["Int"]["input"]>
+    implicit_invalid_votes?: InputMaybe<Scalars["bigint"]["input"]>
     implicit_invalid_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
     labels?: InputMaybe<Scalars["jsonb"]["input"]>
     last_updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
@@ -15727,13 +15727,13 @@ export type Sequent_Backend_Results_Contest_Set_Input = {
     tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
     total_auditable_votes?: InputMaybe<Scalars["Int"]["input"]>
     total_auditable_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
-    total_blank_votes?: InputMaybe<Scalars["Int"]["input"]>
+    total_blank_votes?: InputMaybe<Scalars["bigint"]["input"]>
     total_blank_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
-    total_invalid_votes?: InputMaybe<Scalars["Int"]["input"]>
+    total_invalid_votes?: InputMaybe<Scalars["bigint"]["input"]>
     total_invalid_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
-    total_valid_votes?: InputMaybe<Scalars["Int"]["input"]>
+    total_valid_votes?: InputMaybe<Scalars["bigint"]["input"]>
     total_valid_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
-    total_votes?: InputMaybe<Scalars["Int"]["input"]>
+    total_votes?: InputMaybe<Scalars["bigint"]["input"]>
     total_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
     voting_type?: InputMaybe<Scalars["String"]["input"]>
 }
@@ -15828,14 +15828,14 @@ export type Sequent_Backend_Results_Contest_Stream_Cursor_Value_Input = {
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     election_id?: InputMaybe<Scalars["uuid"]["input"]>
     elegible_census?: InputMaybe<Scalars["Int"]["input"]>
-    explicit_blank_votes?: InputMaybe<Scalars["Int"]["input"]>
+    explicit_blank_votes?: InputMaybe<Scalars["bigint"]["input"]>
     explicit_blank_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
-    explicit_invalid_votes?: InputMaybe<Scalars["Int"]["input"]>
+    explicit_invalid_votes?: InputMaybe<Scalars["bigint"]["input"]>
     explicit_invalid_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
-    implicit_blank_votes?: InputMaybe<Scalars["Int"]["input"]>
+    implicit_blank_votes?: InputMaybe<Scalars["bigint"]["input"]>
     implicit_blank_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
-    implicit_invalid_votes?: InputMaybe<Scalars["Int"]["input"]>
+    implicit_invalid_votes?: InputMaybe<Scalars["bigint"]["input"]>
     implicit_invalid_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
     labels?: InputMaybe<Scalars["jsonb"]["input"]>
     last_updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
@@ -15844,13 +15844,13 @@ export type Sequent_Backend_Results_Contest_Stream_Cursor_Value_Input = {
     tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
     total_auditable_votes?: InputMaybe<Scalars["Int"]["input"]>
     total_auditable_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
-    total_blank_votes?: InputMaybe<Scalars["Int"]["input"]>
+    total_blank_votes?: InputMaybe<Scalars["bigint"]["input"]>
     total_blank_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
-    total_invalid_votes?: InputMaybe<Scalars["Int"]["input"]>
+    total_invalid_votes?: InputMaybe<Scalars["bigint"]["input"]>
     total_invalid_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
-    total_valid_votes?: InputMaybe<Scalars["Int"]["input"]>
+    total_valid_votes?: InputMaybe<Scalars["bigint"]["input"]>
     total_valid_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
-    total_votes?: InputMaybe<Scalars["Int"]["input"]>
+    total_votes?: InputMaybe<Scalars["bigint"]["input"]>
     total_votes_percent?: InputMaybe<Scalars["numeric"]["input"]>
     voting_type?: InputMaybe<Scalars["String"]["input"]>
 }
@@ -15859,23 +15859,23 @@ export type Sequent_Backend_Results_Contest_Stream_Cursor_Value_Input = {
 export type Sequent_Backend_Results_Contest_Sum_Fields = {
     __typename?: "sequent_backend_results_contest_sum_fields"
     elegible_census?: Maybe<Scalars["Int"]["output"]>
-    explicit_blank_votes?: Maybe<Scalars["Int"]["output"]>
+    explicit_blank_votes?: Maybe<Scalars["bigint"]["output"]>
     explicit_blank_votes_percent?: Maybe<Scalars["numeric"]["output"]>
-    explicit_invalid_votes?: Maybe<Scalars["Int"]["output"]>
+    explicit_invalid_votes?: Maybe<Scalars["bigint"]["output"]>
     explicit_invalid_votes_percent?: Maybe<Scalars["numeric"]["output"]>
-    implicit_blank_votes?: Maybe<Scalars["Int"]["output"]>
+    implicit_blank_votes?: Maybe<Scalars["bigint"]["output"]>
     implicit_blank_votes_percent?: Maybe<Scalars["numeric"]["output"]>
-    implicit_invalid_votes?: Maybe<Scalars["Int"]["output"]>
+    implicit_invalid_votes?: Maybe<Scalars["bigint"]["output"]>
     implicit_invalid_votes_percent?: Maybe<Scalars["numeric"]["output"]>
     total_auditable_votes?: Maybe<Scalars["Int"]["output"]>
     total_auditable_votes_percent?: Maybe<Scalars["numeric"]["output"]>
-    total_blank_votes?: Maybe<Scalars["Int"]["output"]>
+    total_blank_votes?: Maybe<Scalars["bigint"]["output"]>
     total_blank_votes_percent?: Maybe<Scalars["numeric"]["output"]>
-    total_invalid_votes?: Maybe<Scalars["Int"]["output"]>
+    total_invalid_votes?: Maybe<Scalars["bigint"]["output"]>
     total_invalid_votes_percent?: Maybe<Scalars["numeric"]["output"]>
-    total_valid_votes?: Maybe<Scalars["Int"]["output"]>
+    total_valid_votes?: Maybe<Scalars["bigint"]["output"]>
     total_valid_votes_percent?: Maybe<Scalars["numeric"]["output"]>
-    total_votes?: Maybe<Scalars["Int"]["output"]>
+    total_votes?: Maybe<Scalars["bigint"]["output"]>
     total_votes_percent?: Maybe<Scalars["numeric"]["output"]>
 }
 
@@ -16044,7 +16044,7 @@ export type Sequent_Backend_Results_Contest_Variance_Fields = {
 export type Sequent_Backend_Results_Election = {
     __typename?: "sequent_backend_results_election"
     annotations?: Maybe<Scalars["jsonb"]["output"]>
-    blank_ballots?: Maybe<Scalars["Int"]["output"]>
+    blank_ballots?: Maybe<Scalars["bigint"]["output"]>
     blank_ballots_percent?: Maybe<Scalars["numeric"]["output"]>
     created_at?: Maybe<Scalars["timestamptz"]["output"]>
     documents?: Maybe<Scalars["jsonb"]["output"]>
@@ -16116,7 +16116,7 @@ export type Sequent_Backend_Results_Election_Append_Input = {
 export type Sequent_Backend_Results_Election_Area = {
     __typename?: "sequent_backend_results_election_area"
     area_id: Scalars["uuid"]["output"]
-    blank_ballots?: Maybe<Scalars["Int"]["output"]>
+    blank_ballots?: Maybe<Scalars["bigint"]["output"]>
     blank_ballots_percent?: Maybe<Scalars["numeric"]["output"]>
     created_at: Scalars["timestamptz"]["output"]
     documents?: Maybe<Scalars["jsonb"]["output"]>
@@ -16181,7 +16181,7 @@ export type Sequent_Backend_Results_Election_Area_Bool_Exp = {
     _not?: InputMaybe<Sequent_Backend_Results_Election_Area_Bool_Exp>
     _or?: InputMaybe<Array<Sequent_Backend_Results_Election_Area_Bool_Exp>>
     area_id?: InputMaybe<Uuid_Comparison_Exp>
-    blank_ballots?: InputMaybe<Int_Comparison_Exp>
+    blank_ballots?: InputMaybe<Bigint_Comparison_Exp>
     blank_ballots_percent?: InputMaybe<Numeric_Comparison_Exp>
     created_at?: InputMaybe<Timestamptz_Comparison_Exp>
     documents?: InputMaybe<Jsonb_Comparison_Exp>
@@ -16219,14 +16219,14 @@ export type Sequent_Backend_Results_Election_Area_Delete_Key_Input = {
 
 /** input type for incrementing numeric columns in table "sequent_backend.results_election_area" */
 export type Sequent_Backend_Results_Election_Area_Inc_Input = {
-    blank_ballots?: InputMaybe<Scalars["Int"]["input"]>
+    blank_ballots?: InputMaybe<Scalars["bigint"]["input"]>
     blank_ballots_percent?: InputMaybe<Scalars["numeric"]["input"]>
 }
 
 /** input type for inserting data into table "sequent_backend.results_election_area" */
 export type Sequent_Backend_Results_Election_Area_Insert_Input = {
     area_id?: InputMaybe<Scalars["uuid"]["input"]>
-    blank_ballots?: InputMaybe<Scalars["Int"]["input"]>
+    blank_ballots?: InputMaybe<Scalars["bigint"]["input"]>
     blank_ballots_percent?: InputMaybe<Scalars["numeric"]["input"]>
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     documents?: InputMaybe<Scalars["jsonb"]["input"]>
@@ -16243,7 +16243,7 @@ export type Sequent_Backend_Results_Election_Area_Insert_Input = {
 export type Sequent_Backend_Results_Election_Area_Max_Fields = {
     __typename?: "sequent_backend_results_election_area_max_fields"
     area_id?: Maybe<Scalars["uuid"]["output"]>
-    blank_ballots?: Maybe<Scalars["Int"]["output"]>
+    blank_ballots?: Maybe<Scalars["bigint"]["output"]>
     blank_ballots_percent?: Maybe<Scalars["numeric"]["output"]>
     created_at?: Maybe<Scalars["timestamptz"]["output"]>
     election_event_id?: Maybe<Scalars["uuid"]["output"]>
@@ -16259,7 +16259,7 @@ export type Sequent_Backend_Results_Election_Area_Max_Fields = {
 export type Sequent_Backend_Results_Election_Area_Min_Fields = {
     __typename?: "sequent_backend_results_election_area_min_fields"
     area_id?: Maybe<Scalars["uuid"]["output"]>
-    blank_ballots?: Maybe<Scalars["Int"]["output"]>
+    blank_ballots?: Maybe<Scalars["bigint"]["output"]>
     blank_ballots_percent?: Maybe<Scalars["numeric"]["output"]>
     created_at?: Maybe<Scalars["timestamptz"]["output"]>
     election_event_id?: Maybe<Scalars["uuid"]["output"]>
@@ -16347,7 +16347,7 @@ export enum Sequent_Backend_Results_Election_Area_Select_Column {
 /** input type for updating data in table "sequent_backend.results_election_area" */
 export type Sequent_Backend_Results_Election_Area_Set_Input = {
     area_id?: InputMaybe<Scalars["uuid"]["input"]>
-    blank_ballots?: InputMaybe<Scalars["Int"]["input"]>
+    blank_ballots?: InputMaybe<Scalars["bigint"]["input"]>
     blank_ballots_percent?: InputMaybe<Scalars["numeric"]["input"]>
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     documents?: InputMaybe<Scalars["jsonb"]["input"]>
@@ -16392,7 +16392,7 @@ export type Sequent_Backend_Results_Election_Area_Stream_Cursor_Input = {
 /** Initial value of the column from where the streaming should start */
 export type Sequent_Backend_Results_Election_Area_Stream_Cursor_Value_Input = {
     area_id?: InputMaybe<Scalars["uuid"]["input"]>
-    blank_ballots?: InputMaybe<Scalars["Int"]["input"]>
+    blank_ballots?: InputMaybe<Scalars["bigint"]["input"]>
     blank_ballots_percent?: InputMaybe<Scalars["numeric"]["input"]>
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     documents?: InputMaybe<Scalars["jsonb"]["input"]>
@@ -16408,7 +16408,7 @@ export type Sequent_Backend_Results_Election_Area_Stream_Cursor_Value_Input = {
 /** aggregate sum on columns */
 export type Sequent_Backend_Results_Election_Area_Sum_Fields = {
     __typename?: "sequent_backend_results_election_area_sum_fields"
-    blank_ballots?: Maybe<Scalars["Int"]["output"]>
+    blank_ballots?: Maybe<Scalars["bigint"]["output"]>
     blank_ballots_percent?: Maybe<Scalars["numeric"]["output"]>
 }
 
@@ -16496,7 +16496,7 @@ export type Sequent_Backend_Results_Election_Bool_Exp = {
     _not?: InputMaybe<Sequent_Backend_Results_Election_Bool_Exp>
     _or?: InputMaybe<Array<Sequent_Backend_Results_Election_Bool_Exp>>
     annotations?: InputMaybe<Jsonb_Comparison_Exp>
-    blank_ballots?: InputMaybe<Int_Comparison_Exp>
+    blank_ballots?: InputMaybe<Bigint_Comparison_Exp>
     blank_ballots_percent?: InputMaybe<Numeric_Comparison_Exp>
     created_at?: InputMaybe<Timestamptz_Comparison_Exp>
     documents?: InputMaybe<Jsonb_Comparison_Exp>
@@ -16542,7 +16542,7 @@ export type Sequent_Backend_Results_Election_Delete_Key_Input = {
 
 /** input type for incrementing numeric columns in table "sequent_backend.results_election" */
 export type Sequent_Backend_Results_Election_Inc_Input = {
-    blank_ballots?: InputMaybe<Scalars["Int"]["input"]>
+    blank_ballots?: InputMaybe<Scalars["bigint"]["input"]>
     blank_ballots_percent?: InputMaybe<Scalars["numeric"]["input"]>
     elegible_census?: InputMaybe<Scalars["Int"]["input"]>
     total_voters?: InputMaybe<Scalars["Int"]["input"]>
@@ -16552,7 +16552,7 @@ export type Sequent_Backend_Results_Election_Inc_Input = {
 /** input type for inserting data into table "sequent_backend.results_election" */
 export type Sequent_Backend_Results_Election_Insert_Input = {
     annotations?: InputMaybe<Scalars["jsonb"]["input"]>
-    blank_ballots?: InputMaybe<Scalars["Int"]["input"]>
+    blank_ballots?: InputMaybe<Scalars["bigint"]["input"]>
     blank_ballots_percent?: InputMaybe<Scalars["numeric"]["input"]>
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     documents?: InputMaybe<Scalars["jsonb"]["input"]>
@@ -16572,7 +16572,7 @@ export type Sequent_Backend_Results_Election_Insert_Input = {
 /** aggregate max on columns */
 export type Sequent_Backend_Results_Election_Max_Fields = {
     __typename?: "sequent_backend_results_election_max_fields"
-    blank_ballots?: Maybe<Scalars["Int"]["output"]>
+    blank_ballots?: Maybe<Scalars["bigint"]["output"]>
     blank_ballots_percent?: Maybe<Scalars["numeric"]["output"]>
     created_at?: Maybe<Scalars["timestamptz"]["output"]>
     election_event_id?: Maybe<Scalars["uuid"]["output"]>
@@ -16590,7 +16590,7 @@ export type Sequent_Backend_Results_Election_Max_Fields = {
 /** aggregate min on columns */
 export type Sequent_Backend_Results_Election_Min_Fields = {
     __typename?: "sequent_backend_results_election_min_fields"
-    blank_ballots?: Maybe<Scalars["Int"]["output"]>
+    blank_ballots?: Maybe<Scalars["bigint"]["output"]>
     blank_ballots_percent?: Maybe<Scalars["numeric"]["output"]>
     created_at?: Maybe<Scalars["timestamptz"]["output"]>
     election_event_id?: Maybe<Scalars["uuid"]["output"]>
@@ -16695,7 +16695,7 @@ export enum Sequent_Backend_Results_Election_Select_Column {
 /** input type for updating data in table "sequent_backend.results_election" */
 export type Sequent_Backend_Results_Election_Set_Input = {
     annotations?: InputMaybe<Scalars["jsonb"]["input"]>
-    blank_ballots?: InputMaybe<Scalars["Int"]["input"]>
+    blank_ballots?: InputMaybe<Scalars["bigint"]["input"]>
     blank_ballots_percent?: InputMaybe<Scalars["numeric"]["input"]>
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     documents?: InputMaybe<Scalars["jsonb"]["input"]>
@@ -16753,7 +16753,7 @@ export type Sequent_Backend_Results_Election_Stream_Cursor_Input = {
 /** Initial value of the column from where the streaming should start */
 export type Sequent_Backend_Results_Election_Stream_Cursor_Value_Input = {
     annotations?: InputMaybe<Scalars["jsonb"]["input"]>
-    blank_ballots?: InputMaybe<Scalars["Int"]["input"]>
+    blank_ballots?: InputMaybe<Scalars["bigint"]["input"]>
     blank_ballots_percent?: InputMaybe<Scalars["numeric"]["input"]>
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     documents?: InputMaybe<Scalars["jsonb"]["input"]>
@@ -16773,7 +16773,7 @@ export type Sequent_Backend_Results_Election_Stream_Cursor_Value_Input = {
 /** aggregate sum on columns */
 export type Sequent_Backend_Results_Election_Sum_Fields = {
     __typename?: "sequent_backend_results_election_sum_fields"
-    blank_ballots?: Maybe<Scalars["Int"]["output"]>
+    blank_ballots?: Maybe<Scalars["bigint"]["output"]>
     blank_ballots_percent?: Maybe<Scalars["numeric"]["output"]>
     elegible_census?: Maybe<Scalars["Int"]["output"]>
     total_voters?: Maybe<Scalars["Int"]["output"]>
