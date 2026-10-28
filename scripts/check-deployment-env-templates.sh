@@ -16,8 +16,10 @@ repo_root=$(git rev-parse --show-toplevel) || exit 2
 cd "$repo_root" || exit 2
 
 assignment="^[[:space:]]*(export[[:space:]]+|-[[:space:]]*)?[\"']?${LOG_TYPES_VAR}[\"']?[[:space:]]*[:=]"
-value_before_token="([^#]*([\"',[:space:]]|:-))?"
-token_end="([\"',}[:space:]]|$)"
+# The value stops at a comment or a shell control operator, so the token must
+# appear before either one.
+value_before_token="([^#;&|]*([\"',[:space:]]|:-))?"
+token_end="([\"',};&|()<>[:space:]]|$)"
 pattern="${assignment}${value_before_token}${DEVELOPMENT_ONLY_LOG_TYPE}${token_end}"
 
 matches=$(git grep -nE "$pattern" -- . ":(exclude)${DEVELOPMENT_ENV_FILE}")
