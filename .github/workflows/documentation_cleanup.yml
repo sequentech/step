@@ -1,0 +1,49 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-License-Identifier: AGPL-3.0-only
+name: Documentation Preview Cleanup
+on:
+  schedule:
+    - cron: '23 4 * * *'
+  workflow_dispatch:
+  pull_request_target:
+    types: [closed]
+
+permissions:
+  contents: read
+  actions: read
+  pull-requests: read
+
+concurrency:
+  group: documentation-pages-output
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-24.04
+    steps:
+      # Always use trusted default-branch tooling; never check out the closing PR.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - name: Test retention and deployment verification
+        run: python3 -m unittest discover -s scripts/docs -p 'test_*.py' -v
+      - uses: actions/checkout@v4
+        with:
+          ref: doc-previews
+          path: .pages-site
+          fetch-depth: 1
+          token: ${{ secrets.PAT }}
+      - name: Clean obsolete previews without a documentation build
+        id: publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/docs/publish.sh .pages-site
+      - name: Verify actual Pages deployment and protected live output
+        if: steps.publish.outputs.sha != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PAGES_SHA: ${{ steps.publish.outputs.sha }}
+        run: |
+          python3 scripts/docs/verify_pages.py --repo "$GITHUB_REPOSITORY" \
+            --sha "$PAGES_SHA" --site .pages-site
