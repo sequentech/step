@@ -589,7 +589,8 @@ const englishTranslation = {
                     },
                 },
                 decodedBallots: {
-                    policyLabel: "Include decoded ballots to results database",
+                    policyLabel:
+                        "Include decoded ballots in the results database and the tally archive",
                     options: {
                         "included": "Include",
                         "not-included": "Don't include",

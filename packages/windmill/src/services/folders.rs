@@ -11,6 +11,17 @@ use walkdir::WalkDir;
 
 #[instrument(err)]
 pub fn copy_to_temp_dir(base_tally_path: &PathBuf) -> Result<TempDir> {
+    copy_to_temp_dir_excluding(base_tally_path, &[])
+}
+
+/// Copies `base_tally_path` into a new temporary directory, leaving out every
+/// file or folder under one of `excluded_paths`, which are relative to
+/// `base_tally_path`.
+#[instrument(err)]
+pub fn copy_to_temp_dir_excluding(
+    base_tally_path: &PathBuf,
+    excluded_paths: &[PathBuf],
+) -> Result<TempDir> {
     // Create a temporary directory
     let temp_dir = tempdir()?;
 
@@ -20,6 +31,16 @@ pub fn copy_to_temp_dir(base_tally_path: &PathBuf) -> Result<TempDir> {
     // Copy the directory contents manually
     for entry in WalkDir::new(base_tally_path)
         .into_iter()
+        .filter_entry(|entry| {
+            entry
+                .path()
+                .strip_prefix(base_tally_path)
+                .map_or(true, |relative_path| {
+                    !excluded_paths
+                        .iter()
+                        .any(|excluded_path| relative_path.starts_with(excluded_path))
+                })
+        })
         .filter_map(Result::ok)
     {
         let src_path = entry.path();
