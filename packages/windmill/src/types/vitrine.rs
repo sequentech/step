@@ -78,6 +78,7 @@ pub struct VitrineVoterContext {
 pub enum VoterRoute {
     Upgrade,
     Opening,
+    Policies,
 }
 
 #[derive(Debug, Clone, Deserialize)]

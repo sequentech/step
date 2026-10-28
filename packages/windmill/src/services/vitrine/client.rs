@@ -340,16 +340,18 @@ impl SidecarClient {
         route: &str,
         body: &str,
         hub: Option<&str>,
+        voter_identity: &str,
     ) -> Result<Forwarded, SidecarError> {
         let mut request = self
             .http
             .post(self.url(&format!("{name}/voter/{route}")))
             .header(reqwest::header::CONTENT_TYPE, "text/plain; charset=utf-8")
+            .header("Vitrine-Voter", voter_identity)
             .body(body.to_string());
         if let Some(hub) = hub {
             request = request.query(&[("hub", hub)]);
         }
-        let (status, body) = self.send(request).await?;
+        let (status, body) = self.send(self.admin(request)).await?;
         Ok(Forwarded { status, body })
     }
 }

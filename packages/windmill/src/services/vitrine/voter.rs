@@ -120,6 +120,14 @@ pub fn check_forward(
 ) -> Result<VoterRoute, ForwardError> {
     let route = VoterRoute::from_str(route)
         .map_err(|_| ForwardError::BadRequest(format!("Unknown voter route {route:?}")))?;
+    if route == VoterRoute::Policies {
+        if !body.is_empty() {
+            return Err(ForwardError::BadRequest(
+                "Policy discovery takes no body".into(),
+            ));
+        }
+        return Ok(route);
+    }
     let submitted = Submitted::parse(body)
         .map_err(|e| ForwardError::BadRequest(format!("Not a receipt or a promise: {e}")))?;
     if !submitted.is_for_one_of(own_entries) {
@@ -152,10 +160,19 @@ pub async fn voter_forward(
         .ok_or_else(|| ForwardError::Refused("The event has no ballots log".into()))?;
     tx.commit().await.map_err(anyhow::Error::from)?;
 
-    let ballots = get_event_store(election_event_id)
-        .await?
-        .voter_ballots(election_event_id, voter_id)
-        .await?;
+    let ballots = if input.route == "policies" {
+        if input.hub.is_some() {
+            return Err(ForwardError::BadRequest(
+                "Policy discovery takes no hub".into(),
+            ));
+        }
+        Vec::new()
+    } else {
+        get_event_store(election_event_id)
+            .await?
+            .voter_ballots(election_event_id, voter_id)
+            .await?
+    };
     let route = check_forward(
         &input.route,
         &input.body,
@@ -168,6 +185,7 @@ pub async fn voter_forward(
             route.as_ref(),
             &input.body,
             input.hub.as_deref(),
+            &format!("{tenant_id}/{voter_id}"),
         )
         .await?;
     Ok(VitrineForwardOutput {
@@ -212,6 +230,20 @@ mod tests {
             "vitrine/promise/v1\nleaf {}\n",
             STANDARD.encode(leaf_hash(entry))
         )
+    }
+
+    #[test]
+    fn authenticated_policy_discovery_needs_no_ballot_and_refuses_a_body() {
+        assert_eq!(
+            check_forward("policies", "", &[]).unwrap(),
+            VoterRoute::Policies
+        );
+        assert!(matches!(
+            check_forward("policies", "payload", &[]),
+            Err(ForwardError::BadRequest(_))
+        ));
+        assert!(check_forward("../policies", "", &[]).is_err());
+        assert!(check_forward("upgrade", "", &[]).is_err());
     }
 
     #[test]
