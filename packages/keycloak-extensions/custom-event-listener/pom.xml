@@ -95,7 +95,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<dependency>
     		<groupId>org.postgresql</groupId>
     		<artifactId>postgresql</artifactId>
-    		<version>42.7.11</version>
+    		<version>42.7.12</version>
 		</dependency>
 		<!-- Keycloak ships Agroal; the task-queue connection pool uses it. -->
 		<dependency>
