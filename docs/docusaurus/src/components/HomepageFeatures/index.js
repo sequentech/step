@@ -31,7 +31,7 @@ const FeatureList = [
   {
     title: 'Election Creation',
     Svg: ElectionSvg,
-    link: '/docs/admin_portal/Tutorials/admin_portal_tutorials_setting-up-your-first-election',
+    link: '/docs/admin_portal/election_management',
     description: (
       <>
         Learn how election managers configure and launch elections, 
