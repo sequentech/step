@@ -1,0 +1,7 @@
+{
+  "name": "event-order-regression",
+  "private": true,
+  "type": "module",
+  "scripts": {"test": "node check.mjs"},
+  "devDependencies": {"playwright-core": "1.55.1"}
+}
