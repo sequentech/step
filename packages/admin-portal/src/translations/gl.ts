@@ -226,6 +226,13 @@ const galegoTranslation: TranslationType = {
                 event_type: "Tipo de evento",
                 description: "Descripción",
                 version: "Versión",
+                verification_status: "Verificación",
+            },
+            verificationStatus: {
+                Verified: "Verificado",
+                Unreadable: "Ilexible",
+                InvalidSignature: "Sinatura non válida",
+                ColumnMismatch: "Non coincide co seu contido asinado",
             },
             main: {
                 title: "Rexistros da Base de Datos Principal",
