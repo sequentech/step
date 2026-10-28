@@ -23456,6 +23456,18 @@
                 "deprecationReason": null
               },
               {
+                "name": "scheduled_event_id",
+                "description": null,
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
                 "name": "voting_channels",
                 "description": null,
                 "type": {
