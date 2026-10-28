@@ -465,9 +465,11 @@ class ReceiptRun {
         if (merged && next && improves(result, next)) this.show({chain: merged, result: next})
     }
 
-    /** Private events: the upgrade and each app hub's opening, through
-     * Harvest (redaction.md, section 4.3). With `strict on`, the log answers
-     * 425 until voting closes, and the chain keeps its promise. */
+    /** Private events: selective policy proofs supplement inclusion but cannot
+     * establish complete discovery or a successor's earliest quorum time.
+     * Keep those claims pending; never send a full private events prefix to
+     * voters. Upgrades/openings still go through Harvest. With `strict on`,
+     * the log answers 425 until voting closes and the chain keeps its promise. */
     private async upgradePrivate(): Promise<void> {
         const forward = this.o.forward
         const chain = this.view.chain

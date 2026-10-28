@@ -6893,7 +6893,7 @@
 
 "@vitrine/verify@0.1.0", "@vitrine/verify@file:./vendor-npm/vitrine-verify.tgz", "@vitrine/verify@file:vendor-npm/vitrine-verify.tgz":
   version "0.1.0"
-  resolved "file:./vendor-npm/vitrine-verify.tgz#f270f9176887fe91dfba9ab9dd8c86b765676ee6"
+  resolved "file:./vendor-npm/vitrine-verify.tgz#eb76ee4b220cb4a12b3e87ebf71a3ef33ef135ec"
   dependencies:
     "@noble/curves" "^2.4.0"
     "@noble/hashes" "^2.4.0"

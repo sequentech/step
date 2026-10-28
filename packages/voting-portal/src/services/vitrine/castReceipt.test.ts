@@ -287,7 +287,7 @@ describe("runCastReceipt", () => {
         }
 
         it.each([true, false])(
-            "verifies authenticated policy discovery before lifting pending claims (%s)",
+            "keeps selective private discovery pending even with an authentic checkpoint (%s)",
             async (valid) => {
                 const {s, ballotId, index} = privately()
                 const receipt = s.ballots.receipt(index, 1, WITNESSES)
@@ -313,12 +313,12 @@ describe("runCastReceipt", () => {
                     {forward}
                 )
                 expect(forward).toHaveBeenNthCalledWith(1, EVitrineForwardRoute.POLICIES, "")
-                expect(last?.result?.tiers[0].status).toBe(valid ? "verified" : "pending")
+                expect(last?.result?.tiers[0].status).toBe("pending")
                 expect(
                     last?.result?.tiers.some((tier) =>
                         tier.reasons.some((r) => r.code === "successors-unchecked")
                     )
-                ).toBe(!valid)
+                ).toBe(true)
                 expect(
                     net.calls.filter(
                         (c) =>

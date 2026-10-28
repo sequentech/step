@@ -9,7 +9,7 @@
 #
 #   scripts/vendor-vitrine.sh <vitrine checkout> [<ref>]    (ref: main)
 #
-# It exports the ref's packages/ and testdata/ with `git archive` into a
+# It exports the ref's packages/, testdata/ and specs/ with `git archive` into a
 # temporary directory, installs Vitrine's locked dependencies there, builds and
 # tests both packages, and packs them; a failing test stops it. The tarballs keep fixed
 # names, so the apps' `file:` dependencies don't change with Vitrine's version.
@@ -35,7 +35,7 @@ COMMIT="$(git -C "$VITRINE" rev-parse --verify "$REF^{commit}")"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
-git -C "$VITRINE" archive "$COMMIT" packages testdata | tar -x -C "$WORK"
+git -C "$VITRINE" archive "$COMMIT" packages testdata specs | tar -x -C "$WORK"
 mkdir "$WORK/out"
 (
     cd "$WORK/packages"

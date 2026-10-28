@@ -210,10 +210,21 @@ Two more Hasura actions, for voters:
   until Windmill logged it), the hex SHA-256 of each of the election's
   distinct ballot styles, sorted, and the release.
 - **`vitrine_voter_forward(election_event_id, route, body, hub)`**, for
-  private events only, forwards `upgrade` and `opening` requests to the
-  sidecar's `POST voter/upgrade` and `POST voter/opening?hub=` on its internal
-  listener. Harvest forwards only receipts whose entry is one of the
-  logged-in voter's own ballots.
+  private events only, forwards `upgrade`, `opening` and `policies` requests
+  to the sidecar's internal voter routes. `upgrade` and `opening` require a
+  receipt or promise owned by the logged-in voter; `opening` also names a hub.
+  `policies` requires an authenticated voter of the event, an empty `body`
+  and no `hub`. Harvest supplies the server administrator bearer and voter
+  identity to the sidecar; neither is exposed to the browser.
+
+The private version-1 policy-proofs frame supplies supplemental inclusion
+only. It cannot establish that no policy entries were omitted, their earliest
+quorum times, complete discovery freshness or automatic successor adoption.
+The SDK therefore retains the independently accepted history and leaves
+those claims pending even for an authentic selective frame. A full private
+events prefix is never forwarded to voters. Public discovery can check a
+complete prefix for absence and order; a new candidate still needs a separate
+earliest-quorum proof before adoption.
 
 ### Deleting, exporting and importing events
 
@@ -464,3 +475,62 @@ From `packages/`:
   WINDMILL_VITRINE_TEST_WITNESS_ADMINS="http://vitrine:8097|$S/witness-1.token,http://vitrine:8099|$S/witness-2.token" \
   cargo test -p windmill --test vitrine_sidecar -- --ignored
   ```
+
+### Native queue and production verifier rehearsal
+
+For an isolated contract run, start Vitrine's `vitrine-testkit` example
+`integration_server` with a **new** absolute capability-file path. It creates
+its own `vitrine-testkit-*` PostgreSQL container, native log, witnesses, hubs,
+bootstrap hub and monitor listeners. Keep that process running while the
+checks run; stop it with SIGTERM or Ctrl-C to shut down its services and
+remove its own container. The owner-only capability file contains test
+credentials: never commit or publish it.
+
+Build `windmill`'s `vitrine_sidecar` test with `--no-run`, then use the exact
+executable path printed by Cargo:
+
+```sh
+cargo test --offline --manifest-path packages/Cargo.toml \
+  -p windmill --test vitrine_sidecar --no-run
+python3 scripts/vitrine-live-contract.py \
+  /absolute/fresh-capabilities.json /absolute/vitrine_sidecar-TEST_HASH \
+  /absolute/new-run-directory
+```
+
+The helper accepts only an explicitly supplied local development simulation,
+retains Step's Board/operator authority pins, and builds its deployment file
+from the running services' actual public keys and URLs. It runs both public
+and private contracts, refuses an existing output directory and keeps
+credentials out of its output. The public case exports the exact queued
+entry's original issued receipt, a witnessed record, the signed policy,
+acknowledgement and config/opened statement chains. The private case exports
+no private policy or read secret.
+
+After building the ballot verifier and installing its Playwright Chromium,
+run its production receipt page against that public output:
+
+```sh
+node scripts/vitrine-browser.mjs packages/ballot-verifier/dist \
+  /absolute/new-run-directory/public /absolute/browser-results
+```
+
+The browser runner checks a pasted chain and an uploaded receipt file at
+1280 and 390 pixels, compares the offered policy ID with the fixture's
+independently supplied ID before pinning, verifies the voter's own ballot,
+rejects another ballot ID and a modified signed policy, and records
+screenshots plus proof results. It checks full-page overflow, runs axe over
+the receipt result, and refuses cookies, authorization or referrers on public
+proof requests. `STEP_VITRINE_PLAYWRIGHT_MODULE` can select a matching pinned
+Playwright installation in a browser container; the validated container uses
+Playwright 1.64.1. Every browser process and its temporary static listener
+shuts down when the script ends. Set `STEP_VITRINE_RECORD_VIDEO=1` to retain
+actual browser clips for the public workflow.
+
+This rehearsal uses synthetic accepted ballot rows and real native
+cryptographic receipts. It exercises the transactional queue and production
+independent-verifier page; it does not deploy the authenticated Step,
+Hasura/Harvest or Keycloak stack, or perform a complete encrypted voting
+ceremony. The voting/admin component suites and type checks cover those
+frontend contracts separately. Local party labels do not establish
+organizational independence, and an answering monitor listener does not
+establish that it subscribed to the newly created event.

@@ -6,11 +6,11 @@
 
 ## Frontend interface decisions
 
-The three apps use the verifier and UI packed from Vitrine commit `723316eb09992811da5c891fe9b04d44683bd713`. The archive-based vendor script runs upstream builds and tests before packing and has no failed-test bypass. Repacking the installed verifier and UI produces byte-identical tarballs; their SHA-256 digests are recorded in `packages/vendor-npm/SHA256SUMS`.
+The three apps use the verifier and UI packed from Vitrine commit `74f7bec3ef6a5d08791783d96d76bcce6b22adf8`. The archive-based vendor script runs upstream builds and tests before packing and has no failed-test bypass. Repacking the installed verifier and UI produces byte-identical tarballs; their SHA-256 digests are recorded in `packages/vendor-npm/SHA256SUMS`.
 
 New policy admission uses the SDK's `pinPolicy`, including authenticated profile meanings and election minimums. Structural parsing remains available for unsigned Board drafts. Election fixtures use `vitrine/election/ballots/v1` and `vitrine/election/events/v1` with their published meaning hashes, two app hubs, an independent hub subset and two monitor parties. Private fixtures name separate blinded subjects for both logs.
 
-Private successor discovery adds `route: "policies"` to `vitrine_voter_forward`. Its `body` is the empty string and `hub` is omitted. Harvest authenticates the voter and event for this read; only `upgrade` and `opening` require ownership of the receipt or promise in their body. The returned `vitrine/policy-proofs/v1` document is verified before policy history changes. Missing or forged proofs leave discovery pending. Upgrade blocks may name another policy only after that policy is accepted in this history; their log and entry expectation must still match.
+Private successor discovery adds `route: "policies"` to `vitrine_voter_forward`. Its `body` is the empty string and `hub` is omitted. Harvest authenticates the voter and event for this read; only `upgrade` and `opening` require ownership of the receipt or promise in their body. The returned `vitrine/policy-proofs/v1` document supplies supplemental inclusion only. Under decision 50, selective private frames cannot establish absence, globally earliest quorum times, freshness or automatic successor adoption. Even authentic frames leave these claims pending and preserve the independently accepted history; a full private events prefix is never sent to voters. Upgrade blocks may name another policy only after that policy is independently accepted in this history; their log and entry expectation must still match.
 
 Config observations follow the current `problem` line and receipt/key/styles/style block format. They contain configuration material, never the voter's encrypted ballot, own ballot ID or submission receipt. Public context failures can be reported using a separately admitted public policy; an unpinned private context supplies no report destinations. All monitor requests omit credentials and use independent random delays and bounded retries.
 
@@ -57,3 +57,53 @@ cargo test --offline --manifest-path packages/Cargo.toml -p windmill --test vitr
 The first five pass: 61, 20, 4, 14 and 1 tests respectively. The PostgreSQL runs use a newly created, task-owned `vitrine-step-backend-audit` container, isolated from existing application databases. The ballot tests cover acceptance and refusal, revotes, retries, a queue insert failure, byte-for-byte queue entries and application-role permissions. The grants test creates and removes its own event database and role. Shared election vectors are copied from the current Vitrine profile packages under their new namespaces. Existing unrelated Rust warnings remain visible.
 
 The external sidecar test additionally accepts `WINDMILL_VITRINE_TEST_CONFIG_FILE` for an explicit deployment using the running services' verifier keys and URLs. Its authorities remain Step's development Board/operator keys. The public scenario exercises policy signatures and installation, witness enrolment, an actual queued ballot, receipt retrieval, voter ownership checks and config/opened statement receipts. The private scenario checks two separate blinded keys, idempotent provisioning, both policy installs and the authenticated policy-history endpoint. These scenarios do not establish full UI deployment or independent monitor execution.
+
+
+## Final package and live acceptance checkpoint
+
+The browser packages are packed from immutable Vitrine revision
+`74f7bec3ef6a5d08791783d96d76bcce6b22adf8`. The refresh exports normative
+specs with the packages and vectors, so the UI's evidence-wording coverage
+tests run instead of being skipped. Upstream SDK tests pass 489 cases with
+two deliberately separate service-only areas skipped; all 172 UI tests pass.
+Repacking the installed packages produces byte-identical artifacts matching
+`packages/vendor-npm/SHA256SUMS`. The SDK accepts an authenticated canonical
+empty checkpoint as a prefix only with an empty consistency proof, preventing
+a false failure when online checking compares a fresh log's empty checkpoint
+with its first ballot. The low-level proof API is unchanged.
+
+All complete frontend Jest suites pass: voting 342, admin 419 and ballot
+verifier 133, for 894 tests. All three complete TypeScript projects and scoped
+ESLint pass. All three production webpack builds pass with existing asset-size
+warnings. Shared UI production bundles and declarations were built from this
+checkout. The optional whole ui-essentials declaration command includes
+Storybook files with eight existing TS2742 inferred-type errors; excluding
+those non-production stories produces the declarations used by the three
+successful app type checks. No shared UI source was changed.
+
+Both Step/native integration scenarios pass using fresh, task-owned Vitrine
+services and PostgreSQL, actual randomly generated service keys and explicitly
+simulated parties. The public test retains the original issued receipt from
+`/wait` and separately fetches a witnessed record from the public receipt
+route: an immediate issued receipt need not contain the quorum yet. The
+exported policy, acknowledgement, entries and chains are the exact synthetic
+queue run's bytes; no verifier result is mocked. The private scenario checks
+both blinded keys, idempotent provisioning, both policy installs, enrolment
+and authenticated selective policy proofs.
+
+Chromium loads the production-built independent verifier receipt route,
+checks a pasted chain at 1280 pixels and an uploaded receipt file at 390,
+compares the offered policy ID before pinning, and verifies all four proof
+tiers. It rejects another ballot ID and a modified signed policy. All six
+screenshots pass full-page overflow checks; the two receipt results have zero
+axe violations. All 40 public proof requests omit cookies, Authorization and
+referrers; no unexpected request origin or page error occurs. Portable checked
+chains, screenshot results and optional real browser video are produced by
+`scripts/vitrine-browser.mjs`. The owned fixture and browser processes shut
+down, and their container is removed.
+
+This is a real queue/sidecar and production verifier contract rehearsal with
+synthetic accepted ballots. It does not claim an authenticated Step,
+Hasura/Harvest and Keycloak deployment or a complete encrypted voting ceremony,
+and monitor listeners alone do not establish subscription to the new events.
+The developer guide records the exact reproducible native/browser commands.

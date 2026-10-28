@@ -20,6 +20,10 @@
 //!   naming the actual running infrastructure while retaining the Step fixture
 //!   Board/operator authorities (defaults to `.devcontainer/vitrine/deployment.toml`).
 //!
+//! - `WINDMILL_VITRINE_TEST_ARTIFACT_DIR`, optional empty local directory for
+//!   the synthetic PUBLIC policy, accepted ballot chain and expected ballot
+//!   fields. These contain no private policy or database/admin credentials.
+//!
 //! Each run makes the logs of a new event, and freezes them at the end.
 
 use anyhow::{bail, ensure, Context, Result};
@@ -346,6 +350,89 @@ async fn a_public_event_logs_its_ballots_and_statements_on_the_sidecar() -> Resu
         statement_chain(&policy_id, Some(ack), receipt)?;
     }
 
+    // The browser acceptance test consumes this exact public queue receipt,
+    // never a mocked verifier result. Refuse stale output from an earlier run.
+    if let Some(directory) = std::env::var_os("WINDMILL_VITRINE_TEST_ARTIFACT_DIR") {
+        use electoral_log::vitrine::proof::{BLOCK_ISSUED, BLOCK_POLICY_ACK, BLOCK_RECORD};
+        use electoral_log::vitrine::{receipt_chain, ChainBlock};
+        use std::io::Write;
+        let directory = std::path::Path::new(&directory);
+        ensure!(
+            directory.is_absolute(),
+            "artifact directory must be absolute"
+        );
+        std::fs::create_dir_all(directory)?;
+        // /wait may return the original issued receipt before cosigning.
+        // The public receipt route waits for an accepted witness quorum.
+        let public_client = reqwest::Client::builder()
+            .timeout(Duration::from_secs(5))
+            .build()?;
+        let ballot_url = format!(
+            "{}receipt/{leaf_hex}?near={now}",
+            logs[&LogName::Ballots].2.url
+        );
+        let witnessed_ballot = eventually("witnessed public ballot for browser", || async {
+            let response = public_client.get(&ballot_url).send().await?;
+            if response.status() == reqwest::StatusCode::NOT_FOUND {
+                return Ok(None);
+            }
+            ensure!(
+                response.status().is_success(),
+                "public ballot receipt answered {}",
+                response.status()
+            );
+            let text = response.text().await?;
+            receipt_for(&text, &queued.entry)?;
+            Ok(Some(text))
+        })
+        .await?;
+        let ballot_chain = receipt_chain(
+            &policy_id,
+            LogName::Ballots.as_ref(),
+            &[
+                ChainBlock {
+                    kind: BLOCK_POLICY_ACK,
+                    args: vec![],
+                    data: &installed[&LogName::Ballots].ack,
+                },
+                ChainBlock {
+                    kind: BLOCK_ISSUED,
+                    args: vec![],
+                    data: &receipt,
+                },
+                ChainBlock {
+                    kind: BLOCK_RECORD,
+                    args: vec![],
+                    data: &witnessed_ballot,
+                },
+            ],
+        )?;
+        let context = serde_json::to_string_pretty(&json!({
+            "source":"live-native-sidecar",
+            "eventId":event,"electionId":election,"ballotId":ballot_id,"acceptedAt":now,
+            "policyId":policy_id,"entryBase64":STANDARD.encode(&queued.entry),
+        }))?;
+        for (file, contents) in [
+            ("policy.note", policy.clone()),
+            ("ballot.chain", ballot_chain),
+            (
+                "config.chain",
+                statement_chain(&policy_id, Some(ack), &config_receipt)?,
+            ),
+            (
+                "opened.chain",
+                statement_chain(&policy_id, Some(ack), &opened_receipt)?,
+            ),
+            ("context.json", context),
+        ] {
+            let mut output = std::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(directory.join(file))?;
+            output.write_all(contents.as_bytes())?;
+            output.sync_all()?;
+        }
+    }
     for name in LogName::iter() {
         sidecar.freeze(&logs[&name].0).await?;
     }
