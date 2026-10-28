@@ -6,7 +6,7 @@ import {Alert, Box, Typography} from "@mui/material"
 import {styled} from "@mui/material/styles"
 import {useTranslation} from "react-i18next"
 import Image from "mui-image"
-import {keyBy, sortBy} from "lodash"
+import {compact, keyBy, sortBy, uniq} from "lodash"
 import {
     IDecodedVoteContest,
     IContest,
@@ -134,6 +134,32 @@ const CandidateChoice: React.FC<CandidateChoiceProps> = ({
         >
             {imageUrl ? <Image src={`${publicBucketUrl}${imageUrl}`} duration={100} /> : null}
         </Candidate>
+    )
+}
+
+interface ContestCandidateImagesProps {
+    contest: IContest
+    publicBucketUrl: string
+}
+
+// Loads every candidate image of the contest up front and in configuration
+// order, so the images fetched do not vary with the decoded choices.
+const ContestCandidateImages: React.FC<ContestCandidateImagesProps> = ({
+    contest,
+    publicBucketUrl,
+}) => {
+    const imageUrls = uniq(compact(contest.candidates.map(getImageUrl)))
+
+    if (imageUrls.length === 0) {
+        return null
+    }
+
+    return (
+        <div hidden>
+            {imageUrls.map((imageUrl) => (
+                <img key={imageUrl} src={`${publicBucketUrl}${imageUrl}`} alt="" />
+            ))}
+        </div>
     )
 }
 
@@ -332,6 +358,7 @@ export const PlaintextVoteContest: React.FC<PlaintextVoteContestProps> = ({
 
     return (
         <>
+            <ContestCandidateImages contest={question} publicBucketUrl={publicBucketUrl} />
             <Typography variant="body2" fontWeight={"bold"}>
                 {translate(question, "name", i18n.language) || ""}
             </Typography>
