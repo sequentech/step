@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Vitrine Transparency Logs | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-4089/docs/developers/vitrine"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Vitrine Transparency Logs | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-4089/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4089/docs/developers/vitrine"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4089/docs/developers/vitrine" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4089/docs/developers/vitrine" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Vitrine","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-4089/docs/developers/vitrine"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-4089/assets/css/styles.fc78c976.css">
-<script src="/docusaurus/pr-preview/pr-4089/assets/js/runtime~main.d81687d8.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-4089/assets/js/runtime~main.12c2637e.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-4089/assets/js/main.9b1a69d6.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -385,6 +385,20 @@ Playwright installation in a browser container; the validated container uses
 Playwright 1.64.1. Every browser process and its temporary static listener
 shuts down when the script ends. Set <code>STEP_VITRINE_RECORD_VIDEO=1</code> to retain
 actual browser clips for the public workflow.</p>
+<p>The final package source also supplies deterministic full receipt-chain
+regressions for WAICT signature normalization. To compare the installed Step
+browser SDK with the compiled native verifier, build <code>@vitrine/verify-wasm</code>
+in a Vitrine checkout whose production source matches the recorded
+<code>packages/vendor-npm/VITRINE_COMMIT</code>, then run:</p>
+<div class="language-sh codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-sh codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token function" style="color:rgb(130, 170, 255)">node</span><span class="token plain"> scripts/vitrine-conformance-browser.mjs /absolute/vitrine-checkout </span><span class="token punctuation" style="color:rgb(199, 146, 234)">\</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  /absolute/new-conformance-results</span><br></span></code></pre></div></div>
+<p>This runner reads the ten shared chains from that exact Git revision, checks
+the installed SDK in Node and actual Chromium, and writes a screenshot plus
+the two backends&#x27; verdicts and WASM digest. Valid quorums survive extra bad
+known-witness lines, including malformed-length/time payloads; insufficient
+distinct valid signatures are refused. It makes no live-service request.
+<code>STEP_VITRINE_PLAYWRIGHT_MODULE</code> selects a matching installed runner when
+using the pinned browser container. Its static listener and browser shut
+down on completion.</p>
 <p>This rehearsal uses synthetic accepted ballot rows and real native
 cryptographic receipts. It exercises the transactional queue and production
 independent-verifier page; it does not deploy the authenticated Step,
