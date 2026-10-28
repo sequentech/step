@@ -75,6 +75,8 @@ impl BallotsStatus<'_> {
 
         let mut count_declined_to_vote: u64 = 0;
         let mut count_blank_ballots: u64 = 0;
+        // The weighted form of count_valid - count_blank, the candidate percentage base.
+        let mut valid_weight: u64 = 0;
 
         for TallyBallot { vote, weight, .. } in votes {
             if vote.is_blank_ballot {
@@ -102,7 +104,11 @@ impl BallotsStatus<'_> {
                     blank_votes.implicit += 1;
                     BallotStatus::Blank
                 }
-                BallotClass::Valid => BallotStatus::Valid,
+                BallotClass::Valid => {
+                    valid_weight =
+                        add_count(valid_weight, weight.unwrap_or_default(), "valid weight")?;
+                    BallotStatus::Valid
+                }
             };
             extended_metrics = update_extended_metrics(
                 vote,
@@ -118,6 +124,7 @@ impl BallotsStatus<'_> {
         let count_blank = blank_votes.total();
         extended_metrics.total_declined_to_vote = count_declined_to_vote;
         extended_metrics.total_blank_ballots = count_blank_ballots;
+        extended_metrics.total_weight = valid_weight;
         let count_valid = total_ballots
             - count_invalid_votes.explicit
             - count_invalid_votes.implicit
@@ -699,7 +706,8 @@ impl InstantRunoff {
         let count_invalid = count_invalid_votes.explicit + count_invalid_votes.implicit;
         let extended_metrics = ballots_status.extended_metrics.clone();
         debug_assert!(count_blank <= count_valid);
-        let percentage_votes_denominator = count_valid.saturating_sub(count_blank);
+        // Weighted like the candidate wins; with every weight 1 it is count_valid - count_blank.
+        let percentage_votes_denominator = extended_metrics.total_weight;
 
         let (candidate_result, process_results) = match op {
             TallyOperation::SkipCandidateResults => (vec![], None),
@@ -1015,6 +1023,7 @@ mod tests {
             }],
             extended_metrics: Some(ExtendedMetricsContest {
                 votes_by_channel: VotesByChannel::from([(VotingChannel::PAPER.into(), 2)]),
+                total_weight: 2,
                 ..Default::default()
             }),
             ..Default::default()
@@ -1246,7 +1255,8 @@ mod tests {
 
     /// Area weights scale each ballot's vote in the runoff rounds, so a
     /// candidate's round total is bounded like every other count instead of
-    /// wrapping.
+    /// wrapping. The valid weight, which every round total is part of, is the
+    /// first count to pass the bound.
     #[test]
     fn a_round_total_past_the_largest_exact_count_is_an_error() {
         let mut tally = instant_runoff(vec![
@@ -1260,7 +1270,65 @@ mod tests {
 
         assert!(matches!(
             tally.process_ballots(TallyOperation::ProcessBallotsAll),
-            Err(Error::CountOverflow(CountOverflow("candidate votes")))
+            Err(Error::CountOverflow(CountOverflow("valid weight")))
         ));
+    }
+
+    fn ranked_instant_runoff(votes: Vec<TallyBallot>) -> InstantRunoff {
+        InstantRunoff {
+            tally: Tally {
+                id: sequent_core::types::ceremonies::CountingAlgType::InstantRunoff,
+                scope_operation: ScopeOperation::Contest(TallyOperation::ProcessBallotsAll),
+                contest: ranked_contest(),
+                ballots: votes,
+                census: 10,
+                auditable_votes: 0,
+                tally_sheet_results: vec![],
+                tally_results: vec![],
+            },
+        }
+    }
+
+    fn candidate_percentage(result: &ContestResult, candidate_id: &str) -> f64 {
+        result
+            .candidate_result
+            .iter()
+            .find(|candidate| candidate.candidate.id == candidate_id)
+            .map(|candidate| candidate.percentage_votes)
+            .expect("candidate result should exist")
+    }
+
+    #[test]
+    fn irv_contest_percentages_use_the_valid_weight() {
+        let result = ranked_instant_runoff(ranked_votes(area_weight(5)))
+            .process_ballots(TallyOperation::ProcessBallotsAll)
+            .expect("weighted contest should tally");
+
+        // The last round is y 6, x 5 out of a valid weight of 11.
+        assert_eq!(
+            result
+                .extended_metrics
+                .as_ref()
+                .map(|metrics| metrics.total_weight),
+            Some(11)
+        );
+        assert_close(candidate_percentage(&result, "y"), 600.0 / 11.0);
+        assert_close(candidate_percentage(&result, "x"), 500.0 / 11.0);
+
+        // Aggregation recomputes the percentages over total_weight.
+        let recomputed = result.calculate_percentages();
+        assert_close(candidate_percentage(&recomputed, "y"), 600.0 / 11.0);
+        assert_close(candidate_percentage(&recomputed, "x"), 500.0 / 11.0);
+    }
+
+    #[test]
+    fn irv_contest_percentages_unchanged_without_weights() {
+        let result = ranked_instant_runoff(ranked_votes(Weight::default()))
+            .process_ballots(TallyOperation::ProcessBallotsAll)
+            .expect("unweighted contest should tally");
+
+        assert_close(candidate_percentage(&result, "y"), 400.0 / 7.0);
+        assert_close(candidate_percentage(&result, "x"), 100.0 / 7.0);
+        assert_close(candidate_percentage(&result, "z"), 200.0 / 7.0);
     }
 }
