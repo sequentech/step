@@ -43,13 +43,20 @@ export const TallyTrusteesList: React.FC<TallyTrusteesListProps> = (props) => {
     >([])
     const [custodyConfirmed, setCustodyConfirmed] = useState<number>(0)
 
+    // The session's own key ceremony: an event with a ceremony per election
+    // has several, and each session's trustees are those of its ceremony.
     const {data: keyCeremony} = useGetList<Sequent_Backend_Keys_Ceremony>(
         "sequent_backend_keys_ceremony",
         {
-            pagination: {page: 1, perPage: 9999},
-            filter: {election_event_id: tally?.election_event_id, tenant_id: tenantId},
+            pagination: {page: 1, perPage: 1},
+            filter: {
+                id: tally?.keys_ceremony_id,
+                election_event_id: tally?.election_event_id,
+                tenant_id: tenantId,
+            },
         },
         {
+            enabled: !!tally?.keys_ceremony_id,
             refetchOnWindowFocus: false,
             refetchOnReconnect: false,
             refetchOnMount: false,
