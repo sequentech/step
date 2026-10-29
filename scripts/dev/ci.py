@@ -57,6 +57,7 @@ RUST_EXTRA = {
     "trellis": "--features upstream-service --lib --example monitor --example post",
 }
 PYTHON = (
+    "python:scripts-sbom",
     "python:scripts-dev",
     "python:scripts-coverage",
     "python:scripts-e2e",

@@ -4,6 +4,7 @@
 """Apply user-confirmed delivery exclusions; keep full source evidence separately."""
 import os,importlib.util,json,re,hashlib,zipfile,collections
 from pathlib import Path
+from inventory_rules import evidence_review_status
 OLD=Path(__file__).resolve().parent
 NEW=Path(os.environ['SBOM_OUTPUT_DIR'])
 OUT=NEW/'Submission-Working-Drafts';OUT.mkdir(parents=True,exist_ok=True)
@@ -78,7 +79,7 @@ def short_front(repo,rs,mods,refs,svc,stats):
  p=m.P;t=m.tbl
  story=[p(repo.upper()+' / OVCS 2028','SubX'),p('SBOM and third-party\nrights schedule','TitleX'),p('Scoped working draft • 29 October 2026','SubX'),p('Repository: sequentech/'+repo+' • ovcs '+m.SHAS[repo],'SmallX')]
  if repo=='beyond':story.append(p('Separate supporting package — include the relevant modules only if used in the offered solution.','SubX'))
- story += [p('Declared scope: software and services supplied or relied on for the offered OVCS. Non-delivered development/testing tools and expressly unused components have been excluded. Underlying libraries incorporated into delivered code remain in scope. Shared lockfile entries are delivery candidates, not proof that each package is deployed; reconcile against the final release image/OS inventories before signing.'),p('1. Required documents','HeadX'),t([['Requirement','Submission'],['Ownership / sufficient licenses','TOR 13.3; Bulletin 3 checklist item 9. Technology-owner certification and evidence covering included modules, customization, auditability, modularity and applicable requirements.'],['COMELEC rights undertaking','Bulletin 3 checklist item 10. Signed bidder commitment to provide the required perpetual/non-exclusive rights, access and interoperability if awarded.'],['SBOM / third-party rights schedule','TOR 13.6.2; Bulletin 3 checklist item 17. This schedule and its component appendix/workbook/SPDX attachments.']],[140,385]),p('2. Ownership and release checks','HeadX'),p('Sequent Tech Inc owns its original Sequent-authored code; third-party code retains its owners and applicable licenses. Use the exact contracting/owning entity consistently. Trellis ownership has been confirmed by Sequent and its AGPL-3.0-only metadata aligned in meta#14601. Beyond contains both proprietary and AGPL files.'),p('The actual Step/Beyond revision pair, deployed images and OS/Nix closure must be recorded. This inventory does not assert a complete built-artifact SBOM. The separately prepared Beyond head matches its Step pin; Step itself pins an older Beyond commit, so reconcile the release configuration.'),p('3. How to read the schedule','HeadX'),p('The complete component appendix identifies component, version, purpose, owner evidence, license declaration and rights profile. Profiles below supply the remaining TOR fields and are incorporated by reference. Every field is expanded per component in the workbook and CSV. The SPDX document is the scoped source-based inventory. Unknown fields remain explicit; a component row is not legal clearance.')]
+ story += [p('Declared scope: software and services supplied or relied on for the offered OVCS. Non-delivered development/testing tools and expressly unused components have been excluded. Underlying libraries incorporated into delivered code remain in scope. Shared lockfile entries are delivery candidates, not proof that each package is deployed; reconcile against the final release image/OS inventories before signing.'),p('1. Required documents','HeadX'),t([['Requirement','Submission'],['Ownership / sufficient licenses','TOR 13.3; Bulletin 3 checklist item 9. Technology-owner certification and evidence covering included modules, customization, auditability, modularity and applicable requirements.'],['COMELEC rights undertaking','Bulletin 3 checklist item 10. Signed bidder commitment to provide the required perpetual/non-exclusive rights, access and interoperability if awarded.'],['SBOM / third-party rights schedule','TOR 13.6.2; Bulletin 3 checklist item 17. This schedule and its component appendix/workbook/SPDX attachments.']],[140,385]),p('2. Ownership and release checks','HeadX'),p('Sequent Tech Inc owns its original Sequent-authored code; third-party code retains its owners and applicable licenses. Use the exact contracting/owning entity consistently. Trellis ownership has been confirmed by Sequent and its AGPL-3.0-only metadata aligned in meta#14601. Beyond contains both proprietary and AGPL files.'),p('The actual Step/Beyond revision pair, deployed images and OS/Nix closure must be recorded. This inventory does not assert a complete built-artifact SBOM. '+m.revision_pair(repo)),p('3. How to read the schedule','HeadX'),p('The complete component appendix identifies component, version, purpose, owner evidence, license declaration and rights profile. Profiles below supply the remaining TOR fields and are incorporated by reference. Every field is expanded per component in the workbook and CSV. The SPDX document is the scoped source-based inventory. Unknown fields remain explicit; a component row is not legal clearance.')]
  for key,profile in m.PROFILES.items():
   story += [p(key+' rights profile','SubX'),t([['TOR field','Applicable terms']]+[[f,profile[f]] for f in m.FIELDS[2:]],[125,400])]
  story += [m.PageBreak(),p('4. Included / candidate service terms','HeadX'),p('Only services remaining in the declared scope are listed. For unconfirmed alternatives, finalize which provider is actually used before submission; remove alternatives only following that decision. Scanovate terms below are from an unsigned draft, not executed license evidence.')]
@@ -89,6 +90,7 @@ def short_front(repo,rs,mods,refs,svc,stats):
 m.front=short_front
 # Keep raw repository scans and exclusions INTERNAL, not embedded in scoped handoff.
 def evidence(repo,dest,rs,mods):
+ m.write_csv(dest/'Provided-Platform-Dependencies.csv',[r for r in platform if r['repository']==repo])
  ev=dest/'evidence';ev.mkdir(exist_ok=True)
  evidence={r['ID']:{k:r.get(k,'') for k in ('Evidence paths','Source / metadata URL','License evidence','Owner evidence')} for r in rs}
  (ev/'Component-Evidence.json').write_text(json.dumps(evidence,indent=2))
@@ -131,18 +133,17 @@ def corrected_rows(repo, modules):
         if repo=='beyond' and r['Rights profile']=='UNRESOLVED':
             own=next((x for x in step_modules if x['name']==name and x['version']==version),None)
             if own:
-                r.update({'License declaration':own['license'],'Owner':own['owner'],'Classification':own['classification'],'License evidence':'Pinned Step module '+own['path'],'Owner evidence':'Step manifest/SPDX at '+m.SHAS['step'],'Rights profile':'SEQUENT' if own['classification']=='Sequent-authored module' else 'OPEN'})
+                r.update({'License declaration':own['license'],'Owner':own['owner'],'Classification':own['classification'],'License evidence':'Separately inventoried Step module '+own['path'],'Owner evidence':'Step manifest/SPDX at '+m.SHAS['step'],'Rights profile':'SEQUENT' if own['classification']=='Sequent-authored module' else 'OPEN'})
         correction=CORRECTIONS.get((name,version))
         if correction:
             ev=json.loads((m.EVIDENCE/'licenses'/(name+'.json')).read_text())
             r.update({'License declaration':correction,'License evidence':ev['url']+'; SHA256 '+ev['sha256'],'Rights profile':'OPEN','Comment':'Exact artifact notice reviewed; retain all bundled third-party notices. License duties still apply.'})
         r.update(m.PROFILES[r['Rights profile']])
-        if r['Rights profile']!='UNRESOLVED':r['Review status']='Source license evidence recorded'
+        r['Review status']=evidence_review_status(r['Review status'],r['Rights profile'])
         result.append(r)
     allowed={r['ID'] for r in result}
     return result,raw,maven,{k:v for k,v in ids.items() if v in allowed}
 m.make_rows=corrected_rows
 m.main()
 m.write_csv(INTERNAL/'Scope-Exclusions.csv',ledger)
-m.write_csv(OUT/'Provided-Platform-Dependencies.csv',platform)
 (INTERNAL/'Scope-Exclusions.json').write_text(json.dumps(ledger,indent=2))
