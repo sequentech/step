@@ -143,10 +143,25 @@ queue/sidecar rehearsal above.
 
 ## UI review against the design boards
 
-Vitrine's UI review compared each screen with its design board. On Step's
-side, the kit from `e9a9e0976dc465f783a7e663e7c1a2dcb1d0ce60` says on the
-receipt when a bootstrap hub stands in for the browser layer, and the
-confirmation screen keeps asking the log for the hub and browser anchors,
-every 2 s at first and at most every 30 s, until those tiers are done or due,
-so the last receipt steps fill in while the voter watches. The UI fixes
-otherwise stay in Vitrine's packages.
+Vitrine's UI review (`docs/ui-review.md` there) compared each screen with its
+design board. On Step's side:
+
+- The confirmation page follows the Main board: the portal's stepper, a
+  headline that changes once witnesses confirm the ballot, the kit's receipt
+  card naming ballots in the eight languages, Save receipt and Finish, and the
+  QR code behind a row. It keeps asking the log for the hub and browser
+  anchors, every 2 s at first and at most every 30 s, until those tiers are
+  done or due, so the last receipt steps fill in while the voter watches.
+- Kept receipts show one card per receipt with a row per tier (Revisit), and
+  the failure page builds its evidence card from the tiers that failed
+  (Alert).
+- The Transparency tab derives its overview from the policy and the logs, laid
+  out as the Admin board in the admin theme, with its label in eight
+  languages.
+- The voting portal's build gives each script SHA-256 integrity, so the
+  extension can check the page's code against the logged release.
+- `scripts/vitrine-preview` serves both portals against a local Vitrine stack,
+  with a switch for the Alert scenario.
+
+The kit from `e9a9e0976dc465f783a7e663e7c1a2dcb1d0ce60` says on the receipt
+when a bootstrap hub stands in for the browser layer.
