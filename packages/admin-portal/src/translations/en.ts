@@ -465,6 +465,7 @@ const englishTranslation = {
                 customUrls: "Custom URLs Prefix",
                 votingPeriod: "Voting Period",
                 language: "Language",
+                languageAndRegion: "Language & Region",
                 allowed: "Voting Channels Allowed",
                 materials: "Support Materials",
                 ballotDesign: "Ballot Design",
@@ -694,6 +695,11 @@ const englishTranslation = {
                         "browser-detect": "Browser Detect",
                         "force-default": "Force Default",
                     },
+                },
+                numberFormatPolicy: {
+                    policyLabel: "Number Format Policy",
+                    helperText: "Applies to the numbers shown in results, dashboards and reports.",
+                    unknownPolicy: "Unknown format '{{policy}}', shown as {{sample}}",
                 },
             },
             error: {
@@ -2136,6 +2142,8 @@ const englishTranslation = {
             },
         },
         tally: {
+            numericResultsReportsPending:
+                "Numeric results are complete. Reports are still being generated.",
             errorUploadingSignature: "There was an error uploading signature",
             downloadTransmissionPackage: "Download Transmission Package",
             resultsPublication: {
