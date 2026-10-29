@@ -6885,8 +6885,8 @@
 
 "@vitrine/ui@file:vendor-npm/vitrine-ui.tgz":
   version "0.1.0"
-  uid "6f085a27403f4ae6ab54208199a522d17305d60b"
-  resolved "file:vendor-npm/vitrine-ui.tgz#6f085a27403f4ae6ab54208199a522d17305d60b"
+  uid aeb600eaf62e1faec6ec1ebc459c2aa566bb5a64
+  resolved "file:vendor-npm/vitrine-ui.tgz#aeb600eaf62e1faec6ec1ebc459c2aa566bb5a64"
   dependencies:
     "@fluent/bundle" "^0.19.1"
     "@vitrine/verify" "0.1.0"
