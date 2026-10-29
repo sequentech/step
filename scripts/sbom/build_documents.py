@@ -99,8 +99,8 @@ def file_rights(root,rel):
     v=a.get('SPDX-FileCopyrightText',[]);owners+=v if isinstance(v,list) else [v]
  return list(dict.fromkeys(filter(None,lic))),list(dict.fromkeys(filter(None,owners)))
 
-def scan_modules(repo):
- root=WORK/repo;mods=[]
+def scan_modules(repo,root=None,revision=None):
+ root=WORK/repo if root is None else root;revision=revision or SHAS[repo];mods=[]
  for f in sorted((root/'packages').rglob('*')):
   if not f.is_file() or f.name not in ('Cargo.toml','package.json','pom.xml','pyproject.toml'):continue
   rel=str(f.relative_to(root));lic,owner=file_rights(root,rel)
@@ -126,7 +126,7 @@ def scan_modules(repo):
  # Standard-library-only Go CLI is not emitted by Syft because it has no dependencies.
  for f in root.rglob('go.mod'):
   rel=str(f.relative_to(root));lic,owner=file_rights(root,rel)
-  mods.append(dict(name='Sequent offline installation CLI',version=SHAS[repo],purpose='Install, verify and report provenance of the offline OVCS release; Go standard-library-only module',license=' AND '.join(lic) or 'LicenseRef-Proprietary',owner='; '.join(owner) or 'Sequent Tech Inc (see adjacent Go source headers)',path=rel,type='go-module',classification='Sequent-authored module'))
+  mods.append(dict(name='Sequent offline installation CLI',version=revision,purpose='Install, verify and report provenance of the offline OVCS release; Go standard-library-only module',license=' AND '.join(lic) or 'LicenseRef-Proprietary',owner='; '.join(owner) or 'Sequent Tech Inc (see adjacent Go source headers)',path=rel,type='go-module',classification='Sequent-authored module'))
  return mods
 
 def purpose(p,meta):

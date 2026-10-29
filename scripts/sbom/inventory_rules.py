@@ -2,6 +2,10 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """Extract concrete image references only in syntactically appropriate files."""
 from pathlib import PurePosixPath
+from contextlib import contextmanager
+from tempfile import TemporaryDirectory, TemporaryFile
+from pathlib import Path
+import tarfile
 import csv
 import re
 import subprocess
@@ -53,3 +57,15 @@ def write_platform_dependencies(path, records, repository):
         writer = csv.DictWriter(stream, fieldnames=['repository', 'component', 'purl', 'reason', 'evidence'])
         writer.writeheader()
         writer.writerows(row for row in records if row['repository'] == repository)
+
+
+@contextmanager
+def pinned_source(repository, revision):
+    """Read committed content without switching or modifying a source checkout."""
+    with TemporaryDirectory(prefix='sbom-pin-') as directory, TemporaryFile() as archive:
+        subprocess.run(['git', '-C', str(repository), 'archive', '--format=tar', revision],
+                       stdout=archive, check=True)
+        archive.seek(0)
+        with tarfile.open(fileobj=archive) as source:
+            source.extractall(directory, filter='data')
+        yield Path(directory)

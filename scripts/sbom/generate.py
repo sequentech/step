@@ -4,7 +4,7 @@
 """Apply user-confirmed delivery exclusions; keep full source evidence separately."""
 import os,importlib.util,json,re,hashlib,zipfile,collections
 from pathlib import Path
-from inventory_rules import evidence_review_status, write_platform_dependencies
+from inventory_rules import evidence_review_status, write_platform_dependencies, pinned_source
 OLD=Path(__file__).resolve().parent
 NEW=Path(os.environ['SBOM_OUTPUT_DIR'])
 OUT=NEW/'Submission-Working-Drafts';OUT.mkdir(parents=True,exist_ok=True)
@@ -94,7 +94,7 @@ def evidence(repo,dest,rs,mods):
  ev=dest/'evidence';ev.mkdir(exist_ok=True)
  evidence={r['ID']:{k:r.get(k,'') for k in ('Evidence paths','Source / metadata URL','License evidence','Owner evidence')} for r in rs}
  (ev/'Component-Evidence.json').write_text(json.dumps(evidence,indent=2))
- prov=dict(repository='sequentech/'+repo,revision=m.SHAS[repo],branch='ovcs',source_tree=m.subprocess.check_output(['git','-C',str(m.WORK/repo),'rev-parse','HEAD^{tree}'],text=True).strip(),scope='Scoped source candidates; original scans precede metadata-only licensing changes; not a runtime image/OS SBOM',original_unfiltered_evidence_retained_internally=True,scanovate_agreement_status='Unsigned draft; rights subject to identified qualifications')
+ prov=dict(repository='sequentech/'+repo,revision=m.SHAS[repo],branch='ovcs',submodule=(dict(repository='sequentech/'+m.PIN[repo][0],commit=m.PIN[repo][1],contents_scanned=False) if m.PIN[repo][1] else None),source_tree=m.subprocess.check_output(['git','-C',str(m.WORK/repo),'rev-parse','HEAD^{tree}'],text=True).strip(),scope='Scoped source candidates; original scans precede metadata-only licensing changes; not a runtime image/OS SBOM',original_unfiltered_evidence_retained_internally=True,scanovate_agreement_status='Unsigned draft; rights subject to identified qualifications')
  (ev/'provenance.json').write_text(json.dumps(prov,indent=2));return prov
 m.evidence=evidence
 
@@ -114,7 +114,11 @@ scoped_rows=m.make_rows
 platform=[]
 def corrected_rows(repo, modules):
     rs,raw,maven,ids=scoped_rows(repo,modules)
-    step_modules=old_mods('step')
+    step_modules=[]
+    step_pin=m.PIN['beyond'][1]
+    if repo=='beyond' and step_pin:
+        with pinned_source(m.WORK/'step',step_pin) as source:
+            step_modules=old_mods('step',root=source,revision=step_pin)
     result=[]
     for r in rs:
         name=r['Component']; version=r['Version / revision']
@@ -133,7 +137,7 @@ def corrected_rows(repo, modules):
         if repo=='beyond' and r['Rights profile']=='UNRESOLVED':
             own=next((x for x in step_modules if x['name']==name and x['version']==version),None)
             if own:
-                r.update({'License declaration':own['license'],'Owner':own['owner'],'Classification':own['classification'],'License evidence':'Separately inventoried Step module '+own['path'],'Owner evidence':'Step manifest/SPDX at '+m.SHAS['step'],'Rights profile':'SEQUENT' if own['classification']=='Sequent-authored module' else 'OPEN'})
+                r.update({'License declaration':own['license'],'Owner':own['owner'],'Classification':own['classification'],'License evidence':'Beyond-pinned Step module '+own['path'],'Owner evidence':'Step manifest/SPDX at '+step_pin,'Rights profile':'SEQUENT' if own['classification']=='Sequent-authored module' else 'OPEN'})
         correction=CORRECTIONS.get((name,version))
         if correction:
             ev=json.loads((m.EVIDENCE/'licenses'/(name+'.json')).read_text())

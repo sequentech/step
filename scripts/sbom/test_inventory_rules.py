@@ -56,4 +56,30 @@ class PlatformInventoryTest(unittest.TestCase):
             with path.open() as stream:
                 self.assertEqual(list(csv.DictReader(stream)), records)
 
+
+class PinnedSourceTest(unittest.TestCase):
+    def test_reads_pinned_content_not_current_checkout(self):
+        from inventory_rules import pinned_source
+        from tempfile import TemporaryDirectory
+        from pathlib import Path
+        import subprocess
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            def git(*args):
+                return subprocess.check_output(['git', '-C', str(root), *args], text=True).strip()
+            git('init', '-q')
+            git('config', 'user.name', 'Test')
+            git('config', 'user.email', 'test@example.invalid')
+            (root/'notice').write_text('original owner')
+            git('add', 'notice'); git('commit', '-qm', 'first')
+            pin = git('rev-parse', 'HEAD')
+            (root/'notice').write_text('different owner')
+            git('commit', '-qam', 'second')
+            with pinned_source(root, pin) as source:
+                self.assertEqual((source/'notice').read_text(), 'original owner')
+            self.assertFalse(source.exists())
+            self.assertEqual((root/'notice').read_text(), 'different owner')
+            with self.assertRaises(subprocess.CalledProcessError):
+                with pinned_source(root, '0'*40): pass
+
 if __name__ == '__main__': unittest.main()
