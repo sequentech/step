@@ -10,6 +10,11 @@
 // wrote at /.well-known/vitrine/release/<package>/<version>. Both modes send
 // the headers the dev server sends: the portals' multi-threaded WASM needs
 // cross-origin isolation (COOP same-origin, COEP require-corp).
+//
+// With `graphqlPort`, it also forwards /v1/graphql to that port, so the portal
+// sends its GraphQL requests to its own origin: the Vitrine extension reads
+// casts only there (Vitrine's SITE-LIST.md, section 4.2), as a reverse proxy
+// in front of Hasura serves them in a deployment the extension checks.
 
 import fs from "node:fs";
 import http from "node:http";
@@ -60,7 +65,7 @@ export function releaseIdentity(file, fallback) {
   }
 }
 
-export function createFront({ settings, upstreamPort, dist, release, log }) {
+export function createFront({ settings, upstreamPort, graphqlPort, dist, release, log }) {
   const settingsText = `${JSON.stringify(settings, null, 2)}\n`;
 
   const headers = (extra = {}) => ({ ...ISOLATION_HEADERS, "Cache-Control": "no-cache", ...extra });
@@ -91,9 +96,9 @@ export function createFront({ settings, upstreamPort, dist, release, log }) {
     res.end("not found\n");
   };
 
-  function proxy(req, res) {
+  function proxy(req, res, port = upstreamPort) {
     const up = http.request(
-      { host: "127.0.0.1", port: upstreamPort, path: req.url, method: req.method, headers: { ...req.headers, host: `127.0.0.1:${upstreamPort}` } },
+      { host: "127.0.0.1", port, path: req.url, method: req.method, headers: { ...req.headers, host: `127.0.0.1:${port}` } },
       (answer) => {
         res.writeHead(answer.statusCode, { ...answer.headers, ...ISOLATION_HEADERS });
         answer.pipe(res);
@@ -101,7 +106,7 @@ export function createFront({ settings, upstreamPort, dist, release, log }) {
     );
     up.on("error", (e) => {
       res.writeHead(502, headers({ "Content-Type": "text/plain" }));
-      res.end(`the portal's dev server isn't answering yet (${e.code ?? e.message}); it is still compiling\n`);
+      res.end(port === upstreamPort ? `the portal's dev server isn't answering yet (${e.code ?? e.message}); it is still compiling\n` : `the GraphQL stand-in isn't answering (${e.code ?? e.message})\n`);
     });
     req.pipe(up);
   }
@@ -122,6 +127,7 @@ export function createFront({ settings, upstreamPort, dist, release, log }) {
         }
         return notFound(res);
       }
+      if (graphqlPort && url.pathname === "/v1/graphql") return proxy(req, res, graphqlPort);
       if (dist) return serveStatic(req, res, url.pathname);
       return proxy(req, res);
     } catch (e) {

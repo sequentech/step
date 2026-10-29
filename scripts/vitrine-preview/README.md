@@ -22,7 +22,7 @@ edits show up live), `--logs DIR`, `--version V`, `--election ID`.
 
 | Origin | What |
 |---|---|
-| `http://127.0.0.1:18850` | voting portal (the preview's own `/global-settings.json`, the rest from webpack, or a static build) |
+| `http://127.0.0.1:18850` | voting portal (the preview's own `/global-settings.json`, `/v1/graphql` forwarded to the stand-in, the rest from webpack, or a static build). The portal sends GraphQL to its own origin because the Vitrine extension reads casts only there, as a reverse proxy in front of Hasura serves them in a deployment the extension checks |
 | `http://127.0.0.1:18853` | admin portal |
 | `http://127.0.0.1:18851` | the stand-in: GraphQL (`/v1/graphql`), a fake Keycloak (`/realms/...`), the published ballot files, `/__preview/status` |
 | 18852, 18854 | the webpack dev servers (internal) |
