@@ -14,6 +14,7 @@ import type {
     ChainResult,
     Expect,
     OverallStatus,
+    ProfileWords,
     ResultDetail,
     VitrineProofSteps,
     VitrineReceipt,
@@ -27,7 +28,7 @@ type TElementProps<T extends HTMLElement> = React.DetailedHTMLProps<React.HTMLAt
 declare module "react" {
     namespace JSX {
         interface IntrinsicElements {
-            "vitrine-receipt": TElementProps<VitrineReceipt> & {where?: Where}
+            "vitrine-receipt": TElementProps<VitrineReceipt> & {where?: Where; bare?: boolean}
             "vitrine-status": TElementProps<VitrineStatus> & {state?: OverallStatus}
             "vitrine-proof-steps": TElementProps<VitrineProofSteps>
         }
@@ -92,6 +93,10 @@ export interface IVitrineReceiptViewProps {
     result?: ChainResult
     where: Where
     compact?: boolean
+    /** The card alone: the page lays out its own actions. */
+    bare?: boolean
+    /** The profile's words, which name an entry ("ballot"). */
+    profileWords?: ProfileWords
     lang: string
     className?: string
     onCheckIndependently?: (detail: CheckIndependentlyDetail) => void
@@ -105,6 +110,8 @@ export const VitrineReceiptView: React.FC<IVitrineReceiptViewProps> = ({
     result,
     where,
     compact,
+    bare,
+    profileWords,
     lang,
     className,
     onCheckIndependently,
@@ -128,7 +135,9 @@ export const VitrineReceiptView: React.FC<IVitrineReceiptViewProps> = ({
         const element = ref.current
         if (!element) return
         element.compact = Boolean(compact)
-    }, [ready, compact])
+        element.bare = Boolean(bare)
+        element.profileWords = profileWords ?? null
+    }, [ready, compact, bare, profileWords])
 
     useEffect(() => {
         const element = ref.current

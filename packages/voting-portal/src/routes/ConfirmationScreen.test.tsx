@@ -260,8 +260,9 @@ describe("the receipt on the confirmation screen", () => {
         const chain = pure.parseChain(String(element.chain))
         expect(pure.bytes.fromUtf8(chain[block] ?? new Uint8Array())).toBe(cast.text)
         const text = await shadowText(element)
-        expect(text).toContain("Checked by this website")
-        expect(text).toContain("Check independently")
+        expect(element.bare).toBe(true)
+        expect(text).toMatch(/ballot\W{0,2} fingerprint/i)
+        expect(text).not.toContain("Check independently")
         expect(container.querySelector("vitrine-status")).toBeNull()
         // A receipt's reference is drawn as a QR code here; a promise has none yet.
         if (qr) {
@@ -416,31 +417,14 @@ describe("the receipt on the confirmation screen", () => {
         expect((window as unknown as Record<string, unknown>).__vitrinePwned).toBeUndefined()
     })
 
-    it("opens the deployment's verifier with the chain in the fragment", async () => {
-        const {s} = casting(receiptOf)
-        const open = jest.spyOn(window, "open").mockImplementation(() => null)
+    it("leaves the actions to the page: the card has no buttons of its own", async () => {
+        casting(receiptOf)
         const {container} = renderScreen()
         const element = await receiptElement(container)
         await waitFor(() => expect(element.state).toBe("done"))
         await element.updateComplete
-        const button = Array.from(element.shadowRoot?.querySelectorAll("button") ?? []).find((b) =>
-            b.textContent?.includes("Check independently")
-        )
-        button?.click()
-        await waitFor(() => expect(open).toHaveBeenCalled())
-        const [url, target, features] = open.mock.calls[0]
-        expect(target).toBe("_blank")
-        expect(features).toBe("noopener,noreferrer")
-        const link = new URL(String(url))
-        expect(`${link.origin}${link.pathname}`).toBe("https://verifier.example/receipt")
-        expect(link.hash.startsWith("#vitrine:chain?")).toBe(true)
-        const params = new URLSearchParams(link.hash.slice("#vitrine:chain?".length))
-        expect(pure.bytes.fromUtf8(pure.encoding.b64urlDecode(params.get("c") ?? ""))).toBe(
-            element.chain
-        )
-        expect(params.get("u")).toBe(`${LOG_URLS.ballots}policy/${s.policyId}`)
-        // Nothing about the receipt reached a server.
-        expect(calls.some((c) => c.url.includes("verifier.example"))).toBe(false)
+        expect(element.shadowRoot?.querySelectorAll("button").length).toBe(0)
+        expect(container.querySelector(".vitrine-elsewhere-toggle")).not.toBeNull()
     })
 
     it.each([

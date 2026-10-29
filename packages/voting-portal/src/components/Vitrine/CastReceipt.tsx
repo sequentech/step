@@ -34,6 +34,7 @@ import type {IConfirmationVitrine} from "../../store/castVotes/confirmationScree
 import {BOARD, EGlyph, focusSx, Glyph, headingSx, quietTextSx, VitrineBrand} from "./board"
 import {VitrineFailure} from "./VitrineFailure"
 import {VitrineReceiptView, VitrineStatusView} from "./VitrineElements"
+import {ELECTION_PROFILE_WORDS} from "../../services/vitrine/profileWords"
 
 const NOTICE_STATE: Record<EReceiptNotice, OverallStatus> = {
     [EReceiptNotice.NONE]: "verified",
@@ -237,6 +238,8 @@ export const CastReceipt: React.FC<ICastReceiptProps> = ({
         <VitrineReceiptView
             className="vitrine-receipt"
             where="page"
+            bare
+            profileWords={ELECTION_PROFILE_WORDS}
             chain={view?.chain}
             policy={view?.policy}
             expect={view?.expect}
