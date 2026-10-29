@@ -105,8 +105,10 @@ ranges, reversed ranges and lines in neither format make the configuration inval
 through an identity provider with an invalid mapper fails with a generic error, and the Keycloak
 log says which line is wrong.
 
-The table is parsed once and kept in memory until the mapper configuration changes. A login only
-does an in-memory lookup and makes no network calls.
+The table is parsed once and kept in memory until the mapper configuration changes. A login looks
+the value up in memory and makes no network calls. Keycloak still reads the mapper configuration,
+table included, from its database on every login, so keep large tables compact (see
+[Loading a large table](#loading-a-large-table-through-the-admin-rest-api)).
 
 ---
 
@@ -169,6 +171,12 @@ scopes that release those claims in the identity provider's **Scopes** setting.
 
 A table for a large election can have tens of thousands of lines, which is impractical to paste
 into the Admin Console. Load it with the Admin REST API instead.
+
+Prefer the `<value> = <keys and ranges>` format for large tables. Consecutive keys with the same
+value fit in one range, so the table stays small. For example, 70,000 precincts in 176 areas take
+about 3 MB as one `<key>,<value>` line per precinct, and about 40 KB grouped into ranges. Because
+Keycloak reads the whole configuration on every login, the one-line-per-key table made each
+login about 30 ms slower in testing, and the grouped table about 10 ms.
 
 1. Get an admin access token:
 
