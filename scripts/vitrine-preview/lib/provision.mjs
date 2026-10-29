@@ -22,18 +22,21 @@ const WAIT_MS = 120000;
 
 /** The demo booth's own configuration, so that a milestone written before the
  * booth sets itself up names its election too and the booth adopts it. */
-function demoBoothConfig({ live, vitrineDir }) {
+export function demoBoothConfig({ live, vitrineDir }) {
   const booth = readToml(fs.readFileSync(path.join(live.stateDir, "booth", "config.toml"), "utf8"));
   const dir = path.join(vitrineDir, "packages", "demo-booth");
   const api = fs.readFileSync(path.join(dir, "src", "api.ts"), "utf8");
-  const release = /RELEASE[^{]*\{[^}]*package:\s*"([^"]+)"[^}]*version:\s*"([^"]+)"/s.exec(api);
-  if (!release) throw new Error("can't read the demo booth's release from packages/demo-booth/src/api.ts");
+  // The booth names itself `<package> <version>`: the package from its RELEASE constant, the
+  // version its build takes from package.json.
+  const pkg = /RELEASE\s*=\s*\{[^}]*package:\s*"([^"]+)"/s.exec(api)?.[1];
+  const version = JSON.parse(fs.readFileSync(path.join(dir, "package.json"), "utf8")).version;
+  if (!pkg || !version) throw new Error("can't read the demo booth's release from packages/demo-booth");
   const styles = booth.setup.styles.map((s) => fs.readFileSync(path.join(dir, "styles", path.basename(s))));
   return {
     election: booth.election,
     key: sha256(Buffer.from(booth.setup.public_key_base64, "base64")),
     styles: stylesHash(styles.map((s) => styleDigest(s.toString("utf8")))),
-    release: { package: release[1], version: release[2] },
+    release: { package: pkg, version },
   };
 }
 
