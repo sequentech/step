@@ -3,7 +3,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::pipes::error::{Error, Result};
-use crate::pipes::pipe_inputs::{InputElectionConfig, PipeInputs, BALLOTS_FILE};
+use crate::pipes::pipe_inputs::{
+    batch_file_name, list_batch_files, remove_batch_files, InputElectionConfig, PipeInputs,
+    BALLOTS_FILE,
+};
 use crate::pipes::Pipe;
 use num_bigint::BigUint;
 use sequent_core::ballot::{Contest, MultiContestEncodingMode};
@@ -69,9 +72,6 @@ impl DecodeMCBallots {
                 }
             }
 
-            let plaintext =
-                plaintext.map_err(|_| Error::UnexpectedError("Wrong ballot format".into()))?;
-
             let context = match codec_context.as_mut() {
                 Some(context) => context,
                 None => {
@@ -86,12 +86,24 @@ impl DecodeMCBallots {
                 }
             };
 
-            let decoded = BallotChoices::decode_from_bigint_with_context(
-                context,
-                &plaintext,
-                Some(serial_number_counter),
-            )
-            .map_err(|_| Error::UnexpectedError("Wrong ballot format".into()))?;
+            // A line that is not a number, such as MALFORMED_PLAINTEXT_LINE, or a
+            // value that does not fit the ballot layout stands for a plaintext
+            // that did not decode.
+            let decoded = match plaintext {
+                Ok(plaintext) => BallotChoices::decode_from_bigint_with_context(
+                    context,
+                    &plaintext,
+                    Some(serial_number_counter),
+                ),
+                Err(error) => Err(error.to_string()),
+            };
+            let decoded = match decoded {
+                Ok(decoded) => decoded,
+                Err(error) => {
+                    warn!("Counting an undecodable ballot as invalid: {error}");
+                    context.undecodable_ballot(Some(serial_number_counter))
+                }
+            };
 
             decoded_ballots.push(decoded);
         }
@@ -134,19 +146,18 @@ impl Pipe for DecodeMCBallots {
             // contest_id -> (area_id -> dvc)
             let contest_dvc_map: HashMap<String, HashMap<String, DecodedVoteChoice>> =
                 Self::get_contest_dvc_map(election_input);
-            // contest_id -> (area_id -> dvc)
-            let mut output_map: HashMap<String, HashMap<Uuid, Vec<DecodedVoteContest>>> =
+            // (contest_id, area_id, batch multiplier) -> dvc
+            let mut output_map: HashMap<(String, Uuid, u64), Vec<DecodedVoteContest>> =
                 HashMap::new();
 
             for (area_id, unsorted_contests) in area_contest_map {
                 let mut contests = unsorted_contests.contests.clone();
                 contests.sort_by_key(|c| c.id.clone());
-                let path_ballots = PipeInputs::mcballots_path(
+                let area_ballots_dir = PipeInputs::mcballots_path(
                     self.pipe_inputs.root_path_ballots.as_path(),
                     &election_input.id,
                     &area_id,
-                )
-                .join(BALLOTS_FILE);
+                );
 
                 let include_decline_to_vote = election_input
                     .presentation
@@ -176,71 +187,87 @@ impl Pipe for DecodeMCBallots {
                     .multi_contest_encoding_mode
                     .unwrap_or_default();
 
-                let res = Self::decode_ballots(
-                    path_ballots.as_path(),
-                    &contests,
-                    include_decline_to_vote,
-                    include_blank_ballots,
-                    multi_contest_encoding_mode,
-                    &mut serial_number_counter,
+                let output_dir = PipeInputs::mcballots_path(
+                    self.pipe_inputs
+                        .cli
+                        .output_dir
+                        .join(PipeNameOutputDir::DecodeMCBallots.as_ref())
+                        .as_path(),
+                    &election_input.id,
+                    &area_id,
                 );
-
-                match res {
-                    Ok(decoded_ballots) => {
-                        // output multi contest ballots, will be read by mcballot_receipt pipe
-
-                        let mut output_path = PipeInputs::mcballots_path(
+                remove_batch_files(&output_dir, OUTPUT_DECODED_BALLOTS_FILE)?;
+                for contest in &contests {
+                    let contest_uuid = Uuid::from_str(&contest.id).map_err(|e| {
+                        Error::UnexpectedError(format!(
+                            "Could not parse uuid for contest {}, {}",
+                            contest.id, e
+                        ))
+                    })?;
+                    remove_batch_files(
+                        &PipeInputs::build_path(
                             self.pipe_inputs
                                 .cli
                                 .output_dir
-                                .join(PipeNameOutputDir::DecodeMCBallots.as_ref())
+                                .join(PipeNameOutputDir::DecodeBallots.as_ref())
                                 .as_path(),
                             &election_input.id,
-                            &area_id,
-                        );
+                            Some(&contest_uuid),
+                            Some(&area_id),
+                        ),
+                        OUTPUT_DECODED_CONTEST_BALLOTS_FILE,
+                    )?;
+                }
 
-                        fs::create_dir_all(&output_path)?;
-                        output_path.push(OUTPUT_DECODED_BALLOTS_FILE);
-                        let file = File::create(&output_path)
-                            .map_err(|e| Error::FileAccess(output_path, e))?;
+                // One file, unless the area's ballots were split into weight
+                // batches: then one per batch, each decoded on its own and
+                // written under its batch's name for do_tally to count.
+                let ballot_files = list_batch_files(&area_ballots_dir, BALLOTS_FILE)?;
+                if ballot_files.is_empty() {
+                    println!(
+                        "[{}] File not found: {} -- Not processed",
+                        PipeName::DecodeMCBallots.as_ref(),
+                        area_ballots_dir.join(BALLOTS_FILE).display()
+                    );
+                    continue;
+                }
 
-                        serde_json::to_writer(file, &decoded_ballots)?;
+                for (path_ballots, multiplier) in ballot_files {
+                    let decoded_ballots = Self::decode_ballots(
+                        path_ballots.as_path(),
+                        &contests,
+                        include_decline_to_vote,
+                        include_blank_ballots,
+                        multi_contest_encoding_mode,
+                        &mut serial_number_counter,
+                    )?;
 
-                        // accumulate per-contest ballots
+                    // output multi contest ballots, will be read by mcballot_receipt pipe
 
-                        for dbc in decoded_ballots {
-                            let decoded_contests = map_decoded_ballot_choices_to_decoded_contests(
-                                dbc.clone(),
-                                &contests,
-                            )
-                            .map_err(|err| Error::UnexpectedError(err))?;
+                    fs::create_dir_all(&output_dir)?;
+                    let output_path =
+                        output_dir.join(batch_file_name(OUTPUT_DECODED_BALLOTS_FILE, multiplier));
+                    let file = File::create(&output_path)
+                        .map_err(|e| Error::FileAccess(output_path, e))?;
 
-                            for decoded_contest in decoded_contests {
-                                if !output_map.contains_key(&decoded_contest.contest_id) {
-                                    output_map
-                                        .insert(decoded_contest.contest_id.clone(), HashMap::new());
-                                }
-                                let area_dvc_map = output_map
-                                    .get_mut(&decoded_contest.contest_id)
-                                    .expect("impossible");
+                    serde_json::to_writer(file, &decoded_ballots)?;
 
-                                if !area_dvc_map.contains_key(&area_id) {
-                                    area_dvc_map.insert(area_id.clone(), vec![]);
-                                }
-                                let values = area_dvc_map.get_mut(&area_id).expect("impossible");
-                                values.push(decoded_contest);
-                            }
-                        }
-                    }
-                    Err(e) => {
-                        if let Error::FileAccess(file, _) = &e {
-                            println!(
-                                "[{}] File not found: {} -- Not processed",
-                                PipeName::DecodeMCBallots.as_ref(),
-                                file.display()
-                            )
-                        } else {
-                            return Err(e);
+                    // accumulate per-contest ballots
+
+                    for dbc in decoded_ballots {
+                        let decoded_contests =
+                            map_decoded_ballot_choices_to_decoded_contests(dbc.clone(), &contests)
+                                .map_err(|err| Error::UnexpectedError(err))?;
+
+                        for decoded_contest in decoded_contests {
+                            output_map
+                                .entry((
+                                    decoded_contest.contest_id.clone(),
+                                    area_id.clone(),
+                                    multiplier,
+                                ))
+                                .or_default()
+                                .push(decoded_contest);
                         }
                     }
                 }
@@ -248,39 +275,145 @@ impl Pipe for DecodeMCBallots {
 
             // output ballots in the normal format to allow non adapted pipes to execute transparently
 
-            for (contest_id, area_dcv_map) in output_map {
-                for (area_id, dvcs) in area_dcv_map {
-                    let contest_uuid = Uuid::from_str(&contest_id).map_err(|e| {
-                        Error::UnexpectedError(format!(
-                            "Could not parse uuid for contest {}, {}",
-                            contest_id, e
-                        ))
-                    })?;
+            for ((contest_id, area_id, multiplier), dvcs) in output_map {
+                let contest_uuid = Uuid::from_str(&contest_id).map_err(|e| {
+                    Error::UnexpectedError(format!(
+                        "Could not parse uuid for contest {}, {}",
+                        contest_id, e
+                    ))
+                })?;
 
-                    let mut output_path = PipeInputs::build_path(
-                        self.pipe_inputs
-                            .cli
-                            .output_dir
-                            // Important: we are outputing decoded votes to the folder where
-                            // further pipes are expecting them, but this folder is normally written to
-                            // by the decode_ballots pipe (as opposed to this pipe, decode_mcballots)
-                            .join(PipeNameOutputDir::DecodeBallots.as_ref())
-                            .as_path(),
-                        &election_input.id,
-                        Some(&contest_uuid),
-                        Some(&area_id),
-                    );
+                let mut output_path = PipeInputs::build_path(
+                    self.pipe_inputs
+                        .cli
+                        .output_dir
+                        // Important: we are outputing decoded votes to the folder where
+                        // further pipes are expecting them, but this folder is normally written to
+                        // by the decode_ballots pipe (as opposed to this pipe, decode_mcballots)
+                        .join(PipeNameOutputDir::DecodeBallots.as_ref())
+                        .as_path(),
+                    &election_input.id,
+                    Some(&contest_uuid),
+                    Some(&area_id),
+                );
 
-                    fs::create_dir_all(&output_path)?;
-                    output_path.push(OUTPUT_DECODED_CONTEST_BALLOTS_FILE);
-                    let file = File::create(&output_path)
-                        .map_err(|e| Error::FileAccess(output_path, e))?;
+                fs::create_dir_all(&output_path)?;
+                output_path.push(batch_file_name(
+                    OUTPUT_DECODED_CONTEST_BALLOTS_FILE,
+                    multiplier,
+                ));
+                let file =
+                    File::create(&output_path).map_err(|e| Error::FileAccess(output_path, e))?;
 
-                    serde_json::to_writer(file, &dvcs)?;
-                }
+                serde_json::to_writer(file, &dvcs)?;
             }
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::fixtures::ballot_styles::generate_ballot_style;
+    use crate::fixtures::contests::get_contest_1;
+    use crate::pipes::pipe_inputs::MALFORMED_PLAINTEXT_LINE;
+    use sequent_core::ballot_codec::multi_ballot::{
+        ContestChoice, ContestChoices, DecodedContestChoice,
+    };
+    use sequent_core::types::ceremonies::CountingAlgType;
+    use std::io::Write;
+
+    /// A value beyond the ballot layout and a line that is not a number are
+    /// counted as implicitly invalid ballots in every contest. The ballots
+    /// around them still decode and every ballot takes a serial number.
+    #[test]
+    fn decode_mcballots_counts_undecodable_lines_as_invalid() {
+        let tenant_id = Uuid::new_v4();
+        let election_event_id = Uuid::new_v4();
+        let election_id = Uuid::new_v4();
+        let mut contests = vec![
+            get_contest_1(&tenant_id, &election_event_id, &election_id),
+            get_contest_1(&tenant_id, &election_event_id, &election_id),
+        ];
+        contests.sort_by_key(|contest| contest.id.clone());
+        let mode = MultiContestEncodingMode::default();
+
+        let ballot = BallotChoices::new(
+            false,
+            false,
+            contests
+                .iter()
+                .map(|contest| {
+                    ContestChoices::new(
+                        contest.id.clone(),
+                        vec![ContestChoice::new(contest.candidates[0].id.clone(), 0)],
+                        false,
+                    )
+                })
+                .collect(),
+            CountingAlgType::PluralityAtLarge,
+        );
+        let style = generate_ballot_style(
+            &tenant_id,
+            &election_event_id,
+            &election_id,
+            &Uuid::new_v4(),
+            contests.clone(),
+        );
+        let encoded = ballot
+            .encode_to_bigint(&style)
+            .expect("ballot should encode");
+
+        let context = MultiBallotCodecContext::new(&contests, false, false, mode)
+            .expect("context should build");
+        let capacity: BigUint = context
+            .bases
+            .iter()
+            .map(|base| BigUint::from(*base))
+            .product();
+
+        let mut file = tempfile::NamedTempFile::new().expect("temp file");
+        writeln!(
+            file,
+            "{encoded}\n{capacity}\n{MALFORMED_PLAINTEXT_LINE}\n\n{encoded}\n"
+        )
+        .expect("write ballots");
+        let mut serial_number_counter = 1;
+
+        let decoded = DecodeMCBallots::decode_ballots(
+            file.path(),
+            &contests,
+            false,
+            false,
+            mode,
+            &mut serial_number_counter,
+        )
+        .expect("ballots should decode");
+
+        assert_eq!(decoded.len(), 4);
+        assert_eq!(serial_number_counter, 5);
+        for index in [0, 3] {
+            for (contest, contest_choices) in contests.iter().zip(&decoded[index].choices) {
+                assert!(contest_choices.invalid_errors.is_empty());
+                assert_eq!(
+                    contest_choices.choices,
+                    vec![DecodedContestChoice(contest.candidates[0].id.clone())]
+                );
+            }
+        }
+        for index in [1, 2] {
+            assert_eq!(
+                decoded[index],
+                context.undecodable_ballot(Some(&mut (index as u32 + 1)))
+            );
+            assert_eq!(decoded[index].choices.len(), contests.len());
+            assert!(decoded[index]
+                .choices
+                .iter()
+                .all(|contest_choices| contest_choices.choices.is_empty()
+                    && !contest_choices.invalid_errors.is_empty()));
+        }
     }
 }

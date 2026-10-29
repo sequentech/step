@@ -6,7 +6,6 @@ import {RootState} from "../store"
 import {IElection, IVotingChannelsConfig, sortElectionList} from "@sequentech/ui-core"
 
 export interface IElectionExtended extends IElection {
-    annotations?: string | null
     created_at?: string | null
     dates?: string | null
     eml?: string | null

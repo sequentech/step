@@ -11,7 +11,7 @@ import MarkEmailReadOutlinedIcon from "@mui/icons-material/MarkEmailReadOutlined
 import SmsOutlinedIcon from "@mui/icons-material/SmsOutlined"
 import {styled} from "@mui/material/styles"
 import StatItem from "../StatItem"
-import {formatNumber} from "@/services/Numbers"
+import {useNumberFormat} from "@sequentech/ui-core"
 
 const CardList = styled(Box)`
     display: flex;
@@ -34,6 +34,7 @@ interface StatsProps {
 
 export const Stats: React.FC<StatsProps> = ({metrics}) => {
     const {t} = useTranslation()
+    const {formatNumber} = useNumberFormat()
     const iconSize = 60
 
     return (
