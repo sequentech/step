@@ -110,7 +110,7 @@ function portalSettings(c, live, kind, release) {
   const common = {
     DEFAULT_TENANT_ID: TENANT_ID,
     KEYCLOAK_URL: `${ORIGINS.standin}/`,
-    HASURA_URL: `${ORIGINS.standin}/v1/graphql`,
+    HASURA_URL: `${kind === "voting" ? ORIGINS.voting : ORIGINS.standin}/v1/graphql`,
     APP_VERSION: release.version,
     APP_HASH: release.version,
     PUBLIC_BUCKET_URL: `${ORIGINS.standin}/public/`,
@@ -251,7 +251,7 @@ async function serve() {
   const listen = (server, port) => new Promise((resolve, reject) => server.once("error", reject).listen(port, "127.0.0.1", resolve));
   await listen(standin.server, PORTS.standin);
   if (c.only !== "admin") {
-    const front = createFront({ settings: portalSettings(c, live, "voting", release), upstreamPort: PORTS.votingDev, dist: c.dist, release: c.releaseFile ? release : undefined, log: logFile("voting") });
+    const front = createFront({ settings: portalSettings(c, live, "voting", release), upstreamPort: PORTS.votingDev, graphqlPort: PORTS.standin, dist: c.dist, release: c.releaseFile ? release : undefined, log: logFile("voting") });
     await listen(front.server, PORTS.voting);
   }
   if (c.only !== "voting") {
