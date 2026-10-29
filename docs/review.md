@@ -6,7 +6,7 @@
 
 ## Frontend interface decisions
 
-The three apps use the verifier and UI packed from Vitrine commit `93a346021b23c6dc4a0e437ea96eb5bb4d5edd24`. The archive-based vendor script runs upstream builds and tests before packing and has no failed-test bypass. Repacking the installed verifier and UI produces byte-identical tarballs; their SHA-256 digests are recorded in `packages/vendor-npm/SHA256SUMS`.
+The three apps use the verifier and UI packed from Vitrine commit `e9a9e0976dc465f783a7e663e7c1a2dcb1d0ce60` (`packages/vendor-npm/VITRINE_COMMIT`). The archive-based vendor script runs upstream builds and tests before packing and has no failed-test bypass. Repacking the installed verifier and UI produces byte-identical tarballs; their SHA-256 digests are recorded in `packages/vendor-npm/SHA256SUMS`.
 
 New policy admission uses the SDK's `pinPolicy`, including authenticated profile meanings and election minimums. Structural parsing remains available for unsigned Board drafts. Election fixtures use `vitrine/election/ballots/v1` and `vitrine/election/events/v1` with their published meaning hashes, two app hubs, an independent hub subset and two monitor parties. Private fixtures name separate blinded subjects for both logs.
 
@@ -140,3 +140,13 @@ no service or third-party request, and has no page errors. The temporary
 listener/browser and owned `vitrine-step-waict-browser` container shut down.
 This is deterministic verifier conformance, separate from the retained live
 queue/sidecar rehearsal above.
+
+## UI review against the design boards
+
+Vitrine's UI review compared each screen with its design board. On Step's
+side, the kit from `e9a9e0976dc465f783a7e663e7c1a2dcb1d0ce60` says on the
+receipt when a bootstrap hub stands in for the browser layer, and the
+confirmation screen keeps asking the log for the hub and browser anchors,
+every 2 s at first and at most every 30 s, until those tiers are done or due,
+so the last receipt steps fill in while the voter watches. The UI fixes
+otherwise stay in Vitrine's packages.
