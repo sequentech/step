@@ -3,35 +3,34 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-# Fails when a tracked file other than the development env file enables
+# Fails when a tracked file other than the development env file mentions
 # Hasura's query-log, which records every GraphQL request with its variables.
+# Any query-log token outside a comment line counts, whatever the syntax
+# around it, so a value split over lines or built from an expansion is caught.
 
 set -uo pipefail
 
-LOG_TYPES_VAR="HASURA_GRAPHQL_ENABLED_LOG_TYPES"
-DEVELOPMENT_ONLY_LOG_TYPE="query-log"
+LOG_TYPE="query-log"
 DEVELOPMENT_ENV_FILE=".devcontainer/.env.development"
 
 repo_root=$(git rev-parse --show-toplevel) || exit 2
 cd "$repo_root" || exit 2
 
-assignment="^[[:space:]]*((export[[:space:]]+|-[[:space:]]*)?[\"']?${LOG_TYPES_VAR}[\"']?[[:space:]]*[:=]|ENV[[:space:]]+${LOG_TYPES_VAR}([[:space:]]*=|[[:space:]]+))"
-# The value stops at a comment or a shell control operator, so the token must
-# appear before either one. ${NAME-x}, ${NAME:-x}, ${NAME=x} and ${NAME:+x}
-# can all expand to x.
-value_before_token="([^#;&|]*([\"',[:space:]]|:-|[$][{][A-Za-z_][A-Za-z0-9_]*:?[-=+]))?"
-token_end="([\"',};&|()<>[:space:]]|$)"
-pattern="${assignment}${value_before_token}${DEVELOPMENT_ONLY_LOG_TYPE}${token_end}"
-
-matches=$(git grep -nE "$pattern" -- . ":(exclude)${DEVELOPMENT_ENV_FILE}")
+matches=$(git grep -nIE \
+    -e "(^|[^A-Za-z0-9_])${LOG_TYPE}([^A-Za-z0-9_-]|$)" \
+    --and --not -e '^[[:space:]]*#' \
+    -- . \
+    ":(exclude)${DEVELOPMENT_ENV_FILE}" \
+    ":(exclude)scripts/check-deployment-env-templates.sh" \
+    ":(exclude)scripts/test-check-deployment-env-templates.sh")
 case $? in
     0)
-        echo "${LOG_TYPES_VAR} must not include ${DEVELOPMENT_ONLY_LOG_TYPE} outside ${DEVELOPMENT_ENV_FILE}:" >&2
+        echo "${LOG_TYPE} may only be enabled in ${DEVELOPMENT_ENV_FILE}; outside it, mention it only on comment lines:" >&2
         echo "$matches" >&2
         exit 1
         ;;
     1)
-        echo "No file outside ${DEVELOPMENT_ENV_FILE} enables ${DEVELOPMENT_ONLY_LOG_TYPE}."
+        echo "No file outside ${DEVELOPMENT_ENV_FILE} enables ${LOG_TYPE}."
         ;;
     *)
         echo "git grep failed" >&2
