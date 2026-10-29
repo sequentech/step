@@ -35,6 +35,12 @@ import Image from "mui-image"
 import {TenantEventContext} from ".."
 import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
 import {GetBallotStylesQuery} from "../gql/graphql"
+import {
+    EBallotStyleCheck,
+    LEGACY_BALLOT_VERSION,
+    checkAuditedBallotStyle,
+    parsePublishedBallotStyles,
+} from "../services/ballotStyleBinding"
 import {useAppDispatch} from "../store/hooks"
 import {updateBallotStyleAndSelection} from "../services/BallotStyles"
 
@@ -143,6 +149,8 @@ export const HomeScreen: React.FC<IProps> = ({
     const {t} = useTranslation()
     const [showError, setShowError] = useState(false)
     const [showCiphertextError, setShowCiphertextError] = useState(false)
+    const [showStyleError, setShowStyleError] = useState(false)
+    const [showLegacyWarning, setShowLegacyWarning] = useState(false)
     const [openStep1Help, setOpenStep1Help] = useState(false)
     const [openStep2Help, setOpenStep2Help] = useState(false)
     const [isNextActive, setNextActive] = useState(false)
@@ -164,7 +172,17 @@ export const HomeScreen: React.FC<IProps> = ({
         }
     }, [dataBallotStyles])
 
-    const handleAuditableBallot = (auditableBallot: IAuditableBallot | null) => {
+    const publishedBallotStyles = useMemo(
+        () => parsePublishedBallotStyles(dataBallotStyles),
+        [dataBallotStyles]
+    )
+
+    const handleAuditableBallot = (
+        auditableBallot: IAuditableBallot | null,
+        isPublishedBallot: boolean = true
+    ) => {
+        setShowStyleError(false)
+        setShowLegacyWarning(false)
         let isMultiContest = false
         let decodedBallot = null
         try {
@@ -212,6 +230,18 @@ export const HomeScreen: React.FC<IProps> = ({
             setConfirmationBallot(null)
             return
         }
+        if (
+            isPublishedBallot &&
+            EBallotStyleCheck.MATCHES !==
+                checkAuditedBallotStyle(ballotStyle, publishedBallotStyles)
+        ) {
+            setShowError(false)
+            setShowCiphertextError(false)
+            setShowStyleError(true)
+            setConfirmationBallot(null)
+            return
+        }
+        setShowLegacyWarning(isPublishedBallot && LEGACY_BALLOT_VERSION === auditableBallot.version)
         let ballotHash = isMultiContest
             ? ballotService.hashMultiBallot(auditableBallot as IAuditableMultiBallot)
             : ballotService.hashBallot512(auditableBallot as IAuditableSingleBallot)
@@ -243,7 +273,7 @@ export const HomeScreen: React.FC<IProps> = ({
         if (!auditableBallot) {
             return
         }
-        handleAuditableBallot(auditableBallot)
+        handleAuditableBallot(auditableBallot, false)
         let ballotHash = ballotService.hashBallot512(auditableBallot)
         setBallotId(ballotHash)
     }
@@ -308,6 +338,21 @@ export const HomeScreen: React.FC<IProps> = ({
                 <Typography variant="body2">
                     {t("homeScreen.ciphertextErrorDescription")}
                 </Typography>
+            </Alert>
+            <Alert
+                severity="error"
+                style={{display: showStyleError ? undefined : "none"}}
+                data-testid="style-error"
+            >
+                <AlertTitle>{t("homeScreen.ciphertextErrorTitle")}</AlertTitle>
+                <Typography variant="body2">{t("homeScreen.styleErrorDescription")}</Typography>
+            </Alert>
+            <Alert
+                severity="warning"
+                style={{display: showLegacyWarning ? undefined : "none"}}
+                data-testid="legacy-ballot-warning"
+            >
+                <Typography variant="body2">{t("homeScreen.legacyBallotWarning")}</Typography>
             </Alert>
             <DropFile handleFiles={handleFiles} />
             {confirmationBallot ? <JsonFile name={fileName} /> : null}
