@@ -4,7 +4,7 @@
 """Apply user-confirmed delivery exclusions; keep full source evidence separately."""
 import os,importlib.util,json,re,hashlib,zipfile,collections
 from pathlib import Path
-from inventory_rules import evidence_review_status, write_platform_dependencies, pinned_source
+from inventory_rules import evidence_review_status, write_platform_dependencies, pinned_source, step_source_matches, module_rights_profile, local_step_identities
 OLD=Path(__file__).resolve().parent
 NEW=Path(os.environ['SBOM_OUTPUT_DIR'])
 OUT=NEW/'Submission-Working-Drafts';OUT.mkdir(parents=True,exist_ok=True)
@@ -115,10 +115,12 @@ platform=[]
 def corrected_rows(repo, modules):
     rs,raw,maven,ids=scoped_rows(repo,modules)
     step_modules=[]
+    local_identities={}
     step_pin=m.PIN['beyond'][1]
     if repo=='beyond' and step_pin:
         with pinned_source(m.WORK/'step',step_pin) as source:
             step_modules=old_mods('step',root=source,revision=step_pin)
+            local_identities=local_step_identities(source,m.WORK/'beyond')
     result=[]
     for r in rs:
         name=r['Component']; version=r['Version / revision']
@@ -135,9 +137,9 @@ def corrected_rows(repo, modules):
             platform.append(dict(repository=repo,component=name,purl=r['PURL'],reason='Provided by Keycloak; resolve exact version from the delivered Keycloak image SBOM, not an unversioned BOM reference.',evidence=r['Evidence paths']))
             continue
         if repo=='beyond' and r['Rights profile']=='UNRESOLVED':
-            own=next((x for x in step_modules if x['name']==name and x['version']==version),None)
+            own=next((x for x in step_modules if x['name']==name and x['version']==version and x['type']==r['Type'] and step_source_matches(r,step_pin,x['path'] in local_identities and (r['Type']=='rust-crate' or r['PURL']==local_identities[x['path']]))),None)
             if own:
-                r.update({'License declaration':own['license'],'Owner':own['owner'],'Classification':own['classification'],'License evidence':'Beyond-pinned Step module '+own['path'],'Owner evidence':'Step manifest/SPDX at '+step_pin,'Rights profile':'SEQUENT' if own['classification']=='Sequent-authored module' else 'OPEN'})
+                r.update({'License declaration':own['license'],'Owner':own['owner'],'Classification':own['classification'],'License evidence':'Beyond-pinned Step module '+own['path'],'Owner evidence':'Step manifest/SPDX at '+step_pin,'Rights profile':module_rights_profile(own['license'],own['classification'])})
         correction=CORRECTIONS.get((name,version))
         if correction:
             ev=json.loads((m.EVIDENCE/'licenses'/(name+'.json')).read_text())

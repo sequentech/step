@@ -82,4 +82,49 @@ class PinnedSourceTest(unittest.TestCase):
             with self.assertRaises(subprocess.CalledProcessError):
                 with pinned_source(root, '0'*40): pass
 
+
+class SourceIdentityTest(unittest.TestCase):
+    def test_git_source_requires_repository_and_exact_revision(self):
+        from inventory_rules import step_source_matches
+        pin = 'a' * 40
+        row = {'Type': 'rust-crate', '_source': 'git+https://github.com/other/project#'+pin}
+        self.assertFalse(step_source_matches(row, pin, True))
+        row['_source'] = 'git+https://github.com/sequentech/step?branch=ovcs#'+'b'*40
+        self.assertFalse(step_source_matches(row, pin, True))
+        row['_source'] = 'git+https://github.com/sequentech/step?branch=ovcs#'+pin
+        self.assertTrue(step_source_matches(row, pin, False))
+        row['_source'] = ''
+        self.assertFalse(step_source_matches(row, pin, False))
+        self.assertTrue(step_source_matches(row, pin, True))
+
+    def test_unknown_license_stays_unresolved(self):
+        from inventory_rules import module_rights_profile
+        self.assertEqual(module_rights_profile('NOASSERTION', 'Sequent-authored module'), 'UNRESOLVED')
+        self.assertEqual(module_rights_profile('NOASSERTION', 'Imported third-party source'), 'UNRESOLVED')
+        self.assertEqual(module_rights_profile('AGPL-3.0-only', 'Sequent-authored module'), 'SEQUENT')
+
+class LocalIdentityTest(unittest.TestCase):
+    def test_only_reachable_local_manifests_supply_identity(self):
+        from inventory_rules import local_step_identities
+        from tempfile import TemporaryDirectory
+        from pathlib import Path
+        with TemporaryDirectory() as directory:
+            step = Path(directory)/'step'; beyond = Path(directory)/'beyond'
+            def write(root, name, text):
+                path = root/name; path.parent.mkdir(parents=True, exist_ok=True); path.write_text(text)
+            write(beyond, 'packages/Cargo.toml', '[workspace]\n[workspace.dependencies]\ncore={path="../../packages/core"}\n')
+            write(beyond, 'packages/app/Cargo.toml', '[package]\nname="app"\n[dependencies]\ncore={workspace=true}\nforeign={git="https://example.invalid/repo"}\n')
+            write(step, 'packages/core/Cargo.toml', '[package]\nname="core"\n[dependencies]\nhelper={path="../helper"}\n')
+            write(step, 'packages/helper/Cargo.toml', '[package]\nname="helper"\n')
+            write(step, 'packages/foreign/Cargo.toml', '[package]\nname="foreign"\n')
+            prefix = '<project xmlns="http://maven.apache.org/POM/4.0.0">'
+            write(beyond, 'packages/java/pom.xml', prefix+'<parent><relativePath>../../../packages/java/pom.xml</relativePath></parent></project>')
+            write(step, 'packages/java/pom.xml', prefix+'<groupId>sequent</groupId><artifactId>root</artifactId><version>1</version><modules><module>api</module></modules></project>')
+            write(step, 'packages/java/api/pom.xml', prefix+'<parent><groupId>sequent</groupId><version>1</version></parent><artifactId>api</artifactId></project>')
+            identities = local_step_identities(step, beyond)
+            self.assertIn('packages/core/Cargo.toml', identities)
+            self.assertIn('packages/helper/Cargo.toml', identities)
+            self.assertNotIn('packages/foreign/Cargo.toml', identities)
+            self.assertEqual(identities['packages/java/api/pom.xml'], 'pkg:maven/sequent/api@1')
+
 if __name__ == '__main__': unittest.main()
