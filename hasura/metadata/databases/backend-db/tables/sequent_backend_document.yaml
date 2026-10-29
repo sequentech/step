@@ -131,7 +131,7 @@ select_permissions:
       role: service-account
     - comment: ""
       permission:
-          allow_aggregations: true
+          allow_aggregations: false
           columns:
               - is_public
               - media_type
@@ -144,7 +144,11 @@ select_permissions:
               - election_event_id
               - id
               - tenant_id
-          filter: {}
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+              is_public:
+                  _eq: true
       role: user
 update_permissions:
     - comment: ""
