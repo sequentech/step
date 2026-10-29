@@ -12,7 +12,7 @@
 // an accepted promise is shown as a failure and reported to the monitors.
 // The vote is already cast: nothing here throws into the page.
 
-import type {ChainResult, Expect, Policy, PolicyHistory} from "@vitrine/verify"
+import type {ChainResult, Expect, Policy, PolicyHistory, TierResult} from "@vitrine/verify"
 import type {notes, promises} from "@vitrine/verify/pure"
 import {pinnedPolicy} from "./boothCheck"
 import {FetchLike, httpGet, IHttpResponse, joinUrl} from "./http"
@@ -136,6 +136,9 @@ export const MAX_POLL_MS = 30_000
 const RECEIPT_GRACE = 90
 /** How long after a promise's deadline the booth still asks for its receipt. */
 const PROMISE_ASK_GRACE = 30
+/** How long the confirmation screen asks for hub and browser anchors when
+ * their tiers name no deadline, in seconds. */
+export const ANCHORS_WAIT = 900
 /** `|time - now|` beyond which a promise is no promise (receipt.md, section 2). */
 const PROMISE_ACCEPT_WINDOW = 60
 /** The upgrader's reason when the log answered 425: a quiet period. */
@@ -451,7 +454,27 @@ class ReceiptRun {
         }
         if (this.aborted || !this.view.chain || !chainReceipt(this.sdk, this.view.chain)) return
         if (atCast) await this.upgradeAtCast()
-        if (!this.aborted) await this.checkWithLog()
+        if (this.aborted || !(await this.checkWithLog()) || !atCast) return
+        await this.poll(
+            this.anchorsDue(),
+            () => this.checkWithLog(),
+            () => this.anchorsWaiting().length === 0
+        )
+    }
+
+    /** The hub and browser tiers that wait for their anchors. */
+    private anchorsWaiting(): TierResult[] {
+        return (this.view.result?.tiers ?? []).filter(
+            (t) => (t.tier === "hubs" || t.tier === "browser") && t.status === "pending"
+        )
+    }
+
+    /** When the anchors are due: the latest deadline of their tiers. */
+    private anchorsDue(): number {
+        const deadlines = this.anchorsWaiting().flatMap((t) =>
+            t.deadline === undefined ? [] : [t.deadline]
+        )
+        return deadlines.length > 0 ? Math.max(...deadlines) : this.nowSeconds() + ANCHORS_WAIT
     }
 
     /** Merges a voter route's answer into the chain if it verifies. */
