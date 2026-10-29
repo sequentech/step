@@ -20,11 +20,11 @@ guarantees.
 
 ## Key Features
 
-- **End-to-end verifiability**: Voters can verify their vote was recorded, tallied, and counted correctly
+- **End-to-end verifiability**: Ballot verification tools and cryptographic proofs support verification of recorded ballots and election results
 - **Privacy-preserving**: Cryptographic mixnet ensures ballot secrecy while maintaining verifiability
 - **Multi-tenant**: Support for multiple organizations and simultaneous elections
 - **Accessible**: Web-based interfaces optimized for accessibility and usability
-- **Auditable**: Comprehensive tamper-evident logging of all system operations
+- **Auditable**: Election audit logs support review of recorded election activities
 
 ## Technology Stack
 
@@ -323,10 +323,10 @@ being forwarded to a different port than 8080.
 
 ## You get the `root does not exist` or hasura doesn't start, volumes don't mount
 
-This is a nasty error that we need to further investigate and fix. Typically
-start happening after the codespace has been stopped and restarted a few times.
-Currently the only fix we have is.. committing and pushing all your changes to
-your branch and starting a new codespace.
+After repeated Codespaces stop/start cycles, local volume or Hasura startup
+errors may occur. To recover, commit and push your work to your branch, then
+create a new Codespace. This recreates the development environment; it does
+not restore uncommitted files or local database contents.
 
 
 ### The disk/codespace runs out of space
