@@ -226,6 +226,35 @@ events prefix is never forwarded to voters. Public discovery can check a
 complete prefix for absence and order; a new candidate still needs a separate
 earliest-quorum proof before adoption.
 
+### What the portals show
+
+The admin portal's Transparency tab follows Vitrine's design board for the
+event's overview. It shows only what `get_transparency` returns, and says
+"Not reported" for the rest instead of guessing:
+
+- **The record's health** comes from the stored policy, the logs' reported
+  alerts and their witnesses: it is healthy unless the stored policy is
+  invalid, a log runs under another policy ID, or a log or witness reports an
+  alert.
+- **Figures** the sidecar reports: the entries in the logs' witnessed
+  checkpoints, the sequencer queue and how long its oldest entry has waited,
+  and when an app hub last received an anchor. Not reported: the accepted
+  rate, the receipt time, the browser layer, overdue promises, evidence
+  reports, the booth release and which milestones the record holds.
+- **Witnesses, hubs, monitors and redactions** come from the sealed policy,
+  with each witness in its worst state across the event's logs.
+- **Visibility** is the mode the logs were created with, locked once voting
+  opened. The draft, upload and enrolment workflow stays below the overview.
+
+The voting portal's confirmation screen shows the receipt checked by the
+website. Its headline says the ballot is cast until the witnesses confirm it,
+then that it is in the public (or election) record; contradicting signed
+proofs, or a required receipt that never came, show the failure page instead.
+The kept receipts on the election list say whether each ballot is still in
+the record. The pages brand the UI kit's elements through the kit's
+`--vitrine-accent`, `--vitrine-text`, `--vitrine-surface` and
+`--vitrine-radius` custom properties.
+
 ### Deleting, exporting and importing events
 
 - Deleting a transparent event freezes its logs first, with
