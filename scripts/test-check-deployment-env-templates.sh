@@ -33,36 +33,25 @@ expect() {
     fi
 }
 
-# Assignments that enable query-log.
+# Any non-comment query-log token outside the development env file fails.
 expect 1 .env "${VAR}=startup, http-log, query-log"
 expect 1 .env "${VAR}=\"startup, query-log\""
-expect 1 .env "${VAR}='query-log,startup'"
-expect 1 .env "export ${VAR}=query-log"
+expect 1 .env "${VAR}=\"startup\" # query-log is disabled"
 expect 1 env.sh "export ${VAR}=query-log;"
-expect 1 env.sh "${VAR}=query-log&& run"
-expect 1 env.sh "${VAR}=query-log|cat"
-expect 1 docker-compose.yml "      ${VAR}: startup, query-log"
-expect 1 docker-compose.yml "      ${VAR}: \"query-log\""
-expect 1 docker-compose.yml "      - ${VAR}=startup,query-log"
-expect 1 docker-compose.yml "      ${VAR}: \${${VAR}:-query-log}"
-expect 1 docker-compose.yml "      ${VAR}: \${${VAR}:-startup, query-log}"
+expect 1 env.sh "${VAR}=\${LOG_TYPES#*,},query-log"
 expect 1 docker-compose.yml "      ${VAR}: \${${VAR}-query-log}"
-expect 1 env.sh "${VAR}=\${${VAR}:=query-log}"
-expect 1 docker-compose.yml "      ${VAR}: \${ENABLE_QUERY_LOG:+query-log}"
+expect 1 docker-compose.yml "      - ${VAR}=startup,query-log"
 expect 1 config.json "  \"${VAR}\": \"startup, query-log\""
-expect 1 packages/Dockerfile.hasura "ENV ${VAR}=\"startup, query-log\""
-expect 1 packages/Dockerfile.hasura "ENV ${VAR} query-log"
+expect 1 Dockerfile "ENV OTHER=startup ${VAR}=query-log"
+expect 1 Dockerfile $'ENV '"${VAR}"$'="startup, \\\n    query-log"'
+expect 1 deployment.yaml $'- name: '"${VAR}"$'\n  value: startup, query-log'
 
-# Lines that do not enable it.
+# Comment lines, other log types and the development env file pass.
 expect 0 .devcontainer/.env.development "${VAR}=startup, query-log"
 expect 0 .env "# ${VAR}=startup, query-log"
-expect 0 .env "${VAR}=\"startup\" # query-log is disabled"
-expect 0 env.sh "${VAR}=startup; echo query-log"
-expect 0 .env "${VAR}=not-query-log"
+expect 0 docker-compose.yml "      # query-log records every request"
+expect 0 .env "${VAR}=startup, http-log, webhook-log, websocket-log"
 expect 0 .env "${VAR}=query-logs"
-expect 0 .env "OTHER_LOG_TYPES=query-log"
-expect 0 packages/Dockerfile.hasura "ENV ${VAR}=\"startup, http-log\""
-expect 0 packages/Dockerfile.hasura "ENV ${VAR}_COPY query-log"
 
 # Outside a git repository the check cannot list tracked files.
 cases=$((cases + 1))
