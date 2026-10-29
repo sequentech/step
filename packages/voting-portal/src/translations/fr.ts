@@ -466,6 +466,36 @@ const frenchTranslation: TranslationType = {
             },
         },
         vitrine: {
+            progress: "Étape {{current}} sur {{total}} · {{step}}",
+            confirmation: {
+                cast: "Votre bulletin a été émis",
+                recordedPublic: "Votre bulletin est dans le registre public",
+                recordedPrivate: "Votre bulletin est dans le registre de l'élection",
+                keep: "Conservez votre reçu pour le vérifier à nouveau plus tard.",
+                elsewhere: "Le vérifier sur un autre appareil",
+                save: "Enregistrer le reçu",
+            },
+            failure: {
+                titlePublic: "Nous n'avons pas pu confirmer votre bulletin dans le registre public",
+                titlePrivate:
+                    "Nous n'avons pas pu confirmer votre bulletin dans le registre de l'élection",
+                contradiction:
+                    "Les preuves signées de votre reçu se contredisent : ce site ne peut donc pas confirmer votre bulletin. Il peut s'agir d'une panne ou d'une attaque. Votre vote peut encore compter, mais quelqu'un d'indépendant devrait l'examiner.",
+                evidenceTitle: "Preuves conservées sur cet appareil",
+                evidenceCount_one: "{{count}} élément",
+                evidenceCount_other: "{{count}} éléments",
+                receiptEntry: "Votre reçu pour l'entrée n° {{index}}",
+                receiptPromise: "Votre reçu pour une entrée promise",
+                receiptSigned: "Signé par le registre au moment de votre vote",
+                observers:
+                    "Les observateurs vérifient ces preuves sur leurs propres ordinateurs. Elles démontrent ce que le registre a signé et ne contiennent rien sur votre vote.",
+                check: "Le vérifier de façon indépendante",
+                save: "Télécharger le fichier du reçu",
+                nextTitle: "Que se passe-t-il ensuite ?",
+                nextText:
+                    "Votre vote a été émis. Conservez le fichier du reçu : il reste valable quoi que cette page affiche. Vérifiez-le de façon indépendante, sans dépendre de ce site, et remettez-le aux observateurs de l'élection s'il ne peut toujours pas être confirmé.",
+                showReceipt: "Afficher le reçu et toutes les vérifications",
+            },
             booth: {
                 title: "Votre bulletin ne peut pas encore être préparé",
                 explanation:
@@ -479,9 +509,6 @@ const frenchTranslation: TranslationType = {
                 close: "Fermer",
             },
             receipt: {
-                title: "Votre reçu",
-                description:
-                    "Le reçu montre que votre bulletin a été inscrit dans le registre public de l'élection. Il ne montre pas votre vote.",
                 waiting:
                     "Le reçu n'est pas encore prêt. Ce site continue de le demander tant que cette page est ouverte.",
                 missing:
@@ -495,8 +522,35 @@ const frenchTranslation: TranslationType = {
             },
             storedReceipts: {
                 title: "Reçus sur cet appareil",
-                description: "Les reçus des bulletins que vous avez émis sur cet appareil.",
+                holdsPublic: "Votre bulletin est toujours dans le registre public",
+                holdsPrivate: "Votre bulletin est toujours dans le registre de l'élection",
+                holdsHelp:
+                    "Votre navigateur vient de le vérifier. Rien de ce qui a été inscrit avant votre bulletin n'a changé.",
+                waiting: "Nous rassemblons encore des preuves pour votre bulletin",
+                waitingHelp:
+                    "Votre navigateur vient de le vérifier. Certaines preuves sont encore en route, et il n'est pas nécessaire d'attendre.",
+                problemHelp:
+                    "Les preuves signées de votre reçu se contredisent. Ouvrez le reçu pour les voir.",
+                unchecked: "Nous n'avons pas pu vérifier votre reçu à l'instant",
+                uncheckedHelp: "Le reçu est conservé sur cet appareil. Réessayez plus tard.",
+                witnesses: "Témoins",
+                hubs: "Pôles publics",
+                hubsPrivate: "Pôles",
+                browser: "Là où les navigateurs vérifient",
+                hubsAgree: "{{agree}} sur {{total}} concordent",
+                anchored: "Ancré",
+                viewReceipt: "Voir le reçu",
+                hideReceipt: "Masquer le reçu",
                 forget: "Supprimer les reçus de cet appareil",
+                howTitle: "Comment nous vérifions",
+                howReceipt:
+                    "Votre navigateur conserve un reçu signé. Il ne contient jamais votre vote.",
+                howCheck:
+                    "À chaque visite, il demande au registre une courte preuve qu'il n'a fait que grandir.",
+                howWitnesses:
+                    "Des témoins indépendants le signent, et des pôles publics l'ancrent là où les navigateurs vérifient : tout le monde voit ainsi le même registre.",
+                howWitnessesPrivate:
+                    "Des témoins indépendants le signent, et des pôles en gardent des ancres scellées : tout le monde se voit ainsi montrer le même registre.",
             },
         },
     },

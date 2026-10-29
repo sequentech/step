@@ -722,34 +722,35 @@ const ElectionSelectionScreen: React.FC = () => {
                     />
                 </Alert>
             ) : null}
-            <ElectionContainer
-                className="elections-list"
-                role={hasNoElections ? undefined : "list"}
-            >
-                {!hasNoElections ? (
-                    electionIds.map((electionId) => (
-                        <ElectionWrapper
-                            summary={summaries?.[electionId]}
-                            electionId={electionId}
-                            key={electionId}
-                            bypassChooser={bypassChooser}
-                            canVoteTest={canVoteTest}
-                            materialsGate={materialsGate}
-                        />
-                    ))
-                ) : (
-                    <Box className="elections-empty" sx={{margin: "auto"}}>
-                        <Typography className="election-selection-empty" component="div">
-                            {stringToHtml(t("electionSelectionScreen.noResults"))}
-                        </Typography>
-                    </Box>
-                )}
-            </ElectionContainer>
             <KeptReceipts
                 eventId={eventId}
                 presentation={electionEvent?.presentation}
                 electionNames={electionNames}
-            />
+            >
+                <ElectionContainer
+                    className="elections-list"
+                    role={hasNoElections ? undefined : "list"}
+                >
+                    {!hasNoElections ? (
+                        electionIds.map((electionId) => (
+                            <ElectionWrapper
+                                summary={summaries?.[electionId]}
+                                electionId={electionId}
+                                key={electionId}
+                                bypassChooser={bypassChooser}
+                                canVoteTest={canVoteTest}
+                                materialsGate={materialsGate}
+                            />
+                        ))
+                    ) : (
+                        <Box className="elections-empty" sx={{margin: "auto"}}>
+                            <Typography className="election-selection-empty" component="div">
+                                {stringToHtml(t("electionSelectionScreen.noResults"))}
+                            </Typography>
+                        </Box>
+                    )}
+                </ElectionContainer>
+            </KeptReceipts>
         </PageLimit>
     )
 }

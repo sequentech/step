@@ -469,6 +469,35 @@ const spanishTranslation: TranslationType = {
             },
         },
         vitrine: {
+            progress: "Paso {{current}} de {{total}} · {{step}}",
+            confirmation: {
+                cast: "Su papeleta se ha emitido",
+                recordedPublic: "Su papeleta está en el registro público",
+                recordedPrivate: "Su papeleta está en el registro de la elección",
+                keep: "Guarde su recibo para comprobarlo de nuevo más tarde.",
+                elsewhere: "Comprobarlo en otro dispositivo",
+                save: "Guardar recibo",
+            },
+            failure: {
+                titlePublic: "No hemos podido confirmar su papeleta en el registro público",
+                titlePrivate: "No hemos podido confirmar su papeleta en el registro de la elección",
+                contradiction:
+                    "Las pruebas firmadas de su recibo se contradicen, así que este sitio web no puede confirmar su papeleta. Puede ser un fallo o un ataque. Su voto aún puede contar, pero alguien independiente debería revisarlo.",
+                evidenceTitle: "Evidencias guardadas en este dispositivo",
+                evidenceCount_one: "{{count}} elemento",
+                evidenceCount_other: "{{count}} elementos",
+                receiptEntry: "Su recibo de la entrada #{{index}}",
+                receiptPromise: "Su recibo de una entrada prometida",
+                receiptSigned: "Firmado por el registro cuando votó",
+                observers:
+                    "Los observadores comprueban estas evidencias en sus propios ordenadores. Demuestran lo que firmó el registro y no contienen nada sobre qué votó.",
+                check: "Comprobarlo de forma independiente",
+                save: "Descargar el archivo del recibo",
+                nextTitle: "¿Qué ocurre ahora?",
+                nextText:
+                    "Su voto se emitió. Conserve el archivo del recibo: sigue siendo válido muestre lo que muestre esta página. Compruébelo de forma independiente, sin depender de este sitio web, y entréguelo a los observadores de la elección si sigue sin poder confirmarse.",
+                showReceipt: "Mostrar el recibo y todas las comprobaciones",
+            },
             booth: {
                 title: "Todavía no se puede preparar su papeleta",
                 explanation:
@@ -482,9 +511,6 @@ const spanishTranslation: TranslationType = {
                 close: "Cerrar",
             },
             receipt: {
-                title: "Su recibo",
-                description:
-                    "El recibo muestra que su papeleta quedó anotada en el registro público de la elección. No muestra qué ha votado.",
                 waiting:
                     "El recibo aún no está listo. Este sitio web lo sigue pidiendo mientras esta página esté abierta.",
                 missing:
@@ -499,8 +525,35 @@ const spanishTranslation: TranslationType = {
             },
             storedReceipts: {
                 title: "Recibos en este dispositivo",
-                description: "Los recibos de las papeletas que ha emitido en este dispositivo.",
-                forget: "Borrar los recibos de este dispositivo",
+                holdsPublic: "Su papeleta sigue en el registro público",
+                holdsPrivate: "Su papeleta sigue en el registro de la elección",
+                holdsHelp:
+                    "Su navegador acaba de comprobarlo. Nada de lo anotado antes de su papeleta ha cambiado.",
+                waiting: "Aún estamos reuniendo pruebas de su papeleta",
+                waitingHelp:
+                    "Su navegador acaba de comprobarlo. Algunas pruebas aún están en camino y no hace falta esperar.",
+                problemHelp:
+                    "Las pruebas firmadas de su recibo se contradicen. Abra el recibo para verlas.",
+                unchecked: "Ahora no hemos podido comprobar su recibo",
+                uncheckedHelp:
+                    "El recibo se guarda en este dispositivo. Inténtelo de nuevo más tarde.",
+                witnesses: "Testigos",
+                hubs: "Centros públicos",
+                hubsPrivate: "Centros",
+                browser: "Donde comprueban los navegadores",
+                hubsAgree: "{{agree}} de {{total}} coinciden",
+                anchored: "Anclado",
+                viewReceipt: "Ver recibo",
+                hideReceipt: "Ocultar recibo",
+                forget: "Quitar los recibos de este dispositivo",
+                howTitle: "Cómo lo comprobamos",
+                howReceipt: "Su navegador guarda un recibo firmado. Nunca contiene lo que votó.",
+                howCheck:
+                    "En cada visita le pide al registro una prueba breve de que solo ha crecido.",
+                howWitnesses:
+                    "Testigos independientes lo firman y los centros públicos lo anclan donde comprueban los navegadores, así que todo el mundo ve el mismo registro.",
+                howWitnessesPrivate:
+                    "Testigos independientes lo firman y los centros guardan anclas selladas, así que a todo el mundo se le muestra el mismo registro.",
             },
         },
     },

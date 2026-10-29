@@ -460,6 +460,35 @@ const englishTranslation = {
             },
         },
         vitrine: {
+            progress: "Step {{current}} of {{total}} · {{step}}",
+            confirmation: {
+                cast: "Your ballot has been cast",
+                recordedPublic: "Your ballot is in the public record",
+                recordedPrivate: "Your ballot is in the election record",
+                keep: "Keep your receipt to check it again later.",
+                elsewhere: "Check it on another device",
+                save: "Save receipt",
+            },
+            failure: {
+                titlePublic: "We could not confirm your ballot in the public record",
+                titlePrivate: "We could not confirm your ballot in the election record",
+                contradiction:
+                    "Signed proofs in your receipt contradict each other, so this website can't confirm your ballot. It may be a fault or an attack. Your vote may still count, but someone independent should look at it.",
+                evidenceTitle: "Evidence kept on this device",
+                evidenceCount_one: "{{count}} item",
+                evidenceCount_other: "{{count}} items",
+                receiptEntry: "Your receipt for entry #{{index}}",
+                receiptPromise: "Your receipt for a promised entry",
+                receiptSigned: "Signed by the record when you voted",
+                observers:
+                    "Observers check this evidence on their own computers. It proves what the record signed, and it contains nothing about how you voted.",
+                check: "Check it independently",
+                save: "Download the receipt file",
+                nextTitle: "What happens next?",
+                nextText:
+                    "Your vote was cast. Keep the receipt file: it stays valid whatever this page shows. Check it independently, which doesn't rely on this website, and give it to the election's observers if it still can't be confirmed.",
+                showReceipt: "Show the receipt and every check",
+            },
             booth: {
                 title: "Your ballot can't be prepared yet",
                 explanation:
@@ -472,9 +501,6 @@ const englishTranslation = {
                 close: "Close",
             },
             receipt: {
-                title: "Your receipt",
-                description:
-                    "The receipt shows that your ballot was recorded in the election's public record. It doesn't show how you voted.",
                 waiting:
                     "The receipt isn't ready yet. This website keeps asking for it while this page is open.",
                 missing:
@@ -488,8 +514,33 @@ const englishTranslation = {
             },
             storedReceipts: {
                 title: "Receipts on this device",
-                description: "The receipts of the ballots you cast on this device.",
+                holdsPublic: "Your ballot is still in the public record",
+                holdsPrivate: "Your ballot is still in the election record",
+                holdsHelp:
+                    "Checked just now by your browser. Nothing recorded before your ballot has changed.",
+                waiting: "We're still collecting proofs for your ballot",
+                waitingHelp:
+                    "Checked just now by your browser. Some proofs are still on their way, and there's no need to wait.",
+                problemHelp:
+                    "Signed proofs in your receipt contradict each other. Open the receipt to see them.",
+                unchecked: "We could not check your receipt just now",
+                uncheckedHelp: "The receipt is kept on this device. Try again later.",
+                witnesses: "Witnesses",
+                hubs: "Public hubs",
+                hubsPrivate: "Hubs",
+                browser: "Where browsers check",
+                hubsAgree: "{{agree}} of {{total}} agree",
+                anchored: "Anchored",
+                viewReceipt: "View receipt",
+                hideReceipt: "Hide receipt",
                 forget: "Remove the receipts from this device",
+                howTitle: "How we check",
+                howReceipt: "Your browser keeps a signed receipt. It never contains how you voted.",
+                howCheck: "Each visit it asks the record for a short proof that it only grew.",
+                howWitnesses:
+                    "Independent witnesses sign it, and public hubs anchor it where browsers check, so everyone sees the same record.",
+                howWitnessesPrivate:
+                    "Independent witnesses sign it, and hubs keep sealed anchors, so everyone is shown the same record.",
             },
         },
     },

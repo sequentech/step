@@ -466,6 +466,35 @@ const tagalogTranslation: TranslationType = {
             },
         },
         vitrine: {
+            progress: "Hakbang {{current}} sa {{total}} · {{step}}",
+            confirmation: {
+                cast: "Naisumite na ang iyong balota",
+                recordedPublic: "Nasa pampublikong talaan ang iyong balota",
+                recordedPrivate: "Nasa talaan ng halalan ang iyong balota",
+                keep: "Itago ang iyong resibo para masuri itong muli mamaya.",
+                elsewhere: "Suriin ito sa ibang device",
+                save: "I-save ang resibo",
+            },
+            failure: {
+                titlePublic: "Hindi namin makumpirma ang iyong balota sa pampublikong talaan",
+                titlePrivate: "Hindi namin makumpirma ang iyong balota sa talaan ng halalan",
+                contradiction:
+                    "Nagkakasalungatan ang mga nilagdaang patunay sa iyong resibo, kaya hindi makukumpirma ng website na ito ang iyong balota. Maaaring may sira o pag-atake. Maaaring mabilang pa rin ang iyong boto, pero dapat itong tingnan ng isang malayang tao.",
+                evidenceTitle: "Mga ebidensyang nakatago sa device na ito",
+                evidenceCount_one: "{{count}} aytem",
+                evidenceCount_other: "{{count}} aytem",
+                receiptEntry: "Ang iyong resibo para sa entry #{{index}}",
+                receiptPromise: "Ang iyong resibo para sa ipinangakong entry",
+                receiptSigned: "Nilagdaan ng talaan nang bumoto ka",
+                observers:
+                    "Sinusuri ng mga tagamasid ang ebidensyang ito sa sarili nilang computer. Pinatutunayan nito ang nilagdaan ng talaan, at wala itong laman tungkol sa kung paano ka bumoto.",
+                check: "Suriin ito nang hiwalay",
+                save: "I-download ang file ng resibo",
+                nextTitle: "Ano ang susunod na mangyayari?",
+                nextText:
+                    "Naisumite na ang iyong boto. Itago ang file ng resibo: mananatili itong balido anuman ang ipakita ng pahinang ito. Suriin ito nang hiwalay, nang hindi umaasa sa website na ito, at ibigay ito sa mga tagamasid ng halalan kung hindi pa rin ito makumpirma.",
+                showReceipt: "Ipakita ang resibo at lahat ng pagsusuri",
+            },
             booth: {
                 title: "Hindi pa maihahanda ang iyong balota",
                 explanation:
@@ -479,9 +508,6 @@ const tagalogTranslation: TranslationType = {
                 close: "Isara",
             },
             receipt: {
-                title: "Ang iyong resibo",
-                description:
-                    "Ipinapakita ng resibo na naitala ang iyong balota sa pampublikong talaan ng halalan. Hindi nito ipinapakita kung paano ka bumoto.",
                 waiting:
                     "Hindi pa handa ang resibo. Patuloy itong hinihingi ng website na ito habang bukas ang pahinang ito.",
                 missing:
@@ -496,8 +522,35 @@ const tagalogTranslation: TranslationType = {
             },
             storedReceipts: {
                 title: "Mga resibo sa device na ito",
-                description: "Ang mga resibo ng mga balotang isinumite mo sa device na ito.",
+                holdsPublic: "Nasa pampublikong talaan pa rin ang iyong balota",
+                holdsPrivate: "Nasa talaan ng halalan pa rin ang iyong balota",
+                holdsHelp:
+                    "Kasusuri lang ng iyong browser. Walang nagbago sa mga naitala bago ang iyong balota.",
+                waiting: "Nangangalap pa kami ng mga patunay para sa iyong balota",
+                waitingHelp:
+                    "Kasusuri lang ng iyong browser. May ilang patunay na parating pa, at hindi mo na kailangang maghintay.",
+                problemHelp:
+                    "Nagkakasalungatan ang mga nilagdaang patunay sa iyong resibo. Buksan ang resibo para makita ang mga ito.",
+                unchecked: "Hindi namin masuri ang iyong resibo ngayon",
+                uncheckedHelp: "Nakatago ang resibo sa device na ito. Subukan ulit mamaya.",
+                witnesses: "Mga saksi",
+                hubs: "Mga pampublikong hub",
+                hubsPrivate: "Mga hub",
+                browser: "Kung saan sumusuri ang mga browser",
+                hubsAgree: "{{agree}} sa {{total}} ang nagkakasundo",
+                anchored: "Naka-angkla",
+                viewReceipt: "Tingnan ang resibo",
+                hideReceipt: "Itago ang resibo",
                 forget: "Alisin ang mga resibo sa device na ito",
+                howTitle: "Paano kami sumusuri",
+                howReceipt:
+                    "Nagtatago ang iyong browser ng nilagdaang resibo. Hindi kailanman nakalagay rito kung paano ka bumoto.",
+                howCheck:
+                    "Sa bawat pagbisita, humihingi ito sa talaan ng maikling patunay na lumaki lang ito.",
+                howWitnesses:
+                    "Nilalagdaan ito ng mga malayang saksi, at inaangkla ito ng mga pampublikong hub kung saan sumusuri ang mga browser, kaya iisang talaan ang nakikita ng lahat.",
+                howWitnessesPrivate:
+                    "Nilalagdaan ito ng mga malayang saksi, at nagtatago ng mga selyadong angkla ang mga hub, kaya iisang talaan ang ipinapakita sa lahat.",
             },
         },
     },

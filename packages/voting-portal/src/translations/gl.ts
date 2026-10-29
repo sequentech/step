@@ -468,6 +468,35 @@ const galegoTranslation: TranslationType = {
             },
         },
         vitrine: {
+            progress: "Paso {{current}} de {{total}} · {{step}}",
+            confirmation: {
+                cast: "A súa papeleta emitiuse",
+                recordedPublic: "A súa papeleta está no rexistro público",
+                recordedPrivate: "A súa papeleta está no rexistro da elección",
+                keep: "Garde o seu recibo para comprobalo de novo máis tarde.",
+                elsewhere: "Comprobalo noutro dispositivo",
+                save: "Gardar o recibo",
+            },
+            failure: {
+                titlePublic: "Non puidemos confirmar a súa papeleta no rexistro público",
+                titlePrivate: "Non puidemos confirmar a súa papeleta no rexistro da elección",
+                contradiction:
+                    "As probas asinadas do seu recibo contradícense, así que este sitio web non pode confirmar a súa papeleta. Pode ser un fallo ou un ataque. O seu voto aínda pode contar, pero alguén independente debería revisalo.",
+                evidenceTitle: "Evidencias gardadas neste dispositivo",
+                evidenceCount_one: "{{count}} elemento",
+                evidenceCount_other: "{{count}} elementos",
+                receiptEntry: "O seu recibo da entrada #{{index}}",
+                receiptPromise: "O seu recibo dunha entrada prometida",
+                receiptSigned: "Asinado polo rexistro cando votou",
+                observers:
+                    "Os observadores comproban estas evidencias nos seus propios ordenadores. Demostran o que asinou o rexistro e non conteñen nada sobre o que votou.",
+                check: "Comprobalo de forma independente",
+                save: "Descargar o ficheiro do recibo",
+                nextTitle: "Que ocorre agora?",
+                nextText:
+                    "O seu voto emitiuse. Conserve o ficheiro do recibo: segue sendo válido amose o que amose esta páxina. Comprobeo de forma independente, sen depender deste sitio web, e entregue aos observadores da elección se segue sen poder confirmarse.",
+                showReceipt: "Amosar o recibo e todas as comprobacións",
+            },
             booth: {
                 title: "Aínda non se pode preparar a súa papeleta",
                 explanation:
@@ -480,9 +509,6 @@ const galegoTranslation: TranslationType = {
                 close: "Pechar",
             },
             receipt: {
-                title: "O seu recibo",
-                description:
-                    "O recibo mostra que a súa papeleta quedou anotada no rexistro público da elección. Non mostra o que votou.",
                 waiting:
                     "O recibo aínda non está listo. Este sitio web segue pedíndoo mentres esta páxina estea aberta.",
                 missing:
@@ -496,8 +522,33 @@ const galegoTranslation: TranslationType = {
             },
             storedReceipts: {
                 title: "Recibos neste dispositivo",
-                description: "Os recibos das papeletas que emitiu neste dispositivo.",
-                forget: "Borrar os recibos deste dispositivo",
+                holdsPublic: "A súa papeleta segue no rexistro público",
+                holdsPrivate: "A súa papeleta segue no rexistro da elección",
+                holdsHelp:
+                    "O seu navegador acaba de comprobalo. Nada do anotado antes da súa papeleta cambiou.",
+                waiting: "Aínda estamos reunindo probas da súa papeleta",
+                waitingHelp:
+                    "O seu navegador acaba de comprobalo. Algunhas probas aínda están en camiño e non fai falta esperar.",
+                problemHelp:
+                    "As probas asinadas do seu recibo contradícense. Abra o recibo para velas.",
+                unchecked: "Agora non puidemos comprobar o seu recibo",
+                uncheckedHelp: "O recibo gárdase neste dispositivo. Ténteo de novo máis tarde.",
+                witnesses: "Testemuñas",
+                hubs: "Nodos públicos",
+                hubsPrivate: "Nodos",
+                browser: "Onde comproban os navegadores",
+                hubsAgree: "{{agree}} de {{total}} coinciden",
+                anchored: "Ancorado",
+                viewReceipt: "Ver o recibo",
+                hideReceipt: "Agochar o recibo",
+                forget: "Quitar os recibos deste dispositivo",
+                howTitle: "Como o comprobamos",
+                howReceipt: "O seu navegador garda un recibo asinado. Nunca contén o que votou.",
+                howCheck: "En cada visita pídelle ao rexistro unha proba breve de que só creceu.",
+                howWitnesses:
+                    "Testemuñas independentes asínano e os nodos públicos áncoano onde comproban os navegadores, así que todo o mundo ve o mesmo rexistro.",
+                howWitnessesPrivate:
+                    "Testemuñas independentes asínano e os nodos gardan áncoras seladas, así que a todo o mundo se lle amosa o mesmo rexistro.",
             },
         },
     },

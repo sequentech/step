@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React from "react"
-import {render, waitFor} from "@testing-library/react"
+import {fireEvent, render, waitFor} from "@testing-library/react"
 import {ThemeProvider} from "@mui/material/styles"
 import {createMemoryRouter, RouterProvider} from "react-router-dom"
 import * as pure from "@vitrine/verify/pure"
@@ -93,11 +93,15 @@ jest.mock("../hooks/public-document-url", () => ({
 }))
 jest.mock("../hooks/useVoterContext", () => ({useVoterContext: () => ({loading: false})}))
 jest.mock("../components/Stepper", () => ({__esModule: true, default: () => null}))
-jest.mock("@apollo/client/react", () => ({
-    useMutation: () => [jest.fn()],
-    useQuery: () => ({data: undefined, startPolling: jest.fn(), stopPolling: jest.fn()}),
-    useApolloClient: () => ({}),
-}))
+jest.mock("@apollo/client/react", () => {
+    // Apollo gives every component the same client.
+    const client = {}
+    return {
+        useMutation: () => [jest.fn()],
+        useQuery: () => ({data: undefined, startPolling: jest.fn(), stopPolling: jest.fn()}),
+        useApolloClient: () => client,
+    }
+})
 // Receipts kept on the device: what the screen asks to keep, and nothing else.
 jest.mock("../services/vitrine/storage", () => {
     const actual = jest.requireActual("../services/vitrine/storage")
@@ -110,9 +114,16 @@ jest.mock("../services/vitrine/storage", () => {
     }
 })
 
+// Saving a file makes no request: the page only has to ask for it.
+jest.mock("../services/vitrine/file", () => ({
+    ...jest.requireActual("../services/vitrine/file"),
+    saveTextFile: (...args: unknown[]) => mockSaveTextFile(...args),
+}))
+
 let mockState: RootState
 let mockIsKiosk = false
 const mockKeepReceipt = jest.fn(async (..._args: unknown[]) => true)
+const mockSaveTextFile = jest.fn((..._args: unknown[]) => undefined)
 
 const WITNESSES = KEYS.witnesses.slice(0, 2)
 const PATH = `/tenant/tenant-1/event/${EVENT_ID}/election/${ELECTION_ID}`
@@ -227,13 +238,13 @@ const shadowText = async (element: VitrineReceipt | VitrineStatus): Promise<stri
     return element.shadowRoot?.textContent ?? ""
 }
 
-const missingNotice = async (container: HTMLElement): Promise<VitrineStatus> => {
-    let notice: VitrineStatus | null = null
+const missingFailure = async (container: HTMLElement): Promise<HTMLElement> => {
+    let failure: HTMLElement | null = null
     await waitFor(() => {
-        notice = container.querySelector("vitrine-status")
-        expect(notice?.message).toBe("vitrine.receipt.missing")
+        failure = container.querySelector<HTMLElement>(".vitrine-failure")
+        expect(failure?.getAttribute("data-notice")).toBe("missing")
     })
-    return notice as unknown as VitrineStatus
+    return failure as unknown as HTMLElement
 }
 
 describe("the receipt on the confirmation screen", () => {
@@ -274,8 +285,15 @@ describe("the receipt on the confirmation screen", () => {
     ] as const)("says there is no receipt when the entry was %s", async (_kind, answer) => {
         casting(answer)
         const {container} = renderScreen()
-        const notice = await missingNotice(container)
-        expect(notice.state).toBe("failed")
+        const failure = await missingFailure(container)
+        expect(failure.querySelector(".vitrine-failure-title")?.textContent).toBe(
+            "vitrine.failure.titlePublic"
+        )
+        expect(failure.querySelector(".vitrine-failure-explanation")?.textContent).toBe(
+            "vitrine.receipt.missing"
+        )
+        // The page owes the voter no evidence it doesn't have.
+        expect(failure.querySelector(".vitrine-failure-evidence")).toBeNull()
         const element = await receiptElement(container)
         expect(element.state).toBe("empty")
         expect(await shadowText(element)).toContain("No receipt yet.")
@@ -287,18 +305,80 @@ describe("the receipt on the confirmation screen", () => {
         ).toBe(true)
     })
 
-    it("sits between the ballot ID and the verification section", async () => {
+    it("puts the receipt first, and the ballot ID and verification behind a disclosure", async () => {
         casting(receiptOf)
         const {container} = renderScreen()
         await receiptElement(container)
-        const ballotIdBlock = container.querySelector(".ballot-id-container")
         const receiptBlock = container.querySelector(".vitrine-receipt-container")
-        const verifyTitle = container.querySelector(".ballot-verification-title")
-        expect(ballotIdBlock?.compareDocumentPosition(receiptBlock!)).toBe(
+        const details = container.querySelector(".vitrine-ballot-details")
+        expect(receiptBlock?.compareDocumentPosition(details!)).toBe(
             Node.DOCUMENT_POSITION_FOLLOWING
         )
-        expect(receiptBlock?.compareDocumentPosition(verifyTitle!)).toBe(
-            Node.DOCUMENT_POSITION_FOLLOWING
+        expect(details?.querySelector(".ballot-id-container")).not.toBeNull()
+        expect(details?.querySelector(".ballot-verification-title")).not.toBeNull()
+    })
+
+    it("shows the steps, and says the ballot is cast until the witnesses confirm it", async () => {
+        casting(receiptOf)
+        const {container} = renderScreen()
+        const element = await receiptElement(container)
+        expect(container.querySelector(".vitrine-progress-label")?.textContent).toContain(
+            "vitrine.progress"
+        )
+        await waitFor(() => expect(element.state).toBe("done"))
+        const witnessed = element.result?.tiers.find((t) => t.tier === "witnesses")?.status
+        const title = container.querySelector(".vitrine-confirmation-title")
+        await waitFor(() =>
+            expect(title?.textContent).toBe(
+                witnessed === "verified"
+                    ? "vitrine.confirmation.recordedPublic"
+                    : "vitrine.confirmation.cast"
+            )
+        )
+        expect(container.querySelector(".vitrine-receipt-description")?.textContent).toBe(
+            "vitrine.confirmation.keep"
+        )
+    })
+
+    it("offers the QR code on another device behind a toggle", async () => {
+        casting(receiptOf)
+        const {container} = renderScreen()
+        await receiptElement(container)
+        const toggle = await waitFor(() => {
+            const button = container.querySelector<HTMLButtonElement>(".vitrine-elsewhere-toggle")
+            expect(button).not.toBeNull()
+            return button!
+        })
+        const panel = container.querySelector<HTMLElement>(".vitrine-elsewhere-panel")
+        expect(toggle.getAttribute("aria-expanded")).toBe("false")
+        expect(panel?.hidden).toBe(true)
+        fireEvent.click(toggle)
+        expect(toggle.getAttribute("aria-expanded")).toBe("true")
+        expect(panel?.hidden).toBe(false)
+        expect(panel?.querySelector("svg")).not.toBeNull()
+    })
+
+    it("saves the receipt chain as a file", async () => {
+        casting(receiptOf)
+        const {container} = renderScreen()
+        const element = await receiptElement(container)
+        await waitFor(() => expect(element.state).toBe("done"))
+        const button = container.querySelector<HTMLButtonElement>(".save-receipt-button")
+        await waitFor(() => expect(button?.disabled).toBe(false))
+        fireEvent.click(button!)
+        expect(mockSaveTextFile).toHaveBeenCalledTimes(1)
+        const [name, text, type] = mockSaveTextFile.mock.calls[0]
+        expect(name).toMatch(/^receipt-[A-Za-z0-9]{8}\.vitrine-receipt$/)
+        expect(text).toBe(element.chain)
+        expect(type).toBe("application/vnd.vitrine.receipt-chain")
+    })
+
+    it("has nothing to save before there is a receipt", async () => {
+        casting(entryOf("queued", "busy"))
+        const {container} = renderScreen()
+        await missingFailure(container)
+        expect(container.querySelector<HTMLButtonElement>(".save-receipt-button")?.disabled).toBe(
+            true
         )
     })
 
@@ -320,7 +400,7 @@ describe("the receipt on the confirmation screen", () => {
         const markup = '<img src="x" onerror="window.__vitrinePwned = 1"><script>1</script>'
         casting(() => ({kind: "receipt", text: markup, reason: markup}))
         const {container} = renderScreen()
-        await missingNotice(container)
+        await missingFailure(container)
         const element = await receiptElement(container)
         const roots = [
             document.body,

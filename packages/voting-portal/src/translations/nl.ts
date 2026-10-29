@@ -468,6 +468,35 @@ const dutchTranslation: TranslationType = {
             },
         },
         vitrine: {
+            progress: "Stap {{current}} van {{total}} · {{step}}",
+            confirmation: {
+                cast: "Uw stem is uitgebracht",
+                recordedPublic: "Uw stembiljet staat in het openbare register",
+                recordedPrivate: "Uw stembiljet staat in het verkiezingsregister",
+                keep: "Bewaar uw ontvangstbewijs om het later opnieuw te controleren.",
+                elsewhere: "Controleer het op een ander apparaat",
+                save: "Ontvangstbewijs opslaan",
+            },
+            failure: {
+                titlePublic: "We konden uw stembiljet niet bevestigen in het openbare register",
+                titlePrivate: "We konden uw stembiljet niet bevestigen in het verkiezingsregister",
+                contradiction:
+                    "De ondertekende bewijzen in uw ontvangstbewijs spreken elkaar tegen, dus deze website kan uw stembiljet niet bevestigen. Het kan een storing of een aanval zijn. Uw stem telt mogelijk nog mee, maar iemand onafhankelijks moet ernaar kijken.",
+                evidenceTitle: "Bewijs op dit apparaat bewaard",
+                evidenceCount_one: "{{count}} item",
+                evidenceCount_other: "{{count}} items",
+                receiptEntry: "Uw ontvangstbewijs voor item #{{index}}",
+                receiptPromise: "Uw ontvangstbewijs voor een beloofd item",
+                receiptSigned: "Ondertekend door het register toen u stemde",
+                observers:
+                    "Waarnemers controleren dit bewijs op hun eigen computers. Het bewijst wat het register heeft ondertekend en bevat niets over hoe u hebt gestemd.",
+                check: "Onafhankelijk controleren",
+                save: "Bestand van het ontvangstbewijs downloaden",
+                nextTitle: "Wat gebeurt er nu?",
+                nextText:
+                    "Uw stem is uitgebracht. Bewaar het bestand van het ontvangstbewijs: het blijft geldig, wat deze pagina ook toont. Controleer het onafhankelijk, zonder op deze website te vertrouwen, en geef het aan de waarnemers van de verkiezing als het nog steeds niet kan worden bevestigd.",
+                showReceipt: "Ontvangstbewijs en alle controles tonen",
+            },
             booth: {
                 title: "Uw stembiljet kan nog niet worden voorbereid",
                 explanation:
@@ -481,9 +510,6 @@ const dutchTranslation: TranslationType = {
                 close: "Sluiten",
             },
             receipt: {
-                title: "Uw ontvangstbewijs",
-                description:
-                    "Het ontvangstbewijs toont dat uw stembiljet is vastgelegd in het openbare register van de verkiezing. Het toont niet hoe u hebt gestemd.",
                 waiting:
                     "Het ontvangstbewijs is nog niet klaar. Deze website blijft erom vragen zolang deze pagina open is.",
                 missing:
@@ -499,9 +525,36 @@ const dutchTranslation: TranslationType = {
             },
             storedReceipts: {
                 title: "Ontvangstbewijzen op dit apparaat",
-                description:
-                    "De ontvangstbewijzen van de stembiljetten die u op dit apparaat hebt uitgebracht.",
+                holdsPublic: "Uw stembiljet staat nog in het openbare register",
+                holdsPrivate: "Uw stembiljet staat nog in het verkiezingsregister",
+                holdsHelp:
+                    "Zojuist gecontroleerd door uw browser. Niets wat vóór uw stembiljet is vastgelegd, is veranderd.",
+                waiting: "We verzamelen nog bewijzen voor uw stembiljet",
+                waitingHelp:
+                    "Zojuist gecontroleerd door uw browser. Sommige bewijzen zijn nog onderweg, en wachten is niet nodig.",
+                problemHelp:
+                    "De ondertekende bewijzen in uw ontvangstbewijs spreken elkaar tegen. Open het ontvangstbewijs om ze te zien.",
+                unchecked: "We konden uw ontvangstbewijs nu niet controleren",
+                uncheckedHelp:
+                    "Het ontvangstbewijs wordt op dit apparaat bewaard. Probeer het later opnieuw.",
+                witnesses: "Getuigen",
+                hubs: "Openbare hubs",
+                hubsPrivate: "Hubs",
+                browser: "Waar browsers controleren",
+                hubsAgree: "{{agree}} van {{total}} komen overeen",
+                anchored: "Verankerd",
+                viewReceipt: "Ontvangstbewijs bekijken",
+                hideReceipt: "Ontvangstbewijs verbergen",
                 forget: "De ontvangstbewijzen van dit apparaat verwijderen",
+                howTitle: "Hoe we controleren",
+                howReceipt:
+                    "Uw browser bewaart een ondertekend ontvangstbewijs. Het bevat nooit hoe u hebt gestemd.",
+                howCheck:
+                    "Bij elk bezoek vraagt de browser het register om een kort bewijs dat het alleen is gegroeid.",
+                howWitnesses:
+                    "Onafhankelijke getuigen ondertekenen het en openbare hubs verankeren het waar browsers controleren, zodat iedereen hetzelfde register ziet.",
+                howWitnessesPrivate:
+                    "Onafhankelijke getuigen ondertekenen het en hubs bewaren verzegelde ankers, zodat iedereen hetzelfde register te zien krijgt.",
             },
         },
     },

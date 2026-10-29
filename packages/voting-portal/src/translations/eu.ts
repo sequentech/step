@@ -468,6 +468,36 @@ const basqueTranslation: TranslationType = {
             },
         },
         vitrine: {
+            progress: "{{current}}/{{total}}. urratsa · {{step}}",
+            confirmation: {
+                cast: "Zure boto-txartela eman da",
+                recordedPublic: "Zure boto-txartela erregistro publikoan dago",
+                recordedPrivate: "Zure boto-txartela hauteskundearen erregistroan dago",
+                keep: "Gorde zure hartu-agiria, geroago berriro egiaztatzeko.",
+                elsewhere: "Egiaztatu beste gailu batean",
+                save: "Gorde hartu-agiria",
+            },
+            failure: {
+                titlePublic: "Ezin izan dugu zure boto-txartela erregistro publikoan baieztatu",
+                titlePrivate:
+                    "Ezin izan dugu zure boto-txartela hauteskundearen erregistroan baieztatu",
+                contradiction:
+                    "Zure hartu-agiriko froga sinatuek elkarren kontra egiten dute; beraz, webgune honek ezin du zure boto-txartela baieztatu. Akats bat edo eraso bat izan daiteke. Zure botoak oraindik balio dezake, baina independente batek aztertu beharko luke.",
+                evidenceTitle: "Gailu honetan gordetako ebidentziak",
+                evidenceCount_one: "{{count}} elementu",
+                evidenceCount_other: "{{count}} elementu",
+                receiptEntry: "{{index}}. sarreraren hartu-agiria",
+                receiptPromise: "Agindutako sarrera baten hartu-agiria",
+                receiptSigned: "Erregistroak sinatua, bozkatu zenuenean",
+                observers:
+                    "Behatzaileek ebidentzia hauek beren ordenagailuetan egiaztatzen dituzte. Erregistroak zer sinatu duen frogatzen dute, eta ez dute ezer jasotzen zer bozkatu duzun.",
+                check: "Egiaztatu modu independentean",
+                save: "Deskargatu hartu-agiriaren fitxategia",
+                nextTitle: "Zer gertatzen da orain?",
+                nextText:
+                    "Zure botoa eman da. Gorde hartu-agiriaren fitxategia: baliozkoa izaten jarraitzen du orri honek zer erakutsi arren. Egiaztatu modu independentean, webgune honen mende egon gabe, eta eman hauteskundearen behatzaileei oraindik baieztatu ezin bada.",
+                showReceipt: "Erakutsi hartu-agiria eta egiaztapen guztiak",
+            },
             booth: {
                 title: "Zure boto-txartela ezin da oraindik prestatu",
                 explanation:
@@ -481,9 +511,6 @@ const basqueTranslation: TranslationType = {
                 close: "Itxi",
             },
             receipt: {
-                title: "Zure hartu-agiria",
-                description:
-                    "Hartu-agiriak erakusten du zure boto-txartela hauteskundearen erregistro publikoan jaso dela. Ez du erakusten zer bozkatu duzun.",
                 waiting:
                     "Hartu-agiria ez dago oraindik prest. Webgune honek eskatzen jarraitzen du orri hau irekita dagoen bitartean.",
                 missing:
@@ -497,8 +524,35 @@ const basqueTranslation: TranslationType = {
             },
             storedReceipts: {
                 title: "Gailu honetako hartu-agiriak",
-                description: "Gailu honetan eman dituzun boto-txartelen hartu-agiriak.",
-                forget: "Ezabatu hartu-agiriak gailu honetatik",
+                holdsPublic: "Zure boto-txartela oraindik erregistro publikoan dago",
+                holdsPrivate: "Zure boto-txartela oraindik hauteskundearen erregistroan dago",
+                holdsHelp:
+                    "Zure nabigatzaileak oraintxe egiaztatu du. Zure boto-txartela baino lehen erregistratutako ezer ez da aldatu.",
+                waiting: "Zure boto-txartelaren frogak biltzen jarraitzen dugu",
+                waitingHelp:
+                    "Zure nabigatzaileak oraintxe egiaztatu du. Froga batzuk bidean daude oraindik, eta ez da itxaron beharrik.",
+                problemHelp:
+                    "Zure hartu-agiriko froga sinatuek elkarren kontra egiten dute. Ireki hartu-agiria ikusteko.",
+                unchecked: "Ezin izan dugu zure hartu-agiria egiaztatu oraingoan",
+                uncheckedHelp: "Hartu-agiria gailu honetan gordeta dago. Saiatu berriro geroago.",
+                witnesses: "Lekukoak",
+                hubs: "Gune publikoak",
+                hubsPrivate: "Guneak",
+                browser: "Nabigatzaileek egiaztatzen duten tokia",
+                hubsAgree: "{{total}}tik {{agree}} bat datoz",
+                anchored: "Ainguratua",
+                viewReceipt: "Ikusi hartu-agiria",
+                hideReceipt: "Ezkutatu hartu-agiria",
+                forget: "Kendu hartu-agiriak gailu honetatik",
+                howTitle: "Nola egiaztatzen dugun",
+                howReceipt:
+                    "Zure nabigatzaileak hartu-agiri sinatu bat gordetzen du. Ez du inoiz jasotzen zer bozkatu duzun.",
+                howCheck:
+                    "Bisita bakoitzean, erregistroari froga labur bat eskatzen dio, haztea besterik ez duela egin frogatzeko.",
+                howWitnesses:
+                    "Lekuko independenteek sinatzen dute, eta gune publikoek nabigatzaileek egiaztatzen duten tokian ainguratzen dute; horrela, denek erregistro bera ikusten dute.",
+                howWitnessesPrivate:
+                    "Lekuko independenteek sinatzen dute, eta guneek aingura zigilatuak gordetzen dituzte; horrela, denei erregistro bera erakusten zaie.",
             },
         },
     },

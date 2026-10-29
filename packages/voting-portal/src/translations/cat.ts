@@ -470,6 +470,35 @@ const catalanTranslation: TranslationType = {
             },
         },
         vitrine: {
+            progress: "Pas {{current}} de {{total}} · {{step}}",
+            confirmation: {
+                cast: "La vostra papereta s'ha emès",
+                recordedPublic: "La vostra papereta és al registre públic",
+                recordedPrivate: "La vostra papereta és al registre de l'elecció",
+                keep: "Guardeu el rebut per comprovar-ho de nou més tard.",
+                elsewhere: "Comprova-ho en un altre dispositiu",
+                save: "Desa el rebut",
+            },
+            failure: {
+                titlePublic: "No hem pogut confirmar la vostra papereta al registre públic",
+                titlePrivate: "No hem pogut confirmar la vostra papereta al registre de l'elecció",
+                contradiction:
+                    "Les proves signades del vostre rebut es contradiuen, de manera que aquest lloc web no pot confirmar la vostra papereta. Pot ser una avaria o un atac. El vostre vot encara pot comptar, però algú independent ho hauria de revisar.",
+                evidenceTitle: "Evidències guardades en aquest dispositiu",
+                evidenceCount_one: "{{count}} element",
+                evidenceCount_other: "{{count}} elements",
+                receiptEntry: "El vostre rebut de l'entrada #{{index}}",
+                receiptPromise: "El vostre rebut d'una entrada promesa",
+                receiptSigned: "Signat pel registre quan vau votar",
+                observers:
+                    "Els observadors comproven aquestes evidències als seus propis ordinadors. Demostren què ha signat el registre i no contenen res sobre què heu votat.",
+                check: "Comprova-ho de manera independent",
+                save: "Baixa el fitxer del rebut",
+                nextTitle: "Què passa ara?",
+                nextText:
+                    "El vostre vot s'ha emès. Guardeu el fitxer del rebut: continua sent vàlid sigui quin sigui l'estat d'aquesta pàgina. Comproveu-lo de manera independent, sense dependre d'aquest lloc web, i doneu-lo als observadors de l'elecció si encara no es pot confirmar.",
+                showReceipt: "Mostra el rebut i totes les comprovacions",
+            },
             booth: {
                 title: "Encara no es pot preparar la vostra papereta",
                 explanation:
@@ -483,9 +512,6 @@ const catalanTranslation: TranslationType = {
                 close: "Tanca",
             },
             receipt: {
-                title: "El vostre rebut",
-                description:
-                    "El rebut mostra que la vostra papereta s'ha anotat al registre públic de l'elecció. No mostra què heu votat.",
                 waiting:
                     "El rebut encara no està a punt. Aquest lloc web el continua demanant mentre aquesta pàgina estigui oberta.",
                 missing:
@@ -501,8 +527,34 @@ const catalanTranslation: TranslationType = {
             },
             storedReceipts: {
                 title: "Rebuts en aquest dispositiu",
-                description: "Els rebuts de les paperetes que heu emès en aquest dispositiu.",
+                holdsPublic: "La vostra papereta continua al registre públic",
+                holdsPrivate: "La vostra papereta continua al registre de l'elecció",
+                holdsHelp:
+                    "El navegador ho acaba de comprovar. Res del que es va anotar abans de la vostra papereta ha canviat.",
+                waiting: "Encara estem recollint proves de la vostra papereta",
+                waitingHelp:
+                    "El navegador ho acaba de comprovar. Algunes proves encara estan en camí i no cal esperar.",
+                problemHelp:
+                    "Les proves signades del vostre rebut es contradiuen. Obriu el rebut per veure-les.",
+                unchecked: "Ara no hem pogut comprovar el vostre rebut",
+                uncheckedHelp:
+                    "El rebut es guarda en aquest dispositiu. Torneu-ho a provar més tard.",
+                witnesses: "Testimonis",
+                hubs: "Nodes públics",
+                hubsPrivate: "Nodes",
+                browser: "On comproven els navegadors",
+                hubsAgree: "{{agree}} de {{total}} coincideixen",
+                anchored: "Ancorat",
+                viewReceipt: "Mostra el rebut",
+                hideReceipt: "Amaga el rebut",
                 forget: "Esborra els rebuts d'aquest dispositiu",
+                howTitle: "Com ho comprovem",
+                howReceipt: "El navegador guarda un rebut signat. Mai no conté què heu votat.",
+                howCheck: "A cada visita demana al registre una prova breu que només ha crescut.",
+                howWitnesses:
+                    "Testimonis independents el signen i els nodes públics l'ancoren allà on comproven els navegadors, de manera que tothom veu el mateix registre.",
+                howWitnessesPrivate:
+                    "Testimonis independents el signen i els nodes en guarden àncores segellades, de manera que a tothom se li mostra el mateix registre.",
             },
         },
     },
