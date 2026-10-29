@@ -104,7 +104,12 @@ pub(super) fn derive(
     let populations = Data::new(
         dump,
         "pop",
-        &["CLUSTERPOLLCENTER", "POLLCENTER_CODE", "PROV_CODE", "MUN_CODE"],
+        &[
+            "CLUSTERPOLLCENTER",
+            "POLLCENTER_CODE",
+            "PROV_CODE",
+            "MUN_CODE",
+        ],
     )?;
     let centers = Data::new(dump, "polling_centers", &["ID", "POLLING_PLACE"])?;
     let barangays = Data::new(dump, "allbgy", &["ID_BARANGAY", "AREANAME"])?;
@@ -133,7 +138,8 @@ pub(super) fn derive(
             areas_by_precinct.insert(pop, area);
             continue;
         }
-        let barangay = barangays.lookup(&bi, &cluster, pop, "CLUSTERPOLLCENTER")?;
+        let barangay =
+            barangays.lookup(&bi, &cluster, pop, "CLUSTERPOLLCENTER")?;
         // The cluster's own center, when it has one, rather than whichever center
         // (a test one, say) happens to come first.
         let own_post = match ci.get(&cluster) {
@@ -153,7 +159,8 @@ pub(super) fn derive(
         } else {
             barangay_name
         };
-        let mut cells = vec![("name", json!(name)), ("description", json!(own_post))];
+        let mut cells =
+            vec![("name", json!(name)), ("description", json!(own_post))];
         if let Some(tags) = &supplement.area_ccs_server_tags {
             cells.push(("annotations.miru_ccs_server_tags", json!(tags)));
         }
@@ -181,7 +188,10 @@ pub(super) fn derive(
     }
     let mut event_cells = vec![
         ("name", json!(event.name)),
-        ("annotations.miru_election_event_id", json!(event.election_event_id)),
+        (
+            "annotations.miru_election_event_id",
+            json!(event.election_event_id),
+        ),
         ("annotations.miru_election_event_name", json!(event.name)),
     ];
     if let Some(description) = &event.description {

@@ -16,7 +16,7 @@ use super::{
     sql_dump::{read_mysql_dump, SqlDump, SqlTable, SqlValue},
     xlsx::read_xlsx,
 };
-use chrono::{DateTime, FixedOffset, NaiveDateTime, TimeZone};
+use chrono::{DateTime, FixedOffset, NaiveDateTime};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -1983,9 +1983,11 @@ fn source_voter_row(
             .map(|column| voters.text(v, column))
             .transpose()?
             .unwrap_or_default();
-        let area = match precinct_area_index
-            .get(&(country.clone(), embassy.clone(), precinct.clone()))
-        {
+        let area = match precinct_area_index.get(&(
+            country.clone(),
+            embassy.clone(),
+            precinct.clone(),
+        )) {
             Some(Some(area)) => area,
             // Absent key or an out-of-scope (None) row: surface, never guess.
             _ => {
@@ -2112,8 +2114,9 @@ fn supplement_dates(
         .iter()
         .enumerate()
         .map(|(i, (source, schedule))| {
-            let at =
-                format!("historical decisions supplement schedules[{source}].date");
+            let at = format!(
+                "historical decisions supplement schedules[{source}].date"
+            );
             let instant = match DateTime::parse_from_rfc3339(&schedule.date) {
                 Ok(date) => date.to_rfc3339(),
                 Err(_) => {
@@ -2125,17 +2128,17 @@ fn supplement_dates(
                         "%Y-%m-%d %H:%M",
                         "%Y-%m-%dT%H:%M",
                     ]
-                        .iter()
-                        .find_map(|f| {
-                            NaiveDateTime::parse_from_str(&schedule.date, f).ok()
-                        })
-                        .ok_or_else(|| {
-                            Problem::error(
-                                Code::InvalidValue,
-                                &at,
-                                "date must be an instant or a local date and time",
-                            )
-                        })?;
+                    .iter()
+                    .find_map(|f| {
+                        NaiveDateTime::parse_from_str(&schedule.date, f).ok()
+                    })
+                    .ok_or_else(|| {
+                        Problem::error(
+                            Code::InvalidValue,
+                            &at,
+                            "date must be an instant or a local date and time",
+                        )
+                    })?;
                     offset_instant(naive, offset, &at)?
                 }
             };
@@ -2151,20 +2154,22 @@ fn offset_instant(
     offset: Option<i32>,
     at: &str,
 ) -> Result<String, Problem> {
-    let minutes =
-        offset.filter(|n| (-840..=840).contains(n)).ok_or_else(|| {
+    // Within ±14 hours every offset is valid and every local time has exactly
+    // one instant, so the reviewed offset is the only thing that can be missing.
+    let zone = offset
+        .filter(|n| (-840..=840).contains(n))
+        .and_then(|n| FixedOffset::east_opt(n * 60))
+        .ok_or_else(|| {
             Problem::error(
                 Code::NotApproved,
                 at,
                 "timezone-less dates require an explicit UTC offset in minutes",
             )
         })?;
-    let zone = FixedOffset::east_opt(minutes * 60)
-        .ok_or_else(|| Problem::error(Code::InvalidValue, at, "invalid UTC offset"))?;
-    let instant = zone.from_local_datetime(&naive).single().ok_or_else(|| {
-        Problem::error(Code::InvalidValue, at, "date cannot be resolved")
-    })?;
-    Ok(instant.to_rfc3339())
+    Ok(
+        DateTime::<FixedOffset>::from_naive_utc_and_offset(naive - zone, zone)
+            .to_rfc3339(),
+    )
 }
 
 fn historical_dates(

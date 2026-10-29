@@ -164,7 +164,9 @@ impl BuildElectionEvent {
             }
         } else {
             // clap requires --workbook without --historical-sql.
-            let bytes = bytes.ok_or_else(|| anyhow!("a workbook is required"))?;
+            let Some(bytes) = bytes else {
+                return Err(anyhow!("a workbook is required"));
+            };
             read_xlsx(&bytes).map_err(problem_error)?
         };
 

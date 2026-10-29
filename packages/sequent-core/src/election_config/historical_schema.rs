@@ -54,10 +54,15 @@ pub const OPTIONAL_TABLES: &[&str] = &["trans_servers"];
 
 /// Recognise the dump's schema and map a post-qualification dump onto the legacy
 /// names. A dump that mixes both sets of names is refused rather than guessed at.
-pub fn normalize(mut dump: SqlDump) -> Result<(SqlDump, SourceSchema), Problem> {
+pub fn normalize(
+    mut dump: SqlDump,
+) -> Result<(SqlDump, SourceSchema), Problem> {
     let has = |name: &str| dump.tables.contains_key(name);
     let post = TABLES.iter().filter(|(source, _)| has(source)).count();
-    let legacy = TABLES.iter().filter(|(_, canonical)| has(canonical)).count();
+    let legacy = TABLES
+        .iter()
+        .filter(|(_, canonical)| has(canonical))
+        .count();
     if post == 0 {
         return Ok((dump, SourceSchema::Legacy));
     }
@@ -121,15 +126,15 @@ fn source_path(path: &str) -> String {
         .iter()
         .find(|(_, canonical)| *canonical == table)
         .map_or(table, |(source, _)| source);
-    let tail = COLUMNS
-        .iter()
-        .filter(|(t, _, _)| *t == table)
-        .fold(tail.to_string(), |tail, (_, source, canonical)| {
-            match tail.strip_suffix(&format!("column {canonical}")) {
-                Some(head) => format!("{head}column {source}"),
-                None => tail,
-            }
-        });
+    let tail = COLUMNS.iter().filter(|(t, _, _)| *t == table).fold(
+        tail.to_string(),
+        |tail, (_, source, canonical)| match tail
+            .strip_suffix(&format!("column {canonical}"))
+        {
+            Some(head) => format!("{head}column {source}"),
+            None => tail,
+        },
+    );
     if tail.is_empty() {
         format!("{PREFIX}{source}")
     } else {

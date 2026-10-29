@@ -700,7 +700,8 @@ fn every_candidate_reference_is_checked_against_the_whole_source_before_scope_fi
         for options in
             [first_seat_only(sql.as_bytes(), &xlsx), reviewed(), complete]
         {
-            let rejected = adapt(sql.as_bytes(), Some(&xlsx), &options).unwrap_err();
+            let rejected =
+                adapt(sql.as_bytes(), Some(&xlsx), &options).unwrap_err();
             let problem = &rejected.report.problems[0];
             assert_eq!(problem.code, case.code, "{}", case.name);
             assert!(
@@ -917,7 +918,11 @@ fn explicit_area_associations_are_hash_bound_and_preserve_the_workbook_row() {
     assert_eq!(adapted.workbook.rows("areacontests").len(), 1);
     options.source_digests = None;
     assert_eq!(
-        adapt(&sql, Some(&xlsx), &options).unwrap_err().report.problems[0].code,
+        adapt(&sql, Some(&xlsx), &options)
+            .unwrap_err()
+            .report
+            .problems[0]
+            .code,
         Code::NotApproved
     );
 }
@@ -930,7 +935,11 @@ fn incomplete_post_coverage_requires_an_explicit_bound_exclusion() {
     );
     let mut options = reviewed();
     assert_eq!(
-        adapt(&sql, Some(&xlsx), &options).unwrap_err().report.problems[0].code,
+        adapt(&sql, Some(&xlsx), &options)
+            .unwrap_err()
+            .report
+            .problems[0]
+            .code,
         Code::BallotCoverage
     );
     options.post_coverage = PostCoverage::WorkbookPostsOnly;
@@ -950,7 +959,11 @@ fn precincts_without_workbook_areas_are_counted_only_after_explicit_exclusion()
     sql.extend_from_slice(b"INSERT INTO `allbgy` VALUES ('B02','Missing supplemental area'); INSERT INTO `trans_route` VALUES ('0010020004','DEST02'); INSERT INTO `pop` VALUES ('B02','P01','001','002','004');");
     let mut options = reviewed();
     assert_eq!(
-        adapt(&sql, Some(&xlsx), &options).unwrap_err().report.problems[0].code,
+        adapt(&sql, Some(&xlsx), &options)
+            .unwrap_err()
+            .report
+            .problems[0]
+            .code,
         Code::DanglingReference
     );
     options.precinct_coverage = PostCoverage::WorkbookPostsOnly;
@@ -1345,7 +1358,8 @@ fn exclusions_and_municipality_area_names_reconcile_without_losing_contexts() {
             json!("City One"),
         )
     });
-    let adapted = adapt(changed_sql.as_bytes(), Some(&changed), &reviewed()).unwrap();
+    let adapted =
+        adapt(changed_sql.as_bytes(), Some(&changed), &reviewed()).unwrap();
     assert_eq!(adapted.summary.precincts[0].workbook_area_rows, [2]);
     assert_eq!(
         adapted.workbook.rows("areas")[0].text("name"),
@@ -2161,7 +2175,8 @@ fn preserving_voters_needs_the_population_precinct_column() {
     let end = start + sql[start..].find('\n').unwrap();
     let pop = "CREATE TABLE `pop` (`CLUSTERPOLLCENTER` text, `POLLCENTER_CODE` text, `PROV_CODE` text, `MUN_CODE` text, `BRGY_CODE` text); INSERT INTO `pop` VALUES ('B06','P01','90','06','001');";
     let sql = format!("{}{}{}", &sql[..start], pop, &sql[end..]);
-    let refused = adapt(sql.as_bytes(), Some(&xlsx), &preserving()).unwrap_err();
+    let refused =
+        adapt(sql.as_bytes(), Some(&xlsx), &preserving()).unwrap_err();
     let problem = &refused.report.problems[0];
     assert!(
         problem.path.contains("pop") && problem.path.contains("PRECINCT"),
@@ -2221,7 +2236,10 @@ fn a_post_qualification_dump_converts_as_its_legacy_equivalent() {
     let legacy = adapt(&sql, Some(&xlsx), &reviewed()).unwrap();
     let renamed = adapt(post.as_bytes(), Some(&xlsx), &reviewed()).unwrap();
     assert_eq!(legacy.summary.source_schema, SourceSchema::Legacy);
-    assert_eq!(renamed.summary.source_schema, SourceSchema::PostQualification);
+    assert_eq!(
+        renamed.summary.source_schema,
+        SourceSchema::PostQualification
+    );
     // The same rows; only the provenance differs, recording the source's own names.
     let cells = |workbook: &Workbook| -> Vec<Vec<(String, Value)>> {
         workbook
@@ -2261,13 +2279,24 @@ fn post_qualification_problems_name_the_source_tables_and_columns() {
     );
     let refused = adapt(post.as_bytes(), Some(&xlsx), &reviewed()).unwrap_err();
     let path = &refused.report.problems[0].path;
-    assert!(path.starts_with("SQL table seats ") && path.ends_with("column NUM_SEAT"), "{path}");
+    assert!(
+        path.starts_with("SQL table seats ")
+            && path.ends_with("column NUM_SEAT"),
+        "{path}"
+    );
 
     let report = schema::source_names(
-        Report::from(Problem::error(Code::InvalidValue, "SQL table pop row 2 column MACHINE_TYPE", "x")),
+        Report::from(Problem::error(
+            Code::InvalidValue,
+            "SQL table pop row 2 column MACHINE_TYPE",
+            "x",
+        )),
         SourceSchema::PostQualification,
     );
-    assert_eq!(report.problems[0].path, "SQL table pop row 2 column VOTING_MODE");
+    assert_eq!(
+        report.problems[0].path,
+        "SQL table pop row 2 column VOTING_MODE"
+    );
 }
 
 /// The overseas source in the post-qualification schema: voters carry their mail
@@ -2349,7 +2378,10 @@ fn a_supplement_replaces_the_workbook_and_the_mail_location_joins_voters() {
     )
     .unwrap();
     let event = &built.export["election_event"];
-    assert_eq!(event["presentation"]["i18n"]["en"]["name"], json!("Synthetic Event"));
+    assert_eq!(
+        event["presentation"]["i18n"]["en"]["name"],
+        json!("Synthetic Event")
+    );
     let elections = built.export["elections"].as_array().unwrap();
     assert_eq!(elections.len(), 1, "one election per post with voters");
     // A schedule without an election is every election's; a local time takes the
@@ -2360,7 +2392,10 @@ fn a_supplement_replaces_the_workbook_and_the_mail_location_joins_voters() {
         .iter()
         .map(|row| row.text("scheduled_datetime").unwrap())
         .collect();
-    assert_eq!(dates, ["2027-01-01T10:00:00+08:00", "2027-01-02T10:00:00+08:00"]);
+    assert_eq!(
+        dates,
+        ["2027-01-01T10:00:00+08:00", "2027-01-02T10:00:00+08:00"]
+    );
 
     let v = &built.voters;
     let col = |name: &str| v.column(name).unwrap();
@@ -2374,11 +2409,16 @@ fn a_supplement_replaces_the_workbook_and_the_mail_location_joins_voters() {
         let matching: Vec<_> = v
             .rows
             .iter()
-            .filter(|r| r[col("source_country")] == c && r[col("source_embassy")] == e)
+            .filter(|r| {
+                r[col("source_country")] == c && r[col("source_embassy")] == e
+            })
             .collect();
         assert!(!matching.is_empty(), "{prefix}");
         assert!(
-            matching.iter().all(|r| r[area] == expected_area && r[embassy] == expected_embassy),
+            matching
+                .iter()
+                .all(|r| r[area] == expected_area
+                    && r[embassy] == expected_embassy),
             "{prefix} must map to {expected_area} / {expected_embassy}"
         );
     }
@@ -2394,7 +2434,9 @@ fn a_supplement_needs_an_event_name_and_identity() {
     options.supplement.as_mut().unwrap().event.election_event_id = " ".into();
     let refused = adapt(&sql, None, &options).unwrap_err();
     assert_eq!(refused.report.problems[0].code, Code::MissingField);
-    assert!(refused.report.problems[0].path.ends_with("event.electionEventId"));
+    assert!(refused.report.problems[0]
+        .path
+        .ends_with("event.electionEventId"));
 }
 
 #[test]
@@ -2410,10 +2452,116 @@ fn the_workbook_and_the_supplement_are_one_or_the_other() {
 fn supplement_decisions_roundtrip_as_strict_json() {
     let json = serde_json::to_value(&supplemented()).unwrap();
     assert_eq!(json["voterAreaJoin"], json!("mail-country-embassy"));
-    assert_eq!(json["supplement"]["event"]["electionEventId"], json!("evt-001"));
+    assert_eq!(
+        json["supplement"]["event"]["electionEventId"],
+        json!("evt-001")
+    );
     let back: HistoricalOptions = serde_json::from_value(json.clone()).unwrap();
     assert_eq!(serde_json::to_value(&back).unwrap(), json);
     let mut unknown = json;
     unknown["supplement"]["event"]["extra"] = json!(1);
     assert!(serde_json::from_value::<HistoricalOptions>(unknown).is_err());
+}
+
+#[test]
+fn a_supplement_carries_the_optional_event_and_area_metadata() {
+    let sql = post_qualification_overseas();
+    let mut options = supplemented();
+    let supplement = options.supplement.as_mut().unwrap();
+    supplement.event.description = Some("Synthetic description".into());
+    supplement.event.logo_url = Some("https://example.org/logo.png".into());
+    supplement.event.css = Some("body {}".into());
+    supplement.area_trustee_servers = Some("trustee1,trustee2".into());
+    let adapted = adapt(&sql, None, &options).unwrap();
+    let event = &adapted.workbook.rows("electionevent")[0];
+    assert_eq!(event.text("description"), Some("Synthetic description"));
+    assert_eq!(
+        event.text("presentation.logo_url"),
+        Some("https://example.org/logo.png")
+    );
+    assert_eq!(event.text("presentation.css"), Some("body {}"));
+    for area in adapted.workbook.rows("areas") {
+        assert_eq!(
+            area.text("annotations.miru_trustee_servers"),
+            Some("trustee1,trustee2")
+        );
+    }
+}
+
+#[test]
+fn a_supplement_refuses_a_source_it_cannot_derive_elections_and_areas_from() {
+    let sql = String::from_utf8(post_qualification_overseas()).unwrap();
+    for (from, to, expected) in [
+        ("`pop`", "`pop_missing`", Code::MissingField),
+        ("`polling_centers`", "`centers_missing`", Code::MissingField),
+        ("`allbgy`", "`allbgy_missing`", Code::MissingField),
+        ("`allmun`", "`allmun_missing`", Code::MissingField),
+        (
+            "('B06','P01','90','06'",
+            "('B06','P99','90','06'",
+            Code::DanglingReference,
+        ),
+        (
+            "('B06','KINGDOM OF THAILAND')",
+            "('B07','KINGDOM OF THAILAND')",
+            Code::DanglingReference,
+        ),
+        (
+            "('9101','City C')",
+            "('9102','City C')",
+            Code::DanglingReference,
+        ),
+    ] {
+        assert!(sql.contains(from), "{from}");
+        let changed = sql.replace(from, to);
+        let refused =
+            adapt(changed.as_bytes(), None, &supplemented()).unwrap_err();
+        assert_eq!(refused.report.problems[0].code, expected, "{from}");
+    }
+}
+
+#[test]
+fn post_qualification_renames_reach_keys_charsets_and_bare_table_paths() {
+    let dump = crate::election_config::sql_dump::read_mysql_dump(
+        b"CREATE TABLE `seats` (`DISTRICTCODE` text, `NUM_SEAT` int CHARACTER SET latin1, PRIMARY KEY (`NUM_SEAT`), UNIQUE KEY u (`NUM_SEAT`));\n",
+    )
+    .unwrap();
+    let (dump, schema) = schema::normalize(dump).unwrap();
+    assert_eq!(schema, SourceSchema::PostQualification);
+    let seat = &dump.tables["seat"];
+    assert_eq!(seat.columns, ["DISTRICTCODE", "ELIGIBLEAMOUNT"]);
+    assert_eq!(seat.primary_key, ["ELIGIBLEAMOUNT"]);
+    assert!(seat
+        .unique_keys
+        .iter()
+        .all(|key| key == &["ELIGIBLEAMOUNT"]));
+    assert!(seat.column_charsets.contains_key("ELIGIBLEAMOUNT"));
+
+    let report = schema::source_names(
+        Report::from(Problem::error(Code::MissingField, "SQL table seat", "x")),
+        SourceSchema::PostQualification,
+    );
+    assert_eq!(report.problems[0].path, "SQL table seats");
+}
+
+#[test]
+fn a_supplement_refuses_workbook_associations_and_unreadable_dates() {
+    let sql = post_qualification_overseas();
+    let mut options = supplemented();
+    options.election_mappings = vec![ElectionMapping {
+        workbook_row: 2,
+        seat_rows: vec![1],
+    }];
+    let refused = adapt(&sql, None, &options).unwrap_err();
+    assert_eq!(refused.report.problems[0].code, Code::InvalidValue);
+    assert!(refused.report.problems[0].path.ends_with("areaMappings"));
+
+    let mut options = supplemented();
+    options.supplement.as_mut().unwrap().schedules[0].date =
+        "next tuesday".into();
+    let refused = adapt(&sql, None, &options).unwrap_err();
+    assert_eq!(refused.report.problems[0].code, Code::InvalidValue);
+    assert!(refused.report.problems[0]
+        .message
+        .contains("an instant or a local date and time"));
 }
