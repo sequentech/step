@@ -24,6 +24,7 @@ use windmill::services::database::PgConfig;
 
 const IMMUDB_LOGS_DB: &str = "IMMUDB_LOGS_DB";
 const DEFAULT_IMMUDB_LOGS_DB: &str = "defaultdb";
+const SUPER_ADMIN_TENANT_ID: &str = "SUPER_ADMIN_TENANT_ID";
 
 #[instrument(err)]
 pub async fn get_immudb_client() -> Result<Client> {
@@ -251,8 +252,24 @@ fn pgaudit_database(configured: Option<String>) -> String {
         .unwrap_or_else(|| DEFAULT_IMMUDB_LOGS_DB.to_string())
 }
 
-fn authorize_pgaudit(claims: &JwtClaims) -> Result<(), (Status, String)> {
-    authorize(claims, true, None, vec![Permissions::LOGS_READ])
+fn authorize_pgaudit(
+    claims: &JwtClaims,
+    super_admin_tenant_id: Option<String>,
+) -> Result<(), (Status, String)> {
+    let super_admin_tenant_id = super_admin_tenant_id
+        .filter(|tenant_id| !tenant_id.is_empty())
+        .ok_or_else(|| {
+            (
+                Status::Unauthorized,
+                format!("{SUPER_ADMIN_TENANT_ID} must be set"),
+            )
+        })?;
+    authorize(
+        claims,
+        false,
+        Some(super_admin_tenant_id),
+        vec![Permissions::LOGS_READ],
+    )
 }
 
 async fn audit_list_service(
@@ -326,7 +343,7 @@ pub async fn list_pgaudit(
     claims: JwtClaims,
 ) -> Result<Json<DataList<PgAuditRow>>, (Status, String)> {
     let input = body.into_inner();
-    authorize_pgaudit(&claims)?;
+    authorize_pgaudit(&claims, env::var(SUPER_ADMIN_TENANT_ID).ok())?;
     let result = audit_list_service(input)
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
@@ -343,8 +360,11 @@ mod tests {
     use sequent_core::serialization::deserialize_with_path::deserialize_value;
     use serde_json::json;
 
-    const SUPER_ADMIN_TENANT_ID: &str = "SUPER_ADMIN_TENANT_ID";
     const SUPER_ADMIN_TENANT: &str = "super-admin-tenant";
+
+    fn super_admin() -> Option<String> {
+        Some(SUPER_ADMIN_TENANT.to_string())
+    }
 
     fn admin_claims(tenant_id: &str, permissions: &[Permissions]) -> JwtClaims {
         let roles: Vec<String> =
@@ -366,7 +386,6 @@ mod tests {
 
     #[rocket::async_test]
     async fn pgaudit_list_rejects_log_readers_outside_super_admin_tenant() {
-        env::set_var(SUPER_ADMIN_TENANT_ID, SUPER_ADMIN_TENANT);
         let claims = admin_claims(
             "tenant-a",
             &[Permissions::ADMIN_USER, Permissions::LOGS_READ],
@@ -400,22 +419,24 @@ mod tests {
 
     #[test]
     fn pgaudit_requires_super_admin_tenant_and_logs_read() {
-        env::set_var(SUPER_ADMIN_TENANT_ID, SUPER_ADMIN_TENANT);
-        assert!(authorize_pgaudit(&admin_claims(
-            SUPER_ADMIN_TENANT,
-            &[Permissions::LOGS_READ]
-        ))
-        .is_ok());
-        assert!(authorize_pgaudit(&admin_claims(
-            SUPER_ADMIN_TENANT,
-            &[Permissions::ADMIN_USER]
-        ))
+        let log_reader =
+            admin_claims(SUPER_ADMIN_TENANT, &[Permissions::LOGS_READ]);
+        assert!(authorize_pgaudit(&log_reader, super_admin()).is_ok());
+        assert!(authorize_pgaudit(
+            &admin_claims(SUPER_ADMIN_TENANT, &[Permissions::ADMIN_USER]),
+            super_admin()
+        )
         .is_err());
-        assert!(authorize_pgaudit(&admin_claims(
-            "tenant-a",
-            &[Permissions::ADMIN_USER, Permissions::LOGS_READ]
-        ))
+        assert!(authorize_pgaudit(
+            &admin_claims(
+                "tenant-a",
+                &[Permissions::ADMIN_USER, Permissions::LOGS_READ]
+            ),
+            super_admin()
+        )
         .is_err());
+        assert!(authorize_pgaudit(&log_reader, None).is_err());
+        assert!(authorize_pgaudit(&log_reader, Some(String::new())).is_err());
     }
 
     #[test]
