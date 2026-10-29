@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+// SPDX-License-Identifier: AGPL-3.0-only
+
 //! Trellis - PostgreSQL-integrated Merkle Tree Verification Service
 //!
 //! This crate maintains multiple independent Certificate Transparency-style Merkle

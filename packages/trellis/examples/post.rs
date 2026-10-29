@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+// SPDX-License-Identifier: AGPL-3.0-only
+
 //! Example: Posting an entry and verifying inclusion
 //!
 //! This example demonstrates the core verification workflow:
