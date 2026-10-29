@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {buildQuery, buildVariables} from "ra-data-hasura"
+import {IntrospectionObjectType, IntrospectionOutputTypeRef} from "graphql"
 import {getPgauditVariables, getPgAudit} from "./ListPgAudit"
 import {getElectoralLogVariables, getElectoralLog} from "./ListElectoralLog"
 import {LIST_USERS, customBuildGetUsersVariables} from "./GetUsers"
@@ -15,6 +16,51 @@ import {GetCastVotesByIp} from "./GetCastVotesByIp"
 export interface ParamsSort {
     field: string
     order: string
+}
+
+const GRAPHQL_INT_MIN = -2147483648
+const GRAPHQL_INT_MAX = 2147483647
+const INTEGER_REGEXP = /^-?\d+$/
+
+interface IIntrospectedResource {
+    type: IntrospectionObjectType
+}
+
+const isIntType = (type: IntrospectionOutputTypeRef): boolean => {
+    const namedType = type.kind === "NON_NULL" ? type.ofType : type
+    return namedType.kind === "SCALAR" && namedType.name === "Int"
+}
+
+/**
+ * ra-data-hasura forwards filter values as they are, so a text input (or a
+ * filter restored from the URL) sends an `Int` column a string, which Hasura
+ * rejects. Send valid GraphQL Int values as numbers and leave anything else
+ * as typed, so it is never rounded, truncated or turned into zero.
+ */
+function applyIntFilters(
+    resources: Array<IIntrospectedResource> | undefined,
+    resourceName: string,
+    filter: Record<string, unknown>
+): Record<string, unknown> {
+    const fields = resources?.find((resource) => resource.type.name === resourceName)?.type.fields
+    if (!fields) {
+        return filter
+    }
+    return Object.fromEntries(
+        Object.entries(filter).map(([key, value]) => {
+            if (typeof value !== "string" || !INTEGER_REGEXP.test(value)) {
+                return [key, value]
+            }
+            const field = fields.find((f) => f.name === key)
+            const number = Number(value)
+            return field &&
+                isIntType(field.type) &&
+                number >= GRAPHQL_INT_MIN &&
+                number <= GRAPHQL_INT_MAX
+                ? [key, number]
+                : [key, value]
+        })
+    )
 }
 
 export const customBuildQuery =
@@ -37,6 +83,14 @@ export const customBuildQuery =
                         delete params.filter[f]
                     }
                 })
+            }
+
+            if (params.filter) {
+                params.filter = applyIntFilters(
+                    introspectionResults?.resources,
+                    resourceName,
+                    params.filter
+                )
             }
         }
 
