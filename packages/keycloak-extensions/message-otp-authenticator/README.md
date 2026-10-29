@@ -15,7 +15,7 @@ multiple features:
 
 - [x] OTP sent via SMS.
 - [x] OTP sent via Email.
-- [x] OTP shown in Keycloak log output if Provider is in simulation mode.
+- [x] Simulated delivery records metadata without logging OTPs, login links or message bodies.
 - [x] Configurable user-attribute to use to get the user's email address or
   telephone number.
 - [x] Allow to send the same OTP via both SMS and Email if the user has both
