@@ -26,7 +26,7 @@ jobs:
           - service: immu-board
           - service: immudb-rs
           - service: sequent-core
-            extra: --features keycloak,default_features
+            extra: --features keycloak,default_features,areas
           - service: step-cli
           - service: velvet
           - service: wrap-map-err
@@ -129,6 +129,13 @@ jobs:
           cargo test
           services::cast_votes::tests::voters_by_channel_defaults_legacy_votes_and_uses_latest_valid_revote
           -- --ignored --exact
+        working-directory: packages/windmill
+
+      - name: Run PostgreSQL-backed new election event id regression
+        run: >-
+          cargo test
+          services::import::import_election_event::new_election_event_tests
+          -- --ignored
         working-directory: packages/windmill
 
   # ===========================================================================
