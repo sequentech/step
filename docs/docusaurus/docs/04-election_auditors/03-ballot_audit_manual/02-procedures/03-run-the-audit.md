@@ -11,11 +11,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 # Run the Audit
 
-For a prepared package with `run-audit.sh`, follow
-[Run a Prepared Client Package](00-run-prepared-package.md). Its command is
-`./run-audit.sh OUTPUT_DIRECTORY`; the public values are already set in the launcher.
-The procedure below is for direct use of the raw image, which still requires named options.
-
 This procedure audits all areas and contests of one tally with one command. The auditor does it.
 The command runs the audit image with the backups directory and the output directory.
 
@@ -41,6 +36,15 @@ console output shows each pin. The digest of `audit-output.log` protects the con
 
 The console output contains no voter IDs, no ballot contents and no Keycloak users. It contains
 the cast vote IDs and the receipts of the stored votes, so keep `audit-output.log` private.
+
+For a prepared client package, run this from its extracted directory instead of the raw-image setup and command below:
+
+```sh
+./run-audit.sh OUTPUT_DIRECTORY
+```
+
+The launcher already sets the tally ID, public-key hash, electoral-log system public key and environment slug.
+Replace `OUTPUT_DIRECTORY` with a new directory path; its parent must exist, but the directory itself must not exist.
 
 ## Before you start
 

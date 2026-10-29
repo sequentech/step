@@ -17,9 +17,6 @@ files that you can write: `scope.json` and `connections.json`.
 
 ## Common rules
 
-These rules describe the raw image and verifier commands. The prepared package launcher has
-the separate interface below.
-
 - All options are long options: `--option value`. The commands have no short options.
 - `--help` shows the options of a command. `--version` is not available.
 - An option with the suffix `-sha512` is a pin: the SHA-512 digest of a file, in 128 lowercase
@@ -31,27 +28,6 @@ the separate interface below.
 
 In the tables, **Required** shows if you must give the option. **Default** in the description is the
 value that the command uses when you do not give the option.
-
-## The prepared package launcher
-
-Use this command only with the election-specific launcher supplied in a prepared client package:
-
-```bash
-./run-audit.sh OUTPUT_DIRECTORY
-```
-
-`OUTPUT_DIRECTORY` is the only required argument. Its parent must exist; the path itself must
-not exist. Relative paths start from the directory where you invoke the launcher.
-The launcher already sets the tally ID, public-key digest, electoral-log system public key and environment slug.
-`./run-audit.sh --help` shows its usage.
-
-The launcher loads the included image and returns the Docker/verifier exit status.
-It does not make candidate public values independently authenticated.
-See [Run a Prepared Client Package](02-procedures/00-run-prepared-package.md) for checksums,
-decryption, provenance and output checks.
-
-This package launcher is not `packages/ballot-audit/image/run-audit`. Building the image does not
-generate the election-specific launcher. The raw image and `audit-tally` options below are unchanged.
 
 ## The audit image
 

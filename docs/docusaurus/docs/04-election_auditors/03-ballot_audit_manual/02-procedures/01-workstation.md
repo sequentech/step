@@ -17,10 +17,6 @@ and the database servers that hold the copies.
 
 ## Before you start
 
-If your package includes a one-argument `run-audit.sh`, use
-[Run a Prepared Client Package](00-run-prepared-package.md) instead. That launcher loads the
-included image and creates its output directory. Do not pre-create its output directory.
-
 - You have a Linux or macOS computer with at least 16 GB of memory and enough disk space for
   the backups and for the four database copies.
 - The computer has encrypted storage.
