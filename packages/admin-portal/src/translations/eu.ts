@@ -5,6 +5,7 @@ import englishTranslation, {TranslationType} from "./en"
 
 const basqueTranslation: TranslationType = {
     translations: {
+        configurationPackage: englishTranslation.translations.configurationPackage,
         ballotPrivacy: englishTranslation.translations.ballotPrivacy,
         readiness: {
             close: "Itxi",
@@ -949,6 +950,7 @@ const basqueTranslation: TranslationType = {
                 EXPORT_APPLICATION: "Esportatu Aplikazioak",
                 EXPORT_TENANT_CONFIG: "Esportatu Maizter Konfigurazioa",
                 IMPORT_TENANT_CONFIG: "Inportatu Maizter Konfigurazioa",
+                APPLY_CONFIGURATION_PACKAGE: "Aplikatu Konfigurazio Paketea",
                 RENDER_DOCUMENT_PDF: "Errendatu Dokumentu PDFa",
                 CREATE_TENANT: "Maizterra Sortu",
                 EXPORT_TEMPLATES: "Txantiloiak Esportatu",

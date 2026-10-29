@@ -4,6 +4,79 @@
 
 const englishTranslation = {
     translations: {
+        configurationPackage: {
+            tab: "Configuration package",
+            title: "Import a configuration package",
+            description:
+                "Apply a complete delivery exported by Election Architect: tenant configuration and settings, roles, administrators, trustees and the election event with its census. Nothing changes until the preview is applied.",
+            tenant: "Tenant: {{tenantId}}",
+            notPermitted:
+                "Importing a configuration package needs tenant-write, user-write, role-write, trustee-create, trustee-write and election-event-create on this tenant.",
+            requirements: "The package must carry",
+            censusRequired: "The election event's census",
+            sections: {
+                "tenant-configuration": "Tenant configuration",
+                "tenant-settings": "Tenant settings",
+                "role-permissions": "Role permissions",
+                "admin-accounts": "Administrator accounts",
+                "trustees": "Trustees",
+                "election-event": "Election event",
+            },
+            upload: "Upload package",
+            uploadTitle: "Upload a configuration package",
+            uploadSubtitle: "The delivery zip from removable media",
+            uploadParagraph: "It is previewed first; nothing is applied from the upload itself.",
+            documentId: "Or an uploaded document id",
+            preview: "Preview",
+            apply: "Apply",
+            blocked:
+                "The preview found blockers: fix the package or the tenant, then preview again.",
+            noTask: "The platform returned no task.",
+            mode: {preview: "Preview", apply: "Application"},
+            task: "Task {{taskId}}",
+            running: "Running…",
+            toChange: "Preview only, nothing changed: {{count}} section(s) would change.",
+            outcome: {
+                running: "Running",
+                previewed: "Previewed: nothing was changed",
+                applied: "Applied: the tenant matches the package",
+                refused:
+                    "Refused before this run applied anything; sections an earlier run applied stay applied, as their states say",
+                failed: "Failed part-way: the sections before it may be applied, as their states say",
+                unknown:
+                    "Unknown: a section could not be settled, and nothing further was submitted; check it again before retrying",
+            },
+            columns: {section: "Section", state: "State", task: "Task", details: "Details"},
+            reconciled: "reconciled",
+            blocker: "Blocked",
+            needsApply: "Would change",
+            members: "Members",
+            history: "Earlier applications",
+            applyRechecks:
+                "Applying previews the package again on the platform before anything changes, and stops at any blocker.",
+            earlierApplied: "Applied by an earlier run",
+            earlierTasks: "Tasks begun for this section: {{tasks}}",
+            inFlight: "A submission is not settled yet (task {{taskId}})",
+            stoppedWithoutRecord:
+                "Stopped without a record: sections may have been applied by this or earlier runs; preview again to see the tenant's state",
+            lastLog: "Last message: {{message}}",
+            unreadable:
+                "The task cannot be read ({{reason}}). It may still be running: check the earlier applications, or stop following it",
+            notFound: "not found in this tenant",
+            stopFollowing: "Stop following",
+            mayHaveTask:
+                "The outcome of the request is unknown, so a task may have been created: check the earlier applications before retrying.",
+            shaMismatch:
+                "The previewed package is not the one whose SHA-256 was entered ({{expected}}); it cannot be applied.",
+            confirmTitle: "Apply this package?",
+            confirmBody:
+                "This applies the previewed package to tenant {{tenantId}}. The platform previews it again first and stops at any blocker.",
+            cancel: "Cancel",
+            proposedChanges: "What applying would change",
+            shaMalformed:
+                "The SHA-256 entered is not 64 hexadecimal characters, so the package was not previewed. Enter the digest exactly, or leave it blank.",
+            nothingToChange: "Nothing: the tenant already matches the package.",
+        },
         ballotPrivacy: {
             title: "Ballot box log",
             subtitle:
@@ -1100,6 +1173,7 @@ const englishTranslation = {
                 EXPORT_APPLICATION: "Export Applications",
                 EXPORT_TENANT_CONFIG: "Export Tenant Config",
                 IMPORT_TENANT_CONFIG: "Import Tenant Config",
+                APPLY_CONFIGURATION_PACKAGE: "Apply Configuration Package",
                 RENDER_DOCUMENT_PDF: "Render Document PDF",
                 CREATE_TENANT: "Create Tenant",
                 EXPORT_TEMPLATES: "Export Templates",

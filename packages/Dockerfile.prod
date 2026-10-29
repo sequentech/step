@@ -45,6 +45,11 @@ RUN if [ -d /vendor/npm-packages-offline-cache ]; then \
 
 ARG SPA_NAME
 
+# Production typechecking includes log tests that import this shared fixture.
+COPY ./keycloak-extensions/custom-event-listener/src/test/resources/scanovate-failure-contract.json \
+     ./keycloak-extensions/custom-event-listener/src/test/resources/scanovate-failure-contract.json.license \
+     ./keycloak-extensions/custom-event-listener/src/test/resources/
+
 # Build the specified SPA with release optimizations
 RUN yarn build:ui-core
 RUN yarn build:ui-essentials

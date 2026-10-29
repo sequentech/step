@@ -5,6 +5,7 @@ import englishTranslation, {TranslationType} from "./en"
 
 const dutchTranslation: TranslationType = {
     translations: {
+        configurationPackage: englishTranslation.translations.configurationPackage,
         ballotPrivacy: englishTranslation.translations.ballotPrivacy,
         readiness: {
             close: "Sluiten",
@@ -951,6 +952,7 @@ const dutchTranslation: TranslationType = {
                 EXPORT_APPLICATION: "Applicaties Exporteren",
                 EXPORT_TENANT_CONFIG: "Tenantconfiguratie Exporteren",
                 IMPORT_TENANT_CONFIG: "Tenantconfiguratie Importeren",
+                APPLY_CONFIGURATION_PACKAGE: "Configuratiepakket Toepassen",
                 RENDER_DOCUMENT_PDF: "Document als PDF renderen",
                 CREATE_TENANT: "Tenant Aanmaken",
                 EXPORT_TEMPLATES: "Sjablonen Exporteren",

@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.Base64;
 import java.util.Map;
+import sequent.keycloak.authenticator.diagnostics.ScanovateDiagnostics.ServiceError;
 
 /**
  * Client for the 1:1 API of the on-premise Scanovate Face Match service, which compares the faces
@@ -91,14 +92,14 @@ public class FaceMatchClient {
   private static boolean requiredBoolean(JsonNode response, String field) throws IOException {
     JsonNode value = response.get(field);
     if (value == null || !value.isBoolean()) {
-      throw new IOException(COMPARE_PATH + " response is missing " + field);
+      throw new ServiceFailure(ServiceError.MALFORMED_RESPONSE);
     }
     return value.asBoolean();
   }
 
   private static double requiredNumber(JsonNode value, String field) throws IOException {
     if (value == null || !value.isNumber()) {
-      throw new IOException(COMPARE_PATH + " response is missing " + field);
+      throw new ServiceFailure(ServiceError.MALFORMED_RESPONSE);
     }
     return value.asDouble();
   }

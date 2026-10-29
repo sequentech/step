@@ -85,6 +85,7 @@ enum StepCommands {
     RevokeResultsPublication(commands::results_publication::RevokeResultsPublication),
     ExportTenantConfig(commands::export_tenant_config::ExportTenantConfig),
     ImportTenantConfig(commands::import_tenant_config::ImportTenantConfig),
+    ApplyConfigurationPackage(commands::apply_configuration_package::ApplyConfigurationPackage),
     ListTrustees(commands::get_trustees::ListTrustees),
     CreateTrustee(commands::create_trustee::CreateTrustee),
     DownloadDocument(commands::download_document::DownloadDocument),
@@ -174,6 +175,7 @@ fn main() {
             }
             StepCommands::ExportTenantConfig(export) => exit_on_error(export.run()),
             StepCommands::ImportTenantConfig(import) => exit_on_error(import.run()),
+            StepCommands::ApplyConfigurationPackage(apply) => exit_on_error(apply.run()),
             StepCommands::ListTrustees(list) => exit_on_error(list.run()),
             StepCommands::CreateTrustee(create) => exit_on_error(create.run()),
             StepCommands::DownloadDocument(download) => exit_on_error(download.run()),

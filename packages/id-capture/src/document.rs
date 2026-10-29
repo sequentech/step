@@ -47,8 +47,8 @@ const MIN_EDGE_COVERAGE: f32 = 0.6;
 /// larger than the guide.
 const OUTSIDE_MARGIN: f32 = 0.02;
 /// Card area over guide area below which the card is too far. The guide only shows where to hold
-/// the card: the whole frame is uploaded, and the OCR finds the card in it, so a card well inside
-/// the guide is fine.
+/// the card: the page uploads the card cropped from the still with a margin, and the OCR finds
+/// the card in it, so a card well inside the guide is fine.
 const MIN_FILL: f32 = 0.5;
 /// Card area over guide area above which the card is too close.
 const MAX_FILL: f32 = 1.3;

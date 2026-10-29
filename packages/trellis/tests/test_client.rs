@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+// SPDX-License-Identifier: AGPL-3.0-only
+
 //! Integration tests for the Trellis HTTP client
 //!
 //! Tests the Client API for interacting with the Trellis server, including

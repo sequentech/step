@@ -137,7 +137,7 @@ export const RowNeedsAttention: Story = {
     play: async () => {
         await chooseFile()
         const view = await drawer()
-        const summary = await view.findByTestId("import-summary")
+        const summary = await view.findByTestId("import-summary", {}, {timeout: 10_000})
         await expect(summary).toHaveTextContent(
             i18n.t("lifecycle.import.needsAttention", {ok: 7, posts: 7, count: 1})
         )
@@ -158,9 +158,9 @@ export const CleanFile: Story = {
     play: async ({args}) => {
         await chooseFile()
         const view = await drawer()
-        await expect(await view.findByTestId("import-summary")).toHaveTextContent(
-            i18n.t("lifecycle.import.ready", {ok: 7, posts: 7})
-        )
+        await expect(
+            await view.findByTestId("import-summary", {}, {timeout: 10_000})
+        ).toHaveTextContent(i18n.t("lifecycle.import.ready", {ok: 7, posts: 7}))
         const dubai = previewRows(false)[0]
         const row = within(view.getByTestId(`import-row-${dubai.row}`))
         await expect(

@@ -248,7 +248,7 @@ public class AttributeRules {
     try {
       return Optional.of(LocalDate.parse(value.trim(), formatter));
     } catch (DateTimeParseException e) {
-      log.warnv("parseDate: could not parse {0} with pattern {1}", value, pattern);
+      log.warn("parseDate: could not parse a date with the configured pattern");
       return Optional.empty();
     }
   }

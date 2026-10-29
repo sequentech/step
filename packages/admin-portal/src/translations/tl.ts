@@ -5,6 +5,7 @@ import englishTranslation, {TranslationType} from "./en"
 
 const tagalogTranslation: TranslationType = {
     translations: {
+        configurationPackage: englishTranslation.translations.configurationPackage,
         ballotPrivacy: englishTranslation.translations.ballotPrivacy,
         readiness: {
             close: "Isara",
@@ -957,6 +958,7 @@ const tagalogTranslation: TranslationType = {
                 EXPORT_APPLICATION: "I-export ang Mga Aplikasyon",
                 EXPORT_TENANT_CONFIG: "I-export ang Configurasyon ng Tenant",
                 IMPORT_TENANT_CONFIG: "I-import ang Configurasyon ng Tenant",
+                APPLY_CONFIGURATION_PACKAGE: "Ilapat ang Configuration Package",
                 RENDER_DOCUMENT_PDF: "I-render ang dokumento bilang PDF",
                 CREATE_TENANT: "Lumikha ng Tenant",
                 EXPORT_TEMPLATES: "I-export ang mga Template",

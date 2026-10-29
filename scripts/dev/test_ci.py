@@ -24,6 +24,10 @@ class PlanTests(unittest.TestCase):
     def plan(self, *paths):
         return matrices(self.model.select(from_files(ROOT, paths, ROOT)))
 
+    def test_sbom_changes_run_inventory_tests_in_python_matrix(self):
+        plan = self.plan("scripts/sbom/generate.py")
+        self.assertEqual([row["check"] for row in plan["python"]], ["python:scripts-sbom"])
+
     def test_unchanged_tree_skips_every_managed_job(self):
         plan = self.plan()
         self.assertFalse(any(plan["jobs"].values()))
