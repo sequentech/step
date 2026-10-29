@@ -8,6 +8,7 @@ const ESLintPlugin = require("eslint-webpack-plugin")
 const {ProgressPlugin} = require("webpack")
 const HtmlWebpackPlugin = require("html-webpack-plugin")
 const CopyWebpackPlugin = require("copy-webpack-plugin")
+const {SubresourceIntegrityPlugin} = require("webpack-subresource-integrity")
 
 class InterpolateHtmlPlugin {
     // Replaces %VARIABLE% with the corresponding variable from the replacements object
@@ -42,6 +43,8 @@ module.exports = function (env, argv) {
             path: path.resolve(__dirname, "dist"),
             publicPath: "/", // Set to empty string to ensure correct base path
             clean: true,
+            // Subresource integrity needs CORS loads of the lazy chunks too.
+            crossOriginLoading: "anonymous",
         },
         devtool: "source-map",
         module: {
@@ -115,6 +118,10 @@ module.exports = function (env, argv) {
                     },
                 ],
             }),
+            // Production builds give every script, lazy chunks included, an
+            // SHA-256 integrity attribute: the Vitrine extension lets a page run
+            // only scripts whose hashes a logged release of the portal lists.
+            new SubresourceIntegrityPlugin({hashFuncNames: ["sha256"], enabled: "auto"}),
             new ProgressPlugin(),
             new ESLintPlugin(),
         ],
