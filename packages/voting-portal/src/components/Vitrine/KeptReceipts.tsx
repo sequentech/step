@@ -205,30 +205,39 @@ const TierList: React.FC<{
                     }}
                 >
                     <Box
-                        className="vitrine-kept-tier-mark"
-                        component="span"
-                        aria-hidden="true"
-                        sx={{
-                            flex: "none",
-                            width: 16,
-                            height: 16,
-                            boxSizing: "border-box",
-                            borderRadius: "50%",
-                            bgcolor: row.done ? BOARD.green : "transparent",
-                            border: row.done ? "none" : `2px dashed ${BOARD.subtle}`,
-                            color: BOARD.white,
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                        }}
-                    >
-                        {row.done ? <Glyph glyph={EGlyph.CHECK} size={10} stroke={3.2} /> : null}
-                    </Box>
-                    <Box
                         className="vitrine-kept-tier-label"
                         component="dt"
-                        sx={{flex: 1, fontWeight: 600, color: style.title}}
+                        sx={{
+                            flex: 1,
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "10px",
+                            fontWeight: 600,
+                            color: style.title,
+                        }}
                     >
+                        <Box
+                            className="vitrine-kept-tier-mark"
+                            component="span"
+                            aria-hidden="true"
+                            sx={{
+                                flex: "none",
+                                width: 16,
+                                height: 16,
+                                boxSizing: "border-box",
+                                borderRadius: "50%",
+                                bgcolor: row.done ? BOARD.green : "transparent",
+                                border: row.done ? "none" : `2px dashed ${BOARD.subtle}`,
+                                color: BOARD.white,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                            }}
+                        >
+                            {row.done ? (
+                                <Glyph glyph={EGlyph.CHECK} size={10} stroke={3.2} />
+                            ) : null}
+                        </Box>
                         {row.label}
                     </Box>
                     <Box className="vitrine-kept-tier-value" component="dd" sx={{m: 0}}>
@@ -298,7 +307,6 @@ const KeptReceiptCard: React.FC<{
                     <Typography
                         className="vitrine-kept-title"
                         component="h2"
-                        role="status"
                         sx={{
                             m: 0,
                             fontSize: "16px",

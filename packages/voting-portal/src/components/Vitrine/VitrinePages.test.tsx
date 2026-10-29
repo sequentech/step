@@ -9,6 +9,7 @@
 
 import React from "react"
 import {fireEvent, render, screen, within} from "@testing-library/react"
+import axe from "axe-core"
 import type {ChainResult, TierName, TierResult, TierStatus} from "@vitrine/verify"
 import {EReceiptNotice, IReceiptView} from "../../services/vitrine/castReceipt"
 import {EReceiptKeeping} from "../../services/vitrine/storage"
@@ -404,5 +405,62 @@ describe("the receipts kept on this device", () => {
         expect(off.container.querySelector(".vitrine-kept-receipts")).toBeNull()
         expect(within(off.container).getByText("elections")).toBeTruthy()
         expect(screen.queryByText("vitrine.storedReceipts.howTitle")).toBeNull()
+    })
+})
+
+describe("the pages' accessibility", () => {
+    // Colour contrast needs a layout engine; the boards' colours are checked on the page.
+    const violations = async (container: HTMLElement): Promise<string[]> => {
+        const {violations} = await axe.run(container, {rules: {"color-contrast": {enabled: false}}})
+        return violations.map(
+            (v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`
+        )
+    }
+
+    it("has no violations while the ballot is cast, or once it is in the record", async () => {
+        answer(view({chain: "chain", result: PENDING}))
+        const cast = renderPage()
+        expect(await violations(cast.container)).toEqual([])
+        cast.unmount()
+
+        answer(view({chain: "chain", result: HOLDS}))
+        const recorded = renderPage()
+        expect(await violations(recorded.container)).toEqual([])
+    })
+
+    it("has no violations when the ballot can't be confirmed", async () => {
+        answer(view({chain: "chain", result: SPLIT}))
+        const failed = renderPage()
+        expect(await violations(failed.container)).toEqual([])
+        failed.unmount()
+
+        answer(view({notice: EReceiptNotice.MISSING}))
+        const missing = renderPage()
+        expect(await violations(missing.container)).toEqual([])
+    })
+
+    it("has no violations in the kept receipts, in any state", async () => {
+        for (const result of [HOLDS, PENDING, SPLIT, undefined]) {
+            mockKept.mockReturnValue({
+                receipts: [
+                    {
+                        kept: {electionId: "el"},
+                        view: result ? view({chain: "c", result}) : undefined,
+                    },
+                ],
+                forgetAll: jest.fn(),
+            })
+            const kept = render(
+                <KeptReceipts
+                    eventId="e"
+                    presentation={{transparency: "public"}}
+                    electionNames={{el: "Municipal"}}
+                >
+                    <div className="elections">elections</div>
+                </KeptReceipts>
+            )
+            expect(await violations(kept.container)).toEqual([])
+            kept.unmount()
+        }
     })
 })
