@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Transforming and Looking Up IdP Attributes | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-4097/docs/election_managers/tutorials/admin_portal_tutorials_idp_attribute_transform_lookup"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Transforming and Looking Up IdP Attributes | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-4097/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4097/docs/election_managers/tutorials/admin_portal_tutorials_idp_attribute_transform_lookup"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4097/docs/election_managers/tutorials/admin_portal_tutorials_idp_attribute_transform_lookup" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4097/docs/election_managers/tutorials/admin_portal_tutorials_idp_attribute_transform_lookup" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Transforming and Looking Up IdP Attributes","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-4097/docs/election_managers/tutorials/admin_portal_tutorials_idp_attribute_transform_lookup"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-4097/assets/css/styles.fc78c976.css">
-<script src="/docusaurus/pr-preview/pr-4097/assets/js/runtime~main.a7f46c9b.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-4097/assets/js/runtime~main.884eb095.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-4097/assets/js/main.8fdf8a29.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -74,8 +74,10 @@ When both bounds have the same number of digits, a key must have that many digit
 ranges, reversed ranges and lines in neither format make the configuration invalid. A login
 through an identity provider with an invalid mapper fails with a generic error, and the Keycloak
 log says which line is wrong.</p>
-<p>The table is parsed once and kept in memory until the mapper configuration changes. A login only
-does an in-memory lookup and makes no network calls.</p>
+<p>The table is parsed once and kept in memory until the mapper configuration changes. A login looks
+the value up in memory and makes no network calls. Keycloak still reads the mapper configuration,
+table included, from its database on every login, so keep large tables compact (see
+<a href="#loading-a-large-table-through-the-admin-rest-api" class="">Loading a large table</a>).</p>
 <hr>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="behavior-summary">Behavior Summary<a href="#behavior-summary" class="hash-link" aria-label="Direct link to Behavior Summary" title="Direct link to Behavior Summary" translate="no">​</a></h2>
 <table><thead><tr><th>On miss</th><th>New user</th><th>Returning user (<code>force</code> sync mode)</th></tr></thead><tbody><tr><td><code>UNSET</code></td><td>The target stays empty.</td><td>The attribute is removed.</td></tr><tr><td><code>DEFAULT</code></td><td>The default value is stored.</td><td>The default value is stored.</td></tr><tr><td><code>REJECT</code></td><td>The login stops and the voter sees the error message. No user is created.</td><td>The login stops and the voter sees the error message.</td></tr></tbody></table>
@@ -99,6 +101,11 @@ scopes that release those claims in the identity provider&#x27;s <strong>Scopes<
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="loading-a-large-table-through-the-admin-rest-api">Loading a Large Table through the Admin REST API<a href="#loading-a-large-table-through-the-admin-rest-api" class="hash-link" aria-label="Direct link to Loading a Large Table through the Admin REST API" title="Direct link to Loading a Large Table through the Admin REST API" translate="no">​</a></h2>
 <p>A table for a large election can have tens of thousands of lines, which is impractical to paste
 into the Admin Console. Load it with the Admin REST API instead.</p>
+<p>Prefer the <code>&lt;value&gt; = &lt;keys and ranges&gt;</code> format for large tables. Consecutive keys with the same
+value fit in one range, so the table stays small. For example, 70,000 precincts in 176 areas take
+about 3 MB as one <code>&lt;key&gt;,&lt;value&gt;</code> line per precinct, and about 40 KB grouped into ranges. Because
+Keycloak reads the whole configuration on every login, the one-line-per-key table made each
+login about 30 ms slower in testing, and the grouped table about 10 ms.</p>
 <ol>
 <li class="">
 <p>Get an admin access token:</p>
