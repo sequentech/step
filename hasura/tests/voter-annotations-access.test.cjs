@@ -4,7 +4,7 @@ const {test} = require("node:test")
 const assert = require("node:assert/strict")
 const {readFileSync} = require("node:fs")
 const {resolve} = require("node:path")
-const yaml = require("../../packages/node_modules/js-yaml")
+const yaml = require("js-yaml")
 
 const VOTER_ROLE = "user"
 
@@ -28,15 +28,18 @@ const voterSelectColumns = (table) => {
     return permission.permission.columns
 }
 
-for (const table of [
-    "sequent_backend_election_event",
-    "sequent_backend_election",
-    "sequent_backend_area",
+// On 9.0 sequent_backend_area has no presentation column.
+for (const [table, hasPresentation] of [
+    ["sequent_backend_election_event", true],
+    ["sequent_backend_election", true],
+    ["sequent_backend_area", false],
 ]) {
     test(`voter select on ${table} excludes annotations`, () => {
         const columns = voterSelectColumns(table)
         assert.ok(columns.includes("id"))
-        assert.ok(columns.includes("presentation"))
+        if (hasPresentation) {
+            assert.ok(columns.includes("presentation"))
+        }
         assert.ok(!columns.includes("annotations"))
     })
 }
