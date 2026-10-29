@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """Extract concrete image references only in syntactically appropriate files."""
 from pathlib import PurePosixPath
+import csv
 import re
 import subprocess
 
@@ -44,3 +45,11 @@ def evidence_review_status(status, profile):
     if status == 'Source evidence collected':
         return 'Source license evidence recorded'
     return status
+
+
+def write_platform_dependencies(path, records, repository):
+    """Include a header-only inventory when no provided dependencies remain."""
+    with path.open('w', newline='', encoding='utf-8') as stream:
+        writer = csv.DictWriter(stream, fieldnames=['repository', 'component', 'purl', 'reason', 'evidence'])
+        writer.writeheader()
+        writer.writerows(row for row in records if row['repository'] == repository)

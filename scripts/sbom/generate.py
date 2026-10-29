@@ -4,7 +4,7 @@
 """Apply user-confirmed delivery exclusions; keep full source evidence separately."""
 import os,importlib.util,json,re,hashlib,zipfile,collections
 from pathlib import Path
-from inventory_rules import evidence_review_status
+from inventory_rules import evidence_review_status, write_platform_dependencies
 OLD=Path(__file__).resolve().parent
 NEW=Path(os.environ['SBOM_OUTPUT_DIR'])
 OUT=NEW/'Submission-Working-Drafts';OUT.mkdir(parents=True,exist_ok=True)
@@ -90,7 +90,7 @@ def short_front(repo,rs,mods,refs,svc,stats):
 m.front=short_front
 # Keep raw repository scans and exclusions INTERNAL, not embedded in scoped handoff.
 def evidence(repo,dest,rs,mods):
- m.write_csv(dest/'Provided-Platform-Dependencies.csv',[r for r in platform if r['repository']==repo])
+ write_platform_dependencies(dest/'Provided-Platform-Dependencies.csv',platform,repo)
  ev=dest/'evidence';ev.mkdir(exist_ok=True)
  evidence={r['ID']:{k:r.get(k,'') for k in ('Evidence paths','Source / metadata URL','License evidence','Owner evidence')} for r in rs}
  (ev/'Component-Evidence.json').write_text(json.dumps(evidence,indent=2))

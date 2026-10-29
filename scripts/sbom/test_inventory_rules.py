@@ -38,4 +38,22 @@ class EvidenceRulesTest(unittest.TestCase):
             with patch('inventory_rules.subprocess.check_output', return_value=output):
                 self.assertIsNone(gitlink('/repo', 'beyond'))
 
+class PlatformInventoryTest(unittest.TestCase):
+    def test_repository_csv_exists_even_when_empty(self):
+        from inventory_rules import write_platform_dependencies
+        from tempfile import TemporaryDirectory
+        from pathlib import Path
+        import csv
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / 'platform.csv'
+            records = [dict(repository='step', component='api', purl='pkg:maven/api', reason='provided', evidence='pom.xml')]
+            write_platform_dependencies(path, records, 'beyond')
+            with path.open() as stream:
+                reader = csv.DictReader(stream)
+                self.assertIn('component', reader.fieldnames)
+                self.assertEqual(list(reader), [])
+            write_platform_dependencies(path, records, 'step')
+            with path.open() as stream:
+                self.assertEqual(list(csv.DictReader(stream)), records)
+
 if __name__ == '__main__': unittest.main()
