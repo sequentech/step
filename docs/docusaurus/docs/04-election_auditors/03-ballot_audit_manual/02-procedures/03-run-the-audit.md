@@ -37,6 +37,15 @@ console output shows each pin. The digest of `audit-output.log` protects the con
 The console output contains no voter IDs, no ballot contents and no Keycloak users. It contains
 the cast vote IDs and the receipts of the stored votes, so keep `audit-output.log` private.
 
+For a prepared client package, run this from its extracted directory instead of the raw-image setup and command below:
+
+```sh
+./run-audit.sh OUTPUT_DIRECTORY
+```
+
+The launcher already sets the tally ID, public-key hash, electoral-log system public key and environment slug.
+Replace `OUTPUT_DIRECTORY` with a new directory path; its parent must exist, but the directory itself must not exist.
+
 ## Before you start
 
 - You did [Prepare the Backups](02-restore.md).
