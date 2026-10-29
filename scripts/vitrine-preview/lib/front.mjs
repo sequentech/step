@@ -116,8 +116,9 @@ export function createFront({ settings, upstreamPort, dist, release, log }) {
       if (release && url.pathname.startsWith(WELL_KNOWN_RELEASE)) {
         if (url.pathname === `${WELL_KNOWN_RELEASE}${release.package}/${release.version}`) {
           const type = path.extname(release.file) === ".json" ? "application/json; charset=utf-8" : "application/octet-stream";
-          res.writeHead(200, headers({ "Content-Type": type, "Access-Control-Allow-Origin": "*", "Cache-Control": "no-store" }));
-          return res.end(req.method === "HEAD" ? undefined : fs.readFileSync(release.file));
+          const body = fs.readFileSync(release.file);
+          res.writeHead(200, headers({ "Content-Type": type, "Content-Length": body.length, "Access-Control-Allow-Origin": "*", "Cache-Control": "no-store" }));
+          return res.end(req.method === "HEAD" ? undefined : body);
         }
         return notFound(res);
       }
