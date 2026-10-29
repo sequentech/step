@@ -102,7 +102,9 @@ export function readStack(vitrineDir) {
 
   const boothDir = path.join(state, "booth");
   const booth = readToml(read(path.join(boothDir, "config.toml")));
-  const setup = JSON.parse(read(path.join(boothDir, booth.setup.state_file)));
+  // The booth writes its setup when it first starts; provision-events runs before that.
+  const setupFile = path.join(boothDir, booth.setup.state_file);
+  const setup = fs.existsSync(setupFile) ? JSON.parse(read(setupFile)) : { election: booth.election };
   const signer = noteSigner(read(path.join(boothDir, booth.setup.authority_key)));
   const authorities = (lines.get("authority") ?? []).map(([, vkey]) => vkey);
   if (!authorities.includes(signer.vkey)) {
