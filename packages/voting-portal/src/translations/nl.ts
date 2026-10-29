@@ -470,6 +470,7 @@ const dutchTranslation: TranslationType = {
         vitrine: {
             progress: "Stap {{current}} van {{total}} · {{step}}",
             confirmation: {
+                step: "Bevestiging",
                 cast: "Uw stem is uitgebracht",
                 recordedPublic: "Uw stembiljet staat in het openbare register",
                 recordedPrivate: "Uw stembiljet staat in het verkiezingsregister",

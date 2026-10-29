@@ -14,8 +14,10 @@ import {theme} from "@sequentech/ui-essentials"
 export const BOARD = {
     navy: theme.palette.brandColor,
     green: "#047857",
+    greenInk: "#064E3B",
+    greenBody: "#065F46",
     greenTint: "#ECFDF5",
-    greenLine: "#A7E3C6",
+    greenLine: "#A7E8C9",
     warning: "#C2410C",
     warningText: "#9A3412",
     warningTint: "#FFF7ED",

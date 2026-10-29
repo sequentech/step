@@ -470,6 +470,7 @@ const basqueTranslation: TranslationType = {
         vitrine: {
             progress: "{{current}}/{{total}}. urratsa · {{step}}",
             confirmation: {
+                step: "Berrespena",
                 cast: "Zure boto-txartela eman da",
                 recordedPublic: "Zure boto-txartela erregistro publikoan dago",
                 recordedPrivate: "Zure boto-txartela hauteskundearen erregistroan dago",

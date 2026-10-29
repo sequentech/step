@@ -325,6 +325,7 @@ describe("the receipt on the confirmation screen", () => {
         expect(container.querySelector(".vitrine-progress-label")?.textContent).toContain(
             "vitrine.progress"
         )
+        expect(container.querySelectorAll(".vitrine-progress-bar")).toHaveLength(4)
         await waitFor(() => expect(element.state).toBe("done"))
         const witnessed = element.result?.tiers.find((t) => t.tier === "witnesses")?.status
         const title = container.querySelector(".vitrine-confirmation-title")
@@ -373,13 +374,12 @@ describe("the receipt on the confirmation screen", () => {
         expect(type).toBe("application/vnd.vitrine.receipt-chain")
     })
 
-    it("has nothing to save before there is a receipt", async () => {
+    it("offers no receipt to save when none came", async () => {
         casting(entryOf("queued", "busy"))
         const {container} = renderScreen()
         await missingFailure(container)
-        expect(container.querySelector<HTMLButtonElement>(".save-receipt-button")?.disabled).toBe(
-            true
-        )
+        expect(container.querySelector(".save-receipt-button")).toBeNull()
+        expect(container.querySelector(".finish-button")).not.toBeNull()
     })
 
     it("keeps nothing on a kiosk", async () => {

@@ -468,6 +468,7 @@ const tagalogTranslation: TranslationType = {
         vitrine: {
             progress: "Hakbang {{current}} sa {{total}} · {{step}}",
             confirmation: {
+                step: "Kumpirmasyon",
                 cast: "Naisumite na ang iyong balota",
                 recordedPublic: "Nasa pampublikong talaan ang iyong balota",
                 recordedPrivate: "Nasa talaan ng halalan ang iyong balota",

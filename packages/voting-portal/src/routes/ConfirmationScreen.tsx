@@ -347,21 +347,25 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
                         className="vitrine-actions-main"
                         sx={{
                             display: "grid",
-                            gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                            gridTemplateColumns: receipt?.save
+                                ? "repeat(2, minmax(0, 1fr))"
+                                : "minmax(0, 1fr)",
                             gap: "10px",
                         }}
                     >
-                        <StyledButton
-                            className="save-receipt-button"
-                            variant="secondary"
-                            onClick={receipt?.onSave}
-                            disabled={!receipt?.onSave}
-                            sx={{minHeight: "48px", fontWeight: 600, width: "100%"}}
-                        >
-                            <Box className="save-receipt-label">
-                                {t("vitrine.confirmation.save")}
-                            </Box>
-                        </StyledButton>
+                        {receipt?.save ? (
+                            <StyledButton
+                                className="save-receipt-button"
+                                variant="secondary"
+                                onClick={receipt.save.onClick}
+                                disabled={!receipt.save.onClick}
+                                sx={{minHeight: "48px", fontWeight: 600, width: "100%"}}
+                            >
+                                <Box className="save-receipt-label">
+                                    {t("vitrine.confirmation.save")}
+                                </Box>
+                            </StyledButton>
+                        ) : null}
                         <StyledButton
                             className="finish-button"
                             onClick={onClickFinishButton}
@@ -771,7 +775,9 @@ const ConfirmationScreen: React.FC = () => {
                     electionId={electionId}
                     ballotId={ballotId.current}
                     vitrine={vitrine}
-                    progress={<VitrineProgress selected={3} />}
+                    progress={
+                        <VitrineProgress selected={3} label={t("vitrine.confirmation.step")} />
+                    }
                     help={confirmationHelp}
                     details={
                         <Box className="vitrine-ballot-details" component="details">

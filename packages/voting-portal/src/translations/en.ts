@@ -462,6 +462,7 @@ const englishTranslation = {
         vitrine: {
             progress: "Step {{current}} of {{total}} · {{step}}",
             confirmation: {
+                step: "Confirmation",
                 cast: "Your ballot has been cast",
                 recordedPublic: "Your ballot is in the public record",
                 recordedPrivate: "Your ballot is in the election record",

@@ -472,6 +472,7 @@ const catalanTranslation: TranslationType = {
         vitrine: {
             progress: "Pas {{current}} de {{total}} · {{step}}",
             confirmation: {
+                step: "Confirmació",
                 cast: "La vostra papereta s'ha emès",
                 recordedPublic: "La vostra papereta és al registre públic",
                 recordedPrivate: "La vostra papereta és al registre de l'elecció",

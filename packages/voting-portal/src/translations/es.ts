@@ -471,6 +471,7 @@ const spanishTranslation: TranslationType = {
         vitrine: {
             progress: "Paso {{current}} de {{total}} · {{step}}",
             confirmation: {
+                step: "Confirmación",
                 cast: "Su papeleta se ha emitido",
                 recordedPublic: "Su papeleta está en el registro público",
                 recordedPrivate: "Su papeleta está en el registro de la elección",

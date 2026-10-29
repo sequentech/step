@@ -468,6 +468,7 @@ const frenchTranslation: TranslationType = {
         vitrine: {
             progress: "Étape {{current}} sur {{total}} · {{step}}",
             confirmation: {
+                step: "Confirmation",
                 cast: "Votre bulletin a été émis",
                 recordedPublic: "Votre bulletin est dans le registre public",
                 recordedPrivate: "Votre bulletin est dans le registre de l'élection",

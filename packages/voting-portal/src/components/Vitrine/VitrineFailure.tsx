@@ -31,6 +31,18 @@ export const FailureEvidence: React.FC<{failure: IFailure; lang: Language}> = ({
     const {t} = useTranslation()
     const words = useMemo(() => wordsFor(lang), [lang])
     const items = failure.problems.length + (failure.entry ? 1 : 0)
+    const told = new Set<string>()
+    const reasonsOf = (problem: IFailure["problems"][number]): string[] =>
+        problem.reasons.flatMap((reason) => {
+            const text = `${words.reason(reason)}${
+                reason.objects && reason.objects.length > 0
+                    ? ` ${words.t("steps-objects", {objects: reason.objects.join(", ")})}`
+                    : ""
+            }`
+            if (told.has(text)) return []
+            told.add(text)
+            return [text]
+        })
 
     return (
         <Box
@@ -53,14 +65,14 @@ export const FailureEvidence: React.FC<{failure: IFailure; lang: Language}> = ({
                 <Typography
                     className="vitrine-failure-evidence-title"
                     component="h2"
-                    sx={{fontSize: "13px", fontWeight: 700, color: BOARD.text}}
+                    sx={{margin: 0, fontSize: "13px", fontWeight: 700, color: BOARD.text}}
                 >
                     {t("vitrine.failure.evidenceTitle")}
                 </Typography>
                 <Typography
                     className="vitrine-failure-evidence-count"
                     component="span"
-                    sx={{fontSize: "12px", color: BOARD.muted}}
+                    sx={{margin: 0, fontSize: "12px", color: BOARD.muted}}
                 >
                     {t("vitrine.failure.evidenceCount", {count: items})}
                 </Typography>
@@ -75,11 +87,20 @@ export const FailureEvidence: React.FC<{failure: IFailure; lang: Language}> = ({
                         >
                             <Glyph glyph={EGlyph.DOCUMENT} size={18} />
                         </Box>
-                        <Box className="vitrine-failure-row-text" sx={{minWidth: 0}}>
+                        <Box
+                            className="vitrine-failure-row-text"
+                            sx={{minWidth: 0, display: "flex", flexDirection: "column", gap: "2px"}}
+                        >
                             <Typography
                                 className="vitrine-failure-row-title"
                                 component="div"
-                                sx={{fontSize: "13px", fontWeight: 600, color: BOARD.text}}
+                                sx={{
+                                    margin: 0,
+                                    fontSize: "13px",
+                                    lineHeight: 1.35,
+                                    fontWeight: 600,
+                                    color: BOARD.text,
+                                }}
                             >
                                 {failure.entry.index !== undefined
                                     ? t("vitrine.failure.receiptEntry", {
@@ -90,7 +111,12 @@ export const FailureEvidence: React.FC<{failure: IFailure; lang: Language}> = ({
                             <Typography
                                 className="vitrine-failure-row-sub"
                                 component="div"
-                                sx={{fontSize: "12px", color: BOARD.muted}}
+                                sx={{
+                                    margin: 0,
+                                    fontSize: "12px",
+                                    lineHeight: 1.35,
+                                    color: BOARD.muted,
+                                }}
                             >
                                 {t("vitrine.failure.receiptSigned")}
                             </Typography>
@@ -112,25 +138,36 @@ export const FailureEvidence: React.FC<{failure: IFailure; lang: Language}> = ({
                         >
                             <Glyph glyph={EGlyph.CONTRADICTION} size={18} />
                         </Box>
-                        <Box className="vitrine-failure-row-text" sx={{minWidth: 0}}>
+                        <Box
+                            className="vitrine-failure-row-text"
+                            sx={{minWidth: 0, display: "flex", flexDirection: "column", gap: "2px"}}
+                        >
                             <Typography
                                 className="vitrine-failure-row-title"
                                 component="div"
-                                sx={{fontSize: "13px", fontWeight: 600, color: BOARD.text}}
+                                sx={{
+                                    margin: 0,
+                                    fontSize: "13px",
+                                    lineHeight: 1.35,
+                                    fontWeight: 600,
+                                    color: BOARD.text,
+                                }}
                             >
                                 {words.t(`tier-${problem.tier}-failed`)}
                             </Typography>
-                            {problem.reasons.map((reason, i) => (
+                            {reasonsOf(problem).map((text) => (
                                 <Typography
                                     className="vitrine-failure-row-reason"
                                     component="div"
-                                    key={`${reason.code}-${i}`}
-                                    sx={{fontSize: "12px", color: BOARD.warningText}}
+                                    key={text}
+                                    sx={{
+                                        margin: 0,
+                                        fontSize: "12px",
+                                        lineHeight: 1.35,
+                                        color: BOARD.warningText,
+                                    }}
                                 >
-                                    {words.reason(reason)}
-                                    {reason.objects && reason.objects.length > 0
-                                        ? ` ${words.t("steps-objects", {objects: reason.objects.join(", ")})}`
-                                        : ""}
+                                    {text}
                                 </Typography>
                             ))}
                         </Box>

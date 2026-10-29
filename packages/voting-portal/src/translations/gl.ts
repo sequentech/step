@@ -470,6 +470,7 @@ const galegoTranslation: TranslationType = {
         vitrine: {
             progress: "Paso {{current}} de {{total}} · {{step}}",
             confirmation: {
+                step: "Confirmación",
                 cast: "A súa papeleta emitiuse",
                 recordedPublic: "A súa papeleta está no rexistro público",
                 recordedPrivate: "A súa papeleta está no rexistro da elección",

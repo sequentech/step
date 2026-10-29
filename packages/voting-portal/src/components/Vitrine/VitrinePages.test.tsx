@@ -135,7 +135,11 @@ const renderPage = (vitrine: IConfirmationVitrine = publicEvent) =>
             vitrine={vitrine}
             progress={<div className="progress" />}
             renderActions={(receipt) => (
-                <button className="actions" disabled={!receipt.onSave}>
+                <button
+                    className="actions"
+                    data-save={receipt.save ? "shown" : "hidden"}
+                    disabled={!receipt.save?.onClick}
+                >
                     actions
                 </button>
             )}
@@ -233,6 +237,30 @@ describe("the page when the ballot can't be confirmed", () => {
             "vitrine.failure.titlePrivate"
         )
         expect(container.querySelector(".actions")).not.toBeNull()
+    })
+
+    it("offers the receipt file on the page itself, not twice, and shows no steps", () => {
+        answer(view({chain: "chain", result: SPLIT}))
+        const {container} = renderPage()
+        expect(container.querySelector(".actions")?.getAttribute("data-save")).toBe("hidden")
+        expect(container.querySelector(".vitrine-failure-save-button")).not.toBeNull()
+        expect(container.querySelector(".progress")).toBeNull()
+    })
+
+    it("tells each reason once, whichever tiers share it", () => {
+        const reason = {code: "split-view", objects: ["issued", "record"]}
+        answer(
+            view({
+                chain: "chain",
+                result: resultOf("failed", [
+                    tier("record", "failed", {reasons: [reason]}),
+                    tier("witnesses", "failed", {reasons: [reason]}),
+                ]),
+            })
+        )
+        const {container} = renderPage()
+        expect(container.querySelectorAll(".vitrine-failure-problem")).toHaveLength(2)
+        expect(container.querySelectorAll(".vitrine-failure-row-reason")).toHaveLength(1)
     })
 
     it("shows no evidence when no receipt came, and says so", () => {

@@ -28,21 +28,40 @@ const SECTION_WIDTH = "720px"
 interface IPhaseStyle {
     border: string
     background: string
+    /** The rules inside the card. */
+    line: string
     title: string
+    text: string
 }
 
 const PHASE_STYLE: Record<ERevisitPhase, IPhaseStyle> = {
     [ERevisitPhase.HOLDS]: {
         border: BOARD.greenLine,
         background: BOARD.greenTint,
-        title: BOARD.green,
+        line: BOARD.greenLine,
+        title: BOARD.greenInk,
+        text: BOARD.greenBody,
     },
-    [ERevisitPhase.WAITING]: {border: BOARD.border, background: BOARD.tint, title: BOARD.navy},
-    [ERevisitPhase.UNCHECKED]: {border: BOARD.border, background: BOARD.tint, title: BOARD.navy},
+    [ERevisitPhase.WAITING]: {
+        border: BOARD.border,
+        background: BOARD.tint,
+        line: BOARD.border,
+        title: BOARD.navy,
+        text: BOARD.body,
+    },
+    [ERevisitPhase.UNCHECKED]: {
+        border: BOARD.border,
+        background: BOARD.tint,
+        line: BOARD.border,
+        title: BOARD.navy,
+        text: BOARD.body,
+    },
     [ERevisitPhase.PROBLEM]: {
         border: BOARD.warning,
         background: BOARD.warningTint,
+        line: "#FDBA74",
         title: BOARD.warningText,
+        text: BOARD.body,
     },
 }
 
@@ -69,8 +88,8 @@ const PhaseSeal: React.FC<{phase: ERevisitPhase}> = ({phase}) => {
                         width: 27,
                         height: 27,
                         borderRadius: "50%",
-                        border: `2.5px solid ${BOARD.navy}`,
-                        color: BOARD.navy,
+                        border: `2.5px solid ${BOARD.greenInk}`,
+                        color: BOARD.greenInk,
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
@@ -112,11 +131,12 @@ interface ITierRow {
     done: boolean
 }
 
-const TierList: React.FC<{summary: IRevisitSummary; mode: ETransparencyMode; lang: Language}> = ({
-    summary,
-    mode,
-    lang,
-}) => {
+const TierList: React.FC<{
+    summary: IRevisitSummary
+    mode: ETransparencyMode
+    lang: Language
+    style: IPhaseStyle
+}> = ({summary, mode, lang, style}) => {
     const {t} = useTranslation()
     const words = useMemo(() => wordsFor(lang), [lang])
     const status = (s: TierStatus) => words.t(`tier-status-${s}`)
@@ -163,12 +183,11 @@ const TierList: React.FC<{summary: IRevisitSummary; mode: ETransparencyMode; lan
             component="dl"
             sx={{
                 m: 0,
-                padding: "12px 0",
-                borderTop: `1px solid ${BOARD.greenLine}`,
-                borderBottom: `1px solid ${BOARD.greenLine}`,
+                padding: "10px 0 0",
+                borderTop: `1px solid ${style.line}`,
                 display: "flex",
                 flexDirection: "column",
-                gap: "10px",
+                gap: "8px",
             }}
         >
             {rows.map((row) => (
@@ -176,7 +195,14 @@ const TierList: React.FC<{summary: IRevisitSummary; mode: ETransparencyMode; lan
                     className="vitrine-kept-tier"
                     key={row.tier}
                     data-tier={row.tier}
-                    sx={{display: "flex", alignItems: "center", gap: "10px", fontSize: "13.5px"}}
+                    sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "10px",
+                        fontSize: "13px",
+                        lineHeight: 1.35,
+                        color: style.text,
+                    }}
                 >
                     <Box
                         className="vitrine-kept-tier-mark"
@@ -184,31 +210,28 @@ const TierList: React.FC<{summary: IRevisitSummary; mode: ETransparencyMode; lan
                         aria-hidden="true"
                         sx={{
                             flex: "none",
-                            width: 18,
-                            height: 18,
+                            width: 16,
+                            height: 16,
+                            boxSizing: "border-box",
                             borderRadius: "50%",
-                            bgcolor: row.done ? BOARD.green : BOARD.white,
-                            border: `2px ${row.done ? "solid" : "dashed"} ${row.done ? BOARD.green : BOARD.subtle}`,
+                            bgcolor: row.done ? BOARD.green : "transparent",
+                            border: row.done ? "none" : `2px dashed ${BOARD.subtle}`,
                             color: BOARD.white,
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
                         }}
                     >
-                        {row.done ? <Glyph glyph={EGlyph.CHECK} size={10} stroke={3.4} /> : null}
+                        {row.done ? <Glyph glyph={EGlyph.CHECK} size={10} stroke={3.2} /> : null}
                     </Box>
                     <Box
                         className="vitrine-kept-tier-label"
                         component="dt"
-                        sx={{fontWeight: 700, color: BOARD.green}}
+                        sx={{flex: 1, fontWeight: 600, color: style.title}}
                     >
                         {row.label}
                     </Box>
-                    <Box
-                        className="vitrine-kept-tier-value"
-                        component="dd"
-                        sx={{m: 0, marginLeft: "auto", color: BOARD.green}}
-                    >
+                    <Box className="vitrine-kept-tier-value" component="dd" sx={{m: 0}}>
                         {row.value}
                     </Box>
                 </Box>
@@ -251,7 +274,7 @@ const KeptReceiptCard: React.FC<{
             sx={{
                 border: `1px solid ${style.border}`,
                 bgcolor: style.background,
-                padding: "18px 18px 14px",
+                padding: "16px",
                 display: "flex",
                 flexDirection: "column",
                 gap: "12px",
@@ -261,7 +284,7 @@ const KeptReceiptCard: React.FC<{
                 <Typography
                     className="vitrine-kept-receipt-election"
                     component="div"
-                    sx={{fontSize: "12px", fontWeight: 600, color: BOARD.muted}}
+                    sx={{margin: 0, fontSize: "12px", fontWeight: 600, color: BOARD.muted}}
                 >
                     {name}
                 </Typography>
@@ -278,7 +301,7 @@ const KeptReceiptCard: React.FC<{
                         role="status"
                         sx={{
                             m: 0,
-                            fontSize: "18px",
+                            fontSize: "16px",
                             lineHeight: 1.3,
                             fontWeight: 700,
                             color: style.title,
@@ -289,13 +312,13 @@ const KeptReceiptCard: React.FC<{
                     <Typography
                         className="vitrine-kept-help"
                         component="p"
-                        sx={{...quietTextSx, margin: 0, color: BOARD.body}}
+                        sx={{margin: 0, fontSize: "13px", lineHeight: 1.45, color: style.text}}
                     >
                         {help}
                     </Typography>
                 </Box>
             </Box>
-            <TierList summary={summary} mode={mode} lang={lang} />
+            <TierList summary={summary} mode={mode} lang={lang} style={style} />
             <Box
                 className="vitrine-kept-foot"
                 sx={{
@@ -304,13 +327,15 @@ const KeptReceiptCard: React.FC<{
                     alignItems: "center",
                     justifyContent: "space-between",
                     gap: "0 12px",
+                    paddingTop: "10px",
+                    borderTop: `1px solid ${style.line}`,
                 }}
             >
                 <Typography
                     className="vitrine-kept-words"
                     component="span"
                     lang={view?.result?.wordsLang}
-                    sx={{fontSize: "13.5px", fontWeight: 700, color: BOARD.green}}
+                    sx={{margin: 0, fontSize: "13px", fontWeight: 600, color: style.title}}
                 >
                     {words.join(" · ")}
                 </Typography>
@@ -322,9 +347,9 @@ const KeptReceiptCard: React.FC<{
                     sx={{
                         ...focusSx,
                         minHeight: "44px",
-                        fontSize: "13.5px",
-                        fontWeight: 700,
-                        color: BOARD.navy,
+                        fontSize: "13px",
+                        fontWeight: 600,
+                        color: style.title,
                         textDecoration: "underline",
                     }}
                 >
@@ -430,7 +455,7 @@ const HowWeCheck: React.FC<{mode: ETransparencyMode}> = ({mode}) => {
                         <Typography
                             className="vitrine-how-text"
                             component="span"
-                            sx={{...quietTextSx, color: BOARD.body}}
+                            sx={{margin: 0, ...quietTextSx, color: BOARD.body}}
                         >
                             {t(`vitrine.storedReceipts.${item.key}`)}
                         </Typography>

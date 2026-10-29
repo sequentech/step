@@ -167,10 +167,10 @@ const CheckElsewhere: React.FC<{reference?: string}> = ({reference}) => {
     )
 }
 
-/** What the page offers beside the receipt: saving it as a file, once there
- * is one. */
+/** What the page offers beside the receipt. */
 export interface IReceiptActions {
-    onSave?: () => void
+    /** Saving the receipt as a file: shown, and enabled once there is one. */
+    save?: {onClick?: () => void}
 }
 
 export interface ICastReceiptProps {
@@ -249,7 +249,7 @@ export const CastReceipt: React.FC<ICastReceiptProps> = ({
 
     return (
         <VitrineBrand className="vitrine-confirmation" data-phase={phase}>
-            {progress}
+            {phase === EConfirmationPhase.FAILED ? null : progress}
             {phase === EConfirmationPhase.FAILED ? (
                 <VitrineFailure
                     notice={notice}
@@ -312,7 +312,9 @@ export const CastReceipt: React.FC<ICastReceiptProps> = ({
                 </>
             )}
             <Box className="vitrine-confirmation-actions" sx={{marginTop: "10px"}}>
-                {renderActions({onSave})}
+                {renderActions(
+                    phase === EConfirmationPhase.FAILED ? {} : {save: {onClick: onSave}}
+                )}
             </Box>
             {isKiosk() ? null : (
                 <Box
