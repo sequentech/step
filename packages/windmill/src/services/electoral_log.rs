@@ -2181,6 +2181,17 @@ mod page_limit_tests {
     }
 
     #[test]
+    fn page_limit_rejects_a_non_positive_low_sql_limit() {
+        for low_sql_limit in [0, -1] {
+            let pg_config = PgConfig {
+                low_sql_limit,
+                ..PgConfig::default()
+            };
+            assert!(body_with_limit(Some(25)).page_limit(&pg_config).is_err());
+        }
+    }
+
+    #[test]
     fn page_limit_rejects_zero_and_negative_values() {
         for limit in [0, -1, i64::MIN] {
             assert!(body_with_limit(Some(limit))
