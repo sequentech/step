@@ -851,6 +851,7 @@ const dutchTranslation: TranslationType = {
                 reports: "Rapporten",
                 approvals: "Goedkeuringen",
                 cas: "Certificaten",
+                transparency: "Transparantie",
             },
             tally: {
                 emptyHeader: "Nog geen telling.",

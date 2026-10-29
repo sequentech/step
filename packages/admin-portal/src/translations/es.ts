@@ -854,6 +854,7 @@ const spanishTranslation: TranslationType = {
                 reports: "Informe",
                 approvals: "Aprobaciones",
                 cas: "Certificados",
+                transparency: "Transparencia",
             },
             tally: {
                 emptyHeader: "Ningún Recuento aún.",

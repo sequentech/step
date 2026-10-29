@@ -845,6 +845,7 @@ const basqueTranslation: TranslationType = {
                 reports: "Txostenak",
                 approvals: "Onespenak",
                 cas: "Ziurtagiriak",
+                transparency: "Gardentasuna",
             },
             tally: {
                 emptyHeader: "Ez dago Zenbaketarik oraindik.",

@@ -840,6 +840,7 @@ const englishTranslation = {
                 reports: "Reports",
                 approvals: "Approvals",
                 cas: "Certificates",
+                transparency: "Transparency",
             },
             tally: {
                 emptyHeader: "No Tally yet.",

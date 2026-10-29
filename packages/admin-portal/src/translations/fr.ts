@@ -855,6 +855,7 @@ const frenchTranslation: TranslationType = {
                 reports: "Rapport",
                 approvals: "Approbations",
                 cas: "Certificats",
+                transparency: "Transparence",
             },
             tally: {
                 emptyHeader: "Aucun Comptage pour l'instant.",

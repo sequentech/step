@@ -851,6 +851,7 @@ const galegoTranslation: TranslationType = {
                 reports: "Informes",
                 approvals: "Aprobacións",
                 cas: "Certificados",
+                transparency: "Transparencia",
             },
             tally: {
                 emptyHeader: "Aínda non hai Escrutinio.",

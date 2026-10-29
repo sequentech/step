@@ -853,6 +853,7 @@ const tagalogTranslation: TranslationType = {
                 reports: "Ulat",
                 approvals: "Mga pag-apruba",
                 cas: "Mga Sertipiko",
+                transparency: "Transparency",
             },
             tally: {
                 emptyHeader: "Walang pang Tally.",

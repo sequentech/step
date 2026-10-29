@@ -855,6 +855,7 @@ const catalanTranslation: TranslationType = {
                 reports: "Informe",
                 approvals: "Aprovacions",
                 cas: "Certificats",
+                transparency: "Transparència",
             },
             tally: {
                 emptyHeader: "Encara no hi ha Recompte.",
