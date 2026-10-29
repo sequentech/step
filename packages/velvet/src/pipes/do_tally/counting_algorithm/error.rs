@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::pipes::do_tally::CountOverflow;
+
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 #[derive(Debug)]
@@ -10,6 +12,13 @@ pub enum Error {
     InvalidTallyOperation(String),
     CandidateNotFound(String),
     UnexpectedError(String),
+    CountOverflow(CountOverflow),
+}
+
+impl From<CountOverflow> for Error {
+    fn from(error: CountOverflow) -> Self {
+        Error::CountOverflow(error)
+    }
 }
 
 impl core::fmt::Display for Error {

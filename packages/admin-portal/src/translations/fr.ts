@@ -469,6 +469,7 @@ const frenchTranslation: TranslationType = {
                 customUrls: "Préfixer les URL personnalisées",
                 votingPeriod: "Période de vote",
                 language: "Langues",
+                languageAndRegion: "Langue et région",
                 allowed: "Canaux de Vote Permis",
                 materials: "Matériaux de Support",
                 ballotDesign: "Design du Bulletin",
@@ -705,6 +706,12 @@ const frenchTranslation: TranslationType = {
                         "browser-detect": "Détection par le navigateur",
                         "force-default": "Forcer par défaut",
                     },
+                },
+                numberFormatPolicy: {
+                    policyLabel: "Politique de format des nombres",
+                    helperText:
+                        "S'applique aux nombres des résultats, des tableaux de bord et des rapports.",
+                    unknownPolicy: "Format inconnu '{{policy}}', affiché comme {{sample}}",
                 },
             },
             error: {
@@ -2179,6 +2186,8 @@ const frenchTranslation: TranslationType = {
             },
         },
         tally: {
+            numericResultsReportsPending:
+                "Les résultats numériques sont complets. Les rapports sont encore en cours de génération.",
             errorUploadingSignature:
                 "Une erreur s'est produite lors du téléchargement de la signature",
             downloadTransmissionPackage: "Télécharger le paquet",
