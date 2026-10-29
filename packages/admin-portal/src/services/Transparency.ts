@@ -150,13 +150,16 @@ export const sameDraft = (a: Policy, b: Policy): boolean =>
 export const draftFileName = (electionEventId: string): string =>
     `vitrine-policy-draft-${electionEventId}.txt`
 
+export const signedPolicyFileName = (electionEventId: string): string =>
+    `vitrine-policy-${electionEventId}-signed.txt`
+
 /** The Board's commands for the draft (Vitrine's docs/operations.md, section
  * 10.2): check it, compare its words with the tab's, seal and sign it, and
  * have any other authority the `sign` line needs sign it too. */
 export const boardCommands = (electionEventId: string): string[] => {
     const draft = draftFileName(electionEventId)
     const sealed = `vitrine-policy-${electionEventId}.txt`
-    const signed = `vitrine-policy-${electionEventId}-signed.txt`
+    const signed = signedPolicyFileName(electionEventId)
     return [
         `vitrine policy check ${draft}`,
         `vitrine policy words ${draft}`,
@@ -218,7 +221,9 @@ export interface IWitnessView {
 
 export interface IHubAnchor {
     size?: number
+    /** The anchor's index in the hub. */
     index?: number
+    /** When the hub received it, in POSIX seconds. */
     time?: number
 }
 
@@ -290,7 +295,7 @@ const readAnchor = (value: unknown): IHubAnchor | undefined => {
     const anchor: IHubAnchor = {}
     const size = asNumber(o?.size)
     if (size !== undefined) anchor.size = size
-    const index = asNumber(o?.index)
+    const index = asNumber(o?.entry_index)
     if (index !== undefined) anchor.index = index
     const at = asNumber(o?.time)
     if (at !== undefined) anchor.time = at
