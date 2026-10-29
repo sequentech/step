@@ -1,6 +1,7 @@
 ---
 id: election_management_election_event_reports
 title: Reports
+description: "The Reports tab allows for the configuration, generation, and scheduling of reports using predefined Templates (see the Templates section for details)."
 ---
 
 <!--
