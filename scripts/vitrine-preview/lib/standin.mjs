@@ -246,6 +246,11 @@ export function createStandIn({ live, sidecar, origin, stepPackages, electionId,
           return transparency();
         case "list_cast_vote_messages":
           return { list: [], total: 0 };
+        case "getElectionEventStats":
+          return { total_areas: 1, total_distinct_voters: new Set([...casts.values()].map((c) => c.voter_id_string)).size, total_elections: 1, total_eligible_voters: 1, voters_by_channel: [], votes_per_day: [] };
+        case "list_keys_ceremony":
+        case "get_top_votes_by_ip":
+          return { items: [], total: { aggregate: { count: 0 } } };
         default:
           return db.root(kind, field, args);
       }

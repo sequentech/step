@@ -33,11 +33,13 @@ export const leafHash = (entry) => sha256(Buffer.of(0), entry);
 
 /** A note signer from a `PRIVATE+KEY+<name>+<id>+<base64>` key file. */
 export function noteSigner(keyText) {
+  // The base64 may itself hold `+`: only the first four are separators.
   const parts = keyText.trim().split("+");
-  if (parts.length !== 5 || parts[0] !== "PRIVATE" || parts[1] !== "KEY") {
+  if (parts.length < 5 || parts[0] !== "PRIVATE" || parts[1] !== "KEY") {
     throw new Error("not a note signing key");
   }
-  const [, , name, idHex, data] = parts;
+  const [, , name, idHex] = parts;
+  const data = parts.slice(4).join("+");
   const raw = Buffer.from(data, "base64");
   if (raw.length !== 33 || raw[0] !== SIG_ED25519) throw new Error("not an Ed25519 note key");
   const privateKey = crypto.createPrivateKey({

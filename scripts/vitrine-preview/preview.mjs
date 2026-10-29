@@ -243,7 +243,7 @@ async function serve() {
   const live = readStack(c.vitrine);
   const sidecar = new Sidecar(live, c.socket);
   const release = releaseOf(c);
-  const tamper = createTamper({ live, sidecar, release, electionId: c.election, runtime: c.runtime, log });
+  const tamper = createTamper({ live, log });
   const standin = createStandIn({
     live, sidecar, origin: ORIGINS.standin, stepPackages: c.packages, electionId: c.election, version: release.version,
     voterOrigin: ORIGINS.voting, adminOrigin: ORIGINS.admin, tamper, log,
