@@ -926,6 +926,7 @@ export const EditElectionEventTransparency: React.FC<IEditElectionEventTranspare
                 "gap": "22px",
                 "& .MuiTypography-root, & .MuiButton-root, & .MuiTableCell-root, & .MuiInputBase-root, & .MuiFormLabel-root, & .MuiAlert-root":
                     {fontFamily: "inherit"},
+                "& .MuiTypography-root": {margin: 0},
                 "& .MuiAlert-root, & .MuiOutlinedInput-root": {borderRadius: 0},
                 "& .MuiAlert-standardError, & .MuiAlert-standardWarning": {
                     "bgcolor": "#FFF7ED",

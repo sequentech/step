@@ -63,12 +63,19 @@ const buttonBase = {
     "&.Mui-disabled": {bgcolor: BOARD.border, color: BOARD.subtle, borderColor: BOARD.border},
 } as const
 
+// The admin theme fills every button with its brand colour, and flips the
+// colours of a button that is focused or pressed: each state says its own.
 export const filledButton: SxProps<Theme> = {
     ...buttonBase,
     "bgcolor": BOARD.navy,
     "color": BOARD.white,
     "border": `1px solid ${BOARD.navy}`,
-    "&:hover": {bgcolor: BOARD.navy, color: BOARD.white},
+    "&:hover, &:focus": {
+        bgcolor: BOARD.navy,
+        color: BOARD.white,
+        border: `1px solid ${BOARD.navy}`,
+    },
+    "&:active": {bgcolor: `${BOARD.navy} !important`, color: `${BOARD.white} !important`},
 }
 
 export const outlinedButton: SxProps<Theme> = {
@@ -76,7 +83,12 @@ export const outlinedButton: SxProps<Theme> = {
     "bgcolor": BOARD.white,
     "color": BOARD.navy,
     "border": `1px solid ${BOARD.navy}`,
-    "&:hover": {bgcolor: BOARD.white, color: BOARD.navy},
+    "&:hover, &:focus": {
+        bgcolor: BOARD.white,
+        color: BOARD.navy,
+        border: `1px solid ${BOARD.navy}`,
+    },
+    "&:active": {bgcolor: `${BOARD.white} !important`, color: `${BOARD.navy} !important`},
 }
 
 /** An inline action beside a value, such as "Copy". */
@@ -84,12 +96,22 @@ export const textButton: SxProps<Theme> = {
     "minHeight": "44px",
     "px": 1.5,
     "borderRadius": 0,
+    "border": "1px solid transparent",
     "fontFamily": "inherit",
     "fontSize": "13.5px",
     "fontWeight": 600,
     "textTransform": "none",
+    "bgcolor": "transparent",
     "color": BOARD.navy,
-    "&:hover": {bgcolor: "transparent", textDecoration: "underline"},
+    "boxShadow": "none",
+    "&:hover, &:focus": {
+        bgcolor: "transparent",
+        color: BOARD.navy,
+        border: "1px solid transparent",
+        boxShadow: "none",
+        textDecoration: "underline",
+    },
+    "&:active": {bgcolor: "transparent !important", color: `${BOARD.navy} !important`},
     "&.Mui-focusVisible, &:focus-visible": focusRing,
 }
 
@@ -450,7 +472,13 @@ export const HealthBanner: React.FC<IHealthBannerProps> = ({
                         <Box
                             component="ul"
                             data-testid="transparency-health-issues"
-                            sx={{m: 0, pl: "18px", fontSize: "13.5px", color: "#9A3412"}}
+                            sx={{
+                                m: 0,
+                                p: 0,
+                                listStyle: "none",
+                                fontSize: "13.5px",
+                                color: "#9A3412",
+                            }}
                         >
                             {health.issues.map((issue, i) => (
                                 <li key={`${issue.issue}-${issue.log ?? ""}-${issue.witness ?? i}`}>
