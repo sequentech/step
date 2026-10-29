@@ -5,6 +5,10 @@
 //! This versioned profile is deterministic, local and data-only. It deliberately
 //! requires decisions the historical files cannot establish: ballot policy,
 //! census eligibility and which records outside configured seats are in scope.
+//!
+//! The SQL may be in the legacy or the documented post-qualification schema
+//! ([`SourceSchema`]). The workbook is optional: without one, its sheets are
+//! derived from the SQL and a reviewed [`Supplement`] in the decisions.
 
 use super::{
     problem::{Code, Problem, Report},
@@ -17,6 +21,15 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
+
+#[path = "historical_schema.rs"]
+mod schema;
+#[path = "historical_supplement.rs"]
+mod supplement;
+pub use schema::SourceSchema;
+pub use supplement::{
+    Supplement, SupplementCcsServer, SupplementEvent, SupplementSchedule,
+};
 
 pub const PROFILE: &str = "legacy-seat-v1";
 /// The default language of the built-in event and election templates, used for
@@ -104,12 +117,19 @@ pub enum VoterAreaJoin {
     /// A voter matching no in-scope row, or a key shared by rows with different
     /// outcomes, is a visible per-row problem.
     PopulationPrecinctTuple,
+    /// `voters.(MAILCOUNTRY, MAILEMBASSY)` equals `pop.(PROV_CODE, MUN_CODE)`,
+    /// for the post-qualification schema, whose voters carry no precinct. Every
+    /// in-scope polling row with that location must resolve to the same area;
+    /// a location shared by two areas is a conflict, never a choice.
+    MailCountryEmbassy,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct SourceDigests {
     pub sql_sha256: String,
-    pub workbook_sha256: String,
+    /// Absent when the conversion has no workbook.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workbook_sha256: Option<String>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
@@ -169,14 +189,21 @@ pub struct HistoricalOptions {
     pub affiliation: AffiliationPolicy,
     /// Offset for timezone-less historical Excel dates. No implicit local timezone.
     pub schedule_offset_minutes: Option<i32>,
+    /// What the workbook would add, when there is none. Exactly one of the two
+    /// is given.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub supplement: Option<Supplement>,
 }
 
 #[derive(Debug, Clone, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Summary {
     pub profile: String,
+    pub source_schema: SourceSchema,
     pub sql_sha256: String,
-    pub workbook_sha256: String,
+    /// Absent when the conversion has no workbook.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub workbook_sha256: Option<String>,
     pub source_rows: BTreeMap<String, usize>,
     pub generated_rows: BTreeMap<String, usize>,
     pub selected_candidates: usize,
@@ -228,13 +255,13 @@ fn fail(summary: Summary, p: Problem) -> Refused {
 /// same `build`, `validate` and `archive::zip` as every other native import.
 pub fn adapt(
     sql: &[u8],
-    xlsx: &[u8],
+    xlsx: Option<&[u8]>,
     options: &HistoricalOptions,
 ) -> Result<Adapted, Refused> {
     let mut summary = Summary {
         profile: PROFILE.into(),
         sql_sha256: format!("{:x}", Sha256::digest(sql)),
-        workbook_sha256: format!("{:x}", Sha256::digest(xlsx)),
+        workbook_sha256: xlsx.map(|xlsx| format!("{:x}", Sha256::digest(xlsx))),
         ..Summary::default()
     };
     let dump = read_mysql_dump(sql).map_err(|e| {
@@ -263,9 +290,86 @@ pub fn adapt(
                 .count()
         })
         .sum();
+    let (dump, source_schema) =
+        schema::normalize(dump).map_err(|p| fail(summary.clone(), p))?;
+    summary.source_schema = source_schema;
+    let (workbook, derived, schedules) = match (xlsx, &options.supplement) {
+        (Some(xlsx), None) => (read_workbook(xlsx, &summary)?, None, vec![]),
+        (None, Some(supplement)) => {
+            let derived = supplement::derive(&dump, supplement).map_err(|p| {
+                fail(
+                    summary.clone(),
+                    schema::source_names(p.into(), source_schema)
+                        .problems
+                        .remove(0),
+                )
+            })?;
+            (
+                derived.workbook,
+                Some(derived.areas_by_precinct),
+                derived.schedules,
+            )
+        }
+        (Some(_), Some(_)) => {
+            return Err(fail(
+                summary,
+                Problem::error(
+                    Code::ConflictingColumns,
+                    "historical decisions supplement",
+                    "a supplement replaces the workbook; give one or the other",
+                ),
+            ))
+        }
+        (None, None) => {
+            return Err(fail(
+                summary,
+                Problem::error(
+                    Code::NotApproved,
+                    "historical decisions supplement",
+                    "without a workbook, the decisions must supply the event and its schedule",
+                ),
+            ))
+        }
+    };
+    summary.decisions_sha256 = format!(
+        "{:x}",
+        Sha256::digest(serde_json::to_vec(options).map_err(|_| fail(
+            summary.clone(),
+            Problem::error(
+                Code::InvalidValue,
+                "historical decisions",
+                "could not encode decisions"
+            )
+        ))?)
+    );
+    let dates = || match xlsx {
+        Some(xlsx) => historical_dates(xlsx, options.schedule_offset_minutes),
+        None => supplement_dates(&schedules, options.schedule_offset_minutes),
+    };
+    let result = map(
+        &dump,
+        &workbook,
+        dates,
+        derived.as_ref(),
+        options,
+        &mut summary,
+    );
+    result
+        .map(|workbook| Adapted {
+            workbook,
+            summary: summary.clone(),
+        })
+        .map_err(|report| Refused {
+            summary,
+            report: schema::source_names(report, source_schema),
+        })
+}
+
+/// Read a supplemental workbook within the source limits.
+fn read_workbook(xlsx: &[u8], summary: &Summary) -> Result<Workbook, Refused> {
     if xlsx.len() > 32 * 1024 * 1024 {
         return Err(fail(
-            summary,
+            summary.clone(),
             Problem::error(
                 Code::Unreadable,
                 "workbook",
@@ -286,7 +390,7 @@ pub fn adapt(
         })?;
     if zipped.len() > 1024 {
         return Err(fail(
-            summary,
+            summary.clone(),
             Problem::error(
                 Code::Unreadable,
                 "workbook",
@@ -320,25 +424,7 @@ pub fn adapt(
                 )
             })?;
     }
-    let workbook = read_xlsx(xlsx).map_err(|p| fail(summary.clone(), p))?;
-    summary.decisions_sha256 = format!(
-        "{:x}",
-        Sha256::digest(serde_json::to_vec(options).map_err(|_| fail(
-            summary.clone(),
-            Problem::error(
-                Code::InvalidValue,
-                "historical decisions",
-                "could not encode decisions"
-            )
-        ))?)
-    );
-    let result = map(&dump, &workbook, xlsx, options, &mut summary);
-    result
-        .map(|workbook| Adapted {
-            workbook,
-            summary: summary.clone(),
-        })
-        .map_err(|report| Refused { summary, report })
+    read_xlsx(xlsx).map_err(|p| fail(summary.clone(), p))
 }
 
 struct Data<'a> {
@@ -719,17 +805,24 @@ fn check_candidate_references(
     Ok(())
 }
 
+/// `dates` reads the schedule's instants, by schedule row number. `derived` is the
+/// area row of each `pop` row when the workbook was derived from the SQL; its
+/// areas are then joined by row, since a derived area's name need not be unique.
 fn map(
     dump: &SqlDump,
     workbook: &Workbook,
-    xlsx: &[u8],
+    dates: impl FnOnce() -> Result<BTreeMap<usize, String>, Problem>,
+    derived: Option<&BTreeMap<usize, usize>>,
     options: &HistoricalOptions,
     summary: &mut Summary,
 ) -> Result<Workbook, Report> {
     for name in TABLES {
         Data::new(dump, name, &[])?;
     }
-    if dump.tables.keys().any(|n| !TABLES.contains(&n.as_str())) {
+    if dump.tables.keys().any(|n| {
+        !TABLES.contains(&n.as_str())
+            && !schema::OPTIONAL_TABLES.contains(&n.as_str())
+    }) {
         return Err(Problem::error(
             Code::InvalidValue,
             "SQL schema",
@@ -976,7 +1069,10 @@ fn map(
         .filter(|p| !ei.contains_key(*p))
         .count();
     let arows = workbook.rows("areas");
-    let ai = workbook_index(arows, "name")?;
+    let ai = match derived {
+        Some(_) => BTreeMap::new(),
+        None => workbook_index(arows, "name")?,
+    };
     summary.area_workbook_rows = arows.iter().map(|r| r.number).collect();
     summary.precincts = (0..populations.table.rows.len())
         .map(|pop| {
@@ -1005,11 +1101,17 @@ fn map(
             } else {
                 barangay
             };
-            let workbook_area_rows = arows
-                .iter()
-                .filter(|r| r.text("name") == Some(&name))
-                .map(|r| r.number)
-                .collect();
+            let workbook_area_rows = match derived {
+                Some(areas) => areas
+                    .get(&pop)
+                    .map(|&i| vec![arows[i].number])
+                    .unwrap_or_default(),
+                None => arows
+                    .iter()
+                    .filter(|r| r.text("name") == Some(&name))
+                    .map(|r| r.number)
+                    .collect(),
+            };
             Ok(PrecinctSummary {
                 source_row: pop + 1,
                 center_row: center + 1,
@@ -1018,6 +1120,17 @@ fn map(
         })
         .collect::<Result<_, Problem>>()?;
     let mut associations: BTreeMap<usize, Vec<usize>> = BTreeMap::new();
+    if derived.is_some()
+        && (!options.election_mappings.is_empty()
+            || !options.area_mappings.is_empty())
+    {
+        return Err(Problem::error(
+            Code::InvalidValue,
+            "historical decisions electionMappings + areaMappings",
+            "associations name workbook rows, and without a workbook there are none",
+        )
+        .into());
+    }
     if !options.election_mappings.is_empty()
         || !options.area_mappings.is_empty()
         || options.post_coverage == PostCoverage::WorkbookPostsOnly
@@ -1079,14 +1192,17 @@ fn map(
         )
         .into());
     }
+    // A derived workbook has a context for every center a precinct uses, so the
+    // centers it leaves out place no voters and are only counted.
     if summary.excluded_polling_centers > 0
+        && derived.is_none()
         && options.post_coverage != PostCoverage::WorkbookPostsOnly
     {
         return Err(Problem::error(Code::BallotCoverage,"sheet Elections election_post","SQL polling centers have no workbook context; provide coverage or explicitly choose workbook-posts-only with source hashes").into());
     }
     let mut used_workbook_rows = BTreeSet::new();
 
-    let mut area_associations = BTreeMap::new();
+    let mut area_associations = derived.cloned().unwrap_or_default();
     for mapping in &options.area_mappings {
         let workbook_index = arows
             .iter()
@@ -1139,18 +1255,22 @@ fn map(
         Option<VoterArea>,
     > = BTreeMap::new();
     for pop in 0..populations.table.rows.len() {
-        // Only the voter-preserving census needs this crosswalk (and the source
-        // PRECINCT column); other policies leave the pop schema untouched.
-        let precinct_key =
-            if options.census == CensusPolicy::PreserveSourceVoters {
-                Some((
-                    populations.text(pop, "PROV_CODE")?,
-                    populations.text(pop, "MUN_CODE")?,
-                    populations.text(pop, "PRECINCT")?,
-                ))
-            } else {
-                None
-            };
+        // Only the voter-preserving census needs this crosswalk (and, for the
+        // precinct join, the source PRECINCT column); other policies leave the
+        // pop schema untouched.
+        let precinct_key = match (options.census, options.voter_area_join) {
+            (CensusPolicy::PreserveSourceVoters, Some(join)) => Some((
+                populations.text(pop, "PROV_CODE")?,
+                populations.text(pop, "MUN_CODE")?,
+                match join {
+                    VoterAreaJoin::PopulationPrecinctTuple => {
+                        populations.text(pop, "PRECINCT")?
+                    }
+                    VoterAreaJoin::MailCountryEmbassy => String::new(),
+                },
+            )),
+            _ => None,
+        };
         let center = centers.lookup(
             &ci,
             &populations.text(pop, "POLLCENTER_CODE")?,
@@ -1543,7 +1663,7 @@ fn map(
         )
         .into());
     }
-    let dates = historical_dates(xlsx, options.schedule_offset_minutes)?;
+    let dates = dates()?;
     let mut schedules = Vec::new();
     for (i, original) in workbook.rows("scheduledevents").iter().enumerate() {
         let alias = text(original, "election_alias")?;
@@ -1577,13 +1697,15 @@ fn map(
             ],
         ));
     }
-    let voter_rows = if options.census == CensusPolicy::PreserveSourceVoters {
-        build_source_voter_rows(dump, &precinct_area_index, summary)?
-    } else {
-        Vec::new()
+    let voter_rows = match (options.census, options.voter_area_join) {
+        (CensusPolicy::PreserveSourceVoters, Some(join)) => {
+            build_source_voter_rows(dump, join, &precinct_area_index, summary)?
+        }
+        _ => Vec::new(),
     };
     let provenance = json!({
         "profile": PROFILE,
+        "sourceSchema": summary.source_schema,
         "sqlSha256": summary.sql_sha256,
         "workbookSha256": summary.workbook_sha256,
         "decisionsSha256": summary.decisions_sha256,
@@ -1733,7 +1855,7 @@ fn record_precinct_area(
             row,
             "PRECINCT",
             Code::DuplicateId,
-            "a (province, municipality, precinct) maps to two different areas or scopes",
+            "a voter location (province, municipality and, by precinct, the precinct) maps to two different areas or scopes",
         )),
         _ => {
             index.insert(key.clone(), area);
@@ -1770,19 +1892,20 @@ fn record_precinct_area(
 /// than a silent blank. Email, mobile and password are intentionally left unset;
 /// enrollment collects them later. Source columns outside this mapping are not carried.
 ///
-/// Each voter joins to an area through the same `(PROV_CODE, MUN_CODE, PRECINCT)`
-/// crosswalk recorded while the areas were built. A voter whose
-/// `(COUNTRY, EMBASSY, PRECINCT)` has no in-scope area raises a visible per-row error
-/// rather than being silently dropped.
+/// Each voter joins to an area through the crosswalk recorded while the areas were
+/// built, keyed as the join decides: `(COUNTRY, EMBASSY, PRECINCT)` against
+/// `(PROV_CODE, MUN_CODE, PRECINCT)`, or the post-qualification
+/// `(MAILCOUNTRY, MAILEMBASSY)` against `(PROV_CODE, MUN_CODE)`. A voter whose
+/// location has no in-scope area raises a visible per-row error rather than being
+/// silently dropped.
 fn build_source_voter_rows(
     dump: &SqlDump,
+    join: VoterAreaJoin,
     precinct_area_index: &BTreeMap<(String, String, String), Option<VoterArea>>,
     summary: &mut Summary,
 ) -> Result<Vec<Row>, Report> {
-    let voters = Data::new(
-        dump,
-        "voters",
-        &[
+    let columns: &[&str] = match join {
+        VoterAreaJoin::PopulationPrecinctTuple => &[
             "ID",
             "FIRSTNAME",
             "LASTNAME",
@@ -1791,15 +1914,24 @@ fn build_source_voter_rows(
             "PRECINCT",
             "ABROADSTATUS",
         ],
-    )?;
+        VoterAreaJoin::MailCountryEmbassy => {
+            &["ID", "FIRSTNAME", "LASTNAME", "MAILCOUNTRY", "MAILEMBASSY"]
+        }
+    };
+    let voters = Data::new(dump, "voters", columns)?;
     let mut rows = Vec::with_capacity(voters.table.rows.len());
     let mut report = Report::default();
     let mut usernames = BTreeSet::new();
     // Every row is checked, so the refusal names each failing voter rather than
     // only the first one.
     for v in 0..voters.table.rows.len() {
-        match source_voter_row(&voters, v, precinct_area_index, &mut usernames)
-        {
+        match source_voter_row(
+            &voters,
+            v,
+            join,
+            precinct_area_index,
+            &mut usernames,
+        ) {
             Ok(voter) => rows.push(voter),
             Err(p) => report.push(p),
         }
@@ -1815,6 +1947,7 @@ fn build_source_voter_rows(
 fn source_voter_row(
     voters: &Data<'_>,
     v: usize,
+    join: VoterAreaJoin,
     precinct_area_index: &BTreeMap<(String, String, String), Option<VoterArea>>,
     usernames: &mut BTreeSet<String>,
 ) -> Result<Row, Problem> {
@@ -1829,9 +1962,27 @@ fn source_voter_row(
                 "voter id is duplicated",
             ));
         }
-        let country = voters.text(v, "COUNTRY")?;
-        let embassy = voters.text(v, "EMBASSY")?;
-        let precinct = voters.text(v, "PRECINCT")?;
+        let (country_column, embassy_column, precinct_column, message) =
+            match join {
+                VoterAreaJoin::PopulationPrecinctTuple => (
+                    "COUNTRY",
+                    "EMBASSY",
+                    Some("PRECINCT"),
+                    "voter (country, embassy, precinct) has no in-scope area; the matching source polling row is absent or out of scope",
+                ),
+                VoterAreaJoin::MailCountryEmbassy => (
+                    "MAILCOUNTRY",
+                    "MAILEMBASSY",
+                    None,
+                    "voter (mail country, mail embassy) has no in-scope area; the matching source polling row is absent or out of scope",
+                ),
+            };
+        let country = voters.text(v, country_column)?;
+        let embassy = voters.text(v, embassy_column)?;
+        let precinct = precinct_column
+            .map(|column| voters.text(v, column))
+            .transpose()?
+            .unwrap_or_default();
         let area = match precinct_area_index
             .get(&(country.clone(), embassy.clone(), precinct.clone()))
         {
@@ -1841,9 +1992,9 @@ fn source_voter_row(
                 return Err(problem(
                     "voters",
                     v,
-                    "PRECINCT",
+                    precinct_column.unwrap_or(embassy_column),
                     Code::DanglingReference,
-                    "voter (country, embassy, precinct) has no in-scope area; the matching source polling row is absent or out of scope",
+                    message,
                 ))
             }
         };
@@ -1919,10 +2070,8 @@ fn source_voter_row(
                 ("source_country", json!(country)),
                 ("source_embassy", json!(embassy)),
                 ("source_precinct", json!(precinct)),
-                (
-                    "source_abroad_status",
-                    json!(voters.text(v, "ABROADSTATUS")?),
-                ),
+                // Legacy only; the post-qualification voters have no status.
+                ("source_abroad_status", json!(optional("ABROADSTATUS")?)),
             ],
         ))
     }
@@ -1950,6 +2099,72 @@ fn compose_date_of_birth(
             .ok_or(()),
         _ => Err(()),
     }
+}
+
+/// The supplement's schedule instants, by the row number each derived schedule row
+/// carries. Read as the workbook's text dates are; a problem names the supplement
+/// schedule the row came from.
+fn supplement_dates(
+    schedules: &[(usize, SupplementSchedule)],
+    offset: Option<i32>,
+) -> Result<BTreeMap<usize, String>, Problem> {
+    schedules
+        .iter()
+        .enumerate()
+        .map(|(i, (source, schedule))| {
+            let at =
+                format!("historical decisions supplement schedules[{source}].date");
+            let instant = match DateTime::parse_from_rfc3339(&schedule.date) {
+                Ok(date) => date.to_rfc3339(),
+                Err(_) => {
+                    // With or without seconds: a browser's local date-time
+                    // field gives none.
+                    let naive = [
+                        "%Y-%m-%d %H:%M:%S",
+                        "%Y-%m-%dT%H:%M:%S",
+                        "%Y-%m-%d %H:%M",
+                        "%Y-%m-%dT%H:%M",
+                    ]
+                        .iter()
+                        .find_map(|f| {
+                            NaiveDateTime::parse_from_str(&schedule.date, f).ok()
+                        })
+                        .ok_or_else(|| {
+                            Problem::error(
+                                Code::InvalidValue,
+                                &at,
+                                "date must be an instant or a local date and time",
+                            )
+                        })?;
+                    offset_instant(naive, offset, &at)?
+                }
+            };
+            // `row` numbers rows from 2, as a spreadsheet below its header does.
+            Ok((i + 2, instant))
+        })
+        .collect()
+}
+
+/// A timezone-less date at the reviewed UTC offset. There is no implicit one.
+fn offset_instant(
+    naive: NaiveDateTime,
+    offset: Option<i32>,
+    at: &str,
+) -> Result<String, Problem> {
+    let minutes =
+        offset.filter(|n| (-840..=840).contains(n)).ok_or_else(|| {
+            Problem::error(
+                Code::NotApproved,
+                at,
+                "timezone-less dates require an explicit UTC offset in minutes",
+            )
+        })?;
+    let zone = FixedOffset::east_opt(minutes * 60)
+        .ok_or_else(|| Problem::error(Code::InvalidValue, at, "invalid UTC offset"))?;
+    let instant = zone.from_local_datetime(&naive).single().ok_or_else(|| {
+        Problem::error(Code::InvalidValue, at, "date cannot be resolved")
+    })?;
+    Ok(instant.to_rfc3339())
 }
 
 fn historical_dates(
@@ -2025,26 +2240,7 @@ fn historical_dates(
                 "date must be an instant or an Excel date",
             )
         })?;
-        let minutes =
-            offset.filter(|n| (-840..=840).contains(n)).ok_or_else(|| {
-                Problem::error(
-                Code::NotApproved,
-                &at,
-                "timezone-less dates require an explicit UTC offset in minutes",
-            )
-            })?;
-        let zone = FixedOffset::east_opt(minutes * 60).ok_or_else(|| {
-            Problem::error(Code::InvalidValue, &at, "invalid UTC offset")
-        })?;
-        let instant =
-            zone.from_local_datetime(&naive).single().ok_or_else(|| {
-                Problem::error(
-                    Code::InvalidValue,
-                    &at,
-                    "date cannot be resolved",
-                )
-            })?;
-        dates.insert(i + 1, instant.to_rfc3339());
+        dates.insert(i + 1, offset_instant(naive, offset, &at)?);
     }
     Ok(dates)
 }
