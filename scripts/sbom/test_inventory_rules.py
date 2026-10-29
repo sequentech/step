@@ -102,6 +102,8 @@ class SourceIdentityTest(unittest.TestCase):
         self.assertEqual(module_rights_profile('NOASSERTION', 'Sequent-authored module'), 'UNRESOLVED')
         self.assertEqual(module_rights_profile('NOASSERTION', 'Imported third-party source'), 'UNRESOLVED')
         self.assertEqual(module_rights_profile('AGPL-3.0-only', 'Sequent-authored module'), 'SEQUENT')
+        self.assertEqual(module_rights_profile('LicenseRef-Proprietary', 'Imported third-party source'), 'UNRESOLVED')
+        self.assertEqual(module_rights_profile('LicenseRef-Proprietary', 'Sequent-authored module'), 'SEQUENT')
 
 class LocalIdentityTest(unittest.TestCase):
     def test_only_reachable_local_manifests_supply_identity(self):

@@ -88,7 +88,11 @@ def step_source_matches(row, pin, local_identity):
 def module_rights_profile(license, classification):
     if not license or 'NOASSERTION' in license or 'LicenseRef-Trellis' in license:
         return 'UNRESOLVED'
-    return 'SEQUENT' if classification == 'Sequent-authored module' else 'OPEN'
+    if classification == 'Sequent-authored module':
+        return 'SEQUENT'
+    if any(marker in license.lower() for marker in ('proprietary', 'unlicensed', 'see license')):
+        return 'UNRESOLVED'
+    return 'OPEN'
 
 
 def local_step_identities(step_root, beyond_root):
