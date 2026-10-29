@@ -51,6 +51,12 @@ parts for the areas and contests in the supplied tally mappings.
 
 ## Procedures
 
+If the election authority supplied a package with the one-argument `run-audit.sh`, follow
+[Run a Prepared Client Package](02-procedures/00-run-prepared-package.md).
+It replaces steps 1–3 below. The launcher supplies the packaged public values; their independent authentication is still required.
+
+Use the following steps when you have a raw image and separate backups.
+
 | Step | Procedure | Content | Result |
 | --- | --- | --- | --- |
 |  | [Before You Start](01-before-you-start.md) | Roles, terms, versions and safety rules | You know who does each task. |
