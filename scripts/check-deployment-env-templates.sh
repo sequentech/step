@@ -5,8 +5,9 @@
 
 # Fails when a tracked file other than the development env file mentions
 # Hasura's query-log, which records every GraphQL request with its variables.
-# Any query-log token outside a comment line counts, whatever the syntax
-# around it, so a value split over lines or built from an expansion is caught.
+# Any query-log token outside a # or // comment line counts, whatever the
+# syntax around it, so a value split over lines or built from an expansion is
+# caught.
 
 set -uo pipefail
 
@@ -18,7 +19,7 @@ cd "$repo_root" || exit 2
 
 matches=$(git grep -nIE \
     -e "(^|[^A-Za-z0-9_])${LOG_TYPE}([^A-Za-z0-9_-]|$)" \
-    --and --not -e '^[[:space:]]*#' \
+    --and --not -e '^[[:space:]]*(#|//)' \
     -- . \
     ":(exclude)${DEVELOPMENT_ENV_FILE}" \
     ":(exclude)scripts/check-deployment-env-templates.sh" \

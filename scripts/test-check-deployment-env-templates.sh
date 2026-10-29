@@ -50,6 +50,7 @@ expect 1 deployment.yaml $'- name: '"${VAR}"$'\n  value: startup, query-log'
 expect 0 .devcontainer/.env.development "${VAR}=startup, query-log"
 expect 0 .env "# ${VAR}=startup, query-log"
 expect 0 docker-compose.yml "      # query-log records every request"
+expect 0 packages/admin-portal/src/config.ts "  // query-log stays off outside development"
 expect 0 .env "${VAR}=startup, http-log, webhook-log, websocket-log"
 expect 0 .env "${VAR}=query-logs"
 
