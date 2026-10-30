@@ -3,16 +3,20 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
-import {render, screen} from "@testing-library/react"
+import {fireEvent, render, screen, waitFor} from "@testing-library/react"
 import {MonitoringDashboardTab} from "./MonitoringDashboardTab"
 import {EMonitoringCapability, EMonitoringMode} from "./types"
 
 let mockView = "GRANTED"
+let mockConfigure = "GRANTED"
+let mockSaving = false
+const mockSetMode = jest.fn()
 let mockList: {mode: string; dashboards: Array<{id: string}>} | undefined
 let mockError: Error | undefined
 
 jest.mock("@apollo/client", () => ({
     gql: (parts: TemplateStringsArray) => parts.join(""),
+    useMutation: () => [mockSetMode, {loading: mockSaving}],
     useQuery: (_query: string, options?: {skip?: boolean}) =>
         options?.skip
             ? {data: undefined, loading: false}
@@ -27,7 +31,7 @@ jest.mock("react-i18next", () => ({
 }))
 jest.mock("./useMonitoringPermissions", () => ({
     EMonitoringLock: {OPEN: "OPEN"},
-    useMonitoringPermissions: () => ({view: mockView, configure: "DENIED"}),
+    useMonitoringPermissions: () => ({view: mockView, configure: mockConfigure}),
 }))
 jest.mock("./editor/useMonitoringTabEditor", () => ({
     useMonitoringTabEditor: () => ({actions: undefined, element: null}),
@@ -56,6 +60,9 @@ const renderTab = () =>
 
 beforeEach(() => {
     mockView = EMonitoringCapability.GRANTED
+    mockConfigure = EMonitoringCapability.GRANTED
+    mockSaving = false
+    mockSetMode.mockReset().mockResolvedValue({data: {monitoringSetMode: {generation: 1}}})
     mockList = {mode: EMonitoringMode.CONFIGURED, dashboards: [{id: "overview"}]}
     mockError = undefined
 })
@@ -107,5 +114,53 @@ describe("MonitoringDashboardTab slot", () => {
         expect(screen.getByText(FOOTER)).toBeTruthy()
         expect(screen.getByText(LEGACY)).toBeTruthy()
         expect(screen.queryByText(SLOT)).toBeNull()
+    })
+})
+
+describe("monitoring mode switch", () => {
+    it("enables a legacy event through the non-destructive mode action", async () => {
+        mockList = {mode: EMonitoringMode.LEGACY, dashboards: []}
+        renderTab()
+        fireEvent.click(screen.getByRole("switch"))
+        await waitFor(() =>
+            expect(mockSetMode).toHaveBeenCalledWith({
+                variables: {electionEventId: "event", mode: EMonitoringMode.CONFIGURED},
+            })
+        )
+    })
+
+    it("disables configured dashboards without resetting their documents", async () => {
+        renderTab()
+        const control = screen.getByRole("switch") as HTMLInputElement
+        expect(control.checked).toBe(true)
+        fireEvent.click(control)
+        await waitFor(() =>
+            expect(mockSetMode).toHaveBeenCalledWith({
+                variables: {electionEventId: "event", mode: EMonitoringMode.LEGACY},
+            })
+        )
+    })
+
+    it.each(["permission", "saving"])("disables the switch while blocked by %s", (reason) => {
+        if (reason === "permission") mockConfigure = EMonitoringCapability.DENIED
+        else mockSaving = true
+        renderTab()
+        expect((screen.getByRole("switch") as HTMLInputElement).disabled).toBe(true)
+        expect(mockSetMode).not.toHaveBeenCalled()
+    })
+
+    it("keeps the previous mode and shows an error after a refused change", async () => {
+        mockSetMode.mockRejectedValue(new Error("refused"))
+        renderTab()
+        fireEvent.click(screen.getByRole("switch"))
+        await screen.findByText("monitoring.modeChangeError")
+        expect((screen.getByRole("switch") as HTMLInputElement).checked).toBe(true)
+    })
+
+    it("does not offer a switch without monitoring view permission", () => {
+        mockView = EMonitoringCapability.DENIED
+        renderTab()
+        expect(screen.queryByRole("switch")).toBeNull()
+        expect(mockSetMode).not.toHaveBeenCalled()
     })
 })

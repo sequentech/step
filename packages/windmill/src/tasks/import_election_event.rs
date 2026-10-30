@@ -139,6 +139,13 @@ pub async fn execute(
                 tenant_id.clone(),
             )
             .await?;
+            crate::services::monitoring::audit::initialize_new_event(
+                hasura_transaction,
+                &tenant_id,
+                &election_event_id,
+            )
+            .await
+            .context("Failed to initialize the imported event's monitoring defaults")?;
             let name = imported_name(hasura_transaction, &tenant_id, &election_event_id).await?;
             stage(
                 hasura_transaction,

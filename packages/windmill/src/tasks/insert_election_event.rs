@@ -178,6 +178,10 @@ pub async fn insert_election_event_anyhow(
         )
     })?;
 
+    crate::services::monitoring::audit::initialize_new_event(&hasura_transaction, &tenant_id, &id)
+        .await
+        .context("Failed to initialize the new event's monitoring defaults")?;
+
     if let Err(err) = stage(
         &hasura_transaction,
         &created_entry(audit_actor, &final_object, &id)?,

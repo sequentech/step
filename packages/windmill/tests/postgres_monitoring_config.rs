@@ -393,12 +393,12 @@ async fn an_event_without_configuration_is_left_on_the_standard_dashboard() {
         &audit,
         event,
         &editor(),
-        DashboardMode::Configured,
+        DashboardMode::Legacy,
         Some(&admin()),
     )
     .await;
     assert!(
-        matches!(switched, Err(ModeError::NotConfigured)),
+        matches!(switched, Ok(ModeOutcome::Unchanged)),
         "{switched:?}"
     );
 
@@ -1458,8 +1458,8 @@ async fn the_dashboard_tab_is_switched_only_to_dashboards_that_exist() {
     assert_eq!(audit.entries().len(), 3);
     remove(&pool, event).await;
 
-    // An event whose configuration has no dashboard stays on the standard
-    // one: a configuration written before the checks it would now fail.
+    // An empty monitoring row has no customizations: first enable supplies
+    // the shipped defaults, just like an event without a monitoring row.
     let event = self::event(&pool, line!()).await;
     let tx = client.transaction().await.unwrap();
     tx.execute(
@@ -1477,14 +1477,14 @@ async fn the_dashboard_tab_is_switched_only_to_dashboards_that_exist() {
         DashboardMode::Configured,
     )
     .await;
-    match empty {
-        Err(ModeError::Invalid(report)) => {
-            assert_eq!(codes(&report), vec![Code::NoDashboard])
-        }
-        other => panic!("expected the switch refused, got {other:?}"),
-    }
-    assert_eq!(stored(&pool, event).await, (Some(0), 0, 0));
-    assert_eq!(audit.entries().len(), 3);
+    assert!(
+        matches!(empty, Ok(ModeOutcome::Switched { generation: 1 })),
+        "{empty:?}"
+    );
+    let live = read_live(&pool, event).await.unwrap();
+    assert!(!live.assembled.set.dashboards.is_empty());
+    assert_eq!(live.preset.unwrap().id, "comelec");
+    assert_eq!(audit.entries().len(), 4);
     remove(&pool, event).await;
 }
 
@@ -3058,3 +3058,182 @@ async fn an_administrator_signing_key_is_found_without_being_read() {
 /// Bounds concurrency probes while allowing instrumented PostgreSQL work.
 /// The held save is released only after the competing change completes.
 const CONCURRENT_CHANGE_TIMEOUT: Duration = Duration::from_secs(30);
+
+async fn read_live(
+    pool: &Pool,
+    event: EventRef,
+) -> Option<windmill::services::monitoring::config_store::LiveConfig> {
+    let mut client = pool.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let live = get_live_config(&tx, event).await.unwrap();
+    tx.rollback().await.unwrap();
+    live
+}
+
+#[tokio::test]
+async fn enabling_an_unconfigured_event_initializes_defaults_once() {
+    let pool = schema::pool().await;
+    let event = event(&pool, line!()).await;
+    let audit = Audits::default();
+    let mut client = pool.get().await.unwrap();
+    assert!(read_live(&pool, event).await.is_none());
+    let off = set_mode(&mut client, &audit, event, &editor(), DashboardMode::Legacy).await;
+    assert!(matches!(off, Ok(ModeOutcome::Unchanged)), "{off:?}");
+    assert_eq!(stored(&pool, event).await, (None, 0, 0));
+
+    let on = set_mode(
+        &mut client,
+        &audit,
+        event,
+        &editor(),
+        DashboardMode::Configured,
+    )
+    .await;
+    assert!(
+        matches!(on, Ok(ModeOutcome::Switched { generation: 1 })),
+        "{on:?}"
+    );
+    let first = read_live(&pool, event).await.unwrap();
+    assert_eq!(first.mode, DashboardMode::Configured);
+    assert_eq!(first.preset.as_ref().unwrap().id, "comelec");
+    assert_eq!(first.preset.as_ref().unwrap().version, 6);
+    assert!(!first.assembled.set.dashboards.is_empty());
+    assert!(!first.documents.is_empty());
+    assert_eq!(audit.entries().len(), 1);
+
+    let again = set_mode(
+        &mut client,
+        &audit,
+        event,
+        &editor(),
+        DashboardMode::Configured,
+    )
+    .await;
+    assert!(matches!(again, Ok(ModeOutcome::Unchanged)), "{again:?}");
+    assert_eq!(audit.entries().len(), 1);
+    set_mode(&mut client, &audit, event, &editor(), DashboardMode::Legacy)
+        .await
+        .unwrap();
+    set_mode(
+        &mut client,
+        &audit,
+        event,
+        &editor(),
+        DashboardMode::Configured,
+    )
+    .await
+    .unwrap();
+    let enabled = read_live(&pool, event).await.unwrap();
+    assert_eq!(enabled.documents, first.documents);
+    assert_eq!(enabled.preset, first.preset);
+    remove(&pool, event).await;
+}
+
+#[tokio::test]
+async fn concurrent_first_enables_do_not_reset_the_defaults_twice() {
+    let pool = schema::pool().await;
+    let event = event(&pool, line!()).await;
+    let audit = Audits::default();
+    let mut first = pool.get().await.unwrap();
+    let mut second = pool.get().await.unwrap();
+    let author = editor();
+    let (one, two) = tokio::join!(
+        set_mode(
+            &mut first,
+            &audit,
+            event,
+            &author,
+            DashboardMode::Configured
+        ),
+        set_mode(
+            &mut second,
+            &audit,
+            event,
+            &author,
+            DashboardMode::Configured
+        ),
+    );
+    let outcomes = [one.unwrap(), two.unwrap()];
+    assert_eq!(
+        outcomes
+            .iter()
+            .filter(|outcome| matches!(outcome, ModeOutcome::Switched { generation: 1 }))
+            .count(),
+        1
+    );
+    assert_eq!(
+        outcomes
+            .iter()
+            .filter(|outcome| matches!(outcome, ModeOutcome::Unchanged))
+            .count(),
+        1
+    );
+    assert_eq!(audit.entries().len(), 1);
+    let live = read_live(&pool, event).await.unwrap();
+    assert_eq!(live.generation, 1);
+    assert!(live.documents.iter().all(|document| document.revision == 1));
+    remove(&pool, event).await;
+}
+
+#[tokio::test]
+async fn new_event_defaults_commit_with_creation_and_never_replace_existing_choices() {
+    use windmill::services::monitoring::config_store::initialize_default_config;
+    let pool = schema::pool().await;
+    let event = event(&pool, line!()).await;
+    let audit = Audits::default();
+    let mut client = pool.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let initialized = initialize_default_config(&tx, &audit, event, &editor())
+        .await
+        .unwrap();
+    assert!(matches!(
+        initialized,
+        ResetOutcome::Reset { generation: 1, .. }
+    ));
+    let inside = get_live_config(&tx, event).await.unwrap().unwrap();
+    assert_eq!(inside.mode, DashboardMode::Configured);
+    assert!(!inside.assembled.set.dashboards.is_empty());
+    tx.rollback().await.unwrap();
+    assert_eq!(stored(&pool, event).await, (None, 0, 0));
+
+    let tx = client.transaction().await.unwrap();
+    initialize_default_config(&tx, &audit, event, &editor())
+        .await
+        .unwrap();
+    tx.commit().await.unwrap();
+    reset(&mut client, &audit, event, "campus", DashboardMode::Legacy)
+        .await
+        .unwrap();
+    let before = read_live(&pool, event).await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let repeated = initialize_default_config(&tx, &audit, event, &editor())
+        .await
+        .unwrap();
+    assert!(matches!(repeated, ResetOutcome::Unchanged));
+    tx.commit().await.unwrap();
+    assert_eq!(read_live(&pool, event).await.unwrap(), before);
+    remove(&pool, event).await;
+}
+
+#[tokio::test]
+async fn first_enable_is_not_kept_when_its_audit_cannot_be_written() {
+    let pool = schema::pool().await;
+    let event = event(&pool, line!()).await;
+    let audit = Audits::default();
+    audit.fail.store(true, Ordering::SeqCst);
+    let mut client = pool.get().await.unwrap();
+    let outcome = set_mode(
+        &mut client,
+        &audit,
+        event,
+        &editor(),
+        DashboardMode::Configured,
+    )
+    .await;
+    assert!(
+        matches!(outcome, Err(ModeError::Internal(_))),
+        "{outcome:?}"
+    );
+    assert_eq!(stored(&pool, event).await, (None, 0, 0));
+    remove(&pool, event).await;
+}

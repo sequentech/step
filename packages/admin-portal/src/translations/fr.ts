@@ -4415,6 +4415,8 @@ const frenchTranslation: TranslationType = {
             },
         },
         monitoring: {
+            configuredDashboards: "Tableaux de bord configurables",
+            modeChangeError: "Impossible de changer le mode du tableau de bord. Réessayez.",
             title: "Suivi",
             loading: "Chargement du suivi",
             unavailableAlert:

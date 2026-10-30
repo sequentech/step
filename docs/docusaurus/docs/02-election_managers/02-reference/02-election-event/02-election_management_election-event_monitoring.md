@@ -40,12 +40,25 @@ exactly as before. A user without `monitoring-view` never triggers a
 monitoring request. If the monitoring dashboards cannot be loaded, the
 standard dashboard is shown with a warning above it.
 
-An event is set up for monitoring by **resetting it to a preset**: the
-preset's settings, themes, widgets and dashboards are written to the event as
-its first revisions, and the Dashboard tab switches to configured mode. A
-user with the configure permissions does this with the
-`monitoringResetToPreset` GraphQL action; once an event shows monitoring,
-[Reset to preset](#reset-to-preset) in the dashboard editor does the same.
+New election events start with configurable dashboards enabled, using the shipped
+`comelec` preset. The default documents and their preset version are stored with
+the event, so they can be edited immediately and later software updates do not
+replace customizations. Newly imported events use the same defaults; importing
+an event does not change the source event or migrate existing events.
+
+Use **Configurable dashboards** at the top of the Dashboard tab to switch modes.
+Existing events keep their previous mode until an administrator changes it.
+Turning the switch off preserves every saved dashboard, widget and theme. Turning
+it on reuses that configuration; only an event with no configuration documents is
+initialized from the default preset. Viewing a dashboard never initializes or
+writes configuration. The switch is disabled without configuration permissions
+or while the event is locked down.
+
+To deliberately replace an event's configuration with another preset, use
+[Reset to preset](#reset-to-preset) in the dashboard editor. This is separate from
+the switch and replaces customizations. The backend action is
+`monitoringResetToPreset`; normal enabling uses `monitoringSetMode`.
+
 The platform ships two presets:
 
 | Preset | For |

@@ -4367,6 +4367,8 @@ const basqueTranslation: TranslationType = {
             },
         },
         monitoring: {
+            configuredDashboards: "Aginte-panel konfiguragarriak",
+            modeChangeError: "Ezin izan da aginte-panelaren modua aldatu. Saiatu berriro.",
             title: "Monitorizazio-panelak",
             loading: "Monitorizazioa kargatzen",
             unavailableAlert:

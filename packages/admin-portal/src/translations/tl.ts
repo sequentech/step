@@ -4410,6 +4410,8 @@ const tagalogTranslation: TranslationType = {
             },
         },
         monitoring: {
+            configuredDashboards: "Mga nako-configure na dashboard",
+            modeChangeError: "Hindi mabago ang mode ng dashboard. Subukan muli.",
             title: "Pagsubaybay",
             loading: "Nilo-load ang pagsubaybay",
             unavailableAlert:
