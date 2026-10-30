@@ -16,7 +16,11 @@ import {
 } from "@mui/material"
 import ReactApexChart, {Props as ApexChartProps} from "react-apexcharts"
 import {formatPercentOne, isNumber} from "@sequentech/ui-core"
-import {TALLY_RESULTS_PIE_HEIGHT, TALLY_RESULTS_PIE_PANEL_WIDTH} from "@sequentech/ui-essentials"
+import {
+    TALLY_RESULTS_PIE_HEIGHT,
+    TALLY_RESULTS_PIE_PANEL_WIDTH,
+    withEscapedChartText,
+} from "@sequentech/ui-essentials"
 import {useTranslation} from "react-i18next"
 import {ResultsRow} from "@/types/results"
 import {translatedLabel} from "@/services/resultLabels"
@@ -96,7 +100,7 @@ const GeneralInformationChart: React.FC<GeneralInformationChartProps> = ({
     }, [result.elegible_census, result.total_voters, t])
     const chartOptions = useMemo<ApexChartProps>(
         () => ({
-            options: {
+            options: withEscapedChartText({
                 labels: chartData.map((item) => item.label),
                 legend: {position: "right"},
                 responsive: [
@@ -108,7 +112,7 @@ const GeneralInformationChart: React.FC<GeneralInformationChartProps> = ({
                         },
                     },
                 ],
-            },
+            }),
             series: chartData.map((item) => item.value),
         }),
         [chartData]

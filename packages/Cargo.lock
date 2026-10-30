@@ -1259,6 +1259,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "ballot-audit"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "b3",
+ "base64 0.22.1",
+ "chrono",
+ "clap",
+ "electoral-log",
+ "hex",
+ "immudb-rs",
+ "sequent-core",
+ "serde",
+ "serde_json",
+ "strand",
+ "tokio",
+ "tokio-postgres",
+ "tokio-stream",
+ "uuid",
+]
+
+[[package]]
 name = "base16ct"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
