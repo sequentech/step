@@ -11,6 +11,7 @@ use strand::util::StrandError;
 
 use crate::messages::artifact::*;
 use crate::messages::statement::Statement;
+use crate::messages::statement::StatementSigner;
 use crate::messages::statement::StatementType;
 
 use crate::messages::newtypes::*;
@@ -334,6 +335,10 @@ impl Message {
         }
         assert_eq!(config_hash, st_cfg_h);
 
+        if StatementSigner::from_position(trustee) != kind.signer() {
+            return Err(anyhow!("{} must be signed by {}", kind, kind.signer()));
+        }
+
         // Statement-only message
         if self.artifact.is_none() {
             return Ok(VerifiedMessage::new(trustee, self.statement.clone(), None));
@@ -348,9 +353,11 @@ impl Message {
         let artifact_hash = strand::hash::hash_to_array(&artifact)?;
         // If the cfg_h field matches the artifact, the artifact must be Configuration
         if st_cfg_h == artifact_hash {
-            assert!(kind == StatementType::Configuration);
-            if trustee != PROTOCOL_MANAGER_INDEX {
-                return Err(anyhow!("Configuration must be signed by protocol manager"));
+            if kind != StatementType::Configuration {
+                return Err(anyhow!(
+                    "{} must not carry the configuration artifact",
+                    kind
+                ));
             }
 
             // FIXME remove this potentially expensive clone
@@ -362,12 +369,10 @@ impl Message {
             ))
         } else {
             // If the statement type were configuration, cfg_hash should have matched the artifact above
-            assert!(kind != StatementType::Configuration);
-
-            if kind == StatementType::Ballots {
-                if trustee != PROTOCOL_MANAGER_INDEX {
-                    return Err(anyhow!("Ballots must be signed by protocol manager"));
-                }
+            if kind == StatementType::Configuration {
+                return Err(anyhow!(
+                    "Configuration artifact does not match its configuration hash"
+                ));
             }
 
             let _ = verify_artifact(&configuration, &kind, &artifact)?;
@@ -503,5 +508,150 @@ impl std::fmt::Debug for VerifiedMessage {
             self.statement,
             self.artifact.is_some()
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::messages::protocol_manager::ProtocolManager;
+    use std::marker::PhantomData;
+    use strand::backend::ristretto::RistrettoCtx;
+
+    const TRUSTEES: usize = 3;
+    const THRESHOLD: usize = 2;
+    const BATCH: BatchNumber = 1;
+
+    struct TestTrustee(StrandSignatureSk);
+
+    impl Signer for TestTrustee {
+        fn get_signing_key(&self) -> &StrandSignatureSk {
+            &self.0
+        }
+        fn get_name(&self) -> String {
+            "Test Trustee".to_string()
+        }
+    }
+
+    struct TestBoard {
+        cfg: Configuration<RistrettoCtx>,
+        cfg_h: ConfigurationHash,
+        pm: ProtocolManager<RistrettoCtx>,
+        trustees: Vec<TestTrustee>,
+    }
+
+    impl TestBoard {
+        fn new() -> TestBoard {
+            let pm = ProtocolManager::<RistrettoCtx>::new(StrandSignatureSk::gen().unwrap());
+            let trustees: Vec<TestTrustee> = (0..TRUSTEES)
+                .map(|_| TestTrustee(StrandSignatureSk::gen().unwrap()))
+                .collect();
+            let trustee_pks = trustees
+                .iter()
+                .map(|t| StrandSignaturePk::from_sk(&t.0).unwrap())
+                .collect();
+            let cfg = Configuration::<RistrettoCtx>::new(
+                0,
+                StrandSignaturePk::from_sk(&pm.signing_key).unwrap(),
+                trustee_pks,
+                THRESHOLD,
+                PhantomData,
+            );
+            let cfg_h = ConfigurationHash::from_configuration(&cfg).unwrap();
+
+            TestBoard {
+                cfg,
+                cfg_h,
+                pm,
+                trustees,
+            }
+        }
+
+        fn ballots_stmt(&self) -> Statement {
+            let mut selected = [NULL_TRUSTEE; MAX_TRUSTEES];
+            selected[0] = 1;
+            selected[1] = 2;
+            Statement::ballots_stmt(
+                self.cfg_h,
+                CiphertextsHash([0; 64]),
+                PublicKeyHash([0; 64]),
+                BATCH,
+                selected,
+            )
+        }
+
+        fn mix_signed_stmt(&self) -> Statement {
+            Statement::mix_signed_stmt(
+                self.cfg_h,
+                CiphertextsHash([0; 64]),
+                CiphertextsHash([1; 64]),
+                BATCH,
+                1,
+            )
+        }
+    }
+
+    #[test]
+    fn verify_accepts_statements_from_their_signers() {
+        let board = TestBoard::new();
+
+        let pm_messages = [
+            Message::bootstrap_msg(&board.cfg, &board.pm).unwrap(),
+            board
+                .pm
+                .sign(board.ballots_stmt(), Some(vec![0; 8]))
+                .unwrap(),
+        ];
+        for message in pm_messages {
+            let verified = message.verify(&board.cfg).unwrap();
+            assert_eq!(verified.signer_position, PROTOCOL_MANAGER_INDEX);
+        }
+
+        let trustee = &board.trustees[1];
+        let channel = Statement::channel_stmt(board.cfg_h, ChannelHash([2; 64]));
+        let trustee_messages = [
+            Message::configuration_msg(&board.cfg, trustee).unwrap(),
+            trustee.sign(board.mix_signed_stmt(), None).unwrap(),
+            trustee.sign(channel, Some(vec![0; 8])).unwrap(),
+        ];
+        for message in trustee_messages {
+            let verified = message.verify(&board.cfg).unwrap();
+            assert_eq!(verified.signer_position, 1);
+        }
+    }
+
+    #[test]
+    fn verify_rejects_statement_only_ballots_from_trustee() {
+        let board = TestBoard::new();
+
+        let message = board.trustees[0].sign(board.ballots_stmt(), None).unwrap();
+        assert!(message.verify(&board.cfg).is_err());
+    }
+
+    #[test]
+    fn verify_rejects_statement_only_configuration_from_trustee() {
+        let board = TestBoard::new();
+        let statement = Statement::configuration_stmt(board.cfg_h);
+
+        let message = board.trustees[0].sign(statement, None).unwrap();
+        assert!(message.verify(&board.cfg).is_err());
+    }
+
+    #[test]
+    fn verify_rejects_trustee_statement_from_protocol_manager() {
+        let board = TestBoard::new();
+
+        let message = board.pm.sign(board.mix_signed_stmt(), None).unwrap();
+        assert!(message.verify(&board.cfg).is_err());
+    }
+
+    #[test]
+    fn verify_rejects_configuration_artifact_on_trustee_statement() {
+        let board = TestBoard::new();
+        let cfg_bytes = board.cfg.strand_serialize().unwrap();
+        let statement = Statement::channel_stmt(board.cfg_h, ChannelHash(board.cfg_h.0));
+
+        let message = board.trustees[0].sign(statement, Some(cfg_bytes)).unwrap();
+        assert!(message.verify(&board.cfg).is_err());
     }
 }
