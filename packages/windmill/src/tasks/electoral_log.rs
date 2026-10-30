@@ -259,6 +259,48 @@ fn build_keycloak_event_messages(
 // sixteen whole deliveries per transaction leaves room for immudb's SQL indexes.
 const ELECTORAL_LOG_DELIVERIES_PER_TRANSACTION: usize = 16;
 
+/// Savepoint under which one event of a batch is prepared.
+const EVENT_SAVEPOINT: &str = "electoral_log_event";
+
+/// Prepares each event under its own savepoints of both transactions: a failed
+/// query rolls back only its event's savepoint, which is retained, and the
+/// events after it are still prepared.
+pub(crate) async fn prepare_each<M>(
+    hasura_tx: &mut Transaction<'_>,
+    keycloak_transaction: &mut Transaction<'_>,
+    events: &[LogEventInput],
+    mut prepare: impl AsyncFnMut(
+        &Transaction<'_>,
+        &Transaction<'_>,
+        &LogEventInput,
+    ) -> anyhow::Result<LogEventPreparation<M>>,
+) -> anyhow::Result<Vec<LogEventPreparation<M>>> {
+    let mut preparations = Vec::with_capacity(events.len());
+    for input in events {
+        let hasura_event = hasura_tx
+            .savepoint(EVENT_SAVEPOINT)
+            .await
+            .with_context(|| "Error starting a Hasura savepoint")?;
+        let keycloak_event = keycloak_transaction
+            .savepoint(EVENT_SAVEPOINT)
+            .await
+            .with_context(|| "Error starting a keycloak savepoint")?;
+        match prepare(&hasura_event, &keycloak_event, input).await {
+            Ok(preparation) => {
+                keycloak_event.commit().await?;
+                hasura_event.commit().await?;
+                preparations.push(preparation);
+            }
+            Err(err) => {
+                keycloak_event.rollback().await?;
+                hasura_event.rollback().await?;
+                preparations.push(LogEventPreparation::Retained(err));
+            }
+        }
+    }
+    Ok(preparations)
+}
+
 /// Writes electoral log events to the board of their election event.
 struct ElectoralLogBoards;
 
@@ -277,7 +319,7 @@ impl LogEventStore for ElectoralLogBoards {
             .get()
             .await
             .with_context(|| "Error getting DB pool for batch processing")?;
-        let hasura_tx = hasura_db_client
+        let mut hasura_tx = hasura_db_client
             .transaction()
             .await
             .with_context(|| "Error starting Hasura transaction")?;
@@ -287,15 +329,18 @@ impl LogEventStore for ElectoralLogBoards {
             .get()
             .await
             .with_context(|| "Error getting keycloak DB pool for batch processing")?;
-        let keycloak_transaction = keycloak_db_client
+        let mut keycloak_transaction = keycloak_db_client
             .transaction()
             .await
             .with_context(|| "Error starting keycloak transaction")?;
 
-        let mut preparations = Vec::with_capacity(events.len());
-        for input in events {
-            preparations.push(prepare_log_event(&hasura_tx, &keycloak_transaction, input).await?);
-        }
+        let preparations = prepare_each(
+            &mut hasura_tx,
+            &mut keycloak_transaction,
+            events,
+            async |hasura, keycloak, input| prepare_log_event(hasura, keycloak, input).await,
+        )
+        .await?;
 
         hasura_tx
             .commit()
@@ -421,4 +466,107 @@ pub async fn electoral_log_batch_dispatcher() -> Result<()> {
     }
     info!("finishing electoral_log_batch_dispatcher");
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    async fn database() -> DbClient {
+        let mut config = deadpool_postgres::Config::new();
+        config.url = Some(
+            std::env::var("CAST_VOTE_TEST_DATABASE_URL").expect("CAST_VOTE_TEST_DATABASE_URL"),
+        );
+        config
+            .create_pool(
+                Some(deadpool_postgres::Runtime::Tokio1),
+                tokio_postgres::NoTls,
+            )
+            .unwrap()
+            .get()
+            .await
+            .unwrap()
+    }
+
+    fn input(election_event_id: &str) -> LogEventInput {
+        LogEventInput {
+            election_event_id: election_event_id.to_string(),
+            message_type: LogMessageType::Internal,
+            user_id: None,
+            username: None,
+            tenant_id: "tenant".to_string(),
+            body: LogEventBody::Plain(String::new()),
+        }
+    }
+
+    /// One event whose Keycloak query fails, then a healthy event that queries
+    /// both databases.
+    async fn failing_then_healthy(
+        hasura: &Transaction<'_>,
+        keycloak: &Transaction<'_>,
+        input: &LogEventInput,
+    ) -> anyhow::Result<LogEventPreparation<i32>> {
+        if input.election_event_id == "failing" {
+            keycloak.query_one("SELECT 1 / 0", &[]).await?;
+        }
+        let row = hasura.query_one("SELECT 2", &[]).await?;
+        keycloak.query_one("SELECT 3", &[]).await?;
+        Ok(LogEventPreparation::Ready {
+            board: input.election_event_id.clone(),
+            messages: vec![row.get(0)],
+        })
+    }
+
+    #[tokio::test]
+    #[ignore = "requires the disposable devenv database fixture"]
+    async fn a_failed_query_holds_back_only_its_event() {
+        let (mut hasura_client, mut keycloak_client) = (database().await, database().await);
+        let mut hasura_tx = hasura_client.transaction().await.unwrap();
+        let mut keycloak_tx = keycloak_client.transaction().await.unwrap();
+        let events = [input("failing"), input("healthy")];
+
+        let preparations = prepare_each(
+            &mut hasura_tx,
+            &mut keycloak_tx,
+            &events,
+            async |hasura, keycloak, input| failing_then_healthy(hasura, keycloak, input).await,
+        )
+        .await
+        .unwrap();
+        println!(
+            "with savepoints: {:?}",
+            preparations
+                .iter()
+                .map(|preparation| match preparation {
+                    LogEventPreparation::Ready { board, .. } => format!("ready {board}"),
+                    LogEventPreparation::Retained(err) => format!("retained: {err:#}"),
+                    LogEventPreparation::Rejected(err) => format!("rejected: {err:#}"),
+                })
+                .collect::<Vec<_>>()
+        );
+        assert!(matches!(preparations[0], LogEventPreparation::Retained(_)));
+        assert!(matches!(
+            &preparations[1],
+            LogEventPreparation::Ready { board, messages } if board == "healthy" && messages == &[2]
+        ));
+        hasura_tx.rollback().await.unwrap();
+        keycloak_tx.rollback().await.unwrap();
+
+        // Control: without savepoints the failed query aborts the transaction,
+        // and the healthy event's queries fail too.
+        let keycloak_tx = keycloak_client.transaction().await.unwrap();
+        let hasura_tx = hasura_client.transaction().await.unwrap();
+        assert!(failing_then_healthy(&hasura_tx, &keycloak_tx, &events[0])
+            .await
+            .is_err());
+        let healthy = failing_then_healthy(&hasura_tx, &keycloak_tx, &events[1]).await;
+        println!(
+            "without savepoints, the healthy event: {:?}",
+            healthy
+                .as_ref()
+                .map(|_| ())
+                .map_err(|err| format!("{err:#}"))
+        );
+        assert!(healthy.is_err());
+    }
 }
