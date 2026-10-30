@@ -12,6 +12,8 @@ use braid::protocol::board::grpc_m::GrpcB3;
 use braid::protocol::trustee2::Trustee;
 use braid::verify::verifier::Verifier;
 
+use b3::messages::newtypes::BatchNumber;
+
 use strand::backend::ristretto::RistrettoCtx;
 use strand::signature::StrandSignatureSk;
 
@@ -25,6 +27,13 @@ struct Cli {
     /// Name of the board to audit
     #[arg(long)]
     board: String,
+
+    /// Comma-separated batch numbers that must be verified
+    ///
+    /// Verification fails if any of these batches is not verified,
+    /// or if a batch not in this list is verified.
+    #[arg(long, value_delimiter = ',')]
+    batches: Option<Vec<BatchNumber>>,
 
     /// Checks inclusion of the given ballot
     ///
@@ -61,6 +70,9 @@ async fn main() -> Result<()> {
     );
     let board = GrpcB3::new(&args.server_url);
     let mut session = Verifier::new(trustee, board, &args.board);
+    if let Some(batches) = args.batches {
+        session = session.with_expected_batches(batches);
+    }
     session.run().await?;
 
     Ok(())
