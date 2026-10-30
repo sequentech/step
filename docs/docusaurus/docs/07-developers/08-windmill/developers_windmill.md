@@ -127,8 +127,9 @@ Set `ADMIN_PORTAL_URL` in Windmill to the admin portal URL, for example
 `https://admin.example.com`. Creating a tenant or importing a tenant
 configuration fails while it is unset.
 
-The same settings are in `.devcontainer/keycloak/import/`, which Keycloak
-imports at startup. It lists `http://127.0.0.1:3002` and
+The same settings are in the tenant realm template in
+`.devcontainer/keycloak/import/`, which MinIO uploads to
+`KEYCLOAK_TENANT_REALM_CONFIG_S3_KEY` for Windmill to read. It lists `http://127.0.0.1:3002` and
 `http://localhost:3002` for development, and
 `.devcontainer/remote-deployment/configure-environment.sh` replaces them with
 the remote deployment admin portal URL. Deployments that keep their own copy of
