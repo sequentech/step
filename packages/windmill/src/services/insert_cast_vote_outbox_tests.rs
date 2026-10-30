@@ -385,6 +385,7 @@ async fn the_event_is_signed_by_the_voter_key_when_there_is_one() {
 #[ignore = "requires the disposable database fixture"]
 async fn a_vote_insert_failing_after_its_event_is_stored_leaves_neither() {
     const REFUSED_VOTER: &str = "synthetic-voter-refused-by-the-database";
+    const REFUSAL: &str = "synthetic refusal of the vote INSERT";
     let mut client = test_client().await;
     let fixture = Fixture::create(&mut client).await;
     // Only this test's synthetic voter is refused, and only while it runs.
@@ -393,7 +394,7 @@ async fn a_vote_insert_failing_after_its_event_is_stored_leaves_neither() {
             "CREATE OR REPLACE FUNCTION sequent_backend.synthetic_refuse_vote() RETURNS trigger \
              LANGUAGE plpgsql AS $$ BEGIN \
              IF NEW.voter_id_string = '{REFUSED_VOTER}' THEN \
-             RAISE EXCEPTION 'synthetic refusal of the vote INSERT'; END IF; \
+             RAISE EXCEPTION '{REFUSAL}'; END IF; \
              RETURN NEW; END $$; \
              DROP TRIGGER IF EXISTS synthetic_refuse_vote ON sequent_backend.cast_vote; \
              CREATE TRIGGER synthetic_refuse_vote BEFORE INSERT ON sequent_backend.cast_vote \
@@ -407,9 +408,14 @@ async fn a_vote_insert_failing_after_its_event_is_stored_leaves_neither() {
         fixture.count(&client, "cast_vote").await,
         fixture.count(&client, "electoral_log_outbox").await,
     );
+    // Only the injected refusal, raised by the vote INSERT, shows the rollback of
+    // an event already stored; an earlier failure would not.
+    let refused_by_the_trigger = matches!(
+        &refused,
+        Err(CastVoteError::InsertFailed(message)) if message.contains(REFUSAL)
+    );
     println!(
-        "vote INSERT refused after the event was stored: {:?}; votes {votes}, outbox events {events}",
-        refused.as_ref().err()
+        "vote INSERT refused by the injected trigger: {refused_by_the_trigger}; votes {votes}, outbox events {events}"
     );
 
     client
@@ -420,7 +426,7 @@ async fn a_vote_insert_failing_after_its_event_is_stored_leaves_neither() {
         .await
         .unwrap();
     fixture.remove(&client).await;
-    assert!(matches!(refused, Err(CastVoteError::InsertFailed(_))));
+    assert!(refused_by_the_trigger, "{refused:?}");
     assert_eq!(votes, 0);
     assert_eq!(events, 0);
 }
