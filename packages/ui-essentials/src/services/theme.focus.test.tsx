@@ -107,7 +107,7 @@ it("keeps the actual candidate list toggle visibly focused through collapse and 
 
 it.each([
     {name: "locator tab", control: <Tab label="Ballot locator" />, role: "tab"},
-    {name: "log sort", control: <TableSortLabel>Ballot ID</TableSortLabel>, role: "button"},
+    {name: "log sort", control: <TableSortLabel>Tracking ID</TableSortLabel>, role: "button"},
     {name: "language option", control: <MenuItem>English</MenuItem>, role: "menuitem"},
 ])("keeps $name keyboard focus visible without relying on a ripple", async ({control, role}) => {
     render(<ThemeProvider theme={theme}>{control}</ThemeProvider>)

@@ -67,7 +67,7 @@ const defaultSettingsValues: SettingsContextValues = {
   </p>
   <div class="info">
     <p>
-      Your Ballot ID:
+      Your Tracking ID:
       <span class="id-content">{{data.ballot_id}}</span>
     </p>
     <p>

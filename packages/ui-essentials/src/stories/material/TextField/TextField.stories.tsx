@@ -24,8 +24,8 @@ type Story = StoryObj<typeof TextField>
 
 export const Fixed: Story = {
     args: {
-        label: "Ballot ID",
-        placeholder: "Type in your Ballot ID",
+        label: "Tracking ID",
+        placeholder: "Type in your Tracking ID",
         InputLabelProps: {shrink: true},
     },
     parameters: {
