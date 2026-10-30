@@ -698,7 +698,8 @@ pub fn deserialize_and_check_multi_ballot(
         hasura_transaction,
         election_event,
         signing_key,
-        voter_signature_data
+        voter_signature_data,
+        audit
     ),
     err
 )]
