@@ -4,8 +4,8 @@
 
 use super::{CountingAlgorithm, Error};
 use crate::pipes::do_tally::{
-    counting_algorithm::utils::*, tally::Tally, BlankVotes, CandidateResult, ContestResult,
-    ExtendedMetricsContest, InvalidVotes,
+    add_count, counting_algorithm::utils::*, multiply_count, tally::Tally, tally::TallyBallot,
+    BlankVotes, CandidateResult, ContestResult, ExtendedMetricsContest, InvalidVotes,
 };
 use sequent_core::types::ceremonies::{ScopeOperation, TallyOperation};
 use std::cmp;
@@ -23,6 +23,11 @@ impl PluralityAtLarge {
     pub fn new(tally: Tally) -> Self {
         Self { tally }
     }
+    /// Counts the ballots. A ballot with multiplier `m` is counted exactly as
+    /// `m` copies of it would be -- every ballot, blank, invalid and declined
+    /// count included -- while its area weight scales only the votes it gives
+    /// candidates. Every addition is checked: a count that wrapped would be
+    /// published as if it were right.
     #[instrument(err, skip_all)]
     pub fn process_ballots(&self, op: TallyOperation) -> Result<ContestResult> {
         let contest = &self.tally.contest;
@@ -36,56 +41,71 @@ impl PluralityAtLarge {
         let mut blank_votes = BlankVotes::default();
 
         let mut extended_metrics = ExtendedMetricsContest::default();
-        let mut total_ballots = 0;
-        let mut total_weight = 0;
+        let mut total_ballots: u64 = 0;
+        let mut total_weight: u64 = 0;
 
         let mut total_declined_to_vote: u64 = 0;
         let mut total_blank_ballots: u64 = 0;
 
-        for (vote, weight_opt) in votes {
-            let weight = weight_opt.clone().unwrap_or_default();
-            total_ballots += 1;
+        for TallyBallot {
+            vote,
+            weight,
+            multiplier,
+        } in votes
+        {
+            let multiplier = *multiplier;
+            let weight = weight.unwrap_or_default();
+            total_ballots = add_count(total_ballots, multiplier, "ballots")?;
 
             extended_metrics = update_extended_metrics(
                 vote,
                 &extended_metrics,
                 &contest,
                 &explicit_blank_candidate_ids,
-            );
+                multiplier,
+            )?;
 
             if vote.is_blank_ballot {
-                total_blank_ballots = total_blank_ballots.saturating_add(1);
+                total_blank_ballots = add_count(total_blank_ballots, multiplier, "blank ballots")?;
             }
 
             match classify_ballot(vote, &explicit_blank_candidate_ids) {
                 BallotClass::ExplicitInvalid => {
-                    count_invalid_votes.explicit += 1;
-                    count_invalid += 1;
+                    count_invalid_votes.explicit =
+                        add_count(count_invalid_votes.explicit, multiplier, "invalid votes")?;
+                    count_invalid = add_count(count_invalid, multiplier, "invalid votes")?;
                 }
                 BallotClass::ImplicitInvalid => {
-                    count_invalid_votes.implicit += 1;
-                    count_invalid += 1;
+                    count_invalid_votes.implicit =
+                        add_count(count_invalid_votes.implicit, multiplier, "invalid votes")?;
+                    count_invalid = add_count(count_invalid, multiplier, "invalid votes")?;
                 }
                 BallotClass::Declined => {
-                    total_declined_to_vote = total_declined_to_vote.saturating_add(1);
+                    total_declined_to_vote =
+                        add_count(total_declined_to_vote, multiplier, "declined ballots")?;
                 }
                 BallotClass::ExplicitBlank => {
-                    blank_votes.explicit += 1;
-                    count_valid += 1;
+                    blank_votes.explicit =
+                        add_count(blank_votes.explicit, multiplier, "blank votes")?;
+                    count_valid = add_count(count_valid, multiplier, "valid votes")?;
                 }
                 BallotClass::ImplicitBlank => {
-                    blank_votes.implicit += 1;
-                    count_valid += 1;
+                    blank_votes.implicit =
+                        add_count(blank_votes.implicit, multiplier, "blank votes")?;
+                    count_valid = add_count(count_valid, multiplier, "valid votes")?;
                 }
                 BallotClass::Valid => {
+                    let candidate_votes = multiply_count(weight, multiplier, "candidate votes")?;
                     for choice in &vote.choices {
                         if choice.selected >= 0 {
-                            *vote_count.entry(choice.id.clone()).or_insert(0) += weight;
-                            total_weight += weight;
+                            let count = vote_count.entry(choice.id.clone()).or_insert(0);
+                            *count = add_count(*count, candidate_votes, "candidate votes")?;
+                            total_weight =
+                                add_count(total_weight, candidate_votes, "total weight")?;
                         }
                     }
 
-                    count_valid += 1;
+                    count_valid = add_count(count_valid, multiplier, "valid votes")?;
                 }
             }
         }
@@ -144,7 +164,7 @@ impl CountingAlgorithm for PluralityAtLarge {
             .tally
             .tally_sheet_results
             .iter()
-            .fold(contest_result, |acc, x| acc.aggregate(x, false));
+            .try_fold(contest_result, |acc, x| acc.aggregate(x, false))?;
 
         Ok(aggregate)
     }
@@ -153,6 +173,7 @@ impl CountingAlgorithm for PluralityAtLarge {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::pipes::do_tally::CountOverflow;
     use sequent_core::ballot::{Candidate, CandidatePresentation, Contest, Weight};
     use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
     use sequent_core::types::ceremonies::CountingAlgType;
@@ -238,6 +259,15 @@ mod tests {
     }
 
     fn plurality_at_large(ballots: Vec<DecodedVoteContest>) -> PluralityAtLarge {
+        plurality_at_large_counting(
+            ballots
+                .into_iter()
+                .map(|ballot| TallyBallot::new(ballot, Weight::default()))
+                .collect(),
+        )
+    }
+
+    fn plurality_at_large_counting(ballots: Vec<TallyBallot>) -> PluralityAtLarge {
         let contest = Contest {
             id: "contest".to_string(),
             max_votes: 1,
@@ -248,10 +278,6 @@ mod tests {
             candidates: vec![candidate("normal", false), candidate("blank", true)],
             ..Contest::default()
         };
-        let ballots = ballots
-            .into_iter()
-            .map(|ballot| (ballot, Weight::default()))
-            .collect();
 
         PluralityAtLarge {
             tally: Tally {
@@ -346,5 +372,180 @@ mod tests {
             .expect("extended metrics should be present");
         assert_eq!(metrics.total_declined_to_vote, 1);
         assert_eq!(metrics.total_blank_ballots, 0);
+    }
+
+    fn vote_selecting(selected: &[&str]) -> DecodedVoteContest {
+        DecodedVoteContest {
+            contest_id: "contest".to_string(),
+            is_explicit_invalid: false,
+            is_decline_to_vote: false,
+            is_blank_ballot: false,
+            invalid_errors: vec![],
+            invalid_alerts: vec![],
+            choices: ["normal", "blank"]
+                .into_iter()
+                .map(|id| DecodedVoteChoice {
+                    id: id.to_string(),
+                    selected: if selected.contains(&id) { 0 } else { -1 },
+                    write_in_text: None,
+                })
+                .collect(),
+        }
+    }
+
+    fn explicit_invalid_vote() -> DecodedVoteContest {
+        DecodedVoteContest {
+            is_explicit_invalid: true,
+            ..vote_selecting(&[])
+        }
+    }
+
+    /// One ballot of every kind the count distinguishes.
+    fn ballots_of_every_kind() -> Vec<DecodedVoteContest> {
+        vec![
+            vote_selecting(&["normal"]),
+            vote_selecting(&["blank"]),
+            vote_selecting(&[]),
+            mixed_explicit_blank_vote(),
+            explicit_invalid_vote(),
+            declined_vote(),
+            blank_ballot_vote(),
+        ]
+    }
+
+    fn result_json(tally: &PluralityAtLarge) -> serde_json::Value {
+        serde_json::to_value(
+            tally
+                .process_ballots(TallyOperation::ProcessBallotsAll)
+                .expect("ballots should be counted"),
+        )
+        .expect("result should serialize")
+    }
+
+    /// The equivalence the batch layout rests on: counting a ballot once with
+    /// multiplier `m` publishes exactly what counting `m` copies of it did,
+    /// in every figure, not just the candidate totals.
+    #[test]
+    fn a_multiplied_ballot_counts_exactly_like_its_copies() {
+        for (offset, multiplier) in [1u64, 2, 4, 8, 64].into_iter().enumerate() {
+            let mut multiplied = vec![];
+            let mut copies = vec![];
+            for (index, ballot) in ballots_of_every_kind().into_iter().enumerate() {
+                // A different multiplier per kind, so a figure that ignores it
+                // cannot match by accident.
+                let multiplier = multiplier << ((index + offset) % 3);
+                copies.extend(
+                    std::iter::repeat_n(ballot.clone(), multiplier as usize)
+                        .map(|copy| TallyBallot::new(copy, Weight::default())),
+                );
+                multiplied.push(TallyBallot {
+                    vote: ballot,
+                    weight: Weight::default(),
+                    multiplier,
+                });
+            }
+            assert_eq!(
+                result_json(&plurality_at_large_counting(multiplied)),
+                result_json(&plurality_at_large_counting(copies)),
+                "multiplier {multiplier}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_large_multiplier_is_counted_without_copies() {
+        let multiplier = 1u64 << 31;
+        let result = plurality_at_large_counting(vec![
+            TallyBallot {
+                vote: vote_selecting(&["normal"]),
+                weight: Weight::default(),
+                multiplier,
+            },
+            TallyBallot::new(vote_selecting(&["normal"]), Weight::default()),
+        ])
+        .process_ballots(TallyOperation::ProcessBallotsAll)
+        .expect("ballots should be counted");
+
+        let normal = result
+            .candidate_result
+            .iter()
+            .find(|candidate| candidate.candidate.id == "normal")
+            .expect("candidate result");
+        assert_eq!(normal.total_count, multiplier + 1);
+        assert_eq!(result.total_valid_votes, multiplier + 1);
+        let metrics = result.extended_metrics.expect("extended metrics");
+        assert_eq!(metrics.total_weight, multiplier + 1);
+        assert_eq!(metrics.total_ballots, multiplier + 1);
+    }
+
+    /// An area weight is not a multiplier: it scales the votes a ballot gives
+    /// candidates and nothing else, as it always has.
+    #[test]
+    fn an_area_weight_scales_only_candidate_votes() {
+        let weight: Weight = serde_json::from_value(serde_json::json!(5)).unwrap();
+        let result = plurality_at_large_counting(vec![
+            TallyBallot::new(vote_selecting(&["normal"]), weight),
+            TallyBallot::new(vote_selecting(&["normal"]), weight),
+            TallyBallot::new(vote_selecting(&["blank"]), weight),
+        ])
+        .process_ballots(TallyOperation::ProcessBallotsAll)
+        .expect("ballots should be counted");
+
+        let normal = result
+            .candidate_result
+            .iter()
+            .find(|candidate| candidate.candidate.id == "normal")
+            .expect("candidate result");
+        assert_eq!(normal.total_count, 10);
+        assert_eq!(result.total_valid_votes, 3);
+        assert_eq!(result.blank_votes.explicit, 1);
+        let metrics = result.extended_metrics.expect("extended metrics");
+        assert_eq!(metrics.total_weight, 10);
+        assert_eq!(metrics.total_ballots, 3);
+    }
+
+    #[test]
+    fn a_candidate_total_that_would_wrap_is_an_error() {
+        let weight: Weight = serde_json::from_value(serde_json::json!(u64::MAX / 2 + 1)).unwrap();
+        let tally = plurality_at_large_counting(vec![
+            TallyBallot::new(vote_selecting(&["normal"]), weight),
+            TallyBallot::new(vote_selecting(&["normal"]), weight),
+        ]);
+
+        assert!(matches!(
+            tally.process_ballots(TallyOperation::ProcessBallotsAll),
+            Err(Error::CountOverflow(_))
+        ));
+    }
+
+    #[test]
+    fn a_weight_times_multiplier_that_would_wrap_is_an_error() {
+        let weight: Weight = serde_json::from_value(serde_json::json!(2)).unwrap();
+        let tally = plurality_at_large_counting(vec![TallyBallot {
+            vote: vote_selecting(&["normal"]),
+            weight,
+            multiplier: u64::MAX,
+        }]);
+
+        assert!(matches!(
+            tally.process_ballots(TallyOperation::ProcessBallotsAll),
+            Err(Error::CountOverflow(_))
+        ));
+    }
+
+    #[test]
+    fn a_candidate_total_a_json_number_cannot_hold_exactly_is_an_error() {
+        // 2^22 * 2^31 = 2^53 fits a u64, but a JSON reader would round 2^53 + 1.
+        let weight: Weight = serde_json::from_value(serde_json::json!(1u64 << 22)).unwrap();
+        let tally = plurality_at_large_counting(vec![TallyBallot {
+            vote: vote_selecting(&["normal"]),
+            weight,
+            multiplier: 1 << 31,
+        }]);
+
+        assert!(matches!(
+            tally.process_ballots(TallyOperation::ProcessBallotsAll),
+            Err(Error::CountOverflow(CountOverflow("candidate votes")))
+        ));
     }
 }

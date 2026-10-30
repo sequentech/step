@@ -167,6 +167,15 @@ const tagalogTranslation: TranslationType = {
                 ok: "Oo, nais kong isumite ang aking blangkong balota",
                 cancel: "Kanselahin",
             },
+            unfilledContestsDialog: {
+                title: "May mga pagpiling hindi napunan",
+                content:
+                    "Maaari mong iwanang blangko ang isang posisyon o pumili ng mas kaunting kandidato. Suriin ang sumusunod bago magpatuloy.",
+                selected: "{{selected}} sa {{max}} ang napili",
+                nothingSelected: "Walang boto para sa posisyong ito",
+                ok: "Magpatuloy sa mga pagpiling ito",
+                cancel: "Suriin ang mga pinili",
+            },
             error: {
                 NETWORK_ERROR:
                     "Nagkaroon ng problema sa network. Pakisubukan ulit mamaya o makipag-ugnayan sa helpdesk para sa tulong.",
@@ -421,6 +430,124 @@ const tagalogTranslation: TranslationType = {
                 error: "Nagkaroon ng problema sa pagre-record ng iyong kumpirmasyon. Pakisubukan muli.",
             },
         },
+        slates: {
+            title: "Mga slate",
+            independent: "Independiyente",
+            contestMembers: "Mga kandidato ng {{slate}} para sa {{contest}}",
+            noCandidate: "Walang kandidato",
+            note: "Pinipili ng slate ang mga kandidato nito at iniiwang blangko ang mga posisyong walang kandidato ng slate. Maaari mong baguhin ang anumang pinili anumang oras.",
+            coverage: {
+                full: "Buong slate",
+                singleContest: "{{contest}} lamang",
+                partial: "Bahagyang slate",
+                everyOffice: "May kandidato para sa bawat posisyon.",
+                someOffices: "May kandidato para sa {{offices}}. Blangko ang ibang posisyon.",
+                candidates_one: "{{count}} kandidato",
+                candidates_other: "{{count}} kandidato",
+                offices_one: "{{count}} posisyon",
+                offices_other: "{{count}} posisyon",
+            },
+            candidateList: {
+                show: "Ipakita ang mga kandidato",
+                hide: "Itago ang mga kandidato",
+            },
+            tabs: {
+                label: "Paraan ng pagpili",
+                slates: "Pumili ng slate",
+                candidates: "Mga indibidwal na kandidato",
+            },
+            count: {
+                short: "{{selected}} / {{seats}} kandidatong napili",
+                long: "· {{selected}} sa {{seats}} kandidatong napili",
+                individual: "Mga indibidwal na pinili",
+                none: "Walang napiling kandidato",
+            },
+            allSelections: {
+                label: "Ang iyong mga kasalukuyang pinili",
+                none: "Walang pinili",
+            },
+            review: {
+                title: "Ang iyong mga pinili",
+                of: "sa {{seats}}",
+                selected: "Mga kandidatong napili",
+                note: "Itinatala ang iyong boto para sa bawat napiling kandidato.",
+                contestCount: "{{selected}} sa {{max}} ang napili",
+                unfilled: "Walang napiling kandidato",
+                editLabel: "Baguhin ang {{contest}}",
+            },
+            selection: {
+                all: "Napili ang lahat ng {{total}}",
+                mixed: "Halo · {{selected}} sa {{total}} ang napili",
+                partly: "Bahagyang napili · {{selected}} sa {{total}}",
+                selected: "Napili",
+                edit: "Baguhin ang mga pinili",
+            },
+            apply: {
+                button: "Piliin ang slate",
+                buttonLabel: "Piliin ang slate na {{slate}}",
+                applied: "Napili ang {{slate}}. Maaari mo pang baguhin ang sinumang kandidato.",
+                appliedPartial_one:
+                    "Napili ang {{slate}}. Wala itong kandidato para sa {{offices}}, kaya blangko ang posisyong iyon. Maaari mo pang baguhin ang sinumang kandidato.",
+                appliedPartial_other:
+                    "Napili ang {{slate}}. Wala itong kandidato para sa {{offices}}, kaya blangko ang mga posisyong iyon. Maaari mo pang baguhin ang sinumang kandidato.",
+                overMaximum:
+                    "Hindi mapipili ang {{slate}}: mayroon itong {{candidates}} kandidato para sa {{contest}}, na nagpapahintulot ng {{max}}. Maaari ka pa ring pumili ng mga kandidato nang isa-isa.",
+                unavailable:
+                    "Hindi mapipili ang {{slate}} sa balotang ito. Maaari ka pa ring pumili ng mga kandidato nang isa-isa.",
+                replaceDialog: {
+                    title: "Palitan ang mga piniling ito?",
+                    content_one:
+                        "Babaguhin ng pagpili sa <strong>{{slate}}</strong> ang sumusunod na posisyon.",
+                    content_other:
+                        "Babaguhin ng pagpili sa <strong>{{slate}}</strong> ang mga sumusunod na posisyon.",
+                    current: "Mga kasalukuyang pinili",
+                    blankNote:
+                        "Walang kandidato ang {{slate}} para sa ilang posisyon. Magiging blangko ang mga posisyong iyon.",
+                    ok: "Palitan ang mga pinili",
+                    okOffice: "Palitan ang {{office}}",
+                    cancel: "Panatilihin ang aking mga pinili",
+                },
+            },
+            clear: {
+                cleared: "Na-clear na ang lahat ng iyong pinili.",
+                dialog: {
+                    title: "I-clear ang lahat ng iyong pinili?",
+                    content:
+                        "Aalisin ng pag-clear ang lahat ng pinili sa iyong balota. Magbabago ang mga posisyong ito:",
+                    after: "Pagkatapos i-clear",
+                    ok: "I-clear ang mga pinili",
+                    cancel: "Panatilihin ang aking mga pinili",
+                },
+            },
+            offices: {
+                label: "Mga posisyon",
+                picker: "Posisyon",
+                index: "Posisyon {{index}} sa {{total}}",
+                count: "{{selected}}/{{max}}",
+                previous: "Nakaraang posisyon",
+                next: "Susunod na posisyon",
+                last: "Huling posisyon",
+                instruction_one: "Pumili ng hanggang {{count}} kandidato. {{selected}} ang napili.",
+                instruction_other:
+                    "Pumili ng hanggang {{count}} kandidato. {{selected}} ang napili.",
+            },
+            limit: "Maaari kang pumili ng hanggang {{count}}. Alisin muna ang isang kandidato bago pumili ng iba.",
+            view: {
+                button: "Tingnan ang slate",
+                buttonLabel: "Tingnan ang slate na {{slate}}",
+                summary: "{{coverage}} · {{candidates}}",
+                select: "Piliin ang slate na ito",
+                back: "Bumalik",
+            },
+            dialog: {
+                close: "Isara ang dialog",
+            },
+            clearContest: {
+                button: "I-clear",
+                label: "I-clear ang {{contest}}",
+                cleared: "Na-clear ang mga pinili para sa {{contest}}.",
+            },
+        },
         ballotLocator: {
             title: "Hanapin ang Iyong Balota",
             titleResult: "Resulta ng Iyong Paghahanap ng Balota",
@@ -456,6 +583,15 @@ const tagalogTranslation: TranslationType = {
                 username: "Username",
                 ballot_id: "Ballot ID",
                 message: "Mensahe",
+            },
+            pagination: {
+                rowsPerPage: "Mga hilera bawat pahina:",
+                displayedRows: "{{from}}–{{to}} ng {{total}}",
+                displayedRowsMoreThan: "{{from}}–{{to}} ng higit sa {{to}}",
+                firstPage: "Pumunta sa unang pahina",
+                lastPage: "Pumunta sa huling pahina",
+                nextPage: "Pumunta sa susunod na pahina",
+                previousPage: "Pumunta sa nakaraang pahina",
             },
         },
     },

@@ -368,6 +368,71 @@ mod tests {
     use crate::types::ceremonies::CountingAlgType;
 
     #[test]
+    fn an_undervote_confirmed_in_review_is_reported_as_an_alert() {
+        let presentation = ContestPresentation {
+            under_vote_policy: Some(
+                EUnderVotePolicy::WARN_AND_CONFIRM_IN_REVIEW,
+            ),
+            ..Default::default()
+        };
+
+        for (selections, reported) in [(0, true), (2, true), (3, false)] {
+            let result = check_under_vote_policy(
+                &presentation,
+                selections,
+                Some(3),
+                Some(0),
+            );
+            assert!(result.invalid_errors.is_empty(), "{selections}");
+            assert_eq!(
+                result.invalid_alerts.len(),
+                usize::from(reported),
+                "{selections}"
+            );
+            if let Some(alert) = result.invalid_alerts.first() {
+                assert_eq!(
+                    alert.message.as_deref(),
+                    Some("errors.implicit.underVote")
+                );
+                assert_eq!(
+                    alert.message_map.get("numSelected"),
+                    Some(&selections.to_string())
+                );
+                assert_eq!(
+                    alert.message_map.get("max"),
+                    Some(&"3".to_string())
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn the_new_undervote_policy_keeps_the_existing_wire_values() {
+        for (policy, text, borsh_tag) in [
+            (EUnderVotePolicy::ALLOWED, "allowed", 0u8),
+            (EUnderVotePolicy::WARN, "warn", 1),
+            (
+                EUnderVotePolicy::WARN_ONLY_IN_REVIEW,
+                "warn-only-in-review",
+                2,
+            ),
+            (EUnderVotePolicy::WARN_AND_ALERT, "warn-and-alert", 3),
+            (
+                EUnderVotePolicy::WARN_AND_CONFIRM_IN_REVIEW,
+                "warn-and-confirm-in-review",
+                4,
+            ),
+        ] {
+            assert_eq!(policy.to_string(), text);
+            assert_eq!(
+                serde_json::to_value(&policy).unwrap(),
+                serde_json::json!(text)
+            );
+            assert_eq!(borsh::to_vec(&policy).unwrap(), vec![borsh_tag]);
+        }
+    }
+
+    #[test]
     fn test_check_contest_configuration_rejects_multiple_explicit_invalid_candidates(
     ) {
         let mut contest = get_configurable_contest(
