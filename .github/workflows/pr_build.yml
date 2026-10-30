@@ -15,7 +15,7 @@ on:
         description: 'Images to build'
         required: true
         type: choice
-        options: [all, authoring]
+        options: [all, authoring, architect]
         default: all
       push:
         description: 'Whether to push the images'

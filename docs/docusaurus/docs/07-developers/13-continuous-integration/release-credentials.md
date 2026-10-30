@@ -92,3 +92,5 @@ Run it locally with:
 python3 .github/scripts/check_workflow_secrets.py .github/workflows
 python3 -m unittest discover -s .github/scripts -p 'test_*.py'
 ```
+
+For a public Architect-only rollout, select `scope=architect`. It excludes Delivery while retaining the same source guard, provenance output and release environment.

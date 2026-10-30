@@ -9,13 +9,15 @@ from pathlib import Path
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("scope", choices=("all", "authoring"))
+    parser.add_argument("scope", choices=("all", "authoring", "architect"))
     args = parser.parse_args()
     rows = json.loads(Path(__file__).with_name("build_images.json").read_text())
     if args.scope == "authoring":
         rows = [row for row in rows if row["service"] in (
             "election-architect", "delivery-orchestrator"
         )]
+    elif args.scope == "architect":
+        rows = [row for row in rows if row["service"] == "election-architect"]
     print(json.dumps({"include": rows}, separators=(",", ":")))
 
 

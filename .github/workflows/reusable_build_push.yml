@@ -12,7 +12,7 @@ on:
         required: false
         type: string
       scope:
-        description: 'Images to build: all or authoring'
+        description: 'Images to build: all, authoring, or architect'
         required: false
         type: string
         default: all

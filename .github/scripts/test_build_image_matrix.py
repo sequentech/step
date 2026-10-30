@@ -43,8 +43,15 @@ class BuildImageMatrixTests(unittest.TestCase):
         )
         self.assertEqual(len(rows), 13)
 
+    def test_architect_scope_excludes_delivery(self):
+        result = self.select("architect")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        rows = json.loads(result.stdout)["include"]
+        self.assertEqual([row["service"] for row in rows], ["election-architect"])
+        self.assertIn("election_config_wasm=", rows[0]["build_contexts"])
+
     def test_unknown_scope_fails_before_a_build_matrix_is_emitted(self):
-        for scope in ("", "architect", "all,authoring", "$(touch /tmp/untrusted)"):
+        for scope in ("", "delivery", "all,authoring", "$(touch /tmp/untrusted)"):
             with self.subTest(scope=scope):
                 result = self.select(scope)
                 self.assertNotEqual(result.returncode, 0)
