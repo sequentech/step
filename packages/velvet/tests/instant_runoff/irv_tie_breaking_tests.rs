@@ -98,7 +98,8 @@ fn test_full_tie_with_random_policy_completes() -> Result<()> {
         create_vote(&["c", "a", "b"]),
     ];
 
-    let mut ballots_status = BallotsStatus::initialize_ballots_status(&votes, &contest);
+    let mut ballots_status = BallotsStatus::initialize_ballots_status(&votes, &contest)
+        .expect("ballots should initialize");
     let mut runoff = RunoffStatus::initialize_runoff(&contest);
     runoff.run(&mut ballots_status);
 
@@ -133,7 +134,8 @@ fn test_full_tie_with_external_policy_pauses() -> Result<()> {
         create_vote(&["c", "a", "b"]),
     ];
 
-    let mut ballots_status = BallotsStatus::initialize_ballots_status(&votes, &contest);
+    let mut ballots_status = BallotsStatus::initialize_ballots_status(&votes, &contest)
+        .expect("ballots should initialize");
     let mut runoff = RunoffStatus::initialize_runoff(&contest);
     runoff.run(&mut ballots_status);
 
@@ -171,7 +173,8 @@ fn test_no_tie_with_external_policy_completes() -> Result<()> {
         create_vote(&["b", "c", "a"]),
     ];
 
-    let mut ballots_status = BallotsStatus::initialize_ballots_status(&votes, &contest);
+    let mut ballots_status = BallotsStatus::initialize_ballots_status(&votes, &contest)
+        .expect("ballots should initialize");
     let mut runoff = RunoffStatus::initialize_runoff(&contest);
     runoff.run(&mut ballots_status);
 
@@ -213,7 +216,8 @@ fn test_multi_round_tie_with_external_policy() -> Result<()> {
     let votes = create_two_round_tie_votes();
 
     // Without any resolution: algorithm should pause at Round 2
-    let mut ballots_status = BallotsStatus::initialize_ballots_status(&votes, &contest);
+    let mut ballots_status = BallotsStatus::initialize_ballots_status(&votes, &contest)
+        .expect("ballots should initialize");
     let mut runoff = RunoffStatus::initialize_runoff(&contest);
     runoff.run(&mut ballots_status);
     let tie_info = runoff
@@ -233,7 +237,8 @@ fn test_multi_round_tie_with_external_policy() -> Result<()> {
         .contains(&"candidate_c".to_string()));
 
     // With resolution for Round 2: algorithm completes with A winning
-    let mut ballots_status2 = BallotsStatus::initialize_ballots_status(&votes, &contest);
+    let mut ballots_status2 = BallotsStatus::initialize_ballots_status(&votes, &contest)
+        .expect("ballots should initialize");
     let mut runoff2 = RunoffStatus::initialize_runoff(&contest);
     runoff2.tie_resolutions.push(TallySessionResolutionData {
         round_number: Some(2),
@@ -263,7 +268,8 @@ fn test_ignored_resolution_for_non_tied_candidate() -> Result<()> {
     let votes = create_two_round_tie_votes();
 
     // candidate_b was already eliminated in Round 1 — not in the Round 2 tie [A, C]
-    let mut ballots_status = BallotsStatus::initialize_ballots_status(&votes, &contest);
+    let mut ballots_status = BallotsStatus::initialize_ballots_status(&votes, &contest)
+        .expect("ballots should initialize");
     let mut runoff = RunoffStatus::initialize_runoff(&contest);
     // tied_candidate_ids references B, which is not in the actual Round 2 tie [A, C],
     // so the resolution does not match and must be ignored.
@@ -298,7 +304,8 @@ fn test_ignored_resolution_for_wrong_round() -> Result<()> {
     let votes = create_two_round_tie_votes();
 
     // Resolution exists only for Round 1; the actual tie is in Round 2
-    let mut ballots_status = BallotsStatus::initialize_ballots_status(&votes, &contest);
+    let mut ballots_status = BallotsStatus::initialize_ballots_status(&votes, &contest)
+        .expect("ballots should initialize");
     let mut runoff = RunoffStatus::initialize_runoff(&contest);
     runoff.tie_resolutions.push(TallySessionResolutionData {
         round_number: Some(1),
@@ -335,7 +342,8 @@ fn test_tie_breaking_state_history_recorded() -> Result<()> {
     let mut contest = create_test_contest_3_candidates();
     contest.tie_breaking_policy = Some(TieBreakingPolicy::RANDOM);
     let mut ballots_status =
-        BallotsStatus::initialize_ballots_status(&three_way_tie_votes, &contest);
+        BallotsStatus::initialize_ballots_status(&three_way_tie_votes, &contest)
+            .expect("ballots should initialize");
     let mut runoff = RunoffStatus::initialize_runoff(&contest);
     runoff.run(&mut ballots_status);
     assert!(
@@ -359,7 +367,8 @@ fn test_tie_breaking_state_history_recorded() -> Result<()> {
     let mut contest2 = create_test_contest_3_candidates();
     contest2.tie_breaking_policy = Some(TieBreakingPolicy::EXTERNAL_PROCEDURE);
     let mut ballots_status2 =
-        BallotsStatus::initialize_ballots_status(&three_way_tie_votes, &contest2);
+        BallotsStatus::initialize_ballots_status(&three_way_tie_votes, &contest2)
+            .expect("ballots should initialize");
     let mut runoff2 = RunoffStatus::initialize_runoff(&contest2);
     runoff2.tie_resolutions.push(TallySessionResolutionData {
         round_number: Some(1),
