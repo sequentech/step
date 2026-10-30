@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use super::Result;
-use crate::pipes::do_tally::ExtendedMetricsContest;
+use crate::pipes::do_tally::{add_multiplied, CountOverflow, ExtendedMetricsContest};
 use sequent_core::plaintext::DecodedVoteContest;
 use sequent_core::{
     ballot::{BallotStyle, Candidate, Contest, Weight},
@@ -158,13 +158,16 @@ fn calculate_overvotes(actual_votes: u64, contest: &Contest) -> u64 {
     }
 }
 
+/// Adds `multiplier` ballots like `vote` to `current_metrics`, exactly as if
+/// the ballot had been counted that many times.
 #[instrument(skip_all)]
 pub fn update_extended_metrics(
     vote: &DecodedVoteContest,
     current_metrics: &ExtendedMetricsContest,
     contest: &Contest,
     explicit_blank_candidate_ids: &HashSet<String>,
-) -> ExtendedMetricsContest {
+    multiplier: u64,
+) -> Result<ExtendedMetricsContest, CountOverflow> {
     let mut metrics = current_metrics.clone();
 
     // Count the actual (non marker) votes once; all derived metrics below
@@ -173,22 +176,33 @@ pub fn update_extended_metrics(
 
     // Calculate valid votes first
     let valid_votes = calculate_valid_votes(actual_votes, contest);
-    metrics.votes_actually += valid_votes;
+    metrics.votes_actually = add_multiplied(
+        metrics.votes_actually,
+        valid_votes,
+        multiplier,
+        "actual votes",
+    )?;
 
     // Calculate undervotes if not a decline to vote
     if !vote.is_decline_to_vote() {
         let undervotes = calculate_undervotes(actual_votes, contest);
-        metrics.under_votes += undervotes;
+        metrics.under_votes =
+            add_multiplied(metrics.under_votes, undervotes, multiplier, "under votes")?;
     }
 
     // Calculate overvotes
     let overvotes = calculate_overvotes(actual_votes, contest);
-    metrics.over_votes += overvotes;
+    metrics.over_votes = add_multiplied(metrics.over_votes, overvotes, multiplier, "over votes")?;
 
     // Expected votes is always max_votes per ballot
-    metrics.expected_votes += contest.max_votes as u64;
+    metrics.expected_votes = add_multiplied(
+        metrics.expected_votes,
+        contest.max_votes as u64,
+        multiplier,
+        "expected votes",
+    )?;
 
-    metrics
+    Ok(metrics)
 }
 
 #[instrument(skip_all)]

@@ -166,6 +166,15 @@ const frenchTranslation: TranslationType = {
                 ok: "Oui, je veux déposer mon bulletin blanc",
                 cancel: "Annuler",
             },
+            unfilledContestsDialog: {
+                title: "Certaines sélections sont incomplètes",
+                content:
+                    "Vous pouvez laisser un poste vide ou sélectionner moins de candidats. Vérifiez les éléments suivants avant de continuer.",
+                selected: "{{selected}} sur {{max}} sélectionnées",
+                nothingSelected: "Aucun vote pour ce poste",
+                ok: "Continuer avec ces sélections",
+                cancel: "Revoir les sélections",
+            },
             error: {
                 NETWORK_ERROR:
                     "Un problème de réseau est survenu. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
@@ -418,6 +427,125 @@ const frenchTranslation: TranslationType = {
                 error: "Un problème est survenu lors de l'enregistrement de votre confirmation. Veuillez réessayer.",
             },
         },
+        slates: {
+            title: "Listes",
+            independent: "Indépendant",
+            contestMembers: "Candidats de {{slate}} pour {{contest}}",
+            noCandidate: "Aucun candidat",
+            note: "Une liste sélectionne ses candidats et laisse vides les postes sans candidat de la liste. Vous pouvez modifier chaque choix à tout moment.",
+            coverage: {
+                full: "Liste complète",
+                singleContest: "{{contest}} uniquement",
+                partial: "Liste partielle",
+                everyOffice: "Des candidats pour chaque poste.",
+                someOffices: "Des candidats pour {{offices}}. Les autres postes restent vides.",
+                candidates_one: "{{count}} candidat",
+                candidates_other: "{{count}} candidats",
+                offices_one: "{{count}} poste",
+                offices_other: "{{count}} postes",
+            },
+            candidateList: {
+                show: "Afficher les candidats",
+                hide: "Masquer les candidats",
+            },
+            tabs: {
+                label: "Mode de sélection",
+                slates: "Choisir une liste",
+                candidates: "Candidats individuels",
+            },
+            count: {
+                short: "{{selected}} / {{seats}} candidats sélectionnés",
+                long: "· {{selected}} sur {{seats}} candidats sélectionnés",
+                individual: "Sélections individuelles",
+                none: "Aucun candidat sélectionné",
+            },
+            allSelections: {
+                label: "Vos sélections actuelles",
+                none: "Aucune sélection",
+            },
+            review: {
+                title: "Vos sélections",
+                of: "sur {{seats}}",
+                selected: "Candidats sélectionnés",
+                note: "Votre vote est enregistré pour chaque candidat sélectionné.",
+                contestCount: "{{selected}} sur {{max}} sélectionnés",
+                unfilled: "Aucun candidat sélectionné",
+                editLabel: "Modifier {{contest}}",
+            },
+            selection: {
+                all: "Les {{total}} sélectionnés",
+                mixed: "Mixte · {{selected}} sur {{total}} sélectionnés",
+                partly: "Sélection partielle · {{selected}} sur {{total}}",
+                selected: "Sélectionné",
+                edit: "Modifier les sélections",
+            },
+            apply: {
+                button: "Sélectionner la liste",
+                buttonLabel: "Sélectionner la liste {{slate}}",
+                applied: "{{slate}} sélectionnée. Vous pouvez encore modifier chaque candidat.",
+                appliedPartial_one:
+                    "{{slate}} sélectionnée. Elle n'a pas de candidat pour {{offices}} : ce poste reste vide. Vous pouvez encore modifier chaque candidat.",
+                appliedPartial_other:
+                    "{{slate}} sélectionnée. Elle n'a pas de candidat pour {{offices}} : ces postes restent vides. Vous pouvez encore modifier chaque candidat.",
+                overMaximum:
+                    "{{slate}} ne peut pas être sélectionnée : elle compte {{candidates}} candidats pour {{contest}}, qui en autorise {{max}}. Vous pouvez toujours choisir des candidats individuellement.",
+                unavailable:
+                    "{{slate}} ne peut pas être sélectionnée sur ce bulletin. Vous pouvez toujours choisir des candidats individuellement.",
+                replaceDialog: {
+                    title: "Remplacer ces sélections ?",
+                    content_one:
+                        "Sélectionner <strong>{{slate}}</strong> modifiera le poste suivant.",
+                    content_other:
+                        "Sélectionner <strong>{{slate}}</strong> modifiera les postes suivants.",
+                    current: "Sélections actuelles",
+                    blankNote:
+                        "{{slate}} n'a pas de candidat pour certains postes. Ces postes resteront vides.",
+                    ok: "Remplacer les sélections",
+                    okOffice: "Remplacer {{office}}",
+                    cancel: "Garder mes sélections",
+                },
+            },
+            clear: {
+                cleared: "Tous vos choix ont été effacés.",
+                dialog: {
+                    title: "Effacer tous vos choix ?",
+                    content:
+                        "Effacer retire tous les choix de votre bulletin. Ces postes changent :",
+                    after: "Après effacement",
+                    ok: "Effacer les choix",
+                    cancel: "Garder mes choix",
+                },
+            },
+            offices: {
+                label: "Postes",
+                picker: "Poste",
+                index: "Poste {{index}} sur {{total}}",
+                count: "{{selected}}/{{max}}",
+                previous: "Poste précédent",
+                next: "Poste suivant",
+                last: "Dernier poste",
+                instruction_one:
+                    "Sélectionnez jusqu'à {{count}} candidat. {{selected}} sélectionné(s).",
+                instruction_other:
+                    "Sélectionnez jusqu'à {{count}} candidats. {{selected}} sélectionné(s).",
+            },
+            limit: "Vous pouvez en sélectionner jusqu'à {{count}}. Désélectionnez un candidat avant d'en choisir un autre.",
+            view: {
+                button: "Voir la liste",
+                buttonLabel: "Voir la liste {{slate}}",
+                summary: "{{coverage}} · {{candidates}}",
+                select: "Sélectionner cette liste",
+                back: "Retour",
+            },
+            dialog: {
+                close: "Fermer la boîte de dialogue",
+            },
+            clearContest: {
+                button: "Effacer",
+                label: "Effacer {{contest}}",
+                cleared: "Sélections effacées pour {{contest}}.",
+            },
+        },
         ballotLocator: {
             title: "Localisez votre bulletin de vote",
             titleResult: "Résultat de la recherche de votre Bulletin",
@@ -454,6 +582,15 @@ const frenchTranslation: TranslationType = {
                 username: "Nom d'utilisateur",
                 ballot_id: "Numéro d'identification du bulletin",
                 message: "Message",
+            },
+            pagination: {
+                rowsPerPage: "Lignes par page :",
+                displayedRows: "{{from}}–{{to}} sur {{total}}",
+                displayedRowsMoreThan: "{{from}}–{{to}} sur plus de {{to}}",
+                firstPage: "Aller à la première page",
+                lastPage: "Aller à la dernière page",
+                nextPage: "Aller à la page suivante",
+                previousPage: "Aller à la page précédente",
             },
         },
     },

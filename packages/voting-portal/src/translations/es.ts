@@ -167,6 +167,15 @@ const spanishTranslation: TranslationType = {
                 ok: "Sí, quiero emitir mi papeleta en blanco",
                 cancel: "Cancelar",
             },
+            unfilledContestsDialog: {
+                title: "Hay selecciones sin completar",
+                content:
+                    "Puede dejar un cargo en blanco o seleccionar menos candidatos. Revise lo siguiente antes de continuar.",
+                selected: "{{selected}} de {{max}} seleccionadas",
+                nothingSelected: "Sin voto para este cargo",
+                ok: "Continuar con estas selecciones",
+                cancel: "Revisar selecciones",
+            },
             error: {
                 NETWORK_ERROR:
                     "Hubo un problema de red. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
@@ -421,6 +430,125 @@ const spanishTranslation: TranslationType = {
                 error: "Hubo un problema al registrar su confirmación. Por favor, inténtelo de nuevo.",
             },
         },
+        slates: {
+            title: "Candidaturas conjuntas",
+            independent: "Independiente",
+            contestMembers: "Candidatos de {{slate}} para {{contest}}",
+            noCandidate: "Sin candidato",
+            note: "Una lista selecciona sus candidatos y deja en blanco los cargos en los que no tiene candidato. Puedes cambiar cualquier opción individual en cualquier momento.",
+            coverage: {
+                full: "Candidatura completa",
+                singleContest: "Solo {{contest}}",
+                partial: "Candidatura parcial",
+                everyOffice: "Candidatos para todos los cargos.",
+                someOffices: "Candidatos para {{offices}}. Los demás cargos quedan en blanco.",
+                candidates_one: "{{count}} candidato",
+                candidates_other: "{{count}} candidatos",
+                offices_one: "{{count}} cargo",
+                offices_other: "{{count}} cargos",
+            },
+            candidateList: {
+                show: "Mostrar candidatos",
+                hide: "Ocultar candidatos",
+            },
+            tabs: {
+                label: "Forma de selección",
+                slates: "Elegir una lista",
+                candidates: "Candidaturas individuales",
+            },
+            count: {
+                short: "{{selected}} / {{seats}} candidatos seleccionados",
+                long: "· {{selected}} de {{seats}} candidatos seleccionados",
+                individual: "Selecciones individuales",
+                none: "Ningún candidato seleccionado",
+            },
+            allSelections: {
+                label: "Tus selecciones actuales",
+                none: "Sin selección",
+            },
+            review: {
+                title: "Tus selecciones",
+                of: "de {{seats}}",
+                selected: "Candidatos seleccionados",
+                note: "Tu voto se registra para cada candidato seleccionado.",
+                contestCount: "{{selected}} de {{max}} seleccionados",
+                unfilled: "Ningún candidato seleccionado",
+                editLabel: "Editar {{contest}}",
+            },
+            selection: {
+                all: "Los {{total}} seleccionados",
+                mixed: "Mixta · {{selected}} de {{total}} seleccionados",
+                partly: "Seleccionada en parte · {{selected}} de {{total}}",
+                selected: "Seleccionado",
+                edit: "Editar selecciones",
+            },
+            apply: {
+                button: "Seleccionar lista",
+                buttonLabel: "Seleccionar la lista {{slate}}",
+                applied: "{{slate}} seleccionada. Aún puedes cambiar cualquier candidato.",
+                appliedPartial_one:
+                    "{{slate}} seleccionada. No tiene candidato para {{offices}}, así que ese cargo queda en blanco. Aún puedes cambiar cualquier candidato.",
+                appliedPartial_other:
+                    "{{slate}} seleccionada. No tiene candidato para {{offices}}, así que esos cargos quedan en blanco. Aún puedes cambiar cualquier candidato.",
+                overMaximum:
+                    "{{slate}} no se puede seleccionar: tiene {{candidates}} candidatos para {{contest}}, que permite {{max}}. Puedes seguir eligiendo candidatos individualmente.",
+                unavailable:
+                    "{{slate}} no se puede seleccionar en esta papeleta. Puedes seguir eligiendo candidatos individualmente.",
+                replaceDialog: {
+                    title: "¿Reemplazar estas selecciones?",
+                    content_one:
+                        "Seleccionar <strong>{{slate}}</strong> cambiará el siguiente cargo.",
+                    content_other:
+                        "Seleccionar <strong>{{slate}}</strong> cambiará los siguientes cargos.",
+                    current: "Selecciones actuales",
+                    blankNote:
+                        "{{slate}} no tiene candidato para algunos cargos. Esos cargos quedarán en blanco.",
+                    ok: "Reemplazar selecciones",
+                    okOffice: "Reemplazar {{office}}",
+                    cancel: "Mantener mis selecciones",
+                },
+            },
+            clear: {
+                cleared: "Se han borrado todas tus opciones.",
+                dialog: {
+                    title: "¿Borrar todas tus opciones?",
+                    content:
+                        "Borrar quita todas las opciones de tu papeleta. Estos cargos cambian:",
+                    after: "Después de borrar",
+                    ok: "Borrar opciones",
+                    cancel: "Mantener mis opciones",
+                },
+            },
+            offices: {
+                label: "Cargos",
+                picker: "Cargo",
+                index: "Cargo {{index}} de {{total}}",
+                count: "{{selected}}/{{max}}",
+                previous: "Cargo anterior",
+                next: "Cargo siguiente",
+                last: "Último cargo",
+                instruction_one:
+                    "Selecciona hasta {{count}} candidato. {{selected}} seleccionados.",
+                instruction_other:
+                    "Selecciona hasta {{count}} candidatos. {{selected}} seleccionados.",
+            },
+            limit: "Puedes seleccionar hasta {{count}}. Quita un candidato antes de elegir otro.",
+            view: {
+                button: "Ver lista",
+                buttonLabel: "Ver la lista {{slate}}",
+                summary: "{{coverage}} · {{candidates}}",
+                select: "Seleccionar esta lista",
+                back: "Volver",
+            },
+            dialog: {
+                close: "Cerrar el diálogo",
+            },
+            clearContest: {
+                button: "Borrar",
+                label: "Borrar {{contest}}",
+                cleared: "Selecciones borradas para {{contest}}.",
+            },
+        },
         ballotLocator: {
             title: "Encuentre su papeleta",
             titleResult: "Resultados de su búsqueda de Papeleta",
@@ -457,6 +585,15 @@ const spanishTranslation: TranslationType = {
                 username: "Usuario",
                 ballot_id: "ID de Papeleta",
                 message: "Mensaje",
+            },
+            pagination: {
+                rowsPerPage: "Filas por página:",
+                displayedRows: "{{from}}–{{to}} de {{total}}",
+                displayedRowsMoreThan: "{{from}}–{{to}} de más de {{to}}",
+                firstPage: "Ir a la primera página",
+                lastPage: "Ir a la última página",
+                nextPage: "Ir a la página siguiente",
+                previousPage: "Ir a la página anterior",
             },
         },
     },

@@ -35,6 +35,9 @@ pub mod plugins_wit;
 pub mod serialization;
 #[cfg(feature = "default_features")]
 pub mod services;
+/// Named slates, configured in an election's annotations.
+#[cfg(feature = "default_features")]
+pub mod slates;
 #[cfg(feature = "sqlite")]
 pub mod sqlite;
 

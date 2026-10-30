@@ -471,6 +471,7 @@ const tagalogTranslation: TranslationType = {
                 customUrls: "Pasadyang Unang Bahagi ng URL",
                 votingPeriod: "Panahon ng Pagboto",
                 language: "Wika",
+                languageAndRegion: "Wika at Rehiyon",
                 allowed: "Pinapayagang Mga Channel ng Pagboto",
                 materials: "Mga Karagdagang Materyales",
                 ballotDesign: "Disenyo ng Balota",
@@ -704,6 +705,13 @@ const tagalogTranslation: TranslationType = {
                         "browser-detect": "Awtomatikong tuklasin mula sa browser",
                         "force-default": "Ipatupad ang default",
                     },
+                },
+                numberFormatPolicy: {
+                    policyLabel: "Patakaran sa Format ng Numero",
+                    helperText:
+                        "Nalalapat sa mga numerong ipinapakita sa mga resulta, dashboard at ulat.",
+                    unknownPolicy:
+                        "Hindi kilalang format na '{{policy}}', ipinapakita bilang {{sample}}",
                 },
             },
             error: {
@@ -1044,6 +1052,29 @@ const tagalogTranslation: TranslationType = {
                 options: {
                     "gold-level": "Gold level na authentication",
                     "no-gold-level": "Walang gold level na authentication",
+                },
+            },
+            slates: {
+                enable: {
+                    label: "I-enable ang mga slate",
+                    helper: "Kapag naka-enable, makakapili ang mga botante ng slate na may pangalan at mababago ang anumang paligsahan, kasama ang mga independiyenteng kandidato.",
+                },
+                disable: {
+                    confirm: "I-disable ang mga slate",
+                    message_one:
+                        "May {{count}} slate ang halalang ito. Kapag in-disable ang mga slate, buburahin ito pag-save.",
+                    message_many:
+                        "May {{count}} na slate ang halalang ito. Kapag in-disable ang mga slate, buburahin ang mga ito pag-save.",
+                    message_other:
+                        "May {{count}} na slate ang halalang ito. Kapag in-disable ang mga slate, buburahin ang mga ito pag-save.",
+                },
+                mobileCandidateLists: {
+                    label: "Mga listahan ng kandidato sa mobile",
+                    helper: "Kung paano unang lumalabas sa telepono ang listahan ng kandidato ng bawat slate: Nakatiklop o Nakabukas. Maaari pa ring buksan o isara ng mga botante ang anumang listahan. Sa desktop, laging ipinapakita ang lahat ng kandidato.",
+                    options: {
+                        collapsed: "Nakatiklop",
+                        expanded: "Nakabukas",
+                    },
                 },
             },
             startScreenTitlePolicy: {
@@ -1769,6 +1800,7 @@ const tagalogTranslation: TranslationType = {
             election: "Lumikha ng Halalan",
             contest: "Lumikha ng Paligsahan",
             candidate: "Lumikha ng Kandidato",
+            slate: "Gumawa ng Slate",
         },
         importResource: {
             electionEvent: "Mag-import ng Kaganapan ng Halalan",
@@ -1808,6 +1840,7 @@ const tagalogTranslation: TranslationType = {
                     election: "Tanggalin ang Halalan",
                     contest: "Tanggalin ang Paligsahan",
                     candidate: "Tanggalin ang Kandidato",
+                    slate: "Alisin ang Slate na ito",
                 },
                 messages: {
                     confirm: {
@@ -1871,6 +1904,38 @@ const tagalogTranslation: TranslationType = {
             createCandidateSuccess: "Kandidato ay nalikha",
             createCandidateError: "Error sa paglikha ng kandidato",
         },
+        slateScreen: {
+            common: {
+                subtitle: "Configuration ng slate.",
+                newSlate: "Bagong slate",
+                notFound: "Walang ganitong slate.",
+            },
+            tabs: {
+                data: "Datos",
+            },
+            edit: {
+                general: "Pangkalahatan",
+                members: "Mga Miyembro",
+            },
+            field: {
+                name: "Pangalan",
+                alias: "Alyas",
+                description: "Paglalarawan",
+                externalId: "External ID",
+            },
+            members: {
+                helper: "Magtalaga ng mga kandidato hanggang sa pinakamataas na bilang ng bawat paligsahan. Iwanang walang laman ang isang paligsahan para walang kandidato ang slate na ito roon. Ang mga kandidatong wala sa anumang slate ay lalabas bilang Independiyente sa paligsahang iyon.",
+                contest: "Paligsahan",
+                candidate: "Kandidato",
+                noCandidate: "Walang kandidato",
+            },
+            messages: {
+                saved: "Na-save ang slate",
+                invalid: "Hindi ma-save ang slate. Ayusin ang mga problemang nakalista sa ibaba.",
+                error: "Hindi na-save ang slate.",
+                unreadable: "Hindi mabasa ang configuration ng mga slate ng halalan.",
+            },
+        },
         contestScreen: {
             common: {
                 subtitle: "Pag-configure ng Paligsahan",
@@ -1914,6 +1979,7 @@ const tagalogTranslation: TranslationType = {
                 "warn-only-in-review": "Magbabala sa pagsusuri",
                 "warn": "Patanid",
                 "warn-and-alert": "Patanid asin Alerto",
+                "warn-and-confirm-in-review": "Magbabala at kumpirmahin sa pagsusuri",
             },
             invalidVotePolicy: {
                 "label": "Patakaran sa walang boto",
@@ -2109,6 +2175,8 @@ const tagalogTranslation: TranslationType = {
             },
         },
         tally: {
+            numericResultsReportsPending:
+                "Kumpleto na ang mga numerikong resulta. Ginagawa pa ang mga ulat.",
             errorUploadingSignature: "Nagkaroon ng error sa pag-upload ng pirma",
             downloadTransmissionPackage: "I-download ang pakete",
             resultsPublication: {

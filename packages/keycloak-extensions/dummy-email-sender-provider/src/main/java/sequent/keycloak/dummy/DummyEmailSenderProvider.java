@@ -25,9 +25,7 @@ public class DummyEmailSenderProvider implements EmailSenderProvider {
   public void send(
       Map<String, String> config, String address, String subject, String textBody, String htmlBody)
       throws EmailException {
-    log.infov(
-        "**Sending dummy email**:\n\t- subject={0}\n\t- address={1}\n\t- textBody={2}\n\t- htmlBody={3}",
-        subject, address, textBody, htmlBody);
+    log.infov("Simulated email delivery to {0}", address);
   }
 
   public InternetAddress toInternetAddress(String email, String displayName) throws Exception {
