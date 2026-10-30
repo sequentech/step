@@ -37,8 +37,11 @@ RabbitMQ delivers the message again. An event that was written but not
 acknowledged, for example because the worker stopped, is therefore not written
 twice: the next run finds its receipt and only acknowledges it. A message
 without a correlation ID, or a correlation ID reused for a different event, is
-moved to the dead-letter queue. Receipts are added to existing boards on their
-next write; no migration is needed.
+moved to the dead-letter queue. A batch queued by an earlier version that is
+delivered again with other events, or another number of them, is also moved
+there. Receipts are kept by each board, which is all a redelivery needs: it
+carries the same message and resolves to the same board. Receipts are added to
+existing boards on their next write; no migration is needed.
 
 Batches queued by earlier versions in `<ENV_SLUG>_electoral_log_batch_queue`
 are drained by the same dispatcher and acknowledged once all of their events
@@ -46,4 +49,6 @@ are written. Workers started with `electoral_log_event_queue` or
 `electoral_log_batch_queue` in their `consume -q` list consume
 `electoral_log_beat_queue` instead, so Celery never acknowledges an electoral
 log event that was not written. Existing deployment arguments need no change.
-
+Do not run workers of an earlier version alongside, and do not route the
+`process_electoral_log_events_batch` task to another queue: a worker that runs
+it acknowledges the batch even when writing it fails.

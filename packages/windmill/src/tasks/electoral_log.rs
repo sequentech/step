@@ -10,8 +10,8 @@ use crate::services::database::PgConfig;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::electoral_log_queue::{
-    drain_log_event_queue, identify_log_events, store_log_events, AmqpLogEventQueue,
-    BoardDelivery, EventOutcome, LogEventPreparation, LogEventStore,
+    drain_log_event_queue, identify_log_events, store_log_events, AmqpLogEventQueue, BoardDelivery,
+    EventOutcome, LogEventPreparation, LogEventStore,
 };
 use crate::services::protocol_manager::get_board_client;
 use crate::services::users::get_user_area_id;
@@ -20,7 +20,7 @@ use anyhow::{anyhow, Context};
 use async_trait::async_trait;
 use celery::error::TaskError;
 use deadpool_postgres::{Client as DbClient, Transaction};
-use electoral_log::client::board_client::{DeliveryReceipt, ElectoralLogMessage};
+use electoral_log::client::board_client::{BoardClient, DeliveryReceipt, ElectoralLogMessage};
 use immudb_rs::TxMode;
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::services::keycloak::get_event_realm;
@@ -131,9 +131,11 @@ pub async fn enqueue_electoral_log_event(input: LogEventInput) -> Result<()> {
 }
 
 /// Legacy wire signature retained for batches queued by an earlier version.
-/// Workers no longer consume its queue: the dispatcher drains it and
-/// acknowledges a batch once all of its events are stored. A worker running
-/// this task stores the events under the same identities.
+/// The dispatcher drains its queue and acknowledges a batch once all of its
+/// events are stored; workers are redirected away from that queue, which is
+/// the only one this task is routed to. Should a worker still consume it, the
+/// events are written under the same identities, but Celery acknowledges the
+/// message even when this task fails, so the dispatcher is what keeps them.
 #[instrument(skip_all, err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(bind = true, max_retries = 0)]
@@ -301,50 +303,60 @@ impl LogEventStore for ElectoralLogBoards {
         Ok(preparations)
     }
 
-    /// Commits the deliveries a few at a time. A failure after some
-    /// transactions are committed leaves every delivery of the board in the
-    /// queue; their receipts make writing the committed ones again a no-op.
     async fn persist(
         &mut self,
         board: &str,
         deliveries: Vec<BoardDelivery<ElectoralLogMessage>>,
     ) -> anyhow::Result<Vec<DeliveryReceipt>> {
         let mut board_client = get_board_client().await?;
-        board_client.open_session(board).await?;
-        let result = async {
-            board_client.ensure_electoral_log_delivery_receipts().await?;
-            let mut receipts = Vec::with_capacity(deliveries.len());
-            for chunk in deliveries.chunks(ELECTORAL_LOG_DELIVERIES_PER_TRANSACTION) {
-                let immudb_tx = board_client.new_tx(TxMode::ReadWrite).await?;
-                for delivery in chunk {
-                    receipts.push(
-                        board_client
-                            .insert_electoral_log_delivery(
-                                &immudb_tx,
-                                &delivery.delivery_id,
-                                &delivery.payload_hash,
-                                &delivery.messages,
-                            )
-                            .await
-                            .with_context(|| {
-                                format!("Error inserting electoral log delivery for board {board}")
-                            })?,
-                    );
-                }
-                board_client.commit(&immudb_tx).await.with_context(|| {
-                    format!("Error committing immudb transaction for board {board}")
-                })?;
-            }
-            anyhow::Ok(receipts)
-        }
-        .await;
-        // A failed close must neither hide a failed write nor put committed
-        // entries back in the queue.
-        if let Err(err) = board_client.close_session().await {
-            warn!(%board, error = ?err, "Error closing immudb session");
-        }
-        result
+        persist_board_deliveries(&mut board_client, board, &deliveries).await
     }
+}
+
+/// Commits the deliveries of one board a few at a time. A failure after some
+/// transactions are committed leaves every delivery of the board in the
+/// queue; their receipts make writing the committed ones again a no-op.
+pub async fn persist_board_deliveries(
+    board_client: &mut BoardClient,
+    board: &str,
+    deliveries: &[BoardDelivery<ElectoralLogMessage>],
+) -> anyhow::Result<Vec<DeliveryReceipt>> {
+    board_client.open_session(board).await?;
+    let result = async {
+        board_client
+            .ensure_electoral_log_delivery_receipts()
+            .await?;
+        let mut receipts = Vec::with_capacity(deliveries.len());
+        for chunk in deliveries.chunks(ELECTORAL_LOG_DELIVERIES_PER_TRANSACTION) {
+            let immudb_tx = board_client.new_tx(TxMode::ReadWrite).await?;
+            for delivery in chunk {
+                receipts.push(
+                    board_client
+                        .insert_electoral_log_delivery(
+                            &immudb_tx,
+                            &delivery.delivery_id,
+                            &delivery.payload_hash,
+                            &delivery.messages,
+                        )
+                        .await
+                        .with_context(|| {
+                            format!("Error inserting electoral log delivery for board {board}")
+                        })?,
+                );
+            }
+            board_client.commit(&immudb_tx).await.with_context(|| {
+                format!("Error committing immudb transaction for board {board}")
+            })?;
+        }
+        anyhow::Ok(receipts)
+    }
+    .await;
+    // A failed close must neither hide a failed write nor put committed
+    // entries back in the queue.
+    if let Err(err) = board_client.close_session().await {
+        warn!(%board, error = ?err, "Error closing immudb session");
+    }
+    result
 }
 
 /// Dispatcher: reads batches of events from the electoral_log_event_queue, and

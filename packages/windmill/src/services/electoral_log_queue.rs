@@ -93,7 +93,10 @@ pub trait LogEventStore {
     ) -> Result<Vec<LogEventPreparation<Self::Message>>>;
 
     /// Writes the deliveries of one board with their receipts and returns,
-    /// once they are committed, one receipt per delivery in order.
+    /// once they are committed, one receipt per delivery in order. Receipts
+    /// are kept by each board: they make a message delivered again harmless,
+    /// and a redelivered message always resolves to the board it was first
+    /// written to. They do not bind a correlation ID across boards.
     async fn persist(
         &mut self,
         board: &str,
@@ -106,7 +109,9 @@ fn sha256_hex(bytes: &[u8]) -> String {
 }
 
 /// Gives each event of a message a stable identity. Events of a batch queued
-/// by an earlier version are numbered within it, in a namespace of their own.
+/// by an earlier version are numbered within it, in a namespace of their own,
+/// and their payload hash covers the whole batch, so a batch delivered again
+/// with other contents or another number of events is not taken as stored.
 pub fn identify_log_events(
     correlation_id: &str,
     legacy_batch: bool,
@@ -116,18 +121,27 @@ pub fn identify_log_events(
         !correlation_id.is_empty(),
         "electoral log delivery has no stable correlation ID"
     );
+    let batch_hash = if legacy_batch {
+        Some(sha256_hex(&serde_json::to_vec(&events)?))
+    } else {
+        None
+    };
     events
         .into_iter()
         .enumerate()
         .map(|(index, input)| {
-            let identity = if legacy_batch {
-                format!("batch:{correlation_id}:{index}")
-            } else {
-                format!("event:{correlation_id}")
+            let identity = match batch_hash {
+                Some(_) => format!("batch:{correlation_id}:{index}"),
+                None => format!("event:{correlation_id}"),
+            };
+            let input_hash = sha256_hex(&serde_json::to_vec(&input)?);
+            let payload_hash = match &batch_hash {
+                Some(batch_hash) => sha256_hex(format!("{batch_hash}:{input_hash}").as_bytes()),
+                None => input_hash,
             };
             Ok(IdentifiedLogEvent {
                 delivery_id: sha256_hex(identity.as_bytes()),
-                payload_hash: sha256_hex(&serde_json::to_vec(&input)?),
+                payload_hash,
                 input,
             })
         })
@@ -186,13 +200,15 @@ where
     let mut by_board: HashMap<String, (Vec<usize>, Vec<BoardDelivery<S::Message>>)> =
         HashMap::new();
     // Copies of one message read in the same batch share its write, so a
-    // board transaction never holds one receipt twice.
-    let mut first_copies: HashMap<String, (usize, String)> = HashMap::new();
+    // board transaction never holds one receipt twice. Like receipts, copies
+    // are matched within a board.
+    let mut first_copies: HashMap<(String, String), (usize, String)> = HashMap::new();
     let mut copies: Vec<(usize, usize)> = Vec::new();
     for (index, (event, preparation)) in events.into_iter().zip(preparations).enumerate() {
         match preparation {
             LogEventPreparation::Ready { board, messages } => {
-                if let Some((first, payload_hash)) = first_copies.get(&event.delivery_id) {
+                let key = (board.clone(), event.delivery_id.clone());
+                if let Some((first, payload_hash)) = first_copies.get(&key) {
                     outcomes.push(Some(if *payload_hash == event.payload_hash {
                         copies.push((index, *first));
                         EventOutcome::Retained
@@ -204,10 +220,7 @@ where
                     }));
                     continue;
                 }
-                first_copies.insert(
-                    event.delivery_id.clone(),
-                    (index, event.payload_hash.clone()),
-                );
+                first_copies.insert(key, (index, event.payload_hash.clone()));
                 let (indexes, deliveries) = by_board.entry(board).or_default();
                 indexes.push(index);
                 deliveries.push(BoardDelivery {
@@ -248,8 +261,7 @@ where
             }
             continue;
         }
-        for ((index, receipt), delivery_id) in indexes.into_iter().zip(receipts).zip(delivery_ids)
-        {
+        for ((index, receipt), delivery_id) in indexes.into_iter().zip(receipts).zip(delivery_ids) {
             outcomes[index] = Some(match receipt {
                 DeliveryReceipt::Stored | DeliveryReceipt::AlreadyStored => EventOutcome::Stored,
                 DeliveryReceipt::Conflicting => EventOutcome::Rejected(anyhow!(
@@ -539,7 +551,7 @@ mod tests {
     struct FakeStore {
         unavailable: bool,
         unavailable_boards: HashSet<String>,
-        receipts: HashMap<String, String>,
+        receipts: HashMap<(String, String), String>,
         persisted: Vec<String>,
     }
 
@@ -582,20 +594,20 @@ mod tests {
             );
             Ok(deliveries
                 .into_iter()
-                .map(
-                    |delivery| match self.receipts.get(&delivery.delivery_id) {
+                .map(|delivery| {
+                    let key = (board.to_string(), delivery.delivery_id.clone());
+                    match self.receipts.get(&key) {
                         Some(hash) if *hash == delivery.payload_hash => {
                             DeliveryReceipt::AlreadyStored
                         }
                         Some(_) => DeliveryReceipt::Conflicting,
                         None => {
-                            self.receipts
-                                .insert(delivery.delivery_id, delivery.payload_hash);
+                            self.receipts.insert(key, delivery.payload_hash);
                             self.persisted.extend(delivery.messages);
                             DeliveryReceipt::Stored
                         }
-                    },
-                )
+                    }
+                })
                 .collect())
         }
     }
@@ -835,11 +847,96 @@ mod tests {
         assert_eq!(queue.acked, vec![1, 2]);
     }
 
+    fn deliveries(payloads: Vec<(&str, Vec<u8>)>) -> FakeQueue {
+        let mut queue = FakeQueue::default();
+        for (index, (correlation_id, payload)) in payloads.into_iter().enumerate() {
+            queue
+                .ready
+                .push_back((index as u64 + 1, Some(correlation_id.into()), payload));
+        }
+        queue
+    }
+
+    #[tokio::test]
+    async fn receipts_are_scoped_per_board_in_any_batching() {
+        let one_drain = {
+            let mut queue = deliveries(vec![("x", event("ee1", "a")), ("x", event("ee2", "b"))]);
+            let mut store = FakeStore::default();
+            drain_log_event_queue(&mut queue, &mut store, 10)
+                .await
+                .expect("drained");
+            // Boards are written in no set order; sorting keeps duplicates.
+            store.persisted.sort();
+            (store.persisted, queue.dead_lettered.len())
+        };
+        let two_drains = {
+            let mut queue = deliveries(vec![("x", event("ee1", "a")), ("x", event("ee2", "b"))]);
+            let mut store = FakeStore::default();
+            drain_log_event_queue(&mut queue, &mut store, 1)
+                .await
+                .expect("drained");
+            store.persisted.sort();
+            (store.persisted, queue.dead_lettered.len())
+        };
+
+        assert_eq!(one_drain, (vec!["a".to_string(), "b".to_string()], 0));
+        assert_eq!(one_drain, two_drains);
+    }
+
+    async fn redeliver_legacy_batch(first: &[(&str, &str)], again: &[(&str, &str)]) -> FakeStore {
+        let mut store = FakeStore::default();
+        let mut queue = deliveries(vec![("x", legacy_batch(first))]);
+        drain_log_event_queue(&mut queue, &mut store, 10)
+            .await
+            .expect("drained");
+        assert!(queue.dead_lettered.is_empty());
+
+        let changed = legacy_batch(again);
+        let mut queue = deliveries(vec![("x", changed.clone())]);
+        drain_log_event_queue(&mut queue, &mut store, 10)
+            .await
+            .expect("drained");
+        assert_eq!(queue.dead_lettered, vec![changed]);
+        assert_eq!(queue.acked, vec![1]);
+        store
+    }
+
+    #[tokio::test]
+    async fn legacy_batch_delivered_again_with_other_contents_is_dead_lettered() {
+        let grown = redeliver_legacy_batch(&[("ee1", "a")], &[("ee1", "a"), ("ee1", "b")]).await;
+        // "b" was never stored under its own ID: it is written, "a" is not
+        // written twice, and the changed batch is kept for review.
+        assert_eq!(grown.persisted, vec!["a", "b"]);
+
+        let shrunk = redeliver_legacy_batch(&[("ee1", "a"), ("ee1", "b")], &[("ee1", "a")]).await;
+        assert_eq!(shrunk.persisted, vec!["a", "b"]);
+
+        let changed = redeliver_legacy_batch(&[("ee1", "a")], &[("ee1", "c")]).await;
+        assert_eq!(changed.persisted, vec!["a"]);
+    }
+
+    #[tokio::test]
+    async fn legacy_batch_delivered_again_unchanged_is_not_written_twice() {
+        let mut store = FakeStore::default();
+        for _ in 0..2 {
+            let mut queue = deliveries(vec![("x", legacy_batch(&[("ee1", "a"), ("ee2", "b")]))]);
+            drain_log_event_queue(&mut queue, &mut store, 10)
+                .await
+                .expect("drained");
+            assert!(queue.dead_lettered.is_empty());
+            assert_eq!(queue.acked, vec![1]);
+        }
+        store.persisted.sort();
+        assert_eq!(store.persisted, vec!["a", "b"]);
+    }
+
     #[tokio::test]
     async fn copies_of_one_message_in_a_batch_are_written_once() {
         let payload = event("ee1", "a");
         let mut queue = FakeQueue::default();
-        queue.ready.push_back((1, Some("same".into()), payload.clone()));
+        queue
+            .ready
+            .push_back((1, Some("same".into()), payload.clone()));
         queue.ready.push_back((2, Some("same".into()), payload));
         let mut store = FakeStore::default();
 
