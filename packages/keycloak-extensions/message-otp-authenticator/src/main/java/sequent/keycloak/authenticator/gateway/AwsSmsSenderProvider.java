@@ -25,7 +25,7 @@ public class AwsSmsSenderProvider implements SmsSenderProvider {
 
   @Override
   public void send(String phoneNumber, String message) throws IOException {
-    log.infov("Sending AWS SMS to {0}", phoneNumber);
+    log.infov("**Sending AWS SMS**:\n\t- phoneNumber={0}\n\t- message={1}", phoneNumber, message);
     Map<String, MessageAttributeValue> messageAttributes = new HashMap<>();
     messageAttributes.put(
         "AWS.SNS.SMS.SenderID",
@@ -45,8 +45,8 @@ public class AwsSmsSenderProvider implements SmsSenderProvider {
       log.infov(
           result.messageId() + " Message sent. Status is " + result.sdkHttpResponse().statusCode());
     } catch (SnsException e) {
-      log.errorf("AWS SMS delivery failed (status %d)", e.statusCode());
-      throw new IOException("AWS SMS delivery failed");
+      log.infov(e.awsErrorDetails().errorMessage());
+      throw new IOException(e.awsErrorDetails().errorMessage());
     }
   }
 

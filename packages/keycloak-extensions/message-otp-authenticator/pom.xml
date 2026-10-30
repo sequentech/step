@@ -95,12 +95,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<version>5.11.3</version>
 			<scope>test</scope>
 		</dependency>
-		<dependency>
-			<groupId>org.mockito</groupId>
-			<artifactId>mockito-core</artifactId>
-			<version>5.14.2</version>
-			<scope>test</scope>
-		</dependency>
 	</dependencies>
 
 	<build>
@@ -110,16 +104,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
 				<version>3.5.2</version>
-				<configuration>
-					<systemPropertyVariables>
-						<org.jboss.logging.provider>jdk</org.jboss.logging.provider>
-					</systemPropertyVariables>
-					<environmentVariables>
-						<TWILIO_ACCOUNT_SID>test-account</TWILIO_ACCOUNT_SID>
-						<TWILIO_SERVICE_SID>test-service</TWILIO_SERVICE_SID>
-						<TWILIO_AUTH_TOKEN>synthetic-provider-secret</TWILIO_AUTH_TOKEN>
-					</environmentVariables>
-				</configuration>
 			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
