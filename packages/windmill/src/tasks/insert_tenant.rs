@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use super::tenant_bootstrap_admin::TenantBootstrapAdminPolicy;
 use crate::postgres::tenant::{
     get_tenant_by_id_if_exist, get_tenant_by_slug_if_exist, insert_tenant,
 };
@@ -37,6 +38,7 @@ pub fn read_default_tenant_realm() -> AnyhowResult<RealmRepresentation> {
 pub async fn upsert_keycloak_realm(tenant_id: &str, slug: &str) -> Result<()> {
     let mut default_tenant = read_default_tenant_realm()?;
     default_tenant = remove_keycloak_realm_secrets(&default_tenant)?;
+    TenantBootstrapAdminPolicy::apply_to_realm(&mut default_tenant);
     let realm_config = serde_json::to_string(&default_tenant)?;
     let client = KeycloakAdminClient::new().await?;
     let realm = get_tenant_realm(tenant_id);
