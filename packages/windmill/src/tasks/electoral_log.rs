@@ -258,6 +258,9 @@ fn build_keycloak_event_messages(
 // sixteen whole deliveries per transaction leaves room for immudb's SQL indexes.
 const ELECTORAL_LOG_DELIVERIES_PER_TRANSACTION: usize = 16;
 
+/// Savepoint under which one event of a batch is prepared.
+const EVENT_SAVEPOINT: &str = "electoral_log_event";
+
 /// Writes electoral log events to the board of their election event.
 struct ElectoralLogBoards;
 
@@ -276,7 +279,7 @@ impl LogEventStore for ElectoralLogBoards {
             .get()
             .await
             .with_context(|| "Error getting DB pool for batch processing")?;
-        let hasura_tx = hasura_db_client
+        let mut hasura_tx = hasura_db_client
             .transaction()
             .await
             .with_context(|| "Error starting Hasura transaction")?;
@@ -286,14 +289,35 @@ impl LogEventStore for ElectoralLogBoards {
             .get()
             .await
             .with_context(|| "Error getting keycloak DB pool for batch processing")?;
-        let keycloak_transaction = keycloak_db_client
+        let mut keycloak_transaction = keycloak_db_client
             .transaction()
             .await
             .with_context(|| "Error starting keycloak transaction")?;
 
+        // Each event is prepared under savepoints: a failed query rolls back only
+        // its own, and the events after it are still prepared.
         let mut preparations = Vec::with_capacity(events.len());
         for input in events {
-            preparations.push(prepare_log_event(&hasura_tx, &keycloak_transaction, input).await?);
+            let hasura_event = hasura_tx
+                .savepoint(EVENT_SAVEPOINT)
+                .await
+                .with_context(|| "Error starting a Hasura savepoint")?;
+            let keycloak_event = keycloak_transaction
+                .savepoint(EVENT_SAVEPOINT)
+                .await
+                .with_context(|| "Error starting a keycloak savepoint")?;
+            match prepare_log_event(&hasura_event, &keycloak_event, input).await {
+                Ok(preparation) => {
+                    keycloak_event.commit().await?;
+                    hasura_event.commit().await?;
+                    preparations.push(preparation);
+                }
+                Err(err) => {
+                    keycloak_event.rollback().await?;
+                    hasura_event.rollback().await?;
+                    preparations.push(LogEventPreparation::Retained(err));
+                }
+            }
         }
 
         hasura_tx
