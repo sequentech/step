@@ -186,55 +186,32 @@ try {
       expected.electionId,
     );
     await page.getByTestId("ballot-check").click();
-    await page.waitForFunction(
-      () => {
-        const result = document.querySelector("vitrine-receipt")?.result;
-        return (
-          result?.tiers.some(
-            (tier) => tier.tier === "record" && tier.status === "verified",
-          ) &&
-          result?.tiers.some(
-            (tier) => tier.tier === "witnesses" && tier.status === "verified",
-          )
-        );
-      },
-      null,
-      { timeout: 30000 },
-    );
-    const tiers = await page.locator("vitrine-receipt").evaluate((element) =>
-      element.result.tiers.map((tier) => ({
-        tier: tier.tier,
-        status: tier.status,
-        reasons: tier.reasons.map((reason) => reason.code),
-      })),
-    );
-    const diagnostic = await page
-      .locator("vitrine-receipt")
-      .evaluate((element) => ({
-        result: element.result,
-        chain: element.chain,
-      }));
-    await fs.writeFile(
-      path.join(out, `receipt-result-${width}.json`),
-      JSON.stringify(
-        diagnostic,
-        (_key, value) => (typeof value === "bigint" ? value.toString() : value),
-        2,
+    const receiptStatus = page.getByTestId("receipt-status");
+    await page
+      .locator('[data-testid="receipt-status"][data-status="verified"]')
+      .waitFor({ timeout: 30000 });
+    const steps = await receiptStatus.evaluate((element) =>
+      Object.fromEntries(
+        [...element.querySelectorAll('[data-testid^="status-row-"]')].map(
+          (row) => [
+            row.dataset.testid.slice("status-row-".length),
+            row.dataset.state,
+          ],
+        ),
       ),
     );
-    assert.equal(
-      tiers.find((tier) => tier.tier === "witnesses")?.status,
-      "verified",
+    await fs.writeFile(
+      path.join(out, `receipt-result-${width}.json`),
+      JSON.stringify(steps, null, 2),
     );
     assert.deepEqual(
-      tiers.map((tier) => tier.status),
-      ["verified", "verified", "verified", "verified"],
-      "all four native proof tiers",
+      steps,
+      { record: "done", witnesses: "done", anchors: "done" },
+      "every step of the receipt",
     );
-    assert.ok(await page.locator("vitrine-proof-steps").count());
-    await page
-      .locator("vitrine-receipt")
-      .evaluate((element) => element.scrollIntoView({ block: "start" }));
+    await receiptStatus.evaluate((element) =>
+      element.scrollIntoView({ block: "start" }),
+    );
     await screenshot(page, `native-receipt-${width}`);
     await page.addScriptTag({ path: axe });
     const accessibility = await page.evaluate(async () => {
@@ -251,22 +228,17 @@ try {
     await page.getByTestId("ballot-change").click();
     await page.getByTestId("ballot-id").fill("00".repeat(32));
     await page.getByTestId("ballot-check").click();
-    await page.waitForFunction(
-      () => {
-        const result = document.querySelector("vitrine-receipt")?.result;
-        return result?.tiers.some(
-          (tier) => tier.tier === "record" && tier.status !== "verified",
-        );
-      },
-      null,
-      { timeout: 30000 },
-    );
+    await page
+      .locator(
+        '[data-testid="receipt-status"]:is([data-status="problem"], [data-status="late"])',
+      )
+      .waitFor({ timeout: 30000 });
     await screenshot(page, `wrong-ballot-${width}`);
     results.push({
       width,
       liveNativeReceipt: true,
       input: width === 390 ? "receipt file" : "pasted chain",
-      tiers,
+      steps,
       wrongBallotRefused: true,
       receiptAxeViolations: 0,
     });
