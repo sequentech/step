@@ -160,13 +160,12 @@ fn event_queue() -> Result<String> {
 pub async fn deliver_log_event(event: &PendingLogEvent) {
     let delivered = async {
         let connection = get_celery_connection().await?;
-        publish_log_event(&connection, &event_queue()?, event).await?;
         let client = get_hasura_pool()
             .await
             .get()
             .await
             .context("Error getting DB pool")?;
-        remove_published(&client, &event.id).await
+        publish_and_remove(&connection, &event_queue()?, &client, event).await
     }
     .await;
     if let Err(err) = delivered {
@@ -176,6 +175,18 @@ pub async fn deliver_log_event(event: &PendingLogEvent) {
             "Electoral log event left in the outbox for the relay"
         );
     }
+}
+
+/// Publishes an event and, once RabbitMQ has stored it, removes it from the
+/// outbox.
+pub async fn publish_and_remove(
+    connection: &Connection,
+    queue: &str,
+    client: &DbClient,
+    event: &PendingLogEvent,
+) -> Result<()> {
+    publish_log_event(connection, queue, event).await?;
+    remove_published(client, &event.id).await
 }
 
 /// Publishes the outbox events older than `older_than`, oldest first, and
