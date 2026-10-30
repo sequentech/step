@@ -320,32 +320,13 @@ impl TallyCreationReader for PgTallyCreationReader<'_> {
         election_event_id: &str,
         election_ids: &[String],
     ) -> Result<Vec<BallotStyle>> {
-        let styles = get_ballot_styles_by_elections(
+        get_ballot_styles_by_elections(
             self.transaction,
             tenant_id,
             election_event_id,
             &election_ids.to_vec(),
         )
-        .await?;
-        let generated: std::collections::HashSet<String> = self
-            .transaction
-            .query(
-                "SELECT id::text FROM sequent_backend.ballot_publication
-             WHERE tenant_id = $1 AND election_event_id = $2
-             AND (COALESCE(is_generated, false) OR published_at IS NOT NULL)",
-                &[
-                    &uuid::Uuid::parse_str(tenant_id)?,
-                    &uuid::Uuid::parse_str(election_event_id)?,
-                ],
-            )
-            .await?
-            .into_iter()
-            .map(|row| row.get(0))
-            .collect();
-        Ok(styles
-            .into_iter()
-            .filter(|style| generated.contains(&style.ballot_publication_id))
-            .collect())
+        .await
     }
 
     async fn approved_tally_sheets(

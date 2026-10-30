@@ -2391,13 +2391,13 @@ async fn get_ballot_styles_by_elections_returns_live_styles_of_the_requested_ele
     let other = f.scope().await;
     let (requested, unrequested) = (f.election(a).await, f.election(a).await);
     let area = f.area(a).await;
-    let publication = f.publication(a, published(1)).await;
+    let publication = f.publication(a, served(1)).await;
     let wanted = f.style(a, publication, requested, area).await;
     f.style(a, publication, unrequested, area).await;
     f.deleted_style(a, publication, requested, area).await;
     f.election_as(other, requested, None).await;
     f.area_as(other, area).await;
-    f.publication_as(other, publication, published(1)).await;
+    f.publication_as(other, publication, served(1)).await;
     f.style(other, publication, requested, area).await;
 
     let styles = ballot_style::get_ballot_styles_by_elections(
@@ -2422,18 +2422,41 @@ async fn get_ballot_styles_by_elections_returns_live_styles_of_the_requested_ele
     tx.rollback().await.unwrap();
 }
 
+/// Generating a publication inserts its styles before it is published, so a
+/// draft's styles are live too. The tally reads only those of the served
+/// publication.
 #[tokio::test]
-async fn get_ballot_styles_by_elections_includes_live_styles_of_unpublished_publications() {
+async fn get_ballot_styles_by_elections_leaves_out_unpublished_and_deleted_publications() {
     let mut client = connect().await;
     let tx = client.transaction().await.unwrap();
     let f = Fixture::new(&tx, line!());
     let a = f.scope().await;
     let election = f.election(a).await;
     let area = f.area(a).await;
-    let live = f.publication(a, published(1)).await;
+    let live = f.publication(a, served(1)).await;
+    let generated_draft = f
+        .publication(
+            a,
+            PublicationRow {
+                is_generated: true,
+                ..Default::default()
+            },
+        )
+        .await;
     let draft = f.publication(a, PublicationRow::default()).await;
+    let deleted = f
+        .publication(
+            a,
+            PublicationRow {
+                deleted_at: Some(at(2)),
+                ..served(1)
+            },
+        )
+        .await;
     let live_style = f.style(a, live, election, area).await;
-    let draft_style = f.style(a, draft, election, area).await;
+    for publication in [generated_draft, draft, deleted] {
+        f.style(a, publication, election, area).await;
+    }
 
     let styles = ballot_style::get_ballot_styles_by_elections(
         &tx,
@@ -2444,10 +2467,7 @@ async fn get_ballot_styles_by_elections_includes_live_styles_of_unpublished_publ
     .await
     .unwrap();
 
-    assert_eq!(
-        style_ids(&styles),
-        sorted(strings(&[live_style, draft_style]))
-    );
+    assert_eq!(style_ids(&styles), strings(&[live_style]));
     tx.rollback().await.unwrap();
 }
 
