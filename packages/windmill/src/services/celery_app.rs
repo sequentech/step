@@ -448,17 +448,24 @@ mod tests {
 
     #[test]
     fn electoral_log_queues_are_left_to_the_dispatcher() {
-        let queues = ["beat", "electoral_log_batch_queue", "electoral_log_beat_queue"]
-            .iter()
-            .map(|queue| format!("dev_{queue}"))
-            .collect();
+        let queues = [
+            "beat",
+            "electoral_log_batch_queue",
+            "electoral_log_beat_queue",
+        ]
+        .iter()
+        .map(|queue| format!("dev_{queue}"))
+        .collect();
 
         assert_eq!(
             durable_electoral_log_consumer_queues(queues, "dev"),
             vec!["dev_beat", "dev_electoral_log_beat_queue"]
         );
         assert_eq!(
-            durable_electoral_log_consumer_queues(vec!["dev_electoral_log_event_queue".into()], "dev"),
+            durable_electoral_log_consumer_queues(
+                vec!["dev_electoral_log_event_queue".into()],
+                "dev"
+            ),
             vec!["dev_electoral_log_beat_queue"]
         );
     }
