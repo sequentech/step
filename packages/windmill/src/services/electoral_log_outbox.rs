@@ -160,12 +160,14 @@ fn event_queue() -> Result<String> {
 pub async fn deliver_log_event(event: &PendingLogEvent) {
     let delivered = async {
         let connection = get_celery_connection().await?;
-        let client = get_hasura_pool()
-            .await
-            .get()
-            .await
-            .context("Error getting DB pool")?;
-        publish_and_remove(&connection, &event_queue()?, &client, event).await
+        publish_and_remove(&connection, &event_queue()?, event, || async {
+            get_hasura_pool()
+                .await
+                .get()
+                .await
+                .context("Error getting DB pool")
+        })
+        .await
     }
     .await;
     if let Err(err) = delivered {
@@ -178,15 +180,21 @@ pub async fn deliver_log_event(event: &PendingLogEvent) {
 }
 
 /// Publishes an event and, once RabbitMQ has stored it, removes it from the
-/// outbox.
-pub async fn publish_and_remove(
+/// outbox. The database client is taken only after the publish is confirmed,
+/// so a slow broker does not hold a connection the votes need.
+pub async fn publish_and_remove<F, Fut>(
     connection: &Connection,
     queue: &str,
-    client: &DbClient,
     event: &PendingLogEvent,
-) -> Result<()> {
+    database: F,
+) -> Result<()>
+where
+    F: FnOnce() -> Fut,
+    Fut: std::future::Future<Output = Result<DbClient>>,
+{
     publish_log_event(connection, queue, event).await?;
-    remove_published(client, &event.id).await
+    let client = database().await?;
+    remove_published(&client, &event.id).await
 }
 
 /// Publishes the outbox events older than `older_than`, oldest first, and
