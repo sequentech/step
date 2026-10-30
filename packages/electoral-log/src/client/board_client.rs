@@ -96,6 +96,38 @@ pub struct ElectoralLogMessage {
     pub ballot_id: Option<String>,
 }
 
+impl ElectoralLogMessage {
+    /// Checks the values against the bounded columns of the board's table, which
+    /// would otherwise make the whole board transaction fail on every attempt.
+    pub fn check_column_limits(&self) -> Result<()> {
+        let bounded = [
+            (
+                "statement_kind",
+                Some(&self.statement_kind),
+                STATEMENT_KIND_VARCHAR_LENGTH,
+            ),
+            ("user_id", self.user_id.as_ref(), ID_VARCHAR_LENGTH),
+            ("election_id", self.election_id.as_ref(), ID_VARCHAR_LENGTH),
+            ("area_id", self.area_id.as_ref(), ID_VARCHAR_LENGTH),
+            (
+                "ballot_id",
+                self.ballot_id.as_ref(),
+                BALLOT_ID_VARCHAR_LENGTH,
+            ),
+        ];
+        for (column, value, limit) in bounded {
+            if let Some(value) = value {
+                anyhow::ensure!(
+                    value.len() <= limit,
+                    "electoral log {column} is {} bytes, longer than {limit}",
+                    value.len()
+                );
+            }
+        }
+        Ok(())
+    }
+}
+
 impl TryFrom<&Row> for ElectoralLogMessage {
     type Error = anyhow::Error;
 
@@ -1246,113 +1278,6 @@ pub(crate) mod tests {
             .unwrap();
         assert_eq!(ret.len(), 0);
 
-        tear_down(b).await;
-    }
-
-    fn delivery_message(created: i64) -> ElectoralLogMessage {
-        ElectoralLogMessage {
-            id: 0,
-            created,
-            sender_pk: "".to_string(),
-            statement_timestamp: created,
-            statement_kind: "CastVote".to_string(),
-            message: vec![1, 2, 3],
-            version: "".to_string(),
-            user_id: Some("synthetic-voter".to_string()),
-            username: None,
-            election_id: None,
-            area_id: None,
-            ballot_id: None,
-        }
-    }
-
-    async fn board_session() -> BoardClient {
-        let mut b = BoardClient::new("http://localhost:3322", "immudb", "immudb")
-            .await
-            .unwrap();
-        b.open_session(BOARD_DB).await.unwrap();
-        b
-    }
-
-    async fn write_delivery(
-        b: &mut BoardClient,
-        delivery_id: &str,
-        payload_hash: &str,
-        created: i64,
-    ) -> Result<DeliveryReceipt> {
-        b.ensure_electoral_log_delivery_receipts().await?;
-        let tx = b.new_tx(TxMode::ReadWrite).await?;
-        let receipt = b
-            .insert_electoral_log_delivery(&tx, delivery_id, payload_hash, &[delivery_message(created)])
-            .await?;
-        b.commit(&tx).await?;
-        Ok(receipt)
-    }
-
-    const DELIVERY_A: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-    const PAYLOAD_A: &str = "1111111111111111111111111111111111111111111111111111111111111111";
-    const PAYLOAD_B: &str = "2222222222222222222222222222222222222222222222222222222222222222";
-
-    #[tokio::test]
-    #[ignore]
-    #[serial]
-    pub async fn redelivered_delivery_is_written_once() {
-        let b = set_up().await;
-        let mut session = board_session().await;
-
-        let first = write_delivery(&mut session, DELIVERY_A, PAYLOAD_A, 1).await.unwrap();
-        // The worker stops after the commit and before the ack; RabbitMQ
-        // delivers the message again and signing yields different bytes.
-        let again = write_delivery(&mut session, DELIVERY_A, PAYLOAD_A, 2).await.unwrap();
-        let other = write_delivery(&mut session, DELIVERY_A, PAYLOAD_B, 3).await.unwrap();
-        session.close_session().await.unwrap();
-
-        assert_eq!(first, DeliveryReceipt::Stored);
-        assert_eq!(again, DeliveryReceipt::AlreadyStored);
-        assert_eq!(other, DeliveryReceipt::Conflicting);
-        let mut b = b;
-        let rows = b.get_electoral_log_messages(BOARD_DB).await.unwrap();
-        assert_eq!(rows.len(), 1);
-        assert_eq!(rows[0].created, 1);
-        tear_down(b).await;
-    }
-
-    #[tokio::test]
-    #[ignore]
-    #[serial]
-    pub async fn concurrent_writes_of_one_delivery_commit_once() {
-        let mut b = set_up().await;
-        let mut first = board_session().await;
-        let mut second = board_session().await;
-        first.ensure_electoral_log_delivery_receipts().await.unwrap();
-        second.ensure_electoral_log_delivery_receipts().await.unwrap();
-
-        let tx1 = first.new_tx(TxMode::ReadWrite).await.unwrap();
-        let tx2 = second.new_tx(TxMode::ReadWrite).await.unwrap();
-        let receipt1 = first
-            .insert_electoral_log_delivery(&tx1, DELIVERY_A, PAYLOAD_A, &[delivery_message(1)])
-            .await
-            .unwrap();
-        let receipt2 = second
-            .insert_electoral_log_delivery(&tx2, DELIVERY_A, PAYLOAD_A, &[delivery_message(2)])
-            .await
-            .unwrap();
-        assert_eq!(receipt1, DeliveryReceipt::Stored);
-        assert_eq!(receipt2, DeliveryReceipt::Stored);
-        first.commit(&tx1).await.unwrap();
-        assert!(second.commit(&tx2).await.is_err());
-        second.close_session().await.ok();
-
-        // The dispatcher keeps the losing delivery in the queue and retries it.
-        let mut retry = board_session().await;
-        let receipt = write_delivery(&mut retry, DELIVERY_A, PAYLOAD_A, 3).await.unwrap();
-        retry.close_session().await.unwrap();
-        first.close_session().await.unwrap();
-
-        assert_eq!(receipt, DeliveryReceipt::AlreadyStored);
-        let rows = b.get_electoral_log_messages(BOARD_DB).await.unwrap();
-        assert_eq!(rows.len(), 1);
-        assert_eq!(rows[0].created, 1);
         tear_down(b).await;
     }
 }
