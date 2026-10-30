@@ -93,8 +93,9 @@ Set `ADMIN_PORTAL_URL` in Windmill to the admin portal URL, for example
 `https://admin.example.com`. Creating a tenant or importing a tenant
 configuration fails while it is unset.
 
-The same settings are in `.devcontainer/keycloak/import/`, which Keycloak
-imports at startup. Deployments that keep their own copy of the tenant realm
+The same settings are in the tenant realm template in
+`.devcontainer/keycloak/import/`, which Windmill reads from
+`KEYCLOAK_TENANT_REALM_CONFIG_PATH`. Deployments that keep their own copy of the tenant realm
 template should apply the same settings to it.
 
 Windmill does not change the clients of a realm that already exists. For each
