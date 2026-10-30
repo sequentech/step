@@ -469,6 +469,7 @@ const dutchTranslation: TranslationType = {
                 customUrls: "Aangepaste URL-prefix",
                 votingPeriod: "Stemperiode",
                 language: "Taal",
+                languageAndRegion: "Taal en regio",
                 allowed: "Toegestane stemkanalen",
                 materials: "Ondersteunend materiaal",
                 ballotDesign: "Ontwerp stembiljet",
@@ -702,6 +703,11 @@ const dutchTranslation: TranslationType = {
                         "browser-detect": "Detecteren via browser",
                         "force-default": "Standaard afdwingen",
                     },
+                },
+                numberFormatPolicy: {
+                    policyLabel: "Getalnotatiebeleid",
+                    helperText: "Geldt voor de getallen in resultaten, dashboards en rapporten.",
+                    unknownPolicy: "Onbekende notatie '{{policy}}', weergegeven als {{sample}}",
                 },
             },
             error: {
@@ -1040,6 +1046,29 @@ const dutchTranslation: TranslationType = {
                 options: {
                     "gold-level": "'Gold level' Authenticatie",
                     "no-gold-level": "Geen 'Gold level' Authenticatie",
+                },
+            },
+            slates: {
+                enable: {
+                    label: "Lijsten inschakelen",
+                    helper: "Als dit is ingeschakeld, kunnen kiezers een benoemde lijst kiezen en elke stemming aanpassen, ook met onafhankelijke kandidaten.",
+                },
+                disable: {
+                    confirm: "Lijsten uitschakelen",
+                    message_one:
+                        "Deze verkiezing heeft {{count}} lijst. Als je lijsten uitschakelt, wordt die bij het opslaan verwijderd.",
+                    message_many:
+                        "Deze verkiezing heeft {{count}} lijsten. Als je lijsten uitschakelt, worden ze bij het opslaan verwijderd.",
+                    message_other:
+                        "Deze verkiezing heeft {{count}} lijsten. Als je lijsten uitschakelt, worden ze bij het opslaan verwijderd.",
+                },
+                mobileCandidateLists: {
+                    label: "Kandidatenlijsten op mobiel",
+                    helper: "Hoe de kandidatenlijst van elke lijst op een telefoon begint: Ingeklapt of Uitgeklapt. Kiezers kunnen elke lijst altijd openen of sluiten. Op desktop worden altijd alle kandidaten getoond.",
+                    options: {
+                        collapsed: "Ingeklapt",
+                        expanded: "Uitgeklapt",
+                    },
                 },
             },
             startScreenTitlePolicy: {
@@ -1763,6 +1792,7 @@ const dutchTranslation: TranslationType = {
             election: "Een Verkiezing aanmaken",
             contest: "Een Stemming aanmaken",
             candidate: "Een Kandidaat aanmaken",
+            slate: "Een Lijst maken",
         },
         importResource: {
             electionEvent: "Een Verkiezingsevenement importeren",
@@ -1802,6 +1832,7 @@ const dutchTranslation: TranslationType = {
                     election: "Deze Verkiezing verwijderen",
                     contest: "Deze Stemming verwijderen",
                     candidate: "Deze Kandidaat verwijderen",
+                    slate: "Deze Lijst verwijderen",
                 },
                 messages: {
                     confirm: {
@@ -1866,6 +1897,38 @@ const dutchTranslation: TranslationType = {
             createCandidateSuccess: "Kandidaat aangemaakt",
             createCandidateError: "Fout bij aanmaken kandidaat",
         },
+        slateScreen: {
+            common: {
+                subtitle: "Lijstconfiguratie.",
+                newSlate: "Nieuwe lijst",
+                notFound: "Deze lijst bestaat niet.",
+            },
+            tabs: {
+                data: "Gegevens",
+            },
+            edit: {
+                general: "Algemeen",
+                members: "Leden",
+            },
+            field: {
+                name: "Naam",
+                alias: "Alias",
+                description: "Beschrijving",
+                externalId: "Externe ID",
+            },
+            members: {
+                helper: "Wijs per stemming kandidaten toe tot het maximumaantal. Laat een stemming leeg als deze lijst daar niemand voordraagt. Kandidaten die op geen enkele lijst staan, verschijnen in die stemming als Onafhankelijk.",
+                contest: "Stemming",
+                candidate: "Kandidaat",
+                noCandidate: "Geen kandidaat",
+            },
+            messages: {
+                saved: "Lijst opgeslagen",
+                invalid: "De lijst kan niet worden opgeslagen. Los de onderstaande problemen op.",
+                error: "De lijst kon niet worden opgeslagen.",
+                unreadable: "De lijstconfiguratie van de verkiezing kan niet worden gelezen.",
+            },
+        },
         contestScreen: {
             common: {
                 subtitle: "Configuratie stemming.",
@@ -1909,6 +1972,7 @@ const dutchTranslation: TranslationType = {
                 "warn-only-in-review": "Waarschuwen bij Controle",
                 "warn": "Waarschuwen",
                 "warn-and-alert": "Waarschuwen en Melden",
+                "warn-and-confirm-in-review": "Waarschuwen en Bevestigen bij Controle",
             },
             invalidVotePolicy: {
                 "label": "Beleid Ongeldige Stem",
@@ -2100,6 +2164,8 @@ const dutchTranslation: TranslationType = {
             },
         },
         tally: {
+            numericResultsReportsPending:
+                "De numerieke resultaten zijn compleet. De rapporten worden nog gegenereerd.",
             errorUploadingSignature: "Er was een fout bij het uploaden van de handtekening",
             downloadTransmissionPackage: "Transmissiepakket Downloaden",
             resultsPublication: {

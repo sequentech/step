@@ -1,12 +1,31 @@
 table:
     name: tally_session_contest
     schema: sequent_backend
+object_relationships:
+    - name: election
+      using:
+          manual_configuration:
+              column_mapping:
+                  election_event_id: election_event_id
+                  election_id: id
+                  tenant_id: tenant_id
+              insertion_order: null
+              remote_table:
+                  name: election
+                  schema: sequent_backend
 insert_permissions:
     - comment: ""
       permission:
           check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - election:
+                        _or:
+                            - permission_label:
+                                  _is_null: true
+                            - permission_label:
+                                  _in: X-Hasura-Permission-Labels
           columns:
               - session_id
               - annotations
@@ -56,8 +75,15 @@ select_permissions:
               - tally_session_id
               - tenant_id
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - election:
+                        _or:
+                            - permission_label:
+                                  _is_null: true
+                            - permission_label:
+                                  _in: X-Hasura-Permission-Labels
       role: admin-ceremony
     - comment: ""
       permission:
@@ -76,8 +102,15 @@ select_permissions:
               - tally_session_id
               - tenant_id
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - election:
+                        _or:
+                            - permission_label:
+                                  _is_null: true
+                            - permission_label:
+                                  _in: X-Hasura-Permission-Labels
       role: admin-user
     - comment: ""
       permission:
@@ -114,15 +147,29 @@ select_permissions:
               - tally_session_id
               - tenant_id
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - election:
+                        _or:
+                            - permission_label:
+                                  _is_null: true
+                            - permission_label:
+                                  _in: X-Hasura-Permission-Labels
       role: trustee-ceremony
 update_permissions:
     - comment: ""
       permission:
           check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - election:
+                        _or:
+                            - permission_label:
+                                  _is_null: true
+                            - permission_label:
+                                  _in: X-Hasura-Permission-Labels
           columns:
               - session_id
               - annotations
@@ -137,8 +184,15 @@ update_permissions:
               - tally_session_id
               - tenant_id
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - election:
+                        _or:
+                            - permission_label:
+                                  _is_null: true
+                            - permission_label:
+                                  _in: X-Hasura-Permission-Labels
       role: admin-user
     - comment: ""
       permission:

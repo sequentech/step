@@ -251,9 +251,6 @@ services:
       HARVEST_DOMAIN: ${HARVEST_DOMAIN}
       APP_VERSION: ${APP_VERSION}
       APP_HASH: ${APP_HASH}
-    volumes:
-      # https://www.keycloak.org/server/containers#_importing_a_realm_on_startup
-      - ./keycloak/import:/opt/keycloak/data/import:ro,z
     # Below we're using the dummy email email sender provider but that's just for
     # development, in production we should still use the default SMTP email provider
     #
@@ -361,6 +358,9 @@ services:
       KEYCLOAK_DB__MANAGER__RECYCLING_METHOD: ${KEYCLOAK_DB__MANAGER__RECYCLING_METHOD}
       AMQP_ADDR: ${AMQP_ADDR}
       KEYCLOAK_URL: ${KEYCLOAK_URL}
+      KIOSK_KEYCLOAK_URL: ${KIOSK_KEYCLOAK_URL:-}
+      HARVEST_JWT_ISSUER_URLS: ${HARVEST_JWT_ISSUER_URLS:-}
+      KEYCLOAK_PUBLIC_URL: ${KEYCLOAK_PUBLIC_URL:-}
       KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS: ${KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS:-30}
       KEYCLOAK_ADMIN_CLIENT_ID: ${KEYCLOAK_ADMIN_CLIENT_ID}
       KEYCLOAK_ADMIN_CLIENT_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
@@ -583,6 +583,7 @@ services:
       SUPER_ADMIN_TENANT_ID: ${SUPER_ADMIN_TENANT_ID}
       VOTING_PORTAL_URL: ${VOTING_PORTAL_URL}
       ADMIN_PORTAL_URL: ${ADMIN_PORTAL_URL}
+      KIOSK_VOTING_PORTAL_URL: ${KIOSK_VOTING_PORTAL_URL:-}
       SMS_TRANSPORT_NAME: ${SMS_TRANSPORT_NAME}
       AWS_SNS_ATTRIBUTES: ${AWS_SNS_ATTRIBUTES}
       EMAIL_TRANSPORT_NAME: ${EMAIL_TRANSPORT_NAME}
