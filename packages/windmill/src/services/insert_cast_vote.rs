@@ -12,8 +12,10 @@ use crate::services::datafix::utils::{
 };
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
+use crate::services::electoral_log_outbox::{deliver_log_event, store_log_event, PendingLogEvent};
 use crate::services::pg_lock::PgLock;
 use crate::services::protocol_manager::get_protocol_manager;
+use crate::tasks::electoral_log::LogEventInput;
 use anyhow::{anyhow, Context, Result};
 use b3::messages::message::Signer;
 use base64::{engine::general_purpose, Engine as _};
@@ -209,7 +211,8 @@ async fn insert_datafix_cast_vote_locked<'a>(
     voter_signature_data: &Option<(StrandSignaturePk, StrandSignature)>,
     is_early_voting_area: bool,
     initial_status: CastVoteStatus,
-) -> Result<(CastVote, VotingStatusChannel), CastVoteError> {
+    audit: &CastVoteAudit<'_>,
+) -> Result<(CastVote, VotingStatusChannel, PendingLogEvent), CastVoteError> {
     let voter_id_uuid = parse_uuid_v4(ids.voter_id)
         .map_err(|err| CastVoteError::VoterStateLocked(format!("Invalid voter id: {err}")))?;
     let lock = PgLock::acquire(
@@ -248,6 +251,7 @@ async fn insert_datafix_cast_vote_locked<'a>(
         voter_signature_data,
         is_early_voting_area,
         initial_status,
+        audit,
     )
     .await;
 
@@ -444,19 +448,35 @@ pub async fn try_insert_cast_vote(
     };
     let is_early_voting_area = area_presentation.is_early_voting();
 
-    // Audit delivery remains post-commit and best-effort, as before. Reuse the
-    // authenticated request's username and the already loaded signing key so
-    // audit preparation needs neither Keycloak nor a second database checkout.
+    // The signed CastVote is stored with the vote and delivered after the
+    // commit. Reuse the authenticated request's username and the already loaded
+    // signing key so audit preparation needs neither Keycloak nor a second
+    // database checkout.
     let voter_electoral_log = ElectoralLog::for_voter_with_signing_key(
         &electoral_log.elog_database,
         voter_id,
         &signing_key,
     );
+    let ip = format!("ip: {}", voter_ip.as_deref().unwrap_or(""),);
+    let country = format!("country: {}", voter_country.as_deref().unwrap_or(""),);
+    let audit = CastVoteAudit {
+        electoral_log: &voter_electoral_log,
+        tenant_id,
+        election_event_id,
+        election_id: &election_id_string,
+        pseudonym_h: &pseudonym_h,
+        vote_h: &vote_h,
+        ip: &ip,
+        country: &country,
+        voter_id,
+        username,
+        area_id,
+    };
 
     // Datafix votes are inserted under a per-voter lease that owns its own
     // connection/lock lifecycle (see `insert_datafix_cast_vote_locked`); ordinary
     // votes reuse this read transaction directly. Either way the connection is
-    // released before the audit below, which only enqueues its signed message.
+    // released before the audit below, which only publishes its stored message.
     let result = match initial_status {
         CastVoteStatus::InProgress => {
             // Release the read transaction and its connection before locking: the
@@ -479,6 +499,7 @@ pub async fn try_insert_cast_vote(
                 &voter_signature_data,
                 is_early_voting_area,
                 initial_status,
+                &audit,
             )
             .await
         }
@@ -496,6 +517,7 @@ pub async fn try_insert_cast_vote(
                 &voter_signature_data,
                 is_early_voting_area,
                 initial_status,
+                &audit,
             )
             .await;
             drop(hasura_db_client);
@@ -503,29 +525,10 @@ pub async fn try_insert_cast_vote(
         }
     };
 
-    let ip = format!("ip: {}", voter_ip.as_deref().unwrap_or(""),);
-    let country = format!("country: {}", voter_country.as_deref().unwrap_or(""),);
     let _audit_phase = CastVotePhase::start("audit");
     match result {
-        Ok((inserted_cast_vote, effective_voting_channel)) => {
-            let log_result = voter_electoral_log
-                .post_cast_vote(
-                    tenant_id.to_string(),
-                    election_event_id.to_string(),
-                    Some(election_id_string),
-                    pseudonym_h,
-                    vote_h,
-                    ip,
-                    country,
-                    voter_id.to_string(),
-                    username.clone(),
-                    area_id.to_string().clone(),
-                    effective_voting_channel.to_string(),
-                )
-                .await;
-            if let Err(log_err) = log_result {
-                error!("Error posting to the electoral log {:?}", log_err);
-            }
+        Ok((inserted_cast_vote, _, pending_audit)) => {
+            deliver_log_event(&pending_audit).await;
             classify_inserted_cast_vote(inserted_cast_vote)
         }
         Err(cast_vote_err) => {
@@ -695,7 +698,8 @@ pub fn deserialize_and_check_multi_ballot(
         hasura_transaction,
         election_event,
         signing_key,
-        voter_signature_data
+        voter_signature_data,
+        audit
     ),
     err
 )]
@@ -712,7 +716,8 @@ pub async fn insert_cast_vote_and_commit<'a>(
     voter_signature_data: &Option<(StrandSignaturePk, StrandSignature)>,
     is_early_voting_area: bool,
     initial_status: CastVoteStatus,
-) -> Result<(CastVote, VotingStatusChannel), CastVoteError> {
+    audit: &CastVoteAudit<'_>,
+) -> Result<(CastVote, VotingStatusChannel, PendingLogEvent), CastVoteError> {
     let election_id_string = input.election_id.to_string();
     let election_id = election_id_string.as_str();
     let tenant_uuid = parse_uuid_v4(ids.tenant_id)
@@ -744,6 +749,20 @@ pub async fn insert_cast_vote_and_commit<'a>(
         .map(|signature| signature.to_bytes())
         .unwrap_or([0u8; 64]);
 
+    // The signed CastVote is stored with the vote, so an accepted vote always
+    // has it; a refused vote rolls it back. Before the INSERT, which stays last.
+    let audit_event = audit
+        .event(effective_voting_channel)
+        .map_err(|err| CastVoteError::InsertFailed(format!("{err:#}")))?;
+    let pending_audit = store_log_event(
+        &hasura_transaction,
+        &tenant_uuid,
+        &election_event_uuid,
+        audit_event,
+    )
+    .await
+    .map_err(|err| CastVoteError::InsertFailed(format!("{err:#}")))?;
+
     let insert_phase = CastVotePhase::start("insert");
     let insert = postgres::cast_vote::insert_cast_vote(
         &hasura_transaction,
@@ -772,7 +791,41 @@ pub async fn insert_cast_vote_and_commit<'a>(
         .await
         .map_err(|e| CastVoteError::CommitFailed(e.to_string()))?;
 
-    Ok((cast_vote, effective_voting_channel))
+    Ok((cast_vote, effective_voting_channel, pending_audit))
+}
+
+/// What the signed CastVote of a vote is made of, except for the channel the
+/// vote is accepted through, which is known once its status is checked.
+pub(crate) struct CastVoteAudit<'a> {
+    pub electoral_log: &'a ElectoralLog,
+    pub tenant_id: &'a str,
+    pub election_event_id: &'a str,
+    pub election_id: &'a str,
+    pub pseudonym_h: &'a PseudonymHash,
+    pub vote_h: &'a CastVoteHash,
+    pub ip: &'a str,
+    pub country: &'a str,
+    pub voter_id: &'a str,
+    pub username: &'a Option<String>,
+    pub area_id: &'a str,
+}
+
+impl CastVoteAudit<'_> {
+    fn event(&self, voting_channel: VotingStatusChannel) -> Result<LogEventInput> {
+        self.electoral_log.cast_vote_event(
+            self.tenant_id.to_string(),
+            self.election_event_id.to_string(),
+            Some(self.election_id.to_string()),
+            self.pseudonym_h.clone(),
+            self.vote_h.clone(),
+            self.ip.to_string(),
+            self.country.to_string(),
+            self.voter_id.to_string(),
+            self.username.clone(),
+            self.area_id.to_string(),
+            voting_channel.to_string(),
+        )
+    }
 }
 
 pub(crate) fn hash_voter_id(voter_id: &str) -> Result<Hash, StrandError> {
@@ -1105,3 +1158,7 @@ fn check_popk_multi(ballot_contest: &HashableMultiBallotContests<RistrettoCtx>) 
 #[cfg(test)]
 #[path = "insert_cast_vote_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "insert_cast_vote_outbox_tests.rs"]
+mod outbox_tests;
