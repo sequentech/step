@@ -5,7 +5,7 @@
 import {receiptFileName} from "./confirmation"
 
 describe("receiptFileName", () => {
-    it("names the receipt after the groups of the short Ballot ID", () => {
+    it("names the receipt after the groups of the short Tracking ID", () => {
         const id = "30ffd3144238".padEnd(64, "0")
         expect(receiptFileName(id)).toBe("ballot-30ff-d314.vitrine-receipt")
     })

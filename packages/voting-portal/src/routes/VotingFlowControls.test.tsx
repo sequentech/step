@@ -39,7 +39,7 @@ jest.mock("react-i18next", () => ({
     Trans: ({i18nKey}: {i18nKey: string}) => i18nKey,
     useTranslation: () => ({
         t: (key: string, values?: {ballotId?: string}) =>
-            key === "ballotHash" ? `Ballot ID: ${values?.ballotId?.slice(0, 8)}` : key,
+            key === "ballotHash" ? `Tracking ID: ${values?.ballotId?.slice(0, 8)}` : key,
         i18n: {language: "en"},
     }),
 }))
@@ -423,7 +423,7 @@ describe("Confirmation ballot locator links", () => {
     })
 })
 
-describe("Ballot ID copy visibility", () => {
+describe("Tracking ID copy visibility", () => {
     it("can hide the complete receipt ID row without hiding verification or actions", async () => {
         setUpState({storedConfirmation: true})
         mockState.confirmationScreenData["election-1"] = {

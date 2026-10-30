@@ -28,7 +28,7 @@ jest.mock("react-i18next", () => ({
     Trans: ({i18nKey}: {i18nKey: string}) => i18nKey,
     useTranslation: () => ({
         t: (key: string, values?: {ballotId?: string}) => {
-            if (key === "ballotHash") return `Ballot ID: ${values?.ballotId?.slice(0, 8)}`
+            if (key === "ballotHash") return `Tracking ID: ${values?.ballotId?.slice(0, 8)}`
             return values && key.startsWith("vitrine.status.aria")
                 ? `${key} ${JSON.stringify(values)}`
                 : key

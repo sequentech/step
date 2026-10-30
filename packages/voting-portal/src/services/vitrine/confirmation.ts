@@ -4,7 +4,7 @@
 
 import {shortBallotId} from "./ballotId"
 
-/** A file name for the receipt the voter saves, from the short Ballot ID:
+/** A file name for the receipt the voter saves, from the short Tracking ID:
  * `ballot-30ff-d314.vitrine-receipt`. */
 export const receiptFileName = (ballotId: string): string => {
     const short = shortBallotId(ballotId).replace(/ /g, "-")
