@@ -11,6 +11,11 @@ on:
         description: 'The tag to use for the images'
         required: false
         type: string
+      scope:
+        description: 'Images to build: all, authoring, or architect'
+        required: false
+        type: string
+        default: all
       push:
         description: 'Whether to push the images'
         required: true
@@ -25,88 +30,35 @@ on:
       AWS_SECRET_ACCESS_KEY_GLOBALDOT:
         required: false
 
+permissions:
+  contents: read
+
 jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.select.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Select the requested image scope
+        id: select
+        env:
+          BUILD_SCOPE: ${{ inputs.scope }}
+        run: |
+          matrix=$(python3 .github/scripts/build_image_matrix.py "$BUILD_SCOPE")
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
   build-and-push:
+    needs: plan
     runs-on: ubuntu-24.04
     environment: release
     timeout-minutes: 360
     strategy:
       max-parallel: 15
-      matrix:
-        include:
-          - service: keycloak
-            context: packages
-            file: packages/Dockerfile.keycloak
-            build_contexts: |
-              beyond=./beyond
-              scripts=./scripts
-
-          - service: voting-portal
-            context: packages
-            file: packages/Dockerfile.prod
-            spa_name: "voting-portal"
-
-          - service: admin-portal
-            context: packages
-            file: packages/Dockerfile.prod
-            spa_name: "admin-portal"
-
-          - service: ballot-verifier
-            context: packages
-            file: packages/Dockerfile.prod
-            spa_name: "ballot-verifier"
-
-          - service: results-portal
-            context: packages
-            file: packages/Dockerfile.prod
-            spa_name: "results-portal"
-
-          - service: harvest
-            context: packages
-            file: packages/harvest/Dockerfile.prod
-
-          - service: b4v6
-            context: packages/wbraid
-            file: packages/wbraid/crates/b4/Dockerfile
-
-          - service: trustee
-            context: packages
-            file: packages/trustee/Dockerfile.prod
-
-          - service: windmill
-            context: packages
-            file: packages/windmill/Dockerfile.prod
-
-          - service: hasura
-            # Build context is the hasura project dir (migrations/metadata live here),
-            # not repo root — Dockerfile COPYs are relative to this path.
-            context: hasura
-            file: packages/Dockerfile.hasura
-
-          - service: loadtesting
-            context: .
-            file: packages/loadtesting/Dockerfile
-
-          # Beyond's Election Architect static wizard, from the pinned beyond
-          # gitlink and this step's election-config WASM (built below with the
-          # repository's Nix recipe), with the airgap release's recipe.
-          - service: election-architect
-            context: beyond/packages
-            file: beyond/airgap/docker/election-architect.Dockerfile
-            build_contexts: |
-              step_packages=./packages
-              election_config_wasm=./packages/sequent-core/pkg-election-config
-
-          # Beyond's Delivery Orchestrator, from the pinned beyond gitlink.
-          - service: delivery-orchestrator
-            context: beyond/packages/delivery-orchestrator
-            file: beyond/packages/delivery-orchestrator/Dockerfile
-            build_contexts: |
-              guide_source=./beyond/docs/docusaurus
-
-          # - service: mock_server
-          #   context: packages/e2e/src/mock_server
-          #   file: packages/e2e/src/mock_server/Dockerfile.prod
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
 
       fail-fast: false
 
@@ -179,6 +131,7 @@ jobs:
       uses: aws-actions/amazon-ecr-login@v2
 
     - name: Build & Push to ECR
+      id: image
       uses: docker/build-push-action@v6
       with:
         context: ${{ matrix.context }}
@@ -189,8 +142,21 @@ jobs:
           ${{ vars.AWS_ECR_REGISTRY_GLOBALDOT }}/${{ matrix.service }}:${{ inputs.tag || github.run_number }}
         cache-from: type=registry,ref=${{ vars.AWS_ECR_REGISTRY_GLOBALDOT }}/${{ matrix.service }}:buildcache
         cache-to: ${{ inputs.push && format('type=registry,ref={0}/{1}:buildcache,mode=max', vars.AWS_ECR_REGISTRY_GLOBALDOT, matrix.service) || '' }}
+        labels: |
+          org.opencontainers.image.revision=${{ github.sha }}
+          io.sequent.beyond.revision=${{ steps.beyond.outputs.sha }}
         build-contexts: ${{ matrix.build_contexts }}
         build-args: |
           SPA_NAME=${{ matrix.spa_name }}
           FEATURES=${{ matrix.features }}
           STEP_REVISION=${{ github.sha }}
+
+    - name: Record immutable image provenance
+      if: inputs.push
+      env:
+        IMAGE: ${{ vars.AWS_ECR_REGISTRY_GLOBALDOT }}/${{ matrix.service }}
+        DIGEST: ${{ steps.image.outputs.digest }}
+        STEP_COMMIT: ${{ github.sha }}
+        BEYOND_COMMIT: ${{ steps.beyond.outputs.sha }}
+      run: |
+        printf '%s\n' "Image: $IMAGE@$DIGEST" "Step: $STEP_COMMIT" "Beyond: $BEYOND_COMMIT" >> "$GITHUB_STEP_SUMMARY"
