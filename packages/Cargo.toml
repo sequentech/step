@@ -6,6 +6,7 @@
 resolver = "2"
 
 members = [
+    "ballot-audit",
     "braid",
     "b3",
     "electoral-log",
