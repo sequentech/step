@@ -473,19 +473,20 @@ mod tests {
     use super::*;
 
     async fn database() -> DbClient {
-        let mut config = deadpool_postgres::Config::new();
-        config.url = Some(
-            std::env::var("CAST_VOTE_TEST_DATABASE_URL").expect("CAST_VOTE_TEST_DATABASE_URL"),
-        );
-        config
-            .create_pool(
-                Some(deadpool_postgres::Runtime::Tokio1),
-                tokio_postgres::NoTls,
-            )
-            .unwrap()
-            .get()
-            .await
-            .unwrap()
+        let config: tokio_postgres::Config = std::env::var("CAST_VOTE_TEST_DATABASE_URL")
+            .expect("CAST_VOTE_TEST_DATABASE_URL")
+            .parse()
+            .unwrap();
+        deadpool_postgres::Pool::builder(deadpool_postgres::Manager::new(
+            config,
+            tokio_postgres::NoTls,
+        ))
+        .max_size(2)
+        .build()
+        .unwrap()
+        .get()
+        .await
+        .unwrap()
     }
 
     fn input(election_event_id: &str) -> LogEventInput {
