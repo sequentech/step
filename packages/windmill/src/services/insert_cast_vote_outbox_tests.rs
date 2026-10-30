@@ -19,7 +19,7 @@ use crate::services::electoral_log_queue::{
 use crate::tasks::electoral_log::{persist_board_deliveries, LogEventInput};
 use async_trait::async_trait;
 use electoral_log::client::board_client::{BoardClient, DeliveryReceipt, ElectoralLogMessage};
-use lapin::{Connection, ConnectionProperties};
+use lapin::{options::QueueDeclareOptions, types::FieldTable, Connection, ConnectionProperties};
 use strand::signature::StrandSignatureSk;
 use uuid::Uuid;
 
@@ -57,6 +57,24 @@ async fn immudb() -> BoardClient {
     let url =
         std::env::var("ELECTORAL_LOG_TEST_IMMUDB_URL").expect("ELECTORAL_LOG_TEST_IMMUDB_URL");
     BoardClient::new(&url, "immudb", "immudb").await.unwrap()
+}
+
+async fn queue_ready(connection: &Connection, queue: &str) -> u32 {
+    connection
+        .create_channel()
+        .await
+        .unwrap()
+        .queue_declare(
+            queue,
+            QueueDeclareOptions {
+                durable: true,
+                ..Default::default()
+            },
+            FieldTable::default(),
+        )
+        .await
+        .unwrap()
+        .message_count()
 }
 
 async fn rabbitmq() -> Connection {
@@ -98,8 +116,15 @@ async fn vote_accepted_while_rabbitmq_is_down_reaches_its_board_once() {
     assert_eq!(count(&client, "cast_vote", &fixture).await, 1);
     assert_eq!(count(&client, "electoral_log_outbox", &fixture).await, 1);
 
-    // RabbitMQ is back: the relay publishes the event under its outbox ID.
+    // RabbitMQ is back. A delivery is confirmed by RabbitMQ, but its process
+    // stops before removing the row, which stays pending.
     let connection = rabbitmq().await;
+    publish_log_event(&connection, &queue_name, &pending)
+        .await
+        .unwrap();
+    let pending_after_publish = count(&client, "electoral_log_outbox", &fixture).await;
+    // The relay publishes the pending row again, under the same ID, and
+    // removes it.
     let relayed = relay_log_events(
         &mut client,
         &connection,
@@ -109,15 +134,12 @@ async fn vote_accepted_while_rabbitmq_is_down_reaches_its_board_once() {
     )
     .await
     .unwrap();
-    // The relay stopped after publishing and before removing the row: the
-    // event is published again under the same ID.
-    publish_log_event(&connection, &queue_name, &pending)
-        .await
-        .unwrap();
     println!(
-        "relayed {relayed}; outbox events {}",
+        "publish confirmed, process stopped before removal: outbox events {pending_after_publish}; \
+         relayed {relayed}; outbox events {}",
         count(&client, "electoral_log_outbox", &fixture).await
     );
+    assert_eq!(pending_after_publish, 1);
     assert_eq!(relayed, 1);
     assert_eq!(count(&client, "electoral_log_outbox", &fixture).await, 0);
 
@@ -131,6 +153,7 @@ async fn vote_accepted_while_rabbitmq_is_down_reaches_its_board_once() {
     drain_log_event_queue(&mut queue, &mut SyntheticBoard(board.clone()), 10)
         .await
         .unwrap();
+    let queued_after_drain = queue_ready(&connection, &queue_name).await;
     let rows = immudb()
         .await
         .get_electoral_log_messages(&board)
@@ -147,6 +170,8 @@ async fn vote_accepted_while_rabbitmq_is_down_reaches_its_board_once() {
             .map(|row| row.message == signed.message)
             .unwrap_or(false)
     );
+    // Both copies were consumed and only one was written.
+    assert_eq!(queued_after_drain, 0);
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].statement_kind, "CastVote");
     assert_eq!(rows[0].message, signed.message);

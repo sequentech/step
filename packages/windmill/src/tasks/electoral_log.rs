@@ -371,7 +371,10 @@ pub async fn persist_board_deliveries(
 /// was committed.
 #[instrument(skip_all, err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(max_retries = 0, expires = 1)]
+// No expiry: a worker may take this task late, behind a long dispatcher run,
+// and an expired task is acknowledged without running. A late or overlapping
+// relay finds nothing to do or takes other rows under their locks.
+#[celery::task(max_retries = 0)]
 pub async fn relay_electoral_log_outbox() -> Result<()> {
     relay_configured_log_events().await?;
     Ok(())

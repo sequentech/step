@@ -263,3 +263,27 @@ pub async fn relay_configured_log_events() -> Result<usize> {
     )
     .await
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::tasks::electoral_log::{electoral_log_batch_dispatcher, relay_electoral_log_outbox};
+    use celery::protocol::Message;
+
+    fn expired(message: &Message) -> bool {
+        message
+            .headers
+            .expires
+            .is_some_and(|expires| expires <= chrono::Utc::now())
+    }
+
+    #[test]
+    fn relay_taken_late_by_a_worker_still_runs() {
+        let relay = Message::try_from(relay_electoral_log_outbox::new()).unwrap();
+        // Control: the dispatcher's one-second expiry shows the check works.
+        let dispatcher = Message::try_from(electoral_log_batch_dispatcher::new()).unwrap();
+        // A worker busy with a long dispatcher run takes the relay later.
+        std::thread::sleep(std::time::Duration::from_millis(1500));
+        assert!(expired(&dispatcher));
+        assert!(!expired(&relay));
+    }
+}
