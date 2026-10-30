@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Monitoring | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-4102/docs/election_managers/reference/election-event/election_management_election_event_monitoring"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Monitoring | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-4102/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4102/docs/election_managers/reference/election-event/election_management_election_event_monitoring"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4102/docs/election_managers/reference/election-event/election_management_election_event_monitoring" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4102/docs/election_managers/reference/election-event/election_management_election_event_monitoring" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Monitoring","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-4102/docs/election_managers/reference/election-event/election_management_election_event_monitoring"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-4102/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-4102/assets/js/runtime~main.9dde98f0.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-4102/assets/js/runtime~main.b9e8a326.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-4102/assets/js/main.8e92ed2d.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -39,11 +39,16 @@ describes every field.</p>
 exactly as before. A user without <code>monitoring-view</code> never triggers a
 monitoring request. If the monitoring dashboards cannot be loaded, the
 standard dashboard is shown with a warning above it.</p>
-<p>New election events start with configurable dashboards enabled, using the shipped
-<code>comelec</code> preset. The default documents and their preset version are stored with
-the event, so they can be edited immediately and later software updates do not
-replace customizations. Newly imported events use the same defaults; importing
-an event does not change the source event or migrate existing events.</p>
+<p>New election events created with the Admin Portal&#x27;s <strong>Create election event</strong> form
+start with configurable dashboards enabled, using the shipped <code>comelec</code> preset.
+The default documents and their preset version are stored with the event, so they
+can be edited immediately and later software updates do not replace customizations.</p>
+<p>Imports, including Architect and configuration packages, retain their previous
+dashboard behavior; they are not automatically enabled. The current archive format
+does not include monitoring mode or custom dashboard documents, so exporting and
+importing an event does not preserve those
+settings. An imported event can be enabled with the switch below. Existing events
+are not migrated.</p>
 <p>Use <strong>Configurable dashboards</strong> at the top of the Dashboard tab to switch modes.
 Existing events keep their previous mode until an administrator changes it.
 Turning the switch off preserves every saved dashboard, widget and theme. Turning
