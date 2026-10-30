@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Developers Keycloak | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-4034/docs/developers/keycloak/developers_keycloak"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Developers Keycloak | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-4034/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4034/docs/developers/keycloak/developers_keycloak"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4034/docs/developers/keycloak/developers_keycloak" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4034/docs/developers/keycloak/developers_keycloak" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Developers Keycloak","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-4034/docs/developers/keycloak/developers_keycloak"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-4034/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-4034/assets/js/runtime~main.9e8fb0a7.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-4034/assets/js/runtime~main.0cd57aa4.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-4034/assets/js/main.77a7353f.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -30,6 +30,39 @@ air-gapped configurations explicitly include their localhost issuer aliases.</p>
 login issuer is configured and that Harvest can reach each realm&#x27;s internal
 <code>protocol/openid-connect/certs</code> endpoint. Existing Keycloak RS256 access tokens
 and Datafix client-credential tokens use the same verification boundary. No
-database or realm migration is required.</p></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/sequentech/step/edit/main/docs/docusaurus/docs/07-developers/06-keycloak/developers_keycloak.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docusaurus/pr-preview/pr-4034/docs/developers/voting-portal/developers_voting_portal"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">Developing the Voting Portal</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/docusaurus/pr-preview/pr-4034/docs/developers/keycloak/idp_initiated_sso_design_implementation"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">IdP SSO Design &amp; Implementation</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#harvest-request-authentication" class="table-of-contents__link toc-highlight">Harvest request authentication</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2026 Sequent</div></div></div></footer></div>
+database or realm migration is required.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="tenant-realm-bootstrap">Tenant realm bootstrap<a href="#tenant-realm-bootstrap" class="hash-link" aria-label="Direct link to Tenant realm bootstrap" title="Direct link to Tenant realm bootstrap" translate="no">​</a></h2>
+<p>Realm templates do not contain user passwords, OTPs or other user credentials.
+Realm imports remove user credentials while preserving user metadata and configured
+client-backed service accounts. New tenants retain their service-account users and
+an <code>admin</code> account without a password, with the <code>UPDATE_PASSWORD</code> required action.
+Other human template users, including demonstration API and trustee accounts, are
+not seeded into a new tenant.</p>
+<p>An operator must initialize each new tenant administrator through the authenticated
+Keycloak administration console: select the new tenant realm, open the <code>admin</code>
+user&#x27;s Credentials tab and set a temporary password. The administrator then signs
+in interactively and chooses their own password. Create actual trustee accounts
+through the normal trustee workflow. Service-account client authentication keeps
+its configured client secrets and roles.</p>
+<p>The template&#x27;s <code>api-user</code> is disabled: it belongs to the admin group and nothing
+signs in with it. Enable it only after giving it a password of its own. In the
+devcontainer, <code>init-cli.sh</code> runs <code>.devcontainer/scripts/set-dev-passwords.sh</code>,
+which gives the local <code>admin</code>, <code>trustee1</code> and <code>trustee2</code> the development passwords
+that <code>config-cli.sh</code> and the dev tooling use (<code>TRUSTEE1_PASSWORD</code> and
+<code>TRUSTEE2_PASSWORD</code> in <code>.devcontainer/.env</code>). Accounts that already have a password
+keep it. It is for local development only.</p>
+<p>The remote deployment configuration script also removes user credentials from its
+prepared realm JSON while continuing to generate client secrets. Updating templates
+or configuration files does not rotate existing deployed accounts. For existing
+realms, replace passwords for the seeded human accounts or disable unused accounts,
+terminate their sessions and inspect their login events. Coordinate changes with
+actual trustees before a ceremony. Update both the mounted realm template and the
+S3 object referenced by <code>KEYCLOAK_TENANT_REALM_CONFIG_S3_KEY</code>; otherwise a later
+MinIO configuration run can upload an older template again. No application import
+should be used as a substitute for this operator migration.</p>
+<p>Run the focused Windmill <code>realm_user_credentials</code> and <code>tenant_bootstrap_admin</code>
+regressions. The source-only configuration regression runs with
+<code>python3 scripts/test_tenant_bootstrap_configuration.py</code> against an isolated tree
+with synthetic accounts and credentials.</p></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/sequentech/step/edit/main/docs/docusaurus/docs/07-developers/06-keycloak/developers_keycloak.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docusaurus/pr-preview/pr-4034/docs/developers/voting-portal/developers_voting_portal"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">Developing the Voting Portal</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/docusaurus/pr-preview/pr-4034/docs/developers/keycloak/idp_initiated_sso_design_implementation"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">IdP SSO Design &amp; Implementation</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#harvest-request-authentication" class="table-of-contents__link toc-highlight">Harvest request authentication</a></li><li><a href="#tenant-realm-bootstrap" class="table-of-contents__link toc-highlight">Tenant realm bootstrap</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2026 Sequent</div></div></div></footer></div>
 </body>
 </html>
