@@ -9,6 +9,10 @@
 //! cargo test -p windmill --lib services::insert_cast_vote::outbox_tests -- --include-ignored
 //! --test-threads=1`, on a database used by nothing else: the relay test takes
 //! every outbox row.
+//!
+//! Not exercised here: the Datafix SetVoted step after the commit, which needs
+//! Keycloak and VoterView. The event is committed with the vote before that step
+//! runs, as the first test shows, so a failure there leaves it in the outbox.
 
 use super::*;
 use crate::services::electoral_log_outbox::{
@@ -23,6 +27,7 @@ use async_trait::async_trait;
 use electoral_log::client::board_client::{BoardClient, DeliveryReceipt, ElectoralLogMessage};
 use lapin::{Connection, ConnectionProperties};
 use serde_json::json;
+use strand::serialization::StrandDeserialize;
 
 const VOTER: &str = "synthetic-voter";
 
@@ -212,22 +217,31 @@ impl Fixture {
         client: &mut DbClient,
         voter_signing_key: &Option<StrandSignatureSk>,
     ) -> Result<(CastVote, PendingLogEvent), CastVoteError> {
+        self.cast_as(client, voter_signing_key, VOTER).await
+    }
+
+    async fn cast_as(
+        &self,
+        client: &mut DbClient,
+        voter_signing_key: &Option<StrandSignatureSk>,
+        voter: &str,
+    ) -> Result<(CastVote, PendingLogEvent), CastVoteError> {
         let transaction = client.transaction().await.unwrap();
         let electoral_log = ElectoralLog::for_voter(
             &transaction,
             &self.board,
             &self.tenant,
             &self.event,
-            VOTER,
+            voter,
             voter_signing_key,
         )
         .await
         .unwrap();
         let signing_key = self.system_key(&transaction).await;
         let election = self.election.to_string();
-        let pseudonym_h = PseudonymHash(HashWrapper::new(hash_voter_id(VOTER).unwrap()));
+        let pseudonym_h = PseudonymHash(HashWrapper::new(hash_voter_id(voter).unwrap()));
         let vote_h = CastVoteHash(HashWrapper::new([7u8; 64]));
-        let username = Some(VOTER.to_string());
+        let username = Some(voter.to_string());
         let audit = CastVoteAudit {
             electoral_log: &electoral_log,
             tenant_id: &self.tenant,
@@ -237,7 +251,7 @@ impl Fixture {
             vote_h: &vote_h,
             ip: "ip: ",
             country: "country: ",
-            voter_id: VOTER,
+            voter_id: voter,
             username: &username,
             area_id: &self.area,
         };
@@ -253,7 +267,7 @@ impl Fixture {
             CastVoteIds {
                 election_event_id: &self.event,
                 tenant_id: &self.tenant,
-                voter_id: VOTER,
+                voter_id: voter,
                 area_id: &self.area,
             },
             signing_key,
@@ -316,7 +330,7 @@ async fn accepted_vote_commits_with_its_signed_event_and_a_refused_vote_with_non
 
 #[tokio::test]
 #[ignore = "requires the disposable database fixture"]
-async fn the_event_is_signed_with_the_voter_key_when_there_is_one() {
+async fn the_event_is_signed_by_the_voter_key_when_there_is_one() {
     let mut client = test_client().await;
     let voter_key = StrandSignatureSk::gen().unwrap();
     let with_voter_key = Fixture::create(&mut client).await;
@@ -337,16 +351,78 @@ async fn the_event_is_signed_with_the_voter_key_when_there_is_one() {
         .unwrap()
         .to_der_b64_string()
         .unwrap();
+    let system_pk_of =
+        |key: &StrandSignatureSk| strand::signature::StrandSignaturePk::from_sk(key).unwrap();
+    let verified = |pending: &PendingLogEvent, system: &StrandSignatureSk| {
+        let stored: ElectoralLogMessage =
+            serde_json::from_str(&pending.input.body.as_raw()).unwrap();
+        electoral_log::messages::message::Message::strand_deserialize(&stored.message)
+            .unwrap()
+            .verify(&system_pk_of(system))
+    };
+    let with_voter_system_key = with_voter_key.system_key(&transaction).await;
+    let voter_signed = verified(&signed_by_voter, &with_voter_system_key);
+    let system_signed = verified(&signed_by_system, &system_key);
     println!(
-        "sender with a voter key is the voter: {}; without one, the system: {}",
+        "sender with a voter key is the voter: {}; without one, the system: {}; \
+         signatures verify: {:?} {:?}",
         sender_of(&signed_by_voter) == voter_pk,
-        sender_of(&signed_by_system) == system_pk
+        sender_of(&signed_by_system) == system_pk,
+        voter_signed.as_ref().map_err(|err| err.to_string()),
+        system_signed.as_ref().map_err(|err| err.to_string())
     );
     transaction.rollback().await.unwrap();
     with_voter_key.remove(&client).await;
     without.remove(&client).await;
+    assert!(voter_signed.is_ok());
+    assert!(system_signed.is_ok());
     assert_eq!(sender_of(&signed_by_voter), voter_pk);
     assert_eq!(sender_of(&signed_by_system), system_pk);
+}
+
+/// A vote whose INSERT fails after its signed event was stored leaves neither.
+#[tokio::test]
+#[ignore = "requires the disposable database fixture"]
+async fn a_vote_insert_failing_after_its_event_is_stored_leaves_neither() {
+    const REFUSED_VOTER: &str = "synthetic-voter-refused-by-the-database";
+    let mut client = test_client().await;
+    let fixture = Fixture::create(&mut client).await;
+    // Only this test's synthetic voter is refused, and only while it runs.
+    client
+        .batch_execute(&format!(
+            "CREATE OR REPLACE FUNCTION sequent_backend.synthetic_refuse_vote() RETURNS trigger \
+             LANGUAGE plpgsql AS $$ BEGIN \
+             IF NEW.voter_id_string = '{REFUSED_VOTER}' THEN \
+             RAISE EXCEPTION 'synthetic refusal of the vote INSERT'; END IF; \
+             RETURN NEW; END $$; \
+             DROP TRIGGER IF EXISTS synthetic_refuse_vote ON sequent_backend.cast_vote; \
+             CREATE TRIGGER synthetic_refuse_vote BEFORE INSERT ON sequent_backend.cast_vote \
+             FOR EACH ROW EXECUTE FUNCTION sequent_backend.synthetic_refuse_vote();"
+        ))
+        .await
+        .unwrap();
+
+    let refused = fixture.cast_as(&mut client, &None, REFUSED_VOTER).await;
+    let (votes, events) = (
+        fixture.count(&client, "cast_vote").await,
+        fixture.count(&client, "electoral_log_outbox").await,
+    );
+    println!(
+        "vote INSERT refused after the event was stored: {:?}; votes {votes}, outbox events {events}",
+        refused.as_ref().err()
+    );
+
+    client
+        .batch_execute(
+            "DROP TRIGGER synthetic_refuse_vote ON sequent_backend.cast_vote; \
+             DROP FUNCTION sequent_backend.synthetic_refuse_vote();",
+        )
+        .await
+        .unwrap();
+    fixture.remove(&client).await;
+    assert!(matches!(refused, Err(CastVoteError::InsertFailed(_))));
+    assert_eq!(votes, 0);
+    assert_eq!(events, 0);
 }
 
 struct SyntheticBoard(String);
