@@ -386,14 +386,18 @@ async fn the_event_is_signed_by_the_voter_key_when_there_is_one() {
 async fn a_vote_insert_failing_after_its_event_is_stored_leaves_neither() {
     const REFUSED_VOTER: &str = "synthetic-voter-refused-by-the-database";
     const REFUSAL: &str = "synthetic refusal of the vote INSERT";
+    // Not rolled back with the vote: counts the INSERTs the trigger refused.
+    const REFUSALS: &str = "sequent_backend.synthetic_vote_refusals";
     let mut client = test_client().await;
     let fixture = Fixture::create(&mut client).await;
     // Only this test's synthetic voter is refused, and only while it runs.
     client
         .batch_execute(&format!(
-            "CREATE OR REPLACE FUNCTION sequent_backend.synthetic_refuse_vote() RETURNS trigger \
+            "DROP SEQUENCE IF EXISTS {REFUSALS}; CREATE SEQUENCE {REFUSALS}; \
+             CREATE OR REPLACE FUNCTION sequent_backend.synthetic_refuse_vote() RETURNS trigger \
              LANGUAGE plpgsql AS $$ BEGIN \
              IF NEW.voter_id_string = '{REFUSED_VOTER}' THEN \
+             PERFORM nextval('{REFUSALS}'); \
              RAISE EXCEPTION '{REFUSAL}'; END IF; \
              RETURN NEW; END $$; \
              DROP TRIGGER IF EXISTS synthetic_refuse_vote ON sequent_backend.cast_vote; \
@@ -408,25 +412,32 @@ async fn a_vote_insert_failing_after_its_event_is_stored_leaves_neither() {
         fixture.count(&client, "cast_vote").await,
         fixture.count(&client, "electoral_log_outbox").await,
     );
-    // Only the injected refusal, raised by the vote INSERT, shows the rollback of
-    // an event already stored; an earlier failure would not.
-    let refused_by_the_trigger = matches!(
-        &refused,
-        Err(CastVoteError::InsertFailed(message)) if message.contains(REFUSAL)
-    );
+    // Only the injected refusal, raised by the vote INSERT after the event was
+    // stored, shows its rollback; an earlier failure would not reach the trigger.
+    let trigger_refusals: i64 = client
+        .query_one(
+            &format!("SELECT CASE WHEN is_called THEN last_value ELSE 0 END FROM {REFUSALS}"),
+            &[],
+        )
+        .await
+        .unwrap()
+        .get(0);
+    let insert_failed = matches!(&refused, Err(CastVoteError::InsertFailed(_)));
     println!(
-        "vote INSERT refused by the injected trigger: {refused_by_the_trigger}; votes {votes}, outbox events {events}"
+        "vote INSERT failed: {insert_failed}; INSERTs refused by the injected trigger \
+         {trigger_refusals}; votes {votes}, outbox events {events}"
     );
 
     client
-        .batch_execute(
+        .batch_execute(&format!(
             "DROP TRIGGER synthetic_refuse_vote ON sequent_backend.cast_vote; \
-             DROP FUNCTION sequent_backend.synthetic_refuse_vote();",
-        )
+                 DROP FUNCTION sequent_backend.synthetic_refuse_vote(); DROP SEQUENCE {REFUSALS};"
+        ))
         .await
         .unwrap();
     fixture.remove(&client).await;
-    assert!(refused_by_the_trigger, "{refused:?}");
+    assert!(insert_failed, "{refused:?}");
+    assert_eq!(trigger_refusals, 1);
     assert_eq!(votes, 0);
     assert_eq!(events, 0);
 }
