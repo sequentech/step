@@ -4,6 +4,9 @@
 use crate::postgres::document::get_document;
 use crate::postgres::tally_session_execution::get_last_tally_session_execution;
 use crate::postgres::tally_session_execution::update_tally_session_execution_documents;
+use crate::services::ceremonies::result_readiness::{
+    require_complete_execution_report, write_origin,
+};
 use crate::services::documents::get_document_as_temp_file;
 use crate::services::documents::upload_and_return_document;
 use anyhow::{anyhow, Result};
@@ -29,6 +32,14 @@ pub async fn export_tally_results_to_xlsx(
     tally_session_documents: TallySessionDocuments,
     document_id: String,
 ) -> Result<()> {
+    let origin = require_complete_execution_report(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &tally_session_execution_id,
+        &results_event_id,
+    )
+    .await?;
     let sqlite_document_id = tally_session_documents
         .sqlite
         .as_ref()
@@ -80,7 +91,7 @@ pub async fn export_tally_results_to_xlsx(
     .await
     .map_err(|e| anyhow!("Failed to update tally session execution documents: {}", e))?;
 
-    let _ = upload_and_return_document(
+    let uploaded = upload_and_return_document(
         hasura_transaction,
         &xlsx_file_path_string,
         xlsx_file_size,
@@ -94,6 +105,9 @@ pub async fn export_tally_results_to_xlsx(
     .await
     .map_err(|e| anyhow!("Failed to upload XLSX document: {}", e))?;
 
+    if let Some(origin) = origin {
+        write_origin(hasura_transaction, &tenant_id, &uploaded.id, &origin).await?;
+    }
     Ok(())
 }
 
