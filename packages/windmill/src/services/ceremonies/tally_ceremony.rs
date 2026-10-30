@@ -113,6 +113,7 @@ pub async fn find_last_tally_session_execution_and_all_related_data(
         &tenant_id,
         &election_event_id,
         &election_ids,
+        None,
     )
     .await?;
 
@@ -320,9 +321,14 @@ pub async fn create_tally_ceremony(
     let decoded_ballots_inclusion_policy = election_event.get_decoded_ballots_inclusion_policy();
     let delegated_voting_policy = election_event.get_delegated_voting_policy();
     let weighted_voting_policy = election_event.get_weighted_voting_policy();
-    let published_ballot_style_rows =
-        get_ballot_styles_by_elections(transaction, &tenant_id, &election_event_id, &election_ids)
-            .await?;
+    let published_ballot_style_rows = get_ballot_styles_by_elections(
+        transaction,
+        &tenant_id,
+        &election_event_id,
+        &election_ids,
+        None,
+    )
+    .await?;
     let published_ballot_styles = published_ballot_style_rows
         .iter()
         .map(|published| {

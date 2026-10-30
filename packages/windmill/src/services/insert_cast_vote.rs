@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres;
 use crate::postgres::area::get_area_by_id;
-use crate::postgres::ballot_style::{get_published_ballot_styles, PublishedBallotStyle};
+use crate::postgres::ballot_style::get_ballot_styles_by_elections;
 use crate::postgres::election::{get_cast_vote_configuration, CastVoteConfiguration};
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::services::cast_votes::{CastVote, CastVoteStatus};
@@ -19,11 +19,9 @@ use anyhow::{anyhow, Context, Result};
 use b3::messages::message::Signer;
 use base64::{engine::general_purpose, Engine as _};
 use chrono::{DateTime, Duration, Local};
-use dashmap::DashMap;
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
 use electoral_log::messages::newtypes::*;
-use once_cell::sync::Lazy;
 use sequent_core::ballot::verify_ballot_signature;
 use sequent_core::ballot::BallotStyle;
 use sequent_core::ballot::ContestEncryptionPolicy;
@@ -46,6 +44,7 @@ use sequent_core::multi_ballot::SignedHashableMultiBallot;
 use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
+use sequent_core::types::hasura::core::BallotStyle as PublishedBallotStyle;
 use sequent_core::types::hasura::core::{ElectionEvent, VotingChannels};
 use sequent_core::types::scheduled_event::*;
 use serde::{Deserialize, Serialize};
@@ -63,10 +62,6 @@ use strand::zkp::Zkp;
 use strum_macros::Display;
 use tracing::{debug, error, info, instrument, trace};
 use uuid::Uuid;
-
-/// The votable contest ids of each published ballot style. A ballot style
-/// never changes once it is published.
-static PUBLISHED_STYLE_CONTEST_IDS: Lazy<DashMap<Uuid, HashSet<String>>> = Lazy::new(DashMap::new);
 
 /// Emits one duration even when a phase fails or its future is cancelled.
 struct CastVotePhase {
@@ -1175,43 +1170,18 @@ async fn get_published_style_contest_ids(
     election_id: &str,
     area_id: &str,
 ) -> Result<Vec<HashSet<String>>, PublishedStylesError> {
-    let mut styles = get_published_ballot_styles(
+    get_ballot_styles_by_elections(
         hasura_transaction,
         tenant_id,
         election_event_id,
-        election_id,
-        area_id,
-        false,
+        &vec![election_id.to_string()],
+        Some(area_id),
     )
     .await
-    .map_err(PublishedStylesError::lookup_failed)?;
-    if styles
-        .iter()
-        .any(|style| !PUBLISHED_STYLE_CONTEST_IDS.contains_key(&style.id))
-    {
-        styles = get_published_ballot_styles(
-            hasura_transaction,
-            tenant_id,
-            election_event_id,
-            election_id,
-            area_id,
-            true,
-        )
-        .await
-        .map_err(PublishedStylesError::lookup_failed)?;
-    }
-
-    let mut published_styles = Vec::with_capacity(styles.len());
-    for style in styles {
-        if let Some(cached) = PUBLISHED_STYLE_CONTEST_IDS.get(&style.id) {
-            published_styles.push(cached.clone());
-            continue;
-        }
-        let style_contest_ids = read_style_contest_ids(&style)?;
-        PUBLISHED_STYLE_CONTEST_IDS.insert(style.id, style_contest_ids.clone());
-        published_styles.push(style_contest_ids);
-    }
-    Ok(published_styles)
+    .map_err(PublishedStylesError::lookup_failed)?
+    .iter()
+    .map(read_style_contest_ids)
+    .collect()
 }
 
 /// The tally reads one ciphertext for each votable contest of the ballot style
