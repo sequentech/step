@@ -192,3 +192,25 @@ export const DisplayBallotLocator: Story = {
         },
     },
 }
+
+export const AlreadyCast: Story = {
+    args: {
+        isActive: false,
+        isOpen: true,
+        title: "Executive Board",
+        electionHomeUrl: "/election/34570007/public/home",
+        hasVoted: true,
+        alreadyCast: true,
+        onClickBallotLocator() {
+            console.log("Clicked to locate the ballot")
+        },
+        electionDates: {
+            first_started_at: "2025-10-29T14:00:00.000Z",
+        },
+    },
+    parameters: {
+        viewport: {
+            disable: true,
+        },
+    },
+}

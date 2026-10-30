@@ -2,13 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {Box, Button, Typography} from "@mui/material"
-import React from "react"
+import React, {useId} from "react"
 import {styled} from "@mui/material/styles"
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome"
 import {faTimes, faCheck} from "@fortawesome/free-solid-svg-icons"
 import theme from "../../services/theme"
 import {IElectionDates, isUndefined} from "@sequentech/ui-core"
 import {useTranslation} from "react-i18next"
+import VisuallyHidden from "../VisuallyHidden/VisuallyHidden"
 import {useSelectElectionCountdown} from "./useSelectElectionCountdown"
 
 const BorderBox = styled(Box)<{isopen: string; isactive: string}>`
@@ -119,6 +120,27 @@ const StyledButton = styled(Button)`
     min-width: unset;
 `
 
+// The vote button of a ballot already cast is off, and a disabled button gets
+// no pointer events: this takes its place for the hint to show on hover.
+const AlreadyCastTarget = styled("span")`
+    display: flex;
+    cursor: not-allowed;
+
+    @media (max-width: ${({theme}) => theme.breakpoints.values.sm}px) {
+        > .MuiButton-root {
+            width: 100%;
+        }
+    }
+`
+
+const alreadyCastButtonSx = {
+    "&.Mui-disabled": {
+        backgroundColor: theme.palette.customGrey.light,
+        borderColor: theme.palette.customGrey.light,
+        color: theme.palette.customGrey.dark,
+    },
+}
+
 const ElectionActions = styled(Box)`
     display: flex;
     align-items: center;
@@ -191,6 +213,8 @@ export interface SelectElectionProps {
     votedStatus?: React.ReactNode
     onClickToVote?: () => void
     onClickBallotLocator?: () => void
+    /** The voter cast every ballot the election allows: its vote button, when off, says so. */
+    alreadyCast?: boolean
     resultsUrl?: string
     electionDates?: IElectionDates
     isStarted: boolean
@@ -268,6 +292,7 @@ const SelectElection: React.FC<SelectElectionProps> = ({
     votedStatus,
     onClickToVote,
     onClickBallotLocator,
+    alreadyCast,
     resultsUrl,
     electionDates,
     isStarted,
@@ -275,6 +300,7 @@ const SelectElection: React.FC<SelectElectionProps> = ({
     formatDateTime,
 }) => {
     const {t} = useTranslation()
+    const alreadyCastId = useId()
     const formatElectionDate = formatDateTime ?? formatDate
     const startVotingDate = getStartDate(electionDates) ?? ""
     const endVotingDate = getEndDate(electionDates) ?? ""
@@ -309,6 +335,19 @@ const SelectElection: React.FC<SelectElectionProps> = ({
 
     const displayBallotLocator = !!onClickBallotLocator
     const displayResults = !!resultsUrl
+    const showAlreadyCast = !!alreadyCast && !onClickToVote
+    const voteButton = (
+        <StyledButton
+            className="click-to-vote-button"
+            disabled={!onClickToVote}
+            onClick={handleClickToVote}
+            aria-label={`${t("selectElection.voteButton")} — ${title}`}
+            aria-describedby={showAlreadyCast ? alreadyCastId : undefined}
+            sx={showAlreadyCast ? alreadyCastButtonSx : undefined}
+        >
+            {t("selectElection.voteButton")}
+        </StyledButton>
+    )
 
     return (
         // role="listitem" pairs with role="list" on the parent container so
@@ -447,15 +486,21 @@ const SelectElection: React.FC<SelectElectionProps> = ({
                             {t("selectElection.resultsButton")}
                         </Button>
                     )}
-                    {isOpen && (
-                        <StyledButton
-                            className="click-to-vote-button"
-                            disabled={!onClickToVote}
-                            onClick={handleClickToVote}
-                            aria-label={`${t("selectElection.voteButton")} — ${title}`}
-                        >
-                            {t("selectElection.voteButton")}
-                        </StyledButton>
+                    {isOpen &&
+                        (showAlreadyCast ? (
+                            <AlreadyCastTarget
+                                className="click-to-vote-target"
+                                title={t("selectElection.alreadyCast")}
+                            >
+                                {voteButton}
+                            </AlreadyCastTarget>
+                        ) : (
+                            voteButton
+                        ))}
+                    {isOpen && showAlreadyCast && (
+                        <VisuallyHidden id={alreadyCastId} className="click-to-vote-hint">
+                            {t("selectElection.alreadyCast")}
+                        </VisuallyHidden>
                     )}
                 </ElectionActions>
             </BorderBox>

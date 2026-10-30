@@ -17,6 +17,7 @@ import ElectionSelectionScreen from "./ElectionSelectionScreen"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {updateBallotStyleAndSelection as loadPreview} from "./PreviewPublicationEvent"
 import {ELECTION_WITH_INVALID} from "../fixtures/election"
+import {ETransparencyMode} from "../services/vitrine/types"
 
 jest.mock("react-i18next", () => ({
     useTranslation: () => ({t: (key: string) => key, i18n: {language: "en"}}),
@@ -34,9 +35,10 @@ jest.mock(
         PageLimit: ({children}: any) => <div>{children}</div>,
         Dialog: () => null,
         IconButton: () => null,
-        SelectElection: ({isActive, hasVoted, votedStatus}: any) => (
+        SelectElection: ({isActive, hasVoted, votedStatus, alreadyCast}: any) => (
             <div>
                 <button disabled={!isActive}>{hasVoted ? "Already voted" : "Vote"}</button>
+                {alreadyCast ? <span>the already cast hint</span> : null}
                 {hasVoted ? votedStatus : null}
             </div>
         ),
@@ -353,7 +355,7 @@ describe("the ballot cast label", () => {
                                                 version: "v1",
                                                 urls,
                                                 status: election.status,
-                                                num_allowed_revotes: 1,
+                                                num_allowed_revotes: election.num_allowed_revotes,
                                                 voting_channels: {online: true},
                                             },
                                         ],
@@ -439,5 +441,49 @@ describe("the ballot cast label", () => {
         } finally {
             cleanup()
         }
+    })
+
+    describe("the vote button of the card", () => {
+        afterEach(() => {
+            event.presentation = {}
+            election.num_allowed_revotes = 1
+        })
+
+        const keepTransparencyLog = () => {
+            event.presentation = {transparency: ETransparencyMode.PUBLIC}
+        }
+
+        test("says the ballot was cast when the voter cannot vote again", async () => {
+            keepTransparencyLog()
+            const cleanup = await renderList()
+            try {
+                expect(await screen.findByRole("button", {name: "Already voted"})).toBeDisabled()
+                expect(screen.getByText("the already cast hint")).toBeTruthy()
+            } finally {
+                cleanup()
+            }
+        })
+
+        test("says nothing while the voter can vote again", async () => {
+            keepTransparencyLog()
+            election.num_allowed_revotes = 2
+            const cleanup = await renderList()
+            try {
+                expect(await screen.findByRole("button", {name: "Already voted"})).toBeEnabled()
+                expect(screen.queryByText("the already cast hint")).toBeNull()
+            } finally {
+                cleanup()
+            }
+        })
+
+        test("says nothing for an event that keeps no transparency log", async () => {
+            const cleanup = await renderList()
+            try {
+                expect(await screen.findByRole("button", {name: "Already voted"})).toBeDisabled()
+                expect(screen.queryByText("the already cast hint")).toBeNull()
+            } finally {
+                cleanup()
+            }
+        })
     })
 })

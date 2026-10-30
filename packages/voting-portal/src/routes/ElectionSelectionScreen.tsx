@@ -71,6 +71,8 @@ import {useElectionClassName} from "../hooks/useElectionClassName"
 import {BallotStatus, EBallotStatusTrigger} from "../components/Vitrine/BallotStatus"
 import {IKeptReceiptView, useKeptReceipts} from "../hooks/useCastReceipt"
 import {readTransparency} from "../services/vitrine/presentation"
+import {showsAlreadyCastHint} from "../services/vitrine/ballotList"
+import {ETransparencyMode} from "../services/vitrine/types"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -304,6 +306,15 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
         }
     }, [bypassChooser, visitedBypassChooser, setVisitedBypassChooser, ballotStyle])
 
+    const alreadyCast = showsAlreadyCastHint({
+        election,
+        votes: castVotes,
+        isOpen: isVotingOpen(),
+        canVote: canVote(),
+        keepsTransparencyLog:
+            readTransparency(electionEvent?.presentation).mode !== ETransparencyMode.DISABLED,
+    })
+
     const electionName = translateFromPresentation(election, "name", i18n.language, {
         defaultLanguageCode,
     })
@@ -337,6 +348,7 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
             votedStatus={votedStatus}
             onClickToVote={canVote() ? onClickToVote : undefined}
             onClickBallotLocator={handleClickBallotLocator}
+            alreadyCast={alreadyCast}
             resultsUrl={resultsUrl}
             electionDates={summary?.election_dates ?? ballotStyle?.ballot_eml?.election_dates}
             isStarted={isVotingStarted()}
