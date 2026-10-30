@@ -18,12 +18,24 @@ const IMMUDB_DEFAULT_LIMIT: usize = 900;
 const IMMUDB_DEFAULT_ENTRIES_TX_LIMIT: usize = 50;
 const IMMUDB_DEFAULT_OFFSET: usize = 0;
 const ELECTORAL_LOG_TABLE: &'static str = "electoral_log_messages";
+const ELECTORAL_LOG_RECEIPTS_TABLE: &str = "electoral_log_delivery_receipts";
 /// 36 chars + EOL + some padding
 const ID_VARCHAR_LENGTH: usize = 40;
 /// Longest possible statement kind must be < 40
 const STATEMENT_KIND_VARCHAR_LENGTH: usize = 40;
 /// 64 chars + EOL + some padding
 const BALLOT_ID_VARCHAR_LENGTH: usize = 70;
+
+/// What a board held for a delivery ID when the delivery was written.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DeliveryReceipt {
+    /// The delivery's rows and receipt were written in the transaction.
+    Stored,
+    /// An earlier delivery with the same ID and input was already committed.
+    AlreadyStored,
+    /// The ID was already used for a different input; nothing was written.
+    Conflicting,
+}
 
 #[derive(Debug)]
 pub struct BoardClient {
@@ -641,6 +653,101 @@ impl BoardClient {
         self.client.commit(transaction_id).await
     }
 
+    /// Add receipts to existing boards without changing their audit table.
+    /// Call before opening the delivery transaction.
+    pub async fn ensure_electoral_log_delivery_receipts(&mut self) -> Result<()> {
+        self.client
+            .sql_exec(
+                &format!(
+                    "CREATE TABLE IF NOT EXISTS {ELECTORAL_LOG_RECEIPTS_TABLE} (delivery_id VARCHAR[64], payload_hash VARCHAR[64], PRIMARY KEY delivery_id)"
+                ),
+                vec![],
+            )
+            .await
+    }
+
+    /// Atomically record a stable delivery ID with all of its audit rows.
+    /// Returns what was found for the ID: a delivery already stored with the
+    /// same input is not written again, even if signing produced different bytes.
+    pub async fn insert_electoral_log_delivery(
+        &mut self,
+        transaction_id: &String,
+        delivery_id: &str,
+        payload_hash: &str,
+        messages: &[ElectoralLogMessage],
+    ) -> Result<DeliveryReceipt> {
+        anyhow::ensure!(
+            [delivery_id, payload_hash].iter().all(
+                |value| value.len() == 64 && value.bytes().all(|byte| byte.is_ascii_hexdigit())
+            ),
+            "electoral log delivery identity must be a SHA-256 digest"
+        );
+        anyhow::ensure!(
+            !messages.is_empty(),
+            "electoral log delivery has no messages"
+        );
+        let id_param = NamedParam {
+            name: "delivery_id".into(),
+            value: Some(SqlValue {
+                value: Some(Value::S(delivery_id.into())),
+            }),
+        };
+        let mut response = self
+            .client
+            .tx_sql_query(
+                &format!(
+                    "SELECT payload_hash FROM {ELECTORAL_LOG_RECEIPTS_TABLE} WHERE delivery_id = @delivery_id"
+                ),
+                transaction_id,
+                vec![id_param.clone()],
+            )
+            .await?
+            .into_inner();
+        let mut existing = None;
+        while let Some(result) = response.next().await {
+            for row in result?.rows {
+                anyhow::ensure!(
+                    existing.is_none(),
+                    "duplicate electoral log delivery receipts"
+                );
+                existing = Some(
+                    row.values
+                        .into_iter()
+                        .next()
+                        .and_then(|value| value.value)
+                        .ok_or_else(|| anyhow!("invalid electoral log delivery receipt"))?,
+                );
+            }
+        }
+        if let Some(existing) = existing {
+            return Ok(if existing == Value::S(payload_hash.into()) {
+                DeliveryReceipt::AlreadyStored
+            } else {
+                DeliveryReceipt::Conflicting
+            });
+        }
+        self.insert_electoral_log_messages_batch(transaction_id, messages)
+            .await?;
+        self.client
+            .tx_sql_exec(
+                &format!(
+                    "INSERT INTO {ELECTORAL_LOG_RECEIPTS_TABLE} (delivery_id, payload_hash) VALUES (@delivery_id, @payload_hash)"
+                ),
+                transaction_id,
+                vec![
+                    id_param,
+                    NamedParam {
+                        name: "payload_hash".into(),
+                        value: Some(SqlValue {
+                            value: Some(Value::S(payload_hash.into())),
+                        }),
+                    },
+                ],
+            )
+            .await?;
+        Ok(DeliveryReceipt::Stored)
+    }
+
     // Insert messages in batch using an existing session/transaction
     pub async fn insert_electoral_log_messages_batch(
         &mut self,
@@ -968,7 +1075,8 @@ impl BoardClient {
         ];
 
         self.upsert_database(board_dbname, &sql, elog_indexes.as_slice())
-            .await
+            .await?;
+        self.ensure_electoral_log_delivery_receipts().await
     }
 
     /// Deletes the immudb database.
@@ -1138,6 +1246,113 @@ pub(crate) mod tests {
             .unwrap();
         assert_eq!(ret.len(), 0);
 
+        tear_down(b).await;
+    }
+
+    fn delivery_message(created: i64) -> ElectoralLogMessage {
+        ElectoralLogMessage {
+            id: 0,
+            created,
+            sender_pk: "".to_string(),
+            statement_timestamp: created,
+            statement_kind: "CastVote".to_string(),
+            message: vec![1, 2, 3],
+            version: "".to_string(),
+            user_id: Some("synthetic-voter".to_string()),
+            username: None,
+            election_id: None,
+            area_id: None,
+            ballot_id: None,
+        }
+    }
+
+    async fn board_session() -> BoardClient {
+        let mut b = BoardClient::new("http://localhost:3322", "immudb", "immudb")
+            .await
+            .unwrap();
+        b.open_session(BOARD_DB).await.unwrap();
+        b
+    }
+
+    async fn write_delivery(
+        b: &mut BoardClient,
+        delivery_id: &str,
+        payload_hash: &str,
+        created: i64,
+    ) -> Result<DeliveryReceipt> {
+        b.ensure_electoral_log_delivery_receipts().await?;
+        let tx = b.new_tx(TxMode::ReadWrite).await?;
+        let receipt = b
+            .insert_electoral_log_delivery(&tx, delivery_id, payload_hash, &[delivery_message(created)])
+            .await?;
+        b.commit(&tx).await?;
+        Ok(receipt)
+    }
+
+    const DELIVERY_A: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    const PAYLOAD_A: &str = "1111111111111111111111111111111111111111111111111111111111111111";
+    const PAYLOAD_B: &str = "2222222222222222222222222222222222222222222222222222222222222222";
+
+    #[tokio::test]
+    #[ignore]
+    #[serial]
+    pub async fn redelivered_delivery_is_written_once() {
+        let b = set_up().await;
+        let mut session = board_session().await;
+
+        let first = write_delivery(&mut session, DELIVERY_A, PAYLOAD_A, 1).await.unwrap();
+        // The worker stops after the commit and before the ack; RabbitMQ
+        // delivers the message again and signing yields different bytes.
+        let again = write_delivery(&mut session, DELIVERY_A, PAYLOAD_A, 2).await.unwrap();
+        let other = write_delivery(&mut session, DELIVERY_A, PAYLOAD_B, 3).await.unwrap();
+        session.close_session().await.unwrap();
+
+        assert_eq!(first, DeliveryReceipt::Stored);
+        assert_eq!(again, DeliveryReceipt::AlreadyStored);
+        assert_eq!(other, DeliveryReceipt::Conflicting);
+        let mut b = b;
+        let rows = b.get_electoral_log_messages(BOARD_DB).await.unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].created, 1);
+        tear_down(b).await;
+    }
+
+    #[tokio::test]
+    #[ignore]
+    #[serial]
+    pub async fn concurrent_writes_of_one_delivery_commit_once() {
+        let mut b = set_up().await;
+        let mut first = board_session().await;
+        let mut second = board_session().await;
+        first.ensure_electoral_log_delivery_receipts().await.unwrap();
+        second.ensure_electoral_log_delivery_receipts().await.unwrap();
+
+        let tx1 = first.new_tx(TxMode::ReadWrite).await.unwrap();
+        let tx2 = second.new_tx(TxMode::ReadWrite).await.unwrap();
+        let receipt1 = first
+            .insert_electoral_log_delivery(&tx1, DELIVERY_A, PAYLOAD_A, &[delivery_message(1)])
+            .await
+            .unwrap();
+        let receipt2 = second
+            .insert_electoral_log_delivery(&tx2, DELIVERY_A, PAYLOAD_A, &[delivery_message(2)])
+            .await
+            .unwrap();
+        assert_eq!(receipt1, DeliveryReceipt::Stored);
+        assert_eq!(receipt2, DeliveryReceipt::Stored);
+        first.commit(&tx1).await.unwrap();
+        assert!(second.commit(&tx2).await.is_err());
+        second.close_session().await.ok();
+
+        // The dispatcher keeps the losing delivery in the queue and retries it.
+        let mut retry = board_session().await;
+        let receipt = write_delivery(&mut retry, DELIVERY_A, PAYLOAD_A, 3).await.unwrap();
+        retry.close_session().await.unwrap();
+        first.close_session().await.unwrap();
+
+        assert_eq!(receipt, DeliveryReceipt::AlreadyStored);
+        let rows = b.get_electoral_log_messages(BOARD_DB).await.unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].created, 1);
         tear_down(b).await;
     }
 }

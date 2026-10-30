@@ -208,8 +208,25 @@ messages back to the event queue, for example with a RabbitMQ shovel.
 
 When the Hasura or Keycloak database, the vault or immudb cannot be reached,
 the affected events stay in the event queue and the next dispatcher run
-retries them. A batch that was written to immudb but not acknowledged, for
-example because the worker stopped, is written again on the next run.
+retries them.
+
+Each event is written with a receipt in the board's
+`electoral_log_delivery_receipts` table, in the same immudb transaction as its
+entries. The receipt's ID is derived from the message's AMQP correlation ID,
+which Windmill and Keycloak set to the task ID and which stays the same when
+RabbitMQ delivers the message again. An event that was written but not
+acknowledged, for example because the worker stopped, is therefore not written
+twice: the next run finds its receipt and only acknowledges it. A message
+without a correlation ID, or a correlation ID reused for a different event, is
+moved to the dead-letter queue. Receipts are added to existing boards on their
+next write; no migration is needed.
+
+Batches queued by earlier versions in `<ENV_SLUG>_electoral_log_batch_queue`
+are drained by the same dispatcher and acknowledged once all of their events
+are written. Workers started with `electoral_log_event_queue` or
+`electoral_log_batch_queue` in their `consume -q` list consume
+`electoral_log_beat_queue` instead, so Celery never acknowledges an electoral
+log event that was not written. Existing deployment arguments need no change.
 
 ## Tally
 
