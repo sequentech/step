@@ -207,6 +207,50 @@ impl LogEventStore for SyntheticBoards {
     }
 }
 
+/// Resolves the events of one synthetic voter to a board that does not exist
+/// yet, so that writing them fails, and the others to a healthy board.
+struct PartlyUnavailableBoards {
+    healthy: String,
+    unavailable: String,
+}
+
+const UNAVAILABLE_VOTER: &str = "synthetic-voter-of-an-unavailable-board";
+
+#[async_trait]
+impl LogEventStore for PartlyUnavailableBoards {
+    type Message = ElectoralLogMessage;
+
+    async fn prepare(
+        &mut self,
+        events: &[LogEventInput],
+    ) -> Result<Vec<LogEventPreparation<ElectoralLogMessage>>> {
+        Ok(events
+            .iter()
+            .map(|event| {
+                let message: ElectoralLogMessage =
+                    serde_json::from_str(&event.body.as_raw()).expect("synthetic event");
+                let board = if message.user_id.as_deref() == Some(UNAVAILABLE_VOTER) {
+                    self.unavailable.clone()
+                } else {
+                    self.healthy.clone()
+                };
+                LogEventPreparation::Ready {
+                    board,
+                    messages: vec![message],
+                }
+            })
+            .collect())
+    }
+
+    async fn persist(
+        &mut self,
+        board: &str,
+        deliveries: Vec<BoardDelivery<ElectoralLogMessage>>,
+    ) -> Result<Vec<DeliveryReceipt>> {
+        persist_board_deliveries(&mut board_client().await?, board, &deliveries).await
+    }
+}
+
 /// Fails each acknowledgement, as when the worker stops or its connection
 /// drops right after the board transaction is committed.
 struct AcknowledgementLost(AmqpLogEventQueue);
@@ -233,6 +277,10 @@ impl LogEventQueue for AcknowledgementLost {
 
     async fn dead_letter(&mut self, delivery: &BasicGetMessage) -> Result<()> {
         self.0.dead_letter(delivery).await
+    }
+
+    async fn ready_count(&mut self) -> Result<u32> {
+        self.0.ready_count().await
     }
 }
 
@@ -628,5 +676,76 @@ async fn deliveries_after_a_committed_chunk_are_recovered_on_retry() -> Result<(
     expected.push(DeliveryReceipt::Stored);
     assert_eq!(retry, expected);
     assert_eq!(rows, (1..=17).collect::<Vec<i64>>());
+    fixture.tear_down().await
+}
+
+#[tokio::test]
+#[ignore]
+async fn events_behind_an_unavailable_board_are_written_in_the_same_run() -> Result<()> {
+    let fixture = Fixture::new().await?;
+    let unavailable = format!("{}down", fixture.board);
+    for created in 1..=3 {
+        let message = cast_vote(created, UNAVAILABLE_VOTER);
+        fixture
+            .publish(
+                &fixture.queue,
+                &format!("down-{created}"),
+                &event_message(&message),
+            )
+            .await?;
+    }
+    for created in 4..=6 {
+        let message = cast_vote(created, "synthetic-voter");
+        fixture
+            .publish(
+                &fixture.queue,
+                &format!("healthy-{created}"),
+                &event_message(&message),
+            )
+            .await?;
+    }
+    let mut store = PartlyUnavailableBoards {
+        healthy: fixture.board.clone(),
+        unavailable: unavailable.clone(),
+    };
+
+    let mut queue = fixture.queue_on(&fixture.queue).await?;
+    let first = drain_log_event_queue(&mut queue, &mut store, 2).await;
+    drop(queue);
+    fixture.wait_until_ready(&fixture.queue, 3).await?;
+    println!(
+        "board unavailable: run {:?}; healthy board rows {:?}; queued {}, dead-lettered {}",
+        first.as_ref().map_err(|err| err.to_string()),
+        created_of(&fixture.rows().await?),
+        fixture.ready(&fixture.queue).await?,
+        fixture.ready(&fixture.dead_letter_queue).await?
+    );
+    assert!(first.is_err());
+    assert_eq!(created_of(&fixture.rows().await?), vec![4, 5, 6]);
+    assert_eq!(fixture.ready(&fixture.dead_letter_queue).await?, 0);
+
+    // The board is back.
+    board_client()
+        .await?
+        .upsert_electoral_log_db(&unavailable)
+        .await?;
+    let mut queue = fixture.queue_on(&fixture.queue).await?;
+    drain_log_event_queue(&mut queue, &mut store, 2).await?;
+    drop(queue);
+    let recovered = created_of(
+        &board_client()
+            .await?
+            .get_electoral_log_messages(&unavailable)
+            .await?,
+    );
+    println!(
+        "board back: its rows {recovered:?}; healthy board rows {:?}; queued {}",
+        created_of(&fixture.rows().await?),
+        fixture.ready(&fixture.queue).await?
+    );
+    assert_eq!(recovered, vec![1, 2, 3]);
+    assert_eq!(created_of(&fixture.rows().await?), vec![4, 5, 6]);
+    assert_eq!(fixture.ready(&fixture.queue).await?, 0);
+    board_client().await?.delete_database(&unavailable).await?;
     fixture.tear_down().await
 }

@@ -33,6 +33,9 @@ pub enum LogEventPreparation<M> {
     /// The event can never be written, for example because its election
     /// event no longer exists.
     Rejected(anyhow::Error),
+    /// The event could not be prepared now, for example because a database
+    /// was unavailable, and must be retried.
+    Retained(anyhow::Error),
 }
 
 /// An event with the identity that makes writing it again harmless.
@@ -78,6 +81,9 @@ pub trait LogEventQueue {
 
     /// Stores a copy of a delivery that can never be written.
     async fn dead_letter(&mut self, delivery: &Self::Delivery) -> Result<()>;
+
+    /// How many messages are ready in the queue now.
+    async fn ready_count(&mut self) -> Result<u32>;
 }
 
 /// Where the electoral log events are written.
@@ -85,8 +91,8 @@ pub trait LogEventQueue {
 pub trait LogEventStore {
     type Message: Send;
 
-    /// Returns one preparation per event, in order. An error means the
-    /// events could not be judged now and must be retried later.
+    /// Returns one preparation per event, in order. An error means none of
+    /// the events could be judged now and all must be retried later.
     async fn prepare(
         &mut self,
         events: &[LogEventInput],
@@ -188,13 +194,21 @@ where
     S: LogEventStore + Send,
 {
     let inputs: Vec<LogEventInput> = events.iter().map(|event| event.input.clone()).collect();
-    let preparations = store.prepare(&inputs).await?;
-    ensure!(
-        preparations.len() == events.len(),
-        "Expected {} electoral log preparations, got {}",
-        events.len(),
-        preparations.len()
-    );
+    let preparations = match store.prepare(&inputs).await {
+        Ok(preparations) => {
+            ensure!(
+                preparations.len() == events.len(),
+                "Expected {} electoral log preparations, got {}",
+                events.len(),
+                preparations.len()
+            );
+            preparations
+        }
+        Err(err) => {
+            error!(error = ?err, "Error preparing electoral log events");
+            return Ok(events.iter().map(|_| EventOutcome::Retained).collect());
+        }
+    };
 
     let mut outcomes: Vec<Option<EventOutcome>> = Vec::with_capacity(events.len());
     let mut by_board: HashMap<String, (Vec<usize>, Vec<BoardDelivery<S::Message>>)> =
@@ -231,6 +245,10 @@ where
                 outcomes.push(None);
             }
             LogEventPreparation::Rejected(err) => outcomes.push(Some(EventOutcome::Rejected(err))),
+            LogEventPreparation::Retained(err) => {
+                error!(error = ?err, "Error preparing an electoral log event");
+                outcomes.push(Some(EventOutcome::Retained));
+            }
         }
     }
 
@@ -285,11 +303,14 @@ where
         .collect()
 }
 
-/// Writes the queued events in batches until the queue is empty. A delivery is
+/// Writes the events queued when the run starts, in batches. A delivery is
 /// acknowledged only once all of its events are committed or a copy of it is
-/// in the dead-letter queue. A delivery with a retained event stays
-/// unacknowledged and RabbitMQ returns it to the queue when the channel
-/// closes; receipts make writing its other events again harmless.
+/// in the dead-letter queue. A delivery with an event that must be retried is
+/// left unacknowledged while the run goes on to the deliveries behind it, and
+/// RabbitMQ returns it to the queue when the channel closes; receipts make
+/// writing its other events again harmless. The run examines at most as many
+/// deliveries as were ready when it started, so new arrivals cannot prolong it,
+/// and fails if it left any delivery unacknowledged.
 pub async fn drain_log_event_queue<Q, S>(
     queue: &mut Q,
     store: &mut S,
@@ -299,16 +320,21 @@ where
     Q: LogEventQueue + Send,
     S: LogEventStore + Send,
 {
-    loop {
+    let mut remaining = queue.ready_count().await?;
+    let mut retained_count = 0;
+    while remaining > 0 {
         let mut deliveries = Vec::with_capacity(batch_size);
-        while deliveries.len() < batch_size {
+        while deliveries.len() < batch_size && remaining > 0 {
             match queue.next().await? {
-                Some(delivery) => deliveries.push(delivery),
-                None => break,
+                Some(delivery) => {
+                    remaining -= 1;
+                    deliveries.push(delivery);
+                }
+                None => remaining = 0,
             }
         }
         if deliveries.is_empty() {
-            return Ok(());
+            break;
         }
 
         let mut decoded = Vec::with_capacity(deliveries.len());
@@ -336,7 +362,6 @@ where
             }
         }
 
-        let mut retained_count = 0;
         for ((delivery, retained), rejections) in decoded.iter().zip(retained).zip(rejections) {
             if retained {
                 retained_count += 1;
@@ -351,11 +376,12 @@ where
                 dead_letter(queue, delivery, anyhow!(reasons)).await?;
             }
         }
-        ensure!(
-            retained_count == 0,
-            "{retained_count} electoral log deliveries were left in the queue"
-        );
     }
+    ensure!(
+        retained_count == 0,
+        "{retained_count} electoral log deliveries were left in the queue"
+    );
+    Ok(())
 }
 
 async fn dead_letter<Q>(queue: &mut Q, delivery: &Q::Delivery, reason: anyhow::Error) -> Result<()>
@@ -464,6 +490,22 @@ impl LogEventQueue for AmqpLogEventQueue {
             )),
         }
     }
+
+    async fn ready_count(&mut self) -> Result<u32> {
+        Ok(self
+            .channel
+            .queue_declare(
+                &self.queue_name,
+                QueueDeclareOptions {
+                    passive: true,
+                    ..Default::default()
+                },
+                FieldTable::default(),
+            )
+            .await
+            .with_context(|| format!("Error reading the depth of {}", self.queue_name))?
+            .message_count())
+    }
 }
 
 #[cfg(test)]
@@ -483,6 +525,8 @@ mod tests {
         acked: Vec<u64>,
         dead_lettered: Vec<Vec<u8>>,
         fail_acks: bool,
+        /// Published while a run reads the queue, one per read.
+        arrivals: VecDeque<FakeDelivery>,
     }
 
     impl FakeQueue {
@@ -526,6 +570,9 @@ mod tests {
         }
 
         async fn next(&mut self) -> Result<Option<FakeDelivery>> {
+            if let Some(arrival) = self.arrivals.pop_front() {
+                self.ready.push_back(arrival);
+            }
             let delivery = self.ready.pop_front();
             if let Some(delivery) = &delivery {
                 self.unacked.push(delivery.clone());
@@ -544,6 +591,10 @@ mod tests {
             self.dead_lettered.push(delivery.2.clone());
             Ok(())
         }
+
+        async fn ready_count(&mut self) -> Result<u32> {
+            Ok(self.ready.len() as u32)
+        }
     }
 
     /// Commits a board's deliveries with receipts, as a board transaction does.
@@ -551,6 +602,9 @@ mod tests {
     struct FakeStore {
         unavailable: bool,
         unavailable_boards: HashSet<String>,
+        /// Election events whose details cannot be read for now.
+        unreadable_events: HashSet<String>,
+        prepared: usize,
         receipts: HashMap<(String, String), String>,
         persisted: Vec<String>,
     }
@@ -567,12 +621,15 @@ mod tests {
             &mut self,
             events: &[LogEventInput],
         ) -> Result<Vec<LogEventPreparation<String>>> {
+            self.prepared += events.len();
             ensure!(!self.unavailable, "database unavailable");
             Ok(events
                 .iter()
                 .map(|event| {
                     if event.election_event_id == GONE_ELECTION_EVENT {
                         LogEventPreparation::Rejected(anyhow!("election event not found"))
+                    } else if self.unreadable_events.contains(&event.election_event_id) {
+                        LogEventPreparation::Retained(anyhow!("user area unavailable"))
                     } else {
                         LogEventPreparation::Ready {
                             board: board_of(&event.election_event_id),
@@ -928,6 +985,146 @@ mod tests {
         }
         store.persisted.sort();
         assert_eq!(store.persisted, vec!["a", "b"]);
+    }
+
+    #[tokio::test]
+    async fn a_failing_first_batch_does_not_hold_back_the_events_behind_it() {
+        let mut queue = FakeQueue::with(vec![
+            event("ee1", "a"),
+            event("ee1", "b"),
+            event("ee2", "healthy"),
+        ]);
+        let mut store = FakeStore {
+            unavailable_boards: HashSet::from([board_of("ee1")]),
+            ..Default::default()
+        };
+
+        assert!(drain_log_event_queue(&mut queue, &mut store, 2)
+            .await
+            .is_err());
+
+        assert_eq!(store.persisted, vec!["healthy"]);
+        assert_eq!(queue.acked, vec![3]);
+        assert_eq!(queue.unacked_tags(), vec![1, 2]);
+        assert!(queue.dead_lettered.is_empty());
+    }
+
+    #[tokio::test]
+    async fn an_event_that_cannot_be_prepared_now_holds_back_only_itself() {
+        for (first, second) in [("unreadable", "ee1"), ("ee1", "unreadable")] {
+            let mut queue = FakeQueue::with(vec![event(first, "x"), event(second, "y")]);
+            let mut store = FakeStore {
+                unreadable_events: HashSet::from(["unreadable".to_string()]),
+                ..Default::default()
+            };
+
+            assert!(drain_log_event_queue(&mut queue, &mut store, 10)
+                .await
+                .is_err());
+
+            let (healthy, waiting) = if first == "ee1" { (1, 2) } else { (2, 1) };
+            assert_eq!(store.persisted.len(), 1);
+            assert_eq!(queue.acked, vec![healthy]);
+            assert_eq!(queue.unacked_tags(), vec![waiting]);
+            assert!(queue.dead_lettered.is_empty());
+        }
+    }
+
+    #[tokio::test]
+    async fn a_waiting_legacy_batch_does_not_hold_back_the_events_behind_it() {
+        let mut queue = FakeQueue::with(vec![
+            legacy_batch(&[("ee1", "a"), ("ee2", "b")]),
+            event("ee2", "c"),
+        ]);
+        let mut store = FakeStore {
+            unavailable_boards: HashSet::from([board_of("ee1")]),
+            ..Default::default()
+        };
+
+        assert!(drain_log_event_queue(&mut queue, &mut store, 1)
+            .await
+            .is_err());
+
+        assert_eq!(store.persisted, vec!["b", "c"]);
+        assert_eq!(queue.acked, vec![2]);
+        assert_eq!(queue.unacked_tags(), vec![1]);
+        assert!(queue.dead_lettered.is_empty());
+    }
+
+    #[tokio::test]
+    async fn a_waiting_event_is_written_once_when_its_board_is_back() {
+        let mut queue = FakeQueue::with(vec![
+            event("ee1", "a"),
+            event("ee1", "b"),
+            event("ee2", "healthy"),
+        ]);
+        let mut store = FakeStore {
+            unavailable_boards: HashSet::from([board_of("ee1")]),
+            ..Default::default()
+        };
+        assert!(drain_log_event_queue(&mut queue, &mut store, 2)
+            .await
+            .is_err());
+
+        queue.requeue_unacked();
+        store.unavailable_boards.clear();
+        drain_log_event_queue(&mut queue, &mut store, 2)
+            .await
+            .expect("drained");
+
+        store.persisted.sort();
+        assert_eq!(store.persisted, vec!["a", "b", "healthy"]);
+        assert!(queue.ready.is_empty());
+        assert!(queue.unacked.is_empty());
+    }
+
+    #[tokio::test]
+    async fn an_outage_is_retried_run_after_run_without_dead_letters() {
+        let mut queue = FakeQueue::with(vec![
+            event("ee1", "a"),
+            event("ee2", "b"),
+            event("ee1", "c"),
+        ]);
+        let mut store = FakeStore {
+            unavailable: true,
+            ..Default::default()
+        };
+
+        for run in 1..=3 {
+            assert!(drain_log_event_queue(&mut queue, &mut store, 1)
+                .await
+                .is_err());
+            // Each run examines each delivery once and keeps them all.
+            assert_eq!(store.prepared, 3 * run);
+            assert_eq!(queue.unacked.len(), 3);
+            assert!(queue.dead_lettered.is_empty());
+            queue.requeue_unacked();
+        }
+
+        store.unavailable = false;
+        drain_log_event_queue(&mut queue, &mut store, 1)
+            .await
+            .expect("drained");
+        store.persisted.sort();
+        assert_eq!(store.persisted, vec!["a", "b", "c"]);
+        assert!(queue.ready.is_empty());
+    }
+
+    #[tokio::test]
+    async fn events_arriving_during_a_run_wait_for_the_next() {
+        let mut queue = FakeQueue::with(vec![event("ee1", "a"), event("ee1", "b")]);
+        queue.arrivals = (10..20)
+            .map(|tag| (tag, Some(format!("task-{tag}")), event("ee1", "late")))
+            .collect();
+        let mut store = FakeStore::default();
+
+        drain_log_event_queue(&mut queue, &mut store, 1)
+            .await
+            .expect("drained");
+
+        assert_eq!(store.persisted, vec!["a", "b"]);
+        assert_eq!(queue.acked, vec![1, 2]);
+        assert_eq!(queue.ready.len() + queue.arrivals.len(), 10);
     }
 
     #[tokio::test]
