@@ -249,3 +249,151 @@ async fn channel_enablement_and_pause_are_rechecked_from_the_writer() {
     }
     transaction.rollback().await.unwrap();
 }
+
+#[tokio::test]
+#[ignore = "requires the disposable devenv database fixture"]
+async fn discarding_a_voters_ballots_returns_the_ids_it_discarded() {
+    let mut client = test_client().await;
+    let transaction = client.transaction().await.unwrap();
+    let tenant = Uuid::new_v4();
+    let event = Uuid::new_v4();
+    let mut expected = Vec::new();
+    for (voter, status) in [
+        ("voter", CastVoteStatus::Valid),
+        ("voter", CastVoteStatus::InProgress),
+        ("voter", CastVoteStatus::Discarded),
+        ("other-voter", CastVoteStatus::Valid),
+    ] {
+        let row = transaction
+            .query_one(
+                r#"
+            INSERT INTO sequent_backend.cast_vote
+                (tenant_id, election_event_id, election_id, voter_id_string, status)
+            VALUES ($1, $2, $3, $4, $5)
+            RETURNING id
+            "#,
+                &[
+                    &tenant,
+                    &event,
+                    &Uuid::new_v4(),
+                    &voter,
+                    &status.to_string(),
+                ],
+            )
+            .await
+            .unwrap();
+        if voter == "voter" && status != CastVoteStatus::Discarded {
+            expected.push(row.get::<_, Uuid>("id"));
+        }
+    }
+
+    let mut discarded =
+        postgres::cast_vote::discard_voter_cast_votes(&transaction, &tenant, &event, "voter")
+            .await
+            .unwrap();
+    discarded.sort();
+    expected.sort();
+    assert_eq!(discarded, expected);
+    assert!(
+        postgres::cast_vote::discard_voter_cast_votes(&transaction, &tenant, &event, "voter")
+            .await
+            .unwrap()
+            .is_empty()
+    );
+    transaction.rollback().await.unwrap();
+}
+
+/// The cast check and the tally read only the ballot styles of published
+/// publications. A generated draft keeps its styles live until it is
+/// published, so filtering on the style alone would also return the draft's.
+#[tokio::test]
+#[ignore = "requires the disposable devenv database fixture"]
+async fn only_published_ballot_styles_are_read() {
+    use sequent_core::ballot::Contest;
+    use sequent_core::fixtures::ballot_codec::{get_test_contest, get_writein_ballot_style};
+
+    let mut client = test_client().await;
+    let transaction = client.transaction().await.unwrap();
+    let fixture = ElectionFixture::create(&transaction).await;
+    let other_area = Uuid::new_v4();
+    // Each style has a single contest named after its case:
+    // (contest, area, published, publication deleted, style deleted).
+    let cases = [
+        ("published", fixture.area, true, false, false),
+        ("draft", fixture.area, false, false, false),
+        ("deleted-publication", fixture.area, true, true, false),
+        ("deleted-style", fixture.area, true, false, true),
+        ("other-area", other_area, true, false, false),
+    ];
+    for (contest_id, area, published, publication_deleted, style_deleted) in cases {
+        let publication = Uuid::new_v4();
+        transaction
+            .execute(
+                "INSERT INTO sequent_backend.ballot_publication
+                    (id, tenant_id, election_event_id, is_generated, published_at, deleted_at)
+                VALUES ($1, $2, $3, true, CASE WHEN $4 THEN now() END, CASE WHEN $5 THEN now() END)",
+                &[
+                    &publication,
+                    &fixture.tenant,
+                    &fixture.event,
+                    &published,
+                    &publication_deleted,
+                ],
+            )
+            .await
+            .unwrap();
+        let ballot_style = BallotStyle {
+            contests: vec![Contest {
+                id: contest_id.to_string(),
+                ..get_test_contest()
+            }],
+            ..get_writein_ballot_style()
+        };
+        transaction
+            .execute(
+                "INSERT INTO sequent_backend.ballot_style
+                    (id, tenant_id, election_event_id, election_id, area_id, ballot_eml,
+                     deleted_at, ballot_publication_id)
+                VALUES ($1, $2, $3, $4, $5, $6, CASE WHEN $7 THEN now() END, $8)",
+                &[
+                    &Uuid::new_v4(),
+                    &fixture.tenant,
+                    &fixture.event,
+                    &fixture.election,
+                    &area,
+                    &serde_json::to_string(&ballot_style).unwrap(),
+                    &style_deleted,
+                    &publication,
+                ],
+            )
+            .await
+            .unwrap();
+    }
+
+    let cast_styles = get_published_style_contest_ids(
+        &transaction,
+        &fixture.tenant.to_string(),
+        &fixture.event.to_string(),
+        &fixture.election.to_string(),
+        &fixture.area.to_string(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(cast_styles, vec![HashSet::from(["published".to_string()])]);
+
+    let mut tally_contests: Vec<String> = get_ballot_styles_by_elections(
+        &transaction,
+        &fixture.tenant.to_string(),
+        &fixture.event.to_string(),
+        &vec![fixture.election.to_string()],
+        None,
+    )
+    .await
+    .unwrap()
+    .iter()
+    .flat_map(|style| read_style_contest_ids(style).unwrap())
+    .collect();
+    tally_contests.sort();
+    assert_eq!(tally_contests, ["other-area", "published"]);
+    transaction.rollback().await.unwrap();
+}

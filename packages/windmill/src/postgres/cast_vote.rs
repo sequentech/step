@@ -437,19 +437,55 @@ pub async fn count_unresolved_cast_votes(
     Ok(row.get("count"))
 }
 
+/// Returns whether a contest area has any cast vote, whatever its status.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn has_area_cast_votes(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &Uuid,
+    election_event_id: &Uuid,
+    election_id: &Uuid,
+    area_id: &Uuid,
+) -> Result<bool> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM sequent_backend.cast_vote
+                    WHERE
+                        tenant_id = $1 AND
+                        election_event_id = $2 AND
+                        election_id = $3 AND
+                        area_id = $4
+                ) AS found
+            "#,
+        )
+        .await?;
+
+    let row = hasura_transaction
+        .query_one(
+            &statement,
+            &[tenant_id, election_event_id, election_id, area_id],
+        )
+        .await
+        .map_err(|err| anyhow!("Error checking for area cast votes: {}", err))?;
+
+    Ok(row.get("found"))
+}
+
 /// Discards every `valid` or `in-progress` ballot of the voter for the event.
 /// Used when an admin disables a Datafix voter: the ballots are discarded
 /// unconditionally as part of the disable, regardless of whether the
 /// `SetNotVoted` notification to VoterView succeeds — a divergence between the
 /// platform and VoterView is caught by the separate manual reconciliation
-/// process. Returns the number of rows discarded.
+/// process. Returns the ids of the discarded ballots.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn discard_voter_cast_votes(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &Uuid,
     election_event_id: &Uuid,
     voter_id_string: &str,
-) -> Result<u64> {
+) -> Result<Vec<Uuid>> {
     let discarded_status = CastVoteStatus::Discarded.to_string();
     let active_statuses = vec![
         CastVoteStatus::Valid.to_string(),
@@ -467,12 +503,13 @@ pub async fn discard_voter_cast_votes(
                     election_event_id = $2 AND
                     voter_id_string = $3 AND
                     status = ANY($5)
+                RETURNING id
             "#,
         )
         .await?;
 
-    hasura_transaction
-        .execute(
+    let rows = hasura_transaction
+        .query(
             &statement,
             &[
                 tenant_id,
@@ -482,7 +519,10 @@ pub async fn discard_voter_cast_votes(
                 &active_statuses,
             ],
         )
-        .await
+        .await?;
+    rows.iter()
+        .map(|row| row.try_get("id"))
+        .collect::<std::result::Result<Vec<Uuid>, _>>()
         .map_err(Into::into)
 }
 
