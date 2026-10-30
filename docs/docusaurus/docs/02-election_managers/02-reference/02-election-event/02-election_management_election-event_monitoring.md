@@ -40,11 +40,17 @@ exactly as before. A user without `monitoring-view` never triggers a
 monitoring request. If the monitoring dashboards cannot be loaded, the
 standard dashboard is shown with a warning above it.
 
-New election events start with configurable dashboards enabled, using the shipped
-`comelec` preset. The default documents and their preset version are stored with
-the event, so they can be edited immediately and later software updates do not
-replace customizations. Newly imported events use the same defaults; importing
-an event does not change the source event or migrate existing events.
+New election events created with the Admin Portal's **Create election event** form
+start with configurable dashboards enabled, using the shipped `comelec` preset.
+The default documents and their preset version are stored with the event, so they
+can be edited immediately and later software updates do not replace customizations.
+
+Imports, including Architect and configuration packages, retain their previous
+dashboard behavior; they are not automatically enabled. The current archive format
+does not include monitoring mode or custom dashboard documents, so exporting and
+importing an event does not preserve those
+settings. An imported event can be enabled with the switch below. Existing events
+are not migrated.
 
 Use **Configurable dashboards** at the top of the Dashboard tab to switch modes.
 Existing events keep their previous mode until an administrator changes it.

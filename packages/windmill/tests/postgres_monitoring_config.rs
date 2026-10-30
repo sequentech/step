@@ -3204,14 +3204,46 @@ async fn new_event_defaults_commit_with_creation_and_never_replace_existing_choi
     reset(&mut client, &audit, event, "campus", DashboardMode::Legacy)
         .await
         .unwrap();
-    let before = read_live(&pool, event).await.unwrap();
-    let tx = client.transaction().await.unwrap();
-    let repeated = initialize_default_config(&tx, &audit, event, &editor())
-        .await
-        .unwrap();
-    assert!(matches!(repeated, ResetOutcome::Unchanged));
-    tx.commit().await.unwrap();
-    assert_eq!(read_live(&pool, event).await.unwrap(), before);
+    let campus = preset("campus");
+    let customized = campus
+        .documents
+        .iter()
+        .find(|document| document.kind == ConfigKind::Widget && document.key == "participation")
+        .unwrap()
+        .yaml
+        .replace("title: Participation", "title: Our participation");
+    let checks = Checks::default();
+    assert_eq!(
+        saved(
+            edit(
+                &mut client,
+                &checks,
+                &audit,
+                event,
+                ConfigKind::Widget,
+                "participation",
+                Edit::Upsert(&customized),
+                ExpectedHead::At(1),
+            )
+            .await
+        ),
+        2
+    );
+    for mode in [DashboardMode::Legacy, DashboardMode::Configured] {
+        set_mode(&mut client, &audit, event, &editor(), mode)
+            .await
+            .unwrap();
+        let before = read_live(&pool, event).await.unwrap();
+        let recorded = audit.entries().len();
+        let tx = client.transaction().await.unwrap();
+        let repeated = initialize_default_config(&tx, &audit, event, &editor())
+            .await
+            .unwrap();
+        assert!(matches!(repeated, ResetOutcome::Unchanged));
+        tx.commit().await.unwrap();
+        assert_eq!(read_live(&pool, event).await.unwrap(), before);
+        assert_eq!(audit.entries().len(), recorded);
+    }
     remove(&pool, event).await;
 }
 

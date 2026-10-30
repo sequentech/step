@@ -190,7 +190,6 @@ impl MonitoringConfigAudit for ElectoralLogConfigAudit {
 
 /// Stores and records the shipped defaults as part of creating a new event.
 /// Uses the event's already-created system signing key, not a new admin identity.
-/// Import calls this after restoring its boards and keys in the same transaction.
 pub async fn initialize_new_event(
     transaction: &Transaction<'_>,
     tenant_id: &str,
