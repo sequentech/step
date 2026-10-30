@@ -469,6 +469,7 @@ const spanishTranslation: TranslationType = {
                 customUrls: "Prefixo de URLs personalizados",
                 votingPeriod: "Período de votación",
                 language: "Idiomas",
+                languageAndRegion: "Idioma y región",
                 allowed: "Canales de Voto Permitidos",
                 materials: "Materiales de Soporte",
                 ballotDesign: "Diseño de la Papeleta",
@@ -704,6 +705,12 @@ const spanishTranslation: TranslationType = {
                         "browser-detect": "Detectar desde el navegador",
                         "force-default": "Forzar predeterminado",
                     },
+                },
+                numberFormatPolicy: {
+                    policyLabel: "Política de formato de números",
+                    helperText:
+                        "Se aplica a los números de los resultados, los paneles de control y los informes.",
+                    unknownPolicy: "Formato desconocido '{{policy}}', se muestra como {{sample}}",
                 },
             },
             error: {
@@ -1044,6 +1051,29 @@ const spanishTranslation: TranslationType = {
                 options: {
                     "gold-level": "Autenticación de nivel oro",
                     "no-gold-level": "Sin autenticación de nivel oro",
+                },
+            },
+            slates: {
+                enable: {
+                    label: "Habilitar candidaturas",
+                    helper: "Si está habilitado, los votantes pueden elegir una candidatura con nombre y cambiar cualquier contienda, incluidos los candidatos independientes.",
+                },
+                disable: {
+                    confirm: "Deshabilitar candidaturas",
+                    message_one:
+                        "Esta elección tiene {{count}} candidatura. Al deshabilitar las candidaturas se eliminará al guardar.",
+                    message_many:
+                        "Esta elección tiene {{count}} candidaturas. Al deshabilitar las candidaturas se eliminarán al guardar.",
+                    message_other:
+                        "Esta elección tiene {{count}} candidaturas. Al deshabilitar las candidaturas se eliminarán al guardar.",
+                },
+                mobileCandidateLists: {
+                    label: "Listas de candidatos en móvil",
+                    helper: "Cómo aparece inicialmente la lista de candidatos de cada candidatura en el móvil: Contraídas o Desplegadas. Los votantes siempre pueden abrir o cerrar cualquier lista. En escritorio se muestran siempre todos los candidatos.",
+                    options: {
+                        collapsed: "Contraídas",
+                        expanded: "Desplegadas",
+                    },
                 },
             },
             startScreenTitlePolicy: {
@@ -1767,6 +1797,7 @@ const spanishTranslation: TranslationType = {
             election: "Crear una Elección",
             contest: "Crear una Pregunta",
             candidate: "Crear un Candidato",
+            slate: "Crear una Candidatura",
         },
         importResource: {
             electionEvent: "Importar un Evento Electoral",
@@ -1806,6 +1837,7 @@ const spanishTranslation: TranslationType = {
                     election: "Eliminar esta Elección",
                     contest: "Eliminar esta Pregunta",
                     candidate: "Eliminar este Candidato",
+                    slate: "Eliminar esta Candidatura",
                 },
                 messages: {
                     confirm: {
@@ -1869,6 +1901,39 @@ const spanishTranslation: TranslationType = {
             createCandidateSuccess: "Candidato creado",
             createCandidateError: "Error creating candidato",
         },
+        slateScreen: {
+            common: {
+                subtitle: "Configuración de la candidatura.",
+                newSlate: "Nueva candidatura",
+                notFound: "Esta candidatura no existe.",
+            },
+            tabs: {
+                data: "Datos",
+            },
+            edit: {
+                general: "General",
+                members: "Miembros",
+            },
+            field: {
+                name: "Nombre",
+                alias: "Alias",
+                description: "Descripción",
+                externalId: "ID externo",
+            },
+            members: {
+                helper: "Asigna hasta el número máximo de candidatos de cada contienda. Deja una contienda vacía para que esta candidatura no cubra esa contienda. Los candidatos que no estén en ninguna candidatura aparecen como Independientes en esa contienda.",
+                contest: "Contienda",
+                candidate: "Candidato",
+                noCandidate: "Sin candidato",
+            },
+            messages: {
+                saved: "Candidatura guardada",
+                invalid:
+                    "No se puede guardar la candidatura. Corrige los problemas indicados abajo.",
+                error: "No se ha podido guardar la candidatura.",
+                unreadable: "No se puede leer la configuración de candidaturas de la elección.",
+            },
+        },
         contestScreen: {
             common: {
                 subtitle: "Configuración de pregunta.",
@@ -1912,6 +1977,7 @@ const spanishTranslation: TranslationType = {
                 "warn-only-in-review": "Advertir en Revisión",
                 "warn": "Advertir",
                 "warn-and-alert": "Advertir y Alertar",
+                "warn-and-confirm-in-review": "Advertir y Confirmar en Revisión",
             },
             invalidVotePolicy: {
                 "label": "Política de Voto Inválido",
@@ -2105,6 +2171,8 @@ const spanishTranslation: TranslationType = {
             },
         },
         tally: {
+            numericResultsReportsPending:
+                "Los resultados numéricos están completos. Los informes aún se están generando.",
             errorUploadingSignature: "Hubo un error al subir la firma",
             downloadTransmissionPackage: "Descargar paquete",
             resultsPublication: {

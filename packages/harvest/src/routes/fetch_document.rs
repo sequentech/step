@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use windmill::services::ceremonies::result_readiness::require_complete_result_document;
 
 use crate::services::authorization::authorize;
 use anyhow::{anyhow, Result};
@@ -72,6 +73,14 @@ pub async fn fetch_document(
         )
     })?
     .ok_or_else(|| (Status::NotFound, "Document not found".to_string()))?;
+    require_complete_result_document(
+        &hasura_transaction,
+        &claims.hasura_claims.tenant_id,
+        &document,
+        None,
+    )
+    .await
+    .map_err(|error| (Status::Conflict, error.to_string()))?;
     let requires_secret_read = document
         .annotations
         .map(serde_json::from_value::<DocumentAnnotations>)
