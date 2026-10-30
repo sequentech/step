@@ -37,6 +37,7 @@ lazy_static! {
     static ref REPORTS_QUEUE_NAME: String = get_queue_name(Queue::Reports);
     static ref IMPORT_EXPORT_QUEUE_NAME: String = get_queue_name(Queue::ImportExport);
     static ref ELECTORAL_LOG_BATCH_QUEUE_NAME: String = get_queue_name(Queue::ElectoralLogBatch);
+    static ref ELECTORAL_LOG_EVENT_QUEUE_NAME: String = get_queue_name(Queue::ElectoralLogEvent);
 }
 
 #[derive(Debug, StructOpt, Clone)]
@@ -56,6 +57,7 @@ enum CeleryOpt {
             &*REPORTS_QUEUE_NAME,
             &*IMPORT_EXPORT_QUEUE_NAME,
             &*ELECTORAL_LOG_BATCH_QUEUE_NAME,
+            &*ELECTORAL_LOG_EVENT_QUEUE_NAME,
             Queue::Short.as_ref(),
             Queue::Beat.as_ref(),
             Queue::ElectoralLogBeat.as_ref(),
@@ -64,6 +66,7 @@ enum CeleryOpt {
             Queue::Reports.as_ref(),
             Queue::ImportExport.as_ref(),
             Queue::ElectoralLogBatch.as_ref(),
+            Queue::ElectoralLogEvent.as_ref(),
         ], default_value = &*BEAT_QUEUE_NAME)]
         queues: Vec<String>,
         #[structopt(short, long, default_value = "100")]
@@ -167,6 +170,8 @@ async fn async_main(opt: CeleryOpt) -> Result<()> {
             if !duplicates.is_empty() {
                 return Err(anyhow!("Found duplicate queues: {:?}", duplicates));
             }
+            let queues = durable_electoral_log_consumer_queues(queues, &slug);
+            let vec_str: Vec<&str> = queues.iter().map(AsRef::as_ref).collect();
             set_queues(queues.clone());
             set_is_app_active(true);
             celery_app.consume_from(&vec_str[..]).await?;
@@ -180,4 +185,23 @@ async fn async_main(opt: CeleryOpt) -> Result<()> {
         }
     };
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn electoral_log_queues_are_accepted_with_and_without_the_slug() {
+        std::env::set_var("ENV_SLUG", "dev");
+        for queue in [
+            "electoral_log_event_queue",
+            "dev_electoral_log_event_queue",
+            "electoral_log_batch_queue",
+            "dev_electoral_log_batch_queue",
+        ] {
+            let parsed = CeleryOpt::from_iter_safe(["windmill", "consume", "-q", queue]);
+            assert!(parsed.is_ok(), "{queue}: {:?}", parsed.err());
+        }
+    }
 }
