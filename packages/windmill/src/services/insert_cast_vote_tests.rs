@@ -456,6 +456,26 @@ mod ballot_style_contests {
         contest_ids(&[get_test_contest().id.as_str()])
     }
 
+    /// A published ballot style row with the given EML.
+    fn published_style(ballot_eml: Option<String>) -> PublishedBallotStyle {
+        PublishedBallotStyle {
+            id: Uuid::new_v4().to_string(),
+            tenant_id: Uuid::new_v4().to_string(),
+            election_id: Uuid::new_v4().to_string(),
+            area_id: Some(Uuid::new_v4().to_string()),
+            created_at: None,
+            last_updated_at: None,
+            labels: None,
+            annotations: None,
+            ballot_eml,
+            ballot_signature: None,
+            status: None,
+            election_event_id: Uuid::new_v4().to_string(),
+            deleted_at: None,
+            ballot_publication_id: Uuid::new_v4().to_string(),
+        }
+    }
+
     /// The published styles of an area that has only the fixture ballot style.
     fn published_styles() -> Vec<HashSet<String>> {
         vec![style_contest_ids()]
@@ -736,10 +756,7 @@ mod ballot_style_contests {
     /// it is final.
     #[test]
     fn malformed_published_ballot_style_is_not_retried() {
-        let style = PublishedBallotStyle {
-            id: Uuid::new_v4(),
-            ballot_eml: Some("{\"contests\": 1}".to_string()),
-        };
+        let style = published_style(Some("{\"contests\": 1}".to_string()));
 
         assert!(matches!(
             read_style_contest_ids(&style),
@@ -753,10 +770,7 @@ mod ballot_style_contests {
     /// either, so it is final.
     #[test]
     fn published_ballot_style_without_eml_is_not_retried() {
-        let style = PublishedBallotStyle {
-            id: Uuid::new_v4(),
-            ballot_eml: None,
-        };
+        let style = published_style(None);
 
         assert!(matches!(
             read_style_contest_ids(&style),
@@ -769,10 +783,7 @@ mod ballot_style_contests {
     /// The contests of a readable published style are the votable contests of its EML.
     #[test]
     fn published_ballot_style_is_read_from_its_eml() {
-        let style = PublishedBallotStyle {
-            id: Uuid::new_v4(),
-            ballot_eml: Some(serde_json::to_string(&ballot_style()).unwrap()),
-        };
+        let style = published_style(Some(serde_json::to_string(&ballot_style()).unwrap()));
 
         assert_eq!(read_style_contest_ids(&style).unwrap(), style_contest_ids());
     }
