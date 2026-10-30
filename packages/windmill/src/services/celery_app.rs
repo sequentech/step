@@ -18,7 +18,8 @@ use crate::tasks::create_ballot_receipt::create_ballot_receipt;
 use crate::tasks::create_keys::create_keys;
 use crate::tasks::delete_election_event::delete_election_event_t;
 use crate::tasks::electoral_log::{
-    electoral_log_batch_dispatcher, enqueue_electoral_log_event, process_electoral_log_events_batch,
+    electoral_log_batch_dispatcher, enqueue_electoral_log_event,
+    process_electoral_log_events_batch, relay_electoral_log_outbox,
 };
 use crate::tasks::execute_tally_session::execute_tally_session;
 use crate::tasks::export_application::export_application;
@@ -300,6 +301,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             enqueue_electoral_log_event,
             process_electoral_log_events_batch,
             electoral_log_batch_dispatcher,
+            relay_electoral_log_outbox,
             render_document_pdf,
             prepare_publication_preview,
         ],
@@ -347,6 +349,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             enqueue_electoral_log_event::NAME => &Queue::ElectoralLogEvent.queue_name(&slug),
             process_electoral_log_events_batch::NAME => &Queue::ElectoralLogBatch.queue_name(&slug),
             electoral_log_batch_dispatcher::NAME => &Queue::ElectoralLogBeat.queue_name(&slug),
+            relay_electoral_log_outbox::NAME => &Queue::ElectoralLogBeat.queue_name(&slug),
             prepare_publication_preview::NAME => &Queue::Beat.queue_name(&slug),
         ],
         prefetch_count = prefetch_count,
