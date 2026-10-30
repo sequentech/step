@@ -9,6 +9,7 @@ use crate::services::database::get_keycloak_pool;
 use crate::services::database::PgConfig;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
+use crate::services::electoral_log_outbox::relay_configured_log_events;
 use crate::services::electoral_log_queue::{
     drain_log_event_queue, identify_log_events, store_log_events, AmqpLogEventQueue, BoardDelivery,
     EventOutcome, LogEventPreparation, LogEventStore,
@@ -402,6 +403,20 @@ pub async fn persist_board_deliveries(
         warn!(%board, error = ?err, "Error closing immudb session");
     }
     result
+}
+
+/// Publishes the signed CastVotes that accepted votes left in the electoral
+/// log outbox, for example because RabbitMQ was unavailable after the vote
+/// was committed.
+#[instrument(skip_all, err)]
+#[wrap_map_err::wrap_map_err(TaskError)]
+// No expiry: a worker may take this task late, behind a long dispatcher run,
+// and an expired task is acknowledged without running. A late or overlapping
+// relay finds nothing to do or takes other rows under their locks.
+#[celery::task(max_retries = 0)]
+pub async fn relay_electoral_log_outbox() -> Result<()> {
+    relay_configured_log_events().await?;
+    Ok(())
 }
 
 /// Dispatcher: reads batches of events from the electoral_log_event_queue, and
