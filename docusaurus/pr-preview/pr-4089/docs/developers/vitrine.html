@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Vitrine Transparency Logs | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-4089/docs/developers/vitrine"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Vitrine Transparency Logs | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-4089/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4089/docs/developers/vitrine"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4089/docs/developers/vitrine" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4089/docs/developers/vitrine" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Vitrine","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-4089/docs/developers/vitrine"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-4089/assets/css/styles.fc78c976.css">
-<script src="/docusaurus/pr-preview/pr-4089/assets/js/runtime~main.97789f34.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-4089/assets/js/runtime~main.65115c17.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-4089/assets/js/main.9b1a69d6.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -213,19 +213,28 @@ with each witness in its worst state across the event&#x27;s logs.</li>
 <li class=""><strong>Visibility</strong> is the mode the logs were created with, locked once voting
 opened. The draft, upload and enrolment workflow stays below the overview.</li>
 </ul>
-<p>The voting portal&#x27;s screens stay as they are, with one addition when the
-event&#x27;s transparency is on: a check mark next to the Ballot ID. The ID shows
-in groups of four characters, and the first two groups are the short ID. The
-check mark shows how far the receipt&#x27;s check has got: not cast yet on the
-review screen, then checking, in the public record, confirmed by witnesses,
-verified, late or problem. The worst step wins, and it is blue only when every
-tier the policy uses is verified. Selecting it opens a dialog with the short
-and full ID and three steps: in the public record, confirmed by witnesses and
-anchored publicly. Contradicting signed proofs, or a required receipt that
-never came, show as a problem, and never turn an accepted cast into a failed
-one. In the election list, <strong>Ballot cast</strong> with the check mark replaces
-<strong>Voted</strong> for a ballot whose receipt this browser kept. The ballot tracker
-shows the whole receipt, for a ballot found by its short or full ID.</p>
+<p>The voting portal&#x27;s flow stays as it is, with additions when the event&#x27;s
+transparency is on: a check mark next to the Tracking ID, the name the voter
+sees for the ballot&#x27;s ID (<code>ballot_id</code> in the API and the database), and a tag
+that says <strong>Not cast</strong> or <strong>Cast</strong>. The ID shows in groups of four characters,
+and the first two groups are the short ID. On the review screen the ID sits in
+a box next to the title on a wide screen. The check mark shows how far the
+receipt&#x27;s check has got: not cast yet on the review screen, then checking, in
+the public record, confirmed by witnesses, verified, late or problem. The worst
+step wins, and it is blue only when every tier the policy uses is verified.
+Selecting it opens a dialog with the short and full ID and three steps: in the
+public record, confirmed by witnesses and anchored publicly. The dialog also
+has two states for an audited ballot, auditable and audit failed, but Step does
+not open it in those two states today. Contradicting signed proofs, or a
+required receipt that never came, show as a problem, and never turn an accepted
+cast into a failed one. In the election list, <strong>Ballot cast</strong> with the check
+mark replaces <strong>Voted</strong> for a ballot whose receipt this browser kept, and
+<strong>Click to Vote</strong> is off once the voter cast every ballot an open election
+allows. The ballot tracker, Ballot Tracking, shows the whole receipt, for a
+ballot found by its short or full Tracking ID, and the ballot&#x27;s record in a
+viewer that expands, copies and saves it. Step does not publish audited
+ballots; when the record that the tracker finds for a Tracking ID is an audited
+ballot, the tracker checks it in the voter&#x27;s browser and shows its selections.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="deleting-exporting-and-importing-events">Deleting, exporting and importing events<a href="#deleting-exporting-and-importing-events" class="hash-link" aria-label="Direct link to Deleting, exporting and importing events" title="Direct link to Deleting, exporting and importing events" translate="no">​</a></h3>
 <ul>
 <li class="">Deleting a transparent event freezes its logs first, with
