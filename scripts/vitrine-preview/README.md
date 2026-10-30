@@ -45,8 +45,15 @@ Stubbed: everything else Step's backend does. The election, ballot style, area a
 fixtures (`lib/fixtures.mjs`); the Keycloak issues unsigned development tokens (`alg: none`, which
 keycloak-js doesn't verify); `get_ballot_files_urls` serves the fixtures as JSON files; tallying,
 users, reports and other admin tabs answer empty. The voter's ballots are the ones cast during
-the session: `get_voter_cast_votes` finds them by ballot ID or by the prefix of a short ID, with
-their cast time, so the voting portal's ballot tracker (Ballot Locator) works end to end.
+the session: `get_voter_cast_votes` finds them by Tracking ID or by the prefix of a short ID, with
+their cast time, so the voting portal's ballot tracker (Ballot Tracking) works end to end.
+
+It also holds one audited ballot, the JSON the portal's Audit screen shows for the fixture election
+(`lib/audited-ballot.mjs`, short ID `9020 e384`). At start-up it records the ballot's ID in the
+ballots log, as a cast would be, and a tracker lookup that names that ID gets the ballot back, so
+the tracker's audit view (the checks, then the decoded selections) can be shown. Step's backend does
+not publish audited ballots: this is the stand-in's own addition, and it never shows in the ballot
+list.
 
 ## The booth check needs the events log provisioned
 
