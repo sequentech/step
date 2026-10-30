@@ -6,7 +6,9 @@
 //! immudb for the delivery test), with synthetic data only. Run with
 //! `CAST_VOTE_TEST_DATABASE_URL=… MASTER_SECRET=<64 hex digits>
 //! [ELECTORAL_LOG_TEST_AMQP_URL=… ELECTORAL_LOG_TEST_IMMUDB_URL=…]
-//! cargo test -p windmill --lib services::insert_cast_vote::outbox_tests -- --include-ignored`.
+//! cargo test -p windmill --lib services::insert_cast_vote::outbox_tests -- --include-ignored
+//! --test-threads=1`, on a database used by nothing else: the relay test takes
+//! every outbox row.
 
 use super::*;
 use crate::services::electoral_log_outbox::{
@@ -138,6 +140,42 @@ impl Fixture {
             alias: None,
             statistics: None,
         }
+    }
+
+    /// Removes everything the fixture and its votes stored.
+    async fn remove(&self, client: &DbClient) {
+        for table in [
+            "cast_vote",
+            "electoral_log_outbox",
+            "secret",
+            "area",
+            "election",
+        ] {
+            client
+                .execute(
+                    &format!(
+                        "DELETE FROM sequent_backend.{table} \
+                         WHERE election_event_id = $1::text::uuid"
+                    ),
+                    &[&self.event],
+                )
+                .await
+                .unwrap();
+        }
+        client
+            .execute(
+                "DELETE FROM sequent_backend.election_event WHERE id = $1::text::uuid",
+                &[&self.event],
+            )
+            .await
+            .unwrap();
+        client
+            .execute(
+                "DELETE FROM sequent_backend.tenant WHERE id = $1::text::uuid",
+                &[&self.tenant],
+            )
+            .await
+            .unwrap();
     }
 
     async fn count(&self, client: &DbClient, table: &str) -> i64 {
@@ -273,6 +311,7 @@ async fn accepted_vote_commits_with_its_signed_event_and_a_refused_vote_with_non
     assert!(refused.is_err());
     assert_eq!(fixture.count(&client, "cast_vote").await, 1);
     assert_eq!(fixture.count(&client, "electoral_log_outbox").await, 1);
+    fixture.remove(&client).await;
 }
 
 #[tokio::test]
@@ -303,6 +342,9 @@ async fn the_event_is_signed_with_the_voter_key_when_there_is_one() {
         sender_of(&signed_by_voter) == voter_pk,
         sender_of(&signed_by_system) == system_pk
     );
+    transaction.rollback().await.unwrap();
+    with_voter_key.remove(&client).await;
+    without.remove(&client).await;
     assert_eq!(sender_of(&signed_by_voter), voter_pk);
     assert_eq!(sender_of(&signed_by_system), system_pk);
 }
@@ -394,6 +436,16 @@ async fn vote_accepted_while_rabbitmq_is_down_reaches_its_board_once() {
         .await
         .unwrap();
     let pending_after_publish = fixture.count(&client, "electoral_log_outbox").await;
+    // The relay takes every row of the database: this test's must be the only one.
+    let all_rows: i64 = client
+        .query_one(
+            "SELECT count(*) FROM sequent_backend.electoral_log_outbox",
+            &[],
+        )
+        .await
+        .unwrap()
+        .get(0);
+    assert_eq!(all_rows, 1, "another test left rows in the outbox");
     let relayed = relay_log_events(
         &mut client,
         &connection,
@@ -408,7 +460,7 @@ async fn vote_accepted_while_rabbitmq_is_down_reaches_its_board_once() {
         fixture.count(&client, "electoral_log_outbox").await
     );
     assert_eq!(pending_after_publish, 1);
-    assert!(relayed >= 1);
+    assert_eq!(relayed, 1);
     assert_eq!(fixture.count(&client, "electoral_log_outbox").await, 0);
 
     let mut queue = AmqpLogEventQueue::new(
@@ -449,4 +501,5 @@ async fn vote_accepted_while_rabbitmq_is_down_reaches_its_board_once() {
             .await
             .unwrap();
     }
+    fixture.remove(&client).await;
 }
