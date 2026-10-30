@@ -11,6 +11,12 @@ on:
         description: 'The tag to use for the images'
         required: false
         type: string
+      scope:
+        description: 'Images to build'
+        required: true
+        type: choice
+        options: [all, authoring]
+        default: all
       push:
         description: 'Whether to push the images'
         required: true
@@ -26,4 +32,6 @@ jobs:
       AWS_ACCESS_KEY_ID_GLOBALDOT: ${{ secrets.AWS_ACCESS_KEY_ID_GLOBALDOT }}
       AWS_SECRET_ACCESS_KEY_GLOBALDOT: ${{ secrets.AWS_SECRET_ACCESS_KEY_GLOBALDOT }}
     with:
-      push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+      push: ${{ inputs.push }}
+      tag: ${{ inputs.tag }}
+      scope: ${{ inputs.scope }}
