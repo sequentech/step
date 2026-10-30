@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::election_event::get_election_event_by_id_if_exist;
-use crate::services::celery_app::get_celery_app;
 use crate::services::celery_app::get_celery_connection;
 use crate::services::celery_app::Queue;
 use crate::services::database::get_hasura_pool;
@@ -11,7 +10,8 @@ use crate::services::database::PgConfig;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::electoral_log_queue::{
-    drain_log_event_queue, AmqpLogEventQueue, LogEventPreparation, LogEventStore,
+    drain_log_event_queue, identify_log_events, store_log_events, AmqpLogEventQueue,
+    BoardDelivery, EventOutcome, LogEventPreparation, LogEventStore,
 };
 use crate::services::protocol_manager::get_board_client;
 use crate::services::users::get_user_area_id;
@@ -20,7 +20,7 @@ use anyhow::{anyhow, Context};
 use async_trait::async_trait;
 use celery::error::TaskError;
 use deadpool_postgres::{Client as DbClient, Transaction};
-use electoral_log::client::board_client::ElectoralLogMessage;
+use electoral_log::client::board_client::{DeliveryReceipt, ElectoralLogMessage};
 use immudb_rs::TxMode;
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::services::keycloak::get_event_realm;
@@ -130,18 +130,25 @@ pub async fn enqueue_electoral_log_event(input: LogEventInput) -> Result<()> {
     Ok(())
 }
 
-/// Moves a batch queued by an earlier version back to the electoral log event
-/// queue, where the dispatcher acknowledges each event once it is stored.
+/// Legacy wire signature retained for batches queued by an earlier version.
+/// Workers no longer consume its queue: the dispatcher drains it and
+/// acknowledges a batch once all of its events are stored. A worker running
+/// this task stores the events under the same identities.
 #[instrument(skip_all, err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(max_retries = 0)]
-pub async fn process_electoral_log_events_batch(events: Vec<LogEventInput>) -> Result<()> {
-    let celery_app = get_celery_app().await;
-    for input in events {
-        celery_app
-            .send_task(enqueue_electoral_log_event::new(input))
-            .await
-            .with_context(|| "Error requeuing electoral log event")?;
+#[celery::task(bind = true, max_retries = 0)]
+pub async fn process_electoral_log_events_batch(
+    task: &Self,
+    events: Vec<LogEventInput>,
+) -> Result<()> {
+    let events = identify_log_events(&task.request.correlation_id, true, events)?;
+    let outcomes = store_log_events(&mut ElectoralLogBoards, events).await?;
+    let failed = outcomes
+        .iter()
+        .filter(|outcome| !matches!(outcome, EventOutcome::Stored))
+        .count();
+    if failed > 0 {
+        return Err(anyhow!("{failed} electoral log events of the batch were not stored").into());
     }
     Ok(())
 }
@@ -245,6 +252,10 @@ fn build_keycloak_event_messages(
     Ok(messages)
 }
 
+// A communications delivery writes two audit rows plus its receipt. Keeping
+// sixteen whole deliveries per transaction leaves room for immudb's SQL indexes.
+const ELECTORAL_LOG_DELIVERIES_PER_TRANSACTION: usize = 16;
+
 /// Writes electoral log events to the board of their election event.
 struct ElectoralLogBoards;
 
@@ -290,37 +301,55 @@ impl LogEventStore for ElectoralLogBoards {
         Ok(preparations)
     }
 
+    /// Commits the deliveries a few at a time. A failure after some
+    /// transactions are committed leaves every delivery of the board in the
+    /// queue; their receipts make writing the committed ones again a no-op.
     async fn persist(
         &mut self,
         board: &str,
-        messages: Vec<ElectoralLogMessage>,
-    ) -> anyhow::Result<()> {
+        deliveries: Vec<BoardDelivery<ElectoralLogMessage>>,
+    ) -> anyhow::Result<Vec<DeliveryReceipt>> {
         let mut board_client = get_board_client().await?;
         board_client.open_session(board).await?;
-        let immudb_tx = board_client.new_tx(TxMode::ReadWrite).await?;
-        board_client
-            .insert_electoral_log_messages_batch(&immudb_tx, &messages)
-            .await
-            .with_context(|| {
-                format!(
-                    "Error inserting batch electoral log messages for board {}",
-                    board
-                )
-            })?;
-        board_client
-            .commit(&immudb_tx)
-            .await
-            .with_context(|| format!("Error committing immudb transaction for board {}", board))?;
-        // The entries are committed: a failed close must not put them back in the queue.
+        let result = async {
+            board_client.ensure_electoral_log_delivery_receipts().await?;
+            let mut receipts = Vec::with_capacity(deliveries.len());
+            for chunk in deliveries.chunks(ELECTORAL_LOG_DELIVERIES_PER_TRANSACTION) {
+                let immudb_tx = board_client.new_tx(TxMode::ReadWrite).await?;
+                for delivery in chunk {
+                    receipts.push(
+                        board_client
+                            .insert_electoral_log_delivery(
+                                &immudb_tx,
+                                &delivery.delivery_id,
+                                &delivery.payload_hash,
+                                &delivery.messages,
+                            )
+                            .await
+                            .with_context(|| {
+                                format!("Error inserting electoral log delivery for board {board}")
+                            })?,
+                    );
+                }
+                board_client.commit(&immudb_tx).await.with_context(|| {
+                    format!("Error committing immudb transaction for board {board}")
+                })?;
+            }
+            anyhow::Ok(receipts)
+        }
+        .await;
+        // A failed close must neither hide a failed write nor put committed
+        // entries back in the queue.
         if let Err(err) = board_client.close_session().await {
             warn!(%board, error = ?err, "Error closing immudb session");
         }
-        Ok(())
+        result
     }
 }
 
-/// Dispatcher: reads batches of events from the electoral_log_event_queue,
-/// writes them to their boards and acknowledges each event only once its
+/// Dispatcher: reads batches of events from the electoral_log_event_queue, and
+/// batches queued by earlier versions from the electoral_log_batch_queue,
+/// writes them to their boards and acknowledges each delivery only once its
 /// entries are committed. Events that can never be written are moved to the
 /// electoral_log_dead_letter_queue.
 #[instrument(skip_all, err)]
@@ -333,23 +362,36 @@ pub async fn electoral_log_batch_dispatcher() -> Result<()> {
 
     // Reuse the global AMQP connection.
     let connection_arc = get_celery_connection().await?;
-    let channel = connection_arc
-        .create_channel()
-        .await
-        .with_context(|| "Error creating RabbitMQ channel")?;
-
     let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
-    let mut queue = AmqpLogEventQueue::new(
-        channel,
-        Queue::ElectoralLogEvent.queue_name(&slug),
-        Queue::ElectoralLogDeadLetter.queue_name(&slug),
-    )
-    .await?;
 
     // Get the batch size from PgConfig.
     let batch_size: usize = PgConfig::from_env()?.default_sql_batch_size.try_into()?;
 
-    drain_log_event_queue(&mut queue, &mut ElectoralLogBoards, batch_size).await?;
+    let mut failed_queues = Vec::new();
+    for source in [Queue::ElectoralLogBatch, Queue::ElectoralLogEvent] {
+        let queue_name = source.queue_name(&slug);
+        // Each queue has its own channel: dropping it returns the deliveries
+        // left unacknowledged to their queue.
+        let channel = connection_arc
+            .create_channel()
+            .await
+            .with_context(|| "Error creating RabbitMQ channel")?;
+        let mut queue = AmqpLogEventQueue::new(
+            channel,
+            queue_name.clone(),
+            Queue::ElectoralLogDeadLetter.queue_name(&slug),
+        )
+        .await?;
+        if let Err(err) =
+            drain_log_event_queue(&mut queue, &mut ElectoralLogBoards, batch_size).await
+        {
+            warn!(queue = %queue_name, error = ?err, "Electoral log events left in the queue");
+            failed_queues.push(queue_name);
+        }
+    }
+    if !failed_queues.is_empty() {
+        return Err(anyhow!("Electoral log events were left in {failed_queues:?}").into());
+    }
     info!("finishing electoral_log_batch_dispatcher");
     Ok(())
 }
