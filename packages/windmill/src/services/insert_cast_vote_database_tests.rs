@@ -7,11 +7,11 @@
 use super::super::*;
 use serde_json::json;
 
-struct ElectionFixture {
-    tenant: Uuid,
-    event: Uuid,
-    election: Uuid,
-    area: Uuid,
+pub(in crate::services::insert_cast_vote) struct ElectionFixture {
+    pub tenant: Uuid,
+    pub event: Uuid,
+    pub election: Uuid,
+    pub area: Uuid,
 }
 
 impl ElectionFixture {
@@ -67,7 +67,7 @@ impl ElectionFixture {
     }
 }
 
-async fn test_client() -> DbClient {
+pub(in crate::services::insert_cast_vote) async fn test_client() -> DbClient {
     let mut config = deadpool_postgres::Config::new();
     config.url = Some(
         std::env::var("CAST_VOTE_TEST_DATABASE_URL")
@@ -250,7 +250,7 @@ async fn channel_enablement_and_pause_are_rechecked_from_the_writer() {
     transaction.rollback().await.unwrap();
 }
 
-mod electoral_log_outbox {
+pub(in crate::services::insert_cast_vote) mod electoral_log_outbox {
     use super::*;
     use crate::services::electoral_log_outbox::{
         publish_log_event, relay_log_events, PendingLogEvent,
@@ -267,7 +267,9 @@ mod electoral_log_outbox {
 
     /// An open election with the online channel, committed so that the vote's
     /// own transaction sees it.
-    async fn open_election(client: &mut DbClient) -> ElectionFixture {
+    pub(in crate::services::insert_cast_vote) async fn open_election(
+        client: &mut DbClient,
+    ) -> ElectionFixture {
         let transaction = client.transaction().await.unwrap();
         let fixture = ElectionFixture::create(&transaction).await;
         transaction
@@ -281,7 +283,10 @@ mod electoral_log_outbox {
         fixture
     }
 
-    async fn remove(client: &DbClient, fixture: &ElectionFixture) {
+    pub(in crate::services::insert_cast_vote) async fn remove(
+        client: &DbClient,
+        fixture: &ElectionFixture,
+    ) {
         for table in ["cast_vote", "electoral_log_outbox", "election"] {
             let column = if table == "election" {
                 "id"
@@ -303,7 +308,11 @@ mod electoral_log_outbox {
         }
     }
 
-    async fn count(client: &DbClient, table: &str, fixture: &ElectionFixture) -> i64 {
+    pub(in crate::services::insert_cast_vote) async fn count(
+        client: &DbClient,
+        table: &str,
+        fixture: &ElectionFixture,
+    ) -> i64 {
         client
             .query_one(
                 &format!(
@@ -317,7 +326,7 @@ mod electoral_log_outbox {
     }
 
     /// Casts a synthetic vote through the production insert and commit.
-    async fn cast(
+    pub(in crate::services::insert_cast_vote) async fn cast(
         client: &mut DbClient,
         fixture: &ElectionFixture,
         signing_key: &StrandSignatureSk,
@@ -415,139 +424,6 @@ mod electoral_log_outbox {
         ));
         assert_eq!(count(&client, "cast_vote", &fixture).await, 1);
         assert_eq!(count(&client, "electoral_log_outbox", &fixture).await, 1);
-        remove(&client, &fixture).await;
-    }
-
-    struct SyntheticBoard(String);
-
-    #[async_trait]
-    impl LogEventStore for SyntheticBoard {
-        type Message = ElectoralLogMessage;
-
-        async fn prepare(
-            &mut self,
-            events: &[LogEventInput],
-        ) -> anyhow::Result<Vec<LogEventPreparation<ElectoralLogMessage>>> {
-            events
-                .iter()
-                .map(|event| {
-                    Ok(LogEventPreparation::Ready {
-                        board: self.0.clone(),
-                        messages: vec![serde_json::from_str(&event.body.as_raw())?],
-                    })
-                })
-                .collect()
-        }
-
-        async fn persist(
-            &mut self,
-            board: &str,
-            deliveries: Vec<BoardDelivery<ElectoralLogMessage>>,
-        ) -> anyhow::Result<Vec<DeliveryReceipt>> {
-            persist_board_deliveries(&mut immudb().await, board, &deliveries).await
-        }
-    }
-
-    async fn immudb() -> BoardClient {
-        let url =
-            std::env::var("ELECTORAL_LOG_TEST_IMMUDB_URL").expect("ELECTORAL_LOG_TEST_IMMUDB_URL");
-        BoardClient::new(&url, "immudb", "immudb").await.unwrap()
-    }
-
-    #[tokio::test]
-    #[ignore = "requires the disposable devenv database fixture, RabbitMQ and immudb"]
-    async fn vote_accepted_while_rabbitmq_is_down_reaches_its_board_once() {
-        let mut client = test_client().await;
-        let fixture = open_election(&mut client).await;
-        let signing_key = StrandSignatureSk::gen().unwrap();
-        let suffix = Uuid::new_v4().simple().to_string();
-        let board = format!("synthetic{suffix}");
-        let queue_name = format!("synthetic-{suffix}_electoral_log_event_queue");
-        immudb()
-            .await
-            .upsert_electoral_log_db(&board)
-            .await
-            .unwrap();
-
-        // RabbitMQ is unreachable when the vote is committed.
-        std::env::set_var("AMQP_ADDR", "amqp://synthetic:synthetic@127.0.0.1:1/%2f");
-        std::env::set_var("ENV_SLUG", format!("synthetic-{suffix}"));
-        let (_, _, pending) = cast(&mut client, &fixture, &signing_key).await.unwrap();
-        deliver_log_event(&pending).await;
-        println!(
-            "after the vote, broker down: votes {}, outbox events {}",
-            count(&client, "cast_vote", &fixture).await,
-            count(&client, "electoral_log_outbox", &fixture).await
-        );
-        assert_eq!(count(&client, "cast_vote", &fixture).await, 1);
-        assert_eq!(count(&client, "electoral_log_outbox", &fixture).await, 1);
-
-        // RabbitMQ is back: the relay publishes the event under its outbox ID.
-        let amqp =
-            std::env::var("ELECTORAL_LOG_TEST_AMQP_URL").expect("ELECTORAL_LOG_TEST_AMQP_URL");
-        let connection = Connection::connect(&amqp, ConnectionProperties::default())
-            .await
-            .unwrap();
-        let relayed = relay_log_events(
-            &mut client,
-            &connection,
-            &queue_name,
-            std::time::Duration::ZERO,
-            500,
-        )
-        .await
-        .unwrap();
-        // The relay stopped after publishing and before removing the row: the
-        // event is published again under the same ID.
-        publish_log_event(&connection, &queue_name, &pending)
-            .await
-            .unwrap();
-        println!(
-            "relayed {relayed}; outbox events {}",
-            count(&client, "electoral_log_outbox", &fixture).await
-        );
-        assert_eq!(relayed, 1);
-        assert_eq!(count(&client, "electoral_log_outbox", &fixture).await, 0);
-
-        let mut queue = AmqpLogEventQueue::new(
-            connection.create_channel().await.unwrap(),
-            queue_name.clone(),
-            format!("{queue_name}_dead_letter"),
-        )
-        .await
-        .unwrap();
-        drain_log_event_queue(&mut queue, &mut SyntheticBoard(board.clone()), 10)
-            .await
-            .unwrap();
-        let rows = immudb()
-            .await
-            .get_electoral_log_messages(&board)
-            .await
-            .unwrap();
-        let signed: ElectoralLogMessage =
-            serde_json::from_str(&pending.input.body.as_raw()).unwrap();
-        println!(
-            "board rows {}: kinds {:?}; signed statement preserved {}",
-            rows.len(),
-            rows.iter()
-                .map(|row| row.statement_kind.as_str())
-                .collect::<Vec<_>>(),
-            rows.first()
-                .map(|row| row.message == signed.message)
-                .unwrap_or(false)
-        );
-        assert_eq!(rows.len(), 1);
-        assert_eq!(rows[0].statement_kind, "CastVote");
-        assert_eq!(rows[0].message, signed.message);
-
-        immudb().await.delete_database(&board).await.unwrap();
-        let channel = connection.create_channel().await.unwrap();
-        for queue in [queue_name.clone(), format!("{queue_name}_dead_letter")] {
-            channel
-                .queue_delete(&queue, Default::default())
-                .await
-                .unwrap();
-        }
         remove(&client, &fixture).await;
     }
 }

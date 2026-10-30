@@ -1158,3 +1158,7 @@ fn check_popk_multi(ballot_contest: &HashableMultiBallotContests<RistrettoCtx>) 
 #[cfg(test)]
 #[path = "insert_cast_vote_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "insert_cast_vote_outbox_tests.rs"]
+mod outbox_tests;
