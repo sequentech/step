@@ -484,7 +484,8 @@ mod tests {
         }
     }
 
-    /// One event's failed query on each database, then a healthy event.
+    /// One event whose Keycloak query fails, then a healthy event that queries
+    /// both databases.
     async fn failing_then_healthy(
         hasura: &Transaction<'_>,
         keycloak: &Transaction<'_>,
