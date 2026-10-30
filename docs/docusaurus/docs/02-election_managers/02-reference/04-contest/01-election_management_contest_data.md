@@ -68,7 +68,7 @@ Manage how the ballot for this contest is displayed and how voters interact with
     invalid options and write-ins are ignored for this contest.
   - The contest is not encoded in the ballot. In a mixed election, the voter
     still casts the other contests normally; if every contest is acclaimed, no
-    ballot or Ballot ID is created.
+    ballot or Tracking ID is created.
   - Tally results contain zero votes, report every eligible configured
     candidate as a winner, and replace participation figures with an
     acclamation notice. Tally sheets cannot be added to an acclaimed contest.

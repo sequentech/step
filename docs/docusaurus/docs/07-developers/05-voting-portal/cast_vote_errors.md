@@ -290,10 +290,10 @@ The system also handles specific GraphQL error codes with dynamic error messages
 - Malformed identifier strings
 
 #### CAST_VOTE_BallotIdMismatch
-**Translation**: "The ballot id does not match with the cast vote."
+**Translation**: "The tracking ID does not match the cast vote."
 
 **Possible Reasons**:
-- Ballot ID doesn't match computed hash
+- Tracking ID doesn't match computed hash
 - Ballot content tampering detected
 - Hash verification failure
 - Data integrity violation

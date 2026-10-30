@@ -35,6 +35,10 @@ From the dashboard, you will see a list of ballots available to you. Note that m
 1. Locate the ballot you wish to vote on.
 2. Select the `Click to Vote` button.
 
+:::info
+**A ballot you already cast:** Its card shows **Voted**, or **Ballot cast** with a check mark when your election has transparency enabled and this browser kept your receipt. The `Track your ballot` button opens the ballot tracker. When your election has transparency enabled and is open, and you cast every ballot it allows you, `Click to Vote` is disabled, with the hint "You already cast this ballot". The hint shows as a tooltip, and screen readers read it. See [Track your Vote](./02-voter_track_your_vote.md).
+:::
+
 ## Step 3: Review Instructions
 
 ![Voter Instructions](./assets/voter_instructions.png)
@@ -66,11 +70,11 @@ This screen is where you choose your candidates and make your selections.
 This stage allows you to verify your choices before they are permanently recorded.
 
 1. Review your selections one last time.
-2. **Note your Ballot ID:** This unique identifier is used for locating or auditing your ballot later.
+2. **Note your Tracking ID:** This unique identifier is used for tracking or auditing your ballot later. It is in a green box above the steps. When your election has transparency enabled, the box is next to the title of the screen on a wide screen, under the title on a narrower one, and above the steps, under a **Tracking ID** label, on a phone.
 3. Select `Cast your Ballot`.
 
 :::info
-**Transparency:** When your election has transparency enabled, the Ballot ID shows as its first two groups of four characters, such as `30ff d314`, next to a dotted check mark that means nothing has been sent yet. The copy button next to it copies the full Ballot ID. See [Check your transparency receipt](./04-voter_transparency_receipt.md).
+**Transparency:** When your election has transparency enabled, the box shows your Tracking ID as its first two groups of four characters, such as `30ff d314`, with a dotted check mark for a ballot that is not cast yet, a **Not cast** tag, a copy button and a help button. Select the short ID to show the full Tracking ID in the box. The copy button copies the full Tracking ID. The check mark opens the **Ballot status** dialog. See [Check your transparency receipt](./04-voter_transparency_receipt.md).
 :::
 
 :::warning
@@ -83,8 +87,8 @@ This stage allows you to verify your choices before they are permanently recorde
 
 Once submitted, the confirmation screen verifies that your vote was successfully cast.
 
-1. **Ballot ID:** A unique ID is displayed to help you track your submission. When your election has transparency enabled, it shows as the short ID, and a check mark next to it shows how far your browser has verified your ballot. Select the check mark to open the **Ballot status** dialog, where you can also save your receipt.
-2. **QR Code:** When scanned, the QR code takes you directly to the **Ballot Locator** to verify your ballot by ID.
+1. **Tracking ID:** A unique ID is displayed to help you track your submission. When your election has transparency enabled, it shows as the short ID, a link to Ballot Tracking, with a **Cast** tag, and a check mark next to it shows how far your browser has verified your ballot. Select the check mark to open the **Ballot status** dialog, where you can also save your receipt.
+2. **QR Code:** When scanned, the QR code takes you directly to **Ballot Tracking** to verify your ballot by its Tracking ID.
 3. Select `Finish` to return to the main election selection screen.
 
 :::tip

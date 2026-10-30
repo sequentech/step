@@ -246,19 +246,28 @@ event's overview. It shows only what `get_transparency` returns, and says
 - **Visibility** is the mode the logs were created with, locked once voting
   opened. The draft, upload and enrolment workflow stays below the overview.
 
-The voting portal's screens stay as they are, with one addition when the
-event's transparency is on: a check mark next to the Ballot ID. The ID shows
-in groups of four characters, and the first two groups are the short ID. The
-check mark shows how far the receipt's check has got: not cast yet on the
-review screen, then checking, in the public record, confirmed by witnesses,
-verified, late or problem. The worst step wins, and it is blue only when every
-tier the policy uses is verified. Selecting it opens a dialog with the short
-and full ID and three steps: in the public record, confirmed by witnesses and
-anchored publicly. Contradicting signed proofs, or a required receipt that
-never came, show as a problem, and never turn an accepted cast into a failed
-one. In the election list, **Ballot cast** with the check mark replaces
-**Voted** for a ballot whose receipt this browser kept. The ballot tracker
-shows the whole receipt, for a ballot found by its short or full ID.
+The voting portal's flow stays as it is, with additions when the event's
+transparency is on: a check mark next to the Tracking ID, the name the voter
+sees for the ballot's ID (`ballot_id` in the API and the database), and a tag
+that says **Not cast** or **Cast**. The ID shows in groups of four characters,
+and the first two groups are the short ID. On the review screen the ID sits in
+a box next to the title on a wide screen. The check mark shows how far the
+receipt's check has got: not cast yet on the review screen, then checking, in
+the public record, confirmed by witnesses, verified, late or problem. The worst
+step wins, and it is blue only when every tier the policy uses is verified.
+Selecting it opens a dialog with the short and full ID and three steps: in the
+public record, confirmed by witnesses and anchored publicly. The dialog also
+has two states for an audited ballot, auditable and audit failed, but Step does
+not open it in those two states today. Contradicting signed proofs, or a
+required receipt that never came, show as a problem, and never turn an accepted
+cast into a failed one. In the election list, **Ballot cast** with the check
+mark replaces **Voted** for a ballot whose receipt this browser kept, and
+**Click to Vote** is off once the voter cast every ballot an open election
+allows. The ballot tracker, Ballot Tracking, shows the whole receipt, for a
+ballot found by its short or full Tracking ID, and the ballot's record in a
+viewer that expands, copies and saves it. Step does not publish audited
+ballots; when the record that the tracker finds for a Tracking ID is an audited
+ballot, the tracker checks it in the voter's browser and shows its selections.
 
 ### Deleting, exporting and importing events
 

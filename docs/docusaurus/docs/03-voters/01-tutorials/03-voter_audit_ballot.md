@@ -18,10 +18,10 @@ The audit process allows you to verify that your ballot was correctly encrypted 
 From the Ballot Review screen, before the final step before casting your vote, you have the option to audit your selections.
 ![Ballot Review](./assets/voter_ballot_review.png)
 
-### Step 1.1 Note the `Ballot ID` 
-Appearing highlighted with a green background in the image above.
+### Step 1.1 Note the `Tracking ID` 
+Appearing highlighted with a green background in the image above. When your election has transparency enabled, the box is next to the title of the screen on a wide screen, under the title on a narrower one, and above the steps on a phone.
 
-When your election has transparency enabled, the box shows the short Ballot ID, such as `30ff d314`, next to a dotted check mark. The verifier needs the full Ballot ID, so select the copy button next to the ID to copy it. The full ID is also in the **Ballot status** dialog that the check mark opens.
+When your election has transparency enabled, the box shows the short Tracking ID, such as `30ff d314`, next to a dotted check mark and a **Not cast** tag. Select the short ID to show the full Tracking ID in the box. The verifier needs the full Tracking ID, so select the copy button next to the ID to copy it. The full ID is also in the **Ballot status** dialog that the check mark opens.
 
 ### Step 1.2 Begin the Audit
 Select the `Audit your Ballot` button.
@@ -60,8 +60,8 @@ In the new Ballot Verifier tab, you must provide the information you just saved.
 ### Step 3.1 Import your ballot: 
 Drag and drop the file you downloaded into the upload area, or click Browse to select it.
 
-### Step 3.2 Insert your ballot ID: 
-Type or paste the full `Ballot ID` you noted in the previous step into the input field. The field groups the characters in fours as you type, and spaces are optional. It takes only the full ID, 64 characters made of digits and the letters `a` to `f`. A short ID is refused: the verifier compares the whole ID, and a short ID has only 32 bits, which a birthday search could match.
+### Step 3.2 Insert your tracking ID: 
+Type or paste the full `Tracking ID` you noted in the previous step into the input field. The field groups the characters in fours as you type, and spaces are optional. It takes only the full ID, 64 characters made of digits and the letters `a` to `f`. A short ID is refused: the verifier compares the whole ID, and a short ID has only 32 bits, which a birthday search could match.
 
 Once the file is uploaded and the ID is correctly entered (see image below), click `Next`.
 
@@ -71,8 +71,8 @@ Once the file is uploaded and the ID is correctly entered (see image below), cli
 The Verifier decodes the encrypted file and displays the contents for your inspection.
 ![Audit Results](./assets/voter_audit_results.png)
 
-### Step 4.1 Verify Ballot ID: 
-Ensure the Decoded Ballot ID matches the Ballot ID you provided. Both show in groups of four, with the short ID in bold. If they differ, the verifier highlights the groups of the ID you provided that differ from the decoded one, and shows `Doesn't match the decoded Ballot ID`.
+### Step 4.1 Verify Tracking ID: 
+Ensure the Decoded Tracking ID matches the Tracking ID you provided. Both show in groups of four, with the short ID in bold. If they differ, the verifier highlights the groups of the ID you provided that differ from the decoded one, and shows `Doesn’t match the decoded Tracking ID`.
 
 ### Step 4.2 Review Selections: 
 The system displays the decoded candidates for each contest.
@@ -82,7 +82,13 @@ Voting Portal review. Because an acclaimed contest is not encoded in the
 ballot, it has no decoded selection. The verifier obtains it from the ballot
 configuration and displays its acclamation notice and all available candidates
 as disabled options. This is display-only and does not change the decoded
-ballot or the Ballot ID verification.
+ballot or the Tracking ID verification.
 
 ### Step 4.3 Confirm Intent: 
 Ensure these selections match the choices you made in the Voting Portal.
+
+## Check the audited ballot in Ballot Tracking
+
+When the record that Ballot Tracking finds for a Tracking ID is your audited ballot, you can also check it in the ballot tracker. Enter its Tracking ID in **Ballot Tracking**. Your browser checks the ballot and shows **Your selections, decoded**, with the **Auditable** and **Found** tags. If these are not the selections you made, contact the election authority. See [Track your Vote](./02-voter_track_your_vote.md#an-audited-ballot).
+
+Step itself does not publish audited ballots, so this view appears only when the record that Ballot Tracking finds is an audited ballot. The Ballot Verifier steps above do not depend on it: they check the file you downloaded.

@@ -111,7 +111,7 @@ presentation-only and must never be added to decoded ballot data.
 
 The ballot configuration is still embedded in the auditable ballot and covered
 by its hash. Changing an acclaimed contest after publication can therefore
-change or invalidate Ballot IDs even though the contest has no plaintext slot.
+change or invalidate Tracking IDs even though the contest has no plaintext slot.
 
 ### 3.4 Mixed-radix representation
 
