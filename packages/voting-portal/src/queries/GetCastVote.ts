@@ -18,6 +18,7 @@ export const GET_CAST_VOTE = gql`
             ballot_id_prefix: $ballotIdPrefix
         ) {
             ballot_id
+            created_at
             content
         }
     }

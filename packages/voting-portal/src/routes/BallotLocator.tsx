@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useContext, useEffect, useState, useRef} from "react"
+import React, {useContext, useEffect, useMemo, useState, useRef} from "react"
 import {useTranslation} from "react-i18next"
 import {
     BreadCrumbSteps,
@@ -27,6 +27,20 @@ import Tabs from "@mui/material/Tabs"
 import Tab from "@mui/material/Tab"
 import {Link, useLocation, useNavigate, useParams} from "react-router-dom"
 import {GET_CAST_VOTE} from "../queries/GetCastVote"
+import {BallotIdField} from "../components/BallotLocator/BallotIdField"
+import {BallotMatches, IBallotMatch} from "../components/BallotLocator/BallotMatches"
+import {TrackerResult} from "../components/BallotLocator/TrackerResult"
+import {useTrackedReceipt} from "../hooks/useTrackedReceipt"
+import {
+    ballotIdHex,
+    EBallotIdInput,
+    shortBallotId,
+    typedBallotId,
+} from "../services/vitrine/ballotId"
+import {acceptedAtOf, ballotLookupOf, trackerInput} from "../services/vitrine/ballotTracker"
+import {vitrineLanguage} from "../services/vitrine/language"
+import {readTransparency} from "../services/vitrine/presentation"
+import {ETransparencyMode} from "../services/vitrine/types"
 import {useQuery} from "@apollo/client/react"
 import {
     GetCastVoteQuery,
@@ -112,6 +126,11 @@ function isHex(str: string) {
     const regex = /^[0-9a-fA-F]+$/
     return regex.test(str)
 }
+
+const matchOf = (vote: {ballot_id?: string | null; created_at?: string | null}): IBallotMatch[] =>
+    vote.ballot_id
+        ? [{ballotId: vote.ballot_id, ...(vote.created_at ? {createdAt: vote.created_at} : {})}]
+        : []
 
 interface TabPanelProps {
     className?: string
@@ -302,7 +321,13 @@ const BallotLocator: React.FC = () => {
             </Box>
             <Box className="ballot-locator-panels" sx={{p: 3}}>
                 <CustomTabPanel className="ballot-lookup-panel" value={value} index={0}>
-                    <BallotLocatorLogic />
+                    <BallotLocatorLogic
+                        electionEvent={
+                            dataElectionEvent?.sequent_backend_election_event[0] as
+                                | IElectionEvent
+                                | undefined
+                        }
+                    />
                 </CustomTabPanel>
                 <CustomTabPanel className="cast-vote-logs-panel" value={value} index={1}>
                     <Box className="cast-vote-logs-filter" marginTop="48px">
@@ -621,13 +646,17 @@ const BallotIdInput: React.FC<BallotIdInputProps> = ({
     )
 }
 
-const BallotLocatorLogic = () => {
+interface IBallotLocatorLogicProps {
+    electionEvent?: IElectionEvent
+}
+
+const BallotLocatorLogic: React.FC<IBallotLocatorLogicProps> = ({electionEvent}) => {
     const {tenantId, eventId, electionId, ballotId} = useParams()
     const [openTitleHelp, setOpenTitleHelp] = useState<boolean>(false)
     const navigate = useNavigate()
     const location = useLocation()
-    const {t} = useTranslation()
-    const [inputBallotId, setInputBallotId] = useState<string>("")
+    const {t, i18n} = useTranslation()
+    const [inputBallotId, setInputBallotId] = useState<string>(() => typedBallotId(ballotId ?? ""))
     const {globalSettings} = useContext(SettingsContext)
 
     const hasBallotId = !!ballotId
@@ -643,15 +672,11 @@ const BallotLocatorLogic = () => {
 
     const election = dataElections?.sequent_backend_election.find((item) => item.id === electionId)
     const telephoneVotingEnabled = election?.voting_channels?.telephone === true
-    const normalizedBallotId = ballotId?.toLowerCase() ?? ""
-    // Telephone voters read out the first four characters of their ballot ID.
-    const ballotLookup = /^[0-9a-f]+$/.test(normalizedBallotId)
-        ? telephoneVotingEnabled && normalizedBallotId.length === 4
-            ? {ballotIdPrefix: normalizedBallotId}
-            : {ballotId: normalizedBallotId}
-        : null
-
-    const dispatch = useAppDispatch()
+    const ballotLookup = ballotLookupOf(ballotId, telephoneVotingEnabled)
+    const transparency = useMemo(
+        () => readTransparency(electionEvent?.presentation),
+        [electionEvent?.presentation]
+    )
 
     const {data, loading} = useQuery<GetCastVoteQuery>(GET_CAST_VOTE, {
         variables: {
@@ -668,37 +693,56 @@ const BallotLocatorLogic = () => {
             loadingElections,
     })
 
-    const validatedBallotId = isHex(inputBallotId ?? "")
-
     const matchingBallots = data?.["cast_votes"] ?? []
-    const ambiguousBallotId = matchingBallots.length > 1
-    const ballotContent = matchingBallots.length === 1 ? matchingBallots[0].content : null
     const lookupLoading = loadingElections || loading
+    const lookupDone = hasBallotId && !lookupLoading
+    const ambiguousBallotId = lookupDone && matchingBallots.length > 1
+    const foundBallot = matchingBallots.length === 1 ? matchingBallots[0] : undefined
+    const ballotContent = foundBallot?.content ?? null
+    const searching = !hasBallotId || ambiguousBallotId
+    const showTracker = transparency.mode !== ETransparencyMode.DISABLED
+
+    const tracked = useTrackedReceipt(
+        eventId && electionId && foundBallot?.ballot_id
+            ? {
+                  eventId,
+                  electionId,
+                  ballotId: foundBallot.ballot_id,
+                  acceptedAt: acceptedAtOf(foundBallot.created_at),
+              }
+            : undefined,
+        transparency
+    )
+
+    const language = i18n.resolvedLanguage || i18n.language
+    const formatTime = (time: number | string) =>
+        formatVotingPortalDateTime(time, electionEvent, language)
+    const locatorPath = `/tenant/${tenantId}/event/${eventId}/election/${electionId}/ballot-locator`
+    const canLocate = [EBallotIdInput.SHORT, EBallotIdInput.FULL].includes(
+        trackerInput(inputBallotId, telephoneVotingEnabled)
+    )
 
     const locate = (withBallotId = false) => {
-        let id = withBallotId ? inputBallotId : ""
-
-        setInputBallotId("")
-
-        navigate(
-            `/tenant/${tenantId}/event/${eventId}/election/${electionId}/ballot-locator/${id}${location.search}`
-        )
-    }
-
-    const captureEnter: React.KeyboardEventHandler<HTMLDivElement> = (event) => {
-        if ("Enter" === event.key) {
-            locate(true)
+        if (withBallotId && !canLocate) {
+            return
         }
+        if (!withBallotId) {
+            setInputBallotId("")
+        }
+        navigate(
+            `${locatorPath}/${withBallotId ? ballotIdHex(inputBallotId) : ""}${location.search}`
+        )
     }
 
     return (
         <Stack
-            className={`ballot-locator-content ${hasBallotId ? "ballot-locator-result" : "ballot-locator-search"}`}
+            className={`ballot-locator-content ${searching ? "ballot-locator-search" : "ballot-locator-result"}`}
+            sx={showTracker && !searching ? {"@media (max-width:750px)": {marginX: -3}} : undefined}
         >
             <Box className="stepper-box" marginTop="48px">
                 <BreadCrumbSteps
                     labels={["ballotLocator.steps.lookup", "ballotLocator.steps.result"]}
-                    selected={hasBallotId ? 1 : 0}
+                    selected={searching ? 0 : 1}
                 />
             </Box>
 
@@ -718,7 +762,7 @@ const BallotLocatorLogic = () => {
                     }}
                 >
                     <StyledTitle className="screen-title" variant="h1">
-                        {!hasBallotId ? (
+                        {searching ? (
                             <Box className="screen-title-text">{t("ballotLocator.title")}</Box>
                         ) : (
                             <Box className="screen-title-text">
@@ -761,14 +805,17 @@ const BallotLocatorLogic = () => {
             {/* The live region is always mounted so that the lookup result is
                 announced when the text appears inside it. */}
             <Box className="ballot-lookup-status" role="status">
-                {hasBallotId && !lookupLoading ? (
-                    ambiguousBallotId ? (
-                        <MessageFailed className="ballot-locator-failure">
-                            {translateHtml(t, "ballotLocator.ambiguous", {ballotId})}
-                        </MessageFailed>
-                    ) : ballotContent ? (
-                        <MessageSuccess className="ballot-locator-success">
-                            {translateHtml(t, "ballotLocator.found", {ballotId})}
+                {lookupDone && !ambiguousBallotId ? (
+                    ballotContent ? (
+                        <MessageSuccess
+                            className="ballot-locator-success"
+                            sx={{"@media (max-width:750px)": {padding: "10px 14px"}}}
+                        >
+                            {translateHtml(t, "ballotLocator.found", {
+                                ballotId: showTracker
+                                    ? shortBallotId(foundBallot?.ballot_id ?? ballotId ?? "")
+                                    : ballotId,
+                            })}
                         </MessageSuccess>
                     ) : (
                         <MessageFailed className="ballot-locator-failure">
@@ -777,16 +824,45 @@ const BallotLocatorLogic = () => {
                     )
                 ) : null}
             </Box>
-            {!hasBallotId && (
-                <BallotIdInput
-                    inputBallotId={inputBallotId}
-                    setInputBallotId={setInputBallotId}
-                    validatedBallotId={validatedBallotId}
-                    captureEnter={captureEnter}
-                    placeholderLabel="ballotLocator.description"
+            {showTracker && !searching && ballotContent && ballotLookup?.ballotIdPrefix && (
+                <Typography
+                    className="ballot-found-short-note"
+                    sx={{
+                        margin: "10px 0 0",
+                        textAlign: "center",
+                        fontSize: 14,
+                        lineHeight: "20px",
+                        color: "#475569",
+                    }}
+                >
+                    {t("ballotLocator.foundShort")}
+                </Typography>
+            )}
+            {searching && (
+                <>
+                    <BallotIdField
+                        value={inputBallotId}
+                        onChange={setInputBallotId}
+                        onSubmit={() => locate(true)}
+                    />
+                    <BallotMatches
+                        matches={ambiguousBallotId ? matchingBallots.flatMap(matchOf) : []}
+                        lookedFor={ballotId ?? ""}
+                        hrefOf={(id) => `${locatorPath}/${id}${location.search}`}
+                        formatTime={formatTime}
+                    />
+                </>
+            )}
+            {!searching && ballotContent && showTracker && foundBallot?.ballot_id && (
+                <TrackerResult
+                    ballotId={foundBallot.ballot_id}
+                    tracked={tracked}
+                    verifierUrl={globalSettings.BALLOT_VERIFIER_URL}
+                    language={vitrineLanguage(i18n.language)}
+                    formatTime={formatTime}
                 />
             )}
-            {hasBallotId && ballotContent && (
+            {!searching && ballotContent && (
                 <>
                     <Typography className="ballot-content-description" component="div">
                         {stringToHtml(t("ballotLocator.contentDesc"))}
@@ -795,10 +871,10 @@ const BallotLocatorLogic = () => {
                 </>
             )}
 
-            {!hasBallotId ? (
+            {searching ? (
                 <Button
                     sx={{marginTop: "10px", width: "fit-content"}}
-                    disabled={!validatedBallotId || inputBallotId.trim() === ""}
+                    disabled={!canLocate}
                     className="normal locate-ballot-button"
                     onClick={() => locate(true)}
                 >
