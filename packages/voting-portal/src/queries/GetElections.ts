@@ -6,7 +6,6 @@ import {gql} from "@apollo/client"
 export const GET_ELECTIONS = gql`
     query GetElections($electionIds: [uuid!]!) {
         sequent_backend_election(where: {id: {_in: $electionIds}}) {
-            annotations
             created_at
             description
             election_event_id

@@ -28,6 +28,24 @@ pub struct InvalidPlaintextError {
     pub message_map: HashMap<String, String>,
 }
 
+/// Message key of the encoding error for a plaintext that holds more than
+/// its ballot layout can.
+pub const BALLOT_TOO_LARGE_ERROR_MESSAGE: &str =
+    "errors.encoding.ballotTooLarge";
+
+impl InvalidPlaintextError {
+    /// Encoding error for a plaintext that holds more than its ballot layout
+    /// can.
+    pub fn ballot_too_large() -> Self {
+        InvalidPlaintextError {
+            error_type: InvalidPlaintextErrorType::EncodingError,
+            candidate_id: None,
+            message: Some(BALLOT_TOO_LARGE_ERROR_MESSAGE.to_string()),
+            message_map: HashMap::new(),
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct DecodedVoteContest {
     pub contest_id: String,
@@ -38,6 +56,26 @@ pub struct DecodedVoteContest {
 }
 
 impl DecodedVoteContest {
+    /// A contest plaintext that does not decode under the contest's ballot
+    /// layout. It has no selections and counts as an implicitly invalid vote.
+    pub fn undecodable(contest: &Contest) -> Self {
+        DecodedVoteContest {
+            contest_id: contest.id.clone(),
+            is_explicit_invalid: false,
+            invalid_errors: vec![InvalidPlaintextError::ballot_too_large()],
+            invalid_alerts: vec![],
+            choices: contest
+                .candidates
+                .iter()
+                .map(|candidate| DecodedVoteChoice {
+                    id: candidate.id.clone(),
+                    selected: -1,
+                    write_in_text: None,
+                })
+                .collect(),
+        }
+    }
+
     pub fn is_invalid(&self) -> bool {
         self.is_explicit_invalid || !self.invalid_errors.is_empty()
     }
@@ -209,4 +247,55 @@ pub fn map_to_decoded_multi_contest<C: Ctx<P = [u8; 30]>>(
         decoded_ballot_choices,
         &mapped_contests,
     )
+}
+
+#[cfg(test)]
+mod undecodable_contest_tests {
+    use super::*;
+    use crate::ballot_codec::BigUIntCodec;
+    use crate::fixtures::ballot_codec::get_fixtures;
+
+    /// For every contest layout of the codec fixtures, the placeholder for a
+    /// plaintext that does not decode is an implicitly invalid vote without
+    /// selections, and it still encodes like any other vote.
+    #[test]
+    fn undecodable_contest_is_implicitly_invalid_and_encodes() {
+        for fixture in get_fixtures() {
+            let contest = &fixture.contest;
+            if contest
+                .encode_plaintext_contest_bigint(&fixture.plaintext)
+                .is_err()
+            {
+                continue;
+            }
+
+            let decoded = DecodedVoteContest::undecodable(contest);
+
+            assert_eq!(decoded.contest_id, contest.id, "{}", fixture.title);
+            assert!(decoded.is_invalid(), "{}", fixture.title);
+            assert!(!decoded.is_explicit_invalid, "{}", fixture.title);
+            assert_eq!(
+                decoded.invalid_errors,
+                vec![InvalidPlaintextError::ballot_too_large()],
+                "{}",
+                fixture.title
+            );
+            assert_eq!(
+                decoded.choices.len(),
+                contest.candidates.len(),
+                "{}",
+                fixture.title
+            );
+            assert!(
+                decoded.choices.iter().all(|choice| !choice.is_selected()),
+                "{}",
+                fixture.title
+            );
+            assert!(
+                contest.encode_plaintext_contest_bigint(&decoded).is_ok(),
+                "{}",
+                fixture.title
+            );
+        }
+    }
 }

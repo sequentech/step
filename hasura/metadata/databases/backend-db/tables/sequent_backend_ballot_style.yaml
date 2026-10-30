@@ -1,6 +1,17 @@
 table:
     name: ballot_style
     schema: sequent_backend
+object_relationships:
+    - name: election
+      using:
+          manual_configuration:
+              column_mapping:
+                  tenant_id: tenant_id
+                  election_event_id: election_event_id
+                  election_id: id
+              remote_table:
+                  name: election
+                  schema: sequent_backend
 insert_permissions:
     - comment: ""
       permission:
@@ -41,8 +52,15 @@ select_permissions:
               - id
               - tenant_id
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - election:
+                        _or:
+                            - permission_label:
+                                  _is_null: true
+                            - permission_label:
+                                  _in: X-Hasura-Permission-Labels
       role: admin-user
     - comment: ""
       permission:
@@ -63,8 +81,15 @@ select_permissions:
               - id
               - tenant_id
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - election:
+                        _or:
+                            - permission_label:
+                                  _is_null: true
+                            - permission_label:
+                                  _in: X-Hasura-Permission-Labels
       role: publish-read
     - comment: ""
       permission:
@@ -85,8 +110,15 @@ select_permissions:
               - id
               - tenant_id
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - election:
+                        _or:
+                            - permission_label:
+                                  _is_null: true
+                            - permission_label:
+                                  _in: X-Hasura-Permission-Labels
       role: publish-write
     - comment: ""
       permission:
