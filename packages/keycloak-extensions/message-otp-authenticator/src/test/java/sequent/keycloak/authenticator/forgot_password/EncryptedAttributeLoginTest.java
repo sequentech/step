@@ -167,11 +167,26 @@ class EncryptedAttributeLoginTest {
 
   @Test
   void secretGuessesShareTheSameTupleThrottle() {
+    // Without Brute Force Detection the tuple counter is the only limit.
     config.getConfig().put("tupleMaxFailures", "2");
     try (var ignored = master(vector.get("master"))) {
       assertTrue(resolve("wrong-one").authenticatedUser().isEmpty());
       assertTrue(resolve("wrong-two").authenticatedUser().isEmpty());
       assertTrue(resolve(vector.get("plaintext")).authenticatedUser().isEmpty());
+    }
+  }
+
+  @Test
+  void attributedSecretGuessesUnderBruteForceDetectionDoNotLockOutTheVoter() {
+    config.getConfig().put("tupleMaxFailures", "2");
+    when(realm.isBruteForceProtected()).thenReturn(true);
+    when(session.getProvider(BruteForceProtector.class))
+        .thenReturn(mock(BruteForceProtector.class));
+    try (var ignored = master(vector.get("master"))) {
+      for (String secret : List.of("wrong-one", "wrong-two", "wrong-three")) {
+        assertEquals(voter, resolve(secret).attributableUser().orElseThrow());
+      }
+      assertEquals(voter, resolve(vector.get("plaintext")).authenticatedUser().orElseThrow());
     }
   }
 
