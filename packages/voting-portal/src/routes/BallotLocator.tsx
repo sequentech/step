@@ -47,7 +47,7 @@ const StyledTitle = styled(Typography)`
     margin-bottom: 16px;
 `
 
-const StyledError = styled(Typography)<TypographyProps>`
+const StyledError = styled(Typography)<TypographyProps & {component?: React.ElementType}>`
     position: absolute;
     margin-top: -12px;
     color: ${({theme}) => theme.palette.red.main};

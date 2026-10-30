@@ -435,11 +435,39 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         #[allow(non_snake_case)]
         let N = es.len();
 
-        let h_generators = &generators[1..];
-        let h_initial = &generators[0].clone();
+        // A deserialized proof can contain well-formed vectors with incorrect
+        // lengths. Validate every dimension before indexing or doing group work.
+        if N == 0 || N != e_primes.len() {
+            return Err(StrandError::Generic(
+                "Shuffle inputs must have the same nonzero ciphertext count"
+                    .to_string(),
+            ));
+        }
+        let (h_initial, h_generators) =
+            generators.split_first().ok_or_else(|| {
+                StrandError::Generic("Missing shuffle generators".to_string())
+            })?;
+        if N != h_generators.len() {
+            return Err(StrandError::Generic(
+                "Shuffle generator count does not match ciphertext count"
+                    .to_string(),
+            ));
+        }
+        for (field, length) in [
+            ("permutation commitments", proof.cs.0.len()),
+            ("commitment chain", proof.c_hats.0.len()),
+            ("response chain", proof.s.s_hats.0.len()),
+            ("permutation responses", proof.s.s_primes.0.len()),
+            ("verification commitments", proof.t.t_hats.0.len()),
+        ] {
+            if length != N {
+                return Err(StrandError::Generic(format!(
+                    "Invalid shuffle proof: {field} length {length}, expected {N}"
+                )));
+            }
+        }
 
-        assert!(N == e_primes.len());
-        assert!(N == h_generators.len());
+        let h_initial = h_initial.clone();
 
         let es_bytes = serialize_flatten(&es)?;
         let e_primes_bytes = serialize_flatten(&e_primes)?;
@@ -503,7 +531,7 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         let c_bar = c_bar_num.divp(&c_bar_den, ctx).modp(ctx);
 
         let c_hat = proof.c_hats.0[N - 1]
-            .divp(&ctx.emod_pow(h_initial, &u), ctx)
+            .divp(&ctx.emod_pow(&h_initial, &u), ctx)
             .modp(ctx);
 
         let y = YChallengeInput {
@@ -543,7 +571,7 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
             .par()
             .map(|i| {
                 let c_term = if i == 0 {
-                    h_initial
+                    &h_initial
                 } else {
                     &proof.c_hats.0[i - 1]
                 };
@@ -804,3 +832,109 @@ impl<C: Ctx> BorshDeserialize for ShuffleProof<C> {
         })
     }
 }*/
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::backend::ristretto::RistrettoCtx;
+    use crate::elgamal::PrivateKey;
+    use crate::serialization::StrandDeserialize;
+    use crate::util;
+
+    const LABEL: &[u8] = b"fixture";
+
+    #[test]
+    fn check_proof_rejects_incomplete_proofs_and_mismatched_inputs() {
+        type Proof = ShuffleProof<RistrettoCtx>;
+        let ctx = RistrettoCtx;
+        let secret = PrivateKey::gen(&ctx);
+        let public = secret.get_pk();
+        let original = util::random_ciphertexts(3, &ctx);
+        let generators = ctx.generators(4, b"fixture generators").unwrap();
+        let shuffler = Shuffler::new(&public, &ctx);
+        let (shuffled, randomness, permutation) =
+            shuffler.gen_shuffle(&original);
+        let proof = shuffler
+            .gen_proof(
+                original.clone(),
+                &shuffled,
+                randomness,
+                generators.clone(),
+                permutation,
+                LABEL,
+            )
+            .unwrap();
+        assert!(shuffler
+            .check_proof(
+                &proof,
+                original.clone(),
+                shuffled.clone(),
+                generators.clone(),
+                LABEL
+            )
+            .unwrap());
+
+        let mutations: [(&str, fn(&mut Proof)); 7] = [
+            ("missing permutation commitments", |p| p.cs.0.clear()),
+            ("extra permutation commitment", |p| {
+                p.cs.0.push(p.cs.0[0].clone())
+            }),
+            ("missing commitment chain", |p| p.c_hats.0.clear()),
+            ("missing response chain", |p| p.s.s_hats.0.clear()),
+            ("missing permutation responses", |p| p.s.s_primes.0.clear()),
+            ("missing verification commitments", |p| p.t.t_hats.0.clear()),
+            ("truncated verification commitments", |p| {
+                p.t.t_hats.0.truncate(1)
+            }),
+        ];
+        for (description, mutate) in mutations {
+            let mut malformed = proof.clone();
+            mutate(&mut malformed);
+            let malformed = Proof::strand_deserialize(
+                &malformed.strand_serialize().unwrap(),
+            )
+            .unwrap();
+            assert!(
+                shuffler
+                    .check_proof(
+                        &malformed,
+                        original.clone(),
+                        shuffled.clone(),
+                        generators.clone(),
+                        LABEL
+                    )
+                    .is_err(),
+                "{description}"
+            );
+        }
+        for invalid_generators in [vec![], generators[..2].to_vec()] {
+            assert!(shuffler
+                .check_proof(
+                    &proof,
+                    original.clone(),
+                    shuffled.clone(),
+                    invalid_generators,
+                    LABEL
+                )
+                .is_err());
+        }
+        assert!(shuffler
+            .check_proof(
+                &proof,
+                vec![],
+                vec![],
+                generators[..1].to_vec(),
+                LABEL
+            )
+            .is_err());
+        assert!(shuffler
+            .check_proof(
+                &proof,
+                original.clone(),
+                shuffled[..2].to_vec(),
+                generators,
+                LABEL
+            )
+            .is_err());
+    }
+}
