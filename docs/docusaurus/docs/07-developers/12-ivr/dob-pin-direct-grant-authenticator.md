@@ -171,7 +171,8 @@ configuration needed there.
 | Exactly one candidate, wrong PIN | Direct Grant `invalid_grant` error - counted toward that account's Brute Force Detection lockout, same as a standard login. With Brute Force Detection on, it does not count toward **Max failures per identifier-value combination**. |
 | Exactly one candidate, currently locked out by Brute Force Detection | Direct Grant `invalid_grant` error - no PIN check is even attempted. |
 | Multiple candidates share the identifying attribute(s), PIN matches exactly one | Authenticates as that user. |
-| Multiple candidates match the PIN (or none do) | Direct Grant `invalid_grant` error - by default the attempt is counted toward Brute Force Detection for every matched account that is not locked out; see [Shared-Candidate Failure Policy](#shared-candidate-failure-policy). |
+| Multiple candidates match the PIN, with `FIRST_MATCH` | Login succeeds as the first candidate whose PIN matches; see [Multiple-Candidate Match Policy](#multiple-candidate-match-policy). |
+| Multiple candidates match the PIN with `REJECT_AMBIGUOUS`, or none do | Direct Grant `invalid_grant` error - by default, when Brute Force Detection is on, the attempt is counted toward it for every candidate that is not locked out; see [Shared-Candidate Failure Policy](#shared-candidate-failure-policy). |
 
 The error is the same generic `invalid_grant` regardless of cause, matching the web form's
 generic-error behavior - a failed attempt never reveals which attribute, or the PIN, was wrong.
@@ -247,9 +248,11 @@ When the identifier values still match more than one enabled account that is not
 failed attempt can't be attributed to a single account. **Shared-candidate failure policy**
 (`sharedCandidateFailurePolicy`), the same setting as on the web form, decides how it is counted:
 
-- **`CHARGE_VIABLE_CANDIDATES`** (default): the failed attempt counts toward Brute Force Detection
-  for every one of those accounts, so each of them follows the realm's lockout settings exactly as
-  it would behind a standard login. Successful logins are never counted against the other callers
+- **`CHARGE_VIABLE_CANDIDATES`** (default): when the realm has Brute Force Detection on, the failed
+  attempt counts toward it for every one of those accounts, so each of them follows the realm's
+  lockout settings exactly as it would behind a standard login. With Brute Force Detection off, no
+  account is charged and only **Max failures per identifier-value combination** limits repeated
+  failures. Successful logins are never counted against the other callers
   who share the same values.
 - **`TUPLE_ONLY`**: no account is charged; only **Max failures per identifier-value combination**
   limits repeated failures for those values.

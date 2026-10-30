@@ -199,7 +199,8 @@ and explains where realm attributes are edited.
 | Exactly one candidate, wrong password | Generic "invalid credentials" error - this attempt **is** counted toward that account's Brute Force Detection lockout, same as a standard login. With Brute Force Detection on, it does not count toward **Max failures per attribute-value combination**. |
 | Exactly one candidate, currently locked out by Brute Force Detection | Generic "invalid credentials" error; the locked account cannot log in. |
 | Multiple candidates share the configured attribute(s), and the password matches exactly one | Login succeeds as that user. |
-| Multiple candidates match the password (or none do) | Generic "invalid credentials" error - by default the attempt is counted toward Brute Force Detection for every matched account that is not locked out; see [Shared-Candidate Failure Policy](#shared-candidate-failure-policy). |
+| Multiple candidates match the password, with `FIRST_MATCH` | Login succeeds as the first candidate whose password matches; see [Multiple-Candidate Match Policy](#multiple-candidate-match-policy). |
+| Multiple candidates match the password with `REJECT_AMBIGUOUS`, or none do | Generic "invalid credentials" error - by default, when Brute Force Detection is on, the attempt is counted toward it for every candidate that is not locked out; see [Shared-Candidate Failure Policy](#shared-candidate-failure-policy). |
 
 Authentication failures use a generic message rather than identifying the incorrect attribute or
 credential. Dummy password-hash work on early rejection paths helps reduce timing differences;
@@ -285,9 +286,11 @@ When the submitted attribute value(s) still match more than one enabled account 
 out, a failed attempt can't be attributed to a single account. **Shared-candidate failure policy**
 (`sharedCandidateFailurePolicy`) decides how it is counted:
 
-- **`CHARGE_VIABLE_CANDIDATES`** (default): the failed attempt counts toward Brute Force Detection
-  for every one of those accounts, so each of them follows the realm's lockout settings exactly as
-  it would behind the standard username/password form. Successful logins are never counted against
+- **`CHARGE_VIABLE_CANDIDATES`** (default): when the realm has Brute Force Detection on, the failed
+  attempt counts toward it for every one of those accounts, so each of them follows the realm's
+  lockout settings exactly as it would behind the standard username/password form. With Brute Force
+  Detection off, no account is charged and only **Max failures per attribute-value combination**
+  limits repeated failures. Successful logins are never counted against
   the other voters who share the same values, and voters who share them can still log in at the
   same time.
 - **`TUPLE_ONLY`**: no account is charged; only **Max failures per attribute-value combination**
