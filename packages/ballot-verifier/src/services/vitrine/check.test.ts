@@ -99,7 +99,7 @@ describe("needsFullRoundNow", () => {
 })
 
 describe("expectFromForm", () => {
-    it("expects the entry of that ballot ID, election and event", () => {
+    it("expects the entry of that tracking ID, election and event", () => {
         expect(
             expectFromForm(sdk, {
                 eventId: ` ${EVENT_ID} `,
@@ -109,7 +109,7 @@ describe("expectFromForm", () => {
         ).toEqual({fields: {event_id: EVENT_ID, election_id: ELECTION_ID, ballot_id: BALLOT_ID}})
     })
 
-    it("reads a ballot ID in groups of four, as the field shows it", () => {
+    it("reads a tracking ID in groups of four, as the field shows it", () => {
         expect(
             expectFromForm(sdk, {
                 eventId: EVENT_ID,
@@ -120,9 +120,9 @@ describe("expectFromForm", () => {
     })
 
     it.each([
-        ["a short ballot ID", {ballotId: "c0ffee"}],
-        ["a short ballot ID in a group of four", {ballotId: "c0ff eec0"}],
-        ["a ballot ID that isn't hex", {ballotId: "<script>alert(1)</script>"}],
+        ["a short tracking ID", {ballotId: "c0ffee"}],
+        ["a short tracking ID in a group of four", {ballotId: "c0ff eec0"}],
+        ["a tracking ID that isn't hex", {ballotId: "<script>alert(1)</script>"}],
         ["no election", {electionId: ""}],
         ["no event", {eventId: ""}],
     ])("refuses %s", (_what, change) => {
@@ -132,7 +132,7 @@ describe("expectFromForm", () => {
 })
 
 describe("expectedBallotId", () => {
-    it("reads the ballot ID from the fields or from the entry", () => {
+    it("reads the tracking ID from the fields or from the entry", () => {
         const expect_ = expectFromForm(sdk, {
             eventId: EVENT_ID,
             electionId: ELECTION_ID,

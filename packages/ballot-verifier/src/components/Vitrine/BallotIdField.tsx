@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// The field where the user gives a Ballot ID: it groups the digits as they are
+// The field where the user gives a Tracking ID: it groups the digits as they are
 // typed or pasted, and takes only a full ID, since a short one could be matched
 // by a birthday search.
 

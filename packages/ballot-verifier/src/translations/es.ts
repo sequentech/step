@@ -19,14 +19,14 @@ const spanishTranslation: TranslationType = {
                 content:
                     "Para continuar, por favor importe los datos de las papeletas encriptadas proporcionados en el Portal de Votación.",
             },
-            step2: "Paso 2: Inserte su ID de papeleta.",
+            step2: "Paso 2: Inserte su ID de seguimiento.",
             description2:
-                "Pegue el ID de papeleta completo del Portal de Votación: el botón de copiar junto a su ID de papeleta lo copia.",
+                "Pegue el ID de seguimiento completo del Portal de Votación: el botón de copiar junto a su ID de seguimiento lo copia.",
             ballotIdHelpDialog: {
-                title: "Información: Su ID de papeleta",
+                title: "Información: Su ID de seguimiento",
                 ok: "OK",
                 content:
-                    "Pegue el ID de papeleta completo proporcionado en el Portal de Votación. El botón de copiar que hay junto a él lo copia.",
+                    "Pegue el ID de seguimiento completo proporcionado en el Portal de Votación. El botón de copiar que hay junto a él lo copia.",
             },
             startButton: "Seleccione fichero",
             dragDropOption: "O arrastre el fichero aquí",
@@ -46,23 +46,23 @@ const spanishTranslation: TranslationType = {
             receiptButton: "Comprobar un recibo",
         },
         confirmationScreen: {
-            ballotIdTitle: "ID de papeleta",
+            ballotIdTitle: "ID de seguimiento",
             ballotIdDescription:
-                "A continuación, el sistema muestra el ID de la papeleta descodificada y el que proporcionaste.",
-            ballotIdError: "No coincide con el ID de papeleta decodificado.",
-            decodedBallotId: "ID de papeleta decodificado",
+                "A continuación, el sistema muestra el ID de seguimiento de la papeleta descodificada y el que proporcionaste.",
+            ballotIdError: "No coincide con el ID de seguimiento decodificado.",
+            decodedBallotId: "ID de seguimiento decodificado",
             decodedBallotIdHelpDialog: {
-                title: "Información: Id de papeleta decodificado",
+                title: "Información: ID de seguimiento decodificado",
                 ok: "OK",
                 content:
-                    "Este es el ID de papeleta extraído del fichero de la Papeleta Auditable descodificada que proporcionaste.",
+                    "Este es el ID de seguimiento extraído del fichero de la Papeleta Auditable descodificada que proporcionaste.",
             },
-            yourBallotId: "El ID de papeleta que proporcionaste",
+            yourBallotId: "El ID de seguimiento que proporcionaste",
             userBallotIdHelpDialog: {
-                title: "Información: La Id de papeleta que proporcionaste",
+                title: "Información: El ID de seguimiento que proporcionaste",
                 ok: "OK",
                 content:
-                    "Esta es la Id de la papeleta que escribiste en el anterior paso y que recogiste de la Cabina de Votación.",
+                    "Este es el ID de seguimiento que escribiste en el anterior paso y que recogiste de la Cabina de Votación.",
             },
             backButton: "Atrás",
             printButton: "Imprimir",
@@ -162,14 +162,14 @@ const spanishTranslation: TranslationType = {
             ballot: {
                 title: "Su papeleta",
                 description:
-                    "El recibo solo se muestra como suyo para la papeleta que emitió. Pegue el ID de papeleta completo que le mostró el portal de votación.",
+                    "El recibo solo se muestra como suyo para la papeleta que emitió. Pegue el ID de seguimiento completo que le mostró el portal de votación.",
                 election: "ID de la elección",
                 electionPlaceholder: "Elija la elección",
                 event: "ID del evento electoral",
                 check: "Comprobar el recibo",
-                change: "Cambiar el ID de papeleta",
-                lookedFor: "ID de papeleta buscado",
-                fullId: "ID de papeleta completo",
+                change: "Cambiar el ID de seguimiento",
+                lookedFor: "ID de seguimiento buscado",
+                fullId: "ID de seguimiento completo",
             },
             result: {
                 title: "Resultado",
@@ -231,7 +231,7 @@ const spanishTranslation: TranslationType = {
                     head: "El registro no coincide",
                     sub: "La entrada n.º {{index}} del registro público no es la de este recibo.",
                     subOther:
-                        "El registro público, este recibo y su ID de papeleta no coinciden entre sí.",
+                        "El registro público, este recibo y su ID de seguimiento no coinciden entre sí.",
                 },
                 damaged: {
                     head: "No se ha podido comprobar",
@@ -269,7 +269,7 @@ const spanishTranslation: TranslationType = {
                     lateAnchors: "Los hubs deberían haberla anclado a las {{time}}.",
                     lateOther: "Ya debería estar hecho.",
                     recordFailed: "La entrada n.º {{index}} del registro difiere de su recibo.",
-                    failed: "No coincide con su recibo y su ID de papeleta.",
+                    failed: "No coincide con su recibo y su ID de seguimiento.",
                     damaged: "No se ha podido comprobar: los datos parecen dañados.",
                     skipped: "No comprobado, porque el registro no coincide.",
                     skippedDamaged: "No comprobado, porque un paso anterior no se pudo comprobar.",
@@ -301,13 +301,13 @@ const spanishTranslation: TranslationType = {
             },
         },
         ballotIdField: {
-            label: "ID de papeleta",
-            placeholder: "Pegue su ID de papeleta completo",
+            label: "ID de seguimiento",
+            placeholder: "Pegue su ID de seguimiento completo",
             help: "Los espacios son opcionales.",
             shortError:
-                "Ese es el ID corto. Pegue el ID de papeleta completo: la comprobación lo compara entero.",
+                "Ese es el ID corto. Pegue el ID de seguimiento completo: la comprobación lo compara entero.",
             formatError:
-                "Revise el ID de papeleta: tiene 64 caracteres, dígitos y letras de la a a la f.",
+                "Revise el ID de seguimiento: tiene 64 caracteres, dígitos y letras de la a a la f.",
         },
     },
 }

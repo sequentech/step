@@ -234,7 +234,7 @@ describe("the receipt screen", () => {
         expect(rowOf("anchors")).toHaveAttribute("data-state", "active")
         expect(rowOf("anchors")).toHaveTextContent("receiptScreen.status.rows.anchorsActive")
         expect(screen.getByTestId("receipt-file-card")).toBeInTheDocument()
-        // The link names the entry: no ballot ID to type or change.
+        // The link names the entry: no tracking ID to type or change.
         expect(screen.getByTestId("ballot-looked-for")).toHaveTextContent(groupBallotId(BALLOT_ID))
         expect(screen.queryByTestId("ballot-form")).toBeNull()
         expect(screen.queryByTestId("ballot-change")).toBeNull()
@@ -335,7 +335,7 @@ describe("the receipt screen", () => {
         expect(screen.getByTestId("policy-input")).toBeInTheDocument()
     })
 
-    it("asks a receipt file for the ballot ID, and checks for that ballot", async () => {
+    it("asks a receipt file for the tracking ID, and checks for that ballot", async () => {
         const s = receiptScenario()
         pin(s.policy)
         serveLog(s)
@@ -357,7 +357,7 @@ describe("the receipt screen", () => {
         ])
         expect(screen.queryByTestId("receipt-result")).toBeNull()
 
-        type("ballot-id", "not a ballot ID")
+        type("ballot-id", "not a tracking ID")
         fireEvent.change(election, {target: {value: ELECTION_ID}})
         fireEvent.submit(form)
         expect(await screen.findByTestId("ballot-invalid")).toBeInTheDocument()

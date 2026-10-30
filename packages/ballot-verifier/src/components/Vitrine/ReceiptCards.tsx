@@ -98,9 +98,9 @@ export const ReceiptFile: React.FC<IReceiptFileProps> = ({name, detail}) => (
 )
 
 export interface IBallotLookedForProps {
-    /** The full Ballot ID, in hex. */
+    /** The full Tracking ID, in hex. */
     ballotId: string
-    /** Lets the user give another Ballot ID; absent when the receipt's link
+    /** Lets the user give another Tracking ID; absent when the receipt's link
      * names the ballot. */
     onChange?: () => void
 }

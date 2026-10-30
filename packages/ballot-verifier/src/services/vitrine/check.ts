@@ -133,7 +133,7 @@ export interface IBallotForm {
     ballotId: string
 }
 
-/** The expectation a ballot ID, election and event give: the entry must be
+/** The expectation a tracking ID, election and event give: the entry must be
  * that ballot's, with the `accepted_at` the receipt holds (specs/receipt.md,
  * section 1.1). Undefined when they can't make an entry. */
 export const expectFromForm = (sdk: IVitrineSdk, form: IBallotForm): Expect | undefined => {
@@ -148,7 +148,7 @@ export const expectFromForm = (sdk: IVitrineSdk, form: IBallotForm): Expect | un
     return {fields: {event_id: eventId, election_id: electionId, ballot_id: ballotId}}
 }
 
-/** The ballot ID an expectation names, in hex, to show the user. */
+/** The tracking ID an expectation names, in hex, to show the user. */
 export const expectedBallotId = (sdk: IVitrineSdk, expect: Expect): string | undefined => {
     if ("fields" in expect) return expect.fields.ballot_id
     try {

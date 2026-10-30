@@ -20,14 +20,14 @@ const galegoTranslation: TranslationType = {
                 content:
                     "Para continuar, importa os datos da papeleta cifrada proporcionados no Portal de Votación.",
             },
-            step2: "Paso 2: Introduce o teu ID de papeleta",
+            step2: "Paso 2: Introduce o teu ID de seguimento",
             description2:
-                "Pega o ID de papeleta completo do Portal de Votación: o botón de copiar xunto ao teu ID de papeleta cópiao.",
+                "Pega o ID de seguimento completo do Portal de Votación: o botón de copiar xunto ao teu ID de seguimento cópiao.",
             ballotIdHelpDialog: {
-                title: "Información: O teu ID de papeleta",
+                title: "Información: O teu ID de seguimento",
                 ok: "Aceptar",
                 content:
-                    "Pega o ID de papeleta completo proporcionado no Portal de Votación. O botón de copiar que hai xunto a el cópiao.",
+                    "Pega o ID de seguimento completo proporcionado no Portal de Votación. O botón de copiar que hai xunto a el cópiao.",
             },
             startButton: "Seleccionar arquivo",
             dragDropOption: "Ou arrástrao e déixao aquí",
@@ -47,23 +47,23 @@ const galegoTranslation: TranslationType = {
             receiptButton: "Comprobar un recibo",
         },
         confirmationScreen: {
-            ballotIdTitle: "ID de papeleta",
+            ballotIdTitle: "ID de seguimento",
             ballotIdDescription:
-                "Abaixo, o sistema mostra o ID da papeleta descifrada e o que proporcionaches.",
-            ballotIdError: "Non coincide co ID da papeleta descifrada",
-            decodedBallotId: "ID de papeleta descifrada",
+                "Abaixo, o sistema mostra o ID de seguimento da papeleta descifrada e o que proporcionaches.",
+            ballotIdError: "Non coincide co ID de seguimento descifrado",
+            decodedBallotId: "ID de seguimento descifrado",
             decodedBallotIdHelpDialog: {
-                title: "Información: ID de papeleta descifrada",
+                title: "Información: ID de seguimento descifrado",
                 ok: "Aceptar",
                 content:
-                    "Este é o ID da papeleta lido a partir do ficheiro de papeleta auditábel que proporcionaches.",
+                    "Este é o ID de seguimento lido a partir do ficheiro de papeleta auditábel que proporcionaches.",
             },
-            yourBallotId: "O ID de papeleta que proporcionaches",
+            yourBallotId: "O ID de seguimento que proporcionaches",
             userBallotIdHelpDialog: {
-                title: "Información: O ID de papeleta que proporcionaches",
+                title: "Información: O ID de seguimento que proporcionaches",
                 ok: "Aceptar",
                 content:
-                    "Este é o ID de papeleta que introduciches no paso anterior e que recolliches no posto de votación.",
+                    "Este é o ID de seguimento que introduciches no paso anterior e que recolliches no posto de votación.",
             },
             backButton: "Volver",
             printButton: "Imprimir",
@@ -163,14 +163,14 @@ const galegoTranslation: TranslationType = {
             ballot: {
                 title: "A túa papeleta",
                 description:
-                    "O recibo só se mostra como teu para a papeleta que emitiches. Pega o ID de papeleta completo que che mostrou o portal de votación.",
+                    "O recibo só se mostra como teu para a papeleta que emitiches. Pega o ID de seguimento completo que che mostrou o portal de votación.",
                 election: "ID da elección",
                 electionPlaceholder: "Escolle a elección",
                 event: "ID do evento electoral",
                 check: "Comprobar o recibo",
-                change: "Cambiar o ID de papeleta",
-                lookedFor: "ID de papeleta buscado",
-                fullId: "ID de papeleta completo",
+                change: "Cambiar o ID de seguimento",
+                lookedFor: "ID de seguimento buscado",
+                fullId: "ID de seguimento completo",
             },
             result: {
                 title: "Resultado",
@@ -230,7 +230,7 @@ const galegoTranslation: TranslationType = {
                     head: "O rexistro non coincide",
                     sub: "A entrada n.º {{index}} do rexistro público non é a deste recibo.",
                     subOther:
-                        "O rexistro público, este recibo e o teu ID de papeleta non coinciden entre si.",
+                        "O rexistro público, este recibo e o teu ID de seguimento non coinciden entre si.",
                 },
                 damaged: {
                     head: "Non se puido comprobar",
@@ -268,7 +268,7 @@ const galegoTranslation: TranslationType = {
                     lateAnchors: "Os hubs deberían telo ancorado ás {{time}}.",
                     lateOther: "Xa debería estar feito.",
                     recordFailed: "A entrada n.º {{index}} do rexistro difire do teu recibo.",
-                    failed: "Non coincide co teu recibo e co teu ID de papeleta.",
+                    failed: "Non coincide co teu recibo e co teu ID de seguimento.",
                     damaged: "Non se puido comprobar: os datos parecen danados.",
                     skipped: "Non comprobado, porque o rexistro non coincide.",
                     skippedDamaged:
@@ -300,13 +300,13 @@ const galegoTranslation: TranslationType = {
             },
         },
         ballotIdField: {
-            label: "ID de papeleta",
-            placeholder: "Pega o teu ID de papeleta completo",
+            label: "ID de seguimento",
+            placeholder: "Pega o teu ID de seguimento completo",
             help: "Os espazos son opcionais.",
             shortError:
-                "Ese é o ID curto. Pega o ID de papeleta completo: a comprobación compárao enteiro.",
+                "Ese é o ID curto. Pega o ID de seguimento completo: a comprobación compárao enteiro.",
             formatError:
-                "Revisa o ID de papeleta: ten 64 caracteres, díxitos e as letras da a á f.",
+                "Revisa o ID de seguimento: ten 64 caracteres, díxitos e as letras da a á f.",
         },
     },
 }

@@ -14,7 +14,7 @@ import {
 
 const FULL = "30ffd31442386472fd6dbdb4df3695590f7a414d02ab24995befc5a940b89da1"
 
-describe("ballot IDs", () => {
+describe("tracking IDs", () => {
     it("groups an ID in fours, whatever its spacing and case", () => {
         expect(groupBallotId(FULL)).toBe(
             "30ff d314 4238 6472 fd6d bdb4 df36 9559 0f7a 414d 02ab 2499 5bef c5a9 40b8 9da1"

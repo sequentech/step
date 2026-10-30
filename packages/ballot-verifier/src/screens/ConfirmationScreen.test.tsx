@@ -58,7 +58,7 @@ const renderWith = (ballotId: string) =>
         />
     )
 
-describe("the confirmation screen's Ballot IDs", () => {
+describe("the confirmation screen's Tracking IDs", () => {
     it("shows both IDs in groups of four, the first two in bold", () => {
         renderWith(groupBallotId(DECODED))
         const decoded = screen.getByTestId("decoded-ballot-id")

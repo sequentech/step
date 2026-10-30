@@ -2,10 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// What makes a receipt file the user's own: the ballot ID the voting portal
+// What makes a receipt file the user's own: the tracking ID the voting portal
 // showed, with the election and the event (Vitrine's specs/receipt.md,
 // section 1.1). The event and the elections come from the pinned policy when
-// it names them; the ballot ID always comes from the user, never from the
+// it names them; the tracking ID always comes from the user, never from the
 // receipt.
 
 import React, {useState} from "react"

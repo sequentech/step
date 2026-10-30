@@ -17,14 +17,14 @@ const tagalogTranslation = {
                 content:
                     "Upang magpatuloy, mangyaring i-import ang naka-encrypt na data ng balota na ibinigay sa Voting Portal.",
             },
-            step2: "Hakbang 2: I-type ang ID ng iyong balota",
+            step2: "Hakbang 2: I-type ang iyong Tracking ID",
             description2:
-                "I-paste ang buong ID ng balota mula sa Voting Portal: kinokopya ito ng copy button sa tabi ng iyong ID ng balota.",
+                "I-paste ang buong Tracking ID mula sa Voting Portal: kinokopya ito ng copy button sa tabi ng iyong Tracking ID.",
             ballotIdHelpDialog: {
-                title: "Impormasyon: Ang ID ng iyong balota",
+                title: "Impormasyon: Ang iyong Tracking ID",
                 ok: "OK",
                 content:
-                    "I-paste ang buong ID ng balota na ibinigay sa Voting Portal. Kinokopya ito ng copy button sa tabi nito.",
+                    "I-paste ang buong Tracking ID na ibinigay sa Voting Portal. Kinokopya ito ng copy button sa tabi nito.",
             },
             startButton: "Mag-browse ng file",
             dragDropOption: "O i-drag at i-drop ito dito",
@@ -44,23 +44,23 @@ const tagalogTranslation = {
             receiptButton: "Suriin ang isang resibo",
         },
         confirmationScreen: {
-            ballotIdTitle: "ID ng Balota",
+            ballotIdTitle: "Tracking ID",
             ballotIdDescription:
-                "Sa ibaba, ipinapakita ng sistema ang ID ng na-decode na balota, at ang ibinigay mo.",
-            ballotIdError: "Hindi tumutugma sa na-decode na ID ng balota",
-            decodedBallotId: "Na-decode na ID ng Balota",
+                "Sa ibaba, ipinapakita ng sistema ang Tracking ID ng na-decode na balota, at ang ibinigay mo.",
+            ballotIdError: "Hindi tumutugma sa na-decode na Tracking ID",
+            decodedBallotId: "Na-decode na Tracking ID",
             decodedBallotIdHelpDialog: {
-                title: "Impormasyon: Na-decode na ID ng Balota",
+                title: "Impormasyon: Na-decode na Tracking ID",
                 ok: "OK",
                 content:
-                    "Ito ang ID ng balota na nabasa mula sa pag-decode ng sinisiyasat na file ng balota na iyong ibinigay.",
+                    "Ito ang Tracking ID na nabasa mula sa pag-decode ng sinisiyasat na file ng balota na iyong ibinigay.",
             },
-            yourBallotId: "Ang ID ng Balota na iyong ibinigay",
+            yourBallotId: "Ang Tracking ID na iyong ibinigay",
             userBallotIdHelpDialog: {
-                title: "Impormasyon: Ang ID ng Balota na iyong ibinigay",
+                title: "Impormasyon: Ang Tracking ID na iyong ibinigay",
                 ok: "OK",
                 content:
-                    "Ito ang ID ng balota na iyong tinype sa nakaraang hakbang at nakuha mo mula sa Voting Booth.",
+                    "Ito ang Tracking ID na iyong tinype sa nakaraang hakbang at nakuha mo mula sa Voting Booth.",
             },
             backButton: "Bumalik",
             printButton: "I-print",
@@ -157,14 +157,14 @@ const tagalogTranslation = {
             ballot: {
                 title: "Ang iyong balota",
                 description:
-                    "Ipinapakita lang na sa iyo ang resibo para sa balotang iyong ibinoto. I-paste ang buong ID ng balota na ipinakita sa iyo ng voting portal.",
+                    "Ipinapakita lang na sa iyo ang resibo para sa balotang iyong ibinoto. I-paste ang buong Tracking ID na ipinakita sa iyo ng voting portal.",
                 election: "ID ng halalan",
                 electionPlaceholder: "Piliin ang halalan",
                 event: "ID ng election event",
                 check: "Suriin ang resibo",
-                change: "Palitan ang ID ng balota",
-                lookedFor: "Hinahanap na ID ng balota",
-                fullId: "Buong ID ng Balota",
+                change: "Palitan ang Tracking ID",
+                lookedFor: "Hinahanap na Tracking ID",
+                fullId: "Buong Tracking ID",
             },
             result: {
                 title: "Resulta",
@@ -225,7 +225,7 @@ const tagalogTranslation = {
                     head: "Hindi tugma ang talaan",
                     sub: "Hindi ang entry #{{index}} ng pampublikong talaan ang nasa resibong ito.",
                     subOther:
-                        "Hindi magkakatugma ang pampublikong talaan, ang resibong ito at ang iyong ID ng balota.",
+                        "Hindi magkakatugma ang pampublikong talaan, ang resibong ito at ang iyong Tracking ID.",
                 },
                 damaged: {
                     head: "Hindi nasuri",
@@ -264,7 +264,7 @@ const tagalogTranslation = {
                     lateAnchors: "Dapat na itong na-anchor ng mga hub pagsapit ng {{time}}.",
                     lateOther: "Dapat tapos na ito ngayon.",
                     recordFailed: "Naiiba sa iyong resibo ang entry #{{index}} sa talaan.",
-                    failed: "Hindi ito tugma sa iyong resibo at ID ng balota.",
+                    failed: "Hindi ito tugma sa iyong resibo at Tracking ID.",
                     damaged: "Hindi nasuri: mukhang sira ang data.",
                     skipped: "Hindi sinuri, dahil hindi tugma ang talaan.",
                     skippedDamaged: "Hindi sinuri, dahil hindi nasuri ang naunang hakbang.",
@@ -296,13 +296,13 @@ const tagalogTranslation = {
             },
         },
         ballotIdField: {
-            label: "ID ng Balota",
-            placeholder: "I-paste ang iyong buong ID ng Balota",
+            label: "Tracking ID",
+            placeholder: "I-paste ang iyong buong Tracking ID",
             help: "Opsyonal ang mga espasyo.",
             shortError:
-                "Iyan ang maikling ID. I-paste ang buong ID ng balota: ikinukumpara ng pagsusuri ang kabuuan nito.",
+                "Iyan ang maikling ID. I-paste ang buong Tracking ID: ikinukumpara ng pagsusuri ang kabuuan nito.",
             formatError:
-                "Suriin ang ID ng balota: 64 na character ito, mga digit at ang mga letrang a hanggang f.",
+                "Suriin ang Tracking ID: 64 na character ito, mga digit at ang mga letrang a hanggang f.",
         },
     },
 }

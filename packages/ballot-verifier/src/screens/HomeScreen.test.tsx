@@ -204,7 +204,7 @@ describe("HomeScreen receipt link", () => {
     )
 })
 
-describe("HomeScreen ballot ID", () => {
+describe("HomeScreen tracking ID", () => {
     const FULL = "a41c7e095b3d28f6c0e19d743a58b2f06e1d84c90b7f5a23d816e4c279b013af"
     const confirmation = {
         ballot_hash: FULL,
@@ -242,7 +242,7 @@ describe("HomeScreen ballot ID", () => {
 
     const next = () => screen.getByRole("button", {name: "homeScreen.nextButton"})
 
-    it("groups the Ballot ID in fours as it is typed, keeping only its hex digits", () => {
+    it("groups the Tracking ID in fours as it is typed, keeping only its hex digits", () => {
         const input = renderHome()
         fireEvent.change(input, {target: {value: "A41C-7e09 5b"}})
         expect(input.value).toBe("a41c 7e09 5b")
@@ -265,7 +265,7 @@ describe("HomeScreen ballot ID", () => {
         expect(next()).toBeDisabled()
     })
 
-    it("says what a Ballot ID looks like when it has another length", () => {
+    it("says what a Tracking ID looks like when it has another length", () => {
         const input = renderHome()
         fireEvent.change(input, {target: {value: FULL.slice(0, 40)}})
         expect(screen.getByText("ballotIdField.formatError")).toBeInTheDocument()
@@ -275,7 +275,7 @@ describe("HomeScreen ballot ID", () => {
         expect(next()).toBeDisabled()
     })
 
-    it("goes on only with the full Ballot ID", async () => {
+    it("goes on only with the full Tracking ID", async () => {
         const input = renderHome()
         fireEvent.change(input, {target: {value: FULL}})
         await waitFor(() => expect(next()).toBeEnabled())

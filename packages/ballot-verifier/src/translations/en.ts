@@ -17,14 +17,14 @@ const englishTranslation = {
                 content:
                     "To continue, please import the encrypted ballot data  provided in the Voting Portal.",
             },
-            step2: "Step 2: Insert your ballot ID",
+            step2: "Step 2: Insert your tracking ID",
             description2:
-                "Paste the full Ballot ID from the Voting Portal: the copy button next to your Ballot ID copies it.",
+                "Paste the full Tracking ID from the Voting Portal: the copy button next to your Tracking ID copies it.",
             ballotIdHelpDialog: {
-                title: "Information: Your ballot ID",
+                title: "Information: Your tracking ID",
                 ok: "OK",
                 content:
-                    "Paste the full Ballot ID provided in the Voting Portal. The copy button next to it copies it.",
+                    "Paste the full Tracking ID provided in the Voting Portal. The copy button next to it copies it.",
             },
             startButton: "Browse file",
             dragDropOption: "Or drag and drop it here",
@@ -44,23 +44,23 @@ const englishTranslation = {
             receiptButton: "Check a receipt",
         },
         confirmationScreen: {
-            ballotIdTitle: "Ballot ID",
+            ballotIdTitle: "Tracking ID",
             ballotIdDescription:
-                "Below, the system shows the Ballot ID of the decoded ballot, and the one you provided.",
-            ballotIdError: "Doesn’t match the decoded Ballot ID",
-            decodedBallotId: "Decoded Ballot ID",
+                "Below, the system shows the Tracking ID of the decoded ballot, and the one you provided.",
+            ballotIdError: "Doesn’t match the decoded Tracking ID",
+            decodedBallotId: "Decoded Tracking ID",
             decodedBallotIdHelpDialog: {
-                title: "Information: Decoded Ballot ID",
+                title: "Information: Decoded Tracking ID",
                 ok: "OK",
                 content:
-                    "This is the Ballot ID read from decoding the Auditable Ballot file you provided.",
+                    "This is the Tracking ID read from decoding the Auditable Ballot file you provided.",
             },
-            yourBallotId: "The Ballot ID you provided",
+            yourBallotId: "The Tracking ID you provided",
             userBallotIdHelpDialog: {
-                title: "Information: The Ballot ID you provided",
+                title: "Information: The Tracking ID you provided",
                 ok: "OK",
                 content:
-                    "This is the Ballot ID you typed in the previous step and that you collected from the Voting Booth.",
+                    "This is the Tracking ID you typed in the previous step and that you collected from the Voting Booth.",
             },
             backButton: "Back",
             printButton: "Print",
@@ -159,14 +159,14 @@ const englishTranslation = {
             ballot: {
                 title: "Your ballot",
                 description:
-                    "The receipt shows as yours only for the ballot you cast. Paste the full Ballot ID that the voting portal showed you.",
+                    "The receipt shows as yours only for the ballot you cast. Paste the full Tracking ID that the voting portal showed you.",
                 election: "Election ID",
                 electionPlaceholder: "Choose the election",
                 event: "Election event ID",
                 check: "Check the receipt",
-                change: "Change the ballot ID",
-                lookedFor: "Ballot ID looked for",
-                fullId: "Full Ballot ID",
+                change: "Change the tracking ID",
+                lookedFor: "Tracking ID looked for",
+                fullId: "Full Tracking ID",
             },
             result: {
                 title: "Result",
@@ -226,7 +226,8 @@ const englishTranslation = {
                 problem: {
                     head: "The record does not match",
                     sub: "The public record’s entry #{{index}} is not the one in this receipt.",
-                    subOther: "The public record, this receipt and your Ballot ID don’t all agree.",
+                    subOther:
+                        "The public record, this receipt and your Tracking ID don’t all agree.",
                 },
                 damaged: {
                     head: "Couldn’t be checked",
@@ -262,7 +263,7 @@ const englishTranslation = {
                     lateAnchors: "The hubs should have anchored it by {{time}}.",
                     lateOther: "It should be done by now.",
                     recordFailed: "Entry #{{index}} in the record differs from your receipt.",
-                    failed: "It doesn’t agree with your receipt and Ballot ID.",
+                    failed: "It doesn’t agree with your receipt and Tracking ID.",
                     damaged: "Couldn’t be checked: the data looks damaged.",
                     skipped: "Not checked, because the record does not match.",
                     skippedDamaged: "Not checked, because an earlier step couldn’t be checked.",
@@ -293,13 +294,13 @@ const englishTranslation = {
             },
         },
         ballotIdField: {
-            label: "Ballot ID",
-            placeholder: "Paste your full Ballot ID",
+            label: "Tracking ID",
+            placeholder: "Paste your full Tracking ID",
             help: "Spaces are optional.",
             shortError:
-                "That’s the short ID. Paste the full Ballot ID: the check compares all of it.",
+                "That’s the short ID. Paste the full Tracking ID: the check compares all of it.",
             formatError:
-                "Check the Ballot ID: it has 64 characters, digits and the letters a to f.",
+                "Check the Tracking ID: it has 64 characters, digits and the letters a to f.",
         },
     },
 }

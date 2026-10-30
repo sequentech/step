@@ -19,14 +19,14 @@ const catalanTranslation: TranslationType = {
                 content:
                     "Per continuar, si us plau importeu les dades de les paperetes encriptades proporcionades al Portal de Votació.",
             },
-            step2: "Pas 2: Introduïu el vostre ID de papereta.",
+            step2: "Pas 2: Introduïu el vostre ID de seguiment.",
             description2:
-                "Enganxeu l'ID de papereta complet del Portal de Votació: el botó de copiar al costat del vostre ID de papereta el copia.",
+                "Enganxeu l'ID de seguiment complet del Portal de Votació: el botó de copiar al costat del vostre ID de seguiment el copia.",
             ballotIdHelpDialog: {
-                title: "Informació: El vostre ID de papereta",
+                title: "Informació: El vostre ID de seguiment",
                 ok: "D'acord",
                 content:
-                    "Enganxeu l'ID de papereta complet proporcionat al Portal de Votació. El botó de copiar que hi ha al costat el copia.",
+                    "Enganxeu l'ID de seguiment complet proporcionat al Portal de Votació. El botó de copiar que hi ha al costat el copia.",
             },
             startButton: "Seleccioneu fitxer",
             dragDropOption: "O arrossegueu el fitxer aquí",
@@ -46,23 +46,23 @@ const catalanTranslation: TranslationType = {
             receiptButton: "Comprova un rebut",
         },
         "confirmationScreen": {
-            ballotIdTitle: "ID de papereta",
+            ballotIdTitle: "ID de seguiment",
             ballotIdDescription:
-                "A continuació, el sistema mostra l'ID de la papereta descodificada i el que heu proporcionat.",
-            ballotIdError: "No coincideix amb l'ID de papereta descodificat.",
-            decodedBallotId: "ID de papereta descodificat",
+                "A continuació, el sistema mostra l'ID de seguiment de la papereta descodificada i el que heu proporcionat.",
+            ballotIdError: "No coincideix amb l'ID de seguiment descodificat.",
+            decodedBallotId: "ID de seguiment descodificat",
             decodedBallotIdHelpDialog: {
-                title: "Informació: ID de papereta descodificat",
+                title: "Informació: ID de seguiment descodificat",
                 ok: "D'acord",
                 content:
-                    "Aquest és l'ID de la papereta extret del fitxer de la Papereta Auditable descodificada que vas proporcionar.",
+                    "Aquest és l'ID de seguiment extret del fitxer de la Papereta Auditable descodificada que vas proporcionar.",
             },
-            yourBallotId: "L'ID de papereta que vas proporcionar",
+            yourBallotId: "L'ID de seguiment que vas proporcionar",
             userBallotIdHelpDialog: {
-                title: "Informació: L'ID de papereta que vas proporcionar",
+                title: "Informació: L'ID de seguiment que vas proporcionar",
                 ok: "D'acord",
                 content:
-                    "Aquesta és l'ID de papereta que vas escriure en l'anterior pas i que vas recollir de la Cabina de Votació.",
+                    "Aquest és l'ID de seguiment que vas escriure en l'anterior pas i que vas recollir de la Cabina de Votació.",
             },
             backButton: "Enrere",
             printButton: "Imprimir",
@@ -175,14 +175,14 @@ const catalanTranslation: TranslationType = {
             ballot: {
                 title: "La vostra papereta",
                 description:
-                    "El rebut només es mostra com a vostre per a la papereta que vau emetre. Enganxeu l'ID de papereta complet que us va mostrar el portal de votació.",
+                    "El rebut només es mostra com a vostre per a la papereta que vau emetre. Enganxeu l'ID de seguiment complet que us va mostrar el portal de votació.",
                 election: "ID de l'elecció",
                 electionPlaceholder: "Trieu l'elecció",
                 event: "ID de l'esdeveniment electoral",
                 check: "Comprova el rebut",
-                change: "Canvia l'ID de papereta",
-                lookedFor: "ID de papereta cercat",
-                fullId: "ID de papereta complet",
+                change: "Canvia l'ID de seguiment",
+                lookedFor: "ID de seguiment cercat",
+                fullId: "ID de seguiment complet",
             },
             result: {
                 title: "Resultat",
@@ -243,7 +243,7 @@ const catalanTranslation: TranslationType = {
                     head: "El registre no coincideix",
                     sub: "L'entrada núm. {{index}} del registre públic no és la d'aquest rebut.",
                     subOther:
-                        "El registre públic, aquest rebut i el vostre ID de papereta no coincideixen entre ells.",
+                        "El registre públic, aquest rebut i el vostre ID de seguiment no coincideixen entre ells.",
                 },
                 damaged: {
                     head: "No s'ha pogut comprovar",
@@ -285,7 +285,7 @@ const catalanTranslation: TranslationType = {
                     lateOther: "Ja hauria d'estar fet.",
                     recordFailed:
                         "L'entrada núm. {{index}} del registre difereix del vostre rebut.",
-                    failed: "No coincideix amb el vostre rebut i el vostre ID de papereta.",
+                    failed: "No coincideix amb el vostre rebut i el vostre ID de seguiment.",
                     damaged: "No s'ha pogut comprovar: les dades semblen malmeses.",
                     skipped: "No comprovat, perquè el registre no coincideix.",
                     skippedDamaged: "No comprovat, perquè un pas anterior no s'ha pogut comprovar.",
@@ -303,13 +303,13 @@ const catalanTranslation: TranslationType = {
             poweredBy: "Funciona amb <1></1>",
         },
         "ballotIdField": {
-            label: "ID de papereta",
-            placeholder: "Enganxeu el vostre ID de papereta complet",
+            label: "ID de seguiment",
+            placeholder: "Enganxeu el vostre ID de seguiment complet",
             help: "Els espais són opcionals.",
             shortError:
-                "Aquest és l'ID curt. Enganxeu l'ID de papereta complet: la comprovació el compara sencer.",
+                "Aquest és l'ID curt. Enganxeu l'ID de seguiment complet: la comprovació el compara sencer.",
             formatError:
-                "Reviseu l'ID de papereta: té 64 caràcters, dígits i les lletres de la a a la f.",
+                "Reviseu l'ID de seguiment: té 64 caràcters, dígits i les lletres de la a a la f.",
         },
     },
 }

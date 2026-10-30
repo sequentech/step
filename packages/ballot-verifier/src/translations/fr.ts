@@ -19,14 +19,14 @@ const frenchTranslation: TranslationType = {
                 content:
                     "Pour continuer, veuillez importer les données des bulletins cryptés fournis sur le Portail de Vote.",
             },
-            step2: "Étape 2 : Insérez votre ID de bulletin.",
+            step2: "Étape 2 : Insérez votre identifiant de suivi.",
             description2:
-                "Collez l'ID complet du bulletin depuis le Portail de Vote : le bouton de copie à côté de votre ID de bulletin le copie.",
+                "Collez l'identifiant de suivi complet depuis le Portail de Vote : le bouton de copie à côté de votre identifiant de suivi le copie.",
             ballotIdHelpDialog: {
-                title: "Information : Votre ID de bulletin",
+                title: "Information : Votre identifiant de suivi",
                 ok: "OK",
                 content:
-                    "Collez l'ID complet du bulletin fourni sur le Portail de Vote. Le bouton de copie à côté de celui-ci le copie.",
+                    "Collez l'identifiant de suivi complet fourni sur le Portail de Vote. Le bouton de copie à côté de celui-ci le copie.",
             },
             startButton: "Sélectionnez fichier",
             dragDropOption: "Ou glissez le fichier ici",
@@ -46,23 +46,23 @@ const frenchTranslation: TranslationType = {
             receiptButton: "Vérifier un reçu",
         },
         "confirmationScreen": {
-            ballotIdTitle: "ID du bulletin",
+            ballotIdTitle: "Identifiant de suivi",
             ballotIdDescription:
-                "Ci-dessous, le système affiche l'ID du bulletin décodé et celui que vous avez fourni.",
-            ballotIdError: "Ne correspond pas à l'ID du bulletin décodé.",
-            decodedBallotId: "ID du bulletin décodé",
+                "Ci-dessous, le système affiche l'identifiant de suivi du bulletin décodé et celui que vous avez fourni.",
+            ballotIdError: "Ne correspond pas à l'identifiant de suivi décodé.",
+            decodedBallotId: "Identifiant de suivi décodé",
             decodedBallotIdHelpDialog: {
-                title: "Information : ID du bulletin décodé",
+                title: "Information : Identifiant de suivi décodé",
                 ok: "OK",
                 content:
-                    "Ceci est l'ID du bulletin extrait du fichier du bulletin auditable décodé que vous avez fourni.",
+                    "Ceci est l'identifiant de suivi extrait du fichier du bulletin auditable décodé que vous avez fourni.",
             },
-            yourBallotId: "L'ID du bulletin que vous avez fourni",
+            yourBallotId: "L'identifiant de suivi que vous avez fourni",
             userBallotIdHelpDialog: {
-                title: "Information : L'ID du bulletin que vous avez fourni",
+                title: "Information : L'identifiant de suivi que vous avez fourni",
                 ok: "OK",
                 content:
-                    "Ceci est l'ID du bulletin que vous avez écrit à l'étape précédente et que vous avez pris de la Cabine de Vote.",
+                    "Ceci est l'identifiant de suivi que vous avez écrit à l'étape précédente et que vous avez pris de la Cabine de Vote.",
             },
             backButton: "Retour",
             printButton: "Imprimer",
@@ -162,14 +162,14 @@ const frenchTranslation: TranslationType = {
             ballot: {
                 title: "Votre bulletin",
                 description:
-                    "Le reçu n'apparaît comme le vôtre que pour le bulletin que vous avez déposé. Collez l'ID complet du bulletin que le portail de vote vous a montré.",
+                    "Le reçu n'apparaît comme le vôtre que pour le bulletin que vous avez déposé. Collez l'identifiant de suivi complet que le portail de vote vous a montré.",
                 election: "ID de l'élection",
                 electionPlaceholder: "Choisissez l'élection",
                 event: "ID de l'événement électoral",
                 check: "Vérifier le reçu",
-                change: "Modifier l'ID de bulletin",
-                lookedFor: "ID de bulletin recherché",
-                fullId: "ID complet du bulletin",
+                change: "Modifier l'identifiant de suivi",
+                lookedFor: "Identifiant de suivi recherché",
+                fullId: "Identifiant de suivi complet",
             },
             result: {
                 title: "Résultat",
@@ -230,7 +230,7 @@ const frenchTranslation: TranslationType = {
                     head: "Le registre ne correspond pas",
                     sub: "L'entrée n° {{index}} du registre public n'est pas celle de ce reçu.",
                     subOther:
-                        "Le registre public, ce reçu et votre ID de bulletin ne concordent pas tous.",
+                        "Le registre public, ce reçu et votre identifiant de suivi ne concordent pas tous.",
                 },
                 damaged: {
                     head: "Vérification impossible",
@@ -268,7 +268,7 @@ const frenchTranslation: TranslationType = {
                     lateAnchors: "Les hubs auraient dû l'ancrer avant {{time}}.",
                     lateOther: "Cela devrait déjà être fait.",
                     recordFailed: "L'entrée n° {{index}} du registre diffère de votre reçu.",
-                    failed: "Cela ne concorde pas avec votre reçu et votre ID de bulletin.",
+                    failed: "Cela ne concorde pas avec votre reçu et votre identifiant de suivi.",
                     damaged: "Vérification impossible : les données semblent endommagées.",
                     skipped: "Non vérifié, car le registre ne correspond pas.",
                     skippedDamaged:
@@ -301,13 +301,13 @@ const frenchTranslation: TranslationType = {
             },
         },
         "ballotIdField": {
-            label: "ID du bulletin",
-            placeholder: "Collez votre ID de bulletin complet",
+            label: "Identifiant de suivi",
+            placeholder: "Collez votre identifiant de suivi complet",
             help: "Les espaces sont facultatives.",
             shortError:
-                "C'est l'ID court. Collez l'ID complet du bulletin : la vérification le compare en entier.",
+                "C'est l'ID court. Collez l'identifiant de suivi complet : la vérification le compare en entier.",
             formatError:
-                "Vérifiez l'ID du bulletin : il compte 64 caractères, des chiffres et les lettres de a à f.",
+                "Vérifiez l'identifiant de suivi : il compte 64 caractères, des chiffres et les lettres de a à f.",
         },
     },
 }

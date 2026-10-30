@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// Ballot IDs as voters read them: lowercase hex in groups of four. The short
+// Tracking IDs as voters read them: lowercase hex in groups of four. The short
 // ID is the first two groups. The verifier compares the whole ID: a short ID
 // has 32 bits, which a birthday search could match.
 
@@ -12,7 +12,7 @@ export const FULL_BALLOT_ID_LENGTH = 64
 /** The groups that make the short ID, which the screens set in bold. */
 export const SHORT_BALLOT_ID_GROUPS = SHORT_BALLOT_ID_LENGTH / BALLOT_ID_GROUP
 
-/** What a voter typed or pasted, as a ballot ID. */
+/** What a voter typed or pasted, as a tracking ID. */
 export enum EBallotIdInput {
     EMPTY = "empty",
     SHORT = "short",

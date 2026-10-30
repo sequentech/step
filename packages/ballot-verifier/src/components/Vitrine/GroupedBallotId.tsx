@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// A Ballot ID in groups of four, the first two in bold: the short ID. Given
+// A Tracking ID in groups of four, the first two in bold: the short ID. Given
 // another ID to compare with, it highlights the groups that differ. It wraps
 // by its width in characters: two lines on wide screens, four on phones.
 
