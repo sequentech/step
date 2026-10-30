@@ -3316,10 +3316,9 @@
       "adminUrl": "",
       "baseUrl": "",
       "surrogateAuthRequired": false,
-      "enabled": true,
+      "enabled": false,
       "alwaysDisplayInConsole": false,
       "clientAuthenticatorType": "client-secret",
-      "secret": "4lzmxNgZHjfzS5BwDVlyrRUDqwvFLUvL",
       "redirectUris": [
         "*"
       ],
@@ -4766,7 +4765,7 @@
     "GRANT_CONSENT_ERROR",
     "IDENTITY_PROVIDER_FIRST_LOGIN_ERROR"
   ],
-  "adminEventsEnabled": false,
+  "adminEventsEnabled": true,
   "adminEventsDetailsEnabled": false,
   "identityProviders": [],
   "identityProviderMappers": [],

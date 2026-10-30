@@ -135,6 +135,9 @@ SPDX-License-Identifier: AGPL-3.0-only
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.5.4</version>
                 <configuration>
+                    <systemPropertyVariables>
+                        <org.jboss.logging.provider>jdk</org.jboss.logging.provider>
+                    </systemPropertyVariables>
                     <useFile>false</useFile>
                     <redirectTestOutputToFile>false</redirectTestOutputToFile>
                     <reportFormat>console</reportFormat>
