@@ -23,7 +23,7 @@ const dutchTranslation: TranslationType = {
         a11y: {
             closeDialog: "Dialoogvenster sluiten",
             dismissMessage: "Bericht sluiten",
-            ballotIdHelp: "Over uw stembiljet-ID",
+            ballotIdHelp: "Over uw Tracking-ID",
             loading: "Laden",
             severity: {
                 error: "Fout",
@@ -70,7 +70,7 @@ const dutchTranslation: TranslationType = {
             title: "Sequent Stembiljetverificateur",
             topDescription1:
                 "Op basis van de informatie in het geïmporteerde controleerbare stembiljet hebben wij berekend dat:",
-            topDescription2: "Als dit de stembiljet-ID is die in het stemhokje wordt weergegeven:",
+            topDescription2: "Als dit de Tracking-ID is die in het stemhokje wordt weergegeven:",
             bottomDescription1:
                 "Uw stembiljet is correct versleuteld. U kunt dit venster nu sluiten en terugkeren naar het stemhokje.",
             bottomDescription2:
@@ -139,7 +139,7 @@ const dutchTranslation: TranslationType = {
                     "Ongeldige stemconfiguratie: de stemming definieert {{count}} expliciete blanco kandidaten, maar er is er maar één toegestaan.",
             },
         },
-        ballotHash: "Uw stembiljet-ID: {{ballotId}}",
+        ballotHash: "Uw Tracking-ID: {{ballotId}}",
         version: {
             header: "Versie:",
         },
@@ -176,7 +176,8 @@ const dutchTranslation: TranslationType = {
             voteButton: "Klik om te stemmen",
             openDate: "Geopend: ",
             closeDate: "Gesloten: ",
-            ballotLocator: "Vind uw stembiljet",
+            ballotLocator: "Volg uw stembiljet",
+            alreadyCast: "U heeft dit stembiljet al uitgebracht",
         },
         header: {
             profile: "Profiel",

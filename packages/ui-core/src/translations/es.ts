@@ -23,7 +23,7 @@ const spanishTranslation: TranslationType = {
         a11y: {
             closeDialog: "Cerrar diálogo",
             dismissMessage: "Descartar mensaje",
-            ballotIdHelp: "Acerca de su ID de voto",
+            ballotIdHelp: "Acerca de su ID de seguimiento",
             loading: "Cargando",
             severity: {
                 error: "Error",
@@ -70,7 +70,7 @@ const spanishTranslation: TranslationType = {
             title: "Verificador de Voto Sequent",
             topDescription1:
                 "En base a la información del voto auditable importado, calculamos que:",
-            topDescription2: "Si este ID de voto es mostrado en la Cabina de Votación:",
+            topDescription2: "Si este ID de seguimiento es mostrado en la Cabina de Votación:",
             bottomDescription1:
                 "Su voto fue cifrado correctamente. Ahora puede cerrar esta ventana y volver a la Cabina de Votación.",
             bottomDescription2:
@@ -140,7 +140,7 @@ const spanishTranslation: TranslationType = {
                     "Configuración de voto inválida: la pregunta define {{count}} candidatos de voto en blanco explícito, pero solo se permite uno.",
             },
         },
-        ballotHash: "Su Localizador de Voto: {{ballotId}}",
+        ballotHash: "Su ID de seguimiento: {{ballotId}}",
         version: {
             header: "Versión:",
         },
@@ -177,7 +177,8 @@ const spanishTranslation: TranslationType = {
             voteButton: "Haga clic para votar",
             openDate: "Abierta: ",
             closeDate: "Cerrada: ",
-            ballotLocator: "Localice su voto",
+            ballotLocator: "Siga su papeleta",
+            alreadyCast: "Ya ha emitido esta papeleta",
         },
         header: {
             profile: "Perfil",

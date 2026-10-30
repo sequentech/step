@@ -15,8 +15,8 @@ const basqueTranslation: TranslationType = {
             helpAbout: "{{topic}} atalari buruzko laguntza",
             previewMaterial: "{{title}} aurrebista",
             ballotsTable: "Botoak",
-            ballotLocatorTabs: "Boto-bilatzailearen atalak",
-            ballotIdLabel: "Botoaren IDa",
+            ballotLocatorTabs: "Boto-txartelaren jarraipenaren atalak",
+            ballotIdLabel: "Jarraipen IDa",
             votingProgress: "Bozketaren aurrerapena",
             stepOf: "{{total}} urratsetik {{current}}. urratsa",
             selectUpTo_one: "Hautatu gehienez aukera {{count}}",
@@ -104,7 +104,7 @@ const basqueTranslation: TranslationType = {
                 "Aukeratu zure hautagaiak eta erantzun galdera bakoitza. Editatu bozketa prest egon arte.",
             step2Title: "2. Berrikusi zure bozketa",
             step2Description:
-                "Zure bozketa zifratu eta berrikuspena erakutsiko dizugu. Bozketa ID jarraitzaile bakarra jasoko duzu.",
+                "Zure bozketa zifratu eta berrikuspena erakutsiko dizugu. Jarraipen ID bakarra jasoko duzu.",
             step3Title: "3. Eman zure bozketa",
             step3Description:
                 "Eman zure bozketa erregistratzeko, edo zifraketa zuzen egin dela egiaztatu.",
@@ -130,9 +130,9 @@ const basqueTranslation: TranslationType = {
             backButton: "Editatu bozketa",
             castBallotButton: "Eman bozketa",
             auditButton: "Egiaztatu bozketa",
-            copyBallotId: "Kopiatu bozketa IDa",
-            ballotIdCopied: "Bozketa IDa kopiatu da",
-            ballotIdCopyError: "Ezin izan da bozketa IDa kopiatu",
+            copyBallotId: "Kopiatu jarraipen IDa",
+            ballotIdCopied: "Jarraipen IDa kopiatu da",
+            ballotIdCopyError: "Ezin izan da jarraipen IDa kopiatu",
             reviewScreenHelpDialog: {
                 title: "Berrikuspena pantailari buruz",
                 content:
@@ -142,7 +142,7 @@ const basqueTranslation: TranslationType = {
             ballotIdHelpDialog: {
                 title: "Botoa ez da eman",
                 content:
-                    "<p>Hau da zure Bozketa Jarraitzaile IDa, baina <b>zure botoa ez da eman oraindik</b>. Bozketa jarraitzen saiatzen bazara, ez duzu aurkituko.</p><p>Bozketa Jarraitzaile IDa etapa honetan erakusten dugun arrazoia zifratu bozketaren zuzentasuna auditatu ahal izatea da eman aurretik.</p>",
+                    "<p>Hau da zure jarraipen IDa, baina <b>zure botoa ez da eman oraindik</b>. Bozketa jarraitzen saiatzen bazara, ez duzu aurkituko.</p><p>Jarraipen IDa etapa honetan erakusten dugun arrazoia zifratu bozketaren zuzentasuna auditatu ahal izatea da eman aurretik.</p>",
                 ok: "Ulertzen dut nire botoa ez dela eman",
                 cancel: "Ezeztatu",
             },
@@ -224,7 +224,7 @@ const basqueTranslation: TranslationType = {
                 NO_AUDITABLE_BALLOT:
                     "Ez dago auditatu daitekeen bozketarik eskuragarri. Mesedez, jarri harremanetan laguntzarekin.",
                 INCONSISTENT_HASH:
-                    "Errorea izan da bozketa hash prozesuan. BallotId: {{ballotId}} ez da koherentea auditatu daitekeen Bozketa Hash-arekin: {{auditableBallotHash}}. Mesedez, eman arazo honen berri laguntzari.",
+                    "Errorea izan da bozketa hash prozesuan. Jarraipen IDa: {{ballotId}} ez da koherentea auditatu daitekeen Bozketa Hash-arekin: {{auditableBallotHash}}. Mesedez, eman arazo honen berri laguntzari.",
                 ELECTION_EVENT_NOT_OPEN:
                     "Hauteskunde gertaera itxita dago. Mesedez, jarri harremanetan laguntzarekin.",
                 PARSE_ERROR:
@@ -242,7 +242,7 @@ const basqueTranslation: TranslationType = {
                 REAUTH_FAILED:
                     "Autentifikazioak huts egin du. Saiatu berriro edo jarri harremanetan laguntza-zerbitzuarekin laguntza jasotzeko.",
                 SESSION_EXPIRED: "Zure saioa iraungi da. Saiatu berriro hasieratik.",
-                CAST_VOTE_BallotIdMismatch: "Boto-paperaren IDa ez dator bat emandako botoarekin.",
+                CAST_VOTE_BallotIdMismatch: "Jarraipen IDa ez dator bat emandako botoarekin.",
                 SESSION_STORAGE_ERROR:
                     "Saio-biltegia ez dago erabilgarri. Mesedez, saiatu berriro edo jarri harremanetan laguntza-zerbitzuarekin.",
                 PARSE_BALLOT_DATA_ERROR:
@@ -263,11 +263,11 @@ const basqueTranslation: TranslationType = {
             acclamation: {
                 title: "Aklamazioz erabakia",
                 description:
-                    "Hauteskunde honetako galdera guztiak aklamazioz erabaki dira, beraz, ez da boto-txartelik eman eta ez dago jarraitzeko boto-txartelaren identifikatzailerik.",
+                    "Hauteskunde honetako galdera guztiak aklamazioz erabaki dira, beraz, ez da boto-txartelik eman eta ez dago jarraipen IDrik.",
                 helpDialog: {
                     title: "Informazioa: Aklamazioa",
                     content:
-                        "Hauteskunde honetako galdera guztiak aklamazioz erabaki dira: haien hautagaiak bozketarik gabe hautatzen dira. Boto-txartelik eman ez denez, ez dago egiaztatzeko boto-txartelaren identifikatzailerik, ordainagiririk edo QR koderik.",
+                        "Hauteskunde honetako galdera guztiak aklamazioz erabaki dira: haien hautagaiak bozketarik gabe hautatzen dira. Boto-txartelik eman ez denez, ez dago egiaztatzeko jarraipen IDrik, ordainagiririk edo QR koderik.",
                     ok: "Ados",
                 },
             },
@@ -278,7 +278,7 @@ const basqueTranslation: TranslationType = {
                 description:
                     "Zure boto-txartela zuri gisa aurkeztu da, aukera baliozko eta nahitakoa da.",
             },
-            ballotId: "Bozketa IDa",
+            ballotId: "Jarraipen IDa",
             printButton: "Inprimatu",
             finishButton: "Amaitu",
             remainingElectionsError:
@@ -299,20 +299,20 @@ const basqueTranslation: TranslationType = {
                 ok: "Ados",
             },
             demoBallotUrlDialog: {
-                title: "Bozketa IDa",
+                title: "Jarraipen IDa",
                 content: "Ezin da kodea erabili, desgaituta demo moduan.",
                 ok: "Ados",
             },
             ballotIdHelpDialog: {
-                title: "Bozketa IDari buruz",
+                title: "Jarraipen IDari buruz",
                 content:
-                    "Bozketa IDa zure bozketa bozketa kutxan aurkitzeko ahalbidetzen duen kodea da, ID hau bakarra da eta ez du zure hautaketei buruzko informaziorik.",
+                    "Jarraipen IDa zure bozketa bozketa kutxan aurkitzeko ahalbidetzen duen kodea da, ID hau bakarra da eta ez du zure hautaketei buruzko informaziorik.",
                 ok: "Ados",
             },
             ballotIdDemoHelpDialog: {
-                title: "Bozketa IDari buruz",
+                title: "Jarraipen IDari buruz",
                 content:
-                    "Bozketa IDa zure bozketa bozketa kutxan aurkitzeko ahalbidetzen duen kodea da, ID hau bakarra da eta ez du zure hautaketei buruzko informaziorik.",
+                    "Jarraipen IDa zure bozketa bozketa kutxan aurkitzeko ahalbidetzen duen kodea da, ID hau bakarra da eta ez du zure hautaketei buruzko informaziorik.",
                 ok: "Ados",
             },
             errorDialogPrintBallotReceipt: {
@@ -329,7 +329,7 @@ const basqueTranslation: TranslationType = {
             description: "Zure bozketa egiaztatzeko, jarraitu beheko urratsak:",
             step1Title: "1. Deskargatu edo kopiatu hurrengo informazioa",
             step1Description:
-                "Pantailaren goialdean agertzen den zure <b>Bozketa IDa</b> eta beheko zure zifratutako bozketa:",
+                "Pantailaren goialdean agertzen den zure <b>Jarraipen IDa</b> eta beheko zure zifratutako bozketa:",
             step1HelpDialog: {
                 title: "Kopiatu Zifratutako Bozketa",
                 content:
@@ -432,33 +432,81 @@ const basqueTranslation: TranslationType = {
             },
         },
         ballotLocator: {
-            title: "Bilatu zure Bozketa",
-            titleResult: "Zure Bozketa Bilaketak Emaitza",
+            title: "Boto-txartelaren jarraipena",
+            titleResult: "Boto-txartelaren jarraipena",
             description: "Egiaztatu zure Bozketa zuzen bidali dela",
+            descriptionAudited:
+                "Boto-txartel hau auditatu zen, beraz, ez da inoiz eman. Egiaztatu behean dekodetutako hautaketak zuk egindakoak direla.",
+            descriptionAuditedBrief: "Boto-txartel hau auditatu zen, beraz, ez da inoiz eman.",
             locate: "Bilatu zure Bozketa",
             locateAgain: "Bilatu beste Bozketa bat",
-            found: "Zure bozketa IDa {{ballotId}} aurkitu da",
-            notFound: "Zure bozketa IDa {{ballotId}} ez da aurkitu",
+            found: "Zure jarraipen IDa {{ballotId}} aurkitu da",
+            notFound: "Zure jarraipen IDa {{ballotId}} ez da aurkitu",
             contentDesc: "Hau da zure Bozketa edukia: ",
-            wrongFormatBallotId: "Bozketa IDaren formatu okerra",
+            wrongFormatBallotId: "Jarraipen IDaren formatu okerra",
             ballotIdNotFoundAtFilter:
-                "Ez da aurkitu. Egiaztatu zure bozketa IDa zuzena dela eta erabiltzaile honi dagokiola.",
-            filterByBallotId: "Filtratu Bozketa IDa",
+                "Ez da aurkitu. Egiaztatu zure jarraipen IDa zuzena dela eta erabiltzaile honi dagokiola.",
+            filterByBallotId: "Filtratu jarraipen IDaren arabera",
             totalBallots: "Bozketa kopurua: {{total}}",
-            idHelp: "Boto-txartelaren ID laburra, 30ff d314 bezalakoa, edo osoa",
+            idHelp: "Jarraipen ID laburra, 30ff d314 bezalakoa, edo osoa",
             foundShort:
-                "ID laburraren bidez aurkitu da. Zurea dela ziur egoteko, alderatu ID osoa zure hartu-agiriarekin.",
+                "ID laburraren bidez aurkitu da. Zurea dela ziur egoteko, alderatu jarraipen ID osoa zure hartu-agiriarekin.",
+            search: {
+                title: "Egiaztatu zure boto-txartela erregistro publikoan",
+                intro: "Sartu zure berrespen pantailako edo hartu-agiriko jarraipen IDa. Zure nabigatzaileak bilatzen du, eta frogak berak egiaztatzen ditu.",
+                find: "Bilatu",
+                invalid: "Jarraipen IDak digituak eta a-tik f-ra bitarteko letrak baino ez ditu.",
+                chips: {
+                    short: "<b>Laburra</b> 30ff d314",
+                    full: "<b>Osoa</b> lauko 16 talde",
+                    spaces: "Zuriuneak aukerakoak",
+                },
+                features: {
+                    cast: {
+                        title: "Emandako boto-txartelak",
+                        text: "Ikusi erregistro publikoan dagoela, lekuko independenteek baieztatua eta publikoki ainguratua.",
+                    },
+                    audited: {
+                        title: "Auditatutako boto-txartelak",
+                        text: "Ikusi dituen hautaketak, zure nabigatzailean deszifratuta, eta egiaztatu zuk egindakoak direla.",
+                    },
+                    secret: {
+                        title: "Zure botoa sekretu geratzen da",
+                        text: "Emandako boto-txartela zifratuta geratzen da. Txartelen jarraitzaileak zenbatu dela erakusten du, inoiz ez nola bozkatu duzun.",
+                    },
+                },
+            },
             matches: {
-                title: "{{total}} boto-txartelek dute {{shortId}} ID laburra. Aukeratu zurea, edo sartu ID osoa.",
+                title: "{{total}} boto-txartelek ID labur bera dute: <b>{{shortId}}</b>. Aukeratu zurea, edo sartu jarraipen ID osoa.",
                 cast: "Emana: {{time}}",
+                audited: "Auditatua: {{time}}",
+            },
+            audit: {
+                title: "Zure hautaketak, dekodetuta",
+                note: "Zure nabigatzaileak auditatutako boto-txartel hau deszifratu du atariak agerian utzi duen gakoarekin. Hauek ez badira zuk egindako hautaketak, jarri harremanetan hauteskunde-agintaritzarekin.",
+                failed: {
+                    title: "Auditoriak huts egin du",
+                    text: "Erregistro publikoko boto-txartela ez da deszifratzen atariak agerian utzi duen gakoarekin. Ez eman botorik gailu honetatik; jakinarazi hauteskunde-agintaritzari.",
+                },
+                unchecked: {
+                    title: "Ezin izan da auditoria egiaztatu",
+                    text: "Gailu honek ezin izan du auditatutako boto-txartel hau egiaztatu, eta, beraz, ez da hautaketarik erakusten. Saiatu berriro geroago, edo egiaztatu boto-txartelaren edukia boto-txartelen egiaztatzailean.",
+                },
             },
             result: {
                 receipt: "Boto-txartelaren hartu-agiria",
                 idComment: "Erabili ID laburra edo osoa boto-txartel hau berriro aurkitzeko.",
-                fullId: "Boto-txartelaren ID osoa",
-                copy: "Kopiatu boto-txartelaren ID osoa",
-                copied: "IDa kopiatu da",
-                copiedLabel: "Kopiatuta",
+                fullId: "Jarraipen ID osoa",
+                copy: "Kopiatu jarraipen ID osoa",
+                copied: "Jarraipen IDa kopiatu da",
+                tag: {
+                    found: "Aurkitua",
+                    auditFailed: "Auditoriak huts egin du",
+                },
+                record: {
+                    title: "Zure boto-txartelaren edukia",
+                    subtitle: "Zifratuta, erregistro publikoan bezala",
+                },
                 recordEntry: "Erregistroko sarrera",
                 save: "Gorde hartu-agiria",
                 sealLabel: "Boto-txartelaren egoera: {{status}}",
@@ -519,7 +567,7 @@ const basqueTranslation: TranslationType = {
                     record: {
                         title: "Erregistro publikoan gehitu da",
                         done: "{{index}}. sarrera hauteskundeen boto-txartelen erregistroan. Zure nabigatzaileak bere froga egiaztatu du.",
-                        failed: "Hauteskundeen boto-txartelen erregistroko sarrera batek ere ez du ID hau.",
+                        failed: "Hauteskundeen boto-txartelen erregistroko sarrera batek ere ez du jarraipen ID hau.",
                         missing: "Falta da",
                     },
                     witnesses: {
@@ -556,33 +604,34 @@ const basqueTranslation: TranslationType = {
                 result: "Emaitza",
             },
             titleHelpDialog: {
-                title: "Bozketa Bilatzaileari buruz",
+                title: "Boto-txartelaren jarraipenari buruz",
                 content:
-                    "Bozketa Bilatzaileak Bozketa IDa sartzeko aukera ematen dizu zure botoa aurkitu eta zuzen erregistratu dela egiaztatzeko.",
+                    "Pantaila honek jarraipen IDa sartzeko aukera ematen dizu zure botoa aurkitu eta zuzen erregistratu dela egiaztatzeko.",
                 ok: "Ados",
             },
             tabs: {
                 logs: "Logs",
-                ballotLocator: "Bozketa Bilatzaile",
+                ballotLocator: "Boto-txartelaren jarraipena",
             },
             column: {
                 statement_kind: "Adierazpen mota",
                 statement_timestamp: "Adierazpen denbora-marka",
-                ballot_id: "Bozketa IDa",
+                ballot_id: "Jarraipen IDa",
             },
         },
         vitrine: {
             ballotId: {
-                label: "Bozketa IDa",
-                full: "Bozketa ID osoa",
-                yours: "Zure Txartelaren IDa:",
-                copy: "Kopiatu ID osoa",
-                copied: "IDa kopiatu da",
-                copiedShort: "Kopiatuta",
+                label: "Jarraipen IDa",
+                full: "Jarraipen ID osoa",
+                yours: "Zure jarraipen IDa:",
+                copy: "Kopiatu jarraipen ID osoa",
+                copied: "Jarraipen IDa kopiatu da",
+                showFull: "Erakutsi jarraipen ID osoa",
             },
             status: {
                 title: "Bozketaren egoera",
                 cast: "{{when}}(e)an eman da",
+                audited: "{{when}}(e)an auditatu da",
                 ballotCast: "Boto emana",
                 aria: "Bozketaren egoera: {{state}}. Erakutsi xehetasunak",
                 ariaCast: "Boto emana. Bozketaren egoera: {{state}}. Erakutsi xehetasunak",
@@ -590,6 +639,11 @@ const basqueTranslation: TranslationType = {
                 tracker: "Ireki txartelen jarraitzailean",
                 save: "Gorde ordainagiria",
                 ok: "Ados",
+                tag: {
+                    cast: "Emana",
+                    notCast: "Eman gabe",
+                    auditable: "Auditagarria",
+                },
                 state: {
                     notcast: "Oraindik ez da eman",
                     checking: "Egiaztatzen…",
@@ -598,6 +652,8 @@ const basqueTranslation: TranslationType = {
                     verified: "Egiaztatua",
                     late: "Berandu",
                     problem: "Arazoa",
+                    auditable: "Auditagarria",
+                    auditfail: "Auditoriak huts egin du",
                 },
                 head: {
                     late: "Espero baino gehiago tardatzen ari da",
@@ -629,6 +685,10 @@ const basqueTranslation: TranslationType = {
                         "Webgune honek ez du zure bozketaren ordainagirik jaso. Zure botoa eman da, eta hauteskundeen behatzaileei jakinarazi zaie.",
                     unchecked:
                         "Webgune honek ezin izan du ordainagiria egiaztatu. Zure botoa eman da.",
+                    auditable:
+                        "Bozketa hau auditatu duzu, beraz, ez da inoiz eman. Erregistro publikoan dago, eta txartelen jarraitzaileak deszifratu egiten du, dituen hautaketak erakusteko.",
+                    auditfail:
+                        "Erregistro publikoko bozketa ez da deszifratzen atariak agerian utzi duen gakoarekin. Ez eman botorik gailu honetatik; jakinarazi hauteskunde-agintaritzari.",
                 },
                 step: {
                     record: {
@@ -702,6 +762,8 @@ const basqueTranslation: TranslationType = {
                     checking:
                         "Zure nabigatzailea erregistro publikoa egiaztatzen ari da, edonork ikuska dezakeen kodearekin.",
                     problem: "Zure nabigatzaileak aurkitua, edonork ikuska dezakeen kodearekin.",
+                    auditable:
+                        "Zure nabigatzaileak deszifratua, edonork ikuska dezakeen kodearekin.",
                     verified: "Zure nabigatzaileak egiaztatua, edonork ikuska dezakeen kodearekin.",
                     checked: "Zure nabigatzaileak egiaztatua, edonork ikuska dezakeen kodearekin.",
                     kept: "Gailu honek ordainagiria gordetzen du eta bisita bakoitzean berriro egiaztatzen du.",
@@ -718,6 +780,21 @@ const basqueTranslation: TranslationType = {
                 failed: "Konfigurazioa ez dator bat argitaratutakoarekin. Hauteskundearen behatzaileei jakinarazi zaie. Jarri harremanetan laguntza-zerbitzuarekin.",
                 retry: "Saiatu berriro",
                 close: "Itxi",
+            },
+            record: {
+                json: "JSON",
+                text: "Testua",
+                fields_one: "{{count}} eremu",
+                fields_other: "{{count}} eremu",
+                items_one: "{{count}} elementu",
+                items_other: "{{count}} elementu",
+                size: {
+                    bytes: "{{value}} B",
+                    kilobytes: "{{value}} KB",
+                },
+                copy: "Kopiatu {{file}}",
+                copied: "Kopiatuta",
+                download: "Deskargatu {{file}}",
             },
         },
     },

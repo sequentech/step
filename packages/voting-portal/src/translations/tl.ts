@@ -15,8 +15,8 @@ const tagalogTranslation: TranslationType = {
             helpAbout: "Tulong tungkol sa {{topic}}",
             previewMaterial: "I-preview ang {{title}}",
             ballotsTable: "Mga balota",
-            ballotLocatorTabs: "Mga seksyon ng ballot locator",
-            ballotIdLabel: "Ballot ID",
+            ballotLocatorTabs: "Mga seksyon ng pagsubaybay sa balota",
+            ballotIdLabel: "Tracking ID",
             votingProgress: "Progreso ng pagboto",
             stepOf: "Hakbang {{current}} ng {{total}}",
             selectUpTo_one: "Pumili ng hanggang {{count}} opsyon",
@@ -104,7 +104,7 @@ const tagalogTranslation: TranslationType = {
                 "Pumili sa bawat paligsahan isa-isa. Maaari mong i-edit ang iyong balota hanggang handa ka.",
             step2Title: "2. Suriin ang iyong balota",
             step2Description:
-                "Ie-encrypt namin ang iyong balota at ipapakita ang huling pagsusuri. Makakatanggap ka ng natatanging tracker ID.",
+                "Ie-encrypt namin ang iyong balota at ipapakita ang huling pagsusuri. Makakatanggap ka ng natatanging Tracking ID.",
             step3Title: "3. I-submit ang iyong balota",
             step3Description:
                 "I-submit ang iyong balota upang ito ay tamang maitala, o suriin ito upang tiyakin na ito ay tama ang pagkaka-encrypt.",
@@ -130,9 +130,9 @@ const tagalogTranslation: TranslationType = {
             backButton: "I-edit ang balota",
             castBallotButton: "I-submit ang balota",
             auditButton: "Suriin ang balota",
-            copyBallotId: "Kopyahin ang ballot ID",
-            ballotIdCopied: "Nakopya ang ballot ID",
-            ballotIdCopyError: "Hindi makopya ang ballot ID",
+            copyBallotId: "Kopyahin ang Tracking ID",
+            ballotIdCopied: "Nakopya ang Tracking ID",
+            ballotIdCopyError: "Hindi makopya ang Tracking ID",
             reviewScreenHelpDialog: {
                 title: "Tungkol sa screen ng pagsusuri",
                 content:
@@ -142,7 +142,7 @@ const tagalogTranslation: TranslationType = {
             ballotIdHelpDialog: {
                 title: "Hindi pa na-submit ang boto",
                 content:
-                    "<p>Ito ang iyong Ballot Tracker ID, ngunit <b>hindi pa nai-submit ang iyong boto</b>. Kung susubukan mong i-track ang balota, hindi mo ito mahahanap.</p><p>Ang dahilan kung bakit ipinapakita namin ang Ballot Tracker ID sa yugtong ito ay upang masuri mo ang pagiging tama ng naka-encrypt na balota bago ito i-submit.</p>",
+                    "<p>Ito ang iyong Tracking ID, ngunit <b>hindi pa nai-submit ang iyong boto</b>. Kung susubukan mong i-track ang balota, hindi mo ito mahahanap.</p><p>Ang dahilan kung bakit ipinapakita namin ang Tracking ID sa yugtong ito ay upang masuri mo ang pagiging tama ng naka-encrypt na balota bago ito i-submit.</p>",
                 ok: "Naiintindihan ko na hindi pa nai-submit ang aking boto",
                 cancel: "Kanselahin",
             },
@@ -222,7 +222,7 @@ const tagalogTranslation: TranslationType = {
                 NO_BALLOT_STYLE: "Walang estilo ng balota. Pakikontak ang helpdesk.",
                 NO_AUDITABLE_BALLOT: "Walang balota na maaring suriin. Pakikontak ang helpdesk.",
                 INCONSISTENT_HASH:
-                    "Nagkaroon ng error kaugnay sa proseso ng pag-hash ng balota. BallotId: {{ballotId}} ay hindi tugma sa sinusuring Hash ng Balota: {{auditableBallotHash}}. Pakireport itong isyu sa helpdesk.",
+                    "Nagkaroon ng error kaugnay sa proseso ng pag-hash ng balota. Ang Tracking ID: {{ballotId}} ay hindi tugma sa sinusuring Hash ng Balota: {{auditableBallotHash}}. Pakireport itong isyu sa helpdesk.",
                 ELECTION_EVENT_NOT_OPEN:
                     "Ang kaganapan ng halalan ay sarado na. Pakikontak ang helpdesk.",
                 PARSE_ERROR:
@@ -241,7 +241,7 @@ const tagalogTranslation: TranslationType = {
                     "Nabigo ang authentication. Pakisubukan muli o makipag-ugnayan sa helpdesk para sa tulong.",
                 SESSION_EXPIRED:
                     "Ang iyong session ay nag-expire na. Pakisubukan muli mula sa simula.",
-                CAST_VOTE_BallotIdMismatch: "Hindi tumutugma ang ballot ID sa ibinotong boto.",
+                CAST_VOTE_BallotIdMismatch: "Hindi tumutugma ang Tracking ID sa ibinotong boto.",
                 SESSION_STORAGE_ERROR:
                     "Hindi magamit ang session storage. Pakisubukang muli o makipag-ugnayan sa support.",
                 PARSE_BALLOT_DATA_ERROR:
@@ -262,11 +262,11 @@ const tagalogTranslation: TranslationType = {
             acclamation: {
                 title: "Napagpasyahan sa pamamagitan ng aklamasyon",
                 description:
-                    "Lahat ng paligsahan sa halalang ito ay napagpasyahan sa pamamagitan ng aklamasyon, kaya walang balotang isinumite at walang ballot ID na masusubaybayan.",
+                    "Lahat ng paligsahan sa halalang ito ay napagpasyahan sa pamamagitan ng aklamasyon, kaya walang balotang isinumite at walang Tracking ID.",
                 helpDialog: {
                     title: "Impormasyon: Aklamasyon",
                     content:
-                        "Lahat ng paligsahan sa halalang ito ay napagpasyahan sa pamamagitan ng aklamasyon: ang mga kandidato nito ay nahalal nang walang botohan. Dahil walang balotang isinumite, walang ballot ID, resibo, o QR code na maaaring i-verify.",
+                        "Lahat ng paligsahan sa halalang ito ay napagpasyahan sa pamamagitan ng aklamasyon: ang mga kandidato nito ay nahalal nang walang botohan. Dahil walang balotang isinumite, walang Tracking ID, resibo, o QR code na maaaring i-verify.",
                     ok: "OK",
                 },
             },
@@ -277,7 +277,7 @@ const tagalogTranslation: TranslationType = {
                 description:
                     "Ang iyong balota ay naisumite bilang blangko, na isang wasto at sinasadyang pagpili.",
             },
-            ballotId: "ID ng Balota",
+            ballotId: "Tracking ID",
             printButton: "I-print",
             finishButton: "Tapos na",
             remainingElectionsError:
@@ -298,20 +298,20 @@ const tagalogTranslation: TranslationType = {
                 ok: "OK",
             },
             demoBallotUrlDialog: {
-                title: "ID ng Balota",
+                title: "Tracking ID",
                 content: "Hindi maaaring gamitin ang code, hindi pinapayagan sa demo mode.",
                 ok: "OK",
             },
             ballotIdHelpDialog: {
-                title: "Tungkol sa ID ng Balota",
+                title: "Tungkol sa Tracking ID",
                 content:
-                    "Ang ID ng Balota ay isang code na maari mong gamitin upang hanapin ang iyong balota sa ballot box, ang ID na ito ay natatangi at hindi naglalaman ng impormasyon tungkol sa iyong mga napili.",
+                    "Ang Tracking ID ay isang code na maari mong gamitin upang hanapin ang iyong balota sa ballot box, ang ID na ito ay natatangi at hindi naglalaman ng impormasyon tungkol sa iyong mga napili.",
                 ok: "OK",
             },
             ballotIdDemoHelpDialog: {
-                title: "Tungkol sa Ballot ID",
+                title: "Tungkol sa Tracking ID",
                 content:
-                    "Ang Ballot ID ay isang code na maari mong gamitin upang hanapin ang iyong balota sa ballot box, ang ID na ito ay natatangi at hindi naglalaman ng impormasyon tungkol sa iyong mga napili.",
+                    "Ang Tracking ID ay isang code na maari mong gamitin upang hanapin ang iyong balota sa ballot box, ang ID na ito ay natatangi at hindi naglalaman ng impormasyon tungkol sa iyong mga napili.",
                 ok: "OK",
             },
             errorDialogPrintBallotReceipt: {
@@ -328,7 +328,7 @@ const tagalogTranslation: TranslationType = {
             description: "Upang suriin ang iyong balota, sundin ang mga hakbang sa ibaba:",
             step1Title: "1. I-download o kopyahin ang sumusunod na impormasyon",
             step1Description:
-                "Ang iyong <b>Ballot ID</b> na makikita sa taas ng screen at ang iyong naka-encrypt na balota sa ibaba:",
+                "Ang iyong <b>Tracking ID</b> na makikita sa taas ng screen at ang iyong naka-encrypt na balota sa ibaba:",
             step1HelpDialog: {
                 title: "Kopyahin ang Naka-encrypt na Balota",
                 content:
@@ -431,33 +431,82 @@ const tagalogTranslation: TranslationType = {
             },
         },
         ballotLocator: {
-            title: "Hanapin ang Iyong Balota",
-            titleResult: "Resulta ng Iyong Paghahanap ng Balota",
+            title: "Pagsubaybay sa Balota",
+            titleResult: "Pagsubaybay sa Balota",
             description: "Patunayan na ang iyong balota ay tama na naipasa",
+            descriptionAudited:
+                "Na-audit ang balotang ito, kaya hindi ito kailanman naipasa. Tiyaking ang mga napiling na-decode sa ibaba ay ang mga pinili mo.",
+            descriptionAuditedBrief: "Na-audit ang balotang ito, kaya hindi ito kailanman naipasa.",
             locate: "Hanapin ang Iyong Balota",
             locateAgain: "Hanapin ang Isa Pang Balota",
-            found: "Ang iyong ballot ID {{ballotId}} ay natagpuan",
-            notFound: "Ang iyong ballot ID {{ballotId}} ay hindi natagpuan",
+            found: "Ang iyong Tracking ID {{ballotId}} ay natagpuan",
+            notFound: "Ang iyong Tracking ID {{ballotId}} ay hindi natagpuan",
             contentDesc: "Ito ang nilalaman ng iyong balota: ",
-            wrongFormatBallotId: "Mali ang format para sa Ballot ID",
-            ballotIdNotFoundAtFilter: "Hindi natagpuan ang iyong ballot ID sa filter",
-            filterByBallotId: "Tumutugma sa Ballot ID",
+            wrongFormatBallotId: "Mali ang format para sa Tracking ID",
+            ballotIdNotFoundAtFilter:
+                "Hindi natagpuan. Tiyaking tama ang iyong Tracking ID at nabibilang ito sa gumagamit na ito.",
+            filterByBallotId: "I-filter ayon sa Tracking ID",
             totalBallots: "Kumulang mga balota: {{total}}",
-            idHelp: "Ang maikling Ballot ID, tulad ng 30ff d314, o ang buo",
+            idHelp: "Ang maikling Tracking ID, tulad ng 30ff d314, o ang buo",
             foundShort:
-                "Natagpuan sa pamamagitan ng maikling ID nito. Para matiyak na iyo ito, ihambing ang buong Ballot ID sa iyong resibo.",
+                "Natagpuan sa pamamagitan ng maikling ID nito. Para matiyak na iyo ito, ihambing ang buong Tracking ID sa iyong resibo.",
+            search: {
+                title: "Suriin ang iyong balota sa pampublikong talaan",
+                intro: "Ilagay ang Tracking ID mula sa iyong screen ng kumpirmasyon o resibo. Hinahanap ito ng iyong browser at ang browser mismo ang sumusuri sa mga patunay.",
+                find: "Hanapin",
+                invalid: "Ang Tracking ID ay may mga digit at mga letrang a hanggang f lamang.",
+                chips: {
+                    short: "<b>Maikli</b> 30ff d314",
+                    full: "<b>Buo</b> 16 na grupo ng apat",
+                    spaces: "Opsyonal ang mga espasyo",
+                },
+                features: {
+                    cast: {
+                        title: "Mga naipasang balota",
+                        text: "Tingnan na nasa pampublikong talaan ito, kinumpirma ng mga malayang saksi at naka-anchor sa publiko.",
+                    },
+                    audited: {
+                        title: "Mga na-audit na balota",
+                        text: "Tingnan ang mga napili rito, na-decrypt sa iyong browser, at tiyaking ito ang mga pinili mo.",
+                    },
+                    secret: {
+                        title: "Nananatiling lihim ang iyong boto",
+                        text: "Nananatiling naka-encrypt ang naipasang balota. Ipinapakita ng tracker na nabilang ito, hindi kailanman kung paano ka bumoto.",
+                    },
+                },
+            },
             matches: {
-                title: "{{total}} balota ang may maikling ID na {{shortId}}. Piliin ang iyo, o ilagay ang buong Ballot ID.",
+                title: "{{total}} balota ang may parehong maikling ID na <b>{{shortId}}</b>. Piliin ang iyo, o ilagay ang buong Tracking ID.",
                 cast: "Naipasa noong {{time}}",
+                audited: "Na-audit noong {{time}}",
+            },
+            audit: {
+                title: "Ang iyong mga napili, na-decode",
+                note: "Na-decrypt ng iyong browser ang na-audit na balotang ito gamit ang susing inihayag ng portal. Kung hindi ito ang mga napili mo, makipag-ugnayan sa awtoridad ng halalan.",
+                failed: {
+                    title: "Nabigo ang audit",
+                    text: "Hindi ma-decrypt ang balota sa pampublikong talaan gamit ang susing inihayag ng portal. Huwag bumoto gamit ang device na ito; ipaalam sa awtoridad ng halalan.",
+                },
+                unchecked: {
+                    title: "Hindi masuri ang audit",
+                    text: "Hindi nasuri ng device na ito ang na-audit na balotang ito, kaya walang ipinapakitang napili. Subukan muli mamaya, o suriin ang nilalaman ng balota sa ballot verifier.",
+                },
             },
             result: {
                 receipt: "Resibo ng balota",
                 idComment:
                     "Gamitin ang maikling ID o ang buo para muling mahanap ang balotang ito.",
-                fullId: "Buong Ballot ID",
-                copy: "Kopyahin ang buong Ballot ID",
-                copied: "Nakopya ang Ballot ID",
-                copiedLabel: "Nakopya",
+                fullId: "Buong Tracking ID",
+                copy: "Kopyahin ang buong Tracking ID",
+                copied: "Nakopya ang Tracking ID",
+                tag: {
+                    found: "Natagpuan",
+                    auditFailed: "Nabigo ang audit",
+                },
+                record: {
+                    title: "Nilalaman ng iyong balota",
+                    subtitle: "Naka-encrypt, gaya ng nasa pampublikong talaan",
+                },
                 recordEntry: "Entry sa talaan",
                 save: "I-save ang resibo",
                 sealLabel: "Katayuan ng balota: {{status}}",
@@ -518,7 +567,7 @@ const tagalogTranslation: TranslationType = {
                     record: {
                         title: "Naidagdag sa pampublikong talaan",
                         done: "Entry #{{index}} sa talaan ng mga balota ng halalan. Sinuri ng iyong browser ang patunay nito.",
-                        failed: "Walang entry sa talaan ng mga balota ng halalan na may ganitong Ballot ID.",
+                        failed: "Walang entry sa talaan ng mga balota ng halalan na may ganitong Tracking ID.",
                         missing: "Nawawala",
                     },
                     witnesses: {
@@ -555,33 +604,34 @@ const tagalogTranslation: TranslationType = {
                 result: "Resulta",
             },
             titleHelpDialog: {
-                title: "Tungkol sa Tagahanap ng Balota",
+                title: "Tungkol sa Pagsubaybay sa Balota",
                 content:
-                    "Ang Tagahanap ng Balota ay nagbibigay-daan sa iyo na ilagay ang Ballot ID upang hanapin ang iyong boto at tiyakin na ito ay tamang nairehistro.",
+                    "Ang Pagsubaybay sa Balota ay nagbibigay-daan sa iyo na ilagay ang Tracking ID upang hanapin ang iyong boto at tiyakin na ito ay tamang nairehistro.",
                 ok: "OK",
             },
             tabs: {
                 logs: "Logs",
-                ballotLocator: "Tagahanap ng Balota",
+                ballotLocator: "Pagsubaybay sa Balota",
             },
             column: {
                 statement_kind: "Uri",
                 statement_timestamp: "Timestamp",
-                ballot_id: "Ballot ID",
+                ballot_id: "Tracking ID",
             },
         },
         vitrine: {
             ballotId: {
-                label: "ID ng Balota",
-                full: "Buong ID ng Balota",
-                yours: "Ang Iyong Ballot ID:",
-                copy: "Kopyahin ang buong ID ng Balota",
-                copied: "Nakopya ang ID ng Balota",
-                copiedShort: "Nakopya",
+                label: "Tracking ID",
+                full: "Buong Tracking ID",
+                yours: "Ang Iyong Tracking ID:",
+                copy: "Kopyahin ang buong Tracking ID",
+                copied: "Nakopya ang Tracking ID",
+                showFull: "Ipakita ang buong Tracking ID",
             },
             status: {
                 title: "Katayuan ng balota",
                 cast: "Naiboto noong {{when}}",
+                audited: "Na-audit noong {{when}}",
                 ballotCast: "Naiboto na ang balota",
                 aria: "Katayuan ng balota: {{state}}. Ipakita ang mga detalye",
                 ariaCast:
@@ -590,6 +640,11 @@ const tagalogTranslation: TranslationType = {
                 tracker: "Buksan sa ballot tracker",
                 save: "I-save ang resibo",
                 ok: "OK",
+                tag: {
+                    cast: "Naiboto",
+                    notCast: "Hindi naiboto",
+                    auditable: "Maaaring i-audit",
+                },
                 state: {
                     notcast: "Hindi pa naiboto",
                     checking: "Sinusuri…",
@@ -598,6 +653,8 @@ const tagalogTranslation: TranslationType = {
                     verified: "Na-verify",
                     late: "Huli",
                     problem: "Problema",
+                    auditable: "Maaaring i-audit",
+                    auditfail: "Nabigo ang audit",
                 },
                 head: {
                     late: "Mas matagal kaysa inaasahan",
@@ -629,6 +686,10 @@ const tagalogTranslation: TranslationType = {
                     noReceipt:
                         "Walang natanggap na resibo ang website na ito para sa iyong balota. Naiboto ang iyong boto, at naabisuhan na ang mga tagamasid ng halalan.",
                     unchecked: "Hindi nasuri ng website na ito ang resibo. Naiboto ang iyong boto.",
+                    auditable:
+                        "Na-audit mo ang balotang ito, kaya hindi ito kailanman naiboto. Nasa pampublikong talaan ito, at dine-decrypt ito ng ballot tracker para ipakita ang mga napili rito.",
+                    auditfail:
+                        "Hindi ma-decrypt ang balota sa pampublikong talaan gamit ang susing inihayag ng portal. Huwag bumoto gamit ang device na ito; ipaalam sa awtoridad ng halalan.",
                 },
                 step: {
                     record: {
@@ -700,6 +761,8 @@ const tagalogTranslation: TranslationType = {
                         "Sinusuri ng iyong browser ang pampublikong talaan, gamit ang code na masisiyasat ng sinuman.",
                     problem:
                         "Natuklasan ng iyong browser, gamit ang code na masisiyasat ng sinuman.",
+                    auditable:
+                        "Na-decrypt ng iyong browser, gamit ang code na masisiyasat ng sinuman.",
                     verified:
                         "Na-verify ng iyong browser, gamit ang code na masisiyasat ng sinuman.",
                     checked: "Sinuri ng iyong browser, gamit ang code na masisiyasat ng sinuman.",
@@ -717,6 +780,21 @@ const tagalogTranslation: TranslationType = {
                 failed: "Hindi tugma ang mga setting sa mga nakalathala. Naabisuhan na ang mga tagamasid ng halalan. Pakikontak ang suporta.",
                 retry: "Subukan muli",
                 close: "Isara",
+            },
+            record: {
+                json: "JSON",
+                text: "Teksto",
+                fields_one: "{{count}} field",
+                fields_other: "{{count}} field",
+                items_one: "{{count}} item",
+                items_other: "{{count}} item",
+                size: {
+                    bytes: "{{value}} B",
+                    kilobytes: "{{value}} KB",
+                },
+                copy: "Kopyahin ang {{file}}",
+                copied: "Nakopya",
+                download: "I-download ang {{file}}",
             },
         },
     },

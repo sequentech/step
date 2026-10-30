@@ -15,8 +15,8 @@ const dutchTranslation: TranslationType = {
             helpAbout: "Hulp over {{topic}}",
             previewMaterial: "Voorbeeld van {{title}}",
             ballotsTable: "Stembiljetten",
-            ballotLocatorTabs: "Onderdelen van de stembiljetzoeker",
-            ballotIdLabel: "Stembiljet-ID",
+            ballotLocatorTabs: "Onderdelen van stembiljet volgen",
+            ballotIdLabel: "Tracking-ID",
             votingProgress: "Voortgang van het stemmen",
             stepOf: "Stap {{current}} van {{total}}",
             selectUpTo_one: "Kies maximaal {{count}} optie",
@@ -104,7 +104,7 @@ const dutchTranslation: TranslationType = {
                 "Kies uw kandidaten en maak uw keuzes in elke stemming. Bewerk uw stembiljet totdat u klaar bent.",
             step2Title: "2. Controleer uw stembiljet",
             step2Description:
-                "We versleutelen uw stembiljet en tonen een laatste overzicht. U ontvangt een unieke tracker-ID.",
+                "We versleutelen uw stembiljet en tonen een laatste overzicht. U ontvangt een unieke Tracking-ID.",
             step3Title: "3. Breng uw stem uit",
             step3Description:
                 "Breng uw stem uit zodat deze correct wordt geregistreerd, of kies voor audit om te bevestigen dat het stembiljet correct is versleuteld.",
@@ -130,9 +130,9 @@ const dutchTranslation: TranslationType = {
             backButton: "Stembiljet bewerken",
             castBallotButton: "Stem uitbrengen",
             auditButton: "Controleer stembiljet",
-            copyBallotId: "Stembiljet-ID kopiëren",
-            ballotIdCopied: "Stembiljet-ID gekopieerd",
-            ballotIdCopyError: "Stembiljet-ID kon niet worden gekopieerd",
+            copyBallotId: "Tracking-ID kopiëren",
+            ballotIdCopied: "Tracking-ID gekopieerd",
+            ballotIdCopyError: "Tracking-ID kon niet worden gekopieerd",
             reviewScreenHelpDialog: {
                 title: "Over het controlescherm",
                 content:
@@ -142,7 +142,7 @@ const dutchTranslation: TranslationType = {
             ballotIdHelpDialog: {
                 title: "Stem nog niet uitgebracht",
                 content:
-                    "<p>Dit is uw Stembiljet Tracker ID, maar <b>uw stem is nog niet uitgebracht</b>. Als u probeert het stembiljet te traceren, zult u het niet vinden.</p><p>De reden dat we de Stembiljet Tracker ID in dit stadium tonen, is om u in staat te stellen de correctheid van het versleutelde stembiljet te auditen voordat u het uitbrengt.</p>",
+                    "<p>Dit is uw Tracking-ID, maar <b>uw stem is nog niet uitgebracht</b>. Als u probeert het stembiljet nu te volgen, zult u het niet vinden.</p><p>De reden dat we de Tracking-ID in dit stadium tonen, is om u in staat te stellen de correctheid van het versleutelde stembiljet te auditen voordat u het uitbrengt.</p>",
                 ok: "Ik begrijp dat mijn stem nog niet is uitgebracht",
                 cancel: "Annuleren",
             },
@@ -223,7 +223,7 @@ const dutchTranslation: TranslationType = {
                 NO_AUDITABLE_BALLOT:
                     "Er is geen auditeerbaar stembiljet beschikbaar. Neem contact op met ondersteuning.",
                 INCONSISTENT_HASH:
-                    "Er was een fout met het hash-proces van het stembiljet. BallotId: {{ballotId}} is niet consistent met de auditeerbare Ballot Hash: {{auditableBallotHash}}. Meld dit probleem bij de ondersteuning.",
+                    "Er was een fout met het hash-proces van het stembiljet. Tracking-ID: {{ballotId}} is niet consistent met de auditeerbare Ballot Hash: {{auditableBallotHash}}. Meld dit probleem bij de ondersteuning.",
                 ELECTION_EVENT_NOT_OPEN:
                     "De kiesgebeurtenis is gesloten. Neem contact op met ondersteuning.",
                 PARSE_ERROR:
@@ -242,7 +242,7 @@ const dutchTranslation: TranslationType = {
                     "Authenticatie is mislukt. Probeer het opnieuw of neem contact op met ondersteuning voor hulp.",
                 SESSION_EXPIRED: "Uw sessie is verlopen. Begin opnieuw vanaf het begin.",
                 CAST_VOTE_BallotIdMismatch:
-                    "De stembiljet-ID komt niet overeen met de uitgebrachte stem.",
+                    "De Tracking-ID komt niet overeen met de uitgebrachte stem.",
                 SESSION_STORAGE_ERROR:
                     "Sessie-opslag is niet beschikbaar. Probeer het opnieuw of neem contact op met de ondersteuning.",
                 PARSE_BALLOT_DATA_ERROR:
@@ -263,11 +263,11 @@ const dutchTranslation: TranslationType = {
             acclamation: {
                 title: "Bij acclamatie beslist",
                 description:
-                    "Alle stemmingen in deze verkiezing zijn bij acclamatie beslist, dus er is geen stem uitgebracht en er is geen stembiljet-ID om te volgen.",
+                    "Alle stemmingen in deze verkiezing zijn bij acclamatie beslist, dus er is geen stem uitgebracht en er is geen Tracking-ID.",
                 helpDialog: {
                     title: "Informatie: Acclamatie",
                     content:
-                        "Alle stemmingen in deze verkiezing zijn bij acclamatie beslist: de kandidaten worden zonder stemming gekozen. Omdat er geen stem is uitgebracht, is er geen stembiljet-ID, ontvangstbewijs of QR-code om te verifiëren.",
+                        "Alle stemmingen in deze verkiezing zijn bij acclamatie beslist: de kandidaten worden zonder stemming gekozen. Omdat er geen stem is uitgebracht, is er geen Tracking-ID, ontvangstbewijs of QR-code om te verifiëren.",
                     ok: "OK",
                 },
             },
@@ -278,7 +278,7 @@ const dutchTranslation: TranslationType = {
                 description:
                     "Uw stembiljet is blanco uitgebracht, wat een geldige, weloverwogen keuze is.",
             },
-            ballotId: "Stembiljet ID",
+            ballotId: "Tracking-ID",
             printButton: "Afdrukken",
             finishButton: "Voltooien",
             remainingElectionsError:
@@ -299,20 +299,20 @@ const dutchTranslation: TranslationType = {
                 ok: "OK",
             },
             demoBallotUrlDialog: {
-                title: "Stembiljet ID",
+                title: "Tracking-ID",
                 content: "Kan code niet gebruiken, uitgeschakeld in demo-modus.",
                 ok: "OK",
             },
             ballotIdHelpDialog: {
-                title: "Over het Stembiljet ID",
+                title: "Over de Tracking-ID",
                 content:
-                    "De Stembiljet ID is een code waarmee u uw stembiljet in de stembus kunt vinden. Deze ID is uniek en bevat geen informatie over uw selecties.",
+                    "De Tracking-ID is een code waarmee u uw stembiljet in de stembus kunt vinden. Deze ID is uniek en bevat geen informatie over uw selecties.",
                 ok: "OK",
             },
             ballotIdDemoHelpDialog: {
-                title: "Over het Stembiljet ID",
+                title: "Over de Tracking-ID",
                 content:
-                    "De Stembiljet ID is een code waarmee u uw stembiljet in de stembus kunt vinden. Deze ID is uniek en bevat geen informatie over uw selecties.",
+                    "De Tracking-ID is een code waarmee u uw stembiljet in de stembus kunt vinden. Deze ID is uniek en bevat geen informatie over uw selecties.",
                 ok: "OK",
             },
             errorDialogPrintBallotReceipt: {
@@ -329,7 +329,7 @@ const dutchTranslation: TranslationType = {
             description: "Volg de onderstaande stappen om uw stembiljet te verifiëren:",
             step1Title: "1. Download of kopieer de volgende informatie",
             step1Description:
-                "Uw <b>Stembiljet ID</b> die bovenaan het scherm verschijnt en uw versleutelde stembiljet hieronder:",
+                "Uw <b>Tracking-ID</b> die bovenaan het scherm verschijnt en uw versleutelde stembiljet hieronder:",
             step1HelpDialog: {
                 title: "Kopieer het Versleutelde Stembiljet",
                 content:
@@ -432,34 +432,82 @@ const dutchTranslation: TranslationType = {
             },
         },
         ballotLocator: {
-            title: "Zoek uw Stembiljet",
-            titleResult: "Resultaat van uw Stembiljet Zoekopdracht",
+            title: "Stembiljet volgen",
+            titleResult: "Stembiljet volgen",
             description: "Verifieer dat uw stembiljet correct is ingediend",
+            descriptionAudited:
+                "Dit stembiljet is geauditeerd en is dus nooit uitgebracht. Controleer of de hieronder gedecodeerde selecties overeenkomen met de selecties die u hebt gemaakt.",
+            descriptionAuditedBrief: "Dit stembiljet is geauditeerd en is dus nooit uitgebracht.",
             locate: "Zoek uw Stembiljet",
             locateAgain: "Zoek een ander Stembiljet",
-            found: "Uw stembiljet ID {{ballotId}} is gevonden",
-            notFound: "Uw stembiljet ID {{ballotId}} is niet gevonden",
+            found: "Uw Tracking-ID {{ballotId}} is gevonden",
+            notFound: "Uw Tracking-ID {{ballotId}} is niet gevonden",
             contentDesc: "Dit is de inhoud van uw stembiljet: ",
-            wrongFormatBallotId: "Verkeerd formaat voor Stembiljet ID",
+            wrongFormatBallotId: "Verkeerd formaat voor Tracking-ID",
             ballotIdNotFoundAtFilter:
-                "Niet gevonden, controleer dat uw Stembiljet ID correct is en behoort tot deze gebruiker.",
-            filterByBallotId: "Filteren op Stembiljet ID",
+                "Niet gevonden, controleer of uw Tracking-ID correct is en tot deze gebruiker behoort.",
+            filterByBallotId: "Filteren op Tracking-ID",
             totalBallots: "Aantal stembiljet: {{total}}",
-            idHelp: "De korte Stembiljet-ID, zoals 30ff d314, of de volledige",
+            idHelp: "De korte Tracking-ID, zoals 30ff d314, of de volledige",
             foundShort:
-                "Gevonden via de korte ID. Vergelijk de volledige Stembiljet-ID met uw ontvangstbewijs om zeker te weten dat het uw stembiljet is.",
+                "Gevonden via de korte ID. Vergelijk de volledige Tracking-ID met uw ontvangstbewijs om zeker te weten dat het uw stembiljet is.",
+            search: {
+                title: "Controleer uw stembiljet in het openbare register",
+                intro: "Voer de Tracking-ID van uw bevestigingsscherm of ontvangstbewijs in. Uw browser zoekt het stembiljet op en controleert zelf de bewijzen.",
+                find: "Zoeken",
+                invalid: "Een Tracking-ID bestaat alleen uit cijfers en de letters a tot en met f.",
+                chips: {
+                    short: "<b>Kort</b> 30ff d314",
+                    full: "<b>Volledig</b> 16 groepen van vier",
+                    spaces: "Spaties optioneel",
+                },
+                features: {
+                    cast: {
+                        title: "Uitgebrachte stembiljetten",
+                        text: "Controleer of het in het openbare register staat, bevestigd door onafhankelijke getuigen en openbaar verankerd.",
+                    },
+                    audited: {
+                        title: "Geauditeerde stembiljetten",
+                        text: "Bekijk de selecties die het bevat, ontsleuteld in uw browser, en controleer of dit de selecties zijn die u hebt gemaakt.",
+                    },
+                    secret: {
+                        title: "Uw stem blijft geheim",
+                        text: "Een uitgebracht stembiljet blijft versleuteld. De stembiljettracker toont dat het is geteld, nooit hoe u hebt gestemd.",
+                    },
+                },
+            },
             matches: {
-                title: "{{total}} stembiljetten hebben de korte ID {{shortId}}. Kies het uwe, of voer de volledige Stembiljet-ID in.",
+                title: "{{total}} stembiljetten delen de korte ID <b>{{shortId}}</b>. Kies het uwe, of voer de volledige Tracking-ID in.",
                 cast: "Uitgebracht op {{time}}",
+                audited: "Geauditeerd op {{time}}",
+            },
+            audit: {
+                title: "Uw selecties, gedecodeerd",
+                note: "Uw browser heeft dit geauditeerde stembiljet ontsleuteld met de sleutel die de portal heeft onthuld. Als dit niet de selecties zijn die u hebt gemaakt, neem dan contact op met de verkiezingsautoriteit.",
+                failed: {
+                    title: "Audit mislukt",
+                    text: "Het stembiljet in het openbare register kan niet worden ontsleuteld met de sleutel die de portal heeft onthuld. Breng geen stem uit vanaf dit apparaat; breng de verkiezingsautoriteit op de hoogte.",
+                },
+                unchecked: {
+                    title: "De audit kon niet worden gecontroleerd",
+                    text: "Dit apparaat kon dit geauditeerde stembiljet niet controleren, dus er worden geen selecties getoond. Probeer het later opnieuw, of controleer de inhoud van het stembiljet in de stembiljetverificatie.",
+                },
             },
             result: {
                 receipt: "Ontvangstbewijs van het stembiljet",
                 idComment:
                     "Gebruik de korte of de volledige ID om dit stembiljet opnieuw te vinden.",
-                fullId: "Volledige Stembiljet-ID",
-                copy: "De volledige Stembiljet-ID kopiëren",
-                copied: "Stembiljet-ID gekopieerd",
-                copiedLabel: "Gekopieerd",
+                fullId: "Volledige Tracking-ID",
+                copy: "De volledige Tracking-ID kopiëren",
+                copied: "Tracking-ID gekopieerd",
+                tag: {
+                    found: "Gevonden",
+                    auditFailed: "Audit mislukt",
+                },
+                record: {
+                    title: "De inhoud van uw stembiljet",
+                    subtitle: "Versleuteld, zoals in het openbare register",
+                },
                 recordEntry: "Registeritem",
                 save: "Ontvangstbewijs opslaan",
                 sealLabel: "Status van het stembiljet: {{status}}",
@@ -519,7 +567,7 @@ const dutchTranslation: TranslationType = {
                     record: {
                         title: "Toegevoegd aan het openbare register",
                         done: "Item #{{index}} in het stembiljetlogboek van de verkiezing. Uw browser heeft het bewijs ervan gecontroleerd.",
-                        failed: "Geen enkel item in het stembiljetlogboek van de verkiezing heeft deze Stembiljet-ID.",
+                        failed: "Geen enkel item in het stembiljetlogboek van de verkiezing heeft deze Tracking-ID.",
                         missing: "Ontbreekt",
                     },
                     witnesses: {
@@ -556,33 +604,34 @@ const dutchTranslation: TranslationType = {
                 result: "Resultaat",
             },
             titleHelpDialog: {
-                title: "Over de stembiljet zoeker",
+                title: "Over het volgen van stembiljetten",
                 content:
-                    "Met de stembiljet zoeker kunt u de Stembiljet ID invoeren om uw stem te vinden en te bevestigen dat deze correct is geregistreerd.",
+                    "Met dit scherm kunt u de Tracking-ID invoeren om uw stem te vinden en te bevestigen dat deze correct is geregistreerd.",
                 ok: "OK",
             },
             tabs: {
                 logs: "Logs",
-                ballotLocator: "Stembiljet zoeken",
+                ballotLocator: "Stembiljet volgen",
             },
             column: {
                 statement_kind: "Type",
                 statement_timestamp: "Tijdstip",
-                ballot_id: "Stembiljet ID",
+                ballot_id: "Tracking-ID",
             },
         },
         vitrine: {
             ballotId: {
-                label: "Stembiljet ID",
-                full: "Volledig stembiljet-ID",
-                yours: "Uw stembiljet-ID:",
-                copy: "Het volledige stembiljet-ID kopiëren",
-                copied: "Stembiljet-ID gekopieerd",
-                copiedShort: "Gekopieerd",
+                label: "Tracking-ID",
+                full: "Volledige Tracking-ID",
+                yours: "Uw Tracking-ID:",
+                copy: "De volledige Tracking-ID kopiëren",
+                copied: "Tracking-ID gekopieerd",
+                showFull: "De volledige Tracking-ID tonen",
             },
             status: {
                 title: "Status van het stembiljet",
                 cast: "Uitgebracht op {{when}}",
+                audited: "Geauditeerd op {{when}}",
                 ballotCast: "Stem uitgebracht",
                 aria: "Status van het stembiljet: {{state}}. Details tonen",
                 ariaCast: "Stem uitgebracht. Status van het stembiljet: {{state}}. Details tonen",
@@ -590,6 +639,11 @@ const dutchTranslation: TranslationType = {
                 tracker: "Openen in de stembiljettracker",
                 save: "Ontvangstbewijs opslaan",
                 ok: "OK",
+                tag: {
+                    cast: "Uitgebracht",
+                    notCast: "Niet uitgebracht",
+                    auditable: "Auditeerbaar",
+                },
                 state: {
                     notcast: "Nog niet uitgebracht",
                     checking: "Controleren…",
@@ -598,6 +652,8 @@ const dutchTranslation: TranslationType = {
                     verified: "Geverifieerd",
                     late: "Vertraagd",
                     problem: "Probleem",
+                    auditable: "Auditeerbaar",
+                    auditfail: "Audit mislukt",
                 },
                 head: {
                     late: "Duurt langer dan verwacht",
@@ -630,6 +686,10 @@ const dutchTranslation: TranslationType = {
                         "Deze website heeft geen ontvangstbewijs voor uw stembiljet gekregen. Uw stem is uitgebracht en de waarnemers van de verkiezing zijn op de hoogte gebracht.",
                     unchecked:
                         "Deze website kon het ontvangstbewijs niet controleren. Uw stem is uitgebracht.",
+                    auditable:
+                        "U hebt dit stembiljet geauditeerd, dus het is nooit uitgebracht. Het staat in het openbare register en de stembiljettracker ontsleutelt het om de selecties te tonen die het bevat.",
+                    auditfail:
+                        "Het stembiljet in het openbare register kan niet worden ontsleuteld met de sleutel die de portal heeft onthuld. Breng geen stem uit vanaf dit apparaat; breng de verkiezingsautoriteit op de hoogte.",
                 },
                 step: {
                     record: {
@@ -699,6 +759,8 @@ const dutchTranslation: TranslationType = {
                     checking:
                         "Uw browser controleert het openbare register, met code die iedereen kan inspecteren.",
                     problem: "Gevonden door uw browser, met code die iedereen kan inspecteren.",
+                    auditable:
+                        "Ontsleuteld door uw browser, met code die iedereen kan inspecteren.",
                     verified:
                         "Geverifieerd door uw browser, met code die iedereen kan inspecteren.",
                     checked:
@@ -717,6 +779,21 @@ const dutchTranslation: TranslationType = {
                 failed: "De instellingen komen niet overeen met de gepubliceerde. De waarnemers van de verkiezing zijn op de hoogte gebracht. Neem contact op met de ondersteuning.",
                 retry: "Opnieuw proberen",
                 close: "Sluiten",
+            },
+            record: {
+                json: "JSON",
+                text: "Tekst",
+                fields_one: "{{count}} veld",
+                fields_other: "{{count}} velden",
+                items_one: "{{count}} item",
+                items_other: "{{count}} items",
+                size: {
+                    bytes: "{{value}} B",
+                    kilobytes: "{{value}} kB",
+                },
+                copy: "{{file}} kopiëren",
+                copied: "Gekopieerd",
+                download: "{{file}} downloaden",
             },
         },
     },

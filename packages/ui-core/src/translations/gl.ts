@@ -24,7 +24,7 @@ const galegoTranslation: TranslationType = {
         a11y: {
             closeDialog: "Pechar o diálogo",
             dismissMessage: "Descartar a mensaxe",
-            ballotIdHelp: "Sobre o seu ID de voto",
+            ballotIdHelp: "Sobre o seu ID de seguimento",
             loading: "Cargando",
             severity: {
                 error: "Erro",
@@ -71,7 +71,7 @@ const galegoTranslation: TranslationType = {
             title: "Verificador de Papeletas Sequent",
             topDescription1:
                 "Baseándose na información da Papeleta Auditable importada, calculamos que:",
-            topDescription2: "Se este é o ID de Papeleta que se mostra no Lugar de Votación:",
+            topDescription2: "Se este é o ID de seguimento que se mostra no Lugar de Votación:",
             bottomDescription1:
                 "A túa papeleta foi cifrada correctamente. Agora podes pechar esta ventá e volver ao Lugar de Votación.",
             bottomDescription2:
@@ -140,7 +140,7 @@ const galegoTranslation: TranslationType = {
                     "Configuración de voto inválida: a pregunta define {{count}} candidatos de voto en branco explícito, pero só se permite un.",
             },
         },
-        ballotHash: "O teu ID de Papeleta: {{ballotId}}",
+        ballotHash: "O teu ID de seguimento: {{ballotId}}",
         version: {
             header: "Versión:",
         },
@@ -177,7 +177,8 @@ const galegoTranslation: TranslationType = {
             voteButton: "Premer para Votar",
             openDate: "Apertura: ",
             closeDate: "Peche: ",
-            ballotLocator: "Localiza a túa papeleta",
+            ballotLocator: "Segue a túa papeleta",
+            alreadyCast: "Xa emitiches esta papeleta",
         },
         header: {
             profile: "Perfil",

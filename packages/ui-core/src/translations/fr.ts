@@ -23,7 +23,7 @@ const frenchTranslation: TranslationType = {
         a11y: {
             closeDialog: "Fermer la boîte de dialogue",
             dismissMessage: "Masquer le message",
-            ballotIdHelp: "À propos de votre identifiant de vote",
+            ballotIdHelp: "À propos de votre identifiant de suivi",
             loading: "Chargement",
             severity: {
                 error: "Erreur",
@@ -70,7 +70,7 @@ const frenchTranslation: TranslationType = {
             title: "Vérificateur de vote Sequent",
             topDescription1:
                 "Sur la base des informations du vote auditable importé, nous calculons que :",
-            topDescription2: "Si cet ID de vote est affiché dans l'isoloir :",
+            topDescription2: "Si cet identifiant de suivi est affiché dans l'isoloir :",
             bottomDescription1:
                 "Votre vote a été correctement chiffré. Vous pouvez maintenant fermer cette fenêtre et retourner à l'isoloir.",
             bottomDescription2:
@@ -142,7 +142,7 @@ const frenchTranslation: TranslationType = {
                     "Configuration du bulletin invalide : le scrutin définit {{count}} candidats de vote blanc explicite, mais un seul est autorisé.",
             },
         },
-        ballotHash: "Votre Localisateur de Vote : {{ballotId}}",
+        ballotHash: "Votre identifiant de suivi : {{ballotId}}",
         version: {
             header: "Version :",
         },
@@ -179,7 +179,8 @@ const frenchTranslation: TranslationType = {
             voteButton: "Cliquez pour voter",
             openDate: "Ouverte : ",
             closeDate: "Fermée : ",
-            ballotLocator: "Localisez votre vote",
+            ballotLocator: "Suivre votre bulletin",
+            alreadyCast: "Vous avez déjà émis ce bulletin",
         },
         header: {
             profile: "Profil",

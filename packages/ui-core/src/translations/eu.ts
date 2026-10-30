@@ -23,7 +23,7 @@ const basqueTranslation: TranslationType = {
         a11y: {
             closeDialog: "Itxi elkarrizketa-koadroa",
             dismissMessage: "Baztertu mezua",
-            ballotIdHelp: "Zure botoaren IDari buruz",
+            ballotIdHelp: "Zure jarraipen IDari buruz",
             loading: "Kargatzen",
             severity: {
                 error: "Errorea",
@@ -69,7 +69,7 @@ const basqueTranslation: TranslationType = {
         confirmationScreen: {
             title: "Sequent Txartel Egiaztatzailea",
             topDescription1: "Inportatutako Txartel Auditagarrian oinarrituta, hau kalkulatu dugu:",
-            topDescription2: "Hau Hauteskunde Kabinan erakutsitako Txartelaren IDa bada:",
+            topDescription2: "Hau Hauteskunde Kabinan erakutsitako jarraipen IDa bada:",
             bottomDescription1:
                 "Zure txartela zuzen enkriptatu da. Orain leiho hau itxi eta Hauteskunde Kabinara itzul zaitezke.",
             bottomDescription2:
@@ -138,7 +138,7 @@ const basqueTranslation: TranslationType = {
                     "Boto-konfigurazio baliogabea: galderak esplizituki zuri gisa markatutako {{count}} hautagai definitzen ditu, baina bakarra onartzen da.",
             },
         },
-        ballotHash: "Zure Txartelaren IDa: {{ballotId}}",
+        ballotHash: "Zure jarraipen IDa: {{ballotId}}",
         version: {
             header: "Bertsioa:",
         },
@@ -174,7 +174,8 @@ const basqueTranslation: TranslationType = {
             voteButton: "Egin klik Bozkatzeko",
             openDate: "Irekitze-data: ",
             closeDate: "Ixte-data: ",
-            ballotLocator: "Aurkitu zure txartela",
+            ballotLocator: "Jarraitu zure boto-txartela",
+            alreadyCast: "Boto-txartel hau jada eman duzu",
         },
         header: {
             profile: "Profila",

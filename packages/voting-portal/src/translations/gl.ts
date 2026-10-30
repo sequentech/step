@@ -16,8 +16,8 @@ const galegoTranslation: TranslationType = {
             helpAbout: "Axuda sobre {{topic}}",
             previewMaterial: "Vista previa de {{title}}",
             ballotsTable: "Papeletas",
-            ballotLocatorTabs: "Seccións do localizador de papeletas",
-            ballotIdLabel: "ID de voto",
+            ballotLocatorTabs: "Seccións do seguimento da papeleta",
+            ballotIdLabel: "ID de seguimento",
             votingProgress: "Progreso da votación",
             stepOf: "Paso {{current}} de {{total}}",
             selectUpTo_one: "Seleccione ata {{count}} opción",
@@ -131,9 +131,9 @@ const galegoTranslation: TranslationType = {
             backButton: "Editar papeleta",
             castBallotButton: "Emitir papeleta",
             auditButton: "Comproba a papeleta",
-            copyBallotId: "Copiar o ID da papeleta",
-            ballotIdCopied: "ID da papeleta copiado",
-            ballotIdCopyError: "Non se puido copiar o ID da papeleta",
+            copyBallotId: "Copiar o ID de seguimento",
+            ballotIdCopied: "ID de seguimento copiado",
+            ballotIdCopyError: "Non se puido copiar o ID de seguimento",
             reviewScreenHelpDialog: {
                 title: "Sobre a pantalla de revisión",
                 content:
@@ -143,7 +143,7 @@ const galegoTranslation: TranslationType = {
             ballotIdHelpDialog: {
                 title: "O voto non foi emitido",
                 content:
-                    "<p>Este é o teu ID de seguimento da papeleta, pero <b>o teu voto aínda non foi emitido</b>. Se tentas rastrexar a papeleta, non a atoparás.</p><p>A razón pola que mostramos o ID de seguimento nesta fase é permitirche auditar a corrección da papeleta encriptada antes de emitila.</p>",
+                    "<p>Este é o teu ID de seguimento, pero <b>o teu voto aínda non foi emitido</b>. Se tentas rastrexar a papeleta, non a atoparás.</p><p>A razón pola que mostramos o ID de seguimento nesta fase é permitirche auditar a corrección da papeleta encriptada antes de emitila.</p>",
                 ok: "Entendo que o meu voto non foi emitido",
                 cancel: "Cancelar",
             },
@@ -223,7 +223,7 @@ const galegoTranslation: TranslationType = {
                 NO_BALLOT_STYLE: "O estilo da papeleta non está dispoñible. Contacta co soporte.",
                 NO_AUDITABLE_BALLOT: "Non hai papeleta auditable dispoñible. Contacta co soporte.",
                 INCONSISTENT_HASH:
-                    "Houbo un erro relacionado co proceso de hash da papeleta. O ID da Papeleta: {{ballotId}} non é consistente co hash da Papeleta Auditable: {{auditableBallotHash}}. Informa deste problema ao soporte.",
+                    "Houbo un erro relacionado co proceso de hash da papeleta. O ID de seguimento: {{ballotId}} non é consistente co hash da Papeleta Auditable: {{auditableBallotHash}}. Informa deste problema ao soporte.",
                 ELECTION_EVENT_NOT_OPEN: "O evento de eleccións está pechado. Contacta co soporte.",
                 PARSE_ERROR:
                     "Houbo un erro ao analizar a papeleta. Inténtao de novo máis tarde ou contacta co soporte para obter axuda.",
@@ -241,8 +241,7 @@ const galegoTranslation: TranslationType = {
                     "A autenticación fallou. Inténtao de novo ou contacta co soporte para obter axuda.",
                 SESSION_EXPIRED:
                     "A túa sesión expirou. Por favor, comeza de novo dende o principio.",
-                CAST_VOTE_BallotIdMismatch:
-                    "O identificador da papeleta non coincide co do voto emitido.",
+                CAST_VOTE_BallotIdMismatch: "O ID de seguimento non coincide co do voto emitido.",
                 SESSION_STORAGE_ERROR:
                     "O almacenamento de sesión non está dispoñible. Por favor, inténteo de novo ou contacte co soporte.",
                 PARSE_BALLOT_DATA_ERROR:
@@ -263,11 +262,11 @@ const galegoTranslation: TranslationType = {
             acclamation: {
                 title: "Resolto por aclamación",
                 description:
-                    "Todas as preguntas desta elección resolvéronse por aclamación, polo que non se emitiu ningunha papeleta e non hai identificador de papeleta que consultar.",
+                    "Todas as preguntas desta elección resolvéronse por aclamación, polo que non se emitiu ningunha papeleta e non hai ID de seguimento.",
                 helpDialog: {
                     title: "Información: Aclamación",
                     content:
-                        "Todas as preguntas desta elección resolvéronse por aclamación: as súas candidaturas resultan elixidas sen votación. Como non se emitiu ningunha papeleta, non hai identificador de papeleta, comprobante nin código QR que verificar.",
+                        "Todas as preguntas desta elección resolvéronse por aclamación: as súas candidaturas resultan elixidas sen votación. Como non se emitiu ningunha papeleta, non hai ID de seguimento, comprobante nin código QR que verificar.",
                     ok: "Aceptar",
                 },
             },
@@ -278,7 +277,7 @@ const galegoTranslation: TranslationType = {
                 description:
                     "A súa papeleta emitiuse en branco, o cal é unha elección válida e deliberada.",
             },
-            ballotId: "ID da Papeleta",
+            ballotId: "ID de seguimento",
             printButton: "Imprimir",
             finishButton: "Rematar",
             remainingElectionsError:
@@ -299,20 +298,20 @@ const galegoTranslation: TranslationType = {
                 ok: "Aceptar",
             },
             demoBallotUrlDialog: {
-                title: "ID da Papeleta",
+                title: "ID de seguimento",
                 content: "Non se pode usar o código, desactivado en modo de demostración.",
                 ok: "Aceptar",
             },
             ballotIdHelpDialog: {
-                title: "Sobre o ID da Papeleta",
+                title: "Sobre o ID de seguimento",
                 content:
-                    "O ID da Papeleta é un código que permite atopar a túa papeleta na urna, este ID é único e non contén información sobre as túas seleccións.",
+                    "O ID de seguimento é un código que permite atopar a túa papeleta na urna, este ID é único e non contén información sobre as túas seleccións.",
                 ok: "Aceptar",
             },
             ballotIdDemoHelpDialog: {
-                title: "Sobre o ID da Papeleta",
+                title: "Sobre o ID de seguimento",
                 content:
-                    "O ID da Papeleta é un código que permite atopar a túa papeleta na urna, este ID é único e non contén información sobre as túas seleccións.",
+                    "O ID de seguimento é un código que permite atopar a túa papeleta na urna, este ID é único e non contén información sobre as túas seleccións.",
                 ok: "Aceptar",
             },
             errorDialogPrintBallotReceipt: {
@@ -329,7 +328,7 @@ const galegoTranslation: TranslationType = {
             description: "Segue os pasos abaixo para comprobar a túa papeleta:",
             step1Title: "1. Descarga ou copia a seguinte información",
             step1Description:
-                "O teu <b>ID da Papeleta</b> aparece na parte superior da pantalla e a túa papeleta encriptada abaixo:",
+                "O teu <b>ID de seguimento</b> aparece na parte superior da pantalla e a túa papeleta encriptada abaixo:",
             step1HelpDialog: {
                 title: "Copia a Papeleta Encriptada",
                 content:
@@ -432,33 +431,81 @@ const galegoTranslation: TranslationType = {
             },
         },
         ballotLocator: {
-            title: "Busca a túa Papeleta",
-            titleResult: "Resultado da túa busca de Papeleta",
+            title: "Seguimento da papeleta",
+            titleResult: "Seguimento da papeleta",
             description: "Verifica que a túa Papeleta foi correctamente enviada",
+            descriptionAudited:
+                "Esta papeleta foi auditada, polo que nunca se emitiu. Comproba que as seleccións descodificadas a continuación son as que fixeches.",
+            descriptionAuditedBrief: "Esta papeleta foi auditada, polo que nunca se emitiu.",
             locate: "Busca a túa Papeleta",
             locateAgain: "Buscar outra Papeleta",
-            found: "O teu ID de papeleta {{ballotId}} foi atopado",
-            notFound: "O teu ID de papeleta {{ballotId}} non foi atopado",
+            found: "O teu ID de seguimento {{ballotId}} foi atopado",
+            notFound: "O teu ID de seguimento {{ballotId}} non foi atopado",
             contentDesc: "Este é o contido da túa Papeleta:",
-            wrongFormatBallotId: "Formato incorrecto para o ID da Papeleta",
+            wrongFormatBallotId: "Formato incorrecto para o ID de seguimento",
             ballotIdNotFoundAtFilter:
-                "Non atopado, comprobe que o ID da Papeleta seja correcto e pertenezca a este usuario.",
-            filterByBallotId: "Filtrar por ID da Papeleta",
+                "Non atopado, comproba que o ID de seguimento sexa correcto e pertenza a este usuario.",
+            filterByBallotId: "Filtrar por ID de seguimento",
             totalBallots: "Papeletas: {{total}}",
-            idHelp: "O ID de papeleta curto, como 30ff d314, ou o completo",
+            idHelp: "O ID de seguimento curto, como 30ff d314, ou o completo",
             foundShort:
-                "Atopada polo seu ID curto. Para estares seguro de que é a túa, compara o ID de papeleta completo co teu recibo.",
+                "Atopada polo seu ID curto. Para estares seguro de que é a túa, compara o ID de seguimento completo co teu recibo.",
+            search: {
+                title: "Comproba a túa papeleta no rexistro público",
+                intro: "Introduce o ID de seguimento da túa pantalla de confirmación ou do teu recibo. O teu navegador búscao e comproba as probas por si mesmo.",
+                find: "Buscar",
+                invalid: "Un ID de seguimento só ten díxitos e as letras da a á f.",
+                chips: {
+                    short: "<b>Curto</b> 30ff d314",
+                    full: "<b>Completo</b> 16 grupos de catro",
+                    spaces: "Espazos opcionais",
+                },
+                features: {
+                    cast: {
+                        title: "Papeletas emitidas",
+                        text: "Comproba que a túa papeleta está no rexistro público, confirmada por testemuñas independentes e ancorada publicamente.",
+                    },
+                    audited: {
+                        title: "Papeletas auditadas",
+                        text: "Mira as seleccións que contén, descifradas no teu navegador, e comproba que son as que fixeches.",
+                    },
+                    secret: {
+                        title: "O teu voto segue sendo secreto",
+                        text: "Unha papeleta emitida segue cifrada. O rastrexador mostra que se contou, nunca como votaches.",
+                    },
+                },
+            },
             matches: {
-                title: "{{total}} papeletas teñen o ID curto {{shortId}}. Escolle a túa ou introduce o ID de papeleta completo.",
+                title: "{{total}} papeletas comparten o ID curto <b>{{shortId}}</b>. Escolle a túa ou introduce o ID de seguimento completo.",
                 cast: "Emitida o {{time}}",
+                audited: "Auditada o {{time}}",
+            },
+            audit: {
+                title: "As túas seleccións, descodificadas",
+                note: "O teu navegador descifrou esta papeleta auditada coa clave que revelou o portal. Se estas non son as seleccións que fixeches, ponte en contacto coa autoridade electoral.",
+                failed: {
+                    title: "Auditoría fallida",
+                    text: "A papeleta do rexistro público non se descifra coa clave que revelou o portal. Non emitas o teu voto desde este dispositivo; avisa á autoridade electoral.",
+                },
+                unchecked: {
+                    title: "Non se puido comprobar a auditoría",
+                    text: "Este dispositivo non puido comprobar esta papeleta auditada, polo que non se mostra ningunha selección. Téntao de novo máis tarde, ou comproba o contido da papeleta no verificador de papeletas.",
+                },
             },
             result: {
                 receipt: "Recibo da papeleta",
                 idComment: "Usa o ID curto ou o completo para volver atopar esta papeleta.",
-                fullId: "ID de papeleta completo",
-                copy: "Copiar o ID de papeleta completo",
-                copied: "ID de papeleta copiado",
-                copiedLabel: "Copiado",
+                fullId: "ID de seguimento completo",
+                copy: "Copiar o ID de seguimento completo",
+                copied: "ID de seguimento copiado",
+                tag: {
+                    found: "Atopada",
+                    auditFailed: "Auditoría fallida",
+                },
+                record: {
+                    title: "Contido da túa papeleta",
+                    subtitle: "Cifrado, tal como está no rexistro público",
+                },
                 recordEntry: "Entrada do rexistro",
                 save: "Gardar o recibo",
                 sealLabel: "Estado da papeleta: {{status}}",
@@ -520,7 +567,7 @@ const galegoTranslation: TranslationType = {
                     record: {
                         title: "Engadida ao rexistro público",
                         done: "Entrada n.º {{index}} do rexistro de papeletas da elección. O teu navegador comprobou a súa proba.",
-                        failed: "Ningunha entrada do rexistro de papeletas da elección ten este ID de papeleta.",
+                        failed: "Ningunha entrada do rexistro de papeletas da elección ten este ID de seguimento.",
                         missing: "Falta",
                     },
                     witnesses: {
@@ -557,33 +604,34 @@ const galegoTranslation: TranslationType = {
                 result: "Resultado",
             },
             titleHelpDialog: {
-                title: "Sobre o localizador de papeleta",
+                title: "Sobre o seguimento da papeleta",
                 content:
-                    "O localizador de papeletas permíteche introducir o ID da papeleta para atopar o teu voto e confirmar que foi rexistrado correctamente.",
+                    "Esta pantalla permíteche atopar o teu voto a partir do ID de seguimento. Con este procedemento podes comprobar que a túa papeleta se emitiu correctamente e que a papeleta rexistrada coincide coa papeleta cifrada que enviaches.",
                 ok: "Aceptar",
             },
             tabs: {
                 logs: "Logs",
-                ballotLocator: "Busca de Papeleta",
+                ballotLocator: "Seguimento da papeleta",
             },
             column: {
                 statement_kind: "Tipo",
                 statement_timestamp: "Marca de tempo",
-                ballot_id: "ID da papeleta",
+                ballot_id: "ID de seguimento",
             },
         },
         vitrine: {
             ballotId: {
-                label: "ID da Papeleta",
-                full: "ID da Papeleta completo",
-                yours: "O teu ID de Papeleta:",
-                copy: "Copiar o ID completo",
-                copied: "ID copiado",
-                copiedShort: "Copiado",
+                label: "ID de seguimento",
+                full: "ID de seguimento completo",
+                yours: "O teu ID de seguimento:",
+                copy: "Copiar o ID de seguimento completo",
+                copied: "ID de seguimento copiado",
+                showFull: "Mostrar o ID de seguimento completo",
             },
             status: {
                 title: "Estado da papeleta",
                 cast: "Emitida o {{when}}",
+                audited: "Auditada o {{when}}",
                 ballotCast: "Voto emitido",
                 aria: "Estado da papeleta: {{state}}. Mostrar detalles",
                 ariaCast: "Voto emitido. Estado da papeleta: {{state}}. Mostrar detalles",
@@ -591,6 +639,11 @@ const galegoTranslation: TranslationType = {
                 tracker: "Abrir no rastrexador de papeletas",
                 save: "Gardar o xustificante",
                 ok: "Aceptar",
+                tag: {
+                    cast: "Emitida",
+                    notCast: "Non emitida",
+                    auditable: "Auditable",
+                },
                 state: {
                     notcast: "Aínda sen emitir",
                     checking: "Comprobando…",
@@ -599,6 +652,8 @@ const galegoTranslation: TranslationType = {
                     verified: "Verificada",
                     late: "Con atraso",
                     problem: "Problema",
+                    auditable: "Auditable",
+                    auditfail: "Auditoría fallida",
                 },
                 head: {
                     late: "Tarda máis do previsto",
@@ -630,6 +685,10 @@ const galegoTranslation: TranslationType = {
                         "Este sitio web non recibiu ningún xustificante da túa papeleta. O teu voto emitiuse e avisouse aos observadores da elección.",
                     unchecked:
                         "Este sitio web non puido comprobar o xustificante. O teu voto emitiuse.",
+                    auditable:
+                        "Auditaches esta papeleta, polo que nunca se emitiu. Está no rexistro público, e o rastrexador de papeletas descífraa para mostrar as seleccións que contén.",
+                    auditfail:
+                        "A papeleta do rexistro público non se descifra coa clave que revelou o portal. Non emitas o teu voto desde este dispositivo; avisa á autoridade electoral.",
                 },
                 step: {
                     record: {
@@ -701,6 +760,8 @@ const galegoTranslation: TranslationType = {
                         "O teu navegador está a comprobar o rexistro público, con código que calquera pode inspeccionar.",
                     problem:
                         "Detectado polo teu navegador, con código que calquera pode inspeccionar.",
+                    auditable:
+                        "Descifrado polo teu navegador, con código que calquera pode inspeccionar.",
                     verified:
                         "Verificado polo teu navegador, con código que calquera pode inspeccionar.",
                     checked:
@@ -718,6 +779,21 @@ const galegoTranslation: TranslationType = {
                 failed: "A configuración non coincide coa publicada. Avisouse aos observadores da elección. Póñase en contacto co soporte.",
                 retry: "Tentar de novo",
                 close: "Pechar",
+            },
+            record: {
+                json: "JSON",
+                text: "Texto",
+                fields_one: "{{count}} campo",
+                fields_other: "{{count}} campos",
+                items_one: "{{count}} elemento",
+                items_other: "{{count}} elementos",
+                size: {
+                    bytes: "{{value}} B",
+                    kilobytes: "{{value}} KB",
+                },
+                copy: "Copiar {{file}}",
+                copied: "Copiado",
+                download: "Descargar {{file}}",
             },
         },
     },

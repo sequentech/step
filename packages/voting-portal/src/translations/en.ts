@@ -13,8 +13,8 @@ const englishTranslation = {
             helpAbout: "Help about {{topic}}",
             previewMaterial: "Preview {{title}}",
             ballotsTable: "Ballots",
-            ballotLocatorTabs: "Ballot locator sections",
-            ballotIdLabel: "Ballot ID",
+            ballotLocatorTabs: "Ballot tracking sections",
+            ballotIdLabel: "Tracking ID",
             votingProgress: "Voting progress",
             stepOf: "Step {{current}} of {{total}}",
             selectUpTo_one: "Select up to {{count}} option",
@@ -104,7 +104,7 @@ const englishTranslation = {
                 "Pick your preferred candidates and make your selections in each contest as it appears. You can change your ballot anytime before casting your vote",
             step2Title: "2. Review your selections",
             step2Description:
-                "When you’re happy with your selections, we’ll securely encrypt your ballot and show you a final review. You’ll also get a unique tracker ID for reference",
+                "When you’re happy with your selections, we’ll securely encrypt your ballot and show you a final review. You’ll also get a unique Tracking ID for reference",
             step3Title: "3. Cast your ballot",
             step3Description:
                 "When you’re ready, cast your ballot so it’s officially recorded. Or choose to audit first to confirm it was correctly captured and encrypted",
@@ -130,9 +130,9 @@ const englishTranslation = {
             backButton: "Edit ballot",
             castBallotButton: "Cast ballot",
             auditButton: "Audit ballot",
-            copyBallotId: "Copy ballot ID",
-            ballotIdCopied: "Ballot ID copied",
-            ballotIdCopyError: "Could not copy ballot ID",
+            copyBallotId: "Copy tracking ID",
+            ballotIdCopied: "Tracking ID copied",
+            ballotIdCopyError: "Could not copy tracking ID",
             reviewScreenHelpDialog: {
                 title: "About the review screen",
                 content: "This screen lets you review your selections before casting your ballot",
@@ -141,7 +141,7 @@ const englishTranslation = {
             ballotIdHelpDialog: {
                 title: "Your vote has not been cast",
                 content:
-                    "<p>This is your Ballot Tracker ID, but <b>your vote has not been cast yet</b>. If you try to track it now, nothing will appear.</p><p>We show the Tracker ID at this stage so you can audit the encrypted ballot before casting it.</p>",
+                    "<p>This is your Tracking ID, but <b>your vote has not been cast yet</b>. If you try to track it now, nothing will appear.</p><p>We show the Tracking ID at this stage so you can audit the encrypted ballot before casting it.</p>",
                 ok: "I understand my vote is not cast",
                 cancel: "Cancel",
             },
@@ -221,7 +221,7 @@ const englishTranslation = {
                 NO_AUDITABLE_BALLOT:
                     "There is no ballot available for audit. Please contact support",
                 INCONSISTENT_HASH:
-                    "There was an error related to the ballot hashing process. BallotId: {{ballotId}} is not consistent with auditable Ballot Hash: {{auditableBallotHash}}. Please report this issue to support.",
+                    "There was an error related to the ballot hashing process. Tracking ID: {{ballotId}} is not consistent with auditable Ballot Hash: {{auditableBallotHash}}. Please report this issue to support.",
                 ELECTION_EVENT_NOT_OPEN: "This election is closed. You can no longer vote",
                 PARSE_ERROR:
                     "There was an error parsing the ballot. Please try again later or contact support for assistance.",
@@ -237,7 +237,7 @@ const englishTranslation = {
                 REAUTH_FAILED:
                     "Login failed. Your username or password may be incorrect. Please try again or contact support",
                 SESSION_EXPIRED: "Your session has expired. Please start again",
-                CAST_VOTE_BallotIdMismatch: "The ballot id does not match with the cast vote.",
+                CAST_VOTE_BallotIdMismatch: "The tracking ID does not match the cast vote.",
                 SESSION_STORAGE_ERROR:
                     "Session storage is not available. Please try again or contact support.",
                 PARSE_BALLOT_DATA_ERROR:
@@ -257,11 +257,11 @@ const englishTranslation = {
             acclamation: {
                 title: "Decided by acclamation",
                 description:
-                    "Every contest in this election was decided by acclamation, so no ballot was cast and there is no ballot ID to track.",
+                    "Every contest in this election was decided by acclamation, so no ballot was cast and there is no tracking ID.",
                 helpDialog: {
                     title: "Information: Acclamation",
                     content:
-                        "Every contest in this election was decided by acclamation: its candidates are elected without a vote. Because no ballot was cast, there is no ballot ID, receipt or QR code to verify.",
+                        "Every contest in this election was decided by acclamation: its candidates are elected without a vote. Because no ballot was cast, there is no tracking ID, receipt or QR code to verify.",
                     ok: "OK",
                 },
             },
@@ -271,7 +271,7 @@ const englishTranslation = {
             blankBallot: {
                 description: "Your ballot was cast blank, which is a valid, deliberate choice.",
             },
-            ballotId: "Ballot ID",
+            ballotId: "Tracking ID",
             printButton: "Print",
             finishButton: "Finish",
             remainingElectionsError:
@@ -292,20 +292,20 @@ const englishTranslation = {
                 ok: "OK",
             },
             demoBallotUrlDialog: {
-                title: "Ballot Id",
+                title: "Tracking ID",
                 content: "Code use is disabled in demo mode",
                 ok: "OK",
             },
             ballotIdHelpDialog: {
-                title: "About the Ballot ID",
+                title: "About the Tracking ID",
                 content:
-                    "The Ballot ID is a unique code that lets you find your ballot in the ballot box. It does not contain any information about your selections.",
+                    "The Tracking ID is a unique code that lets you find your ballot in the ballot box. It does not contain any information about your selections.",
                 ok: "OK",
             },
             ballotIdDemoHelpDialog: {
-                title: "About the Ballot ID",
+                title: "About the Tracking ID",
                 content:
-                    "The Ballot ID is a unique code that lets you find your ballot in the ballot box. It does not contain any information about your selections.",
+                    "The Tracking ID is a unique code that lets you find your ballot in the ballot box. It does not contain any information about your selections.",
                 ok: "OK",
             },
             errorDialogPrintBallotReceipt: {
@@ -322,7 +322,7 @@ const englishTranslation = {
             description: "To check your ballot, follow the steps below:",
             step1Title: "1. Save the following details:",
             step1Description:
-                "your <b>Ballot ID</b> at the top of the screen and your encrypted ballot shown below",
+                "your <b>Tracking ID</b> at the top of the screen and your encrypted ballot shown below",
             step1HelpDialog: {
                 title: "Copy ballot code",
                 content:
@@ -424,33 +424,81 @@ const englishTranslation = {
             },
         },
         ballotLocator: {
-            title: "Find your Ballot",
-            titleResult: "Your Ballot Lookup Results",
+            title: "Ballot Tracking",
+            titleResult: "Ballot Tracking",
             description: "Confirm your ballot was cast correctly",
+            descriptionAudited:
+                "This ballot was audited, so it was never cast. Check that the selections decoded below are the ones you made.",
+            descriptionAuditedBrief: "This ballot was audited, so it was never cast.",
             locate: "Find your Ballot",
             locateAgain: "Find another Ballot",
-            found: "Your ballot ID {{ballotId}} has been found",
-            notFound: "Your ballot ID {{ballotId}} was not found",
+            found: "Your tracking ID {{ballotId}} has been found",
+            notFound: "Your tracking ID {{ballotId}} was not found",
             contentDesc: "This is your Ballot content: ",
-            wrongFormatBallotId: "Invalid Ballot ID format",
+            wrongFormatBallotId: "Invalid Tracking ID format",
             ballotIdNotFoundAtFilter:
-                "Not found, check that your Ballot ID is correct and belongs to this user.",
-            filterByBallotId: "Filter by Ballot ID",
+                "Not found, check that your Tracking ID is correct and belongs to this user.",
+            filterByBallotId: "Filter by Tracking ID",
             totalBallots: "Total Ballots: {{total}}",
-            idHelp: "The short Ballot ID, like 30ff d314, or the full one",
+            idHelp: "The short Tracking ID, like 30ff d314, or the full one",
             foundShort:
-                "Found by its short ID. To be certain it is yours, compare the full Ballot ID with your receipt.",
+                "Found by its short ID. To be certain it is yours, compare the full Tracking ID with your receipt.",
+            search: {
+                title: "Check your ballot in the public record",
+                intro: "Enter the Tracking ID from your confirmation screen or receipt. Your browser looks it up and checks the proofs itself.",
+                find: "Find",
+                invalid: "A Tracking ID has only digits and the letters a to f.",
+                chips: {
+                    short: "<b>Short</b> 30ff d314",
+                    full: "<b>Full</b> 16 groups of four",
+                    spaces: "Spaces optional",
+                },
+                features: {
+                    cast: {
+                        title: "Cast ballots",
+                        text: "See that it is in the public record, confirmed by independent witnesses and anchored publicly.",
+                    },
+                    audited: {
+                        title: "Audited ballots",
+                        text: "See the selections it holds, decrypted in your browser, and check they are the ones you made.",
+                    },
+                    secret: {
+                        title: "Your vote stays secret",
+                        text: "A cast ballot stays encrypted. The tracker shows that it was counted, never how you voted.",
+                    },
+                },
+            },
             matches: {
-                title: "{{total}} ballots have the short ID {{shortId}}. Choose yours, or enter the full Ballot ID.",
+                title: "{{total}} ballots share the short ID <b>{{shortId}}</b>. Choose yours, or enter the full Tracking ID.",
                 cast: "Cast {{time}}",
+                audited: "Audited {{time}}",
+            },
+            audit: {
+                title: "Your selections, decoded",
+                note: "Your browser decrypted this audited ballot with the key the portal revealed. If these are not the selections you made, contact the election authority.",
+                failed: {
+                    title: "Audit failed",
+                    text: "The ballot in the public record does not decrypt with the key the portal revealed. Do not cast from this device; tell the election authority.",
+                },
+                unchecked: {
+                    title: "The audit could not be checked",
+                    text: "This device could not check this audited ballot, so no selections are shown. Try again later, or check the ballot content in the ballot verifier.",
+                },
             },
             result: {
                 receipt: "Ballot receipt",
                 idComment: "Use the short ID or the full one to find this ballot again.",
-                fullId: "Full Ballot ID",
-                copy: "Copy the full Ballot ID",
-                copied: "Ballot ID copied",
-                copiedLabel: "Copied",
+                fullId: "Full Tracking ID",
+                copy: "Copy the full Tracking ID",
+                copied: "Tracking ID copied",
+                tag: {
+                    found: "Found",
+                    auditFailed: "Audit failed",
+                },
+                record: {
+                    title: "Your ballot content",
+                    subtitle: "Encrypted, as in the public record",
+                },
                 recordEntry: "Record entry",
                 save: "Save receipt",
                 sealLabel: "Ballot status: {{status}}",
@@ -509,7 +557,7 @@ const englishTranslation = {
                     record: {
                         title: "Added to the public record",
                         done: "Entry #{{index}} in the election’s ballots log. Your browser checked its proof.",
-                        failed: "No entry in the election’s ballots log has this Ballot ID.",
+                        failed: "No entry in the election’s ballots log has this Tracking ID.",
                         missing: "Missing",
                     },
                     witnesses: {
@@ -546,33 +594,34 @@ const englishTranslation = {
                 result: "Result",
             },
             titleHelpDialog: {
-                title: "About the Ballot Finder Screen",
+                title: "About Ballot Tracking",
                 content:
-                    "This screen allows you to find your vote by using the Ballot ID to retrieve it. This procedure enables you to check that your ballot was correctly cast and that the recorded ballot matches the encrypted ballot you sent.",
+                    "This screen allows you to find your vote by using the Tracking ID to retrieve it. This procedure enables you to check that your ballot was correctly cast and that the recorded ballot matches the encrypted ballot you sent.",
                 ok: "OK",
             },
             tabs: {
                 logs: "Logs",
-                ballotLocator: "Ballot Locator",
+                ballotLocator: "Ballot Tracking",
             },
             column: {
                 statement_kind: "Statement kind",
                 statement_timestamp: "Statement Timestamp",
-                ballot_id: "Ballot ID",
+                ballot_id: "Tracking ID",
             },
         },
         vitrine: {
             ballotId: {
-                label: "Ballot ID",
-                full: "Full Ballot ID",
-                yours: "Your Ballot ID:",
-                copy: "Copy the full Ballot ID",
-                copied: "Ballot ID copied",
-                copiedShort: "Copied",
+                label: "Tracking ID",
+                full: "Full Tracking ID",
+                yours: "Your Tracking ID:",
+                copy: "Copy the full Tracking ID",
+                copied: "Tracking ID copied",
+                showFull: "Show the full Tracking ID",
             },
             status: {
                 title: "Ballot status",
                 cast: "Cast {{when}}",
+                audited: "Audited {{when}}",
                 ballotCast: "Ballot cast",
                 aria: "Ballot status: {{state}}. Show details",
                 ariaCast: "Ballot cast. Ballot status: {{state}}. Show details",
@@ -580,6 +629,11 @@ const englishTranslation = {
                 tracker: "Open in the ballot tracker",
                 save: "Save receipt",
                 ok: "OK",
+                tag: {
+                    cast: "Cast",
+                    notCast: "Not cast",
+                    auditable: "Auditable",
+                },
                 state: {
                     notcast: "Not cast yet",
                     checking: "Checking…",
@@ -588,6 +642,8 @@ const englishTranslation = {
                     verified: "Verified",
                     late: "Late",
                     problem: "Problem",
+                    auditable: "Auditable",
+                    auditfail: "Audit failed",
                 },
                 head: {
                     late: "Taking longer than expected",
@@ -617,6 +673,10 @@ const englishTranslation = {
                     noReceipt:
                         "This website did not get a receipt for your ballot. Your vote was cast, and the election’s observers have been told.",
                     unchecked: "This website could not check the receipt. Your vote was cast.",
+                    auditable:
+                        "You audited this ballot, so it was never cast. It is in the public record, and the ballot tracker decrypts it to show the selections it holds.",
+                    auditfail:
+                        "The ballot in the public record does not decrypt with the key the portal revealed. Do not cast from this device; tell the election authority.",
                 },
                 step: {
                     record: {
@@ -683,6 +743,7 @@ const englishTranslation = {
                     checking:
                         "Your browser is checking the public record, with code anyone can inspect.",
                     problem: "Found by your browser, with code anyone can inspect.",
+                    auditable: "Decrypted by your browser, with code anyone can inspect.",
                     verified: "Verified by your browser, with code anyone can inspect.",
                     checked: "Checked by your browser, with code anyone can inspect.",
                     kept: "This device keeps the receipt and checks it again on each visit.",
@@ -698,6 +759,21 @@ const englishTranslation = {
                 failed: "The settings don't match the published ones. The election's observers have been told. Please contact support.",
                 retry: "Try again",
                 close: "Close",
+            },
+            record: {
+                json: "JSON",
+                text: "Text",
+                fields_one: "{{count}} field",
+                fields_other: "{{count}} fields",
+                items_one: "{{count}} item",
+                items_other: "{{count}} items",
+                size: {
+                    bytes: "{{value}} B",
+                    kilobytes: "{{value}} KB",
+                },
+                copy: "Copy {{file}}",
+                copied: "Copied",
+                download: "Download {{file}}",
             },
         },
     },

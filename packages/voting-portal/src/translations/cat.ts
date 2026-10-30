@@ -15,8 +15,8 @@ const catalanTranslation: TranslationType = {
             helpAbout: "Ajuda sobre {{topic}}",
             previewMaterial: "Vista prèvia de {{title}}",
             ballotsTable: "Paperetes",
-            ballotLocatorTabs: "Seccions del localitzador de paperetes",
-            ballotIdLabel: "ID de vot",
+            ballotLocatorTabs: "Seccions del seguiment de la papereta",
+            ballotIdLabel: "ID de seguiment",
             votingProgress: "Progrés de la votació",
             stepOf: "Pas {{current}} de {{total}}",
             selectUpTo_one: "Seleccioneu fins a {{count}} opció",
@@ -130,9 +130,9 @@ const catalanTranslation: TranslationType = {
             backButton: "Editeu el vostre vot",
             castBallotButton: "Envieu el vot",
             auditButton: "Auditar papereta",
-            copyBallotId: "Copiar l'ID de la papereta",
-            ballotIdCopied: "ID de la papereta copiat",
-            ballotIdCopyError: "No s'ha pogut copiar l'ID de la papereta",
+            copyBallotId: "Copiar l'ID de seguiment",
+            ballotIdCopied: "ID de seguiment copiat",
+            ballotIdCopyError: "No s'ha pogut copiar l'ID de seguiment",
             reviewScreenHelpDialog: {
                 title: "Sobre la pantalla de revisió",
                 content:
@@ -142,7 +142,7 @@ const catalanTranslation: TranslationType = {
             ballotIdHelpDialog: {
                 title: "El vostre vot no ha estat emès",
                 content:
-                    "<p>Aquest és el vostre Localitzador del Vot, però <b>el vostre vot encara no s'ha emès</b>. Si intenteu buscar-lo ara, no apareixerà.</p><p>Mostrem el Localitzador del Vot en aquesta etapa perquè pugueu auditar la papereta xifrada abans d'emetre-la.</p>",
+                    "<p>Aquest és el vostre ID de seguiment, però <b>el vostre vot encara no s'ha emès</b>. Si intenteu buscar-lo ara, no apareixerà.</p><p>Mostrem l'ID de seguiment en aquesta etapa perquè pugueu auditar la papereta xifrada abans d'emetre-la.</p>",
                 ok: "Entenc que el meu vot no ha estat emès",
                 cancel: "Cancel·lar",
             },
@@ -224,7 +224,7 @@ const catalanTranslation: TranslationType = {
                 NO_AUDITABLE_BALLOT:
                     "No hi ha cap papereta auditable disponible. Si us plau, contacteu amb el servei d'assistència.",
                 INCONSISTENT_HASH:
-                    "Hi ha hagut un error relacionat amb el procés de hashing de la papereta. El BallotId: {{ballotId}} no és consistent amb el Hash de la Papereta Auditable: {{auditableBallotHash}}. Si us plau, informeu d'aquest problema al servei d'assistència.",
+                    "Hi ha hagut un error relacionat amb el procés de hashing de la papereta. L'ID de seguiment: {{ballotId}} no és consistent amb el Hash de la Papereta Auditable: {{auditableBallotHash}}. Si us plau, informeu d'aquest problema al servei d'assistència.",
                 ELECTION_EVENT_NOT_OPEN:
                     "L'esdeveniment electoral està tancat. Si us plau, contacteu amb el servei d'assistència.",
                 PARSE_ERROR:
@@ -243,8 +243,7 @@ const catalanTranslation: TranslationType = {
                     "L'autenticació ha fallat. Si us plau, torneu-ho a provar o contacteu amb el servei d'assistència.",
                 SESSION_EXPIRED:
                     "La vostra sessió ha caducat. Si us plau, torneu a començar des del principi.",
-                CAST_VOTE_BallotIdMismatch:
-                    "L'identificador de la papereta no coincideix amb el del vot emès.",
+                CAST_VOTE_BallotIdMismatch: "L'ID de seguiment no coincideix amb el del vot emès.",
                 SESSION_STORAGE_ERROR:
                     "L'emmagatzematge de sessió no està disponible. Si us plau, torneu-ho a provar o contacteu amb el servei d'assistència.",
                 PARSE_BALLOT_DATA_ERROR:
@@ -265,11 +264,11 @@ const catalanTranslation: TranslationType = {
             acclamation: {
                 title: "Resolt per aclamació",
                 description:
-                    "Totes les votacions d'aquesta elecció s'han resolt per aclamació, per la qual cosa no s'ha emès cap papereta i no hi ha identificador de papereta per consultar.",
+                    "Totes les votacions d'aquesta elecció s'han resolt per aclamació, per la qual cosa no s'ha emès cap papereta i no hi ha ID de seguiment.",
                 helpDialog: {
                     title: "Informació: Aclamació",
                     content:
-                        "Totes les votacions d'aquesta elecció s'han resolt per aclamació: les seves candidatures resulten elegides sense votació. Com que no s'ha emès cap papereta, no hi ha identificador de papereta, comprovant ni codi QR per verificar.",
+                        "Totes les votacions d'aquesta elecció s'han resolt per aclamació: les seves candidatures resulten elegides sense votació. Com que no s'ha emès cap papereta, no hi ha ID de seguiment, comprovant ni codi QR per verificar.",
                     ok: "D'acord",
                 },
             },
@@ -280,7 +279,7 @@ const catalanTranslation: TranslationType = {
                 description:
                     "La vostra papereta s'ha emès en blanc, que és una elecció vàlida i deliberada.",
             },
-            ballotId: "Localitzador del Vot",
+            ballotId: "ID de seguiment",
             printButton: "Imprimir",
             finishButton: "Finalitzar",
             remainingElectionsError:
@@ -301,20 +300,20 @@ const catalanTranslation: TranslationType = {
                 ok: "D'acord",
             },
             demoBallotUrlDialog: {
-                title: "Seguiment de la Butlleta",
+                title: "ID de seguiment",
                 content: "No es pot utilitzar el codi, desactivat en mode de demostració.",
                 ok: "D'acord",
             },
             ballotIdHelpDialog: {
-                title: "Sobre el Localitzador del Vot",
+                title: "Sobre l'ID de seguiment",
                 content:
-                    "El Localitzador del Vot és un codi únic que us permet trobar la vostra papereta a l'urna. No conté informació sobre les vostres seleccions.",
+                    "L'ID de seguiment és un codi únic que us permet trobar la vostra papereta a l'urna. No conté informació sobre les vostres seleccions.",
                 ok: "D'acord",
             },
             ballotIdDemoHelpDialog: {
-                title: "Sobre el Localitzador del Vot",
+                title: "Sobre l'ID de seguiment",
                 content:
-                    "L'identificador de papereta de vot és un codi que us permet trobar la vostra papereta a l'urna. Aquest identificador és únic i no conté informació sobre les vostres seleccions.",
+                    "L'ID de seguiment és un codi que us permet trobar la vostra papereta a l'urna. Aquest ID és únic i no conté informació sobre les vostres seleccions.",
                 ok: "D'acord",
             },
             errorDialogPrintBallotReceipt: {
@@ -331,7 +330,7 @@ const catalanTranslation: TranslationType = {
             description: "Per comprovar la vostra papereta, seguiu els passos a continuació:",
             step1Title: "1. Deseu les dades següents:",
             step1Description:
-                "el vostre <b>Localitzador del Vot</b> a la part superior de la pantalla i la vostra papereta encriptada a continuació",
+                "el vostre <b>ID de seguiment</b> a la part superior de la pantalla i la vostra papereta encriptada a continuació",
             step1HelpDialog: {
                 title: "Copiar el codi de la papereta",
                 content:
@@ -434,34 +433,83 @@ const catalanTranslation: TranslationType = {
             },
         },
         ballotLocator: {
-            title: "Trobeu la vostra papereta",
-            titleResult: "Resultats de la cerca de la vostra papereta",
+            title: "Seguiment de la papereta",
+            titleResult: "Seguiment de la papereta",
             description: "Confirmeu que la vostra papereta va ser emesa correctament",
+            descriptionAudited:
+                "Aquesta papereta va ser auditada, per la qual cosa no es va emetre mai. Comproveu que les seleccions descodificades a continuació són les que vau fer.",
+            descriptionAuditedBrief:
+                "Aquesta papereta va ser auditada, per la qual cosa no es va emetre mai.",
             locate: "Trobeu la vostra papereta",
             locateAgain: "Trobeu una altra papereta",
-            found: "El vostre ID de Papereta {{ballotId}} ha estat trobat",
-            notFound: "El vostre ID de Papereta {{ballotId}} no ha estat trobat",
+            found: "El vostre ID de seguiment {{ballotId}} ha estat trobat",
+            notFound: "El vostre ID de seguiment {{ballotId}} no ha estat trobat",
             contentDesc: "Aquest és el contingut de la vostra papereta: ",
-            wrongFormatBallotId: "Format incorrecte per l'ID de la Papereta",
+            wrongFormatBallotId: "Format incorrecte per l'ID de seguiment",
             ballotIdNotFoundAtFilter:
-                "No trobat, comproveu que l'ID de la Papereta sigui correcte i pertanyi a l'usuari actual.",
-            filterByBallotId: "Filtra per ID de la Papereta",
+                "No trobat, comproveu que l'ID de seguiment sigui correcte i pertanyi a l'usuari actual.",
+            filterByBallotId: "Filtra per ID de seguiment",
             totalBallots: "Paperetes: {{total}}",
-            idHelp: "L'ID de Papereta curt, com 30ff d314, o el complet",
+            idHelp: "L'ID de seguiment curt, com 30ff d314, o el complet",
             foundShort:
-                "Trobada pel seu ID curt. Per estar-ne segur que és la vostra, compareu l'ID de Papereta complet amb el vostre rebut.",
+                "Trobada pel seu ID curt. Per estar-ne segur que és la vostra, compareu l'ID de seguiment complet amb el vostre rebut.",
+            search: {
+                title: "Comproveu la vostra papereta al registre públic",
+                intro: "Introduïu l'ID de seguiment de la pantalla de confirmació o del rebut. El vostre navegador el cerca i comprova ell mateix les proves.",
+                find: "Cerca",
+                invalid: "Un ID de seguiment només té dígits i les lletres de la a a la f.",
+                chips: {
+                    short: "<b>Curt</b> 30ff d314",
+                    full: "<b>Complet</b> 16 grups de quatre",
+                    spaces: "Espais opcionals",
+                },
+                features: {
+                    cast: {
+                        title: "Paperetes emeses",
+                        text: "Comproveu que la vostra papereta és al registre públic, confirmada per testimonis independents i ancorada públicament.",
+                    },
+                    audited: {
+                        title: "Paperetes auditades",
+                        text: "Vegeu les seleccions que conté, desxifrades al vostre navegador, i comproveu que són les que vau fer.",
+                    },
+                    secret: {
+                        title: "El vostre vot continua sent secret",
+                        text: "Una papereta emesa continua xifrada. El seguiment de paperetes mostra que s'ha comptat, mai com heu votat.",
+                    },
+                },
+            },
             matches: {
-                title: "{{total}} paperetes tenen l'ID curt {{shortId}}. Trieu la vostra o introduïu l'ID de Papereta complet.",
+                title: "{{total}} paperetes comparteixen l'ID curt <b>{{shortId}}</b>. Trieu la vostra o introduïu l'ID de seguiment complet.",
                 cast: "Emesa el {{time}}",
+                audited: "Auditada el {{time}}",
+            },
+            audit: {
+                title: "Les vostres seleccions, descodificades",
+                note: "El vostre navegador ha desxifrat aquesta papereta auditada amb la clau que ha revelat el portal. Si aquestes no són les seleccions que vau fer, poseu-vos en contacte amb l'autoritat electoral.",
+                failed: {
+                    title: "Auditoria fallida",
+                    text: "La papereta del registre públic no es desxifra amb la clau que ha revelat el portal. No emeteu el vostre vot des d'aquest dispositiu; aviseu l'autoritat electoral.",
+                },
+                unchecked: {
+                    title: "No s'ha pogut comprovar l'auditoria",
+                    text: "Aquest dispositiu no ha pogut comprovar aquesta papereta auditada, de manera que no es mostra cap selecció. Torneu-ho a provar més tard, o comproveu el contingut de la papereta al verificador de paperetes.",
+                },
             },
             result: {
                 receipt: "Rebut de la papereta",
                 idComment:
                     "Feu servir l'ID curt o el complet per tornar a trobar aquesta papereta.",
-                fullId: "ID de Papereta complet",
-                copy: "Copia l'ID de Papereta complet",
-                copied: "ID de Papereta copiat",
-                copiedLabel: "Copiat",
+                fullId: "ID de seguiment complet",
+                copy: "Copia l'ID de seguiment complet",
+                copied: "ID de seguiment copiat",
+                tag: {
+                    found: "Trobada",
+                    auditFailed: "Auditoria fallida",
+                },
+                record: {
+                    title: "Contingut de la vostra papereta",
+                    subtitle: "Xifrat, tal com és al registre públic",
+                },
                 recordEntry: "Entrada del registre",
                 save: "Desa el rebut",
                 sealLabel: "Estat de la papereta: {{status}}",
@@ -522,7 +570,7 @@ const catalanTranslation: TranslationType = {
                     record: {
                         title: "Afegida al registre públic",
                         done: "Entrada núm. {{index}} del registre de paperetes de l'elecció. El vostre navegador n'ha comprovat la prova.",
-                        failed: "Cap entrada del registre de paperetes de l'elecció té aquest ID de Papereta.",
+                        failed: "Cap entrada del registre de paperetes de l'elecció té aquest ID de seguiment.",
                         missing: "Falta",
                     },
                     witnesses: {
@@ -559,33 +607,34 @@ const catalanTranslation: TranslationType = {
                 result: "Resultat",
             },
             titleHelpDialog: {
-                title: "Sobre el Cercador de Paperetes",
+                title: "Sobre el seguiment de la papereta",
                 content:
-                    "El Cercador de Paperetes us permet introduir el vostre ID de Papereta per localitzar el vostre vot i confirmar que va ser registrat correctament.",
+                    "Aquesta pantalla us permet trobar el vostre vot a partir de l'ID de seguiment. Amb aquest procediment podeu comprovar que la vostra papereta es va emetre correctament i que la papereta registrada coincideix amb la papereta xifrada que vau enviar.",
                 ok: "D'acord",
             },
             tabs: {
                 logs: "Logs",
-                ballotLocator: "Localitzador de la Papereta",
+                ballotLocator: "Seguiment de la papereta",
             },
             column: {
                 statement_kind: "Tipus",
                 statement_timestamp: "Marca de temps",
-                ballot_id: "ID de la Papereta",
+                ballot_id: "ID de seguiment",
             },
         },
         vitrine: {
             ballotId: {
-                label: "Localitzador del Vot",
-                full: "Localitzador del Vot complet",
-                yours: "El vostre Localitzador de Vot:",
-                copy: "Copia el localitzador complet",
-                copied: "Localitzador copiat",
-                copiedShort: "Copiat",
+                label: "ID de seguiment",
+                full: "ID de seguiment complet",
+                yours: "El vostre ID de seguiment:",
+                copy: "Copia l'ID de seguiment complet",
+                copied: "ID de seguiment copiat",
+                showFull: "Mostra l'ID de seguiment complet",
             },
             status: {
                 title: "Estat de la papereta",
                 cast: "Emesa el {{when}}",
+                audited: "Auditada el {{when}}",
                 ballotCast: "Vot emès",
                 aria: "Estat de la papereta: {{state}}. Mostra els detalls",
                 ariaCast: "Vot emès. Estat de la papereta: {{state}}. Mostra els detalls",
@@ -593,6 +642,11 @@ const catalanTranslation: TranslationType = {
                 tracker: "Obre al seguiment de paperetes",
                 save: "Desa el justificant",
                 ok: "D'acord",
+                tag: {
+                    cast: "Emesa",
+                    notCast: "No emesa",
+                    auditable: "Auditable",
+                },
                 state: {
                     notcast: "Encara no emesa",
                     checking: "Comprovant…",
@@ -601,6 +655,8 @@ const catalanTranslation: TranslationType = {
                     verified: "Verificada",
                     late: "Tardana",
                     problem: "Problema",
+                    auditable: "Auditable",
+                    auditfail: "Auditoria fallida",
                 },
                 head: {
                     late: "Està trigant més del previst",
@@ -632,6 +688,10 @@ const catalanTranslation: TranslationType = {
                         "Aquest web no ha rebut cap justificant de la vostra papereta. El vostre vot s'ha emès i s'ha avisat els observadors de l'elecció.",
                     unchecked:
                         "Aquest web no ha pogut comprovar el justificant. El vostre vot s'ha emès.",
+                    auditable:
+                        "Heu auditat aquesta papereta, per la qual cosa no s'ha emès mai. És al registre públic, i el seguiment de paperetes la desxifra per mostrar les seleccions que conté.",
+                    auditfail:
+                        "La papereta del registre públic no es desxifra amb la clau que ha revelat el portal. No emeteu el vostre vot des d'aquest dispositiu; aviseu l'autoritat electoral.",
                 },
                 step: {
                     record: {
@@ -701,6 +761,7 @@ const catalanTranslation: TranslationType = {
                     checking:
                         "El navegador està comprovant el registre públic, amb codi que qualsevol pot inspeccionar.",
                     problem: "Detectat pel navegador, amb codi que qualsevol pot inspeccionar.",
+                    auditable: "Desxifrat pel navegador, amb codi que qualsevol pot inspeccionar.",
                     verified: "Verificat pel navegador, amb codi que qualsevol pot inspeccionar.",
                     checked: "Comprovat pel navegador, amb codi que qualsevol pot inspeccionar.",
                     kept: "Aquest dispositiu guarda el justificant i el torna a comprovar a cada visita.",
@@ -717,6 +778,21 @@ const catalanTranslation: TranslationType = {
                 failed: "La configuració no coincideix amb la publicada. S'ha avisat els observadors de l'elecció. Poseu-vos en contacte amb el servei d'assistència.",
                 retry: "Torna-ho a provar",
                 close: "Tanca",
+            },
+            record: {
+                json: "JSON",
+                text: "Text",
+                fields_one: "{{count}} camp",
+                fields_other: "{{count}} camps",
+                items_one: "{{count}} element",
+                items_other: "{{count}} elements",
+                size: {
+                    bytes: "{{value}} B",
+                    kilobytes: "{{value}} KB",
+                },
+                copy: "Copia {{file}}",
+                copied: "Copiat",
+                download: "Descarrega {{file}}",
             },
         },
     },

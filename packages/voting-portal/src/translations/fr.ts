@@ -15,8 +15,8 @@ const frenchTranslation: TranslationType = {
             helpAbout: "Aide à propos de {{topic}}",
             previewMaterial: "Aperçu de {{title}}",
             ballotsTable: "Bulletins",
-            ballotLocatorTabs: "Sections du localisateur de bulletin",
-            ballotIdLabel: "Identifiant de vote",
+            ballotLocatorTabs: "Sections du suivi du bulletin",
+            ballotIdLabel: "Identifiant de suivi",
             votingProgress: "Progression du vote",
             stepOf: "Étape {{current}} sur {{total}}",
             selectUpTo_one: "Sélectionnez jusqu'à {{count}} option",
@@ -130,9 +130,9 @@ const frenchTranslation: TranslationType = {
             backButton: "Modifier votre vote",
             castBallotButton: "Envoyer le vote",
             auditButton: "Vérifier le bulletin",
-            copyBallotId: "Copier l’identifiant du bulletin",
-            ballotIdCopied: "Identifiant du bulletin copié",
-            ballotIdCopyError: "Impossible de copier l’identifiant du bulletin",
+            copyBallotId: "Copier l’identifiant de suivi",
+            ballotIdCopied: "Identifiant de suivi copié",
+            ballotIdCopyError: "Impossible de copier l’identifiant de suivi",
             reviewScreenHelpDialog: {
                 title: "À propos de l'écran de révision",
                 content: "Cet écran vous permet de réviser vos sélections avant de voter.",
@@ -141,7 +141,7 @@ const frenchTranslation: TranslationType = {
             ballotIdHelpDialog: {
                 title: "Vote non émis",
                 content:
-                    "<p>Vous êtes sur le point de copier le Localisateur de vote, mais <b>votre vote n'a pas encore été soumis</b>. Si vous essayez de rechercher le Localisateur de vote, vous ne le trouverez pas.</p><p>Nous affichons le Localisateur de vote à cette étape afin que vous puissiez vérifier, au moyen d'un audit, que votre bulletin a été correctement chiffré avant de le soumettre. Si c'est la raison pour laquelle vous souhaitez copier le Localisateur de vote, copiez-le d'abord, ensuite effectuez un audit de votre vote.</p>",
+                    "<p>Voici votre identifiant de suivi, mais <b>votre vote n'a pas encore été émis</b>. Si vous essayez de le suivre maintenant, rien n'apparaîtra.</p><p>Nous affichons l'identifiant de suivi à cette étape afin que vous puissiez auditer le bulletin chiffré avant de l'émettre.</p>",
                 ok: "Je comprends que mon vote n'a pas été émis",
                 cancel: "Annuler",
             },
@@ -223,7 +223,7 @@ const frenchTranslation: TranslationType = {
                 NO_AUDITABLE_BALLOT:
                     "Aucun bulletin de vote vérifiable n'est disponible. Veuillez contacter le support.",
                 INCONSISTENT_HASH:
-                    "Une erreur est survenue lors du calcul du hachage du bulletin. L'identifiant du bulletin ({{ballotId}}) ne correspond pas au hachage du bulletin vérifiable ({{auditableBallotHash}}). Veuillez signaler ce problème au service d'aide.",
+                    "Une erreur est survenue lors du calcul du hachage du bulletin. L'identifiant de suivi ({{ballotId}}) ne correspond pas au hachage du bulletin vérifiable ({{auditableBallotHash}}). Veuillez signaler ce problème au service d'aide.",
                 ELECTION_EVENT_NOT_OPEN:
                     "L'événement électoral est fermé. Veuillez contacter le support.",
                 PARSE_ERROR:
@@ -242,7 +242,7 @@ const frenchTranslation: TranslationType = {
                     "L'authentification a échoué. Veuillez réessayer ou contacter le support pour obtenir de l'aide.",
                 SESSION_EXPIRED: "Votre session a expiré. Veuillez recommencer depuis le début.",
                 CAST_VOTE_BallotIdMismatch:
-                    "L'identifiant du bulletin ne correspond pas à celui du vote exprimé.",
+                    "L'identifiant de suivi ne correspond pas à celui du vote exprimé.",
                 SESSION_STORAGE_ERROR:
                     "Le stockage de session n'est pas disponible. Veuillez réessayer ou contacter le support.",
                 PARSE_BALLOT_DATA_ERROR:
@@ -263,11 +263,11 @@ const frenchTranslation: TranslationType = {
             acclamation: {
                 title: "Acquis par acclamation",
                 description:
-                    "Tous les scrutins de cette élection ont été tranchés par acclamation : aucun bulletin n'a été déposé et il n'y a pas d'identifiant de bulletin à suivre.",
+                    "Tous les scrutins de cette élection ont été tranchés par acclamation : aucun bulletin n'a été déposé et il n'y a pas d'identifiant de suivi.",
                 helpDialog: {
                     title: "Information : Acclamation",
                     content:
-                        "Tous les scrutins de cette élection ont été tranchés par acclamation : leurs candidat(e)s sont élu(e)s sans vote. Comme aucun bulletin n'a été déposé, il n'y a ni identifiant de bulletin, ni reçu, ni code QR à vérifier.",
+                        "Tous les scrutins de cette élection ont été tranchés par acclamation : leurs candidat(e)s sont élu(e)s sans vote. Comme aucun bulletin n'a été déposé, il n'y a ni identifiant de suivi, ni reçu, ni code QR à vérifier.",
                     ok: "OK",
                 },
             },
@@ -277,7 +277,7 @@ const frenchTranslation: TranslationType = {
             blankBallot: {
                 description: "Votre bulletin a été déposé blanc, un choix valide et délibéré.",
             },
-            ballotId: "Localisateur de Vote",
+            ballotId: "Identifiant de suivi",
             printButton: "Imprimer",
             finishButton: "Terminer",
             remainingElectionsError:
@@ -298,20 +298,20 @@ const frenchTranslation: TranslationType = {
                 ok: "OK",
             },
             demoBallotUrlDialog: {
-                title: "Suivi du Bulletin",
+                title: "Identifiant de suivi",
                 content: "Impossible d'utiliser le code, celui-ci est désactivé en mode démo.",
                 ok: "OK",
             },
             ballotIdHelpDialog: {
-                title: "À propos du Localisateur de Bulletin",
+                title: "À propos de l'identifiant de suivi",
                 content:
-                    "Le Localisateur de Bulletin est un code qui vous permet de retrouver votre bulletin dans l'urne, ce Localisateur est unique et ne contient aucune information sur vos choix.",
+                    "L'identifiant de suivi est un code qui vous permet de retrouver votre bulletin dans l'urne. Cet identifiant est unique et ne contient aucune information sur vos choix.",
                 ok: "OK",
             },
             ballotIdDemoHelpDialog: {
-                title: "À propos de l'identifiant de bulletin",
+                title: "À propos de l'identifiant de suivi",
                 content:
-                    "L'identifiant de bulletin de vote est un code qui vous permet de retrouver votre bulletin dans l'urne. Cet identifiant est unique et ne contient aucune information sur vos choix.",
+                    "L'identifiant de suivi est un code qui vous permet de retrouver votre bulletin dans l'urne. Cet identifiant est unique et ne contient aucune information sur vos choix.",
                 ok: "OK",
             },
             errorDialogPrintBallotReceipt: {
@@ -328,7 +328,7 @@ const frenchTranslation: TranslationType = {
             description: "Pour vérifier votre bulletin, suivez les étapes suivantes:",
             step1Title: "1. Téléchargez ou copiez les informations suivantes",
             step1Description:
-                "Votre <b>Localisateur de Vote</b> apparaît en haut de l'écran et votre bulletin chiffré ci-dessous:",
+                "Votre <b>identifiant de suivi</b> apparaît en haut de l'écran et votre bulletin chiffré ci-dessous:",
             step1HelpDialog: {
                 title: "Copier le Vote Chiffré",
                 content:
@@ -430,34 +430,83 @@ const frenchTranslation: TranslationType = {
             },
         },
         ballotLocator: {
-            title: "Localisez votre bulletin de vote",
-            titleResult: "Résultat de la recherche de votre Bulletin",
+            title: "Suivi du bulletin",
+            titleResult: "Suivi du bulletin",
             description: "Vérifiez que votre bulletin a été émis correctement",
+            descriptionAudited:
+                "Ce bulletin a été audité ; il n'a donc jamais été émis. Vérifiez que les sélections décodées ci-dessous sont bien celles que vous avez faites.",
+            descriptionAuditedBrief: "Ce bulletin a été audité ; il n'a donc jamais été émis.",
             locate: "Trouvez votre bulletin",
             locateAgain: "Trouvez un autre bulletin",
-            found: "Votre numéro d'identification de bulletin {{ballotId}} a été trouvé",
-            notFound: "Votre numéro d'identification de bulletin {{ballotId}} n'a pas été trouvé",
+            found: "Votre identifiant de suivi {{ballotId}} a été trouvé",
+            notFound: "Votre identifiant de suivi {{ballotId}} n'a pas été trouvé",
             contentDesc: "Voici le contenu de votre bulletin : ",
-            wrongFormatBallotId: "Format incorrect pour le numéro d'identification du bulletin",
+            wrongFormatBallotId: "Format incorrect pour l'identifiant de suivi",
             ballotIdNotFoundAtFilter:
-                "Non trouvé, veuillez vérifier que le numéro d'identification du bulletin soit correct et appartenir à cet utilisateur.",
-            filterByBallotId: "Filtrez par numéro d'identification du bulletin",
+                "Non trouvé, veuillez vérifier que votre identifiant de suivi est correct et qu'il appartient à cet utilisateur.",
+            filterByBallotId: "Filtrez par identifiant de suivi",
             totalBallots: "Total: {{total}}",
-            idHelp: "Le numéro court du bulletin, comme 30ff d314, ou le numéro complet",
+            idHelp: "L'identifiant de suivi court, comme 30ff d314, ou l'identifiant complet",
             foundShort:
-                "Trouvé grâce à son numéro court. Pour être certain que c'est le vôtre, comparez le numéro complet du bulletin avec votre reçu.",
+                "Trouvé grâce à son identifiant court. Pour être certain que c'est le vôtre, comparez l'identifiant de suivi complet avec votre reçu.",
+            search: {
+                title: "Vérifiez votre bulletin dans le registre public",
+                intro: "Saisissez l'identifiant de suivi indiqué sur votre écran de confirmation ou votre reçu. Votre navigateur le recherche et vérifie lui-même les preuves.",
+                find: "Rechercher",
+                invalid:
+                    "Un identifiant de suivi ne contient que des chiffres et les lettres de a à f.",
+                chips: {
+                    short: "<b>Court</b> 30ff d314",
+                    full: "<b>Complet</b> 16 groupes de quatre",
+                    spaces: "Espaces facultatifs",
+                },
+                features: {
+                    cast: {
+                        title: "Bulletins émis",
+                        text: "Vérifiez qu'il figure dans le registre public, confirmé par des témoins indépendants et ancré publiquement.",
+                    },
+                    audited: {
+                        title: "Bulletins audités",
+                        text: "Consultez les sélections qu'il contient, déchiffrées dans votre navigateur, et vérifiez qu'elles sont bien celles que vous avez faites.",
+                    },
+                    secret: {
+                        title: "Votre vote reste secret",
+                        text: "Un bulletin émis reste chiffré. Le suivi des bulletins montre qu'il a été comptabilisé, jamais comment vous avez voté.",
+                    },
+                },
+            },
             matches: {
-                title: "{{total}} bulletins ont le numéro court {{shortId}}. Choisissez le vôtre, ou saisissez le numéro complet du bulletin.",
+                title: "{{total}} bulletins partagent l'identifiant court <b>{{shortId}}</b>. Choisissez le vôtre, ou saisissez l'identifiant de suivi complet.",
                 cast: "Émis le {{time}}",
+                audited: "Audité le {{time}}",
+            },
+            audit: {
+                title: "Vos sélections, décodées",
+                note: "Votre navigateur a déchiffré ce bulletin audité avec la clé révélée par le portail. Si ce ne sont pas les sélections que vous avez faites, contactez l'autorité électorale.",
+                failed: {
+                    title: "Échec de l'audit",
+                    text: "Le bulletin figurant dans le registre public ne se déchiffre pas avec la clé révélée par le portail. Ne votez pas depuis cet appareil ; informez l'autorité électorale.",
+                },
+                unchecked: {
+                    title: "L'audit n'a pas pu être vérifié",
+                    text: "Cet appareil n'a pas pu vérifier ce bulletin audité ; aucune sélection n'est donc affichée. Réessayez plus tard, ou vérifiez le contenu du bulletin dans le vérificateur de bulletins.",
+                },
             },
             result: {
                 receipt: "Reçu du bulletin",
                 idComment:
-                    "Utilisez le numéro court ou le numéro complet pour retrouver ce bulletin.",
-                fullId: "Numéro complet du bulletin",
-                copy: "Copier le numéro complet du bulletin",
-                copied: "Numéro du bulletin copié",
-                copiedLabel: "Copié",
+                    "Utilisez l'identifiant court ou l'identifiant complet pour retrouver ce bulletin.",
+                fullId: "Identifiant de suivi complet",
+                copy: "Copier l'identifiant de suivi complet",
+                copied: "Identifiant de suivi copié",
+                tag: {
+                    found: "Trouvé",
+                    auditFailed: "Échec de l'audit",
+                },
+                record: {
+                    title: "Le contenu de votre bulletin",
+                    subtitle: "Chiffré, comme dans le registre public",
+                },
                 recordEntry: "Entrée du registre",
                 save: "Enregistrer le reçu",
                 sealLabel: "État du bulletin : {{status}}",
@@ -518,7 +567,7 @@ const frenchTranslation: TranslationType = {
                     record: {
                         title: "Ajouté au registre public",
                         done: "Entrée n° {{index}} du registre des bulletins de l'élection. Votre navigateur a vérifié sa preuve.",
-                        failed: "Aucune entrée du registre des bulletins de l'élection n'a ce numéro de bulletin.",
+                        failed: "Aucune entrée du registre des bulletins de l'élection n'a cet identifiant de suivi.",
                         missing: "Absent",
                     },
                     witnesses: {
@@ -555,33 +604,34 @@ const frenchTranslation: TranslationType = {
                 result: "Résultat",
             },
             titleHelpDialog: {
-                title: "À propos du localisateur de bulletin",
+                title: "À propos du suivi du bulletin",
                 content:
-                    "Le localisateur de bulletin vous permet de saisir le numéro d'identification du bulletin pour trouver votre vote et confirmer qu'il a été enregistré correctement.",
+                    "Cet écran vous permet de saisir l'identifiant de suivi pour trouver votre vote et confirmer qu'il a été enregistré correctement.",
                 ok: "OK",
             },
             tabs: {
                 logs: "Logs",
-                ballotLocator: "Recherche de bulletin",
+                ballotLocator: "Suivi du bulletin",
             },
             column: {
                 statement_kind: "Type",
                 statement_timestamp: "Marque de temps",
-                ballot_id: "Numéro d'identification du bulletin",
+                ballot_id: "Identifiant de suivi",
             },
         },
         vitrine: {
             ballotId: {
-                label: "Localisateur de Vote",
-                full: "Localisateur de Vote complet",
-                yours: "Votre Localisateur de Vote :",
-                copy: "Copier le localisateur complet",
-                copied: "Localisateur copié",
-                copiedShort: "Copié",
+                label: "Identifiant de suivi",
+                full: "Identifiant de suivi complet",
+                yours: "Votre identifiant de suivi :",
+                copy: "Copier l’identifiant de suivi complet",
+                copied: "Identifiant de suivi copié",
+                showFull: "Afficher l’identifiant de suivi complet",
             },
             status: {
                 title: "État du bulletin",
                 cast: "Émis le {{when}}",
+                audited: "Audité le {{when}}",
                 ballotCast: "Vote émis",
                 aria: "État du bulletin : {{state}}. Afficher les détails",
                 ariaCast: "Vote émis. État du bulletin : {{state}}. Afficher les détails",
@@ -589,6 +639,11 @@ const frenchTranslation: TranslationType = {
                 tracker: "Ouvrir dans le suivi des bulletins",
                 save: "Enregistrer le justificatif",
                 ok: "OK",
+                tag: {
+                    cast: "Émis",
+                    notCast: "Non émis",
+                    auditable: "Auditable",
+                },
                 state: {
                     notcast: "Pas encore émis",
                     checking: "Vérification…",
@@ -597,6 +652,8 @@ const frenchTranslation: TranslationType = {
                     verified: "Vérifié",
                     late: "En retard",
                     problem: "Problème",
+                    auditable: "Auditable",
+                    auditfail: "Échec de l’audit",
                 },
                 head: {
                     late: "Plus long que prévu",
@@ -629,6 +686,10 @@ const frenchTranslation: TranslationType = {
                         "Ce site n’a reçu aucun justificatif pour votre bulletin. Votre vote a été émis, et les observateurs de l’élection ont été informés.",
                     unchecked:
                         "Ce site n’a pas pu vérifier le justificatif. Votre vote a été émis.",
+                    auditable:
+                        "Vous avez audité ce bulletin ; il n’a donc jamais été émis. Il figure dans le registre public, et le suivi des bulletins le déchiffre pour afficher les sélections qu’il contient.",
+                    auditfail:
+                        "Le bulletin figurant dans le registre public ne se déchiffre pas avec la clé révélée par le portail. Ne votez pas depuis cet appareil ; informez l’autorité électorale.",
                 },
                 step: {
                     record: {
@@ -700,6 +761,8 @@ const frenchTranslation: TranslationType = {
                         "Votre navigateur vérifie le registre public, avec un code que chacun peut inspecter.",
                     problem:
                         "Constaté par votre navigateur, avec un code que chacun peut inspecter.",
+                    auditable:
+                        "Déchiffré par votre navigateur, avec un code que chacun peut inspecter.",
                     verified:
                         "Vérifié par votre navigateur, avec un code que chacun peut inspecter.",
                     checked:
@@ -718,6 +781,21 @@ const frenchTranslation: TranslationType = {
                 failed: "La configuration ne correspond pas à celle publiée. Les observateurs de l'élection ont été prévenus. Veuillez contacter l'assistance.",
                 retry: "Réessayer",
                 close: "Fermer",
+            },
+            record: {
+                json: "JSON",
+                text: "Texte",
+                fields_one: "{{count}} champ",
+                fields_other: "{{count}} champs",
+                items_one: "{{count}} élément",
+                items_other: "{{count}} éléments",
+                size: {
+                    bytes: "{{value}} o",
+                    kilobytes: "{{value}} Ko",
+                },
+                copy: "Copier {{file}}",
+                copied: "Copié",
+                download: "Télécharger {{file}}",
             },
         },
     },

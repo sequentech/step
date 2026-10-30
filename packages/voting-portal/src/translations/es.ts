@@ -15,8 +15,8 @@ const spanishTranslation: TranslationType = {
             helpAbout: "Ayuda sobre {{topic}}",
             previewMaterial: "Vista previa de {{title}}",
             ballotsTable: "Papeletas",
-            ballotLocatorTabs: "Secciones del localizador de papeletas",
-            ballotIdLabel: "ID de voto",
+            ballotLocatorTabs: "Secciones del seguimiento de la papeleta",
+            ballotIdLabel: "ID de seguimiento",
             votingProgress: "Progreso de la votación",
             stepOf: "Paso {{current}} de {{total}}",
             selectUpTo_one: "Seleccione hasta {{count}} opción",
@@ -130,9 +130,9 @@ const spanishTranslation: TranslationType = {
             backButton: "Editar su voto",
             castBallotButton: "Enviar voto",
             auditButton: "Auditar papeleta",
-            copyBallotId: "Copiar el ID de la papeleta",
-            ballotIdCopied: "ID de la papeleta copiado",
-            ballotIdCopyError: "No se pudo copiar el ID de la papeleta",
+            copyBallotId: "Copiar el ID de seguimiento",
+            ballotIdCopied: "ID de seguimiento copiado",
+            ballotIdCopyError: "No se pudo copiar el ID de seguimiento",
             reviewScreenHelpDialog: {
                 title: "Sobre la pantalla de revisión",
                 content: "Esta pantalla le permite revisar sus selecciones antes de emitir su voto",
@@ -141,7 +141,7 @@ const spanishTranslation: TranslationType = {
             ballotIdHelpDialog: {
                 title: "Su voto no ha sido emitido",
                 content:
-                    "<p>Este es su Localizador del Voto, pero <b>su voto aún no ha sido emitido</b>. Si intenta buscarlo ahora, no aparecerá.</p><p>Mostramos el Localizador del Voto en esta etapa para que pueda auditar la papeleta cifrada antes de emitirla.</p>",
+                    "<p>Este es su ID de seguimiento, pero <b>su voto aún no ha sido emitido</b>. Si intenta buscarlo ahora, no aparecerá.</p><p>Mostramos el ID de seguimiento en esta etapa para que pueda auditar la papeleta cifrada antes de emitirla.</p>",
                 ok: "Entiendo que mi voto no ha sido emitido",
                 cancel: "Cancelar",
             },
@@ -223,7 +223,7 @@ const spanishTranslation: TranslationType = {
                 NO_AUDITABLE_BALLOT:
                     "No hay una papeleta verificable disponible. Por favor, contacte con el soporte.",
                 INCONSISTENT_HASH:
-                    "Hubo un error relacionado con el proceso de hash de la papeleta. El BallotId: {{ballotId}} no es coherente con el Hash de la Papeleta Verificable: {{auditableBallotHash}}. Por favor, informe de este problema al soporte.",
+                    "Hubo un error relacionado con el proceso de hash de la papeleta. El ID de seguimiento: {{ballotId}} no es coherente con el Hash de la Papeleta Verificable: {{auditableBallotHash}}. Por favor, informe de este problema al soporte.",
                 ELECTION_EVENT_NOT_OPEN:
                     "El evento electoral está cerrado. Por favor, contacte con el soporte.",
                 PARSE_ERROR:
@@ -243,7 +243,7 @@ const spanishTranslation: TranslationType = {
                 SESSION_EXPIRED:
                     "Su sesión ha expirado. Por favor, inténtelo de nuevo desde el principio.",
                 CAST_VOTE_BallotIdMismatch:
-                    "El identificador de la papeleta no coincide con el del voto emitido.",
+                    "El ID de seguimiento no coincide con el del voto emitido.",
                 SESSION_STORAGE_ERROR:
                     "El almacenamiento de sesión no está disponible. Por favor, inténtelo de nuevo o contacte con el soporte.",
                 PARSE_BALLOT_DATA_ERROR:
@@ -264,11 +264,11 @@ const spanishTranslation: TranslationType = {
             acclamation: {
                 title: "Resuelto por aclamación",
                 description:
-                    "Todas las votaciones de esta elección se han resuelto por aclamación, por lo que no se ha emitido ninguna papeleta y no hay identificador de papeleta que consultar.",
+                    "Todas las votaciones de esta elección se han resuelto por aclamación, por lo que no se ha emitido ninguna papeleta y no hay ID de seguimiento.",
                 helpDialog: {
                     title: "Información: Aclamación",
                     content:
-                        "Todas las votaciones de esta elección se han resuelto por aclamación: sus candidaturas resultan elegidas sin votación. Como no se ha emitido ninguna papeleta, no hay identificador de papeleta, comprobante ni código QR que verificar.",
+                        "Todas las votaciones de esta elección se han resuelto por aclamación: sus candidaturas resultan elegidas sin votación. Como no se ha emitido ninguna papeleta, no hay ID de seguimiento, comprobante ni código QR que verificar.",
                     ok: "OK",
                 },
             },
@@ -279,7 +279,7 @@ const spanishTranslation: TranslationType = {
                 description:
                     "Su papeleta se emitió en blanco, lo cual es una elección válida y deliberada.",
             },
-            ballotId: "Localizador del Voto",
+            ballotId: "ID de seguimiento",
             printButton: "Imprimir",
             finishButton: "Finalizar",
             remainingElectionsError:
@@ -300,20 +300,20 @@ const spanishTranslation: TranslationType = {
                 ok: "Aceptar",
             },
             demoBallotUrlDialog: {
-                title: "Rastreador de Papeletas",
+                title: "ID de seguimiento",
                 content: "No se puede usar el código, deshabilitado en modo de demostración.",
                 ok: "OK",
             },
             ballotIdHelpDialog: {
-                title: "Sobre el Localizador del Voto",
+                title: "Sobre el ID de seguimiento",
                 content:
-                    "El Localizador del Voto es un código único que le permite encontrar su papeleta en la urna. No contiene información sobre sus selecciones.",
+                    "El ID de seguimiento es un código único que le permite encontrar su papeleta en la urna. No contiene información sobre sus selecciones.",
                 ok: "OK",
             },
             ballotIdDemoHelpDialog: {
-                title: "Sobre el Localizador del Voto",
+                title: "Sobre el ID de seguimiento",
                 content:
-                    "La identificación de la papeleta es un código que le permite encontrar su papeleta en la urna. Este identificador es único y no contiene información sobre sus selecciones.",
+                    "El ID de seguimiento es un código que le permite encontrar su papeleta en la urna. Este ID es único y no contiene información sobre sus selecciones.",
                 ok: "Aceptar",
             },
             errorDialogPrintBallotReceipt: {
@@ -330,7 +330,7 @@ const spanishTranslation: TranslationType = {
             description: "Para comprobar su papeleta, siga los pasos a continuación:",
             step1Title: "1. Guarde los siguientes datos:",
             step1Description:
-                "su <b>Localizador del Voto</b> en la parte superior de la pantalla y su papeleta encriptada a continuación",
+                "su <b>ID de seguimiento</b> en la parte superior de la pantalla y su papeleta encriptada a continuación",
             step1HelpDialog: {
                 title: "Copiar código de la papeleta",
                 content:
@@ -433,33 +433,81 @@ const spanishTranslation: TranslationType = {
             },
         },
         ballotLocator: {
-            title: "Encuentre su papeleta",
-            titleResult: "Resultados de su búsqueda de Papeleta",
+            title: "Seguimiento de la papeleta",
+            titleResult: "Seguimiento de la papeleta",
             description: "Confirme que su papeleta fue emitida correctamente",
+            descriptionAudited:
+                "Esta papeleta fue auditada, por lo que nunca se emitió. Compruebe que las selecciones descodificadas a continuación son las que hizo.",
+            descriptionAuditedBrief: "Esta papeleta fue auditada, por lo que nunca se emitió.",
             locate: "Encuentre su papeleta",
             locateAgain: "Encuentre otra papeleta",
-            found: "Su ID de Papeleta {{ballotId}} ha sido encontrado",
-            notFound: "Su ID de Papeleta {{ballotId}} no fue encontrado",
+            found: "Su ID de seguimiento {{ballotId}} ha sido encontrado",
+            notFound: "Su ID de seguimiento {{ballotId}} no fue encontrado",
             contentDesc: "Este es el contenido de su papeleta: ",
-            wrongFormatBallotId: "Formato incorrecto para el ID de la Papeleta",
+            wrongFormatBallotId: "Formato incorrecto para el ID de seguimiento",
             ballotIdNotFoundAtFilter:
-                "No encontrado, compruebe que el ID de la papeleta sea correcto y pertenezca a este usuario.",
-            filterByBallotId: "Filtrar por ID de Papeleta",
+                "No encontrado, compruebe que el ID de seguimiento sea correcto y pertenezca a este usuario.",
+            filterByBallotId: "Filtrar por ID de seguimiento",
             totalBallots: "Papeletas: {{total}}",
-            idHelp: "El ID de Papeleta corto, como 30ff d314, o el completo",
+            idHelp: "El ID de seguimiento corto, como 30ff d314, o el completo",
             foundShort:
-                "Encontrada por su ID corto. Para estar seguro de que es la suya, compare el ID de Papeleta completo con su recibo.",
+                "Encontrada por su ID corto. Para estar seguro de que es la suya, compare el ID de seguimiento completo con su recibo.",
+            search: {
+                title: "Compruebe su papeleta en el registro público",
+                intro: "Introduzca el ID de seguimiento de su pantalla de confirmación o de su recibo. Su navegador lo busca y comprueba él mismo las pruebas.",
+                find: "Buscar",
+                invalid: "Un ID de seguimiento solo tiene dígitos y las letras de la a a la f.",
+                chips: {
+                    short: "<b>Corto</b> 30ff d314",
+                    full: "<b>Completo</b> 16 grupos de cuatro",
+                    spaces: "Espacios opcionales",
+                },
+                features: {
+                    cast: {
+                        title: "Papeletas emitidas",
+                        text: "Compruebe que su papeleta está en el registro público, confirmada por testigos independientes y anclada públicamente.",
+                    },
+                    audited: {
+                        title: "Papeletas auditadas",
+                        text: "Vea las selecciones que contiene, descifradas en su navegador, y compruebe que son las que hizo.",
+                    },
+                    secret: {
+                        title: "Su voto sigue siendo secreto",
+                        text: "Una papeleta emitida permanece cifrada. El rastreador muestra que se contó, nunca cómo votó.",
+                    },
+                },
+            },
             matches: {
-                title: "{{total}} papeletas tienen el ID corto {{shortId}}. Elija la suya o introduzca el ID de Papeleta completo.",
+                title: "{{total}} papeletas comparten el ID corto <b>{{shortId}}</b>. Elija la suya o introduzca el ID de seguimiento completo.",
                 cast: "Emitida el {{time}}",
+                audited: "Auditada el {{time}}",
+            },
+            audit: {
+                title: "Sus selecciones, descodificadas",
+                note: "Su navegador descifró esta papeleta auditada con la clave que reveló el portal. Si estas no son las selecciones que hizo, póngase en contacto con la autoridad electoral.",
+                failed: {
+                    title: "Auditoría fallida",
+                    text: "La papeleta del registro público no se descifra con la clave que reveló el portal. No emita su voto desde este dispositivo; avise a la autoridad electoral.",
+                },
+                unchecked: {
+                    title: "No se pudo comprobar la auditoría",
+                    text: "Este dispositivo no pudo comprobar esta papeleta auditada, por lo que no se muestra ninguna selección. Inténtelo de nuevo más tarde, o compruebe el contenido de la papeleta en el verificador de papeletas.",
+                },
             },
             result: {
                 receipt: "Recibo de la papeleta",
                 idComment: "Use el ID corto o el completo para volver a encontrar esta papeleta.",
-                fullId: "ID de Papeleta completo",
-                copy: "Copiar el ID de Papeleta completo",
-                copied: "ID de Papeleta copiado",
-                copiedLabel: "Copiado",
+                fullId: "ID de seguimiento completo",
+                copy: "Copiar el ID de seguimiento completo",
+                copied: "ID de seguimiento copiado",
+                tag: {
+                    found: "Encontrada",
+                    auditFailed: "Auditoría fallida",
+                },
+                record: {
+                    title: "Contenido de su papeleta",
+                    subtitle: "Cifrado, tal como está en el registro público",
+                },
                 recordEntry: "Entrada del registro",
                 save: "Guardar recibo",
                 sealLabel: "Estado de la papeleta: {{status}}",
@@ -521,7 +569,7 @@ const spanishTranslation: TranslationType = {
                     record: {
                         title: "Añadida al registro público",
                         done: "Entrada n.º {{index}} del registro de papeletas de la elección. Su navegador comprobó su prueba.",
-                        failed: "Ninguna entrada del registro de papeletas de la elección tiene este ID de Papeleta.",
+                        failed: "Ninguna entrada del registro de papeletas de la elección tiene este ID de seguimiento.",
                         missing: "Falta",
                     },
                     witnesses: {
@@ -558,33 +606,34 @@ const spanishTranslation: TranslationType = {
                 result: "Resultado",
             },
             titleHelpDialog: {
-                title: "Sobre el Buscador de Papeletas",
+                title: "Sobre el seguimiento de la papeleta",
                 content:
-                    "El Buscador de Papeletas le permite introducir su ID de Papeleta para localizar su voto y confirmar que fue registrado correctamente.",
+                    "Esta pantalla le permite encontrar su voto a partir del ID de seguimiento. Con este procedimiento puede comprobar que su papeleta se emitió correctamente y que la papeleta registrada coincide con la papeleta cifrada que envió.",
                 ok: "OK",
             },
             tabs: {
                 logs: "Logs",
-                ballotLocator: "Localizador de Papeletas",
+                ballotLocator: "Seguimiento de la papeleta",
             },
             column: {
                 statement_kind: "Tipo",
                 statement_timestamp: "Marca de tiempo",
-                ballot_id: "ID de Papeleta",
+                ballot_id: "ID de seguimiento",
             },
         },
         vitrine: {
             ballotId: {
-                label: "Localizador del Voto",
-                full: "Localizador del Voto completo",
-                yours: "Su Localizador de Voto:",
-                copy: "Copiar el localizador completo",
-                copied: "Localizador copiado",
-                copiedShort: "Copiado",
+                label: "ID de seguimiento",
+                full: "ID de seguimiento completo",
+                yours: "Su ID de seguimiento:",
+                copy: "Copiar el ID de seguimiento completo",
+                copied: "ID de seguimiento copiado",
+                showFull: "Mostrar el ID de seguimiento completo",
             },
             status: {
                 title: "Estado de la papeleta",
                 cast: "Emitida el {{when}}",
+                audited: "Auditada el {{when}}",
                 ballotCast: "Voto emitido",
                 aria: "Estado de la papeleta: {{state}}. Mostrar detalles",
                 ariaCast: "Voto emitido. Estado de la papeleta: {{state}}. Mostrar detalles",
@@ -592,6 +641,11 @@ const spanishTranslation: TranslationType = {
                 tracker: "Abrir en el rastreador de papeletas",
                 save: "Guardar el justificante",
                 ok: "Aceptar",
+                tag: {
+                    cast: "Emitida",
+                    notCast: "No emitida",
+                    auditable: "Auditable",
+                },
                 state: {
                     notcast: "Aún no emitida",
                     checking: "Comprobando…",
@@ -600,6 +654,8 @@ const spanishTranslation: TranslationType = {
                     verified: "Verificada",
                     late: "Con retraso",
                     problem: "Problema",
+                    auditable: "Auditable",
+                    auditfail: "Auditoría fallida",
                 },
                 head: {
                     late: "Tarda más de lo previsto",
@@ -632,6 +688,10 @@ const spanishTranslation: TranslationType = {
                         "Este sitio web no recibió ningún justificante de su papeleta. Su voto se emitió y se ha avisado a los observadores de la elección.",
                     unchecked:
                         "Este sitio web no pudo comprobar el justificante. Su voto se emitió.",
+                    auditable:
+                        "Usted auditó esta papeleta, por lo que nunca se emitió. Está en el registro público, y el rastreador de papeletas la descifra para mostrar las selecciones que contiene.",
+                    auditfail:
+                        "La papeleta del registro público no se descifra con la clave que reveló el portal. No emita su voto desde este dispositivo; avise a la autoridad electoral.",
                 },
                 step: {
                     record: {
@@ -704,6 +764,8 @@ const spanishTranslation: TranslationType = {
                         "Su navegador está comprobando el registro público, con código que cualquiera puede inspeccionar.",
                     problem:
                         "Detectado por su navegador, con código que cualquiera puede inspeccionar.",
+                    auditable:
+                        "Descifrado por su navegador, con código que cualquiera puede inspeccionar.",
                     verified:
                         "Verificado por su navegador, con código que cualquiera puede inspeccionar.",
                     checked:
@@ -722,6 +784,21 @@ const spanishTranslation: TranslationType = {
                 failed: "La configuración no coincide con la publicada. Se ha avisado a los observadores de la elección. Póngase en contacto con soporte.",
                 retry: "Reintentar",
                 close: "Cerrar",
+            },
+            record: {
+                json: "JSON",
+                text: "Texto",
+                fields_one: "{{count}} campo",
+                fields_other: "{{count}} campos",
+                items_one: "{{count}} elemento",
+                items_other: "{{count}} elementos",
+                size: {
+                    bytes: "{{value}} B",
+                    kilobytes: "{{value}} KB",
+                },
+                copy: "Copiar {{file}}",
+                copied: "Copiado",
+                download: "Descargar {{file}}",
             },
         },
     },

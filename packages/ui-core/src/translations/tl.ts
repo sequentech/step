@@ -23,7 +23,7 @@ const tagalogTranslation: TranslationType = {
         a11y: {
             closeDialog: "Isara ang dialog",
             dismissMessage: "I-dismiss ang mensahe",
-            ballotIdHelp: "Tungkol sa iyong Ballot ID",
+            ballotIdHelp: "Tungkol sa iyong Tracking ID",
             loading: "Naglo-load",
             severity: {
                 error: "Error",
@@ -70,7 +70,7 @@ const tagalogTranslation: TranslationType = {
             title: "Sequent Ballot Verifier",
             topDescription1:
                 "Batay sa impormasyon sa na-import na Sisiyasating Balota, nakalkula namin na:",
-            topDescription2: "Kung ito ang Ballot ID na ipinakita sa Voting Booth:",
+            topDescription2: "Kung ito ang Tracking ID na ipinakita sa Voting Booth:",
             bottomDescription1:
                 "Ang iyong balota ay na-encrypt ng tama. Maaari mo nang isara ang window na ito at bumalik sa Voting Booth.",
             bottomDescription2:
@@ -140,7 +140,7 @@ const tagalogTranslation: TranslationType = {
                     "Hindi wastong configuration ng balota: may {{count}} tahasang blankong kandidato sa paligsahan, ngunit isa lamang ang pinapayagan.",
             },
         },
-        ballotHash: "Ang Iyong Ballot ID: {{ballotId}}",
+        ballotHash: "Ang Iyong Tracking ID: {{ballotId}}",
         version: {
             header: "Bersyon:",
         },
@@ -177,7 +177,8 @@ const tagalogTranslation: TranslationType = {
             voteButton: "I-click upang Bumoto",
             openDate: "Simula: ",
             closeDate: "Pagtapos: ",
-            ballotLocator: "Hanapin ang iyong balota",
+            ballotLocator: "Subaybayan ang iyong balota",
+            alreadyCast: "Naiboto mo na ang balotang ito",
         },
         header: {
             profile: "Profile",

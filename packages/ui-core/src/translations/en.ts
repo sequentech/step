@@ -21,7 +21,7 @@ const englishTranslation = {
         a11y: {
             closeDialog: "Close dialog",
             dismissMessage: "Dismiss message",
-            ballotIdHelp: "About your Ballot ID",
+            ballotIdHelp: "About your Tracking ID",
             loading: "Loading",
             severity: {
                 error: "Error",
@@ -68,7 +68,7 @@ const englishTranslation = {
             title: "Sequent Ballot Verifier",
             topDescription1:
                 "Based on the information in the imported Auditable Ballot, we calculated that:",
-            topDescription2: "If this is the Ballot ID shown in the Voting Booth:",
+            topDescription2: "If this is the Tracking ID shown in the Voting Booth:",
             bottomDescription1:
                 "Your ballot was encrypted correctly. You can now close this window and return to the Voting Booth.",
             bottomDescription2:
@@ -140,7 +140,7 @@ const englishTranslation = {
                     "Invalid ballot configuration: the contest defines {{count}} explicit blank candidates, but only one is allowed.",
             },
         },
-        ballotHash: "Your Ballot ID: {{ballotId}}",
+        ballotHash: "Your Tracking ID: {{ballotId}}",
         version: {
             header: "Version:",
         },
@@ -176,7 +176,8 @@ const englishTranslation = {
             voteButton: "Click to Vote",
             openDate: "Open: ",
             closeDate: "Close: ",
-            ballotLocator: "Locate your ballot",
+            ballotLocator: "Track your ballot",
+            alreadyCast: "You already cast this ballot",
         },
         header: {
             profile: "Profile",

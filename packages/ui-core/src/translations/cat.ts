@@ -23,7 +23,7 @@ const catalanTranslation: TranslationType = {
         a11y: {
             closeDialog: "Tancar el diàleg",
             dismissMessage: "Descartar el missatge",
-            ballotIdHelp: "Sobre el vostre ID de vot",
+            ballotIdHelp: "Sobre el vostre ID de seguiment",
             loading: "Carregant",
             severity: {
                 error: "Error",
@@ -69,7 +69,7 @@ const catalanTranslation: TranslationType = {
         confirmationScreen: {
             title: "Verificador de Vot Sequent",
             topDescription1: "Basat en la informació del vot auditable importat, calculem que:",
-            topDescription2: "Si aquest ID de vot és mostrat a la Cabina de Votació:",
+            topDescription2: "Si aquest ID de seguiment és mostrat a la Cabina de Votació:",
             bottomDescription1:
                 "El vostre vot va ser xifrat correctament. Ara podeu tancar aquesta finestra i tornar a la Cabina de Votació.",
             bottomDescription2:
@@ -137,7 +137,7 @@ const catalanTranslation: TranslationType = {
                     "Configuració de vot invàlida: la pregunta defineix {{count}} candidats de vot en blanc explícit, però només se'n permet un.",
             },
         },
-        ballotHash: "El vostre Localitzador de Vot: {{ballotId}}",
+        ballotHash: "El vostre ID de seguiment: {{ballotId}}",
         version: {
             header: "Versió:",
         },
@@ -174,7 +174,8 @@ const catalanTranslation: TranslationType = {
             voteButton: "Feu clic per votar",
             openDate: "Oberta: ",
             closeDate: "Tancada: ",
-            ballotLocator: "Localitzeu el vostre vot",
+            ballotLocator: "Seguiu la vostra papereta",
+            alreadyCast: "Ja heu emès aquesta papereta",
         },
         header: {
             profile: "Perfil",
