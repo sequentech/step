@@ -58,3 +58,14 @@ CREATE TABLE sequent_backend.secret (
     tenant_id uuid, election_event_id uuid, key text, value text,
     PRIMARY KEY (tenant_id, election_event_id, key)
 );
+CREATE TABLE sequent_backend.ballot_publication (
+    id uuid, tenant_id uuid, election_event_id uuid, is_generated bool DEFAULT false,
+    published_at timestamptz, deleted_at timestamptz,
+    PRIMARY KEY (id, tenant_id, election_event_id)
+);
+CREATE TABLE sequent_backend.ballot_style (
+    id uuid PRIMARY KEY, tenant_id uuid, election_event_id uuid, election_id uuid,
+    area_id uuid, created_at timestamptz, last_updated_at timestamptz, labels jsonb,
+    annotations jsonb, ballot_eml text, ballot_signature bytea, status text,
+    deleted_at timestamptz, ballot_publication_id uuid
+);
