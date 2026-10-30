@@ -468,6 +468,7 @@ const catalanTranslation: TranslationType = {
                 dates: "Dates",
                 customUrls: "Prefix d'URL personalitzats",
                 language: "Idiomes",
+                languageAndRegion: "Idioma i regió",
                 votingPeriod: "Període de votació",
                 allowed: "Canals de Vot Permesos",
                 materials: "Materials de Suport",
@@ -705,6 +706,12 @@ const catalanTranslation: TranslationType = {
                         "browser-detect": "Detectar del navegador",
                         "force-default": "Forçar per defecte",
                     },
+                },
+                numberFormatPolicy: {
+                    policyLabel: "Política de format de nombres",
+                    helperText:
+                        "S'aplica als nombres dels resultats, els taulers de control i els informes.",
+                    unknownPolicy: "Format desconegut '{{policy}}', es mostra com a {{sample}}",
                 },
             },
             error: {
@@ -1046,6 +1053,29 @@ const catalanTranslation: TranslationType = {
                 options: {
                     "gold-level": "Autenticació de nivell or",
                     "no-gold-level": "Sense autenticació de nivell or",
+                },
+            },
+            slates: {
+                enable: {
+                    label: "Habilita les candidatures",
+                    helper: "Si està habilitat, els votants poden triar una candidatura amb nom i canviar qualsevol contesa, inclosos els candidats independents.",
+                },
+                disable: {
+                    confirm: "Deshabilita les candidatures",
+                    message_one:
+                        "Aquesta elecció té {{count}} candidatura. Si deshabilites les candidatures, s'eliminarà en desar.",
+                    message_many:
+                        "Aquesta elecció té {{count}} candidatures. Si deshabilites les candidatures, s'eliminaran en desar.",
+                    message_other:
+                        "Aquesta elecció té {{count}} candidatures. Si deshabilites les candidatures, s'eliminaran en desar.",
+                },
+                mobileCandidateLists: {
+                    label: "Llistes de candidats al mòbil",
+                    helper: "Com apareix inicialment la llista de candidats de cada candidatura al mòbil: Replegades o Desplegades. Els votants sempre poden obrir o tancar qualsevol llista. A l'escriptori sempre es mostren tots els candidats.",
+                    options: {
+                        collapsed: "Replegades",
+                        expanded: "Desplegades",
+                    },
                 },
             },
             startScreenTitlePolicy: {
@@ -1779,6 +1809,7 @@ const catalanTranslation: TranslationType = {
             election: "Crear una Elecció",
             contest: "Crear una Pregunta",
             candidate: "Crear un Candidat",
+            slate: "Crea una Candidatura",
         },
         importResource: {
             electionEvent: "Importar un Esdeveniment Electoral",
@@ -1818,6 +1849,7 @@ const catalanTranslation: TranslationType = {
                     election: "Eliminar aquesta Elecció",
                     contest: "Eliminar aquesta Pregunta",
                     candidate: "Eliminar aquest Candidat",
+                    slate: "Elimina aquesta Candidatura",
                 },
                 messages: {
                     confirm: {
@@ -1881,6 +1913,38 @@ const catalanTranslation: TranslationType = {
             createCandidateSuccess: "Candidat creat",
             createCandidateError: "Error creant candidat",
         },
+        slateScreen: {
+            common: {
+                subtitle: "Configuració de la candidatura.",
+                newSlate: "Nova candidatura",
+                notFound: "Aquesta candidatura no existeix.",
+            },
+            tabs: {
+                data: "Dades",
+            },
+            edit: {
+                general: "General",
+                members: "Membres",
+            },
+            field: {
+                name: "Nom",
+                alias: "Àlies",
+                description: "Descripció",
+                externalId: "ID extern",
+            },
+            members: {
+                helper: "Assigna fins al nombre màxim de candidats de cada contesa. Deixa una contesa buida perquè aquesta candidatura no la cobreixi. Els candidats que no són a cap candidatura apareixen com a Independents en aquella contesa.",
+                contest: "Contesa",
+                candidate: "Candidat",
+                noCandidate: "Sense candidat",
+            },
+            messages: {
+                saved: "Candidatura desada",
+                invalid: "No es pot desar la candidatura. Corregeix els problemes indicats a sota.",
+                error: "No s'ha pogut desar la candidatura.",
+                unreadable: "No es pot llegir la configuració de candidatures de l'elecció.",
+            },
+        },
         contestScreen: {
             common: {
                 subtitle: "Configuració de pregunta.",
@@ -1924,6 +1988,7 @@ const catalanTranslation: TranslationType = {
                 "warn-only-in-review": "Advertir en Revisió",
                 "warn": "Advertir",
                 "warn-and-alert": "Advertir i Alertar",
+                "warn-and-confirm-in-review": "Advertir i Confirmar en Revisió",
             },
             invalidVotePolicy: {
                 "label": "Política de vot invàlid",
@@ -2115,6 +2180,8 @@ const catalanTranslation: TranslationType = {
             },
         },
         tally: {
+            numericResultsReportsPending:
+                "Els resultats numèrics estan complets. Els informes encara s’estan generant.",
             errorUploadingSignature: "S'ha produït un error en carregar la signatura",
             downloadTransmissionPackage: "Descarregar paquet",
             resultsPublication: {

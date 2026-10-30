@@ -22,6 +22,7 @@ pub mod election;
 pub mod election_dates;
 pub mod election_event_board;
 pub mod election_event_dates;
+pub mod election_event_presentation;
 pub mod election_event_statistics;
 pub mod election_event_status;
 pub mod election_statistics;

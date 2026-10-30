@@ -9,7 +9,7 @@ use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::services::keycloak::{
     get_realm_attributes, redacted_attributes, update_realm_attributes,
-    validate_realm_attributes,
+    validate_keycloak_scope, validate_realm_attributes,
 };
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
@@ -58,6 +58,12 @@ pub async fn get_realm_attributes_route(
         (Status::Forbidden, "Authorization failed".to_string())
     })?;
 
+    validate_keycloak_scope(
+        &claims.hasura_claims.tenant_id,
+        Some(body.election_event_id.as_str()),
+    )
+    .map_err(|error| (Status::BadRequest, error.to_string()))?;
+
     let attributes = get_realm_attributes(
         &claims.hasura_claims.tenant_id,
         &body.election_event_id,
@@ -96,6 +102,12 @@ pub async fn update_realm_attributes_route(
         error!("Authorization failed: {:?}", err);
         (Status::Forbidden, "Authorization failed".to_string())
     })?;
+
+    validate_keycloak_scope(
+        &claims.hasura_claims.tenant_id,
+        Some(body.election_event_id.as_str()),
+    )
+    .map_err(|error| (Status::BadRequest, error.to_string()))?;
 
     validate_realm_attributes(&body.attributes)
         .map_err(|e| (Status::BadRequest, e.to_string()))?;

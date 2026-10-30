@@ -167,6 +167,15 @@ const basqueTranslation: TranslationType = {
                 ok: "Bai, nire boto-txartel zuria aurkeztu nahi dut",
                 cancel: "Ezeztatu",
             },
+            unfilledContestsDialog: {
+                title: "Hautaketa batzuk osatu gabe daude",
+                content:
+                    "Kargu bat zuri utz dezakezu edo hautagai gutxiago hauta ditzakezu. Berrikusi honako hau jarraitu aurretik.",
+                selected: "{{max}}tik {{selected}} hautatuta",
+                nothingSelected: "Ez dago botorik kargu honetarako",
+                ok: "Jarraitu hautaketa hauekin",
+                cancel: "Berrikusi hautaketak",
+            },
             error: {
                 NETWORK_ERROR:
                     "Sare arazoa izan da. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntzarekin.",
@@ -419,6 +428,122 @@ const basqueTranslation: TranslationType = {
                 error: "Arazoa izan da zure berrespena erregistratzean. Mesedez, saiatu berriro.",
             },
         },
+        slates: {
+            title: "Hautagai-zerrendak",
+            independent: "Independentea",
+            contestMembers: "{{slate}} zerrendako hautagaiak: {{contest}}",
+            noCandidate: "Hautagairik ez",
+            note: "Zerrenda batek bere hautagaiak hautatzen ditu eta zerrendako hautagairik ez duten karguak zuri uzten ditu. Edozein aukera banaka alda dezakezu edozein unetan.",
+            coverage: {
+                full: "Hautagaitza osoa",
+                singleContest: "{{contest}} bakarrik",
+                partial: "Hautagaitza partziala",
+                everyOffice: "Kargu guztietarako hautagaiak.",
+                someOffices: "Hautagaiak: {{offices}}. Gainerako karguak zuri geratzen dira.",
+                candidates_one: "Hautagai {{count}}",
+                candidates_other: "{{count}} hautagai",
+                offices_one: "Kargu {{count}}",
+                offices_other: "{{count}} kargu",
+            },
+            candidateList: {
+                show: "Erakutsi hautagaiak",
+                hide: "Ezkutatu hautagaiak",
+            },
+            tabs: {
+                label: "Hautatzeko modua",
+                slates: "Aukeratu zerrenda bat",
+                candidates: "Hautagaiak banaka",
+            },
+            count: {
+                short: "{{selected}} / {{seats}} hautagai hautatuta",
+                long: "· {{seats}}tik {{selected}} hautagai hautatuta",
+                individual: "Banakako hautaketak",
+                none: "Ez da hautagairik hautatu",
+            },
+            allSelections: {
+                label: "Zure uneko hautaketak",
+                none: "Hautaketarik ez",
+            },
+            review: {
+                title: "Zure hautaketak",
+                of: "{{seats}}tik",
+                selected: "Hautatutako hautagaiak",
+                note: "Zure botoa hautatutako hautagai bakoitzarentzat erregistratzen da.",
+                contestCount: "{{max}}tik {{selected}} hautatuta",
+                unfilled: "Ez da hautagairik hautatu",
+                editLabel: "Editatu {{contest}}",
+            },
+            selection: {
+                all: "{{total}}ak hautatuta",
+                mixed: "Mistoa · {{total}}tik {{selected}} hautatuta",
+                partly: "Zati bat hautatuta · {{total}}tik {{selected}}",
+                selected: "Hautatuta",
+                edit: "Editatu hautaketak",
+            },
+            apply: {
+                button: "Hautatu zerrenda",
+                buttonLabel: "Hautatu {{slate}} zerrenda",
+                applied: "{{slate}} hautatuta. Edozein hautagai alda dezakezu oraindik.",
+                appliedPartial_one:
+                    "{{slate}} hautatuta. Ez du hautagairik honetarako: {{offices}}; beraz, kargu hori zuri dago. Edozein hautagai alda dezakezu oraindik.",
+                appliedPartial_other:
+                    "{{slate}} hautatuta. Ez du hautagairik hauetarako: {{offices}}; beraz, kargu horiek zuri daude. Edozein hautagai alda dezakezu oraindik.",
+                overMaximum:
+                    "{{slate}} ezin da hautatu: {{candidates}} hautagai ditu {{contest}} lehiarako, eta {{max}} onartzen dira. Hautagaiak banaka aukeratzen jarrai dezakezu.",
+                unavailable:
+                    "{{slate}} ezin da hautatu boto-paper honetan. Hautagaiak banaka aukeratzen jarrai dezakezu.",
+                replaceDialog: {
+                    title: "Hautaketa hauek ordeztu?",
+                    content_one: "<strong>{{slate}}</strong> hautatzeak kargu hau aldatuko du.",
+                    content_other:
+                        "<strong>{{slate}}</strong> hautatzeak kargu hauek aldatuko ditu.",
+                    current: "Uneko hautaketak",
+                    blankNote:
+                        "{{slate}} zerrendak ez du hautagairik kargu batzuetarako. Kargu horiek zuri geratuko dira.",
+                    ok: "Ordeztu hautaketak",
+                    okOffice: "Ordeztu {{office}}",
+                    cancel: "Mantendu nire hautaketak",
+                },
+            },
+            clear: {
+                cleared: "Zure aukera guztiak garbitu dira.",
+                dialog: {
+                    title: "Zure aukera guztiak garbitu?",
+                    content:
+                        "Garbitzeak zure boto-txarteleko aukera guztiak kentzen ditu. Kargu hauek aldatzen dira:",
+                    after: "Garbitu ondoren",
+                    ok: "Garbitu aukerak",
+                    cancel: "Mantendu nire aukerak",
+                },
+            },
+            offices: {
+                label: "Karguak",
+                picker: "Kargua",
+                index: "{{total}}tik {{index}}. kargua",
+                count: "{{selected}}/{{max}}",
+                previous: "Aurreko kargua",
+                next: "Hurrengo kargua",
+                last: "Azken kargua",
+                instruction_one: "Hautatu gehienez hautagai {{count}}. {{selected}} hautatuta.",
+                instruction_other: "Hautatu gehienez {{count}} hautagai. {{selected}} hautatuta.",
+            },
+            limit: "Gehienez {{count}} hauta ditzakezu. Kendu hautagai bat beste bat aukeratu aurretik.",
+            view: {
+                button: "Ikusi zerrenda",
+                buttonLabel: "Ikusi {{slate}} zerrenda",
+                summary: "{{coverage}} · {{candidates}}",
+                select: "Hautatu zerrenda hau",
+                back: "Itzuli",
+            },
+            dialog: {
+                close: "Itxi elkarrizketa-koadroa",
+            },
+            clearContest: {
+                button: "Garbitu",
+                label: "Garbitu {{contest}}",
+                cleared: "{{contest}} karguko hautaketak garbitu dira.",
+            },
+        },
         ballotLocator: {
             title: "Lokalizatu zure Bozketa",
             titleResult: "Zure Bozketa Bilaketak Emaitza",
@@ -455,6 +580,15 @@ const basqueTranslation: TranslationType = {
                 username: "Erabiltzaile izena",
                 ballot_id: "Bozketa IDa",
                 message: "Mezua",
+            },
+            pagination: {
+                rowsPerPage: "Errenkadak orrialdeko:",
+                displayedRows: "{{from}}–{{to}} / {{total}}",
+                displayedRowsMoreThan: "{{from}}–{{to}} / {{to}} baino gehiago",
+                firstPage: "Joan lehen orrialdera",
+                lastPage: "Joan azken orrialdera",
+                nextPage: "Joan hurrengo orrialdera",
+                previousPage: "Joan aurreko orrialdera",
             },
         },
     },
