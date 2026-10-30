@@ -31,6 +31,9 @@ use windmill::tasks::electoral_log::{
 
 const IMMUDB_USER: &str = "immudb";
 const IMMUDB_PASSWORD: &str = "immudb";
+/// How long RabbitMQ may take to requeue the deliveries of a closed channel.
+const REQUEUE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
+const REQUEUE_POLL: std::time::Duration = std::time::Duration::from_millis(50);
 
 fn amqp_url() -> String {
     std::env::var("ELECTORAL_LOG_TEST_AMQP_URL").expect("ELECTORAL_LOG_TEST_AMQP_URL")
@@ -102,6 +105,25 @@ impl Fixture {
     async fn ready(&self, queue: &str) -> Result<u32> {
         let channel = self.connection.create_channel().await?;
         Ok(declare(&channel, queue).await?.message_count())
+    }
+
+    /// Waits, for a bounded time, until RabbitMQ holds `expected` ready
+    /// messages in the queue, as after a closed channel returns its
+    /// unacknowledged deliveries.
+    async fn wait_until_ready(&self, queue: &str, expected: u32) -> Result<()> {
+        let deadline = tokio::time::Instant::now() + REQUEUE_TIMEOUT;
+        loop {
+            let ready = self.ready(queue).await?;
+            if ready == expected {
+                return Ok(());
+            }
+            if tokio::time::Instant::now() >= deadline {
+                return Err(anyhow!(
+                    "{queue} holds {ready} ready messages after {REQUEUE_TIMEOUT:?}, expected {expected}"
+                ));
+            }
+            tokio::time::sleep(REQUEUE_POLL).await;
+        }
     }
 
     async fn rows(&self) -> Result<Vec<ElectoralLogMessage>> {
@@ -275,7 +297,7 @@ async fn cast_votes_committed_before_a_lost_acknowledgement_are_written_once() -
     assert!(first.is_err());
     // Closing the channel returns the unacknowledged deliveries to the queue.
     drop(queue);
-    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    fixture.wait_until_ready(&fixture.queue, 3).await?;
     println!(
         "after first drain: board rows {:?}, queued {}",
         created_of(&fixture.rows().await?),
@@ -440,7 +462,7 @@ async fn cast_votes_whose_commit_response_was_lost_are_written_once() -> Result<
     )
     .await;
     drop(queue);
-    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    fixture.wait_until_ready(&fixture.queue, 2).await?;
     println!(
         "first drain (commit response lost): {:?}; board rows {:?}, queued {}",
         first.as_ref().map_err(|err| err.to_string()),
