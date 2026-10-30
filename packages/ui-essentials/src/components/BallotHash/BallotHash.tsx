@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {Box} from "@mui/material"
 import React, {useEffect, useState} from "react"
-import {styled} from "@mui/material/styles"
+import {styled, SxProps, Theme} from "@mui/material/styles"
 import IconButton from "../IconButton/IconButton"
 import Icon from "../Icon/Icon"
 import DecorativeIconBox from "../Icon/DecorativeIconBox"
@@ -99,9 +99,18 @@ export const copyBallotHash = async (
     }
 }
 
-export const BallotHashCopyButton: React.FC<Pick<BallotHashProps, "hash" | "copyLabels">> = ({
+export interface BallotHashCopyButtonProps extends Pick<BallotHashProps, "hash" | "copyLabels"> {
+    /** The colour of the check that replaces the copy icon once the hash is copied. */
+    copiedColor?: string
+    /** Styles for the button, over its own. */
+    sx?: SxProps<Theme>
+}
+
+export const BallotHashCopyButton: React.FC<BallotHashCopyButtonProps> = ({
     hash,
     copyLabels,
+    copiedColor,
+    sx,
 }) => {
     const [copyStatus, setCopyStatus] = useState(CopyBallotHashStatus.Idle)
 
@@ -137,9 +146,13 @@ export const BallotHashCopyButton: React.FC<Pick<BallotHashProps, "hash" | "copy
                     "fontSize": "unset",
                     "lineHeight": "unset",
                     "paddingBottom": "2px",
-                    "color": theme.palette.customGrey.contrastText,
+                    "color":
+                        copyStatus === CopyBallotHashStatus.Copied && copiedColor
+                            ? copiedColor
+                            : theme.palette.customGrey.contrastText,
                     "&:hover": {paddingBottom: "2px"},
                     "&:active": {border: "2px solid transparent"},
+                    ...sx,
                 }}
                 fontSize="18px"
                 onClick={handleCopy}

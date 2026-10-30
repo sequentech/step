@@ -4,7 +4,8 @@
 
 // The check mark that shows a ballot's status (design board ReceiptDialog):
 // one check, two, blue once everything is verified, with an amber clock when
-// something is late and a red alert on a problem.
+// something is late and a red alert on a problem. An audited ballot has two
+// grey checks, or one with the alert when the audit failed.
 
 import React from "react"
 import {keyframes, styled} from "@mui/material/styles"
@@ -37,7 +38,7 @@ export const CHECK_COLORS = {
     RED: "#DC2626",
 } as const
 
-/** Sizes in pixels: in the ballot list, next to a Ballot ID, in the dialog. */
+/** Sizes in pixels: in the ballot list, next to a Tracking ID, in the dialog. */
 export const CHECK_SIZES = {
     LIST: 18,
     ID: 20,
@@ -94,6 +95,18 @@ export const STATUS_GLYPHS: Record<EBallotStatus, ICheckGlyph> = {
         badge: ECheckBadge.ALERT,
         color: CHECK_COLORS.RED,
     },
+    [EBallotStatus.AUDITABLE]: {
+        marks: ECheckMarks.DOUBLE,
+        line: ECheckLine.SOLID,
+        badge: ECheckBadge.NONE,
+        color: CHECK_COLORS.GREY,
+    },
+    [EBallotStatus.AUDIT_FAILED]: {
+        marks: ECheckMarks.SINGLE,
+        line: ECheckLine.SOLID,
+        badge: ECheckBadge.ALERT,
+        color: CHECK_COLORS.RED,
+    },
 }
 
 const SINGLE = "M4.5 12.5l4.75 4.75L19.5 7"
@@ -113,7 +126,7 @@ const MarchingPath = styled("path")`
     }
 `
 
-/** The stroke of the dotted check next to the Ballot ID on the review screen,
+/** The stroke of the dotted check next to the Tracking ID on the review screen,
  * where thinner dots would read as a faint line. */
 export const HEAVY_DOTS = 2.6
 

@@ -260,7 +260,10 @@ export const statusCaption = (status: EBallotStatus, kept: boolean): ITranslatio
         case EBallotStatus.CHECKING:
             return [text("caption.checking")]
         case EBallotStatus.PROBLEM:
+        case EBallotStatus.AUDIT_FAILED:
             return [text("caption.problem")]
+        case EBallotStatus.AUDITABLE:
+            return [text("caption.auditable")]
         case EBallotStatus.VERIFIED:
             return [text("caption.verified"), ...(kept ? [text("caption.kept")] : [])]
         default:

@@ -131,7 +131,57 @@ describe("the headline of a problem", () => {
     })
 })
 
+describe("the audit states", () => {
+    it.each([
+        [EBallotStatus.AUDITABLE, "auditable"],
+        [EBallotStatus.AUDIT_FAILED, "auditfail"],
+    ] as const)("says what %s means", (status, word) => {
+        expect(statusHeadline({status})).toEqual({
+            head: {key: `vitrine.status.state.${word}`},
+            sub: {key: `vitrine.status.sub.${word}`},
+        })
+    })
+
+    it.each([EBallotStatus.AUDITABLE, EBallotStatus.AUDIT_FAILED])(
+        "lists all three steps of an %s ballot as done, whatever its receipt says",
+        (status) => {
+            const unfinished = resultOf([
+                tier("record", "pending"),
+                tier("witnesses", "pending"),
+                tier("hubs", "pending"),
+                tier("browser", "pending"),
+            ])
+            for (const result of [undefined, unfinished]) {
+                const rows = statusRows({status, result})
+                expect(rows.map((r) => r.state)).toEqual(["done", "done", "done"])
+                expect(rows.map((r) => r.status)).toEqual([undefined, undefined, undefined])
+            }
+        }
+    )
+
+    it("uses the receipt's facts where it has them", () => {
+        const rows = statusRows({
+            status: EBallotStatus.AUDITABLE,
+            result: resultOf(ALL_VERIFIED, {witnesses: [{name: "a"}], hubs: ["h1", "h2"]}),
+        })
+        expect(rows.map((r) => r.detail)).toEqual([
+            {key: "vitrine.status.row.recordedEntry", values: {index: 7}},
+            {key: "vitrine.status.row.witnessed", values: {count: 1}},
+            {key: "vitrine.status.row.anchoredHubs", values: {count: 2}},
+        ])
+    })
+})
+
 describe("the caption", () => {
+    it("says an audited ballot was decrypted, and does not offer a kept receipt", () => {
+        expect(statusCaption(EBallotStatus.AUDITABLE, true).map((t) => t.key)).toEqual([
+            "vitrine.status.caption.auditable",
+        ])
+        expect(statusCaption(EBallotStatus.AUDIT_FAILED, true).map((t) => t.key)).toEqual([
+            "vitrine.status.caption.problem",
+        ])
+    })
+
     it("adds that this device keeps the receipt only when it does", () => {
         const keys = (status: EBallotStatus, kept: boolean) =>
             statusCaption(status, kept).map((t) => t.key.split(".").pop())

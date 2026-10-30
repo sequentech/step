@@ -98,8 +98,16 @@ export const StatusTag: React.FC<IStatusTagProps> = ({label, tone = EStatusTone.
                 ...(Array.isArray(sx) ? sx : [sx]),
             ]}
         >
-            <svg width="8" height="8" viewBox="0 0 8 8" aria-hidden="true" style={{flex: "none"}}>
+            <svg
+                className="status-tag-dot"
+                width="8"
+                height="8"
+                viewBox="0 0 8 8"
+                aria-hidden="true"
+                style={{flex: "none"}}
+            >
                 <circle
+                    className="status-tag-dot-circle"
                     cx="4"
                     cy="4"
                     r="3.5"

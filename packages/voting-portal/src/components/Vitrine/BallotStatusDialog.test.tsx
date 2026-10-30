@@ -183,6 +183,18 @@ describe("the headline of the ballot status dialog", () => {
             "vitrine.status.head.mismatch",
             'vitrine.status.sub.mismatch {"index":21}',
         ],
+        [
+            EBallotStatus.AUDITABLE,
+            undefined,
+            "vitrine.status.state.auditable",
+            "vitrine.status.sub.auditable",
+        ],
+        [
+            EBallotStatus.AUDIT_FAILED,
+            undefined,
+            "vitrine.status.state.auditfail",
+            "vitrine.status.sub.auditfail",
+        ],
     ] as const)("says what %s means", (status, result, expectedHead, expectedSub) => {
         renderDialog({status, view: result ? view(result) : undefined})
         expect(head()).toBe(expectedHead)
@@ -218,6 +230,8 @@ describe("the steps of the ballot status dialog", () => {
         [EBallotStatus.VERIFIED, VERIFIED, ["done", "done", "done"]],
         [EBallotStatus.LATE, LATE, ["done", "done", "late"]],
         [EBallotStatus.PROBLEM, MISMATCH, ["failed", "skipped", "skipped"]],
+        [EBallotStatus.AUDITABLE, undefined, ["done", "done", "done"]],
+        [EBallotStatus.AUDIT_FAILED, undefined, ["done", "done", "done"]],
     ] as const)("lists them as %s says", (status, result, states) => {
         renderDialog({status, view: result ? view(result) : undefined})
         expect(stepStates()).toEqual(states)
@@ -274,7 +288,7 @@ describe("the steps of the ballot status dialog", () => {
     })
 })
 
-describe("the Ballot ID in the ballot status dialog", () => {
+describe("the Tracking ID in the ballot status dialog", () => {
     const writeText = jest.fn(async (_text: string) => undefined)
     const savedMatchMedia = window.matchMedia
 
@@ -320,6 +334,79 @@ describe("the Ballot ID in the ballot status dialog", () => {
         expect(within(dialog()).getByRole("status").textContent).toBe("vitrine.ballotId.copied")
     })
 
+    it("swaps the copy icon for a check of the same size when it copies, and writes no text", async () => {
+        renderDialog({status: EBallotStatus.VERIFIED, view: view(VERIFIED)})
+        const copy = screen.getByRole("button", {name: "vitrine.ballotId.copy"})
+        const icon = copy.querySelector(".ballot-status-copy-icon")
+        expect(icon).not.toBeNull()
+        expect(copy.querySelector(".ballot-status-copied-icon")).toBeNull()
+        expect(copy.textContent).toBe("")
+        const size = [icon?.getAttribute("width"), icon?.getAttribute("height")]
+        await act(async () => {
+            fireEvent.click(copy)
+        })
+        const done = screen.getByRole("button", {name: "vitrine.ballotId.copied"})
+        const check = done.querySelector(".ballot-status-copied-icon")
+        expect(done.querySelector(".ballot-status-copy-icon")).toBeNull()
+        expect(check).not.toBeNull()
+        expect([check?.getAttribute("width"), check?.getAttribute("height")]).toEqual(size)
+        expect(done.textContent).toBe("")
+        expect(getComputedStyle(done).color).toBe("rgb(4, 120, 87)")
+    })
+
+    it("keeps the copy button a 28 px square, before and after it copies", async () => {
+        renderDialog({status: EBallotStatus.VERIFIED, view: view(VERIFIED)})
+        const square = (button: HTMLElement) => {
+            const style = getComputedStyle(button)
+            return [style.width, style.height]
+        }
+        expect(square(screen.getByRole("button", {name: "vitrine.ballotId.copy"}))).toEqual([
+            "28px",
+            "28px",
+        ])
+        await act(async () => {
+            fireEvent.click(screen.getByRole("button", {name: "vitrine.ballotId.copy"}))
+        })
+        expect(square(screen.getByRole("button", {name: "vitrine.ballotId.copied"}))).toEqual([
+            "28px",
+            "28px",
+        ])
+    })
+
+    it("has an 8 px radius, and the Tracking ID label above the short ID", () => {
+        renderDialog({status: EBallotStatus.VERIFIED, view: view(VERIFIED)})
+        const box = dialog().querySelector<HTMLElement>(".ballot-status-id")
+        expect(getComputedStyle(box!).borderRadius).toBe("8px")
+        expect(box?.querySelector(".ballot-status-id-label")?.textContent).toBe(
+            "vitrine.ballotId.label"
+        )
+    })
+
+    it.each([
+        [EBallotStatus.NOT_CAST, "notCast", "neutral", undefined],
+        [EBallotStatus.CHECKING, "cast", "success", undefined],
+        [EBallotStatus.RECORDED, "cast", "success", RECORDED],
+        [EBallotStatus.WITNESSED, "cast", "success", WITNESSED],
+        [EBallotStatus.VERIFIED, "cast", "success", VERIFIED],
+        [EBallotStatus.LATE, "cast", "success", LATE],
+        [EBallotStatus.PROBLEM, "cast", "success", MISMATCH],
+        [EBallotStatus.AUDITABLE, "auditable", "success", undefined],
+        [EBallotStatus.AUDIT_FAILED, "auditable", "success", undefined],
+    ] as const)(
+        "tags a ballot that is %s with the word %s in the %s tone, at the right of the label",
+        (status, word, tone, result) => {
+            renderDialog({status, view: result ? view(result) : undefined})
+            const head = dialog().querySelector(".ballot-status-id-head")
+            const tags = Array.from(dialog().querySelectorAll(".status-tag"))
+            expect(tags).toHaveLength(1)
+            expect(head?.contains(tags[0])).toBe(true)
+            expect(tags[0].textContent).toBe(`vitrine.status.tag.${word}`)
+            expect(tags[0].getAttribute("data-tone")).toBe(tone)
+            expect(head?.firstElementChild?.className).toContain("ballot-status-id-label")
+            expect(head?.lastElementChild).toBe(tags[0])
+        }
+    )
+
     it("says nothing was copied when the clipboard refuses", async () => {
         writeText.mockRejectedValueOnce(new Error("denied"))
         renderDialog({status: EBallotStatus.VERIFIED, view: view(VERIFIED)})
@@ -338,6 +425,54 @@ describe("what the ballot status dialog offers", () => {
         expect(dialog().querySelector(".ballot-status-meta")?.textContent).toBe(
             'Municipal council election · vitrine.status.cast {"when":"29/10/2026, 10:42"}'
         )
+    })
+
+    it("says when an audited ballot was audited, and not that it was cast", () => {
+        renderDialog({status: EBallotStatus.AUDITABLE, castAt: "29/10/2026, 10:40"})
+        expect(dialog().querySelector(".ballot-status-meta")?.textContent).toBe(
+            'Municipal council election · vitrine.status.audited {"when":"29/10/2026, 10:40"}'
+        )
+    })
+
+    it("opens an audited ballot in the ballot tracker, with the caption of its state", () => {
+        renderDialog({status: EBallotStatus.AUDITABLE, tracker})
+        const caption = dialog().querySelector(".ballot-status-caption")
+        expect(caption?.textContent).toContain("vitrine.status.caption.auditable")
+        expect(caption?.textContent).not.toContain("vitrine.status.caption.kept")
+        expect(
+            screen.getByRole("link", {name: "vitrine.status.tracker"}).getAttribute("href")
+        ).toBe(tracker.href)
+    })
+
+    it("colours the head of a failed audit as it does a problem", () => {
+        renderDialog({status: EBallotStatus.AUDIT_FAILED})
+        expect(getComputedStyle(dialog().querySelector(".ballot-status-head")!).color).toBe(
+            "rgb(185, 28, 28)"
+        )
+        expect(dialog().querySelector(".ballot-status-caption")?.textContent).toContain(
+            "vitrine.status.caption.problem"
+        )
+    })
+
+    it("offers the evidence of a failed audit only where a receipt was kept", () => {
+        const kept = renderDialog({status: EBallotStatus.AUDIT_FAILED, view: view(undefined)})
+        fireEvent.click(screen.getByRole("button", {name: "vitrine.status.callout.saveEvidence"}))
+        expect(mockSaveTextFile).toHaveBeenCalledTimes(1)
+        kept.unmount()
+        renderDialog({
+            status: EBallotStatus.AUDIT_FAILED,
+            view: view(undefined, {chain: undefined}),
+        })
+        expect(
+            screen.queryByRole("button", {name: "vitrine.status.callout.saveEvidence"})
+        ).toBeNull()
+    })
+
+    it("offers no evidence for an audit that did not fail", () => {
+        renderDialog({status: EBallotStatus.AUDITABLE, view: view(undefined)})
+        expect(
+            screen.queryByRole("button", {name: "vitrine.status.callout.saveEvidence"})
+        ).toBeNull()
     })
 
     it("offers neither the receipt nor the tracker before the ballot is cast", () => {
@@ -411,6 +546,8 @@ describe("the ballot status dialog's accessibility", () => {
         [EBallotStatus.VERIFIED, VERIFIED],
         [EBallotStatus.LATE, LATE],
         [EBallotStatus.PROBLEM, MISMATCH],
+        [EBallotStatus.AUDITABLE, undefined],
+        [EBallotStatus.AUDIT_FAILED, undefined],
     ] as const)("has no violations when %s", async (status, result) => {
         renderDialog({
             status,

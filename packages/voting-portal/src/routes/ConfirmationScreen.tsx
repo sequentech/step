@@ -66,11 +66,16 @@ import {
 } from "../store/castVotes/confirmationScreenDataSlice"
 import {GET_DOCUMENT} from "../queries/GetDocument"
 import {BallotStatus, EBallotStatusTrigger} from "../components/Vitrine/BallotStatus"
+import {BallotTag} from "../components/Vitrine/BallotTag"
+import {ID_BUTTON_SX} from "../components/Vitrine/idButtons"
 import {useCastReceipt} from "../hooks/useCastReceipt"
 import {useElectionName} from "../hooks/useElectionName"
 import {groupBallotId, shortBallotId} from "../services/vitrine/ballotId"
+import {EBallotTag} from "../services/vitrine/ballotStatus"
 import {ETransparencyMode} from "../services/vitrine/types"
 import type {IConfirmationVitrine} from "../store/castVotes/confirmationScreenDataSlice"
+
+const PHONE = theme.breakpoints.down("sm")
 
 const StyledTitle = styled(Typography)<{component?: React.ElementType}>`
     margin-top: 25.5px;
@@ -116,8 +121,13 @@ const ShortBallotId = styled("span")`
     white-space: nowrap;
 `
 
-const BallotIdPrefix = styled("span")`
-    color: ${({theme}) => theme.palette.customGrey.contrastText};
+const BallotIdText = styled(Box)`
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 10px;
 `
 
 const QRContainer = styled(Box)`
@@ -418,7 +428,7 @@ interface ConfirmationBallotStatusProps {
     trackerUrl?: string
 }
 
-/** The check mark in the Ballot ID box: the status of the ballot just cast,
+/** The check mark in the Tracking ID box: the status of the ballot just cast,
  * which its receipt upgrades while this page is open. */
 const ConfirmationBallotStatus: React.FC<ConfirmationBallotStatusProps> = ({
     eventId,
@@ -570,7 +580,11 @@ const ConfirmationScreen: React.FC = () => {
 
     return (
         <PageLimit maxWidth="lg" className="confirmation-screen screen">
-            <Box className="stepper-box" marginTop="24px">
+            <Box
+                className="stepper-box"
+                marginTop="24px"
+                sx={vitrine ? {[PHONE]: {marginTop: "16px"}} : undefined}
+            >
                 <Stepper selected={3} />
             </Box>
             <StyledTitle
@@ -579,7 +593,10 @@ const ConfirmationScreen: React.FC = () => {
                 component="h1"
                 fontSize="24px"
                 fontWeight="bold"
-                sx={{marginTop: "40px"}}
+                sx={{
+                    marginTop: "40px",
+                    ...(vitrine ? {[PHONE]: {marginTop: "12px", pt: "16px", pb: "8px"}} : {}),
+                }}
             >
                 <Box className="screen-title-text">
                     {t(
@@ -628,7 +645,10 @@ const ConfirmationScreen: React.FC = () => {
                 className="screen-description"
                 variant="body2"
                 component="div"
-                sx={{color: theme.palette.customGrey.main}}
+                sx={{
+                    color: theme.palette.customGrey.main,
+                    ...(vitrine ? {[PHONE]: {my: "8px"}} : {}),
+                }}
             >
                 {stringToHtml(
                     t(
@@ -652,18 +672,35 @@ const ConfirmationScreen: React.FC = () => {
                 ballot id, tracker link or QR code to show. */}
             {isFullyAcclaimed ? null : (
                 <>
-                    <BallotIdContainer className="ballot-id-container">
+                    <BallotIdContainer
+                        className="ballot-id-container"
+                        sx={
+                            vitrine
+                                ? {
+                                      [PHONE]: {
+                                          flexDirection: "column",
+                                          alignItems: "stretch",
+                                          gap: "8px",
+                                          my: "16px",
+                                      },
+                                  }
+                                : undefined
+                        }
+                    >
                         <Typography
                             className="ballot-id-label"
                             variant="h5"
                             component="h2"
                             fontSize="18px"
                             fontWeight="bold"
-                            sx={{display: {xs: "none", sm: "block"}}}
+                            sx={{display: vitrine ? "block" : {xs: "none", sm: "block"}}}
                         >
                             {t("confirmationScreen.ballotId")}
                         </Typography>
-                        <BallotIdBorder className="ballot-id-border">
+                        <BallotIdBorder
+                            className="ballot-id-border"
+                            sx={vitrine ? {borderRadius: "8px"} : undefined}
+                        >
                             {vitrine && eventId && electionId ? (
                                 <ConfirmationBallotStatus
                                     eventId={eventId}
@@ -686,43 +723,45 @@ const ConfirmationScreen: React.FC = () => {
                                     />
                                 </DecorativeIconBox>
                             )}
-                            <BallotIdLink
-                                data-testid="ballot-id"
-                                className="ballot-id-value ballot-id-value-desktop"
-                                href={!isDemo ? ballotTrackerUrl : undefined}
-                                target={!isDemo && !isKiosk() ? "_blank" : undefined}
-                                sx={{display: {xs: "none", sm: "block"}}}
-                                onClick={handleBallotIdLinkClick}
-                            >
-                                {vitrine ? (
-                                    <ShortBallotId className="ballot-id-short">
-                                        {shortBallotId(ballotId.current ?? "")}
-                                    </ShortBallotId>
-                                ) : (
-                                    ballotId.current
-                                )}
-                            </BallotIdLink>
-                            <BallotIdLink
-                                data-testid="ballot-id"
-                                className="ballot-id-value ballot-id-value-mobile"
-                                href={!isDemo ? ballotTrackerUrl : undefined}
-                                target={!isDemo && !isKiosk() ? "_blank" : undefined}
-                                sx={{display: {xs: "block", sm: "none"}}}
-                                onClick={handleBallotIdLinkClick}
-                            >
-                                {vitrine ? (
-                                    <>
-                                        <BallotIdPrefix className="ballot-id-prefix">
-                                            {t("vitrine.ballotId.yours")}
-                                        </BallotIdPrefix>{" "}
+                            {vitrine ? (
+                                <BallotIdText className="ballot-id-text">
+                                    <BallotIdLink
+                                        data-testid="ballot-id"
+                                        className="ballot-id-value"
+                                        href={!isDemo ? ballotTrackerUrl : undefined}
+                                        target={!isDemo && !isKiosk() ? "_blank" : undefined}
+                                        onClick={handleBallotIdLinkClick}
+                                    >
                                         <ShortBallotId className="ballot-id-short">
                                             {shortBallotId(ballotId.current ?? "")}
                                         </ShortBallotId>
-                                    </>
-                                ) : (
-                                    t("ballotHash", {ballotId: ballotId.current})
-                                )}
-                            </BallotIdLink>
+                                    </BallotIdLink>
+                                    <BallotTag tag={EBallotTag.CAST} />
+                                </BallotIdText>
+                            ) : (
+                                <>
+                                    <BallotIdLink
+                                        data-testid="ballot-id"
+                                        className="ballot-id-value ballot-id-value-desktop"
+                                        href={!isDemo ? ballotTrackerUrl : undefined}
+                                        target={!isDemo && !isKiosk() ? "_blank" : undefined}
+                                        sx={{display: {xs: "none", sm: "block"}}}
+                                        onClick={handleBallotIdLinkClick}
+                                    >
+                                        {ballotId.current}
+                                    </BallotIdLink>
+                                    <BallotIdLink
+                                        data-testid="ballot-id"
+                                        className="ballot-id-value ballot-id-value-mobile"
+                                        href={!isDemo ? ballotTrackerUrl : undefined}
+                                        target={!isDemo && !isKiosk() ? "_blank" : undefined}
+                                        sx={{display: {xs: "block", sm: "none"}}}
+                                        onClick={handleBallotIdLinkClick}
+                                    >
+                                        {t("ballotHash", {ballotId: ballotId.current})}
+                                    </BallotIdLink>
+                                </>
+                            )}
                             {auditButtonCfg !== EVotingPortalAuditButtonCfg.NOT_SHOW ? (
                                 <BallotHashCopyButton
                                     hash={
@@ -743,6 +782,8 @@ const ConfirmationScreen: React.FC = () => {
                                         ),
                                         error: t("reviewScreen.ballotIdCopyError"),
                                     }}
+                                    copiedColor={vitrine ? theme.palette.green.dark : undefined}
+                                    sx={vitrine ? ID_BUTTON_SX : undefined}
                                 />
                             ) : null}
                             <IconButton
@@ -755,6 +796,7 @@ const ConfirmationScreen: React.FC = () => {
                                         auditButtonCfg === EVotingPortalAuditButtonCfg.NOT_SHOW
                                             ? "16px"
                                             : 0,
+                                    ...(vitrine ? ID_BUTTON_SX : {}),
                                 }}
                                 fontSize="18px"
                                 onClick={() =>

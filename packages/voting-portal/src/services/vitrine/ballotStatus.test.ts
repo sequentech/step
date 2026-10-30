@@ -7,9 +7,12 @@ import {EReceiptNotice, IReceiptView} from "./castReceipt"
 import {
     ballotProblemOf,
     ballotStatusOf,
+    ballotTagOf,
     EBallotProblem,
     EBallotStatus,
+    EBallotTag,
     EStepState,
+    isAuditStatus,
     statusSteps,
 } from "./ballotStatus"
 
@@ -155,5 +158,66 @@ describe("statusSteps", () => {
             witnesses: EStepState.FAILED,
             anchors: EStepState.SKIPPED,
         })
+    })
+})
+
+describe("the audit states", () => {
+    const AUDIT_STATES = [EBallotStatus.AUDITABLE, EBallotStatus.AUDIT_FAILED]
+
+    it("tells them from the states of a cast ballot", () => {
+        expect(AUDIT_STATES.map(isAuditStatus)).toEqual([true, true])
+        const others = Object.values(EBallotStatus).filter((s) => !AUDIT_STATES.includes(s))
+        expect(others.some(isAuditStatus)).toBe(false)
+    })
+
+    it.each(AUDIT_STATES)("lists every step of an %s ballot as done", (status) => {
+        const done = {
+            record: EStepState.DONE,
+            witnesses: EStepState.DONE,
+            anchors: EStepState.DONE,
+        }
+        expect(statusSteps(status)).toEqual(done)
+        const unfinished = resultOf("pending", PENDING)
+        expect(statusSteps(status, unfinished)).toEqual(done)
+    })
+
+    it("never takes one from a receipt", () => {
+        const verified = resultOf("verified", {
+            record: "verified",
+            witnesses: "verified",
+            hubs: "verified",
+            browser: "verified",
+        })
+        const views = [
+            undefined,
+            viewOf(),
+            viewOf(resultOf("failed", {record: "failed"})),
+            viewOf(verified),
+            viewOf(undefined, EReceiptNotice.MISSING),
+        ]
+        expect(views.map((view) => isAuditStatus(ballotStatusOf(view)))).toEqual(
+            views.map(() => false)
+        )
+    })
+})
+
+describe("ballotTagOf", () => {
+    it("tags a ballot that is not cast, one that is cast in any state, and one that is audited", () => {
+        expect(ballotTagOf(EBallotStatus.NOT_CAST)).toBe(EBallotTag.NOT_CAST)
+        const cast = [
+            EBallotStatus.CHECKING,
+            EBallotStatus.RECORDED,
+            EBallotStatus.WITNESSED,
+            EBallotStatus.VERIFIED,
+            EBallotStatus.LATE,
+            EBallotStatus.PROBLEM,
+        ]
+        expect(cast.map(ballotTagOf)).toEqual(cast.map(() => EBallotTag.CAST))
+        expect(ballotTagOf(EBallotStatus.AUDITABLE)).toBe(EBallotTag.AUDITABLE)
+        expect(ballotTagOf(EBallotStatus.AUDIT_FAILED)).toBe(EBallotTag.AUDITABLE)
+    })
+
+    it("uses the keys of the tag's words as its values", () => {
+        expect(Object.values(EBallotTag)).toEqual(["notCast", "cast", "auditable"])
     })
 })

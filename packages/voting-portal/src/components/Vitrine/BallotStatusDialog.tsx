@@ -2,8 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// The dialog that the check mark next to a Ballot ID opens (design board
-// ReceiptDialog): the short and full Ballot ID, where the ballot stands, and
+// The dialog that the check mark next to a Tracking ID opens (design board
+// ReceiptDialog): the short and full Tracking ID, where the ballot stands, and
 // the three checks behind it, each with what the receipt says about it.
 
 import React, {useEffect, useId, useRef, useState} from "react"
@@ -13,10 +13,13 @@ import {visuallyHidden} from "@mui/utils"
 import {useTranslation} from "react-i18next"
 import {
     ballotProblemOf,
+    ballotTagOf,
     EBallotProblem,
     EBallotStatus,
+    EBallotTag,
     EStatusStep,
     EStepState,
+    isAuditStatus,
 } from "../../services/vitrine/ballotStatus"
 import {
     ballotIdLines,
@@ -46,6 +49,7 @@ import {
     ECheckMarks,
     ICheckGlyph,
 } from "./BallotStatusIcon"
+import {BallotTag} from "./BallotTag"
 
 const DIALOG_COLORS = {
     navy: "#0F054C",
@@ -79,6 +83,7 @@ const HEAD_COLORS: Partial<Record<EBallotStatus, string>> = {
     [EBallotStatus.VERIFIED]: CHECK_COLORS.BLUE,
     [EBallotStatus.LATE]: CHECK_COLORS.AMBER,
     [EBallotStatus.PROBLEM]: DIALOG_COLORS.redStrong,
+    [EBallotStatus.AUDIT_FAILED]: DIALOG_COLORS.redStrong,
 }
 
 const STEP_MARKS: Record<EStatusStep, ECheckMarks> = {
@@ -260,7 +265,11 @@ const CopiedIcon: React.FC = () => (
     </svg>
 )
 
-const IdBox: React.FC<{ballotId: string; phone: boolean}> = ({ballotId, phone}) => {
+const IdBox: React.FC<{ballotId: string; tag: EBallotTag; phone: boolean}> = ({
+    ballotId,
+    tag,
+    phone,
+}) => {
     const {t} = useTranslation()
     const [copied, setCopied] = useState(false)
     const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
@@ -284,7 +293,7 @@ const IdBox: React.FC<{ballotId: string; phone: boolean}> = ({ballotId, phone}) 
             className="ballot-status-id"
             sx={{
                 "bgcolor": DIALOG_COLORS.mint,
-                "borderRadius": "4px",
+                "borderRadius": "8px",
                 "p": "12px 14px",
                 "&:hover .ballot-status-full-id": {
                     textDecoration: phone ? "none" : "underline",
@@ -292,8 +301,19 @@ const IdBox: React.FC<{ballotId: string; phone: boolean}> = ({ballotId, phone}) 
                 "&:hover .ballot-status-copy, & .ballot-status-copy:focus-visible": {opacity: 1},
             }}
         >
-            <Box className="ballot-status-id-label" sx={label}>
-                {t("vitrine.ballotId.label")}
+            <Box
+                className="ballot-status-id-head"
+                sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: "8px",
+                }}
+            >
+                <Box className="ballot-status-id-label" sx={label}>
+                    {t("vitrine.ballotId.label")}
+                </Box>
+                <BallotTag tag={tag} />
             </Box>
             <Box
                 className="ballot-status-short-id"
@@ -344,13 +364,10 @@ const IdBox: React.FC<{ballotId: string; phone: boolean}> = ({ballotId, phone}) 
                     aria-label={t(copied ? "vitrine.ballotId.copied" : "vitrine.ballotId.copy")}
                     onClick={() => void copy()}
                     sx={{
+                        "width": 28,
                         "height": 28,
-                        "minWidth": 28,
-                        "px": "6px",
                         "mb": "-4px",
                         "borderRadius": "4px",
-                        "gap": "4px",
-                        "fontSize": "13px",
                         "color": copied ? DIALOG_COLORS.copied : DIALOG_COLORS.text,
                         "opacity": copied || phone ? 1 : 0,
                         "transition": "opacity 150ms",
@@ -358,7 +375,6 @@ const IdBox: React.FC<{ballotId: string; phone: boolean}> = ({ballotId, phone}) 
                     }}
                 >
                     {copied ? <CopiedIcon /> : <CopyIcon />}
-                    {copied ? t("vitrine.ballotId.copiedShort") : null}
                 </ButtonBase>
             </Box>
             <Box
@@ -517,7 +533,7 @@ export interface IBallotStatusDialogProps {
     view?: IReceiptView
     ballotId: string
     electionName?: string
-    /** When the ballot was cast, as the voter reads it. */
+    /** When the ballot was cast, or audited, as the voter reads it. */
     castAt?: string
     /** When this page saw each step done, in milliseconds. */
     times?: Partial<Record<EStatusStep, number>>
@@ -553,7 +569,8 @@ export const BallotStatusDialog: React.FC<IBallotStatusDialogProps> = ({
     const save = () => {
         if (chain) saveTextFile(receiptFileName(ballotId), chain, RECEIPT_MEDIA_TYPE)
     }
-    const meta = [electionName, castAt ? t("vitrine.status.cast", {when: castAt}) : undefined]
+    const when = isAuditStatus(status) ? "vitrine.status.audited" : "vitrine.status.cast"
+    const meta = [electionName, castAt ? t(when, {when: castAt}) : undefined]
         .filter(Boolean)
         .join(" · ")
 
@@ -596,7 +613,7 @@ export const BallotStatusDialog: React.FC<IBallotStatusDialogProps> = ({
                         {meta}
                     </Box>
                 ) : null}
-                <IdBox ballotId={ballotId} phone={phone} />
+                <IdBox ballotId={ballotId} tag={ballotTagOf(status)} phone={phone} />
                 <Headline status={status} head={tr(headline.head)} sub={tr(headline.sub)} />
                 <Steps rows={rows} tr={tr} />
                 {status === EBallotStatus.LATE ? (
@@ -618,7 +635,8 @@ export const BallotStatusDialog: React.FC<IBallotStatusDialogProps> = ({
                         )}
                     </Box>
                 ) : null}
-                {problem === EBallotProblem.MISMATCH && chain ? (
+                {(problem === EBallotProblem.MISMATCH || status === EBallotStatus.AUDIT_FAILED) &&
+                chain ? (
                     <Box
                         className="ballot-status-problem"
                         sx={{

@@ -100,6 +100,78 @@ const StyledTitle = styled(Typography)<{component?: React.ElementType}>`
     gap: 16px;
 `
 
+/** Where the title row stacks: the title, then the Tracking ID box under it. */
+const TITLE_ROW_STACKED_MAX_PX = 900
+
+/** The steps, the title and the Tracking ID box. The box takes the title row,
+ * under the title when it is narrow, and on a phone it goes above the steps. */
+const ReviewHeader = styled(Box)`
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    grid-template-areas:
+        "steps steps steps"
+        "title id .";
+    column-gap: 16px;
+    align-items: center;
+
+    .review-header-steps {
+        grid-area: steps;
+        margin-top: 48px;
+    }
+
+    .review-header-title {
+        grid-area: title;
+    }
+
+    .review-header-id {
+        grid-area: id;
+        padding: 32px 0 16px;
+    }
+
+    @media (min-width: ${TITLE_ROW_STACKED_MAX_PX + 1}px) {
+        .review-header-title .screen-title {
+            white-space: nowrap;
+        }
+    }
+
+    @media (max-width: ${TITLE_ROW_STACKED_MAX_PX}px) {
+        grid-template-columns: 1fr;
+        grid-template-areas:
+            "steps"
+            "title"
+            "id";
+
+        .review-header-title .screen-title {
+            padding-bottom: 0;
+        }
+
+        .review-header-id {
+            justify-self: center;
+            padding: 12px 0 16px;
+        }
+    }
+
+    ${({theme}) => theme.breakpoints.down("sm")} {
+        grid-template-areas:
+            "id"
+            "steps"
+            "title";
+
+        .review-header-steps {
+            margin-top: 16px;
+        }
+
+        .review-header-title .screen-title {
+            padding: 16px 0 8px;
+        }
+
+        .review-header-id {
+            justify-self: stretch;
+            padding: 0;
+        }
+    }
+`
+
 const ActionsContainer = styled(Box)`
     display: flex;
     flex-direction: row;
@@ -887,17 +959,61 @@ export const ReviewScreen: React.FC = () => {
     const contestsOrderType = ballotStyle?.ballot_eml.election_presentation?.contests_order
     const contests = sortContestList(ballotStyle.ballot_eml.contests, contestsOrderType)
 
+    const showsIdBox = auditButtonCfg !== EVotingPortalAuditButtonCfg.NOT_SHOW && !isFullyAcclaimed
+    const showsTrackingIdBox = showsIdBox && keepsTransparencyLog && !!ballotId
+
+    const screenTitle = (
+        <StyledTitle
+            className="screen-title"
+            variant="h4"
+            component="h1"
+            fontSize="24px"
+            fontWeight="bold"
+            sx={{margin: 0}}
+        >
+            <Box className="screen-title-text">
+                {t(isFullyAcclaimed ? "reviewScreen.acclamation.title" : "reviewScreen.title")}
+            </Box>
+            <IconButton
+                buttonClassName="screen-help-button"
+                icon={faCircleQuestion}
+                sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
+                fontSize="16px"
+                onClick={() => setReviewScreenHelp(true)}
+                ariaLabel={t("a11y.helpAbout", {
+                    topic: t("reviewScreen.reviewScreenHelpDialog.title"),
+                })}
+            />
+            <Dialog
+                className="screen-help-dialog review-help-dialog"
+                handleClose={() => setReviewScreenHelp(false)}
+                open={openReviewScreenHelp}
+                title={t(
+                    isFullyAcclaimed
+                        ? "reviewScreen.acclamation.helpDialog.title"
+                        : "reviewScreen.reviewScreenHelpDialog.title"
+                )}
+                ok={t(
+                    isFullyAcclaimed
+                        ? "reviewScreen.acclamation.helpDialog.ok"
+                        : "reviewScreen.reviewScreenHelpDialog.ok"
+                )}
+                variant="info"
+            >
+                {stringToHtml(
+                    t(
+                        isFullyAcclaimed
+                            ? "reviewScreen.acclamation.helpDialog.content"
+                            : "reviewScreen.reviewScreenHelpDialog.content"
+                    )
+                )}
+            </Dialog>
+        </StyledTitle>
+    )
+
     return (
         <PageLimit maxWidth="lg" className="review-screen screen">
-            {auditButtonCfg === EVotingPortalAuditButtonCfg.NOT_SHOW ||
-            isFullyAcclaimed ? null : keepsTransparencyLog && ballotId ? (
-                <ReviewBallotId
-                    ballotId={ballotId}
-                    electionName={electionName}
-                    helpLabel={t("reviewScreen.ballotIdHelpDialog.title")}
-                    onHelpClick={() => setOpenBallotIdHelp(true)}
-                />
-            ) : (
+            {showsIdBox && !showsTrackingIdBox ? (
                 <BallotHash
                     hash={ballotId || ""}
                     copyLabels={{
@@ -908,7 +1024,7 @@ export const ReviewScreen: React.FC = () => {
                     helpButtonLabel={t("reviewScreen.ballotIdHelpDialog.title")}
                     onHelpClick={() => setOpenBallotIdHelp(true)}
                 />
-            )}
+            ) : null}
             <BallotIdHelpDialog
                 className="review-ballot-id-help-dialog"
                 handleClose={handleCloseDialogIdHelp}
@@ -939,55 +1055,29 @@ export const ReviewScreen: React.FC = () => {
                     handleClose={handleCloseDialogAuditHelp}
                 />
             ) : null}
-            <Box className="stepper-box" marginTop="48px">
-                <Stepper selected={2} />
-            </Box>
-            <StyledTitle
-                className="screen-title"
-                variant="h4"
-                component="h1"
-                fontSize="24px"
-                fontWeight="bold"
-                sx={{margin: 0}}
-            >
-                <Box className="screen-title-text">
-                    {t(isFullyAcclaimed ? "reviewScreen.acclamation.title" : "reviewScreen.title")}
-                </Box>
-                <IconButton
-                    buttonClassName="screen-help-button"
-                    icon={faCircleQuestion}
-                    sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
-                    fontSize="16px"
-                    onClick={() => setReviewScreenHelp(true)}
-                    ariaLabel={t("a11y.helpAbout", {
-                        topic: t("reviewScreen.reviewScreenHelpDialog.title"),
-                    })}
-                />
-                <Dialog
-                    className="screen-help-dialog review-help-dialog"
-                    handleClose={() => setReviewScreenHelp(false)}
-                    open={openReviewScreenHelp}
-                    title={t(
-                        isFullyAcclaimed
-                            ? "reviewScreen.acclamation.helpDialog.title"
-                            : "reviewScreen.reviewScreenHelpDialog.title"
-                    )}
-                    ok={t(
-                        isFullyAcclaimed
-                            ? "reviewScreen.acclamation.helpDialog.ok"
-                            : "reviewScreen.reviewScreenHelpDialog.ok"
-                    )}
-                    variant="info"
-                >
-                    {stringToHtml(
-                        t(
-                            isFullyAcclaimed
-                                ? "reviewScreen.acclamation.helpDialog.content"
-                                : "reviewScreen.reviewScreenHelpDialog.content"
-                        )
-                    )}
-                </Dialog>
-            </StyledTitle>
+            {showsTrackingIdBox ? (
+                <ReviewHeader className="review-header">
+                    <Box className="review-header-steps stepper-box">
+                        <Stepper selected={2} />
+                    </Box>
+                    <Box className="review-header-title">{screenTitle}</Box>
+                    <Box className="review-header-id">
+                        <ReviewBallotId
+                            ballotId={ballotId}
+                            electionName={electionName}
+                            helpLabel={t("reviewScreen.ballotIdHelpDialog.title")}
+                            onHelpClick={() => setOpenBallotIdHelp(true)}
+                        />
+                    </Box>
+                </ReviewHeader>
+            ) : (
+                <>
+                    <Box className="stepper-box" marginTop="48px">
+                        <Stepper selected={2} />
+                    </Box>
+                    {screenTitle}
+                </>
+            )}
             {errorMsg && (
                 <WarnBox
                     className="cast-ballot-error"

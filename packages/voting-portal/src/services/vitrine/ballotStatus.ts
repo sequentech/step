@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// The ballot status that the check mark next to a Ballot ID shows, and the
+// The ballot status that the check mark next to a Tracking ID shows, and the
 // three steps its dialog lists, from a receipt's check. The worst step wins:
 // a problem over a late step over one still on its way.
 
@@ -17,6 +17,27 @@ export enum EBallotStatus {
     VERIFIED = "verified",
     LATE = "late",
     PROBLEM = "problem",
+    /** A ballot the voter audited: never cast, and its selections can be decrypted. */
+    AUDITABLE = "auditable",
+    /** An audited ballot that does not decrypt with the key the portal revealed. */
+    AUDIT_FAILED = "auditfail",
+}
+
+/** Whether the status is one of a ballot that was audited, and so never cast. */
+export const isAuditStatus = (status: EBallotStatus): boolean =>
+    status === EBallotStatus.AUDITABLE || status === EBallotStatus.AUDIT_FAILED
+
+/** What the tag next to a Tracking ID says about the ballot. Each value is the
+ * key of the tag's words. */
+export enum EBallotTag {
+    NOT_CAST = "notCast",
+    CAST = "cast",
+    AUDITABLE = "auditable",
+}
+
+export const ballotTagOf = (status: EBallotStatus): EBallotTag => {
+    if (status === EBallotStatus.NOT_CAST) return EBallotTag.NOT_CAST
+    return isAuditStatus(status) ? EBallotTag.AUDITABLE : EBallotTag.CAST
 }
 
 /** Why a ballot shows a problem. */
@@ -115,13 +136,14 @@ export const ballotStatusOf = (view: IReceiptView | undefined): EBallotStatus =>
 }
 
 /** Each step's state. A step waits for the ones before it, and isn't checked
- * after one that failed. */
+ * after one that failed. The steps of an audited ballot are all done. */
 export const statusSteps = (
     status: EBallotStatus,
     result?: ChainResult
 ): Record<EStatusStep, EStepState> => {
     const own = (step: EStatusStep): EStepState => {
         if (status === EBallotStatus.NOT_CAST) return EStepState.UPCOMING
+        if (isAuditStatus(status)) return EStepState.DONE
         if (result) return stepState(result, step)
         if (step !== EStatusStep.RECORD) return EStepState.WAITING
         return status === EBallotStatus.PROBLEM ? EStepState.FAILED : EStepState.ACTIVE

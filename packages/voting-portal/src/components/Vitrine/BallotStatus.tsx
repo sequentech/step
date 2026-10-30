@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 // The check mark that shows a ballot's status, and the dialog it opens: next
-// to a Ballot ID on the review and confirmation screens, and as the "Ballot
+// to a Tracking ID on the review and confirmation screens, and as the "Ballot
 // cast" label in the ballot list (design boards Review, Confirmation and
 // BallotList).
 
@@ -29,7 +29,7 @@ const NAVY = "#0F054C"
 const TOOLTIP_GAP_PX = 8
 
 export enum EBallotStatusTrigger {
-    /** The 34 px check mark next to a Ballot ID. */
+    /** The 34 px check mark next to a Tracking ID. */
     ICON = "icon",
     /** The "Ballot cast" label of the ballot list. */
     LABEL = "label",

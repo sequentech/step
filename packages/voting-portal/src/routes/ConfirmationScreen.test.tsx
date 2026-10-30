@@ -236,7 +236,21 @@ const stateOf = async (container: HTMLElement, expected: string): Promise<void> 
 
 const GROUPED_PATTERN = /^([0-9a-f]{4} ){15}[0-9a-f]{4}$/
 
-describe("the Ballot ID on the confirmation screen", () => {
+/** Whether a rule of the page's styles, in any media query, hides the element.
+ * jsdom applies no media query, so this is how a hiding at one width shows. */
+const hiddenByAnyRule = (element: Element): boolean => {
+    const hides = (rules: CSSRuleList): boolean =>
+        Array.from(rules).some((rule) =>
+            rule.type === CSSRule.MEDIA_RULE
+                ? hides((rule as CSSMediaRule).cssRules)
+                : rule.type === CSSRule.STYLE_RULE &&
+                  (rule as CSSStyleRule).style.display === "none" &&
+                  element.matches((rule as CSSStyleRule).selectorText)
+        )
+    return Array.from(document.styleSheets).some((sheet) => hides(sheet.cssRules))
+}
+
+describe("the Tracking ID on the confirmation screen", () => {
     it("keeps the portal's own layout, with the status check mark in the ID box", async () => {
         casting(receiptOf)
         const {container} = renderScreen()
@@ -252,16 +266,16 @@ describe("the Ballot ID on the confirmation screen", () => {
         expect(container.querySelector("[class*=vitrine-]")).toBeNull()
     })
 
-    it("shows the short ID, and copies the full one in groups of four", async () => {
+    it("shows the short ID once, with no prefix for a phone, and copies the full one in groups of four", async () => {
         const {ballotId} = casting(receiptOf)
         const writeText = jest.fn(async (_text: string) => undefined)
         Object.defineProperty(navigator, "clipboard", {value: {writeText}, configurable: true})
         const {container, findAllByTestId} = renderScreen()
-        const [desktop] = await findAllByTestId("ballot-id")
-        expect(desktop.textContent).toBe("0000 0000")
-        expect(container.querySelector(".ballot-id-value-mobile")?.textContent).toBe(
-            "vitrine.ballotId.yours 0000 0000"
-        )
+        const links = await findAllByTestId("ballot-id")
+        expect(links).toHaveLength(1)
+        expect(links[0].textContent).toBe("0000 0000")
+        expect(container.querySelector(".ballot-id-value-mobile")).toBeNull()
+        expect(container.querySelector(".ballot-id-prefix")).toBeNull()
         await act(async () => {
             fireEvent.click(screen.getByRole("button", {name: "vitrine.ballotId.copy"}))
         })
@@ -273,12 +287,61 @@ describe("the Ballot ID on the confirmation screen", () => {
 
     it("links the ID to the ballot tracker", async () => {
         casting(receiptOf)
-        const {findAllByTestId} = renderScreen()
-        const [desktop] = await findAllByTestId("ballot-id")
+        const {findByTestId} = renderScreen()
+        const link = await findByTestId("ballot-id")
         await waitFor(() =>
-            expect(desktop.getAttribute("href")).toContain(
-                `/election/${ELECTION_ID}/ballot-locator/`
-            )
+            expect(link.getAttribute("href")).toContain(`/election/${ELECTION_ID}/ballot-locator/`)
+        )
+    })
+
+    it("heads the box with Tracking ID on every screen size", async () => {
+        casting(receiptOf)
+        const {container} = renderScreen()
+        await waitFor(() => expect(statusButton(container)).not.toBeNull())
+        const label = container.querySelector<HTMLElement>(".ballot-id-label")
+        expect(label?.tagName).toBe("H2")
+        expect(label?.textContent).toBe("confirmationScreen.ballotId")
+        expect(hiddenByAnyRule(label!)).toBe(false)
+    })
+
+    it("follows the short ID with the tag Cast, in one row with it", async () => {
+        casting(receiptOf)
+        const {container, findByTestId} = renderScreen()
+        const link = await findByTestId("ballot-id")
+        const tags = container.querySelectorAll(".status-tag")
+        expect(tags).toHaveLength(1)
+        expect(tags[0].textContent).toBe("vitrine.status.tag.cast")
+        expect(tags[0].getAttribute("data-tone")).toBe("success")
+        const row = container.querySelector(".ballot-id-text")!
+        expect(Array.from(row.children)).toEqual([link, tags[0]])
+        expect(row.parentElement?.className).toContain("ballot-id-border")
+    })
+
+    it("swaps the copy icon for a green check, with no text, when it copies", async () => {
+        casting(receiptOf)
+        Object.defineProperty(navigator, "clipboard", {
+            value: {writeText: jest.fn(async (_text: string) => undefined)},
+            configurable: true,
+        })
+        const {container} = renderScreen()
+        const copy = await screen.findByRole("button", {name: "vitrine.ballotId.copy"})
+        expect(copy.querySelector("[data-icon=copy]")).not.toBeNull()
+        await act(async () => {
+            fireEvent.click(copy)
+        })
+        const done = screen.getByRole("button", {name: "vitrine.ballotId.copied"})
+        expect(done.querySelector("[data-icon=copy]")).toBeNull()
+        expect(done.querySelector("[data-icon=check]")).not.toBeNull()
+        expect(getComputedStyle(done).color).toBe("rgb(4, 120, 87)")
+        expect(container.querySelector(".ballot-id-container")?.textContent).not.toContain("Copied")
+    })
+
+    it("rounds the box's corners to 8 px", async () => {
+        casting(receiptOf)
+        const {container} = renderScreen()
+        await waitFor(() => expect(statusButton(container)).not.toBeNull())
+        expect(getComputedStyle(container.querySelector(".ballot-id-border")!).borderRadius).toBe(
+            "8px"
         )
     })
 })
@@ -405,5 +468,14 @@ describe("the status of the ballot just cast", () => {
         expect(container.querySelector(".ballot-id-check-icon")).not.toBeNull()
         expect(statusButton(container)).toBeNull()
         expect(container.querySelector(".qr-container svg")).not.toBeNull()
+        // Both responsive values stay, with the label hidden on a phone.
+        expect(container.querySelector(".ballot-id-value-desktop")).not.toBeNull()
+        expect(container.querySelector(".ballot-id-value-mobile")).not.toBeNull()
+        expect(hiddenByAnyRule(container.querySelector(".ballot-id-label")!)).toBe(true)
+        expect(container.querySelector(".status-tag")).toBeNull()
+        expect(container.querySelector(".ballot-id-text")).toBeNull()
+        expect(getComputedStyle(container.querySelector(".ballot-id-border")!).borderRadius).toBe(
+            "4px"
+        )
     })
 })
