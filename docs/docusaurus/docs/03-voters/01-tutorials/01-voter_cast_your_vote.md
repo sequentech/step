@@ -69,6 +69,10 @@ This stage allows you to verify your choices before they are permanently recorde
 2. **Note your Ballot ID:** This unique identifier is used for locating or auditing your ballot later.
 3. Select `Cast your Ballot`.
 
+:::info
+**Transparency:** When your election has transparency enabled, the Ballot ID shows as its first two groups of four characters, such as `30ff d314`, next to a dotted check mark that means nothing has been sent yet. The copy button next to it copies the full Ballot ID. See [Check your transparency receipt](./04-voter_transparency_receipt.md).
+:::
+
 :::warning
 **Auditing your Ballot:** You may choose to "Audit your Ballot" to ensure selections were correctly encrypted. Please note that **auditing will void the ballot**. Refer to the "Auditing your Ballot" tutorial for more details.
 :::
@@ -79,7 +83,7 @@ This stage allows you to verify your choices before they are permanently recorde
 
 Once submitted, the confirmation screen verifies that your vote was successfully cast.
 
-1. **Ballot ID:** A unique ID is displayed to help you track your submission.
+1. **Ballot ID:** A unique ID is displayed to help you track your submission. When your election has transparency enabled, it shows as the short ID, and a check mark next to it shows how far your browser has verified your ballot. Select the check mark to open the **Ballot status** dialog, where you can also save your receipt.
 2. **QR Code:** When scanned, the QR code takes you directly to the **Ballot Locator** to verify your ballot by ID.
 3. Select `Finish` to return to the main election selection screen.
 

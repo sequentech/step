@@ -246,14 +246,19 @@ event's overview. It shows only what `get_transparency` returns, and says
 - **Visibility** is the mode the logs were created with, locked once voting
   opened. The draft, upload and enrolment workflow stays below the overview.
 
-The voting portal's confirmation screen shows the receipt checked by the
-website. Its headline says the ballot is cast until the witnesses confirm it,
-then that it is in the public (or election) record; contradicting signed
-proofs, or a required receipt that never came, show the failure page instead.
-The kept receipts on the election list say whether each ballot is still in
-the record. The pages brand the UI kit's elements through the kit's
-`--vitrine-accent`, `--vitrine-text`, `--vitrine-surface` and
-`--vitrine-radius` custom properties.
+The voting portal's screens stay as they are, with one addition when the
+event's transparency is on: a check mark next to the Ballot ID. The ID shows
+in groups of four characters, and the first two groups are the short ID. The
+check mark shows how far the receipt's check has got: not cast yet on the
+review screen, then checking, in the public record, confirmed by witnesses,
+verified, late or problem. The worst step wins, and it is blue only when every
+tier the policy uses is verified. Selecting it opens a dialog with the short
+and full ID and three steps: in the public record, confirmed by witnesses and
+anchored publicly. Contradicting signed proofs, or a required receipt that
+never came, show as a problem, and never turn an accepted cast into a failed
+one. In the election list, **Ballot cast** with the check mark replaces
+**Voted** for a ballot whose receipt this browser kept. The ballot tracker
+shows the whole receipt, for a ballot found by its short or full ID.
 
 ### Deleting, exporting and importing events
 
@@ -288,7 +293,7 @@ vkeys: Ed25519 for authorities, auditors, monitors and hubs, and
 | `operator` | Yes | The party that runs the logs, as a name. |
 | `quorum` | Yes | The app quorum: the name of a group or a witness. |
 | `min_faults` | No | Every quorum must tolerate this many more faulty parties. |
-| `words` | No | The language of policy and receipt words: `en`, `es`, `fr`, `it`, `pt`, `cs`, `ja`, `ko`, `zh-hans` or `zh-hant`. The event's default language is used instead when it is one of them. |
+| `words` | No | The language of the policy's words: `en`, `es`, `fr`, `it`, `pt`, `cs`, `ja`, `ko`, `zh-hans` or `zh-hant`. The event's default language is used instead when it is one of them. |
 | `mmd` | No | The maximum merge delay of promises, in seconds. Default 30, at most 3600. |
 | `explorer_url` | No | The explorer's page for a policy, with `{policy_id}` where the ID goes. The Transparency tab links to it. |
 | `monitor_quorum` | No | How many monitors, of distinct parties, must report an availability failure before verifiers show it as established. At least two and at most the number of monitors; at least two distinct monitor parties are required. |

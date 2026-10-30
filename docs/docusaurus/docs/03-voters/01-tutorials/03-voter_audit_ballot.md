@@ -21,6 +21,8 @@ From the Ballot Review screen, before the final step before casting your vote, y
 ### Step 1.1 Note the `Ballot ID` 
 Appearing highlighted with a green background in the image above.
 
+When your election has transparency enabled, the box shows the short Ballot ID, such as `30ff d314`, next to a dotted check mark. The verifier needs the full Ballot ID, so select the copy button next to the ID to copy it. The full ID is also in the **Ballot status** dialog that the check mark opens.
+
 ### Step 1.2 Begin the Audit
 Select the `Audit your Ballot` button.
 
@@ -59,7 +61,7 @@ In the new Ballot Verifier tab, you must provide the information you just saved.
 Drag and drop the file you downloaded into the upload area, or click Browse to select it.
 
 ### Step 3.2 Insert your ballot ID: 
-Type or paste the `Ballot ID` you noted in the previous step into the input field. 
+Type or paste the full `Ballot ID` you noted in the previous step into the input field. The field groups the characters in fours as you type, and spaces are optional. It takes only the full ID, 64 characters made of digits and the letters `a` to `f`. A short ID is refused: the verifier compares the whole ID, and a short ID has only 32 bits, which a birthday search could match.
 
 Once the file is uploaded and the ID is correctly entered (see image below), click `Next`.
 
@@ -70,7 +72,7 @@ The Verifier decodes the encrypted file and displays the contents for your inspe
 ![Audit Results](./assets/voter_audit_results.png)
 
 ### Step 4.1 Verify Ballot ID: 
-Ensure the Decoded Ballot ID matches the the Ballot ID you provided.
+Ensure the Decoded Ballot ID matches the Ballot ID you provided. Both show in groups of four, with the short ID in bold. If they differ, the verifier highlights the groups of the ID you provided that differ from the decoded one, and shows `Doesn't match the decoded Ballot ID`.
 
 ### Step 4.2 Review Selections: 
 The system displays the decoded candidates for each contest.
