@@ -13,7 +13,8 @@
 
 import type {Policy} from "@vitrine/verify"
 import {joinUrl} from "./http"
-import type {TVitrinePure} from "./sdk"
+import type {IReceiptView} from "./castReceipt"
+import {loadVitrineSdk, type TVitrinePure} from "./sdk"
 import {ETransparencyMode, EVitrineLog} from "./types"
 
 export const CHAIN_LINK_PREFIX = "#vitrine:chain?"
@@ -74,5 +75,30 @@ export const receiptReferenceUrl = (
         )
     } catch {
         return undefined
+    }
+}
+
+/** Opens the receipt in the deployment's ballot verifier, in a new tab that
+ * knows nothing of this one. */
+export const openVerifier = async (verifierUrl: string, view: IReceiptView, chain: string) => {
+    const {own, policy, policyText} = view
+    if (!own || !policy) return
+    try {
+        const {pure} = await loadVitrineSdk()
+        const mode =
+            policy.visibility === ETransparencyMode.PUBLIC
+                ? ETransparencyMode.PUBLIC
+                : ETransparencyMode.PRIVATE
+        const url = checkIndependentlyUrl(pure, {
+            verifierUrl,
+            chain,
+            entry: own.entry,
+            mode,
+            policy,
+            ...(policyText ? {policyText} : {}),
+        })
+        window.open(url, "_blank", "noopener,noreferrer")
+    } catch (error) {
+        console.error("Vitrine: couldn't open the verifier:", error)
     }
 }

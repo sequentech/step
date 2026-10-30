@@ -24,7 +24,7 @@ import {
     receiptFileName,
 } from "../../services/vitrine/confirmation"
 import {RECEIPT_MEDIA_TYPE, saveTextFile} from "../../services/vitrine/file"
-import {checkIndependentlyUrl, receiptReferenceUrl} from "../../services/vitrine/handoff"
+import {openVerifier, receiptReferenceUrl} from "../../services/vitrine/handoff"
 import {vitrineLanguage} from "../../services/vitrine/language"
 import {chainReceipt} from "../../services/vitrine/receipt"
 import {loadVitrineSdk} from "../../services/vitrine/sdk"
@@ -41,31 +41,6 @@ const NOTICE_STATE: Record<EReceiptNotice, OverallStatus> = {
     [EReceiptNotice.WAITING]: "pending",
     [EReceiptNotice.MISSING]: "failed",
     [EReceiptNotice.UNCHECKED]: "invalid",
-}
-
-/** Opens the receipt in the deployment's ballot verifier, in a new tab that
- * knows nothing of this one. */
-export const openVerifier = async (verifierUrl: string, view: IReceiptView, chain: string) => {
-    const {own, policy, policyText} = view
-    if (!own || !policy) return
-    try {
-        const {pure} = await loadVitrineSdk()
-        const mode =
-            policy.visibility === ETransparencyMode.PUBLIC
-                ? ETransparencyMode.PUBLIC
-                : ETransparencyMode.PRIVATE
-        const url = checkIndependentlyUrl(pure, {
-            verifierUrl,
-            chain,
-            entry: own.entry,
-            mode,
-            policy,
-            ...(policyText ? {policyText} : {}),
-        })
-        window.open(url, "_blank", "noopener,noreferrer")
-    } catch (error) {
-        console.error("Vitrine: couldn't open the verifier:", error)
-    }
 }
 
 /** The receipt's reference for its QR code, built on this device: showing

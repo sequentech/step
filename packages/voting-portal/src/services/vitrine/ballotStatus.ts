@@ -70,12 +70,16 @@ const isDone = (status: TierStatus): boolean => status === "verified" || status 
 
 const isBad = (status: TierStatus): boolean => status === "failed" || status === "invalid"
 
-const stepState = (result: ChainResult, step: EStatusStep): EStepState => {
-    const statuses = STEP_TIERS[step].map((tier) => tierStatus(result, tier))
+/** The state of a step that rests on these tiers, on its own. */
+export const tiersState = (result: ChainResult, tiers: readonly TierName[]): EStepState => {
+    const statuses = tiers.map((tier) => tierStatus(result, tier))
     if (statuses.some(isBad)) return EStepState.FAILED
     if (statuses.some((status) => status === "late")) return EStepState.LATE
     return statuses.every(isDone) ? EStepState.DONE : EStepState.ACTIVE
 }
+
+const stepState = (result: ChainResult, step: EStatusStep): EStepState =>
+    tiersState(result, STEP_TIERS[step])
 
 export const ballotProblemOf = (view: IReceiptView | undefined): EBallotProblem | undefined => {
     if (view?.notice === EReceiptNotice.MISSING) return EBallotProblem.NO_RECEIPT
