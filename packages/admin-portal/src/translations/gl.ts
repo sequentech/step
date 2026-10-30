@@ -2907,6 +2907,13 @@ const galegoTranslation: TranslationType = {
                 "square-checkbox": "Caixa de Selección Cadrada",
                 "round-checkbox": "Caixa de Selección Redonda",
             },
+            candidatesLayout: {
+                "label": "Disposición das candidaturas",
+                "helperText":
+                    "A grade de papeleta en papel mostra as candidaturas como celas numeradas cun círculo para encher, columna a columna, segundo Columnas (4 se está baleiro). As votacións por orde de preferencia sempre usan a lista.",
+                "list": "Lista",
+                "paper-grid": "Grade de papeleta en papel",
+            },
             checkableListPolicy: {
                 "allow-selecting-candidates-and-lists": "Candidatos e Listas",
                 "allow-selecting-candidates": "Só Candidatos",

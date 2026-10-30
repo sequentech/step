@@ -84,6 +84,11 @@ const tagalogTranslation: TranslationType = {
                 description:
                     "Ang paligsahang ito ay napagpasyahan sa pamamagitan ng aklamasyon. Ang mga kandidato nito ay nahalal nang walang botohan, kaya walang opsyong mapipili at walang botong naitatala.",
             },
+            paperBallot: {
+                voteForNoMoreThan_one: "Bumoto ng hindi hihigit sa {{count}}",
+                voteForNoMoreThan_many: "Bumoto ng hindi hihigit sa {{count}}",
+                voteForNoMoreThan_other: "Bumoto ng hindi hihigit sa {{count}}",
+            },
         },
         votingScreen: {
             backButton: "Bumalik",

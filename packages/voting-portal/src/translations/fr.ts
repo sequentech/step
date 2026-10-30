@@ -84,6 +84,11 @@ const frenchTranslation: TranslationType = {
                 description:
                     "Ce scrutin a été tranché par acclamation. Ses candidat(e)s sont élu(e)s sans vote : aucune option ne peut être sélectionnée et aucune voix n'est enregistrée.",
             },
+            paperBallot: {
+                voteForNoMoreThan_one: "Votez pour {{count}} au maximum",
+                voteForNoMoreThan_many: "Votez pour {{count}} au maximum",
+                voteForNoMoreThan_other: "Votez pour {{count}} au maximum",
+            },
         },
         votingScreen: {
             backButton: "Retour",

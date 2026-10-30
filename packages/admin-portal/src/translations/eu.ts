@@ -2899,6 +2899,13 @@ const basqueTranslation: TranslationType = {
                 "square-checkbox": "Kontrol-lauki Karratua",
                 "round-checkbox": "Kontrol-lauki Biribila",
             },
+            candidatesLayout: {
+                "label": "Hautagaien antolaketa",
+                "helperText":
+                    "Paperezko txartelaren saretak hautagaiak zenbakidun gelaxka gisa erakusten ditu, betetzeko zirkulu batekin, zutabez zutabe, Zutabeak erabiliz (4 hutsik badago). Lehentasunezko bozketek zerrenda erabiltzen dute beti.",
+                "list": "Zerrenda",
+                "paper-grid": "Paperezko txartelaren sareta",
+            },
             checkableListPolicy: {
                 "allow-selecting-candidates-and-lists": "Hautagaiak eta Zerrendak",
                 "allow-selecting-candidates": "Hautagaiak Soilik",

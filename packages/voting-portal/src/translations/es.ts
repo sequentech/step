@@ -84,6 +84,11 @@ const spanishTranslation: TranslationType = {
                 description:
                     "Esta votación se ha resuelto por aclamación. Sus candidaturas resultan elegidas sin votación, por lo que no se puede seleccionar ninguna opción ni se registra ningún voto.",
             },
+            paperBallot: {
+                voteForNoMoreThan_one: "Vote por no más de {{count}}",
+                voteForNoMoreThan_many: "Vote por no más de {{count}}",
+                voteForNoMoreThan_other: "Vote por no más de {{count}}",
+            },
         },
         votingScreen: {
             backButton: "Atrás",

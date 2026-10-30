@@ -27,7 +27,9 @@ import type {IDecodedVoteContest} from "@sequentech/ui-core"
 import {useBallotEngine} from "./engine"
 import {useCandidateSlateLabel} from "./slates"
 import {writeInErrorId} from "./InvalidErrorsList"
-import {ECandidatesIconCheckboxPolicy} from "@sequentech/ui-core"
+import {ECandidatesIconCheckboxPolicy, ECandidatesLayout} from "@sequentech/ui-core"
+import {PaperBallotCandidate} from "../components/PaperBallot/PaperBallot"
+import {EPaperGridDensity} from "./paperGrid"
 
 export interface IAnswerProps {
     answer: ICandidate
@@ -50,6 +52,8 @@ export interface IAnswerProps {
     setExplicitBlank: (value: boolean) => void
     setIsTouched: (value: boolean) => void
     showWhenListSelected?: boolean
+    layout?: ECandidatesLayout
+    paperGridDensity?: EPaperGridDensity
 }
 
 export const Answer: React.FC<IAnswerProps> = ({
@@ -72,6 +76,9 @@ export const Answer: React.FC<IAnswerProps> = ({
     setExplicitBlank,
     setIsTouched,
     showWhenListSelected,
+    index,
+    layout = ECandidatesLayout.LIST,
+    paperGridDensity = EPaperGridDensity.REGULAR,
 }) => {
     const engine = useBallotEngine()
     const {isPreferential} = engine
@@ -231,6 +238,26 @@ export const Answer: React.FC<IAnswerProps> = ({
     // acclaimed contest has no selection, so it lists every candidate instead.
     if (isReview && !isChecked() && !showWhenListSelected && !isAcclaimed) {
         return null
+    }
+
+    if (layout === ECandidatesLayout.PAPER_GRID) {
+        return (
+            <PaperBallotCandidate
+                ballotNumber={index + 1}
+                title={translate(answer, "name", i18n.language)}
+                subtitle={slateLabel}
+                density={paperGridDensity}
+                checked={isChecked()}
+                isSelectable={isSelectable && !isAcclaimed}
+                shouldDisable={shouldDisable}
+                setChecked={setChecked}
+                isWriteIn={allowWriteIns && isWriteIn}
+                writeInValue={selectionState?.write_in_text}
+                setWriteInText={setWriteInText}
+                isInvalidWriteIn={!!selectionState?.write_in_text && isInvalidWriteIns}
+                writeInErrorId={writeInErrorId(contestId)}
+            />
+        )
     }
 
     return (

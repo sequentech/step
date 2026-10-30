@@ -95,6 +95,25 @@ Manage how the ballot for this contest is displayed and how voters interact with
     - Random
     - Alphabetical
     - Custom (when selected, enable manual reordering).
+- **Candidates layout** (`presentation.candidates_layout`)
+  - **List** (`list`, the default): one card per candidate, laid out in
+    **Columns** columns. Contests without this setting use it.
+  - **Paper ballot grid** (`paper-grid`): the contest looks like a printed
+    ballot. Its name sits in a shaded heading bar with "Vote for no more than
+    N", and candidates are numbered cells with a circle that fills in when
+    selected, filled column by column. **Columns** sets how many columns the
+    grid has on wide screens (4 when empty); tablets show at most 3 and phones
+    at most 2. Rows get shorter as the contest gets longer, so a contest with
+    hundreds of options stays compact.
+  - The paper ballot grid applies to candidates that are not grouped into
+    lists. Grouped candidates, explicit blank and invalid options keep their
+    usual look, and write-in candidates get a text field inside their cell.
+  - Ranked (preferential) contests always use the list, because each
+    candidate needs a position selector.
+  - The review screen keeps the paper look, showing the selected candidates
+    with their ballot numbers.
+  - This is a display setting only: it does not change how ballots are
+    encoded or the ballot style hash.
 
 ### Edit Lists & Selection Types
 - **Enable Checkable Lists**  
