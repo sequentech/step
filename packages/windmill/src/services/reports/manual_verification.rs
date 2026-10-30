@@ -7,6 +7,8 @@ use crate::services::temp_path::*;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
+use keycloak::KeycloakTokenSupplier;
+use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::services::pdf;
 use sequent_core::services::s3::get_minio_url;
 use sequent_core::util::temp_path::*;
@@ -159,16 +161,26 @@ async fn get_manual_verification_url(
     let login_url = format!("{base_url}/tenant/{tenant_id}/event/{election_event_id}/login");
 
     let generate_token_url = format!(
-        "{keycloak_url}/realms/tenant-{tenant_id}-event-{election_event_id}/manual-verification/generate-link?userId={voter_id}&redirectUri={login_url}"
+        "{keycloak_url}/realms/tenant-{tenant_id}-event-{election_event_id}/manual-verification/generate-link"
     );
 
+    let keycloak = KeycloakAdminClient::pub_new().await?;
+    let service_token = keycloak.token_supplier.get(&keycloak_url).await?;
     let client = reqwest::Client::new();
 
     info!("Requesting HTTP GET {:?}", generate_token_url);
-    let response = client.get(generate_token_url).send().await?;
+    let response = client
+        .get(generate_token_url)
+        .query(&[("userId", voter_id), ("redirectUri", login_url.as_str())])
+        .bearer_auth(service_token)
+        .send()
+        .await?;
 
     if response.status() != reqwest::StatusCode::OK {
-        return Err(anyhow!("Error during generate_token_url"));
+        return Err(anyhow!(
+            "Error during generate_token_url: HTTP {}",
+            response.status()
+        ));
     }
     let response_body: ManualVerificationOutput = response.json().await?;
 

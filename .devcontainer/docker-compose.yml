@@ -293,9 +293,6 @@ services:
       TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
       TWILIO_SERVICE_SID: ${TWILIO_SERVICE_SID}
       ENV_SLUG: ${ENV_SLUG}
-    #volumes:
-      # https://www.keycloak.org/server/containers#_importing_a_realm_on_startup
-      #- ./keycloak/import:/opt/keycloak/data/import:z
     # Below we're using the dummy email email sender provider but that's just for
     # development, in production we should still use the default SMTP email provider
     #
@@ -464,6 +461,8 @@ services:
       KEYCLOAK_DB__MANAGER__RECYCLING_METHOD: ${KEYCLOAK_DB__MANAGER__RECYCLING_METHOD}
       AMQP_ADDR: ${AMQP_ADDR}
       KEYCLOAK_URL: ${KEYCLOAK_URL}
+      KIOSK_KEYCLOAK_URL: ${KIOSK_KEYCLOAK_URL:-}
+      HARVEST_JWT_ISSUER_URLS: ${HARVEST_JWT_ISSUER_URLS:-}
       KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH: ${KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH}
       KEYCLOAK_TENANT_REALM_CONFIG_PATH: ${KEYCLOAK_TENANT_REALM_CONFIG_PATH}
       KEYCLOAK_ADMIN_CLIENT_ID: ${KEYCLOAK_ADMIN_CLIENT_ID}
@@ -536,6 +535,7 @@ services:
     image: sequentech.local/braid
     volumes:
       - trustee1_data:/opt/braid
+      - "${LOCAL_WORKSPACE_FOLDER:-..}/packages/braid/scripts/trustee1.toml:/opt/braid/trustee1.toml:ro"
     # TODO: be able to reuse the `sequentech.local/cargo-packages` image
     build:
       context: ../packages/
@@ -543,6 +543,7 @@ services:
     environment:
         TRUSTEE_NAME: trustee1
         TRUSTEE_CONFIG_PATH: ${TRUSTEE1_CONFIG}
+        TRUSTEE_SAMPLE_KEYS_POLICY: ${TRUSTEE_SAMPLE_KEYS_POLICY:-Allow}
         IGNORE_BOARDS: ${IGNORE_BOARDS}
         SECRETS_BACKEND: ${SECRETS_BACKEND}
         VAULT_SERVER_URL: ${VAULT_SERVER_URL}
@@ -559,6 +560,7 @@ services:
     container_name: trustee2
     volumes:
       - trustee2_data:/opt/braid
+      - "${LOCAL_WORKSPACE_FOLDER:-..}/packages/braid/scripts/trustee2.toml:/opt/braid/trustee2.toml:ro"
     # depending on the `trustee1` container to ensure that the
     # `sequentech.local/braid` image is locally build, so that we can reuse
     # it:
@@ -568,6 +570,7 @@ services:
     environment:
         TRUSTEE_NAME: trustee2
         TRUSTEE_CONFIG_PATH: ${TRUSTEE2_CONFIG}
+        TRUSTEE_SAMPLE_KEYS_POLICY: ${TRUSTEE_SAMPLE_KEYS_POLICY:-Allow}
         IGNORE_BOARDS: ${IGNORE_BOARDS}
         SECRETS_BACKEND: ${SECRETS_BACKEND}
         VAULT_SERVER_URL: ${VAULT_SERVER_URL}
@@ -581,6 +584,7 @@ services:
   #   container_name: trustee3
   #   volumes:
   #     - trustee3_data:/opt/braid
+  #     - "${LOCAL_WORKSPACE_FOLDER:-..}/packages/braid/scripts/trustee3.toml:/opt/braid/trustee3.toml:ro"
   #   # depending on the `trustee1` container to ensure that the
   #   # `sequentech.local/braid` image is locally build, so that we can reuse
   #   # it:
@@ -590,6 +594,7 @@ services:
   #   environment:
   #       TRUSTEE_NAME: trustee3
   #       TRUSTEE_CONFIG_PATH: ${TRUSTEE3_CONFIG}
+  #       TRUSTEE_SAMPLE_KEYS_POLICY: ${TRUSTEE_SAMPLE_KEYS_POLICY:-Allow}
   #       IGNORE_BOARDS: ${IGNORE_BOARDS}
   #       SECRETS_BACKEND: ${SECRETS_BACKEND}
   #       VAULT_SERVER_URL: ${VAULT_SERVER_URL}
@@ -878,6 +883,7 @@ services:
       SUPER_ADMIN_TENANT_ID: ${SUPER_ADMIN_TENANT_ID}
       VOTING_PORTAL_URL: ${VOTING_PORTAL_URL}
       ADMIN_PORTAL_URL: ${ADMIN_PORTAL_URL}
+      KIOSK_VOTING_PORTAL_URL: ${KIOSK_VOTING_PORTAL_URL:-}
       KEYCLOAK_PUBLIC_URL: ${KEYCLOAK_PUBLIC_URL}
       SMS_TRANSPORT_NAME: ${SMS_TRANSPORT_NAME}
       AWS_SNS_ATTRIBUTES: ${AWS_SNS_ATTRIBUTES}
