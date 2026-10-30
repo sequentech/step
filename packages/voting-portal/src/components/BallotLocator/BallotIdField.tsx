@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// The tracker's Ballot ID field (design board TrackerSearch): it groups the
+// The Tracking ID field of the locator (design board TrackerSearch): it groups the
 // ID in fours as the voter types, takes the short ID or the full one, and
 // says so below it.
 

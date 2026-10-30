@@ -2,10 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// What the ballot tracker works out from the ID in its address and from the
-// ballot's receipt: how the ID is looked up, and the four steps of the
-// status block (design board TrackerResult).
+// What the ballot tracker works out from the ID in its address, from the
+// ballot's receipt and from its record: how the ID is looked up, what the
+// record holds, and the four steps of the status block (design board
+// TrackerResult).
 
+import type {IAuditableMultiBallot, IAuditableSingleBallot} from "@sequentech/ui-core"
 import type {ChainResult, Policy, TierName, TierResult} from "@vitrine/verify"
 import {
     ballotIdHex,
@@ -17,7 +19,7 @@ import {
 import {EBallotStatus, ballotStatusOf, EStepState, tiersState} from "./ballotStatus"
 import {EReceiptNotice, IReceiptView} from "./castReceipt"
 
-/** Telephone voters read out the first four characters of their ballot ID. */
+/** Telephone voters read out the first four characters of their Tracking ID. */
 export const TELEPHONE_BALLOT_ID_LENGTH = 4
 const HEX = /^[0-9a-f]+$/
 const SECONDS = 60
@@ -58,7 +60,7 @@ export const trackerInput = (value: string, telephone: boolean): EBallotIdInput 
 }
 
 /** Whether the voter typed or pasted characters that can't be part of a
- * Ballot ID, or more than a full one. The field leaves them out. */
+ * Tracking ID, or more than a full one. The field leaves them out. */
 export const rejectedBallotId = (value: string): boolean =>
     ballotIdHex(value) !== typedBallotId(value).replace(/ /g, "")
 
@@ -69,6 +71,76 @@ export const acceptedAtOf = (createdAt: string | null | undefined): number | und
     if (!createdAt) return undefined
     const milliseconds = Date.parse(createdAt.replace(/\.\d+/, ""))
     return Number.isNaN(milliseconds) ? undefined : Math.floor(milliseconds / 1000)
+}
+
+/** What a ballot's record holds. */
+export enum ERecordKind {
+    /** A cast ballot, as the ballot box keeps it. */
+    CAST = "cast",
+    /** An audited ballot: with the plaintext and randomness of its ciphertext. */
+    AUDITED = "audited",
+    /** Neither: not JSON, or not a ballot. */
+    UNREADABLE = "unreadable",
+}
+
+/** How an audited ballot holds its contests: a ciphertext for each, or one for all. */
+export enum ERecordEncoding {
+    SINGLE_CONTEST = "single-contest",
+    MULTI_CONTEST = "multi-contest",
+}
+
+export type TRecord =
+    | {kind: ERecordKind.CAST | ERecordKind.UNREADABLE}
+    | {
+          kind: ERecordKind.AUDITED
+          encoding: ERecordEncoding.SINGLE_CONTEST
+          ballot: IAuditableSingleBallot
+      }
+    | {
+          kind: ERecordKind.AUDITED
+          encoding: ERecordEncoding.MULTI_CONTEST
+          ballot: IAuditableMultiBallot
+      }
+
+const isObject = (value: unknown): value is Record<string, unknown> =>
+    typeof value === "object" && value !== null && !Array.isArray(value)
+
+const encodingOf = (contests: unknown): ERecordEncoding | undefined => {
+    if (typeof contests === "string") return ERecordEncoding.MULTI_CONTEST
+    return Array.isArray(contests) && contests.every((contest) => typeof contest === "string")
+        ? ERecordEncoding.SINGLE_CONTEST
+        : undefined
+}
+
+/** What a record's content is. A cast ballot names its ballot style by its
+ * ID, in a string; an audited one carries the ballot style itself, and the
+ * hash of the ballot, which is the Tracking ID. */
+export const classifyRecord = (content: string | null | undefined): TRecord => {
+    const unreadable = {kind: ERecordKind.UNREADABLE} as const
+    if (!content) return unreadable
+    let record: unknown
+    try {
+        record = JSON.parse(content)
+    } catch {
+        return unreadable
+    }
+    if (!isObject(record)) return unreadable
+    const encoding = encodingOf(record.contests)
+    if (encoding === undefined) return unreadable
+    if (typeof record.config === "string") return {kind: ERecordKind.CAST}
+    if (!isObject(record.config) || typeof record.ballot_hash !== "string" || !record.ballot_hash) {
+        return unreadable
+    }
+    return encoding === ERecordEncoding.SINGLE_CONTEST
+        ? {kind: ERecordKind.AUDITED, encoding, ballot: record as unknown as IAuditableSingleBallot}
+        : {kind: ERecordKind.AUDITED, encoding, ballot: record as unknown as IAuditableMultiBallot}
+}
+
+/** A file name for the ballot's record, from the short Tracking ID:
+ * `ballot-30ffd314.json`. */
+export const recordFileName = (ballotId: string): string => {
+    const short = ballotIdHex(ballotId).slice(0, SHORT_BALLOT_ID_LENGTH)
+    return `ballot${short ? `-${short}` : ""}.json`
 }
 
 export enum ETrackerStep {

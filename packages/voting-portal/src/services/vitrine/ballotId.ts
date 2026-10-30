@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// Ballot IDs as voters read them: lowercase hex in groups of four. The short
+// Tracking IDs as voters read them: lowercase hex in groups of four. The short
 // ID is the first two groups; the ballot tracker finds a ballot by either.
 
 export const BALLOT_ID_GROUP = 4
@@ -12,7 +12,7 @@ export const FULL_BALLOT_ID_LENGTH = 64
 export const WIDE_GROUPS_PER_LINE = 8
 export const NARROW_GROUPS_PER_LINE = 4
 
-/** What a voter typed or pasted, as a ballot ID. */
+/** What a voter typed or pasted, as a Tracking ID. */
 export enum EBallotIdInput {
     EMPTY = "empty",
     SHORT = "short",

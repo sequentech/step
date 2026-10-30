@@ -23,13 +23,17 @@ import {
 } from "@sequentech/ui-core"
 import {Box, TextField, Typography, Button, Stack, TypographyProps} from "@mui/material"
 import {styled} from "@mui/material/styles"
+import {visuallyHidden} from "@mui/utils"
 import Tabs from "@mui/material/Tabs"
 import Tab from "@mui/material/Tab"
 import {Link, useLocation, useNavigate, useParams} from "react-router-dom"
 import {GET_CAST_VOTE} from "../queries/GetCastVote"
 import {BallotIdField} from "../components/BallotLocator/BallotIdField"
-import {BallotMatches, IBallotMatch} from "../components/BallotLocator/BallotMatches"
+import {BallotMatches, EMatchesLook, IBallotMatch} from "../components/BallotLocator/BallotMatches"
+import {TrackerAudit} from "../components/BallotLocator/TrackerAudit"
 import {TrackerResult} from "../components/BallotLocator/TrackerResult"
+import {TrackerSearch} from "../components/BallotLocator/TrackerSearch"
+import {PHONE} from "../components/BallotLocator/trackerStyle"
 import {useTrackedReceipt} from "../hooks/useTrackedReceipt"
 import {
     ballotIdHex,
@@ -37,9 +41,16 @@ import {
     shortBallotId,
     typedBallotId,
 } from "../services/vitrine/ballotId"
-import {acceptedAtOf, ballotLookupOf, trackerInput} from "../services/vitrine/ballotTracker"
+import {auditBallot, EAuditOutcome, provideAuditService} from "../services/vitrine/ballotAudit"
+import {
+    acceptedAtOf,
+    ballotLookupOf,
+    classifyRecord,
+    ERecordKind,
+    trackerInput,
+} from "../services/vitrine/ballotTracker"
 import {vitrineLanguage} from "../services/vitrine/language"
-import {readTransparency} from "../services/vitrine/presentation"
+import {ITransparency, readTransparency} from "../services/vitrine/presentation"
 import {ETransparencyMode} from "../services/vitrine/types"
 import {useQuery} from "@apollo/client/react"
 import {
@@ -127,10 +138,34 @@ function isHex(str: string) {
     return regex.test(str)
 }
 
-const matchOf = (vote: {ballot_id?: string | null; created_at?: string | null}): IBallotMatch[] =>
+const matchOf = (vote: {
+    ballot_id?: string | null
+    created_at?: string | null
+    content?: string | null
+}): IBallotMatch[] =>
     vote.ballot_id
-        ? [{ballotId: vote.ballot_id, ...(vote.created_at ? {createdAt: vote.created_at} : {})}]
+        ? [
+              {
+                  ballotId: vote.ballot_id,
+                  kind: classifyRecord(vote.content).kind,
+                  ...(vote.created_at ? {createdAt: vote.created_at} : {}),
+              },
+          ]
         : []
+
+interface IBackButtonProps {
+    to: string
+}
+
+const BackButton: React.FC<IBackButtonProps> = ({to}) => {
+    const {t} = useTranslation()
+    return (
+        <Button component={Link} to={to} variant="secondary" className="secondary back-button">
+            <Icon className="back-button-icon" icon={faAngleLeft} size="sm" />
+            <Box className="back-button-label">{t("votingScreen.backButton")}</Box>
+        </Button>
+    )
+}
 
 interface TabPanelProps {
     className?: string
@@ -178,6 +213,14 @@ const BallotLocator: React.FC = () => {
         },
         skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
     })
+    const electionEventPresentation =
+        dataElectionEvent?.sequent_backend_election_event[0]?.presentation
+    const transparency = useMemo(
+        () => readTransparency(electionEventPresentation),
+        [electionEventPresentation]
+    )
+    const showTracker = transparency.mode !== ETransparencyMode.DISABLED
+    const backTo = `/tenant/${tenantId}/event/${eventId}/election-chooser${location.search}`
 
     useEffect(() => {
         const electionEvent = dataElectionEvent?.sequent_backend_election_event[0]
@@ -319,7 +362,10 @@ const BallotLocator: React.FC = () => {
                     )}
                 </Tabs>
             </Box>
-            <Box className="ballot-locator-panels" sx={{p: 3}}>
+            <Box
+                className="ballot-locator-panels"
+                sx={{p: 3, ...(showTracker && value === 0 ? {pt: 0} : {})}}
+            >
                 <CustomTabPanel className="ballot-lookup-panel" value={value} index={0}>
                     <BallotLocatorLogic
                         electionEvent={
@@ -327,6 +373,8 @@ const BallotLocator: React.FC = () => {
                                 | IElectionEvent
                                 | undefined
                         }
+                        transparency={transparency}
+                        backTo={backTo}
                     />
                 </CustomTabPanel>
                 <CustomTabPanel className="cast-vote-logs-panel" value={value} index={1}>
@@ -359,24 +407,18 @@ const BallotLocator: React.FC = () => {
                         }
                     />
                 </CustomTabPanel>
-                <Box
-                    className="ballot-locator-actions"
-                    sx={{
-                        order: {xs: 1, md: 2},
-                        marginTop: "20px",
-                        width: "fit-content",
-                    }}
-                >
-                    <Button
-                        component={Link}
-                        to={`/tenant/${tenantId}/event/${eventId}/election-chooser${location.search}`}
-                        variant="secondary"
-                        className="secondary back-button"
+                {showTracker && value === 0 ? null : (
+                    <Box
+                        className="ballot-locator-actions"
+                        sx={{
+                            order: {xs: 1, md: 2},
+                            marginTop: "20px",
+                            width: "fit-content",
+                        }}
                     >
-                        <Icon className="back-button-icon" icon={faAngleLeft} size="sm" />
-                        <Box className="back-button-label">{t("votingScreen.backButton")}</Box>
-                    </Button>
-                </Box>
+                        <BackButton to={backTo} />
+                    </Box>
+                )}
             </Box>
         </PageLimit>
     )
@@ -648,9 +690,16 @@ const BallotIdInput: React.FC<BallotIdInputProps> = ({
 
 interface IBallotLocatorLogicProps {
     electionEvent?: IElectionEvent
+    transparency: ITransparency
+    /** Where Back goes. */
+    backTo: string
 }
 
-const BallotLocatorLogic: React.FC<IBallotLocatorLogicProps> = ({electionEvent}) => {
+const BallotLocatorLogic: React.FC<IBallotLocatorLogicProps> = ({
+    electionEvent,
+    transparency,
+    backTo,
+}) => {
     const {tenantId, eventId, electionId, ballotId} = useParams()
     const [openTitleHelp, setOpenTitleHelp] = useState<boolean>(false)
     const navigate = useNavigate()
@@ -673,10 +722,6 @@ const BallotLocatorLogic: React.FC<IBallotLocatorLogicProps> = ({electionEvent})
     const election = dataElections?.sequent_backend_election.find((item) => item.id === electionId)
     const telephoneVotingEnabled = election?.voting_channels?.telephone === true
     const ballotLookup = ballotLookupOf(ballotId, telephoneVotingEnabled)
-    const transparency = useMemo(
-        () => readTransparency(electionEvent?.presentation),
-        [electionEvent?.presentation]
-    )
 
     const {data, loading} = useQuery<GetCastVoteQuery>(GET_CAST_VOTE, {
         variables: {
@@ -701,6 +746,17 @@ const BallotLocatorLogic: React.FC<IBallotLocatorLogicProps> = ({electionEvent})
     const ballotContent = foundBallot?.content ?? null
     const searching = !hasBallotId || ambiguousBallotId
     const showTracker = transparency.mode !== ETransparencyMode.DISABLED
+    const trackedBallotId = foundBallot?.ballot_id ?? undefined
+    const showTrackerResult = showTracker && !!trackedBallotId
+
+    const record = useMemo(() => classifyRecord(ballotContent), [ballotContent])
+    const audit = useMemo(
+        () =>
+            showTrackerResult && record.kind === ERecordKind.AUDITED && trackedBallotId
+                ? auditBallot(provideAuditService(), record, trackedBallotId)
+                : undefined,
+        [showTrackerResult, record, trackedBallotId]
+    )
 
     const tracked = useTrackedReceipt(
         eventId && electionId && foundBallot?.ballot_id
@@ -734,89 +790,158 @@ const BallotLocatorLogic: React.FC<IBallotLocatorLogicProps> = ({electionEvent})
         )
     }
 
+    const descriptionKey = !audit
+        ? "ballotLocator.description"
+        : audit.outcome === EAuditOutcome.VERIFIED
+          ? "ballotLocator.descriptionAudited"
+          : "ballotLocator.descriptionAuditedBrief"
+
+    const title = (
+        <StyledTitle
+            className="screen-title"
+            variant="h1"
+            sx={showTracker ? {margin: 0} : undefined}
+        >
+            <Box className="screen-title-text">
+                {t(searching ? "ballotLocator.title" : "ballotLocator.titleResult")}
+            </Box>
+            <IconButton
+                buttonClassName="screen-help-button"
+                icon={faCircleQuestion}
+                sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
+                fontSize="16px"
+                onClick={() => setOpenTitleHelp(true)}
+                ariaLabel={t("a11y.helpAbout", {
+                    topic: t("ballotLocator.titleHelpDialog.title"),
+                })}
+            />
+            <Dialog
+                className="screen-help-dialog ballot-locator-help-dialog"
+                handleClose={() => setOpenTitleHelp(false)}
+                open={openTitleHelp}
+                title={t("ballotLocator.titleHelpDialog.title")}
+                ok={t("ballotLocator.titleHelpDialog.ok")}
+                variant="info"
+            >
+                {stringToHtml(t("ballotLocator.titleHelpDialog.content"))}
+            </Dialog>
+        </StyledTitle>
+    )
+
+    const description = (
+        <Typography
+            className="screen-description"
+            variant="body1"
+            component="div"
+            sx={{color: theme.palette.customGrey.contrastText}}
+        >
+            {stringToHtml(t(descriptionKey))}
+        </Typography>
+    )
+
     return (
         <Stack
             className={`ballot-locator-content ${searching ? "ballot-locator-search" : "ballot-locator-result"}`}
-            sx={showTracker && !searching ? {"@media (max-width:750px)": {marginX: -3}} : undefined}
+            sx={showTracker && !searching ? {[PHONE]: {marginX: -3}} : undefined}
         >
-            <Box className="stepper-box" marginTop="48px">
+            <Box
+                className="stepper-box"
+                sx={{
+                    marginTop: showTracker ? "32px" : "48px",
+                    ...(showTracker && !searching ? {[PHONE]: {marginTop: "16px"}} : {}),
+                }}
+            >
                 <BreadCrumbSteps
                     labels={["ballotLocator.steps.lookup", "ballotLocator.steps.result"]}
                     selected={searching ? 0 : 1}
                 />
             </Box>
 
-            <Box
-                className="ballot-locator-header"
-                sx={{
-                    display: "flex",
-                    flexDirection: {xs: "column", md: "row"},
-                    justifyContent: "space-between",
-                    alignItems: "flex-start",
-                }}
-            >
+            {showTracker ? (
+                <>
+                    <Box
+                        className="ballot-locator-header"
+                        sx={{
+                            display: "flex",
+                            flexWrap: "wrap",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            gap: "16px",
+                            margin: "20px 0 16px",
+                        }}
+                    >
+                        {title}
+                        <Box
+                            className="ballot-locator-title-actions"
+                            sx={{
+                                display: "flex",
+                                flexWrap: "wrap",
+                                gap: "8px",
+                                ...(searching
+                                    ? {}
+                                    : {[PHONE]: {"width": "100%", "& > *": {flex: "1 1 0"}}}),
+                            }}
+                        >
+                            <BackButton to={backTo} />
+                            {searching ? null : (
+                                <Button
+                                    className="normal locate-again-button"
+                                    onClick={() => locate()}
+                                >
+                                    <span className="locate-ballot-again-label">
+                                        {t("ballotLocator.locateAgain")}
+                                    </span>
+                                </Button>
+                            )}
+                        </Box>
+                    </Box>
+                    {searching ? null : description}
+                </>
+            ) : (
                 <Box
-                    className="ballot-locator-heading"
+                    className="ballot-locator-header"
                     sx={{
-                        order: {xs: 2, md: 1},
+                        display: "flex",
+                        flexDirection: {xs: "column", md: "row"},
+                        justifyContent: "space-between",
+                        alignItems: "flex-start",
                     }}
                 >
-                    <StyledTitle className="screen-title" variant="h1">
-                        {searching ? (
-                            <Box className="screen-title-text">{t("ballotLocator.title")}</Box>
-                        ) : (
-                            <Box className="screen-title-text">
-                                {t("ballotLocator.titleResult")}
-                            </Box>
-                        )}
-                        <IconButton
-                            buttonClassName="screen-help-button"
-                            icon={faCircleQuestion}
-                            sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
-                            fontSize="16px"
-                            onClick={() => setOpenTitleHelp(true)}
-                            ariaLabel={t("a11y.helpAbout", {
-                                topic: t("ballotLocator.titleHelpDialog.title"),
-                            })}
-                        />
-                        <Dialog
-                            className="screen-help-dialog ballot-locator-help-dialog"
-                            handleClose={() => setOpenTitleHelp(false)}
-                            open={openTitleHelp}
-                            title={t("ballotLocator.titleHelpDialog.title")}
-                            ok={t("ballotLocator.titleHelpDialog.ok")}
-                            variant="info"
-                        >
-                            {stringToHtml(t("ballotLocator.titleHelpDialog.content"))}
-                        </Dialog>
-                    </StyledTitle>
-
-                    <Typography
-                        className="screen-description"
-                        variant="body1"
-                        component="div"
-                        sx={{color: theme.palette.customGrey.contrastText}}
+                    <Box
+                        className="ballot-locator-heading"
+                        sx={{
+                            order: {xs: 2, md: 1},
+                        }}
                     >
-                        {stringToHtml(t("ballotLocator.description"))}
-                    </Typography>
+                        {title}
+                        {description}
+                    </Box>
                 </Box>
-            </Box>
+            )}
 
             {/* The live region is always mounted so that the lookup result is
                 announced when the text appears inside it. */}
             <Box className="ballot-lookup-status" role="status">
                 {lookupDone && !ambiguousBallotId ? (
                     ballotContent ? (
-                        <MessageSuccess
-                            className="ballot-locator-success"
-                            sx={{"@media (max-width:750px)": {padding: "10px 14px"}}}
-                        >
-                            {translateHtml(t, "ballotLocator.found", {
-                                ballotId: showTracker
-                                    ? shortBallotId(foundBallot?.ballot_id ?? ballotId ?? "")
-                                    : ballotId,
-                            })}
-                        </MessageSuccess>
+                        showTracker ? (
+                            <Box
+                                className="ballot-found-status-text"
+                                component="span"
+                                sx={visuallyHidden}
+                            >
+                                {translateHtml(t, "ballotLocator.found", {
+                                    ballotId: shortBallotId(trackedBallotId ?? ballotId ?? ""),
+                                })}
+                            </Box>
+                        ) : (
+                            <MessageSuccess
+                                className="ballot-locator-success"
+                                sx={{[PHONE]: {padding: "10px 14px"}}}
+                            >
+                                {translateHtml(t, "ballotLocator.found", {ballotId})}
+                            </MessageSuccess>
+                        )
                     ) : (
                         <MessageFailed className="ballot-locator-failure">
                             {translateHtml(t, "ballotLocator.notFound", {ballotId})}
@@ -824,7 +949,7 @@ const BallotLocatorLogic: React.FC<IBallotLocatorLogicProps> = ({electionEvent})
                     )
                 ) : null}
             </Box>
-            {showTracker && !searching && ballotContent && ballotLookup?.ballotIdPrefix && (
+            {showTrackerResult && !searching && ballotContent && ballotLookup?.ballotIdPrefix && (
                 <Typography
                     className="ballot-found-short-note"
                     sx={{
@@ -838,31 +963,59 @@ const BallotLocatorLogic: React.FC<IBallotLocatorLogicProps> = ({electionEvent})
                     {t("ballotLocator.foundShort")}
                 </Typography>
             )}
-            {searching && (
-                <>
-                    <BallotIdField
+            {searching &&
+                (showTracker ? (
+                    <TrackerSearch
                         value={inputBallotId}
                         onChange={setInputBallotId}
                         onSubmit={() => locate(true)}
-                    />
-                    <BallotMatches
-                        matches={ambiguousBallotId ? matchingBallots.flatMap(matchOf) : []}
-                        lookedFor={ballotId ?? ""}
-                        hrefOf={(id) => `${locatorPath}/${id}${location.search}`}
+                        canSubmit={canLocate}
+                    >
+                        <BallotMatches
+                            look={EMatchesLook.CARDS}
+                            matches={ambiguousBallotId ? matchingBallots.flatMap(matchOf) : []}
+                            lookedFor={ballotId ?? ""}
+                            hrefOf={(id) => `${locatorPath}/${id}${location.search}`}
+                            formatTime={formatTime}
+                        />
+                    </TrackerSearch>
+                ) : (
+                    <>
+                        <BallotIdField
+                            value={inputBallotId}
+                            onChange={setInputBallotId}
+                            onSubmit={() => locate(true)}
+                        />
+                        <BallotMatches
+                            matches={ambiguousBallotId ? matchingBallots.flatMap(matchOf) : []}
+                            lookedFor={ballotId ?? ""}
+                            hrefOf={(id) => `${locatorPath}/${id}${location.search}`}
+                            formatTime={formatTime}
+                        />
+                    </>
+                ))}
+            {!searching && ballotContent && trackedBallotId && showTrackerResult && (
+                <>
+                    <TrackerResult
+                        ballotId={trackedBallotId}
+                        content={ballotContent}
+                        audit={audit}
+                        tracked={tracked}
+                        verifierUrl={globalSettings.BALLOT_VERIFIER_URL}
+                        language={vitrineLanguage(i18n.language)}
                         formatTime={formatTime}
                     />
+                    {audit && record.kind === ERecordKind.AUDITED ? (
+                        <TrackerAudit
+                            audit={audit}
+                            ballotStyle={record.ballot.config}
+                            language={i18n.language}
+                            publicBucketUrl={globalSettings.PUBLIC_BUCKET_URL}
+                        />
+                    ) : null}
                 </>
             )}
-            {!searching && ballotContent && showTracker && foundBallot?.ballot_id && (
-                <TrackerResult
-                    ballotId={foundBallot.ballot_id}
-                    tracked={tracked}
-                    verifierUrl={globalSettings.BALLOT_VERIFIER_URL}
-                    language={vitrineLanguage(i18n.language)}
-                    formatTime={formatTime}
-                />
-            )}
-            {!searching && ballotContent && (
+            {!searching && ballotContent && !showTrackerResult && (
                 <>
                     <Typography className="ballot-content-description" component="div">
                         {stringToHtml(t("ballotLocator.contentDesc"))}
@@ -871,7 +1024,7 @@ const BallotLocatorLogic: React.FC<IBallotLocatorLogicProps> = ({electionEvent})
                 </>
             )}
 
-            {searching ? (
+            {showTracker ? null : searching ? (
                 <Button
                     sx={{marginTop: "10px", width: "fit-content"}}
                     disabled={!canLocate}
@@ -881,17 +1034,15 @@ const BallotLocatorLogic: React.FC<IBallotLocatorLogicProps> = ({electionEvent})
                     <span className="locate-ballot-label">{t("ballotLocator.locate")}</span>
                 </Button>
             ) : (
-                <>
-                    <Button
-                        sx={{marginTop: "10px", width: "fit-content"}}
-                        className="normal locate-again-button"
-                        onClick={() => locate()}
-                    >
-                        <span className="locate-ballot-again-label">
-                            {t("ballotLocator.locateAgain")}
-                        </span>
-                    </Button>
-                </>
+                <Button
+                    sx={{marginTop: "10px", width: "fit-content"}}
+                    className="normal locate-again-button"
+                    onClick={() => locate()}
+                >
+                    <span className="locate-ballot-again-label">
+                        {t("ballotLocator.locateAgain")}
+                    </span>
+                </Button>
             )}
         </Stack>
     )

@@ -11,7 +11,7 @@ export interface IBallotIdLinesProps {
     perLine: number
 }
 
-/** A full Ballot ID in lines, its first two groups, the short ID, in bold.
+/** A full Tracking ID in lines, its first two groups, the short ID, in bold.
  * A space ends each line, so that the ID reads and copies as one. */
 export const BallotIdLines: React.FC<IBallotIdLinesProps> = ({ballotId, perLine}) => (
     <>

@@ -3,9 +3,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// The ballot tracker (design boards TrackerSearch, TrackerResult and
-// PhoneTracker): the search field, the list of ballots that share a short ID,
-// and the result in each state of the receipt's check.
+// The ballot tracker (design boards TrackerSearch, TrackerResult, PhoneTracker,
+// TrackerAudit and PhoneTrackerAudit): the search, the list of ballots that
+// share a short ID, the result in each state of the receipt's check, and the
+// result for a ballot that was audited, not cast.
 
 import React from "react"
 import {render, screen, within} from "@testing-library/react"
@@ -16,6 +17,7 @@ import type {ChainResult, TierName, TierResult, TierStatus} from "@vitrine/verif
 import theme from "../../../ui-essentials/src/services/theme"
 import {EReceiptNotice, IReceiptView} from "../services/vitrine/castReceipt"
 import type {ITrackerReceipt} from "../services/vitrine/ballotTracker"
+import {EAuditOutcome, TAudit} from "../services/vitrine/ballotAudit"
 import BallotLocator from "./BallotLocator"
 
 jest.mock("react-i18next", () => ({
@@ -43,13 +45,29 @@ jest.mock(
         IconButton: () => null,
         Dialog: () => null,
         ExpandableText: () => null,
+        Candidate: ({title, description}: {title: string; description?: React.ReactNode}) => (
+            <li className="candidate-item">
+                <span className="candidate-title">{title}</span>
+                <span className="candidate-description">{description}</span>
+            </li>
+        ),
+        BlankAnswer: ({title}: {title?: string}) => (
+            <li className="blank-answer">{title ?? "candidate.blankVote"}</li>
+        ),
     }),
     {virtual: true}
 )
 jest.mock("../providers/SettingsContextProvider", () => ({
     SettingsContext: jest.requireActual<typeof React>("react").createContext({
-        globalSettings: {DISABLE_AUTH: false, BALLOT_VERIFIER_URL: "https://verifier.example/"},
+        globalSettings: {
+            DISABLE_AUTH: false,
+            BALLOT_VERIFIER_URL: "https://verifier.example/",
+            PUBLIC_BUCKET_URL: "https://bucket.example/",
+        },
     }),
+}))
+jest.mock("../services/BallotService", () => ({
+    provideBallotService: () => ({isPreferential: () => false}),
 }))
 jest.mock("../store/hooks", () => ({
     useAppDispatch: () => jest.fn(),
@@ -59,6 +77,13 @@ jest.mock("../store/hooks", () => ({
 const mockTracked = jest.fn()
 jest.mock("../hooks/useTrackedReceipt", () => ({
     useTrackedReceipt: (...args: unknown[]) => mockTracked(...args),
+}))
+
+const mockAudit = jest.fn()
+jest.mock("../services/vitrine/ballotAudit", () => ({
+    ...jest.requireActual("../services/vitrine/ballotAudit"),
+    provideAuditService: () => ({}),
+    auditBallot: (...args: unknown[]) => mockAudit(...args),
 }))
 
 interface ICastVote {
@@ -100,13 +125,73 @@ const OTHER = "30ffd3149c071be27a50e3d946b108fcd25e6f13b7a4c9013e885d27a0c6f41b"
 const SHORT = "30ffd314"
 const GROUPED = "30ff d314 4238 6472 fd6d bdb4 df36 9559 0f7a 414d 02ab 2499 5bef c5a9 40b8 9da1"
 const NOW = 1_793_270_528
+const TRACKER = {transparency: "public"}
 const PATH = "/tenant/tenant/event/event/election/election/ballot-locator"
 
-const vote = (ballotId: string, createdAt = "2026-10-29T10:42:08.000000+00:00"): ICastVote => ({
+const vote = (
+    ballotId: string,
+    createdAt = "2026-10-29T10:42:08.000000+00:00",
+    content = `content of ${ballotId.slice(0, 8)}`
+): ICastVote => ({
     ballot_id: ballotId,
     created_at: createdAt,
-    content: `content of ${ballotId.slice(0, 8)}`,
+    content,
 })
+
+const STYLE = {
+    id: "council-style",
+    contests: [
+        {
+            id: "mayor",
+            name: "Mayor",
+            counting_algorithm: "plurality-at-large",
+            max_votes: 1,
+            candidates: [
+                {id: "ortega", name: "Maria Ortega", description: "Civic Alliance"},
+                {id: "puig", name: "Joan Puig", description: "Harbour Party"},
+            ],
+        },
+    ],
+}
+
+/** What the ballot box keeps of a cast ballot: its config is text. */
+const CAST_CONTENT = JSON.stringify({
+    version: 2,
+    issue_date: "30/10/2026",
+    contests: ["EQAAAGNvdW5jaWwtY29udGVzdC0x"],
+    config: "council-style",
+    ballot_style_hash: "1dce3614efd2cc5d0ddb8a1c47daf79b",
+    voter_signing_pk: null,
+    voter_ballot_signature: null,
+})
+
+/** What the Audit screen shows: the ballot style is in it, as an object. */
+const auditedContent = (ballotHash = FULL, extra: Record<string, unknown> = {}) =>
+    JSON.stringify({
+        version: 2,
+        issue_date: "30/10/2026",
+        config: STYLE,
+        contests: ["EQAAAGNvdW5jaWwtY29udGVzdC0x"],
+        ballot_hash: ballotHash,
+        voter_signing_pk: null,
+        voter_ballot_signature: null,
+        ...extra,
+    })
+
+const SELECTED: TAudit = {
+    outcome: EAuditOutcome.VERIFIED,
+    selections: [
+        {
+            contest_id: "mayor",
+            is_explicit_invalid: false,
+            is_decline_to_vote: false,
+            is_blank_ballot: false,
+            invalid_errors: [],
+            invalid_alerts: [],
+            choices: [{id: "ortega", selected: 0}],
+        },
+    ],
+}
 
 const tier = (name: TierName, status: TierStatus, extra: Partial<TierResult> = {}): TierResult => ({
     tier: name,
@@ -201,9 +286,11 @@ beforeEach(() => {
     mockQueries.length = 0
     mockTracked.mockReset()
     mockTracked.mockReturnValue(tracked({view: VERIFIED}))
+    mockAudit.mockReset()
+    mockAudit.mockReturnValue({outcome: EAuditOutcome.NOT_VERIFIABLE})
 })
 
-describe("the search", () => {
+describe("the search of an event without transparency", () => {
     it("groups the ID in fours as the voter types", async () => {
         renderAt()
         await userEvent.type(field(), "30FFd3144238")
@@ -258,6 +345,132 @@ describe("the search", () => {
         await userEvent.type(field(), "30ff")
         expect(findButton()).toBeEnabled()
     })
+
+    it("keeps the classic locator: the field, a button to find, and Back below them", () => {
+        renderAt()
+        expect(screen.queryByRole("region", {name: "ballotLocator.search.title"})).toBeNull()
+        const header = document.querySelector(".ballot-locator-header") as HTMLElement
+        expect(within(header).queryByRole("link", {name: "votingScreen.backButton"})).toBeNull()
+        expect(screen.getByRole("link", {name: "votingScreen.backButton"})).toBeVisible()
+        expect(screen.getByText("ballotLocator.description")).toBeVisible()
+    })
+})
+
+describe("the search of an event with transparency", () => {
+    beforeEach(() => {
+        mockPresentation = TRACKER
+    })
+
+    const find = () => screen.getByRole("button", {name: "ballotLocator.search.find"})
+    const header = () => document.querySelector(".ballot-locator-header") as HTMLElement
+
+    it("puts Back to the right of the title, and nothing but the search below", () => {
+        renderAt()
+        expect(within(header()).getByRole("heading", {level: 1})).toHaveTextContent(
+            "ballotLocator.title"
+        )
+        const back = within(header()).getByRole("link", {name: "votingScreen.backButton"})
+        expect(back).toHaveAttribute("href", "/tenant/tenant/event/event/election-chooser")
+        expect(screen.getAllByRole("link", {name: "votingScreen.backButton"})).toHaveLength(1)
+        expect(screen.queryByRole("button", {name: "ballotLocator.locate"})).toBeNull()
+        expect(screen.queryByText("ballotLocator.description")).toBeNull()
+        expect(screen.getByTestId("steps")).toHaveTextContent("0")
+    })
+
+    it("keeps the kiosk mode in the Back link", () => {
+        renderAt("?kiosk=true")
+        expect(
+            within(header()).getByRole("link", {name: "votingScreen.backButton"})
+        ).toHaveAttribute("href", "/tenant/tenant/event/event/election-chooser?kiosk=true")
+    })
+
+    it("asks the voter to check a ballot in the public record, and says what the tracker shows", () => {
+        renderAt()
+        const card = screen.getByRole("region", {name: "ballotLocator.search.title"})
+        expect(within(card).getByText("ballotLocator.search.intro")).toBeVisible()
+        for (const feature of ["cast", "audited", "secret"]) {
+            expect(screen.getByText(`ballotLocator.search.features.${feature}.title`)).toBeVisible()
+            expect(screen.getByText(`ballotLocator.search.features.${feature}.text`)).toBeVisible()
+        }
+    })
+
+    it("labels the field with the Tracking ID, and groups the ID in fours as the voter types", async () => {
+        renderAt()
+        expect(field()).toHaveAttribute("placeholder", "30ff d314")
+        await userEvent.type(field(), "30FFd3144238")
+        expect(field().value).toBe("30ff d314 4238")
+    })
+
+    it("takes the short ID and the full one, with or without spaces", async () => {
+        renderAt()
+        expect(find()).toBeDisabled()
+        await userEvent.type(field(), "30ff d31")
+        expect(find()).toBeDisabled()
+        await userEvent.type(field(), "4")
+        expect(find()).toBeEnabled()
+        await userEvent.type(field(), "4238")
+        expect(find()).toBeDisabled()
+        await userEvent.clear(field())
+        await userEvent.paste(GROUPED)
+        expect(field().value).toBe(GROUPED)
+        expect(find()).toBeEnabled()
+    })
+
+    it("shows the formats the field takes, and says when a character can't be part of the ID", async () => {
+        renderAt()
+        expect(field()).toHaveAttribute("aria-invalid", "false")
+        const help = document.getElementById(field().getAttribute("aria-describedby") ?? "")
+        for (const format of ["short", "full", "spaces"]) {
+            expect(help).toHaveTextContent(`ballotLocator.search.chips.${format}`)
+        }
+        expect(screen.getByRole("alert")).toBeEmptyDOMElement()
+
+        await userEvent.type(field(), "30ffg")
+        expect(field().value).toBe("30ff")
+        expect(field()).toHaveAttribute("aria-invalid", "true")
+        const error = screen.getByRole("alert")
+        expect(error).toHaveTextContent("ballotLocator.search.invalid")
+        expect(field()).toHaveAttribute("aria-describedby", error.id)
+        expect(screen.queryByText(/ballotLocator\.search\.chips\./)).toBeNull()
+
+        await userEvent.type(field(), "d")
+        expect(screen.getByRole("alert")).toBeEmptyDOMElement()
+        expect(field()).toHaveAttribute("aria-invalid", "false")
+        expect(screen.getByText(/ballotLocator\.search\.chips\.short/)).toBeVisible()
+    })
+
+    it("finds the ballot with the button, or when the voter presses Enter, but only for an ID", async () => {
+        renderAt()
+        await userEvent.type(field(), "30ff{Enter}")
+        expect(router.state.location.pathname).toBe(PATH)
+        await userEvent.type(field(), "d314{Enter}")
+        expect(router.state.location.pathname).toBe(`${PATH}/${SHORT}`)
+    })
+
+    it("finds the ballot with the button", async () => {
+        renderAt()
+        await userEvent.type(field(), "30ff d314")
+        await userEvent.click(find())
+        expect(router.state.location.pathname).toBe(`${PATH}/${SHORT}`)
+    })
+
+    it("takes the first four characters for events with telephone voting", async () => {
+        mockTelephone = true
+        renderAt()
+        await userEvent.type(field(), "30ff")
+        expect(find()).toBeEnabled()
+    })
+
+    it("names its tab after the tracking, and keeps Back below the logs, which have no title row", async () => {
+        mockPresentation = {...TRACKER, show_cast_vote_logs: "show-logs-tab"}
+        renderAt()
+        expect(screen.getByRole("tab", {name: "ballotLocator.tabs.ballotLocator"})).toBeVisible()
+        expect(screen.getAllByRole("link", {name: "votingScreen.backButton"})).toHaveLength(1)
+        await userEvent.click(screen.getByRole("tab", {name: "ballotLocator.tabs.logs"}))
+        const back = screen.getByRole("link", {name: "votingScreen.backButton"})
+        expect(back).toHaveAttribute("href", "/tenant/tenant/event/event/election-chooser")
+        expect(back.closest(".ballot-locator-header")).toBeNull()
+    })
 })
 
 describe("ballots that share a short ID", () => {
@@ -300,24 +513,64 @@ describe("ballots that share a short ID", () => {
         await userEvent.click(matchLinks()[1])
         expect(router.state.location.pathname).toBe(`${PATH}/${OTHER}`)
     })
+
+    it("says whether each was cast or audited, as its record says", () => {
+        mockVotes = [
+            vote(FULL, "2026-10-29T10:42:08.000000+00:00", CAST_CONTENT),
+            vote(OTHER, "2026-10-28T18:05:00.000000+00:00", auditedContent(OTHER)),
+        ]
+        renderAt(`/${SHORT}`)
+        const links = matchLinks()
+        expect(links[0]).toHaveTextContent("ballotLocator.matches.cast")
+        expect(links[0]).not.toHaveTextContent("ballotLocator.matches.audited")
+        expect(links[1]).toHaveTextContent("ballotLocator.matches.audited")
+        expect(links[1]).not.toHaveTextContent("ballotLocator.matches.cast")
+    })
+
+    it("calls what it can't read cast, as the portal lists it", () => {
+        mockVotes = [vote(FULL, undefined, "{not JSON"), vote(OTHER, undefined, "{}")]
+        renderAt(`/${SHORT}`)
+        matchLinks().forEach((link) => {
+            expect(link).toHaveTextContent("ballotLocator.matches.cast")
+        })
+    })
+
+    it("lists them in the search card of an event with transparency", () => {
+        mockPresentation = TRACKER
+        renderAt(`/${SHORT}`)
+        const card = screen.getByRole("region", {name: "ballotLocator.search.title"})
+        expect(within(card).getByText(/ballotLocator\.matches\.title/)).toBeVisible()
+        expect(
+            within(card).getAllByRole("link", {name: /ballotLocator\.matches\.cast/})
+        ).toHaveLength(2)
+        expect(screen.getByRole("button", {name: "ballotLocator.search.find"})).toBeEnabled()
+    })
 })
 
 describe("the result for an event with transparency", () => {
     beforeEach(() => {
-        mockPresentation = {transparency: "public"}
+        mockPresentation = TRACKER
         mockVotes = [vote(FULL)]
     })
 
     const section = () => screen.getByRole("region", {name: "ballotLocator.result.receipt"})
+    const header = () => document.querySelector(".ballot-locator-header") as HTMLElement
+    const tagsOf = (element: Element) =>
+        Array.from(element.querySelectorAll(".status-tag")).map((tag) => [
+            tag.textContent,
+            tag.getAttribute("data-tone"),
+        ])
 
-    it("names the ballot by its short ID and shows both IDs", () => {
+    it("names the ballot by its short ID, for assistive technology only, and shows both IDs", () => {
         renderAt(`/${FULL}`)
         expect(screen.getByTestId("steps")).toHaveTextContent("1")
-        expect(screen.getByText(/ballotLocator\.found /)).toHaveTextContent(
-            '"ballotId":"30ff d314"'
-        )
+        const found = screen.getByText(/ballotLocator\.found /)
+        expect(found).toHaveTextContent('"ballotId":"30ff d314"')
+        expect(found.closest("[role=status]")).not.toBeNull()
+        expect(document.querySelector(".ballot-locator-success")).toBeNull()
         expect(screen.queryByText("ballotLocator.foundShort")).toBeNull()
         const ids = within(section())
+        expect(ids.getByText("a11y.ballotIdLabel")).toBeVisible()
         expect(ids.getByText("30ff d314", {selector: ".tracker-short-id"})).toBeVisible()
         expect(ids.getByText("ballotLocator.result.idComment")).toBeVisible()
         const full = section().querySelector(".tracker-full-id")
@@ -325,6 +578,43 @@ describe("the result for an event with transparency", () => {
         expect(full?.querySelector("b")?.textContent).toBe("30ff d314")
         expect(ids.getByText("b1d8 c475 6132 ··· 5a0d")).toBeVisible()
         expect(ids.getByRole("button", {name: "ballotLocator.result.save"})).toBeVisible()
+    })
+
+    it("tags the ballot as cast and found, under its short ID", () => {
+        renderAt(`/${FULL}`)
+        expect(tagsOf(section())).toEqual([
+            ["vitrine.status.tag.cast", "success"],
+            ["ballotLocator.result.tag.found", "success"],
+        ])
+    })
+
+    it("tags a ballot whose content can't be read as cast, as the portal lists it", () => {
+        mockVotes = [vote(FULL, undefined, '{"truncated": ')]
+        renderAt(`/${FULL}`)
+        expect(tagsOf(section())[0]).toEqual(["vitrine.status.tag.cast", "success"])
+        expect(mockAudit).not.toHaveBeenCalled()
+    })
+
+    it("puts Back and Find another Ballot beside the title, and nothing below the result", async () => {
+        renderAt(`/${FULL}`)
+        const top = within(header())
+        expect(top.getByRole("heading", {level: 1})).toHaveTextContent("ballotLocator.title")
+        expect(top.getByRole("link", {name: "votingScreen.backButton"})).toBeVisible()
+        expect(screen.getAllByRole("link", {name: "votingScreen.backButton"})).toHaveLength(1)
+        expect(screen.getAllByRole("button", {name: "ballotLocator.locateAgain"})).toHaveLength(1)
+        expect(screen.getByText("ballotLocator.description")).toBeVisible()
+        await userEvent.click(top.getByRole("button", {name: "ballotLocator.locateAgain"}))
+        expect(router.state.location.pathname).toBe(`${PATH}/`)
+        expect(screen.getByRole("button", {name: "ballotLocator.search.find"})).toBeDisabled()
+    })
+
+    it("keeps the kiosk mode when it goes back or searches again", async () => {
+        renderAt(`/${FULL}?kiosk=true`)
+        expect(
+            within(header()).getByRole("link", {name: "votingScreen.backButton"})
+        ).toHaveAttribute("href", "/tenant/tenant/event/event/election-chooser?kiosk=true")
+        await userEvent.click(screen.getByRole("button", {name: "ballotLocator.locateAgain"}))
+        expect(router.state.location.search).toBe("?kiosk=true")
     })
 
     it("tells the voter who found the ballot by its short ID to compare the full one", () => {
@@ -338,13 +628,18 @@ describe("the result for an event with transparency", () => {
         })
     })
 
-    it("copies the full ID, grouped", async () => {
+    it("copies the full ID, grouped, and swaps the copy icon for a check, without a word", async () => {
         const writeText = jest.fn().mockResolvedValue(undefined)
         Object.defineProperty(navigator, "clipboard", {value: {writeText}, configurable: true})
         renderAt(`/${FULL}`)
-        await userEvent.click(screen.getByRole("button", {name: "ballotLocator.result.copy"}))
+        const copy = screen.getByRole("button", {name: "ballotLocator.result.copy"})
+        expect(copy).toHaveTextContent("")
+        await userEvent.click(copy)
         expect(writeText).toHaveBeenCalledWith(GROUPED)
-        expect(screen.getByRole("button", {name: "ballotLocator.result.copied"})).toBeVisible()
+        const copied = screen.getByRole("button", {name: "ballotLocator.result.copied"})
+        expect(copied).toBe(copy)
+        expect(copied).toHaveTextContent("")
+        expect(copied.querySelector(".tracker-copied-icon")).not.toBeNull()
     })
 
     it("shows a verified ballot with its four steps done", () => {
@@ -417,7 +712,7 @@ describe("the result for an event with transparency", () => {
         expect(screen.queryByRole("button", {name: "ballotLocator.result.save"})).toBeNull()
     })
 
-    it("says honestly that this device has no receipt, and shows no status", () => {
+    it("says honestly that this device has no receipt, and shows no status, but the content", () => {
         mockTracked.mockReturnValue(tracked({kept: false, settled: true}))
         renderAt(`/${FULL}`)
         expect(screen.getByText("ballotLocator.result.noReceipt")).toBeVisible()
@@ -426,6 +721,9 @@ describe("the result for an event with transparency", () => {
         expect(section().querySelectorAll(".tracker-step")).toHaveLength(0)
         expect(screen.getByText("30ff d314", {selector: ".tracker-short-id"})).toBeVisible()
         expect(screen.getByText(/ballotLocator\.found /)).toBeVisible()
+        expect(
+            within(section()).getByRole("region", {name: "ballotLocator.result.record.title"})
+        ).toBeVisible()
     })
 
     it("says so when a kept receipt couldn't be completed or checked", () => {
@@ -436,13 +734,175 @@ describe("the result for an event with transparency", () => {
         expect(screen.getByText("ballotLocator.result.receiptPending")).toBeVisible()
     })
 
-    it("shows the ballot's content and goes back to the search", async () => {
+    it("says when no ballot has the ID, with the buttons beside the title", () => {
+        mockVotes = []
         renderAt(`/${FULL}`)
+        expect(screen.getByText(/ballotLocator\.notFound/)).toBeVisible()
+        const top = within(header())
+        expect(top.getByRole("link", {name: "votingScreen.backButton"})).toBeVisible()
+        expect(top.getByRole("button", {name: "ballotLocator.locateAgain"})).toBeVisible()
+        expect(screen.queryByRole("region", {name: "ballotLocator.result.receipt"})).toBeNull()
+    })
+})
+
+describe("the record in the result for an event with transparency", () => {
+    beforeEach(() => {
+        mockPresentation = TRACKER
+    })
+
+    const viewer = () =>
+        screen.getByRole("region", {name: "ballotLocator.result.record.title"}) as HTMLElement
+
+    it("is in the record viewer, with what the record is, as the ballot box keeps it", () => {
+        mockVotes = [vote(FULL, undefined, CAST_CONTENT)]
+        renderAt(`/${FULL}`)
+        expect(viewer()).toHaveTextContent("ballotLocator.result.record.title")
+        expect(viewer()).toHaveTextContent(
+            /ballotLocator\.result\.record\.subtitle · vitrine\.record\.json · vitrine\.record\.fields \{"count":7\} · vitrine\.record\.size\.bytes/
+        )
+        expect(viewer().querySelector(".record-viewer-preview")).toHaveTextContent(
+            '{"version":2,"issue_date":"30/10/2026"'
+        )
+        expect(screen.queryByText("ballotLocator.contentDesc")).toBeNull()
+    })
+
+    it("is named after the short ID when it is saved", () => {
+        mockVotes = [vote(FULL, undefined, CAST_CONTENT)]
+        renderAt(`/${FULL}`)
+        expect(
+            within(viewer()).getByRole("button", {
+                name: 'vitrine.record.download {"file":"ballot-30ffd314.json"}',
+            })
+        ).toBeVisible()
+    })
+
+    it("is shown as text when it isn't JSON", () => {
+        mockVotes = [vote(FULL, undefined, "a ballot, as plain text")]
+        renderAt(`/${FULL}`)
+        expect(viewer()).toHaveTextContent("vitrine.record.text")
+        expect(within(viewer()).getByText("a ballot, as plain text")).toBeVisible()
+    })
+
+    it("keeps the class that custom styles of the content box know", () => {
+        mockVotes = [vote(FULL)]
+        renderAt(`/${FULL}`)
+        expect(viewer()).toHaveClass("ballot-content")
+    })
+})
+
+describe("the result for a ballot that was audited", () => {
+    beforeEach(() => {
+        mockPresentation = TRACKER
+        mockVotes = [vote(FULL, undefined, auditedContent())]
+        mockAudit.mockReturnValue(SELECTED)
+    })
+
+    const section = () => screen.getByRole("region", {name: "ballotLocator.result.receipt"})
+    const tagsOf = (element: Element) =>
+        Array.from(element.querySelectorAll(".status-tag")).map((tag) => [
+            tag.textContent,
+            tag.getAttribute("data-tone"),
+        ])
+
+    it("checks the ballot in the record against the Tracking ID that found it", () => {
+        renderAt(`/${FULL}`)
+        expect(mockAudit).toHaveBeenCalledWith(
+            {},
+            expect.objectContaining({kind: "audited", encoding: "single-contest"}),
+            FULL
+        )
+    })
+
+    it("tags the ballot as auditable and found, and says it was never cast", () => {
+        renderAt(`/${FULL}`)
+        expect(tagsOf(section())).toEqual([
+            ["vitrine.status.tag.auditable", "success"],
+            ["ballotLocator.result.tag.found", "success"],
+        ])
+        expect(screen.getByText("ballotLocator.descriptionAudited")).toBeVisible()
+        expect(screen.queryByText("ballotLocator.description")).toBeNull()
+    })
+
+    it("shows the selections it decodes into, under the record", () => {
+        renderAt(`/${FULL}`)
+        const card = screen.getByRole("region", {name: "ballotLocator.audit.title"})
+        expect(within(card).getByRole("heading", {name: "Mayor", level: 3})).toBeVisible()
+        expect(within(card).getByText("Maria Ortega")).toBeVisible()
+        expect(within(card).queryByText("Joan Puig")).toBeNull()
+        expect(
+            section().compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING
+        ).toBeTruthy()
+    })
+
+    it("keeps the decoded selections in memory: nothing is stored, and nothing is sent", () => {
+        localStorage.clear()
+        sessionStorage.clear()
+        const sent = jest.spyOn(global, "fetch").mockResolvedValue(new Response("{}"))
+        renderAt(`/${FULL}`)
+        expect(screen.getByText("Maria Ortega")).toBeVisible()
+        expect(localStorage).toHaveLength(0)
+        expect(sessionStorage).toHaveLength(0)
+        expect(sent).not.toHaveBeenCalled()
+        sent.mockRestore()
+    })
+
+    it("keeps the rest of the result as it is for a cast ballot", () => {
+        renderAt(`/${FULL}`)
+        expect(screen.getByText("ballotLocator.result.status.verified.head")).toBeVisible()
+        expect(section().querySelectorAll(".tracker-step")).toHaveLength(4)
+        expect(
+            within(section()).getByRole("button", {name: "ballotLocator.result.save"})
+        ).toBeVisible()
+        expect(
+            within(section()).getByRole("region", {name: "ballotLocator.result.record.title"})
+        ).toBeVisible()
+    })
+
+    it("is told of a failed audit, with a danger tag, and shows no selections", () => {
+        mockAudit.mockReturnValue({outcome: EAuditOutcome.MISMATCH})
+        renderAt(`/${FULL}`)
+        expect(tagsOf(section())).toEqual([
+            ["ballotLocator.result.tag.auditFailed", "danger"],
+            ["ballotLocator.result.tag.found", "success"],
+        ])
+        expect(screen.getByRole("alert")).toHaveTextContent("ballotLocator.audit.failed.text")
+        expect(screen.getByText("ballotLocator.descriptionAuditedBrief")).toBeVisible()
+        expect(screen.queryByText("Maria Ortega")).toBeNull()
+        expect(screen.queryByRole("region", {name: "ballotLocator.audit.title"})).toBeNull()
+    })
+
+    it("says, neutrally, that the audit could not be checked, and shows no selections", () => {
+        mockAudit.mockReturnValue({outcome: EAuditOutcome.NOT_VERIFIABLE})
+        renderAt(`/${FULL}`)
+        expect(tagsOf(section())).toEqual([
+            ["vitrine.status.tag.auditable", "neutral"],
+            ["ballotLocator.result.tag.found", "success"],
+        ])
+        expect(screen.queryByRole("alert")).toBeNull()
+        expect(
+            screen
+                .getAllByRole("status")
+                .some((status) =>
+                    status.textContent?.includes("ballotLocator.audit.unchecked.text")
+                )
+        ).toBe(true)
+        expect(screen.getByText("ballotLocator.descriptionAuditedBrief")).toBeVisible()
+        expect(screen.queryByText("Maria Ortega")).toBeNull()
+    })
+
+    it("does not audit a cast ballot, nor one that can't be read", () => {
+        mockVotes = [vote(FULL, undefined, CAST_CONTENT)]
+        renderAt(`/${FULL}`)
+        expect(mockAudit).not.toHaveBeenCalled()
+        expect(screen.queryByRole("region", {name: "ballotLocator.audit.title"})).toBeNull()
+    })
+
+    it("shows an audited ballot as a ballot in the classic result too, without checking it", () => {
+        mockPresentation = {}
+        renderAt(`/${FULL}`)
+        expect(mockAudit).not.toHaveBeenCalled()
         expect(screen.getByText("ballotLocator.contentDesc")).toBeVisible()
-        expect(screen.getByText("content of 30ffd314")).toBeVisible()
-        await userEvent.click(screen.getByRole("button", {name: "ballotLocator.locateAgain"}))
-        expect(router.state.location.pathname).toBe(`${PATH}/`)
-        expect(findButton()).toBeDisabled()
+        expect(screen.queryByRole("region", {name: "ballotLocator.audit.title"})).toBeNull()
     })
 })
 
@@ -454,6 +914,18 @@ describe("the result for an event without transparency", () => {
         expect(screen.getByText("content of 30ffd314")).toBeVisible()
         expect(screen.queryByRole("region", {name: "ballotLocator.result.receipt"})).toBeNull()
         expect(screen.queryByText("ballotLocator.foundShort")).toBeNull()
+        expect(screen.queryByRole("region", {name: "ballotLocator.result.record.title"})).toBeNull()
+    })
+
+    it("keeps its buttons below the result", async () => {
+        mockVotes = [vote(FULL)]
+        renderAt(`/${FULL}`)
+        const header = document.querySelector(".ballot-locator-header") as HTMLElement
+        expect(within(header).queryByRole("link", {name: "votingScreen.backButton"})).toBeNull()
+        expect(within(header).queryByRole("button", {name: "ballotLocator.locateAgain"})).toBeNull()
+        await userEvent.click(screen.getByRole("button", {name: "ballotLocator.locateAgain"}))
+        expect(router.state.location.pathname).toBe(`${PATH}/`)
+        expect(screen.getByRole("link", {name: "votingScreen.backButton"})).toBeVisible()
     })
 
     it("says when no ballot has the ID", () => {
