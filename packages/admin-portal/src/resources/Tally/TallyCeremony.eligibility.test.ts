@@ -132,6 +132,7 @@ jest.mock("./TallyLogs", () => ({TallyLogs: () => null}))
 jest.mock("./TallyResolutionPanel", () => ({TallyResolutionPanel: () => null}))
 jest.mock("./ResultsWebsitePublication", () => ({ResultsWebsitePublication: () => null}))
 jest.mock("./ResultsDataLoader", () => ({ResultsDataLoader: () => null}))
+jest.mock("jotai", () => ({useAtomValue: () => null}))
 jest.mock("@/atoms/tally-candidates", () => ({tallyQueryData: {}}))
 
 beforeEach(() => {

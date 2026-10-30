@@ -7,6 +7,7 @@ import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {getDefaultElectionLang} from "@/hooks/useDefaultElectionLang"
 import Chart, {Props} from "react-apexcharts"
 import CardChart from "@/components/dashboard/charts/Charts"
+import {getPieChartNumberFormatOptions} from "@/components/dashboard/charts/chartNumberFormat"
 import {Box} from "@mui/material"
 
 import {
@@ -26,6 +27,7 @@ import {
     isNumber,
     parseEntityPresentation,
     sortByPresentationOrder,
+    useNumberFormat,
 } from "@sequentech/ui-core"
 import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
@@ -33,10 +35,12 @@ import {
     Loader,
     TALLY_RESULTS_PIE_HEIGHT,
     TALLY_RESULTS_PIE_PANEL_WIDTH,
+    withEscapedChartText,
 } from "@sequentech/ui-essentials"
 import {orderItemsByIds} from "./utils"
 
 interface TallyElectionsResultsProps {
+    completeElectionIds: string[]
     tenantId: string | null
     electionEventId: string | null
     resultsEventId: string | null
@@ -84,6 +88,7 @@ const GeneralInformationCharts: React.FC<GeneralInformationChartsProps> = ({
     aliasRenderer,
 }) => {
     const {t} = useTranslation()
+    const {policy} = useNumberFormat()
 
     // Filter out results with valid participation data
     const validResults = results.filter(
@@ -125,7 +130,8 @@ const GeneralInformationCharts: React.FC<GeneralInformationChartsProps> = ({
             : [{label: t("tally.chart.nonVoters"), value: 100}]
 
     const chartOptions: Props = {
-        options: {
+        options: withEscapedChartText({
+            ...getPieChartNumberFormatOptions(policy),
             labels: chartData.map((item) => item.label),
             legend: {
                 position: "right",
@@ -143,7 +149,7 @@ const GeneralInformationCharts: React.FC<GeneralInformationChartsProps> = ({
                     },
                 },
             ],
-        },
+        }),
         series: chartData.map((item) => item.value),
     }
 
@@ -174,15 +180,24 @@ const GeneralInformationCharts: React.FC<GeneralInformationChartsProps> = ({
 }
 
 export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (props) => {
-    const {tenantId, electionEventId, resultsEventId, electionIds, isMultiContest} = props
+    const {
+        tenantId,
+        electionEventId,
+        resultsEventId,
+        electionIds,
+        isMultiContest,
+        completeElectionIds,
+    } = props
     const {t, i18n} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
     const [resultsData, setResultsData] = useState<Array<Sequent_Backend_Election_Extended>>([])
+    const [resultsDataEventId, setResultsDataEventId] = useState<string | null>(null)
     const [selectedElectionId, setSelectedElectionId] = useState<string | null>(null)
     const [isLoading, setIsLoading] = useState(true)
     const tallyData = useAtomValue(tallyQueryData)
     const electionEventRecord = useRecordContext<Sequent_Backend_Election_Event>()
     const aliasRenderer = useAliasRenderer()
+    const {formatNumber, policy} = useNumberFormat()
 
     const elections: Array<Sequent_Backend_Election> | undefined = useMemo(() => {
         const availableElections = tallyData?.sequent_backend_election?.map(
@@ -190,9 +205,14 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
         )
 
         return availableElections
-            ? orderItemsByIds(availableElections, electionIds ?? [])
+            ? orderItemsByIds(
+                  availableElections.filter((election) =>
+                      completeElectionIds.includes(election.id)
+                  ),
+                  electionIds ?? []
+              )
             : undefined
-    }, [tallyData?.sequent_backend_election, electionIds])
+    }, [tallyData?.sequent_backend_election, electionIds, completeElectionIds])
 
     const defaultLangByElectionId = useMemo(() => {
         const map = new Map<string, string | undefined>()
@@ -213,7 +233,7 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
                       (result) => result.results_event_id === resultsEventId
                   )
                 : undefined,
-        [tallyData?.sequent_backend_results_election]
+        [tallyData?.sequent_backend_results_election, resultsEventId]
     )
 
     const isTallyDataMatchCurrentResults = useMemo(() => {
@@ -240,6 +260,8 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
 
     useEffect(() => {
         setIsLoading(true)
+        setResultsData([])
+        setResultsDataEventId(null)
         if (elections && results && elections.length > 0 && results.length > 0) {
             const mappedElections: Array<Sequent_Backend_Election_Extended> = elections.map(
                 (item, index): Sequent_Backend_Election_Extended => {
@@ -283,6 +305,7 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
             }).map((election, index) => ({...election, rowId: index}))
 
             setResultsData(temp)
+            setResultsDataEventId(resultsEventId)
             // Set default selected election to the first one if none is selected
             if (!selectedElectionId && temp.length > 0) {
                 setSelectedElectionId(temp[0].id)
@@ -300,6 +323,7 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
         isMultiContest,
         isTallyDataMatchCurrentResults,
         results,
+        resultsEventId,
         selectedElectionId,
         tallyData?.sequent_backend_results_contest,
     ])
@@ -330,14 +354,16 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
                 headerName: t("tally.table.elegible_census"),
                 flex: 1,
                 editable: false,
-                renderCell: (props: GridRenderCellParams<any, string>) => props["value"] ?? "-",
+                renderCell: (props: GridRenderCellParams<any, string>) =>
+                    formatNumber(props["value"] ?? "-"),
             },
             {
                 field: "total_voters",
                 headerName: t("tally.table.total_votes"),
                 flex: 1,
                 editable: false,
-                renderCell: (props: GridRenderCellParams<any, number>) => props["value"] ?? "-",
+                renderCell: (props: GridRenderCellParams<any, number>) =>
+                    formatNumber(props["value"] ?? "-"),
             },
             ...(showTotalInvalidVotesColumn
                 ? [
@@ -347,7 +373,7 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
                           flex: 1.5,
                           editable: false,
                           renderCell: (props: GridRenderCellParams<any, number>) =>
-                              props["value"] ?? "-",
+                              formatNumber(props["value"] ?? "-"),
                       } satisfies GridColDef,
                   ]
                 : []),
@@ -359,7 +385,7 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
                           flex: 1.5,
                           editable: false,
                           renderCell: (props: GridRenderCellParams<any, number>) =>
-                              props["value"] ?? "-",
+                              formatNumber(props["value"] ?? "-"),
                       } satisfies GridColDef,
                   ]
                 : []),
@@ -369,13 +395,15 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
                 flex: 1,
                 editable: false,
                 renderCell: (props: GridRenderCellParams<any, number>) =>
-                    isNumber(props["value"]) ? formatPercentOne(props["value"]) : "-",
+                    isNumber(props["value"]) ? formatPercentOne(props["value"], policy) : "-",
             },
         ],
         [
             aliasRenderer,
             defaultLangByElectionId,
+            formatNumber,
             i18n.language,
+            policy,
             showTotalInvalidVotesColumn,
             showBlankBallotsColumn,
             t,
@@ -384,7 +412,11 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
 
     return (
         <>
-            {resultsData.length ? (
+            {resultsData.length &&
+            !isLoading &&
+            isTallyDataMatchCurrentResults &&
+            resultsDataEventId === resultsEventId &&
+            resultsData.every((row) => completeElectionIds.includes(row.id)) ? (
                 <Box
                     className="seq-admin-tally-results__content"
                     sx={{
@@ -445,7 +477,7 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
                         />
                     </Box>
                 </Box>
-            ) : isLoading || !isTallyDataMatchCurrentResults ? (
+            ) : isLoading || !isTallyDataMatchCurrentResults || completeElectionIds.length === 0 ? (
                 <LoadingResults />
             ) : (
                 <NoItem />

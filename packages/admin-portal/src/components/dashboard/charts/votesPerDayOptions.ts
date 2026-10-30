@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import type {ApexOptions} from "apexcharts"
+import {ENumberFormatPolicy, formatNumber} from "@sequentech/ui-core"
 import {VotesTimeResolution} from "./votesTimeRange"
 
 const MAX_AXIS_LABELS = 8
@@ -12,6 +13,7 @@ export interface VotesPerDayChartOptionsInput {
     buckets: string[]
     resolution: VotesTimeResolution
     locale: string
+    numberFormatPolicy: ENumberFormatPolicy
 }
 
 function parseLocalBucket(value: string): Date | null {
@@ -77,8 +79,10 @@ export const getVotesPerDayChartOptions = ({
     buckets,
     resolution,
     locale,
+    numberFormatPolicy,
 }: VotesPerDayChartOptionsInput): ApexOptions => {
     const labelInterval = Math.max(1, Math.ceil(buckets.length / MAX_AXIS_LABELS))
+    const formatCount = (count?: number | string) => formatNumber(count, numberFormatPolicy)
 
     return {
         chart: {
@@ -96,6 +100,7 @@ export const getVotesPerDayChartOptions = ({
                 dataLabels: {
                     total: {
                         enabled: buckets.length <= MAX_TOTAL_LABELS,
+                        formatter: formatCount,
                     },
                 },
             },
@@ -110,6 +115,9 @@ export const getVotesPerDayChartOptions = ({
                     return formatVotesBucket(bucket, resolution, locale, true)
                 },
             },
+            y: {
+                formatter: formatCount,
+            },
         },
         xaxis: {
             categories: buckets,
@@ -123,6 +131,13 @@ export const getVotesPerDayChartOptions = ({
 
                     return shouldShow ? formatVotesBucket(value, resolution, locale) : ""
                 },
+            },
+        },
+        yaxis: {
+            labels: {
+                // The steps of a small range can be fractional; they keep one decimal.
+                formatter: (value) =>
+                    formatNumber(value, numberFormatPolicy, Number.isInteger(value) ? 0 : 1),
             },
         },
     }

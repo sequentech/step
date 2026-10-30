@@ -4,28 +4,44 @@
 
 import React from "react"
 import {renderToStaticMarkup} from "react-dom/server"
+import type {ApexOptions} from "apexcharts"
+
+const mockChartOptions: ApexOptions[] = []
 
 jest.mock("./ChartPanel", () => {
     const react = jest.requireActual<typeof import("react")>("react")
 
     return {
+        // Labels every slice and tooltip the way the chart library would, through
+        // the formatters the component passes.
         Chart: ({
             className,
             height,
             options,
-            series,
+            series = [],
         }: {
             className?: string
             height?: number | string
-            options?: {labels?: string[]}
+            options?: ApexOptions
             series?: number[]
-        }) =>
-            react.createElement("div", {
+        }) => {
+            mockChartOptions.push(options ?? {})
+            const total = series.reduce((sum, value) => sum + value, 0)
+            const tooltipY = Array.isArray(options?.tooltip?.y) ? undefined : options?.tooltip?.y
+
+            return react.createElement("div", {
                 className,
                 "data-height": height,
                 "data-labels": JSON.stringify(options?.labels ?? []),
-                "data-series": JSON.stringify(series ?? []),
-            }),
+                "data-series": JSON.stringify(series),
+                "data-slice-labels": series
+                    .map((value) => options?.dataLabels?.formatter?.((value / total) * 100))
+                    .join("|"),
+                "data-tooltip-labels": series
+                    .map((value) => tooltipY?.formatter?.(value))
+                    .join("|"),
+            })
+        },
         ChartPanel: ({
             children,
             title,
@@ -39,30 +55,59 @@ jest.mock("./ChartPanel", () => {
 })
 
 // ui-core's built dist is unavailable when this package's tests run alone, so
-// load the canonical channel module from source instead of duplicating its values.
+// load the canonical channel and number format modules from source instead of
+// duplicating them.
 jest.mock(
     "@sequentech/ui-core",
-    () => {
-        const votingChannels = jest.requireActual<typeof import("@sequentech/ui-core")>(
+    () => ({
+        ...jest.requireActual<typeof import("@sequentech/ui-core")>(
             "../../../../ui-core/src/types/VotingChannel"
-        )
-
-        return {
-            ...votingChannels,
-            formatPercentOne: (value: number) => `${(value * 100).toFixed(1)}%`,
-        }
-    },
+        ),
+        ...jest.requireActual<typeof import("@sequentech/ui-core")>(
+            "../../../../ui-core/src/types/ElectionEventPresentation"
+        ),
+        ...jest.requireActual<typeof import("@sequentech/ui-core")>(
+            "../../../../ui-core/src/services/numberFormat"
+        ),
+        ...jest.requireActual<typeof import("@sequentech/ui-core")>(
+            "../../../../ui-core/src/services/NumberFormatContext"
+        ),
+        ...jest.requireActual<typeof import("@sequentech/ui-core")>(
+            "../../../../ui-core/src/services/percentFormatter"
+        ),
+        escapeHtml: jest.requireActual<typeof import("@sequentech/ui-core")>(
+            "../../../../ui-core/src/services/stringToHtml"
+        ).escapeHtml,
+    }),
     {virtual: true}
 )
 
 import {
+    ENumberFormatPolicy,
+    NumberFormatProvider,
     TallySheetVotingChannel,
     VotingStatusChannel,
     parseParticipationChannel,
 } from "@sequentech/ui-core"
 import {ParticipationByChannel} from "./ParticipationByChannel"
-import {ParticipationSummaryChart} from "./ParticipationSummary"
+import {ParticipationSummary, ParticipationSummaryChart} from "./ParticipationSummary"
 import type {ResultsParticipationSummary} from "./types"
+
+const NBSP = "\u00a0"
+
+const MARKUP_LABEL = "<b>Label</b> & more"
+const ESCAPED_LABEL = "&lt;b&gt;Label&lt;/b&gt; &amp; more"
+
+const expectEscapedChartText = (options: ApexOptions) => {
+    const tooltipY = Array.isArray(options.tooltip?.y) ? undefined : options.tooltip?.y
+
+    expect(options.legend?.formatter?.(MARKUP_LABEL, {})).toBe(ESCAPED_LABEL)
+    expect(tooltipY?.title?.formatter?.(MARKUP_LABEL)).toBe(ESCAPED_LABEL)
+}
+
+beforeEach(() => {
+    mockChartOptions.length = 0
+})
 
 describe("ParticipationSummaryChart", () => {
     it("keeps the chart panel visible when every tally value is zero", () => {
@@ -99,6 +144,90 @@ describe("ParticipationSummaryChart", () => {
         expect(markup).toContain('data-series="[100]"')
         expect(markup).not.toContain("No results")
         expect(markup).not.toContain('role="img"')
+    })
+
+    it("escapes label overrides in the legend and tooltip and keeps the labels raw", () => {
+        renderToStaticMarkup(
+            <ParticipationSummaryChart
+                result={{eligibleCensus: 0}}
+                chartName="Election - Contest"
+                labels={{nonVoters: MARKUP_LABEL}}
+            />
+        )
+
+        expect(mockChartOptions).toHaveLength(1)
+        expect(mockChartOptions[0].labels).toEqual([MARKUP_LABEL])
+        expectEscapedChartText(mockChartOptions[0])
+    })
+})
+
+describe("ParticipationSummary", () => {
+    const result: ResultsParticipationSummary = {
+        eligibleCensus: 12000000,
+        totalVotes: 8589934,
+        totalVotesPercent: 0.715827833,
+        totalValidVotes: 8589000,
+        totalValidVotesPercent: 0.7157,
+        weight: 1234567,
+    }
+
+    it("writes counts and percentages in the event's number format", () => {
+        const markup = renderToStaticMarkup(
+            <NumberFormatProvider policy={ENumberFormatPolicy.PERIOD_COMMA}>
+                <ParticipationSummary result={result} chartName="Election - Contest" showWeight />
+            </NumberFormatProvider>
+        )
+
+        expect(markup).toContain(">12.000.000<")
+        expect(markup).toContain(">8.589.934<")
+        expect(markup).toContain(">71,58%<")
+        expect(markup).toContain(">8.589.000<")
+        expect(markup).toContain(">71,57%<")
+        expect(markup).toContain(">1.234.567<")
+        expect(markup).not.toContain("12000000")
+    })
+
+    it("writes comma grouped counts for events without a number format", () => {
+        const markup = renderToStaticMarkup(
+            <ParticipationSummary result={result} chartName="Election - Contest" showWeight />
+        )
+
+        expect(markup).toContain(">12,000,000<")
+        expect(markup).toContain(">8,589,934<")
+        expect(markup).toContain(">71.58%<")
+        expect(markup).toContain(">71.57%<")
+        expect(markup).toContain(">1,234,567<")
+    })
+
+    it("keeps a dash for figures the tally did not produce", () => {
+        const markup = renderToStaticMarkup(
+            <NumberFormatProvider policy={ENumberFormatPolicy.PERIOD_COMMA}>
+                <ParticipationSummary
+                    result={{eligibleCensus: 10}}
+                    chartName="Election - Contest"
+                />
+            </NumberFormatProvider>
+        )
+
+        expect(markup).toMatch(/__value-cell[^"]*">-</)
+        expect(markup).toMatch(/__percent-cell[^"]*">-</)
+        expect(markup).not.toContain("NaN")
+    })
+
+    it("labels the participation chart in the event's number format", () => {
+        const markup = renderToStaticMarkup(
+            <NumberFormatProvider policy={ENumberFormatPolicy.SPACE_COMMA}>
+                <ParticipationSummaryChart
+                    result={{eligibleCensus: 12000000, totalVotes: 3000000}}
+                    chartName="Election - Contest"
+                />
+            </NumberFormatProvider>
+        )
+
+        expect(markup).toContain(
+            `data-tooltip-labels="3${NBSP}000${NBSP}000|9${NBSP}000${NBSP}000"`
+        )
+        expect(markup).toContain('data-slice-labels="25,0%|75,0%"')
     })
 })
 
@@ -184,5 +313,61 @@ describe("ParticipationByChannel", () => {
         expect(markup).toContain("75.0%")
         expect(markup).toContain("25.0%")
         expect(zeroCensus).toContain("100.0%")
+    })
+
+    it("writes channel totals and shares in the event's number format", () => {
+        const markup = renderToStaticMarkup(
+            <NumberFormatProvider policy={ENumberFormatPolicy.PERIOD_COMMA}>
+                <ParticipationByChannel
+                    result={{
+                        votesByChannel: {
+                            [VotingStatusChannel.Online]: 1500000,
+                            [TallySheetVotingChannel.Paper]: 500000,
+                        },
+                    }}
+                />
+            </NumberFormatProvider>
+        )
+
+        expect(markup).toContain(">1.500.000<")
+        expect(markup).toContain(">500.000<")
+        expect(markup).toContain(">75,0%<")
+        expect(markup).toContain(">25,0%<")
+        expect(markup).toContain('data-tooltip-labels="1.500.000|500.000"')
+        expect(markup).toContain('data-slice-labels="75,0%|25,0%"')
+    })
+
+    it("writes comma grouped channel totals for events without a number format", () => {
+        const markup = renderToStaticMarkup(
+            <ParticipationByChannel
+                result={{
+                    votesByChannel: {
+                        [VotingStatusChannel.Online]: 1500000,
+                        [TallySheetVotingChannel.Paper]: 500000,
+                    },
+                }}
+            />
+        )
+
+        expect(markup).toContain(">1,500,000<")
+        expect(markup).toContain(">75.0%<")
+        expect(markup).toContain('data-tooltip-labels="1,500,000|500,000"')
+        expect(markup).toContain('data-slice-labels="75.0%|25.0%"')
+    })
+
+    it("escapes channel name overrides in the legend and tooltip and keeps the labels raw", () => {
+        renderToStaticMarkup(
+            <ParticipationByChannel
+                result={{
+                    eligibleCensus: 10,
+                    votesByChannel: {[VotingStatusChannel.Online]: 2},
+                }}
+                labels={{channelNames: {[VotingStatusChannel.Online]: MARKUP_LABEL}}}
+            />
+        )
+
+        expect(mockChartOptions).toHaveLength(1)
+        expect(mockChartOptions[0].labels).toEqual([MARKUP_LABEL])
+        expectEscapedChartText(mockChartOptions[0])
     })
 })

@@ -138,6 +138,8 @@ const tagalogTranslation: TranslationType = {
                     "Hindi wastong configuration ng balota: may {{count}} tahasang invalid na kandidato sa paligsahan, ngunit isa lamang ang pinapayagan.",
                 multipleExplicitBlankCandidates:
                     "Hindi wastong configuration ng balota: may {{count}} tahasang blankong kandidato sa paligsahan, ngunit isa lamang ang pinapayagan.",
+                invalidSlateConfiguration:
+                    "Hindi wastong configuration ng balota: hindi wasto ang mga slate ({{reason}}).",
             },
         },
         ballotHash: "Ang Iyong Ballot ID: {{ballotId}}",
