@@ -18,6 +18,7 @@ import type {Expect, Policy} from "@vitrine/verify"
 import {expectFromForm, IBallotForm} from "../../services/vitrine/check"
 import {policyElections} from "../../services/vitrine/policies"
 import type {IVitrineSdk} from "../../services/vitrine/sdk"
+import {BallotIdField} from "./BallotIdField"
 
 export interface IBallotFormProps {
     sdk: IVitrineSdk
@@ -57,18 +58,9 @@ export const BallotForm: React.FC<IBallotFormProps> = ({sdk, policy, onExpect}) 
             maxWidth="630px"
             data-testid="ballot-form"
         >
-            <TextField
-                required
-                label={t("receiptScreen.ballot.ballotId")}
-                placeholder={t("receiptScreen.ballot.ballotIdPlaceholder")}
-                InputLabelProps={{shrink: true}}
+            <BallotIdField
                 value={form.ballotId}
-                onChange={set("ballotId")}
-                inputProps={{
-                    "data-testid": "ballot-id",
-                    "spellCheck": false,
-                    "autoComplete": "off",
-                }}
+                onChange={(ballotId) => setForm((f) => ({...f, ballotId}))}
             />
             {electionIds.length > 1 ? (
                 <TextField
@@ -112,7 +104,7 @@ export const BallotForm: React.FC<IBallotFormProps> = ({sdk, policy, onExpect}) 
             />
             {invalid ? (
                 <Alert severity="warning" data-testid="ballot-invalid">
-                    {t("receiptScreen.ballot.invalid")}
+                    {t("ballotIdField.formatError")}
                 </Alert>
             ) : null}
             <Box>

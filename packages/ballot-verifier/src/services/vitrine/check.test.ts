@@ -20,6 +20,7 @@ import {
     referenceReceiptUrl,
     WITNESSES,
 } from "../../fixtures/vitrine"
+import {groupBallotId} from "./ballotId"
 import {
     chainFromReference,
     checkRound,
@@ -108,8 +109,19 @@ describe("expectFromForm", () => {
         ).toEqual({fields: {event_id: EVENT_ID, election_id: ELECTION_ID, ballot_id: BALLOT_ID}})
     })
 
+    it("reads a ballot ID in groups of four, as the field shows it", () => {
+        expect(
+            expectFromForm(sdk, {
+                eventId: EVENT_ID,
+                electionId: ELECTION_ID,
+                ballotId: groupBallotId(BALLOT_ID),
+            })
+        ).toEqual({fields: {event_id: EVENT_ID, election_id: ELECTION_ID, ballot_id: BALLOT_ID}})
+    })
+
     it.each([
         ["a short ballot ID", {ballotId: "c0ffee"}],
+        ["a short ballot ID in a group of four", {ballotId: "c0ff eec0"}],
         ["a ballot ID that isn't hex", {ballotId: "<script>alert(1)</script>"}],
         ["no election", {electionId: ""}],
         ["no event", {eventId: ""}],

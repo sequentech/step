@@ -12,6 +12,7 @@
 // file holds.
 
 import type {ChainResult, Expect, PolicyHistory, ReceiptReference} from "@vitrine/verify"
+import {ballotIdHex} from "./ballotId"
 import {FetchLike, sdkFetch} from "./http"
 import type {IPolicyView} from "./policies"
 import type {IVitrineSdk} from "./sdk"
@@ -138,7 +139,7 @@ export interface IBallotForm {
 export const expectFromForm = (sdk: IVitrineSdk, form: IBallotForm): Expect | undefined => {
     const eventId = form.eventId.trim()
     const electionId = form.electionId.trim()
-    const ballotId = form.ballotId.trim().toLowerCase()
+    const ballotId = ballotIdHex(form.ballotId)
     try {
         sdk.verify.buildElectionEntry({eventId, electionId, ballotId, acceptedAt: 0})
     } catch {

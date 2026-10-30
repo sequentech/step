@@ -28,7 +28,6 @@ import {
     EBallotEncoding,
     checkAuditableBallotCiphertext,
 } from "../services/ballotCiphertextVerification"
-import TextField from "@mui/material/TextField"
 import {faCircleQuestion, faAngleRight} from "@fortawesome/free-solid-svg-icons"
 import JsonImg from "../public/json.png"
 import Image from "mui-image"
@@ -41,6 +40,10 @@ import {
     updateBallotStyleAndSelection,
 } from "../services/BallotStyles"
 import {ETransparencyMode, transparencyMode} from "../services/vitrine/presentation"
+import {ballotIdInput, EBallotIdInput, groupBallotId} from "../services/vitrine/ballotId"
+import {EBallotStatus} from "../services/vitrine/ballotStatus"
+import {BallotIdField} from "../components/Vitrine/BallotIdField"
+import {BallotStatusIcon, CHECK_SIZES} from "../components/Vitrine/BallotStatusIcon"
 
 const ActionsContainer = styled(Box)`
     display: flex;
@@ -70,6 +73,12 @@ const StyledButton = styled(Button)`
         text-overflow: ellipsis;
         padding: 5px;
     }
+`
+
+const ReceiptLink = styled("section")`
+    margin: 8px 0 40px;
+    padding-top: 24px;
+    border-top: 1px solid ${theme.palette.customGrey.light};
 `
 
 const StyledImage = styled(Image)`
@@ -158,7 +167,8 @@ export const HomeScreen: React.FC<IProps> = ({
     const transparency = transparencyMode(ballotStyle?.ballot_eml?.election_event_presentation)
 
     useEffect(() => {
-        const newIsNextActive = !!confirmationBallot && !!ballotId
+        const newIsNextActive =
+            !!confirmationBallot && ballotIdInput(ballotId) === EBallotIdInput.FULL
         if (newIsNextActive !== isNextActive) {
             setNextActive(newIsNextActive)
         }
@@ -277,11 +287,8 @@ export const HomeScreen: React.FC<IProps> = ({
         }
         handleAuditableBallot(auditableBallot)
         let ballotHash = ballotService.hashBallot512(auditableBallot)
-        setBallotId(ballotHash)
+        setBallotId(groupBallotId(ballotHash))
     }
-
-    const onInputChange: React.ChangeEventHandler<HTMLInputElement> = (e) =>
-        setBallotId(e.target.value)
 
     return (
         <PageLimit maxWidth="md" className="home-screen screen">
@@ -367,15 +374,7 @@ export const HomeScreen: React.FC<IProps> = ({
             >
                 {t("homeScreen.description2")}
             </Typography>
-            <Box maxWidth="630px">
-                <TextField
-                    label={t("homeScreen.ballotIdLabel")}
-                    placeholder={t("homeScreen.ballotIdPlaceholder")}
-                    InputLabelProps={{shrink: true}}
-                    value={ballotId}
-                    onChange={onInputChange}
-                />
-            </Box>
+            <BallotIdField value={ballotId} onChange={setBallotId} />
             <ActionsContainer>
                 <StyledButton sx={{width: {xs: "100%", sm: "200px"}}} onClick={onUseSampleClick}>
                     <span>{t("homeScreen.useSampleLink")}</span>
@@ -393,21 +392,41 @@ export const HomeScreen: React.FC<IProps> = ({
                 </StyledButton>
             </ActionsContainer>
             {transparency !== ETransparencyMode.DISABLED ? (
-                <Box
-                    className="receipt-link"
-                    data-testid="receipt-link-section"
-                    marginBottom="20px"
-                >
-                    <StyledTitle variant="h5">
-                        <span>{t("homeScreen.receiptTitle")}</span>
-                    </StyledTitle>
-                    <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
+                <ReceiptLink className="receipt-link" data-testid="receipt-link-section">
+                    <Typography
+                        component="h2"
+                        sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                            margin: "0 0 8px",
+                            fontSize: "18px",
+                            lineHeight: 1.5,
+                            fontWeight: 700,
+                        }}
+                    >
+                        <BallotStatusIcon
+                            status={EBallotStatus.VERIFIED}
+                            size={CHECK_SIZES.HEADING}
+                        />
+                        {t("homeScreen.receiptTitle")}
+                    </Typography>
+                    <Typography
+                        variant="body2"
+                        sx={{color: theme.palette.customGrey.main, marginBottom: "16px"}}
+                    >
                         {t("homeScreen.receiptDescription")}
                     </Typography>
-                    <Button component={RouterLink} to="/receipt" data-testid="receipt-link">
+                    <Button
+                        variant="secondary"
+                        sx={{width: {xs: "100%", sm: "200px"}}}
+                        component={RouterLink}
+                        to="/receipt"
+                        data-testid="receipt-link"
+                    >
                         {t("homeScreen.receiptButton")}
                     </Button>
-                </Box>
+                </ReceiptLink>
             ) : null}
         </PageLimit>
     )

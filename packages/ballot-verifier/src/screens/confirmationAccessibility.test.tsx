@@ -34,7 +34,14 @@ jest.mock("@sequentech/ui-core", () => ({
     EElectionEventContestEncryptionPolicy: {MULTIPLE_CONTESTS: "multiple-contests"},
 }))
 jest.mock("@sequentech/ui-essentials", () => ({
-    theme: {palette: {customGrey: {main: "#666"}, black: "#000", red: {dark: "#900"}}},
+    theme: {
+        palette: {
+            customGrey: {main: "#666"},
+            black: "#000",
+            blue: {light: "#cce5ff", main: "#292f99"},
+            red: {light: "#fecaca", main: "#991b1b", dark: "#900"},
+        },
+    },
     PageLimit: ({children}: React.PropsWithChildren) => <div>{children}</div>,
     ActionsContainer: ({children}: React.PropsWithChildren) => <div>{children}</div>,
     StyledButton: require("@mui/material/Button").default,

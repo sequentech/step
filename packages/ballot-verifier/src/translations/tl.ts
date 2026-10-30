@@ -18,11 +18,13 @@ const tagalogTranslation = {
                     "Upang magpatuloy, mangyaring i-import ang naka-encrypt na data ng balota na ibinigay sa Voting Portal.",
             },
             step2: "Hakbang 2: I-type ang ID ng iyong balota",
-            description2: "Mangyaring i-type ang ID ng balota na ibinigay sa Voting Portal:",
+            description2:
+                "I-paste ang buong ID ng balota mula sa Voting Portal: kinokopya ito ng copy button sa tabi ng iyong ID ng balota.",
             ballotIdHelpDialog: {
                 title: "Impormasyon: Ang ID ng iyong balota",
                 ok: "OK",
-                content: "Mangyaring i-type ang ID ng balota na ibinigay sa Voting Portal.",
+                content:
+                    "I-paste ang buong ID ng balota na ibinigay sa Voting Portal. Kinokopya ito ng copy button sa tabi nito.",
             },
             startButton: "Mag-browse ng file",
             dragDropOption: "O i-drag at i-drop ito dito",
@@ -35,8 +37,6 @@ const tagalogTranslation = {
                 "Ang ciphertext ng sinisiyasat na balotang ito ay hindi ang pag-encrypt ng plaintext at randomness na nilalaman nito. Hindi mapagkakatiwalaan ang balota.",
             useSampleLink: "Gamitin ang sample na balota",
             nextButton: "Susunod",
-            ballotIdLabel: "ID ng Balota",
-            ballotIdPlaceholder: "I-type ang ID ng iyong Balota",
             fileUploaded: "Na-upload",
             receiptTitle: "Resibo ng transparency",
             receiptDescription:
@@ -46,7 +46,7 @@ const tagalogTranslation = {
         confirmationScreen: {
             ballotIdTitle: "ID ng Balota",
             ballotIdDescription:
-                "Sa ibaba, ipinapakita ng sistema ang ID ng na-decode na balota, at ang nalikha ng verifier",
+                "Sa ibaba, ipinapakita ng sistema ang ID ng na-decode na balota, at ang ibinigay mo.",
             ballotIdError: "Hindi tumutugma sa na-decode na ID ng balota",
             decodedBallotId: "Na-decode na ID ng Balota",
             decodedBallotIdHelpDialog: {
@@ -157,23 +157,19 @@ const tagalogTranslation = {
             ballot: {
                 title: "Ang iyong balota",
                 description:
-                    "Ipinapakita lang na sa iyo ang resibo para sa balotang iyong ibinoto. I-type ang ID ng balota na ipinakita sa iyo ng voting portal.",
-                ballotId: "ID ng balota",
-                ballotIdPlaceholder: "I-type ang ID ng iyong balota",
+                    "Ipinapakita lang na sa iyo ang resibo para sa balotang iyong ibinoto. I-paste ang buong ID ng balota na ipinakita sa iyo ng voting portal.",
                 election: "ID ng halalan",
                 electionPlaceholder: "Piliin ang halalan",
                 event: "ID ng election event",
                 check: "Suriin ang resibo",
                 change: "Palitan ang ID ng balota",
-                invalid:
-                    "Suriin ang ID ng balota: mayroon itong 64 na character, mga digit at ang mga titik a hanggang f.",
-                lookedFor: "Hinahanap na ID ng balota:",
+                lookedFor: "Hinahanap na ID ng balota",
+                fullId: "Buong ID ng Balota",
             },
             result: {
                 title: "Resulta",
-                checking: "Sinusuri…",
                 rounds: {
-                    log: "Sinuri gamit ang mga log ng halalan. Sa loob ng susunod na kalahating oras, tatanungin din ng pahinang ito ang mga mirror ng mga log, ang mga anchor hub at ang mga monitor, sa random na sandali, upang hindi nila malaman kung kailan mo binuksan ang iyong resibo. Panatilihing bukas ang pahina, o suriin na ang lahat ngayon.",
+                    log: "Sinuri gamit ang mga log ng halalan. Sa loob ng susunod na kalahating oras, tatanungin din ng pahinang ito ang mga mirror ng mga log, ang mga anchor hub at ang mga monitor, sa random na sandali, upang hindi nila malaman kung kailan ka nagsuri.",
                     full: "Sinuri gamit ang mga log ng halalan, ang mga mirror nito, ang mga anchor hub at ang mga monitor.",
                     offline:
                         "Pribado ang mga log ng halalang ito, kaya sinuri ang resibo gamit ang laman nito.",
@@ -201,6 +197,86 @@ const tagalogTranslation = {
                     late: "May dapat nang naroon na wala pa. Maaaring mabagal lang ito: suriin muli mamaya, at kung huli pa rin, sabihan ang awtoridad ng halalan. Itago ang file ng resibo.",
                 },
             },
+            status: {
+                checking: {
+                    head: "Sinusuri…",
+                    sub: "Sinusuri ng iyong browser kung nasa pampublikong talaan ang iyong balota.",
+                },
+                recorded: {
+                    head: "Nasa pampublikong talaan",
+                    sub: "Natagpuan ng iyong browser ang iyong balota sa pampublikong talaan. Kukumpirmahin ito ng mga saksi sa susunod.",
+                },
+                witnessed: {
+                    head: "Kinumpirma ng mga saksi",
+                    sub: "Kinumpirma ng mga independiyenteng saksi ang talaan. Tatanungin ang mga pampublikong hub sa susunod, sa loob ng kalahating oras.",
+                    subLater:
+                        "Kinumpirma ng mga independiyenteng saksi ang talaan. Susunod ang mga pampublikong anchor sa loob ng 10 minuto; hindi na kailangang maghintay.",
+                },
+                verified: {
+                    head: "Na-verify",
+                    sub: "Nasa pampublikong talaan ang iyong balota, kinumpirma ng mga independiyenteng saksi at naka-anchor sa publiko.",
+                },
+                late: {
+                    head: "Mas matagal kaysa inaasahan",
+                    sub: "Nasa pampublikong talaan ang iyong balota at kinumpirma ng mga saksi, ngunit huli ang mga pampublikong anchor nito.",
+                    subOther: "Mas matagal kaysa inaasahan ang ilan sa mga hakbang sa ibaba.",
+                },
+                problem: {
+                    head: "Hindi tugma ang talaan",
+                    sub: "Hindi ang entry #{{index}} ng pampublikong talaan ang nasa resibong ito.",
+                    subOther:
+                        "Hindi magkakatugma ang pampublikong talaan, ang resibong ito at ang iyong ID ng balota.",
+                },
+                damaged: {
+                    head: "Hindi nasuri",
+                    sub: "Mukhang sira ang ilang data: ang resibo o ang sagot ng server. Hindi nito pinatutunayang may nandaya.",
+                },
+                evidence:
+                    "Itinago ng iyong browser ang ebidensya: ang resibong ito at ang pinirmahang entry ng talaan. Ipadala ito sa awtoridad ng halalan o sa isang tagamasid; kahit sino ay maaaring sumuri nito.",
+                saveEvidence: "I-save ang ebidensya",
+                howToReport: "Paano ito iuulat",
+                captionChecking:
+                    "Sinusuri ng iyong browser ang pampublikong talaan, gamit ang code na maaaring suriin ng sinuman.",
+                captionChecked:
+                    "Sinuri ng iyong browser, gamit ang code na maaaring suriin ng sinuman.",
+                captionProblem:
+                    "Natuklasan ng iyong browser, gamit ang code na maaaring suriin ng sinuman.",
+                rows: {
+                    record: "Nasa pampublikong talaan",
+                    witnesses: "Kinumpirma ng mga saksi",
+                    anchors: "Naka-anchor sa publiko",
+                    recordDone: "Entry #{{index}}. Sinuri ng iyong browser ang patunay nito.",
+                    recordDoneNoIndex: "Sinuri ng iyong browser ang patunay nito.",
+                    witnessesDone:
+                        "{{signed}} sa {{total}} independiyenteng saksi ang pumirma; {{needed}} ang kailangan ng patakaran.",
+                    witnessesDoneAny: "Pumirma ang mga independiyenteng saksi.",
+                    hubs_one: "Sa {{count}} pampublikong hub",
+                    hubs_many: "Sa {{count}} pampublikong hub",
+                    hubs_other: "Sa {{count}} pampublikong hub",
+                    browser: ", at kung saan sumusuri ang mga browser",
+                    standIn: ", sa pamamagitan ng pamalit na hub sa ngayon",
+                    unused: "Hindi ginagamit ng patakaran ng halalang ito.",
+                    checking: "Sinusuri ng iyong browser…",
+                    anchorsActive:
+                        "Tatanungin sa loob ng susunod na kalahating oras, sa random na sandali.",
+                    anchorsPending: "Hindi pa naka-anchor. Suriin muli sa loob ng ilang minuto.",
+                    waiting: "Naghihintay sa hakbang sa itaas.",
+                    lateAnchors: "Dapat na itong na-anchor ng mga hub pagsapit ng {{time}}.",
+                    lateOther: "Dapat tapos na ito ngayon.",
+                    recordFailed: "Naiiba sa iyong resibo ang entry #{{index}} sa talaan.",
+                    failed: "Hindi ito tugma sa iyong resibo at ID ng balota.",
+                    damaged: "Hindi nasuri: mukhang sira ang data.",
+                    skipped: "Hindi sinuri, dahil hindi tugma ang talaan.",
+                    skippedDamaged: "Hindi sinuri, dahil hindi nasuri ang naunang hakbang.",
+                    statusChecking: "Sinusuri…",
+                    withinSeconds: "Sa loob ng ilang segundo",
+                    within10: "Sa loob ng 10 min",
+                    within30: "Sa loob ng 30 min",
+                    statusLate: "Huli",
+                    statusMismatch: "Hindi tugma",
+                    statusDamaged: "Sira",
+                },
+            },
         },
         footer: {
             poweredBy: "Pinapagana ng <1></1>",
@@ -218,6 +294,15 @@ const tagalogTranslation = {
                 notAllowed:
                     "Ang balota ay minarkahan nang tahasan bilang hindi wasto ngunit hindi ito pinapayagan ng paligsahan",
             },
+        },
+        ballotIdField: {
+            label: "ID ng Balota",
+            placeholder: "I-paste ang iyong buong ID ng Balota",
+            help: "Opsyonal ang mga espasyo.",
+            shortError:
+                "Iyan ang maikling ID. I-paste ang buong ID ng balota: ikinukumpara ng pagsusuri ang kabuuan nito.",
+            formatError:
+                "Suriin ang ID ng balota: 64 na character ito, mga digit at ang mga letrang a hanggang f.",
         },
     },
 }

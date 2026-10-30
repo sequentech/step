@@ -20,11 +20,13 @@ const frenchTranslation: TranslationType = {
                     "Pour continuer, veuillez importer les données des bulletins cryptés fournis sur le Portail de Vote.",
             },
             step2: "Étape 2 : Insérez votre ID de bulletin.",
-            description2: "Veuillez entrer l'ID du bulletin fourni sur le Portail de Vote :",
+            description2:
+                "Collez l'ID complet du bulletin depuis le Portail de Vote : le bouton de copie à côté de votre ID de bulletin le copie.",
             ballotIdHelpDialog: {
                 title: "Information : Votre ID de bulletin",
                 ok: "OK",
-                content: "Veuillez entrer l'ID du bulletin fourni sur le Portail de Vote.",
+                content:
+                    "Collez l'ID complet du bulletin fourni sur le Portail de Vote. Le bouton de copie à côté de celui-ci le copie.",
             },
             startButton: "Sélectionnez fichier",
             dragDropOption: "Ou glissez le fichier ici",
@@ -37,8 +39,6 @@ const frenchTranslation: TranslationType = {
                 "Le texte chiffré de ce vote auditable ne correspond pas au chiffrement du texte en clair et de l'aléa qu'il contient. Ce vote n'est pas fiable.",
             useSampleLink: "Utiliser un vote exemple",
             nextButton: "Continuer",
-            ballotIdLabel: "ID du bulletin",
-            ballotIdPlaceholder: "Écrivez ici votre ID de bulletin",
             fileUploaded: "Chargé",
             receiptTitle: "Reçu de transparence",
             receiptDescription:
@@ -48,7 +48,7 @@ const frenchTranslation: TranslationType = {
         "confirmationScreen": {
             ballotIdTitle: "ID du bulletin",
             ballotIdDescription:
-                "Ensuite, le système affiche l'ID du bulletin décodé et celui généré par le vérificateur.",
+                "Ci-dessous, le système affiche l'ID du bulletin décodé et celui que vous avez fourni.",
             ballotIdError: "Ne correspond pas à l'ID du bulletin décodé.",
             decodedBallotId: "ID du bulletin décodé",
             decodedBallotIdHelpDialog: {
@@ -162,23 +162,19 @@ const frenchTranslation: TranslationType = {
             ballot: {
                 title: "Votre bulletin",
                 description:
-                    "Le reçu n'apparaît comme le vôtre que pour le bulletin que vous avez déposé. Saisissez l'ID de bulletin que le portail de vote vous a montré.",
-                ballotId: "ID de bulletin",
-                ballotIdPlaceholder: "Saisissez votre ID de bulletin",
+                    "Le reçu n'apparaît comme le vôtre que pour le bulletin que vous avez déposé. Collez l'ID complet du bulletin que le portail de vote vous a montré.",
                 election: "ID de l'élection",
                 electionPlaceholder: "Choisissez l'élection",
                 event: "ID de l'événement électoral",
                 check: "Vérifier le reçu",
                 change: "Modifier l'ID de bulletin",
-                invalid:
-                    "Vérifiez l'ID de bulletin : il compte 64 caractères, des chiffres et des lettres de a à f.",
-                lookedFor: "ID de bulletin recherché :",
+                lookedFor: "ID de bulletin recherché",
+                fullId: "ID complet du bulletin",
             },
             result: {
                 title: "Résultat",
-                checking: "Vérification…",
                 rounds: {
-                    log: "Vérifié auprès des registres de l'élection. Dans la demi-heure qui suit, cette page interroge aussi les miroirs des registres, les hubs d'ancrage et les moniteurs, à un moment aléatoire, afin qu'ils ne puissent pas savoir quand vous avez ouvert votre reçu. Gardez la page ouverte, ou vérifiez tout maintenant.",
+                    log: "Vérifié auprès des registres de l'élection. Dans la demi-heure qui suit, cette page interroge aussi les miroirs des registres, les hubs d'ancrage et les moniteurs, à un moment aléatoire, afin qu'ils ne puissent pas savoir quand vous avez vérifié.",
                     full: "Vérifié auprès des registres de l'élection, de leurs miroirs, des hubs d'ancrage et des moniteurs.",
                     offline:
                         "Les registres de cette élection sont privés ; le reçu a donc été vérifié avec ce qu'il contient.",
@@ -206,6 +202,86 @@ const frenchTranslation: TranslationType = {
                     late: "Quelque chose qui devrait déjà être là ne l'est pas encore. Ce n'est peut-être qu'une lenteur : vérifiez à nouveau plus tard et, si le retard persiste, prévenez l'autorité électorale. Conservez le fichier du reçu.",
                 },
             },
+            status: {
+                checking: {
+                    head: "Vérification…",
+                    sub: "Votre navigateur vérifie que votre bulletin figure dans le registre public.",
+                },
+                recorded: {
+                    head: "Dans le registre public",
+                    sub: "Votre navigateur a trouvé votre bulletin dans le registre public. Les témoins le confirment ensuite.",
+                },
+                witnessed: {
+                    head: "Confirmé par des témoins",
+                    sub: "Des témoins indépendants ont confirmé le registre. Les hubs publics sont interrogés ensuite, dans la demi-heure.",
+                    subLater:
+                        "Des témoins indépendants ont confirmé le registre. Les ancrages publics suivent dans les 10 minutes ; inutile d'attendre.",
+                },
+                verified: {
+                    head: "Vérifié",
+                    sub: "Votre bulletin figure dans le registre public, confirmé par des témoins indépendants et ancré publiquement.",
+                },
+                late: {
+                    head: "Plus long que prévu",
+                    sub: "Votre bulletin figure dans le registre public et est confirmé par des témoins, mais ses ancrages publics sont en retard.",
+                    subOther: "Certaines des étapes ci-dessous sont plus longues que prévu.",
+                },
+                problem: {
+                    head: "Le registre ne correspond pas",
+                    sub: "L'entrée n° {{index}} du registre public n'est pas celle de ce reçu.",
+                    subOther:
+                        "Le registre public, ce reçu et votre ID de bulletin ne concordent pas tous.",
+                },
+                damaged: {
+                    head: "Vérification impossible",
+                    sub: "Certaines données semblent endommagées : le reçu ou la réponse du serveur. Cela ne prouve pas que quelqu'un ait triché.",
+                },
+                evidence:
+                    "Votre navigateur a conservé les preuves : ce reçu et l'entrée signée du registre. Envoyez-les à l'autorité électorale ou à un observateur ; n'importe qui peut les vérifier.",
+                saveEvidence: "Enregistrer les preuves",
+                howToReport: "Comment le signaler",
+                captionChecking:
+                    "Votre navigateur vérifie le registre public, avec un code que chacun peut inspecter.",
+                captionChecked:
+                    "Vérifié par votre navigateur, avec un code que chacun peut inspecter.",
+                captionProblem:
+                    "Constaté par votre navigateur, avec un code que chacun peut inspecter.",
+                rows: {
+                    record: "Dans le registre public",
+                    witnesses: "Confirmé par des témoins",
+                    anchors: "Ancré publiquement",
+                    recordDone: "Entrée n° {{index}}. Votre navigateur en a vérifié la preuve.",
+                    recordDoneNoIndex: "Votre navigateur en a vérifié la preuve.",
+                    witnessesDone:
+                        "{{signed}} témoins indépendants sur {{total}} l'ont signé ; la politique en exige {{needed}}.",
+                    witnessesDoneAny: "Des témoins indépendants l'ont signé.",
+                    hubs_one: "Dans {{count}} hub public",
+                    hubs_many: "Dans {{count}} de hubs publics",
+                    hubs_other: "Dans {{count}} hubs publics",
+                    browser: ", et là où les navigateurs vérifient",
+                    standIn: ", via un hub de remplacement pour l'instant",
+                    unused: "Non utilisé par la politique de cette élection.",
+                    checking: "Votre navigateur vérifie…",
+                    anchorsActive: "Interrogé dans la demi-heure, à un moment aléatoire.",
+                    anchorsPending: "Pas encore ancré. Vérifiez à nouveau dans quelques minutes.",
+                    waiting: "En attente de l'étape précédente.",
+                    lateAnchors: "Les hubs auraient dû l'ancrer avant {{time}}.",
+                    lateOther: "Cela devrait déjà être fait.",
+                    recordFailed: "L'entrée n° {{index}} du registre diffère de votre reçu.",
+                    failed: "Cela ne concorde pas avec votre reçu et votre ID de bulletin.",
+                    damaged: "Vérification impossible : les données semblent endommagées.",
+                    skipped: "Non vérifié, car le registre ne correspond pas.",
+                    skippedDamaged:
+                        "Non vérifié, car une étape précédente n'a pas pu être vérifiée.",
+                    statusChecking: "Vérification…",
+                    withinSeconds: "En quelques secondes",
+                    within10: "Sous 10 min",
+                    within30: "Sous 30 min",
+                    statusLate: "En retard",
+                    statusMismatch: "Écart",
+                    statusDamaged: "Endommagé",
+                },
+            },
         },
         "footer": {
             poweredBy: "Propulsé par <1></1>",
@@ -223,6 +299,15 @@ const frenchTranslation: TranslationType = {
                 notAllowed:
                     "Vote marqué explicitement comme invalide mais le scrutin ne le permet pas",
             },
+        },
+        "ballotIdField": {
+            label: "ID du bulletin",
+            placeholder: "Collez votre ID de bulletin complet",
+            help: "Les espaces sont facultatives.",
+            shortError:
+                "C'est l'ID court. Collez l'ID complet du bulletin : la vérification le compare en entier.",
+            formatError:
+                "Vérifiez l'ID du bulletin : il compte 64 caractères, des chiffres et les lettres de a à f.",
         },
     },
 }

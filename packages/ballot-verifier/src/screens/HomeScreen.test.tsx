@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React from "react"
-import {render, screen, fireEvent, waitFor} from "@testing-library/react"
+import {render, screen, fireEvent, waitFor, within} from "@testing-library/react"
 import {Provider} from "react-redux"
 import {MemoryRouter} from "react-router-dom"
 import {MockedProvider} from "@apollo/client/testing"
@@ -14,6 +14,7 @@ import {store} from "../store/store"
 import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
 import {IBallotStyle, setBallotStyle} from "../store/ballotStyles/ballotStylesSlice"
 import {TenantEventContext} from ".."
+import {groupBallotId} from "../services/vitrine/ballotId"
 
 jest.mock("@sequentech/ui-core", () => ({}))
 jest.mock("react-i18next", () => ({useTranslation: () => ({t: (key: string) => key})}))
@@ -32,7 +33,7 @@ jest.mock("@sequentech/ui-essentials", () => {
         Icon: () => null,
         IconButton: passthrough,
         Dialog: passthrough,
-        theme: {palette: {customGrey: {main: "#000"}}},
+        theme: {palette: {customGrey: {main: "#000", light: "#eee"}}},
         DropFile: ({handleFiles}: {handleFiles: (files: FileList) => void}) =>
             React.createElement("input", {
                 "type": "file",
@@ -201,4 +202,134 @@ describe("HomeScreen receipt link", () => {
             expect(screen.queryByTestId("receipt-link-section")).toBeNull()
         }
     )
+})
+
+describe("HomeScreen ballot ID", () => {
+    const FULL = "a41c7e095b3d28f6c0e19d743a58b2f06e1d84c90b7f5a23d816e4c279b013af"
+    const confirmation = {
+        ballot_hash: FULL,
+        election_config: {},
+        decoded_questions: [],
+    } as unknown as IConfirmationBallot
+
+    const Harness: React.FC = () => {
+        const [ballotId, setBallotId] = React.useState("")
+        return (
+            <HomeScreen
+                confirmationBallot={confirmation}
+                setConfirmationBallot={jest.fn()}
+                ballotId={ballotId}
+                setBallotId={setBallotId}
+                fileName="ballot.json"
+                setFileName={jest.fn()}
+                ballotService={ballotService(true)}
+            />
+        )
+    }
+
+    const renderHome = () => {
+        render(
+            <Provider store={store}>
+                <MockedProvider mocks={[ballotStylesMock]}>
+                    <MemoryRouter>
+                        <Harness />
+                    </MemoryRouter>
+                </MockedProvider>
+            </Provider>
+        )
+        return screen.getByTestId("ballot-id") as HTMLInputElement
+    }
+
+    const next = () => screen.getByRole("button", {name: "homeScreen.nextButton"})
+
+    it("groups the Ballot ID in fours as it is typed, keeping only its hex digits", () => {
+        const input = renderHome()
+        fireEvent.change(input, {target: {value: "A41C-7e09 5b"}})
+        expect(input.value).toBe("a41c 7e09 5b")
+        expect(screen.getByText("ballotIdField.formatError")).toBeInTheDocument()
+    })
+
+    it("groups a pasted ID, and takes it whatever its spacing", () => {
+        const input = renderHome()
+        fireEvent.change(input, {target: {value: ` ${FULL.toUpperCase()}\n`}})
+        expect(input.value).toBe(groupBallotId(FULL))
+        expect(input).toHaveAttribute("aria-invalid", "false")
+        expect(screen.getByText("ballotIdField.help")).toBeInTheDocument()
+    })
+
+    it("says that a short ID isn't enough, and keeps Next off", () => {
+        const input = renderHome()
+        fireEvent.change(input, {target: {value: "a41c7e09"}})
+        expect(input).toHaveAttribute("aria-invalid", "true")
+        expect(screen.getByText("ballotIdField.shortError")).toBeInTheDocument()
+        expect(next()).toBeDisabled()
+    })
+
+    it("says what a Ballot ID looks like when it has another length", () => {
+        const input = renderHome()
+        fireEvent.change(input, {target: {value: FULL.slice(0, 40)}})
+        expect(screen.getByText("ballotIdField.formatError")).toBeInTheDocument()
+        expect(screen.queryByText("ballotIdField.shortError")).toBeNull()
+        fireEvent.change(input, {target: {value: ""}})
+        expect(screen.getByText("ballotIdField.help")).toBeInTheDocument()
+        expect(next()).toBeDisabled()
+    })
+
+    it("goes on only with the full Ballot ID", async () => {
+        const input = renderHome()
+        fireEvent.change(input, {target: {value: FULL}})
+        await waitFor(() => expect(next()).toBeEnabled())
+    })
+})
+
+describe("HomeScreen receipt block", () => {
+    it("leads to the receipt screen with its title, text and button", () => {
+        const at = "2026-10-01T00:00:00Z"
+        store.dispatch(
+            setBallotStyle({
+                id: "style-block",
+                ballot_publication_id: "publication-1",
+                publication_published_at: at,
+                election_id: "election-block",
+                election_event_id: "event-block",
+                tenant_id: "tenant-1",
+                ballot_eml: {
+                    election_event_presentation: {transparency: "public"},
+                } as unknown as IBallotStyle["ballot_eml"],
+                created_at: at,
+                last_updated_at: at,
+            })
+        )
+        render(
+            <Provider store={store}>
+                <MockedProvider mocks={[ballotStylesMock]}>
+                    <TenantEventContext.Provider
+                        value={{tenantId: "tenant-1", eventId: "event-block"}}
+                    >
+                        <MemoryRouter>
+                            <HomeScreen
+                                confirmationBallot={null}
+                                setConfirmationBallot={jest.fn()}
+                                ballotId=""
+                                setBallotId={jest.fn()}
+                                fileName=""
+                                setFileName={jest.fn()}
+                                ballotService={ballotService(true)}
+                            />
+                        </MemoryRouter>
+                    </TenantEventContext.Provider>
+                </MockedProvider>
+            </Provider>
+        )
+        const block = screen.getByTestId("receipt-link-section")
+        expect(
+            within(block).getByRole("heading", {name: "homeScreen.receiptTitle"})
+        ).toBeInTheDocument()
+        expect(block.querySelectorAll("svg path")).toHaveLength(2)
+        expect(within(block).getByText("homeScreen.receiptDescription")).toBeInTheDocument()
+        expect(within(block).getByRole("link", {name: "homeScreen.receiptButton"})).toHaveAttribute(
+            "href",
+            "/receipt"
+        )
+    })
 })

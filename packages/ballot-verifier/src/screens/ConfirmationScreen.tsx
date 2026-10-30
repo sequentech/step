@@ -1,9 +1,8 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useState, useEffect, useMemo, PropsWithChildren, useContext} from "react"
+import React, {useState, useEffect, useMemo, useContext} from "react"
 import Typography from "@mui/material/Typography"
-import Paper, {PaperProps} from "@mui/material/Paper"
 import Box from "@mui/material/Box"
 import {useNavigate} from "react-router-dom"
 import {useTranslation} from "react-i18next"
@@ -38,6 +37,8 @@ import {
 } from "@sequentech/ui-core"
 import {getConfirmationContests} from "../services/confirmationContests"
 import {getBallotStyleDefaultLanguageCode} from "../services/defaultLanguageCode"
+import {sameBallotId} from "../services/vitrine/ballotId"
+import {GroupedBallotId} from "../components/Vitrine/GroupedBallotId"
 
 const HorizontalWrap = styled(Box)`
     display: flex;
@@ -47,62 +48,97 @@ const HorizontalWrap = styled(Box)`
     margin-bottom: 12px;
 `
 
-const BallotIdPaper = styled(Paper)`
-    padding: 10px 16px;
+const IdRow = styled(Box)(({theme}) => ({
+    display: "flex",
+    alignItems: "center",
+    gap: 16,
+    marginBottom: 12,
+    [theme.breakpoints.down("sm")]: {
+        flexDirection: "column",
+        alignItems: "stretch",
+        gap: 4,
+    },
+}))
+
+const ID_LABEL_STYLE = {
+    flex: "none",
+    width: {xs: "auto", sm: 106},
+    fontSize: 16,
+    lineHeight: 1.5,
+}
+
+enum EIdBox {
+    INFO = "info",
+    ERROR = "error",
+}
+
+const IdBox = styled(Box, {shouldForwardProp: (prop) => prop !== "variant"})<{
+    variant: EIdBox
+}>(({variant}) => ({
+    flex: 1,
+    minWidth: 0,
+    padding: "10px 16px",
+    borderRadius: 4,
+    background: variant === EIdBox.ERROR ? theme.palette.red.light : theme.palette.blue.light,
+    color: variant === EIdBox.ERROR ? theme.palette.red.main : theme.palette.blue.main,
+}))
+
+const IdLine = styled(Box)`
     display: flex;
-    overflow: auto;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
 `
-
-const OneLine = styled(Paper)`
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-`
-
-enum VariantType {
-    Info = "info",
-    Error = "error",
-}
-
-interface BallotIdContainerProps extends PaperProps {
-    variant: VariantType
-}
-
-const BallotIdContainer: React.FC<PropsWithChildren<BallotIdContainerProps>> = ({
-    variant,
-    children,
-    ...props
-}) => (
-    <BallotIdPaper variant={variant} {...props}>
-        {children}
-    </BallotIdPaper>
-)
 
 interface BallotIdSectionProps {
     confirmationBallot: IConfirmationBallot | null
     ballotId: string
 }
 
-const isMatchingBallotIds = (
-    confirmationBallotId: String | undefined,
-    ballotId: String
-): boolean => {
-    return confirmationBallotId === ballotId
+const ballotIdsMatch = (decodedBallotId: string | undefined, ballotId: string): boolean =>
+    !!decodedBallotId && sameBallotId(decodedBallotId, ballotId)
+
+interface IBallotIdHelpProps {
+    title: string
+    ok: string
+    content: string
 }
 
-const ballotMatchVariantType = (
-    confirmationBallotId: string | undefined,
-    ballotId: string
-): VariantType => {
-    return isMatchingBallotIds(confirmationBallotId, ballotId)
-        ? VariantType.Info
-        : VariantType.Error
+const BallotIdHelp: React.FC<IBallotIdHelpProps> = ({title, ok, content}) => {
+    const [open, setOpen] = useState(false)
+
+    return (
+        <>
+            <IconButton
+                icon={faCircleQuestion}
+                ariaLabel={title}
+                sx={{
+                    fontSize: "unset",
+                    lineHeight: "unset",
+                    paddingBottom: "2px",
+                    color: "inherit",
+                    flex: "none",
+                }}
+                fontSize="16px"
+                onClick={() => setOpen(true)}
+            />
+            <Dialog
+                handleClose={() => setOpen(false)}
+                open={open}
+                title={title}
+                ok={ok}
+                variant="info"
+            >
+                <p>{content}</p>
+            </Dialog>
+        </>
+    )
 }
 
 const BallotIdSection: React.FC<BallotIdSectionProps> = ({confirmationBallot, ballotId}) => {
     const {t} = useTranslation()
-    const [decodedBallotIdHelp, setDecodedBallotIdHelp] = useState(false)
-    const [userBallotIdHelp, setUserBallotIdHelp] = useState(false)
+    const decodedBallotId = confirmationBallot?.ballot_hash
+    const matches = ballotIdsMatch(decodedBallotId, ballotId)
 
     return (
         <>
@@ -112,102 +148,59 @@ const BallotIdSection: React.FC<BallotIdSectionProps> = ({confirmationBallot, ba
             <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
                 {t("confirmationScreen.ballotIdDescription")}
             </Typography>
-            <HorizontalWrap>
-                <Typography variant="h5" component="p" fontSize="16px" width="106px">
+            <IdRow>
+                <Typography component="p" sx={ID_LABEL_STYLE}>
                     {t("confirmationScreen.decodedBallotId")}
                 </Typography>
-                <BallotIdContainer variant={VariantType.Info}>
-                    <OneLine variant="info">{confirmationBallot?.ballot_hash}</OneLine>
-                    <IconButton
-                        icon={faCircleQuestion}
-                        ariaLabel={t("confirmationScreen.decodedBallotIdHelpDialog.title")}
-                        sx={{
-                            fontSize: "unset",
-                            lineHeight: "unset",
-                            paddingBottom: "2px",
-                            color: theme.palette.black,
-                            marginLeft: "10px",
-                        }}
-                        fontSize="16px"
-                        onClick={() => setDecodedBallotIdHelp(true)}
-                    />
-                    <Dialog
-                        handleClose={() => setDecodedBallotIdHelp(false)}
-                        open={decodedBallotIdHelp}
-                        title={t("confirmationScreen.decodedBallotIdHelpDialog.title")}
-                        ok={t("confirmationScreen.decodedBallotIdHelpDialog.ok")}
-                        variant="info"
-                    >
-                        <p>{t("confirmationScreen.decodedBallotIdHelpDialog.content")}</p>
-                    </Dialog>
-                </BallotIdContainer>
-            </HorizontalWrap>
-            <HorizontalWrap>
-                <Typography variant="h5" component="p" fontSize="16px" width="106px">
+                <IdBox variant={EIdBox.INFO}>
+                    <IdLine>
+                        <GroupedBallotId
+                            id={decodedBallotId ?? ""}
+                            data-testid="decoded-ballot-id"
+                        />
+                        <BallotIdHelp
+                            title={t("confirmationScreen.decodedBallotIdHelpDialog.title")}
+                            ok={t("confirmationScreen.decodedBallotIdHelpDialog.ok")}
+                            content={t("confirmationScreen.decodedBallotIdHelpDialog.content")}
+                        />
+                    </IdLine>
+                </IdBox>
+            </IdRow>
+            <IdRow>
+                <Typography component="p" sx={ID_LABEL_STYLE}>
                     {t("confirmationScreen.yourBallotId")}
                 </Typography>
-                <Box sx={{overflow: "auto"}}>
-                    <BallotIdContainer
-                        variant={ballotMatchVariantType(confirmationBallot?.ballot_hash, ballotId)}
-                        sx={{
-                            marginTop: isMatchingBallotIds(
-                                confirmationBallot?.ballot_hash,
-                                ballotId
-                            )
-                                ? undefined
-                                : "14px",
-                        }}
-                    >
-                        {isMatchingBallotIds(confirmationBallot?.ballot_hash, ballotId) ? null : (
-                            <IconButton
-                                icon={faTimesCircle}
-                                sx={{
-                                    fontSize: "unset",
-                                    lineHeight: "unset",
-                                    paddingBottom: "2px",
-                                    marginRight: "10px",
-                                }}
-                                fontSize="16px"
-                            />
-                        )}
-                        <OneLine
-                            variant={ballotMatchVariantType(
-                                confirmationBallot?.ballot_hash,
-                                ballotId
-                            )}
-                        >
-                            {ballotId}
-                        </OneLine>
-                        <IconButton
-                            icon={faCircleQuestion}
-                            ariaLabel={t("confirmationScreen.userBallotIdHelpDialog.title")}
-                            sx={{
-                                fontSize: "unset",
-                                lineHeight: "unset",
-                                paddingBottom: "2px",
-                                color: theme.palette.black,
-                                marginLeft: "10px",
-                            }}
-                            fontSize="16px"
-                            onClick={() => setUserBallotIdHelp(true)}
+                <IdBox variant={matches ? EIdBox.INFO : EIdBox.ERROR}>
+                    <IdLine>
+                        <GroupedBallotId
+                            id={ballotId}
+                            compareTo={matches ? undefined : decodedBallotId}
+                            data-testid="provided-ballot-id"
                         />
-                        <Dialog
-                            handleClose={() => setUserBallotIdHelp(false)}
-                            open={userBallotIdHelp}
+                        <BallotIdHelp
                             title={t("confirmationScreen.userBallotIdHelpDialog.title")}
                             ok={t("confirmationScreen.userBallotIdHelpDialog.ok")}
-                            variant="info"
+                            content={t("confirmationScreen.userBallotIdHelpDialog.content")}
+                        />
+                    </IdLine>
+                    {matches ? null : (
+                        <Box
+                            data-testid="ballot-id-mismatch"
+                            sx={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "6px",
+                                marginTop: "6px",
+                                fontSize: 12,
+                                lineHeight: 1.5,
+                            }}
                         >
-                            <p>{t("confirmationScreen.userBallotIdHelpDialog.content")}</p>
-                        </Dialog>
-                    </BallotIdContainer>
-                    {isMatchingBallotIds(confirmationBallot?.ballot_hash, ballotId) ? null : (
-                        <Typography fontSize="12px" color={theme.palette.red.dark} marginTop="2px">
+                            <Icon icon={faTimesCircle} size="sm" />
                             {t("confirmationScreen.ballotIdError")}
-                        </Typography>
+                        </Box>
                     )}
-                </Box>
-            </HorizontalWrap>
+                </IdBox>
+            </IdRow>
         </>
     )
 }
@@ -387,7 +380,7 @@ export const ConfirmationScreen: React.FC<IProps> = ({confirmationBallot, ballot
                 />
             </Box>
             <BallotIdSection confirmationBallot={confirmationBallot} ballotId={ballotId} />
-            {isMatchingBallotIds(confirmationBallot?.ballot_hash, ballotId) ? (
+            {ballotIdsMatch(confirmationBallot?.ballot_hash, ballotId) ? (
                 <VerifySelectionsSection
                     confirmationBallot={confirmationBallot}
                     isLoading={isLoading}

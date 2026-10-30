@@ -21,12 +21,12 @@ const spanishTranslation: TranslationType = {
             },
             step2: "Paso 2: Inserte su ID de papeleta.",
             description2:
-                "Por favor ingrese el ID de la papeleta proporcionado en el Portal de Votación:",
+                "Pegue el ID de papeleta completo del Portal de Votación: el botón de copiar junto a su ID de papeleta lo copia.",
             ballotIdHelpDialog: {
                 title: "Información: Su ID de papeleta",
                 ok: "OK",
                 content:
-                    "Por favor ingrese el ID de la papeleta proporcionado en el Portal de Votación.",
+                    "Pegue el ID de papeleta completo proporcionado en el Portal de Votación. El botón de copiar que hay junto a él lo copia.",
             },
             startButton: "Seleccione fichero",
             dragDropOption: "O arrastre el fichero aquí",
@@ -39,8 +39,6 @@ const spanishTranslation: TranslationType = {
                 "El texto cifrado de este voto auditable no es el cifrado del texto en claro y la aleatoriedad que contiene. No se puede confiar en el voto.",
             useSampleLink: "Use voto de ejemplo",
             nextButton: "Continuar",
-            ballotIdLabel: "ID de papeleta",
-            ballotIdPlaceholder: "Escriba aquí su ID de papeleta",
             fileUploaded: "Cargado",
             receiptTitle: "Recibo de transparencia",
             receiptDescription:
@@ -50,16 +48,16 @@ const spanishTranslation: TranslationType = {
         confirmationScreen: {
             ballotIdTitle: "ID de papeleta",
             ballotIdDescription:
-                "A continuación, el sistema muestra el ID de la papeleta descodificada y el generado por el verificador.",
+                "A continuación, el sistema muestra el ID de la papeleta descodificada y el que proporcionaste.",
             ballotIdError: "No coincide con el ID de papeleta decodificado.",
-            decodedBallotId: "Id de papeleta decodificado",
+            decodedBallotId: "ID de papeleta decodificado",
             decodedBallotIdHelpDialog: {
                 title: "Información: Id de papeleta decodificado",
                 ok: "OK",
                 content:
                     "Este es el ID de papeleta extraído del fichero de la Papeleta Auditable descodificada que proporcionaste.",
             },
-            yourBallotId: "La Id de papeleta que proporcionaste",
+            yourBallotId: "El ID de papeleta que proporcionaste",
             userBallotIdHelpDialog: {
                 title: "Información: La Id de papeleta que proporcionaste",
                 ok: "OK",
@@ -164,23 +162,19 @@ const spanishTranslation: TranslationType = {
             ballot: {
                 title: "Su papeleta",
                 description:
-                    "El recibo solo se muestra como suyo para la papeleta que emitió. Escriba el ID de papeleta que le mostró el portal de votación.",
-                ballotId: "ID de papeleta",
-                ballotIdPlaceholder: "Escriba su ID de papeleta",
+                    "El recibo solo se muestra como suyo para la papeleta que emitió. Pegue el ID de papeleta completo que le mostró el portal de votación.",
                 election: "ID de la elección",
                 electionPlaceholder: "Elija la elección",
                 event: "ID del evento electoral",
                 check: "Comprobar el recibo",
                 change: "Cambiar el ID de papeleta",
-                invalid:
-                    "Revise el ID de papeleta: tiene 64 caracteres, dígitos y letras de la a a la f.",
-                lookedFor: "ID de papeleta buscado:",
+                lookedFor: "ID de papeleta buscado",
+                fullId: "ID de papeleta completo",
             },
             result: {
                 title: "Resultado",
-                checking: "Comprobando…",
                 rounds: {
-                    log: "Comprobado con los registros de la elección. En la próxima media hora, esta página también consultará las réplicas de los registros, los hubs de anclaje y los monitores, en un momento aleatorio, para que no puedan saber cuándo abrió su recibo. Mantenga la página abierta o compruébelo todo ahora.",
+                    log: "Comprobado con los registros de la elección. En la próxima media hora, esta página también consultará las réplicas de los registros, los hubs de anclaje y los monitores, en un momento aleatorio, para que no puedan saber cuándo lo comprobó.",
                     full: "Comprobado con los registros de la elección, sus réplicas, los hubs de anclaje y los monitores.",
                     offline:
                         "Los registros de esta elección son privados, así que el recibo se ha comprobado con lo que contiene.",
@@ -209,6 +203,85 @@ const spanishTranslation: TranslationType = {
                     late: "Algo que ya debería estar aún no está. Puede que solo sea lentitud: vuelva a comprobarlo más tarde y, si sigue con retraso, avise a la autoridad electoral. Guarde el archivo del recibo.",
                 },
             },
+            status: {
+                checking: {
+                    head: "Comprobando…",
+                    sub: "Su navegador está comprobando que su papeleta esté en el registro público.",
+                },
+                recorded: {
+                    head: "En el registro público",
+                    sub: "Su navegador ha encontrado su papeleta en el registro público. A continuación la confirman los testigos.",
+                },
+                witnessed: {
+                    head: "Confirmado por testigos",
+                    sub: "Testigos independientes han confirmado el registro. A continuación se consulta a los hubs públicos, en la próxima media hora.",
+                    subLater:
+                        "Testigos independientes han confirmado el registro. Los anclajes públicos llegan en menos de 10 minutos; no hace falta esperar.",
+                },
+                verified: {
+                    head: "Verificada",
+                    sub: "Su papeleta está en el registro público, confirmada por testigos independientes y anclada públicamente.",
+                },
+                late: {
+                    head: "Tarda más de lo esperado",
+                    sub: "Su papeleta está en el registro público y confirmada por testigos, pero sus anclajes públicos van con retraso.",
+                    subOther: "Algunos de los pasos de abajo tardan más de lo esperado.",
+                },
+                problem: {
+                    head: "El registro no coincide",
+                    sub: "La entrada n.º {{index}} del registro público no es la de este recibo.",
+                    subOther:
+                        "El registro público, este recibo y su ID de papeleta no coinciden entre sí.",
+                },
+                damaged: {
+                    head: "No se ha podido comprobar",
+                    sub: "Algunos datos parecen dañados: el recibo o la respuesta del servidor. Esto no demuestra que nadie haya hecho trampa.",
+                },
+                evidence:
+                    "Su navegador ha guardado las pruebas: este recibo y la entrada firmada del registro. Envíelas a la autoridad electoral o a un observador; cualquiera puede comprobarlas.",
+                saveEvidence: "Guardar las pruebas",
+                howToReport: "Cómo denunciarlo",
+                captionChecking:
+                    "Su navegador está comprobando el registro público, con código que cualquiera puede inspeccionar.",
+                captionChecked:
+                    "Comprobado por su navegador, con código que cualquiera puede inspeccionar.",
+                captionProblem:
+                    "Detectado por su navegador, con código que cualquiera puede inspeccionar.",
+                rows: {
+                    record: "En el registro público",
+                    witnesses: "Confirmado por testigos",
+                    anchors: "Anclado públicamente",
+                    recordDone: "Entrada n.º {{index}}. Su navegador ha comprobado su prueba.",
+                    recordDoneNoIndex: "Su navegador ha comprobado su prueba.",
+                    witnessesDone:
+                        "{{signed}} de {{total}} testigos independientes han firmado; la política exige {{needed}}.",
+                    witnessesDoneAny: "Testigos independientes la han firmado.",
+                    hubs_one: "En {{count}} hub público",
+                    hubs_many: "En {{count}} hubs públicos",
+                    hubs_other: "En {{count}} hubs públicos",
+                    browser: ", y donde comprueban los navegadores",
+                    standIn: ", mediante un hub suplente por ahora",
+                    unused: "No lo usa la política de esta elección.",
+                    checking: "Su navegador está comprobando…",
+                    anchorsActive: "Se consulta en la próxima media hora, en un momento aleatorio.",
+                    anchorsPending: "Aún no está anclada. Vuelva a comprobarlo en unos minutos.",
+                    waiting: "Esperando al paso anterior.",
+                    lateAnchors: "Los hubs deberían haberla anclado a las {{time}}.",
+                    lateOther: "Ya debería estar hecho.",
+                    recordFailed: "La entrada n.º {{index}} del registro difiere de su recibo.",
+                    failed: "No coincide con su recibo y su ID de papeleta.",
+                    damaged: "No se ha podido comprobar: los datos parecen dañados.",
+                    skipped: "No comprobado, porque el registro no coincide.",
+                    skippedDamaged: "No comprobado, porque un paso anterior no se pudo comprobar.",
+                    statusChecking: "Comprobando…",
+                    withinSeconds: "En segundos",
+                    within10: "En 10 min",
+                    within30: "En 30 min",
+                    statusLate: "Con retraso",
+                    statusMismatch: "No coincide",
+                    statusDamaged: "Dañado",
+                },
+            },
         },
         footer: {
             poweredBy: "Funciona con <1></1>",
@@ -226,6 +299,15 @@ const spanishTranslation: TranslationType = {
                 notAllowed:
                     "Voto marcado explícitamente como inválido pero la pregunta no lo permite",
             },
+        },
+        ballotIdField: {
+            label: "ID de papeleta",
+            placeholder: "Pegue su ID de papeleta completo",
+            help: "Los espacios son opcionales.",
+            shortError:
+                "Ese es el ID corto. Pegue el ID de papeleta completo: la comprobación lo compara entero.",
+            formatError:
+                "Revise el ID de papeleta: tiene 64 caracteres, dígitos y letras de la a a la f.",
         },
     },
 }
