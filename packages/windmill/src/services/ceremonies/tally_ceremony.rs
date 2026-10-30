@@ -108,6 +108,7 @@ pub async fn find_last_tally_session_execution_and_all_related_data(
         &tenant_id,
         &election_event_id,
         &election_ids,
+        None,
     )
     .await?;
 

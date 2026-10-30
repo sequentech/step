@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres;
 use crate::postgres::area::get_area_by_id;
-use crate::postgres::ballot_style::{get_published_ballot_styles, PublishedBallotStyle};
+use crate::postgres::ballot_style::get_ballot_styles_by_elections;
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::election::get_election_max_revotes;
 use crate::postgres::election_event::{get_election_event_by_id, ElectionEventDatafix};
@@ -27,7 +27,6 @@ use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
 use electoral_log::messages::newtypes::*;
 use futures::try_join;
-use once_cell::sync::Lazy;
 use sequent_core::ballot::BallotStyle;
 use sequent_core::ballot::ContestEncryptionPolicy;
 use sequent_core::ballot::EGracePeriodPolicy;
@@ -48,12 +47,12 @@ use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::KeycloakAdminClient;
+use sequent_core::types::hasura::core::BallotStyle as PublishedBallotStyle;
 use sequent_core::types::hasura::core::{ElectionEvent, VotingChannels};
 use sequent_core::types::keycloak::{VOTED_CHANNEL, VOTED_CHANNEL_INTERNET_VALUE};
 use sequent_core::types::scheduled_event::*;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
-use std::sync::{PoisonError, RwLock};
 use strand::backend::ristretto::RistrettoCtx;
 use strand::hash::{hash_to_array, Hash, HashWrapper};
 use strand::serialization::StrandSerialize;
@@ -68,11 +67,6 @@ use sequent_core::encrypt::hash_ballot;
 use sequent_core::encrypt::hash_multi_ballot;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use serde_json::Serializer;
-
-/// The votable contest ids of each published ballot style. A ballot style
-/// never changes once it is published.
-static PUBLISHED_STYLE_CONTEST_IDS: Lazy<RwLock<HashMap<Uuid, HashSet<String>>>> =
-    Lazy::new(|| RwLock::new(HashMap::new()));
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct InsertCastVoteInput {
@@ -1050,14 +1044,6 @@ fn votable_contest_ids(ballot_eml: &str) -> Result<HashSet<String>, CastVoteErro
         .collect())
 }
 
-fn cached_style_contest_ids(style_id: &Uuid) -> Option<HashSet<String>> {
-    PUBLISHED_STYLE_CONTEST_IDS
-        .read()
-        .unwrap_or_else(PoisonError::into_inner)
-        .get(style_id)
-        .cloned()
-}
-
 /// The contest ids of a published ballot style, from the EML the lookup
 /// returned for it.
 fn read_style_contest_ids(
@@ -1081,46 +1067,18 @@ async fn get_published_style_contest_ids(
     election_id: &str,
     area_id: &str,
 ) -> Result<Vec<HashSet<String>>, PublishedStylesError> {
-    let mut styles = get_published_ballot_styles(
+    get_ballot_styles_by_elections(
         hasura_transaction,
         tenant_id,
         election_event_id,
-        election_id,
-        area_id,
-        false,
+        &vec![election_id.to_string()],
+        Some(area_id),
     )
     .await
-    .map_err(PublishedStylesError::lookup_failed)?;
-    if styles
-        .iter()
-        .any(|style| cached_style_contest_ids(&style.id).is_none())
-    {
-        styles = get_published_ballot_styles(
-            hasura_transaction,
-            tenant_id,
-            election_event_id,
-            election_id,
-            area_id,
-            true,
-        )
-        .await
-        .map_err(PublishedStylesError::lookup_failed)?;
-    }
-
-    let mut published_styles = Vec::with_capacity(styles.len());
-    for style in styles {
-        if let Some(cached) = cached_style_contest_ids(&style.id) {
-            published_styles.push(cached);
-            continue;
-        }
-        let style_contest_ids = read_style_contest_ids(&style)?;
-        PUBLISHED_STYLE_CONTEST_IDS
-            .write()
-            .unwrap_or_else(PoisonError::into_inner)
-            .insert(style.id, style_contest_ids.clone());
-        published_styles.push(style_contest_ids);
-    }
-    Ok(published_styles)
+    .map_err(PublishedStylesError::lookup_failed)?
+    .iter()
+    .map(read_style_contest_ids)
+    .collect()
 }
 
 /// The tally reads one ciphertext for each contest of the ballot style
