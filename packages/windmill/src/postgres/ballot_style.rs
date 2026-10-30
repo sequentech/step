@@ -202,6 +202,10 @@ pub async fn export_event_ballot_styles(
     Ok(results)
 }
 
+/// The published ballot styles of the elections. A style counts as published
+/// when its publication is generated, published and not deleted: generating a
+/// publication inserts its styles before it is published, so a style that is
+/// only not deleted can belong to a draft.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_ballot_styles_by_elections(
     hasura_transaction: &Transaction<'_>,
@@ -218,14 +222,21 @@ pub async fn get_ballot_styles_by_elections(
         .prepare(
             r#"
             SELECT
-                *
+                style.*
             FROM
-                sequent_backend.ballot_style
+                sequent_backend.ballot_style AS style
+            JOIN sequent_backend.ballot_publication AS publication ON
+                publication.id = style.ballot_publication_id AND
+                publication.tenant_id = style.tenant_id AND
+                publication.election_event_id = style.election_event_id
             WHERE
-                tenant_id = $1 AND
-                election_event_id = $2 AND
-                election_id = ANY($3) AND
-                deleted_at IS NULL;
+                style.tenant_id = $1 AND
+                style.election_event_id = $2 AND
+                style.election_id = ANY($3) AND
+                style.deleted_at IS NULL AND
+                publication.is_generated IS TRUE AND
+                publication.published_at IS NOT NULL AND
+                publication.deleted_at IS NULL;
             "#,
         )
         .await

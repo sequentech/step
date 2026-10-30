@@ -2927,8 +2927,8 @@ fn an_unreadable_ballot_style_does_not_stop_the_close() {
         bypass(
             &w,
             "INSERT INTO sequent_backend.ballot_publication
-             (id, tenant_id, election_event_id, is_generated)
-         VALUES ($1, $2, $3, true)",
+             (id, tenant_id, election_event_id, is_generated, published_at)
+         VALUES ($1, $2, $3, true, now())",
             &[&publication, &w.tenant, &w.event],
         )
         .await;
