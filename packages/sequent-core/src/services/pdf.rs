@@ -1120,13 +1120,14 @@ mod tests {
                     {
                         header.clear();
                     }
-                    let path = request_line
-                        .split_whitespace()
-                        .nth(1)
-                        .unwrap_or_default()
-                        .to_string();
+                    // A speculative preconnect sends no request, so it
+                    // loads nothing.
+                    let Some(path) = request_line.split_whitespace().nth(1)
+                    else {
+                        continue;
+                    };
                     if let Ok(mut paths) = recorded.lock() {
-                        paths.push(path);
+                        paths.push(path.to_string());
                     }
                     let _ = write!(
                         stream,
