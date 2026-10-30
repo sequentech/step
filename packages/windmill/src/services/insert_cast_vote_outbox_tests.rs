@@ -102,17 +102,24 @@ async fn vote_accepted_while_rabbitmq_is_down_reaches_its_board_once() {
 
     let (_, _, pending) = cast(&mut client, &fixture, &signing_key).await.unwrap();
     // The broker closes the connection before the vote's event is published,
-    // as with a forced connection close.
+    // as with a forced connection close. No database client is taken for a
+    // publish that RabbitMQ did not confirm.
     let lost = rabbitmq().await;
     lost.close(320, "CONNECTION_FORCED").await.unwrap();
-    let delivered = publish_and_remove(&lost, &queue_name, &client, &pending).await;
+    let mut client_taken = false;
+    let delivered = publish_and_remove(&lost, &queue_name, &pending, || {
+        client_taken = true;
+        async { Ok(test_client().await) }
+    })
+    .await;
     println!(
-        "after the vote, broker connection closed: delivery {:?}; votes {}, outbox events {}",
+        "after the vote, broker connection closed: delivery {:?}; database client taken {client_taken}; votes {}, outbox events {}",
         delivered.as_ref().map_err(|err| err.to_string()),
         count(&client, "cast_vote", &fixture).await,
         count(&client, "electoral_log_outbox", &fixture).await
     );
     assert!(delivered.is_err());
+    assert!(!client_taken);
     assert_eq!(count(&client, "cast_vote", &fixture).await, 1);
     assert_eq!(count(&client, "electoral_log_outbox", &fixture).await, 1);
 
