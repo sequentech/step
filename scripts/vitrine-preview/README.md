@@ -44,7 +44,9 @@ milestone are served from it), and the admin's Transparency tab (the sidecar's `
 Stubbed: everything else Step's backend does. The election, ballot style, area and voter are
 fixtures (`lib/fixtures.mjs`); the Keycloak issues unsigned development tokens (`alg: none`, which
 keycloak-js doesn't verify); `get_ballot_files_urls` serves the fixtures as JSON files; tallying,
-users, reports and other admin tabs answer empty.
+users, reports and other admin tabs answer empty. The voter's ballots are the ones cast during
+the session: `get_voter_cast_votes` finds them by ballot ID or by the prefix of a short ID, with
+their cast time, so the voting portal's ballot tracker (Ballot Locator) works end to end.
 
 ## The booth check needs the events log provisioned
 

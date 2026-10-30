@@ -231,8 +231,16 @@ export function createStandIn({ live, sidecar, origin, stepPackages, electionId,
         case "insert_cast_vote":
           return insertCastVote(args, ctx);
         case "get_voter_cast_votes": {
+          // The ballot tracker asks for a ballot by its ID, or by the prefix of a short ID.
           const voter = ctx.claims?.sub ?? VOTER_ID;
-          return [...casts.values()].filter((c) => c.voter_id_string === voter && (!args.election_id || c.election_id === args.election_id) && (!args.ballot_id || c.ballot_id === args.ballot_id));
+          const prefix = args.ballot_id_prefix?.toLowerCase();
+          return [...casts.values()].filter(
+            (c) =>
+              c.voter_id_string === voter &&
+              (!args.election_id || c.election_id === args.election_id) &&
+              (!args.ballot_id || c.ballot_id === args.ballot_id) &&
+              (!prefix || c.ballot_id.startsWith(prefix)),
+          );
         }
         case "get_ballot_files_urls":
           return publication();
