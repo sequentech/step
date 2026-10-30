@@ -3,83 +3,71 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// The pages around Vitrine's receipt, for each state the verifier's result
-// can put them in (the design boards Main, Revisit and Alert). The receipt
-// element itself is the kit's and is covered by the confirmation screen's tests.
+// What the portal shows around the ballot status dialog (the design boards
+// Review, Confirmation and BallotList): the check mark that opens it, and the
+// Ballot ID box of the review screen.
 
 import React from "react"
-import {fireEvent, render, screen, within} from "@testing-library/react"
+import {act, fireEvent, render, screen, waitFor, within} from "@testing-library/react"
+import {ThemeProvider} from "@mui/material/styles"
+import {MemoryRouter, Route, Routes} from "react-router-dom"
 import axe from "axe-core"
 import type {ChainResult, TierName, TierResult, TierStatus} from "@vitrine/verify"
+import theme from "../../../../ui-essentials/src/services/theme"
+import {EBallotStatus} from "../../services/vitrine/ballotStatus"
 import {EReceiptNotice, IReceiptView} from "../../services/vitrine/castReceipt"
-import {EReceiptKeeping} from "../../services/vitrine/storage"
-import {ETransparencyMode} from "../../services/vitrine/types"
-import type {IConfirmationVitrine} from "../../store/castVotes/confirmationScreenDataSlice"
-import {CastReceipt} from "./CastReceipt"
-import {KeptReceipts} from "./KeptReceipts"
+import {clockSeconds} from "../../services/vitrine/statusRows"
+import {BallotStatus, EBallotStatusTrigger, IBallotStatusProps} from "./BallotStatus"
+import {ReviewBallotId} from "./ReviewBallotId"
 
 jest.mock("react-i18next", () => ({
     useTranslation: () => ({
         t: (key: string, values?: Record<string, unknown>) =>
             values ? `${key} ${JSON.stringify(values)}` : key,
-        i18n: {language: "en"},
     }),
 }))
 jest.mock(
     "@sequentech/ui-essentials",
     () => ({
-        ...jest.requireActual(
-            "../../../../ui-essentials/src/components/ConfirmationActions/ConfirmationActions"
-        ),
-        VisuallyHidden: jest.requireActual(
-            "../../../../ui-essentials/src/components/VisuallyHidden/VisuallyHidden"
+        BallotHashCopyButton: jest.requireActual(
+            "../../../../ui-essentials/src/components/BallotHash/BallotHash"
+        ).BallotHashCopyButton,
+        IconButton: jest.requireActual(
+            "../../../../ui-essentials/src/components/IconButton/IconButton"
         ).default,
-        QRCode: () => null,
         theme: jest.requireActual("../../../../ui-essentials/src/services/theme").default,
     }),
     {virtual: true}
 )
 jest.mock("../../providers/AuthContextProvider", () => ({
     AuthContext: jest.requireActual<typeof React>("react").createContext({
-        isKiosk: () => false,
-        userId: "voter-1",
+        isKiosk: () => mockKiosk,
     }),
 }))
-jest.mock("../../providers/SettingsContextProvider", () => ({
-    SettingsContext: jest.requireActual<typeof React>("react").createContext({
-        globalSettings: {BALLOT_VERIFIER_URL: "https://verifier.example/"},
-    }),
-}))
-jest.mock("./VitrineElements", () => ({
-    VitrineReceiptView: () => <div className="kit-receipt" />,
-    VitrineStatusView: () => <div className="kit-status" />,
-}))
 
-const mockCast = jest.fn()
-jest.mock("../../hooks/useCastReceipt", () => ({
-    useCastReceipt: () => mockCast(),
-    useKeptReceipts: () => mockKept(),
-}))
-const mockKept = jest.fn()
+let mockKiosk = false
 
-const tier = (name: TierName, status: TierStatus, extra: Partial<TierResult> = {}): TierResult => ({
+const GROUPED = "30ff d314 4238 6472 fd6d bdb4 df36 9559 0f7a 414d 02ab 2499 5bef c5a9 40b8 9da1"
+const BALLOT_ID = GROUPED.replace(/ /g, "")
+const TRACKER = "/tenant/t/event/e/election/el/ballot-locator/abc"
+
+const tier = (name: TierName, status: TierStatus): TierResult => ({
     tier: name,
     status,
     reasons: [],
-    ...extra,
 })
 
 const resultOf = (status: ChainResult["status"], tiers: TierResult[]): ChainResult =>
     ({
-        ok: status !== "failed" && status !== "invalid",
+        ok: true,
         status,
         tiers,
         facts: {included: "done", unchanged: "done", sameForEveryone: "pending"},
         reasons: [],
         steps: [],
         where: "page",
-        entry: {log: "ballots", leafHash: "ab", index: 18204331, promised: false},
-        words: ["amber", "falcon", "river", "seven"],
+        entry: {log: "ballots", leafHash: "ab", index: 21, promised: false},
+        words: [],
         wordsLang: "en",
         now: 0,
         clockWarning: false,
@@ -87,380 +75,261 @@ const resultOf = (status: ChainResult["status"], tiers: TierResult[]): ChainResu
         policy: {id: "x", words: [], lang: "en", event: "e", witnesses: [], hubs: []},
     }) as unknown as ChainResult
 
-const PENDING = resultOf("pending", [
-    tier("record", "verified"),
-    tier("witnesses", "pending"),
-    tier("hubs", "pending"),
-    tier("browser", "pending"),
-])
-const HOLDS = resultOf("pending", [
-    tier("record", "verified"),
-    tier("witnesses", "verified"),
-    tier("hubs", "verified", {
-        hubs: [
-            {hub: "a", status: "verified", reasons: []},
-            {hub: "b", status: "verified", reasons: []},
-        ],
-    }),
-    tier("browser", "verified"),
-])
-const SPLIT = resultOf("failed", [
-    tier("record", "verified"),
-    tier("witnesses", "failed", {
-        reasons: [{code: "split-view", objects: ["issued", "record"]}],
-    }),
-])
-
-const view = (v: Partial<IReceiptView>): IReceiptView => ({notice: EReceiptNotice.NONE, ...v})
-
-const answer = (v: IReceiptView | undefined, kept = true) =>
-    mockCast.mockReturnValue({view: v, keeping: EReceiptKeeping.KEEP, kept, setKeeping})
-
-const setKeeping = jest.fn()
-
-const publicEvent: IConfirmationVitrine = {
-    cast: null,
-    transparency: {mode: ETransparencyMode.PUBLIC},
+const RECORDED: IReceiptView = {
+    notice: EReceiptNotice.NONE,
+    chain: "chain",
+    result: resultOf("pending", [
+        tier("record", "verified"),
+        tier("witnesses", "pending"),
+        tier("hubs", "pending"),
+        tier("browser", "pending"),
+    ]),
 }
-const privateEvent: IConfirmationVitrine = {
-    cast: null,
-    transparency: {mode: ETransparencyMode.PRIVATE},
+const WITNESSED: IReceiptView = {
+    ...RECORDED,
+    result: resultOf("pending", [
+        tier("record", "verified"),
+        tier("witnesses", "verified"),
+        tier("hubs", "pending"),
+        tier("browser", "pending"),
+    ]),
 }
 
-const renderPage = (vitrine: IConfirmationVitrine = publicEvent) =>
-    render(
-        <CastReceipt
-            eventId="e"
-            electionId="el"
-            ballotId="c0ffee00c0ffee00"
-            vitrine={vitrine}
-            progress={<div className="progress" />}
-            renderActions={(receipt) => (
-                <button
-                    className="actions"
-                    data-save={receipt.save ? "shown" : "hidden"}
-                    disabled={!receipt.save?.onClick}
-                >
-                    actions
-                </button>
-            )}
-        />
+const renderStatus = (props: Partial<IBallotStatusProps> = {}) => {
+    const element = (p: Partial<IBallotStatusProps>) => (
+        <ThemeProvider theme={theme}>
+            <MemoryRouter initialEntries={["/start"]}>
+                <Routes>
+                    <Route
+                        path="/start"
+                        element={
+                            <BallotStatus
+                                trigger={EBallotStatusTrigger.ICON}
+                                ballotId={BALLOT_ID}
+                                electionName="Municipal council election"
+                                trackerUrl={TRACKER}
+                                {...p}
+                            />
+                        }
+                    />
+                    <Route path="/tenant/*" element={<div>the ballot tracker</div>} />
+                </Routes>
+            </MemoryRouter>
+        </ThemeProvider>
     )
+    const utils = render(element(props))
+    return {...utils, update: (p: Partial<IBallotStatusProps>) => utils.rerender(element(p))}
+}
+
+const stateWords = (status: EBallotStatus): string => `vitrine.status.state.${status}`
 
 beforeEach(() => {
-    jest.clearAllMocks()
+    mockKiosk = false
+    jest.restoreAllMocks()
 })
 
-describe("the page around the receipt", () => {
-    it("says the ballot is cast while the witnesses haven't confirmed it", () => {
-        answer(view({chain: "chain", result: PENDING}))
-        const {container} = renderPage()
-        expect(container.querySelector(".vitrine-confirmation-title")?.textContent).toBe(
-            "vitrine.confirmation.cast"
-        )
-        expect(container.querySelector(".vitrine-confirmation")?.getAttribute("data-phase")).toBe(
-            "cast"
-        )
-    })
-
-    it("says the ballot is in the public record once the witnesses confirm it", () => {
-        answer(view({chain: "chain", result: HOLDS}))
-        const {container} = renderPage()
-        expect(container.querySelector(".vitrine-confirmation-title")?.textContent).toBe(
-            "vitrine.confirmation.recordedPublic"
-        )
-        expect(container.querySelector(".vitrine-confirmation-status")?.textContent).toBe(
-            "vitrine.confirmation.recordedPublic"
-        )
-    })
-
-    it("calls a private event's record the election record", () => {
-        answer(view({chain: "chain", result: HOLDS}))
-        const {container} = renderPage(privateEvent)
-        expect(container.querySelector(".vitrine-confirmation-title")?.textContent).toBe(
-            "vitrine.confirmation.recordedPrivate"
-        )
-    })
-
-    it("offers to save the receipt only once it has a chain", () => {
-        answer(view({notice: EReceiptNotice.WAITING}))
-        const waiting = renderPage()
-        expect(waiting.container.querySelector<HTMLButtonElement>(".actions")?.disabled).toBe(true)
-        waiting.unmount()
-
-        answer(view({chain: "chain", result: PENDING}))
-        const ready = renderPage()
-        expect(ready.container.querySelector<HTMLButtonElement>(".actions")?.disabled).toBe(false)
-    })
-
-    it("lets the voter stop keeping receipts on this device", () => {
-        answer(view({chain: "chain", result: PENDING}))
-        const {container} = renderPage()
-        expect(container.querySelector(".vitrine-receipt-storage-text")?.textContent).toBe(
-            "vitrine.receipt.stored"
-        )
-        fireEvent.click(container.querySelector(".vitrine-receipt-keeping-button")!)
-        expect(setKeeping).toHaveBeenCalledWith(EReceiptKeeping.FORGET)
-    })
-})
-
-describe("the page when the ballot can't be confirmed", () => {
-    it("lists the receipt's entry and the proofs that contradict each other", () => {
-        answer(view({chain: "chain", result: SPLIT}))
-        const {container} = renderPage()
-        const failure = container.querySelector<HTMLElement>(".vitrine-failure")!
-        expect(failure.querySelector(".vitrine-failure-title")?.textContent).toBe(
-            "vitrine.failure.titlePublic"
-        )
-        expect(failure.querySelector(".vitrine-failure-explanation")?.textContent).toBe(
-            "vitrine.failure.contradiction"
-        )
-        expect(failure.querySelector(".vitrine-failure-evidence-count")?.textContent).toContain(
-            '"count":2'
-        )
-        expect(failure.querySelector(".vitrine-failure-receipt")?.textContent).toContain(
-            "18,204,331"
-        )
-        const problem = failure.querySelector<HTMLElement>(".vitrine-failure-problem")!
-        expect(problem.getAttribute("data-tier")).toBe("witnesses")
-        expect(problem.querySelector(".vitrine-failure-row-title")?.textContent).toBe(
-            "Witnesses signed a record that contradicts yours."
-        )
-        expect(problem.querySelector(".vitrine-failure-row-reason")?.textContent).toContain(
-            "issued, record"
-        )
-    })
-
-    it("names the election record for a private event, and keeps the voter able to finish", () => {
-        answer(view({chain: "chain", result: SPLIT}))
-        const {container} = renderPage(privateEvent)
-        expect(container.querySelector(".vitrine-failure-title")?.textContent).toBe(
-            "vitrine.failure.titlePrivate"
-        )
-        expect(container.querySelector(".actions")).not.toBeNull()
-    })
-
-    it("offers the receipt file on the page itself, not twice, and shows no steps", () => {
-        answer(view({chain: "chain", result: SPLIT}))
-        const {container} = renderPage()
-        expect(container.querySelector(".actions")?.getAttribute("data-save")).toBe("hidden")
-        expect(container.querySelector(".vitrine-failure-save-button")).not.toBeNull()
-        expect(container.querySelector(".progress")).toBeNull()
-    })
-
-    it("tells each reason once, whichever tiers share it", () => {
-        const reason = {code: "split-view", objects: ["issued", "record"]}
-        answer(
-            view({
-                chain: "chain",
-                result: resultOf("failed", [
-                    tier("record", "failed", {reasons: [reason]}),
-                    tier("witnesses", "failed", {reasons: [reason]}),
-                ]),
-            })
-        )
-        const {container} = renderPage()
-        expect(container.querySelectorAll(".vitrine-failure-problem")).toHaveLength(2)
-        expect(container.querySelectorAll(".vitrine-failure-row-reason")).toHaveLength(1)
-    })
-
-    it("shows no evidence when no receipt came, and says so", () => {
-        answer(view({notice: EReceiptNotice.MISSING}))
-        const {container} = renderPage()
-        expect(container.querySelector(".vitrine-failure")?.getAttribute("data-notice")).toBe(
-            "missing"
-        )
-        expect(container.querySelector(".vitrine-failure-explanation")?.textContent).toBe(
-            "vitrine.receipt.missing"
-        )
-        expect(container.querySelector(".vitrine-failure-evidence")).toBeNull()
-        expect(container.querySelector(".vitrine-failure-save-button")).toBeNull()
-    })
-
-    it("doesn't call damaged data a failure", () => {
-        answer(
-            view({
-                chain: "chain",
-                result: resultOf("invalid", [
-                    tier("record", "invalid"),
-                    tier("witnesses", "pending"),
-                ]),
-            })
-        )
-        const {container} = renderPage()
-        expect(container.querySelector(".vitrine-failure")).toBeNull()
-        expect(container.querySelector(".vitrine-confirmation-title")?.textContent).toBe(
-            "vitrine.confirmation.cast"
-        )
-    })
-})
-
-describe("the receipts kept on this device", () => {
-    const keptFor = (result: ChainResult | undefined) =>
-        mockKept.mockReturnValue({
-            receipts: [
-                {kept: {electionId: "el"}, view: result ? view({chain: "c", result}) : undefined},
-            ],
-            forgetAll: jest.fn(),
+describe("the check mark next to a Ballot ID", () => {
+    it.each(Object.values(EBallotStatus))("names the state when it is %s", (status) => {
+        renderStatus({status})
+        const button = screen.getByRole("button", {
+            name: `vitrine.status.aria ${JSON.stringify({state: stateWords(status)})}`,
         })
-    const presentation = {transparency: "public"}
-    const renderKept = () =>
+        expect(button.getAttribute("data-status")).toBe(status)
+        expect(button.getAttribute("aria-haspopup")).toBe("dialog")
+    })
+
+    it("shows the state in its tooltip", async () => {
+        renderStatus({status: EBallotStatus.VERIFIED})
+        fireEvent.focus(screen.getByRole("button", {name: /^vitrine.status.aria/}))
+        fireEvent.mouseOver(screen.getByRole("button", {name: /^vitrine.status.aria/}))
+        expect(
+            await screen.findByRole("tooltip", {
+                name: `vitrine.status.tooltip ${JSON.stringify({state: stateWords(EBallotStatus.VERIFIED)})}`,
+            })
+        ).toBeTruthy()
+    })
+
+    it("takes the status from the receipt", () => {
+        renderStatus({view: RECORDED})
+        expect(
+            screen.getByRole("button", {name: /^vitrine.status.aria/}).getAttribute("data-status")
+        ).toBe(EBallotStatus.RECORDED)
+    })
+
+    it("opens the dialog, and closes it again", async () => {
+        renderStatus({status: EBallotStatus.NOT_CAST})
+        expect(screen.queryByRole("dialog")).toBeNull()
+        fireEvent.click(screen.getByRole("button", {name: /^vitrine.status.aria/}))
+        const dialog = screen.getByRole("dialog", {name: "vitrine.status.title"})
+        expect(within(dialog).getByText(stateWords(EBallotStatus.NOT_CAST))).toBeTruthy()
+        fireEvent.click(within(dialog).getByRole("button", {name: "vitrine.status.ok"}))
+        await waitFor(() =>
+            expect(screen.queryByRole("dialog", {name: "vitrine.status.title"})).toBeNull()
+        )
+    })
+
+    it("shows when this page saw each step done", () => {
+        const at = new Date(2026, 9, 29, 10, 42, 8).getTime()
+        const spy = jest.spyOn(Date, "now").mockReturnValue(at)
+        const {update} = renderStatus({view: RECORDED})
+        act(() => {
+            spy.mockReturnValue(at + 1000)
+            update({view: WITNESSED})
+        })
+        fireEvent.click(screen.getByRole("button", {name: /^vitrine.status.aria/}))
+        const words = Array.from(
+            screen.getByRole("dialog").querySelectorAll(".ballot-status-step-word")
+        ).map((w) => w.textContent)
+        expect(words[0]).toBe(clockSeconds(at))
+        expect(words[1]).toBe(clockSeconds(at + 1000))
+    })
+
+    it("opens the ballot tracker in a new tab", () => {
+        renderStatus({view: WITNESSED})
+        fireEvent.click(screen.getByRole("button", {name: /^vitrine.status.aria/}))
+        const link = screen.getByRole("link", {name: "vitrine.status.tracker"})
+        expect(link.getAttribute("href")).toBe(TRACKER)
+        expect(link.getAttribute("target")).toBe("_blank")
+        expect(link.getAttribute("rel")).toContain("noopener")
+    })
+
+    it("opens the ballot tracker in the same tab on a kiosk, which keeps its session in memory", () => {
+        mockKiosk = true
+        renderStatus({view: WITNESSED})
+        fireEvent.click(screen.getByRole("button", {name: /^vitrine.status.aria/}))
+        const link = screen.getByRole("link", {name: "vitrine.status.tracker"})
+        expect(link.getAttribute("target")).toBeNull()
+        fireEvent.click(link)
+        expect(screen.getByText("the ballot tracker")).toBeTruthy()
+    })
+})
+
+describe("the ballot cast label of the ballot list", () => {
+    it("doesn't start the vote of the card around it when the dialog is clicked", () => {
+        const onCardClick = jest.fn()
         render(
-            <KeptReceipts eventId="e" presentation={presentation} electionNames={{el: "Municipal"}}>
-                <div className="elections">elections</div>
-            </KeptReceipts>
+            <ThemeProvider theme={theme}>
+                <MemoryRouter>
+                    <div className="election-card" onClick={onCardClick}>
+                        <BallotStatus
+                            trigger={EBallotStatusTrigger.LABEL}
+                            view={WITNESSED}
+                            ballotId={BALLOT_ID}
+                        />
+                    </div>
+                </MemoryRouter>
+            </ThemeProvider>
         )
-
-    it("says the ballot is still in the record, tier by tier", () => {
-        keptFor(HOLDS)
-        const {container} = renderKept()
-        const card = container.querySelector<HTMLElement>(".vitrine-kept-receipt")!
-        expect(card.getAttribute("data-phase")).toBe("holds")
-        expect(card.querySelector(".vitrine-kept-title")?.textContent).toBe(
-            "vitrine.storedReceipts.holdsPublic"
-        )
-        const tiers = Array.from(card.querySelectorAll(".vitrine-kept-tier")).map((t) => [
-            t.getAttribute("data-tier"),
-            t.querySelector(".vitrine-kept-tier-value")?.textContent,
-        ])
-        expect(tiers).toEqual([
-            ["witnesses", "Verified"],
-            ["hubs", 'vitrine.storedReceipts.hubsAgree {"agree":2,"total":2}'],
-            ["browser", "vitrine.storedReceipts.anchored"],
-        ])
-        expect(card.querySelector(".vitrine-kept-words")?.textContent).toBe(
-            "amber · falcon · river · seven"
-        )
+        fireEvent.click(screen.getByRole("button", {name: /^vitrine.status.ariaCast/}))
+        const dialog = screen.getByRole("dialog", {name: "vitrine.status.title"})
+        fireEvent.click(dialog.querySelector(".ballot-status-sub")!)
+        fireEvent.click(within(dialog).getByRole("button", {name: "vitrine.status.ok"}))
+        expect(onCardClick).toHaveBeenCalledTimes(1)
     })
 
-    it("keeps the page's elections between the receipts and how they are checked", () => {
-        keptFor(HOLDS)
-        const {container} = renderKept()
-        const order = [".vitrine-kept-receipts", ".elections", ".vitrine-how"].map((selector) =>
-            container.querySelector(selector)
-        )
-        expect(order[0]?.compareDocumentPosition(order[1]!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
-        expect(order[1]?.compareDocumentPosition(order[2]!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
-    })
-
-    it("waits for proofs that are on their way, without calling it a problem", () => {
-        keptFor(PENDING)
-        const {container} = renderKept()
-        const card = container.querySelector(".vitrine-kept-receipt")
-        expect(card?.getAttribute("data-phase")).toBe("waiting")
-        expect(card?.querySelector(".vitrine-kept-title")?.textContent).toBe(
-            "vitrine.storedReceipts.waiting"
-        )
-    })
-
-    it("reports contradicting proofs, and a receipt it couldn't check", () => {
-        keptFor(SPLIT)
-        const problem = renderKept()
-        expect(
-            problem.container.querySelector(".vitrine-kept-receipt")?.getAttribute("data-phase")
-        ).toBe("problem")
-        expect(problem.container.querySelector(".vitrine-kept-title")?.textContent).toBe(
-            "vitrine.failure.titlePublic"
-        )
-        problem.unmount()
-
-        keptFor(undefined)
-        const unchecked = renderKept()
-        expect(
-            unchecked.container.querySelector(".vitrine-kept-receipt")?.getAttribute("data-phase")
-        ).toBe("unchecked")
-    })
-
-    it("opens the kit's receipt on demand, and forgets the receipts when asked", () => {
-        keptFor(HOLDS)
-        const forgetAll = jest.fn()
-        mockKept.mockReturnValue({
-            receipts: [{kept: {electionId: "el"}, view: view({chain: "c", result: HOLDS})}],
-            forgetAll,
+    it("is the button that opens the dialog", () => {
+        renderStatus({trigger: EBallotStatusTrigger.LABEL, view: WITNESSED, kept: true})
+        const button = screen.getByRole("button", {
+            name: `vitrine.status.ariaCast ${JSON.stringify({state: stateWords(EBallotStatus.WITNESSED)})}`,
         })
-        const {container} = renderKept()
-        const toggle = container.querySelector<HTMLElement>(".vitrine-kept-view-button")!
-        const panel = container.querySelector<HTMLElement>(".vitrine-kept-receipt-panel")!
-        expect(panel.hidden).toBe(true)
-        fireEvent.click(toggle)
-        expect(panel.hidden).toBe(false)
-        expect(toggle.getAttribute("aria-expanded")).toBe("true")
-        fireEvent.click(container.querySelector(".vitrine-kept-receipts-forget-button")!)
-        expect(forgetAll).toHaveBeenCalledTimes(1)
+        expect(within(button).getByText("vitrine.status.ballotCast")).toBeTruthy()
+        fireEvent.click(button)
+        expect(screen.getByRole("dialog", {name: "vitrine.status.title"})).toBeTruthy()
     })
 
-    it("shows only the page's elections without receipts, or for an event without transparency", () => {
-        mockKept.mockReturnValue({receipts: [], forgetAll: jest.fn()})
-        const none = renderKept()
-        expect(none.container.querySelector(".vitrine-kept-receipts")).toBeNull()
-        expect(none.container.querySelector(".elections")).not.toBeNull()
-        none.unmount()
-
-        keptFor(HOLDS)
-        const off = render(
-            <KeptReceipts eventId="e" presentation={{transparency: "disabled"}}>
-                <div className="elections">elections</div>
-            </KeptReceipts>
-        )
-        expect(off.container.querySelector(".vitrine-kept-receipts")).toBeNull()
-        expect(within(off.container).getByText("elections")).toBeTruthy()
-        expect(screen.queryByText("vitrine.storedReceipts.howTitle")).toBeNull()
+    it("shows a ballot that is checking until its receipt is there", () => {
+        renderStatus({trigger: EBallotStatusTrigger.LABEL, view: undefined})
+        expect(
+            screen
+                .getByRole("button", {name: /^vitrine.status.ariaCast/})
+                .getAttribute("data-status")
+        ).toBe(EBallotStatus.CHECKING)
     })
 })
 
-describe("the pages' accessibility", () => {
-    // Colour contrast needs a layout engine; the boards' colours are checked on the page.
-    const violations = async (container: HTMLElement): Promise<string[]> => {
-        const {violations} = await axe.run(container, {rules: {"color-contrast": {enabled: false}}})
-        return violations.map(
-            (v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`
+describe("the Ballot ID box of the review screen", () => {
+    const writeText = jest.fn(async (_text: string) => undefined)
+    const onHelpClick = jest.fn()
+
+    const renderBox = () =>
+        render(
+            <ThemeProvider theme={theme}>
+                <MemoryRouter>
+                    <ReviewBallotId
+                        ballotId={BALLOT_ID}
+                        electionName="Municipal council election"
+                        helpLabel="About your Ballot ID"
+                        onHelpClick={onHelpClick}
+                    />
+                </MemoryRouter>
+            </ThemeProvider>
         )
-    }
 
-    it("has no violations while the ballot is cast, or once it is in the record", async () => {
-        answer(view({chain: "chain", result: PENDING}))
-        const cast = renderPage()
-        expect(await violations(cast.container)).toEqual([])
-        cast.unmount()
-
-        answer(view({chain: "chain", result: HOLDS}))
-        const recorded = renderPage()
-        expect(await violations(recorded.container)).toEqual([])
+    beforeEach(() => {
+        onHelpClick.mockClear()
+        Object.defineProperty(navigator, "clipboard", {value: {writeText}, configurable: true})
     })
 
-    it("has no violations when the ballot can't be confirmed", async () => {
-        answer(view({chain: "chain", result: SPLIT}))
-        const failed = renderPage()
-        expect(await violations(failed.container)).toEqual([])
-        failed.unmount()
-
-        answer(view({notice: EReceiptNotice.MISSING}))
-        const missing = renderPage()
-        expect(await violations(missing.container)).toEqual([])
+    it("shows the short ID after the label", () => {
+        const {container} = renderBox()
+        expect(container.querySelector(".hash-text")?.textContent).toBe(
+            "vitrine.ballotId.yours 30ff d314"
+        )
+        expect(container.querySelector(".vitrine-short-ballot-id")?.textContent).toBe("30ff d314")
     })
 
-    it("has no violations in the kept receipts, in any state", async () => {
-        for (const result of [HOLDS, PENDING, SPLIT, undefined]) {
-            mockKept.mockReturnValue({
-                receipts: [
-                    {
-                        kept: {electionId: "el"},
-                        view: result ? view({chain: "c", result}) : undefined,
-                    },
-                ],
-                forgetAll: jest.fn(),
-            })
-            const kept = render(
-                <KeptReceipts
-                    eventId="e"
-                    presentation={{transparency: "public"}}
-                    electionNames={{el: "Municipal"}}
-                >
-                    <div className="elections">elections</div>
-                </KeptReceipts>
-            )
-            expect(await violations(kept.container)).toEqual([])
-            kept.unmount()
-        }
+    it("shows the check mark of a ballot not cast yet, and opens its dialog", () => {
+        renderBox()
+        const button = screen.getByRole("button", {name: /^vitrine.status.aria/})
+        expect(button.getAttribute("data-status")).toBe(EBallotStatus.NOT_CAST)
+        fireEvent.click(button)
+        const dialog = screen.getByRole("dialog", {name: "vitrine.status.title"})
+        expect(within(dialog).queryByRole("button", {name: "vitrine.status.save"})).toBeNull()
+        expect(within(dialog).queryByRole("link")).toBeNull()
+    })
+
+    it("copies the full ID in groups of four", async () => {
+        renderBox()
+        await act(async () => {
+            fireEvent.click(screen.getByRole("button", {name: "vitrine.ballotId.copy"}))
+        })
+        expect(writeText).toHaveBeenCalledWith(GROUPED)
+    })
+
+    it("opens the help about the Ballot ID", () => {
+        renderBox()
+        fireEvent.click(screen.getByRole("button", {name: "About your Ballot ID"}))
+        expect(onHelpClick).toHaveBeenCalledTimes(1)
+    })
+})
+
+describe("the status check mark's accessibility", () => {
+    // Colour contrast needs a layout engine, and the fragments aren't whole pages.
+    it("has no violations in the review screen's box, the ballot list, or with the dialog open", async () => {
+        const box = render(
+            <ThemeProvider theme={theme}>
+                <MemoryRouter>
+                    <ReviewBallotId
+                        ballotId={BALLOT_ID}
+                        helpLabel="About your Ballot ID"
+                        onHelpClick={jest.fn()}
+                    />
+                    <BallotStatus
+                        trigger={EBallotStatusTrigger.LABEL}
+                        view={WITNESSED}
+                        ballotId={BALLOT_ID}
+                    />
+                </MemoryRouter>
+            </ThemeProvider>
+        )
+        const check = async () =>
+            (
+                await axe.run(document.body, {
+                    rules: {"color-contrast": {enabled: false}, "region": {enabled: false}},
+                })
+            ).violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`)
+        expect(await check()).toEqual([])
+        fireEvent.click(box.getAllByRole("button", {name: /^vitrine.status.ariaCast/})[0])
+        expect(await check()).toEqual([])
     })
 })

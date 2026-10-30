@@ -439,14 +439,119 @@ const galegoTranslation: TranslationType = {
             locateAgain: "Buscar outra Papeleta",
             found: "O teu ID de papeleta {{ballotId}} foi atopado",
             notFound: "O teu ID de papeleta {{ballotId}} non foi atopado",
-            ambiguous:
-                "Máis dunha das túas papeletas coincide con {{ballotId}}. Usa o ID completo da papeleta.",
             contentDesc: "Este é o contido da túa Papeleta:",
             wrongFormatBallotId: "Formato incorrecto para o ID da Papeleta",
             ballotIdNotFoundAtFilter:
                 "Non atopado, comprobe que o ID da Papeleta seja correcto e pertenezca a este usuario.",
             filterByBallotId: "Filtrar por ID da Papeleta",
             totalBallots: "Papeletas: {{total}}",
+            idHelp: "O ID de papeleta curto, como 30ff d314, ou o completo",
+            foundShort:
+                "Atopada polo seu ID curto. Para estares seguro de que é a túa, compara o ID de papeleta completo co teu recibo.",
+            matches: {
+                title: "{{total}} papeletas teñen o ID curto {{shortId}}. Escolle a túa ou introduce o ID de papeleta completo.",
+                cast: "Emitida o {{time}}",
+            },
+            result: {
+                receipt: "Recibo da papeleta",
+                idComment: "Usa o ID curto ou o completo para volver atopar esta papeleta.",
+                fullId: "ID de papeleta completo",
+                copy: "Copiar o ID de papeleta completo",
+                copied: "ID de papeleta copiado",
+                copiedLabel: "Copiado",
+                recordEntry: "Entrada do rexistro",
+                save: "Gardar o recibo",
+                sealLabel: "Estado da papeleta: {{status}}",
+                check: "Comprobalo de forma independente",
+                caption:
+                    "Comprobado polo teu navegador, con código que calquera pode inspeccionar.",
+                captionVerified:
+                    "Verificado polo teu navegador, con código que calquera pode inspeccionar.",
+                captionProblem:
+                    "Atopado polo teu navegador, con código que calquera pode inspeccionar.",
+                late: "Normalmente significa que un nodo vai lento ou está sen conexión; non é proba de manipulación. Volve comprobalo máis tarde, aquí ou noutro dispositivo.",
+                problem:
+                    "O portal indica que esta papeleta foi emitida, pero o rexistro público da elección non ten ningunha entrada para ela. O teu navegador gardou a proba: a resposta do portal e o punto de control asinado do rexistro. Envíaa á autoridade electoral ou a un observador.",
+                problemOther:
+                    "As probas asinadas desta papeleta contradínse entre si. Pode ser un fallo ou un ataque. O teu navegador gardou a proba. Envíaa á autoridade electoral ou a un observador.",
+                saveEvidence: "Gardar a proba",
+                howToReport: "Como denuncialo",
+                howToReportText:
+                    "Garda o ficheiro da proba e envíao á autoridade electoral ou a un observador independente. Poden comprobalo nos seus propios ordenadores. Non contén nada sobre como votaches.",
+                noReceipt:
+                    "Este dispositivo non ten o recibo desta papeleta. Compróbaa no dispositivo co que votaches, ou comproba o ficheiro do recibo no verificador de papeletas.",
+                receiptPending:
+                    "Este dispositivo garda un recibo desta papeleta, pero non está completo ou non se puido comprobar agora. Téntao de novo máis tarde, ou comproba o ficheiro do recibo no verificador de papeletas.",
+                status: {
+                    checking: {
+                        head: "Comprobando…",
+                        sub: "O teu navegador está buscando a papeleta no rexistro público.",
+                    },
+                    recorded: {
+                        head: "No rexistro público",
+                        sub: "O teu navegador atopou a papeleta. Comprobando as súas testemuñas…",
+                    },
+                    witnessed: {
+                        head: "Confirmada por testemuñas",
+                        sub: "Comprobando os ancoraxes públicos…",
+                        subAnchored_one:
+                            "Ancorada en nodos públicos. Onde comproban os navegadores chegará en {{count}} minuto.",
+                        subAnchored_other:
+                            "Ancorada en nodos públicos. Onde comproban os navegadores chegará en {{count}} minutos.",
+                    },
+                    verified: {
+                        head: "Verificada",
+                        sub: "No rexistro público, confirmada por testemuñas independentes e ancorada publicamente.",
+                    },
+                    late: {
+                        head: "Tarda máis do esperado",
+                        sub: "No rexistro público e confirmada por testemuñas, pero os seus ancoraxes públicos van tarde.",
+                    },
+                    problem: {
+                        head: "Non está no rexistro público",
+                        sub: "O teu navegador non puido atopar esta papeleta no rexistro público da elección.",
+                    },
+                    otherProblem: {
+                        head: "Fallou unha comprobación",
+                        sub: "As probas asinadas desta papeleta contradínse entre si. Mira o paso que fallou.",
+                    },
+                },
+                steps: {
+                    record: {
+                        title: "Engadida ao rexistro público",
+                        done: "Entrada n.º {{index}} do rexistro de papeletas da elección. O teu navegador comprobou a súa proba.",
+                        failed: "Ningunha entrada do rexistro de papeletas da elección ten este ID de papeleta.",
+                        missing: "Falta",
+                    },
+                    witnesses: {
+                        title: "Confirmada por testemuñas",
+                        done: "Testemuñas independentes asinaron un rexistro que a inclúe.",
+                        count: "{{signed}} de {{total}} · fan falta {{needed}}",
+                        countOf: "{{signed}} de {{total}}",
+                    },
+                    hubs: {
+                        title_one: "Ancorada en {{count}} nodo público",
+                        title_other: "Ancorada en {{count}} nodos públicos",
+                        titleAny: "Ancorada en nodos públicos",
+                        done: "Rexistros compartidos tamén gardan esta entrada: {{hubs}}.",
+                    },
+                    browser: {
+                        title: "Ancorada onde comproban os navegadores",
+                        done: "Gardada por un nodo provisional ata que os navegadores comproben os rexistros por si mesmos.",
+                    },
+                    checking: "O teu navegador está comprobando…",
+                    scheduled_one: "En {{count}} minuto. Non fai falta esperar.",
+                    scheduled_other: "En {{count}} minutos. Non fai falta esperar.",
+                    by: "Antes de {{time}}",
+                    late: "Tarde",
+                    lateHubs: "Os nodos deberían telo ancorado antes de {{time}}.",
+                    lateOther: "Isto debería terse feito antes de {{time}}.",
+                    waiting: "Agardando o paso anterior.",
+                    skipped: "Sen comprobar.",
+                    failedStep: "As probas asinadas deste paso contradínse entre si.",
+                    failedTime: "Problema",
+                },
+            },
             steps: {
                 lookup: "Busca a túa Papeleta",
                 result: "Resultado",
@@ -468,35 +573,140 @@ const galegoTranslation: TranslationType = {
             },
         },
         vitrine: {
-            progress: "Paso {{current}} de {{total}} · {{step}}",
-            confirmation: {
-                step: "Confirmación",
-                cast: "A súa papeleta emitiuse",
-                recordedPublic: "A súa papeleta está no rexistro público",
-                recordedPrivate: "A súa papeleta está no rexistro da elección",
-                keep: "Garde o seu recibo para comprobalo de novo máis tarde.",
-                elsewhere: "Comprobalo noutro dispositivo",
-                save: "Gardar o recibo",
+            ballotId: {
+                label: "ID da Papeleta",
+                full: "ID da Papeleta completo",
+                yours: "O teu ID de Papeleta:",
+                copy: "Copiar o ID completo",
+                copied: "ID copiado",
+                copiedShort: "Copiado",
             },
-            failure: {
-                titlePublic: "Non puidemos confirmar a súa papeleta no rexistro público",
-                titlePrivate: "Non puidemos confirmar a súa papeleta no rexistro da elección",
-                contradiction:
-                    "As probas asinadas do seu recibo contradícense, así que este sitio web non pode confirmar a súa papeleta. Pode ser un fallo ou un ataque. O seu voto aínda pode contar, pero alguén independente debería revisalo.",
-                evidenceTitle: "Evidencias gardadas neste dispositivo",
-                evidenceCount_one: "{{count}} elemento",
-                evidenceCount_other: "{{count}} elementos",
-                receiptEntry: "O seu recibo da entrada #{{index}}",
-                receiptPromise: "O seu recibo dunha entrada prometida",
-                receiptSigned: "Asinado polo rexistro cando votou",
-                observers:
-                    "Os observadores comproban estas evidencias nos seus propios ordenadores. Demostran o que asinou o rexistro e non conteñen nada sobre o que votou.",
-                check: "Comprobalo de forma independente",
-                save: "Descargar o ficheiro do recibo",
-                nextTitle: "Que ocorre agora?",
-                nextText:
-                    "O seu voto emitiuse. Conserve o ficheiro do recibo: segue sendo válido amose o que amose esta páxina. Comprobeo de forma independente, sen depender deste sitio web, e entregue aos observadores da elección se segue sen poder confirmarse.",
-                showReceipt: "Amosar o recibo e todas as comprobacións",
+            status: {
+                title: "Estado da papeleta",
+                cast: "Emitida o {{when}}",
+                ballotCast: "Voto emitido",
+                aria: "Estado da papeleta: {{state}}. Mostrar detalles",
+                ariaCast: "Voto emitido. Estado da papeleta: {{state}}. Mostrar detalles",
+                tooltip: "{{state}} · Mostrar detalles",
+                tracker: "Abrir no rastrexador de papeletas",
+                save: "Gardar o xustificante",
+                ok: "Aceptar",
+                state: {
+                    notcast: "Aínda sen emitir",
+                    checking: "Comprobando…",
+                    recorded: "No rexistro público",
+                    witnessed: "Confirmada por testemuñas",
+                    verified: "Verificada",
+                    late: "Con atraso",
+                    problem: "Problema",
+                },
+                head: {
+                    late: "Tarda máis do previsto",
+                    mismatch: "O rexistro non coincide",
+                    damaged: "O xustificante está danado",
+                    noReceipt: "Sen xustificante da túa papeleta",
+                    unchecked: "Non se puido comprobar a túa papeleta",
+                },
+                sub: {
+                    notcast:
+                        "Esta papeleta está cifrada neste dispositivo e non se enviou nada. Cando a emitas, o teu navegador comprobará que chega ao rexistro público.",
+                    checking:
+                        "O teu navegador está a comprobar que a túa papeleta está no rexistro público.",
+                    recorded:
+                        "O teu navegador atopou a túa papeleta no rexistro público. Agora confírmana as testemuñas.",
+                    witnessed:
+                        "Testemuñas independentes confirmaron o rexistro. As ancoraxes públicas chegan en {{minutes}} minutos; non hai que agardar.",
+                    verified:
+                        "A túa papeleta está no rexistro público, confirmada por testemuñas independentes e ancorada publicamente.",
+                    late: "A túa papeleta está no rexistro público e confirmada polas testemuñas, pero as súas ancoraxes públicas van con atraso.",
+                    lateStep:
+                        "Un paso tarda máis do previsto. Non é proba de manipulación, e o teu navegador segue comprobando.",
+                    mismatch:
+                        "A entrada n.º {{index}} do rexistro público non é a deste xustificante.",
+                    mismatchNoEntry: "A entrada do rexistro público non é a deste xustificante.",
+                    damaged:
+                        "Non se puido ler ou verificar unha parte do xustificante ou do rexistro. É un fallo de datos, non unha proba de manipulación. O teu voto emitiuse.",
+                    noReceipt:
+                        "Este sitio web non recibiu ningún xustificante da túa papeleta. O teu voto emitiuse e avisouse aos observadores da elección.",
+                    unchecked:
+                        "Este sitio web non puido comprobar o xustificante. O teu voto emitiuse.",
+                },
+                step: {
+                    record: {
+                        title: "No rexistro público",
+                        upcoming:
+                            "O teu navegador atopa a papeleta no rexistro público da elección.",
+                    },
+                    witnesses: {
+                        title: "Confirmada por testemuñas",
+                        upcoming: "Testemuñas independentes asinan un rexistro que a inclúe.",
+                    },
+                    anchors: {
+                        title: "Ancorada publicamente",
+                        upcoming:
+                            "Os nodos públicos, e os rexistros que comproban os navegadores, gardan ese rexistro.",
+                    },
+                },
+                row: {
+                    waiting: "Agardando polo paso anterior.",
+                    checking: "O teu navegador está a comprobar…",
+                    anchoring:
+                        "Nodos públicos e, despois, onde comproban os navegadores: en {{minutes}} minutos.",
+                    recorded: "O teu navegador comprobou a súa proba.",
+                    recordedEntry: "Entrada n.º {{index}}. O teu navegador comprobou a súa proba.",
+                    witnessed:
+                        "Un número suficiente das testemuñas independentes da política ({{count}}) asinou un rexistro que a inclúe.",
+                    anchoredWaict:
+                        "Nos nodos públicos ({{count}}) e onde comproban os navegadores.",
+                    anchoredBootstrap:
+                        "Nos nodos públicos ({{count}}) e onde comproban os navegadores, por agora mediante un nodo substituto.",
+                    anchoredHubs: "Nos nodos públicos ({{count}}).",
+                    lateNow: "Xa debería estar feito.",
+                    lateStep: "Debería estar feito ás {{time}}.",
+                    lateAnchors: "Os nodos deberían telo ancorado ás {{time}}.",
+                    mismatch: "A entrada n.º {{index}} do rexistro é distinta do teu xustificante.",
+                    mismatchNoEntry: "Unha entrada do rexistro é distinta do teu xustificante.",
+                    contradiction: "As súas probas asinadas contradicíense.",
+                    damaged: "A súa proba está danada e non se puido verificar.",
+                    noReceipt: "Este sitio web non recibiu ningún xustificante.",
+                    unchecked: "Este sitio web non puido comprobar o xustificante.",
+                    skipped: "Non comprobado, porque non se puido completar o paso anterior.",
+                    skippedMismatch: "Non comprobado, porque o rexistro non coincide.",
+                },
+                word: {
+                    withinSeconds: "En poucos segundos",
+                    withinMinutes: "En {{minutes}} min",
+                    checking: "Comprobando…",
+                    late: "Con atraso",
+                    mismatch: "Non coincide",
+                    damaged: "Danado",
+                    noReceipt: "Sen xustificante",
+                    unchecked: "Non comprobado",
+                    skipped: "—",
+                },
+                callout: {
+                    late: "Adoita significar que un nodo vai lento ou está fóra de liña; non é proba de manipulación.",
+                    lateKept:
+                        "Este dispositivo volve comprobalo cada vez que regresas, e o rastrexador de papeletas pode comprobalo desde calquera dispositivo.",
+                    lateTracker:
+                        "O rastrexador de papeletas pode comprobalo desde calquera dispositivo.",
+                    evidence:
+                        "O teu navegador gardou a evidencia: este xustificante e a entrada asinada do rexistro. Envíaa á autoridade electoral ou a un observador; calquera pode comprobala.",
+                    saveEvidence: "Gardar a evidencia",
+                },
+                caption: {
+                    notcast:
+                        "Non se comproba nada ata que a emitas. Despois, esta marca mostra ata onde se verificou a túa papeleta.",
+                    checking:
+                        "O teu navegador está a comprobar o rexistro público, con código que calquera pode inspeccionar.",
+                    problem:
+                        "Detectado polo teu navegador, con código que calquera pode inspeccionar.",
+                    verified:
+                        "Verificado polo teu navegador, con código que calquera pode inspeccionar.",
+                    checked:
+                        "Comprobado polo teu navegador, con código que calquera pode inspeccionar.",
+                    kept: "Este dispositivo garda o xustificante e volve comprobalo en cada visita.",
+                },
             },
             booth: {
                 title: "Aínda non se pode preparar a súa papeleta",
@@ -508,48 +718,6 @@ const galegoTranslation: TranslationType = {
                 failed: "A configuración non coincide coa publicada. Avisouse aos observadores da elección. Póñase en contacto co soporte.",
                 retry: "Tentar de novo",
                 close: "Pechar",
-            },
-            receipt: {
-                waiting:
-                    "O recibo aínda non está listo. Este sitio web segue pedíndoo mentres esta páxina estea aberta.",
-                missing:
-                    "Este sitio web non recibiu ningún recibo da súa papeleta. O seu voto emitiuse. Avisouse aos observadores da elección.",
-                unchecked: "Este sitio web non puido comprobar o recibo. O seu voto emitiuse.",
-                reference: "Escanee este código para comprobar o recibo noutro dispositivo.",
-                stored: "Este recibo gárdase neste dispositivo e poderá velo de novo ao iniciar sesión.",
-                notStored: "Este recibo non se garda neste dispositivo.",
-                forget: "Non gardar recibos neste dispositivo",
-                keep: "Gardar recibos neste dispositivo",
-            },
-            storedReceipts: {
-                title: "Recibos neste dispositivo",
-                holdsPublic: "A súa papeleta segue no rexistro público",
-                holdsPrivate: "A súa papeleta segue no rexistro da elección",
-                holdsHelp:
-                    "O seu navegador acaba de comprobalo. Nada do anotado antes da súa papeleta cambiou.",
-                waiting: "Aínda estamos reunindo probas da súa papeleta",
-                waitingHelp:
-                    "O seu navegador acaba de comprobalo. Algunhas probas aínda están en camiño e non fai falta esperar.",
-                problemHelp:
-                    "As probas asinadas do seu recibo contradícense. Abra o recibo para velas.",
-                unchecked: "Agora non puidemos comprobar o seu recibo",
-                uncheckedHelp: "O recibo gárdase neste dispositivo. Ténteo de novo máis tarde.",
-                witnesses: "Testemuñas",
-                hubs: "Nodos públicos",
-                hubsPrivate: "Nodos",
-                browser: "Onde comproban os navegadores",
-                hubsAgree: "{{agree}} de {{total}} coinciden",
-                anchored: "Ancorado",
-                viewReceipt: "Ver o recibo",
-                hideReceipt: "Agochar o recibo",
-                forget: "Quitar os recibos deste dispositivo",
-                howTitle: "Como o comprobamos",
-                howReceipt: "O seu navegador garda un recibo asinado. Nunca contén o que votou.",
-                howCheck: "En cada visita pídelle ao rexistro unha proba breve de que só creceu.",
-                howWitnesses:
-                    "Testemuñas independentes asínano e os nodos públicos áncoano onde comproban os navegadores, así que todo o mundo ve o mesmo rexistro.",
-                howWitnessesPrivate:
-                    "Testemuñas independentes asínano e os nodos gardan áncoras seladas, así que a todo o mundo se lle amosa o mesmo rexistro.",
             },
         },
     },

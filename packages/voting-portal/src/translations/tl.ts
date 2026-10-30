@@ -438,13 +438,118 @@ const tagalogTranslation: TranslationType = {
             locateAgain: "Hanapin ang Isa Pang Balota",
             found: "Ang iyong ballot ID {{ballotId}} ay natagpuan",
             notFound: "Ang iyong ballot ID {{ballotId}} ay hindi natagpuan",
-            ambiguous:
-                "Higit sa isa sa iyong mga balota ang tumutugma sa {{ballotId}}. Gamitin ang buong Ballot ID.",
             contentDesc: "Ito ang nilalaman ng iyong balota: ",
             wrongFormatBallotId: "Mali ang format para sa Ballot ID",
             ballotIdNotFoundAtFilter: "Hindi natagpuan ang iyong ballot ID sa filter",
             filterByBallotId: "Tumutugma sa Ballot ID",
             totalBallots: "Kumulang mga balota: {{total}}",
+            idHelp: "Ang maikling Ballot ID, tulad ng 30ff d314, o ang buo",
+            foundShort:
+                "Natagpuan sa pamamagitan ng maikling ID nito. Para matiyak na iyo ito, ihambing ang buong Ballot ID sa iyong resibo.",
+            matches: {
+                title: "{{total}} balota ang may maikling ID na {{shortId}}. Piliin ang iyo, o ilagay ang buong Ballot ID.",
+                cast: "Naipasa noong {{time}}",
+            },
+            result: {
+                receipt: "Resibo ng balota",
+                idComment:
+                    "Gamitin ang maikling ID o ang buo para muling mahanap ang balotang ito.",
+                fullId: "Buong Ballot ID",
+                copy: "Kopyahin ang buong Ballot ID",
+                copied: "Nakopya ang Ballot ID",
+                copiedLabel: "Nakopya",
+                recordEntry: "Entry sa talaan",
+                save: "I-save ang resibo",
+                sealLabel: "Katayuan ng balota: {{status}}",
+                check: "Suriin ito nang hiwalay",
+                caption: "Sinuri ng iyong browser, gamit ang code na maaaring suriin ng sinuman.",
+                captionVerified:
+                    "Napatunayan ng iyong browser, gamit ang code na maaaring suriin ng sinuman.",
+                captionProblem:
+                    "Natagpuan ng iyong browser, gamit ang code na maaaring suriin ng sinuman.",
+                late: "Karaniwang nangangahulugan ito na mabagal o offline ang isang hub; hindi ito patunay ng pakikialam. Suriin muli mamaya, dito o sa ibang device.",
+                problem:
+                    "Inililista ng portal ang balotang ito bilang naipasa, ngunit walang entry para rito ang pampublikong talaan ng halalan. Itinabi ng iyong browser ang ebidensya: ang sagot ng portal at ang nilagdaang checkpoint ng talaan. Ipadala ito sa awtoridad ng halalan o sa isang tagamasid.",
+                problemOther:
+                    "Magkasalungat ang mga nilagdaang patunay para sa balotang ito. Maaaring pagkakamali o pag-atake ito. Itinabi ng iyong browser ang ebidensya. Ipadala ito sa awtoridad ng halalan o sa isang tagamasid.",
+                saveEvidence: "I-save ang ebidensya",
+                howToReport: "Paano ito iuulat",
+                howToReportText:
+                    "I-save ang file ng ebidensya at ipadala ito sa awtoridad ng halalan o sa isang malayang tagamasid. Masusuri nila ito sa sarili nilang mga computer. Wala itong laman tungkol sa kung paano ka bumoto.",
+                noReceipt:
+                    "Walang resibo ang device na ito para sa balotang ito. Suriin ito sa device na ginamit mo sa pagboto, o suriin ang file ng resibo sa ballot verifier.",
+                receiptPending:
+                    "May itinatabing resibo ang device na ito para sa balotang ito, ngunit hindi ito kumpleto o hindi ito nasuri ngayon. Subukan muli mamaya, o suriin ang file ng resibo sa ballot verifier.",
+                status: {
+                    checking: {
+                        head: "Sinusuri…",
+                        sub: "Hinahanap ng iyong browser ang balota sa pampublikong talaan.",
+                    },
+                    recorded: {
+                        head: "Nasa pampublikong talaan",
+                        sub: "Natagpuan ng iyong browser ang balota. Sinusuri ang mga saksi nito…",
+                    },
+                    witnessed: {
+                        head: "Kinumpirma ng mga saksi",
+                        sub: "Sinusuri ang mga pampublikong anchor…",
+                        subAnchored_one:
+                            "Naka-anchor sa mga pampublikong hub. Susunod ang kung saan sumusuri ang mga browser sa loob ng {{count}} minuto.",
+                        subAnchored_other:
+                            "Naka-anchor sa mga pampublikong hub. Susunod ang kung saan sumusuri ang mga browser sa loob ng {{count}} minuto.",
+                    },
+                    verified: {
+                        head: "Napatunayan",
+                        sub: "Nasa pampublikong talaan, kinumpirma ng mga malayang saksi at naka-anchor sa publiko.",
+                    },
+                    late: {
+                        head: "Mas matagal kaysa inaasahan",
+                        sub: "Nasa pampublikong talaan at kinumpirma ng mga saksi, ngunit huli ang mga pampublikong anchor nito.",
+                    },
+                    problem: {
+                        head: "Wala sa pampublikong talaan",
+                        sub: "Hindi nahanap ng iyong browser ang balotang ito sa pampublikong talaan ng halalan.",
+                    },
+                    otherProblem: {
+                        head: "Nabigo ang isang pagsusuri",
+                        sub: "Magkasalungat ang mga nilagdaang patunay para sa balotang ito. Tingnan ang hakbang na nabigo.",
+                    },
+                },
+                steps: {
+                    record: {
+                        title: "Naidagdag sa pampublikong talaan",
+                        done: "Entry #{{index}} sa talaan ng mga balota ng halalan. Sinuri ng iyong browser ang patunay nito.",
+                        failed: "Walang entry sa talaan ng mga balota ng halalan na may ganitong Ballot ID.",
+                        missing: "Nawawala",
+                    },
+                    witnesses: {
+                        title: "Kinumpirma ng mga saksi",
+                        done: "Lumagda ang mga malayang saksi sa talaang kasama ito.",
+                        count: "{{signed}} sa {{total}} · {{needed}} ang kailangan",
+                        countOf: "{{signed}} sa {{total}}",
+                    },
+                    hubs: {
+                        title_one: "Naka-anchor sa {{count}} pampublikong hub",
+                        title_other: "Naka-anchor sa {{count}} pampublikong hub",
+                        titleAny: "Naka-anchor sa mga pampublikong hub",
+                        done: "May hawak din ng talaang ito ang mga nakabahaging talaan: {{hubs}}.",
+                    },
+                    browser: {
+                        title: "Naka-anchor kung saan sumusuri ang mga browser",
+                        done: "Hawak ng isang pansamantalang hub hanggang ang mga browser na mismo ang sumuri ng mga talaan.",
+                    },
+                    checking: "Sinusuri ito ng iyong browser…",
+                    scheduled_one: "Sa loob ng {{count}} minuto. Hindi kailangang maghintay.",
+                    scheduled_other: "Sa loob ng {{count}} minuto. Hindi kailangang maghintay.",
+                    by: "Hanggang {{time}}",
+                    late: "Huli",
+                    lateHubs: "Dapat itong na-anchor ng mga hub bago ang {{time}}.",
+                    lateOther: "Dapat natapos ito bago ang {{time}}.",
+                    waiting: "Naghihintay sa hakbang sa itaas.",
+                    skipped: "Hindi sinuri.",
+                    failedStep: "Magkasalungat ang mga nilagdaang patunay para sa hakbang na ito.",
+                    failedTime: "Problema",
+                },
+            },
             steps: {
                 lookup: "Hanapin ang Iyong Balota",
                 result: "Resulta",
@@ -466,35 +571,140 @@ const tagalogTranslation: TranslationType = {
             },
         },
         vitrine: {
-            progress: "Hakbang {{current}} sa {{total}} · {{step}}",
-            confirmation: {
-                step: "Kumpirmasyon",
-                cast: "Naisumite na ang iyong balota",
-                recordedPublic: "Nasa pampublikong talaan ang iyong balota",
-                recordedPrivate: "Nasa talaan ng halalan ang iyong balota",
-                keep: "Itago ang iyong resibo para masuri itong muli mamaya.",
-                elsewhere: "Suriin ito sa ibang device",
-                save: "I-save ang resibo",
+            ballotId: {
+                label: "ID ng Balota",
+                full: "Buong ID ng Balota",
+                yours: "Ang Iyong Ballot ID:",
+                copy: "Kopyahin ang buong ID ng Balota",
+                copied: "Nakopya ang ID ng Balota",
+                copiedShort: "Nakopya",
             },
-            failure: {
-                titlePublic: "Hindi namin makumpirma ang iyong balota sa pampublikong talaan",
-                titlePrivate: "Hindi namin makumpirma ang iyong balota sa talaan ng halalan",
-                contradiction:
-                    "Nagkakasalungatan ang mga nilagdaang patunay sa iyong resibo, kaya hindi makukumpirma ng website na ito ang iyong balota. Maaaring may sira o pag-atake. Maaaring mabilang pa rin ang iyong boto, pero dapat itong tingnan ng isang malayang tao.",
-                evidenceTitle: "Mga ebidensyang nakatago sa device na ito",
-                evidenceCount_one: "{{count}} aytem",
-                evidenceCount_other: "{{count}} aytem",
-                receiptEntry: "Ang iyong resibo para sa entry #{{index}}",
-                receiptPromise: "Ang iyong resibo para sa ipinangakong entry",
-                receiptSigned: "Nilagdaan ng talaan nang bumoto ka",
-                observers:
-                    "Sinusuri ng mga tagamasid ang ebidensyang ito sa sarili nilang computer. Pinatutunayan nito ang nilagdaan ng talaan, at wala itong laman tungkol sa kung paano ka bumoto.",
-                check: "Suriin ito nang hiwalay",
-                save: "I-download ang file ng resibo",
-                nextTitle: "Ano ang susunod na mangyayari?",
-                nextText:
-                    "Naisumite na ang iyong boto. Itago ang file ng resibo: mananatili itong balido anuman ang ipakita ng pahinang ito. Suriin ito nang hiwalay, nang hindi umaasa sa website na ito, at ibigay ito sa mga tagamasid ng halalan kung hindi pa rin ito makumpirma.",
-                showReceipt: "Ipakita ang resibo at lahat ng pagsusuri",
+            status: {
+                title: "Katayuan ng balota",
+                cast: "Naiboto noong {{when}}",
+                ballotCast: "Naiboto na ang balota",
+                aria: "Katayuan ng balota: {{state}}. Ipakita ang mga detalye",
+                ariaCast:
+                    "Naiboto na ang balota. Katayuan ng balota: {{state}}. Ipakita ang mga detalye",
+                tooltip: "{{state}} · Ipakita ang mga detalye",
+                tracker: "Buksan sa ballot tracker",
+                save: "I-save ang resibo",
+                ok: "OK",
+                state: {
+                    notcast: "Hindi pa naiboto",
+                    checking: "Sinusuri…",
+                    recorded: "Nasa pampublikong talaan",
+                    witnessed: "Kinumpirma ng mga saksi",
+                    verified: "Na-verify",
+                    late: "Huli",
+                    problem: "Problema",
+                },
+                head: {
+                    late: "Mas matagal kaysa inaasahan",
+                    mismatch: "Hindi tugma ang talaan",
+                    damaged: "Sira ang resibo",
+                    noReceipt: "Walang resibo para sa iyong balota",
+                    unchecked: "Hindi masuri ang iyong balota",
+                },
+                sub: {
+                    notcast:
+                        "Naka-encrypt ang balotang ito sa device na ito at wala pang naipapadala. Kapag naiboto mo na ito, susuriin ng iyong browser kung nakarating ito sa pampublikong talaan.",
+                    checking:
+                        "Sinusuri ng iyong browser kung nasa pampublikong talaan ang iyong balota.",
+                    recorded:
+                        "Nakita ng iyong browser ang iyong balota sa pampublikong talaan. Susunod itong kukumpirmahin ng mga saksi.",
+                    witnessed:
+                        "Kinumpirma ng mga independiyenteng saksi ang talaan. Susunod ang mga pampublikong angkla sa loob ng {{minutes}} minuto; hindi na kailangang maghintay.",
+                    verified:
+                        "Nasa pampublikong talaan ang iyong balota, kinumpirma ng mga independiyenteng saksi at pampublikong naka-angkla.",
+                    late: "Nasa pampublikong talaan ang iyong balota at kinumpirma ng mga saksi, ngunit huli ang mga pampublikong angkla nito.",
+                    lateStep:
+                        "Mas matagal kaysa inaasahan ang isang hakbang. Hindi ito patunay ng pakikialam, at patuloy na sumusuri ang iyong browser.",
+                    mismatch:
+                        "Ang entry #{{index}} ng pampublikong talaan ay hindi ang nasa resibong ito.",
+                    mismatchNoEntry:
+                        "Ang entry ng pampublikong talaan ay hindi ang nasa resibong ito.",
+                    damaged:
+                        "Hindi mabasa o ma-verify ang bahagi ng resibo o ng talaan. Pagkakamali ito sa data, hindi patunay ng pakikialam. Naiboto ang iyong boto.",
+                    noReceipt:
+                        "Walang natanggap na resibo ang website na ito para sa iyong balota. Naiboto ang iyong boto, at naabisuhan na ang mga tagamasid ng halalan.",
+                    unchecked: "Hindi nasuri ng website na ito ang resibo. Naiboto ang iyong boto.",
+                },
+                step: {
+                    record: {
+                        title: "Nasa pampublikong talaan",
+                        upcoming:
+                            "Hinahanap ng iyong browser ang balota sa pampublikong talaan ng halalan.",
+                    },
+                    witnesses: {
+                        title: "Kinumpirma ng mga saksi",
+                        upcoming:
+                            "Pinipirmahan ng mga independiyenteng saksi ang talaang kasama ito.",
+                    },
+                    anchors: {
+                        title: "Pampublikong naka-angkla",
+                        upcoming:
+                            "Hawak ng mga pampublikong hub, at ng mga log na sinusuri ng mga browser, ang talaang iyon.",
+                    },
+                },
+                row: {
+                    waiting: "Naghihintay sa naunang hakbang.",
+                    checking: "Sinusuri ng iyong browser…",
+                    anchoring:
+                        "Mga pampublikong hub, pagkatapos ay kung saan sumusuri ang mga browser: sa loob ng {{minutes}} minuto.",
+                    recorded: "Nasuri ng iyong browser ang patunay nito.",
+                    recordedEntry: "Entry #{{index}}. Nasuri ng iyong browser ang patunay nito.",
+                    witnessed:
+                        "Sapat na bilang ng mga independiyenteng saksi ng patakaran ({{count}}) ang pumirma sa talaang kasama ito.",
+                    anchoredWaict:
+                        "Sa mga pampublikong hub ({{count}}) at kung saan sumusuri ang mga browser.",
+                    anchoredBootstrap:
+                        "Sa mga pampublikong hub ({{count}}) at kung saan sumusuri ang mga browser, sa pamamagitan muna ng pamalit na hub.",
+                    anchoredHubs: "Sa mga pampublikong hub ({{count}}).",
+                    lateNow: "Dapat tapos na ito ngayon.",
+                    lateStep: "Dapat tapos na ito pagsapit ng {{time}}.",
+                    lateAnchors: "Dapat naangkla na ito ng mga hub pagsapit ng {{time}}.",
+                    mismatch: "Iba ang entry #{{index}} sa talaan sa iyong resibo.",
+                    mismatchNoEntry: "Iba ang isang entry sa talaan sa iyong resibo.",
+                    contradiction: "Nagkakasalungatan ang mga nilagdaang patunay nito.",
+                    damaged: "Sira ang patunay nito at hindi ma-verify.",
+                    noReceipt: "Walang natanggap na resibo ang website na ito.",
+                    unchecked: "Hindi nasuri ng website na ito ang resibo.",
+                    skipped: "Hindi nasuri, dahil hindi nakumpleto ang naunang hakbang.",
+                    skippedMismatch: "Hindi nasuri, dahil hindi tugma ang talaan.",
+                },
+                word: {
+                    withinSeconds: "Sa loob ng ilang segundo",
+                    withinMinutes: "Sa loob ng {{minutes}} min",
+                    checking: "Sinusuri…",
+                    late: "Huli",
+                    mismatch: "Hindi tugma",
+                    damaged: "Sira",
+                    noReceipt: "Walang resibo",
+                    unchecked: "Hindi nasuri",
+                    skipped: "—",
+                },
+                callout: {
+                    late: "Kadalasan, ibig sabihin nito ay mabagal o offline ang isang hub; hindi ito patunay ng pakikialam.",
+                    lateKept:
+                        "Muling sinusuri ito ng device na ito sa bawat balik mo, at masusuri rin ito ng ballot tracker mula sa anumang device.",
+                    lateTracker: "Masusuri rin ito ng ballot tracker mula sa anumang device.",
+                    evidence:
+                        "Itinago ng iyong browser ang ebidensya: ang resibong ito at ang nilagdaang entry ng talaan. Ipadala ito sa awtoridad ng halalan o sa isang tagamasid; sinuman ay makakasuri nito.",
+                    saveEvidence: "I-save ang ebidensya",
+                },
+                caption: {
+                    notcast:
+                        "Walang susuriin hangga't hindi mo ito naiboboto. Pagkatapos, ipapakita ng check mark na ito kung hanggang saan na na-verify ang iyong balota.",
+                    checking:
+                        "Sinusuri ng iyong browser ang pampublikong talaan, gamit ang code na masisiyasat ng sinuman.",
+                    problem:
+                        "Natuklasan ng iyong browser, gamit ang code na masisiyasat ng sinuman.",
+                    verified:
+                        "Na-verify ng iyong browser, gamit ang code na masisiyasat ng sinuman.",
+                    checked: "Sinuri ng iyong browser, gamit ang code na masisiyasat ng sinuman.",
+                    kept: "Itinatago ng device na ito ang resibo at muling sinusuri ito sa bawat pagbisita.",
+                },
             },
             booth: {
                 title: "Hindi pa maihahanda ang iyong balota",
@@ -507,51 +717,6 @@ const tagalogTranslation: TranslationType = {
                 failed: "Hindi tugma ang mga setting sa mga nakalathala. Naabisuhan na ang mga tagamasid ng halalan. Pakikontak ang suporta.",
                 retry: "Subukan muli",
                 close: "Isara",
-            },
-            receipt: {
-                waiting:
-                    "Hindi pa handa ang resibo. Patuloy itong hinihingi ng website na ito habang bukas ang pahinang ito.",
-                missing:
-                    "Hindi nakatanggap ang website na ito ng resibo para sa iyong balota. Naisumite na ang iyong boto. Naabisuhan na ang mga tagamasid ng halalan.",
-                unchecked:
-                    "Hindi nasuri ng website na ito ang resibo. Naisumite na ang iyong boto.",
-                reference: "I-scan ang code na ito para masuri ang resibo sa ibang device.",
-                stored: "Nakatago ang resibong ito sa device na ito, at makikita mo itong muli pagkatapos mong mag-log in.",
-                notStored: "Hindi nakatago ang resibong ito sa device na ito.",
-                forget: "Huwag magtago ng mga resibo sa device na ito",
-                keep: "Magtago ng mga resibo sa device na ito",
-            },
-            storedReceipts: {
-                title: "Mga resibo sa device na ito",
-                holdsPublic: "Nasa pampublikong talaan pa rin ang iyong balota",
-                holdsPrivate: "Nasa talaan ng halalan pa rin ang iyong balota",
-                holdsHelp:
-                    "Kasusuri lang ng iyong browser. Walang nagbago sa mga naitala bago ang iyong balota.",
-                waiting: "Nangangalap pa kami ng mga patunay para sa iyong balota",
-                waitingHelp:
-                    "Kasusuri lang ng iyong browser. May ilang patunay na parating pa, at hindi mo na kailangang maghintay.",
-                problemHelp:
-                    "Nagkakasalungatan ang mga nilagdaang patunay sa iyong resibo. Buksan ang resibo para makita ang mga ito.",
-                unchecked: "Hindi namin masuri ang iyong resibo ngayon",
-                uncheckedHelp: "Nakatago ang resibo sa device na ito. Subukan ulit mamaya.",
-                witnesses: "Mga saksi",
-                hubs: "Mga pampublikong hub",
-                hubsPrivate: "Mga hub",
-                browser: "Kung saan sumusuri ang mga browser",
-                hubsAgree: "{{agree}} sa {{total}} ang nagkakasundo",
-                anchored: "Naka-angkla",
-                viewReceipt: "Tingnan ang resibo",
-                hideReceipt: "Itago ang resibo",
-                forget: "Alisin ang mga resibo sa device na ito",
-                howTitle: "Paano kami sumusuri",
-                howReceipt:
-                    "Nagtatago ang iyong browser ng nilagdaang resibo. Hindi kailanman nakalagay rito kung paano ka bumoto.",
-                howCheck:
-                    "Sa bawat pagbisita, humihingi ito sa talaan ng maikling patunay na lumaki lang ito.",
-                howWitnesses:
-                    "Nilalagdaan ito ng mga malayang saksi, at inaangkla ito ng mga pampublikong hub kung saan sumusuri ang mga browser, kaya iisang talaan ang nakikita ng lahat.",
-                howWitnessesPrivate:
-                    "Nilalagdaan ito ng mga malayang saksi, at nagtatago ng mga selyadong angkla ang mga hub, kaya iisang talaan ang ipinapakita sa lahat.",
             },
         },
     },

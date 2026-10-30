@@ -3,11 +3,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React from "react"
-import {fireEvent, render, waitFor} from "@testing-library/react"
+import {act, fireEvent, render, screen, waitFor, within} from "@testing-library/react"
 import {ThemeProvider} from "@mui/material/styles"
 import {createMemoryRouter, RouterProvider} from "react-router-dom"
 import * as pure from "@vitrine/verify/pure"
-import type {VitrineReceipt, VitrineStatus} from "@vitrine/ui"
 import theme from "../../../ui-essentials/src/services/theme"
 import {
     ballotEntry,
@@ -28,14 +27,19 @@ import ConfirmationScreen from "./ConfirmationScreen"
 jest.mock("react-i18next", () => ({
     Trans: ({i18nKey}: {i18nKey: string}) => i18nKey,
     useTranslation: () => ({
-        t: (key: string, values?: {ballotId?: string}) =>
-            key === "ballotHash" ? `Ballot ID: ${values?.ballotId?.slice(0, 8)}` : key,
+        t: (key: string, values?: {ballotId?: string}) => {
+            if (key === "ballotHash") return `Ballot ID: ${values?.ballotId?.slice(0, 8)}`
+            return values && key.startsWith("vitrine.status.aria")
+                ? `${key} ${JSON.stringify(values)}`
+                : key
+        },
         i18n: {language: "en"},
     }),
 }))
 jest.mock("@sequentech/ui-core", () => ({
     ...jest.requireActual("@sequentech/ui-core"),
     ...jest.requireActual("../../../ui-core/src/services/acclamation"),
+    ...jest.requireActual("../../../ui-core/src/services/votingPortalDateTime"),
     downloadUrl: jest.fn(),
 }))
 jest.mock(
@@ -224,176 +228,153 @@ const entryOf =
         ...(reason ? {reason} : {}),
     })
 
-const receiptElement = async (container: HTMLElement): Promise<VitrineReceipt> => {
-    let element: VitrineReceipt | null = null
-    await waitFor(() => {
-        element = container.querySelector("vitrine-receipt")
-        expect(element).not.toBeNull()
+const statusButton = (container: HTMLElement): HTMLButtonElement | null =>
+    container.querySelector<HTMLButtonElement>(".ballot-status-button")
+
+const stateOf = async (container: HTMLElement, expected: string): Promise<void> =>
+    waitFor(() => expect(statusButton(container)?.getAttribute("data-status")).toBe(expected))
+
+const GROUPED_PATTERN = /^([0-9a-f]{4} ){15}[0-9a-f]{4}$/
+
+describe("the Ballot ID on the confirmation screen", () => {
+    it("keeps the portal's own layout, with the status check mark in the ID box", async () => {
+        casting(receiptOf)
+        const {container} = renderScreen()
+        await waitFor(() => expect(statusButton(container)).not.toBeNull())
+        expect(container.querySelector(".screen-title")).not.toBeNull()
+        expect(container.querySelector(".ballot-id-container")).not.toBeNull()
+        expect(container.querySelector(".ballot-verification-title")).not.toBeNull()
+        expect(container.querySelector(".qr-container svg")).not.toBeNull()
+        const actions = container.querySelector(".actions-container")
+        expect(actions?.querySelector(".print-receipt-button")).not.toBeNull()
+        expect(actions?.querySelector(".finish-button")).not.toBeNull()
+        expect(container.querySelector(".ballot-id-check-icon")).toBeNull()
+        expect(container.querySelector("[class*=vitrine-]")).toBeNull()
     })
-    return element as unknown as VitrineReceipt
-}
 
-const shadowText = async (element: VitrineReceipt | VitrineStatus): Promise<string> => {
-    await element.updateComplete
-    return element.shadowRoot?.textContent ?? ""
-}
-
-const missingFailure = async (container: HTMLElement): Promise<HTMLElement> => {
-    let failure: HTMLElement | null = null
-    await waitFor(() => {
-        failure = container.querySelector<HTMLElement>(".vitrine-failure")
-        expect(failure?.getAttribute("data-notice")).toBe("missing")
+    it("shows the short ID, and copies the full one in groups of four", async () => {
+        const {ballotId} = casting(receiptOf)
+        const writeText = jest.fn(async (_text: string) => undefined)
+        Object.defineProperty(navigator, "clipboard", {value: {writeText}, configurable: true})
+        const {container, findAllByTestId} = renderScreen()
+        const [desktop] = await findAllByTestId("ballot-id")
+        expect(desktop.textContent).toBe("0000 0000")
+        expect(container.querySelector(".ballot-id-value-mobile")?.textContent).toBe(
+            "vitrine.ballotId.yours 0000 0000"
+        )
+        await act(async () => {
+            fireEvent.click(screen.getByRole("button", {name: "vitrine.ballotId.copy"}))
+        })
+        expect(writeText).toHaveBeenCalledTimes(1)
+        const copied = writeText.mock.calls[0][0]
+        expect(copied).toMatch(GROUPED_PATTERN)
+        expect(copied.replace(/ /g, "")).toBe(ballotId)
     })
-    return failure as unknown as HTMLElement
+
+    it("links the ID to the ballot tracker", async () => {
+        casting(receiptOf)
+        const {findAllByTestId} = renderScreen()
+        const [desktop] = await findAllByTestId("ballot-id")
+        await waitFor(() =>
+            expect(desktop.getAttribute("href")).toContain(
+                `/election/${ELECTION_ID}/ballot-locator/`
+            )
+        )
+    })
+})
+
+/** Opens the dialog, and waits for the receipt to be saveable: its chain is there. */
+const openWithReceipt = async (container: HTMLElement): Promise<HTMLElement> => {
+    await waitFor(() => expect(statusButton(container)).not.toBeNull())
+    fireEvent.click(statusButton(container)!)
+    const dialog = await screen.findByRole("dialog", {name: "vitrine.status.title"})
+    const save = within(dialog).getByRole("button", {name: "vitrine.status.save"})
+    await waitFor(() => expect(save.hasAttribute("disabled")).toBe(false))
+    return dialog
 }
 
-describe("the receipt on the confirmation screen", () => {
+describe("the status of the ballot just cast", () => {
     it.each([
-        ["receipt", receiptOf, "issued", true],
-        ["promise", promiseOf, "promise", false],
-    ] as const)("shows the %s, checked by this website", async (_kind, answer, block, qr) => {
+        ["receipt", receiptOf, "issued"],
+        ["promise", promiseOf, "promise"],
+    ] as const)("is checked from the %s, and kept on this device", async (_kind, answer, block) => {
         const {cast} = casting(answer)
         const {container} = renderScreen()
-        const element = await receiptElement(container)
-        await waitFor(() => expect(element.state).toBe("done"))
-        expect(element.result?.ok).toBe(true)
-        const chain = pure.parseChain(String(element.chain))
-        expect(pure.bytes.fromUtf8(chain[block] ?? new Uint8Array())).toBe(cast.text)
-        const text = await shadowText(element)
-        expect(element.bare).toBe(true)
-        expect(text).toMatch(/ballot\W{0,2} fingerprint/i)
-        expect(text).not.toContain("Check independently")
-        expect(container.querySelector("vitrine-status")).toBeNull()
-        // A receipt's reference is drawn as a QR code here; a promise has none yet.
-        if (qr) {
-            await waitFor(() =>
-                expect(container.querySelector(".vitrine-receipt-reference svg")).not.toBeNull()
-            )
-        } else {
-            expect(container.querySelector(".vitrine-receipt-reference")).toBeNull()
-        }
         await waitFor(() => expect(mockKeepReceipt).toHaveBeenCalled())
-        expect(mockKeepReceipt.mock.calls[0][2]).toMatchObject({
-            eventId: EVENT_ID,
-            electionId: ELECTION_ID,
-            chain: element.chain,
-        })
+        const kept = mockKeepReceipt.mock.calls[0][2] as {chain: string}
+        const chain = pure.parseChain(kept.chain)
+        expect(pure.bytes.fromUtf8(chain[block] ?? new Uint8Array())).toBe(cast.text)
+        expect(kept).toMatchObject({eventId: EVENT_ID, electionId: ELECTION_ID})
+        // This fake log serves no tiles, so the record is still waiting for its successors.
+        expect(statusButton(container)?.getAttribute("data-status")).toBe("checking")
+    })
+
+    it("opens the ballot's status in a dialog, with the tracker link", async () => {
+        casting(receiptOf)
+        const {container} = renderScreen()
+        const dialog = await openWithReceipt(container)
+        expect(dialog.querySelector(".ballot-status-head")?.textContent).toBe(
+            "vitrine.status.state.checking"
+        )
+        await waitFor(() =>
+            expect(dialog.querySelector(".ballot-status-meta")?.textContent).toContain(
+                "vitrine.status.cast"
+            )
+        )
+        expect(
+            within(dialog).getByRole("link", {name: "vitrine.status.tracker"}).getAttribute("href")
+        ).toContain("/ballot-locator/")
+    })
+
+    it("saves the receipt chain as a file named after the short ID", async () => {
+        casting(receiptOf)
+        const {container} = renderScreen()
+        const dialog = await openWithReceipt(container)
+        fireEvent.click(within(dialog).getByRole("button", {name: "vitrine.status.save"}))
+        expect(mockSaveTextFile).toHaveBeenCalledTimes(1)
+        const [name, text, type] = mockSaveTextFile.mock.calls[0]
+        expect(name).toBe("ballot-0000-0000.vitrine-receipt")
+        expect(pure.parseChain(String(text)).issued).toBeDefined()
+        expect(type).toBe("application/vnd.vitrine.receipt-chain")
     })
 
     it.each([
         ["queued", entryOf("queued", "busy")],
         ["unavailable", entryOf("unavailable", "log-down")],
-    ] as const)("says there is no receipt when the entry was %s", async (_kind, answer) => {
-        casting(answer)
-        const {container} = renderScreen()
-        const failure = await missingFailure(container)
-        expect(failure.querySelector(".vitrine-failure-title")?.textContent).toBe(
-            "vitrine.failure.titlePublic"
-        )
-        expect(failure.querySelector(".vitrine-failure-explanation")?.textContent).toBe(
-            "vitrine.receipt.missing"
-        )
-        // The page owes the voter no evidence it doesn't have.
-        expect(failure.querySelector(".vitrine-failure-evidence")).toBeNull()
-        const element = await receiptElement(container)
-        expect(element.state).toBe("empty")
-        expect(await shadowText(element)).toContain("No receipt yet.")
-        // The entry is kept until the log answers for it.
-        await waitFor(() => expect(mockKeepReceipt).toHaveBeenCalled())
-        expect(mockKeepReceipt.mock.calls[0][2]).not.toHaveProperty("chain")
-        expect(
-            calls.every((c) => !c.url.includes("/receipt/") || c.url.startsWith(LOG_URLS.ballots))
-        ).toBe(true)
-    })
-
-    it("puts the receipt first, and the ballot ID and verification behind a disclosure", async () => {
-        casting(receiptOf)
-        const {container} = renderScreen()
-        await receiptElement(container)
-        const receiptBlock = container.querySelector(".vitrine-receipt-container")
-        const details = container.querySelector(".vitrine-ballot-details")
-        expect(receiptBlock?.compareDocumentPosition(details!)).toBe(
-            Node.DOCUMENT_POSITION_FOLLOWING
-        )
-        expect(details?.querySelector(".ballot-id-container")).not.toBeNull()
-        expect(details?.querySelector(".ballot-verification-title")).not.toBeNull()
-    })
-
-    it("shows the steps, and says the ballot is cast until the witnesses confirm it", async () => {
-        casting(receiptOf)
-        const {container} = renderScreen()
-        const element = await receiptElement(container)
-        expect(container.querySelector(".vitrine-progress-label")?.textContent).toContain(
-            "vitrine.progress"
-        )
-        expect(container.querySelectorAll(".vitrine-progress-bar")).toHaveLength(4)
-        await waitFor(() => expect(element.state).toBe("done"))
-        const witnessed = element.result?.tiers.find((t) => t.tier === "witnesses")?.status
-        const title = container.querySelector(".vitrine-confirmation-title")
-        await waitFor(() =>
-            expect(title?.textContent).toBe(
-                witnessed === "verified"
-                    ? "vitrine.confirmation.recordedPublic"
-                    : "vitrine.confirmation.cast"
+    ] as const)(
+        "shows a problem when the entry was %s and there is no receipt",
+        async (_kind, answer) => {
+            casting(answer)
+            const {container} = renderScreen()
+            await stateOf(container, "problem")
+            fireEvent.click(statusButton(container)!)
+            const dialog = await screen.findByRole("dialog", {name: "vitrine.status.title"})
+            expect(dialog.querySelector(".ballot-status-head")?.textContent).toBe(
+                "vitrine.status.head.noReceipt"
             )
-        )
-        expect(container.querySelector(".vitrine-receipt-description")?.textContent).toBe(
-            "vitrine.confirmation.keep"
-        )
-    })
-
-    it("offers the QR code on another device behind a toggle", async () => {
-        casting(receiptOf)
-        const {container} = renderScreen()
-        await receiptElement(container)
-        const toggle = await waitFor(() => {
-            const button = container.querySelector<HTMLButtonElement>(".vitrine-elsewhere-toggle")
-            expect(button).not.toBeNull()
-            return button!
-        })
-        const panel = container.querySelector<HTMLElement>(".vitrine-elsewhere-panel")
-        expect(toggle.getAttribute("aria-expanded")).toBe("false")
-        expect(panel?.hidden).toBe(true)
-        fireEvent.click(toggle)
-        expect(toggle.getAttribute("aria-expanded")).toBe("true")
-        expect(panel?.hidden).toBe(false)
-        expect(panel?.querySelector("svg")).not.toBeNull()
-    })
-
-    it("saves the receipt chain as a file", async () => {
-        casting(receiptOf)
-        const {container} = renderScreen()
-        const element = await receiptElement(container)
-        await waitFor(() => expect(element.state).toBe("done"))
-        const button = container.querySelector<HTMLButtonElement>(".save-receipt-button")
-        await waitFor(() => expect(button?.disabled).toBe(false))
-        fireEvent.click(button!)
-        expect(mockSaveTextFile).toHaveBeenCalledTimes(1)
-        const [name, text, type] = mockSaveTextFile.mock.calls[0]
-        expect(name).toMatch(/^receipt-[A-Za-z0-9]{8}\.vitrine-receipt$/)
-        expect(text).toBe(element.chain)
-        expect(type).toBe("application/vnd.vitrine.receipt-chain")
-    })
-
-    it("offers no receipt to save when none came", async () => {
-        casting(entryOf("queued", "busy"))
-        const {container} = renderScreen()
-        await missingFailure(container)
-        expect(container.querySelector(".save-receipt-button")).toBeNull()
-        expect(container.querySelector(".finish-button")).not.toBeNull()
-    })
+            // The entry is kept until the log answers for it.
+            await waitFor(() => expect(mockKeepReceipt).toHaveBeenCalled())
+            expect(mockKeepReceipt.mock.calls[0][2]).not.toHaveProperty("chain")
+            expect(
+                calls.every(
+                    (c) => !c.url.includes("/receipt/") || c.url.startsWith(LOG_URLS.ballots)
+                )
+            ).toBe(true)
+            // The voter can still finish.
+            expect(container.querySelector(".finish-button")).not.toBeNull()
+        }
+    )
 
     it("keeps nothing on a kiosk", async () => {
         mockIsKiosk = true
         casting(receiptOf)
         const {container} = renderScreen()
-        const element = await receiptElement(container)
-        await waitFor(() => expect(element.state).toBe("done"))
-        expect(container.querySelector(".vitrine-receipt-storage")).toBeNull()
-        // The voter can still take the receipt away by scanning it.
-        await waitFor(() =>
-            expect(container.querySelector(".vitrine-receipt-reference svg")).not.toBeNull()
-        )
+        const dialog = await openWithReceipt(container)
+        expect(
+            within(dialog)
+                .getByRole("button", {name: "vitrine.status.save"})
+                .hasAttribute("disabled")
+        ).toBe(false)
         expect(mockKeepReceipt).not.toHaveBeenCalled()
     })
 
@@ -401,30 +382,12 @@ describe("the receipt on the confirmation screen", () => {
         const markup = '<img src="x" onerror="window.__vitrinePwned = 1"><script>1</script>'
         casting(() => ({kind: "receipt", text: markup, reason: markup}))
         const {container} = renderScreen()
-        await missingFailure(container)
-        const element = await receiptElement(container)
-        const roots = [
-            document.body,
-            ...Array.from(document.querySelectorAll("vitrine-receipt, vitrine-status")).map(
-                (e) => e.shadowRoot
-            ),
-        ]
-        for (const root of roots) {
-            expect(root?.innerHTML).not.toContain("onerror")
-            expect(root?.querySelector("img, script")).toBeNull()
-        }
-        expect(element.chain).toBeNull()
+        await stateOf(container, "problem")
+        fireEvent.click(statusButton(container)!)
+        await screen.findByRole("dialog", {name: "vitrine.status.title"})
+        expect(document.body.innerHTML).not.toContain("onerror")
+        expect(document.body.querySelector("img, script")).toBeNull()
         expect((window as unknown as Record<string, unknown>).__vitrinePwned).toBeUndefined()
-    })
-
-    it("leaves the actions to the page: the card has no buttons of its own", async () => {
-        casting(receiptOf)
-        const {container} = renderScreen()
-        const element = await receiptElement(container)
-        await waitFor(() => expect(element.state).toBe("done"))
-        await element.updateComplete
-        expect(element.shadowRoot?.querySelectorAll("button").length).toBe(0)
-        expect(container.querySelector(".vitrine-elsewhere-toggle")).not.toBeNull()
     })
 
     it.each([
@@ -434,11 +397,13 @@ describe("the receipt on the confirmation screen", () => {
             {cast: null, transparency: readTransparency(scenario().presentation)},
             true,
         ],
-    ] as const)("shows nothing for %s", async (_name, vitrine, isDemo) => {
+    ] as const)("shows nothing for %s: the portal's own screen", async (_name, vitrine, isDemo) => {
         mockState = confirm(nextBallotId(), vitrine, isDemo)
         const {container, findAllByTestId} = renderScreen()
-        await findAllByTestId("ballot-id")
-        expect(container.querySelector(".vitrine-receipt-container")).toBeNull()
-        expect(container.querySelector("vitrine-receipt")).toBeNull()
+        const [desktop] = await findAllByTestId("ballot-id")
+        expect(desktop.textContent).toMatch(/^[0-9a-f]{64}$/)
+        expect(container.querySelector(".ballot-id-check-icon")).not.toBeNull()
+        expect(statusButton(container)).toBeNull()
+        expect(container.querySelector(".qr-container svg")).not.toBeNull()
     })
 })

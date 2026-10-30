@@ -431,14 +431,116 @@ const englishTranslation = {
             locateAgain: "Find another Ballot",
             found: "Your ballot ID {{ballotId}} has been found",
             notFound: "Your ballot ID {{ballotId}} was not found",
-            ambiguous:
-                "More than one of your ballots matches {{ballotId}}. Use the full ballot ID.",
             contentDesc: "This is your Ballot content: ",
             wrongFormatBallotId: "Invalid Ballot ID format",
             ballotIdNotFoundAtFilter:
                 "Not found, check that your Ballot ID is correct and belongs to this user.",
             filterByBallotId: "Filter by Ballot ID",
             totalBallots: "Total Ballots: {{total}}",
+            idHelp: "The short Ballot ID, like 30ff d314, or the full one",
+            foundShort:
+                "Found by its short ID. To be certain it is yours, compare the full Ballot ID with your receipt.",
+            matches: {
+                title: "{{total}} ballots have the short ID {{shortId}}. Choose yours, or enter the full Ballot ID.",
+                cast: "Cast {{time}}",
+            },
+            result: {
+                receipt: "Ballot receipt",
+                idComment: "Use the short ID or the full one to find this ballot again.",
+                fullId: "Full Ballot ID",
+                copy: "Copy the full Ballot ID",
+                copied: "Ballot ID copied",
+                copiedLabel: "Copied",
+                recordEntry: "Record entry",
+                save: "Save receipt",
+                sealLabel: "Ballot status: {{status}}",
+                check: "Check it independently",
+                caption: "Checked by your browser, with code anyone can inspect.",
+                captionVerified: "Verified by your browser, with code anyone can inspect.",
+                captionProblem: "Found by your browser, with code anyone can inspect.",
+                late: "This usually means a hub is slow or offline; it is not evidence of tampering. Check again later, here or on any other device.",
+                problem:
+                    "The portal lists this ballot as cast, but the election’s public record has no entry for it. Your browser kept the evidence: the portal’s answer and the record’s signed checkpoint. Send it to the election authority or an observer.",
+                problemOther:
+                    "Signed proofs for this ballot contradict each other. It may be a fault or an attack. Your browser kept the evidence. Send it to the election authority or an observer.",
+                saveEvidence: "Save evidence",
+                howToReport: "How to report it",
+                howToReportText:
+                    "Save the evidence file and send it to the election authority or to an independent observer. They can check it on their own computers. It contains nothing about how you voted.",
+                noReceipt:
+                    "This device has no receipt for this ballot. Check it on the device you voted on, or check the receipt file in the ballot verifier.",
+                receiptPending:
+                    "This device keeps a receipt for this ballot, but it isn’t complete or couldn’t be checked just now. Try again later, or check the receipt file in the ballot verifier.",
+                status: {
+                    checking: {
+                        head: "Checking…",
+                        sub: "Your browser is looking the ballot up in the public record.",
+                    },
+                    recorded: {
+                        head: "In the public record",
+                        sub: "Your browser found the ballot. Checking its witnesses…",
+                    },
+                    witnessed: {
+                        head: "Confirmed by witnesses",
+                        sub: "Checking the public anchors…",
+                        subAnchored_one:
+                            "Anchored in public hubs. Where browsers check follows within {{count}} minute.",
+                        subAnchored_other:
+                            "Anchored in public hubs. Where browsers check follows within {{count}} minutes.",
+                    },
+                    verified: {
+                        head: "Verified",
+                        sub: "In the public record, confirmed by independent witnesses and anchored publicly.",
+                    },
+                    late: {
+                        head: "Taking longer than expected",
+                        sub: "In the public record and confirmed by witnesses, but its public anchors are late.",
+                    },
+                    problem: {
+                        head: "Not in the public record",
+                        sub: "Your browser could not find this ballot in the election’s public record.",
+                    },
+                    otherProblem: {
+                        head: "A check failed",
+                        sub: "Signed proofs for this ballot contradict each other. See the step that failed.",
+                    },
+                },
+                steps: {
+                    record: {
+                        title: "Added to the public record",
+                        done: "Entry #{{index}} in the election’s ballots log. Your browser checked its proof.",
+                        failed: "No entry in the election’s ballots log has this Ballot ID.",
+                        missing: "Missing",
+                    },
+                    witnesses: {
+                        title: "Confirmed by witnesses",
+                        done: "Independent witnesses signed a record that includes it.",
+                        count: "{{signed}} of {{total}} · {{needed}} needed",
+                        countOf: "{{signed}} of {{total}}",
+                    },
+                    hubs: {
+                        title_one: "Anchored in {{count}} public hub",
+                        title_other: "Anchored in {{count}} public hubs",
+                        titleAny: "Anchored in public hubs",
+                        done: "Shared logs also hold this record: {{hubs}}.",
+                    },
+                    browser: {
+                        title: "Anchored where browsers check",
+                        done: "Held by a stand-in hub until browsers check logs themselves.",
+                    },
+                    checking: "Your browser is checking…",
+                    scheduled_one: "Within {{count}} minute. No need to wait.",
+                    scheduled_other: "Within {{count}} minutes. No need to wait.",
+                    by: "By {{time}}",
+                    late: "Late",
+                    lateHubs: "The hubs should have anchored it by {{time}}.",
+                    lateOther: "This should have been done by {{time}}.",
+                    waiting: "Waiting for the step above.",
+                    skipped: "Not checked.",
+                    failedStep: "Signed proofs for this step contradict each other.",
+                    failedTime: "Problem",
+                },
+            },
             steps: {
                 lookup: "Find your Ballot",
                 result: "Result",
@@ -460,35 +562,131 @@ const englishTranslation = {
             },
         },
         vitrine: {
-            progress: "Step {{current}} of {{total}} · {{step}}",
-            confirmation: {
-                step: "Confirmation",
-                cast: "Your ballot has been cast",
-                recordedPublic: "Your ballot is in the public record",
-                recordedPrivate: "Your ballot is in the election record",
-                keep: "Keep your receipt to check it again later.",
-                elsewhere: "Check it on another device",
-                save: "Save receipt",
+            ballotId: {
+                label: "Ballot ID",
+                full: "Full Ballot ID",
+                yours: "Your Ballot ID:",
+                copy: "Copy the full Ballot ID",
+                copied: "Ballot ID copied",
+                copiedShort: "Copied",
             },
-            failure: {
-                titlePublic: "We could not confirm your ballot in the public record",
-                titlePrivate: "We could not confirm your ballot in the election record",
-                contradiction:
-                    "Signed proofs in your receipt contradict each other, so this website can't confirm your ballot. It may be a fault or an attack. Your vote may still count, but someone independent should look at it.",
-                evidenceTitle: "Evidence kept on this device",
-                evidenceCount_one: "{{count}} item",
-                evidenceCount_other: "{{count}} items",
-                receiptEntry: "Your receipt for entry #{{index}}",
-                receiptPromise: "Your receipt for a promised entry",
-                receiptSigned: "Signed by the record when you voted",
-                observers:
-                    "Observers check this evidence on their own computers. It proves what the record signed, and it contains nothing about how you voted.",
-                check: "Check it independently",
-                save: "Download the receipt file",
-                nextTitle: "What happens next?",
-                nextText:
-                    "Your vote was cast. Keep the receipt file: it stays valid whatever this page shows. Check it independently, which doesn't rely on this website, and give it to the election's observers if it still can't be confirmed.",
-                showReceipt: "Show the receipt and every check",
+            status: {
+                title: "Ballot status",
+                cast: "Cast {{when}}",
+                ballotCast: "Ballot cast",
+                aria: "Ballot status: {{state}}. Show details",
+                ariaCast: "Ballot cast. Ballot status: {{state}}. Show details",
+                tooltip: "{{state}} · Show details",
+                tracker: "Open in the ballot tracker",
+                save: "Save receipt",
+                ok: "OK",
+                state: {
+                    notcast: "Not cast yet",
+                    checking: "Checking…",
+                    recorded: "In the public record",
+                    witnessed: "Confirmed by witnesses",
+                    verified: "Verified",
+                    late: "Late",
+                    problem: "Problem",
+                },
+                head: {
+                    late: "Taking longer than expected",
+                    mismatch: "The record does not match",
+                    damaged: "The receipt is damaged",
+                    noReceipt: "No receipt for your ballot",
+                    unchecked: "Your ballot could not be checked",
+                },
+                sub: {
+                    notcast:
+                        "This ballot is encrypted on this device and nothing has been sent. Once you cast it, your browser checks that it reaches the public record.",
+                    checking: "Your browser is checking that your ballot is in the public record.",
+                    recorded:
+                        "Your browser found your ballot in the public record. Witnesses confirm it next.",
+                    witnessed:
+                        "Independent witnesses confirmed the record. Public anchors follow within {{minutes}} minutes; no need to wait.",
+                    verified:
+                        "Your ballot is in the public record, confirmed by independent witnesses and anchored publicly.",
+                    late: "Your ballot is in the public record and confirmed by witnesses, but its public anchors are late.",
+                    lateStep:
+                        "A step is taking longer than expected. This is not evidence of tampering, and your browser keeps checking.",
+                    mismatch:
+                        "The public record’s entry #{{index}} is not the one in this receipt.",
+                    mismatchNoEntry: "The public record’s entry is not the one in this receipt.",
+                    damaged:
+                        "Part of the receipt or the record could not be read or verified. That is a data fault, not evidence of tampering. Your vote was cast.",
+                    noReceipt:
+                        "This website did not get a receipt for your ballot. Your vote was cast, and the election’s observers have been told.",
+                    unchecked: "This website could not check the receipt. Your vote was cast.",
+                },
+                step: {
+                    record: {
+                        title: "In the public record",
+                        upcoming: "Your browser finds the ballot in the election’s public record.",
+                    },
+                    witnesses: {
+                        title: "Confirmed by witnesses",
+                        upcoming: "Independent witnesses sign a record that includes it.",
+                    },
+                    anchors: {
+                        title: "Anchored publicly",
+                        upcoming: "Public hubs, and the logs browsers check, hold that record.",
+                    },
+                },
+                row: {
+                    waiting: "Waiting for the step above.",
+                    checking: "Your browser is checking…",
+                    anchoring:
+                        "Public hubs, then where browsers check: within {{minutes}} minutes.",
+                    recorded: "Your browser checked its proof.",
+                    recordedEntry: "Entry #{{index}}. Your browser checked its proof.",
+                    witnessed:
+                        "Enough of the policy’s independent witnesses ({{count}}) signed a record that includes it.",
+                    anchoredWaict: "In the public hubs ({{count}}), and where browsers check.",
+                    anchoredBootstrap:
+                        "In the public hubs ({{count}}), and where browsers check, through a stand-in hub for now.",
+                    anchoredHubs: "In the public hubs ({{count}}).",
+                    lateNow: "It should have been done by now.",
+                    lateStep: "It should have been done by {{time}}.",
+                    lateAnchors: "The hubs should have anchored it by {{time}}.",
+                    mismatch: "Entry #{{index}} in the record differs from your receipt.",
+                    mismatchNoEntry: "An entry in the record differs from your receipt.",
+                    contradiction: "Its signed proofs contradict each other.",
+                    damaged: "Its proof is damaged and could not be verified.",
+                    noReceipt: "This website did not get a receipt.",
+                    unchecked: "This website could not check the receipt.",
+                    skipped: "Not checked, because the step above could not be completed.",
+                    skippedMismatch: "Not checked, because the record does not match.",
+                },
+                word: {
+                    withinSeconds: "Within seconds",
+                    withinMinutes: "Within {{minutes}} min",
+                    checking: "Checking…",
+                    late: "Late",
+                    mismatch: "Mismatch",
+                    damaged: "Damaged",
+                    noReceipt: "No receipt",
+                    unchecked: "Not checked",
+                    skipped: "—",
+                },
+                callout: {
+                    late: "This usually means a hub is slow or offline; it is not evidence of tampering.",
+                    lateKept:
+                        "This device checks again each time you come back, and the ballot tracker can check from any device.",
+                    lateTracker: "The ballot tracker can check from any device.",
+                    evidence:
+                        "Your browser kept the evidence: this receipt and the record’s signed entry. Send it to the election authority or an observer; anyone can check it.",
+                    saveEvidence: "Save evidence",
+                },
+                caption: {
+                    notcast:
+                        "Nothing is checked until you cast it. Then this check mark shows how far your ballot has been verified.",
+                    checking:
+                        "Your browser is checking the public record, with code anyone can inspect.",
+                    problem: "Found by your browser, with code anyone can inspect.",
+                    verified: "Verified by your browser, with code anyone can inspect.",
+                    checked: "Checked by your browser, with code anyone can inspect.",
+                    kept: "This device keeps the receipt and checks it again on each visit.",
+                },
             },
             booth: {
                 title: "Your ballot can't be prepared yet",
@@ -500,48 +698,6 @@ const englishTranslation = {
                 failed: "The settings don't match the published ones. The election's observers have been told. Please contact support.",
                 retry: "Try again",
                 close: "Close",
-            },
-            receipt: {
-                waiting:
-                    "The receipt isn't ready yet. This website keeps asking for it while this page is open.",
-                missing:
-                    "This website didn't get a receipt for your ballot. Your vote was cast. The election's observers have been told.",
-                unchecked: "This website couldn't check the receipt. Your vote was cast.",
-                reference: "Scan this code to check the receipt on another device.",
-                stored: "This receipt is kept on this device, and you can see it again after you log in.",
-                notStored: "This receipt isn't kept on this device.",
-                forget: "Don't keep receipts on this device",
-                keep: "Keep receipts on this device",
-            },
-            storedReceipts: {
-                title: "Receipts on this device",
-                holdsPublic: "Your ballot is still in the public record",
-                holdsPrivate: "Your ballot is still in the election record",
-                holdsHelp:
-                    "Checked just now by your browser. Nothing recorded before your ballot has changed.",
-                waiting: "We're still collecting proofs for your ballot",
-                waitingHelp:
-                    "Checked just now by your browser. Some proofs are still on their way, and there's no need to wait.",
-                problemHelp:
-                    "Signed proofs in your receipt contradict each other. Open the receipt to see them.",
-                unchecked: "We could not check your receipt just now",
-                uncheckedHelp: "The receipt is kept on this device. Try again later.",
-                witnesses: "Witnesses",
-                hubs: "Public hubs",
-                hubsPrivate: "Hubs",
-                browser: "Where browsers check",
-                hubsAgree: "{{agree}} of {{total}} agree",
-                anchored: "Anchored",
-                viewReceipt: "View receipt",
-                hideReceipt: "Hide receipt",
-                forget: "Remove the receipts from this device",
-                howTitle: "How we check",
-                howReceipt: "Your browser keeps a signed receipt. It never contains how you voted.",
-                howCheck: "Each visit it asks the record for a short proof that it only grew.",
-                howWitnesses:
-                    "Independent witnesses sign it, and public hubs anchor it where browsers check, so everyone sees the same record.",
-                howWitnessesPrivate:
-                    "Independent witnesses sign it, and hubs keep sealed anchors, so everyone is shown the same record.",
             },
         },
     },

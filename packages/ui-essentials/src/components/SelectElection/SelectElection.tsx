@@ -187,6 +187,8 @@ export interface SelectElectionProps {
     title: string
     electionHomeUrl?: string
     hasVoted: boolean
+    /** What a voted election shows in place of the check and "Voted". */
+    votedStatus?: React.ReactNode
     onClickToVote?: () => void
     onClickBallotLocator?: () => void
     resultsUrl?: string
@@ -263,6 +265,7 @@ const SelectElection: React.FC<SelectElectionProps> = ({
     title,
     electionHomeUrl,
     hasVoted,
+    votedStatus,
     onClickToVote,
     onClickBallotLocator,
     resultsUrl,
@@ -345,18 +348,22 @@ const SelectElection: React.FC<SelectElectionProps> = ({
                             hasvoted={String(!!hasVoted)}
                             color={theme.palette.errorColor}
                         >
-                            <FontAwesomeIcon
-                                className="election-vote-status-icon"
-                                icon={faCheck}
-                                size="sm"
-                            />
-                            <Typography
-                                className="election-vote-status-label"
-                                fontSize="14px"
-                                margin={0}
-                            >
-                                {t("selectElection.voted")}
-                            </Typography>
+                            {votedStatus ?? (
+                                <>
+                                    <FontAwesomeIcon
+                                        className="election-vote-status-icon"
+                                        icon={faCheck}
+                                        size="sm"
+                                    />
+                                    <Typography
+                                        className="election-vote-status-label"
+                                        fontSize="14px"
+                                        margin={0}
+                                    >
+                                        {t("selectElection.voted")}
+                                    </Typography>
+                                </>
+                            )}
                         </VotedContainer>
                     ) : (
                         <VotedContainer

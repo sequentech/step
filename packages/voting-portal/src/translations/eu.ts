@@ -439,14 +439,118 @@ const basqueTranslation: TranslationType = {
             locateAgain: "Bilatu beste Bozketa bat",
             found: "Zure bozketa IDa {{ballotId}} aurkitu da",
             notFound: "Zure bozketa IDa {{ballotId}} ez da aurkitu",
-            ambiguous:
-                "Zure boto bat baino gehiago dator bat {{ballotId}} identifikatzailearekin. Erabili boto-identifikatzaile osoa.",
             contentDesc: "Hau da zure Bozketa edukia: ",
             wrongFormatBallotId: "Bozketa IDaren formatu okerra",
             ballotIdNotFoundAtFilter:
                 "Ez da aurkitu. Egiaztatu zure bozketa IDa zuzena dela eta erabiltzaile honi dagokiola.",
             filterByBallotId: "Filtratu Bozketa IDa",
             totalBallots: "Bozketa kopurua: {{total}}",
+            idHelp: "Boto-txartelaren ID laburra, 30ff d314 bezalakoa, edo osoa",
+            foundShort:
+                "ID laburraren bidez aurkitu da. Zurea dela ziur egoteko, alderatu ID osoa zure hartu-agiriarekin.",
+            matches: {
+                title: "{{total}} boto-txartelek dute {{shortId}} ID laburra. Aukeratu zurea, edo sartu ID osoa.",
+                cast: "Emana: {{time}}",
+            },
+            result: {
+                receipt: "Boto-txartelaren hartu-agiria",
+                idComment: "Erabili ID laburra edo osoa boto-txartel hau berriro aurkitzeko.",
+                fullId: "Boto-txartelaren ID osoa",
+                copy: "Kopiatu boto-txartelaren ID osoa",
+                copied: "IDa kopiatu da",
+                copiedLabel: "Kopiatuta",
+                recordEntry: "Erregistroko sarrera",
+                save: "Gorde hartu-agiria",
+                sealLabel: "Boto-txartelaren egoera: {{status}}",
+                check: "Egiaztatu modu independentean",
+                caption: "Zure nabigatzaileak egiaztatu du, edonork ikuska dezakeen kodearekin.",
+                captionVerified:
+                    "Zure nabigatzaileak baieztatu du, edonork ikuska dezakeen kodearekin.",
+                captionProblem:
+                    "Zure nabigatzaileak aurkitu du, edonork ikuska dezakeen kodearekin.",
+                late: "Normalean gune bat motel edo lineaz kanpo dagoela esan nahi du; ez da manipulazioaren frogarik. Egiaztatu berriro geroago, hemen edo beste edozein gailutan.",
+                problem:
+                    "Atariak boto-txartel hau emandakotzat jotzen du, baina hauteskundeen erregistro publikoak ez du sarrerarik berarentzat. Zure nabigatzaileak froga gorde du: atariaren erantzuna eta erregistroaren egiaztapen-puntu sinatua. Bidali hauteskunde-agintaritzari edo behatzaile bati.",
+                problemOther:
+                    "Boto-txartel honen froga sinatuek elkarren aurka egiten dute. Akats bat edo eraso bat izan daiteke. Zure nabigatzaileak froga gorde du. Bidali hauteskunde-agintaritzari edo behatzaile bati.",
+                saveEvidence: "Gorde froga",
+                howToReport: "Nola salatu",
+                howToReportText:
+                    "Gorde frogaren fitxategia eta bidali hauteskunde-agintaritzari edo behatzaile independente bati. Beren ordenagailuetan egiaztatu dezakete. Ez du ezer jasotzen nola bozkatu duzun.",
+                noReceipt:
+                    "Gailu honek ez du boto-txartel honen hartu-agiririk. Egiaztatu bozkatzeko erabili zenuen gailuan, edo egiaztatu hartu-agiriaren fitxategia boto-txartelen egiaztatzailean.",
+                receiptPending:
+                    "Gailu honek boto-txartel honen hartu-agiria gordetzen du, baina ez dago osorik edo ezin izan da orain egiaztatu. Saiatu berriro geroago, edo egiaztatu hartu-agiriaren fitxategia boto-txartelen egiaztatzailean.",
+                status: {
+                    checking: {
+                        head: "Egiaztatzen…",
+                        sub: "Zure nabigatzailea boto-txartela erregistro publikoan bilatzen ari da.",
+                    },
+                    recorded: {
+                        head: "Erregistro publikoan",
+                        sub: "Zure nabigatzaileak boto-txartela aurkitu du. Lekukoak egiaztatzen…",
+                    },
+                    witnessed: {
+                        head: "Lekukoek baieztatua",
+                        sub: "Ainguraketa publikoak egiaztatzen…",
+                        subAnchored_one:
+                            "Gune publikoetan ainguratuta. Nabigatzaileek egiaztatzen duten tokira {{count}} minutuan helduko da.",
+                        subAnchored_other:
+                            "Gune publikoetan ainguratuta. Nabigatzaileek egiaztatzen duten tokira {{count}} minututan helduko da.",
+                    },
+                    verified: {
+                        head: "Egiaztatuta",
+                        sub: "Erregistro publikoan, lekuko independenteek baieztatua eta publikoki ainguratua.",
+                    },
+                    late: {
+                        head: "Espero baino gehiago irauten du",
+                        sub: "Erregistro publikoan dago eta lekukoek baieztatu dute, baina ainguraketa publikoak berandu dabiltza.",
+                    },
+                    problem: {
+                        head: "Ez dago erregistro publikoan",
+                        sub: "Zure nabigatzaileak ezin izan du boto-txartel hau hauteskundeen erregistro publikoan aurkitu.",
+                    },
+                    otherProblem: {
+                        head: "Egiaztapen batek huts egin du",
+                        sub: "Boto-txartel honen froga sinatuek elkarren aurka egiten dute. Ikusi huts egin duen urratsa.",
+                    },
+                },
+                steps: {
+                    record: {
+                        title: "Erregistro publikoan gehitu da",
+                        done: "{{index}}. sarrera hauteskundeen boto-txartelen erregistroan. Zure nabigatzaileak bere froga egiaztatu du.",
+                        failed: "Hauteskundeen boto-txartelen erregistroko sarrera batek ere ez du ID hau.",
+                        missing: "Falta da",
+                    },
+                    witnesses: {
+                        title: "Lekukoek baieztatua",
+                        done: "Lekuko independenteek hura barne hartzen duen erregistro bat sinatu dute.",
+                        count: "{{signed}} / {{total}} · {{needed}} behar dira",
+                        countOf: "{{signed}} / {{total}}",
+                    },
+                    hubs: {
+                        title_one: "Gune publiko batean ainguratuta",
+                        title_other: "{{count}} gune publikotan ainguratuta",
+                        titleAny: "Gune publikoetan ainguratuta",
+                        done: "Partekatutako erregistroek ere badute erregistro hau: {{hubs}}.",
+                    },
+                    browser: {
+                        title: "Nabigatzaileek egiaztatzen duten tokian ainguratuta",
+                        done: "Gune ordezko batek gordeta dauka, nabigatzaileek erregistroak berek egiaztatu arte.",
+                    },
+                    checking: "Zure nabigatzailea egiaztatzen ari da…",
+                    scheduled_one: "{{count}} minutuan. Ez da itxaron beharrik.",
+                    scheduled_other: "{{count}} minututan. Ez da itxaron beharrik.",
+                    by: "{{time}} baino lehen",
+                    late: "Berandu",
+                    lateHubs: "Guneek {{time}} baino lehen ainguratu beharko zuten.",
+                    lateOther: "Hau {{time}} baino lehen egin beharko zen.",
+                    waiting: "Aurreko urratsaren zain.",
+                    skipped: "Ez da egiaztatu.",
+                    failedStep: "Urrats honen froga sinatuek elkarren aurka egiten dute.",
+                    failedTime: "Arazoa",
+                },
+            },
             steps: {
                 lookup: "Bilatu zure Bozketa",
                 result: "Emaitza",
@@ -468,36 +572,140 @@ const basqueTranslation: TranslationType = {
             },
         },
         vitrine: {
-            progress: "{{current}}/{{total}}. urratsa · {{step}}",
-            confirmation: {
-                step: "Berrespena",
-                cast: "Zure boto-txartela eman da",
-                recordedPublic: "Zure boto-txartela erregistro publikoan dago",
-                recordedPrivate: "Zure boto-txartela hauteskundearen erregistroan dago",
-                keep: "Gorde zure hartu-agiria, geroago berriro egiaztatzeko.",
-                elsewhere: "Egiaztatu beste gailu batean",
-                save: "Gorde hartu-agiria",
+            ballotId: {
+                label: "Bozketa IDa",
+                full: "Bozketa ID osoa",
+                yours: "Zure Txartelaren IDa:",
+                copy: "Kopiatu ID osoa",
+                copied: "IDa kopiatu da",
+                copiedShort: "Kopiatuta",
             },
-            failure: {
-                titlePublic: "Ezin izan dugu zure boto-txartela erregistro publikoan baieztatu",
-                titlePrivate:
-                    "Ezin izan dugu zure boto-txartela hauteskundearen erregistroan baieztatu",
-                contradiction:
-                    "Zure hartu-agiriko froga sinatuek elkarren kontra egiten dute; beraz, webgune honek ezin du zure boto-txartela baieztatu. Akats bat edo eraso bat izan daiteke. Zure botoak oraindik balio dezake, baina independente batek aztertu beharko luke.",
-                evidenceTitle: "Gailu honetan gordetako ebidentziak",
-                evidenceCount_one: "{{count}} elementu",
-                evidenceCount_other: "{{count}} elementu",
-                receiptEntry: "{{index}}. sarreraren hartu-agiria",
-                receiptPromise: "Agindutako sarrera baten hartu-agiria",
-                receiptSigned: "Erregistroak sinatua, bozkatu zenuenean",
-                observers:
-                    "Behatzaileek ebidentzia hauek beren ordenagailuetan egiaztatzen dituzte. Erregistroak zer sinatu duen frogatzen dute, eta ez dute ezer jasotzen zer bozkatu duzun.",
-                check: "Egiaztatu modu independentean",
-                save: "Deskargatu hartu-agiriaren fitxategia",
-                nextTitle: "Zer gertatzen da orain?",
-                nextText:
-                    "Zure botoa eman da. Gorde hartu-agiriaren fitxategia: baliozkoa izaten jarraitzen du orri honek zer erakutsi arren. Egiaztatu modu independentean, webgune honen mende egon gabe, eta eman hauteskundearen behatzaileei oraindik baieztatu ezin bada.",
-                showReceipt: "Erakutsi hartu-agiria eta egiaztapen guztiak",
+            status: {
+                title: "Bozketaren egoera",
+                cast: "{{when}}(e)an eman da",
+                ballotCast: "Boto emana",
+                aria: "Bozketaren egoera: {{state}}. Erakutsi xehetasunak",
+                ariaCast: "Boto emana. Bozketaren egoera: {{state}}. Erakutsi xehetasunak",
+                tooltip: "{{state}} · Erakutsi xehetasunak",
+                tracker: "Ireki txartelen jarraitzailean",
+                save: "Gorde ordainagiria",
+                ok: "Ados",
+                state: {
+                    notcast: "Oraindik ez da eman",
+                    checking: "Egiaztatzen…",
+                    recorded: "Erregistro publikoan",
+                    witnessed: "Lekukoek berretsia",
+                    verified: "Egiaztatua",
+                    late: "Berandu",
+                    problem: "Arazoa",
+                },
+                head: {
+                    late: "Espero baino gehiago tardatzen ari da",
+                    mismatch: "Erregistroa ez dator bat",
+                    damaged: "Ordainagiria hondatuta dago",
+                    noReceipt: "Zure bozketak ez du ordainagirik",
+                    unchecked: "Ezin izan da zure bozketa egiaztatu",
+                },
+                sub: {
+                    notcast:
+                        "Bozketa hau gailu honetan dago zifratuta eta ez da ezer bidali. Eman ondoren, zure nabigatzaileak erregistro publikora iristen dela egiaztatuko du.",
+                    checking:
+                        "Zure nabigatzailea zure bozketa erregistro publikoan dagoela egiaztatzen ari da.",
+                    recorded:
+                        "Zure nabigatzaileak zure bozketa erregistro publikoan aurkitu du. Orain lekukoek berretsiko dute.",
+                    witnessed:
+                        "Lekuko independenteek erregistroa berretsi dute. Aingura publikoak {{minutes}} minuturen buruan iristen dira; ez dago itxaron beharrik.",
+                    verified:
+                        "Zure bozketa erregistro publikoan dago, lekuko independenteek berretsia eta publikoki ainguratua.",
+                    late: "Zure bozketa erregistro publikoan dago eta lekukoek berretsi dute, baina aingura publikoak berandu doaz.",
+                    lateStep:
+                        "Urrats bat espero baino gehiago tardatzen ari da. Ez da manipulazioaren froga, eta zure nabigatzaileak egiaztatzen jarraitzen du.",
+                    mismatch:
+                        "Erregistro publikoko #{{index}} sarrera ez da ordainagiri honetakoa.",
+                    mismatchNoEntry: "Erregistro publikoko sarrera ez da ordainagiri honetakoa.",
+                    damaged:
+                        "Ordainagiriaren edo erregistroaren zati bat ezin izan da irakurri edo egiaztatu. Datu-akatsa da, ez manipulazioaren froga. Zure botoa eman da.",
+                    noReceipt:
+                        "Webgune honek ez du zure bozketaren ordainagirik jaso. Zure botoa eman da, eta hauteskundeen behatzaileei jakinarazi zaie.",
+                    unchecked:
+                        "Webgune honek ezin izan du ordainagiria egiaztatu. Zure botoa eman da.",
+                },
+                step: {
+                    record: {
+                        title: "Erregistro publikoan",
+                        upcoming:
+                            "Zure nabigatzaileak bozketa hauteskundeen erregistro publikoan aurkitzen du.",
+                    },
+                    witnesses: {
+                        title: "Lekukoek berretsia",
+                        upcoming:
+                            "Lekuko independenteek bozketa barne hartzen duen erregistro bat sinatzen dute.",
+                    },
+                    anchors: {
+                        title: "Publikoki ainguratua",
+                        upcoming:
+                            "Gune publikoek eta nabigatzaileek egiaztatzen dituzten erregistroek erregistro hori gordetzen dute.",
+                    },
+                },
+                row: {
+                    waiting: "Aurreko urratsaren zain.",
+                    checking: "Zure nabigatzailea egiaztatzen ari da…",
+                    anchoring:
+                        "Gune publikoak eta, ondoren, nabigatzaileek egiaztatzen duten tokia: {{minutes}} minuturen buruan.",
+                    recorded: "Zure nabigatzaileak bere froga egiaztatu du.",
+                    recordedEntry:
+                        "#{{index}} sarrera. Zure nabigatzaileak bere froga egiaztatu du.",
+                    witnessed:
+                        "Politikako lekuko independente nahikok ({{count}}) sinatu dute bozketa barne hartzen duen erregistro bat.",
+                    anchoredWaict:
+                        "Gune publikoetan ({{count}}) eta nabigatzaileek egiaztatzen duten tokian.",
+                    anchoredBootstrap:
+                        "Gune publikoetan ({{count}}) eta nabigatzaileek egiaztatzen duten tokian, oraingoz ordezko gune baten bidez.",
+                    anchoredHubs: "Gune publikoetan ({{count}}).",
+                    lateNow: "Dagoeneko eginda egon beharko luke.",
+                    lateStep: "{{time}} baino lehen eginda egon beharko luke.",
+                    lateAnchors: "Guneek {{time}} baino lehen ainguratu beharko zuten.",
+                    mismatch:
+                        "Erregistroko #{{index}} sarrera ez da zure ordainagirikoa bezalakoa.",
+                    mismatchNoEntry:
+                        "Erregistroko sarrera bat ez da zure ordainagirikoa bezalakoa.",
+                    contradiction: "Bere froga sinatuek elkarren aurka egiten dute.",
+                    damaged: "Bere froga hondatuta dago eta ezin izan da egiaztatu.",
+                    noReceipt: "Webgune honek ez du ordainagirik jaso.",
+                    unchecked: "Webgune honek ezin izan du ordainagiria egiaztatu.",
+                    skipped: "Ez da egiaztatu, aurreko urratsa ezin izan delako osatu.",
+                    skippedMismatch: "Ez da egiaztatu, erregistroa ez datorrelako bat.",
+                },
+                word: {
+                    withinSeconds: "Segundo gutxiren buruan",
+                    withinMinutes: "{{minutes}} min barru",
+                    checking: "Egiaztatzen…",
+                    late: "Berandu",
+                    mismatch: "Ez dator bat",
+                    damaged: "Hondatua",
+                    noReceipt: "Ordainagirik gabe",
+                    unchecked: "Egiaztatu gabe",
+                    skipped: "—",
+                },
+                callout: {
+                    late: "Normalean gune bat motela edo lineaz kanpo dagoela esan nahi du; ez da manipulazioaren froga.",
+                    lateKept:
+                        "Gailu honek berriro egiaztatzen du itzultzen zaren bakoitzean, eta txartelen jarraitzaileak edozein gailutatik egiazta dezake.",
+                    lateTracker: "Txartelen jarraitzaileak edozein gailutatik egiazta dezake.",
+                    evidence:
+                        "Zure nabigatzaileak frogak gorde ditu: ordainagiri hau eta erregistroaren sarrera sinatua. Bidali hauteskunde-agintaritzari edo behatzaile bati; edonork egiazta dezake.",
+                    saveEvidence: "Gorde frogak",
+                },
+                caption: {
+                    notcast:
+                        "Ez da ezer egiaztatzen eman arte. Gero, ikur honek zure bozketa zenbateraino egiaztatu den erakusten du.",
+                    checking:
+                        "Zure nabigatzailea erregistro publikoa egiaztatzen ari da, edonork ikuska dezakeen kodearekin.",
+                    problem: "Zure nabigatzaileak aurkitua, edonork ikuska dezakeen kodearekin.",
+                    verified: "Zure nabigatzaileak egiaztatua, edonork ikuska dezakeen kodearekin.",
+                    checked: "Zure nabigatzaileak egiaztatua, edonork ikuska dezakeen kodearekin.",
+                    kept: "Gailu honek ordainagiria gordetzen du eta bisita bakoitzean berriro egiaztatzen du.",
+                },
             },
             booth: {
                 title: "Zure boto-txartela ezin da oraindik prestatu",
@@ -510,50 +718,6 @@ const basqueTranslation: TranslationType = {
                 failed: "Konfigurazioa ez dator bat argitaratutakoarekin. Hauteskundearen behatzaileei jakinarazi zaie. Jarri harremanetan laguntza-zerbitzuarekin.",
                 retry: "Saiatu berriro",
                 close: "Itxi",
-            },
-            receipt: {
-                waiting:
-                    "Hartu-agiria ez dago oraindik prest. Webgune honek eskatzen jarraitzen du orri hau irekita dagoen bitartean.",
-                missing:
-                    "Webgune honek ez du zure boto-txartelaren hartu-agiririk jaso. Zure botoa eman da. Hauteskundearen behatzaileei jakinarazi zaie.",
-                unchecked: "Webgune honek ezin izan du hartu-agiria egiaztatu. Zure botoa eman da.",
-                reference: "Eskaneatu kode hau hartu-agiria beste gailu batean egiaztatzeko.",
-                stored: "Hartu-agiri hau gailu honetan gordetzen da, eta saioa hasten duzunean berriro ikus dezakezu.",
-                notStored: "Hartu-agiri hau ez da gailu honetan gordetzen.",
-                forget: "Ez gorde hartu-agiririk gailu honetan",
-                keep: "Gorde hartu-agiriak gailu honetan",
-            },
-            storedReceipts: {
-                title: "Gailu honetako hartu-agiriak",
-                holdsPublic: "Zure boto-txartela oraindik erregistro publikoan dago",
-                holdsPrivate: "Zure boto-txartela oraindik hauteskundearen erregistroan dago",
-                holdsHelp:
-                    "Zure nabigatzaileak oraintxe egiaztatu du. Zure boto-txartela baino lehen erregistratutako ezer ez da aldatu.",
-                waiting: "Zure boto-txartelaren frogak biltzen jarraitzen dugu",
-                waitingHelp:
-                    "Zure nabigatzaileak oraintxe egiaztatu du. Froga batzuk bidean daude oraindik, eta ez da itxaron beharrik.",
-                problemHelp:
-                    "Zure hartu-agiriko froga sinatuek elkarren kontra egiten dute. Ireki hartu-agiria ikusteko.",
-                unchecked: "Ezin izan dugu zure hartu-agiria egiaztatu oraingoan",
-                uncheckedHelp: "Hartu-agiria gailu honetan gordeta dago. Saiatu berriro geroago.",
-                witnesses: "Lekukoak",
-                hubs: "Gune publikoak",
-                hubsPrivate: "Guneak",
-                browser: "Nabigatzaileek egiaztatzen duten tokia",
-                hubsAgree: "{{total}}tik {{agree}} bat datoz",
-                anchored: "Ainguratua",
-                viewReceipt: "Ikusi hartu-agiria",
-                hideReceipt: "Ezkutatu hartu-agiria",
-                forget: "Kendu hartu-agiriak gailu honetatik",
-                howTitle: "Nola egiaztatzen dugun",
-                howReceipt:
-                    "Zure nabigatzaileak hartu-agiri sinatu bat gordetzen du. Ez du inoiz jasotzen zer bozkatu duzun.",
-                howCheck:
-                    "Bisita bakoitzean, erregistroari froga labur bat eskatzen dio, haztea besterik ez duela egin frogatzeko.",
-                howWitnesses:
-                    "Lekuko independenteek sinatzen dute, eta gune publikoek nabigatzaileek egiaztatzen duten tokian ainguratzen dute; horrela, denek erregistro bera ikusten dute.",
-                howWitnessesPrivate:
-                    "Lekuko independenteek sinatzen dute, eta guneek aingura zigilatuak gordetzen dituzte; horrela, denei erregistro bera erakusten zaie.",
             },
         },
     },

@@ -88,6 +88,8 @@ import {
 } from "../store/castVotes/confirmationScreenDataSlice"
 import {asTransparency, eventTransparency, ITransparency} from "../services/vitrine/presentation"
 import {ETransparencyMode, IVitrineCast} from "../services/vitrine/types"
+import {ReviewBallotId} from "../components/Vitrine/ReviewBallotId"
+import {useElectionName} from "../hooks/useElectionName"
 import {selectElectionById} from "../store/elections/electionsSlice"
 import {completeAcclaimedElection, isDeclineToVoteByElectionId} from "../store/extra/extraSlice"
 
@@ -617,6 +619,13 @@ export const ReviewScreen: React.FC = () => {
     const addFakeCastVote = useAddFakeCastVote(tenantId, eventId)
     const tryInsertCastVote = useTryInsertCastVote()
     const electionFromRedux = useAppSelector(selectElectionById(String(electionId)))
+    const electionName = useElectionName(electionId)
+    const events = useAppSelector((state) => state.electionEvent)
+    const keepsTransparencyLog =
+        eventTransparency(
+            events[ballotStyle?.election_event_id ?? ""]?.presentation,
+            ballotStyle?.ballot_eml?.election_event_presentation
+        ).mode !== ETransparencyMode.DISABLED
     const isDeclineToVote = useAppSelector(isDeclineToVoteByElectionId(String(electionId)))
     const {data: dataElections, error: errorElections} = useQuery<GetElectionsQuery>(
         GET_ELECTIONS,
@@ -880,7 +889,15 @@ export const ReviewScreen: React.FC = () => {
 
     return (
         <PageLimit maxWidth="lg" className="review-screen screen">
-            {auditButtonCfg === EVotingPortalAuditButtonCfg.NOT_SHOW || isFullyAcclaimed ? null : (
+            {auditButtonCfg === EVotingPortalAuditButtonCfg.NOT_SHOW ||
+            isFullyAcclaimed ? null : keepsTransparencyLog && ballotId ? (
+                <ReviewBallotId
+                    ballotId={ballotId}
+                    electionName={electionName}
+                    helpLabel={t("reviewScreen.ballotIdHelpDialog.title")}
+                    onHelpClick={() => setOpenBallotIdHelp(true)}
+                />
+            ) : (
                 <BallotHash
                     hash={ballotId || ""}
                     copyLabels={{

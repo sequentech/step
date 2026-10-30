@@ -22,13 +22,11 @@ import type {IReceiptTarget} from "../services/vitrine/receipt"
 import {IVitrineSdk, loadVitrineSdk} from "../services/vitrine/sdk"
 import {
     EReceiptKeeping,
-    forgetReceipt,
     forgetReceipts,
     IKeptReceipt,
     keepReceipt,
     keptReceipts,
     receiptKeeping,
-    setReceiptKeeping,
 } from "../services/vitrine/storage"
 import {ETransparencyMode} from "../services/vitrine/types"
 import {voterContextFor} from "../services/vitrine/voterContext"
@@ -82,10 +80,8 @@ const keepView = async (
 
 export interface ICastReceipt {
     view?: IReceiptView
-    keeping: EReceiptKeeping
     /** Whether this device keeps the receipt. */
     kept: boolean
-    setKeeping: (keeping: EReceiptKeeping) => void
 }
 
 /** The receipt of the ballot just cast: checked, upgraded while the page is
@@ -98,7 +94,6 @@ export const useCastReceipt = (
     const {isKiosk, userId} = useContext(AuthContext)
     const kiosk = isKiosk()
     const [view, setView] = useState<IReceiptView>()
-    const [keeping, setKeepingState] = useState<EReceiptKeeping>(receiptKeeping)
     const [kept, setKept] = useState(false)
     const {eventId, electionId, ballotId} = target
 
@@ -117,7 +112,7 @@ export const useCastReceipt = (
     }, [client, eventId, electionId, ballotId, vitrine])
 
     useEffect(() => {
-        if (!view || kiosk || !userId || keeping !== EReceiptKeeping.KEEP) return
+        if (!view || kiosk || !userId || receiptKeeping() !== EReceiptKeeping.KEEP) return
         let active = true
         const keep = async () => {
             let ok = false
@@ -140,27 +135,9 @@ export const useCastReceipt = (
         return () => {
             active = false
         }
-    }, [view, kiosk, keeping, userId, eventId, electionId, ballotId])
+    }, [view, kiosk, userId, eventId, electionId, ballotId])
 
-    const setKeeping = useCallback(
-        (next: EReceiptKeeping) => {
-            setReceiptKeeping(next)
-            setKeepingState(next)
-            if (next !== EReceiptKeeping.FORGET) return
-            setKept(false)
-            const forget = async () => {
-                try {
-                    await forgetReceipt(await loadVitrineSdk(), eventId, electionId)
-                } catch {
-                    // Nothing was kept.
-                }
-            }
-            void forget()
-        },
-        [eventId, electionId]
-    )
-
-    return {view, keeping, kept, setKeeping}
+    return {view, kept}
 }
 
 export interface IKeptReceiptView {

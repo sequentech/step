@@ -56,7 +56,8 @@ export const STATUS_STEPS: readonly EStatusStep[] = [
     EStatusStep.ANCHORS,
 ]
 
-const STEP_TIERS: Record<EStatusStep, readonly TierName[]> = {
+/** The tiers each step rests on. */
+export const STEP_TIERS: Record<EStatusStep, readonly TierName[]> = {
     [EStatusStep.RECORD]: ["record"],
     [EStatusStep.WITNESSES]: ["witnesses"],
     [EStatusStep.ANCHORS]: ["hubs", "browser"],

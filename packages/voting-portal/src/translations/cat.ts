@@ -441,14 +441,119 @@ const catalanTranslation: TranslationType = {
             locateAgain: "Trobeu una altra papereta",
             found: "El vostre ID de Papereta {{ballotId}} ha estat trobat",
             notFound: "El vostre ID de Papereta {{ballotId}} no ha estat trobat",
-            ambiguous:
-                "Més d'una de les vostres paperetes coincideix amb {{ballotId}}. Utilitzeu l'ID complet de la papereta.",
             contentDesc: "Aquest és el contingut de la vostra papereta: ",
             wrongFormatBallotId: "Format incorrecte per l'ID de la Papereta",
             ballotIdNotFoundAtFilter:
                 "No trobat, comproveu que l'ID de la Papereta sigui correcte i pertanyi a l'usuari actual.",
             filterByBallotId: "Filtra per ID de la Papereta",
             totalBallots: "Paperetes: {{total}}",
+            idHelp: "L'ID de Papereta curt, com 30ff d314, o el complet",
+            foundShort:
+                "Trobada pel seu ID curt. Per estar-ne segur que és la vostra, compareu l'ID de Papereta complet amb el vostre rebut.",
+            matches: {
+                title: "{{total}} paperetes tenen l'ID curt {{shortId}}. Trieu la vostra o introduïu l'ID de Papereta complet.",
+                cast: "Emesa el {{time}}",
+            },
+            result: {
+                receipt: "Rebut de la papereta",
+                idComment:
+                    "Feu servir l'ID curt o el complet per tornar a trobar aquesta papereta.",
+                fullId: "ID de Papereta complet",
+                copy: "Copia l'ID de Papereta complet",
+                copied: "ID de Papereta copiat",
+                copiedLabel: "Copiat",
+                recordEntry: "Entrada del registre",
+                save: "Desa el rebut",
+                sealLabel: "Estat de la papereta: {{status}}",
+                check: "Comprova-ho de manera independent",
+                caption: "Comprovat pel vostre navegador, amb codi que qualsevol pot inspeccionar.",
+                captionVerified:
+                    "Verificat pel vostre navegador, amb codi que qualsevol pot inspeccionar.",
+                captionProblem:
+                    "Trobat pel vostre navegador, amb codi que qualsevol pot inspeccionar.",
+                late: "Normalment vol dir que un node va lent o està fora de línia; no és prova de manipulació. Torneu-ho a comprovar més tard, aquí o en qualsevol altre dispositiu.",
+                problem:
+                    "El portal indica que aquesta papereta va ser emesa, però el registre públic de l'elecció no té cap entrada per a ella. El vostre navegador ha guardat la prova: la resposta del portal i el punt de control signat del registre. Envieu-la a l'autoritat electoral o a un observador.",
+                problemOther:
+                    "Les proves signades d'aquesta papereta es contradiuen. Pot ser un error o un atac. El vostre navegador ha guardat la prova. Envieu-la a l'autoritat electoral o a un observador.",
+                saveEvidence: "Desa la prova",
+                howToReport: "Com denunciar-ho",
+                howToReportText:
+                    "Deseu el fitxer de la prova i envieu-lo a l'autoritat electoral o a un observador independent. Poden comprovar-lo als seus ordinadors. No conté res sobre com heu votat.",
+                noReceipt:
+                    "Aquest dispositiu no té el rebut d'aquesta papereta. Comproveu-la al dispositiu amb què vau votar, o comproveu el fitxer del rebut al verificador de paperetes.",
+                receiptPending:
+                    "Aquest dispositiu conserva un rebut d'aquesta papereta, però no està complet o no s'ha pogut comprovar ara. Torneu-ho a provar més tard, o comproveu el fitxer del rebut al verificador de paperetes.",
+                status: {
+                    checking: {
+                        head: "S'està comprovant…",
+                        sub: "El vostre navegador està buscant la papereta al registre públic.",
+                    },
+                    recorded: {
+                        head: "Al registre públic",
+                        sub: "El vostre navegador ha trobat la papereta. S'estan comprovant els seus testimonis…",
+                    },
+                    witnessed: {
+                        head: "Confirmada pels testimonis",
+                        sub: "S'estan comprovant els ancoratges públics…",
+                        subAnchored_one:
+                            "Ancorada als nodes públics. On comproven els navegadors arribarà d'aquí a {{count}} minut.",
+                        subAnchored_other:
+                            "Ancorada als nodes públics. On comproven els navegadors arribarà d'aquí a {{count}} minuts.",
+                    },
+                    verified: {
+                        head: "Verificada",
+                        sub: "Al registre públic, confirmada per testimonis independents i ancorada públicament.",
+                    },
+                    late: {
+                        head: "Triga més del previst",
+                        sub: "Al registre públic i confirmada pels testimonis, però els seus ancoratges públics van tard.",
+                    },
+                    problem: {
+                        head: "No és al registre públic",
+                        sub: "El vostre navegador no ha pogut trobar aquesta papereta al registre públic de l'elecció.",
+                    },
+                    otherProblem: {
+                        head: "Ha fallat una comprovació",
+                        sub: "Les proves signades d'aquesta papereta es contradiuen. Mireu el pas que ha fallat.",
+                    },
+                },
+                steps: {
+                    record: {
+                        title: "Afegida al registre públic",
+                        done: "Entrada núm. {{index}} del registre de paperetes de l'elecció. El vostre navegador n'ha comprovat la prova.",
+                        failed: "Cap entrada del registre de paperetes de l'elecció té aquest ID de Papereta.",
+                        missing: "Falta",
+                    },
+                    witnesses: {
+                        title: "Confirmada pels testimonis",
+                        done: "Testimonis independents van signar un registre que la inclou.",
+                        count: "{{signed}} de {{total}} · en calen {{needed}}",
+                        countOf: "{{signed}} de {{total}}",
+                    },
+                    hubs: {
+                        title_one: "Ancorada a {{count}} node públic",
+                        title_other: "Ancorada a {{count}} nodes públics",
+                        titleAny: "Ancorada als nodes públics",
+                        done: "Els registres compartits també contenen aquest registre: {{hubs}}.",
+                    },
+                    browser: {
+                        title: "Ancorada on comproven els navegadors",
+                        done: "Conservada per un node provisional fins que els navegadors comprovin els registres per ells mateixos.",
+                    },
+                    checking: "El vostre navegador ho està comprovant…",
+                    scheduled_one: "D'aquí a {{count}} minut. No cal esperar.",
+                    scheduled_other: "D'aquí a {{count}} minuts. No cal esperar.",
+                    by: "Abans de {{time}}",
+                    late: "Tard",
+                    lateHubs: "Els nodes l'haurien d'haver ancorat abans de {{time}}.",
+                    lateOther: "Això s'hauria d'haver fet abans de {{time}}.",
+                    waiting: "Esperant el pas anterior.",
+                    skipped: "No comprovat.",
+                    failedStep: "Les proves signades d'aquest pas es contradiuen.",
+                    failedTime: "Problema",
+                },
+            },
             steps: {
                 lookup: "Trobeu la vostra papereta",
                 result: "Resultat",
@@ -470,35 +575,136 @@ const catalanTranslation: TranslationType = {
             },
         },
         vitrine: {
-            progress: "Pas {{current}} de {{total}} · {{step}}",
-            confirmation: {
-                step: "Confirmació",
-                cast: "La vostra papereta s'ha emès",
-                recordedPublic: "La vostra papereta és al registre públic",
-                recordedPrivate: "La vostra papereta és al registre de l'elecció",
-                keep: "Guardeu el rebut per comprovar-ho de nou més tard.",
-                elsewhere: "Comprova-ho en un altre dispositiu",
-                save: "Desa el rebut",
+            ballotId: {
+                label: "Localitzador del Vot",
+                full: "Localitzador del Vot complet",
+                yours: "El vostre Localitzador de Vot:",
+                copy: "Copia el localitzador complet",
+                copied: "Localitzador copiat",
+                copiedShort: "Copiat",
             },
-            failure: {
-                titlePublic: "No hem pogut confirmar la vostra papereta al registre públic",
-                titlePrivate: "No hem pogut confirmar la vostra papereta al registre de l'elecció",
-                contradiction:
-                    "Les proves signades del vostre rebut es contradiuen, de manera que aquest lloc web no pot confirmar la vostra papereta. Pot ser una avaria o un atac. El vostre vot encara pot comptar, però algú independent ho hauria de revisar.",
-                evidenceTitle: "Evidències guardades en aquest dispositiu",
-                evidenceCount_one: "{{count}} element",
-                evidenceCount_other: "{{count}} elements",
-                receiptEntry: "El vostre rebut de l'entrada #{{index}}",
-                receiptPromise: "El vostre rebut d'una entrada promesa",
-                receiptSigned: "Signat pel registre quan vau votar",
-                observers:
-                    "Els observadors comproven aquestes evidències als seus propis ordinadors. Demostren què ha signat el registre i no contenen res sobre què heu votat.",
-                check: "Comprova-ho de manera independent",
-                save: "Baixa el fitxer del rebut",
-                nextTitle: "Què passa ara?",
-                nextText:
-                    "El vostre vot s'ha emès. Guardeu el fitxer del rebut: continua sent vàlid sigui quin sigui l'estat d'aquesta pàgina. Comproveu-lo de manera independent, sense dependre d'aquest lloc web, i doneu-lo als observadors de l'elecció si encara no es pot confirmar.",
-                showReceipt: "Mostra el rebut i totes les comprovacions",
+            status: {
+                title: "Estat de la papereta",
+                cast: "Emesa el {{when}}",
+                ballotCast: "Vot emès",
+                aria: "Estat de la papereta: {{state}}. Mostra els detalls",
+                ariaCast: "Vot emès. Estat de la papereta: {{state}}. Mostra els detalls",
+                tooltip: "{{state}} · Mostra els detalls",
+                tracker: "Obre al seguiment de paperetes",
+                save: "Desa el justificant",
+                ok: "D'acord",
+                state: {
+                    notcast: "Encara no emesa",
+                    checking: "Comprovant…",
+                    recorded: "Al registre públic",
+                    witnessed: "Confirmada pels testimonis",
+                    verified: "Verificada",
+                    late: "Tardana",
+                    problem: "Problema",
+                },
+                head: {
+                    late: "Està trigant més del previst",
+                    mismatch: "El registre no coincideix",
+                    damaged: "El justificant està malmès",
+                    noReceipt: "Sense justificant de la vostra papereta",
+                    unchecked: "No s'ha pogut comprovar la vostra papereta",
+                },
+                sub: {
+                    notcast:
+                        "Aquesta papereta està xifrada en aquest dispositiu i no s'ha enviat res. Quan l'emeteu, el navegador comprova que arriba al registre públic.",
+                    checking:
+                        "El navegador està comprovant que la vostra papereta és al registre públic.",
+                    recorded:
+                        "El navegador ha trobat la vostra papereta al registre públic. Ara la confirmen els testimonis.",
+                    witnessed:
+                        "Testimonis independents han confirmat el registre. Els ancoratges públics arriben en {{minutes}} minuts; no cal esperar.",
+                    verified:
+                        "La vostra papereta és al registre públic, confirmada per testimonis independents i ancorada públicament.",
+                    late: "La vostra papereta és al registre públic i confirmada pels testimonis, però els seus ancoratges públics van tard.",
+                    lateStep:
+                        "Un pas està trigant més del previst. No és prova de manipulació, i el navegador continua comprovant.",
+                    mismatch:
+                        "L'entrada #{{index}} del registre públic no és la d'aquest justificant.",
+                    mismatchNoEntry: "L'entrada del registre públic no és la d'aquest justificant.",
+                    damaged:
+                        "No s'ha pogut llegir o verificar una part del justificant o del registre. És una fallada de dades, no una prova de manipulació. El vostre vot s'ha emès.",
+                    noReceipt:
+                        "Aquest web no ha rebut cap justificant de la vostra papereta. El vostre vot s'ha emès i s'ha avisat els observadors de l'elecció.",
+                    unchecked:
+                        "Aquest web no ha pogut comprovar el justificant. El vostre vot s'ha emès.",
+                },
+                step: {
+                    record: {
+                        title: "Al registre públic",
+                        upcoming: "El navegador troba la papereta al registre públic de l'elecció.",
+                    },
+                    witnesses: {
+                        title: "Confirmada pels testimonis",
+                        upcoming: "Testimonis independents signen un registre que la inclou.",
+                    },
+                    anchors: {
+                        title: "Ancorada públicament",
+                        upcoming:
+                            "Els nodes públics, i els registres que comproven els navegadors, guarden aquest registre.",
+                    },
+                },
+                row: {
+                    waiting: "Esperant el pas anterior.",
+                    checking: "El navegador està comprovant…",
+                    anchoring:
+                        "Nodes públics i, després, on comproven els navegadors: en {{minutes}} minuts.",
+                    recorded: "El navegador n'ha comprovat la prova.",
+                    recordedEntry: "Entrada #{{index}}. El navegador n'ha comprovat la prova.",
+                    witnessed:
+                        "Prou testimonis independents de la política ({{count}}) han signat un registre que la inclou.",
+                    anchoredWaict: "Als nodes públics ({{count}}) i on comproven els navegadors.",
+                    anchoredBootstrap:
+                        "Als nodes públics ({{count}}) i on comproven els navegadors, per ara mitjançant un node substitut.",
+                    anchoredHubs: "Als nodes públics ({{count}}).",
+                    lateNow: "Ja hauria d'estar fet.",
+                    lateStep: "Hauria d'estar fet a les {{time}}.",
+                    lateAnchors: "Els nodes l'haurien d'haver ancorat a les {{time}}.",
+                    mismatch:
+                        "L'entrada #{{index}} del registre és diferent del vostre justificant.",
+                    mismatchNoEntry: "Una entrada del registre és diferent del vostre justificant.",
+                    contradiction: "Les seves proves signades es contradiuen.",
+                    damaged: "La seva prova està malmesa i no s'ha pogut verificar.",
+                    noReceipt: "Aquest web no ha rebut cap justificant.",
+                    unchecked: "Aquest web no ha pogut comprovar el justificant.",
+                    skipped: "No comprovat, perquè no s'ha pogut completar el pas anterior.",
+                    skippedMismatch: "No comprovat, perquè el registre no coincideix.",
+                },
+                word: {
+                    withinSeconds: "En pocs segons",
+                    withinMinutes: "En {{minutes}} min",
+                    checking: "Comprovant…",
+                    late: "Tard",
+                    mismatch: "No coincideix",
+                    damaged: "Malmès",
+                    noReceipt: "Sense justificant",
+                    unchecked: "No comprovat",
+                    skipped: "—",
+                },
+                callout: {
+                    late: "Normalment vol dir que un node va lent o està fora de línia; no és prova de manipulació.",
+                    lateKept:
+                        "Aquest dispositiu ho torna a comprovar cada vegada que hi torneu, i el seguiment de paperetes ho pot comprovar des de qualsevol dispositiu.",
+                    lateTracker:
+                        "El seguiment de paperetes ho pot comprovar des de qualsevol dispositiu.",
+                    evidence:
+                        "El navegador ha guardat l'evidència: aquest justificant i l'entrada signada del registre. Envieu-la a l'autoritat electoral o a un observador; qualsevol pot comprovar-la.",
+                    saveEvidence: "Desa l'evidència",
+                },
+                caption: {
+                    notcast:
+                        "No es comprova res fins que l'emeteu. Després, aquesta marca mostra fins on s'ha verificat la vostra papereta.",
+                    checking:
+                        "El navegador està comprovant el registre públic, amb codi que qualsevol pot inspeccionar.",
+                    problem: "Detectat pel navegador, amb codi que qualsevol pot inspeccionar.",
+                    verified: "Verificat pel navegador, amb codi que qualsevol pot inspeccionar.",
+                    checked: "Comprovat pel navegador, amb codi que qualsevol pot inspeccionar.",
+                    kept: "Aquest dispositiu guarda el justificant i el torna a comprovar a cada visita.",
+                },
             },
             booth: {
                 title: "Encara no es pot preparar la vostra papereta",
@@ -511,51 +717,6 @@ const catalanTranslation: TranslationType = {
                 failed: "La configuració no coincideix amb la publicada. S'ha avisat els observadors de l'elecció. Poseu-vos en contacte amb el servei d'assistència.",
                 retry: "Torna-ho a provar",
                 close: "Tanca",
-            },
-            receipt: {
-                waiting:
-                    "El rebut encara no està a punt. Aquest lloc web el continua demanant mentre aquesta pàgina estigui oberta.",
-                missing:
-                    "Aquest lloc web no ha rebut cap rebut de la vostra papereta. El vostre vot s'ha emès. S'ha avisat els observadors de l'elecció.",
-                unchecked:
-                    "Aquest lloc web no ha pogut comprovar el rebut. El vostre vot s'ha emès.",
-                reference:
-                    "Escanegeu aquest codi per comprovar el rebut des d'un altre dispositiu.",
-                stored: "Aquest rebut es guarda en aquest dispositiu i el podreu tornar a veure quan inicieu la sessió.",
-                notStored: "Aquest rebut no es guarda en aquest dispositiu.",
-                forget: "No guardis rebuts en aquest dispositiu",
-                keep: "Guarda els rebuts en aquest dispositiu",
-            },
-            storedReceipts: {
-                title: "Rebuts en aquest dispositiu",
-                holdsPublic: "La vostra papereta continua al registre públic",
-                holdsPrivate: "La vostra papereta continua al registre de l'elecció",
-                holdsHelp:
-                    "El navegador ho acaba de comprovar. Res del que es va anotar abans de la vostra papereta ha canviat.",
-                waiting: "Encara estem recollint proves de la vostra papereta",
-                waitingHelp:
-                    "El navegador ho acaba de comprovar. Algunes proves encara estan en camí i no cal esperar.",
-                problemHelp:
-                    "Les proves signades del vostre rebut es contradiuen. Obriu el rebut per veure-les.",
-                unchecked: "Ara no hem pogut comprovar el vostre rebut",
-                uncheckedHelp:
-                    "El rebut es guarda en aquest dispositiu. Torneu-ho a provar més tard.",
-                witnesses: "Testimonis",
-                hubs: "Nodes públics",
-                hubsPrivate: "Nodes",
-                browser: "On comproven els navegadors",
-                hubsAgree: "{{agree}} de {{total}} coincideixen",
-                anchored: "Ancorat",
-                viewReceipt: "Mostra el rebut",
-                hideReceipt: "Amaga el rebut",
-                forget: "Esborra els rebuts d'aquest dispositiu",
-                howTitle: "Com ho comprovem",
-                howReceipt: "El navegador guarda un rebut signat. Mai no conté què heu votat.",
-                howCheck: "A cada visita demana al registre una prova breu que només ha crescut.",
-                howWitnesses:
-                    "Testimonis independents el signen i els nodes públics l'ancoren allà on comproven els navegadors, de manera que tothom veu el mateix registre.",
-                howWitnessesPrivate:
-                    "Testimonis independents el signen i els nodes en guarden àncores segellades, de manera que a tothom se li mostra el mateix registre.",
             },
         },
     },

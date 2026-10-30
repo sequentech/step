@@ -129,6 +129,8 @@ export interface ICheckIconProps {
     /** The background around the badge, so that it stands apart from the marks. */
     surface?: string
     strokeWidth?: number
+    /** Whether the dashes of a check being made move. */
+    animated?: boolean
 }
 
 export const CheckIcon: React.FC<ICheckIconProps> = ({
@@ -136,11 +138,13 @@ export const CheckIcon: React.FC<ICheckIconProps> = ({
     size = CHECK_SIZES.ID,
     surface = "#fff",
     strokeWidth = 2,
+    animated = true,
 }) => {
     const dash = dashOf(glyph.line, strokeWidth)
     const paths = glyph.marks === ECheckMarks.SINGLE ? [SINGLE] : DOUBLE
     return (
         <svg
+            className={`ballot-status-icon ballot-status-icon-${glyph.marks}`}
             width={size}
             height={size}
             viewBox="0 0 24 24"
@@ -154,15 +158,21 @@ export const CheckIcon: React.FC<ICheckIconProps> = ({
             style={{overflow: "visible", flex: "none"}}
         >
             {paths.map((d) =>
-                glyph.line === ECheckLine.DASHED ? (
-                    <MarchingPath key={d} d={d} strokeDasharray={dash} />
+                glyph.line === ECheckLine.DASHED && animated ? (
+                    <MarchingPath
+                        key={d}
+                        className="ballot-status-mark"
+                        d={d}
+                        strokeDasharray={dash}
+                    />
                 ) : (
-                    <path key={d} d={d} strokeDasharray={dash} />
+                    <path key={d} className="ballot-status-mark" d={d} strokeDasharray={dash} />
                 )
             )}
             {glyph.badge !== ECheckBadge.NONE && (
-                <g>
+                <g className="ballot-status-badge">
                     <circle
+                        className="ballot-status-badge-disc"
                         cx="19"
                         cy="18"
                         r="5"
@@ -175,11 +185,26 @@ export const CheckIcon: React.FC<ICheckIconProps> = ({
                         strokeWidth="1.5"
                     />
                     {glyph.badge === ECheckBadge.CLOCK ? (
-                        <path d="M19 15.7V18l1.6 1.1" stroke="#fff" strokeWidth="1.5" />
+                        <path
+                            className="ballot-status-badge-mark"
+                            d="M19 15.7V18l1.6 1.1"
+                            stroke="#fff"
+                            strokeWidth="1.5"
+                        />
                     ) : (
                         <>
-                            <path d="M19 15.6v2.8" stroke="#fff" strokeWidth="1.6" />
-                            <path d="M19 20.5v.1" stroke="#fff" strokeWidth="1.7" />
+                            <path
+                                className="ballot-status-badge-mark"
+                                d="M19 15.6v2.8"
+                                stroke="#fff"
+                                strokeWidth="1.6"
+                            />
+                            <path
+                                className="ballot-status-badge-mark"
+                                d="M19 20.5v.1"
+                                stroke="#fff"
+                                strokeWidth="1.7"
+                            />
                         </>
                     )}
                 </g>

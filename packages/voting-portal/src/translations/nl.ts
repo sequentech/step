@@ -439,14 +439,118 @@ const dutchTranslation: TranslationType = {
             locateAgain: "Zoek een ander Stembiljet",
             found: "Uw stembiljet ID {{ballotId}} is gevonden",
             notFound: "Uw stembiljet ID {{ballotId}} is niet gevonden",
-            ambiguous:
-                "Meer dan één van uw stembiljetten komt overeen met {{ballotId}}. Gebruik de volledige stembiljet-ID.",
             contentDesc: "Dit is de inhoud van uw stembiljet: ",
             wrongFormatBallotId: "Verkeerd formaat voor Stembiljet ID",
             ballotIdNotFoundAtFilter:
                 "Niet gevonden, controleer dat uw Stembiljet ID correct is en behoort tot deze gebruiker.",
             filterByBallotId: "Filteren op Stembiljet ID",
             totalBallots: "Aantal stembiljet: {{total}}",
+            idHelp: "De korte Stembiljet-ID, zoals 30ff d314, of de volledige",
+            foundShort:
+                "Gevonden via de korte ID. Vergelijk de volledige Stembiljet-ID met uw ontvangstbewijs om zeker te weten dat het uw stembiljet is.",
+            matches: {
+                title: "{{total}} stembiljetten hebben de korte ID {{shortId}}. Kies het uwe, of voer de volledige Stembiljet-ID in.",
+                cast: "Uitgebracht op {{time}}",
+            },
+            result: {
+                receipt: "Ontvangstbewijs van het stembiljet",
+                idComment:
+                    "Gebruik de korte of de volledige ID om dit stembiljet opnieuw te vinden.",
+                fullId: "Volledige Stembiljet-ID",
+                copy: "De volledige Stembiljet-ID kopiëren",
+                copied: "Stembiljet-ID gekopieerd",
+                copiedLabel: "Gekopieerd",
+                recordEntry: "Registeritem",
+                save: "Ontvangstbewijs opslaan",
+                sealLabel: "Status van het stembiljet: {{status}}",
+                check: "Onafhankelijk controleren",
+                caption: "Gecontroleerd door uw browser, met code die iedereen kan inspecteren.",
+                captionVerified:
+                    "Geverifieerd door uw browser, met code die iedereen kan inspecteren.",
+                captionProblem: "Gevonden door uw browser, met code die iedereen kan inspecteren.",
+                late: "Dit betekent meestal dat een hub traag of offline is; het is geen bewijs van manipulatie. Controleer later opnieuw, hier of op een ander apparaat.",
+                problem:
+                    "De portal meldt dit stembiljet als uitgebracht, maar het openbare register van de verkiezing heeft er geen item voor. Uw browser heeft het bewijs bewaard: het antwoord van de portal en het ondertekende controlepunt van het register. Stuur het naar de verkiezingsautoriteit of een waarnemer.",
+                problemOther:
+                    "De ondertekende bewijzen van dit stembiljet spreken elkaar tegen. Het kan een fout of een aanval zijn. Uw browser heeft het bewijs bewaard. Stuur het naar de verkiezingsautoriteit of een waarnemer.",
+                saveEvidence: "Bewijs opslaan",
+                howToReport: "Hoe meldt u het",
+                howToReportText:
+                    "Sla het bewijsbestand op en stuur het naar de verkiezingsautoriteit of een onafhankelijke waarnemer. Zij kunnen het op hun eigen computers controleren. Het bevat niets over hoe u hebt gestemd.",
+                noReceipt:
+                    "Dit apparaat heeft geen ontvangstbewijs voor dit stembiljet. Controleer het op het apparaat waarmee u hebt gestemd, of controleer het bestand van het ontvangstbewijs in de stembiljetverificatie.",
+                receiptPending:
+                    "Dit apparaat bewaart een ontvangstbewijs voor dit stembiljet, maar het is niet compleet of kon nu niet worden gecontroleerd. Probeer het later opnieuw, of controleer het bestand van het ontvangstbewijs in de stembiljetverificatie.",
+                status: {
+                    checking: {
+                        head: "Controleren…",
+                        sub: "Uw browser zoekt het stembiljet op in het openbare register.",
+                    },
+                    recorded: {
+                        head: "In het openbare register",
+                        sub: "Uw browser heeft het stembiljet gevonden. De getuigen worden gecontroleerd…",
+                    },
+                    witnessed: {
+                        head: "Bevestigd door getuigen",
+                        sub: "De openbare verankeringen worden gecontroleerd…",
+                        subAnchored_one:
+                            "Verankerd in openbare hubs. Waar browsers controleren volgt binnen {{count}} minuut.",
+                        subAnchored_other:
+                            "Verankerd in openbare hubs. Waar browsers controleren volgt binnen {{count}} minuten.",
+                    },
+                    verified: {
+                        head: "Geverifieerd",
+                        sub: "In het openbare register, bevestigd door onafhankelijke getuigen en openbaar verankerd.",
+                    },
+                    late: {
+                        head: "Duurt langer dan verwacht",
+                        sub: "In het openbare register en bevestigd door getuigen, maar de openbare verankeringen zijn te laat.",
+                    },
+                    problem: {
+                        head: "Niet in het openbare register",
+                        sub: "Uw browser kon dit stembiljet niet vinden in het openbare register van de verkiezing.",
+                    },
+                    otherProblem: {
+                        head: "Een controle is mislukt",
+                        sub: "De ondertekende bewijzen van dit stembiljet spreken elkaar tegen. Bekijk de stap die mislukte.",
+                    },
+                },
+                steps: {
+                    record: {
+                        title: "Toegevoegd aan het openbare register",
+                        done: "Item #{{index}} in het stembiljetlogboek van de verkiezing. Uw browser heeft het bewijs ervan gecontroleerd.",
+                        failed: "Geen enkel item in het stembiljetlogboek van de verkiezing heeft deze Stembiljet-ID.",
+                        missing: "Ontbreekt",
+                    },
+                    witnesses: {
+                        title: "Bevestigd door getuigen",
+                        done: "Onafhankelijke getuigen hebben een register ondertekend dat het bevat.",
+                        count: "{{signed}} van {{total}} · {{needed}} nodig",
+                        countOf: "{{signed}} van {{total}}",
+                    },
+                    hubs: {
+                        title_one: "Verankerd in {{count}} openbare hub",
+                        title_other: "Verankerd in {{count}} openbare hubs",
+                        titleAny: "Verankerd in openbare hubs",
+                        done: "Gedeelde logboeken bevatten dit register ook: {{hubs}}.",
+                    },
+                    browser: {
+                        title: "Verankerd waar browsers controleren",
+                        done: "Bewaard door een tijdelijke hub totdat browsers zelf logboeken controleren.",
+                    },
+                    checking: "Uw browser controleert…",
+                    scheduled_one: "Binnen {{count}} minuut. U hoeft niet te wachten.",
+                    scheduled_other: "Binnen {{count}} minuten. U hoeft niet te wachten.",
+                    by: "Vóór {{time}}",
+                    late: "Te laat",
+                    lateHubs: "De hubs hadden het vóór {{time}} moeten verankeren.",
+                    lateOther: "Dit had vóór {{time}} moeten gebeuren.",
+                    waiting: "Wacht op de stap hierboven.",
+                    skipped: "Niet gecontroleerd.",
+                    failedStep: "De ondertekende bewijzen van deze stap spreken elkaar tegen.",
+                    failedTime: "Probleem",
+                },
+            },
             steps: {
                 lookup: "Zoek uw Stembiljet",
                 result: "Resultaat",
@@ -468,35 +572,139 @@ const dutchTranslation: TranslationType = {
             },
         },
         vitrine: {
-            progress: "Stap {{current}} van {{total}} · {{step}}",
-            confirmation: {
-                step: "Bevestiging",
-                cast: "Uw stem is uitgebracht",
-                recordedPublic: "Uw stembiljet staat in het openbare register",
-                recordedPrivate: "Uw stembiljet staat in het verkiezingsregister",
-                keep: "Bewaar uw ontvangstbewijs om het later opnieuw te controleren.",
-                elsewhere: "Controleer het op een ander apparaat",
-                save: "Ontvangstbewijs opslaan",
+            ballotId: {
+                label: "Stembiljet ID",
+                full: "Volledig stembiljet-ID",
+                yours: "Uw stembiljet-ID:",
+                copy: "Het volledige stembiljet-ID kopiëren",
+                copied: "Stembiljet-ID gekopieerd",
+                copiedShort: "Gekopieerd",
             },
-            failure: {
-                titlePublic: "We konden uw stembiljet niet bevestigen in het openbare register",
-                titlePrivate: "We konden uw stembiljet niet bevestigen in het verkiezingsregister",
-                contradiction:
-                    "De ondertekende bewijzen in uw ontvangstbewijs spreken elkaar tegen, dus deze website kan uw stembiljet niet bevestigen. Het kan een storing of een aanval zijn. Uw stem telt mogelijk nog mee, maar iemand onafhankelijks moet ernaar kijken.",
-                evidenceTitle: "Bewijs op dit apparaat bewaard",
-                evidenceCount_one: "{{count}} item",
-                evidenceCount_other: "{{count}} items",
-                receiptEntry: "Uw ontvangstbewijs voor item #{{index}}",
-                receiptPromise: "Uw ontvangstbewijs voor een beloofd item",
-                receiptSigned: "Ondertekend door het register toen u stemde",
-                observers:
-                    "Waarnemers controleren dit bewijs op hun eigen computers. Het bewijst wat het register heeft ondertekend en bevat niets over hoe u hebt gestemd.",
-                check: "Onafhankelijk controleren",
-                save: "Bestand van het ontvangstbewijs downloaden",
-                nextTitle: "Wat gebeurt er nu?",
-                nextText:
-                    "Uw stem is uitgebracht. Bewaar het bestand van het ontvangstbewijs: het blijft geldig, wat deze pagina ook toont. Controleer het onafhankelijk, zonder op deze website te vertrouwen, en geef het aan de waarnemers van de verkiezing als het nog steeds niet kan worden bevestigd.",
-                showReceipt: "Ontvangstbewijs en alle controles tonen",
+            status: {
+                title: "Status van het stembiljet",
+                cast: "Uitgebracht op {{when}}",
+                ballotCast: "Stem uitgebracht",
+                aria: "Status van het stembiljet: {{state}}. Details tonen",
+                ariaCast: "Stem uitgebracht. Status van het stembiljet: {{state}}. Details tonen",
+                tooltip: "{{state}} · Details tonen",
+                tracker: "Openen in de stembiljettracker",
+                save: "Ontvangstbewijs opslaan",
+                ok: "OK",
+                state: {
+                    notcast: "Nog niet uitgebracht",
+                    checking: "Controleren…",
+                    recorded: "In het openbare register",
+                    witnessed: "Bevestigd door getuigen",
+                    verified: "Geverifieerd",
+                    late: "Vertraagd",
+                    problem: "Probleem",
+                },
+                head: {
+                    late: "Duurt langer dan verwacht",
+                    mismatch: "Het register komt niet overeen",
+                    damaged: "Het ontvangstbewijs is beschadigd",
+                    noReceipt: "Geen ontvangstbewijs voor uw stembiljet",
+                    unchecked: "Uw stembiljet kon niet worden gecontroleerd",
+                },
+                sub: {
+                    notcast:
+                        "Dit stembiljet is op dit apparaat versleuteld en er is niets verzonden. Zodra u het uitbrengt, controleert uw browser of het in het openbare register terechtkomt.",
+                    checking:
+                        "Uw browser controleert of uw stembiljet in het openbare register staat.",
+                    recorded:
+                        "Uw browser heeft uw stembiljet in het openbare register gevonden. Daarna bevestigen getuigen het.",
+                    witnessed:
+                        "Onafhankelijke getuigen hebben het register bevestigd. Openbare verankeringen volgen binnen {{minutes}} minuten; wachten is niet nodig.",
+                    verified:
+                        "Uw stembiljet staat in het openbare register, bevestigd door onafhankelijke getuigen en openbaar verankerd.",
+                    late: "Uw stembiljet staat in het openbare register en is bevestigd door getuigen, maar de openbare verankeringen zijn vertraagd.",
+                    lateStep:
+                        "Een stap duurt langer dan verwacht. Dat is geen bewijs van knoeien, en uw browser blijft controleren.",
+                    mismatch:
+                        "Item #{{index}} in het openbare register is niet het item in dit ontvangstbewijs.",
+                    mismatchNoEntry:
+                        "Het item in het openbare register is niet het item in dit ontvangstbewijs.",
+                    damaged:
+                        "Een deel van het ontvangstbewijs of het register kon niet worden gelezen of geverifieerd. Dat is een gegevensfout, geen bewijs van knoeien. Uw stem is uitgebracht.",
+                    noReceipt:
+                        "Deze website heeft geen ontvangstbewijs voor uw stembiljet gekregen. Uw stem is uitgebracht en de waarnemers van de verkiezing zijn op de hoogte gebracht.",
+                    unchecked:
+                        "Deze website kon het ontvangstbewijs niet controleren. Uw stem is uitgebracht.",
+                },
+                step: {
+                    record: {
+                        title: "In het openbare register",
+                        upcoming:
+                            "Uw browser vindt het stembiljet in het openbare register van de verkiezing.",
+                    },
+                    witnesses: {
+                        title: "Bevestigd door getuigen",
+                        upcoming:
+                            "Onafhankelijke getuigen ondertekenen een register dat het bevat.",
+                    },
+                    anchors: {
+                        title: "Openbaar verankerd",
+                        upcoming:
+                            "Openbare hubs en de logboeken die browsers controleren, bewaren dat register.",
+                    },
+                },
+                row: {
+                    waiting: "Wacht op de vorige stap.",
+                    checking: "Uw browser controleert…",
+                    anchoring:
+                        "Openbare hubs, daarna waar browsers controleren: binnen {{minutes}} minuten.",
+                    recorded: "Uw browser heeft het bewijs gecontroleerd.",
+                    recordedEntry: "Item #{{index}}. Uw browser heeft het bewijs gecontroleerd.",
+                    witnessed:
+                        "Genoeg van de onafhankelijke getuigen van het beleid ({{count}}) hebben een register ondertekend dat het bevat.",
+                    anchoredWaict: "In de openbare hubs ({{count}}) en waar browsers controleren.",
+                    anchoredBootstrap:
+                        "In de openbare hubs ({{count}}) en waar browsers controleren, voorlopig via een vervangende hub.",
+                    anchoredHubs: "In de openbare hubs ({{count}}).",
+                    lateNow: "Het had nu klaar moeten zijn.",
+                    lateStep: "Het had om {{time}} klaar moeten zijn.",
+                    lateAnchors: "De hubs hadden het om {{time}} moeten verankeren.",
+                    mismatch: "Item #{{index}} in het register wijkt af van uw ontvangstbewijs.",
+                    mismatchNoEntry: "Een item in het register wijkt af van uw ontvangstbewijs.",
+                    contradiction: "De ondertekende bewijzen spreken elkaar tegen.",
+                    damaged: "Het bewijs is beschadigd en kon niet worden geverifieerd.",
+                    noReceipt: "Deze website heeft geen ontvangstbewijs gekregen.",
+                    unchecked: "Deze website kon het ontvangstbewijs niet controleren.",
+                    skipped: "Niet gecontroleerd, omdat de vorige stap niet kon worden voltooid.",
+                    skippedMismatch: "Niet gecontroleerd, omdat het register niet overeenkomt.",
+                },
+                word: {
+                    withinSeconds: "Binnen enkele seconden",
+                    withinMinutes: "Binnen {{minutes}} min",
+                    checking: "Controleren…",
+                    late: "Vertraagd",
+                    mismatch: "Komt niet overeen",
+                    damaged: "Beschadigd",
+                    noReceipt: "Geen bewijs",
+                    unchecked: "Niet gecontroleerd",
+                    skipped: "—",
+                },
+                callout: {
+                    late: "Dit betekent meestal dat een hub traag of offline is; het is geen bewijs van knoeien.",
+                    lateKept:
+                        "Dit apparaat controleert opnieuw wanneer u terugkomt, en de stembiljettracker kan vanaf elk apparaat controleren.",
+                    lateTracker: "De stembiljettracker kan vanaf elk apparaat controleren.",
+                    evidence:
+                        "Uw browser heeft het bewijs bewaard: dit ontvangstbewijs en het ondertekende item van het register. Stuur het naar de verkiezingsautoriteit of een waarnemer; iedereen kan het controleren.",
+                    saveEvidence: "Bewijs opslaan",
+                },
+                caption: {
+                    notcast:
+                        "Er wordt niets gecontroleerd totdat u uw stem uitbrengt. Daarna laat dit vinkje zien hoe ver uw stembiljet is geverifieerd.",
+                    checking:
+                        "Uw browser controleert het openbare register, met code die iedereen kan inspecteren.",
+                    problem: "Gevonden door uw browser, met code die iedereen kan inspecteren.",
+                    verified:
+                        "Geverifieerd door uw browser, met code die iedereen kan inspecteren.",
+                    checked:
+                        "Gecontroleerd door uw browser, met code die iedereen kan inspecteren.",
+                    kept: "Dit apparaat bewaart het ontvangstbewijs en controleert het bij elk bezoek opnieuw.",
+                },
             },
             booth: {
                 title: "Uw stembiljet kan nog niet worden voorbereid",
@@ -509,53 +717,6 @@ const dutchTranslation: TranslationType = {
                 failed: "De instellingen komen niet overeen met de gepubliceerde. De waarnemers van de verkiezing zijn op de hoogte gebracht. Neem contact op met de ondersteuning.",
                 retry: "Opnieuw proberen",
                 close: "Sluiten",
-            },
-            receipt: {
-                waiting:
-                    "Het ontvangstbewijs is nog niet klaar. Deze website blijft erom vragen zolang deze pagina open is.",
-                missing:
-                    "Deze website heeft geen ontvangstbewijs voor uw stembiljet gekregen. Uw stem is uitgebracht. De waarnemers van de verkiezing zijn op de hoogte gebracht.",
-                unchecked:
-                    "Deze website kon het ontvangstbewijs niet controleren. Uw stem is uitgebracht.",
-                reference:
-                    "Scan deze code om het ontvangstbewijs op een ander apparaat te controleren.",
-                stored: "Dit ontvangstbewijs wordt op dit apparaat bewaard, en u kunt het opnieuw zien nadat u zich hebt aangemeld.",
-                notStored: "Dit ontvangstbewijs wordt niet op dit apparaat bewaard.",
-                forget: "Geen ontvangstbewijzen op dit apparaat bewaren",
-                keep: "Ontvangstbewijzen op dit apparaat bewaren",
-            },
-            storedReceipts: {
-                title: "Ontvangstbewijzen op dit apparaat",
-                holdsPublic: "Uw stembiljet staat nog in het openbare register",
-                holdsPrivate: "Uw stembiljet staat nog in het verkiezingsregister",
-                holdsHelp:
-                    "Zojuist gecontroleerd door uw browser. Niets wat vóór uw stembiljet is vastgelegd, is veranderd.",
-                waiting: "We verzamelen nog bewijzen voor uw stembiljet",
-                waitingHelp:
-                    "Zojuist gecontroleerd door uw browser. Sommige bewijzen zijn nog onderweg, en wachten is niet nodig.",
-                problemHelp:
-                    "De ondertekende bewijzen in uw ontvangstbewijs spreken elkaar tegen. Open het ontvangstbewijs om ze te zien.",
-                unchecked: "We konden uw ontvangstbewijs nu niet controleren",
-                uncheckedHelp:
-                    "Het ontvangstbewijs wordt op dit apparaat bewaard. Probeer het later opnieuw.",
-                witnesses: "Getuigen",
-                hubs: "Openbare hubs",
-                hubsPrivate: "Hubs",
-                browser: "Waar browsers controleren",
-                hubsAgree: "{{agree}} van {{total}} komen overeen",
-                anchored: "Verankerd",
-                viewReceipt: "Ontvangstbewijs bekijken",
-                hideReceipt: "Ontvangstbewijs verbergen",
-                forget: "De ontvangstbewijzen van dit apparaat verwijderen",
-                howTitle: "Hoe we controleren",
-                howReceipt:
-                    "Uw browser bewaart een ondertekend ontvangstbewijs. Het bevat nooit hoe u hebt gestemd.",
-                howCheck:
-                    "Bij elk bezoek vraagt de browser het register om een kort bewijs dat het alleen is gegroeid.",
-                howWitnesses:
-                    "Onafhankelijke getuigen ondertekenen het en openbare hubs verankeren het waar browsers controleren, zodat iedereen hetzelfde register ziet.",
-                howWitnessesPrivate:
-                    "Onafhankelijke getuigen ondertekenen het en hubs bewaren verzegelde ankers, zodat iedereen hetzelfde register te zien krijgt.",
             },
         },
     },

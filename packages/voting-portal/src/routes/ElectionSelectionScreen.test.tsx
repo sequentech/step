@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
-import {render, screen, waitFor, act} from "@testing-library/react"
+import {render, screen, waitFor, act, fireEvent, within} from "@testing-library/react"
 import {ApolloClient, ApolloLink, InMemoryCache, Observable} from "@apollo/client"
 import {ApolloProvider} from "@apollo/client/react"
 import {Provider} from "react-redux"
@@ -24,6 +24,7 @@ jest.mock("react-i18next", () => ({
 }))
 jest.mock("@sequentech/ui-core", () => ({
     ...jest.requireActual("@sequentech/ui-core"),
+    ...jest.requireActual("../../../ui-core/src/services/votingPortalDateTime"),
     sortElectionList: (items: unknown[]) => items,
 }))
 jest.mock(
@@ -33,12 +34,17 @@ jest.mock(
         PageLimit: ({children}: any) => <div>{children}</div>,
         Dialog: () => null,
         IconButton: () => null,
-        SelectElection: ({isActive, hasVoted}: any) => (
-            <button disabled={!isActive}>{hasVoted ? "Already voted" : "Vote"}</button>
+        SelectElection: ({isActive, hasVoted, votedStatus}: any) => (
+            <div>
+                <button disabled={!isActive}>{hasVoted ? "Already voted" : "Vote"}</button>
+                {hasVoted ? votedStatus : null}
+            </div>
         ),
     }),
     {virtual: true}
 )
+const mockKept = jest.fn(() => ({receipts: [] as unknown[], forgetAll: jest.fn()}))
+jest.mock("../hooks/useCastReceipt", () => ({useKeptReceipts: () => mockKept()}))
 jest.mock("../providers/AuthContextProvider", () => ({
     AuthContext: require("react").createContext({isKiosk: () => false}),
 }))
@@ -324,4 +330,114 @@ test.each([false, true])("preview honors skip_election_list=%s", async (skipElec
         client.stop()
         sessionStorage.removeItem("isDemo")
     }
+})
+
+describe("the ballot cast label", () => {
+    const BALLOT_ID = "ab".repeat(32)
+    const voterClient = () =>
+        new ApolloClient({
+            cache: new InMemoryCache(),
+            link: new ApolloLink(
+                () =>
+                    new Observable((observer) => {
+                        const timer = setTimeout(() => {
+                            observer.next({
+                                data: {
+                                    get_ballot_files_urls: {
+                                        event_id: "event",
+                                        status: event.status,
+                                        files: [
+                                            {
+                                                id: "style",
+                                                election_id: "election",
+                                                version: "v1",
+                                                urls,
+                                                status: election.status,
+                                                num_allowed_revotes: 1,
+                                                voting_channels: {online: true},
+                                            },
+                                        ],
+                                    },
+                                    cast_votes: [
+                                        {
+                                            ...cast,
+                                            status: CastVoteStatus.VALID,
+                                            __typename: "VoterCastVote",
+                                        },
+                                    ],
+                                },
+                            })
+                            observer.complete()
+                        }, 1)
+                        return () => clearTimeout(timer)
+                    })
+            ),
+        })
+
+    const renderList = async () => {
+        store.dispatch(setElection({...election, contests: [], image_document_id: ""}))
+        store.dispatch(addCastVotes([{...cast, status: CastVoteStatus.VALID}]))
+        const client = voterClient()
+        await client.query({query: GET_VOTER_STATUS, variables: {electionEventId: "event"}})
+        const router = createMemoryRouter(
+            [
+                {
+                    path: "/tenant/:tenantId/event/:eventId/election-chooser",
+                    element: <ElectionSelectionScreen />,
+                },
+            ],
+            {initialEntries: ["/tenant/tenant/event/event/election-chooser"]}
+        )
+        const view = render(
+            <Provider store={store} stabilityCheck="never">
+                <ThemeProvider theme={theme}>
+                    <ApolloProvider client={client}>
+                        <RouterProvider router={router} />
+                    </ApolloProvider>
+                </ThemeProvider>
+            </Provider>
+        )
+        return () => {
+            view.unmount()
+            router.dispose()
+            client.stop()
+        }
+    }
+
+    afterEach(() => {
+        mockKept.mockReturnValue({receipts: [], forgetAll: jest.fn()})
+    })
+
+    test("is the button that opens the status of the ballot kept on this device", async () => {
+        mockKept.mockReturnValue({
+            receipts: [
+                {kept: {electionId: "election", ballotId: BALLOT_ID, acceptedAt: 1_800_000_000}},
+            ],
+            forgetAll: jest.fn(),
+        })
+        const cleanup = await renderList()
+        try {
+            fireEvent.click(await screen.findByRole("button", {name: "vitrine.status.ariaCast"}))
+            const dialog = await screen.findByRole("dialog", {name: "vitrine.status.title"})
+            expect(dialog.querySelector(".ballot-status-short-id")?.textContent).toBe("abab abab")
+            expect(dialog.querySelector(".ballot-status-meta")?.textContent).toContain("Election")
+            expect(
+                within(dialog)
+                    .getByRole("link", {name: "vitrine.status.tracker"})
+                    .getAttribute("href")
+            ).toBe(`/tenant/tenant/event/event/election/election/ballot-locator/${BALLOT_ID}`)
+        } finally {
+            cleanup()
+        }
+    })
+
+    test("leaves the portal's own label when this device keeps no receipt", async () => {
+        const cleanup = await renderList()
+        try {
+            expect(await screen.findByRole("button", {name: "Already voted"})).toBeDisabled()
+            expect(screen.queryByRole("button", {name: "vitrine.status.ariaCast"})).toBeNull()
+        } finally {
+            cleanup()
+        }
+    })
 })

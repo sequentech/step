@@ -68,7 +68,9 @@ import {GET_SUPPORT_MATERIALS} from "../queries/GetSupportMaterials"
 import {GET_SUPPORT_MATERIALS_ACKNOWLEDGMENT} from "../queries/GetSupportMaterialsAcknowledgment"
 import {setSupportMaterial} from "../store/supportMaterials/supportMaterialsSlice"
 import {useElectionClassName} from "../hooks/useElectionClassName"
-import {KeptReceipts} from "../components/Vitrine/KeptReceipts"
+import {BallotStatus, EBallotStatusTrigger} from "../components/Vitrine/BallotStatus"
+import {IKeptReceiptView, useKeptReceipts} from "../hooks/useCastReceipt"
+import {readTransparency} from "../services/vitrine/presentation"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -143,6 +145,8 @@ interface ElectionWrapperProps {
     bypassChooser: boolean
     canVoteTest: boolean
     materialsGate: boolean
+    /** The ballot cast and kept on this device, with its check. */
+    receipt?: IKeptReceiptView
 }
 
 const isElectionEventOnlineVotingOpen = (electionEvent?: IElectionEvent): boolean => {
@@ -187,6 +191,7 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
     bypassChooser,
     canVoteTest,
     materialsGate,
+    receipt,
 }) => {
     const navigate = useNavigate()
     const location = useLocation()
@@ -299,16 +304,37 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
         }
     }, [bypassChooser, visitedBypassChooser, setVisitedBypassChooser, ballotStyle])
 
+    const electionName = translateFromPresentation(election, "name", i18n.language, {
+        defaultLanguageCode,
+    })
+    const acceptedAt = receipt?.view?.own?.acceptedAt ?? receipt?.kept.acceptedAt
+    const votedStatus = receipt ? (
+        <BallotStatus
+            trigger={EBallotStatusTrigger.LABEL}
+            view={receipt.view}
+            ballotId={receipt.kept.ballotId}
+            electionName={electionName || undefined}
+            castAt={
+                acceptedAt === undefined
+                    ? undefined
+                    : formatVotingPortalDateTime(
+                          acceptedAt * 1000,
+                          electionEvent,
+                          i18n.resolvedLanguage || i18n.language
+                      )
+            }
+            kept
+            trackerUrl={`/tenant/${tenantId}/event/${eventId}/election/${electionId}/ballot-locator/${receipt.kept.ballotId}${isKiosk ? "?kiosk" : ""}`}
+        />
+    ) : undefined
+
     return (
         <SelectElection
             isActive={canVote()}
             isOpen={isVotingOpen()}
-            title={
-                translateFromPresentation(election, "name", i18n.language, {
-                    defaultLanguageCode,
-                }) || "-"
-            }
+            title={electionName || "-"}
             hasVoted={castVotes.length > 0}
+            votedStatus={votedStatus}
             onClickToVote={canVote() ? onClickToVote : undefined}
             onClickBallotLocator={handleClickBallotLocator}
             resultsUrl={resultsUrl}
@@ -337,19 +363,11 @@ const ElectionSelectionScreen: React.FC = () => {
     const eventDefaultLanguageCode =
         electionEvent?.presentation?.language_conf?.default_language_code
     const electionIds = useAppSelector(selectElectionIds)
-    const elections = useAppSelector((state) => state.elections)
-    const electionNames = useMemo(
-        () =>
-            Object.fromEntries(
-                electionIds.map((id) => [
-                    id,
-                    translateFromPresentation(elections[id], "name", i18n.language, {
-                        defaultLanguageCode: eventDefaultLanguageCode,
-                    }) || "",
-                ])
-            ),
-        [electionIds, elections, i18n.language, eventDefaultLanguageCode]
+    const transparency = useMemo(
+        () => readTransparency(electionEvent?.presentation),
+        [electionEvent?.presentation]
     )
+    const {receipts} = useKeptReceipts(eventId, transparency)
     const dispatch = useAppDispatch()
     const [canVoteTest, setCanVoteTest] = useState<boolean>(true)
     const [testElectionId, setTestElectionId] = useState<string | null>(null)
@@ -722,35 +740,30 @@ const ElectionSelectionScreen: React.FC = () => {
                     />
                 </Alert>
             ) : null}
-            <KeptReceipts
-                eventId={eventId}
-                presentation={electionEvent?.presentation}
-                electionNames={electionNames}
+            <ElectionContainer
+                className="elections-list"
+                role={hasNoElections ? undefined : "list"}
             >
-                <ElectionContainer
-                    className="elections-list"
-                    role={hasNoElections ? undefined : "list"}
-                >
-                    {!hasNoElections ? (
-                        electionIds.map((electionId) => (
-                            <ElectionWrapper
-                                summary={summaries?.[electionId]}
-                                electionId={electionId}
-                                key={electionId}
-                                bypassChooser={bypassChooser}
-                                canVoteTest={canVoteTest}
-                                materialsGate={materialsGate}
-                            />
-                        ))
-                    ) : (
-                        <Box className="elections-empty" sx={{margin: "auto"}}>
-                            <Typography className="election-selection-empty" component="div">
-                                {stringToHtml(t("electionSelectionScreen.noResults"))}
-                            </Typography>
-                        </Box>
-                    )}
-                </ElectionContainer>
-            </KeptReceipts>
+                {!hasNoElections ? (
+                    electionIds.map((electionId) => (
+                        <ElectionWrapper
+                            summary={summaries?.[electionId]}
+                            electionId={electionId}
+                            key={electionId}
+                            bypassChooser={bypassChooser}
+                            canVoteTest={canVoteTest}
+                            materialsGate={materialsGate}
+                            receipt={receipts.find((r) => r.kept.electionId === electionId)}
+                        />
+                    ))
+                ) : (
+                    <Box className="elections-empty" sx={{margin: "auto"}}>
+                        <Typography className="election-selection-empty" component="div">
+                            {stringToHtml(t("electionSelectionScreen.noResults"))}
+                        </Typography>
+                    </Box>
+                )}
+            </ElectionContainer>
         </PageLimit>
     )
 }

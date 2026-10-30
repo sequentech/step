@@ -437,14 +437,119 @@ const frenchTranslation: TranslationType = {
             locateAgain: "Trouvez un autre bulletin",
             found: "Votre numéro d'identification de bulletin {{ballotId}} a été trouvé",
             notFound: "Votre numéro d'identification de bulletin {{ballotId}} n'a pas été trouvé",
-            ambiguous:
-                "Plusieurs de vos bulletins correspondent à {{ballotId}}. Utilisez le numéro d'identification complet du bulletin.",
             contentDesc: "Voici le contenu de votre bulletin : ",
             wrongFormatBallotId: "Format incorrect pour le numéro d'identification du bulletin",
             ballotIdNotFoundAtFilter:
                 "Non trouvé, veuillez vérifier que le numéro d'identification du bulletin soit correct et appartenir à cet utilisateur.",
             filterByBallotId: "Filtrez par numéro d'identification du bulletin",
             totalBallots: "Total: {{total}}",
+            idHelp: "Le numéro court du bulletin, comme 30ff d314, ou le numéro complet",
+            foundShort:
+                "Trouvé grâce à son numéro court. Pour être certain que c'est le vôtre, comparez le numéro complet du bulletin avec votre reçu.",
+            matches: {
+                title: "{{total}} bulletins ont le numéro court {{shortId}}. Choisissez le vôtre, ou saisissez le numéro complet du bulletin.",
+                cast: "Émis le {{time}}",
+            },
+            result: {
+                receipt: "Reçu du bulletin",
+                idComment:
+                    "Utilisez le numéro court ou le numéro complet pour retrouver ce bulletin.",
+                fullId: "Numéro complet du bulletin",
+                copy: "Copier le numéro complet du bulletin",
+                copied: "Numéro du bulletin copié",
+                copiedLabel: "Copié",
+                recordEntry: "Entrée du registre",
+                save: "Enregistrer le reçu",
+                sealLabel: "État du bulletin : {{status}}",
+                check: "Le vérifier de façon indépendante",
+                caption: "Vérifié par votre navigateur, avec du code que chacun peut inspecter.",
+                captionVerified:
+                    "Confirmé par votre navigateur, avec du code que chacun peut inspecter.",
+                captionProblem:
+                    "Trouvé par votre navigateur, avec du code que chacun peut inspecter.",
+                late: "Cela signifie en général qu'un pôle est lent ou hors ligne ; ce n'est pas une preuve de falsification. Vérifiez à nouveau plus tard, ici ou sur un autre appareil.",
+                problem:
+                    "Le portail indique que ce bulletin a été émis, mais le registre public de l'élection n'a aucune entrée pour lui. Votre navigateur a conservé la preuve : la réponse du portail et le point de contrôle signé du registre. Envoyez-la à l'autorité électorale ou à un observateur.",
+                problemOther:
+                    "Les preuves signées de ce bulletin se contredisent. Il peut s'agir d'une panne ou d'une attaque. Votre navigateur a conservé la preuve. Envoyez-la à l'autorité électorale ou à un observateur.",
+                saveEvidence: "Enregistrer la preuve",
+                howToReport: "Comment le signaler",
+                howToReportText:
+                    "Enregistrez le fichier de la preuve et envoyez-le à l'autorité électorale ou à un observateur indépendant. Ils peuvent le vérifier sur leurs propres ordinateurs. Il ne contient rien sur la façon dont vous avez voté.",
+                noReceipt:
+                    "Cet appareil n'a pas de reçu pour ce bulletin. Vérifiez-le sur l'appareil avec lequel vous avez voté, ou vérifiez le fichier du reçu dans le vérificateur de bulletins.",
+                receiptPending:
+                    "Cet appareil conserve un reçu pour ce bulletin, mais il n'est pas complet ou n'a pas pu être vérifié à l'instant. Réessayez plus tard, ou vérifiez le fichier du reçu dans le vérificateur de bulletins.",
+                status: {
+                    checking: {
+                        head: "Vérification…",
+                        sub: "Votre navigateur recherche le bulletin dans le registre public.",
+                    },
+                    recorded: {
+                        head: "Dans le registre public",
+                        sub: "Votre navigateur a trouvé le bulletin. Vérification de ses témoins…",
+                    },
+                    witnessed: {
+                        head: "Confirmé par des témoins",
+                        sub: "Vérification des ancrages publics…",
+                        subAnchored_one:
+                            "Ancré dans les pôles publics. L'ancrage là où les navigateurs vérifient suivra d'ici {{count}} minute.",
+                        subAnchored_other:
+                            "Ancré dans les pôles publics. L'ancrage là où les navigateurs vérifient suivra d'ici {{count}} minutes.",
+                    },
+                    verified: {
+                        head: "Vérifié",
+                        sub: "Dans le registre public, confirmé par des témoins indépendants et ancré publiquement.",
+                    },
+                    late: {
+                        head: "Plus long que prévu",
+                        sub: "Dans le registre public et confirmé par des témoins, mais ses ancrages publics sont en retard.",
+                    },
+                    problem: {
+                        head: "Absent du registre public",
+                        sub: "Votre navigateur n'a pas trouvé ce bulletin dans le registre public de l'élection.",
+                    },
+                    otherProblem: {
+                        head: "Une vérification a échoué",
+                        sub: "Les preuves signées de ce bulletin se contredisent. Voyez l'étape qui a échoué.",
+                    },
+                },
+                steps: {
+                    record: {
+                        title: "Ajouté au registre public",
+                        done: "Entrée n° {{index}} du registre des bulletins de l'élection. Votre navigateur a vérifié sa preuve.",
+                        failed: "Aucune entrée du registre des bulletins de l'élection n'a ce numéro de bulletin.",
+                        missing: "Absent",
+                    },
+                    witnesses: {
+                        title: "Confirmé par des témoins",
+                        done: "Des témoins indépendants ont signé un registre qui l'inclut.",
+                        count: "{{signed}} sur {{total}} · {{needed}} requis",
+                        countOf: "{{signed}} sur {{total}}",
+                    },
+                    hubs: {
+                        title_one: "Ancré dans {{count}} pôle public",
+                        title_other: "Ancré dans {{count}} pôles publics",
+                        titleAny: "Ancré dans des pôles publics",
+                        done: "Des registres partagés conservent aussi cette entrée : {{hubs}}.",
+                    },
+                    browser: {
+                        title: "Ancré là où les navigateurs vérifient",
+                        done: "Conservé par un pôle de substitution jusqu'à ce que les navigateurs vérifient eux-mêmes les registres.",
+                    },
+                    checking: "Votre navigateur vérifie…",
+                    scheduled_one: "D'ici {{count}} minute. Inutile d'attendre.",
+                    scheduled_other: "D'ici {{count}} minutes. Inutile d'attendre.",
+                    by: "Avant {{time}}",
+                    late: "En retard",
+                    lateHubs: "Les pôles auraient dû l'ancrer avant {{time}}.",
+                    lateOther: "Cela aurait dû être fait avant {{time}}.",
+                    waiting: "En attente de l'étape précédente.",
+                    skipped: "Non vérifié.",
+                    failedStep: "Les preuves signées de cette étape se contredisent.",
+                    failedTime: "Problème",
+                },
+            },
             steps: {
                 lookup: "Trouvez votre bulletin de vote",
                 result: "Résultat",
@@ -466,36 +571,141 @@ const frenchTranslation: TranslationType = {
             },
         },
         vitrine: {
-            progress: "Étape {{current}} sur {{total}} · {{step}}",
-            confirmation: {
-                step: "Confirmation",
-                cast: "Votre bulletin a été émis",
-                recordedPublic: "Votre bulletin est dans le registre public",
-                recordedPrivate: "Votre bulletin est dans le registre de l'élection",
-                keep: "Conservez votre reçu pour le vérifier à nouveau plus tard.",
-                elsewhere: "Le vérifier sur un autre appareil",
-                save: "Enregistrer le reçu",
+            ballotId: {
+                label: "Localisateur de Vote",
+                full: "Localisateur de Vote complet",
+                yours: "Votre Localisateur de Vote :",
+                copy: "Copier le localisateur complet",
+                copied: "Localisateur copié",
+                copiedShort: "Copié",
             },
-            failure: {
-                titlePublic: "Nous n'avons pas pu confirmer votre bulletin dans le registre public",
-                titlePrivate:
-                    "Nous n'avons pas pu confirmer votre bulletin dans le registre de l'élection",
-                contradiction:
-                    "Les preuves signées de votre reçu se contredisent : ce site ne peut donc pas confirmer votre bulletin. Il peut s'agir d'une panne ou d'une attaque. Votre vote peut encore compter, mais quelqu'un d'indépendant devrait l'examiner.",
-                evidenceTitle: "Preuves conservées sur cet appareil",
-                evidenceCount_one: "{{count}} élément",
-                evidenceCount_other: "{{count}} éléments",
-                receiptEntry: "Votre reçu pour l'entrée n° {{index}}",
-                receiptPromise: "Votre reçu pour une entrée promise",
-                receiptSigned: "Signé par le registre au moment de votre vote",
-                observers:
-                    "Les observateurs vérifient ces preuves sur leurs propres ordinateurs. Elles démontrent ce que le registre a signé et ne contiennent rien sur votre vote.",
-                check: "Le vérifier de façon indépendante",
-                save: "Télécharger le fichier du reçu",
-                nextTitle: "Que se passe-t-il ensuite ?",
-                nextText:
-                    "Votre vote a été émis. Conservez le fichier du reçu : il reste valable quoi que cette page affiche. Vérifiez-le de façon indépendante, sans dépendre de ce site, et remettez-le aux observateurs de l'élection s'il ne peut toujours pas être confirmé.",
-                showReceipt: "Afficher le reçu et toutes les vérifications",
+            status: {
+                title: "État du bulletin",
+                cast: "Émis le {{when}}",
+                ballotCast: "Vote émis",
+                aria: "État du bulletin : {{state}}. Afficher les détails",
+                ariaCast: "Vote émis. État du bulletin : {{state}}. Afficher les détails",
+                tooltip: "{{state}} · Afficher les détails",
+                tracker: "Ouvrir dans le suivi des bulletins",
+                save: "Enregistrer le justificatif",
+                ok: "OK",
+                state: {
+                    notcast: "Pas encore émis",
+                    checking: "Vérification…",
+                    recorded: "Dans le registre public",
+                    witnessed: "Confirmé par des témoins",
+                    verified: "Vérifié",
+                    late: "En retard",
+                    problem: "Problème",
+                },
+                head: {
+                    late: "Plus long que prévu",
+                    mismatch: "Le registre ne correspond pas",
+                    damaged: "Le justificatif est endommagé",
+                    noReceipt: "Pas de justificatif pour votre bulletin",
+                    unchecked: "Votre bulletin n’a pas pu être vérifié",
+                },
+                sub: {
+                    notcast:
+                        "Ce bulletin est chiffré sur cet appareil et rien n’a été envoyé. Une fois émis, votre navigateur vérifie qu’il parvient au registre public.",
+                    checking:
+                        "Votre navigateur vérifie que votre bulletin figure dans le registre public.",
+                    recorded:
+                        "Votre navigateur a trouvé votre bulletin dans le registre public. Les témoins le confirment ensuite.",
+                    witnessed:
+                        "Des témoins indépendants ont confirmé le registre. Les ancrages publics suivent d’ici {{minutes}} minutes ; inutile d’attendre.",
+                    verified:
+                        "Votre bulletin figure dans le registre public, confirmé par des témoins indépendants et ancré publiquement.",
+                    late: "Votre bulletin figure dans le registre public et confirmé par les témoins, mais ses ancrages publics sont en retard.",
+                    lateStep:
+                        "Une étape prend plus de temps que prévu. Ce n’est pas une preuve de falsification, et votre navigateur continue de vérifier.",
+                    mismatch:
+                        "L’entrée n° {{index}} du registre public n’est pas celle de ce justificatif.",
+                    mismatchNoEntry:
+                        "L’entrée du registre public n’est pas celle de ce justificatif.",
+                    damaged:
+                        "Une partie du justificatif ou du registre n’a pas pu être lue ou vérifiée. C’est une erreur de données, pas une preuve de falsification. Votre vote a été émis.",
+                    noReceipt:
+                        "Ce site n’a reçu aucun justificatif pour votre bulletin. Votre vote a été émis, et les observateurs de l’élection ont été informés.",
+                    unchecked:
+                        "Ce site n’a pas pu vérifier le justificatif. Votre vote a été émis.",
+                },
+                step: {
+                    record: {
+                        title: "Dans le registre public",
+                        upcoming:
+                            "Votre navigateur trouve le bulletin dans le registre public de l’élection.",
+                    },
+                    witnesses: {
+                        title: "Confirmé par des témoins",
+                        upcoming: "Des témoins indépendants signent un registre qui l’inclut.",
+                    },
+                    anchors: {
+                        title: "Ancré publiquement",
+                        upcoming:
+                            "Des nœuds publics, et les journaux que vérifient les navigateurs, conservent ce registre.",
+                    },
+                },
+                row: {
+                    waiting: "En attente de l’étape précédente.",
+                    checking: "Votre navigateur vérifie…",
+                    anchoring:
+                        "Nœuds publics, puis là où les navigateurs vérifient : d’ici {{minutes}} minutes.",
+                    recorded: "Votre navigateur a vérifié sa preuve.",
+                    recordedEntry: "Entrée n° {{index}}. Votre navigateur a vérifié sa preuve.",
+                    witnessed:
+                        "Assez de témoins indépendants de la politique ({{count}}) ont signé un registre qui l’inclut.",
+                    anchoredWaict:
+                        "Dans les nœuds publics ({{count}}) et là où les navigateurs vérifient.",
+                    anchoredBootstrap:
+                        "Dans les nœuds publics ({{count}}) et là où les navigateurs vérifient, par un nœud de substitution pour l’instant.",
+                    anchoredHubs: "Dans les nœuds publics ({{count}}).",
+                    lateNow: "Cela devrait déjà être fait.",
+                    lateStep: "Cela devrait être fait à {{time}}.",
+                    lateAnchors: "Les nœuds auraient dû l’ancrer à {{time}}.",
+                    mismatch: "L’entrée n° {{index}} du registre diffère de votre justificatif.",
+                    mismatchNoEntry: "Une entrée du registre diffère de votre justificatif.",
+                    contradiction: "Ses preuves signées se contredisent.",
+                    damaged: "Sa preuve est endommagée et n’a pas pu être vérifiée.",
+                    noReceipt: "Ce site n’a reçu aucun justificatif.",
+                    unchecked: "Ce site n’a pas pu vérifier le justificatif.",
+                    skipped: "Non vérifié, car l’étape précédente n’a pas pu être achevée.",
+                    skippedMismatch: "Non vérifié, car le registre ne correspond pas.",
+                },
+                word: {
+                    withinSeconds: "Sous quelques secondes",
+                    withinMinutes: "Sous {{minutes}} min",
+                    checking: "Vérification…",
+                    late: "En retard",
+                    mismatch: "Différent",
+                    damaged: "Endommagé",
+                    noReceipt: "Pas de justificatif",
+                    unchecked: "Non vérifié",
+                    skipped: "—",
+                },
+                callout: {
+                    late: "Cela signifie en général qu’un nœud est lent ou hors ligne ; ce n’est pas une preuve de falsification.",
+                    lateKept:
+                        "Cet appareil vérifie de nouveau à chaque retour, et le suivi des bulletins peut vérifier depuis n’importe quel appareil.",
+                    lateTracker:
+                        "Le suivi des bulletins peut vérifier depuis n’importe quel appareil.",
+                    evidence:
+                        "Votre navigateur a conservé les preuves : ce justificatif et l’entrée signée du registre. Envoyez-les à l’autorité électorale ou à un observateur ; tout le monde peut les vérifier.",
+                    saveEvidence: "Enregistrer les preuves",
+                },
+                caption: {
+                    notcast:
+                        "Rien n’est vérifié tant que vous ne l’avez pas émis. Ensuite, cette coche montre jusqu’où votre bulletin a été vérifié.",
+                    checking:
+                        "Votre navigateur vérifie le registre public, avec un code que chacun peut inspecter.",
+                    problem:
+                        "Constaté par votre navigateur, avec un code que chacun peut inspecter.",
+                    verified:
+                        "Vérifié par votre navigateur, avec un code que chacun peut inspecter.",
+                    checked:
+                        "Contrôlé par votre navigateur, avec un code que chacun peut inspecter.",
+                    kept: "Cet appareil conserve le justificatif et le vérifie de nouveau à chaque visite.",
+                },
             },
             booth: {
                 title: "Votre bulletin ne peut pas encore être préparé",
@@ -508,50 +718,6 @@ const frenchTranslation: TranslationType = {
                 failed: "La configuration ne correspond pas à celle publiée. Les observateurs de l'élection ont été prévenus. Veuillez contacter l'assistance.",
                 retry: "Réessayer",
                 close: "Fermer",
-            },
-            receipt: {
-                waiting:
-                    "Le reçu n'est pas encore prêt. Ce site continue de le demander tant que cette page est ouverte.",
-                missing:
-                    "Ce site n'a reçu aucun reçu pour votre bulletin. Votre vote a été émis. Les observateurs de l'élection ont été prévenus.",
-                unchecked: "Ce site n'a pas pu vérifier le reçu. Votre vote a été émis.",
-                reference: "Scannez ce code pour vérifier le reçu sur un autre appareil.",
-                stored: "Ce reçu est conservé sur cet appareil, et vous pourrez le revoir après vous être connecté.",
-                notStored: "Ce reçu n'est pas conservé sur cet appareil.",
-                forget: "Ne pas conserver de reçus sur cet appareil",
-                keep: "Conserver les reçus sur cet appareil",
-            },
-            storedReceipts: {
-                title: "Reçus sur cet appareil",
-                holdsPublic: "Votre bulletin est toujours dans le registre public",
-                holdsPrivate: "Votre bulletin est toujours dans le registre de l'élection",
-                holdsHelp:
-                    "Votre navigateur vient de le vérifier. Rien de ce qui a été inscrit avant votre bulletin n'a changé.",
-                waiting: "Nous rassemblons encore des preuves pour votre bulletin",
-                waitingHelp:
-                    "Votre navigateur vient de le vérifier. Certaines preuves sont encore en route, et il n'est pas nécessaire d'attendre.",
-                problemHelp:
-                    "Les preuves signées de votre reçu se contredisent. Ouvrez le reçu pour les voir.",
-                unchecked: "Nous n'avons pas pu vérifier votre reçu à l'instant",
-                uncheckedHelp: "Le reçu est conservé sur cet appareil. Réessayez plus tard.",
-                witnesses: "Témoins",
-                hubs: "Pôles publics",
-                hubsPrivate: "Pôles",
-                browser: "Là où les navigateurs vérifient",
-                hubsAgree: "{{agree}} sur {{total}} concordent",
-                anchored: "Ancré",
-                viewReceipt: "Voir le reçu",
-                hideReceipt: "Masquer le reçu",
-                forget: "Supprimer les reçus de cet appareil",
-                howTitle: "Comment nous vérifions",
-                howReceipt:
-                    "Votre navigateur conserve un reçu signé. Il ne contient jamais votre vote.",
-                howCheck:
-                    "À chaque visite, il demande au registre une courte preuve qu'il n'a fait que grandir.",
-                howWitnesses:
-                    "Des témoins indépendants le signent, et des pôles publics l'ancrent là où les navigateurs vérifient : tout le monde voit ainsi le même registre.",
-                howWitnessesPrivate:
-                    "Des témoins indépendants le signent, et des pôles en gardent des ancres scellées : tout le monde se voit ainsi montrer le même registre.",
             },
         },
     },

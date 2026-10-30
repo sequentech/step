@@ -440,14 +440,119 @@ const spanishTranslation: TranslationType = {
             locateAgain: "Encuentre otra papeleta",
             found: "Su ID de Papeleta {{ballotId}} ha sido encontrado",
             notFound: "Su ID de Papeleta {{ballotId}} no fue encontrado",
-            ambiguous:
-                "Más de una de sus papeletas coincide con {{ballotId}}. Use el ID de papeleta completo.",
             contentDesc: "Este es el contenido de su papeleta: ",
             wrongFormatBallotId: "Formato incorrecto para el ID de la Papeleta",
             ballotIdNotFoundAtFilter:
                 "No encontrado, compruebe que el ID de la papeleta sea correcto y pertenezca a este usuario.",
             filterByBallotId: "Filtrar por ID de Papeleta",
             totalBallots: "Papeletas: {{total}}",
+            idHelp: "El ID de Papeleta corto, como 30ff d314, o el completo",
+            foundShort:
+                "Encontrada por su ID corto. Para estar seguro de que es la suya, compare el ID de Papeleta completo con su recibo.",
+            matches: {
+                title: "{{total}} papeletas tienen el ID corto {{shortId}}. Elija la suya o introduzca el ID de Papeleta completo.",
+                cast: "Emitida el {{time}}",
+            },
+            result: {
+                receipt: "Recibo de la papeleta",
+                idComment: "Use el ID corto o el completo para volver a encontrar esta papeleta.",
+                fullId: "ID de Papeleta completo",
+                copy: "Copiar el ID de Papeleta completo",
+                copied: "ID de Papeleta copiado",
+                copiedLabel: "Copiado",
+                recordEntry: "Entrada del registro",
+                save: "Guardar recibo",
+                sealLabel: "Estado de la papeleta: {{status}}",
+                check: "Comprobarlo de forma independiente",
+                caption:
+                    "Comprobado por su navegador, con código que cualquiera puede inspeccionar.",
+                captionVerified:
+                    "Verificado por su navegador, con código que cualquiera puede inspeccionar.",
+                captionProblem:
+                    "Encontrado por su navegador, con código que cualquiera puede inspeccionar.",
+                late: "Esto suele significar que un centro va lento o está desconectado; no es prueba de manipulación. Vuelva a comprobarlo más tarde, aquí o en cualquier otro dispositivo.",
+                problem:
+                    "El portal indica que esta papeleta fue emitida, pero el registro público de la elección no tiene ninguna entrada para ella. Su navegador guardó la prueba: la respuesta del portal y el punto de control firmado del registro. Envíela a la autoridad electoral o a un observador.",
+                problemOther:
+                    "Las pruebas firmadas de esta papeleta se contradicen entre sí. Puede ser un fallo o un ataque. Su navegador guardó la prueba. Envíela a la autoridad electoral o a un observador.",
+                saveEvidence: "Guardar la prueba",
+                howToReport: "Cómo denunciarlo",
+                howToReportText:
+                    "Guarde el archivo de la prueba y envíelo a la autoridad electoral o a un observador independiente. Pueden comprobarlo en sus propios ordenadores. No contiene nada sobre cómo votó.",
+                noReceipt:
+                    "Este dispositivo no tiene el recibo de esta papeleta. Compruébela en el dispositivo con el que votó, o compruebe el archivo del recibo en el verificador de papeletas.",
+                receiptPending:
+                    "Este dispositivo guarda un recibo de esta papeleta, pero no está completo o no se pudo comprobar ahora. Inténtelo de nuevo más tarde, o compruebe el archivo del recibo en el verificador de papeletas.",
+                status: {
+                    checking: {
+                        head: "Comprobando…",
+                        sub: "Su navegador está buscando la papeleta en el registro público.",
+                    },
+                    recorded: {
+                        head: "En el registro público",
+                        sub: "Su navegador encontró la papeleta. Comprobando sus testigos…",
+                    },
+                    witnessed: {
+                        head: "Confirmada por testigos",
+                        sub: "Comprobando los anclajes públicos…",
+                        subAnchored_one:
+                            "Anclada en centros públicos. Donde comprueban los navegadores llegará en {{count}} minuto.",
+                        subAnchored_other:
+                            "Anclada en centros públicos. Donde comprueban los navegadores llegará en {{count}} minutos.",
+                    },
+                    verified: {
+                        head: "Verificada",
+                        sub: "En el registro público, confirmada por testigos independientes y anclada públicamente.",
+                    },
+                    late: {
+                        head: "Tarda más de lo esperado",
+                        sub: "En el registro público y confirmada por testigos, pero sus anclajes públicos se retrasan.",
+                    },
+                    problem: {
+                        head: "No está en el registro público",
+                        sub: "Su navegador no pudo encontrar esta papeleta en el registro público de la elección.",
+                    },
+                    otherProblem: {
+                        head: "Falló una comprobación",
+                        sub: "Las pruebas firmadas de esta papeleta se contradicen entre sí. Vea el paso que falló.",
+                    },
+                },
+                steps: {
+                    record: {
+                        title: "Añadida al registro público",
+                        done: "Entrada n.º {{index}} del registro de papeletas de la elección. Su navegador comprobó su prueba.",
+                        failed: "Ninguna entrada del registro de papeletas de la elección tiene este ID de Papeleta.",
+                        missing: "Falta",
+                    },
+                    witnesses: {
+                        title: "Confirmada por testigos",
+                        done: "Testigos independientes firmaron un registro que la incluye.",
+                        count: "{{signed}} de {{total}} · hacen falta {{needed}}",
+                        countOf: "{{signed}} de {{total}}",
+                    },
+                    hubs: {
+                        title_one: "Anclada en {{count}} centro público",
+                        title_other: "Anclada en {{count}} centros públicos",
+                        titleAny: "Anclada en centros públicos",
+                        done: "Los registros compartidos también guardan esta entrada: {{hubs}}.",
+                    },
+                    browser: {
+                        title: "Anclada donde comprueban los navegadores",
+                        done: "Guardada por un centro provisional hasta que los navegadores comprueben los registros por sí mismos.",
+                    },
+                    checking: "Su navegador está comprobando…",
+                    scheduled_one: "En {{count}} minuto. No hace falta esperar.",
+                    scheduled_other: "En {{count}} minutos. No hace falta esperar.",
+                    by: "Antes de {{time}}",
+                    late: "Tarde",
+                    lateHubs: "Los centros deberían haberla anclado antes de {{time}}.",
+                    lateOther: "Esto debería haberse hecho antes de {{time}}.",
+                    waiting: "Esperando el paso anterior.",
+                    skipped: "No comprobado.",
+                    failedStep: "Las pruebas firmadas de este paso se contradicen entre sí.",
+                    failedTime: "Problema",
+                },
+            },
             steps: {
                 lookup: "Encuentre su papeleta",
                 result: "Resultado",
@@ -469,35 +574,142 @@ const spanishTranslation: TranslationType = {
             },
         },
         vitrine: {
-            progress: "Paso {{current}} de {{total}} · {{step}}",
-            confirmation: {
-                step: "Confirmación",
-                cast: "Su papeleta se ha emitido",
-                recordedPublic: "Su papeleta está en el registro público",
-                recordedPrivate: "Su papeleta está en el registro de la elección",
-                keep: "Guarde su recibo para comprobarlo de nuevo más tarde.",
-                elsewhere: "Comprobarlo en otro dispositivo",
-                save: "Guardar recibo",
+            ballotId: {
+                label: "Localizador del Voto",
+                full: "Localizador del Voto completo",
+                yours: "Su Localizador de Voto:",
+                copy: "Copiar el localizador completo",
+                copied: "Localizador copiado",
+                copiedShort: "Copiado",
             },
-            failure: {
-                titlePublic: "No hemos podido confirmar su papeleta en el registro público",
-                titlePrivate: "No hemos podido confirmar su papeleta en el registro de la elección",
-                contradiction:
-                    "Las pruebas firmadas de su recibo se contradicen, así que este sitio web no puede confirmar su papeleta. Puede ser un fallo o un ataque. Su voto aún puede contar, pero alguien independiente debería revisarlo.",
-                evidenceTitle: "Evidencias guardadas en este dispositivo",
-                evidenceCount_one: "{{count}} elemento",
-                evidenceCount_other: "{{count}} elementos",
-                receiptEntry: "Su recibo de la entrada #{{index}}",
-                receiptPromise: "Su recibo de una entrada prometida",
-                receiptSigned: "Firmado por el registro cuando votó",
-                observers:
-                    "Los observadores comprueban estas evidencias en sus propios ordenadores. Demuestran lo que firmó el registro y no contienen nada sobre qué votó.",
-                check: "Comprobarlo de forma independiente",
-                save: "Descargar el archivo del recibo",
-                nextTitle: "¿Qué ocurre ahora?",
-                nextText:
-                    "Su voto se emitió. Conserve el archivo del recibo: sigue siendo válido muestre lo que muestre esta página. Compruébelo de forma independiente, sin depender de este sitio web, y entréguelo a los observadores de la elección si sigue sin poder confirmarse.",
-                showReceipt: "Mostrar el recibo y todas las comprobaciones",
+            status: {
+                title: "Estado de la papeleta",
+                cast: "Emitida el {{when}}",
+                ballotCast: "Voto emitido",
+                aria: "Estado de la papeleta: {{state}}. Mostrar detalles",
+                ariaCast: "Voto emitido. Estado de la papeleta: {{state}}. Mostrar detalles",
+                tooltip: "{{state}} · Mostrar detalles",
+                tracker: "Abrir en el rastreador de papeletas",
+                save: "Guardar el justificante",
+                ok: "Aceptar",
+                state: {
+                    notcast: "Aún no emitida",
+                    checking: "Comprobando…",
+                    recorded: "En el registro público",
+                    witnessed: "Confirmada por testigos",
+                    verified: "Verificada",
+                    late: "Con retraso",
+                    problem: "Problema",
+                },
+                head: {
+                    late: "Tarda más de lo previsto",
+                    mismatch: "El registro no coincide",
+                    damaged: "El justificante está dañado",
+                    noReceipt: "Sin justificante de su papeleta",
+                    unchecked: "No se pudo comprobar su papeleta",
+                },
+                sub: {
+                    notcast:
+                        "Esta papeleta está cifrada en este dispositivo y no se ha enviado nada. Cuando la emita, su navegador comprobará que llega al registro público.",
+                    checking:
+                        "Su navegador está comprobando que su papeleta está en el registro público.",
+                    recorded:
+                        "Su navegador ha encontrado su papeleta en el registro público. Ahora la confirman los testigos.",
+                    witnessed:
+                        "Testigos independientes han confirmado el registro. Los anclajes públicos llegan en {{minutes}} minutos; no hace falta esperar.",
+                    verified:
+                        "Su papeleta está en el registro público, confirmada por testigos independientes y anclada públicamente.",
+                    late: "Su papeleta está en el registro público y confirmada por los testigos, pero sus anclajes públicos van con retraso.",
+                    lateStep:
+                        "Un paso tarda más de lo previsto. No es prueba de manipulación, y su navegador sigue comprobando.",
+                    mismatch:
+                        "La entrada n.º {{index}} del registro público no es la de este justificante.",
+                    mismatchNoEntry:
+                        "La entrada del registro público no es la de este justificante.",
+                    damaged:
+                        "No se pudo leer o verificar una parte del justificante o del registro. Es un fallo de datos, no una prueba de manipulación. Su voto se emitió.",
+                    noReceipt:
+                        "Este sitio web no recibió ningún justificante de su papeleta. Su voto se emitió y se ha avisado a los observadores de la elección.",
+                    unchecked:
+                        "Este sitio web no pudo comprobar el justificante. Su voto se emitió.",
+                },
+                step: {
+                    record: {
+                        title: "En el registro público",
+                        upcoming:
+                            "Su navegador encuentra la papeleta en el registro público de la elección.",
+                    },
+                    witnesses: {
+                        title: "Confirmada por testigos",
+                        upcoming: "Testigos independientes firman un registro que la incluye.",
+                    },
+                    anchors: {
+                        title: "Anclada públicamente",
+                        upcoming:
+                            "Los nodos públicos, y los registros que comprueban los navegadores, guardan ese registro.",
+                    },
+                },
+                row: {
+                    waiting: "Esperando al paso anterior.",
+                    checking: "Su navegador está comprobando…",
+                    anchoring:
+                        "Nodos públicos y, después, donde comprueban los navegadores: en {{minutes}} minutos.",
+                    recorded: "Su navegador comprobó su prueba.",
+                    recordedEntry: "Entrada n.º {{index}}. Su navegador comprobó su prueba.",
+                    witnessed:
+                        "Suficientes testigos independientes de la política ({{count}}) firmaron un registro que la incluye.",
+                    anchoredWaict:
+                        "En los nodos públicos ({{count}}) y donde comprueban los navegadores.",
+                    anchoredBootstrap:
+                        "En los nodos públicos ({{count}}) y donde comprueban los navegadores, por ahora mediante un nodo sustituto.",
+                    anchoredHubs: "En los nodos públicos ({{count}}).",
+                    lateNow: "Ya debería estar hecho.",
+                    lateStep: "Debería estar hecho a las {{time}}.",
+                    lateAnchors: "Los nodos deberían haberla anclado a las {{time}}.",
+                    mismatch:
+                        "La entrada n.º {{index}} del registro es distinta de su justificante.",
+                    mismatchNoEntry: "Una entrada del registro es distinta de su justificante.",
+                    contradiction: "Sus pruebas firmadas se contradicen.",
+                    damaged: "Su prueba está dañada y no se pudo verificar.",
+                    noReceipt: "Este sitio web no recibió ningún justificante.",
+                    unchecked: "Este sitio web no pudo comprobar el justificante.",
+                    skipped: "No comprobado, porque no se pudo completar el paso anterior.",
+                    skippedMismatch: "No comprobado, porque el registro no coincide.",
+                },
+                word: {
+                    withinSeconds: "En unos segundos",
+                    withinMinutes: "En {{minutes}} min",
+                    checking: "Comprobando…",
+                    late: "Con retraso",
+                    mismatch: "No coincide",
+                    damaged: "Dañado",
+                    noReceipt: "Sin justificante",
+                    unchecked: "No comprobado",
+                    skipped: "—",
+                },
+                callout: {
+                    late: "Suele significar que un nodo va lento o está fuera de línea; no es prueba de manipulación.",
+                    lateKept:
+                        "Este dispositivo vuelve a comprobarlo cada vez que regresa, y el rastreador de papeletas puede comprobarlo desde cualquier dispositivo.",
+                    lateTracker:
+                        "El rastreador de papeletas puede comprobarlo desde cualquier dispositivo.",
+                    evidence:
+                        "Su navegador guardó la evidencia: este justificante y la entrada firmada del registro. Envíela a la autoridad electoral o a un observador; cualquiera puede comprobarla.",
+                    saveEvidence: "Guardar la evidencia",
+                },
+                caption: {
+                    notcast:
+                        "No se comprueba nada hasta que la emita. Después, esta marca muestra hasta dónde se ha verificado su papeleta.",
+                    checking:
+                        "Su navegador está comprobando el registro público, con código que cualquiera puede inspeccionar.",
+                    problem:
+                        "Detectado por su navegador, con código que cualquiera puede inspeccionar.",
+                    verified:
+                        "Verificado por su navegador, con código que cualquiera puede inspeccionar.",
+                    checked:
+                        "Comprobado por su navegador, con código que cualquiera puede inspeccionar.",
+                    kept: "Este dispositivo guarda el justificante y lo vuelve a comprobar en cada visita.",
+                },
             },
             booth: {
                 title: "Todavía no se puede preparar su papeleta",
@@ -510,51 +722,6 @@ const spanishTranslation: TranslationType = {
                 failed: "La configuración no coincide con la publicada. Se ha avisado a los observadores de la elección. Póngase en contacto con soporte.",
                 retry: "Reintentar",
                 close: "Cerrar",
-            },
-            receipt: {
-                waiting:
-                    "El recibo aún no está listo. Este sitio web lo sigue pidiendo mientras esta página esté abierta.",
-                missing:
-                    "Este sitio web no ha recibido ningún recibo de su papeleta. Su voto se ha emitido. Se ha avisado a los observadores de la elección.",
-                unchecked:
-                    "Este sitio web no ha podido comprobar el recibo. Su voto se ha emitido.",
-                reference: "Escanee este código para comprobar el recibo desde otro dispositivo.",
-                stored: "Este recibo se guarda en este dispositivo y podrá verlo de nuevo al iniciar sesión.",
-                notStored: "Este recibo no se guarda en este dispositivo.",
-                forget: "No guardar recibos en este dispositivo",
-                keep: "Guardar recibos en este dispositivo",
-            },
-            storedReceipts: {
-                title: "Recibos en este dispositivo",
-                holdsPublic: "Su papeleta sigue en el registro público",
-                holdsPrivate: "Su papeleta sigue en el registro de la elección",
-                holdsHelp:
-                    "Su navegador acaba de comprobarlo. Nada de lo anotado antes de su papeleta ha cambiado.",
-                waiting: "Aún estamos reuniendo pruebas de su papeleta",
-                waitingHelp:
-                    "Su navegador acaba de comprobarlo. Algunas pruebas aún están en camino y no hace falta esperar.",
-                problemHelp:
-                    "Las pruebas firmadas de su recibo se contradicen. Abra el recibo para verlas.",
-                unchecked: "Ahora no hemos podido comprobar su recibo",
-                uncheckedHelp:
-                    "El recibo se guarda en este dispositivo. Inténtelo de nuevo más tarde.",
-                witnesses: "Testigos",
-                hubs: "Centros públicos",
-                hubsPrivate: "Centros",
-                browser: "Donde comprueban los navegadores",
-                hubsAgree: "{{agree}} de {{total}} coinciden",
-                anchored: "Anclado",
-                viewReceipt: "Ver recibo",
-                hideReceipt: "Ocultar recibo",
-                forget: "Quitar los recibos de este dispositivo",
-                howTitle: "Cómo lo comprobamos",
-                howReceipt: "Su navegador guarda un recibo firmado. Nunca contiene lo que votó.",
-                howCheck:
-                    "En cada visita le pide al registro una prueba breve de que solo ha crecido.",
-                howWitnesses:
-                    "Testigos independientes lo firman y los centros públicos lo anclan donde comprueban los navegadores, así que todo el mundo ve el mismo registro.",
-                howWitnessesPrivate:
-                    "Testigos independientes lo firman y los centros guardan anclas selladas, así que a todo el mundo se le muestra el mismo registro.",
             },
         },
     },
