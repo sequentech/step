@@ -26,15 +26,21 @@ use super::PubKeycloakAdmin;
 
 const ADMIN_PORTAL_CLIENT_ID: &str = "admin-portal";
 const CLI_ACCOUNT_ADMIN_CLIENT_ID: &str = "cli-account-admin";
+const ACCOUNT_CONSOLE_CLIENT_ID: &str = "account-console";
 const ADMIN_PORTAL_URL_ENV_VAR: &str = "ADMIN_PORTAL_URL";
 const PKCE_CODE_CHALLENGE_METHOD_ATTR: &str = "pkce.code.challenge.method";
 const PKCE_S256_METHOD: &str = "S256";
 const POST_LOGOUT_REDIRECT_URIS_ATTR: &str = "post.logout.redirect.uris";
 const REQUEST_URIS_ATTR: &str = "request.uris";
 const SAME_AS_REDIRECT_URIS: &str = "+";
+const AUTH_BASE_URL: &str = "${authBaseUrl}";
 
 fn admin_portal_redirect_uris(admin_portal_url: &str) -> Vec<String> {
     vec![format!("{}/*", admin_portal_url.trim_end_matches('/'))]
+}
+
+fn account_console_redirect_uris(realm_name: &str) -> Vec<String> {
+    vec![format!("/realms/{realm_name}/account/*")]
 }
 
 /// Returns the configured admin portal URL for a tenant realm, where it is
@@ -71,10 +77,12 @@ fn set_client_attributes(
 }
 
 /// Limits the browser redirects of the tenant realm clients that issue tokens
-/// carrying the user's realm roles: `admin-portal` to the admin portal, and
-/// `cli-account-admin`, which is only used for direct access grants, to none.
+/// for the user: `admin-portal` to the admin portal, `account-console` to the
+/// realm's account console, and `cli-account-admin`, which is only used for
+/// direct access grants, to none.
 fn scope_tenant_realm_clients(
     clients: &mut [ClientRepresentation],
+    realm_name: &str,
     admin_portal_url: &str,
 ) {
     for client in clients {
@@ -84,6 +92,20 @@ fn scope_tenant_realm_clients(
                 client.base_url = Some(admin_portal_url.to_string());
                 client.redirect_uris =
                     Some(admin_portal_redirect_uris(admin_portal_url));
+                client.web_origins = Some(vec![SAME_AS_REDIRECT_URIS.into()]);
+                set_client_attributes(
+                    client,
+                    &[
+                        (PKCE_CODE_CHALLENGE_METHOD_ATTR, PKCE_S256_METHOD),
+                        (POST_LOGOUT_REDIRECT_URIS_ATTR, SAME_AS_REDIRECT_URIS),
+                    ],
+                    &[REQUEST_URIS_ATTR],
+                );
+            }
+            Some(ACCOUNT_CONSOLE_CLIENT_ID) => {
+                client.root_url = Some(AUTH_BASE_URL.to_string());
+                client.redirect_uris =
+                    Some(account_console_redirect_uris(realm_name));
                 client.web_origins = Some(vec![SAME_AS_REDIRECT_URIS.into()]);
                 set_client_attributes(
                     client,
@@ -603,7 +625,11 @@ impl KeycloakAdminClient {
 
         if let Some(admin_portal_url) = admin_portal_url.as_deref() {
             let mut clients = realm.clients.take().unwrap_or_default();
-            scope_tenant_realm_clients(&mut clients, admin_portal_url);
+            scope_tenant_realm_clients(
+                &mut clients,
+                board_name,
+                admin_portal_url,
+            );
             realm.clients = Some(clients);
         }
 
@@ -648,9 +674,10 @@ impl KeycloakAdminClient {
 mod tests {
     use super::{
         admin_portal_redirect_uris, admin_portal_url_for_realm,
-        scope_tenant_realm_clients, ADMIN_PORTAL_CLIENT_ID,
-        CLI_ACCOUNT_ADMIN_CLIENT_ID, PKCE_CODE_CHALLENGE_METHOD_ATTR,
-        PKCE_S256_METHOD, POST_LOGOUT_REDIRECT_URIS_ATTR, REQUEST_URIS_ATTR,
+        scope_tenant_realm_clients, ACCOUNT_CONSOLE_CLIENT_ID,
+        ADMIN_PORTAL_CLIENT_ID, AUTH_BASE_URL, CLI_ACCOUNT_ADMIN_CLIENT_ID,
+        PKCE_CODE_CHALLENGE_METHOD_ATTR, PKCE_S256_METHOD,
+        POST_LOGOUT_REDIRECT_URIS_ATTR, REQUEST_URIS_ATTR,
         SAME_AS_REDIRECT_URIS,
     };
     use crate::serialization::deserialize_with_path::deserialize_str;
@@ -742,7 +769,11 @@ mod tests {
     fn tenant_realm_admin_portal_client_is_scoped_to_admin_portal_url() {
         let mut clients =
             vec![client_accepting_any_uri(ADMIN_PORTAL_CLIENT_ID)];
-        scope_tenant_realm_clients(&mut clients, ADMIN_PORTAL_URL);
+        scope_tenant_realm_clients(
+            &mut clients,
+            TENANT_REALM,
+            ADMIN_PORTAL_URL,
+        );
         let admin_portal = find_client(&clients, ADMIN_PORTAL_CLIENT_ID);
 
         assert_eq!(admin_portal.root_url.as_deref(), Some(ADMIN_PORTAL_URL));
@@ -770,7 +801,11 @@ mod tests {
     fn tenant_realm_cli_client_accepts_no_browser_redirects() {
         let mut clients =
             vec![client_accepting_any_uri(CLI_ACCOUNT_ADMIN_CLIENT_ID)];
-        scope_tenant_realm_clients(&mut clients, ADMIN_PORTAL_URL);
+        scope_tenant_realm_clients(
+            &mut clients,
+            TENANT_REALM,
+            ADMIN_PORTAL_URL,
+        );
         let cli_client = find_client(&clients, CLI_ACCOUNT_ADMIN_CLIENT_ID);
 
         assert_eq!(cli_client.redirect_uris, Some(vec![]));
@@ -783,22 +818,57 @@ mod tests {
     }
 
     #[test]
+    fn tenant_realm_account_console_is_scoped_to_the_realm_account_console() {
+        let mut clients =
+            vec![client_accepting_any_uri(ACCOUNT_CONSOLE_CLIENT_ID)];
+        scope_tenant_realm_clients(
+            &mut clients,
+            TENANT_REALM,
+            ADMIN_PORTAL_URL,
+        );
+        let account_console = find_client(&clients, ACCOUNT_CONSOLE_CLIENT_ID);
+
+        assert_eq!(account_console.root_url.as_deref(), Some(AUTH_BASE_URL));
+        assert_eq!(
+            account_console.redirect_uris,
+            Some(vec![format!("/realms/{TENANT_REALM}/account/*")])
+        );
+        assert_eq!(
+            account_console.web_origins,
+            Some(vec![SAME_AS_REDIRECT_URIS.to_string()])
+        );
+        assert_eq!(
+            attribute(account_console, PKCE_CODE_CHALLENGE_METHOD_ATTR),
+            Some(PKCE_S256_METHOD)
+        );
+        assert_eq!(
+            attribute(account_console, POST_LOGOUT_REDIRECT_URIS_ATTR),
+            Some(SAME_AS_REDIRECT_URIS)
+        );
+        assert_eq!(attribute(account_console, REQUEST_URIS_ATTR), None);
+    }
+
+    #[test]
     fn tenant_realm_scoping_leaves_other_clients_unchanged() {
         let other_client = client_accepting_any_uri("api-key-client");
         let mut clients = vec![other_client.clone()];
-        scope_tenant_realm_clients(&mut clients, ADMIN_PORTAL_URL);
+        scope_tenant_realm_clients(
+            &mut clients,
+            TENANT_REALM,
+            ADMIN_PORTAL_URL,
+        );
 
         assert_eq!(clients, vec![other_client]);
     }
 
     #[test]
-    fn tenant_realm_template_admin_clients_list_explicit_redirect_uris() {
+    fn tenant_realm_template_clients_list_explicit_redirect_uris() {
         let realm: RealmRepresentation =
             deserialize_str(TENANT_REALM_TEMPLATE).expect("tenant template");
         let clients = realm.clients.unwrap_or_default();
 
-        for client_id in [ADMIN_PORTAL_CLIENT_ID, CLI_ACCOUNT_ADMIN_CLIENT_ID] {
-            let client = find_client(&clients, client_id);
+        for client in &clients {
+            let client_id = client.client_id.as_deref().unwrap_or_default();
             for uris in [&client.redirect_uris, &client.web_origins] {
                 assert!(
                     !uris.iter().flatten().any(|uri| uri == ANY_URI),
@@ -816,12 +886,15 @@ mod tests {
                 "{client_id} request URIs"
             );
         }
-        assert_eq!(
-            attribute(
-                find_client(&clients, ADMIN_PORTAL_CLIENT_ID),
-                PKCE_CODE_CHALLENGE_METHOD_ATTR
-            ),
-            Some(PKCE_S256_METHOD)
-        );
+        for client_id in [ADMIN_PORTAL_CLIENT_ID, ACCOUNT_CONSOLE_CLIENT_ID] {
+            assert_eq!(
+                attribute(
+                    find_client(&clients, client_id),
+                    PKCE_CODE_CHALLENGE_METHOD_ATTR
+                ),
+                Some(PKCE_S256_METHOD),
+                "{client_id} PKCE method"
+            );
+        }
     }
 }
