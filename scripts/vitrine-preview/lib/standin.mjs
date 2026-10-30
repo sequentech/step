@@ -20,6 +20,7 @@ import { FakeKeycloak, claimsOf } from "./keycloak.mjs";
 import { ADMIN_ID, AREA_ID, TENANT_ID, VOTER_ID, VOTER_USERNAME, ballotStyleText, eventPresentation, styleDigests, tables as fixtureTables, PORTAL_RELEASE } from "./fixtures.mjs";
 import { voterContext } from "./events.mjs";
 import { electionEntry, judge, stepBallotId, unavailable } from "./vitrine.mjs";
+import { AUDITED_BALLOT } from "./audited-ballot.mjs";
 
 const MAX_BODY = 8 << 20;
 const BOOTH_BUDGET_MS = 600;
@@ -136,6 +137,49 @@ export function createStandIn({ live, sidecar, origin, stepPackages, electionId,
     return row;
   }
 
+  // -- The audited ballot --------------------------------------------------------
+  // Step's backend doesn't publish audited ballots. This stand-in does, for one:
+  // it records the ballot's ID in the ballots log, as a cast would be, and
+  // answers the tracker's lookup by that ID with the ballot itself, so the
+  // tracker finds it, checks its receipt and decodes it.
+
+  let auditedRow;
+
+  async function recordAuditedBallot() {
+    const ballot = AUDITED_BALLOT;
+    if (ballot.config?.election_id !== electionId || ballot.config?.election_event_id !== live.eventId) {
+      log("audited ballot: it is for another election; not recorded");
+      return;
+    }
+    const now = Math.floor(Date.now() / 1000);
+    const entry = electionEntry({ eventId: live.eventId, electionId, ballotId: ballot.ballot_hash, acceptedAt: now });
+    let answered;
+    try {
+      const answer = await sidecar.add(live.ballots, entry, BOOTH_BUDGET_MS, CAST_BUDGET_MS);
+      answered = judge(answer.status, answer.body, entry).kind;
+    } catch (e) {
+      answered = `no answer (${e.message})`;
+    }
+    const ts = new Date(now * 1000).toISOString();
+    auditedRow = {
+      id: crypto.randomUUID(),
+      ballot_id: ballot.ballot_hash,
+      election_id: electionId,
+      election_event_id: live.eventId,
+      tenant_id: TENANT_ID,
+      area_id: AREA_ID,
+      created_at: ts,
+      last_updated_at: ts,
+      labels: null,
+      annotations: null,
+      content: JSON.stringify(ballot),
+      cast_ballot_signature: null,
+      voter_id_string: VOTER_ID,
+      status: "valid",
+    };
+    log(`audited ballot: ${ballot.ballot_hash.slice(0, 12)}... recorded at ${now}; the log answered ${answered}`);
+  }
+
   // -- The published ballot data ------------------------------------------------------
   // The voting portal downloads the event, the elections and each ballot style
   // as JSON files (Step serves them from object storage with presigned URLs).
@@ -234,7 +278,8 @@ export function createStandIn({ live, sidecar, origin, stepPackages, electionId,
           // The ballot tracker asks for a ballot by its ID, or by the prefix of a short ID.
           const voter = ctx.claims?.sub ?? VOTER_ID;
           const prefix = args.ballot_id_prefix?.toLowerCase();
-          return [...casts.values()].filter(
+          const named = Boolean(args.ballot_id || prefix);
+          return [...casts.values(), ...(named && auditedRow ? [auditedRow] : [])].filter(
             (c) =>
               c.voter_id_string === voter &&
               (!args.election_id || c.election_id === args.election_id) &&
@@ -315,6 +360,7 @@ export function createStandIn({ live, sidecar, origin, stepPackages, electionId,
           election: electionId,
           release,
           casts: state.casts,
+          auditedBallot: auditedRow?.ballot_id ?? null,
           boothContext: state.lastContext ?? null,
           tamper: tamper?.status?.() ?? null,
         });
@@ -325,6 +371,10 @@ export function createStandIn({ live, sidecar, origin, stepPackages, electionId,
       log(`error ${req.method} ${url.pathname}: ${e.stack ?? e}`);
       send(res, 500, { error: String(e.message ?? e) });
     }
+  });
+
+  server.once("listening", () => {
+    recordAuditedBallot().catch((e) => log(`audited ballot: ${e.message}`));
   });
 
   return { server, state, db, style, text, release, electionId };
