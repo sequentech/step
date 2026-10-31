@@ -8,14 +8,13 @@ SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-:::warning Not yet validated end to end on v10.1.0-rc.4
+:::info Validated end to end on v10.1.0-rc.4
 
-The procedure below is based on reading the `v10.1.0-rc.4` source. The script
-has only been run against its focused tests
-(`python3 scripts/test_regroup_voters_by_attribute.py`: 39 tests, OK, using
-in-memory Hasura and Keycloak). A full run on an rc.4 stack (baseline tally,
-regroup, second tally) is still pending. Do not use it on a production event
-until this notice is replaced with that evidence.
+Validated on an isolated local stack running the published `v10.1.0-rc.4`
+images (commit `94c01d6`) with a copy of a real weighted event, synthetic
+voters and synthetic ballots. See [Validation on v10.1.0-rc.4](#validation-on-v1010-rc4).
+Focused tests: `python3 scripts/test_regroup_voters_by_attribute.py`, 39
+tests, OK.
 
 :::
 
@@ -164,3 +163,46 @@ that changed in between.
 
 Exit codes: 0 done, 2 refused (with reasons), 3 publication pending, 1
 connection or file error.
+
+## Validation on v10.1.0-rc.4
+
+Run on an isolated local stack (no production access). The Step services were
+the published `v10.1.0-rc.4` images (commit `94c01d6`), pulled by digest:
+windmill `0dfd2dec`, harvest `0b9eb97b`, braid `da3deee3`, b3 `77e04c53`,
+immudb `0002a614`, immudb-init `79de15e6`, hasura `beec5f98`, keycloak
+`701e8dd4`, voting-portal `ce9029b4`. No runtime code was changed.
+
+The event was a copy of a real voters-weighted event: 1 election, 5
+plurality-at-large contests, 1 area. The census had 448 rows with the original
+weights, eligibility and attribute values, and synthetic usernames and passwords
+instead of personal data. 383 rows had voted in the original event. Those 383
+synthetic voters cast synthetic ballots in 8 fixed blocks, choosing a candidate
+or a blank per contest. Their total weight was 9,657,305.
+
+| Step | Result |
+| --- | --- |
+| Cast votes | 383 valid, from 383 distinct voters, exactly the intended ones |
+| Baseline tally | SUCCESS. All 15 counts (5 contests × 2 candidates + blank) equal the independently computed weighted totals. Total 9,657,305, census 448 |
+| `plan` | 448 voters, 40 new areas, 200 area contests, 442 voters and 378 cast votes to move. The 6 voters without a value stay in the source area (`--blank-policy keep-in-source-area`). Per-area counts equal the independent expectation for all 41 groups |
+| `apply`, publish, `verify` | `PUBLICATION_PENDING`, then a new publication with 41 ballot styles, then `READY_FOR_TALLY` |
+| Second tally | SUCCESS. All 585 per-area counts, the census and the total weighted votes of all 41 groups equal the independent expectation. Per-contest totals equal the baseline |
+| Repeat `plan` | Nothing to create or move |
+| `revert` after the second tally | Refused; nothing changed |
+
+Byte-level evidence was taken before `apply` and compared after the second
+tally:
+
+- All 866 original bulletin board messages are unchanged. The second tally appended its own.
+- All 1,176 original electoral log entries are unchanged.
+- All 90 original stored artifacts (tally documents and publication files) are unchanged. Reads are checked against the stored size.
+- The live public event configuration changed, as it does on every publication.
+- Every cast vote is identical in every column apart from `area_id`.
+- The earlier publication and its ballot style are identical apart from `deleted_at`.
+- Earlier tally sessions, contests, executions and all results rows are unchanged.
+
+Limits of this run:
+
+- Voter login used the standard Keycloak browser flow over local TLS instead of the event's enrollment flow, and outbound email, SMS and external identity services were disabled. These are local test settings, unrelated to tallying.
+- The bulletin board ciphertexts of the two tallies were not compared ballot by ballot. That the second tally counts the original votes follows from the unchanged cast votes and from the exact results above.
+- A first baseline tally in this run reported zero votes and was discarded. The test census had been given an eligibility value that differed from the original (empty). After correcting it, the baseline above was run.
+
