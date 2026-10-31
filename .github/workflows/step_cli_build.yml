@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   # A release build takes 15 to 40 minutes, and nothing on a PR uses the binary.
-  # PRs build it only when the affected model selects step-cli's tests; pushes
+  # PRs check it only when the affected model selects step-cli's tests; pushes
   # and releases always build it.
   plan:
     name: Select the CLI build
@@ -94,17 +94,30 @@ jobs:
         working-directory: packages/step-cli
         run: sudo ln -s /usr/include/x86_64-linux-gnu/openssl/opensslconf.h /usr/include/openssl/opensslconf.h && sudo ln -s /usr/include/x86_64-linux-gnu/openssl/configuration.h /usr/include/openssl/configuration.h
 
+      # Nothing on a PR uses the binary, so a PR checks the static build instead:
+      # that catches the musl and feature errors in about a third of the time,
+      # and pushes and releases still build and upload the binary.
+      - name: Check step-cli for the static target
+        if: github.event_name == 'pull_request'
+        working-directory: packages/step-cli
+        env:
+          CARGO_BUILD_JOBS: 4
+        run: cargo check --locked --release --target x86_64-unknown-linux-musl
+
       - name: Build step-cli
+        if: github.event_name != 'pull_request'
         working-directory: packages/step-cli
         env:
           CARGO_BUILD_JOBS: 4
         run: cargo build --locked --release --target x86_64-unknown-linux-musl
 
       - name: List build output target-rust-local (for debugging)
+        if: github.event_name != 'pull_request'
         working-directory: packages/step-cli
         run: ls -lR rust-local-target/x86_64-unknown-linux-musl/release
 
       - name: Upload CLI binary artifact
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: step-cli-binary-${{ github.run_id }}

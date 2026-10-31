@@ -777,7 +777,7 @@ kind = "test"
 runner = "cargo"
 cost = "integration"
 cwd = "packages"
-command = "cargo test --locked -p step-cli --test acceptance_cli -- --ignored"
+command = "cargo test --locked -p step-cli --test cli -- --ignored acceptance_cli::"
 requires = ["postgres-server"]
 workflows = ["tests.yml"]
 [checks.env]

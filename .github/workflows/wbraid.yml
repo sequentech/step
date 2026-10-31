@@ -126,8 +126,39 @@ jobs:
           --target wasm32-unknown-unknown
           --no-default-features --features wasm-core
 
+  # live-b4 takes a quarter of an hour, so a PR runs it only when it changes
+  # the protocol code or this workflow. The shared Rust setup actions also
+  # trigger the workflow; the cheaper jobs above still cover them.
+  live-b4-plan:
+    name: Select the live-b4 tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: .
+    outputs:
+      run: ${{ steps.plan.outputs.run }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Compare with the merge base
+        id: plan
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ -z "$BASE" ] || ! git diff --quiet "$(git merge-base "$BASE" HEAD)" HEAD -- packages/wbraid .github/workflows/wbraid.yml; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "Neither packages/wbraid nor this workflow changed; the live-b4 tests are skipped." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
   live-b4:
     name: Live b4 protocol tests
+    needs: live-b4-plan
+    if: needs.live-b4-plan.outputs.run == 'true'
     # A release build of b4 and braid plus two full protocol runs
     # against a real b4 and the S3 emulator. The same two tests run in
     # the devcontainer with `cargo test -p braid --release -- --ignored`
@@ -189,8 +220,13 @@ jobs:
           aws s3 mb s3://wbraid-messages
           aws s3api put-bucket-cors --bucket wbraid-messages --cors-configuration file://s3-cors.json
 
-      - name: Build b4v6
-        run: cargo build --release --features postgres,sqlite --bin b4v6
+      # One build for the server and the test binaries: with separate package
+      # and feature selections, Cargo compiled about 200 crates twice. Only
+      # these three test files hold ignored tests.
+      - name: Build b4v6 and the live-b4 tests
+        run: >-
+          cargo build --release -p braid -p b4 --features b4/postgres,b4/sqlite
+          --bin b4v6 --test test_protocol --test model_check --test model_check_symbolic
 
       - name: Start b4v6 sqlite
         id: b4v6-sqlite
@@ -219,7 +255,9 @@ jobs:
           exit 1
 
       - name: Run the live-b4 protocol tests with sqlite
-        run: cargo test -p braid --release -- --ignored
+        run: >-
+          cargo test --release -p braid -p b4 --features b4/postgres,b4/sqlite
+          --test test_protocol --test model_check --test model_check_symbolic -- --ignored
         env:
           RUST_BACKTRACE: 'full'
           WBRAID_B4_BIND: '127.0.0.1:${{ env.SQLITE_B4_PORT }}'
@@ -252,7 +290,9 @@ jobs:
           exit 1
 
       - name: Run the live-b4 protocol tests with postgres
-        run: cargo test -p braid --release -- --ignored
+        run: >-
+          cargo test --release -p braid -p b4 --features b4/postgres,b4/sqlite
+          --test test_protocol --test model_check --test model_check_symbolic -- --ignored
         env:
           RUST_BACKTRACE: 'full'
           WBRAID_B4_BIND: '127.0.0.1:${{ env.POSTGRES_B4_PORT }}'

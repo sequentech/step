@@ -186,6 +186,29 @@ class PlanTests(unittest.TestCase):
                 services = [row["service"] for row in self.plan(path)["rust"]]
                 self.assertEqual("step-cli" in services, selected)
 
+    def test_wasm_build_follows_what_it_builds(self):
+        # build_wasm.yml builds on PRs only when this predicate holds.
+        def builds(plan):
+            return (
+                plan["jobs"]["wasm-freshness"]
+                or any(row["service"] in ("sequent-core", "protocol-board") for row in plan["rust"])
+                or any(row["package"] in ("ui-core", "ui-essentials", "workbench") for row in plan["node"])
+            )
+
+        for path, selected in (
+            ("packages/admin-portal/src/App.tsx", False),
+            ("packages/windmill/src/lib.rs", False),
+            ("docs/docusaurus/docs/intro.md", False),
+            ("packages/sequent-core/src/lib.rs", True),
+            ("packages/protocol-board/src/lib.rs", True),
+            ("packages/wbraid/crates/braid/src/lib.rs", True),
+            ("packages/ui-essentials/src/index.ts", True),
+            ("packages/workbench/package.json", True),
+            ("packages/yarn.lock", True),
+        ):
+            with self.subTest(path=path):
+                self.assertEqual(builds(self.plan(path)), selected)
+
     def test_step_cli_builder_does_not_check_core_gates(self):
         plan = self.plan("packages/step-cli/src/commands/build_election_event.rs")
         self.assertEqual([row["service"] for row in plan["rust"]], ["step-cli"])

@@ -344,7 +344,7 @@ jobs:
         working-directory: packages
 
       - name: Test the acceptance run against an election event's ballot box
-        run: cargo test --locked -p step-cli --test acceptance_cli -- --ignored
+        run: "cargo test --locked -p step-cli --test cli -- --ignored acceptance_cli::"
         working-directory: packages
 
       - name: Test upstream Trellis security regressions with PostgreSQL
