@@ -1,25 +1,52 @@
 ---
 id: election_management
 title: Election Management
+sidebar_position: 0
+description: "This manual tells election administrators and trustees how to prepare, run and close an election with the Sequent Online Voting admin portal, version 9.0."
 ---
+
+
+<!--
+SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+SPDX-License-Identifier: AGPL-3.0-only
+-->
+
+import ManualPdfLink from '@site/src/components/ManualPdfLink';
 
 # Election Management
 
-Welcome to the Election Management section of the Online Voting System documentation. This section is designed to guide election managers through the process of creating, configuring, and supervising elections using the Admin Portal or other tools provided by the system.
+This manual tells election administrators and trustees how to prepare, run and close an
+election with the Sequent Online Voting admin portal, version **9.0**.
 
-An online election system simplifies the administration of elections by digitizing the entire workflow — from setting up contests and candidates to managing voters and publishing results. Whether you're running a single election or managing multiple elections across different regions, the system offers the flexibility and control needed to ensure accuracy, transparency, and efficiency.
+<ManualPdfLink />
 
-### Key Concepts
-Understanding the core building blocks of the system is essential for successful election administration. Below are the primary components you'll encounter during the election setup and management process:
+## How to use this manual
 
-#### Election Event
-An Election Event encompasses the full scope of an electoral process — from data configuration to the announcement of final results. It acts as a container for one or more elections and includes everything needed to run a complete voting process. A single system instance can manage multiple Election Events at once, whether they occur concurrently or sequentially. Each Election Event can be managed independently, enabling secure and scalable election operations.
+1. Read [Before You Start](00-before-you-start.md) first. It gives the roles, the terms and the safety rules.
+2. Do the procedures in the order of the table. Each procedure tells you what you must have
+   before you start.
+3. Use the [Reference](Reference/User-Manual/admin_portal_reference_user-manual.md) part when you
+   need the details of a screen. Start with [Basic Navigation](Reference/basic_navigation.md).
+4. Use the Tutorials for one task in depth, for example
+   [Setting Up Your First Election](Tutorials/admin_portal_tutorials_setting-up-your-first-election.md).
 
-#### Election
-An Election is a specific voting activity conducted within an Election Event. It includes the actual act of voting, where registered voters select their preferred candidates or respond to ballot questions. Elections inherit their structure from the parent Election Event and function according to the parameters defined within it.
+## Procedures
 
-#### Contest
-Contests are the fundamental decision-making units of an Election. Each Contest corresponds to a race, referendum, or ballot question that voters must decide on. Contests are assigned to specific Areas (such as districts or regions) and are associated with one or more Candidates or options. They help define what positions are up for election and who is eligible to vote in each.
+| Step | Procedure | Who | Result |
+| --- | --- | --- | --- |
+| - | [Before You Start](00-before-you-start.md): roles, terms and safety rules | All | You know who does each task. |
+| 1 | [Set Up the Tenant](procedures/01-tenant.md): settings, users, roles and trustees | Tenant administrator | The administrators and trustees can sign in. |
+| 2 | [Create the Election Event](procedures/02-event.md): elections, contests, candidates and areas | Election administrator | The ballot content and the areas are complete. |
+| 3 | [Add the Voters](procedures/03-voters.md): import, add and check the voters | Election administrator | The voter list is complete. |
+| 4 | [Run the Key Ceremony](procedures/04-keys.md) | Election administrator and trustees | The election public key exists. Each trustee keeps a key fragment. |
+| 5 | [Publish and Manage the Voting Period](procedures/05-publish.md): publish the ballot and open, pause and close the voting period | Election administrator | Voters can vote. Then the voting period is closed. |
+| 6 | [Run the Tally Ceremony](procedures/06-tally.md) | Election administrator and trustees | The votes are decrypted and counted. |
+| 7 | [Get the Results](procedures/07-results.md): the results and the reports | Election administrator | You have the result documents. |
 
-#### Candidate
-Candidates are individuals, parties, or options competing in a Contest. Each Candidate is linked to one or more Contests and associated with a specific geographic Area. During the election, voters express their preferences by selecting from the available Candidates, and the system tallies and reports results accordingly.
+## Versions and languages
+
+This manual is for the version of the platform in the version menu at the top of the page. To
+read the manual of another version, select it in the version menu. If you do not know the
+version of your platform, ask Sequent support.
+
+Use the language menu to select a language. A page that is not translated shows in English.
