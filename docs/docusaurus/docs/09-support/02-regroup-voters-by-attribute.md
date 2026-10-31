@@ -223,7 +223,7 @@ step-cli step start-tally --election-event-id <event> --tally-type ELECTORAL_RES
 | Baseline tally | SUCCESS. All 15 counts (5 contests × 3: two candidates and blank) equal the expected weighted totals. Total 9,657,305, census 448 |
 | `plan` | 448 voters, 40 new areas, 200 area contests, 442 voters and 378 cast votes to move. The 6 voters without a value (5 of whom voted) stay in the source area |
 | `apply`, publish, `verify` | `PUBLICATION_PENDING`, then a new publication with 41 ballot styles, then `READY_FOR_TALLY` |
-| Second tally | SUCCESS. 41 areas: 39 with ballots (40 attribute values plus the source area), and 2 whose voters did not vote. 585 counts checked (39 areas × 5 contests × 3) and all equal. Census and total weighted votes equal in all 41 areas, including 0 for the 2 areas without ballots. Per-contest totals equal the baseline |
+| Second tally | SUCCESS. 41 areas: the 40 attribute values plus the source area, including 2 areas whose voters did not vote. All 615 candidate and blank values (41 areas × 5 contests × 3, zeros included) equal the expectation, and the 2 areas without ballots have stored zero rows. Each area-contest and candidate has exactly one result row. Census and total weighted votes are equal in all 41 areas. Per-area sums equal the stored contest totals and the baseline |
 | Repeat `plan` | Nothing to create or move |
 | `revert` after the second tally | Refused; nothing changed |
 
