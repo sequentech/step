@@ -5,12 +5,14 @@ import React from "react"
 import {Box} from "@mui/material"
 import type {Meta, StoryObj} from "@storybook/react-vite"
 import {expect, fn, userEvent, waitFor, within} from "storybook/test"
+import type {IBallotLogRow} from "@sequentech/ui-core"
 import {BallotBoxLogView} from "./BallotBoxLog"
 
-const ballot = {
-    ballot_id: "FTBE-MHRX",
-    pseudonym: "7QKM-2HXD",
-    cast_at: "2028-05-08T03:00:00Z",
+const ballot: IBallotLogRow = {
+    tracking_id: "FTBE-MHRX-0123-4567-89AB-CDEF-GHJK-MNPQ-RSTV-WXYZ-0123-4567-89AB",
+    pseudonym: "K7QM-2XWD",
+    stage: "cast",
+    last_step_at: "2028-05-08T03:00:00Z",
     voting_channel: "ONLINE",
     election_id: "election",
 }
@@ -30,9 +32,23 @@ const meta = {
                 ballot,
                 {
                     ...ballot,
-                    ballot_id: "E9KM-3RTW",
+                    tracking_id: "E9KM-3RTW-0123-4567-89AB-CDEF-GHJK-MNPQ-RSTV-WXYZ-0123-4567-89AB",
                     pseudonym: "2BFG-4HJK",
                     voting_channel: "KIOSK",
+                },
+                {
+                    ...ballot,
+                    tracking_id: "7TQP-H4WZ-0123-4567-89AB-CDEF-GHJK-MNPQ-RSTV-WXYZ-0123-4567-89AB",
+                    pseudonym: "R5ND-8ZVC",
+                    stage: "received",
+                    voting_channel: "",
+                },
+                {
+                    ...ballot,
+                    tracking_id: "3CMX-Q9ES-0123-4567-89AB-CDEF-GHJK-MNPQ-RSTV-WXYZ-0123-4567-89AB",
+                    pseudonym: "H2JK-6PTA",
+                    stage: "audited",
+                    voting_channel: "",
                 },
             ],
             next_cursor: "next-page",
@@ -63,14 +79,14 @@ export const Ballots: Story = {
     ...atViewport(1440),
     play: async ({canvasElement, args}) => {
         const canvas = within(canvasElement)
-        await expect(canvas.getByRole("heading", {name: "Ballot box log"})).toBeVisible()
+        await expect(canvas.getByRole("heading", {name: "All ballots"})).toBeVisible()
         expect(canvas.getByText("Times in Gulf Standard Time")).toBeVisible()
         const rows = canvasElement.querySelector(
             window.innerWidth < 750 ? ".ballot-box-log-mobile-list" : ".ballot-box-log-table"
         )
         expect(rows).toBeVisible()
-        const help = canvas.getByRole("button", {name: "About the ballot box log"})
-        const title = canvas.getByRole("heading", {name: "Ballot box log"})
+        const help = canvas.getByRole("button", {name: "About the log of all ballots"})
+        const title = canvas.getByRole("heading", {name: "All ballots"})
         expect(
             Math.abs(help.getBoundingClientRect().top - title.getBoundingClientRect().top)
         ).toBeLessThan(10)
@@ -78,7 +94,7 @@ export const Ballots: Story = {
         if (!list) throw new Error("The search and rows need a shared list card")
         expect(
             within(list as HTMLElement).getByRole("textbox", {
-                name: "Find a Ballot ID or pseudonym",
+                name: "Find a Tracking ID or pseudonym",
             })
         ).toBeVisible()
         await userEvent.click(canvas.getByRole("button", {name: "Check my ballot"}))
@@ -91,10 +107,29 @@ export const Ballots: Story = {
 export const BallotIdHelp: Story = {
     play: async ({canvasElement}) => {
         await userEvent.click(
-            within(canvasElement).getByRole("button", {name: "About your Ballot ID"})
+            within(canvasElement).getByRole("button", {name: "About your Tracking ID"})
         )
         const dialog = await within(document.body).findByRole("dialog")
         await waitFor(() => expect(within(dialog).getByText(/About the Ballot ID/)).toBeVisible())
+    },
+}
+export const BothSearched: Story = {
+    args: {
+        search: "FTBE2XWD",
+        page: {
+            ballots: [ballot],
+            next_cursor: null,
+            total: 1284,
+            match_count: 2,
+            match_count_capped: false,
+            tracking_matches: 1,
+            pseudonym_matches: 1,
+        },
+    },
+    play: async ({canvasElement}) => {
+        await expect(
+            within(canvasElement).getByText("Matches 1 by Tracking ID · 1 by pseudonym")
+        ).toBeVisible()
     },
 }
 export const CappedSearch: Story = {

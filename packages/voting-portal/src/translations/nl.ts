@@ -5,7 +5,57 @@ import englishTranslation, {TranslationType} from "./en"
 
 const dutchTranslation: TranslationType = {
     translations: {
-        ballotPrivacy: englishTranslation.translations.ballotPrivacy,
+        ballotPrivacy: {
+            ...englishTranslation.translations.ballotPrivacy,
+            title: "Alle stembiljetten",
+            subtitle: "Elk stembiljet dat in deze verkiezing is verzonden, één keer, bij zijn laatste stap. Kiezers staan onder een pseudoniem vermeld in plaats van een naam.",
+            own: "Uw stembiljet staat in het logboek",
+            copy: "Trackingcode kopiëren",
+            ballotIdHelp: "Over uw trackingcode",
+            stageTime: "{{stage}} {{time}}",
+            noMatchHelp: "Controleer op typefouten. Een trackingcode bevat een koppelteken en minstens 8 tekens, zoals FTBE-MHRX. Een pseudoniem bevat een dubbele punt, zoals K7QM:2XWD.",
+            copied: "Trackingcode gekopieerd",
+            copyFailed: "De trackingcode kon niet worden gekopieerd. Selecteer de code om hem te kopiëren.",
+            search: "Zoek een trackingcode of pseudoniem",
+            placeholder: "FTBE-MHRX of K7QM:2XWD",
+            matchesBoth: "{{tracking}} komen overeen met de trackingcode · {{pseudonym}} met het pseudoniem",
+            ballotId: "Trackingcode",
+            lastStep: "Laatste stap",
+            time: "Tijd",
+            trackingId: "Trackingcode",
+            trackingIdHelp: "Berekend uit het versleutelde stembiljet en de sleutel van de kiezer.",
+            noMatch: "Geen trackingcode of pseudoniem begint met {{prefix}}",
+            noBallots: "Er zijn nog geen stembiljetten verzonden.",
+            invalidPrefix: "Voer minstens 8 tekens van een trackingcode met koppelteken in, zoals FTBE-MHRX, of maximaal 8 van een pseudoniem met dubbele punt, zoals K7QM:2XWD. De codes gebruiken de cijfers 0 tot 9 en hoofdletters, zonder I, L, O en U.",
+            stages: {
+                received: {
+                    label: "Ontvangen",
+                    title: "Stembiljet ontvangen",
+                    help: "De stembus heeft een ontvangstbewijs voor dit stembiljet ondertekend en het openbare logboek heeft beloofd het toe te voegen. Het wordt niet meegeteld tenzij de kiezer het uitbrengt.",
+                    castState: "Nog niet uitgebracht",
+                },
+                cast: {
+                    label: "Uitgebracht",
+                    title: "Stembiljet uitgebracht",
+                    help: "De stembus heeft bevestigd dat de kiezer dit stembiljet heeft uitgebracht.",
+                    castState: "Geslaagd",
+                },
+                audited: {
+                    label: "Gecontroleerd",
+                    title: "Stembiljet gecontroleerd",
+                    help: "De kiezer heeft het geopend om het te controleren. Een gecontroleerd stembiljet wordt nooit uitgebracht en nooit meegeteld.",
+                    castState: "Nooit uitgebracht",
+                },
+            },
+            checkLabels: {
+                ...englishTranslation.translations.ballotPrivacy.checkLabels,
+                ballotId: "Trackingcode",
+            },
+            checkDescriptions: {
+                ...englishTranslation.translations.ballotPrivacy.checkDescriptions,
+                ballotId: "De trackingcode wordt berekend uit het versleutelde stembiljet en de sleutel van de kiezer.",
+            },
+        },
         startup: {
             error: "Het stemportaal kon niet worden gestart. Probeer het opnieuw.",
             retry: "Opnieuw proberen",
@@ -142,6 +192,11 @@ const dutchTranslation: TranslationType = {
                 "Breng uw stem uit zodat deze correct wordt geregistreerd, of kies voor audit om te bevestigen dat het stembiljet correct is versleuteld.",
         },
         reviewScreen: {
+            reloaded: {
+                title: "Uw stembiljet is niet uitgebracht",
+                text: "Door de pagina te herladen is de eenmalige sleutel gewist waarmee het wordt uitgebracht. Controleer uw keuzes en verzend uw stembiljet opnieuw. Het stembiljet dat u verzond blijft in het register staan als ontvangen en wordt nooit meegeteld.",
+                back: "Terug naar mijn stembiljet",
+            },
             castRecovery: {
                 uncertain:
                     "Het resultaat van het uitbrengen is niet bevestigd. U kunt hetzelfde verzoek opnieuw proberen of uw stembiljet-ID controleren voordat u opnieuw begint.",

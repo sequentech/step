@@ -53,8 +53,13 @@ export const BallotLogProof: React.FC<BallotLogProofProps> = ({trust, proof, onR
     const steps = ["binding", "received", "ballotId", "cast"] as const
     const statuses = steps.map((key) => checks?.[key] ?? "failed")
     const failed = statuses.some((status) => status === "failed")
-    const pending = !failed && statuses.some((status) => status === "pending")
-    const state = failed ? "failed" : pending ? "pending" : "passed"
+    // A ballot that is received or audited has no cast entry, and none is promised:
+    // the cast step is open, not late.
+    const stage = proof.stage === "received" || proof.stage === "audited" ? proof.stage : null
+    const earlier = statuses.slice(0, 3).every((status) => status === "passed")
+    const open = !failed && stage !== null && earlier && checks?.cast === "pending"
+    const pending = !failed && !open && statuses.some((status) => status === "pending")
+    const state = failed ? "failed" : open ? stage : pending ? "pending" : "passed"
     const entries = [
         {label: "received", bytes: proof.received_entry},
         {label: "cast", bytes: proof.cast_entry},
@@ -71,23 +76,47 @@ export const BallotLogProof: React.FC<BallotLogProofProps> = ({trust, proof, onR
     return (
         <Stack spacing={2.5} sx={{minWidth: 0, fontFamily: "Roboto, Helvetica, Arial, sans-serif"}}>
             <Alert
-                severity={failed ? "error" : pending ? "info" : "success"}
+                severity={failed ? "error" : pending || open ? "info" : "success"}
                 variant="outlined"
-                icon={<FontAwesomeIcon icon={pending ? faClock : faShieldHalved} />}
+                icon={<FontAwesomeIcon icon={pending || open ? faClock : faShieldHalved} />}
                 sx={{
                     borderRadius: "8px",
-                    bgcolor: failed ? "#FEF2F2" : pending ? "#EFF6FF" : "#ECFDF5",
+                    bgcolor: failed ? "#FEF2F2" : pending || open ? "#EFF6FF" : "#ECFDF5",
                 }}
             >
                 <Typography fontWeight={700} sx={{m: 0}}>
-                    {t(`ballotPrivacy.${state}`)}
+                    {open ? t(`ballotPrivacy.stages.${stage}.title`) : t(`ballotPrivacy.${state}`)}
                 </Typography>
                 <Typography variant="body2" sx={{m: 0}}>
-                    {t(
-                        `ballotPrivacy.${failed ? "failedHelp" : pending ? "pendingHelp" : "verified"}`
-                    )}
+                    {open
+                        ? t(`ballotPrivacy.stages.${stage}.help`)
+                        : t(
+                              `ballotPrivacy.${failed ? "failedHelp" : pending ? "pendingHelp" : "verified"}`
+                          )}
                 </Typography>
             </Alert>
+            {proof.tracking_id ? (
+                <Box>
+                    <Typography variant="body2" color="text.secondary" sx={{m: 0}}>
+                        {t("ballotPrivacy.trackingId")}
+                    </Typography>
+                    <Typography
+                        className="ballot-proof-tracking-id"
+                        sx={{
+                            m: 0,
+                            fontFamily: "monospace",
+                            fontSize: 15,
+                            fontWeight: 700,
+                            overflowWrap: "anywhere",
+                        }}
+                    >
+                        {proof.tracking_id}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{m: 0}}>
+                        {t("ballotPrivacy.trackingIdHelp")}
+                    </Typography>
+                </Box>
+            ) : null}
             <Stack direction="row" gap={1} alignItems="center">
                 <Typography variant="body2" color="text.secondary" sx={{m: 0}}>
                     {t("ballotPrivacy.pseudonym")}
@@ -167,7 +196,9 @@ export const BallotLogProof: React.FC<BallotLogProofProps> = ({trust, proof, onR
                                         {t(`ballotPrivacy.checkLabels.${key}`)}
                                     </Typography>
                                     <Typography variant="caption" sx={{m: 0, color}}>
-                                        {t(`ballotPrivacy.states.${status}`)}
+                                        {key === "cast" && open
+                                            ? t(`ballotPrivacy.stages.${stage}.castState`)
+                                            : t(`ballotPrivacy.states.${status}`)}
                                     </Typography>
                                 </Stack>
                                 <Typography variant="body2" sx={{m: 0, mt: 0.75}}>

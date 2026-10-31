@@ -1,11 +1,22 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 
-/** Public ballot-store row. Own-ballot responses use the same shape separately. */
+/** How far a ballot got in the public log: its latest entry. */
+export type BallotStage = "received" | "cast" | "audited"
+
+/**
+ * A ballot in the public log, once, at its latest stage. Own-ballot responses
+ * use the same shape separately. The receipt key the ballot box signs is not
+ * part of it: a ballot is named by its Tracking ID.
+ */
 export interface IBallotLogRow {
-    ballot_id: string
+    /** The full Tracking ID; the screens show its first two groups. */
+    tracking_id: string
     pseudonym: string
-    cast_at: string
+    stage: BallotStage
+    /** When the ballot reached that stage. */
+    last_step_at: string
+    /** Empty until the ballot is cast. */
     voting_channel: string
     election_id: string
 }
@@ -16,6 +27,9 @@ export interface IBallotLogPage {
     total: number
     match_count: number
     match_count_capped: boolean
+    /** With a search that looks at both, how many ballots match each way. */
+    tracking_matches?: number | null
+    pseudonym_matches?: number | null
 }
 
 export interface IForensicAddress {

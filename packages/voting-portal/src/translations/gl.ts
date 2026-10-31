@@ -6,7 +6,57 @@ import englishTranslation, {TranslationType} from "./en"
 // SPDX-License-Identifier: AGPL-3.0-only
 const galegoTranslation: TranslationType = {
     translations: {
-        ballotPrivacy: englishTranslation.translations.ballotPrivacy,
+        ballotPrivacy: {
+            ...englishTranslation.translations.ballotPrivacy,
+            title: "Todas as papeletas",
+            subtitle: "Todas as papeletas enviadas nesta eleición, unha soa vez, no seu último paso. Os votantes aparecen cun pseudónimo en lugar dun nome.",
+            own: "A túa papeleta está no rexistro",
+            copy: "Copiar o ID de seguimento",
+            ballotIdHelp: "Sobre o teu ID de seguimento",
+            stageTime: "{{stage}} {{time}}",
+            noMatchHelp: "Comproba que non haxa erros ao escribir. Un ID de seguimento ten un guión e polo menos 8 caracteres, como FTBE-MHRX. Un pseudónimo ten dous puntos, como K7QM:2XWD.",
+            copied: "ID de seguimento copiado",
+            copyFailed: "Non se puido copiar o ID de seguimento. Selecciona o código para copialo.",
+            search: "Buscar un ID de seguimento ou un pseudónimo",
+            placeholder: "FTBE-MHRX ou K7QM:2XWD",
+            matchesBoth: "Coinciden {{tracking}} por ID de seguimento · {{pseudonym}} por pseudónimo",
+            ballotId: "ID de seguimento",
+            lastStep: "Último paso",
+            time: "Hora",
+            trackingId: "ID de seguimento",
+            trackingIdHelp: "Calculado a partir da papeleta cifrada e da clave do votante.",
+            noMatch: "Ningún ID de seguimento nin pseudónimo comeza por {{prefix}}",
+            noBallots: "Aínda non se enviou ningunha papeleta.",
+            invalidPrefix: "Escribe polo menos 8 caracteres dun ID de seguimento con guión, como FTBE-MHRX, ou ata 8 dun pseudónimo con dous puntos, como K7QM:2XWD. Os códigos usan os díxitos do 0 ao 9 e letras maiúsculas, sen I, L, O nin U.",
+            stages: {
+                received: {
+                    label: "Recibida",
+                    title: "Papeleta recibida",
+                    help: "A urna asinou un recibo desta papeleta e o rexistro público prometeu engadila. Non se conta a non ser que o seu votante a emita.",
+                    castState: "Aínda non emitida",
+                },
+                cast: {
+                    label: "Emitida",
+                    title: "Papeleta emitida",
+                    help: "A urna confirmou que o votante emitiu esta papeleta.",
+                    castState: "Superada",
+                },
+                audited: {
+                    label: "Auditada",
+                    title: "Papeleta auditada",
+                    help: "O seu votante abriuna para comprobala. Unha papeleta auditada nunca se emite nin se conta.",
+                    castState: "Nunca emitida",
+                },
+            },
+            checkLabels: {
+                ...englishTranslation.translations.ballotPrivacy.checkLabels,
+                ballotId: "ID de seguimento",
+            },
+            checkDescriptions: {
+                ...englishTranslation.translations.ballotPrivacy.checkDescriptions,
+                ballotId: "O ID de seguimento calcúlase a partir da papeleta cifrada e da clave do votante.",
+            },
+        },
         startup: {
             error: "Non se puido iniciar o portal de votación. Téntao de novo.",
             retry: "Tentar de novo",
@@ -143,6 +193,11 @@ const galegoTranslation: TranslationType = {
                 "Emite a túa papeleta para que quede rexistrada, ou auditala para confirmar que foi encriptada correctamente.",
         },
         reviewScreen: {
+            reloaded: {
+                title: "A túa papeleta non se emitiu",
+                text: "Ao recargar a páxina borrouse a clave dun só uso que a emite. Revisa as túas opcións e envía de novo a papeleta. A papeleta que enviaches queda no rexistro como recibida e nunca se conta.",
+                back: "Volver á miña papeleta",
+            },
             castRecovery: {
                 uncertain:
                     "Non se confirmou o resultado do envío. Pode tentar de novo a mesma solicitude ou comprobar o identificador da papeleta antes de comezar de novo.",

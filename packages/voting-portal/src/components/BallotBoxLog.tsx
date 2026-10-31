@@ -43,10 +43,20 @@ import {
     faUserSecret,
 } from "@fortawesome/free-solid-svg-icons"
 import {useTranslation} from "react-i18next"
-import {pseudonymDisplay, stringToHtml, type IBallotLogPage, type IBallotLogRow} from "@sequentech/ui-core"
+import {
+    pseudonymDisplay,
+    stringToHtml,
+    type IBallotLogPage,
+    type IBallotLogRow,
+} from "@sequentech/ui-core"
 import {PseudonymChip} from "@sequentech/ui-essentials"
 import {BALLOT_BOX_LOG, BALLOT_BOX_OWN} from "../queries/BallotBoxLog"
-import {normalizeBallotLogPrefix} from "../services/BallotLogSearch"
+import {
+    matchedCharacters,
+    parseBallotLogSearch,
+    searchesAnything,
+} from "../services/BallotLogSearch"
+import {groupBallotId, shortBallotId} from "../services/vitrine/ballotId"
 import {BallotBoxEntry} from "./BallotBoxEntry"
 
 export interface BallotBoxLogViewProps {
@@ -88,8 +98,10 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
     const [help, setHelp] = useState(false)
     const [ballotHelp, setBallotHelp] = useState(false)
     const [copyStatus, setCopyStatus] = useState<"copied" | "copyFailed">()
-    const prefix = normalizeBallotLogPrefix(search)
-    const ownIds = new Set(ownBallots.map((ballot) => ballot.ballot_id))
+    const parsed = parseBallotLogSearch(search)
+    const searching = !!parsed && parsed.query !== ""
+    const unreadable = parsed === null || !searchesAnything(parsed)
+    const ownIds = new Set(ownBallots.map((ballot) => ballot.tracking_id))
     const channel = (value: string) =>
         t(`ballotPrivacy.channels.${value.toLowerCase()}`, {defaultValue: value})
     const channelIcon = (value: string) =>
@@ -106,9 +118,27 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
             setCopyStatus("copyFailed")
         }
     }
-    const code = (value: string) => {
-        if (!prefix || !value.replace(/[-:]/g, "").startsWith(prefix)) return value
-        const length = prefix.length + (prefix.length > 4 ? 1 : 0)
+    const stageLabel = (ballot: IBallotLogRow) => t(`ballotPrivacy.stages.${ballot.stage}.label`)
+    const stageTag = (ballot: IBallotLogRow) => (
+        <Chip
+            className={`ballot-box-log-stage ballot-box-log-stage-${ballot.stage}`}
+            size="small"
+            label={stageLabel(ballot)}
+            sx={{
+                height: 22,
+                bgcolor: "#F1F5F9",
+                color: "#334155",
+                border: "1px solid #CBD5E1",
+                fontSize: 12,
+                fontWeight: 600,
+            }}
+        />
+    )
+    const code = (value: string, start: string | null | undefined) => {
+        const matched = matchedCharacters(value, start ?? null)
+        if (!matched) return value
+        // Separators sit after every fourth character of the code.
+        const length = matched + Math.floor((matched - 1) / 4)
         return (
             <>
                 <Box
@@ -136,7 +166,7 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
             }}
         />
     )
-    const validPage = page && prefix !== null && !loading && !error
+    const validPage = page && !unreadable && !loading && !error
     return (
         <Stack
             className="ballot-box-log"
@@ -229,7 +259,7 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
             {ownBallots.map((ballot) => (
                 <Box
                     className="ballot-box-log-own-ballot"
-                    key={ballot.ballot_id}
+                    key={ballot.tracking_id}
                     sx={{
                         display: "flex",
                         alignItems: "center",
@@ -293,7 +323,7 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
                                     overflowWrap: "anywhere",
                                 }}
                             >
-                                {ballot.ballot_id}
+                                {shortBallotId(ballot.tracking_id)}
                             </Typography>
                             <Tooltip
                                 className="ballot-box-log-copy-tooltip"
@@ -303,7 +333,7 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
                                     className="ballot-box-log-copy-button"
                                     size="small"
                                     aria-label={t("ballotPrivacy.copy")}
-                                    onClick={() => void copy(ballot.ballot_id)}
+                                    onClick={() => void copy(groupBallotId(ballot.tracking_id))}
                                 >
                                     <FontAwesomeIcon
                                         className="ballot-box-log-copy-icon"
@@ -344,8 +374,13 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
                                 variant="body2"
                                 sx={{m: 0}}
                             >
-                                {t("ballotPrivacy.castTime", {time: formatTime(ballot.cast_at)})} ·{" "}
-                                {channel(ballot.voting_channel)}
+                                {t("ballotPrivacy.stageTime", {
+                                    stage: stageLabel(ballot),
+                                    time: formatTime(ballot.last_step_at),
+                                })}
+                                {ballot.voting_channel
+                                    ? ` · ${channel(ballot.voting_channel)}`
+                                    : ""}
                             </Typography>
                             <Stack
                                 className="ballot-box-log-own-pseudonym-label"
@@ -423,8 +458,8 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
                         placeholder={t("ballotPrivacy.placeholder")}
                         value={search}
                         onChange={(event) => onSearch(event.target.value)}
-                        error={prefix === null}
-                        helperText={prefix === null ? t("ballotPrivacy.invalidPrefix") : undefined}
+                        error={unreadable}
+                        helperText={unreadable ? t("ballotPrivacy.invalidPrefix") : undefined}
                         slotProps={{
                             htmlInput: {
                                 "aria-label": t("ballotPrivacy.search"),
@@ -462,7 +497,7 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
                             role="status"
                             sx={{m: 0, ml: {sm: "auto"}, color: "text.secondary"}}
                         >
-                            {prefix
+                            {searching
                                 ? t(
                                       page.match_count_capped
                                           ? "ballotPrivacy.capped"
@@ -470,6 +505,20 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
                                       {count: page.match_count, total: page.total}
                                   )
                                 : t("ballotPrivacy.ballots", {count: page.total})}
+                            {searching &&
+                                page.tracking_matches != null &&
+                                page.pseudonym_matches != null && (
+                                    <Box
+                                        className="ballot-box-log-count-split"
+                                        component="span"
+                                        sx={{display: "block"}}
+                                    >
+                                        {t("ballotPrivacy.matchesBoth", {
+                                            tracking: page.tracking_matches,
+                                            pseudonym: page.pseudonym_matches,
+                                        })}
+                                    </Box>
+                                )}
                         </Typography>
                     )}
                 </Stack>
@@ -506,10 +555,10 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
                                 sx={{p: 2.5, borderTop: "1px solid #DFE6EF"}}
                             >
                                 <Alert className="ballot-box-log-empty" severity="info">
-                                    {prefix
+                                    {searching
                                         ? t("ballotPrivacy.noMatch", {prefix: search})
                                         : t("ballotPrivacy.noBallots")}
-                                    {prefix && (
+                                    {searching && (
                                         <Typography
                                             className="ballot-box-log-no-match-help"
                                             variant="body2"
@@ -542,35 +591,36 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
                                 >
                                     <TableHead className="ballot-box-log-table-head">
                                         <TableRow className="ballot-box-log-table-header-row">
-                                            {["ballotId", "pseudonym", "castAt", "channel"].map(
-                                                (key) => (
-                                                    <TableCell
-                                                        className="ballot-box-log-table-header-cell"
-                                                        key={key}
-                                                        sx={{
-                                                            width:
-                                                                key === "channel" ? "19%" : "27%",
-                                                        }}
-                                                    >
-                                                        {t(`ballotPrivacy.${key}`)}
-                                                    </TableCell>
-                                                )
-                                            )}
+                                            {[
+                                                ["ballotId", "22%"],
+                                                ["pseudonym", "20%"],
+                                                ["lastStep", "16%"],
+                                                ["time", "24%"],
+                                                ["channel", "18%"],
+                                            ].map(([key, width]) => (
+                                                <TableCell
+                                                    className="ballot-box-log-table-header-cell"
+                                                    key={key}
+                                                    sx={{width}}
+                                                >
+                                                    {t(`ballotPrivacy.${key}`)}
+                                                </TableCell>
+                                            ))}
                                         </TableRow>
                                     </TableHead>
                                     <TableBody className="ballot-box-log-table-body">
                                         {page.ballots.map((ballot) => (
                                             <TableRow
                                                 className="ballot-box-log-row"
-                                                key={ballot.ballot_id}
+                                                key={ballot.tracking_id}
                                                 hover
                                                 onClick={() => onOpen(ballot)}
                                                 sx={{
                                                     cursor: "pointer",
-                                                    bgcolor: ownIds.has(ballot.ballot_id)
+                                                    bgcolor: ownIds.has(ballot.tracking_id)
                                                         ? "#F0FDF8"
                                                         : undefined,
-                                                    borderLeft: ownIds.has(ballot.ballot_id)
+                                                    borderLeft: ownIds.has(ballot.tracking_id)
                                                         ? "3px solid #34D399"
                                                         : "3px solid transparent",
                                                 }}
@@ -599,21 +649,30 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
                                                                 minWidth: 0,
                                                             }}
                                                         >
-                                                            {code(ballot.ballot_id)}
+                                                            {code(
+                                                                shortBallotId(ballot.tracking_id),
+                                                                parsed?.trackingId
+                                                            )}
                                                         </ButtonBase>
-                                                        {ownIds.has(ballot.ballot_id) && yours}
+                                                        {ownIds.has(ballot.tracking_id) && yours}
                                                     </Stack>
                                                 </TableCell>
                                                 <TableCell className="ballot-box-log-pseudonym-cell">
                                                     <PseudonymChip className="ballot-box-log-pseudonym">
-                                                        {code(pseudonymDisplay(ballot.pseudonym))}
+                                                        {code(
+                                                            pseudonymDisplay(ballot.pseudonym),
+                                                            parsed?.pseudonym
+                                                        )}
                                                     </PseudonymChip>
+                                                </TableCell>
+                                                <TableCell className="ballot-box-log-stage-cell">
+                                                    {stageTag(ballot)}
                                                 </TableCell>
                                                 <TableCell
                                                     className="ballot-box-log-timestamp-cell"
                                                     sx={{overflowWrap: "anywhere", fontSize: 14}}
                                                 >
-                                                    {formatTime(ballot.cast_at)}
+                                                    {formatTime(ballot.last_step_at)}
                                                 </TableCell>
                                                 <TableCell className="ballot-box-log-channel-cell">
                                                     <Stack
@@ -622,20 +681,36 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
                                                         alignItems="center"
                                                         gap={1}
                                                     >
-                                                        <FontAwesomeIcon
-                                                            className="ballot-box-log-channel-icon"
-                                                            icon={channelIcon(
-                                                                ballot.voting_channel
-                                                            )}
-                                                            style={{color: "#64748B", fontSize: 12}}
-                                                        />
-                                                        <Typography
-                                                            className="ballot-box-log-channel-label"
-                                                            variant="body2"
-                                                            sx={{m: 0}}
-                                                        >
-                                                            {channel(ballot.voting_channel)}
-                                                        </Typography>
+                                                        {ballot.voting_channel ? (
+                                                            <>
+                                                                <FontAwesomeIcon
+                                                                    className="ballot-box-log-channel-icon"
+                                                                    icon={channelIcon(
+                                                                        ballot.voting_channel
+                                                                    )}
+                                                                    style={{
+                                                                        color: "#64748B",
+                                                                        fontSize: 12,
+                                                                    }}
+                                                                />
+                                                                <Typography
+                                                                    className="ballot-box-log-channel-label"
+                                                                    variant="body2"
+                                                                    sx={{m: 0}}
+                                                                >
+                                                                    {channel(ballot.voting_channel)}
+                                                                </Typography>
+                                                            </>
+                                                        ) : (
+                                                            <Typography
+                                                                className="ballot-box-log-channel-label"
+                                                                variant="body2"
+                                                                color="text.secondary"
+                                                                sx={{m: 0}}
+                                                            >
+                                                                {"—"}
+                                                            </Typography>
+                                                        )}
                                                         <Box
                                                             className="ballot-box-log-row-arrow-container"
                                                             sx={{ml: "auto", color: "#64748B"}}
@@ -667,14 +742,14 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
                                         <Box
                                             className="ballot-box-log-mobile-row"
                                             component="li"
-                                            key={ballot.ballot_id}
+                                            key={ballot.tracking_id}
                                             sx={{
                                                 p: 2,
                                                 borderTop: "1px solid #DFE6EF",
-                                                borderLeft: ownIds.has(ballot.ballot_id)
+                                                borderLeft: ownIds.has(ballot.tracking_id)
                                                     ? "3px solid #34D399"
                                                     : "3px solid transparent",
-                                                bgcolor: ownIds.has(ballot.ballot_id)
+                                                bgcolor: ownIds.has(ballot.tracking_id)
                                                     ? "#F0FDF8"
                                                     : undefined,
                                             }}
@@ -695,9 +770,12 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
                                                         letterSpacing: 0.6,
                                                     }}
                                                 >
-                                                    {code(ballot.ballot_id)}
+                                                    {code(
+                                                        shortBallotId(ballot.tracking_id),
+                                                        parsed?.trackingId
+                                                    )}
                                                 </ButtonBase>
-                                                {ownIds.has(ballot.ballot_id) && yours}
+                                                {ownIds.has(ballot.tracking_id) && yours}
                                                 <Box
                                                     className="ballot-box-log-mobile-arrow-container"
                                                     sx={{ml: "auto"}}
@@ -718,8 +796,12 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
                                                 gap={1}
                                                 sx={{mt: 0.75}}
                                             >
+                                                {stageTag(ballot)}
                                                 <PseudonymChip className="ballot-box-log-mobile-pseudonym">
-                                                    {code(pseudonymDisplay(ballot.pseudonym))}
+                                                    {code(
+                                                        pseudonymDisplay(ballot.pseudonym),
+                                                        parsed?.pseudonym
+                                                    )}
                                                 </PseudonymChip>
                                                 <Typography
                                                     className="ballot-box-log-mobile-time-channel"
@@ -727,8 +809,10 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
                                                     color="text.secondary"
                                                     sx={{m: 0}}
                                                 >
-                                                    {formatTime(ballot.cast_at)} ·{" "}
-                                                    {channel(ballot.voting_channel)}
+                                                    {formatTime(ballot.last_step_at)}
+                                                    {ballot.voting_channel
+                                                        ? ` · ${channel(ballot.voting_channel)}`
+                                                        : ""}
                                                 </Typography>
                                             </Stack>
                                         </Box>
@@ -888,6 +972,10 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
         </Stack>
     )
 }
+const readSearch = (search: string): string | null => {
+    const parsed = parseBallotLogSearch(search)
+    return parsed && searchesAnything(parsed) ? parsed.query : null
+}
 export const BallotBoxLog: React.FC<{
     electionEventId: string
     electionId?: string
@@ -895,13 +983,15 @@ export const BallotBoxLog: React.FC<{
     timeZoneLabel?: string
 }> = ({electionEventId, electionId, formatTime, timeZoneLabel}) => {
     const [search, setSearch] = useState("")
+    // What is asked of the server: the typed search once it reads as one, or
+    // null while it does not, so nothing unreadable is sent.
     const [prefix, setPrefix] = useState<string | null>("")
     const [limit, setLimit] = useState(10)
     const [cursors, setCursors] = useState<Array<string | null>>([null])
     const [selected, setSelected] = useState<IBallotLogRow>()
     useEffect(() => {
         const timer = setTimeout(() => {
-            setPrefix(normalizeBallotLogPrefix(search))
+            setPrefix(readSearch(search))
             setCursors([null])
         }, 300)
         return () => clearTimeout(timer)
@@ -933,7 +1023,7 @@ export const BallotBoxLog: React.FC<{
             <BallotBoxLogView
                 page={page}
                 ownBallots={own.data?.ballot_box_own.payload.ballots ?? []}
-                loading={list.loading || normalizeBallotLogPrefix(search) !== prefix}
+                loading={list.loading || readSearch(search) !== prefix}
                 error={!!list.error}
                 search={search}
                 onSearch={setSearch}
@@ -959,7 +1049,7 @@ export const BallotBoxLog: React.FC<{
                 <BallotBoxEntry
                     electionEventId={electionEventId}
                     electionId={selected.election_id}
-                    ballotId={selected.ballot_id}
+                    ballotId={selected.tracking_id}
                     onClose={() => setSelected(undefined)}
                 />
             )}

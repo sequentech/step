@@ -22,12 +22,18 @@ const mockQuery = jest.fn()
 const mockVerify = jest.fn()
 const entryRefetch = jest.fn().mockResolvedValue(undefined)
 const keysRefetch = jest.fn().mockResolvedValue(undefined)
-const proof = {ballot_id: "FTBE-MHRX", pseudonym: "7QKM-2HXD", voting_channel: "ONLINE"}
+const TRACKING_ID = "FTBE-MHRX-0123-4567-89AB-CDEF-GHJK-MNPQ-RSTV-WXYZ-0123-4567-89AB"
+const proof = {
+    ballot_id: "QR7T-K2NM",
+    tracking_id: TRACKING_ID,
+    pseudonym: "K7QM-2XWD",
+    voting_channel: "ONLINE",
+}
 const trust = {election_id: "election", election_event_id: "event", ballot_box_key: {key_id: "key"}}
 const props = {
     electionEventId: "event",
     electionId: "election",
-    ballotId: "FTBE-MHRX",
+    ballotId: TRACKING_ID,
     onClose: jest.fn(),
 }
 
@@ -45,6 +51,24 @@ beforeEach(() => {
     mockVerify.mockReturnValue({
         checks: {binding: "passed", received: "passed", ballotId: "passed", cast: "passed"},
     })
+})
+
+test("the dialog is named by the short Tracking ID, not the full one or the receipt key", () => {
+    render(<BallotBoxEntry {...props} />)
+    expect(screen.getByRole("dialog", {name: /ballotPrivacy.detailTitle/})).toBeInTheDocument()
+    expect(mockQuery).toHaveBeenCalledWith(
+        BALLOT_BOX_ENTRY,
+        expect.objectContaining({variables: expect.objectContaining({ballotId: TRACKING_ID})})
+    )
+})
+
+test("a ballot only received or audited opens its proof", () => {
+    mockVerify.mockReturnValue({
+        checks: {binding: "passed", received: "passed", ballotId: "passed", cast: "pending"},
+    })
+    queries({data: {ballot_box_entry: {payload: {...proof, stage: "received"}}}})
+    render(<BallotBoxEntry {...props} />)
+    expect(screen.getByText("ballotPrivacy.stages.received.title")).toBeInTheDocument()
 })
 
 test("a verified ballot has no retry action", () => {
@@ -91,7 +115,7 @@ test.each([
     [{}, {error: new Error("Keys unavailable")}],
     [{data: undefined}, {}],
     [{}, {data: undefined}],
-    [{data: {ballot_box_entry: {payload: {...proof, ballot_id: "OTHER-ID"}}}}, {}],
+    [{data: {ballot_box_entry: {payload: {...proof, tracking_id: "OTHER-ID"}}}}, {}],
 ])("proof load errors offer a retry of both queries (%#)", async (entry, keys) => {
     queries(entry, keys)
     render(<BallotBoxEntry {...props} />)

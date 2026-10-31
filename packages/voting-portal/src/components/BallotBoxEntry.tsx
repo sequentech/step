@@ -20,6 +20,7 @@ import {
     type BallotLogTrust,
 } from "@sequentech/ui-essentials"
 import {BALLOT_BOX_ENTRY, BALLOT_BOX_KEYS} from "../queries/BallotBoxLog"
+import {shortBallotId} from "../services/vitrine/ballotId"
 
 export interface BallotBoxEntryProps {
     electionEventId: string
@@ -53,7 +54,7 @@ export const BallotBoxEntry: React.FC<BallotBoxEntryProps> = ({
         void keys.refetch().catch(() => undefined)
     }
     const contextMatches =
-        (proof?.tracking_id ?? proof?.ballot_id) === ballotId &&
+        proof?.tracking_id === ballotId &&
         trust?.election_id === electionId &&
         trust?.election_event_id === electionEventId
     const loadError = entry.error || keys.error || !proof || !trust || !contextMatches
@@ -77,7 +78,7 @@ export const BallotBoxEntry: React.FC<BallotBoxEntryProps> = ({
                 id="ballot-proof-title"
                 sx={{fontSize: 16, fontWeight: 700, bgcolor: "#F7F9FC", py: 1.5}}
             >
-                {t("ballotPrivacy.detailTitle", {ballotId})}
+                {t("ballotPrivacy.detailTitle", {ballotId: shortBallotId(ballotId)})}
             </DialogTitle>
             <DialogContent
                 className="ballot-proof-content"

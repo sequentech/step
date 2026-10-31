@@ -5,7 +5,57 @@ import englishTranslation, {TranslationType} from "./en"
 
 const frenchTranslation: TranslationType = {
     translations: {
-        ballotPrivacy: englishTranslation.translations.ballotPrivacy,
+        ballotPrivacy: {
+            ...englishTranslation.translations.ballotPrivacy,
+            title: "Tous les bulletins",
+            subtitle: "Tous les bulletins envoyés dans cette élection, une seule fois, à leur dernière étape. Les électeurs figurent sous un pseudonyme et non sous leur nom.",
+            own: "Votre bulletin est dans le journal",
+            copy: "Copier l’identifiant de suivi",
+            ballotIdHelp: "À propos de votre identifiant de suivi",
+            stageTime: "{{stage}} {{time}}",
+            noMatchHelp: "Vérifiez les fautes de frappe. Un identifiant de suivi comporte un trait d’union et au moins 8 caractères, comme FTBE-MHRX. Un pseudonyme comporte deux-points, comme K7QM:2XWD.",
+            copied: "Identifiant de suivi copié",
+            copyFailed: "Impossible de copier l’identifiant de suivi. Sélectionnez le code pour le copier.",
+            search: "Rechercher un identifiant de suivi ou un pseudonyme",
+            placeholder: "FTBE-MHRX ou K7QM:2XWD",
+            matchesBoth: "{{tracking}} correspondent par identifiant de suivi · {{pseudonym}} par pseudonyme",
+            ballotId: "Identifiant de suivi",
+            lastStep: "Dernière étape",
+            time: "Heure",
+            trackingId: "Identifiant de suivi",
+            trackingIdHelp: "Calculé à partir du bulletin chiffré et de la clé de l’électeur.",
+            noMatch: "Aucun identifiant de suivi ni pseudonyme ne commence par {{prefix}}",
+            noBallots: "Aucun bulletin n’a encore été envoyé.",
+            invalidPrefix: "Saisissez au moins 8 caractères d’un identifiant de suivi avec un trait d’union, comme FTBE-MHRX, ou jusqu’à 8 d’un pseudonyme avec deux-points, comme K7QM:2XWD. Les codes utilisent les chiffres de 0 à 9 et des lettres majuscules, sans I, L, O ni U.",
+            stages: {
+                received: {
+                    label: "Reçu",
+                    title: "Bulletin reçu",
+                    help: "L’urne a signé un reçu pour ce bulletin et le journal public a promis de l’ajouter. Il n’est pas compté à moins que son électeur ne l’émette.",
+                    castState: "Pas encore émis",
+                },
+                cast: {
+                    label: "Émis",
+                    title: "Bulletin émis",
+                    help: "L’urne a confirmé que l’électeur a émis ce bulletin.",
+                    castState: "Réussi",
+                },
+                audited: {
+                    label: "Audité",
+                    title: "Bulletin audité",
+                    help: "Son électeur l’a ouvert pour le vérifier. Un bulletin audité n’est jamais émis ni compté.",
+                    castState: "Jamais émis",
+                },
+            },
+            checkLabels: {
+                ...englishTranslation.translations.ballotPrivacy.checkLabels,
+                ballotId: "Identifiant de suivi",
+            },
+            checkDescriptions: {
+                ...englishTranslation.translations.ballotPrivacy.checkDescriptions,
+                ballotId: "L’identifiant de suivi est calculé à partir du bulletin chiffré et de la clé de l’électeur.",
+            },
+        },
         startup: {
             error: "Le portail de vote n’a pas pu démarrer. Veuillez réessayer.",
             retry: "Réessayer",
@@ -142,6 +192,11 @@ const frenchTranslation: TranslationType = {
                 "Soumettez votre bulletin pour qu'il soit enregistré, ou lancez un audit afin de vérifier qu'il a été correctement chiffré.",
         },
         reviewScreen: {
+            reloaded: {
+                title: "Votre bulletin n’a pas été émis",
+                text: "Le rechargement de la page a effacé la clé à usage unique qui l’émet. Vérifiez vos choix et envoyez de nouveau votre bulletin. Le bulletin que vous avez envoyé reste dans le registre comme reçu et n’est jamais compté.",
+                back: "Retour à mon bulletin",
+            },
             castRecovery: {
                 uncertain:
                     "Le résultat du vote n’a pas été confirmé. Vous pouvez réessayer la même demande ou vérifier votre identifiant de bulletin avant de recommencer.",

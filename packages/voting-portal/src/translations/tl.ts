@@ -5,7 +5,57 @@ import englishTranslation, {TranslationType} from "./en"
 
 const tagalogTranslation: TranslationType = {
     translations: {
-        ballotPrivacy: englishTranslation.translations.ballotPrivacy,
+        ballotPrivacy: {
+            ...englishTranslation.translations.ballotPrivacy,
+            title: "Lahat ng balota",
+            subtitle: "Bawat balotang naipadala sa halalang ito, isang beses, sa huling hakbang nito. Nakalista ang mga botante sa ilalim ng alyas sa halip na pangalan.",
+            own: "Nasa log ang iyong balota",
+            copy: "Kopyahin ang Tracking ID",
+            ballotIdHelp: "Tungkol sa iyong Tracking ID",
+            stageTime: "{{stage}} {{time}}",
+            noMatchHelp: "Tingnan kung may mali sa pag-type. Ang Tracking ID ay may gitling at hindi bababa sa 8 karakter, tulad ng FTBE-MHRX. Ang alyas ay may tutuldok, tulad ng K7QM:2XWD.",
+            copied: "Nakopya ang Tracking ID",
+            copyFailed: "Hindi makopya ang Tracking ID. Piliin ang code para makopya ito.",
+            search: "Maghanap ng Tracking ID o alyas",
+            placeholder: "FTBE-MHRX o K7QM:2XWD",
+            matchesBoth: "{{tracking}} ang tugma ayon sa Tracking ID · {{pseudonym}} ayon sa alyas",
+            ballotId: "Tracking ID",
+            lastStep: "Huling hakbang",
+            time: "Oras",
+            trackingId: "Tracking ID",
+            trackingIdHelp: "Kinukuwenta mula sa naka-encrypt na balota at sa susi ng botante.",
+            noMatch: "Walang Tracking ID o alyas na nagsisimula sa {{prefix}}",
+            noBallots: "Wala pang naipapadalang balota.",
+            invalidPrefix: "Maglagay ng hindi bababa sa 8 karakter ng Tracking ID na may gitling, tulad ng FTBE-MHRX, o hanggang 8 ng alyas na may tutuldok, tulad ng K7QM:2XWD. Gumagamit ang mga code ng mga digit 0 hanggang 9 at malalaking titik, walang I, L, O at U.",
+            stages: {
+                received: {
+                    label: "Natanggap",
+                    title: "Natanggap ang balota",
+                    help: "Pumirma ang balotang kahon ng resibo para sa balotang ito, at nangako ang pampublikong log na idagdag ito. Hindi ito binibilang maliban kung ihulog ito ng botante.",
+                    castState: "Hindi pa naihuhulog",
+                },
+                cast: {
+                    label: "Naihulog",
+                    title: "Naihulog ang balota",
+                    help: "Kinumpirma ng balotang kahon na inihulog ng botante ang balotang ito.",
+                    castState: "Pumasa",
+                },
+                audited: {
+                    label: "Na-audit",
+                    title: "Na-audit ang balota",
+                    help: "Binuksan ito ng botante para suriin. Ang na-audit na balota ay hindi kailanman inihuhulog o binibilang.",
+                    castState: "Hindi kailanman naihulog",
+                },
+            },
+            checkLabels: {
+                ...englishTranslation.translations.ballotPrivacy.checkLabels,
+                ballotId: "Tracking ID",
+            },
+            checkDescriptions: {
+                ...englishTranslation.translations.ballotPrivacy.checkDescriptions,
+                ballotId: "Kinukuwenta ang Tracking ID mula sa naka-encrypt na balota at sa susi ng botante.",
+            },
+        },
         startup: {
             error: "Hindi masimulan ang portal ng pagboto. Pakisubukang muli.",
             retry: "Subukang muli",
@@ -142,6 +192,11 @@ const tagalogTranslation: TranslationType = {
                 "I-submit ang iyong balota upang ito ay tamang maitala, o suriin ito upang tiyakin na ito ay tama ang pagkaka-encrypt.",
         },
         reviewScreen: {
+            reloaded: {
+                title: "Hindi naihulog ang iyong balota",
+                text: "Binura ng pag-reload ng page ang isahang-gamit na susi na naghuhulog nito. Suriin ang iyong mga pinili at ipadala muli ang iyong balota. Mananatili sa talaan ang ipinadala mong balota bilang natanggap at hindi kailanman bibilangin.",
+                back: "Bumalik sa aking balota",
+            },
             castRecovery: {
                 uncertain:
                     "Hindi pa nakumpirma ang resulta ng pagboto. Maaari mong subukan muli ang parehong kahilingan o tingnan ang Ballot ID bago magsimulang muli.",

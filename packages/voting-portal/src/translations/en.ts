@@ -4,48 +4,72 @@
 const englishTranslation = {
     translations: {
         ballotPrivacy: {
-            title: "Ballot box log",
+            title: "All ballots",
             subtitle:
-                "Every ballot cast in this election, listed under a pseudonym instead of the voter's name.",
+                "Every ballot sent in this election, once, at its last step. Voters are listed under a pseudonym instead of a name.",
             private: "Voters appear only as pseudonyms",
             signed: "Signed by the election authority and the ballot box",
             device: "Checked on your device",
-            own: "Your ballot is in the ballot box",
+            own: "Your ballot is in the log",
             listedAs: "Listed as",
             check: "Check my ballot",
-            copy: "Copy Ballot ID",
-            ballotIdHelp: "About your Ballot ID",
-            castTime: "Cast {{time}}",
+            copy: "Copy Tracking ID",
+            ballotIdHelp: "About your Tracking ID",
+            stageTime: "{{stage}} {{time}}",
             timesIn: "Times in {{zone}}",
             signedEntries: "Signed log entries ({{count}})",
             noMatchHelp:
-                "Check for typing mistakes. The codes use the digits 0 to 9 and capital letters, without I, L, O and U.",
+                "Check for typing mistakes. A Tracking ID has a hyphen and at least 8 characters, as in FTBE-MHRX. A pseudonym has a colon, as in K7QM:2XWD.",
             helpSections: {
                 pseudonyms: {
                     title: "Pseudonyms",
-                    text: "Each voter is listed under a pseudonym, a code such as 7QKM-2HXD. The log never says who the voter is.",
+                    text: "Each voter is listed under a pseudonym, a code such as K7QM:2XWD. The log never says who the voter is.",
                 },
                 signatures: {
                     title: "Signatures",
-                    text: "The election authority signs which voter key each pseudonym uses. The ballot box signs each ballot it receives and each cast.",
+                    text: "The election authority signs which voter key each pseudonym uses. The ballot box signs each ballot it receives, each cast and each audit.",
                 },
                 checks: {
                     title: "Checks on your device",
                     text: "Open a ballot to check its signatures in this browser. Anyone can download its signed entries and check them again.",
                 },
             },
-            copied: "Ballot ID copied",
-            copyFailed: "Could not copy the Ballot ID. Select the code to copy it.",
-            search: "Find a Ballot ID or pseudonym",
-            placeholder: "Ballot ID or pseudonym",
+            copied: "Tracking ID copied",
+            copyFailed: "Could not copy the Tracking ID. Select the code to copy it.",
+            search: "Find a Tracking ID or pseudonym",
+            placeholder: "FTBE-MHRX or K7QM:2XWD",
             clear: "Clear search",
             ballots: "{{count}} ballots",
             matches: "{{count}} of {{total}} ballots match",
             capped: "More than {{count}} of {{total}} ballots match; type more of the code",
-            ballotId: "Ballot ID",
+            matchesBoth: "Matches {{tracking}} by Tracking ID · {{pseudonym}} by pseudonym",
+            ballotId: "Tracking ID",
             pseudonym: "Pseudonym",
-            castAt: "Cast",
+            lastStep: "Last step",
+            time: "Time",
             channel: "Channel",
+            stages: {
+                received: {
+                    label: "Received",
+                    title: "Ballot received",
+                    help: "The ballot box signed a receipt for this ballot, and the public log promised to add it. It is not counted unless its voter casts it.",
+                    castState: "Not cast yet",
+                },
+                cast: {
+                    label: "Cast",
+                    title: "Ballot cast",
+                    help: "The ballot box confirmed that the voter cast this ballot.",
+                    castState: "Passed",
+                },
+                audited: {
+                    label: "Audited",
+                    title: "Ballot audited",
+                    help: "Its voter opened this ballot to check it. An audited ballot is never cast and never counted.",
+                    castState: "Never cast",
+                },
+            },
+            trackingId: "Tracking ID",
+            trackingIdHelp: "Computed from the encrypted ballot and the voter key.",
             yours: "Yours",
             channels: {
                 online: "Online",
@@ -55,15 +79,15 @@ const englishTranslation = {
             previous: "Previous",
             next: "Next",
             rows: "Rows per page",
-            noMatch: "No Ballot ID or pseudonym starts with {{prefix}}",
-            noBallots: "No ballots have been cast yet.",
+            noMatch: "No Tracking ID or pseudonym starts with {{prefix}}",
+            noBallots: "No ballots have been sent yet.",
             invalidPrefix:
-                "The codes use the digits 0 to 9 and capital letters, without I, L, O and U. Enter up to eight characters.",
+                "Enter at least 8 characters of a Tracking ID with a hyphen, as in FTBE-MHRX, or up to 8 of a pseudonym with a colon, as in K7QM:2XWD. The codes use the digits 0 to 9 and capital letters, without I, L, O and U.",
             loadError: "The ballot box log could not be loaded. Please try again.",
             retry: "Try again",
-            help: "About the ballot box log",
+            help: "About the log of all ballots",
             helpText:
-                "Each voter is listed under a pseudonym, a code such as 7QKM-2HXD. The log never says who the voter is. The election authority signs which voter key each pseudonym uses. Open a ballot to check its signatures in this browser.",
+                "Each voter is listed under a pseudonym, a code such as K7QM:2XWD. The log never says who the voter is. The election authority signs which voter key each pseudonym uses. Open a ballot to check its signatures in this browser.",
             detailTitle: "Ballot {{ballotId}}",
             checking: "Checking the signatures…",
             passed: "All four checks passed",
@@ -76,13 +100,13 @@ const englishTranslation = {
             checkLabels: {
                 binding: "Voter key registered",
                 received: "Ballot received",
-                ballotId: "Ballot ID",
+                ballotId: "Tracking ID",
                 cast: "Ballot cast",
             },
             checkDescriptions: {
                 binding: "The election authority signed which voter key this pseudonym uses.",
                 received: "The ballot box received a ballot signed with that voter key.",
-                ballotId: "The Ballot ID is computed from that signed ballot.",
+                ballotId: "The Tracking ID is computed from the encrypted ballot and the voter key.",
                 cast: "The same key cast the ballot, and the ballot box confirmed the cast.",
             },
             states: {
@@ -295,6 +319,11 @@ const englishTranslation = {
                 "When you’re ready, cast your ballot so it’s officially recorded. Or choose to audit first to confirm it was correctly captured and encrypted",
         },
         reviewScreen: {
+            reloaded: {
+                title: "Your ballot was not cast",
+                text: "Reloading the page cleared the one-time key that casts it. Check your choices and send your ballot again. The ballot you sent stays in the record as received and is never counted.",
+                back: "Back to my ballot",
+            },
             castRecovery: {
                 uncertain:
                     "The cast result has not been confirmed. You can retry the same request or check your Ballot ID before starting again.",

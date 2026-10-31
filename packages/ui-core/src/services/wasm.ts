@@ -703,6 +703,8 @@ export interface BallotPrivacyProof {
     ballot_id: string
     /** The Tracking ID a person is shown for the same ballot. */
     tracking_id?: string | null
+    /** How far the ballot got: received, cast or audited. */
+    stage?: "received" | "cast" | "audited" | null
     pseudonym: string
     voting_channel: string
     received_entry: string | null

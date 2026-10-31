@@ -5,7 +5,57 @@ import englishTranslation, {TranslationType} from "./en"
 
 const spanishTranslation: TranslationType = {
     translations: {
-        ballotPrivacy: englishTranslation.translations.ballotPrivacy,
+        ballotPrivacy: {
+            ...englishTranslation.translations.ballotPrivacy,
+            title: "Todas las papeletas",
+            subtitle: "Todas las papeletas enviadas en esta elección, una vez cada una, en su último paso. Los votantes aparecen con un seudónimo en lugar de un nombre.",
+            own: "Tu papeleta está en el registro",
+            copy: "Copiar ID de seguimiento",
+            ballotIdHelp: "Sobre tu ID de seguimiento",
+            stageTime: "{{stage}} {{time}}",
+            noMatchHelp: "Revisa si hay errores al escribir. Un ID de seguimiento lleva un guion y al menos 8 caracteres, como FTBE-MHRX. Un seudónimo lleva dos puntos, como K7QM:2XWD.",
+            copied: "ID de seguimiento copiado",
+            copyFailed: "No se pudo copiar el ID de seguimiento. Selecciona el código para copiarlo.",
+            search: "Buscar un ID de seguimiento o un seudónimo",
+            placeholder: "FTBE-MHRX o K7QM:2XWD",
+            matchesBoth: "Coinciden {{tracking}} por ID de seguimiento · {{pseudonym}} por seudónimo",
+            ballotId: "ID de seguimiento",
+            lastStep: "Último paso",
+            time: "Hora",
+            trackingId: "ID de seguimiento",
+            trackingIdHelp: "Calculado a partir de la papeleta cifrada y la clave del votante.",
+            noMatch: "Ningún ID de seguimiento ni seudónimo empieza por {{prefix}}",
+            noBallots: "Todavía no se ha enviado ninguna papeleta.",
+            invalidPrefix: "Escribe al menos 8 caracteres de un ID de seguimiento con guion, como FTBE-MHRX, o hasta 8 de un seudónimo con dos puntos, como K7QM:2XWD. Los códigos usan los dígitos del 0 al 9 y letras mayúsculas, sin I, L, O ni U.",
+            stages: {
+                received: {
+                    label: "Recibida",
+                    title: "Papeleta recibida",
+                    help: "La urna firmó un recibo de esta papeleta y el registro público prometió añadirla. No se cuenta a menos que su votante la emita.",
+                    castState: "Aún no emitida",
+                },
+                cast: {
+                    label: "Emitida",
+                    title: "Papeleta emitida",
+                    help: "La urna confirmó que el votante emitió esta papeleta.",
+                    castState: "Superada",
+                },
+                audited: {
+                    label: "Auditada",
+                    title: "Papeleta auditada",
+                    help: "Su votante la abrió para comprobarla. Una papeleta auditada nunca se emite ni se cuenta.",
+                    castState: "Nunca emitida",
+                },
+            },
+            checkLabels: {
+                ...englishTranslation.translations.ballotPrivacy.checkLabels,
+                ballotId: "ID de seguimiento",
+            },
+            checkDescriptions: {
+                ...englishTranslation.translations.ballotPrivacy.checkDescriptions,
+                ballotId: "El ID de seguimiento se calcula a partir de la papeleta cifrada y la clave del votante.",
+            },
+        },
         startup: {
             error: "No se pudo iniciar el portal de votación. Inténtelo de nuevo.",
             retry: "Intentar de nuevo",
@@ -142,6 +192,11 @@ const spanishTranslation: TranslationType = {
                 "Cuando esté listo, emita su papeleta para que quede registrada oficialmente. O elija auditar primero para confirmar que fue correctamente capturada y cifrada",
         },
         reviewScreen: {
+            reloaded: {
+                title: "Tu papeleta no se emitió",
+                text: "Al recargar la página se borró la clave de un solo uso que la emite. Revisa tus opciones y envía tu papeleta de nuevo. La papeleta que enviaste queda en el registro como recibida y nunca se cuenta.",
+                back: "Volver a mi papeleta",
+            },
             castRecovery: {
                 uncertain:
                     "No se ha confirmado el resultado del envío. Puede reintentar la misma solicitud o comprobar el identificador de la papeleta antes de empezar de nuevo.",

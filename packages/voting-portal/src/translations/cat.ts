@@ -5,7 +5,57 @@ import englishTranslation, {TranslationType} from "./en"
 
 const catalanTranslation: TranslationType = {
     translations: {
-        ballotPrivacy: englishTranslation.translations.ballotPrivacy,
+        ballotPrivacy: {
+            ...englishTranslation.translations.ballotPrivacy,
+            title: "Totes les paperetes",
+            subtitle: "Totes les paperetes enviades en aquesta elecció, una sola vegada, en el seu darrer pas. Els votants apareixen amb un pseudònim en lloc d'un nom.",
+            own: "La teva papereta és al registre",
+            copy: "Copia l'ID de seguiment",
+            ballotIdHelp: "Sobre el teu ID de seguiment",
+            stageTime: "{{stage}} {{time}}",
+            noMatchHelp: "Comprova que no hi hagi errors d'escriptura. Un ID de seguiment porta un guió i almenys 8 caràcters, com FTBE-MHRX. Un pseudònim porta dos punts, com K7QM:2XWD.",
+            copied: "ID de seguiment copiat",
+            copyFailed: "No s'ha pogut copiar l'ID de seguiment. Selecciona el codi per copiar-lo.",
+            search: "Cerca un ID de seguiment o un pseudònim",
+            placeholder: "FTBE-MHRX o K7QM:2XWD",
+            matchesBoth: "Coincideixen {{tracking}} per ID de seguiment · {{pseudonym}} per pseudònim",
+            ballotId: "ID de seguiment",
+            lastStep: "Darrer pas",
+            time: "Hora",
+            trackingId: "ID de seguiment",
+            trackingIdHelp: "Calculat a partir de la papereta xifrada i la clau del votant.",
+            noMatch: "Cap ID de seguiment ni pseudònim comença per {{prefix}}",
+            noBallots: "Encara no s'ha enviat cap papereta.",
+            invalidPrefix: "Escriu almenys 8 caràcters d'un ID de seguiment amb guió, com FTBE-MHRX, o fins a 8 d'un pseudònim amb dos punts, com K7QM:2XWD. Els codis usen els dígits del 0 al 9 i lletres majúscules, sense I, L, O ni U.",
+            stages: {
+                received: {
+                    label: "Rebuda",
+                    title: "Papereta rebuda",
+                    help: "L'urna va signar un rebut d'aquesta papereta i el registre públic va prometre afegir-la. No es compta tret que el seu votant l'emeti.",
+                    castState: "Encara no emesa",
+                },
+                cast: {
+                    label: "Emesa",
+                    title: "Papereta emesa",
+                    help: "L'urna va confirmar que el votant va emetre aquesta papereta.",
+                    castState: "Superada",
+                },
+                audited: {
+                    label: "Auditada",
+                    title: "Papereta auditada",
+                    help: "El seu votant la va obrir per comprovar-la. Una papereta auditada no s'emet ni es compta mai.",
+                    castState: "Mai emesa",
+                },
+            },
+            checkLabels: {
+                ...englishTranslation.translations.ballotPrivacy.checkLabels,
+                ballotId: "ID de seguiment",
+            },
+            checkDescriptions: {
+                ...englishTranslation.translations.ballotPrivacy.checkDescriptions,
+                ballotId: "L'ID de seguiment es calcula a partir de la papereta xifrada i la clau del votant.",
+            },
+        },
         startup: {
             error: "No s’ha pogut iniciar el portal de votació. Torneu-ho a provar.",
             retry: "Torneu-ho a provar",
@@ -142,6 +192,11 @@ const catalanTranslation: TranslationType = {
                 "Quan estigueu a punt, emeteu la vostra papereta perquè quedi registrada oficialment. O trieu auditar primer per confirmar que va ser capturada i xifrada correctament",
         },
         reviewScreen: {
+            reloaded: {
+                title: "La teva papereta no s'ha emès",
+                text: "En recarregar la pàgina s'ha esborrat la clau d'un sol ús que l'emet. Revisa les teves opcions i torna a enviar la papereta. La papereta que vas enviar es queda al registre com a rebuda i no es compta mai.",
+                back: "Torna a la meva papereta",
+            },
             castRecovery: {
                 uncertain:
                     "El resultat de l’emissió no s’ha confirmat. Podeu reintentar la mateixa sol·licitud o comprovar l’identificador de la papereta abans de tornar a començar.",

@@ -17,8 +17,9 @@ const trust = {
     ballot_box_key: {key_id: "key", public_key: "box"},
 }
 const proof = {
-    ballot_id: "FTBE-MHRX",
-    pseudonym: "7QKM-2HXD",
+    ballot_id: "QR7T-K2NM",
+    tracking_id: "FTBE-MHRX-0123-4567-89AB-CDEF-GHJK-MNPQ-RSTV-WXYZ-0123-4567-89AB",
+    pseudonym: "K7QM-2XWD",
     voting_channel: "ONLINE",
     received_entry: null,
     cast_entry: null,
@@ -51,4 +52,49 @@ test("verification failure or missing report cannot be presented as success", ()
     render(<BallotLogProof trust={trust} proof={proof} />)
     expect(screen.getByText("ballotPrivacy.failed")).toBeInTheDocument()
     expect(screen.queryByText("ballotPrivacy.passed")).not.toBeInTheDocument()
+})
+
+test("the full Tracking ID is shown with how it is computed, and the pseudonym with a colon", () => {
+    mockVerify.mockReturnValue({
+        checks: {binding: "passed", received: "passed", ballotId: "passed", cast: "passed"},
+    })
+    const {container} = render(<BallotLogProof trust={trust} proof={proof} />)
+    expect(container.querySelector(".ballot-proof-tracking-id")).toHaveTextContent(
+        proof.tracking_id
+    )
+    expect(screen.getByText("ballotPrivacy.trackingIdHelp")).toBeInTheDocument()
+    expect(screen.getByText("K7QM:2XWD")).toBeInTheDocument()
+    expect(screen.queryByText("K7QM-2XWD")).not.toBeInTheDocument()
+})
+
+test.each(["received", "audited"] as const)(
+    "a %s ballot has no cast entry to wait for, and says what that means",
+    (stage) => {
+        mockVerify.mockReturnValue({
+            checks: {binding: "passed", received: "passed", ballotId: "passed", cast: "pending"},
+        })
+        render(<BallotLogProof trust={trust} proof={{...proof, stage}} />)
+        expect(screen.getByText(`ballotPrivacy.stages.${stage}.title`)).toBeInTheDocument()
+        expect(screen.getByText(`ballotPrivacy.stages.${stage}.help`)).toBeInTheDocument()
+        expect(screen.getByText(`ballotPrivacy.stages.${stage}.castState`)).toBeInTheDocument()
+        expect(screen.queryByText("ballotPrivacy.pending")).not.toBeInTheDocument()
+        expect(screen.queryByText("ballotPrivacy.states.pending")).not.toBeInTheDocument()
+    }
+)
+
+test("an early step that fails is still a failure for a received ballot", () => {
+    mockVerify.mockReturnValue({
+        checks: {binding: "passed", received: "failed", ballotId: "pending", cast: "pending"},
+    })
+    render(<BallotLogProof trust={trust} proof={{...proof, stage: "received"}} />)
+    expect(screen.getByText("ballotPrivacy.failed")).toBeInTheDocument()
+    expect(screen.queryByText("ballotPrivacy.stages.received.title")).not.toBeInTheDocument()
+})
+
+test("a cast ballot whose cast entry is missing still waits for it", () => {
+    mockVerify.mockReturnValue({
+        checks: {binding: "passed", received: "passed", ballotId: "passed", cast: "pending"},
+    })
+    render(<BallotLogProof trust={trust} proof={{...proof, stage: "cast"}} />)
+    expect(screen.getByText("ballotPrivacy.pending")).toBeInTheDocument()
 })

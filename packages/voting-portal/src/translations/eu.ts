@@ -5,7 +5,57 @@ import englishTranslation, {TranslationType} from "./en"
 
 const basqueTranslation: TranslationType = {
     translations: {
-        ballotPrivacy: englishTranslation.translations.ballotPrivacy,
+        ballotPrivacy: {
+            ...englishTranslation.translations.ballotPrivacy,
+            title: "Boto-paper guztiak",
+            subtitle: "Hauteskunde honetan bidalitako boto-paper guztiak, bakoitza behin, azken urratsean. Hautesleak ezizen batekin agertzen dira, izenik gabe.",
+            own: "Zure boto-papera erregistroan dago",
+            copy: "Kopiatu jarraipen IDa",
+            ballotIdHelp: "Zure jarraipen IDari buruz",
+            stageTime: "{{stage}} {{time}}",
+            noMatchHelp: "Begiratu idazketa-akatsik ez dagoela. Jarraipen IDak marratxo bat eta gutxienez 8 karaktere ditu, FTBE-MHRX bezala. Ezizenak bi puntu ditu, K7QM:2XWD bezala.",
+            copied: "Jarraipen IDa kopiatu da",
+            copyFailed: "Ezin izan da jarraipen IDa kopiatu. Hautatu kodea kopiatzeko.",
+            search: "Bilatu jarraipen ID bat edo ezizen bat",
+            placeholder: "FTBE-MHRX edo K7QM:2XWD",
+            matchesBoth: "{{tracking}} bat datoz jarraipen IDagatik · {{pseudonym}} ezizenagatik",
+            ballotId: "Jarraipen IDa",
+            lastStep: "Azken urratsa",
+            time: "Ordua",
+            trackingId: "Jarraipen IDa",
+            trackingIdHelp: "Zifratutako boto-paperatik eta hautesleen gakotik kalkulatua.",
+            noMatch: "Ez dago {{prefix}}(r)ekin hasten den jarraipen ID edo ezizenik",
+            noBallots: "Oraindik ez da boto-paperik bidali.",
+            invalidPrefix: "Idatzi jarraipen ID baten gutxienez 8 karaktere marratxoarekin, FTBE-MHRX bezala, edo ezizen baten gehienez 8 bi punturekin, K7QM:2XWD bezala. Kodeek 0tik 9ra bitarteko digituak eta letra larriak erabiltzen dituzte, I, L, O eta U gabe.",
+            stages: {
+                received: {
+                    label: "Jasota",
+                    title: "Boto-papera jasota",
+                    help: "Urnak boto-paper honen ziurtagiria sinatu zuen, eta erregistro publikoak gehitzeko agindu zuen. Ez da zenbatzen, hautesleak igortzen ez badu.",
+                    castState: "Oraindik igorri gabe",
+                },
+                cast: {
+                    label: "Igorrita",
+                    title: "Boto-papera igorrita",
+                    help: "Urnak baieztatu zuen hautesleak boto-paper hau igorri zuela.",
+                    castState: "Gaindituta",
+                },
+                audited: {
+                    label: "Auditatuta",
+                    title: "Boto-papera auditatuta",
+                    help: "Bere hautesleak ireki zuen egiaztatzeko. Auditatutako boto-papera ez da inoiz igortzen eta ez da zenbatzen.",
+                    castState: "Inoiz igorri gabe",
+                },
+            },
+            checkLabels: {
+                ...englishTranslation.translations.ballotPrivacy.checkLabels,
+                ballotId: "Jarraipen IDa",
+            },
+            checkDescriptions: {
+                ...englishTranslation.translations.ballotPrivacy.checkDescriptions,
+                ballotId: "Jarraipen IDa zifratutako boto-paperatik eta hautesleen gakotik kalkulatzen da.",
+            },
+        },
         startup: {
             error: "Ezin izan da bozketa-ataria abiarazi. Saiatu berriro.",
             retry: "Saiatu berriro",
@@ -142,6 +192,11 @@ const basqueTranslation: TranslationType = {
                 "Eman zure bozketa erregistratzeko, edo zifraketa zuzen egin dela egiaztatu.",
         },
         reviewScreen: {
+            reloaded: {
+                title: "Zure boto-papera ez da igorri",
+                text: "Orria birkargatzean, igortzen duen aldi bakarreko gakoa ezabatu da. Egiaztatu zure aukerak eta bidali berriro zure boto-papera. Bidali zenuen boto-papera jasota gisa geratzen da erregistroan eta ez da inoiz zenbatzen.",
+                back: "Itzuli nire boto-paperera",
+            },
             castRecovery: {
                 uncertain:
                     "Botoaren emaitza ez da baieztatu. Eskaera bera berriro bidal dezakezu edo boto-paperaren IDa egiaztatu berriro hasi aurretik.",
