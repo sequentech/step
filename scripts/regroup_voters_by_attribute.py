@@ -597,10 +597,12 @@ def current_plan(context, new_area_ids=None):
         raise RegroupError(f"election event {context.election_event_id} not found in tenant "
                            f"{context.tenant_id}")
     users = context.keycloak.list_users(event_realm(context.tenant_id, context.election_event_id))
-    return state, users, build_plan(
+    plan = build_plan(
         state, users, context.tenant_id, context.election_event_id, context.source_area_id,
         context.attribute, context.blank_policy, new_area_ids,
     )
+    plan["environment"] = context.environment
+    return state, users, plan
 
 
 def read_json(path):
@@ -608,7 +610,30 @@ def read_json(path):
         return json.load(handle)
 
 
+def normalized_url(value, name):
+    """Scheme, host, port and path only; credentials, queries and fragments are refused."""
+    parts = urllib.parse.urlsplit(value)
+    if parts.scheme not in ("http", "https") or not parts.hostname:
+        raise RegroupError(f"{name} must be an http or https URL")
+    if parts.username is not None or parts.password is not None or parts.query or parts.fragment:
+        raise RegroupError(f"{name} must not contain credentials, a query or a fragment")
+    port = f":{parts.port}" if parts.port else ""
+    return f"{parts.scheme}://{parts.hostname.lower()}{port}{parts.path.rstrip('/')}"
+
+
+def environment_of(args):
+    """The non-secret identity of the systems a plan was made against."""
+    return {
+        "hasura_endpoint": normalized_url(args.hasura_endpoint, "--hasura-endpoint"),
+        "hasura_source": args.hasura_source,
+        "keycloak_url": normalized_url(args.keycloak_url, "--keycloak-url"),
+        "keycloak_admin_realm": args.keycloak_admin_realm,
+    }
+
+
 def require_same_scope(context, recorded):
+    if recorded.get("environment") != context.environment:
+        raise RegroupError("the Hasura or Keycloak environment differs from the reviewed plan")
     for key in ("tenant_id", "election_event_id", "source_area_id", "attribute", "blank_policy"):
         ours = getattr(context, key)
         ours = ours.value if isinstance(ours, BlankPolicy) else ours
@@ -789,6 +814,7 @@ class Context:
         self.plan_path = args.plan
         self.journal_path = args.journal
         self.resume = args.resume
+        self.environment = environment_of(args)
         self.hasura = hasura
         self.keycloak = keycloak
 
@@ -840,10 +866,12 @@ def main(argv=None, environ=os.environ, out=sys.stdout):
         secret = environ.get("HASURA_ADMIN_SECRET")
         if not secret:
             raise RegroupError("set HASURA_ADMIN_SECRET")
+        environment = environment_of(args)
         context = Context(
             args,
-            Hasura(args.hasura_endpoint, secret, args.hasura_source),
-            Keycloak(args.keycloak_url, args.keycloak_admin_realm, keycloak_credentials(environ)),
+            Hasura(environment["hasura_endpoint"], secret, args.hasura_source),
+            Keycloak(environment["keycloak_url"], args.keycloak_admin_realm,
+                     keycloak_credentials(environ)),
         )
         return COMMANDS[args.command](context, out)
     except RegroupError as error:

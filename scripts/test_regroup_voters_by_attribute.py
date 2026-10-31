@@ -121,6 +121,10 @@ class Args:
         self.attribute = ATTRIBUTE
         self.blank_policy = "fail"
         self.resume = False
+        self.hasura_endpoint = "https://hasura.replica.example"
+        self.hasura_source = "backend-db"
+        self.keycloak_url = "https://keycloak.replica.example"
+        self.keycloak_admin_realm = "master"
         self.plan = os.path.join(directory, "plan.json")
         self.journal = os.path.join(directory, "journal.json")
         self.__dict__.update(overrides)
@@ -361,6 +365,50 @@ class RegroupTest(unittest.TestCase):
         code, result = self.run_command("apply", resume=True)
         self.assertEqual(code, 2)
         self.assertIn("tally_session", " ".join(result["problems"]))
+
+    def test_other_environment_is_refused_before_any_write(self):
+        other = {"hasura_endpoint": "https://hasura.production.example",
+                 "hasura_source": "other-db",
+                 "keycloak_url": "https://keycloak.production.example",
+                 "keycloak_admin_realm": "other"}
+        self.run_command("plan")
+        for name, value in other.items():
+            with self.subTest(command="apply", field=name):
+                code, result = self.run_command("apply", **{name: value})
+                self.assertEqual(code, 2)
+                self.assertIn("environment differs", result["problems"][0])
+                self.assertFalse(os.path.exists(Args(self.directory).journal))
+                self.assertEqual((self.hasura.apply_calls, self.keycloak.puts), (0, 0))
+
+        self.interrupted_apply()
+        snapshot = (copy.deepcopy(self.hasura.cast_votes), copy.deepcopy(self.keycloak.users),
+                    self.hasura.apply_calls, Path(Args(self.directory).journal).read_bytes())
+        for command, extra in (("apply", {"resume": True}), ("verify", {}), ("revert", {})):
+            for name, value in other.items():
+                with self.subTest(command=command, field=name):
+                    code, result = self.run_command(command, **extra, **{name: value})
+                    self.assertEqual(code, 2)
+                    self.assertIn("environment differs", result["problems"][0])
+                    self.assertEqual(
+                        (self.hasura.cast_votes, self.keycloak.users, self.hasura.apply_calls,
+                         Path(Args(self.directory).journal).read_bytes()), snapshot)
+
+    def test_equivalent_urls_match_and_the_journal_holds_no_secret(self):
+        self.run_command("plan")
+        code, _ = self.run_command("apply", hasura_endpoint="HTTPS://Hasura.Replica.Example/",
+                                   keycloak_url="https://KEYCLOAK.replica.example/")
+        self.assertEqual(code, 3)
+        journal = json.loads(Path(Args(self.directory).journal).read_text())
+        self.assertEqual(journal["plan"]["environment"]["hasura_endpoint"],
+                         "https://hasura.replica.example")
+
+    def test_urls_with_credentials_or_queries_are_refused(self):
+        for url in ("https://admin:secret@hasura.example", "https://hasura.example?admin_secret=x",
+                    "https://hasura.example#x", "ftp://hasura.example", "hasura.example"):
+            with self.subTest(url=url):
+                with self.assertRaises(regroup.RegroupError):
+                    regroup.Context(Args(self.directory, hasura_endpoint=url),
+                                    self.hasura, self.keycloak)
 
     def test_revert_refuses_once_a_new_tally_exists(self):
         self.run_command("plan")

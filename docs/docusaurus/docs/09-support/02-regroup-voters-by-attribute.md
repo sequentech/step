@@ -12,7 +12,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 The procedure below is based on reading the `v10.1.0-rc.4` source. The script
 has only been run against its focused tests
-(`python3 scripts/test_regroup_voters_by_attribute.py`: 36 tests, OK, using
+(`python3 scripts/test_regroup_voters_by_attribute.py`: 39 tests, OK, using
 in-memory Hasura and Keycloak). A full run on an rc.4 stack (baseline tally,
 regroup, second tally) is still pending. Do not use it on a production event
 until this notice is replaced with that evidence.
@@ -89,6 +89,11 @@ live ballot styles.
   admin API (an admin client or the admin user of the admin realm).
 
 ## Procedure
+
+The plan and journal record the Hasura endpoint and source and the Keycloak
+URL and admin realm, without credentials. `apply`, `verify` and `revert` refuse
+to run against any other environment, even one with the same ids, such as a
+replica. URLs carrying credentials, a query or a fragment are refused.
 
 Keep the plan and journal files private. They contain voter ids and attribute
 values, but no names or contact details.
