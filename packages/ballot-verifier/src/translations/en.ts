@@ -176,6 +176,8 @@ const englishTranslation = {
                 change: "Change the tracking ID",
                 lookedFor: "Tracking ID looked for",
                 fullId: "Full Tracking ID",
+                stage: "Step of the ballot",
+                stages: {received: "Received", cast: "Cast", audited: "Audited"},
             },
             result: {
                 title: "Result",

@@ -33,6 +33,7 @@ export const BallotForm: React.FC<IBallotFormProps> = ({sdk, policy, onExpect}) 
         eventId: eventId ?? "",
         electionId: electionIds.length === 1 ? electionIds[0] : "",
         ballotId: "",
+        stage: "cast",
     })
     const [invalid, setInvalid] = useState(false)
 
@@ -62,6 +63,22 @@ export const BallotForm: React.FC<IBallotFormProps> = ({sdk, policy, onExpect}) 
                 value={form.ballotId}
                 onChange={(ballotId) => setForm((f) => ({...f, ballotId}))}
             />
+            <TextField
+                select
+                required
+                label={t("receiptScreen.ballot.stage")}
+                InputLabelProps={{shrink: true}}
+                SelectProps={{native: true}}
+                value={form.stage}
+                onChange={set("stage")}
+                inputProps={{"data-testid": "ballot-stage"}}
+            >
+                {["received", "cast", "audited"].map((stage) => (
+                    <option key={stage} value={stage}>
+                        {t(`receiptScreen.ballot.stages.${stage}`)}
+                    </option>
+                ))}
+            </TextField>
             {electionIds.length > 1 ? (
                 <TextField
                     select

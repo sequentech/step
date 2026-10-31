@@ -192,6 +192,8 @@ const catalanTranslation: TranslationType = {
                 change: "Canvia l'ID de seguiment",
                 lookedFor: "ID de seguiment cercat",
                 fullId: "ID de seguiment complet",
+                stage: "Pas de la papereta",
+                stages: {received: "Rebuda", cast: "Emesa", audited: "Auditada"},
             },
             result: {
                 title: "Resultat",

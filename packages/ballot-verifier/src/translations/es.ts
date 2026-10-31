@@ -179,6 +179,8 @@ const spanishTranslation: TranslationType = {
                 change: "Cambiar el ID de seguimiento",
                 lookedFor: "ID de seguimiento buscado",
                 fullId: "ID de seguimiento completo",
+                stage: "Paso de la papeleta",
+                stages: {received: "Recibida", cast: "Emitida", audited: "Auditada"},
             },
             result: {
                 title: "Resultado",

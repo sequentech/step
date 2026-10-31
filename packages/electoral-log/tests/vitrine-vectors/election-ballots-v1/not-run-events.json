@@ -12,8 +12,8 @@
     "closes": 1793044800
   },
   "entries": [
-    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBJAAAJbXVuaS0yMDI2AAAFbWF5b3IAAARjYXN0AAAgH8JEryuW0BaaF34lWa8p4EhHROS4UB0QRNdsn3s88wcAAAgAAAAAat8IvA==",
-    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBLAAAJbXVuaS0yMDI2AAAHY291bmNpbAAABGNhc3QAACCO87DXxEduLAqRzMWGd0CgVJMTtYU0XB0SWHyi7QTp9QAACAAAAABq3wjB"
+    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBNAAAJbXVuaS0yMDI2AAAFbWF5b3IAAAhyZWNlaXZlZAAAIB/CRK8rltAWmhd+JVmvKeBIR0TkuFAdEETXbJ97PPMHAAAIAAAAAGrfCLw=",
+    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBPAAAJbXVuaS0yMDI2AAAHY291bmNpbAAACHJlY2VpdmVkAAAgjvOw18RHbiwKkczFhndAoFSTE7WFNFwdElh8ou0E6fUAAAgAAAAAat8IwQ=="
   ],
   "sequenced": [
     1793001661,
@@ -37,7 +37,7 @@
       },
       {
         "name": "stage",
-        "value": "cast"
+        "value": "received"
       },
       {
         "name": "ballot_id",
@@ -59,7 +59,7 @@
       },
       {
         "name": "stage",
-        "value": "cast"
+        "value": "received"
       },
       {
         "name": "ballot_id",
@@ -78,7 +78,9 @@
     "event": "passing",
     "in-window": "passing",
     "on-time": "passing",
-    "one-ballot": "passing",
+    "one-outcome": "passing",
+    "one-stage": "passing",
+    "received-first": "passing",
     "vitrine/parse": "passing"
   }
 }

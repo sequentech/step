@@ -19,9 +19,9 @@ pub const ELECTION_TAG: &str = "vitrine/election/ballots/v1";
 pub const EVENTS_TAG: &str = "vitrine/election/events/v1";
 /// Reviewed Vitrine core meanings for Step's two election logs.
 pub const ELECTION_MEANING_HASH: &str =
-    "sha256:03a5a99d740d19741de6491ee2fb77bd1680d8d934f6dc5ca90bb25c841bdba7";
+    "sha256:b77e087d44cf4621cb2ca2cdf982abb5c46f3b964ce79f9ff2b04ef645624ab1";
 pub const EVENTS_MEANING_HASH: &str =
-    "sha256:819b9a9da4755aaf78b18ea35390f7908d1a21a824e7c7c6874702bf7152bc4f";
+    "sha256:a76f20437d3846a9cb930a379fe545c218e9e80f35c186fff6dd79e870b5ba51";
 
 pub const HASH_SIZE: usize = 32;
 pub type Hash = [u8; HASH_SIZE];

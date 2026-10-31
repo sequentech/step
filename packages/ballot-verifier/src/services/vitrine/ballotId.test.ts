@@ -8,8 +8,6 @@ import {
     groupBallotId,
     sameBallotId,
     shortBallotId,
-    trackingIdDigestHex,
-    trackingIdOfDigestHex,
     typedBallotId,
 } from "./ballotId"
 
@@ -50,15 +48,5 @@ describe("tracking IDs", () => {
     it("compares IDs whatever their spacing and case", () => {
         expect(sameBallotId("ftbe mhrx", "FTBE-MHRX")).toBe(true)
         expect(sameBallotId("FTBE-MHRX", "FTBE-MHRZ")).toBe(false)
-    })
-
-    it("converts a full ID to its digest in hex and back", () => {
-        const digest = "c0ffee".repeat(10) + "abcd"
-        const id = trackingIdOfDigestHex(digest) as string
-        expect(id).toMatch(/^([0-9A-Z]{4}-){12}[0-9A-Z]{4}$/)
-        expect(trackingIdDigestHex(id)).toBe(digest)
-        expect(trackingIdDigestHex(id.toLowerCase())).toBe(digest)
-        expect(trackingIdDigestHex("FTBE-MHRX")).toBeUndefined()
-        expect(trackingIdOfDigestHex("abcd")).toBeUndefined()
     })
 })

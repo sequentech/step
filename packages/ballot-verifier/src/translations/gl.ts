@@ -180,6 +180,8 @@ const galegoTranslation: TranslationType = {
                 change: "Cambiar o ID de seguimento",
                 lookedFor: "ID de seguimento buscado",
                 fullId: "ID de seguimento completo",
+                stage: "Paso da papeleta",
+                stages: {received: "Recibida", cast: "Emitida", audited: "Auditada"},
             },
             result: {
                 title: "Resultado",

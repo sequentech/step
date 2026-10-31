@@ -1,5 +1,5 @@
 {
-  "description": "A complete event: three ballots accepted in the window and sequenced on time, all before voting closed, as many per election as the count lines say.",
+  "description": "A complete event: every ballot was received before it was cast or audited, for the same election; three were cast and one audited, all accepted in the window and sequenced on time and before voting closed. The count lines give the cast ballots per election: two for mayor, one for council.",
   "params": {
     "election-ids": [
       "mayor",
@@ -12,18 +12,28 @@
     "closes": 1793044800
   },
   "entries": [
-    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBJAAAJbXVuaS0yMDI2AAAFbWF5b3IAAARjYXN0AAAg3z9hmASpL9tAVxktxD3XSOp3itxSvEmM6AUkwBS4ERkAAAgAAAAAat8IvA==",
-    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBLAAAJbXVuaS0yMDI2AAAHY291bmNpbAAABGNhc3QAACC0BxGojHA5dW+4pzgn6r4sD+WgNGyn4KEErcD8dk9SjQAACAAAAABq3wj4",
+    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBNAAAJbXVuaS0yMDI2AAAFbWF5b3IAAAhyZWNlaXZlZAAAIN8/YZgEqS/bQFcZLcQ910jqd4rcUrxJjOgFJMAUuBEZAAAIAAAAAGrfCLw=",
+    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBPAAAJbXVuaS0yMDI2AAAHY291bmNpbAAACHJlY2VpdmVkAAAgtAcRqIxwOXVvuKc4J+q+LA/loDRsp+ChBK3A/HZPUo0AAAgAAAAAat8I+A==",
+    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBPAAAJbXVuaS0yMDI2AAAHY291bmNpbAAACHJlY2VpdmVkAAAgiBhdEo2ZIuDmvNMrB7bH8g8nlo6rRHodjRzfJQ9599MAAAgAAAAAat8JAg==",
+    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBJAAAJbXVuaS0yMDI2AAAFbWF5b3IAAARjYXN0AAAg3z9hmASpL9tAVxktxD3XSOp3itxSvEmM6AUkwBS4ERkAAAgAAAAAat8JNA==",
+    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBLAAAJbXVuaS0yMDI2AAAHY291bmNpbAAABGNhc3QAACC0BxGojHA5dW+4pzgn6r4sD+WgNGyn4KEErcD8dk9SjQAACAAAAABq3wlI",
+    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBOAAAJbXVuaS0yMDI2AAAHY291bmNpbAAAB2F1ZGl0ZWQAACCIGF0SjZki4Oa80ysHtsfyDyeWjqtEeh2NHN8lD3n30wAACAAAAABq3wlc",
+    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBNAAAJbXVuaS0yMDI2AAAFbWF5b3IAAAhyZWNlaXZlZAAAIEM+v1vAPf+jhTZnMgeiEoFhLO9fqpvHpNW5vi/bEs8aAAAIAAAAAGrfsQQ=",
     "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBJAAAJbXVuaS0yMDI2AAAFbWF5b3IAAARjYXN0AAAgQz6/W8A9/6OFNmcyB6ISgWEs71+qm8ek1bm+L9sSzxoAAAgAAAAAat+xIg=="
   ],
   "sequenced": [
     1793001662,
     1793001721,
+    1793001731,
+    1793001782,
+    1793001801,
+    1793001821,
+    1793044742,
     1793044772
   ],
   "checkpoints": [
     [
-      3,
+      8,
       1793045500
     ]
   ],
@@ -61,7 +71,7 @@
       },
       {
         "name": "stage",
-        "value": "cast"
+        "value": "received"
       },
       {
         "name": "ballot_id",
@@ -83,7 +93,7 @@
       },
       {
         "name": "stage",
-        "value": "cast"
+        "value": "received"
       },
       {
         "name": "ballot_id",
@@ -92,6 +102,116 @@
       {
         "name": "accepted_at",
         "value": "1793001720"
+      }
+    ],
+    [
+      {
+        "name": "event_id",
+        "value": "muni-2026"
+      },
+      {
+        "name": "election_id",
+        "value": "council"
+      },
+      {
+        "name": "stage",
+        "value": "received"
+      },
+      {
+        "name": "ballot_id",
+        "value": "88185d128d9922e0e6bcd32b07b6c7f20f27968eab447a1d8d1cdf250f79f7d3"
+      },
+      {
+        "name": "accepted_at",
+        "value": "1793001730"
+      }
+    ],
+    [
+      {
+        "name": "event_id",
+        "value": "muni-2026"
+      },
+      {
+        "name": "election_id",
+        "value": "mayor"
+      },
+      {
+        "name": "stage",
+        "value": "cast"
+      },
+      {
+        "name": "ballot_id",
+        "value": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119"
+      },
+      {
+        "name": "accepted_at",
+        "value": "1793001780"
+      }
+    ],
+    [
+      {
+        "name": "event_id",
+        "value": "muni-2026"
+      },
+      {
+        "name": "election_id",
+        "value": "council"
+      },
+      {
+        "name": "stage",
+        "value": "cast"
+      },
+      {
+        "name": "ballot_id",
+        "value": "b40711a88c7039756fb8a73827eabe2c0fe5a0346ca7e0a104adc0fc764f528d"
+      },
+      {
+        "name": "accepted_at",
+        "value": "1793001800"
+      }
+    ],
+    [
+      {
+        "name": "event_id",
+        "value": "muni-2026"
+      },
+      {
+        "name": "election_id",
+        "value": "council"
+      },
+      {
+        "name": "stage",
+        "value": "audited"
+      },
+      {
+        "name": "ballot_id",
+        "value": "88185d128d9922e0e6bcd32b07b6c7f20f27968eab447a1d8d1cdf250f79f7d3"
+      },
+      {
+        "name": "accepted_at",
+        "value": "1793001820"
+      }
+    ],
+    [
+      {
+        "name": "event_id",
+        "value": "muni-2026"
+      },
+      {
+        "name": "election_id",
+        "value": "mayor"
+      },
+      {
+        "name": "stage",
+        "value": "received"
+      },
+      {
+        "name": "ballot_id",
+        "value": "433ebf5bc03dffa38536673207a21281612cef5faa9bc7a4d5b9be2fdb12cf1a"
+      },
+      {
+        "name": "accepted_at",
+        "value": "1793044740"
       }
     ],
     [
@@ -124,7 +244,9 @@
     "event": "passing",
     "in-window": "passing",
     "on-time": "passing",
-    "one-ballot": "passing",
+    "one-outcome": "passing",
+    "one-stage": "passing",
+    "received-first": "passing",
     "vitrine/parse": "passing"
   }
 }

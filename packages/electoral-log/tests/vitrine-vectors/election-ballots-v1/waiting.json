@@ -1,5 +1,5 @@
 {
-  "description": "A browser's view: entry 2 isn't held and entry 1 has no sequencing time yet, so the rules that need the whole log or that time wait; in-window checks only accepted_at.",
+  "description": "A browser's view: entry 2 isn't held and entry 1 has no sequencing time yet, so the rules that need the whole log or that time wait, and so does received-first for the ballot cast in entry 3, whose received entry may be the one missing; in-window checks only accepted_at.",
   "params": {
     "election-ids": [
       "mayor",
@@ -12,8 +12,8 @@
     "closes": 1793044800
   },
   "entries": [
-    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBJAAAJbXVuaS0yMDI2AAAFbWF5b3IAAARjYXN0AAAgVgIxaJcTpZM7bIrD5rLyQ3MOSeHGsMYQxB6Oja0mBEwAAAgAAAAAat8IvA==",
-    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBJAAAJbXVuaS0yMDI2AAAFbWF5b3IAAARjYXN0AAAg/lsN7KAGF04hUQiOGn1g/pGBlGfbXXCa5aGcAaPNPj8AAAgAAAAAat8Ixg==",
+    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBNAAAJbXVuaS0yMDI2AAAFbWF5b3IAAAhyZWNlaXZlZAAAIFYCMWiXE6WTO2yKw+ay8kNzDknhxrDGEMQejo2tJgRMAAAIAAAAAGrfCLw=",
+    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBNAAAJbXVuaS0yMDI2AAAFbWF5b3IAAAhyZWNlaXZlZAAAIP5bDeygBhdOIVEIjhp9YP6RgZRn211wmuWhnAGjzT4/AAAIAAAAAGrfCMY=",
     "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBJAAAJbXVuaS0yMDI2AAAFbWF5b3IAAARjYXN0AAAgg0QGNu/3suwPeO97jkgKAz6K62fm7LZXzpvN/bIap0QAAAgAAAAAat+xOw=="
   ],
   "indexes": [
@@ -32,7 +32,7 @@
         "GnZpdHJpbmUvZWxlY3Rpb24vZXZlbnRzL3YxAdYAAAZjb25maWcAAAgAAAAAat7sYAAAAQAAAbh2aXRyaW5lL2NvbmZpZy92MQpldmVudCBtdW5pLTIwMjYKZWxlY3Rpb24gbWF5b3IKa2V5IEQwOXdGRWN2cjYxSjRuMEtidXNiQzJ2SldUR0pMdSsxS093RUtPTUtMZ2s9CnN0eWxlcyAwSm1sWkszSG9GYTJaUWhWVTkycW1hb2JCeFBuMUlSRTBSckY4WEhYc09nPQpvcGVucyAxNzkzMDAxNjAwCmNsb3NlcyAxNzkzMDQ0ODAwCnBvbGljeSBzaGEyNTY6ODIzNDEyZDFlYWNiNjc5NTYyMjBlNTMyOTU5ZjAxMDQ2MDMwNTdjODg3MDQ4NjNjYTM4ZTdjZDE4OGZkYTgxMgpyZWxlYXNlIGJvb3RoIDEuMC4wCnRyYW5zcGFyZW5jeSBwdWJsaWMKZGVtbyBubwp0aW1lIDE3OTI5OTQ0MDAKCuKAlCBib2FyZC5leGFtcGxlIGNDMjAvWGlUWmlOVys2NFplSXIvOHl4WGVySytqVEZnRlFSc281TG9heXZWQ0IycGNTVHNiOW5uVVdVbHRCMmxJRzFQOUt4bTVxczRmdWhMUlhTb1pzOVdVZzg9CgAAAA==",
         "GnZpdHJpbmUvZWxlY3Rpb24vZXZlbnRzL3YxAdgAAAZjb25maWcAAAgAAAAAat7sYAAAAQAAAbp2aXRyaW5lL2NvbmZpZy92MQpldmVudCBtdW5pLTIwMjYKZWxlY3Rpb24gY291bmNpbAprZXkgdjhMdVIrVk9YMndyd1dkcnJZT2FybVM0SnJRUTNpTG12ZGgrdmE4WnhjST0Kc3R5bGVzIEdWV1h1Sjh2cDhmRWNGQ1d3NjduZ3M2N0dhY0RNUjc0NWRNOHB3Mng3S3M9Cm9wZW5zIDE3OTMwMDE2MDAKY2xvc2VzIDE3OTMwNDQ4MDAKcG9saWN5IHNoYTI1Njo4MjM0MTJkMWVhY2I2Nzk1NjIyMGU1MzI5NTlmMDEwNDYwMzA1N2M4ODcwNDg2M2NhMzhlN2NkMTg4ZmRhODEyCnJlbGVhc2UgYm9vdGggMS4wLjAKdHJhbnNwYXJlbmN5IHB1YmxpYwpkZW1vIG5vCnRpbWUgMTc5Mjk5NDQwMAoK4oCUIGJvYXJkLmV4YW1wbGUgY0MyMC9laEQ4N0RuWUFVUytoZjRiWEdCL1BCWnA1a0FDRi9XMXVaMVFSTHBwT1VWY3B1aXl3OGJoRnZJbmFRRTM5SEdoM1RveEhzSGlTZVZQODNicmFjcjlBMD0KAAAA",
         "GnZpdHJpbmUvZWxlY3Rpb24vZXZlbnRzL3YxAVMAAA12b3Rpbmctb3BlbmVkAAAIAAAAAGrfCIAAAAEAAAEudml0cmluZS9taWxlc3RvbmUvdjEKZXZlbnQgbXVuaS0yMDI2CmtpbmQgdm90aW5nLW9wZW5lZAp0aW1lIDE3OTMwMDE2MDAKY29uZmlnIG1heW9yIHlyU0g4WHM1ZlBNZlF1NHdLTVVPUGh1S0U5Q2oxYnRXRUVIcnBqUEpQVlE9CmNvbmZpZyBjb3VuY2lsIGVkR0xrMldMeEhuZWh2QnRxTFB0YVVpZlJKUlJrN1o0emkvT09PQXpZV289CgrigJQgYm9hcmQuZXhhbXBsZSBjQzIwL2J4ZWZURkozOGwyN1c0NzFwcGp4ZVpWcTlJWUV0dVRicnRhN05xY1hOWDZBTFc2bmZ6cEtudWc3L2tndTlIQ08vdWU1YklkVWcxWS90OHBWbFNyM1FBPQoAAAA=",
-        "GnZpdHJpbmUvZWxlY3Rpb24vZXZlbnRzL3YxAOsAAA12b3RpbmctY2xvc2VkAAAIAAAAAGrfsUAAAAEAAADGdml0cmluZS9taWxlc3RvbmUvdjEKZXZlbnQgbXVuaS0yMDI2CmtpbmQgdm90aW5nLWNsb3NlZAp0aW1lIDE3OTMwNDQ4MDAKY291bnQgbWF5b3IgMwoK4oCUIGJvYXJkLmV4YW1wbGUgY0MyMC9hV2hoTnVJODlhblAxSFdiTndtYnFqTm8vQnZGb2krbUVuckVpNHFnQlhiV05Ra0h0NFdGUXYxNlNmWHU0cGoxUjJFZ3V4RmNGVzQ3TE5YczVGVnVBVT0KAAAA"
+        "GnZpdHJpbmUvZWxlY3Rpb24vZXZlbnRzL3YxAOsAAA12b3RpbmctY2xvc2VkAAAIAAAAAGrfsUAAAAEAAADGdml0cmluZS9taWxlc3RvbmUvdjEKZXZlbnQgbXVuaS0yMDI2CmtpbmQgdm90aW5nLWNsb3NlZAp0aW1lIDE3OTMwNDQ4MDAKY291bnQgbWF5b3IgMQoK4oCUIGJvYXJkLmV4YW1wbGUgY0MyMC9aT0VIREVvSE5oNjNGcFd0ZThYQmlnZVdwSFlxc2gycEhNUUZYYjVqMUJ6VFkwOGpJMlhIdU0rVHZVL0s3U0ZyaXFBUnZsTUVqaURiSFY4Nk80aWVBVT0KAAAA"
       ],
       "sequenced": [
         1792994600,
@@ -60,7 +60,7 @@
       },
       {
         "name": "stage",
-        "value": "cast"
+        "value": "received"
       },
       {
         "name": "ballot_id",
@@ -82,7 +82,7 @@
       },
       {
         "name": "stage",
-        "value": "cast"
+        "value": "received"
       },
       {
         "name": "ballot_id",
@@ -123,7 +123,9 @@
     "event": "passing",
     "in-window": "passing",
     "on-time": "waiting",
-    "one-ballot": "waiting",
+    "one-outcome": "waiting",
+    "one-stage": "waiting",
+    "received-first": "waiting",
     "vitrine/parse": "passing"
   }
 }

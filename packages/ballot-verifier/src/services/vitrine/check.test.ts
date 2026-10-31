@@ -106,6 +106,7 @@ describe("expectFromForm", () => {
                 eventId: ` ${EVENT_ID} `,
                 electionId: ELECTION_ID,
                 ballotId: ` ${TRACKING_ID.toLowerCase()}\n`,
+                stage: "cast",
             })
         ).toEqual({fields: {event_id: EVENT_ID, election_id: ELECTION_ID, ballot_id: BALLOT_ID}})
     })
@@ -116,6 +117,7 @@ describe("expectFromForm", () => {
                 eventId: EVENT_ID,
                 electionId: ELECTION_ID,
                 ballotId: groupBallotId(TRACKING_ID),
+                stage: "cast",
             })
         ).toEqual({fields: {event_id: EVENT_ID, election_id: ELECTION_ID, ballot_id: BALLOT_ID}})
     })
@@ -127,7 +129,7 @@ describe("expectFromForm", () => {
         ["no election", {electionId: ""}],
         ["no event", {eventId: ""}],
     ])("refuses %s", (_what, change) => {
-        const form = {eventId: EVENT_ID, electionId: ELECTION_ID, ballotId: TRACKING_ID, ...change}
+        const form = {eventId: EVENT_ID, electionId: ELECTION_ID, ballotId: TRACKING_ID, stage: "cast" as const, ...change}
         expect(expectFromForm(sdk, form)).toBeUndefined()
     })
 })
@@ -138,6 +140,7 @@ describe("expectedBallotId", () => {
             eventId: EVENT_ID,
             electionId: ELECTION_ID,
             ballotId: TRACKING_ID,
+            stage: "cast",
         })
         expect(expect_ && expectedBallotId(sdk, expect_)).toBe(TRACKING_ID)
         expect(expectedBallotId(sdk, {entry: ballotEntry()})).toBe(TRACKING_ID)

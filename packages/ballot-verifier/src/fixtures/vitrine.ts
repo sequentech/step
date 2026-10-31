@@ -20,17 +20,17 @@ import {
     merkle,
     notes,
     proofs,
+    trackingId,
     type ReceiptChain,
 } from "@vitrine/verify/pure"
 import type {THttpInit} from "../services/vitrine/http"
-import {trackingIdOfDigestHex} from "../services/vitrine/ballotId"
 import {ETransparencyMode} from "../services/vitrine/presentation"
 
 const PKCS8_ED25519_PREFIX = "302e020100300506032b657004220420"
 const EVENTS_TAG = "vitrine/election/events/v1"
-const MEANING_HASH = "sha256:03a5a99d740d19741de6491ee2fb77bd1680d8d934f6dc5ca90bb25c841bdba7"
+const MEANING_HASH = "sha256:b77e087d44cf4621cb2ca2cdf982abb5c46f3b964ce79f9ff2b04ef645624ab1"
 const EVENTS_MEANING_HASH =
-    "sha256:819b9a9da4755aaf78b18ea35390f7908d1a21a824e7c7c6874702bf7152bc4f"
+    "sha256:a76f20437d3846a9cb930a379fe545c218e9e80f35c186fff6dd79e870b5ba51"
 
 export const NOW = 1_800_000_000
 export const EVENT_ID = "0b6c4f53-8c0b-4cbb-9b7a-6c8a3a5c2f10"
@@ -39,8 +39,8 @@ export const OTHER_ELECTION_ID = "9a8b7c6d-5e4f-4a3b-9c2d-1e0f9a8b7c6d"
 export const BALLOT_ID = "c0ffee".repeat(10) + "abcd"
 export const OTHER_BALLOT_ID = "0dd".repeat(21) + "0"
 /** The Tracking IDs the digests above write. */
-export const TRACKING_ID = trackingIdOfDigestHex(BALLOT_ID) as string
-export const OTHER_TRACKING_ID = trackingIdOfDigestHex(OTHER_BALLOT_ID) as string
+export const TRACKING_ID = trackingId(BALLOT_ID)
+export const OTHER_TRACKING_ID = trackingId(OTHER_BALLOT_ID)
 export const ACCEPTED_AT = NOW - 5
 export const VERIFIER_URL = "https://verifier.example/receipt/"
 
@@ -306,8 +306,10 @@ export const policyIdOf = (note: string): string => {
 export const ballotEntry = (
     ballotId: string = BALLOT_ID,
     electionId: string = ELECTION_ID,
-    acceptedAt: number = ACCEPTED_AT
-): Uint8Array => entries.buildElectionEntry({eventId: EVENT_ID, electionId, ballotId, acceptedAt})
+    acceptedAt: number = ACCEPTED_AT,
+    stage: "received" | "cast" | "audited" = "cast"
+): Uint8Array =>
+    entries.buildElectionEntry({eventId: EVENT_ID, electionId, stage, ballotId, acceptedAt})
 
 export interface IReceiptScenario {
     /** The signed policy note. */

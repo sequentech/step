@@ -174,6 +174,8 @@ const tagalogTranslation = {
                 change: "Palitan ang Tracking ID",
                 lookedFor: "Hinahanap na Tracking ID",
                 fullId: "Buong Tracking ID",
+                stage: "Hakbang ng balota",
+                stages: {received: "Natanggap", cast: "Naiboto", audited: "Na-audit"},
             },
             result: {
                 title: "Resulta",

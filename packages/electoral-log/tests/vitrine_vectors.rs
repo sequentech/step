@@ -6,9 +6,7 @@
 //! `profiles/election/ballots/v1/vectors`, `profiles/election/events/v1/vectors` and
 //! `testdata/styles`.
 //!
-//! The `election-ballots-v1` vectors are Vitrine's with a `stage` field of `cast` added
-//! at index 2 (Vitrine's `specs/entry.md` section 4.1), because Vitrine's own vectors
-//! and profile still hold the layout without it. Replace them when Vitrine's land.
+//! All of them are Vitrine's own, unchanged (fc03a78), `testdata/tracking-id` included.
 
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use electoral_log::vitrine::note::split_note;

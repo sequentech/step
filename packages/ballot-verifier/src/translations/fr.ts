@@ -179,6 +179,8 @@ const frenchTranslation: TranslationType = {
                 change: "Modifier l'identifiant de suivi",
                 lookedFor: "Identifiant de suivi recherché",
                 fullId: "Identifiant de suivi complet",
+                stage: "Étape du bulletin",
+                stages: {received: "Reçu", cast: "Déposé", audited: "Audité"},
             },
             result: {
                 title: "Résultat",

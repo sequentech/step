@@ -11,8 +11,7 @@
 // private event's logs serve no one, so its receipt is checked with what the
 // file holds.
 
-import type {ChainResult, Expect, PolicyHistory, ReceiptReference} from "@vitrine/verify"
-import {trackingIdDigestHex, trackingIdOfDigestHex} from "./ballotId"
+import type {BallotStage, ChainResult, Expect, PolicyHistory, ReceiptReference} from "@vitrine/verify"
 import {FetchLike, sdkFetch} from "./http"
 import type {IPolicyView} from "./policies"
 import type {IVitrineSdk} from "./sdk"
@@ -131,34 +130,36 @@ export interface IBallotForm {
     eventId: string
     electionId: string
     ballotId: string
+    /** The step of the ballot the receipt is for: its entry holds it. */
+    stage: BallotStage
 }
 
-/** The expectation a tracking ID, election and event give: the entry must be
- * that ballot's, with the `accepted_at` the receipt holds (specs/receipt.md,
- * section 1.1). Undefined when they can't make an entry. */
+/** The expectation a Tracking ID, a step, an election and an event give: the
+ * entry must be that ballot's at that step, with the `accepted_at` the receipt
+ * holds (specs/receipt.md, section 1.1). Undefined when they can't make an
+ * entry. The whole Tracking ID is needed, not a short one. */
 export const expectFromForm = (sdk: IVitrineSdk, form: IBallotForm): Expect | undefined => {
-    const eventId = form.eventId.trim()
-    const electionId = form.electionId.trim()
-    // The entry holds the Tracking ID as its digest: the whole ID, not a short one.
-    const ballotId = trackingIdDigestHex(form.ballotId)
-    if (!ballotId) return undefined
     try {
-        sdk.verify.buildElectionEntry({eventId, electionId, ballotId, acceptedAt: 0})
+        return sdk.verify.ballotExpect({
+            eventId: form.eventId.trim(),
+            electionId: form.electionId.trim(),
+            stage: form.stage,
+            ballotId: sdk.verify.decodeTrackingId(form.ballotId),
+        })
     } catch {
         return undefined
     }
-    return {fields: {event_id: eventId, election_id: electionId, ballot_id: ballotId}}
 }
 
 /** The Tracking ID an expectation names, to show the user. */
 export const expectedBallotId = (sdk: IVitrineSdk, expect: Expect): string | undefined => {
-    if ("fields" in expect) return trackingIdOfDigestHex(expect.fields.ballot_id)
     try {
+        if ("fields" in expect) return sdk.verify.trackingId(expect.fields.ballot_id)
         const id = sdk.pure.entries.fieldValue(
             sdk.pure.entries.parseEntry(expect.entry),
             "ballot_id"
         )
-        return id && trackingIdOfDigestHex(sdk.pure.encoding.hexEncode(id))
+        return id && sdk.verify.trackingId(id)
     } catch {
         return undefined
     }
