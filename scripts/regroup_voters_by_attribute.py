@@ -336,6 +336,14 @@ def voter_invariants(users, user_ids):
     return invariants
 
 
+def ballot_identity(cast_votes, voter_ids):
+    """Digest of which ballot belongs to which voter, with its status, but not its area."""
+    return canonical_digest(sorted(
+        [vote["id"], vote["voter_id_string"], vote["status"], vote["election_id"]]
+        for vote in cast_votes if vote["voter_id_string"] in voter_ids
+    ))
+
+
 def operational_problems(state):
     """Voting closed everywhere, no tally running and no vote still being processed."""
     problems = check_closed(state["event"].get("status"), "event")
@@ -519,6 +527,12 @@ def build_plan(state, users, tenant_id, election_event_id, source_area_id, attri
         },
         "warnings": warnings,
         "voter_ids": sorted(in_scope),
+        # Hashed, so no further raw voter attributes are stored, and bound into the digest,
+        # so a per-voter change that leaves every aggregate equal (a swapped weight,
+        # a disabled voter, a ballot handed to another voter) still invalidates it.
+        # Neither depends on area, so both stay valid across a partial apply.
+        "voter_invariants": canonical_digest(voter_invariants(users, set(in_scope))),
+        "ballot_identity": ballot_identity(state["cast_votes"], set(in_scope)),
         "required_styles": sorted(
             [election_of[contest_id], area_id, contest_id]
             for area_id in set(target_of.values())
@@ -665,6 +679,20 @@ def require_within(original, remaining):
                                        "investigate instead of resuming"])
 
 
+def require_same_invariants(original, current):
+    """Voters and ballots must be exactly as when the original journal was written."""
+    if "voter_invariants" not in original or "ballot_identity" not in original:
+        raise RegroupError("the journal predates voter and ballot invariants; it cannot be resumed")
+    problems = []
+    if current["voter_invariants"] != original["voter_invariants"]:
+        problems.append("a voter changed since the first apply (enabled, weight, eligibility or "
+                        "another attribute)")
+    if current["ballot_identity"] != original["ballot_identity"]:
+        problems.append("cast votes changed owner, status or number since the first apply")
+    if problems:
+        raise RegroupError(problems + ["revert or investigate instead of resuming"])
+
+
 def command_apply(context, out):
     if context.resume:
         # The original journal is never rewritten: its snapshot predates the
@@ -673,6 +701,7 @@ def command_apply(context, out):
         require_same_scope(context, journal["plan"])
         _, _, plan = current_plan(context, journal["plan"]["area_ids"])
         require_within(journal["plan"], plan)
+        require_same_invariants(journal["plan"], plan)
     else:
         reviewed = read_json(context.plan_path)
         require_same_scope(context, reviewed)
@@ -722,6 +751,8 @@ def command_verify(context, out, journal=None):
                         f"{plan['counts']['cast_votes_to_move']} cast vote(s) are not in their area yet")
     if actual != reviewed["summary"]:
         problems.append("actual per-area counts differ from the reviewed plan")
+    if "ballot_identity" in reviewed and plan["ballot_identity"] != reviewed["ballot_identity"]:
+        problems.append("cast votes changed owner, status or number since the plan was reviewed")
     changed_voters = [uid for uid, digest in journal["voters"].items()
                       if voter_invariants(users, {uid}).get(uid) != digest]
     if changed_voters:

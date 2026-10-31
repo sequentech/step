@@ -93,7 +93,7 @@ class FakeKeycloak:
 
     def add(self, number, value, area=SOURCE, weight="1", **extra):
         attributes = {regroup.AREA_ID_ATTRIBUTE: [area], regroup.VOTE_WEIGHT_ATTRIBUTE: [weight],
-                      "ssn4": ["0000"], **extra}
+                      "ssn4": ["ssn-sentinel"], **extra}
         if value is not None:
             attributes[ATTRIBUTE] = value if isinstance(value, list) else [value]
         self.users[user_id(number)] = {"id": user_id(number), "username": f"u{number}",
@@ -203,7 +203,7 @@ class RegroupTest(unittest.TestCase):
         self.assertEqual({v["area_id"] for v in self.hasura.cast_votes
                           if v["voter_id_string"] == user_id(1)}, {unit_a["id"]})
         self.assertEqual(self.keycloak.users[user_id(3)]["attributes"]["area-id"], [unit_a["id"]])
-        self.assertEqual(self.keycloak.users[user_id(3)]["attributes"]["ssn4"], ["0000"])
+        self.assertEqual(self.keycloak.users[user_id(3)]["attributes"]["ssn4"], ["ssn-sentinel"])
         self.assertEqual(self.keycloak.users[user_id(5)]["attributes"]["area-id"], [OTHER_AREA])
         self.assertTrue(all(v["area_id"] == OTHER_AREA for v in self.hasura.cast_votes
                             if v["voter_id_string"] == user_id(5)))
@@ -245,6 +245,66 @@ class RegroupTest(unittest.TestCase):
         self.assertEqual(code, 3)
         self.assertEqual(self.keycloak.puts, puts)
         self.assertEqual(len([a for a in self.hasura.areas if a["name"] == "Unit A"]), 1)
+
+    def assert_refused_before_any_write(self, code, result):
+        self.assertEqual(code, 2)
+        self.assertIn("changed since the plan", result["problems"][0])
+        self.assertEqual((self.hasura.apply_calls, self.keycloak.puts), (0, 0))
+        self.assertFalse(os.path.exists(Args(self.directory).journal))
+
+    def test_plan_binds_hashed_voter_and_ballot_invariants(self):
+        self.run_command("plan")
+        text = Path(Args(self.directory).plan).read_text()
+        plan = json.loads(text)
+        for key in ("voter_invariants", "ballot_identity"):
+            self.assertRegex(plan[key], "^[0-9a-f]{64}$")
+        self.assertNotIn("ssn-sentinel", text)
+        code, result = self.run_command("apply")
+        self.assertEqual((code, result["outcome"]), (3, "PUBLICATION_PENDING"))
+
+    def test_apply_refuses_eligibility_or_enabled_changes_before_any_write(self):
+        for change in ("eligibility", "enabled"):
+            with self.subTest(change=change):
+                self.setUp()
+                self.run_command("plan")
+                user = self.keycloak.users[user_id(3)]
+                if change == "enabled":
+                    user["enabled"] = False
+                else:
+                    user["attributes"]["authorized-election-ids"] = ["other-election"]
+                self.assert_refused_before_any_write(*self.run_command("apply"))
+
+    def test_apply_refuses_a_balanced_weight_swap(self):
+        self.run_command("plan")
+        before = json.loads(Path(Args(self.directory).plan).read_text())["summary"]
+        attributes = lambda n: self.keycloak.users[user_id(n)]["attributes"]
+        attributes(1)["vote-weight"], attributes(2)["vote-weight"] = (
+            attributes(2)["vote-weight"], attributes(1)["vote-weight"])
+        state = self.hasura.load(TENANT, EVENT)
+        swapped = regroup.build_plan(state, self.keycloak.list_users(regroup.event_realm(TENANT, EVENT)),
+                                     TENANT, EVENT, SOURCE, ATTRIBUTE, regroup.BlankPolicy.FAIL)
+        self.assertEqual(swapped["summary"], before)
+        self.assert_refused_before_any_write(*self.run_command("apply"))
+
+    def test_apply_refuses_ballots_handed_to_another_voter(self):
+        self.run_command("plan")
+        first = next(v for v in self.hasura.cast_votes
+                     if v["voter_id_string"] == user_id(1) and v["status"] == "valid")
+        second = next(v for v in self.hasura.cast_votes if v["voter_id_string"] == user_id(2))
+        first["voter_id_string"], second["voter_id_string"] = user_id(2), user_id(1)
+        self.assert_refused_before_any_write(*self.run_command("apply"))
+
+    def test_apply_refuses_a_balanced_valid_discarded_status_swap(self):
+        self.run_command("plan")
+        before = json.loads(Path(Args(self.directory).plan).read_text())["summary"]
+        votes = [v for v in self.hasura.cast_votes if v["voter_id_string"] == user_id(1)]
+        self.assertEqual(sorted(v["status"] for v in votes), ["discarded", "valid"])
+        votes[0]["status"], votes[1]["status"] = votes[1]["status"], votes[0]["status"]
+        state = self.hasura.load(TENANT, EVENT)
+        swapped = regroup.build_plan(state, self.keycloak.list_users(regroup.event_realm(TENANT, EVENT)),
+                                     TENANT, EVENT, SOURCE, ATTRIBUTE, regroup.BlankPolicy.FAIL)
+        self.assertEqual(swapped["summary"], before)
+        self.assert_refused_before_any_write(*self.run_command("apply"))
 
     def test_apply_refuses_when_the_event_changed_after_review(self):
         self.run_command("plan")
@@ -409,6 +469,42 @@ class RegroupTest(unittest.TestCase):
                 with self.assertRaises(regroup.RegroupError):
                     regroup.Context(Args(self.directory, hasura_endpoint=url),
                                     self.hasura, self.keycloak)
+
+    def test_resume_refuses_a_voter_changed_during_the_interruption(self):
+        journal = self.interrupted_apply()
+        self.keycloak.users[user_id(4)]["attributes"]["vote-weight"] = ["5"]
+        writes = (self.hasura.apply_calls, self.keycloak.puts)
+        code, result = self.run_command("apply", resume=True)
+        self.assertEqual(code, 2)
+        self.assertIn("a voter changed since the first apply", " ".join(result["problems"]))
+        self.assertEqual((self.hasura.apply_calls, self.keycloak.puts), writes)
+        self.assertEqual(Path(Args(self.directory).journal).read_bytes(), journal)
+
+    def test_resume_refuses_a_journal_without_invariants(self):
+        self.interrupted_apply()
+        path = Path(Args(self.directory).journal)
+        journal = json.loads(path.read_text())
+        del journal["plan"]["voter_invariants"]
+        path.write_text(json.dumps(journal))
+        recorded = path.read_bytes()
+        writes = (self.hasura.apply_calls, self.keycloak.puts)
+        code, result = self.run_command("apply", resume=True)
+        self.assertEqual(code, 2)
+        self.assertIn("predates voter and ballot invariants", result["problems"][0])
+        self.assertEqual((self.hasura.apply_calls, self.keycloak.puts), writes)
+        self.assertEqual(path.read_bytes(), recorded)
+
+    def test_verify_detects_ballot_owner_drift_after_apply(self):
+        self.run_command("plan")
+        self.run_command("apply")
+        self.publish()
+        first = next(v for v in self.hasura.cast_votes
+                     if v["voter_id_string"] == user_id(1) and v["status"] == "valid")
+        second = next(v for v in self.hasura.cast_votes if v["voter_id_string"] == user_id(2))
+        first["voter_id_string"], second["voter_id_string"] = user_id(2), user_id(1)
+        code, result = self.run_command("verify")
+        self.assertEqual(code, 2)
+        self.assertIn("changed owner, status or number", " ".join(result["problems"]))
 
     def test_revert_refuses_once_a_new_tally_exists(self):
         self.run_command("plan")

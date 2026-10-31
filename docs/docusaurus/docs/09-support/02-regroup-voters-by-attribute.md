@@ -13,7 +13,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 Validated on an isolated local stack running the published `v10.1.0-rc.4`
 images (commit `94c01d6`) with a copy of a real weighted event, synthetic
 voters and synthetic ballots. See [Validation on v10.1.0-rc.4](#validation-on-v1010-rc4).
-Focused tests: `python3 scripts/test_regroup_voters_by_attribute.py`, 39
+Focused tests: `python3 scripts/test_regroup_voters_by_attribute.py`, 47
 tests, OK.
 
 :::
@@ -148,6 +148,14 @@ snapshot taken before the first change. Do not start over with a new plan and
 journal after a partial apply, because a later snapshot would hide anything
 that changed in between.
 
+A plan also records hashed digests of each voter's data apart from the area
+(enabled flag, weight, eligibility and other attributes) and of which cast votes
+belong to which voter, with their status. Any change refuses `apply` before it
+writes anything, even one that leaves every count equal, such as two swapped
+weights. Plans and journals made before these digests existed must not be
+used: plan again before applying. A journal without them cannot be resumed. Never edit or
+rebaseline a journal of a partial apply.
+
 - **Finish an interrupted apply:** `regroup apply --resume`, with the same
   `--journal`. It only performs moves recorded in that journal, exactly as
   recorded, and refuses anything else. It then verifies against that original
@@ -227,8 +235,15 @@ step-cli step start-tally --election-event-id <event> --tally-type ELECTORAL_RES
 | Repeat `plan` | Nothing to create or move |
 | `revert` after the second tally | Refused; nothing changed |
 
-Byte-level evidence was taken before `apply` and compared after the second
-tally:
+A second, independent copy of the event was later run end to end the same way
+with the stale-plan protection described in Recovery. That run also checked:
+
+- After `plan`, swapping the weights of two voters of the same area (every count unchanged), or giving one voter an eligibility value, made `apply` refuse before writing anything: no journal, no area, no moved voter or vote. After restoring the voters exactly, the same plan applied.
+- Baseline 15/15 and second tally 615/615 values equal the expectation. `verify` returned `READY_FOR_TALLY`, a repeat `plan` found nothing to do, and `revert` was refused after the second tally.
+- All 821 original board messages, all 1,171 electoral log entries and all 50 stored artifacts are unchanged. Every cast vote is identical apart from `area_id`.
+
+For the first event, byte-level evidence was taken before `apply` and compared
+after the second tally:
 
 - All 866 original bulletin board messages are unchanged. The second tally appended its own.
 - All 1,176 original electoral log entries are unchanged.
