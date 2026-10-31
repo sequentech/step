@@ -19,6 +19,11 @@ import theme from "../../../ui-essentials/src/services/theme"
 import {ELECTION_WITH_INVALID} from "../fixtures/election"
 import {RootState, store} from "../store/store"
 import {ETransparencyMode} from "../services/vitrine/types"
+import {
+    clearBallotSent,
+    markBallotSent,
+    readBallotSent,
+} from "../store/receivedBallots/sentBallotMarker"
 import {ReviewScreen} from "./ReviewScreen"
 
 jest.mock("react-i18next", () => ({
@@ -43,6 +48,7 @@ jest.mock("../store/hooks", () => ({
 }))
 jest.mock("../providers/AuthContextProvider", () => ({
     AuthContext: jest.requireActual<typeof React>("react").createContext({
+        userId: "voter-1",
         logout: jest.fn(),
         isKiosk: () => false,
         isGoldUser: () => false,
@@ -145,15 +151,18 @@ const renderReview = () => {
         ],
         {initialEntries: ["/tenant/tenant-1/event/event-1/election/election-1/review?preview=true"]}
     )
-    return render(
-        <Provider store={store}>
-            <ThemeProvider theme={theme}>
-                <BallotEngineProvider engine={anEngine()}>
-                    <RouterProvider router={router} />
-                </BallotEngineProvider>
-            </ThemeProvider>
-        </Provider>
-    )
+    return {
+        router,
+        ...render(
+            <Provider store={store}>
+                <ThemeProvider theme={theme}>
+                    <BallotEngineProvider engine={anEngine()}>
+                        <RouterProvider router={router} />
+                    </BallotEngineProvider>
+                </ThemeProvider>
+            </Provider>
+        ),
+    }
 }
 
 const trackingIdBox = (container: HTMLElement) => container.querySelector(".vitrine-hash-container")
@@ -238,5 +247,62 @@ describe("an event that keeps no transparency log", () => {
     it("still copies the whole ID, and says so", () => {
         renderReview()
         expect(screen.getByRole("button", {name: "reviewScreen.copyBallotId"})).toBeTruthy()
+    })
+})
+
+describe("a page reloaded after the ballot was sent", () => {
+    const owner = {tenantId: "tenant-1", eventId: "event-1", userId: "voter-1"}
+    const sent = (override: Partial<Parameters<typeof markBallotSent>[0]> = {}) =>
+        markBallotSent({owner, electionId: "election-1", trackingId: "FTBE-MHRX", ...override})
+    // The one-time key and the ballot only lived in memory, so nothing is left to cast.
+    const afterReload = () => {
+        setUpState({transparency: ETransparencyMode.PUBLIC})
+        mockState = {...mockState, auditableBallots: {}}
+    }
+    beforeEach(() => clearBallotSent())
+    afterAll(() => clearBallotSent())
+
+    it("says the ballot was not cast, and why", () => {
+        afterReload()
+        sent()
+        const {container} = renderReview()
+        expect(container.querySelector(".review-reloaded-title")?.textContent).toBe(
+            "reviewScreen.reloaded.title"
+        )
+        expect(screen.getByText("reviewScreen.reloaded.text")).toBeTruthy()
+        expect(screen.getByRole("alert")).toBeTruthy()
+        expect(screen.queryByRole("button", {name: "reviewScreen.castBallotButton"})).toBeNull()
+    })
+
+    it("takes the voter back to the ballot, and the notice does not come back", () => {
+        afterReload()
+        sent()
+        const {router} = renderReview()
+        fireEvent.click(screen.getByRole("button", {name: "reviewScreen.reloaded.back"}))
+        expect(router.state.location.pathname).toBe(
+            "/tenant/tenant-1/event/event-1/election/election-1/vote"
+        )
+        expect(router.state.location.search).toBe("?preview=true")
+        expect(readBallotSent(owner, "election-1")).toBeUndefined()
+        expect(screen.queryByText("reviewScreen.reloaded.text")).toBeNull()
+    })
+
+    it.each([
+        ["no ballot was sent", () => undefined],
+        ["the ballot sent was another voter's", () => sent({owner: {...owner, userId: "voter-2"}})],
+        ["the ballot sent was for another election", () => sent({electionId: "election-2"})],
+    ])("shows no notice when %s", (_name, mark) => {
+        afterReload()
+        mark()
+        renderReview()
+        expect(screen.queryByText("reviewScreen.reloaded.text")).toBeNull()
+    })
+
+    it("shows no notice while a ballot is under review, whatever was sent before", () => {
+        setUpState({transparency: ETransparencyMode.PUBLIC})
+        sent()
+        const {container} = renderReview()
+        expect(screen.queryByText("reviewScreen.reloaded.text")).toBeNull()
+        expect(trackingIdBox(container)).not.toBeNull()
     })
 })

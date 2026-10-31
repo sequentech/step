@@ -19,6 +19,7 @@ import {
     selectReceivedBallot,
 } from "../store/receivedBallots/receivedBallotsSlice"
 import {clearSessionStorageBallotData} from "../store/castVotes/sessionBallotData"
+import {clearBallotSent} from "../store/receivedBallots/sentBallotMarker"
 import {EStageCheck, IReceiptView, runCastReceipt} from "../services/vitrine/castReceipt"
 import type {ITransparency} from "../services/vitrine/presentation"
 import {trackingDigestHex, trackingIdOf} from "../services/vitrine/trackingId"
@@ -97,6 +98,7 @@ export const useAuditBallot = (
                 provideBallotService().forgetVoterSigningKey(electionId)
                 dispatch(markBallotAudited({electionId, ballotHash: ballot.ballot_hash}))
                 dispatch(clearReceivedBallot(electionId))
+                clearBallotSent(electionId)
                 clearSessionStorageBallotData()
             }
         } catch {

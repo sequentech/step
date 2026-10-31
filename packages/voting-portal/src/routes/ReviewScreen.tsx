@@ -12,6 +12,7 @@ import {
     receivedBallotTrackingId,
     useCastReceivedBallot,
 } from "../hooks/useCastReceivedBallot"
+import {clearBallotSent, readBallotSent} from "../store/receivedBallots/sentBallotMarker"
 import {selectReceivedBallot} from "../store/receivedBallots/receivedBallotsSlice"
 import {
     Link as RouterLink,
@@ -812,6 +813,23 @@ export const ReviewScreen: React.FC = () => {
     }, [auditableBallot, selectionState, isMultiContest])
 
     const votePath = `/tenant/${tenantId}/event/${eventId}/election/${electionId}/vote${location.search}`
+    // A ballot this tab sent, found without the ballot in memory: the page was
+    // reloaded after the ballot box received it.
+    const [reloadNoticeDismissed, setReloadNoticeDismissed] = useState(false)
+    const sentBeforeReload = useMemo(
+        () =>
+            reloadNoticeDismissed
+                ? undefined
+                : readBallotSent(
+                      {
+                          tenantId: tenantId ?? "",
+                          eventId: eventId ?? "",
+                          userId: authContext.userId,
+                      },
+                      electionId ?? ""
+                  ),
+        [tenantId, eventId, electionId, authContext.userId, reloadNoticeDismissed]
+    )
 
     useEffect(() => {
         if (hasStaleBallot) {
@@ -1045,7 +1063,11 @@ export const ReviewScreen: React.FC = () => {
             void goldenUserCastBallotAction()
     }, [needsRecovery, recovery, recoveryOwner])
 
-    if (needsRecovery && !hasInconsistentHash) {
+    // A reload with nothing saved to recover from is the reload notice below,
+    // not a cast to recover.
+    const reloadedWithoutRecovery =
+        !!sentBeforeReload && !auditableBallot && !snapshotSessionBallotData().serialized
+    if (needsRecovery && !hasInconsistentHash && !reloadedWithoutRecovery) {
         const saved = snapshotSessionBallotData()
         const canRetry = recovery === ECastRecovery.RETRY && !!saved.serialized && !!saved.expiry
         let savedBallotId =
@@ -1122,6 +1144,50 @@ export const ReviewScreen: React.FC = () => {
 
     if (hasStaleBallot) {
         return <CircularProgress className="review-progress" aria-label={t("a11y.loading")} />
+    }
+
+    // The ballot was sent and the page reloaded: the key that casts it was only
+    // in memory and is gone. Say so, and take the voter back to a new ballot.
+    if (sentBeforeReload && !auditableBallot) {
+        return (
+            <Box
+                className="review-reloaded"
+                sx={{margin: "auto 0", display: "flex", flexDirection: "column", gap: 2}}
+            >
+                <WarnBox
+                    className="review-reloaded-notice"
+                    variant="warning"
+                    announcement={EWarnBoxAnnouncement.ASSERTIVE}
+                >
+                    <Box className="review-reloaded-text">
+                        <Box
+                            className="review-reloaded-title"
+                            component="strong"
+                            sx={{display: "block"}}
+                        >
+                            {t("reviewScreen.reloaded.title")}
+                        </Box>
+                        {t("reviewScreen.reloaded.text")}
+                    </Box>
+                </WarnBox>
+                <Box
+                    className="review-reloaded-actions"
+                    sx={{display: "flex", justifyContent: "center", width: "100%"}}
+                >
+                    <StyledButton
+                        className="review-reloaded-back-button"
+                        onClick={() => {
+                            clearBallotSent(electionId)
+                            setReloadNoticeDismissed(true)
+                            navigate(votePath)
+                        }}
+                        sx={{width: {xs: "100%", sm: "240px"}}}
+                    >
+                        {t("reviewScreen.reloaded.back")}
+                    </StyledButton>
+                </Box>
+            </Box>
+        )
     }
 
     if (!ballotStyle || (!auditableBallot && !isFullyAcclaimed)) {

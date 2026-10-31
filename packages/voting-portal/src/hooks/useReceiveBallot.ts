@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {useEffect, useRef, useState} from "react"
+import {useContext, useEffect, useRef, useState} from "react"
 import {useApolloClient, useMutation} from "@apollo/client/react"
 import {useTranslation} from "react-i18next"
 import {
@@ -30,6 +30,8 @@ import {
     selectReceivedBallotId,
     setReceivedBallot,
 } from "../store/receivedBallots/receivedBallotsSlice"
+import {markBallotSent} from "../store/receivedBallots/sentBallotMarker"
+import {AuthContext} from "../providers/AuthContextProvider"
 
 export enum EReceiveBallotStatus {
     NOT_REQUIRED = "not-required",
@@ -84,6 +86,7 @@ export const useReceiveBallot = ({
     const client = useApolloClient()
     const {t} = useTranslation()
     const dispatch = useAppDispatch()
+    const {userId} = useContext(AuthContext)
     const [receiveBallot] = useMutation<ReceiveBallotMutation>(RECEIVE_BALLOT)
     const {toHashableBallot, toHashableMultiBallot, verifyReceivedBallot} = provideBallotService()
     const required = isReceivedAtReview(ballotStyle) && !skip
@@ -210,6 +213,17 @@ export const useReceiveBallot = ({
                 }
             }
             dispatch(setReceivedBallot({electionId: ballotStyle.election_id, receivedBallot}))
+            // A reload now drops the key that casts this ballot; the review
+            // screen tells the voter when it finds this after one.
+            markBallotSent({
+                owner: {
+                    tenantId: ballotStyle.tenant_id,
+                    eventId: ballotStyle.election_event_id,
+                    userId,
+                },
+                electionId: ballotStyle.election_id,
+                trackingId: trackingId ?? "",
+            })
         }
         send()
     }, [required, ballotStyle, auditableBallot, ballotHash, receivedBallotId])

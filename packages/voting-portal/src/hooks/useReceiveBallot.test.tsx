@@ -11,6 +11,11 @@ import {EStageCheck} from "../services/vitrine/castReceipt"
 import type {ITransparency} from "../services/vitrine/presentation"
 import {EReceiveBallotStatus, useReceiveBallot} from "./useReceiveBallot"
 
+jest.mock("../providers/AuthContextProvider", () => ({
+    AuthContext: jest.requireActual<typeof import("react")>("react").createContext({
+        userId: "voter-1",
+    }),
+}))
 jest.mock("react-i18next", () => ({
     useTranslation: () => ({
         t: (key: string, values?: Record<string, string>) =>
@@ -139,6 +144,26 @@ it("sends the voter-signed ballot and stores the receipt this device has checked
         },
     })
     expect(mockVerifyReceivedBallot).toHaveBeenCalledWith(BALLOT_BOX_KEY, RECEIVED)
+})
+
+it("remembers in the tab that the ballot was sent, for a reload to find", async () => {
+    sessionStorage.clear()
+    receive()
+
+    await waitFor(() => expect(mockDispatch).toHaveBeenCalled())
+    const saved = JSON.parse(sessionStorage.getItem("sentBallotMarker") ?? "null")
+    expect(saved).toMatchObject({electionId: "election-1"})
+    // The marker says a ballot was sent; it carries no key and no choices.
+    expect(Object.keys(saved).sort()).toEqual(["electionId", "owner", "trackingId"])
+})
+
+it("leaves nothing in the tab when the ballot box did not receive the ballot", async () => {
+    sessionStorage.clear()
+    mockReceiveBallot.mockRejectedValue(new Error("Network"))
+    receive()
+
+    await waitFor(() => expect(mockReceiveBallot).toHaveBeenCalled())
+    expect(sessionStorage.getItem("sentBallotMarker")).toBeNull()
 })
 
 it("checks the signature over what this device sent, not over what the answer says", async () => {

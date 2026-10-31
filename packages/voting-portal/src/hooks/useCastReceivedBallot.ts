@@ -21,6 +21,7 @@ import {addCastVotes} from "../store/castVotes/castVotesSlice"
 import {useAppDispatch} from "../store/hooks"
 import {clearAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
 import {setConfirmationScreenData} from "../store/castVotes/confirmationScreenDataSlice"
+import {clearBallotSent} from "../store/receivedBallots/sentBallotMarker"
 import {EStageCheck, runCastReceipt} from "../services/vitrine/castReceipt"
 import type {ITransparency} from "../services/vitrine/presentation"
 import {trackingDigestHex, trackingIdOf} from "../services/vitrine/trackingId"
@@ -177,6 +178,7 @@ export const useCastReceivedBallot = () => {
             forgetVoterSigningKey(receivedBallot.election_id)
             dispatch(clearAuditableBallot(receivedBallot.election_id))
         }
+        clearBallotSent(receivedBallot.election_id)
         dispatch(
             setConfirmationScreenData({
                 electionId: receivedBallot.election_id,
