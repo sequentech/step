@@ -325,9 +325,10 @@ units = ["admin-portal", "keycloak-ui"]
 globs = ["packages/ECIESEncryption/**"]
 units = ["ecies"]
 
+# step-cli's build script embeds every voting-load file in the binary.
 [[paths]]
 globs = ["packages/voting-load/**"]
-units = ["voting-load"]
+units = ["voting-load", "step-cli"]
 
 [[paths]]
 globs = ["packages/loadtesting/**"]
@@ -776,7 +777,7 @@ kind = "test"
 runner = "cargo"
 cost = "integration"
 cwd = "packages"
-command = "cargo test --locked -p step-cli --test acceptance_cli -- --ignored"
+command = "cargo test --locked -p step-cli --test cli -- --ignored acceptance_cli::"
 requires = ["postgres-server"]
 workflows = ["tests.yml"]
 [checks.env]

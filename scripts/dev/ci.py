@@ -174,6 +174,8 @@ def matrices(selection: Selection) -> dict[str, object]:
         "builds": builds,
         "journeys": journeys,
         "jobs": jobs,
+        # Checks that build_wasm.yml runs; not jobs of the feedback workflow.
+        "wasm_builds": sorted(check for check in selected if check.startswith("wasm-build:")),
         "ui_jobs": ui_jobs,
     }
 

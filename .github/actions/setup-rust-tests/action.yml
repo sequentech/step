@@ -33,6 +33,9 @@ inputs:
   features:
     description: Cargo feature sets compiled by the job
     default: default
+  compile-cache:
+    description: The STEP_COMPILE_CACHE repository variable; empty leaves compiled units uncached
+    default: ''
 
 runs:
   using: composite
@@ -54,6 +57,19 @@ runs:
         profile: ${{ inputs.profile }}
         features: ${{ inputs.features }}
         targets: host,${{ inputs.targets }}
+        compile-cache: ${{ inputs.compile-cache }}
+
+    # Full debug info makes every test binary larger and slower to link; line
+    # tables keep file and line numbers in backtraces. A job's own setting wins.
+    - name: Limit test debug info to line tables
+      shell: bash
+      run: |
+        if [ -z "${CARGO_PROFILE_DEV_DEBUG:-}" ]; then
+          echo 'CARGO_PROFILE_DEV_DEBUG=line-tables-only' >> "$GITHUB_ENV"
+        fi
+        if [ -z "${CARGO_PROFILE_TEST_DEBUG:-}" ]; then
+          echo 'CARGO_PROFILE_TEST_DEBUG=line-tables-only' >> "$GITHUB_ENV"
+        fi
 
     - name: Install system dependencies
       shell: bash
