@@ -7,7 +7,7 @@ use crate::ballot::{
     verify_ballot_signature, BallotBoxKey, HashableBallot, SignedHashableBallot,
 };
 use crate::ballot_receipt::{
-    ballot_id, verify_cast_receipt, verify_cast_signature,
+    ballot_id, tracking_id, verify_cast_receipt, verify_cast_signature,
     verify_received_ballot, CastReceipt, ReceivedBallot,
 };
 use crate::encrypt::{hash_ballot, hash_multi_ballot};
@@ -39,7 +39,15 @@ pub struct BallotPrivacyTrust {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BallotPrivacyProof {
+    /// The key the signed statements carry: what the proof is checked against.
     pub ballot_id: String,
+    /// The Tracking ID a person is shown for the ballot. When given it must be
+    /// the one computed from the signed ballot and the voter key.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tracking_id: Option<String>,
+    /// How far the ballot got: `received`, `cast` or `audited`. Display only.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stage: Option<String>,
     pub pseudonym: String,
     pub voting_channel: String,
     /// Standard base64 of the entire canonical Borsh Message, not JSON metadata.
@@ -249,7 +257,18 @@ pub fn verify_ballot_log_proof(
                             )
                             .ok()
                             .as_deref()
-                                == Some(proof.ballot_id.as_str()),
+                                == Some(proof.ballot_id.as_str())
+                            && proof.tracking_id.as_deref().is_none_or(
+                                |shown| {
+                                    tracking_id(
+                                        &receipt.statement.ballot_hash,
+                                        Some(
+                                            &receipt.statement.voter_signing_pk,
+                                        ),
+                                    )
+                                    .is_ok_and(|computed| computed == shown)
+                                },
+                            ),
                     );
                     received = Some(receipt);
                 }

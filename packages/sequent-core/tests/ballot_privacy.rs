@@ -22,6 +22,8 @@ fn absent_entries_wait_but_malformed_entries_fail() {
     };
     let mut proof = BallotPrivacyProof {
         ballot_id: "ABCD-EFGH".into(),
+        tracking_id: None,
+        stage: None,
         pseudonym: "7QKM-2HXD".into(),
         voting_channel: "online".into(),
         received_entry: None,
@@ -216,6 +218,8 @@ fn fixture_for_format(multi: bool) -> (BallotPrivacyTrust, BallotPrivacyProof) {
         },
         BallotPrivacyProof {
             ballot_id: received.ballot_id,
+            tracking_id: None,
+            stage: None,
             pseudonym: PSEUDONYM.into(),
             voting_channel: "online".into(),
             received_entry: Some(encode(&received_message)),
@@ -405,6 +409,33 @@ fn a_received_entry_can_verify_while_cast_is_still_pending() {
         verify_ballot_log_proof(&trusted, &proof).checks.cast,
         CheckStatus::Failed
     );
+}
+
+#[test]
+fn the_tracking_id_shown_is_the_one_the_signed_ballot_gives() {
+    use electoral_log::messages::statement::StatementBody;
+    let (trusted, mut proof) = fixture();
+    let message = decode(proof.received_entry.as_ref().unwrap());
+    let StatementBody::BallotReceived(evidence) = message.statement.body else {
+        panic!("a received entry")
+    };
+    let receipt: sequent_core::ballot_receipt::ReceivedBallot =
+        serde_json::from_str(&evidence.received_ballot_json).unwrap();
+    let computed = sequent_core::ballot_receipt::tracking_id(
+        &receipt.statement.ballot_hash,
+        Some(&receipt.statement.voter_signing_pk),
+    )
+    .unwrap();
+    proof.tracking_id = Some(computed.clone());
+    proof.stage = Some("cast".into());
+    let checks = verify_ballot_log_proof(&trusted, &proof).checks;
+    assert_eq!(checks.ballot_id, CheckStatus::Passed);
+    assert_eq!(checks.cast, CheckStatus::Passed);
+    let other = if computed.starts_with('0') { "1" } else { "0" };
+    proof.tracking_id = Some(format!("{other}{}", &computed[1..]));
+    let checks = verify_ballot_log_proof(&trusted, &proof).checks;
+    assert_eq!(checks.ballot_id, CheckStatus::Failed);
+    assert_eq!(checks.received, CheckStatus::Passed);
 }
 
 #[test]

@@ -340,6 +340,86 @@ pub fn tracking_id_starts_with(tracking_id: &str, typed: &str) -> bool {
     plain(tracking_id).starts_with(&plain(typed))
 }
 
+/// What a voter typed in the search box of the public ballot-box log, read as the
+/// start of a voter pseudonym, of a Tracking ID, or of both.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct BallotLogSearch {
+    /// The start of a pseudonym as it is stored: `K7QM-2X`.
+    pub pseudonym: Option<String>,
+    /// The start of a Tracking ID as `normalize_tracking_id` gives it: at least
+    /// the 8 characters of the short form.
+    pub tracking_id: Option<String>,
+}
+
+/// How long a search may be, separators included.
+const BALLOT_LOG_SEARCH_CHARACTERS: usize = 80;
+
+/// Reads the text typed in the ballot-box log's search box. A colon means a
+/// voter pseudonym (`K7QM:2XWD`) and only pseudonyms are searched; a hyphen
+/// means a Tracking ID (`FTBE-MHRX`) and only Tracking IDs are searched; with
+/// neither, both are. Case, spaces, and I, L and O as in a Tracking ID.
+///
+/// `Ok(None)` for a search with nothing in it, and `Err` for text that is no
+/// start of either. A search too short or too long for what its separator
+/// names (a hyphen and 4 characters) gives a `BallotLogSearch` with nothing to
+/// look for: it matches no ballot.
+pub fn parse_ballot_log_search(
+    typed: &str,
+) -> Result<Option<BallotLogSearch>, BallotReceiptError> {
+    let typed = typed.trim();
+    if typed.is_empty() {
+        return Ok(None);
+    }
+    if typed.chars().count() > BALLOT_LOG_SEARCH_CHARACTERS {
+        return Err(BallotReceiptError::Malformed("search".into()));
+    }
+    let (mut colon, mut hyphen) = (false, false);
+    let mut compact = String::new();
+    for character in typed.chars() {
+        match character {
+            ':' => colon = true,
+            BALLOT_ID_SEPARATOR => hyphen = true,
+            _ if character.is_whitespace() => {}
+            _ => compact.push(match character.to_ascii_uppercase() {
+                'O' => '0',
+                'I' | 'L' => '1',
+                upper
+                    if upper.is_ascii()
+                        && BALLOT_ID_ALPHABET.contains(&(upper as u8)) =>
+                {
+                    upper
+                }
+                _ => {
+                    return Err(BallotReceiptError::Malformed("search".into()))
+                }
+            }),
+        }
+    }
+    let pseudonym = ((colon || !hyphen)
+        && (1..=BALLOT_ID_CHARACTERS).contains(&compact.len()))
+    .then(|| {
+        if compact.len() > BALLOT_ID_GROUP {
+            format!(
+                "{}{}{}",
+                &compact[..BALLOT_ID_GROUP],
+                BALLOT_ID_SEPARATOR,
+                &compact[BALLOT_ID_GROUP..]
+            )
+        } else {
+            compact.clone()
+        }
+    });
+    let tracking_id = if colon {
+        None
+    } else {
+        normalize_tracking_id(&compact)
+    };
+    Ok(Some(BallotLogSearch {
+        pseudonym,
+        tracking_id,
+    }))
+}
+
 /// The ballot box's key for a received ballot: the first 40 bits of SHA-512
 /// over the voter-signed ballot and the ballot box's signature. Internal; the
 /// Tracking ID is what voters see.

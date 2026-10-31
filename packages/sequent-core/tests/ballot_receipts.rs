@@ -15,11 +15,11 @@ use sequent_core::ballot::{
 use sequent_core::ballot_receipt::{
     ballot_box_key, ballot_id, forget_voter_signing_key, format_ballot_id,
     keep_voter_signing_key, normalize_ballot_id, normalize_tracking_id,
-    short_tracking_id, sign_cast_receipt, tracking_id, tracking_id_digest,
-    tracking_id_starts_with,
+    parse_ballot_log_search, short_tracking_id, sign_cast_receipt,
     sign_cast_statement, sign_cast_statement_with_kept_key,
-    sign_received_ballot, verify_cast_receipt, verify_cast_signature,
-    verify_received_ballot, BallotReceiptError, CastReceipt,
+    sign_received_ballot, tracking_id, tracking_id_digest,
+    tracking_id_starts_with, verify_cast_receipt, verify_cast_signature,
+    verify_received_ballot, BallotLogSearch, BallotReceiptError, CastReceipt,
     CastReceiptStatement, ReceivedBallot, ReceivedStatement,
 };
 use sequent_core::encrypt::hash_ballot_style;
@@ -740,5 +740,73 @@ fn a_voter_pseudonym_is_not_a_tracking_id() {
     }
     for malformed in ["", "BJH", "BJHF", "BJHF-GCZ", "BJHF-GCZU"] {
         assert_eq!(normalize_tracking_id(malformed), None, "{malformed}");
+    }
+}
+
+fn search(typed: &str) -> BallotLogSearch {
+    parse_ballot_log_search(typed).unwrap().unwrap()
+}
+
+#[test]
+fn a_colon_searches_pseudonyms_only() {
+    for typed in ["k7qm:2xwd", "K7QM:2XWD", " K7QM : 2XWD "] {
+        assert_eq!(
+            search(typed),
+            BallotLogSearch {
+                pseudonym: Some("K7QM-2XWD".into()),
+                tracking_id: None
+            },
+            "{typed}"
+        );
+    }
+    assert_eq!(search("K7QM:").pseudonym.as_deref(), Some("K7QM"));
+    assert_eq!(search("K7QM:2X").pseudonym.as_deref(), Some("K7QM-2X"));
+    assert_eq!(search("K7QM:2XWDX"), BallotLogSearch::default());
+}
+
+#[test]
+fn a_hyphen_searches_tracking_ids_only() {
+    assert_eq!(
+        search("bjhf-gczx"),
+        BallotLogSearch {
+            pseudonym: None,
+            tracking_id: Some("BJHF-GCZX".into())
+        }
+    );
+    assert_eq!(
+        search("BJHF-GCZX-1").tracking_id.as_deref(),
+        Some("BJHF-GCZX-1")
+    );
+    // Fewer than the 8 characters of the short form name no Tracking ID.
+    assert_eq!(search("BJHF-GC"), BallotLogSearch::default());
+}
+
+#[test]
+fn neither_separator_searches_both() {
+    assert_eq!(
+        search("bjhfgczx"),
+        BallotLogSearch {
+            pseudonym: Some("BJHF-GCZX".into()),
+            tracking_id: Some("BJHF-GCZX".into())
+        }
+    );
+    // Too short for a Tracking ID, a pseudonym start; too long for a pseudonym,
+    // a Tracking ID start.
+    assert_eq!(search("BJH").tracking_id, None);
+    assert_eq!(search("BJH").pseudonym.as_deref(), Some("BJH"));
+    assert_eq!(search("BJHFGCZXA").pseudonym, None);
+    assert_eq!(
+        search("BJHFGCZXA").tracking_id.as_deref(),
+        Some("BJHF-GCZX-A")
+    );
+}
+
+#[test]
+fn the_search_reads_ambiguous_characters_like_a_tracking_id() {
+    assert_eq!(search("oi1l:oo").pseudonym.as_deref(), Some("0111-00"));
+    assert_eq!(parse_ballot_log_search("   ").unwrap(), None);
+    assert_eq!(parse_ballot_log_search("").unwrap(), None);
+    for bad in ["%", "BJHU", "BJ_F", &"A".repeat(81)] {
+        assert!(parse_ballot_log_search(bad).is_err(), "{bad}");
     }
 }
