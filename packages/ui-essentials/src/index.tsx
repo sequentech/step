@@ -48,7 +48,12 @@ export {
 } from "./components/BreadCrumbSteps/BreadCrumbSteps"
 export {default as Candidate} from "./components/Candidate/Candidate"
 export {getOrdinalSuffix} from "./components/Candidate/ordinalUtils"
-export {default as BallotHash, BallotHashCopyButton} from "./components/BallotHash/BallotHash"
+export {
+    default as BallotHash,
+    BallotHashCopyButton,
+    copyBallotHash,
+    CopyBallotHashStatus,
+} from "./components/BallotHash/BallotHash"
 export {default as QRCode} from "./components/QRCode/QRCode"
 export {default as CandidatesList} from "./components/CandidatesList/CandidatesList"
 export {default as SelectElection} from "./components/SelectElection/SelectElection"
