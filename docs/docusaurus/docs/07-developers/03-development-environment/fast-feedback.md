@@ -580,30 +580,32 @@ retry can consume a successful earlier producer from that run. Tests rerun in
 both cases. Before the first base cache has been populated, a new PR has a cold
 cache; rerunning the PR demonstrates its own warm cache path.
 
-### Rust compiler caches
+### Rust caches
 
-Rust test and CLI jobs restore Cargo downloads separately from a bounded local
-sccache store. The compiler key includes OS/architecture, rustc identity,
-workspace manifests and Cargo configuration, the actual workspace lockfile,
-profiles, features, targets and compiler flags. Source edits reuse compatible
-units; compiler restore prefixes retain that full identity, including the
-lockfile. Cargo still builds and runs tests every time, and sccache validates each
-compilation's inputs.
-A snapshot hit never skips a test.
-
-The job summary reports the key and restore status; the sccache post-step reports
-compiler hits, misses and unsupported calls. Each compiler snapshot is limited
-to 512 MiB. Successful PR runs save within their merge ref, which
+Rust test and CLI jobs restore Cargo downloads, keyed on the workspace lockfile;
+exact hits skip saving. Successful PR runs save within their merge ref, which
 [GitHub excludes from the base branch and other PRs](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching#restrictions-for-accessing-a-cache);
-successful pushes to `main`, `ovcs` and
-`release/**` seed shared snapshots. Other events, including manual runs and
-`pull_request_target`, only restore. Run-and-attempt generation keys save newly
-compiled units after source edits without changing the compatibility identity.
-Cargo download caches retain fixed lockfile keys and skip saving on exact hits.
-Set `STEP_RUST_CACHE_EPOCH` to a new value to reset compiler compatibility.
-GitHub may evict older generations within its repository cache quota. A
-missing download or compiler snapshot builds normally; an unavailable sccache
-installer falls back to rustc. To reproduce an identity locally:
+successful pushes to `main`, `ovcs` and `release/**` seed the shared copy, and
+other events only restore. A missing download cache builds normally.
+
+Compiled units go to a shared sccache store in the GCS bucket
+`sequent-platform-ci-compile-cache`, which keeps each unit for 30 days. The
+`STEP_COMPILE_CACHE` repository variable turns it on with a JSON object:
+`bucket`, `provider` (the Workload Identity provider) and the `reader` and
+`writer` service accounts. Jobs get a GitHub OIDC token (`id-token: write`)
+and exchange it for one of the two identities: pushes to `main`, `ovcs` and
+`release/**` write, and every other run, PRs included, only reads, so a PR
+can't plant units that a protected branch later reuses. Fork PRs get no OIDC
+token and compile without the cache, as does any job where sccache can't
+reach the bucket. The infrastructure is in gitops at
+`iac/catalog/gcp/ci-compile-cache`.
+
+This replaces a bounded 512 MiB sccache store in the GitHub Actions cache: on
+`ovcs` it hit 0.66% of Rust compilations in the Windmill job, because the
+store filled and evicted units as it wrote them, and it once crashed
+mid-build ([meta#14622](https://github.com/sequentech/meta/issues/14622)).
+The identity script still names each job's output directory and download key.
+To reproduce one locally:
 
 ```sh
 scripts/dev/step-dev rust_cache --name sequent-core --lockfile packages/Cargo.lock \
