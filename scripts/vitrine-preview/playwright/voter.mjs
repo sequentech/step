@@ -44,7 +44,7 @@ await page.waitForTimeout(500);
 await click("next", /next|review/i);
 await page.waitForTimeout(3000);
 await shot("3-review");
-await click("cast", /cast/i);
+await click("cast", /^cast (your )?ballot/i);
 await page.waitForTimeout(4000);
 await shot("4-confirmation");
 const seconds = Number(watch);
