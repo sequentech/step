@@ -2777,6 +2777,9 @@ const basqueTranslation: TranslationType = {
                         delete: "Ziur zaude elementu hau ezabatu nahi duzula?",
                         sealsUnknown:
                             "Ezin izan dira hautestontzien zigiluak egiaztatu: hautestontzi zigilaturik badu, ezabaketa baztertu egingo da.",
+                        archiveNamed: 'Ziur zaude "{{name}}" artxibatu nahi duzula?',
+                        unarchiveNamed: 'Ziur zaude "{{name}}" desartxibatu nahi duzula?',
+                        deleteNamed: 'Ziur zaude "{{name}}" ezabatu nahi duzula?',
                     },
                     notification: {
                         success: {

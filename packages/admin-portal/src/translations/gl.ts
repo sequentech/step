@@ -2786,6 +2786,9 @@ const galegoTranslation: TranslationType = {
                         delete: "¿Estás seguro de que queres eliminar este elemento?",
                         sealsUnknown:
                             "Non se puideron comprobar os selos das urnas: se ten urnas seladas, rexeitarase a eliminación.",
+                        archiveNamed: '¿Estás seguro de que queres arquivar "{{name}}"?',
+                        unarchiveNamed: '¿Estás seguro de que queres desarquivar "{{name}}"?',
+                        deleteNamed: '¿Estás seguro de que queres eliminar "{{name}}"?',
                     },
                     notification: {
                         success: {

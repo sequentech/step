@@ -2807,6 +2807,9 @@ const frenchTranslation: TranslationType = {
                         delete: "Êtes-vous sûr de vouloir supprimer cet élément ?",
                         sealsUnknown:
                             "Les scellés des urnes n'ont pas pu être vérifiés : si l'élément a des urnes scellées, la suppression est refusée.",
+                        archiveNamed: 'Êtes-vous sûr de vouloir archiver "{{name}}" ?',
+                        unarchiveNamed: 'Êtes-vous sûr de vouloir désarchiver "{{name}}" ?',
+                        deleteNamed: 'Êtes-vous sûr de vouloir supprimer "{{name}}" ?',
                     },
                     notification: {
                         success: {

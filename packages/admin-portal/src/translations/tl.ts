@@ -2805,6 +2805,9 @@ const tagalogTranslation: TranslationType = {
                         delete: "Sigurado ka bang tanggalin ang item na ito?",
                         sealsUnknown:
                             "Hindi masuri ang mga seal ng ballot box: kung may naka-seal itong mga ballot box, tatanggihan ang pagbura.",
+                        archiveNamed: 'Sigurado ka bang i-archive ang "{{name}}"?',
+                        unarchiveNamed: 'Sigurado ka bang i-unarchive ang "{{name}}"?',
+                        deleteNamed: 'Sigurado ka bang tanggalin ang "{{name}}"?',
                     },
                     notification: {
                         success: {
