@@ -210,26 +210,27 @@ class Hasura:
         return result
 
     def apply(self, tenant_id, election_event_id, source_area_id, areas, area_contests, moves):
-        """Inserts and guarded moves in one request, which Hasura runs as one transaction."""
-        declarations = [
-            "$t: uuid!",
-            "$e: uuid!",
-            "$s: uuid!",
-            "$areas: [sequent_backend_area_insert_input!]!",
-            "$contests: [sequent_backend_area_contest_insert_input!]!",
-        ]
-        fields = [
-            "areas: insert_sequent_backend_area(objects: $areas) { affected_rows }",
-            "contests: insert_sequent_backend_area_contest(objects: $contests) { affected_rows }",
-        ]
-        variables = {
-            "t": tenant_id,
-            "e": election_event_id,
-            "s": source_area_id,
-            "areas": areas,
-            "contests": area_contests,
-        }
-        for index, (target, ids) in enumerate(sorted(moves.items())):
+        """Inserts and guarded moves in one request, which Hasura runs as one transaction.
+
+        Only the variables a request uses are declared, since GraphQL rejects
+        unused ones; a request with nothing to do is not sent.
+        """
+        declarations, fields, variables = [], [], {}
+        if areas:
+            declarations.append("$areas: [sequent_backend_area_insert_input!]!")
+            fields.append("areas: insert_sequent_backend_area(objects: $areas) { affected_rows }")
+            variables["areas"] = areas
+        if area_contests:
+            declarations.append("$contests: [sequent_backend_area_contest_insert_input!]!")
+            fields.append(
+                "contests: insert_sequent_backend_area_contest(objects: $contests) { affected_rows }"
+            )
+            variables["contests"] = area_contests
+        ordered = sorted((target, ids) for target, ids in moves.items() if ids)
+        if ordered:
+            declarations += ["$t: uuid!", "$e: uuid!", "$s: uuid!"]
+            variables.update({"t": tenant_id, "e": election_event_id, "s": source_area_id})
+        for index, (target, ids) in enumerate(ordered):
             declarations += [f"$ids{index}: [uuid!]!", f"$to{index}: uuid!"]
             fields.append(
                 f"m{index}: update_sequent_backend_cast_vote(where: {{tenant_id: {{_eq: $t}},"
@@ -238,14 +239,16 @@ class Hasura:
             )
             variables[f"ids{index}"] = ids
             variables[f"to{index}"] = target
+        if not fields:
+            return 0, 0, {target: 0 for target in moves}
         data = self.graphql(
             f"mutation({', '.join(declarations)}) {{ {' '.join(fields)} }}", variables
         )
-        moved = {
-            target: data[f"m{index}"]["affected_rows"]
-            for index, (target, _) in enumerate(sorted(moves.items()))
-        }
-        return data["areas"]["affected_rows"], data["contests"]["affected_rows"], moved
+        moved = {target: 0 for target in moves}
+        moved.update({target: data[f"m{index}"]["affected_rows"]
+                      for index, (target, _) in enumerate(ordered)})
+        return (data.get("areas", {}).get("affected_rows", 0),
+                data.get("contests", {}).get("affected_rows", 0), moved)
 
 
 class Keycloak:
@@ -312,6 +315,25 @@ def check_closed(status, what):
         if status.get(channel) not in (None, NOT_STARTED, CLOSED):
             problems.append(f"{what} {channel} is {status.get(channel)!r}")
     return problems
+
+
+def early_voting_presentation(area):
+    """The source area's early voting policy, and nothing that names or describes it."""
+    policy = (area.get("presentation") or {}).get("allow_early_voting")
+    return None if policy is None else {"allow_early_voting": policy}
+
+
+def voter_invariants(users, user_ids):
+    """Digest of everything about each voter that regrouping must not change."""
+    invariants = {}
+    for user in users:
+        if user["id"] in user_ids:
+            attributes = {k: v for k, v in (user.get("attributes") or {}).items()
+                          if k != AREA_ID_ATTRIBUTE}
+            invariants[user["id"]] = canonical_digest({
+                "enabled": user.get("enabled"), "username": user.get("username"),
+                "attributes": attributes})
+    return invariants
 
 
 def operational_problems(state):
@@ -408,7 +430,7 @@ def build_plan(state, users, tenant_id, election_event_id, source_area_id, attri
                 "name": name,
                 "type": source.get("type"),
                 "parent_id": source.get("parent_id"),
-                "presentation": source.get("presentation"),
+                "presentation": early_voting_presentation(source),
                 "annotations": {TOOL_ANNOTATION: marker},
             })
 
@@ -496,6 +518,7 @@ def build_plan(state, users, tenant_id, election_event_id, source_area_id, attri
             "cast_votes_to_move": sum(len(ids) for ids in vote_moves.values()),
         },
         "warnings": warnings,
+        "voter_ids": sorted(in_scope),
         "required_styles": sorted(
             [election_of[contest_id], area_id, contest_id]
             for area_id in set(target_of.values())
@@ -603,13 +626,14 @@ def command_plan(context, out):
 def command_apply(context, out):
     reviewed = read_json(context.plan_path)
     require_same_scope(context, reviewed)
-    _, _, plan = current_plan(context, reviewed["area_ids"])
+    _, users, plan = current_plan(context, reviewed["area_ids"])
     if plan["digest"] != reviewed["digest"]:
         raise RegroupError("the event changed since the plan was reviewed; plan again")
     realm = event_realm(context.tenant_id, context.election_event_id)
     journal = {
         "plan": plan,
         "fingerprints": context.hasura.fingerprints(context.tenant_id, context.election_event_id),
+        "voters": voter_invariants(users, set(plan["voter_ids"])),
         "started_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     }
     write_private_json(context.journal_path, journal, exclusive=True)
@@ -646,6 +670,11 @@ def command_verify(context, out, journal=None):
                         f"{plan['counts']['cast_votes_to_move']} cast vote(s) are not in their area yet")
     if actual != reviewed["summary"]:
         problems.append("actual per-area counts differ from the reviewed plan")
+    changed_voters = [uid for uid, digest in journal["voters"].items()
+                      if voter_invariants(users, {uid}).get(uid) != digest]
+    if changed_voters:
+        problems.append(f"{len(changed_voters)} voter(s) changed in something other than their area "
+                        f"(enabled, username, weight, eligibility or another attribute)")
     problems += compare_fingerprints(
         journal["fingerprints"],
         context.hasura.fingerprints(context.tenant_id, context.election_event_id),

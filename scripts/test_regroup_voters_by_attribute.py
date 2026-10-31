@@ -39,7 +39,8 @@ class FakeHasura:
         self.elections = [{"id": "e1", "status": dict(CLOSED)}]
         self.areas = [
             {"id": SOURCE, "name": "All", "type": None, "parent_id": None,
-             "presentation": {"allow_early_voting": "no_early_voting"}, "annotations": None},
+             "presentation": {"allow_early_voting": "no_early_voting",
+                              "i18n": {"en": {"name": "All voters"}}}, "annotations": None},
             {"id": OTHER_AREA, "name": "Elsewhere", "type": None, "parent_id": None,
              "presentation": None, "annotations": None},
         ]
@@ -94,7 +95,7 @@ class FakeKeycloak:
         if value is not None:
             attributes[ATTRIBUTE] = value if isinstance(value, list) else [value]
         self.users[user_id(number)] = {"id": user_id(number), "username": f"u{number}",
-                                       "attributes": attributes}
+                                       "enabled": True, "attributes": attributes}
 
     def list_users(self, realm):
         assert realm == regroup.event_realm(TENANT, EVENT)
@@ -187,6 +188,7 @@ class RegroupTest(unittest.TestCase):
         unit_a = self.area_named("Unit A")
         self.assertEqual(unit_a["annotations"][regroup.TOOL_ANNOTATION]["source_area_id"], SOURCE)
         self.assertEqual(unit_a["presentation"], {"allow_early_voting": "no_early_voting"})
+        self.assertEqual(unit_a["name"], "Unit A")
         self.assertEqual({v["area_id"] for v in self.hasura.cast_votes
                           if v["voter_id_string"] == user_id(1)}, {unit_a["id"]})
         self.assertEqual(self.keycloak.users[user_id(3)]["attributes"]["area-id"], [unit_a["id"]])
@@ -305,6 +307,21 @@ class RegroupTest(unittest.TestCase):
         self.assertEqual(code, 2)
         self.assertIn("not expected", result["problems"][0])
 
+    def test_verify_detects_changed_weight_or_eligibility(self):
+        for change in ({"vote-weight": ["999"]}, {"authorized-election-ids": ["other"]}, "disable"):
+            with self.subTest(change=change):
+                self.setUp()
+                self.run_command("plan")
+                self.run_command("apply")
+                user = self.keycloak.users[user_id(2)]
+                if change == "disable":
+                    user["enabled"] = False
+                else:
+                    user["attributes"].update(change)
+                code, result = self.run_command("verify")
+                self.assertEqual(code, 2)
+                self.assertIn("changed in something other than their area", " ".join(result["problems"]))
+
     def test_revert_refuses_while_a_tally_is_running(self):
         self.run_command("plan")
         self.run_command("apply")
@@ -407,7 +424,53 @@ class RegroupTest(unittest.TestCase):
             regroup.parse_uuid("{" + TENANT + "}", "--tenant-id")
 
 
+def recording_urlopen(requests, response_body):
+    class Response(io.BytesIO):
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    def urlopen(request):
+        requests.append(request)
+        return Response(json.dumps(response_body).encode())
+    return urlopen
+
+
 class HasuraRequestTest(unittest.TestCase):
+    def test_every_declared_variable_is_used_and_sent(self):
+        import re
+        cases = {
+            "areas only": ([{"id": "a"}], [], {}),
+            "contests only": ([], [{"id": "c"}], {}),
+            "moves only": ([], [], {"target": ["v1"]}),
+            "everything": ([{"id": "a"}], [{"id": "c"}], {"target": ["v1"], "other": ["v2"]}),
+            "empty move list": ([{"id": "a"}], [], {"target": []}),
+        }
+        for name, (areas, contests, moves) in cases.items():
+            with self.subTest(name):
+                requests = []
+                data = {"areas": {"affected_rows": len(areas)},
+                        "contests": {"affected_rows": len(contests)},
+                        "m0": {"affected_rows": 1}, "m1": {"affected_rows": 1}}
+                hasura = regroup.Hasura("http://h.invalid", "s", "backend-db",
+                                        recording_urlopen(requests, {"data": data}))
+                hasura.apply(TENANT, EVENT, SOURCE, areas, contests, moves)
+                body = json.loads(requests[0].data)
+                header, _, selection = body["query"].partition(") {")
+                declared = set(re.findall(r"\$(\w+):", header))
+                used = set(re.findall(r"\$(\w+)", selection))
+                self.assertEqual(declared, used)
+                self.assertEqual(declared, set(body["variables"]))
+
+    def test_nothing_to_do_sends_no_request(self):
+        requests = []
+        hasura = regroup.Hasura("http://h.invalid", "s", "backend-db", recording_urlopen(requests, {}))
+        self.assertEqual(hasura.apply(TENANT, EVENT, SOURCE, [], [], {"target": []}),
+                         (0, 0, {"target": 0}))
+        self.assertEqual(requests, [])
+
     def test_moves_are_guarded_by_scope_and_source_area_in_one_request(self):
         requests = []
 

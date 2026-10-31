@@ -8,6 +8,17 @@ SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
+:::warning Not yet validated end to end on v10.1.0-rc.4
+
+The procedure below is based on reading the `v10.1.0-rc.4` source. The script
+has only been run against its focused tests
+(`python3 scripts/test_regroup_voters_by_attribute.py`: 32 tests, OK, using
+in-memory Hasura and Keycloak). A full run on an rc.4 stack (baseline tally,
+regroup, second tally) is still pending. Do not use it on a production event
+until this notice is replaced with that evidence.
+
+:::
+
 After voting has closed, an election event that used one area can be tallied
 again with one result per value of a voter attribute, for example a "Service
 Unit". `scripts/regroup_voters_by_attribute.py` creates one area per value,
@@ -51,15 +62,27 @@ live ballot styles.
 - **Values are used exactly.** Values with leading or trailing spaces, several
   values for one voter, or values that differ only by case refuse the plan.
 - **Turnout and rounding.** Per-area census and turnout count the voters
-  assigned to each area. Weighted results are integer sums of voter weights, so
-  the per-area results add up exactly to the earlier single-area result, contest
-  by contest. Percentages are rounded per area and need not add up.
+  assigned to each area. Percentages are rounded per area and need not add up.
+- **Adding areas back up.** For plurality-at-large contests (the only
+  algorithm voter-weighted voting allows), each candidate's count is an integer
+  sum of the weights of the voters who chose it. Per-area counts therefore add up
+  exactly to the earlier single-area count, and so do the blank and invalid counts.
+  Winners are decided per area. This does not hold for methods whose result is
+  not a sum of per-ballot counts, such as instant runoff, and is not claimed
+  for them.
+- **Each voter's own data.** Only `area-id` changes. `verify` checks that every
+  regrouped voter's enabled flag, username, weight, authorized elections and
+  every other attribute are unchanged.
 
 ## Preconditions (maintenance window)
 
 - Voting is closed on every channel of the event and of every election.
 - No tally session is running, no cast vote is `in-progress`, and nobody
   edits voters, areas or publications until `verify` reports `READY_FOR_TALLY`.
+  The script checks this state when it starts and guards every move, but it
+  cannot lock Keycloak. Between reading a voter and saving it, a concurrent edit
+  to that voter could still be lost. The maintenance window, with admin access
+  restricted, is what prevents this; the guards only detect most conflicts.
 - The source area holds every voter to regroup. No other area may use one of
   the new names.
 - Access to the Hasura endpoint with its admin secret, and to the Keycloak
@@ -95,9 +118,10 @@ ballot style and cast vote row. Only then does `apply` make changes:
 1. One Hasura request, run as one transaction, inserts the areas and their
    contests and moves the cast votes. Each move only applies to a vote still in
    the source area. If any count differs, apply stops before touching Keycloak.
-2. Each voter's `area-id` is updated only if it still holds the source area.
-   The full user is saved and read back, and every other attribute is checked
-   unchanged.
+2. Each voter's `area-id` is updated only if it still held the source area
+   when it was read. The full user is saved and read back, and every other
+   attribute is checked unchanged. Keycloak has no conditional update, so this
+   narrows, but does not close, the window for a concurrent edit.
 3. `verify` runs (see below).
 
 Then, in the Admin Portal, **generate and publish** a ballot publication for
