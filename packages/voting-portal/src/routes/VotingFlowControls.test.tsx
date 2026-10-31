@@ -1117,7 +1117,7 @@ describe("ballot received by the ballot box at review", () => {
 
         // The mocked translation shows the first eight characters.
         expect(container.querySelector(".hash-text")).toHaveTextContent(
-            `Ballot ID: ${RECEIVED_BALLOT_ID.slice(0, 8)}`
+            `Tracking ID: ${RECEIVED_BALLOT_ID.slice(0, 8)}`
         )
         expect(container.querySelector(".hash-text")).not.toHaveTextContent(BALLOT_ID.slice(0, 8))
         const cast = screen.getByRole("button", {name: "reviewScreen.castBallotButton"})

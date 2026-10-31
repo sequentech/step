@@ -139,5 +139,7 @@ export const useEncryptBallotForReview = () => {
         [checkBeforeEncrypting, encryptNow]
     )
 
-    return {encryptAndStoreBallot, boothRefusal, dismissBoothRefusal}
+    // `encryptNow` skips the booth check, which the Election Architect's preview
+    // has no configuration to run against and cannot wait for.
+    return {encryptAndStoreBallot, encryptNow, boothRefusal, dismissBoothRefusal}
 }

@@ -37,7 +37,7 @@ jest.mock("../providers/WasmWrapper", () => ({
 }))
 const mockEncrypt = jest.fn()
 jest.mock("../hooks/useEncryptBallotForReview", () => ({
-    useEncryptBallotForReview: () => ({encryptAndStoreBallot: mockEncrypt}),
+    useEncryptBallotForReview: () => ({encryptNow: mockEncrypt}),
 }))
 jest.mock("../services/BallotService", () => ({
     provideBallotService: () => ({isPreferential: () => false}),

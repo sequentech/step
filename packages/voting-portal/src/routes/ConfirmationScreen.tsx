@@ -10,6 +10,7 @@ import {
     ConfirmationActions,
     StyledButton,
     VisuallyHidden,
+    theme,
 } from "@sequentech/ui-essentials"
 import {
     stringToHtml,
@@ -523,6 +524,25 @@ const ConfirmationScreen: React.FC = () => {
             isBlankBallot={isBlankBallot}
             ballotId={ballotId.current ?? ""}
             ballotIdOnPhone={t("ballotHash", {ballotId: ballotId.current})}
+            {...(vitrine && eventId && electionId
+                ? {
+                      shortBallotId: shortBallotId(ballotId.current ?? ""),
+                      ballotIdTag: <BallotTag tag={EBallotTag.CAST} />,
+                      ballotIdCopyValue: groupBallotId(ballotId.current ?? ""),
+                      ballotIdStatus: (
+                          <ConfirmationBallotStatus
+                              eventId={eventId}
+                              electionId={electionId}
+                              ballotId={ballotId.current ?? ""}
+                              vitrine={vitrine}
+                              trackerUrl={ballotTrackerUrl}
+                          />
+                      ),
+                      ballotIdButtonSx: ID_BUTTON_SX,
+                      ballotIdCopiedColor: theme.palette.green.dark,
+                      compact: true,
+                  }
+                : {})}
             ballotIdHref={isDemo ? undefined : ballotTrackerUrl}
             ballotIdTarget={isKiosk() ? null : "_blank"}
             onBallotIdClick={handleBallotIdLinkClick}
@@ -530,8 +550,10 @@ const ConfirmationScreen: React.FC = () => {
             ballotIdCopyLabels={
                 auditButtonCfg !== EVotingPortalAuditButtonCfg.NOT_SHOW
                     ? {
-                          copy: t("reviewScreen.copyBallotId"),
-                          copied: t("reviewScreen.ballotIdCopied"),
+                          copy: t(vitrine ? "vitrine.ballotId.copy" : "reviewScreen.copyBallotId"),
+                          copied: t(
+                              vitrine ? "vitrine.ballotId.copied" : "reviewScreen.ballotIdCopied"
+                          ),
                           error: t("reviewScreen.ballotIdCopyError"),
                       }
                     : undefined

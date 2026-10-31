@@ -8,10 +8,13 @@
 
 import React from "react"
 import {fireEvent, render, screen, within} from "@testing-library/react"
+import {Provider} from "react-redux"
 import {ThemeProvider} from "@mui/material/styles"
 import {createMemoryRouter, RouterProvider} from "react-router-dom"
 import {EConsolidatedReportPolicy, EVotingPortalAuditButtonCfg} from "@sequentech/ui-core"
 import type {IAuditableBallot, IContest, IElection} from "@sequentech/ui-core"
+import {BallotEngineProvider} from "@sequentech/ui-essentials"
+import {anEngine} from "../../../ui-essentials/src/testing/ballot"
 import theme from "../../../ui-essentials/src/services/theme"
 import {ELECTION_WITH_INVALID} from "../fixtures/election"
 import {RootState, store} from "../store/store"
@@ -27,34 +30,13 @@ jest.mock("@sequentech/ui-core", () => ({
     ...jest.requireActual("../../../ui-core/src/types/ElectionEventPresentation"),
     ...jest.requireActual("../../../ui-core/src/services/acclamation"),
     sortContestList: (contests?: IContest[]) => contests ?? [],
-    hashBallot: () => BALLOT_ID,
-    hashMultiBallot: () => BALLOT_ID,
+    hashBallot: () => mockBallotId,
+    hashMultiBallot: () => mockBallotId,
 }))
-jest.mock(
-    "@sequentech/ui-essentials",
-    () => ({
-        PageLimit: jest.requireActual("../../../ui-essentials/src/components/PageLimit/PageLimit")
-            .default,
-        Icon: jest.requireActual("../../../ui-essentials/src/components/Icon/Icon").default,
-        IconButton: jest.requireActual(
-            "../../../ui-essentials/src/components/IconButton/IconButton"
-        ).default,
-        BallotHash: jest.requireActual(
-            "../../../ui-essentials/src/components/BallotHash/BallotHash"
-        ).default,
-        BallotHashCopyButton: jest.requireActual(
-            "../../../ui-essentials/src/components/BallotHash/BallotHash"
-        ).BallotHashCopyButton,
-        theme: jest.requireActual("../../../ui-essentials/src/services/theme").default,
-        Dialog: jest.requireActual("../../../ui-essentials/src/components/Dialog/Dialog").default,
-        WarnBox: jest.requireActual("../../../ui-essentials/src/components/WarnBox/WarnBox")
-            .default,
-        EWarnBoxAnnouncement: jest.requireActual(
-            "../../../ui-essentials/src/components/WarnBox/WarnBox"
-        ).EWarnBoxAnnouncement,
-    }),
-    {virtual: true}
-)
+jest.mock("@sequentech/ui-essentials", () => ({
+    ...jest.requireActual("../../../ui-essentials/src/index"),
+    Question: ({question}: {question: IContest}) => <h2>{question.name}</h2>,
+}))
 jest.mock("../store/hooks", () => ({
     useAppSelector: (selector: (state: RootState) => unknown) => selector(mockState),
     useAppDispatch: () => jest.fn(),
@@ -76,16 +58,15 @@ jest.mock("../services/BallotService", () => ({
     provideBallotService: () => ({
         interpretContestSelection: () => [],
         interpretMultiContestSelection: () => [],
-        hashBallot: () => BALLOT_ID,
-        hashMultiBallot: () => BALLOT_ID,
+        hashBallot: () => mockBallotId,
+        hashMultiBallot: () => mockBallotId,
+        decodeAuditableBallot: () => undefined,
+        decodeAuditableMultiBallot: () => undefined,
         toHashableBallot: () => ({}),
         toHashableMultiBallot: () => ({}),
     }),
 }))
 jest.mock("../hooks/root-back-link", () => ({useRootBackLink: () => "/chooser"}))
-jest.mock("../components/Question/Question", () => ({
-    Question: ({question}: {question: IContest}) => <h2>{question.name}</h2>,
-}))
 jest.mock("../components/Stepper", () => ({
     __esModule: true,
     default: () => <ol className="stepper-mock" />,
@@ -96,7 +77,7 @@ jest.mock("@apollo/client/react", () => ({
 }))
 
 let mockState: RootState
-const BALLOT_ID = "0123456789abcdef".repeat(4)
+const mockBallotId = "0123456789abcdef".repeat(4)
 
 const setUpState = ({
     auditButtonCfg,
@@ -145,7 +126,7 @@ const setUpState = ({
         ballotSelections: {"election-1": []},
         auditableBallots: {
             "election-1": {
-                auditableBallot: {config: ballotEml, ballot_hash: BALLOT_ID} as IAuditableBallot,
+                auditableBallot: {config: ballotEml, ballot_hash: mockBallotId} as IAuditableBallot,
                 isBlankBallot: false,
             },
         },
@@ -164,9 +145,13 @@ const renderReview = () => {
         {initialEntries: ["/tenant/tenant-1/event/event-1/election/election-1/review?preview=true"]}
     )
     return render(
-        <ThemeProvider theme={theme}>
-            <RouterProvider router={router} />
-        </ThemeProvider>
+        <Provider store={store}>
+            <ThemeProvider theme={theme}>
+                <BallotEngineProvider engine={anEngine()}>
+                    <RouterProvider router={router} />
+                </BallotEngineProvider>
+            </ThemeProvider>
+        </Provider>
     )
 }
 

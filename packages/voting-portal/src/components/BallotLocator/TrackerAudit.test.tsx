@@ -23,6 +23,8 @@ jest.mock("react-i18next", () => ({
 jest.mock(
     "@sequentech/ui-essentials",
     () => ({
+        // The presentation helpers the portal's ElectionConfigService re-exports.
+        ...jest.requireActual("../../../../ui-essentials/src/ballot/presentation"),
         Candidate: ({
             title,
             description,

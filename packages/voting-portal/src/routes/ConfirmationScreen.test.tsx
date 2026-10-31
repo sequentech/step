@@ -42,33 +42,10 @@ jest.mock("@sequentech/ui-core", () => ({
     ...jest.requireActual("../../../ui-core/src/services/votingPortalDateTime"),
     downloadUrl: jest.fn(),
 }))
-jest.mock(
-    "@sequentech/ui-essentials",
-    () => ({
-        PageLimit: jest.requireActual("../../../ui-essentials/src/components/PageLimit/PageLimit")
-            .default,
-        Icon: jest.requireActual("../../../ui-essentials/src/components/Icon/Icon").default,
-        IconButton: jest.requireActual(
-            "../../../ui-essentials/src/components/IconButton/IconButton"
-        ).default,
-        DecorativeIconBox: jest.requireActual(
-            "../../../ui-essentials/src/components/Icon/DecorativeIconBox"
-        ).default,
-        VisuallyHidden: jest.requireActual(
-            "../../../ui-essentials/src/components/VisuallyHidden/VisuallyHidden"
-        ).default,
-        ...jest.requireActual(
-            "../../../ui-essentials/src/components/ConfirmationActions/ConfirmationActions"
-        ),
-        BallotHashCopyButton: jest.requireActual(
-            "../../../ui-essentials/src/components/BallotHash/BallotHash"
-        ).BallotHashCopyButton,
-        theme: jest.requireActual("../../../ui-essentials/src/services/theme").default,
-        Dialog: () => null,
-        QRCode: jest.requireActual("../../../ui-essentials/src/components/QRCode/QRCode").default,
-    }),
-    {virtual: true}
-)
+jest.mock("@sequentech/ui-essentials", () => ({
+    ...jest.requireActual("../../../ui-essentials/src/index"),
+    Dialog: () => null,
+}))
 jest.mock("../store/hooks", () => ({
     useAppSelector: (selector: (state: RootState) => unknown) => selector(mockState),
     useAppDispatch: () => jest.fn(),

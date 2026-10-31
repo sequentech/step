@@ -47,7 +47,7 @@ const LoadError: React.FC<{error: unknown}> = ({error}) => {
 const SessionGate: React.FC<
     {session: PreviewSession; onLoadError?: (error: unknown) => void} & React.PropsWithChildren
 > = ({session, onLoadError, children}) => {
-    const {encryptAndStoreBallot} = useEncryptBallotForReview()
+    const {encryptNow: encryptAndStoreBallot} = useEncryptBallotForReview()
     const [loaded, setLoaded] = useState<{session: PreviewSession; error?: unknown}>()
 
     // Before paint, so no screen renders against the previous session's state.
