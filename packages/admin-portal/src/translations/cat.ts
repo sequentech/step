@@ -2804,6 +2804,9 @@ const catalanTranslation: TranslationType = {
                         delete: "Estàs segur de que vols eliminar aquest element?",
                         sealsUnknown:
                             "No s'han pogut comprovar els segells de les urnes: si té urnes segellades, l'esborrat es rebutjarà.",
+                        archiveNamed: 'Estàs segur de que vols arxivar "{{name}}"?',
+                        unarchiveNamed: 'Estàs segur de que vols desarxivar "{{name}}"?',
+                        deleteNamed: 'Estàs segur de que vols eliminar "{{name}}"?',
                     },
                     notification: {
                         success: {

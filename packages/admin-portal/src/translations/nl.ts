@@ -2791,6 +2791,9 @@ const dutchTranslation: TranslationType = {
                         delete: "Weet u zeker dat u dit item wilt verwijderen?",
                         sealsUnknown:
                             "De zegels van de stembussen konden niet worden gecontroleerd: als er verzegelde stembussen zijn, wordt het verwijderen geweigerd.",
+                        archiveNamed: 'Weet u zeker dat u "{{name}}" wilt archiveren?',
+                        unarchiveNamed: 'Weet u zeker dat u "{{name}}" wilt dearchiveren?',
+                        deleteNamed: 'Weet u zeker dat u "{{name}}" wilt verwijderen?',
                     },
                     notification: {
                         success: {
