@@ -1164,6 +1164,9 @@ const galegoTranslation: TranslationType = {
                         archive: "¿Estás seguro de que queres arquivar este elemento?",
                         unarchive: "¿Estás seguro de que queres desarquivar este elemento?",
                         delete: "¿Estás seguro de que queres eliminar este elemento?",
+                        archiveNamed: '¿Estás seguro de que queres arquivar "{{name}}"?',
+                        unarchiveNamed: '¿Estás seguro de que queres desarquivar "{{name}}"?',
+                        deleteNamed: '¿Estás seguro de que queres eliminar "{{name}}"?',
                     },
                     notification: {
                         success: {

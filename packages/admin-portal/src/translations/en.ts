@@ -1149,6 +1149,9 @@ const englishTranslation = {
                         archive: "Are you sure to archive this item?",
                         unarchive: "Are you sure to unarchive this item?",
                         delete: "Are you sure to delete this item?",
+                        archiveNamed: 'Are you sure you want to archive "{{name}}"?',
+                        unarchiveNamed: 'Are you sure you want to unarchive "{{name}}"?',
+                        deleteNamed: 'Are you sure you want to delete "{{name}}"?',
                     },
                     notification: {
                         success: {
