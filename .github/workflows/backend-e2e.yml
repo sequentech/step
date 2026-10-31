@@ -140,12 +140,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           JOB: Release binaries (trustee, b4)
         run: |
-          # The latest attempt of each job, so a rerun of only this job still
-          # finds the release job that already succeeded.
+          # Every attempt, newest first: rerunning failed jobs doesn't rerun a
+          # release job that succeeded, so its success is in an earlier attempt.
           for _ in $(seq 1 180); do
             status= conclusion=
-            read -r status conclusion < <(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs?filter=latest&per_page=100" \
-              --jq '.jobs[] | select(.name == env.JOB) | "\(.status) \(.conclusion)"') || true
+            read -r status conclusion < <(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs?filter=all&per_page=100" \
+              --jq '[.jobs[] | select(.name == env.JOB)] | max_by(.run_attempt) | "\(.status) \(.conclusion)"') || true
             if [[ "$status" == completed ]]; then
               [[ "$conclusion" == success ]] && exit 0
               echo "::error::$JOB finished with $conclusion"
