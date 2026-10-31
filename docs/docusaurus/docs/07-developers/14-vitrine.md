@@ -352,6 +352,7 @@ vkeys: Ed25519 for authorities, auditors, monitors and hubs, and
 | `mmd` | No | The maximum merge delay of promises, in seconds. Default 30, at most 3600. |
 | `explorer_url` | No | The explorer's page for a policy, with `{policy_id}` where the ID goes. The Transparency tab links to it. |
 | `monitor_quorum` | No | How many monitors, of distinct parties, must report an availability failure before verifiers show it as established. At least two and at most the number of monitors; at least two distinct monitor parties are required. |
+| `explorers` | No | A list of URLs of other explorer pages that anyone can use to look a record up. The policy gets one `explorer <url>` line per entry. The portal shows them, with the monitors' and hubs' own explorers, under "Look it up elsewhere". |
 | `browser_period` | No | How often hubs anchor in the browser layer, and app hubs in bootstrap hubs, in seconds. Vitrine's default is 600. |
 
 ### Sections
@@ -367,9 +368,9 @@ vkeys: Ed25519 for authorities, auditors, monitors and hubs, and
 | `[[auditors]]` | `name`, `vkey` | The auditors who may read private logs. A private event needs one. |
 | `[[witnesses]]` | `name`, `vkey`, `url`, `party` | The logs' witnesses. `url` is optional; `party` defaults to the witness's own name. |
 | `[[groups]]` | `name`, `threshold`, `members` | Groups of witnesses and groups, for the quorum. `threshold` is a number, `any` or `all`. Members are defined before the group and belong to one group only. |
-| `[[monitors]]` | `name`, `vkey`, `url`, `party` | The policy's monitors, which check the logs and collect evidence. |
+| `[[monitors]]` | `name`, `vkey`, `url`, `party`, `explorer` | The policy's monitors, which check the logs and collect evidence. `explorer` is optional: the URL of an explorer page the monitor publishes; the policy gets a `monitor-explorer <name> <url>` line. |
 | `[[mirrors]]` | `url`, `party`, `logs` | Mirrors of the logs' tiles. `url` has `{path}` where the log's path on the sidecar goes; `party` defaults to the operator; `logs` (`ballots`, `events`) defaults to both. A public event needs a `ballots` mirror that the operator doesn't run. |
-| `[[hubs]]` | `name`, `vkey`, `url`, `operator`, `role`, `witnesses`, `groups`, `quorum` | Anchor hubs for both public and private events. `role` is `app` (the default: the logs anchor in it) or `bootstrap` (it stands in for the browser layer). `witnesses` and `groups` have the shapes above. |
+| `[[hubs]]` | `name`, `vkey`, `url`, `operator`, `explorer`, `role`, `witnesses`, `groups`, `quorum` | Anchor hubs for both public and private events. `explorer` is optional: the URL of an explorer page the hub publishes; the policy gets a `hub-explorer <name> <url>` line. `role` is `app` (the default: the logs anchor in it) or `bootstrap` (it stands in for the browser layer). `witnesses` and `groups` have the shapes above. |
 
 Harvest also checks that:
 

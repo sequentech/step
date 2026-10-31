@@ -401,8 +401,16 @@ pub fn draft(config: &DeploymentConfig, event: &DraftEvent) -> Result<String> {
             lines.push(&["monitor-party", &m.name, party]);
         }
     }
+    for m in &config.monitors {
+        if let Some(url) = &m.explorer {
+            lines.push(&["monitor-explorer", &m.name, url]);
+        }
+    }
     if let Some(k) = config.monitor_quorum {
         lines.push(&["monitor-quorum", &k.to_string()]);
+    }
+    for url in &config.explorers {
+        lines.push(&["explorer", url]);
     }
 
     log_lines(&mut lines, config, LogName::Ballots, &event.ballots, public)?;
@@ -457,6 +465,9 @@ pub fn draft(config: &DeploymentConfig, event: &DraftEvent) -> Result<String> {
         for h in &hubs {
             lines.push(&["hub", &h.name, &h.vkey, &h.url]);
             lines.push(&["hub-operator", &h.name, &h.operator]);
+            if let Some(url) = &h.explorer {
+                lines.push(&["hub-explorer", &h.name, url]);
+            }
             for w in &h.witnesses {
                 match &w.url {
                     Some(url) => lines.push(&["hub-witness", &h.name, &w.name, &w.vkey, url]),
@@ -638,6 +649,7 @@ pub(crate) mod tests {
             r#"
             monitor_quorum = 2
             browser_period = 600
+            explorers = ["https://explorer.one.example/", "https://explorer.two.example/"]
             [anchor]
             period = 10
             max_gap = 60
@@ -649,11 +661,13 @@ pub(crate) mod tests {
             vkey = "{monitor}"
             url = "https://monitor.observers.example/"
             party = "observers"
+            explorer = "https://explorer.observers.example/"
             [[hubs]]
             name = "example"
             vkey = "{hub}"
             url = "https://hub.example.org/"
             operator = "example-org"
+            explorer = "https://explorer.example.org/"
             quorum = "ew"
             witnesses = [
                 {{ name = "ew1", vkey = "{ew1}", party = "example-org" }},
@@ -778,7 +792,10 @@ pub(crate) mod tests {
             "monitor",
             "monitor-party",
             "monitor-party",
+            "monitor-explorer",
             "monitor-quorum",
+            "explorer",
+            "explorer",
         ]);
         expected.extend(["log", "log-time"]);
         for m in mirrors_of(&config, LogName::Ballots) {
@@ -810,6 +827,7 @@ pub(crate) mod tests {
         expected.extend([
             "hub",
             "hub-operator",
+            "hub-explorer",
             "hub-witness",
             "hub-witness",
             "hub-witness",
@@ -837,6 +855,21 @@ pub(crate) mod tests {
             ["name acme/e7a2b3c4-0000-4000-8000-000000000001"]
         );
         assert_eq!(line(&text, "visibility"), ["visibility public"]);
+        assert_eq!(
+            line(&text, "monitor-explorer"),
+            ["monitor-explorer observers https://explorer.observers.example/"]
+        );
+        assert_eq!(
+            line(&text, "hub-explorer"),
+            ["hub-explorer example https://explorer.example.org/"]
+        );
+        assert_eq!(
+            line(&text, "explorer"),
+            [
+                "explorer https://explorer.one.example/",
+                "explorer https://explorer.two.example/"
+            ]
+        );
         assert_eq!(line(&text, "required"), ["required on"]);
         assert_eq!(line(&text, "mmd"), ["mmd 30"]);
         assert_eq!(line(&text, "opens"), ["opens 1793520000"]);
