@@ -35,8 +35,8 @@ stack's network namespace to reach the log server's internal listener through a 
 ## What is live and what is stubbed
 
 Live: the policy (the stack's sealed policy, read from `deploy/.state/public`), the ballots log
-(every cast is submitted to it through its `add` route with its submission token and answered with
-its real receipt or promise), every read of the receipt chain (the portal reads the log, witnesses,
+(every stage of a ballot is submitted to it through its `add` route with its submission token and
+answered with its real receipt or promise), every read of the receipt chain (the portal reads the log, witnesses,
 hubs and monitors directly), the events log (the booth's config statement and `voting-opened`
 milestone are served from it), and the admin's Transparency tab (the sidecar's `status` and
 `GET /admin/logs`).
@@ -45,15 +45,49 @@ Stubbed: everything else Step's backend does. The election, ballot style, area a
 fixtures (`lib/fixtures.mjs`); the Keycloak issues unsigned development tokens (`alg: none`, which
 keycloak-js doesn't verify); `get_ballot_files_urls` serves the fixtures as JSON files; tallying,
 users, reports and other admin tabs answer empty. The voter's ballots are the ones cast during
-the session: `get_voter_cast_votes` finds them by Tracking ID or by the prefix of a short ID, with
-their cast time, so the voting portal's ballot tracker (Ballot Tracking) works end to end.
+the session.
+
+## The ballot box (`lib/ballot-box.mjs`)
+
+The event's receipts policy is `signed-by-ballot-box` with unlimited checks, so the portal sends the
+voter-signed ballot to the ballot box when the review screen opens, and casts it from there. The
+stand-in plays that ballot box as Harvest and Windmill do:
+
+| Mutation | What it does |
+|---|---|
+| `receive_ballot` | checks that the content parses, carries the voter's key and signature and that the signature covers the ballot hash, the election and the ballot; signs the Received statement with the stand-in's Ed25519 ballot box key (`receipt key` `XXXX-XXXX`); writes the `received` entry (Tracking ID digest) to the ballots log. The same ballot again answers the same receipt and writes nothing |
+| `cast_ballot` | checks the voter's signature over the receipt key (the Cast statement), records the cast, writes the `cast` entry, signs the Cast receipt. The same request again returns the same receipt with no log answer, as Harvest does. An audited ballot, a ballot already cast with another signature, a ballot never received or a signature that doesn't verify answer 400 `PokValidationFailed` |
+| `audit_ballot` | marks the received ballot audited and writes the `audited` entry; a cast ballot is refused (409), an unknown one is not found |
+| `insert_cast_vote` | the direct path: receives the ballot, waits for the log to sequence the `received` entry (the profile's received-first rule), then writes `cast`. It has no cast signature, so it signs no Cast receipt |
+| `get_voter_cast_votes`, `locate_ballot` | the voter's cast ballots, found by the full Tracking ID, the start of one (8 or more Crockford characters, ignoring case and hyphens, with I and L read as 1 and O as 0) or the ballot's hex hash. `locate_ballot` answers found, not-found or ambiguous (listing the Tracking IDs when there are ten or fewer) |
+
+The ballot box key is published in the ballot style (`ballot_eml.ballot_box_key`), the only place the
+portal reads it from, and its seed is fixed (`BALLOT_BOX_SEED` in `lib/fixtures.mjs`). This makes
+the key part of the style text the events log's config statement commits to, so the events log must be
+provisioned from the fixtures of this checkout (see below); a log provisioned from older fixtures
+makes the booth check refuse. The same goes for the ballot style's `keys_ceremony_id`, which the
+portal's encryption needs.
+
+Skipped: `ballot_box_log`, `ballot_box_own`, `ballot_box_entry` and `ballot_box_keys` (the dialog of
+the ballot box log, behind the logs tab that the fixture hides with `hide-logs-tab`); the
+ended-checks period (the checks never end here); recomputing the ballot hash from the content (the
+portal's ballots are version 3, whose hash binds the ballot style, so the stand-in takes the hash
+the portal sends and checks only the voter's signature over it).
+
+Every stage of a ballot is a `vitrine/election/ballots/v1` entry (`received`, then `cast` or
+`audited`) naming the ballot by its Tracking ID digest, so a ballot that is not received first is
+refused by the log's profile. The Tracking ID the voter reads is the first 8 characters of that digest
+in Crockford base 32 (`BJHF-GCZX`).
 
 It also holds one audited ballot, the JSON the portal's Audit screen shows for the fixture election
-(`lib/audited-ballot.mjs`, short ID `9020 e384`). At start-up it records the ballot's ID in the
-ballots log, as a cast would be, and a tracker lookup that names that ID gets the ballot back, so
-the tracker's audit view (the checks, then the decoded selections) can be shown. Step's backend does
-not publish audited ballots: this is the stand-in's own addition, and it never shows in the ballot
-list.
+(`lib/audited-ballot.mjs`). At start-up it writes the ballot's `received` and `audited` entries to the
+ballots log under its Tracking ID (`/__preview/status` names it, `ballotBox.auditedFixture`), and a
+tracker lookup that names that ID gets the ballot back, so the tracker's audit view (the checks, then
+the decoded selections) can be shown. Step's backend does not publish audited ballots: this is the
+stand-in's own addition, and it never shows in the ballot list.
+
+`node --test scripts/vitrine-preview/lib/` runs the unit tests: the statement and Tracking ID
+vectors of sequent-core and the ballot box against a fake log.
 
 ## The booth check needs the events log provisioned
 
