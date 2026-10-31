@@ -166,26 +166,64 @@ connection or file error.
 
 ## Validation on v10.1.0-rc.4
 
-Run on an isolated local stack (no production access). The Step services were
-the published `v10.1.0-rc.4` images (commit `94c01d6`), pulled by digest:
-windmill `0dfd2dec`, harvest `0b9eb97b`, braid `da3deee3`, b3 `77e04c53`,
-immudb `0002a614`, immudb-init `79de15e6`, hasura `beec5f98`, keycloak
-`701e8dd4`, voting-portal `ce9029b4`. No runtime code was changed.
+Run on an isolated local stack (no production access). No runtime code was
+changed. The Step services were the published `v10.1.0-rc.4` images (commit
+`94c01d6`), pulled by digest:
+
+| Image | Digest |
+| --- | --- |
+| windmill | `sha256:0dfd2dec498de2abeb5c137710657ab62111d501cac97f098a41c0074bbbceeb` |
+| harvest | `sha256:0b9eb97b07afcdabbea99c7b94c0e2ef6e36ebf18f5cc5372fc58833b9d38b2e` |
+| braid | `sha256:da3deee31ad5dca0cd1a82b81515d535ae04d7315617d44dfe915105f133e3fa` |
+| b3 | `sha256:77e04c532309ed2753c1aec6a934de00ab41e6ede6fb40afa9bb335c28eec959` |
+| immudb | `sha256:0002a614765d78772b7ce167109307754bf29771165842c11984f76cf7b0774f` |
+| immudb-init | `sha256:79de15e6eaa3a8b60ba24f237722e218914933996fb260932fe79e05e35e1e06` |
+| hasura | `sha256:beec5f98fe93be9242dfdd28546737123b250e9696820a11bb19e255a129c8df` |
+| keycloak | `sha256:701e8dd449ba54bcd3e6920c9224e61d387f85f3a7a8ac9af674e75b597fd636` |
+| voting-portal | `sha256:ce9029b4d623ec801899bc2f505115033a4dd20cad26294d9a5ca2e62a329f9c` |
+
+### Data and selections
 
 The event was a copy of a real voters-weighted event: 1 election, 5
-plurality-at-large contests, 1 area. The census had 448 rows with the original
-weights, eligibility and attribute values, and synthetic usernames and passwords
-instead of personal data. 383 rows had voted in the original event. Those 383
-synthetic voters cast synthetic ballots in 8 fixed blocks, choosing a candidate
-or a blank per contest. Their total weight was 9,657,305.
+plurality-at-large contests with 2 candidates each, 1 area. The census had 448
+rows with the original weights, eligibility and attribute values, and synthetic
+usernames and passwords instead of personal data. 383 rows had voted in the
+original event; their total weight is 9,657,305.
+
+Synthetic voters are numbered `n = 1..448`. Rows that voted come first
+(`n = 1..383`) and the rest follow; inside each group, rows are ordered by the
+SHA-256 of the original voter id. Voter `n ≤ 383` casts one ballot. In contest
+`k` (0-based, in the event's contest order), they choose option
+`((n - 1) div 48 + k) mod 3`: `0` is the contest's first candidate, `1` the
+second (event order), and `2` leaves the contest blank. The expected result
+of an area is, for each contest and option, the sum of the weights of that area's
+voters who chose it.
+
+### Commands
+
+```bash
+step-cli step update-event-voting-status --election-event-id <event> --voting-status CLOSED --voting-channel ONLINE
+step-cli step start-tally --election-event-id <event> --tally-type ELECTORAL_RESULTS   # baseline
+
+regroup plan   --blank-policy keep-in-source-area   # regroup() as in Procedure above
+regroup apply  --blank-policy keep-in-source-area   # exit 3: PUBLICATION_PENDING
+step-cli step publish --election-event-id <event>
+regroup verify --blank-policy keep-in-source-area   # READY_FOR_TALLY
+step-cli step start-tally --election-event-id <event> --tally-type ELECTORAL_RESULTS   # second tally
+```
+
+`regroup` is the `regroup()` shell function from the procedure, with
+`--attribute service_unit`.
+
+### Results
 
 | Step | Result |
 | --- | --- |
 | Cast votes | 383 valid, from 383 distinct voters, exactly the intended ones |
-| Baseline tally | SUCCESS. All 15 counts (5 contests × 2 candidates + blank) equal the independently computed weighted totals. Total 9,657,305, census 448 |
-| `plan` | 448 voters, 40 new areas, 200 area contests, 442 voters and 378 cast votes to move. The 6 voters without a value stay in the source area (`--blank-policy keep-in-source-area`). Per-area counts equal the independent expectation for all 41 groups |
+| Baseline tally | SUCCESS. All 15 counts (5 contests × 3: two candidates and blank) equal the expected weighted totals. Total 9,657,305, census 448 |
+| `plan` | 448 voters, 40 new areas, 200 area contests, 442 voters and 378 cast votes to move. The 6 voters without a value (5 of whom voted) stay in the source area |
 | `apply`, publish, `verify` | `PUBLICATION_PENDING`, then a new publication with 41 ballot styles, then `READY_FOR_TALLY` |
-| Second tally | SUCCESS. All 585 per-area counts, the census and the total weighted votes of all 41 groups equal the independent expectation. Per-contest totals equal the baseline |
+| Second tally | SUCCESS. 41 areas: 39 with ballots (40 attribute values plus the source area), and 2 whose voters did not vote. 585 counts checked (39 areas × 5 contests × 3) and all equal. Census and total weighted votes equal in all 41 areas, including 0 for the 2 areas without ballots. Per-contest totals equal the baseline |
 | Repeat `plan` | Nothing to create or move |
 | `revert` after the second tally | Refused; nothing changed |
 
@@ -204,5 +242,4 @@ Limits of this run:
 
 - Voter login used the standard Keycloak browser flow over local TLS instead of the event's enrollment flow, and outbound email, SMS and external identity services were disabled. These are local test settings, unrelated to tallying.
 - The bulletin board ciphertexts of the two tallies were not compared ballot by ballot. That the second tally counts the original votes follows from the unchanged cast votes and from the exact results above.
-- A first baseline tally in this run reported zero votes and was discarded. The test census had been given an eligibility value that differed from the original (empty). After correcting it, the baseline above was run.
-
+- An earlier baseline tally in this run reported zero votes and is excluded from these results. It remains in the event's history unchanged. The test census had been given an eligibility value (`authorized-election-ids`) that differs from the original, which leaves it empty. After correcting that, the baseline above was run.
